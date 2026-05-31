@@ -13,6 +13,8 @@ import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { Reader } from './Reader'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
+import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
+import { isInEditor, shouldIgnoreTarget } from './keyboard'
 import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
 import type { JournalViewProps, ViewMode } from './journalViewProps'
@@ -44,6 +46,7 @@ export function JournalScreen({
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<ViewMode>('write')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { settings, update: updateSettings } = useSettings()
@@ -130,6 +133,20 @@ export function JournalScreen({
     focusActive: focus.active,
     settingsOpen,
   })
+
+  // “?” summons the keyboard cheat-sheet anywhere (except while typing or when
+  // Settings is open, which has its own Shortcuts tab). ShortcutsOverlay owns Esc.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '?' || settingsOpen) return
+      // Don't hijack a literal "?" typed into a field or the editor.
+      if (shouldIgnoreTarget(e.target) || isInEditor(e.target)) return
+      e.preventDefault()
+      setHelpOpen((open) => !open)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [settingsOpen])
 
   // Keep the active entry's list row in sync as you type.
   useEffect(() => {
@@ -250,6 +267,7 @@ export function JournalScreen({
       {settingsOpen && (
         <SettingsPanel settings={settings} update={updateSettings} onClose={() => setSettingsOpen(false)} />
       )}
+      {helpOpen && <ShortcutsOverlay onClose={() => setHelpOpen(false)} />}
     </>
   )
 }
