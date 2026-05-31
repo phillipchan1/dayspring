@@ -27,6 +27,8 @@ export interface JournalViewProps {
   onQueryChange: (q: string) => void
   mode: ViewMode
   onToggleMode: () => void
+  /** Route to the Reflections ("Looking back") surface. */
+  onLookBack: () => void
   onOpenSettings: () => void
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void

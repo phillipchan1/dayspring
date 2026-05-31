@@ -21,7 +21,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onOpenSettings,
+    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
     settings, updateSettings, focus, mainSlot, userEmail,
   } = props
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -103,6 +103,9 @@ export function MobileJournal(props: JournalViewProps) {
           </button>
           <button className="btn btn--ghost" onClick={onToggleMode}>
             {mode === 'write' ? 'Read' : 'Edit'}
+          </button>
+          <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
+            ⟲
           </button>
           <button className="btn btn--ghost" onClick={focus.enter}>
             Focus

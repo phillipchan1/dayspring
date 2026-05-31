@@ -232,3 +232,249 @@ a {
   border-top: 1px solid var(--border-subtle);
   background: var(--bg);
 }
+
+/* ── Topic-filter banner (entry list restricted from a rollup topic) ──────── */
+.restrict-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 auto 1.25rem;
+  max-width: var(--editor-max-width);
+  padding: 0.5rem 0.85rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* ── Reflections surface ──────────────────────────────────────────────────── */
+.reflections {
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+.reflections__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.reflections__period {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-bright);
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+.reflections__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 1.25rem 4rem;
+}
+.reflections__notice {
+  max-width: 34rem;
+  margin: 18vh auto 0;
+  text-align: center;
+}
+.reflections__empty-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--text-bright);
+  font-size: 1.6rem;
+  margin: 0 0 0.6rem;
+}
+
+/* ── The rollup itself ──────────────────────────────────────────────────── */
+.rollup {
+  max-width: 44rem;
+  margin: 0 auto;
+}
+.rollup__header {
+  position: relative;
+  padding: 3rem 0 2.25rem;
+  text-align: center;
+}
+.rollup__glow {
+  position: absolute;
+  inset: -1px 0 auto 0;
+  height: 14rem;
+  background: var(--rollup-glow);
+  pointer-events: none;
+  z-index: 0;
+}
+.rollup__eyebrow {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.rollup__title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.05;
+  color: var(--text-bright);
+}
+.rollup__section {
+  margin: 2.5rem 0;
+}
+.rollup__h2 {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 1rem;
+}
+
+/* You wrote — the writer's words, left-ruled, in Newsreader. */
+.rollup__quotes {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.rollup-quote {
+  margin: 0;
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--accent);
+}
+.rollup-quote__text {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  line-height: 1.5;
+  color: var(--text-bright);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.rollup-quote__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.rollup-quote__date {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+.rollup-quote__open {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+.rollup-quote__open:hover {
+  text-decoration: underline;
+}
+
+/* By the numbers — stat cards. */
+.rollup__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.75rem;
+}
+.stat-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+}
+.stat-card__value {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.7rem;
+  color: var(--text-bright);
+  line-height: 1.1;
+}
+.stat-card__label {
+  margin-top: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* One thing I noticed — quiet, dashed aside. */
+.rollup-observation {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* Topics — nav chips. */
+.rollup__topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.topic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text-bright);
+  font-size: 0.85rem;
+  transition: background var(--transition), border-color var(--transition);
+}
+.topic-chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.topic-chip__count {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.rollup__footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* Loading skeleton. */
+.skeleton {
+  background: var(--bg-hover);
+  border-radius: var(--radius);
+  opacity: 0.6;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.skeleton--title { height: 2.5rem; width: 60%; margin: 3rem auto 2rem; }
+.skeleton--line { height: 1.4rem; margin: 0.8rem 0; }
+.skeleton--block { height: 6rem; margin: 1.5rem 0; }
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}

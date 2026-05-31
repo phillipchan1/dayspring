@@ -20,6 +20,24 @@ function range(r: DiarlyParseResult['dateRange']): string {
   return day(r.earliest) === day(r.latest) ? day(r.earliest) : `${day(r.earliest)} → ${day(r.latest)}`
 }
 
+/**
+ * Supabase throws a PostgrestError (a plain object, not an Error), so surface its
+ * real message/code/hint instead of a generic string. A missing ON CONFLICT
+ * target or a rejected `source` value both mean the Diarly migration hasn't run.
+ */
+function describeWriteError(e: unknown): string {
+  const pg = e as { message?: string; code?: string; hint?: string } | null
+  const msg = pg?.message ?? (e instanceof Error ? e.message : '') ?? ''
+  const text = msg ? `Import failed: ${msg}${pg?.code ? ` (code ${pg.code})` : ''}` : 'Import failed while writing to Supabase.'
+  const looksLikeMissingMigration =
+    pg?.code === '42P10' || // no unique/exclusion constraint matching ON CONFLICT
+    pg?.code === '23514' || // check constraint violation (source not yet allowing 'diarly')
+    /on conflict|check constraint/i.test(msg)
+  return looksLikeMissingMigration
+    ? `${text} — looks like the Diarly DB migration hasn't been applied. Run supabase/migrations/20260530_diarly_import.sql in the Supabase SQL editor, then retry.`
+    : text
+}
+
 export function DiarlyImport() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [result, setResult] = useState<DiarlyParseResult | null>(null)
@@ -67,7 +85,7 @@ export function DiarlyImport() {
       })
       setPhase('done')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import failed while writing to Supabase.')
+      setError(describeWriteError(e))
       setPhase('error')
     }
   }

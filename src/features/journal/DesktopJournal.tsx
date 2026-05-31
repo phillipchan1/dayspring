@@ -15,7 +15,7 @@ import type { JournalViewProps } from './journalViewProps'
 export function DesktopJournal(props: JournalViewProps) {
   const {
     userEmail, entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onOpenSettings,
+    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
     settings, updateSettings, focus, mainSlot,
   } = props
   const [showList, setShowList] = useState(true)
@@ -58,6 +58,9 @@ export function DesktopJournal(props: JournalViewProps) {
               </button>
               <button className="btn btn--ghost" onClick={onToggleMode} title="Toggle read / edit">
                 {mode === 'write' ? 'Read' : 'Edit'}
+              </button>
+              <button className="btn btn--ghost" onClick={onLookBack} title="Monthly reflections">
+                Looking back
               </button>
             </div>
 

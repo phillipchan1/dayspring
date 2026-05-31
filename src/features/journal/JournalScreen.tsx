@@ -16,7 +16,26 @@ import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
 import type { JournalViewProps, ViewMode } from './journalViewProps'
 
-export function JournalScreen({ userEmail }: { userEmail: string }) {
+interface JournalScreenProps {
+  userEmail: string
+  /** Route to the Reflections surface. */
+  onLookBack: () => void
+  /** When set, select & open this entry (from a rollup quote), then clear. */
+  jumpEntryId: string | null
+  onConsumeJump: () => void
+  /** When set, restrict the entry list to these ids (from a rollup topic). */
+  restrictIds: string[] | null
+  onClearRestrict: () => void
+}
+
+export function JournalScreen({
+  userEmail,
+  onLookBack,
+  jumpEntryId,
+  onConsumeJump,
+  restrictIds,
+  onClearRestrict,
+}: JournalScreenProps) {
   const [entries, setEntries] = useState<Entry[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [content, setContent] = useState('')
@@ -123,12 +142,36 @@ export function JournalScreen({ userEmail }: { userEmail: string }) {
     setContent(entry.body_markdown)
   }
 
+  // A rollup quote click sets jumpEntryId: open that entry in the reader once
+  // it's loaded, then consume the intent so re-renders don't re-trigger it.
+  const consumedJumpRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!jumpEntryId || consumedJumpRef.current === jumpEntryId) return
+    const target = entries.find((e) => e.id === jumpEntryId)
+    if (!target) return // entries still loading; retry when they arrive
+    consumedJumpRef.current = jumpEntryId
+    void (async () => {
+      await saveNow()
+      setActiveId(jumpEntryId)
+      setContent(target.body_markdown)
+      setMode('read')
+      onConsumeJump()
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpEntryId, entries])
+
   const words = useMemo(() => wordCount(content), [content])
-  const visibleEntries = useMemo(() => filterEntries(entries, query), [entries, query])
+  const visibleEntries = useMemo(() => {
+    if (restrictIds) {
+      const set = new Set(restrictIds)
+      return entries.filter((e) => set.has(e.id))
+    }
+    return filterEntries(entries, query)
+  }, [entries, query, restrictIds])
   const activeEntry = entries.find((e) => e.id === activeId) ?? null
   const docKey = activeId ?? 'new'
 
-  const mainSlot = loadError ? (
+  const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
   ) : mode === 'read' ? (
     <Reader markdown={content} createdAt={activeEntry?.created_at} />
@@ -142,6 +185,22 @@ export function JournalScreen({ userEmail }: { userEmail: string }) {
       typewriter={focus.active && settings.typewriter}
       dimming={focus.active && settings.dimming}
     />
+  )
+
+  const mainSlot = restrictIds ? (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div className="restrict-banner">
+        <span>
+          Showing {visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'} from a topic
+        </span>
+        <button className="btn btn--ghost" onClick={onClearRestrict}>
+          Clear
+        </button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>{surface}</div>
+    </div>
+  ) : (
+    surface
   )
 
   const viewProps: JournalViewProps = {
@@ -158,6 +217,7 @@ export function JournalScreen({ userEmail }: { userEmail: string }) {
     onQueryChange: setQuery,
     mode,
     onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
+    onLookBack,
     onOpenSettings: () => setSettingsOpen(true),
     settings,
     updateSettings,

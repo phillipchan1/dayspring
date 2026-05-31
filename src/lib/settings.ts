@@ -21,7 +21,7 @@ const DEFAULTS: Settings = {
   fontSize: 17,
   lineHeight: 1.7,
   maxWidth: 42,
-  theme: 'one-dark',
+  theme: 'ink', // Ink is the default dark theme (Dawn = light, Ember = warm dark)
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'
@@ -31,7 +31,11 @@ function load(): Settings {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return DEFAULTS
     const parsed = JSON.parse(raw) as Partial<Settings>
-    return { ...DEFAULTS, ...parsed }
+    const merged = { ...DEFAULTS, ...parsed }
+    // 'one-dark' was the sole Phase-1 theme (never a deliberate choice), now
+    // superseded by the Dawn/Ink/Ember set — migrate it to the new default.
+    if (merged.theme === 'one-dark') merged.theme = DEFAULTS.theme
+    return merged
   } catch {
     return DEFAULTS
   }

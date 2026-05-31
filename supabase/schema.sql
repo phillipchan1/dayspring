@@ -55,3 +55,49 @@ create policy "entries are private to owner"
   for all
   using (auth.uid() = owner)
   with check (auth.uid() = owner);
+
+-- ── insights (§5) ──────────────────────────────────────────────────────────
+-- Grounded rollups (weekly → monthly → yearly). Facts are computed in code; the
+-- model only selects verbatim quotes, labels topics, and writes one hedged note.
+create table if not exists public.insights (
+  id                uuid primary key default gen_random_uuid(),
+  owner             uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  entry_id          uuid references public.entries (id) on delete set null,  -- null for period rollups
+  type              text not null check (type in ('per_entry','weekly','monthly','yearly','win')),
+  lens              text,
+  period_start      date,
+  period_end        date,
+  source_ids        uuid[] not null default '{}',     -- entries (weekly) or child insights (monthly/yearly)
+  content_markdown  text,                              -- optional prose; UI mainly uses structured_payload
+  structured_payload jsonb not null default '{}',      -- the contract in §3
+  source_model      text,
+  pushed            boolean not null default false,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+-- One rollup per (owner, type, period). Lets the job re-run idempotently.
+-- NB: this is a PARTIAL unique index, so a bare supabase-js upsert (onConflict:
+-- 'owner,type,period_start,period_end') CANNOT infer it as an ON CONFLICT
+-- arbiter. The synthesis job therefore does an explicit select-then-update/insert
+-- (see api/_lib/synthesize.ts upsertInsight) for idempotency; this index is the
+-- database-level guard against ever landing two rows for the same period.
+create unique index if not exists insights_period_key
+  on public.insights (owner, type, period_start, period_end)
+  where type in ('weekly','monthly','yearly');
+
+create index if not exists insights_type_period_idx
+  on public.insights (owner, type, period_start desc);
+
+drop trigger if exists insights_set_updated_at on public.insights;
+create trigger insights_set_updated_at
+  before update on public.insights
+  for each row execute function public.set_updated_at();   -- reuse existing fn
+
+alter table public.insights enable row level security;
+
+drop policy if exists "insights are private to owner" on public.insights;
+create policy "insights are private to owner"
+  on public.insights for all
+  using (auth.uid() = owner) with check (auth.uid() = owner);
+-- NB: the service-role key used by the cron bypasses RLS; it must set `owner` explicitly on insert.

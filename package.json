@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "backfill": "tsx scripts/backfill.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -16,7 +17,9 @@
     "@codemirror/language": "^6.12.3",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.43.0",
+    "@fontsource/fraunces": "^5.2.9",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/newsreader": "^5.2.10",
     "@lezer/highlight": "^1.2.3",
     "@supabase/supabase-js": "^2.106.2",
     "codemirror": "^6.0.2",
@@ -24,6 +27,7 @@
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "marked": "^18.0.4",
+    "openai": "^6.39.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
@@ -33,6 +37,7 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.14"
   }

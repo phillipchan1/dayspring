@@ -10,6 +10,9 @@
     Consolas, monospace;
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-editor: var(--font-mono);
+  /* Reflections roles: Fraunces for display headings, Newsreader for quoted words. */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
 
   --editor-font-size: 17px;
   --editor-line-height: 1.7;
@@ -50,4 +53,109 @@
 
   --danger: #e06c75;
   --success: #98c379;
+
+  /* Dawn-glow behind the Reflections header. */
+  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(229, 192, 123, 0.18), transparent 60%);
+}
+
+/* ── Dawn (light) ───────────────────────────────────────────────────────── */
+[data-theme='dawn'] {
+  color-scheme: light;
+
+  --bg: #fbf6ee;
+  --bg-elevated: #fffdf8;
+  --bg-input: #f3ece0;
+  --bg-hover: #efe6d6;
+
+  --border: #e2d7c4;
+  --border-subtle: #ece3d4;
+
+  --text: #4a4035;
+  --text-bright: #2a2118;
+  --text-dim: #8a7c69;
+  --text-faint: #b4a78f;
+
+  --accent: #c2683a;
+  --accent-soft: rgba(194, 104, 58, 0.12);
+
+  --md-heading: #b5552c;
+  --md-emphasis: #9a5ba6;
+  --md-strong: #b06a2c;
+  --md-link: #b5552c;
+  --md-code: #5a7d3a;
+  --md-quote: #8a7c69;
+  --md-list: #3a8a8a;
+
+  --danger: #c0392b;
+  --success: #4f8a3d;
+
+  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(244, 180, 110, 0.5), transparent 62%);
+}
+
+/* ── Ink (dark, cool — default dark) ────────────────────────────────────── */
+[data-theme='ink'] {
+  color-scheme: dark;
+
+  --bg: #14161d;
+  --bg-elevated: #1b1e27;
+  --bg-input: #20242f;
+  --bg-hover: #262b38;
+
+  --border: #2e3340;
+  --border-subtle: #23272f;
+
+  --text: #c2c6d0;
+  --text-bright: #eef0f5;
+  --text-dim: #7a8090;
+  --text-faint: #565c6a;
+
+  --accent: #e0a64e;
+  --accent-soft: rgba(224, 166, 78, 0.14);
+
+  --md-heading: #e0a64e;
+  --md-emphasis: #b98ce0;
+  --md-strong: #e0a64e;
+  --md-link: #76a9e8;
+  --md-code: #8ec07c;
+  --md-quote: #7a8090;
+  --md-list: #5fb3c2;
+
+  --danger: #e06c75;
+  --success: #8ec07c;
+
+  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(224, 166, 78, 0.22), transparent 60%);
+}
+
+/* ── Ember (dark, warm) ─────────────────────────────────────────────────── */
+[data-theme='ember'] {
+  color-scheme: dark;
+
+  --bg: #1a1411;
+  --bg-elevated: #221915;
+  --bg-input: #2a1f19;
+  --bg-hover: #33261d;
+
+  --border: #3d2d22;
+  --border-subtle: #2c2019;
+
+  --text: #d8c8ba;
+  --text-bright: #f4e8dc;
+  --text-dim: #9a8472;
+  --text-faint: #6b5a4c;
+
+  --accent: #e8743c;
+  --accent-soft: rgba(232, 116, 60, 0.16);
+
+  --md-heading: #f0a868;
+  --md-emphasis: #d98cc0;
+  --md-strong: #e8743c;
+  --md-link: #f0a868;
+  --md-code: #a8c07c;
+  --md-quote: #9a8472;
+  --md-list: #d98c5c;
+
+  --danger: #e0685c;
+  --success: #a8c07c;
+
+  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(232, 116, 60, 0.26), transparent 60%);
 }

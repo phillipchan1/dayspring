@@ -9,7 +9,11 @@ interface Props {
   onClose: () => void
 }
 
-const THEMES = [{ value: 'one-dark', label: 'One Dark' }]
+const THEMES = [
+  { value: 'dawn', label: 'Dawn (light)' },
+  { value: 'ink', label: 'Ink (dark)' },
+  { value: 'ember', label: 'Ember (dark)' },
+]
 
 export function SettingsPanel({ settings, update, onClose }: Props) {
   useEffect(() => {
