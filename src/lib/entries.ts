@@ -1,5 +1,5 @@
 import { requireSupabase } from './supabase'
-import type { Entry, NewEntry } from './types'
+import type { Entry, EntrySource, NewEntry } from './types'
 
 export function wordCount(markdown: string): number {
   const trimmed = markdown.trim()
@@ -51,6 +51,47 @@ export async function upsertEntryRow(entry: Entry): Promise<Entry> {
 
   if (error) throw error
   return data as Entry
+}
+
+/** A row ready to import from an external source (e.g. a Diarly export). */
+export interface ImportedEntry {
+  created_at: string
+  body_markdown: string
+  title: string | null
+  tags: string[]
+  word_count: number
+  external_id: string
+}
+
+const IMPORT_BATCH_SIZE = 500
+
+/**
+ * Upsert imported rows in batches, deduping on (source, external_id) so
+ * re-importing the same export never creates duplicates. `owner` is omitted so
+ * the DB default (auth.uid()) fills it and RLS keeps the rows private.
+ * `onProgress(done, total)` fires after each batch.
+ */
+export async function upsertImportedEntries(
+  rows: ImportedEntry[],
+  source: EntrySource,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  const sb = requireSupabase()
+  for (let i = 0; i < rows.length; i += IMPORT_BATCH_SIZE) {
+    const batch = rows.slice(i, i + IMPORT_BATCH_SIZE).map((r) => ({
+      created_at: r.created_at,
+      body_markdown: r.body_markdown,
+      title: r.title,
+      mood: null,
+      tags: r.tags,
+      word_count: r.word_count,
+      source,
+      external_id: r.external_id,
+    }))
+    const { error } = await sb.from('entries').upsert(batch, { onConflict: 'source,external_id' })
+    if (error) throw error
+    onProgress?.(Math.min(i + batch.length, rows.length), rows.length)
+  }
 }
 
 /** Update an entry's body (recomputes word_count). Returns the persisted row. */

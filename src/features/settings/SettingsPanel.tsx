@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { Settings } from '@/lib/settings'
 import { settingsStore } from '@/lib/settings'
+import { DiarlyImport } from './DiarlyImport'
 
 interface Props {
   settings: Settings
@@ -24,7 +25,7 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 'min(92vw, 26rem)',
+          width: 'min(92vw, 30rem)',
           maxHeight: '85vh',
           overflowY: 'auto',
           background: 'var(--bg-elevated)',
@@ -83,6 +84,8 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
           <Toggle label="Typewriter scrolling" hint="Active line centered (focus mode)" checked={settings.typewriter} onChange={(v) => update({ typewriter: v })} />
           <Toggle label="Paragraph dimming" hint="Fade all but the current paragraph (focus mode)" checked={settings.dimming} onChange={(v) => update({ dimming: v })} />
         </div>
+
+        <DiarlyImport />
 
         <button className="btn btn--ghost" style={{ marginTop: '0.5rem' }} onClick={() => settingsStore.reset()}>
           Reset to defaults

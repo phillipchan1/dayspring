@@ -1,6 +1,6 @@
 // Domain types mirroring the Supabase schema (§5 of the spec).
 
-export type EntrySource = 'native' | 'day_one' | 'other'
+export type EntrySource = 'native' | 'day_one' | 'diarly' | 'other'
 
 export interface Entry {
   id: string

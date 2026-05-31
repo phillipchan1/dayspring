@@ -78,5 +78,9 @@ react, react-dom, @supabase/supabase-js, codemirror + @codemirror/* (state/view/
 
 ---
 
+## Planned phases (designs)
+- **Multi-tenancy** — [docs/MULTI_TENANCY_PLAN.md](./docs/MULTI_TENANCY_PLAN.md). Data model is already RLS-isolated per `owner`; remaining work is client-side isolation fixes (cache purge on sign-out, per-owner import index), then the product/billing layer.
+- **Diarly image import** — [docs/IMAGE_IMPORT_PLAN.md](./docs/IMAGE_IMPORT_PLAN.md). Storage bucket + `attachments` table + streaming upload pipeline; the paid premium tier.
+
 ## Open questions / parking lot
 - (none right now)

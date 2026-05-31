@@ -14,16 +14,18 @@ create table if not exists public.entries (
   mood          text,
   tags          text[] not null default '{}',
   word_count    integer not null default 0,
-  source        text not null default 'native' check (source in ('native', 'day_one', 'other')),
+  source        text not null default 'native' check (source in ('native', 'day_one', 'diarly', 'other')),
   external_id   text
 );
 
--- Dedup target for idempotent imports (§7): (source, external_id) is unique
--- when external_id is present. Native entries have null external_id, so they
--- are never deduped against each other.
+-- Dedup target for idempotent imports (§7): (source, external_id) is unique.
+-- The index is intentionally NOT partial — Supabase upserts pass a bare
+-- onConflict: 'source,external_id', and Postgres can only infer a non-partial
+-- index from a bare column list. Native rows carry a null external_id, and
+-- nulls are distinct in a unique index, so they are never deduped against each
+-- other.
 create unique index if not exists entries_source_external_id_key
-  on public.entries (source, external_id)
-  where external_id is not null;
+  on public.entries (source, external_id);
 
 create index if not exists entries_created_at_idx on public.entries (created_at desc);
 
