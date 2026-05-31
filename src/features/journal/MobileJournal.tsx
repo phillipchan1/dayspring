@@ -113,7 +113,11 @@ export function MobileJournal(props: JournalViewProps) {
           <button className="btn btn--ghost" onClick={onNew}>
             + New
           </button>
-          <button className="btn btn--ghost" onClick={onToggleMode}>
+          <button
+            className="btn btn--ghost"
+            onClick={onToggleMode}
+            title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
+          >
             {mode === 'write' ? 'Read' : 'Edit'}
           </button>
           <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">

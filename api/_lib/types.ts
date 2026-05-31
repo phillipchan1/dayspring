@@ -41,6 +41,8 @@ export interface RollupPayload {
   facts: Facts
   observation: Observation | null
   topics: Topic[]
+  /** id → "Title (Apr 7)" for human-readable observation copy. */
+  entry_labels?: Record<string, string>
   meta: { model: string; generated_at: string }
 }
 

@@ -85,17 +85,21 @@ export function ReflectionsScreen({ onBack, onOpenEntry, onFilterEntries }: Prop
       </header>
 
       <div className="reflections__body">
-        {state.kind === 'loading' && <RollupSkeleton />}
+        {state.kind === 'loading' && (
+          <div className="reflections-canvas__content reflections-canvas__content--padded">
+            <RollupSkeleton />
+          </div>
+        )}
 
         {state.kind === 'error' && (
-          <div className="reflections__notice">
+          <div className="reflections__notice reflections-canvas__content--padded">
             <p style={{ color: 'var(--danger)' }}>Couldn't load your reflections.</p>
             <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>{state.message}</p>
           </div>
         )}
 
         {state.kind === 'ready' && !active && (
-          <div className="reflections__notice">
+          <div className="reflections__notice reflections-canvas__content--padded">
             <h1 className="reflections__empty-title">Your first monthly reflection</h1>
             <p style={{ color: 'var(--text-dim)' }}>
               It unlocks after a few weeks of writing — keep going.
@@ -104,11 +108,16 @@ export function ReflectionsScreen({ onBack, onOpenEntry, onFilterEntries }: Prop
         )}
 
         {active && (
-          <MonthlyRollup
-            payload={active.payload}
-            onOpenEntry={onOpenEntry}
-            onFilterEntries={onFilterEntries}
-          />
+          <div className="reflections-canvas">
+            <div className="reflections-glow" aria-hidden />
+            <div className="reflections-canvas__content">
+              <MonthlyRollup
+                payload={active.payload}
+                onOpenEntry={onOpenEntry}
+                onFilterEntries={onFilterEntries}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import type { RollupPayload } from '@/lib/insights'
+import { deriveTitle, humanizeObservationText } from '@/lib/entryLabels'
 
 interface Props {
   payload: RollupPayload
@@ -16,6 +17,20 @@ function fmtDay(dateStr: string): string {
   })
 }
 
+function fallbackLabels(quotes: RollupPayload['quotes']): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const q of quotes) {
+    const name = deriveTitle(q.text) || 'Untitled'
+    const d = new Date(`${q.date}T00:00:00Z`).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    })
+    out[q.entry_id] = `${name} (${d})`
+  }
+  return out
+}
+
 function fmtPeriodTitle(start: string, type: string): string {
   const d = new Date(`${start}T00:00:00Z`)
   if (type === 'monthly') {
@@ -25,13 +40,18 @@ function fmtPeriodTitle(start: string, type: string): string {
 }
 
 export function MonthlyRollup({ payload, onOpenEntry, onFilterEntries }: Props) {
-  const { period, quotes, facts, observation, topics } = payload
+  const { period, quotes, facts, observation, topics, entry_labels: entryLabels } = payload
   const title = fmtPeriodTitle(period.start, period.type)
+  const observationText = observation?.text.trim()
+    ? humanizeObservationText(
+        observation.text,
+        entryLabels ?? fallbackLabels(quotes),
+      )
+    : ''
 
   return (
     <article className="rollup">
       <header className="rollup__header">
-        <div className="rollup__glow" aria-hidden="true" />
         <p className="rollup__eyebrow">{title}</p>
         <h1 className="rollup__title">In your own words</h1>
       </header>
@@ -74,10 +94,10 @@ export function MonthlyRollup({ payload, onOpenEntry, onFilterEntries }: Props) 
       </section>
 
       {/* One hedged note — hidden entirely if empty. */}
-      {observation && observation.text.trim().length > 0 && (
+      {observationText && (
         <section className="rollup__section">
           <h2 className="rollup__h2">One thing I noticed</h2>
-          <aside className="rollup-observation">{observation.text}</aside>
+          <aside className="rollup-observation">{observationText}</aside>
         </section>
       )}
 

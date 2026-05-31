@@ -3,9 +3,14 @@ export function hasMod(e: KeyboardEvent): boolean {
   return e.metaKey || e.ctrlKey
 }
 
+/** True when focus is in the writing editor (CodeMirror). */
+export function isInEditor(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('.cm-editor') != null
+}
+
 /**
  * Skip shortcuts while typing in form fields, except the CodeMirror surface
- * (contenteditable) where app shortcuts should still apply.
+ * (contenteditable) where mod-key shortcuts should still apply.
  */
 export function shouldIgnoreTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false

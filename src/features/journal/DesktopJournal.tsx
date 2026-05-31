@@ -54,10 +54,14 @@ export function DesktopJournal(props: JournalViewProps) {
               >
                 {showList ? '◀' : '☰'}
               </button>
-              <button className="btn btn--ghost" onClick={onNew} title="New entry (⌘N)">
+              <button className="btn btn--ghost" onClick={onNew} title="New entry (C)">
                 + New
               </button>
-              <button className="btn btn--ghost" onClick={onToggleMode} title="Toggle read / edit (⌘⇧R)">
+              <button
+                className="btn btn--ghost"
+                onClick={onToggleMode}
+                title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
+              >
                 {mode === 'write' ? 'Read' : 'Edit'}
               </button>
               <button className="btn btn--ghost" onClick={onLookBack} title="Monthly reflections">

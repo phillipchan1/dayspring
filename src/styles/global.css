@@ -526,7 +526,28 @@ a {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 1.25rem 4rem;
+  padding: 0 0 4rem;
+}
+/* Full-bleed glow under the bar; rollup content stays max-width centered. */
+.reflections-canvas {
+  position: relative;
+}
+.reflections-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 16rem;
+  background: var(--journal-glow);
+  pointer-events: none;
+  z-index: 0;
+}
+.reflections-canvas__content {
+  position: relative;
+  z-index: 1;
+}
+.reflections-canvas__content--padded {
+  padding: 0 1.25rem;
 }
 .reflections__notice {
   max-width: 34rem;
@@ -545,23 +566,13 @@ a {
 .rollup {
   max-width: 44rem;
   margin: 0 auto;
+  padding: 0 1.25rem;
 }
 .rollup__header {
-  position: relative;
   padding: 3rem 0 2.25rem;
   text-align: center;
 }
-.rollup__glow {
-  position: absolute;
-  inset: -1px 0 auto 0;
-  height: 14rem;
-  background: var(--rollup-glow);
-  pointer-events: none;
-  z-index: 0;
-}
 .rollup__eyebrow {
-  position: relative;
-  z-index: 1;
   margin: 0 0 0.4rem;
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -570,8 +581,6 @@ a {
   color: var(--text-dim);
 }
 .rollup__title {
-  position: relative;
-  z-index: 1;
   margin: 0;
   font-family: var(--font-display);
   font-weight: 500;

@@ -72,9 +72,7 @@
   --danger: #e06c75;
   --success: #c2a86a; /* warm "saved" — not clinical green */
 
-  /* Dawn-glow behind the Reflections header. */
-  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(229, 192, 123, 0.18), transparent 60%);
-  /* Parallel glow behind the writing canvas — a touch taller than the rollup's. */
+  /* Writing + Looking back — shared horizon glow. */
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(229, 192, 123, 0.16), rgba(229, 192, 123, 0.05) 40%, transparent 64%);
 }
 
@@ -109,7 +107,6 @@
   --danger: #c0392b;
   --success: #9a7a3a; /* warm "saved" — not clinical green */
 
-  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(244, 180, 110, 0.5), transparent 62%);
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(224, 150, 70, 0.22), rgba(181, 80, 58, 0.05) 40%, transparent 64%);
 }
 
@@ -144,9 +141,7 @@
   --danger: #e06c75;
   --success: #c2a86a; /* warm "saved" — not clinical green */
 
-  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(224, 166, 78, 0.22), transparent 60%);
-  /* Moonlight, not sunrise — dark mode gets a cool, subtle silver-blue glow and
-     a matching cool horizon, while light (Dawn) keeps its warm dawn. */
+  /* Moonlight, not sunrise — cool silver-blue glow (writing + Looking back). */
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(186, 202, 236, 0.14), rgba(150, 170, 210, 0.04) 45%, transparent 66%);
   --journal-horizon: rgba(186, 202, 236, 0.6);
 }
@@ -182,6 +177,5 @@
   --danger: #e0685c;
   --success: #c2a86a; /* warm "saved" — not clinical green */
 
-  --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(232, 116, 60, 0.26), transparent 60%);
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(232, 116, 60, 0.20), rgba(232, 116, 60, 0.05) 40%, transparent 64%);
 }

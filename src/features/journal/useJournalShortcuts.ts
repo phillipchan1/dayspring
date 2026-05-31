@@ -1,11 +1,18 @@
 import { useEffect } from 'react'
-import { focusEntrySearch, hasMod, shouldIgnoreTarget } from './keyboard'
+import { focusEntrySearch, hasMod, isInEditor, shouldIgnoreTarget } from './keyboard'
+import type { ViewMode } from './journalViewProps'
 
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
-  onToggleMode: () => void
   onOpenSettings: () => void
+  /** Write → read (Esc). */
+  onExitEdit: () => void
+  /** Read → write (E). */
+  onEnterEdit: () => void
+  mode: ViewMode
+  /** Focus mode consumes Esc first (handled in useFocusMode). */
+  focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
   settingsOpen: boolean
 }
@@ -13,28 +20,49 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * ⌘N new entry · ⌘S save now · ⌘⇧R read/edit · ⌘, settings · ⌘K search
+ * C compose · E edit · Esc read · ⌘S save · ⌘, settings · ⌘K search
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
-  const { onNew, onSave, onToggleMode, onOpenSettings, settingsOpen } = actions
+  const {
+    onNew, onSave, onOpenSettings, onExitEdit, onEnterEdit, mode, focusActive, settingsOpen,
+  } = actions
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (settingsOpen) return
-      if (!hasMod(e)) return
-      if (shouldIgnoreTarget(e.target)) return
+
+      if (e.key === 'Escape') {
+        if (focusActive) return
+        if (mode === 'write') {
+          e.preventDefault()
+          onExitEdit()
+        }
+        return
+      }
 
       const key = e.key.toLowerCase()
 
-      if (key === 'n') {
-        e.preventDefault()
-        onNew()
-      } else if (key === 's') {
+      if (!hasMod(e) && !e.altKey && !e.shiftKey) {
+        if (shouldIgnoreTarget(e.target)) return
+
+        if (key === 'c' && !(mode === 'write' && isInEditor(e.target))) {
+          e.preventDefault()
+          onNew()
+          return
+        }
+        if (key === 'e' && mode === 'read') {
+          e.preventDefault()
+          onEnterEdit()
+          return
+        }
+      }
+
+      if (!hasMod(e)) return
+      if (shouldIgnoreTarget(e.target)) return
+
+      if (key === 's') {
         e.preventDefault()
         void onSave()
-      } else if (key === 'r' && e.shiftKey) {
-        e.preventDefault()
-        onToggleMode()
       } else if (key === ',') {
         e.preventDefault()
         onOpenSettings()
@@ -46,5 +74,5 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
 
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onNew, onSave, onToggleMode, onOpenSettings, settingsOpen])
+  }, [onNew, onSave, onOpenSettings, onExitEdit, onEnterEdit, mode, focusActive, settingsOpen])
 }

@@ -122,8 +122,11 @@ export function JournalScreen({
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
+    onExitEdit: () => setMode('read'),
+    onEnterEdit: () => setMode('write'),
     onOpenSettings: openSettings,
+    mode,
+    focusActive: focus.active,
     settingsOpen,
   })
 
