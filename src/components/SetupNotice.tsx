@@ -1,10 +1,10 @@
+import { Brand } from '@/components/Mark'
+
 export function SetupNotice() {
   return (
     <div className="center-screen">
       <div style={{ maxWidth: '34rem', textAlign: 'left' }}>
-        <h1 style={{ color: 'var(--text-bright)', fontFamily: 'var(--font-mono)' }}>
-          Dayspring
-        </h1>
+        <Brand size={28} wordmarkRem={1.6} style={{ marginBottom: '0.75rem' }} />
         <p style={{ color: 'var(--text-dim)' }}>
           Almost there. Create a <code>.env.local</code> file (copy{' '}
           <code>.env.example</code>) and add your Supabase keys:

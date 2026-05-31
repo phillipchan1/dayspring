@@ -1,3 +1,4 @@
+import { AppearanceToggle } from '@/components/AppearanceToggle'
 import type { Settings } from '@/lib/settings'
 import type { FocusMode } from './useFocusMode'
 
@@ -9,29 +10,20 @@ interface Props {
   visible: boolean
 }
 
-/**
- * Subtle floating pills while writing. Auto (system appearance) is always
- * available; typewriter / dim / exit appear in focus mode.
- */
+/** Subtle floating pills while writing; typewriter / dim / exit in focus mode. */
 export function WritingControls({ settings, update, focus, visible }: Props) {
   if (!visible) return null
 
   return (
     <div className="focus-controls">
-      <button
-        className="toggle-pill"
-        data-on={settings.followSystem}
-        onClick={() => update({ followSystem: !settings.followSystem })}
-        title={
-          settings.followSystem
-            ? 'Following system light/dark (click to use fixed theme)'
-            : 'Use fixed theme (click to match system)'
-        }
-      >
-        Auto
-      </button>
+      <AppearanceToggle
+        compact
+        appearance={settings.appearance}
+        onChange={(appearance) => update({ appearance })}
+      />
       {focus.active && (
         <>
+          <span className="focus-controls__sep" aria-hidden />
           <button
             className="toggle-pill"
             data-on={settings.typewriter}

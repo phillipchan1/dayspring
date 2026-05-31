@@ -1,7 +1,18 @@
 import { useEffect } from 'react'
-import type { Settings } from '@/lib/settings'
-import { settingsStore } from '@/lib/settings'
+import { AppearanceToggle } from '@/components/AppearanceToggle'
+import type { EditorFont, Settings } from '@/lib/settings'
+import { EDITOR_FONT_VARS, FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { DiarlyImport } from './DiarlyImport'
+
+// Writing-font picker order (each option previews in its own face).
+const WRITING_FONTS: { value: EditorFont; label: string }[] = [
+  { value: 'serif', label: 'Serif' },
+  { value: 'literary', label: 'Literary' },
+  { value: 'typewriter', label: 'Typewriter' },
+  { value: 'mono', label: 'Mono' },
+  { value: 'sans', label: 'Sans' },
+  { value: 'readable', label: 'Readable' },
+]
 
 interface Props {
   settings: Settings
@@ -9,19 +20,17 @@ interface Props {
   onClose: () => void
 }
 
-const THEMES = [
-  { value: 'dawn', label: 'Dawn (light)' },
-  { value: 'ink', label: 'Ink (dark)' },
-  { value: 'ember', label: 'Ember (dark)' },
-]
-
 export function SettingsPanel({ settings, update, onClose }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      // Capture + preventDefault: with fullscreen keyboard lock, Esc closes modal first.
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
   return (
@@ -34,7 +43,8 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
           overflowY: 'auto',
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-3)',
           padding: '1.25rem 1.4rem',
         }}
       >
@@ -45,33 +55,51 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
           <button className="btn btn--ghost" onClick={onClose}>✕</button>
         </div>
 
-        <Field label="Theme">
-          <select
-            value={settings.theme}
-            onChange={(e) => update({ theme: e.target.value })}
-            style={selectStyle}
+        <div style={{ margin: '0.7rem 0' }}>
+          <span style={{ color: 'var(--text)', fontSize: '0.85rem' }}>Appearance</span>
+          <div style={{ marginTop: '0.45rem' }}>
+            <AppearanceToggle
+              appearance={settings.appearance}
+              onChange={(appearance) => update({ appearance })}
+            />
+          </div>
+        </div>
+
+        <div style={{ margin: '0.7rem 0' }}>
+          <label
+            htmlFor="writing-font"
+            style={{ display: 'block', color: 'var(--text)', fontSize: '0.85rem', marginBottom: '0.3rem' }}
           >
-            {THEMES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            Writing font
+          </label>
+          <select
+            id="writing-font"
+            value={settings.editorFont}
+            onChange={(e) => update({ editorFont: e.target.value as EditorFont })}
+            style={{
+              width: '100%',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--text-bright)',
+              padding: '0.45rem 0.6rem',
+              fontFamily: EDITOR_FONT_VARS[settings.editorFont],
+              fontSize: '0.9rem',
+            }}
+          >
+            {WRITING_FONTS.map((f) => (
+              <option key={f.value} value={f.value} style={{ fontFamily: EDITOR_FONT_VARS[f.value] }}>
+                {f.label}
+              </option>
             ))}
           </select>
-        </Field>
-        <Toggle
-          label="Match system appearance"
-          hint={
-            settings.followSystem
-              ? 'Light system → Dawn; dark system → your dark theme below'
-              : 'Follow macOS / OS light and dark mode'
-          }
-          checked={settings.followSystem}
-          onChange={(v) => update({ followSystem: v })}
-        />
+        </div>
 
         <Slider
           label="Font size"
           value={settings.fontSize}
-          min={13}
-          max={22}
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
           step={1}
           suffix="px"
           onChange={(v) => update({ fontSize: v })}
@@ -105,25 +133,6 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
           Reset to defaults
         </button>
       </div>
-    </div>
-  )
-}
-
-const selectStyle: React.CSSProperties = {
-  background: 'var(--bg-input)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius)',
-  color: 'var(--text-bright)',
-  padding: '0.4rem 0.6rem',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '0.85rem',
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.7rem 0' }}>
-      <span style={{ color: 'var(--text)', fontSize: '0.85rem' }}>{label}</span>
-      {children}
     </div>
   )
 }

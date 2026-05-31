@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { signOut } from '@/lib/auth'
+import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
@@ -89,8 +90,19 @@ export function MobileJournal(props: JournalViewProps) {
         </header>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, padding: focused ? '0 1rem' : '1.25rem 1rem', overflow: 'hidden' }}>
-        {mainSlot}
+      <div className="journal-canvas" style={{ flex: 1, minHeight: 0 }}>
+        {!focused && (
+          <>
+            <div className="journal-horizon" aria-hidden />
+            <div className="journal-glow" aria-hidden />
+          </>
+        )}
+        <div
+          className="journal-canvas__content"
+          style={{ padding: focused ? '0 1rem' : '2.5rem 1rem 1.25rem', overflow: 'hidden' }}
+        >
+          {mainSlot}
+        </div>
       </div>
 
       {!focused && (
@@ -129,7 +141,7 @@ export function MobileJournal(props: JournalViewProps) {
                 borderBottom: '1px solid var(--border-subtle)',
               }}
             >
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>Dayspring</span>
+              <Brand size={20} wordmarkRem={1.05} />
               <button className="btn btn--ghost" onClick={() => void signOut()} title={userEmail}>⎋</button>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>

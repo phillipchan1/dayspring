@@ -9,17 +9,35 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
     Consolas, monospace;
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-editor: var(--font-mono);
   /* Reflections roles: Fraunces for display headings, Newsreader for quoted words. */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  /* Self-hosted writing faces — the picker maps to these (see EDITOR_FONT_VARS). */
+  --font-iawriter: 'iA Writer Duo', 'JetBrains Mono', ui-monospace, monospace;
+  --font-atkinson: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+  /* The writing/reading surface. Settings overrides this from EDITOR_FONT_VARS;
+     serif (Newsreader) is the default so a fresh load opens in serif. */
+  --font-editor: var(--font-serif);
 
-  --editor-font-size: 17px;
+  /* Tint of the writing-canvas horizon hairline; themes may override to match
+     their glow's mood (warm by default, cool moonlight in Ink). */
+  --journal-horizon: var(--accent);
+
+  --editor-font-size: 24px;
   --editor-line-height: 1.7;
   --editor-max-width: 42rem; /* deep-margin centered writing column */
 
   --radius: 8px;
+  --radius-sm: 5px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
   --transition: 140ms ease;
+  --transition-slow: 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Elevation — warm-tinted shadows, never pure black. */
+  --shadow-1: 0 1px 2px rgba(40, 24, 8, 0.16);
+  --shadow-2: 0 6px 20px -10px rgba(40, 24, 8, 0.28);
+  --shadow-3: 0 18px 44px -22px rgba(30, 18, 6, 0.42);
 }
 
 /* ── One Dark ───────────────────────────────────────────────────────────── */
@@ -52,10 +70,12 @@
   --md-list: #56b6c2;
 
   --danger: #e06c75;
-  --success: #98c379;
+  --success: #c2a86a; /* warm "saved" — not clinical green */
 
   /* Dawn-glow behind the Reflections header. */
   --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(229, 192, 123, 0.18), transparent 60%);
+  /* Parallel glow behind the writing canvas — a touch taller than the rollup's. */
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(229, 192, 123, 0.16), rgba(229, 192, 123, 0.05) 40%, transparent 64%);
 }
 
 /* ── Dawn (light) ───────────────────────────────────────────────────────── */
@@ -87,9 +107,10 @@
   --md-list: #3a8a8a;
 
   --danger: #c0392b;
-  --success: #4f8a3d;
+  --success: #9a7a3a; /* warm "saved" — not clinical green */
 
   --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(244, 180, 110, 0.5), transparent 62%);
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(224, 150, 70, 0.22), rgba(181, 80, 58, 0.05) 40%, transparent 64%);
 }
 
 /* ── Ink (dark, cool — default dark) ────────────────────────────────────── */
@@ -121,9 +142,13 @@
   --md-list: #5fb3c2;
 
   --danger: #e06c75;
-  --success: #8ec07c;
+  --success: #c2a86a; /* warm "saved" — not clinical green */
 
   --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(224, 166, 78, 0.22), transparent 60%);
+  /* Moonlight, not sunrise — dark mode gets a cool, subtle silver-blue glow and
+     a matching cool horizon, while light (Dawn) keeps its warm dawn. */
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(186, 202, 236, 0.14), rgba(150, 170, 210, 0.04) 45%, transparent 66%);
+  --journal-horizon: rgba(186, 202, 236, 0.6);
 }
 
 /* ── Ember (dark, warm) ─────────────────────────────────────────────────── */
@@ -155,7 +180,8 @@
   --md-list: #d98c5c;
 
   --danger: #e0685c;
-  --success: #a8c07c;
+  --success: #c2a86a; /* warm "saved" — not clinical green */
 
   --rollup-glow: radial-gradient(120% 90% at 50% -10%, rgba(232, 116, 60, 0.26), transparent 60%);
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(232, 116, 60, 0.20), rgba(232, 116, 60, 0.05) 40%, transparent 64%);
 }

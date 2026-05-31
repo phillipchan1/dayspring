@@ -1,4 +1,5 @@
 import type { Entry } from '@/lib/types'
+import { Brand } from '@/components/Mark'
 import { deriveTitle } from './deriveTitle'
 import { matchSnippet } from './search'
 
@@ -32,6 +33,9 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
       }}
     >
       <div style={{ padding: '0.7rem 0.75rem 0.5rem', position: 'sticky', top: 0, background: 'var(--bg-elevated)' }}>
+        {!fullWidth && (
+          <Brand size={20} wordmarkRem={1.1} style={{ padding: '0.15rem 0.1rem 0.7rem' }} />
+        )}
         <input
           data-entry-search
           value={query}

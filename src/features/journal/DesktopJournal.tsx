@@ -42,6 +42,7 @@ export function DesktopJournal(props: JournalViewProps) {
               justifyContent: 'space-between',
               padding: '0.6rem 1rem',
               borderBottom: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-1)',
               gap: '1rem',
             }}
           >
@@ -83,8 +84,19 @@ export function DesktopJournal(props: JournalViewProps) {
           </header>
         )}
 
-        <div style={{ flex: 1, minHeight: 0, padding: focused ? '0 1.5rem' : '2.5rem 1.5rem', overflow: 'hidden' }}>
-          {mainSlot}
+        <div className="journal-canvas" style={{ flex: 1, minHeight: 0 }}>
+          {!focused && (
+            <>
+              <div className="journal-horizon" aria-hidden />
+              <div className="journal-glow" aria-hidden />
+            </>
+          )}
+          <div
+            className="journal-canvas__content"
+            style={{ padding: focused ? '0 1.5rem' : '4rem 1.5rem 2.5rem', overflow: 'hidden' }}
+          >
+            {mainSlot}
+          </div>
         </div>
       </main>
 

@@ -8,6 +8,7 @@ import { editorTheme } from './theme'
 import { markdownHighlight } from './highlight'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
+import { firstLineTitleExtension } from './firstLineTitle'
 
 interface EditorProps {
   /** Initial document. Re-seeded only when `docKey` changes (i.e. a different entry). */
@@ -59,6 +60,7 @@ export function Editor({
           keymap.of([...defaultKeymap, ...historyKeymap]),
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
+          firstLineTitleExtension,
           EditorView.lineWrapping,
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),

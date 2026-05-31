@@ -47,7 +47,7 @@ export function JournalScreen({
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
-  const focus = useFocusMode()
+  const focus = useFocusMode(settingsOpen)
 
   const activeIdRef = useRef<string | null>(null)
   activeIdRef.current = activeId
@@ -123,7 +123,7 @@ export function JournalScreen({
     onNew: () => void handleNew(),
     onSave: saveNow,
     onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
-    onOpenSettings: () => setSettingsOpen(true),
+    onOpenSettings: openSettings,
     settingsOpen,
   })
 
@@ -149,6 +149,10 @@ export function JournalScreen({
     await saveNow()
     setActiveId(entry.id)
     setContent(entry.body_markdown)
+  }
+
+  function openSettings() {
+    setSettingsOpen(true)
   }
 
   // A rollup quote click sets jumpEntryId: open that entry in the reader once
@@ -189,7 +193,7 @@ export function JournalScreen({
       docKey={docKey}
       initialDoc={content}
       onChange={setContent}
-      placeholder={deriveTitle(content) ? 'Keep going…' : 'What happened today?'}
+      placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
       autofocus
       typewriter={focus.active && settings.typewriter}
       dimming={focus.active && settings.dimming}
@@ -227,7 +231,7 @@ export function JournalScreen({
     mode,
     onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
     onLookBack,
-    onOpenSettings: () => setSettingsOpen(true),
+    onOpenSettings: openSettings,
     settings,
     updateSettings,
     focus,

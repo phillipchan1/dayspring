@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { signInWithGoogle } from '@/lib/auth'
+import { Brand } from '@/components/Mark'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
@@ -15,18 +16,19 @@ export function SignIn() {
 
   return (
     <div className="center-screen">
-      <div>
-        <h1
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Brand size={34} wordmarkRem={2} />
+        <p
           style={{
-            color: 'var(--text-bright)',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 600,
-            letterSpacing: '-0.02em',
+            fontFamily: 'var(--font-serif)',
+            fontStyle: 'italic',
+            color: 'var(--text-dim)',
+            margin: '0.6rem 0 0',
           }}
         >
-          Dayspring
-        </h1>
-        <p style={{ color: 'var(--text-dim)', marginBottom: '1.5rem' }}>
+          the dayspring from on high.
+        </p>
+        <p style={{ color: 'var(--text-dim)', margin: '1.25rem 0 1.5rem' }}>
           A private place to write.
         </p>
         <button className="btn" onClick={handleSignIn}>
