@@ -54,16 +54,32 @@ jobs:
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Building version $VERSION"
 
-      # Build + sign only (no tagName => tauri-action does not create a release).
+      # Build + sign directly (we publish to the public repo ourselves below).
+      # The .dmg step (hdiutil/bundle_dmg.sh) is flaky on headless runners, so
+      # we retry and clear any stale mount between attempts. --verbose surfaces
+      # the real hdiutil error if it ever fails for good.
       - name: Build and sign the app
-        uses: tauri-apps/tauri-action@v0
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          args: --target aarch64-apple-darwin
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            echo "::group::tauri build (attempt $attempt)"
+            if npm run tauri build -- --target aarch64-apple-darwin --verbose; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Attempt $attempt failed — detaching any stale Dayspring volumes and retrying…"
+            for vol in /Volumes/Dayspring*; do
+              [ -d "$vol" ] && hdiutil detach "$vol" -force || true
+            done
+            sleep 5
+          done
+          echo "All build attempts failed"; exit 1
 
       - name: Publish to public releases repo
         env:
