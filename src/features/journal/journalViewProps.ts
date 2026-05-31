@@ -33,6 +33,8 @@ export interface JournalViewProps {
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
   focus: FocusApi
+  sidebarOpen: boolean
+  onToggleSidebar: () => void
   /** The active surface (editor in write mode, reader in read mode). */
   mainSlot: ReactNode
 }

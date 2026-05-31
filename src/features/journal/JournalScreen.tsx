@@ -44,6 +44,7 @@ export function JournalScreen({
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<ViewMode>('write')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
@@ -238,6 +239,8 @@ export function JournalScreen({
     settings,
     updateSettings,
     focus,
+    sidebarOpen,
+    onToggleSidebar: () => setSidebarOpen((prev) => !prev),
     mainSlot,
   }
 
