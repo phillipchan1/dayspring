@@ -26,8 +26,9 @@ export async function callRollupModel(
 ): Promise<ModelOutput> {
   const params: ChatParams = {
     model: env.model(),
-    temperature: 0.3,
-    reasoning_effort: 'minimal',
+    // This model family only accepts the default temperature (1); grounding is
+    // enforced in code (verbatim validation), so sampling temp doesn't matter.
+    reasoning_effort: 'low',
     response_format: {
       type: 'json_schema',
       json_schema: { name: 'rollup', strict: true, schema: ROLLUP_SCHEMA as Record<string, unknown> },

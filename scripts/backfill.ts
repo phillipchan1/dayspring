@@ -48,9 +48,12 @@ const FORCE = args.includes('--force')
 const RECENT = args.includes('--recent')
 const fromArg = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a))
 
-const REQUIRED = DRY
-  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
-  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY', 'APP_OWNER_ID']
+const REQUIRED =
+  RECENT && DRY
+    ? [] // pure date math — no DB/OpenAI needed
+    : DRY
+      ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
+      : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY', 'APP_OWNER_ID']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`Missing required env in .env: ${missing.join(', ')}`)
