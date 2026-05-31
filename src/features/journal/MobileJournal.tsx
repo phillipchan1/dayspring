@@ -106,30 +106,32 @@ export function MobileJournal(props: JournalViewProps) {
       </div>
 
       {!focused && (
-        <nav className="mobile-bar">
-          <button className="btn btn--ghost" onClick={() => setDrawerOpen(true)} aria-label="Entries">
-            ☰
+        <>
+          <nav className="mobile-bar">
+            <button className="btn btn--ghost" onClick={() => setDrawerOpen(true)} aria-label="Entries">
+              ☰
+            </button>
+            <button
+              className="btn btn--ghost"
+              onClick={onToggleMode}
+              title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
+            >
+              {mode === 'write' ? 'Read' : 'Edit'}
+            </button>
+            <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
+              ⟲
+            </button>
+            <button className="btn btn--ghost" onClick={focus.enter}>
+              Focus
+            </button>
+            <button className="btn btn--ghost" onClick={onOpenSettings} aria-label="Settings">
+              ⚙
+            </button>
+          </nav>
+          <button className="fab-new" onClick={onNew} aria-label="New entry">
+            +
           </button>
-          <button className="btn btn--ghost" onClick={onNew}>
-            + New
-          </button>
-          <button
-            className="btn btn--ghost"
-            onClick={onToggleMode}
-            title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
-          >
-            {mode === 'write' ? 'Read' : 'Edit'}
-          </button>
-          <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
-            ⟲
-          </button>
-          <button className="btn btn--ghost" onClick={focus.enter}>
-            Focus
-          </button>
-          <button className="btn btn--ghost" onClick={onOpenSettings} aria-label="Settings">
-            ⚙
-          </button>
-        </nav>
+        </>
       )}
 
       {drawerOpen && !focused && (
