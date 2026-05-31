@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-interface FocusMode {
+export interface FocusMode {
   active: boolean
   enter: () => void
   exit: () => void

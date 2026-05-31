@@ -4,7 +4,7 @@ import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
-import { FocusControls } from './FocusControls'
+import { WritingControls } from './WritingControls'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
 import type { JournalViewProps } from './journalViewProps'
@@ -146,7 +146,12 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      {focused && <FocusControls settings={settings} update={updateSettings} onExit={focus.exit} />}
+      <WritingControls
+        settings={settings}
+        update={updateSettings}
+        focus={focus}
+        visible={mode === 'write'}
+      />
     </div>
   )
 }

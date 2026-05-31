@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { isSupabaseConfigured } from './lib/env'
 import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
+import { useResolvedTheme } from './hooks/useResolvedTheme'
 import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
@@ -12,6 +13,7 @@ type Surface = 'journal' | 'reflections'
 export function App() {
   const { session, loading } = useSession()
   const { settings } = useSettings()
+  const resolvedTheme = useResolvedTheme(settings)
   const [surface, setSurface] = useState<Surface>('journal')
   // Cross-surface intents: open one entry (from a quote) or filter to a set
   // (from a topic). JournalScreen consumes and clears them.
@@ -21,11 +23,11 @@ export function App() {
   // Apply per-device appearance (theme + editor typography) to CSS custom props.
   useEffect(() => {
     const root = document.documentElement
-    root.setAttribute('data-theme', settings.theme)
+    root.setAttribute('data-theme', resolvedTheme)
     root.style.setProperty('--editor-font-size', `${settings.fontSize}px`)
     root.style.setProperty('--editor-line-height', String(settings.lineHeight))
     root.style.setProperty('--editor-max-width', `${settings.maxWidth}rem`)
-  }, [settings.theme, settings.fontSize, settings.lineHeight, settings.maxWidth])
+  }, [resolvedTheme, settings.fontSize, settings.lineHeight, settings.maxWidth])
 
   // Before keys exist, the app still boots and tells you what to configure.
   if (!isSupabaseConfigured) return <SetupNotice />

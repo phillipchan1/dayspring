@@ -8,6 +8,7 @@ import * as repo from '@/lib/repo'
 import { syncStore } from '@/lib/sync'
 import type { Entry } from '@/lib/types'
 import { useFocusMode } from './useFocusMode'
+import { useJournalShortcuts } from './useJournalShortcuts'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { Reader } from './Reader'
@@ -116,6 +117,14 @@ export function JournalScreen({
       setActiveId(created.id)
       setEntries((prev) => [created, ...prev])
     },
+  })
+
+  useJournalShortcuts({
+    onNew: () => void handleNew(),
+    onSave: saveNow,
+    onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
+    onOpenSettings: () => setSettingsOpen(true),
+    settingsOpen,
   })
 
   // Keep the active entry's list row in sync as you type.

@@ -11,8 +11,9 @@ export interface Settings {
   lineHeight: number
   maxWidth: number // rem — width of the writing column
 
-  // Appearance (only one theme/font in Phase 1, but the field exists to grow into)
+  // Appearance — theme palette; when followSystem, light OS → dawn, dark OS → ink/ember.
   theme: string
+  followSystem: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -22,6 +23,7 @@ const DEFAULTS: Settings = {
   lineHeight: 1.7,
   maxWidth: 42,
   theme: 'ink', // Ink is the default dark theme (Dawn = light, Ember = warm dark)
+  followSystem: false,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

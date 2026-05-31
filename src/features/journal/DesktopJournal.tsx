@@ -3,7 +3,7 @@ import { signOut } from '@/lib/auth'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
-import { FocusControls } from './FocusControls'
+import { WritingControls } from './WritingControls'
 import type { JournalViewProps } from './journalViewProps'
 
 /**
@@ -53,10 +53,10 @@ export function DesktopJournal(props: JournalViewProps) {
               >
                 {showList ? '◀' : '☰'}
               </button>
-              <button className="btn btn--ghost" onClick={onNew}>
+              <button className="btn btn--ghost" onClick={onNew} title="New entry (⌘N)">
                 + New
               </button>
-              <button className="btn btn--ghost" onClick={onToggleMode} title="Toggle read / edit">
+              <button className="btn btn--ghost" onClick={onToggleMode} title="Toggle read / edit (⌘⇧R)">
                 {mode === 'write' ? 'Read' : 'Edit'}
               </button>
               <button className="btn btn--ghost" onClick={onLookBack} title="Monthly reflections">
@@ -73,7 +73,7 @@ export function DesktopJournal(props: JournalViewProps) {
               <button className="btn btn--ghost" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 Focus
               </button>
-              <button className="btn btn--ghost" onClick={onOpenSettings} title="Settings">
+              <button className="btn btn--ghost" onClick={onOpenSettings} title="Settings (⌘,)">
                 ⚙
               </button>
               <button className="btn btn--ghost" onClick={() => void signOut()} title={userEmail}>
@@ -88,9 +88,12 @@ export function DesktopJournal(props: JournalViewProps) {
         </div>
       </main>
 
-      {focused && (
-        <FocusControls settings={settings} update={updateSettings} onExit={focus.exit} />
-      )}
+      <WritingControls
+        settings={settings}
+        update={updateSettings}
+        focus={focus}
+        visible={mode === 'write'}
+      />
     </div>
   )
 }

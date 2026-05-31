@@ -56,6 +56,16 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
             ))}
           </select>
         </Field>
+        <Toggle
+          label="Match system appearance"
+          hint={
+            settings.followSystem
+              ? 'Light system → Dawn; dark system → your dark theme below'
+              : 'Follow macOS / OS light and dark mode'
+          }
+          checked={settings.followSystem}
+          onChange={(v) => update({ followSystem: v })}
+        />
 
         <Slider
           label="Font size"

@@ -33,6 +33,7 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
     >
       <div style={{ padding: '0.7rem 0.75rem 0.5rem', position: 'sticky', top: 0, background: 'var(--bg-elevated)' }}>
         <input
+          data-entry-search
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="Search entries…"
