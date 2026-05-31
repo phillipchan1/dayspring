@@ -23,13 +23,18 @@ to a **public** releases repo, and installed apps auto-update from there.
 
 1. Open the latest release: <https://github.com/phillipchan1/dayspring-releases/releases/latest>
 2. Download the `.dmg`, open it, drag **Dayspring** to Applications.
-3. The build is **unsigned** (no Apple Developer cert), so Gatekeeper blocks the
-   first launch. Either right-click the app → **Open** → **Open**, or run once:
+3. The build is **unsigned / not notarized** (no Apple Developer cert), so on
+   first launch macOS says *"Dayspring is damaged and can't be opened."* That's
+   Gatekeeper reacting to the quarantine flag — the app is fine. Right-click →
+   Open does **not** clear this one; instead strip the quarantine flag once:
    ```sh
    xattr -cr /Applications/Dayspring.app
    ```
+   Then open it normally. (Do this on the copy in /Applications, not on the
+   read-only `.dmg`.)
 4. After that, every push to `master` is picked up automatically — the app
-   updates itself in the background and relaunches on the new version.
+   updates itself in the background and relaunches on the new version. Auto-
+   updates are **not** re-quarantined, so you only ever run `xattr` once.
 
 ## Local development
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { signOut } from '@/lib/auth'
 import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
@@ -23,12 +23,18 @@ export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
     onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
-    settings, updateSettings, focus, mainSlot, userEmail,
+    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
   } = props
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
+
+  function closeDrawer() {
+    if (sidebarOpen) onToggleSidebar()
+  }
+  function openDrawer() {
+    if (!sidebarOpen) onToggleSidebar()
+  }
 
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0]
@@ -41,15 +47,15 @@ export function MobileJournal(props: JournalViewProps) {
     const dx = t.clientX - start.x
     const dy = t.clientY - start.y
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0 && start.x < EDGE_ZONE && !drawerOpen) setDrawerOpen(true)
-      else if (dx < 0 && drawerOpen) setDrawerOpen(false)
+      if (dx > 0 && start.x < EDGE_ZONE && !sidebarOpen) openDrawer()
+      else if (dx < 0 && sidebarOpen) closeDrawer()
     }
     touchStart.current = null
   }
 
   function handleSelect(entry: Entry) {
     onSelect(entry)
-    setDrawerOpen(false)
+    closeDrawer()
   }
 
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -106,35 +112,37 @@ export function MobileJournal(props: JournalViewProps) {
       </div>
 
       {!focused && (
-        <nav className="mobile-bar">
-          <button className="btn btn--ghost" onClick={() => setDrawerOpen(true)} aria-label="Entries">
-            ☰
+        <>
+          <nav className="mobile-bar">
+            <button className="btn btn--ghost" onClick={openDrawer} aria-label="Entries">
+              ☰
+            </button>
+            <button
+              className="btn btn--ghost"
+              onClick={onToggleMode}
+              title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
+            >
+              {mode === 'write' ? 'Read' : 'Edit'}
+            </button>
+            <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
+              ⟲
+            </button>
+            <button className="btn btn--ghost" onClick={focus.enter}>
+              Focus
+            </button>
+            <button className="btn btn--ghost" onClick={onOpenSettings} aria-label="Settings">
+              ⚙
+            </button>
+          </nav>
+          <button className="fab-new" onClick={onNew} aria-label="New entry">
+            +
           </button>
-          <button className="btn btn--ghost" onClick={onNew}>
-            + New
-          </button>
-          <button
-            className="btn btn--ghost"
-            onClick={onToggleMode}
-            title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
-          >
-            {mode === 'write' ? 'Read' : 'Edit'}
-          </button>
-          <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
-            ⟲
-          </button>
-          <button className="btn btn--ghost" onClick={focus.enter}>
-            Focus
-          </button>
-          <button className="btn btn--ghost" onClick={onOpenSettings} aria-label="Settings">
-            ⚙
-          </button>
-        </nav>
+        </>
       )}
 
-      {drawerOpen && !focused && (
+      {sidebarOpen && !focused && (
         <>
-          <div className="scrim" onClick={() => setDrawerOpen(false)} />
+          <div className="scrim" onClick={closeDrawer} />
           <div className="drawer">
             <div
               style={{
