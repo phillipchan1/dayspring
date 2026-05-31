@@ -10,8 +10,7 @@ Single-user AI journaling app. Source of truth: [personal-ai-journal-requirement
 | Decision | Choice | Notes |
 |---|---|---|
 | Editor rendering | **CodeMirror 6, near-live inline** | Single pane, plaintext markdown storage. Obsidian/iA-Writer feel. |
-| Auth account | `phillipchan1@gmail.com` | Locked via `VITE_ALLOWED_EMAIL`; all others rejected. |
-| Single-account lock | **App-side email allowlist** | Plus RLS on `entries` (owner = auth.uid()). |
+| Auth | Any Google account may sign in | App-side email allowlist **removed** (Phil's request). Access governed by the Google OAuth consent screen (Testing mode) + per-row RLS (owner = auth.uid()). |
 | Theme (start) | One Dark–ish dark theme | Extensible `[data-theme]` token system in `src/styles/themes.css`. |
 | Font (start) | JetBrains Mono | Extensible font tokens. |
 | Repo layout | Single Vite app | Structured so Tauri (Mac) / Capacitor (iOS) wrap it later without restructuring. |

@@ -22,8 +22,7 @@ export function SetupNotice() {
           }}
         >
 {`VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-VITE_ALLOWED_EMAIL=phillipchan1@gmail.com`}
+VITE_SUPABASE_ANON_KEY=...`}
         </pre>
         <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>
           Then restart <code>npm run dev</code>.

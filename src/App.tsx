@@ -1,11 +1,9 @@
 import { useEffect } from 'react'
 import { isSupabaseConfigured } from './lib/env'
 import { useSession } from './hooks/useSession'
-import { isAllowedEmail } from './lib/auth'
 import { useSettings } from './hooks/useSettings'
 import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
-import { NotAllowed } from './components/NotAllowed'
 import { JournalScreen } from './features/journal/JournalScreen'
 
 export function App() {
@@ -30,10 +28,7 @@ export function App() {
 
   if (!session) return <SignIn />
 
-  // Single-user lock: reject any account that isn't the allowlisted one.
-  if (!isAllowedEmail(session.user.email)) {
-    return <NotAllowed email={session.user.email ?? null} />
-  }
-
+  // Any authenticated Google account may use the app. Access is governed by the
+  // Google OAuth consent screen (Testing mode) and per-row RLS (owner = auth.uid()).
   return <JournalScreen userEmail={session.user.email ?? ''} />
 }
