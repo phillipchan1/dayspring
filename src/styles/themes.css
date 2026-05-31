@@ -1,0 +1,53 @@
+/*
+ * Theme system foundation.
+ * Each theme is a set of CSS custom properties selected via [data-theme] on <html>.
+ * Phase 1 ships one theme (One Dark–ish). Add more by appending [data-theme="..."] blocks.
+ */
+
+:root {
+  /* Typography tokens — overridable per device via settings (Phase 1: defaults). */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
+    Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-editor: var(--font-mono);
+
+  --editor-font-size: 17px;
+  --editor-line-height: 1.7;
+  --editor-max-width: 42rem; /* deep-margin centered writing column */
+
+  --radius: 8px;
+  --transition: 140ms ease;
+}
+
+/* ── One Dark ───────────────────────────────────────────────────────────── */
+[data-theme='one-dark'] {
+  color-scheme: dark;
+
+  --bg: #21252b;
+  --bg-elevated: #282c34;
+  --bg-input: #2c313a;
+  --bg-hover: #2f343e;
+
+  --border: #3a3f4b;
+  --border-subtle: #31353f;
+
+  --text: #abb2bf;
+  --text-bright: #d7dae0;
+  --text-dim: #5c6370;
+  --text-faint: #4b5263;
+
+  --accent: #61afef;
+  --accent-soft: rgba(97, 175, 239, 0.14);
+
+  /* Markdown / syntax accents (used by the editor highlight theme) */
+  --md-heading: #e5c07b;
+  --md-emphasis: #c678dd;
+  --md-strong: #d19a66;
+  --md-link: #61afef;
+  --md-code: #98c379;
+  --md-quote: #7f848e;
+  --md-list: #56b6c2;
+
+  --danger: #e06c75;
+  --success: #98c379;
+}
