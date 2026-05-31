@@ -1,0 +1,98 @@
+name: Release desktop app
+
+# Every push to master produces a new signed macOS build and publishes it to the
+# PUBLIC releases repo (phillipchan1/dayspring-releases), updating latest.json so
+# installed apps auto-update. The source for this repo stays private.
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+
+concurrency:
+  group: release-desktop
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: macos-latest # Apple Silicon runner
+    env:
+      RELEASES_REPO: phillipchan1/dayspring-releases
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute version (0.1.<run number>)
+        run: |
+          VERSION="0.1.${{ github.run_number }}"
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.version='$VERSION';fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building version $VERSION"
+
+      # Build + sign only (no tagName => tauri-action does not create a release).
+      - name: Build and sign the app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: --target aarch64-apple-darwin
+
+      - name: Publish to public releases repo
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="app-v${APP_VERSION}"
+          BUNDLE="src-tauri/target/aarch64-apple-darwin/release/bundle"
+
+          DMG=$(ls "$BUNDLE"/dmg/*.dmg | head -1)
+          APPTAR=$(ls "$BUNDLE"/macos/*.app.tar.gz | head -1)
+          SIG=$(cat "$BUNDLE"/macos/*.app.tar.gz.sig)
+          APPTAR_NAME=$(basename "$APPTAR")
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
+
+          # Updater manifest the app polls. Tauri verifies `signature` against the
+          # embedded public key before installing.
+          jq -n \
+            --arg v "$APP_VERSION" \
+            --arg notes "Automated build from ${{ github.sha }}" \
+            --arg date "$PUB_DATE" \
+            --arg sig "$SIG" \
+            --arg url "$ASSET_URL" \
+            '{version:$v, notes:$notes, pub_date:$date, platforms:{"darwin-aarch64":{signature:$sig, url:$url}}}' \
+            > latest.json
+
+          echo "Generated latest.json:"; cat latest.json
+
+          gh release create "$TAG" \
+            --repo "$RELEASES_REPO" \
+            --title "Dayspring v${APP_VERSION}" \
+            --notes "Automated build from ${{ github.sha }}. Installed apps auto-update to this version." \
+            --latest \
+            "$DMG" "$APPTAR" latest.json

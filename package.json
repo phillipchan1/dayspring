@@ -9,7 +9,10 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "backfill": "tsx scripts/backfill.ts"
+    "backfill": "tsx scripts/backfill.ts",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -25,6 +28,9 @@
     "@fontsource/newsreader": "^5.2.10",
     "@lezer/highlight": "^1.2.3",
     "@supabase/supabase-js": "^2.106.2",
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "codemirror": "^6.0.2",
     "dompurify": "^3.4.7",
     "idb": "^8.0.3",
@@ -35,6 +41,7 @@
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",

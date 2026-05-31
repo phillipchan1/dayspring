@@ -3,6 +3,12 @@ node_modules
 .pnp
 .pnp.js
 
+# Tauri build output + updater signing keys (NEVER commit the private key)
+src-tauri/target
+src-tauri/gen/schemas
+*.key
+*.key.pub
+
 # Build output
 dist
 dist-ssr

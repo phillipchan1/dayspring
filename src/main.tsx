@@ -19,6 +19,7 @@ import '@fontsource/atkinson-hyperlegible/400-italic.css'
 import '@fontsource/atkinson-hyperlegible/700.css'
 import './styles/global.css'
 import { App } from './App'
+import { initAutoUpdate } from './lib/updater'
 
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('Root element #root not found')
@@ -28,3 +29,7 @@ createRoot(rootEl).render(
     <App />
   </StrictMode>,
 )
+
+// Desktop (Tauri) only: check for and install updates in the background.
+// No-ops in the browser build.
+void initAutoUpdate()
