@@ -14,8 +14,10 @@ interface Props {
 export function WritingControls({ settings, update, focus, visible }: Props) {
   if (!visible) return null
 
+  const docked = !focus.active
+
   return (
-    <div className="focus-controls">
+    <div className={`focus-controls${docked ? ' focus-controls--docked' : ''}`}>
       <AppearanceToggle
         compact
         appearance={settings.appearance}

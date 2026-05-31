@@ -1,18 +1,9 @@
 import { useEffect } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
-import type { EditorFont, Settings } from '@/lib/settings'
-import { EDITOR_FONT_VARS, FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
+import type { Settings } from '@/lib/settings'
+import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { DiarlyImport } from './DiarlyImport'
-
-// Writing-font picker order (each option previews in its own face).
-const WRITING_FONTS: { value: EditorFont; label: string }[] = [
-  { value: 'serif', label: 'Serif' },
-  { value: 'literary', label: 'Literary' },
-  { value: 'typewriter', label: 'Typewriter' },
-  { value: 'mono', label: 'Mono' },
-  { value: 'sans', label: 'Sans' },
-  { value: 'readable', label: 'Readable' },
-]
+import { WritingFontPicker } from './WritingFontPicker'
 
 interface Props {
   settings: Settings
@@ -72,27 +63,10 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
           >
             Writing font
           </label>
-          <select
-            id="writing-font"
+          <WritingFontPicker
             value={settings.editorFont}
-            onChange={(e) => update({ editorFont: e.target.value as EditorFont })}
-            style={{
-              width: '100%',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              color: 'var(--text-bright)',
-              padding: '0.45rem 0.6rem',
-              fontFamily: EDITOR_FONT_VARS[settings.editorFont],
-              fontSize: '0.9rem',
-            }}
-          >
-            {WRITING_FONTS.map((f) => (
-              <option key={f.value} value={f.value} style={{ fontFamily: EDITOR_FONT_VARS[f.value] }}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+            onChange={(editorFont) => update({ editorFont })}
+          />
         </div>
 
         <Slider
