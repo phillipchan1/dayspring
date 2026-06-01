@@ -29,12 +29,15 @@ export async function callModel<T>(
   // Picking quotes + short prose (weekly/monthly) is cheap at "low"; the longer
   // multi-month synthesis (quarterly/yearly) gets "medium". Token-efficiency lever.
   effort: 'low' | 'medium' = 'low',
+  // Nano models default to a small output window; callers can override.
+  maxTokens = 2048,
 ): Promise<T> {
   const params: ChatParams = {
     model: env.model(),
     // This model family only accepts the default temperature (1); grounding is
     // enforced in code (verbatim validation), so sampling temp doesn't matter.
     reasoning_effort: effort,
+    max_completion_tokens: maxTokens,
     response_format: {
       type: 'json_schema',
       json_schema: { name, strict: true, schema },

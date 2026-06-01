@@ -33,7 +33,7 @@ Given the user's journal entry text or topic, return exactly 3 relevant Bible pa
 
 For each passage provide:
 - reference: book, chapter, and verse range (e.g. "Psalm 23:1-4" or "Romans 8:28")
-- text: the ESV passage text verbatim (1–4 verses; keep it readable, not exhaustive)
+- text: the ESV passage text verbatim (1–2 verses max; keep it brief and quotable)
 - reason: one sentence explaining why this passage speaks to what the user wrote
 
 Choose verses that feel like a gentle companion — comfort, perspective, or quiet truth — not a sermon. Match the specific tone and concerns of the user's words.`
