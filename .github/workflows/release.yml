@@ -54,6 +54,22 @@ jobs:
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Building version $VERSION"
 
+      # When an Apple signing identity is configured, swap the ad-hoc "-" in
+      # tauri.conf.json for the real identity so the build does Developer ID
+      # signing + notarization. Without the secret, the ad-hoc value stays and
+      # the build is unsigned (current behavior) — so this is safe pre-enrollment.
+      # (secrets can't be used in `if:`, so we gate inside the script via env.)
+      - name: Enable Apple signing when configured
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [ -n "$IDENTITY" ]; then
+            node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.bundle.macOS.signingIdentity=process.env.IDENTITY;fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
+            echo "Apple signing identity set — build will sign + notarize"
+          else
+            echo "No Apple identity configured — building unsigned (ad-hoc)"
+          fi
+
       # Build + sign directly (we publish to the public repo ourselves below).
       # The .dmg step (hdiutil/bundle_dmg.sh) is flaky on headless runners, so
       # we retry and clear any stale mount between attempts. --verbose surfaces
@@ -62,8 +78,19 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Updater signing (minisign) — unrelated to Apple code signing below.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Apple Developer ID signing + notarization. When these secrets are set,
+          # the Tauri CLI signs with the real identity and notarizes the .app so
+          # Gatekeeper opens it with no warning. When empty, it falls back to the
+          # ad-hoc signingIdentity "-" in tauri.conf.json (unsigned, needs xattr).
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -uo pipefail
           for attempt in 1 2 3; do
