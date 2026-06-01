@@ -769,6 +769,179 @@ a {
 }
 
 /* ════════════════════════════════════════════════════════════════════════ */
+/* Looking back — immersive four-horizon camera reflection surface           */
+/* One image, one moving camera. Math + tuning constants live in             */
+/* LookingBack.tsx; this file is the look (chrome, veil, free-floating text). */
+/* ════════════════════════════════════════════════════════════════════════ */
+.looking-back {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #c9d2d8; /* neutral sky tone shown while the painting decodes */
+
+  /* Parchment veil + warm ink text are intentionally theme-INDEPENDENT: the
+     painting is fixed bright-daylight art, so a warm off-white veil reads best
+     and the text must stay dark over it on every theme. (Deliberate, per spec.)
+     Kept as vars so they're still easy to tune. */
+  --lb-veil: 250, 247, 239;   /* warm off-white, rgb channels */
+  --lb-ink: #2b2118;
+  --lb-ink-dim: #5f5142;
+  --lb-accent: #b06a33;
+  --lb-glass: rgba(255, 255, 255, 0.42);
+  --lb-glass-line: rgba(255, 255, 255, 0.6);
+}
+
+/* The camera layer — the ONLY thing that animates: transform (slide + zoom).
+   aspect-ratio + width:100% make layout height = width × (4128/1024), which is
+   the `imageRenderedHeight` the transform math in LookingBack.tsx relies on. */
+.looking-back__sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1024 / 4128;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  transform-origin: center top;
+  will-change: transform;
+}
+
+/* Warm veil for legibility; opacity is set inline per horizon (lightens up high). */
+.looking-back__veil {
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--lb-veil));
+  pointer-events: none;
+}
+
+/* Back affordance — minimal chrome so you can leave the takeover. */
+.looking-back__back {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1rem, env(safe-area-inset-left));
+  z-index: 3;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--lb-glass-line);
+  border-radius: var(--radius-full);
+  background: var(--lb-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--lb-ink);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+/* Fixed center pill — the one piece of persistent chrome. Glassy, translucent. */
+.looking-back__pill {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-full);
+  background: var(--lb-glass);
+  border: 1px solid var(--lb-glass-line);
+  box-shadow: 0 6px 24px -12px rgba(40, 30, 15, 0.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+.looking-back__seg {
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full);
+  padding: 0.45rem 0.95rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(43, 33, 24, 0.55);
+  transition: color var(--transition), background var(--transition);
+}
+.looking-back__seg:hover { color: var(--lb-ink); }
+.looking-back__seg.is-active {
+  color: var(--lb-ink);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-1);
+}
+
+/* Free-floating serif text — no cards, no boxes. Read-only, so it ignores
+   pointer events and lets the pill stay the only interactive surface. */
+.looking-back__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 2rem 3rem;
+  pointer-events: none;
+}
+.looking-back__text {
+  width: 100%;
+  max-width: 720px;
+  opacity: 0;
+}
+.looking-back__text.is-visible { opacity: 1; }
+
+.looking-back__kicker {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lb-accent);
+}
+.looking-back__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2rem, 5.5vw, 3.4rem);
+  line-height: 1.08;
+  color: var(--lb-ink);
+  text-wrap: balance;
+}
+.looking-back__body {
+  margin: 1.6rem 0 0;
+  max-width: 38rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.1rem, 1.7vw, 1.3rem);
+  line-height: 1.65;
+  color: var(--lb-ink);
+}
+.looking-back__question {
+  margin: 2rem 0 0;
+  max-width: 34rem;
+  padding-left: 1.1rem;
+  border-left: 2px solid var(--lb-accent);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+  line-height: 1.5;
+  color: var(--lb-ink-dim);
+}
+
+/* Mobile: the narrow painting makes the zoom subtle (expected) — so prioritize
+   the vertical slide and keep text low, large, and legible. */
+.looking-back__stage.is-mobile {
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 6rem 1.5rem max(3.5rem, env(safe-area-inset-bottom));
+}
+.looking-back__stage.is-mobile .looking-back__title {
+  font-size: clamp(1.9rem, 8vw, 2.6rem);
+}
+.looking-back__stage.is-mobile .looking-back__body {
+  font-size: 1.1rem;
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
 /* Settings — two-pane modal                                                 */
 /* ════════════════════════════════════════════════════════════════════════ */
 .settings-scrim {
@@ -1058,8 +1231,14 @@ a {
   background: var(--bg-hover);
   transform: translateY(-1px);
 }
-.import-card[data-soon='true'] {
+.import-card:disabled {
   opacity: 0.72;
+  cursor: default;
+}
+.import-card:disabled:hover {
+  border-color: var(--border);
+  background: var(--bg-input);
+  transform: none;
 }
 .import-card__badge {
   flex: 0 0 auto;
@@ -1489,4 +1668,16 @@ a {
   .settings-nav__item[data-active='true']::before {
     display: none;
   }
+}
+
+/* ── Native desktop (Tauri) overlay title bar ──────────────────────────────
+   The macOS window uses titleBarStyle "Overlay": the title bar is transparent
+   and content flows under it, with the traffic-light buttons floating at the
+   top-left. Pad the sidebar top so the brand sits below the lights, and nudge
+   the topbar down so it doesn't hug the window edge. Web build is unaffected. */
+[data-platform='desktop'] .sidebar__header {
+  padding-top: 2.75rem;
+}
+[data-platform='desktop'] .topbar {
+  padding-top: 1.5rem;
 }

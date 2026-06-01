@@ -20,6 +20,11 @@ import '@fontsource/atkinson-hyperlegible/700.css'
 import './styles/global.css'
 import { App } from './App'
 import { initAutoUpdate } from './lib/updater'
+import { applyPlatformClass } from './lib/platform'
+
+// Tag <html> as desktop before first paint so native-only layout (e.g. room for
+// the macOS traffic lights under the overlay title bar) applies immediately.
+applyPlatformClass()
 
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('Root element #root not found')
