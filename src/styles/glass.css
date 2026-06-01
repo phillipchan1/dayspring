@@ -55,7 +55,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .glass-scrim,
-  .glass-surface {
+  .glass-surface,
+  .rail {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

@@ -15,7 +15,7 @@ import type { JournalViewProps } from './journalViewProps'
 const NATIVE = isTauri()
 
 function formatBreadcrumb(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toLowerCase()
+  return new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
 }
 
 /**

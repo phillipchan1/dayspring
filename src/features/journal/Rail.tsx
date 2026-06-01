@@ -12,11 +12,8 @@ interface RailProps {
 }
 
 /**
- * The desktop navigation spine: a slim, full-height rail. The sunrise Mark up
- * top, the destinations in the middle, Settings pinned to the foot (Sign out
- * lives inside Settings → About). Quiet at rest; the active destination
- * (Entries on journal, or Looking back on reflections) warms to the accent.
- * Desktop-only.
+ * Slim glass spine — icon-only destinations (labels in tooltips + screen readers).
+ * Wordmark lives in the entries panel; the mark anchors the rail.
  */
 export function Rail({
   onToggleEntries,
@@ -28,27 +25,33 @@ export function Rail({
 }: RailProps) {
   return (
     <nav className="rail" style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}>
+      <div className="rail__glow" aria-hidden />
       <div className="rail__brand">
         <Mark size={24} />
       </div>
       <div className="rail__nav">
         <RailButton
           label="Entries"
-          title="Entries (⌘1)"
+          shortcut="⌘1"
           onClick={onToggleEntries}
           active={entriesOpen && !lookBackActive}
-          icon={<EntriesIcon />}
+          icon={<IconEntries />}
         />
         <RailButton
           label="Looking back"
-          title="Looking back (⌘2)"
+          shortcut="⌘2"
           onClick={onLookBack}
           active={lookBackActive}
-          icon={<LookBackIcon />}
+          icon={<IconLookBack />}
         />
       </div>
       <div className="rail__footer">
-        <RailButton label="Settings" title="Settings (⌘, or ⌘3)" onClick={onOpenSettings} icon={<SettingsIcon />} />
+        <RailButton
+          label="Settings"
+          shortcut="⌘,"
+          onClick={onOpenSettings}
+          icon={<IconSettings />}
+        />
       </div>
     </nav>
   )
@@ -56,23 +59,29 @@ export function Rail({
 
 interface RailButtonProps {
   label: string
-  title: string
+  shortcut: string
   onClick: () => void
   icon: ReactNode
   active?: boolean
 }
 
-function RailButton({ label, title, onClick, icon, active = false }: RailButtonProps) {
+function RailButton({ label, shortcut, onClick, icon, active = false }: RailButtonProps) {
   return (
-    <button className="rail-btn" data-active={active ? 'true' : undefined} title={title} onClick={onClick}>
-      <span className="rail-btn__icon" aria-hidden>{icon}</span>
-      <span className="rail-btn__label">{label}</span>
+    <button
+      type="button"
+      className="rail-btn"
+      data-active={active ? 'true' : undefined}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      title={`${label} (${shortcut})`}
+      onClick={onClick}
+    >
+      <span className="rail-btn__well">{icon}</span>
     </button>
   )
 }
 
-/* ── Icons — line art in the Mark.tsx idiom (stroke = currentColor) ───────── */
-function Icon({ children }: { children: ReactNode }) {
+function NavIcon({ children }: { children: ReactNode }) {
   return (
     <svg
       width="20"
@@ -80,7 +89,7 @@ function Icon({ children }: { children: ReactNode }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.55"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -90,32 +99,30 @@ function Icon({ children }: { children: ReactNode }) {
   )
 }
 
-function EntriesIcon() {
+function IconEntries() {
   return (
-    <Icon>
+    <NavIcon>
       <path d="M5 6h14" />
       <path d="M5 12h14" />
       <path d="M5 18h14" />
-    </Icon>
+    </NavIcon>
   )
 }
 
-function LookBackIcon() {
+function IconLookBack() {
   return (
-    <Icon>
+    <NavIcon>
       <path d="M4 12a8 8 0 1 0 3-6.2" />
       <path d="M4 4v4h4" />
-    </Icon>
+    </NavIcon>
   )
 }
 
-function SettingsIcon() {
+function IconSettings() {
   return (
-    <Icon>
-      <path d="M4 8h16" />
-      <path d="M4 16h16" />
-      <circle cx="9" cy="8" r="2.2" />
-      <circle cx="15" cy="16" r="2.2" />
-    </Icon>
+    <NavIcon>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </NavIcon>
   )
 }
