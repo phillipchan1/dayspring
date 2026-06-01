@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { signOut } from '@/lib/auth'
 import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
+import { FabNew } from './FabNew'
 import { WritingControls } from './WritingControls'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
@@ -22,13 +23,21 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
-    settings, updateSettings, focus, mainSlot, userEmail,
+    onSelect, onEntryMenuAction, onNew, query, onQueryChange, onLookBack, onOpenSettings,
+    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
+    reflectionsActive,
   } = props
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
+  const journalChrome = !reflectionsActive
+
+  function closeDrawer() {
+    if (sidebarOpen) onToggleSidebar()
+  }
+  function openDrawer() {
+    if (!sidebarOpen) onToggleSidebar()
+  }
 
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0]
@@ -41,15 +50,15 @@ export function MobileJournal(props: JournalViewProps) {
     const dx = t.clientX - start.x
     const dy = t.clientY - start.y
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0 && start.x < EDGE_ZONE && !drawerOpen) setDrawerOpen(true)
-      else if (dx < 0 && drawerOpen) setDrawerOpen(false)
+      if (dx > 0 && start.x < EDGE_ZONE && !sidebarOpen) openDrawer()
+      else if (dx < 0 && sidebarOpen) closeDrawer()
     }
     touchStart.current = null
   }
 
   function handleSelect(entry: Entry) {
     onSelect(entry)
-    setDrawerOpen(false)
+    closeDrawer()
   }
 
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -62,7 +71,7 @@ export function MobileJournal(props: JournalViewProps) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {!focused && (
+      {!focused && journalChrome && (
         <header
           style={{
             display: 'flex',
@@ -85,13 +94,20 @@ export function MobileJournal(props: JournalViewProps) {
           >
             {heading}
           </span>
-          <SyncBadge />
-          <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} />
+          <div className="status-cluster">
+            <span className="status-cluster__dot" data-status={status} aria-hidden />
+            <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
+            <span className="status-cluster__sep" aria-hidden>·</span>
+            <SyncBadge bare />
+          </div>
         </header>
       )}
 
-      <div className="journal-canvas" style={{ flex: 1, minHeight: 0 }}>
-        {!focused && (
+      <div
+        className={`journal-canvas${reflectionsActive ? ' journal-canvas--reflections' : ''}`}
+        style={{ flex: 1, minHeight: 0 }}
+      >
+        {!focused && journalChrome && (
           <>
             <div className="journal-horizon" aria-hidden />
             <div className="journal-glow" aria-hidden />
@@ -99,42 +115,40 @@ export function MobileJournal(props: JournalViewProps) {
         )}
         <div
           className="journal-canvas__content"
-          style={{ padding: focused ? '0 1rem' : '2.5rem 1rem 1.25rem', overflow: 'hidden' }}
+          style={{
+            padding: focused ? '0 1rem' : reflectionsActive ? '0' : '2.5rem 1rem 1.25rem',
+            overflow: 'hidden',
+          }}
         >
           {mainSlot}
         </div>
       </div>
 
       {!focused && (
-        <nav className="mobile-bar">
-          <button className="btn btn--ghost" onClick={() => setDrawerOpen(true)} aria-label="Entries">
-            ☰
-          </button>
-          <button className="btn btn--ghost" onClick={onNew}>
-            + New
-          </button>
-          <button
-            className="btn btn--ghost"
-            onClick={onToggleMode}
-            title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
-          >
-            {mode === 'write' ? 'Read' : 'Edit'}
-          </button>
-          <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
-            ⟲
-          </button>
-          <button className="btn btn--ghost" onClick={focus.enter}>
-            Focus
-          </button>
-          <button className="btn btn--ghost" onClick={onOpenSettings} aria-label="Settings">
-            ⚙
-          </button>
-        </nav>
+        <>
+          <nav className="mobile-bar">
+            <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">
+              ☰
+            </button>
+            <button className="nav-btn" onClick={onLookBack} aria-label="Looking back" title="Looking back (⌘2)">
+              ⟲
+            </button>
+            {journalChrome && (
+              <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
+                focus
+              </button>
+            )}
+            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘, or ⌘3)">
+              ⚙
+            </button>
+          </nav>
+          {journalChrome && <FabNew onClick={onNew} />}
+        </>
       )}
 
-      {drawerOpen && !focused && (
+      {sidebarOpen && !focused && (
         <>
-          <div className="scrim" onClick={() => setDrawerOpen(false)} />
+          <div className="scrim" onClick={closeDrawer} />
           <div className="drawer">
             <div
               style={{
@@ -153,6 +167,7 @@ export function MobileJournal(props: JournalViewProps) {
                 entries={entries}
                 activeId={activeId}
                 onSelect={handleSelect}
+                onMenuAction={onEntryMenuAction}
                 query={query}
                 onQueryChange={onQueryChange}
                 fullWidth
@@ -162,12 +177,9 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      <WritingControls
-        settings={settings}
-        update={updateSettings}
-        focus={focus}
-        visible={mode === 'write'}
-      />
+      {journalChrome && (
+        <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      )}
     </div>
   )
 }

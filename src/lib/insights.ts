@@ -4,7 +4,7 @@
 
 import { requireSupabase } from './supabase'
 
-export type RollupType = 'weekly' | 'monthly' | 'yearly'
+export type RollupType = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
 export interface Quote {
   entry_id: string
@@ -37,6 +37,42 @@ export interface Observation {
   evidence: ObservationEvidence[]
 }
 
+// Rich "Looking Back" content. Mirrors api/_lib/types.ts ReflectionContent.
+// Prose fields are generated; excerpt-bearing fields are verbatim-validated.
+export interface Excerpt {
+  entry_id: string
+  date: string
+  text: string
+}
+export interface EbenezerPair {
+  id: string
+  ask: Excerpt
+  later: Excerpt
+}
+export interface ReflectionQuestion {
+  id: string
+  text: string
+  addressee: 'self' | 'God'
+}
+export interface WinCandidate {
+  id: string
+  text: string
+}
+export interface ReflectionContent {
+  synthesis?: string[]
+  letter?: string[]
+  gain?: string[]
+  gapWatch?: string
+  themes?: string[]
+  throughline?: string[]
+  citations?: Excerpt[]
+  gainEvidence?: Excerpt[]
+  ebenezer?: EbenezerPair[]
+  stones?: EbenezerPair[]
+  questions?: ReflectionQuestion[]
+  wins?: { thisWeek: WinCandidate[]; nextWeek: WinCandidate[] }
+}
+
 /** The §3 contract stored in insights.structured_payload. */
 export interface RollupPayload {
   period: { type: RollupType; start: string; end: string }
@@ -46,6 +82,8 @@ export interface RollupPayload {
   topics: Topic[]
   /** id → "Title (Apr 7)" for human-readable observation copy. */
   entry_labels?: Record<string, string>
+  /** Rich Looking Back content; absent on legacy rows. */
+  reflection?: ReflectionContent
   meta: { model: string; generated_at: string }
 }
 

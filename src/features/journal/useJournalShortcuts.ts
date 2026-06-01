@@ -1,16 +1,14 @@
 import { useEffect } from 'react'
-import { focusEntrySearch, hasMod, isInEditor, shouldIgnoreTarget } from './keyboard'
-import type { ViewMode } from './journalViewProps'
+import { hasMod, isInEditor, shouldIgnoreTarget } from './keyboard'
 
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
+  onToggleEntries: () => void
+  onLookBack: () => void
   onOpenSettings: () => void
-  /** Write → read (Esc). */
-  onExitEdit: () => void
-  /** Read → write (E). */
-  onEnterEdit: () => void
-  mode: ViewMode
+  /** Open the entries panel (if collapsed) and focus its search field. */
+  onFocusSearch: () => void
   /** Focus mode consumes Esc first (handled in useFocusMode). */
   focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
@@ -20,59 +18,72 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * C compose · E edit · Esc read · ⌘S save · ⌘, settings · ⌘K search
+ * ⌘N new · ⌘1–3 rail · ⌘, settings · ⌘S save · ⌘K search · ⌘⏎ focus
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
-    onNew, onSave, onOpenSettings, onExitEdit, onEnterEdit, mode, focusActive, settingsOpen,
+    onNew,
+    onSave,
+    onToggleEntries,
+    onLookBack,
+    onOpenSettings,
+    onFocusSearch,
+    focusActive,
+    settingsOpen,
   } = actions
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (settingsOpen) return
-
-      if (e.key === 'Escape') {
-        if (focusActive) return
-        if (mode === 'write') {
-          e.preventDefault()
-          onExitEdit()
-        }
-        return
-      }
+      if (e.key === 'Escape' && focusActive) return
 
       const key = e.key.toLowerCase()
 
-      if (!hasMod(e) && !e.altKey && !e.shiftKey) {
-        if (shouldIgnoreTarget(e.target)) return
+      if (!hasMod(e) || e.altKey) return
 
-        if (key === 'c' && !(mode === 'write' && isInEditor(e.target))) {
-          e.preventDefault()
-          onNew()
-          return
-        }
-        if (key === 'e' && mode === 'read') {
-          e.preventDefault()
-          onEnterEdit()
-          return
-        }
+      if (key === 'n') {
+        e.preventDefault()
+        onNew()
+        return
       }
 
-      if (!hasMod(e)) return
+      if (key === ',') {
+        e.preventDefault()
+        onOpenSettings()
+        return
+      }
+
+      if (key >= '1' && key <= '3' && !e.shiftKey) {
+        e.preventDefault()
+        if (key === '1') onToggleEntries()
+        else if (key === '2') onLookBack()
+        else onOpenSettings()
+        return
+      }
+
+      if (settingsOpen) return
+
       if (shouldIgnoreTarget(e.target)) return
 
       if (key === 's') {
         e.preventDefault()
         void onSave()
-      } else if (key === ',') {
-        e.preventDefault()
-        onOpenSettings()
       } else if (key === 'k') {
+        if (isInEditor(e.target)) return
         e.preventDefault()
-        focusEntrySearch()
+        onFocusSearch()
       }
     }
 
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onNew, onSave, onOpenSettings, onExitEdit, onEnterEdit, mode, focusActive, settingsOpen])
+  }, [
+    onNew,
+    onSave,
+    onToggleEntries,
+    onLookBack,
+    onOpenSettings,
+    onFocusSearch,
+    focusActive,
+    settingsOpen,
+  ])
 }

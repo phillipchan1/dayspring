@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Entry } from '@/lib/types'
+import type { EntryMenuAction } from './EntryContextMenu'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
 
@@ -9,8 +10,6 @@ export interface FocusApi {
   exit: () => void
   toggle: () => void
 }
-
-export type ViewMode = 'write' | 'read'
 
 /** Everything a layout (desktop or mobile) needs. State lives in JournalScreen. */
 export interface JournalViewProps {
@@ -22,17 +21,24 @@ export interface JournalViewProps {
   lastSavedAt: number | null
   saveError: string | null
   onSelect: (entry: Entry) => void
+  onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onNew: () => void
   query: string
   onQueryChange: (q: string) => void
-  mode: ViewMode
-  onToggleMode: () => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
   onOpenSettings: () => void
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
   focus: FocusApi
-  /** The active surface (editor in write mode, reader in read mode). */
+  sidebarOpen: boolean
+  onToggleSidebar: () => void
+  /** Desktop entries-panel open state — lifted to JournalScreen so ⌘K can open
+   *  it (mobile uses `sidebarOpen` for its drawer and ignores these). */
+  entriesOpen: boolean
+  onToggleEntries: () => void
+  /** The editor surface for the active entry. */
   mainSlot: ReactNode
+  /** True when Looking back fills the main canvas (rail + entries stay visible). */
+  reflectionsActive: boolean
 }

@@ -8,6 +8,19 @@
   "permissions": [
     "core:default",
     "updater:default",
-    "process:default"
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:default",
+    "process:allow-restart",
+    "store:default",
+    "store:allow-load",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-save",
+    "store:allow-delete",
+    "deep-link:default",
+    "deep-link:allow-get-current",
+    "opener:default",
+    "opener:allow-open-url"
   ]
 }

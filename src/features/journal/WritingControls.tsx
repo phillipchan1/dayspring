@@ -6,14 +6,10 @@ interface Props {
   settings: Settings
   update: (patch: Partial<Settings>) => void
   focus: FocusMode
-  /** Only show while editing (not in read mode). */
-  visible: boolean
 }
 
 /** Subtle floating pills while writing; typewriter / dim / exit in focus mode. */
-export function WritingControls({ settings, update, focus, visible }: Props) {
-  if (!visible) return null
-
+export function WritingControls({ settings, update, focus }: Props) {
   const docked = !focus.active
 
   return (
@@ -32,7 +28,7 @@ export function WritingControls({ settings, update, focus, visible }: Props) {
             onClick={() => update({ typewriter: !settings.typewriter })}
             title="Keep the active line centered"
           >
-            Typewriter
+            typewriter
           </button>
           <button
             className="toggle-pill"
@@ -40,10 +36,10 @@ export function WritingControls({ settings, update, focus, visible }: Props) {
             onClick={() => update({ dimming: !settings.dimming })}
             title="Fade everything but the current paragraph"
           >
-            Dim
+            dim
           </button>
           <button className="toggle-pill" onClick={focus.exit} title="Exit focus (Esc)">
-            ✕ Esc
+            ✕ esc
           </button>
         </>
       )}

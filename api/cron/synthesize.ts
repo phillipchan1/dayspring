@@ -1,5 +1,9 @@
 // Daily Vercel Cron (vercel.json → "0 8 * * *"). One smart endpoint that decides
-// what's due: last week's weekly on Mondays, last month's monthly on the 1st.
+// what's due, walking the cascade so each level reads fresh children:
+//   • every Monday        → last week's weekly
+//   • 1st of the month    → that month's weeklies, then the monthly
+//   • 1st of the quarter  → last quarter's monthlies (ensured), then the quarterly
+//   • Jan 1               → last year's monthlies (ensured), then the yearly
 // Idempotent (builders upsert), so re-running never duplicates.
 
 import { isAuthorized, unauthorized } from '../_lib/auth'
@@ -7,11 +11,22 @@ import { env } from '../_lib/env'
 import {
   isMonday,
   isFirstOfMonth,
+  isFirstOfQuarter,
+  isFirstOfYear,
   previousWeek,
   previousMonth,
+  previousQuarter,
+  previousYear,
   weeksOverlappingMonth,
+  monthsInPeriod,
 } from '../_lib/dates'
-import { buildWeekly, buildMonthly, type BuildResult } from '../_lib/synthesize'
+import {
+  buildWeekly,
+  buildMonthly,
+  buildQuarterly,
+  buildYearly,
+  type BuildResult,
+} from '../_lib/synthesize'
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
@@ -31,6 +46,21 @@ export async function GET(req: Request): Promise<Response> {
         results.push(await buildWeekly(owner, week))
       }
       results.push(await buildMonthly(owner, month))
+    }
+    if (isFirstOfQuarter(now)) {
+      const quarter = previousQuarter(now)
+      // Ensure each month's monthly exists before the retreat reads them.
+      for (const month of monthsInPeriod(quarter)) {
+        results.push(await buildMonthly(owner, month))
+      }
+      results.push(await buildQuarterly(owner, quarter))
+    }
+    if (isFirstOfYear(now)) {
+      const year = previousYear(now)
+      for (const month of monthsInPeriod(year)) {
+        results.push(await buildMonthly(owner, month))
+      }
+      results.push(await buildYearly(owner, year))
     }
   } catch (e) {
     return Response.json(

@@ -19,17 +19,32 @@ import '@fontsource/atkinson-hyperlegible/400-italic.css'
 import '@fontsource/atkinson-hyperlegible/700.css'
 import './styles/global.css'
 import { App } from './App'
-import { initAutoUpdate } from './lib/updater'
+import { applyPlatformClass } from './lib/platform'
+import { supabase } from './lib/supabase'
+import { initDeepLinkAuth } from './lib/auth'
 
-const rootEl = document.getElementById('root')
-if (!rootEl) throw new Error('Root element #root not found')
+async function bootstrap() {
+  // Tag <html> as desktop before first paint so native-only layout (e.g. room for
+  // the macOS traffic lights under the overlay title bar) applies immediately.
+  applyPlatformClass()
 
-createRoot(rootEl).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+  // Desktop: start listening for the dayspring:// OAuth callback before anything
+  // else, so a cold launch via the deep link is captured. No-op on web.
+  void initDeepLinkAuth()
 
-// Desktop (Tauri) only: check for and install updates in the background.
-// No-ops in the browser build.
-void initAutoUpdate()
+  // Finish reading persisted session / OAuth callback before we choose Sign-in vs journal.
+  if (supabase) {
+    await supabase.auth.getSession()
+  }
+
+  const rootEl = document.getElementById('root')
+  if (!rootEl) throw new Error('Root element #root not found')
+
+  createRoot(rootEl).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}
+
+void bootstrap()
