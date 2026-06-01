@@ -1,14 +1,18 @@
-import { useState } from 'react'
 import { IMPORT_SOURCES, type ImportSourceDef } from '@/lib/import/sources'
 import { ImportRunner } from './ImportRunner'
 
+interface Props {
+  selectedId: string | null
+  onSelectSource: (sourceId: string) => void
+  onBack: () => void
+}
+
 /** Settings → Import: pick a source, follow its export steps, then drop the file. */
-export function ImportPanel() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
   const selected = selectedId ? IMPORT_SOURCES.find((s) => s.id === selectedId) ?? null : null
 
   if (selected) {
-    return <SourceDetail source={selected} onBack={() => setSelectedId(null)} />
+    return <SourceDetail source={selected} onBack={onBack} />
   }
 
   return (
@@ -26,7 +30,7 @@ export function ImportPanel() {
               type="button"
               className="import-card"
               disabled={soon}
-              onClick={() => setSelectedId(s.id)}
+              onClick={() => onSelectSource(s.id)}
             >
               <span className="import-card__badge" style={{ background: s.tint }}>
                 {s.monogram || s.name.slice(0, 2)}

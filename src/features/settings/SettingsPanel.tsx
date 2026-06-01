@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
+import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { ImportPanel } from './ImportPanel'
@@ -10,13 +11,14 @@ interface Props {
   settings: Settings
   update: (patch: Partial<Settings>) => void
   onClose: () => void
-  /** Optionally open straight to a tab (e.g. the “?” → Shortcuts deep link). */
-  initialTab?: TabId
+  tab: SettingsTab
+  importSourceId: string | null
+  onTabChange: (tab: SettingsTab) => void
+  onImportSourceChange: (sourceId: string) => void
+  onImportSourceBack: () => void
 }
 
-type TabId = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'about'
-
-const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
+const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'appearance', label: 'Appearance', icon: <IconSun /> },
   { id: 'writing', label: 'Writing', icon: <IconPen /> },
   { id: 'import', label: 'Import', icon: <IconImport /> },
@@ -24,9 +26,16 @@ const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
   { id: 'about', label: 'About', icon: <IconSpark /> },
 ]
 
-export function SettingsPanel({ settings, update, onClose, initialTab = 'appearance' }: Props) {
-  const [tab, setTab] = useState<TabId>(initialTab)
-
+export function SettingsPanel({
+  settings,
+  update,
+  onClose,
+  tab,
+  importSourceId,
+  onTabChange,
+  onImportSourceChange,
+  onImportSourceBack,
+}: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -58,7 +67,7 @@ export function SettingsPanel({ settings, update, onClose, initialTab = 'appeara
               type="button"
               className="settings-nav__item"
               data-active={t.id === tab}
-              onClick={() => setTab(t.id)}
+              onClick={() => onTabChange(t.id)}
             >
               <span className="settings-nav__icon">{t.icon}</span>
               <span>{t.label}</span>
@@ -77,7 +86,13 @@ export function SettingsPanel({ settings, update, onClose, initialTab = 'appeara
           <div key={tab} className="settings-main__body">
             {tab === 'appearance' && <AppearanceTab settings={settings} update={update} />}
             {tab === 'writing' && <WritingTab settings={settings} update={update} />}
-            {tab === 'import' && <ImportPanel />}
+            {tab === 'import' && (
+              <ImportPanel
+                selectedId={importSourceId}
+                onSelectSource={onImportSourceChange}
+                onBack={onImportSourceBack}
+              />
+            )}
             {tab === 'shortcuts' && <ShortcutsTab />}
             {tab === 'about' && <AboutTab />}
           </div>

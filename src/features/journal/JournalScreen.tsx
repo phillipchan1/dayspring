@@ -7,6 +7,7 @@ import { wordCount } from '@/lib/entries'
 import * as repo from '@/lib/repo'
 import { syncStore } from '@/lib/sync'
 import type { Entry } from '@/lib/types'
+import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
 import { DesktopJournal } from './DesktopJournal'
@@ -17,44 +18,30 @@ import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
 import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
-import type { JournalViewProps, ViewMode } from './journalViewProps'
+import type { JournalViewProps } from './journalViewProps'
 
 interface JournalScreenProps {
   userEmail: string
-  /** Route to the Reflections surface. */
-  onLookBack: () => void
-  /** When set, select & open this entry (from a rollup quote), then clear. */
-  jumpEntryId: string | null
-  onConsumeJump: () => void
-  /** When set, restrict the entry list to these ids (from a rollup topic). */
-  restrictIds: string[] | null
-  onClearRestrict: () => void
 }
 
-export function JournalScreen({
-  userEmail,
-  onLookBack,
-  jumpEntryId,
-  onConsumeJump,
-  restrictIds,
-  onClearRestrict,
-}: JournalScreenProps) {
+export function JournalScreen({ userEmail }: JournalScreenProps) {
+  const { state, go, back } = useAppNavigation()
+  const { entryId, mode, restrictIds } = state
+
   const [entries, setEntries] = useState<Entry[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
   const [content, setContent] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [mode, setMode] = useState<ViewMode>('write')
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
+  const settingsOpen = state.settings !== null
+  const helpOpen = state.help
+  const sidebarOpen = state.sidebar
   const focus = useFocusMode(settingsOpen)
 
-  const activeIdRef = useRef<string | null>(null)
-  activeIdRef.current = activeId
+  const entryIdRef = useRef<string | null>(null)
+  entryIdRef.current = entryId
 
   // Cache-first load: show local entries instantly, then sync from the server.
   useEffect(() => {
@@ -64,20 +51,24 @@ export function JournalScreen({
         const cached = await repo.listEntries()
         if (!cancelled && cached.length) {
           setEntries(cached)
-          const first = cached[0]!
-          setActiveId(first.id)
-          setContent(first.body_markdown)
+          const pick = entryIdRef.current
+            ? (cached.find((e) => e.id === entryIdRef.current) ?? cached[0]!)
+            : cached[0]!
+          if (!entryIdRef.current) {
+            go({ entryId: pick.id }, { replace: true })
+          }
+          setContent(pick.body_markdown)
         }
       } catch {
         /* cache miss is fine; sync will populate */
       }
       try {
-        const synced = await repo.sync(activeIdRef.current)
+        const synced = await repo.sync(entryIdRef.current)
         if (!cancelled && synced) {
           setEntries(synced)
-          if (activeIdRef.current === null && synced.length) {
+          if (entryIdRef.current === null && synced.length) {
             const first = synced[0]!
-            setActiveId(first.id)
+            go({ entryId: first.id }, { replace: true })
             setContent(first.body_markdown)
           }
         }
@@ -88,12 +79,13 @@ export function JournalScreen({
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount
   }, [])
 
   // Re-sync when we regain connectivity or refocus the tab; flag offline promptly.
   useEffect(() => {
     const resync = () => {
-      void repo.sync(activeIdRef.current).then((list) => {
+      void repo.sync(entryIdRef.current).then((list) => {
         if (list) setEntries(list)
       })
     }
@@ -114,20 +106,42 @@ export function JournalScreen({
   }, [])
 
   const { status, lastSavedAt, error: saveError, saveNow } = useAutosave({
-    entryId: activeId,
+    entryId,
     content,
     enabled: mode === 'write',
     onCreated: (created) => {
-      setActiveId(created.id)
+      go({ entryId: created.id }, { replace: true })
       setEntries((prev) => [created, ...prev])
     },
   })
 
+  // Flush the entry we're leaving when back/forward changes `entryId`.
+  useEffect(() => {
+    return () => {
+      void saveNow()
+    }
+  }, [entryId, saveNow])
+
+  // Browser back / forward: load the entry body for the restored frame.
+  const skipEntrySyncRef = useRef(false)
+  useEffect(() => {
+    if (skipEntrySyncRef.current) {
+      skipEntrySyncRef.current = false
+      return
+    }
+    if (entryId === null) {
+      setContent('')
+      return
+    }
+    const entry = entries.find((e) => e.id === entryId)
+    if (entry) setContent(entry.body_markdown)
+  }, [entryId, entries])
+
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onExitEdit: () => setMode('read'),
-    onEnterEdit: () => setMode('write'),
+    onExitEdit: () => go({ mode: 'read' }),
+    onEnterEdit: () => go({ mode: 'write' }),
     onOpenSettings: openSettings,
     mode,
     focusActive: focus.active,
@@ -139,60 +153,43 @@ export function JournalScreen({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== '?' || settingsOpen) return
-      // Don't hijack a literal "?" typed into a field or the editor.
       if (shouldIgnoreTarget(e.target) || isInEditor(e.target)) return
       e.preventDefault()
-      setHelpOpen((open) => !open)
+      if (helpOpen) back()
+      else go({ help: true })
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [settingsOpen])
+  }, [settingsOpen, helpOpen, go, back])
 
   // Keep the active entry's list row in sync as you type.
   useEffect(() => {
-    if (activeId === null) return
+    if (entryId === null) return
     setEntries((prev) =>
       prev.map((e) =>
-        e.id === activeId ? { ...e, body_markdown: content, word_count: wordCount(content) } : e,
+        e.id === entryId ? { ...e, body_markdown: content, word_count: wordCount(content) } : e,
       ),
     )
-  }, [content, activeId])
+  }, [content, entryId])
 
   async function handleNew() {
     await saveNow()
-    setActiveId(null)
+    skipEntrySyncRef.current = true
+    go({ entryId: null, mode: 'write' })
     setContent('')
-    setMode('write')
   }
 
   async function handleSelect(entry: Entry) {
-    if (entry.id === activeId) return
+    if (entry.id === entryId) return
     await saveNow()
-    setActiveId(entry.id)
+    skipEntrySyncRef.current = true
+    go({ entryId: entry.id })
     setContent(entry.body_markdown)
   }
 
   function openSettings() {
-    setSettingsOpen(true)
+    go({ settings: { tab: 'appearance', importSource: null }, help: false })
   }
-
-  // A rollup quote click sets jumpEntryId: open that entry in the reader once
-  // it's loaded, then consume the intent so re-renders don't re-trigger it.
-  const consumedJumpRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!jumpEntryId || consumedJumpRef.current === jumpEntryId) return
-    const target = entries.find((e) => e.id === jumpEntryId)
-    if (!target) return // entries still loading; retry when they arrive
-    consumedJumpRef.current = jumpEntryId
-    void (async () => {
-      await saveNow()
-      setActiveId(jumpEntryId)
-      setContent(target.body_markdown)
-      setMode('read')
-      onConsumeJump()
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jumpEntryId, entries])
 
   const words = useMemo(() => wordCount(content), [content])
   const visibleEntries = useMemo(() => {
@@ -202,8 +199,8 @@ export function JournalScreen({
     }
     return filterEntries(entries, query)
   }, [entries, query, restrictIds])
-  const activeEntry = entries.find((e) => e.id === activeId) ?? null
-  const docKey = activeId ?? 'new'
+  const activeEntry = entries.find((e) => e.id === entryId) ?? null
+  const docKey = entryId ?? 'new'
 
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
@@ -227,7 +224,10 @@ export function JournalScreen({
         <span>
           Showing {visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'} from a topic
         </span>
-        <button className="btn btn--ghost" onClick={onClearRestrict}>
+        <button
+          className="btn btn--ghost"
+          onClick={() => go({ restrictIds: null }, { replace: true })}
+        >
           Clear
         </button>
       </div>
@@ -240,7 +240,7 @@ export function JournalScreen({
   const viewProps: JournalViewProps = {
     userEmail,
     entries: visibleEntries,
-    activeId,
+    activeId: entryId,
     words,
     status,
     lastSavedAt,
@@ -250,24 +250,50 @@ export function JournalScreen({
     query,
     onQueryChange: setQuery,
     mode,
-    onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
-    onLookBack,
-    onOpenSettings: openSettings,
+    onToggleMode: () => go({ mode: mode === 'write' ? 'read' : 'write' }),
+    onLookBack: () => go({ surface: 'reflections', settings: null, help: false, sidebar: false }),
+    onOpenSettings: () => openSettings(),
     settings,
     updateSettings,
     focus,
     sidebarOpen,
-    onToggleSidebar: () => setSidebarOpen((prev) => !prev),
+    onToggleSidebar: () => {
+      if (sidebarOpen) back()
+      else go({ sidebar: true })
+    },
     mainSlot,
   }
 
   return (
     <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
-      {settingsOpen && (
-        <SettingsPanel settings={settings} update={updateSettings} onClose={() => setSettingsOpen(false)} />
+      {settingsOpen && state.settings && (
+        <SettingsPanel
+          settings={settings}
+          update={updateSettings}
+          onClose={back}
+          tab={state.settings.tab}
+          importSourceId={state.settings.importSource}
+          onTabChange={(tab) =>
+            go(
+              {
+                settings: {
+                  tab,
+                  importSource: tab === 'import' ? state.settings!.importSource : null,
+                },
+              },
+              { replace: true },
+            )
+          }
+          onImportSourceChange={(importSource) =>
+            go({ settings: { tab: 'import', importSource } }, { replace: true })
+          }
+          onImportSourceBack={() =>
+            go({ settings: { tab: 'import', importSource: null } }, { replace: true })
+          }
+        />
       )}
-      {helpOpen && <ShortcutsOverlay onClose={() => setHelpOpen(false)} />}
+      {helpOpen && <ShortcutsOverlay onClose={back} />}
     </>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { isSupabaseConfigured } from './lib/env'
 import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
@@ -9,18 +9,12 @@ import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
 import { LookingBack } from './features/reflections/LookingBack'
 import { UpdateToast } from './components/UpdateToast'
-
-type Surface = 'journal' | 'reflections'
+import { AppNavigationProvider, useAppNavigation } from './context/AppNavigation'
 
 export function App() {
   const { session, loading } = useSession()
   const { settings } = useSettings()
   const resolvedTheme = useResolvedTheme(settings)
-  const [surface, setSurface] = useState<Surface>('journal')
-  // Cross-surface intents: open one entry (from a quote) or filter to a set
-  // (from a topic). JournalScreen consumes and clears them.
-  const [jumpEntryId, setJumpEntryId] = useState<string | null>(null)
-  const [restrictIds, setRestrictIds] = useState<string[] | null>(null)
 
   // Apply per-device appearance (theme + editor typography) to CSS custom props.
   useEffect(() => {
@@ -43,17 +37,31 @@ export function App() {
 
   if (!session) return <SignIn />
 
-  // Any authenticated Google account may use the app. Access is governed by the
-  // Google OAuth consent screen (Testing mode) and per-row RLS (owner = auth.uid()).
-  if (surface === 'reflections') {
+  return (
+    <AppNavigationProvider>
+      <AuthenticatedApp userEmail={session.user.email ?? ''} />
+    </AppNavigationProvider>
+  )
+}
+
+function AuthenticatedApp({ userEmail }: { userEmail: string }) {
+  const { state, go, back } = useAppNavigation()
+
+  if (state.surface === 'reflections') {
     return (
       <>
         <LookingBack
-          onBack={() => setSurface('journal')}
+          onBack={back}
           onOpenEntry={(id) => {
-            setRestrictIds(null)
-            setJumpEntryId(id)
-            setSurface('journal')
+            go({
+              surface: 'journal',
+              entryId: id,
+              mode: 'read',
+              restrictIds: null,
+              settings: null,
+              help: false,
+              sidebar: false,
+            })
           }}
         />
         <UpdateToast />
@@ -63,14 +71,7 @@ export function App() {
 
   return (
     <>
-      <JournalScreen
-        userEmail={session.user.email ?? ''}
-        onLookBack={() => setSurface('reflections')}
-        jumpEntryId={jumpEntryId}
-        onConsumeJump={() => setJumpEntryId(null)}
-        restrictIds={restrictIds}
-        onClearRestrict={() => setRestrictIds(null)}
-      />
+      <JournalScreen userEmail={userEmail} />
       <UpdateToast />
     </>
   )
