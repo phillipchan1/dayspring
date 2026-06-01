@@ -1788,3 +1788,63 @@ a {
     display: none;
   }
 }
+
+/* ── Desktop update prompt (Tauri) ─────────────────────────────────────────
+   Bottom-left toast shown when a new version has been downloaded and staged.
+   Quiet at rest; the Restart button relaunches into the installed update. */
+.update-toast {
+  position: fixed;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem 0.55rem 0.8rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  font-size: 0.8rem;
+  color: var(--text);
+  animation: update-toast-in var(--transition-slow) both;
+}
+@keyframes update-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.update-toast__dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+.update-toast__dot[data-mode='downloading'] {
+  opacity: 0.6;
+  animation: status-breathe 1.6s ease-in-out infinite;
+}
+.update-toast__text {
+  white-space: nowrap;
+}
+.update-toast__ver {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  margin-left: 0.15rem;
+}
+.update-toast__btn {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-bright);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: background var(--transition), color var(--transition);
+}
+.update-toast__btn:hover {
+  background: var(--accent);
+  color: #fff;
+}

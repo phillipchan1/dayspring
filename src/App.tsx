@@ -8,6 +8,7 @@ import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
 import { LookingBack } from './features/reflections/LookingBack'
+import { UpdateToast } from './components/UpdateToast'
 
 type Surface = 'journal' | 'reflections'
 
@@ -46,25 +47,31 @@ export function App() {
   // Google OAuth consent screen (Testing mode) and per-row RLS (owner = auth.uid()).
   if (surface === 'reflections') {
     return (
-      <LookingBack
-        onBack={() => setSurface('journal')}
-        onOpenEntry={(id) => {
-          setRestrictIds(null)
-          setJumpEntryId(id)
-          setSurface('journal')
-        }}
-      />
+      <>
+        <LookingBack
+          onBack={() => setSurface('journal')}
+          onOpenEntry={(id) => {
+            setRestrictIds(null)
+            setJumpEntryId(id)
+            setSurface('journal')
+          }}
+        />
+        <UpdateToast />
+      </>
     )
   }
 
   return (
-    <JournalScreen
-      userEmail={session.user.email ?? ''}
-      onLookBack={() => setSurface('reflections')}
-      jumpEntryId={jumpEntryId}
-      onConsumeJump={() => setJumpEntryId(null)}
-      restrictIds={restrictIds}
-      onClearRestrict={() => setRestrictIds(null)}
-    />
+    <>
+      <JournalScreen
+        userEmail={session.user.email ?? ''}
+        onLookBack={() => setSurface('reflections')}
+        jumpEntryId={jumpEntryId}
+        onConsumeJump={() => setJumpEntryId(null)}
+        restrictIds={restrictIds}
+        onClearRestrict={() => setRestrictIds(null)}
+      />
+      <UpdateToast />
+    </>
   )
 }
