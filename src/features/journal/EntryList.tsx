@@ -29,7 +29,7 @@ import {
   copyEntriesText,
   exportEntriesZip,
 } from './entryBulkActions'
-import { isInEditor } from './keyboard'
+import { isInEditor, isInEntryList, shouldIgnoreTarget } from './keyboard'
 
 const NATIVE = isTauri()
 const FLAT_VIRTUAL_THRESHOLD = 100
@@ -83,20 +83,47 @@ export function EntryList({
     [entries, multi.selectedIds],
   )
 
-  const menuOpen = phase.kind !== 'closed' || bulkPhase.kind !== 'closed'
-
   useEffect(() => {
-    if (multi.selectionCount < 2) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
       if (phase.kind !== 'closed' || bulkPhase.kind !== 'closed') return
+
+      if (e.key === 'Escape' && multi.selectionCount >= 2) {
+        e.preventDefault()
+        e.stopPropagation()
+        multi.clearSelection()
+        return
+      }
+
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (!isInEntryList(e.target)) return
+      if (isInEditor(e.target) || shouldIgnoreTarget(e.target)) return
+      if (e.target instanceof HTMLElement && e.target.closest('[data-entry-search]')) return
+
       e.preventDefault()
       e.stopPropagation()
-      multi.clearSelection()
+
+      if (multi.selectionCount >= 2) {
+        setBulkPhase({ kind: 'confirm', entries: selectedEntries })
+        return
+      }
+
+      if (!activeId) return
+      const entry = entries.find((item) => item.id === activeId)
+      if (entry) setPhase({ kind: 'confirm', entry })
     }
+
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [multi.selectionCount, multi.clearSelection, phase.kind, bulkPhase.kind])
+  }, [
+    activeId,
+    entries,
+    multi.selectionCount,
+    multi.clearSelection,
+    phase.kind,
+    bulkPhase.kind,
+    selectedEntries,
+  ])
 
   const flatVirtual =
     !groups && !searching && entries.length >= FLAT_VIRTUAL_THRESHOLD
@@ -156,18 +183,6 @@ export function EntryList({
       ref={listRef}
       className={`entry-list${fullWidth ? ' entry-list--drawer' : ''}`}
       onContextMenu={blockNativeMenu}
-      onKeyDown={(e) => {
-        if (multi.selectionCount < 2) return
-        if (e.key === 'Escape' && !menuOpen) {
-          e.preventDefault()
-          multi.clearSelection()
-          return
-        }
-        if (e.key !== 'Backspace' && e.key !== 'Delete') return
-        if (isInEditor(e.target) || (e.target as HTMLElement).closest('[data-entry-search]')) return
-        e.preventDefault()
-        setBulkPhase({ kind: 'confirm', entries: selectedEntries })
-      }}
     >
       <div
         className="entry-list__head"
@@ -415,7 +430,10 @@ function EntryRow({
         data-context={context ? 'true' : undefined}
         onClick={(e) => {
           const result = onRowClick(entry.id, e)
-          if (result === 'open') onSelect(entry)
+          if (result === 'open') {
+            onSelect(entry)
+            e.currentTarget.focus()
+          }
         }}
         onContextMenu={(e) => {
           e.preventDefault()

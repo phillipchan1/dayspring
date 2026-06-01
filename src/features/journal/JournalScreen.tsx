@@ -116,6 +116,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const entryIdRef = useRef<string | null>(null)
   entryIdRef.current = entryId
   const skipEntrySyncRef = useRef(false)
+  const skipEditorAutofocusRef = useRef(false)
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
@@ -435,6 +436,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   async function handleSelect(entry: Entry) {
     if (entry.id === entryId && !canvasAlternateActive) return
+    skipEditorAutofocusRef.current = true
     await saveNow()
     skipEntrySyncRef.current = true
     go({ surface: 'journal', entryId: entry.id })
@@ -560,6 +562,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             onChange={setContent}
             placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
             autofocus
+            skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && settings.typewriter}
             dimming={focus.active && settings.dimming}
             slashEnabled

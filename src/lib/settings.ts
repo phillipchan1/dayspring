@@ -47,6 +47,9 @@ export interface Settings {
 
   /** Default Bible translation for scripture search. */
   scriptureTranslation: BibleTranslation
+
+  /** Desktop rail: show text labels beside icons. */
+  railLabels: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -59,6 +62,7 @@ const DEFAULTS: Settings = {
   editorFont: 'serif',
   entriesGroupBy: 'month',
   scriptureTranslation: 'ESV',
+  railLabels: false,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

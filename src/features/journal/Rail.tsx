@@ -10,13 +10,15 @@ interface RailProps {
   altarActive: boolean
   onAltar: () => void
   onOpenSettings: () => void
+  labelsExpanded: boolean
+  onToggleLabels: () => void
   /** macOS traffic-light top clearance under Tauri's overlay title bar. */
   nativeTopInset?: string | undefined
 }
 
 /**
- * Slim glass spine — icon-only destinations (labels in tooltips + screen readers).
- * Wordmark lives in the entries panel; the mark anchors the rail.
+ * Slim glass spine — icon destinations with optional labels. Toggle at the
+ * foot of the rail; preference persists in settings.
  */
 export function Rail({
   onNew,
@@ -27,13 +29,24 @@ export function Rail({
   altarActive,
   onAltar,
   onOpenSettings,
+  labelsExpanded,
+  onToggleLabels,
   nativeTopInset,
 }: RailProps) {
   return (
-    <nav className="rail" style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}>
+    <nav
+      className="rail"
+      data-labels={labelsExpanded ? 'true' : 'false'}
+      style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}
+    >
       <div className="rail__glow" aria-hidden />
-      <div className="rail__brand">
-        <Mark size={24} />
+      <div className="rail__brand rail-btn rail-btn--brand" aria-hidden={!labelsExpanded}>
+        <span className="rail-btn__well">
+          <Mark size={20} className="rail__mark" />
+        </span>
+        {labelsExpanded && !entriesOpen ? (
+          <span className="rail-btn__label">Dayspring</span>
+        ) : null}
       </div>
       <div className="rail__nav">
         <div className="rail__actions">
@@ -42,8 +55,10 @@ export function Rail({
             shortcut="⌘N"
             onClick={onNew}
             icon={<IconNew />}
+            labelsExpanded={labelsExpanded}
           />
         </div>
+        <div className="rail__rule" aria-hidden />
         <div className="rail__destinations" aria-label="Destinations">
           <RailButton
             label="Entries"
@@ -51,6 +66,7 @@ export function Rail({
             onClick={onToggleEntries}
             active={entriesOpen && !lookBackActive && !altarActive}
             icon={<IconEntries />}
+            labelsExpanded={labelsExpanded}
           />
           <RailButton
             label="Looking back"
@@ -58,6 +74,7 @@ export function Rail({
             onClick={onLookBack}
             active={lookBackActive}
             icon={<IconLookBack />}
+            labelsExpanded={labelsExpanded}
           />
           <RailButton
             label="Altar"
@@ -65,6 +82,7 @@ export function Rail({
             onClick={onAltar}
             active={altarActive}
             icon={<IconAltar />}
+            labelsExpanded={labelsExpanded}
           />
         </div>
       </div>
@@ -74,7 +92,23 @@ export function Rail({
           shortcut="⌘,"
           onClick={onOpenSettings}
           icon={<IconSettings />}
+          labelsExpanded={labelsExpanded}
         />
+        <button
+          type="button"
+          className="rail-toggle"
+          onClick={onToggleLabels}
+          aria-pressed={labelsExpanded}
+          aria-label={labelsExpanded ? 'Icons only' : 'Show navigation labels'}
+          title={labelsExpanded ? 'Icons only' : 'Show names'}
+        >
+          <span className="rail__icon-slot rail-toggle__well" aria-hidden>
+            <IconRailExpand expanded={labelsExpanded} />
+          </span>
+          <span className="rail-toggle__label">
+            {labelsExpanded ? 'Icons only' : 'Show names'}
+          </span>
+        </button>
       </div>
     </nav>
   )
@@ -86,9 +120,17 @@ interface RailButtonProps {
   onClick: () => void
   icon: ReactNode
   active?: boolean
+  labelsExpanded: boolean
 }
 
-function RailButton({ label, shortcut, onClick, icon, active = false }: RailButtonProps) {
+function RailButton({
+  label,
+  shortcut,
+  onClick,
+  icon,
+  active = false,
+  labelsExpanded,
+}: RailButtonProps) {
   return (
     <button
       type="button"
@@ -100,6 +142,9 @@ function RailButton({ label, shortcut, onClick, icon, active = false }: RailButt
       onClick={onClick}
     >
       <span className="rail-btn__well">{icon}</span>
+      <span className="rail-btn__label" aria-hidden={!labelsExpanded}>
+        {label}
+      </span>
     </button>
   )
 }
@@ -119,6 +164,17 @@ function NavIcon({ children }: { children: ReactNode }) {
     >
       {children}
     </svg>
+  )
+}
+
+function IconRailExpand({ expanded }: { expanded: boolean }) {
+  return (
+    <NavIcon>
+      <path
+        d={expanded ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'}
+        strokeWidth="1.65"
+      />
+    </NavIcon>
   )
 }
 
@@ -153,11 +209,7 @@ function IconLookBack() {
 function IconAltar() {
   return (
     <NavIcon>
-      <path d="M12 3v4" />
-      <path d="M8 7h8" />
-      <path d="M6 21h12" />
-      <path d="M9 11h6v10H9z" />
-      <path d="M10 11V9a2 2 0 0 1 4 0v2" />
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
     </NavIcon>
   )
 }

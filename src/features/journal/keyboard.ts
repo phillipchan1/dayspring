@@ -8,6 +8,11 @@ export function isInEditor(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('.cm-editor') != null
 }
 
+/** True when focus is in the entries sidebar list. */
+export function isInEntryList(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('.entry-list') != null
+}
+
 /**
  * Skip shortcuts while typing in form fields, except the CodeMirror surface
  * (contenteditable) where mod-key shortcuts should still apply.

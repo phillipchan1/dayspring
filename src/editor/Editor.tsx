@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as cmPlaceholder, drawSelection } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -32,6 +32,8 @@ interface EditorProps {
   docKey: string
   onChange: (doc: string) => void
   placeholder?: string
+  /** When true, the next docKey swap skips autofocus (sidebar selection keeps list focus). */
+  skipAutofocusRef?: MutableRefObject<boolean>
   autofocus?: boolean
   typewriter?: boolean
   dimming?: boolean
@@ -67,6 +69,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     slashEnabled = false,
     commandLinePos = null,
     onSlashCommand,
+    skipAutofocusRef,
   },
   ref,
 ) {
@@ -175,6 +178,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     const current = view.state.doc.toString()
     if (current !== initialDoc) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
+    }
+    if (skipAutofocusRef?.current) {
+      skipAutofocusRef.current = false
+      return
     }
     if (!autofocus) return
     view.focus()

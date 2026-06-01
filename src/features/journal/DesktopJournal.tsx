@@ -47,6 +47,8 @@ export function DesktopJournal(props: JournalViewProps) {
           altarActive={altarActive}
           onAltar={onAltar}
           onOpenSettings={onOpenSettings}
+          labelsExpanded={settings.railLabels}
+          onToggleLabels={() => updateSettings({ railLabels: !settings.railLabels })}
           nativeTopInset={NATIVE ? MAC_TRAFFIC_INSET.railTop : undefined}
         />
       )}

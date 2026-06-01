@@ -118,6 +118,12 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
       <Field label="Writing font" hint="The face you read and write in.">
         <WritingFontPicker value={settings.editorFont} onChange={(editorFont) => update({ editorFont })} />
       </Field>
+      <Toggle
+        label="Navigation labels"
+        hint="Show names beside the sidebar icons"
+        checked={settings.railLabels}
+        onChange={(railLabels) => update({ railLabels })}
+      />
     </div>
   )
 }
