@@ -31,9 +31,47 @@ import { LookingBack } from '@/features/reflections/LookingBack'
 import { ScriptureModal } from '@/features/reflect/ScriptureModal'
 import { PrayModal } from '@/features/reflect/PrayModal'
 import { SenseModal } from '@/features/reflect/SenseModal'
+import { RemindModal } from '@/features/reflect/RemindModal'
+import { EchoCard } from './EchoCard'
+import { fetchCurrentEcho, dismissEcho, type EchoCandidate } from '@/lib/echoes'
 
 interface JournalScreenProps {
   userEmail: string
+}
+
+/**
+ * Extract the sentence nearest `pos` in `content` for pre-populating /remind.
+ * Strips any trailing /command text and falls back to the paragraph if the
+ * detected sentence is too short.
+ */
+function sentenceNear(content: string, pos: number): string {
+  const before = content.slice(0, pos)
+  if (!before.trim()) return ''
+
+  // Find the last sentence boundary before pos.
+  let lastBoundary = 0
+  const re = /[.!?]\s+/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(before)) !== null) lastBoundary = m.index + m[0].length
+
+  // Also treat paragraph breaks as sentence starts.
+  const lastPara = before.lastIndexOf('\n\n')
+  const start = Math.max(lastBoundary, lastPara < 0 ? 0 : lastPara + 2)
+
+  // Sentence extends to the first ., !, ? or \n after pos.
+  const after = content.slice(pos)
+  const endM = /^[^.!?\n]*[.!?\n]?/.exec(after)
+  const end = pos + (endM ? endM[0].length : 0)
+
+  const raw = content.slice(start, end)
+  // Strip the slash command text itself.
+  const cleaned = raw.replace(/\s*\/[a-z]*\s*/, ' ').trim()
+
+  // If too short, use last ~200 chars before pos.
+  if (cleaned.length < 15) {
+    return before.slice(-200).replace(/\s*\/[a-z]*\s*$/, '').trim()
+  }
+  return cleaned
 }
 
 export function JournalScreen({ userEmail }: JournalScreenProps) {
@@ -78,6 +116,18 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   function handleSlashCommand(cmd: SlashCommandId, insertAt: number) {
     setSlashModal({ cmd, insertAt })
+  }
+
+  // Echo — thematic resonance card above the editor.
+  const [currentEcho, setCurrentEcho] = useState<EchoCandidate | null>(null)
+  useEffect(() => {
+    fetchCurrentEcho().then((echo) => setCurrentEcho(echo)).catch(() => null)
+  }, [])
+
+  function handleDismissEcho() {
+    const echo = currentEcho
+    setCurrentEcho(null)
+    if (echo) void dismissEcho(echo.entry_id)
   }
 
   // Cache-first load: show local entries instantly, then sync from the server.
@@ -356,18 +406,25 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
   ) : (
-    <Editor
-      ref={editorRef}
-      docKey={docKey}
-      initialDoc={content}
-      onChange={setContent}
-      placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
-      autofocus
-      typewriter={focus.active && settings.typewriter}
-      dimming={focus.active && settings.dimming}
-      slashEnabled
-      onSlashCommand={handleSlashCommand}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      {currentEcho && (
+        <EchoCard echo={currentEcho} onDismiss={handleDismissEcho} />
+      )}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <Editor
+          ref={editorRef}
+          docKey={docKey}
+          initialDoc={content}
+          onChange={setContent}
+          placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
+          autofocus
+          typewriter={focus.active && settings.typewriter}
+          dimming={focus.active && settings.dimming}
+          slashEnabled
+          onSlashCommand={handleSlashCommand}
+        />
+      </div>
+    </div>
   )
 
   const mainSlot = reflectionsActive ? (
@@ -444,6 +501,13 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       {slashModal?.cmd === 'sense' && (
         <SenseModal
           entryId={entryId}
+          onClose={() => setSlashModal(null)}
+        />
+      )}
+      {slashModal?.cmd === 'remind' && (
+        <RemindModal
+          entryId={entryId}
+          sentence={sentenceNear(content, slashModal.insertAt)}
           onClose={() => setSlashModal(null)}
         />
       )}

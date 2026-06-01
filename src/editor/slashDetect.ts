@@ -1,6 +1,6 @@
 import type { EditorView } from '@codemirror/view'
 
-export type SlashCommandId = 'scripture' | 'pray' | 'sense'
+export type SlashCommandId = 'scripture' | 'pray' | 'sense' | 'remind'
 
 export interface SlashState {
   query: string

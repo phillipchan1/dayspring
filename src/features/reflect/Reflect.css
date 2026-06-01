@@ -525,3 +525,130 @@
     padding: 0 1rem;
   }
 }
+
+/* ── /remind modal: horizon picker ──────────────────────────────────────── */
+
+.remind-horizons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.remind-horizon-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.remind-horizon-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.remind-horizon-btn[data-active='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.remind-horizon-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-bright);
+  letter-spacing: 0.02em;
+}
+
+.remind-horizon-sub {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+}
+
+/* 1-year hero option */
+.remind-horizon-btn--year {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.remind-horizon-btn--year .remind-horizon-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-width: 7rem;
+}
+
+.remind-horizon-btn--year .remind-horizon-sub {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.remind-horizon-btn--year[data-active='true'] {
+  border-color: var(--glass-glow-spot);
+  box-shadow: 0 0 0 1px var(--glass-glow-spot);
+  background: var(--accent-soft);
+}
+
+/* ── EchoCard — a resonance from the past ──────────────────────────────── */
+
+.echo-card {
+  position: relative;
+  margin: 0 0 1.5rem;
+  padding: 0.85rem 2.5rem 0.85rem 1rem;
+  border-left: 2px solid var(--glass-glow-spot);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.echo-card__text {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.echo-card__date {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+.echo-card__dismiss {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.5rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+.echo-card:hover .echo-card__dismiss {
+  opacity: 1;
+}
+
+.echo-card__dismiss:hover {
+  color: var(--text-bright);
+}
