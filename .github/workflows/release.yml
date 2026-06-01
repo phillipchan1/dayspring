@@ -142,7 +142,7 @@ jobs:
           else
             COMMITS=$(git log "${BEFORE}..HEAD" --no-merges --pretty=format:'- %s')
           fi
-          [ -z "$COMMITS" ] && COMMITS="- A little polish and a few behind-the-scenes fixes."
+          [ -z "$COMMITS" ] && COMMITS="- Minor improvements and behind-the-scenes fixes."
           printf '%s\n' "$COMMITS" | node scripts/release-notes.mjs > RELEASE_NOTES.md
           echo "Generated release notes:"; cat RELEASE_NOTES.md
 

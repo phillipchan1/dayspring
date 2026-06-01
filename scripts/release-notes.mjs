@@ -21,15 +21,17 @@ async function readStdin(stream) {
 
 const raw = (await readStdin(process.stdin)).trim()
 
-// Strip conventional-commit prefixes so even the fallback reads a bit friendlier.
+// Best-effort relevance even without the model: drop commits whose conventional
+// type is internal (chore/docs/refactor/test/build/ci/style), then strip the
+// remaining prefixes so it reads friendlier. If nothing user-facing is left,
+// emit the same generic line the model uses.
 function fallback() {
-  const cleaned = raw
+  const INTERNAL = /^-\s*(?:chore|docs|refactor|test|build|ci|style)(\([^)]*\))?:/i
+  const kept = raw
     .split('\n')
-    .map((l) =>
-      l.replace(/^-\s*(?:feat|fix|chore|docs|refactor|perf|test|build|ci|style)(\([^)]*\))?:\s*/i, '- '),
-    )
-    .join('\n')
-  process.stdout.write(cleaned || '✨ A little polish and a few behind-the-scenes fixes.')
+    .filter((l) => l.trim() && !INTERNAL.test(l))
+    .map((l) => l.replace(/^-\s*(?:feat|fix|perf)(\([^)]*\))?:\s*/i, '- '))
+  process.stdout.write(kept.join('\n') || '✨ Minor improvements and behind-the-scenes fixes.')
 }
 
 if (!raw || !KEY) {
@@ -50,12 +52,13 @@ const instructions = `Rewrite the COMMITS below into Dayspring's release notes. 
 Voice: warm, friendly, a little playful — like a thoughtful friend telling you what's new, never corporate.
 
 Rules:
+- ONLY include changes a person USING the app would actually notice: writing & editing entries, insights/reflections, reminders, search, sync, settings, appearance, and other in-app features.
+- OMIT everything internal — refactors, tests, CI, build & release tooling (including these release notes themselves), dependency or version bumps, developer docs, and tweaks to internal prompts/scripts. When in doubt whether users would notice, LEAVE IT OUT.
 - A SINGLE FLAT LIST of bullets. No headings, no sections, no grouping. Each bullet starts with "- ".
 - One short, friendly bullet per user-visible change, in plain language. No jargon, no commit prefixes (feat:/fix:), no file names, no SHAs.
 - For a notable/major new feature, lead that bullet with a fitting emoji and celebrate a little (e.g. 🎉, ✨). Keep small fixes calm and emoji-free.
-- Silently drop internal-only commits (refactors, CI, build tooling, dependency/version bumps) unless they clearly affect users.
 - At most ~5 bullets. Plain text only (the notes render as plain text — no Markdown headings, bold, or links).
-- If nothing is user-facing, output EXACTLY this one line and nothing else: ✨ A little polish and a few behind-the-scenes fixes.
+- If NOTHING is user-facing (e.g. the build is all internal/tooling), output EXACTLY this one line and nothing else: ✨ Minor improvements and behind-the-scenes fixes.
 
 COMMITS:
 ${raw}
