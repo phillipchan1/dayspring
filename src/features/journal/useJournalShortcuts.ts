@@ -6,6 +6,7 @@ export interface JournalShortcutActions {
   onSave: () => void
   onToggleEntries: () => void
   onLookBack: () => void
+  onAltar: () => void
   onOpenSettings: () => void
   /** Open the entries panel (if collapsed) and focus its search field. */
   onFocusSearch: () => void
@@ -19,6 +20,7 @@ export interface JournalShortcutActions {
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
  * ⌘N new · ⌘1–3 rail · ⌘, settings · ⌘S save · ⌘K search · ⌘⏎ focus
+ * ⌘1 entries · ⌘2 looking back · ⌘3 altar
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
@@ -26,6 +28,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onSave,
     onToggleEntries,
     onLookBack,
+    onAltar,
     onOpenSettings,
     onFocusSearch,
     focusActive,
@@ -56,7 +59,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         e.preventDefault()
         if (key === '1') onToggleEntries()
         else if (key === '2') onLookBack()
-        else onOpenSettings()
+        else if (key === '3') onAltar()
         return
       }
 
@@ -81,6 +84,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onSave,
     onToggleEntries,
     onLookBack,
+    onAltar,
     onOpenSettings,
     onFocusSearch,
     focusActive,

@@ -5,7 +5,7 @@ export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'a
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
-  surface: 'journal' | 'reflections'
+  surface: 'journal' | 'reflections' | 'altar'
   entryId: string | null
   settings: { tab: SettingsTab; importSource: string | null } | null
   help: boolean

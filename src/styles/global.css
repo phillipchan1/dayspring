@@ -804,9 +804,29 @@ a {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.35rem;
   width: 100%;
   min-height: 0;
+}
+.rail__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding-bottom: 0.45rem;
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.rail__destinations {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding-top: 0.15rem;
 }
 .rail__footer {
   position: relative;
@@ -1188,44 +1208,6 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
 @media (max-width: 768px) {
   .focus-controls--docked {
     bottom: max(8.5rem, calc(env(safe-area-inset-bottom) + 8rem));
-  }
-}
-
-/* ── Floating action button (new entry) ──────────────────────────────────── */
-.fab-new {
-  position: fixed;
-  right: max(1.25rem, env(safe-area-inset-right));
-  bottom: max(4.25rem, calc(env(safe-area-inset-bottom) + 3.75rem));
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 1.75rem;
-  line-height: 1;
-  border: none;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.22), 0 1px 4px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 40;
-  touch-action: manipulation;
-  transition: transform 0.14s ease, box-shadow 0.14s ease;
-}
-.fab-new:active {
-  transform: scale(0.91);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
-}
-@media (hover: hover) {
-  .fab-new:hover {
-    transform: scale(1.07);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.26);
-  }
-}
-@media (min-width: 769px) {
-  .fab-new {
-    bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
   }
 }
 

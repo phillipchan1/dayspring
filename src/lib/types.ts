@@ -40,6 +40,8 @@ export interface SpiritualItem {
 }
 
 export interface NewSpiritualItem {
+  /** When set, the fence block and DB row share this id (instant insert). */
+  id?: string
   entry_id?: string | null
   type: SpiritualItemType
   content: string

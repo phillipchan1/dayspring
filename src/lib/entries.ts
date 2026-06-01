@@ -1,8 +1,9 @@
+import { stripSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
 import type { Entry, EntrySource, NewEntry } from './types'
 
 export function wordCount(markdown: string): number {
-  const trimmed = markdown.trim()
+  const trimmed = stripSpiritualBlocks(markdown).trim()
   if (!trimmed) return 0
   return trimmed.split(/\s+/).length
 }

@@ -5,7 +5,6 @@ import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
-import { FabNew } from './FabNew'
 import { WritingControls } from './WritingControls'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
@@ -23,14 +22,15 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onOpenSettings,
+    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
-    reflectionsActive,
+    reflectionsActive, altarActive,
   } = props
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const journalChrome = !reflectionsActive
+  const canvasAlternateActive = reflectionsActive || altarActive
+  const journalChrome = !canvasAlternateActive
 
   function closeDrawer() {
     if (sidebarOpen) onToggleSidebar()
@@ -104,7 +104,7 @@ export function MobileJournal(props: JournalViewProps) {
       )}
 
       <div
-        className={`journal-canvas${reflectionsActive ? ' journal-canvas--reflections' : ''}`}
+        className={`journal-canvas${canvasAlternateActive ? ' journal-canvas--reflections' : ''}`}
         style={{ flex: 1, minHeight: 0 }}
       >
         {!focused && journalChrome && (
@@ -116,7 +116,7 @@ export function MobileJournal(props: JournalViewProps) {
         <div
           className="journal-canvas__content"
           style={{
-            padding: focused ? '0 1rem' : reflectionsActive ? '0' : '2.5rem 1rem 1.25rem',
+            padding: focused ? '0 1rem' : canvasAlternateActive ? '0' : '2.5rem 1rem 1.25rem',
             overflow: 'hidden',
           }}
         >
@@ -127,22 +127,27 @@ export function MobileJournal(props: JournalViewProps) {
       {!focused && (
         <>
           <nav className="mobile-bar">
+            <button className="nav-btn" onClick={onNew} aria-label="New entry" title="New entry (⌘N)">
+              +
+            </button>
             <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">
               ☰
             </button>
             <button className="nav-btn" onClick={onLookBack} aria-label="Looking back" title="Looking back (⌘2)">
               ⟲
             </button>
+            <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘3)">
+              ◇
+            </button>
             {journalChrome && (
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 focus
               </button>
             )}
-            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘, or ⌘3)">
+            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘,)">
               ⚙
             </button>
           </nav>
-          {journalChrome && <FabNew onClick={onNew} />}
         </>
       )}
 

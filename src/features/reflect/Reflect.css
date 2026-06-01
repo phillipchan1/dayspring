@@ -652,3 +652,35 @@
 .echo-card__dismiss:hover {
   color: var(--text-bright);
 }
+
+.echo-card__lead {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--text-dim);
+}
+
+.resurface-card__not-now {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+.resurface-card:hover .resurface-card__not-now,
+.resurface-card__not-now:focus-visible {
+  opacity: 1;
+}
+
+.resurface-card__not-now:hover {
+  color: var(--text-dim);
+}

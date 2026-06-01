@@ -28,6 +28,8 @@ export interface JournalViewProps {
   onQueryChange: (q: string) => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
+  /** Route to the Altar surface. */
+  onAltar: () => void
   onOpenSettings: () => void
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
@@ -42,4 +44,6 @@ export interface JournalViewProps {
   mainSlot: ReactNode
   /** True when Looking back fills the main canvas (rail + entries stay visible). */
   reflectionsActive: boolean
+  /** True when the Altar fills the main canvas. */
+  altarActive: boolean
 }

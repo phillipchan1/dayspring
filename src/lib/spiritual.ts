@@ -1,4 +1,5 @@
 import { apiUrl } from './api'
+import { parseSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
 import type { NewSpiritualItem, ScripturePassage, SpiritualItem, SpiritualItemType } from './types'
 
@@ -12,6 +13,7 @@ export async function createSpiritualItem(item: NewSpiritualItem): Promise<Spiri
   const { data, error } = await sb
     .from('spiritual_items')
     .insert({
+      ...(item.id ? { id: item.id } : {}),
       owner: session.user.id,
       entry_id: item.entry_id ?? null,
       type: item.type,
@@ -46,6 +48,21 @@ export async function markPrayerAnswered(id: string): Promise<void> {
     .update({ resolved_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
+}
+
+export async function updateSpiritualItemContent(id: string, content: string): Promise<void> {
+  const sb = requireSupabase()
+  const { error } = await sb.from('spiritual_items').update({ content }).eq('id', id)
+  if (error) throw error
+}
+
+/** Sync spiritual_items.content from fenced blocks in body_markdown after save. */
+export async function syncSpiritualBlocksFromMarkdown(markdown: string): Promise<void> {
+  const blocks = parseSpiritualBlocks(markdown)
+  if (blocks.length === 0) return
+  await Promise.all(
+    blocks.map((b) => updateSpiritualItemContent(b.id, b.content)),
+  )
 }
 
 export async function unmarkPrayerAnswered(id: string): Promise<void> {

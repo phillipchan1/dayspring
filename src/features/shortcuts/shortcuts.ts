@@ -38,7 +38,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     items: [
       { keys: ['Mod', '1'], label: 'Toggle entries panel' },
       { keys: ['Mod', '2'], label: 'Looking back' },
-      { keys: ['Mod', '3'], label: 'Settings' },
+      { keys: ['Mod', '3'], label: 'Altar' },
       { keys: ['Mod', ','], label: 'Settings' },
       { keys: ['Mod', 'K'], label: 'Search your entries', when: 'outside the editor' },
     ],

@@ -15,6 +15,8 @@ interface UseAutosaveOptions {
   enabled: boolean
   /** Debounce window in ms. */
   delay?: number
+  /** Called after a successful persist (create or update). */
+  onAfterSave?: (content: string) => void
 }
 
 interface UseAutosaveResult {
@@ -37,6 +39,7 @@ export function useAutosave({
   onCreated,
   enabled,
   delay = 600,
+  onAfterSave,
 }: UseAutosaveOptions): UseAutosaveResult {
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
@@ -46,49 +49,70 @@ export function useAutosave({
   const idRef = useRef<string | null>(entryId)
   const contentRef = useRef(content)
   const savedContentRef = useRef(content) // last successfully persisted text
-  const savingRef = useRef(false)
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve())
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onCreatedRef = useRef(onCreated)
+  const onAfterSaveRef = useRef(onAfterSave)
   onCreatedRef.current = onCreated
+  onAfterSaveRef.current = onAfterSave
 
-  // Adopt external id changes (e.g. switching entries).
+  const wasEnabledRef = useRef(enabled)
+
+  // Adopt external id changes (e.g. switching entries) and reset the save baseline.
   useEffect(() => {
     idRef.current = entryId
+    savedContentRef.current = entryId === null ? '' : contentRef.current
   }, [entryId])
+
+  // After initial hydration, don't treat pre-load empty editor as unsaved edits.
+  useEffect(() => {
+    if (enabled && !wasEnabledRef.current) {
+      savedContentRef.current = contentRef.current
+      idRef.current = entryId
+    }
+    wasEnabledRef.current = enabled
+  }, [enabled, entryId])
 
   contentRef.current = content
 
   const flush = useCallback(async () => {
     if (!enabled) return
-    if (savingRef.current) return
-    const text = contentRef.current
-    if (text === savedContentRef.current) return // nothing new
-    // Don't create empty rows; but DO persist clearing an existing entry.
-    if (idRef.current === null && text.trim() === '') return
 
-    savingRef.current = true
-    setStatus('saving')
-    setError(null)
-    try {
-      if (idRef.current === null) {
-        const created = await createEntry({ body_markdown: text })
-        idRef.current = created.id
-        savedContentRef.current = text
-        onCreatedRef.current(created)
-      } else {
-        await updateEntryBody(idRef.current, text)
-        savedContentRef.current = text
+    while (contentRef.current !== savedContentRef.current) {
+      const run = async () => {
+        const text = contentRef.current
+        if (text === savedContentRef.current) return // nothing new
+        // Don't create empty rows; but DO persist clearing an existing entry.
+        if (idRef.current === null && text.trim() === '') return
+
+        setStatus('saving')
+        setError(null)
+        try {
+          if (idRef.current === null) {
+            const created = await createEntry({ body_markdown: text })
+            idRef.current = created.id
+            savedContentRef.current = text
+            onCreatedRef.current(created)
+          } else {
+            await updateEntryBody(idRef.current, text)
+            savedContentRef.current = text
+          }
+          onAfterSaveRef.current?.(text)
+          setStatus('saved')
+          setLastSavedAt(Date.now())
+        } catch (e) {
+          setStatus('error')
+          setError(e instanceof Error ? e.message : 'Save failed')
+          throw e
+        }
       }
-      setStatus('saved')
-      setLastSavedAt(Date.now())
-    } catch (e) {
-      setStatus('error')
-      setError(e instanceof Error ? e.message : 'Save failed')
-    } finally {
-      savingRef.current = false
-      // Edits arrived during the save — flush again.
-      if (contentRef.current !== savedContentRef.current) {
-        void flush()
+
+      const chained = saveChainRef.current.then(run, run)
+      saveChainRef.current = chained
+      try {
+        await chained
+      } catch {
+        break
       }
     }
   }, [enabled])

@@ -48,4 +48,7 @@ export const editorTheme = EditorView.theme({
   '.cm-activeLine': {
     backgroundColor: 'transparent',
   },
+  '.cm-commandLine': {
+    backgroundColor: 'var(--accent-soft)',
+  },
 })

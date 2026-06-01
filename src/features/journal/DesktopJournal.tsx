@@ -5,7 +5,6 @@ import { ENTRIES_PANEL_WIDTH_MAX, ENTRIES_PANEL_WIDTH_MIN } from './entriesPanel
 import { useEntriesPanelResize } from './useEntriesPanelResize'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
-import { FabNew } from './FabNew'
 import { WritingControls } from './WritingControls'
 import type { JournalViewProps } from './journalViewProps'
 
@@ -26,29 +25,33 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onOpenSettings,
+    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive,
+    reflectionsActive, altarActive,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
-  const journalChrome = !reflectionsActive
+  const canvasAlternateActive = reflectionsActive || altarActive
+  const journalChrome = !canvasAlternateActive
 
   return (
     <div className="app-shell">
       {!focused && (
         <Rail
+          onNew={onNew}
           onToggleEntries={onToggleEntries}
           entriesOpen={entriesOpen}
           lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
+          altarActive={altarActive}
+          onAltar={onAltar}
           onOpenSettings={onOpenSettings}
           nativeTopInset={NATIVE ? MAC_TRAFFIC_INSET.railTop : undefined}
         />
       )}
 
-      {!focused && !reflectionsActive && (
+      {!focused && !canvasAlternateActive && (
         <div
           className="entries-panel"
           data-open={entriesOpen ? 'true' : 'false'}
@@ -105,7 +108,7 @@ export function DesktopJournal(props: JournalViewProps) {
         )}
 
         <div
-          className={`journal-canvas${reflectionsActive ? ' journal-canvas--reflections' : ''}`}
+          className={`journal-canvas${canvasAlternateActive ? ' journal-canvas--reflections' : ''}`}
           style={{ flex: 1, minHeight: 0 }}
         >
           {!focused && journalChrome && (
@@ -119,7 +122,7 @@ export function DesktopJournal(props: JournalViewProps) {
             style={{
               padding: focused
                 ? '0 1.5rem'
-                : reflectionsActive
+                : canvasAlternateActive
                   ? '0'
                   : '4rem 1.5rem 2.5rem',
               overflow: 'hidden',
@@ -130,9 +133,7 @@ export function DesktopJournal(props: JournalViewProps) {
         </div>
       </main>
 
-      {!focused && journalChrome && <FabNew onClick={onNew} />}
-
-      {!reflectionsActive && (
+      {!canvasAlternateActive && (
         <WritingControls settings={settings} update={updateSettings} focus={focus} />
       )}
     </div>

@@ -60,3 +60,15 @@ export async function createReminder(item: NewReminder): Promise<Reminder> {
   if (error) throw error
   return data as Reminder
 }
+
+/** List all reminders for the current user, newest first. */
+export async function listReminders(): Promise<Reminder[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('reminders')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as Reminder[]
+}

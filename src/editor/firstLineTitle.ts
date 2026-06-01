@@ -1,10 +1,12 @@
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import { RangeSetBuilder, type Extension } from '@codemirror/state'
 import { isExplicitHeading } from '@/lib/entryMarkdown'
+import { isSpiritualFenceLine } from '@/lib/spiritualBlocks'
 
 function firstContentLine(doc: EditorView['state']['doc']): number | null {
   for (let n = 1; n <= doc.lines; n++) {
-    if (doc.line(n).text.trim()) return n
+    const t = doc.line(n).text.trim()
+    if (t && !isSpiritualFenceLine(t) && t !== '```') return n
   }
   return null
 }

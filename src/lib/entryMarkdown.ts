@@ -1,3 +1,5 @@
+import { isSpiritualFenceLine } from './spiritualBlocks'
+
 /** True when the line is already an ATX markdown heading. */
 export function isExplicitHeading(line: string): boolean {
   return /^#{1,6}\s/.test(line.trim())
@@ -15,7 +17,13 @@ export function firstContentLineNumber(markdown: string): number | null {
 /** Lines that should not be auto-promoted to a title. */
 function isNonTitleLine(line: string): boolean {
   const t = line.trim()
-  return /^[-*+]\s/.test(t) || /^\d+\.\s/.test(t) || /^>\s/.test(t)
+  return (
+    /^[-*+]\s/.test(t) ||
+    /^\d+\.\s/.test(t) ||
+    /^>\s/.test(t) ||
+    isSpiritualFenceLine(t) ||
+    t === '```'
+  )
 }
 
 /**
@@ -26,7 +34,8 @@ export function markdownForDisplay(markdown: string): string {
   const lines = markdown.split('\n')
   let idx = -1
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i]!.trim()) {
+    const t = lines[i]!.trim()
+    if (t && !isSpiritualFenceLine(t) && t !== '```') {
       idx = i
       break
     }

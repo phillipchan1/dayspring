@@ -1,0 +1,352 @@
+/* ── Command popover shell (scripture · pray · sense · remind) ─────────────── */
+
+.command-popover {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  max-height: min(50vh, 360px);
+  overflow: hidden;
+  box-shadow:
+    0 10px 30px -14px rgba(40, 24, 8, 0.3),
+    0 2px 8px -4px rgba(40, 24, 8, 0.14);
+}
+
+.command-popover--scripture {
+  padding: 0.3rem;
+}
+
+.command-popover--scripture .command-popover__body {
+  padding: 0.1rem 0 0.15rem;
+}
+
+.command-popover--scripture .command-popover__footer {
+  padding: 0.4rem 0.7rem 0.15rem;
+  margin-top: 0.2rem;
+}
+
+.command-popover__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem 0.55rem 0.35rem;
+}
+
+.command-popover__footer {
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem 0.45rem;
+  border-top: 0.5px solid var(--border-subtle);
+}
+
+.command-popover__hint {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+/* ── Scripture chrome header ─────────────────────────────────────────────── */
+
+.command-popover__chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.55rem 0.7rem;
+  margin: -0.3rem -0.3rem 0.25rem;
+  border-bottom: 0.5px solid var(--border-subtle);
+}
+
+.command-popover__chrome-icon {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.command-popover__chrome-label {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+.command-popover__chrome .command-popover__search {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 0.2rem 0 0.05rem;
+  margin-top: 0.15rem;
+  font-size: 0.8125rem;
+  color: var(--text-bright);
+}
+
+.command-popover__label {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--text-dim);
+}
+
+.command-popover--pray .command-popover__label {
+  color: var(--accent);
+}
+
+.command-popover--sense .command-popover__label {
+  color: var(--md-emphasis);
+}
+
+/* ── Search input (scripture) ────────────────────────────────────────────── */
+
+.command-popover__search {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-bright);
+}
+
+.command-popover__search:focus {
+  outline: none;
+}
+
+.command-popover__search::placeholder {
+  color: var(--text-faint);
+}
+
+/* ── Prose capture field ─────────────────────────────────────────────────── */
+
+.command-popover__field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 3.25rem;
+  padding: 0.15rem 0.45rem;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-bright);
+}
+
+.command-popover__field:focus {
+  outline: none;
+}
+
+.command-popover__field::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.command-popover__field--pray {
+  color: var(--text-bright);
+}
+
+.command-popover__field--pray:focus {
+  caret-color: var(--accent);
+}
+
+.command-popover__field--sense {
+  font-style: italic;
+  color: var(--md-emphasis);
+}
+
+.command-popover__field--sense::placeholder {
+  color: color-mix(in srgb, var(--md-emphasis) 45%, var(--text-faint));
+}
+
+/* ── Status / errors ─────────────────────────────────────────────────────── */
+
+.command-popover__status {
+  margin: 0.35rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+}
+
+.command-popover__status--idle {
+  color: var(--text-faint);
+}
+
+/* ── Scripture loading skeleton ──────────────────────────────────────────── */
+
+.command-popover__loading {
+  padding: 0.15rem 0 0.25rem;
+}
+
+.command-popover__loading-label {
+  margin: 0.2rem 0.7rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+  animation: command-popover-pulse 1.35s ease-in-out infinite;
+}
+
+.command-popover__loading-row {
+  padding: 0.55rem 0.7rem;
+  animation: command-popover-pulse 1.35s ease-in-out infinite;
+}
+
+.command-popover__loading-ref,
+.command-popover__loading-verse {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--border-subtle) 55%, var(--bg-elevated)) 0%,
+    color-mix(in srgb, var(--border) 40%, var(--bg-elevated)) 45%,
+    color-mix(in srgb, var(--border-subtle) 55%, var(--bg-elevated)) 90%
+  );
+  background-size: 220% 100%;
+  animation: command-popover-shimmer 1.15s ease-in-out infinite;
+}
+
+.command-popover__loading-ref {
+  width: 32%;
+  height: 0.5rem;
+  margin-bottom: 0.35rem;
+  opacity: 0.85;
+}
+
+.command-popover__loading-verse {
+  width: 94%;
+  height: 0.55rem;
+  margin-bottom: 0.28rem;
+}
+
+.command-popover__loading-verse--short {
+  width: 62%;
+  margin-bottom: 0;
+}
+
+@keyframes command-popover-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes command-popover-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.command-popover__error {
+  margin: 0.35rem 0.45rem;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+/* ── Scripture results ───────────────────────────────────────────────────── */
+
+.command-popover__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.command-popover__result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.command-popover__result:hover,
+.command-popover__result[data-active='true'] {
+  background: var(--accent-soft);
+}
+
+.command-popover__ref {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+  margin-bottom: 0.2rem;
+}
+
+.command-popover__result[data-active='true'] .command-popover__ref {
+  color: var(--accent);
+}
+
+.command-popover__verse,
+.command-popover__text {
+  display: block;
+  font-family: var(--font-editor);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text-bright);
+}
+
+/* ── Pray type chips ─────────────────────────────────────────────────────── */
+
+.command-popover__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.35rem 0.45rem 0.15rem;
+}
+
+.command-popover__chip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.command-popover__chip[data-active='true'] {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ── Remind horizon pills ────────────────────────────────────────────────── */
+
+.command-popover__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.35rem 0.45rem 0.1rem;
+}
+
+.command-popover__pill {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.command-popover__pill[data-active='true'] {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--accent);
+  background: var(--accent-soft);
+}

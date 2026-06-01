@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorHandle } from '@/editor/Editor'
+import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
@@ -30,12 +31,15 @@ import type { EntryMenuAction } from './EntryContextMenu'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
 import { LookingBack } from '@/features/reflections/LookingBack'
-import { ScriptureModal } from '@/features/reflect/ScriptureModal'
-import { PrayModal } from '@/features/reflect/PrayModal'
-import { SenseModal } from '@/features/reflect/SenseModal'
-import { RemindModal } from '@/features/reflect/RemindModal'
-import { EchoCard } from './EchoCard'
-import { fetchCurrentEcho, dismissEcho, type EchoCandidate } from '@/lib/echoes'
+import { AltarView } from '@/features/altar/AltarView'
+import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
+import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
+import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
+import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
+import { syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
+import { ResurfaceCard } from './ResurfaceCard'
+import { fetchCurrentResurface, type ResurfaceCard as ResurfaceCardData } from '@/lib/echoes'
+import '@/features/reflect/Reflect.css'
 
 interface JournalScreenProps {
   userEmail: string
@@ -82,6 +86,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const [entries, setEntries] = useState<Entry[]>([])
   const [content, setContent] = useState('')
+  const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
@@ -93,6 +98,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
   const reflectionsActive = state.surface === 'reflections'
+  const altarActive = state.surface === 'altar'
+  const canvasAlternateActive = reflectionsActive || altarActive
   const focus = useFocusMode(settingsOpen)
 
   // Block the browser context menu outside the editor and entry rows (editor keeps native macOS menu).
@@ -112,25 +119,61 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
-  const [slashModal, setSlashModal] = useState<{
+  const [slashCapture, setSlashCapture] = useState<{
     cmd: SlashCommandId
     insertAt: number
+    anchor: InlinePanelAnchor
   } | null>(null)
+  const slashCaptureRef = useRef(slashCapture)
+  slashCaptureRef.current = slashCapture
 
-  function handleSlashCommand(cmd: SlashCommandId, insertAt: number) {
-    setSlashModal({ cmd, insertAt })
+  function handleSlashCommand(
+    cmd: SlashCommandId,
+    insertAt: number,
+    anchor: InlinePanelAnchor,
+  ) {
+    setSlashCapture({ cmd, insertAt, anchor })
   }
 
-  // Echo — thematic resonance card above the editor.
-  const [currentEcho, setCurrentEcho] = useState<EchoCandidate | null>(null)
-  useEffect(() => {
-    fetchCurrentEcho().then((echo) => setCurrentEcho(echo)).catch(() => null)
+  /** Insert at the slash position, close the popover, return focus to the editor. */
+  const completeSlashInsert = useCallback((text: string) => {
+    const cap = slashCaptureRef.current
+    if (!cap) return
+    editorRef.current?.insertAt(cap.insertAt, text)
+    const after = cap.insertAt + text.length
+    setSlashCapture(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])
 
-  function handleDismissEcho() {
-    const echo = currentEcho
-    setCurrentEcho(null)
-    if (echo) void dismissEcho(echo.entry_id)
+  const closeSlashCapture = useCallback(() => {
+    setSlashCapture((current) => {
+      if (current) {
+        const pos = current.insertAt
+        requestAnimationFrame(() => editorRef.current?.focusAt(pos))
+      }
+      return null
+    })
+  }, [])
+
+  // Resurfacing — one invitational card above the editor (echo, prayer, reminder, sense).
+  const [resurface, setResurface] = useState<ResurfaceCardData | null>(null)
+  useEffect(() => {
+    fetchCurrentResurface().then((card) => setResurface(card)).catch(() => null)
+  }, [])
+
+  function hydrateActiveEntry(list: Entry[]) {
+    const wantedId = entryIdRef.current
+    const match = wantedId ? list.find((e) => e.id === wantedId) : null
+    if (match) {
+      skipEntrySyncRef.current = true
+      setContent(match.body_markdown)
+      return
+    }
+    if (!wantedId && list[0]) {
+      skipEntrySyncRef.current = true
+      go({ entryId: list[0].id }, { replace: true })
+      setContent(list[0].body_markdown)
+    }
   }
 
   // Cache-first load: show local entries instantly, then sync from the server.
@@ -141,13 +184,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         const cached = await repo.listEntries()
         if (!cancelled && cached.length) {
           setEntries(cached)
-          const pick = entryIdRef.current
-            ? (cached.find((e) => e.id === entryIdRef.current) ?? cached[0]!)
-            : cached[0]!
-          if (!entryIdRef.current) {
-            go({ entryId: pick.id }, { replace: true })
-          }
-          setContent(pick.body_markdown)
+          hydrateActiveEntry(cached)
         }
       } catch {
         /* cache miss is fine; sync will populate */
@@ -156,14 +193,24 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         const synced = await repo.sync(entryIdRef.current)
         if (!cancelled && synced) {
           setEntries(synced)
-          if (entryIdRef.current === null && synced.length) {
+          const wantedId = entryIdRef.current
+          const match = wantedId ? synced.find((e) => e.id === wantedId) : null
+          if (match) {
+            skipEntrySyncRef.current = true
+            setContent(match.body_markdown)
+          } else if (!wantedId && synced.length) {
+            skipEntrySyncRef.current = true
             const first = synced[0]!
             go({ entryId: first.id }, { replace: true })
             setContent(first.body_markdown)
+          } else if (wantedId && synced.length) {
+            navigateAwayFromDeletedEntry(synced)
           }
         }
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to load')
+      } finally {
+        if (!cancelled) setEntriesReady(true)
       }
     })()
     return () => {
@@ -257,10 +304,19 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const { status, lastSavedAt, error: saveError, saveNow } = useAutosave({
     entryId,
     content,
-    enabled: true,
+    enabled: entriesReady,
+    onAfterSave: (saved) => {
+      void syncSpiritualBlocksFromMarkdown(saved).catch(() => {
+        // Non-fatal — entry body is already persisted
+      })
+    },
     onCreated: (created) => {
       go({ entryId: created.id }, { replace: true })
-      setEntries((prev) => [created, ...prev])
+      setEntries((prev) => {
+        const idx = prev.findIndex((e) => e.id === created.id)
+        if (idx >= 0) return prev.map((e, i) => (i === idx ? created : e))
+        return [created, ...prev]
+      })
     },
   })
 
@@ -273,6 +329,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   // Browser back / forward: load the entry body for the restored frame.
   useEffect(() => {
+    if (!entriesReady) return
     if (skipEntrySyncRef.current) {
       skipEntrySyncRef.current = false
       return
@@ -283,7 +340,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
     const entry = entries.find((e) => e.id === entryId)
     if (entry) setContent(entry.body_markdown)
-  }, [entryId, entries])
+  }, [entryId, entries, entriesReady])
 
   function toggleLookBack() {
     if (reflectionsActive) back()
@@ -294,8 +351,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }
 
+  function toggleAltar() {
+    if (altarActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      go({ surface: 'altar', settings: null, help: false, sidebar: false })
+    }
+  }
+
   function toggleEntries() {
-    if (reflectionsActive) {
+    if (canvasAlternateActive) {
       go({ surface: 'journal', sidebar: isMobile })
       setEntriesOpen(true)
       return
@@ -308,18 +374,19 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }
 
-  // Reflections owns the canvas — keep the journal list tucked away.
+  // Alternate surfaces own the canvas — keep the journal list tucked away.
   useEffect(() => {
-    if (!reflectionsActive) return
+    if (!canvasAlternateActive) return
     setEntriesOpen(false)
     if (state.sidebar) go({ sidebar: false }, { replace: true })
-  }, [reflectionsActive, state.sidebar, go])
+  }, [canvasAlternateActive, state.sidebar, go])
 
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
     onToggleEntries: toggleEntries,
     onLookBack: toggleLookBack,
+    onAltar: toggleAltar,
     onOpenSettings: () => {
       if (settingsOpen) back()
       else openSettings()
@@ -367,7 +434,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   }
 
   async function handleSelect(entry: Entry) {
-    if (entry.id === entryId && !reflectionsActive) return
+    if (entry.id === entryId && !canvasAlternateActive) return
     await saveNow()
     skipEntrySyncRef.current = true
     go({ surface: 'journal', entryId: entry.id })
@@ -481,27 +548,32 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      {currentEcho && (
-        <EchoCard echo={currentEcho} onDismiss={handleDismissEcho} />
+      {resurface && (
+        <ResurfaceCard card={resurface} onDismiss={() => setResurface(null)} />
       )}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <Editor
-          ref={editorRef}
-          docKey={docKey}
-          initialDoc={content}
-          onChange={setContent}
-          placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
-          autofocus
-          typewriter={focus.active && settings.typewriter}
-          dimming={focus.active && settings.dimming}
-          slashEnabled
-          onSlashCommand={handleSlashCommand}
-        />
+        {entriesReady ? (
+          <Editor
+            ref={editorRef}
+            docKey={docKey}
+            initialDoc={content}
+            onChange={setContent}
+            placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
+            autofocus
+            typewriter={focus.active && settings.typewriter}
+            dimming={focus.active && settings.dimming}
+            slashEnabled
+            commandLinePos={slashCapture?.insertAt ?? null}
+            onSlashCommand={handleSlashCommand}
+          />
+        ) : null}
       </div>
     </div>
   )
 
-  const mainSlot = reflectionsActive ? (
+  const mainSlot = altarActive ? (
+    <AltarView onOpenEntry={handleOpenReflectionEntry} />
+  ) : reflectionsActive ? (
     <LookingBack embedded onOpenEntry={handleOpenReflectionEntry} />
   ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -537,6 +609,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     query,
     onQueryChange: setQuery,
     onLookBack: toggleLookBack,
+    onAltar: toggleAltar,
     onOpenSettings: () => openSettings(),
     settings,
     updateSettings,
@@ -550,40 +623,45 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onToggleEntries: toggleEntries,
     mainSlot,
     reflectionsActive,
+    altarActive,
   }
 
   return (
     <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
 
-      {slashModal?.cmd === 'scripture' && (
-        <ScriptureModal
+      {slashCapture?.cmd === 'scripture' && (
+        <InlineScripturePopover
           entryId={entryId}
           entryContent={content}
-          onInsert={(text) => {
-            editorRef.current?.insertAt(slashModal.insertAt, text)
-          }}
-          onClose={() => setSlashModal(null)}
+          insertAt={slashCapture.insertAt}
+          anchor={slashCapture.anchor}
+          onInsert={completeSlashInsert}
+          onClose={closeSlashCapture}
         />
       )}
-      {slashModal?.cmd === 'pray' && (
-        <PrayModal
+      {slashCapture?.cmd === 'pray' && (
+        <InlinePrayPopover
           entryId={entryId}
-          entryContent={content}
-          onClose={() => setSlashModal(null)}
+          anchor={slashCapture.anchor}
+          onInsert={completeSlashInsert}
+          onClose={closeSlashCapture}
         />
       )}
-      {slashModal?.cmd === 'sense' && (
-        <SenseModal
+      {slashCapture?.cmd === 'sense' && (
+        <InlineSensePopover
           entryId={entryId}
-          onClose={() => setSlashModal(null)}
+          anchor={slashCapture.anchor}
+          onInsert={completeSlashInsert}
+          onClose={closeSlashCapture}
         />
       )}
-      {slashModal?.cmd === 'remind' && (
-        <RemindModal
+      {slashCapture?.cmd === 'remind' && (
+        <InlineRemindPopover
           entryId={entryId}
-          sentence={sentenceNear(content, slashModal.insertAt)}
-          onClose={() => setSlashModal(null)}
+          sentence={sentenceNear(content, slashCapture.insertAt)}
+          anchor={slashCapture.anchor}
+          onClose={closeSlashCapture}
         />
       )}
 

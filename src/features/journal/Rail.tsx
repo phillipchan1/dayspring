@@ -2,10 +2,13 @@ import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
 
 interface RailProps {
+  onNew: () => void
   onToggleEntries: () => void
   entriesOpen: boolean
   lookBackActive: boolean
   onLookBack: () => void
+  altarActive: boolean
+  onAltar: () => void
   onOpenSettings: () => void
   /** macOS traffic-light top clearance under Tauri's overlay title bar. */
   nativeTopInset?: string | undefined
@@ -16,10 +19,13 @@ interface RailProps {
  * Wordmark lives in the entries panel; the mark anchors the rail.
  */
 export function Rail({
+  onNew,
   onToggleEntries,
   entriesOpen,
   lookBackActive,
   onLookBack,
+  altarActive,
+  onAltar,
   onOpenSettings,
   nativeTopInset,
 }: RailProps) {
@@ -30,20 +36,37 @@ export function Rail({
         <Mark size={24} />
       </div>
       <div className="rail__nav">
-        <RailButton
-          label="Entries"
-          shortcut="⌘1"
-          onClick={onToggleEntries}
-          active={entriesOpen && !lookBackActive}
-          icon={<IconEntries />}
-        />
-        <RailButton
-          label="Looking back"
-          shortcut="⌘2"
-          onClick={onLookBack}
-          active={lookBackActive}
-          icon={<IconLookBack />}
-        />
+        <div className="rail__actions">
+          <RailButton
+            label="New entry"
+            shortcut="⌘N"
+            onClick={onNew}
+            icon={<IconNew />}
+          />
+        </div>
+        <div className="rail__destinations" aria-label="Destinations">
+          <RailButton
+            label="Entries"
+            shortcut="⌘1"
+            onClick={onToggleEntries}
+            active={entriesOpen && !lookBackActive && !altarActive}
+            icon={<IconEntries />}
+          />
+          <RailButton
+            label="Looking back"
+            shortcut="⌘2"
+            onClick={onLookBack}
+            active={lookBackActive}
+            icon={<IconLookBack />}
+          />
+          <RailButton
+            label="Altar"
+            shortcut="⌘3"
+            onClick={onAltar}
+            active={altarActive}
+            icon={<IconAltar />}
+          />
+        </div>
       </div>
       <div className="rail__footer">
         <RailButton
@@ -99,6 +122,15 @@ function NavIcon({ children }: { children: ReactNode }) {
   )
 }
 
+function IconNew() {
+  return (
+    <NavIcon>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </NavIcon>
+  )
+}
+
 function IconEntries() {
   return (
     <NavIcon>
@@ -114,6 +146,18 @@ function IconLookBack() {
     <NavIcon>
       <path d="M4 12a8 8 0 1 0 3-6.2" />
       <path d="M4 4v4h4" />
+    </NavIcon>
+  )
+}
+
+function IconAltar() {
+  return (
+    <NavIcon>
+      <path d="M12 3v4" />
+      <path d="M8 7h8" />
+      <path d="M6 21h12" />
+      <path d="M9 11h6v10H9z" />
+      <path d="M10 11V9a2 2 0 0 1 4 0v2" />
     </NavIcon>
   )
 }

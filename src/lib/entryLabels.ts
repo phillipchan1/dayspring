@@ -1,9 +1,11 @@
+import { isSpiritualFenceLine } from './spiritualBlocks'
+
 /** Derive a short display title from markdown (first non-empty line). */
 export function deriveTitle(markdown: string): string {
   const line = markdown
     .split('\n')
     .map((l) => l.trim())
-    .find((l) => l.length > 0)
+    .find((l) => l.length > 0 && !isSpiritualFenceLine(l))
   if (!line) return ''
   return line
     .replace(/^#{1,6}\s+/, '')

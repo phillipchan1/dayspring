@@ -53,7 +53,7 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
   }
   await cache.cachePut(entry)
   await queueUpsert(entry.id)
-  void flush()
+  await flush()
   return entry
 }
 
@@ -76,7 +76,7 @@ export async function updateEntryBody(id: string, body: string): Promise<Entry> 
       }
   await cache.cachePut(entry)
   await queueUpsert(id)
-  void flush()
+  await flush()
   return entry
 }
 
@@ -85,40 +85,40 @@ export async function removeEntry(id: string): Promise<void> {
   await cache.outboxRemoveForEntry(id, 'upsert')
   await cache.outboxAdd({ opId: crypto.randomUUID(), kind: 'delete', entryId: id, ts: Date.now() })
   await refreshPending()
-  void flush()
+  await flush()
 }
 
 // ── sync ────────────────────────────────────────────────────────────────
-let flushing = false
+/** Serializes outbox pushes so concurrent callers (autosave + sync + realtime) await the same run. */
+let flushChain: Promise<void> = Promise.resolve()
 
-export async function flush(): Promise<void> {
-  if (flushing) return
+async function flushOnce(): Promise<void> {
   if (!navigator.onLine) {
     syncStore.setOnline(false)
     return
   }
-  flushing = true
-  try {
-    for (const op of await cache.outboxAll()) {
-      try {
-        if (op.kind === 'upsert') {
-          const row = await cache.cacheGet(op.entryId)
-          if (row) await upsertEntryRow(row)
-        } else {
-          await serverDelete(op.entryId)
-        }
-        await cache.outboxRemove(op.opId)
-      } catch {
-        // Most likely offline / transient — stop and retry later.
-        syncStore.setOnline(false)
-        break
+  for (const op of await cache.outboxAll()) {
+    try {
+      if (op.kind === 'upsert') {
+        const row = await cache.cacheGet(op.entryId)
+        if (row) await upsertEntryRow(row)
+      } else {
+        await serverDelete(op.entryId)
       }
+      await cache.outboxRemove(op.opId)
+    } catch {
+      // Most likely offline / transient — stop and retry later.
+      syncStore.setOnline(false)
+      break
     }
-    syncStore.setOnline(navigator.onLine)
-  } finally {
-    flushing = false
-    await refreshPending()
   }
+  syncStore.setOnline(navigator.onLine)
+  await refreshPending()
+}
+
+export function flush(): Promise<void> {
+  flushChain = flushChain.then(flushOnce, flushOnce)
+  return flushChain
 }
 
 function entryMatchesRemote(local: Entry, remote: Entry): boolean {
