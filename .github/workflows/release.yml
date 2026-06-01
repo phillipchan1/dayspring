@@ -81,18 +81,29 @@ jobs:
           # Updater signing (minisign) — unrelated to Apple code signing below.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Apple Developer ID signing + notarization. When these secrets are set,
-          # the Tauri CLI signs with the real identity and notarizes the .app so
-          # Gatekeeper opens it with no warning. When empty, it falls back to the
-          # ad-hoc signingIdentity "-" in tauri.conf.json (unsigned, needs xattr).
+          # Apple Developer ID signing + notarization. CRITICAL: these are gated
+          # on APPLE_CERTIFICATE being non-empty. If we passed an empty string,
+          # the Tauri CLI would see "env present" and try (and fail) to import an
+          # empty cert — which broke every build. The `&&` makes the var absent
+          # entirely (not "") when no cert is configured, so it falls back to the
+          # ad-hoc signingIdentity "-" and builds unsigned.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_TEAM_ID || '' }}
         run: |
           set -uo pipefail
+          # Belt-and-suspenders: if no real cert is configured, fully unset every
+          # APPLE_* var so the Tauri CLI never attempts (and fails) Apple signing.
+          # An empty-string env var still triggers the import path, so unset wins.
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+            echo "No Apple cert — building unsigned (ad-hoc)."
+          else
+            echo "Apple cert present — building signed + notarized."
+          fi
           for attempt in 1 2 3; do
             echo "::group::tauri build (attempt $attempt)"
             if npm run tauri build -- --target aarch64-apple-darwin --verbose; then
