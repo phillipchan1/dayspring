@@ -29,7 +29,7 @@ function fallback() {
       l.replace(/^-\s*(?:feat|fix|chore|docs|refactor|perf|test|build|ci|style)(\([^)]*\))?:\s*/i, '- '),
     )
     .join('\n')
-  process.stdout.write(cleaned || '- Behind-the-scenes improvements and fixes.')
+  process.stdout.write(cleaned || '✨ A little polish and a few behind-the-scenes fixes.')
 }
 
 if (!raw || !KEY) {
@@ -38,13 +38,17 @@ if (!raw || !KEY) {
 }
 
 const system = `You write release notes for "Dayspring", a quiet daily journaling app.
-Rewrite the raw git commit messages below into a short, warm changelog for end users.
+Voice: warm, friendly, and a little playful — like a thoughtful friend telling you what's new, never corporate.
+Rewrite the raw git commit messages below into a short changelog for end users.
 Rules:
-- Group changes under "New", "Improved", and "Fixed" headings; omit any heading with nothing under it.
-- One short bullet per user-visible change, in plain language. No jargon, no commit prefixes (feat:/fix:), no file names, no SHAs.
+- A SINGLE FLAT LIST of bullets. No headings, no sections, no grouping of any kind. Each bullet starts with "- ".
+- One short, friendly bullet per user-visible change, in plain language. No jargon, no commit prefixes (feat:/fix:), no file names, no SHAs.
+- For a notable/major new feature, lead that bullet with a fitting emoji and celebrate a little (e.g. "🎉", "✨"). Keep small fixes calm and emoji-free.
 - Silently drop internal-only commits (refactors, CI, build tooling, dependency bumps, version bumps) unless they clearly affect users.
-- If nothing is user-facing, output exactly: "Behind-the-scenes improvements and fixes."
-- Output GitHub-flavored Markdown only. No title, no preamble, no closing remarks.`
+- Keep it tight — at most ~5 bullets.
+- The notes are shown as plain text, so output plain text bullets only (no Markdown headings, bold, or links).
+- If nothing is user-facing, output exactly one friendly line: "✨ A little polish and a few behind-the-scenes fixes."
+- No title, no preamble, no closing remarks — just the bullets.`
 
 try {
   const body = {
