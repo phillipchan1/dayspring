@@ -192,17 +192,6 @@
   color: var(--text-dim);
 }
 
-.altar__item--scripture {
-  padding-left: 1.1rem;
-  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  margin-left: 0.1rem;
-}
-
-.altar__item--scripture .altar__content {
-  font-style: italic;
-  color: var(--text);
-}
-
 .altar__content {
   font-family: var(--font-display);
   font-size: 1.08rem;
@@ -211,14 +200,6 @@
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-}
-
-.altar__reference {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-faint);
-  margin: 0.15rem 0 0;
-  letter-spacing: 0.02em;
 }
 
 .altar__meta {

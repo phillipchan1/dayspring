@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listSpiritualItems } from '@/lib/spiritual'
-import { listReminders } from '@/lib/reminders'
-import type { Reminder } from '@/lib/reminders'
-import type { SpiritualItem, SpiritualItemType } from '@/lib/types'
+import type { SpiritualItem } from '@/lib/types'
 import './Altar.css'
 
-type Lens = 'all' | SpiritualItemType
-
-type AltarRow =
-  | { kind: 'spiritual'; item: SpiritualItem }
-  | { kind: 'reminder'; item: Reminder }
+type Lens = 'all' | 'prayer' | 'sense'
 
 interface Props {
   onOpenEntry: (entryId: string) => void
@@ -36,45 +30,18 @@ function monthLabel(key: string): string {
   })
 }
 
-function typeLabel(row: AltarRow): string {
-  if (row.kind === 'reminder') return 'reminder'
-  switch (row.item.type) {
-    case 'prayer':
-      return 'prayer'
-    case 'sense':
-      return 'sense'
-    case 'scripture':
-      return 'scripture'
-  }
-}
-
-function rowContent(row: AltarRow): string {
-  return row.item.content
-}
-
-function rowReference(row: AltarRow): string | null {
-  if (row.kind !== 'spiritual' || row.item.type !== 'scripture') return null
-  const ref = row.item.metadata?.reference
-  return typeof ref === 'string' ? ref : null
-}
-
-function rowCreatedAt(row: AltarRow): string {
-  return row.item.created_at
-}
-
-function rowEntryId(row: AltarRow): string | null {
-  return row.item.entry_id
+function isAltarItem(item: SpiritualItem): item is SpiritualItem & { type: 'prayer' | 'sense' } {
+  return item.type === 'prayer' || item.type === 'sense'
 }
 
 const LENSES: { id: Lens; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'prayer', label: 'Prayer' },
   { id: 'sense', label: 'Sense' },
-  { id: 'scripture', label: 'Scripture' },
 ]
 
 export function AltarView({ onOpenEntry }: Props) {
-  const [rows, setRows] = useState<AltarRow[] | null>(null)
+  const [items, setItems] = useState<SpiritualItem[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [lens, setLens] = useState<Lens>('all')
@@ -83,16 +50,10 @@ export function AltarView({ onOpenEntry }: Props) {
     let cancelled = false
     const load = async () => {
       try {
-        const [items, reminders] = await Promise.all([
-          listSpiritualItems(),
-          listReminders(),
-        ])
+        const all = await listSpiritualItems()
         if (cancelled) return
-        const merged: AltarRow[] = [
-          ...items.map((item) => ({ kind: 'spiritual' as const, item })),
-          ...reminders.map((item) => ({ kind: 'reminder' as const, item })),
-        ].sort((a, b) => rowCreatedAt(b).localeCompare(rowCreatedAt(a)))
-        setRows(merged)
+        const altarItems = all.filter(isAltarItem).sort((a, b) => b.created_at.localeCompare(a.created_at))
+        setItems(altarItems)
       } catch (e) {
         if (!cancelled) {
           setLoadError(e instanceof Error ? e.message : 'Could not load')
@@ -106,27 +67,22 @@ export function AltarView({ onOpenEntry }: Props) {
   }, [])
 
   const filtered = useMemo(() => {
-    if (!rows) return null
+    if (!items) return null
     const q = query.trim().toLowerCase()
-    return rows.filter((row) => {
-      if (lens !== 'all') {
-        if (row.kind === 'reminder') return false
-        if (row.item.type !== lens) return false
-      }
+    return items.filter((item) => {
+      if (lens !== 'all' && item.type !== lens) return false
       if (!q) return true
-      const text = rowContent(row).toLowerCase()
-      const ref = rowReference(row)?.toLowerCase() ?? ''
-      return text.includes(q) || ref.includes(q)
+      return item.content.toLowerCase().includes(q)
     })
-  }, [rows, query, lens])
+  }, [items, query, lens])
 
   const grouped = useMemo(() => {
     if (!filtered) return []
-    const map = new Map<string, AltarRow[]>()
-    for (const row of filtered) {
-      const key = monthKey(rowCreatedAt(row))
+    const map = new Map<string, SpiritualItem[]>()
+    for (const item of filtered) {
+      const key = monthKey(item.created_at)
       const list = map.get(key) ?? []
-      list.push(row)
+      list.push(item)
       map.set(key, list)
     }
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
@@ -136,11 +92,11 @@ export function AltarView({ onOpenEntry }: Props) {
     return <p className="altar__error">{loadError}</p>
   }
 
-  if (rows === null) {
+  if (items === null) {
     return <div className="altar altar--loading">Loading…</div>
   }
 
-  const empty = rows.length === 0
+  const empty = items.length === 0
   const lensEmpty = !empty && filtered!.length === 0
 
   return (
@@ -160,7 +116,7 @@ export function AltarView({ onOpenEntry }: Props) {
               placeholder="Search…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search spiritual items"
+              aria-label="Search prayers and senses"
             />
             <div className="altar__lenses" role="group" aria-label="Filter by type">
               {LENSES.map((l) => (
@@ -179,56 +135,39 @@ export function AltarView({ onOpenEntry }: Props) {
 
           {empty && (
             <p className="altar__quiet">
-              Nothing here yet. Type <code>/pray</code>, <code>/sense</code>, or{' '}
-              <code>/scripture</code> in an entry to plant a seed.
+              Nothing here yet. Type <code>/pray</code> or <code>/sense</code> in an entry to plant
+              a seed.
             </p>
           )}
 
-          {lensEmpty && (
-            <p className="altar__quiet">Nothing here under this lens.</p>
-          )}
+          {lensEmpty && <p className="altar__quiet">Nothing here under this lens.</p>}
 
-          {grouped.map(([key, monthRows]) => (
+          {grouped.map(([key, monthItems]) => (
             <section key={key} className="altar__month">
               <h2 className="altar__month-label">{monthLabel(key)}</h2>
               <ul className="altar__list">
-                {monthRows.map((row) => {
-                  const id = row.kind === 'spiritual' ? row.item.id : row.item.id
-                  const label = typeLabel(row)
-                  const entryId = rowEntryId(row)
-                  const isScripture =
-                    row.kind === 'spiritual' && row.item.type === 'scripture'
-                  return (
-                    <li
-                      key={`${row.kind}-${id}`}
-                      className={`altar__item${isScripture ? ' altar__item--scripture' : ''}`}
-                    >
-                      {!isScripture && (
-                        <span className="altar__type" data-type={label}>
-                          {label}
-                        </span>
+                {monthItems.map((item) => (
+                  <li key={item.id} className="altar__item">
+                    <span className="altar__type" data-type={item.type}>
+                      {item.type}
+                    </span>
+                    <p className="altar__content">{item.content}</p>
+                    <div className="altar__meta">
+                      <time dateTime={item.created_at} className="altar__date">
+                        {formatItemDate(item.created_at)}
+                      </time>
+                      {item.entry_id && (
+                        <button
+                          type="button"
+                          className="altar__open-entry"
+                          onClick={() => onOpenEntry(item.entry_id!)}
+                        >
+                          → open entry
+                        </button>
                       )}
-                      <p className="altar__content">{rowContent(row)}</p>
-                      {rowReference(row) && (
-                        <p className="altar__reference">{rowReference(row)}</p>
-                      )}
-                      <div className="altar__meta">
-                        <time dateTime={rowCreatedAt(row)} className="altar__date">
-                          {formatItemDate(rowCreatedAt(row))}
-                        </time>
-                        {entryId && (
-                          <button
-                            type="button"
-                            className="altar__open-entry"
-                            onClick={() => onOpenEntry(entryId)}
-                          >
-                            → open entry
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
+                    </div>
+                  </li>
+                ))}
               </ul>
             </section>
           ))}
