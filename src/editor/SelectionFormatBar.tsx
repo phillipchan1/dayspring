@@ -1,12 +1,20 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
-import { applyFormat, selectionAnchorRect, type FormatAction } from './formatSelection'
+import {
+  applyFormat,
+  getFormatState,
+  isFormatActive,
+  selectionAnchorRect,
+  type FormatAction,
+  type FormatState,
+} from './formatSelection'
 import { FORMAT_BAR_ACTIONS, FormatBarIcon } from './formatBarIcons'
 
 export interface FormatBarAnchor {
   view: EditorView
   rect: DOMRect
+  state: FormatState
 }
 
 interface Props {
@@ -52,20 +60,26 @@ export function SelectionFormatBar({ anchor }: Props) {
       onMouseDown={(e) => e.preventDefault()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {FORMAT_BAR_ACTIONS.map(({ action, label, title }, i) => (
-        <span key={action} className="format-bar__group">
-          {i === 4 ? <span className="format-bar__sep" aria-hidden /> : null}
-          <button
-            type="button"
-            className="format-bar__btn"
-            title={title}
-            aria-label={label}
-            onClick={() => run(action)}
-          >
-            <FormatBarIcon action={action} />
-          </button>
-        </span>
-      ))}
+      {FORMAT_BAR_ACTIONS.map(({ action, label, title }, i) => {
+        const active = isFormatActive(anchor.state, action)
+        return (
+          <span key={action} className="format-bar__group">
+            {i === 4 ? <span className="format-bar__sep" aria-hidden /> : null}
+            <button
+              type="button"
+              className="format-bar__btn"
+              data-active={active ? 'true' : undefined}
+              style={{ animationDelay: `${0.02 + i * 0.018}s` }}
+              title={title}
+              aria-label={label}
+              aria-pressed={active}
+              onClick={() => run(action)}
+            >
+              <FormatBarIcon action={action} />
+            </button>
+          </span>
+        )
+      })}
     </div>,
     document.body,
   )
@@ -73,6 +87,7 @@ export function SelectionFormatBar({ anchor }: Props) {
 
 export function anchorFromView(view: EditorView): FormatBarAnchor | null {
   const rect = selectionAnchorRect(view)
-  if (!rect) return null
-  return { view, rect }
+  const state = getFormatState(view)
+  if (!rect || !state) return null
+  return { view, rect, state }
 }
