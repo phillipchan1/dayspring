@@ -35,7 +35,7 @@ export function ScriptureModal({ entryId, entryContent, onInsert, onClose }: Pro
       setPassages(results)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not reach scripture search'
-      setError(msg === 'Load failed' ? 'Could not reach the server. Try again after updating the app.' : msg)
+      setError(msg === 'Load failed' ? 'Network error reaching the API (CORS or connectivity).' : msg)
     } finally {
       setLoading(false)
     }

@@ -1,10 +1,13 @@
-// CORS for cross-origin calls from the Tauri desktop shell (tauri.localhost → dayspring.app).
+// CORS for cross-origin calls from the Tauri desktop shell → Vercel /api/*.
 
-const DESKTOP_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/
-const TAURI_ORIGIN_RE = /^https?:\/\/tauri\.localhost(:\d+)?$/
-
+/** Tauri v2 serves bundled assets from http(s)://*.localhost (e.g. asset.localhost). */
 function isAllowedOrigin(origin: string): boolean {
-  return DESKTOP_ORIGIN_RE.test(origin) || TAURI_ORIGIN_RE.test(origin)
+  try {
+    const { hostname } = new URL(origin)
+    return hostname === 'localhost' || hostname.endsWith('.localhost')
+  } catch {
+    return false
+  }
 }
 
 export function corsHeaders(req: Request): HeadersInit {
