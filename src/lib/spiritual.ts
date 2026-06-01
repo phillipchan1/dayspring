@@ -1,3 +1,4 @@
+import { apiUrl } from './api'
 import { requireSupabase } from './supabase'
 import type { NewSpiritualItem, ScripturePassage, SpiritualItem, SpiritualItemType } from './types'
 
@@ -63,7 +64,7 @@ export async function fetchScripturePassages(content: string): Promise<Scripture
   } = await sb.auth.getSession()
   if (!session) throw new Error('not authenticated')
 
-  const res = await fetch('/api/spiritual/scripture', {
+  const res = await fetch(apiUrl('/api/spiritual/scripture'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

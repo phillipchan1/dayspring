@@ -4,6 +4,7 @@
 
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { callModel } from '../_lib/openai.js'
+import { corsHeaders, preflight, withCors } from '../_lib/cors.js'
 
 const SCHEMA = {
   type: 'object',
@@ -42,27 +43,31 @@ interface ScriptureResult {
   passages: Array<{ reference: string; text: string; reason: string }>
 }
 
+export async function OPTIONS(req: Request): Promise<Response> {
+  return preflight(req) ?? new Response(null, { status: 204, headers: corsHeaders(req) })
+}
+
 export async function POST(req: Request): Promise<Response> {
   const header = req.headers.get('authorization') ?? ''
   const jwt = header.startsWith('Bearer ') ? header.slice(7) : null
-  if (!jwt) return Response.json({ error: 'unauthorized' }, { status: 401 })
+  if (!jwt) return withCors(req, Response.json({ error: 'unauthorized' }, { status: 401 }))
 
   const sb = supabaseAdmin()
   const {
     data: { user },
     error: authError,
   } = await sb.auth.getUser(jwt)
-  if (authError || !user) return Response.json({ error: 'unauthorized' }, { status: 401 })
+  if (authError || !user) return withCors(req, Response.json({ error: 'unauthorized' }, { status: 401 }))
 
   let body: { content?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
-    return Response.json({ error: 'invalid JSON body' }, { status: 400 })
+    return withCors(req, Response.json({ error: 'invalid JSON body' }, { status: 400 }))
   }
 
   const content = (body.content ?? '').trim()
-  if (!content) return Response.json({ error: 'content is required' }, { status: 400 })
+  if (!content) return withCors(req, Response.json({ error: 'content is required' }, { status: 400 }))
 
   try {
     const result = await callModel<ScriptureResult>(
@@ -72,8 +77,8 @@ export async function POST(req: Request): Promise<Response> {
       'scripture_passages',
       'low',
     )
-    return Response.json(result)
+    return withCors(req, Response.json(result))
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'failed' }, { status: 500 })
+    return withCors(req, Response.json({ error: e instanceof Error ? e.message : 'failed' }, { status: 500 }))
   }
 }
