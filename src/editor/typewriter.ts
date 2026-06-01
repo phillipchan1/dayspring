@@ -4,10 +4,9 @@ import type { Extension } from '@codemirror/state'
 /**
  * Typewriter scrolling: keep the line with the cursor vertically centered.
  *
- * We add top/bottom padding equal to ~45% of the *measured* editor height (not
- * `vh`, which is unreliable with the mobile keyboard) so the first/last lines
- * can still reach the middle, then re-center on every doc/selection change.
- * The padding is driven by a CSS variable the plugin keeps in sync.
+ * Padding is synced when the viewport height changes; scrolling runs only on
+ * doc/selection changes — never on geometryChanged alone (that caused a CM
+ * measure loop when padding + scrollIntoView fed each other).
  */
 const typewriterTheme = EditorView.theme({
   '.cm-content': {
@@ -24,25 +23,37 @@ const keepCentered = ViewPlugin.fromClass(
     constructor(view: EditorView) {
       this.syncPadding(view)
       this.schedule(view)
+      if (view.scrollDOM.clientHeight === 0) {
+        this.retryPadding(view)
+      }
     }
 
     update(update: ViewUpdate) {
-      if (update.geometryChanged) this.syncPadding(update.view)
-      if (update.docChanged || update.selectionSet || update.geometryChanged) {
+      if (update.geometryChanged) {
+        this.syncPadding(update.view)
+      }
+      if (update.docChanged || update.selectionSet) {
         this.schedule(update.view)
       }
     }
 
-    // Measure the editor height and set the centering padding. If layout isn't
-    // ready yet (height 0), retry next frame until it is.
-    private syncPadding(view: EditorView) {
+    private syncPadding(view: EditorView): boolean {
       const h = view.scrollDOM.clientHeight
-      if (h > 0) {
-        view.dom.style.setProperty('--tw-pad', `${Math.round(h * 0.45)}px`)
-      } else {
-        cancelAnimationFrame(this.padFrame)
-        this.padFrame = requestAnimationFrame(() => this.syncPadding(view))
-      }
+      if (h <= 0) return false
+      const next = `${Math.round(h * 0.45)}px`
+      const current = view.dom.style.getPropertyValue('--tw-pad')
+      if (current === next) return true
+      view.dom.style.setProperty('--tw-pad', next)
+      return true
+    }
+
+    private retryPadding(view: EditorView, attempt = 0) {
+      if (attempt > 12) return
+      cancelAnimationFrame(this.padFrame)
+      this.padFrame = requestAnimationFrame(() => {
+        if (this.syncPadding(view)) this.schedule(view)
+        else this.retryPadding(view, attempt + 1)
+      })
     }
 
     private schedule(view: EditorView) {

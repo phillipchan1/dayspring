@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { enterNativeFullscreen, exitNativeFullscreen } from '@/lib/nativeFullscreen'
+import { exitFocusPresentation } from '@/lib/nativeFullscreen'
 
 export interface FocusMode {
   active: boolean
@@ -9,14 +9,8 @@ export interface FocusMode {
 }
 
 /**
- * Focus mode = CSS chrome hidden + browser fullscreen when available.
- *
- * Uses Fullscreen API + keyboard lock (Safari 26.4+, recent Chrome) so Esc can
- * close a settings modal before exiting focus. Without keyboard lock, Esc is
- * reserved by the browser and overlays cannot win.
- *
- * macOS traffic-light fullscreen requires Tauri (planned); browser fullscreen
- * is the best option while developing in Vite.
+ * Focus mode hides journal chrome so the writing canvas fills the window.
+ * No OS/browser fullscreen — that broke the WebView and caused layout loops.
  *
  * Shortcuts: ⌘/Ctrl+Enter toggles, Esc exits (when no overlay is open).
  */
@@ -27,22 +21,17 @@ export function useFocusMode(overlayOpen = false): FocusMode {
 
   const enter = useCallback(() => {
     setActive(true)
-    void enterNativeFullscreen()
   }, [])
 
   const exit = useCallback(() => {
     setActive(false)
-    void exitNativeFullscreen()
+    void exitFocusPresentation()
   }, [])
 
   const toggle = useCallback(() => {
     setActive((on) => {
-      if (on) {
-        void exitNativeFullscreen()
-        return false
-      }
-      void enterNativeFullscreen()
-      return true
+      if (on) void exitFocusPresentation()
+      return !on
     })
   }, [])
 
@@ -59,7 +48,6 @@ export function useFocusMode(overlayOpen = false): FocusMode {
         return
       }
       if (e.key !== 'Escape' || !active) return
-      // Settings registers its own capture handler; don't exit focus underneath.
       if (overlayOpenRef.current) return
       e.preventDefault()
       exit()
@@ -67,14 +55,6 @@ export function useFocusMode(overlayOpen = false): FocusMode {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [active, toggle, exit])
-
-  useEffect(() => {
-    const onFsChange = () => {
-      if (!document.fullscreenElement && !overlayOpenRef.current) setActive(false)
-    }
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
-  }, [])
 
   return { active, enter, exit, toggle }
 }

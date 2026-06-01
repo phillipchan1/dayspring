@@ -101,6 +101,18 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const altarActive = state.surface === 'altar'
   const canvasAlternateActive = reflectionsActive || altarActive
   const focus = useFocusMode(settingsOpen)
+  /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
+  const [focusEditorReady, setFocusEditorReady] = useState(false)
+  useEffect(() => {
+    if (!focus.active) {
+      setFocusEditorReady(false)
+      return
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setFocusEditorReady(true))
+    })
+    return () => cancelAnimationFrame(id)
+  }, [focus.active])
 
   // Block the browser context menu outside the editor and entry rows (editor keeps native macOS menu).
   useEffect(() => {
@@ -403,6 +415,13 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     settingsOpen,
   })
 
+  // After chrome hides, return focus to the editor once layout has settled.
+  useEffect(() => {
+    if (!focusEditorReady || !entriesReady) return
+    const id = requestAnimationFrame(() => editorRef.current?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [focusEditorReady, entriesReady])
+
   // “?” summons the keyboard cheat-sheet anywhere (except while typing or when
   // Settings is open, which has its own Shortcuts tab). ShortcutsOverlay owns Esc.
   useEffect(() => {
@@ -563,8 +582,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
-            typewriter={focus.active && settings.typewriter}
-            dimming={focus.active && settings.dimming}
+            typewriter={focus.active && focusEditorReady && settings.typewriter}
+            dimming={focus.active && focusEditorReady && settings.dimming}
             slashEnabled
             commandLinePos={slashCapture?.insertAt ?? null}
             onSlashCommand={handleSlashCommand}

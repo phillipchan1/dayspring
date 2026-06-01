@@ -1333,9 +1333,12 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  opacity: 0.12;
+  opacity: 0.72;
   transition: opacity var(--transition);
   z-index: 50;
+}
+html[data-focus-mode] .focus-controls {
+  opacity: 0.85;
 }
 .focus-controls:hover,
 .focus-controls:focus-within {
