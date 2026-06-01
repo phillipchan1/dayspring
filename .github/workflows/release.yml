@@ -24,6 +24,10 @@ jobs:
       RELEASES_REPO: phillipchan1/dayspring-releases
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so the release-notes step can diff this build against
+          # the previous tip of master (github.event.before..HEAD).
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -120,6 +124,28 @@ jobs:
           done
           echo "All build attempts failed"; exit 1
 
+      # Human-readable "what's new", generated from the commits in THIS push
+      # (previous tip → now). Best-effort: scripts/release-notes.mjs falls back to
+      # a cleaned commit list if OPENAI_API_KEY is unset or the API errors, so a
+      # notes failure never blocks the release. The result feeds both latest.json
+      # (which the app shows in its update prompt) and the GitHub release body.
+      - name: Generate release notes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -uo pipefail
+          BEFORE="${{ github.event.before }}"
+          ZEROS="0000000000000000000000000000000000000000"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "$ZEROS" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            # First build / force-push / unreachable base: just describe the tip.
+            COMMITS=$(git log -1 --no-merges --pretty=format:'- %s')
+          else
+            COMMITS=$(git log "${BEFORE}..HEAD" --no-merges --pretty=format:'- %s')
+          fi
+          [ -z "$COMMITS" ] && COMMITS="- Maintenance and behind-the-scenes improvements."
+          printf '%s\n' "$COMMITS" | node scripts/release-notes.mjs > RELEASE_NOTES.md
+          echo "Generated release notes:"; cat RELEASE_NOTES.md
+
       - name: Publish to public releases repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
@@ -144,7 +170,7 @@ jobs:
           # embedded public key before installing.
           jq -n \
             --arg v "$APP_VERSION" \
-            --arg notes "Automated build from ${{ github.sha }}" \
+            --rawfile notes RELEASE_NOTES.md \
             --arg date "$PUB_DATE" \
             --arg sig "$SIG" \
             --arg url "$ASSET_URL" \
@@ -156,6 +182,6 @@ jobs:
           gh release create "$TAG" \
             --repo "$RELEASES_REPO" \
             --title "Dayspring v${APP_VERSION}" \
-            --notes "Automated build from ${{ github.sha }}. Installed apps auto-update to this version." \
+            --notes-file RELEASE_NOTES.md \
             --latest \
             "$DMG" "$STABLE_DMG" "$APPTAR" latest.json

@@ -2892,8 +2892,9 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
   bottom: max(1rem, env(safe-area-inset-bottom));
   z-index: 80;
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 22rem;
   padding: 0.55rem 0.7rem 0.55rem 0.8rem;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
@@ -2943,6 +2944,37 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
 .update-toast__btn:hover {
   background: var(--accent);
   color: #fff;
+}
+.update-toast__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.update-toast__notes {
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+.update-toast__notes > summary {
+  cursor: pointer;
+  color: var(--text);
+  list-style-position: inside;
+}
+.update-toast__notes-body,
+.settings-update__notes-body {
+  margin-top: 0.4rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  max-height: 11rem;
+  overflow-y: auto;
+}
+.settings-update__notes {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+.settings-update__notes > summary {
+  cursor: pointer;
+  color: var(--accent);
 }
 
 /* ── Settings → About: manual update checker (desktop) ─────────────────────── */

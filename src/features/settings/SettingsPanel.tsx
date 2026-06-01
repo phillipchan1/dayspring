@@ -265,6 +265,12 @@ function UpdateChecker() {
             {message}
           </p>
         )}
+        {state.status === 'ready' && state.notes && (
+          <details className="settings-update__notes">
+            <summary>What’s new in v{state.version}</summary>
+            <div className="settings-update__notes-body">{state.notes}</div>
+          </details>
+        )}
       </div>
     </>
   )

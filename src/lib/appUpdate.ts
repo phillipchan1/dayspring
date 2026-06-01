@@ -16,6 +16,7 @@ export interface UpdateState {
   status: UpdateStatus
   version: string | null // the available/staged version, when known
   error: string | null // short message for the 'error' status, when known
+  notes: string | null // human-readable "what's new" (the updater's `body`/latest.json `notes`), when known
 }
 
 const POLL_MS = 30 * 60 * 1000 // background re-check every 30 min while open
@@ -25,7 +26,7 @@ function isDesktop(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
-const IDLE: UpdateState = { status: 'idle', version: null, error: null }
+const IDLE: UpdateState = { status: 'idle', version: null, error: null, notes: null }
 let state: UpdateState = IDLE
 const listeners = new Set<() => void>()
 let relaunchFn: (() => Promise<void>) | null = null
@@ -60,7 +61,7 @@ function setTransient(next: UpdateState) {
 export async function checkForUpdate(manual = false): Promise<void> {
   if (!isDesktop() || inFlight || staged) return
   inFlight = true
-  if (manual) set({ status: 'checking', version: null, error: null })
+  if (manual) set({ status: 'checking', version: null, error: null, notes: null })
   try {
     await runCheck(manual)
   } finally {
@@ -78,18 +79,21 @@ async function runCheck(manual: boolean, attempt = 1): Promise<void> {
     const update = await check()
 
     if (!update) {
-      if (manual) setTransient({ status: 'up-to-date', version: null, error: null })
+      if (manual) setTransient({ status: 'up-to-date', version: null, error: null, notes: null })
       else if (state.status !== 'ready') set(IDLE)
       return
     }
 
-    set({ status: 'downloading', version: update.version, error: null })
+    // `update.body` is the human-readable note from latest.json (generated in CI
+    // from the commits since the last release). May be empty for older builds.
+    const notes = update.body?.trim() || null
+    set({ status: 'downloading', version: update.version, error: null, notes })
     await update.downloadAndInstall()
 
     const { relaunch } = await import('@tauri-apps/plugin-process')
     relaunchFn = relaunch
     staged = true
-    set({ status: 'ready', version: update.version, error: null })
+    set({ status: 'ready', version: update.version, error: null, notes })
   } catch (err) {
     console.error(`[updater] attempt ${attempt} failed`, err)
     if (attempt < 2) {
@@ -98,7 +102,7 @@ async function runCheck(manual: boolean, attempt = 1): Promise<void> {
       return runCheck(manual, attempt + 1)
     }
     const msg = err instanceof Error ? err.message : String(err)
-    if (manual) setTransient({ status: 'error', version: null, error: msg })
+    if (manual) setTransient({ status: 'error', version: null, error: msg, notes: null })
     else if (state.status !== 'ready') set(IDLE)
   }
 }

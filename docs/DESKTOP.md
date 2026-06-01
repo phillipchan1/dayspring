@@ -11,13 +11,23 @@ to a **public** releases repo, and installed apps auto-update from there.
   always increments — the updater compares semver to decide whether to update.
 - **Build:** `tauri-apps/tauri-action` builds `aarch64-apple-darwin` and signs the
   update bundle with the Tauri updater key.
+- **Release notes:** before publishing, the workflow diffs the commits in this
+  push (`github.event.before..HEAD`) and runs them through
+  [scripts/release-notes.mjs](../scripts/release-notes.mjs), which asks OpenAI to
+  rewrite them as a short, user-facing changelog. This is **best-effort**: if
+  `OPENAI_API_KEY` is unset or the API errors, it falls back to a cleaned commit
+  list, so a notes failure never blocks a release. The result fills both the
+  `notes` field of `latest.json` and the GitHub release body.
 - **Publish:** the workflow creates a release (tag `app-v0.1.<n>`) in the public
   repo **[phillipchan1/dayspring-releases](https://github.com/phillipchan1/dayspring-releases)**
   with the `.dmg`, the `.app.tar.gz`, and a generated `latest.json`. Source stays
   in this private repo; only binaries are public.
-- **Auto-update:** on launch the app calls `initAutoUpdate()` ([src/lib/updater.ts](../src/lib/updater.ts)),
-  which checks `releases/latest/download/latest.json`, and if a newer version
-  exists, downloads + installs it and relaunches. It no-ops in the web build.
+- **Auto-update:** on launch the app polls `releases/latest/download/latest.json`
+  via the shared update store ([src/lib/appUpdate.ts](../src/lib/appUpdate.ts)),
+  and if a newer version exists, downloads + installs it and surfaces a Restart
+  prompt. The updater's `body` (the `latest.json` `notes`) is shown as a "What's
+  new" disclosure in both the bottom-left toast and Settings → About. No-ops in
+  the web build.
 
 ## First install
 
@@ -55,6 +65,7 @@ GitHub Actions secrets on the private repo:
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for the key (empty) |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Frontend build-time env |
 | `RELEASES_TOKEN` | Lets the build publish releases to the public repo |
+| `OPENAI_API_KEY` | _(optional)_ LLM-polished release notes; falls back to a cleaned commit list if unset. Set once with `gh secret set OPENAI_API_KEY`. Override the model with the `OPENAI_MODEL` env (default `gpt-5.4-nano`). |
 
 ### ⚠️ Back up the updater private key
 

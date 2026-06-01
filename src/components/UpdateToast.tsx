@@ -14,20 +14,28 @@ export function UpdateToast() {
 
   return (
     <div className="update-toast" role="status" aria-live="polite">
-      <span className="update-toast__dot" data-mode={state.status} aria-hidden />
-      <span className="update-toast__text">
-        {downloading ? (
-          <>Downloading update…</>
-        ) : (
-          <>
-            Update ready <span className="update-toast__ver">v{state.version}</span>
-          </>
+      <div className="update-toast__row">
+        <span className="update-toast__dot" data-mode={state.status} aria-hidden />
+        <span className="update-toast__text">
+          {downloading ? (
+            <>Downloading update…</>
+          ) : (
+            <>
+              Update ready <span className="update-toast__ver">v{state.version}</span>
+            </>
+          )}
+        </span>
+        {!downloading && (
+          <button className="update-toast__btn" onClick={() => void restart()}>
+            Restart
+          </button>
         )}
-      </span>
-      {!downloading && (
-        <button className="update-toast__btn" onClick={() => void restart()}>
-          Restart
-        </button>
+      </div>
+      {!downloading && state.notes && (
+        <details className="update-toast__notes">
+          <summary>What’s new</summary>
+          <div className="update-toast__notes-body">{state.notes}</div>
+        </details>
       )}
     </div>
   )
