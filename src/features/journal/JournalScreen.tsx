@@ -12,7 +12,6 @@ import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
-import { Reader } from './Reader'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
@@ -26,7 +25,7 @@ interface JournalScreenProps {
 
 export function JournalScreen({ userEmail }: JournalScreenProps) {
   const { state, go, back } = useAppNavigation()
-  const { entryId, mode, restrictIds } = state
+  const { entryId, restrictIds } = state
 
   const [entries, setEntries] = useState<Entry[]>([])
   const [content, setContent] = useState('')
@@ -108,7 +107,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const { status, lastSavedAt, error: saveError, saveNow } = useAutosave({
     entryId,
     content,
-    enabled: mode === 'write',
+    enabled: true,
     onCreated: (created) => {
       go({ entryId: created.id }, { replace: true })
       setEntries((prev) => [created, ...prev])
@@ -140,10 +139,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onExitEdit: () => go({ mode: 'read' }),
-    onEnterEdit: () => go({ mode: 'write' }),
     onOpenSettings: openSettings,
-    mode,
     focusActive: focus.active,
     settingsOpen,
   })
@@ -175,7 +171,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   async function handleNew() {
     await saveNow()
     skipEntrySyncRef.current = true
-    go({ entryId: null, mode: 'write' })
+    go({ entryId: null })
     setContent('')
   }
 
@@ -199,13 +195,10 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
     return filterEntries(entries, query)
   }, [entries, query, restrictIds])
-  const activeEntry = entries.find((e) => e.id === entryId) ?? null
   const docKey = entryId ?? 'new'
 
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
-  ) : mode === 'read' ? (
-    <Reader markdown={content} createdAt={activeEntry?.created_at} />
   ) : (
     <Editor
       docKey={docKey}
@@ -249,8 +242,6 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onNew: () => void handleNew(),
     query,
     onQueryChange: setQuery,
-    mode,
-    onToggleMode: () => go({ mode: mode === 'write' ? 'read' : 'write' }),
     onLookBack: () => go({ surface: 'reflections', settings: null, help: false, sidebar: false }),
     onOpenSettings: () => openSettings(),
     settings,

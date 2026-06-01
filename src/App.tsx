@@ -56,7 +56,6 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
             go({
               surface: 'journal',
               entryId: id,
-              mode: 'read',
               restrictIds: null,
               settings: null,
               help: false,

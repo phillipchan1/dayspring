@@ -83,13 +83,18 @@ export function Editor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Swap the document when a different entry is loaded.
+  // Swap the document when a different entry is loaded, then focus for typing.
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
     const current = view.state.doc.toString()
-    if (current === initialDoc) return
-    view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
+    if (current !== initialDoc) {
+      view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
+    }
+    if (!autofocus) return
+    view.focus()
+    const atEnd = view.state.doc.length
+    view.dispatch({ selection: { anchor: atEnd, head: atEnd } })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docKey])
 

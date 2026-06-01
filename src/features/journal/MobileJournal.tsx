@@ -22,7 +22,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
+    onSelect, onNew, query, onQueryChange, onLookBack, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
   } = props
   const vh = useViewportHeight()
@@ -121,13 +121,6 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={openDrawer} aria-label="Entries">
               ☰
             </button>
-            <button
-              className="nav-btn"
-              onClick={onToggleMode}
-              title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
-            >
-              {mode === 'write' ? 'read' : 'edit'}
-            </button>
             <button className="nav-btn" onClick={onLookBack} aria-label="Looking back">
               ⟲
             </button>
@@ -174,12 +167,7 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      <WritingControls
-        settings={settings}
-        update={updateSettings}
-        focus={focus}
-        visible={mode === 'write'}
-      />
+      <WritingControls settings={settings} update={updateSettings} focus={focus} />
     </div>
   )
 }

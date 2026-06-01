@@ -22,7 +22,7 @@ const NATIVE = isTauri()
 export function DesktopJournal(props: JournalViewProps) {
   const {
     userEmail, entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
+    onSelect, onNew, query, onQueryChange, onLookBack, onOpenSettings,
     settings, updateSettings, focus, mainSlot,
   } = props
   const [showList, setShowList] = useState(true)
@@ -68,29 +68,20 @@ export function DesktopJournal(props: JournalViewProps) {
               <button className="nav-btn" onClick={onNew} title="New entry (C)">
                 new
               </button>
-              <button
-                className="nav-btn"
-                onClick={onToggleMode}
-                title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
-              >
-                {mode === 'write' ? 'read' : 'edit'}
-              </button>
               <button className="nav-btn" onClick={onLookBack} title="Monthly reflections">
                 looking back
               </button>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
-              {mode === 'write' && (
-                <div className="status-cluster" style={{ marginRight: '0.6rem' }}>
-                  <span className="status-cluster__dot" data-status={status} aria-hidden />
-                  <span>{words} {words === 1 ? 'word' : 'words'}</span>
-                  <span className="status-cluster__sep" aria-hidden>·</span>
-                  <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
-                  <span className="status-cluster__sep" aria-hidden>·</span>
-                  <SyncBadge bare />
-                </div>
-              )}
+              <div className="status-cluster" style={{ marginRight: '0.6rem' }}>
+                <span className="status-cluster__dot" data-status={status} aria-hidden />
+                <span>{words} {words === 1 ? 'word' : 'words'}</span>
+                <span className="status-cluster__sep" aria-hidden>·</span>
+                <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
+                <span className="status-cluster__sep" aria-hidden>·</span>
+                <SyncBadge bare />
+              </div>
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 focus
               </button>
@@ -120,12 +111,7 @@ export function DesktopJournal(props: JournalViewProps) {
         </div>
       </main>
 
-      <WritingControls
-        settings={settings}
-        update={updateSettings}
-        focus={focus}
-        visible={mode === 'write'}
-      />
+      <WritingControls settings={settings} update={updateSettings} focus={focus} />
     </div>
   )
 }

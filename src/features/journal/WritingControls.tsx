@@ -6,14 +6,10 @@ interface Props {
   settings: Settings
   update: (patch: Partial<Settings>) => void
   focus: FocusMode
-  /** Only show while editing (not in read mode). */
-  visible: boolean
 }
 
 /** Subtle floating pills while writing; typewriter / dim / exit in focus mode. */
-export function WritingControls({ settings, update, focus, visible }: Props) {
-  if (!visible) return null
-
+export function WritingControls({ settings, update, focus }: Props) {
   const docked = !focus.active
 
   return (

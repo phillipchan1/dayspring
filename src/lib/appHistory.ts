@@ -7,7 +7,6 @@ export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
   surface: 'journal' | 'reflections'
   entryId: string | null
-  mode: 'read' | 'write'
   settings: { tab: SettingsTab; importSource: string | null } | null
   help: boolean
   sidebar: boolean
@@ -18,7 +17,6 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   tag: APP_HISTORY_TAG,
   surface: 'journal',
   entryId: null,
-  mode: 'write',
   settings: null,
   help: false,
   sidebar: false,
@@ -51,7 +49,6 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
   return (
     a.surface === b.surface &&
     a.entryId === b.entryId &&
-    a.mode === b.mode &&
     a.help === b.help &&
     a.sidebar === b.sidebar &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&

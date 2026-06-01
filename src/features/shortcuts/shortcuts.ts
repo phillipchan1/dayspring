@@ -23,11 +23,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Writing',
     items: [
-      { keys: ['C'], label: 'New entry', when: 'while reading' },
-      { keys: ['E'], label: 'Edit this entry', when: 'while reading' },
-      { keys: ['Esc'], label: 'Done editing — back to reading', when: 'while writing' },
+      { keys: ['C'], label: 'New entry', when: 'outside the editor' },
       { keys: ['Mod', 'S'], label: 'Save now' },
       { keys: ['Mod', 'Enter'], label: 'Toggle focus mode' },
+      { keys: ['Esc'], label: 'Exit focus mode', when: 'while in focus mode' },
     ],
   },
   {

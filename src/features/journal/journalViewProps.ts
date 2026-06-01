@@ -10,8 +10,6 @@ export interface FocusApi {
   toggle: () => void
 }
 
-export type ViewMode = 'write' | 'read'
-
 /** Everything a layout (desktop or mobile) needs. State lives in JournalScreen. */
 export interface JournalViewProps {
   userEmail: string
@@ -25,8 +23,6 @@ export interface JournalViewProps {
   onNew: () => void
   query: string
   onQueryChange: (q: string) => void
-  mode: ViewMode
-  onToggleMode: () => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
   onOpenSettings: () => void
@@ -35,6 +31,6 @@ export interface JournalViewProps {
   focus: FocusApi
   sidebarOpen: boolean
   onToggleSidebar: () => void
-  /** The active surface (editor in write mode, reader in read mode). */
+  /** The editor surface for the active entry. */
   mainSlot: ReactNode
 }
