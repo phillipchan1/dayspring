@@ -6,7 +6,7 @@
 // keys when the user grants permission in the browser, and call the Web Push
 // API here. The payload and deep-link pattern are identical.
 
-import { env } from './env'
+import { env } from './env.js'
 
 export interface ReminderNotification {
   to: string

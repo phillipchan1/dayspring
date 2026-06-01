@@ -1,4 +1,4 @@
-import { env } from './env'
+import { env } from './env.js'
 
 /**
  * Guard for the cron + manual endpoints. Vercel Cron sends

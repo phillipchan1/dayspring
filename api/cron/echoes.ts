@@ -6,10 +6,10 @@
 //
 // Cost discipline: reads only from rollup summaries, never raw entries.
 
-import { isAuthorized, unauthorized } from '../_lib/auth'
-import { supabaseAdmin } from '../_lib/supabaseAdmin'
-import { callModel } from '../_lib/openai'
-import { env } from '../_lib/env'
+import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { callModel } from '../_lib/openai.js'
+import { env } from '../_lib/env.js'
 
 // ── AI schema + prompt ──────────────────────────────────────────────────────
 

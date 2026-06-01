@@ -2,8 +2,8 @@
 // Authenticated via the user's Supabase JWT (Authorization: Bearer <token>).
 // Returns 3 ESV passages relevant to the submitted journal content or topic.
 
-import { supabaseAdmin } from '../_lib/supabaseAdmin'
-import { callModel } from '../_lib/openai'
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { callModel } from '../_lib/openai.js'
 
 const SCHEMA = {
   type: 'object',

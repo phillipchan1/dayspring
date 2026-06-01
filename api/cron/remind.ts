@@ -1,10 +1,10 @@
 // POST /api/cron/remind  (Vercel Cron, daily at 09:00 UTC)
 // Finds unfired reminders that are due, sends a notification, and marks them fired.
 
-import { isAuthorized, unauthorized } from '../_lib/auth'
-import { supabaseAdmin } from '../_lib/supabaseAdmin'
-import { sendReminderNotification } from '../_lib/notify'
-import { env } from '../_lib/env'
+import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { sendReminderNotification } from '../_lib/notify.js'
+import { env } from '../_lib/env.js'
 
 interface ReminderRow {
   id: string
