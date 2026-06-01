@@ -1669,15 +1669,3 @@ a {
     display: none;
   }
 }
-
-/* ── Native desktop (Tauri) overlay title bar ──────────────────────────────
-   The macOS window uses titleBarStyle "Overlay": the title bar is transparent
-   and content flows under it, with the traffic-light buttons floating at the
-   top-left. Pad the sidebar top so the brand sits below the lights, and nudge
-   the topbar down so it doesn't hug the window edge. Web build is unaffected. */
-[data-platform='desktop'] .sidebar__header {
-  padding-top: 2.75rem;
-}
-[data-platform='desktop'] .topbar {
-  padding-top: 1.5rem;
-}

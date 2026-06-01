@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { signOut } from '@/lib/auth'
+import { isTauri } from '@/lib/platform'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
 import type { JournalViewProps } from './journalViewProps'
+
+// In the native macOS app the title bar is transparent (overlay style), so the
+// traffic-light buttons float over our content. Leave room for them: always a
+// little extra height, plus left clearance for the header when the sidebar is
+// collapsed (otherwise the lights cover the first buttons).
+const NATIVE = isTauri()
 
 /**
  * Desktop: a centered writing column with deep margins (the column width comes
@@ -36,13 +43,13 @@ export function DesktopJournal(props: JournalViewProps) {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {!focused && (
           <header
-            className="desktop-topbar"
-            data-sidebar-hidden={!showList}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '0.6rem 1rem',
+              padding: NATIVE
+                ? `1.45rem 1rem 0.6rem ${showList ? '1rem' : '5rem'}`
+                : '0.6rem 1rem',
               borderBottom: '1px solid var(--border-subtle)',
               boxShadow: 'var(--shadow-1)',
               gap: '1rem',

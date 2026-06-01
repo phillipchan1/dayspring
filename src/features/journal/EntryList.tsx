@@ -1,7 +1,13 @@
 import type { Entry } from '@/lib/types'
 import { Brand } from '@/components/Mark'
+import { isTauri } from '@/lib/platform'
 import { deriveTitle } from './deriveTitle'
 import { matchSnippet } from './search'
+
+// Native macOS overlay title bar: the traffic lights float over the top of the
+// sidebar, so drop the brand/search down to clear them. Not needed inside the
+// mobile drawer (fullWidth) or on the web.
+const NATIVE = isTauri()
 
 function formatDate(iso: string): string {
   const d = new Date(iso)
@@ -32,7 +38,14 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
         flexDirection: 'column',
       }}
     >
-      <div style={{ padding: '0.7rem 0.75rem 0.5rem', position: 'sticky', top: 0, background: 'var(--bg-elevated)' }}>
+      <div
+        style={{
+          padding: `${NATIVE && !fullWidth ? '2.4rem' : '0.7rem'} 0.75rem 0.5rem`,
+          position: 'sticky',
+          top: 0,
+          background: 'var(--bg-elevated)',
+        }}
+      >
         {!fullWidth && (
           <Brand size={20} wordmarkRem={1.1} style={{ padding: '0.15rem 0.1rem 0.7rem' }} />
         )}
