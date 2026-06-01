@@ -37,10 +37,13 @@ cite specific days. You are given this week's entries as JSON [{id,date,title,te
    in the text (never raw UUIDs); evidence array uses entry_ids. Empty if nothing factual stands out.
 4. synthesis: 2–4 sentences measuring this week against last week using the Gain lens (further than where you
    were, not behind an ideal). Lean on the writer's own themes. Do not assert numbers or events not present.
+   If no prior_week is provided, simply reflect on this week itself — never remark that prior context is
+   missing or unavailable; the reader should never see the machinery.
 5. wins: this_week = up to 3 concrete wins that actually happened this week (short, atomic, the writer can edit);
    next_week = up to 3 forward intentions implied by open threads. Plain language, no fluff.
 6. questions: 2–3 invitational prompts to seed the next entry, drawn from open threads. The AI ASKS, never
-   answers. Each addressed to "self" or "God". Never analytical or quiz-like.`
+   answers. Each addressed to "self" or "God" (the addressee is a separate field — do NOT prefix the text
+   with "self:" or "God:"; a prayer may begin naturally with "Lord," if it reads that way). Never quiz-like.`
 
 export const MONTHLY_SYSTEM_PROMPT = `${GROUNDING}
 

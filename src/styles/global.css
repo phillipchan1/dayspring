@@ -1396,6 +1396,16 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
   overflow: hidden;
   background: var(--bg);
 }
+.looking-back--embedded {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.looking-back--embedded .looking-back__pill {
+  top: 1rem;
+}
 /* A still, subtle backdrop — the shared horizon glow, fixed. Never animates. */
 .looking-back__bg {
   position: absolute;
@@ -1406,32 +1416,7 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
   pointer-events: none;
 }
 
-/* Back affordance — minimal chrome. */
-.looking-back__back {
-  position: absolute;
-  top: max(1rem, env(safe-area-inset-top));
-  left: max(1rem, env(safe-area-inset-left));
-  z-index: 3;
-  width: 2.25rem;
-  height: 2.25rem;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  color: var(--text-dim);
-  font-size: 1.05rem;
-  line-height: 1;
-  transition: color var(--transition), border-color var(--transition);
-}
-.looking-back__back:hover {
-  color: var(--text-bright);
-  border-color: var(--border);
-}
-
-/* Fixed center pill — the only persistent chrome. */
+/* Fixed center pill — horizon switcher. */
 .looking-back__pill {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top));

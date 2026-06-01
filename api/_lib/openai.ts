@@ -26,12 +26,15 @@ export async function callModel<T>(
   input: unknown,
   schema: Record<string, unknown>,
   name: string,
+  // Picking quotes + short prose (weekly/monthly) is cheap at "low"; the longer
+  // multi-month synthesis (quarterly/yearly) gets "medium". Token-efficiency lever.
+  effort: 'low' | 'medium' = 'low',
 ): Promise<T> {
   const params: ChatParams = {
     model: env.model(),
     // This model family only accepts the default temperature (1); grounding is
     // enforced in code (verbatim validation), so sampling temp doesn't matter.
-    reasoning_effort: 'medium',
+    reasoning_effort: effort,
     response_format: {
       type: 'json_schema',
       json_schema: { name, strict: true, schema },

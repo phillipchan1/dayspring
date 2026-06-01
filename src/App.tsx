@@ -7,9 +7,8 @@ import { EDITOR_FONT_VARS } from './lib/settings'
 import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
-import { LookingBack } from './features/reflections/LookingBack'
 import { UpdateToast } from './components/UpdateToast'
-import { AppNavigationProvider, useAppNavigation } from './context/AppNavigation'
+import { AppNavigationProvider } from './context/AppNavigation'
 
 export function App() {
   const { session, loading } = useSession()
@@ -28,11 +27,6 @@ export function App() {
     root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
   }, [resolvedTheme, settings.fontSize, settings.lineHeight, settings.maxWidth, settings.editorFont])
 
-  // TEMP-VERIFY: remove — preview-only bypass to view LookingBack without auth.
-  if (typeof window !== 'undefined' && window.location.search.includes('lb')) {
-    return <LookingBack onBack={() => {}} onOpenEntry={() => {}} />
-  }
-
   // Before keys exist, the app still boots and tells you what to configure.
   if (!isSupabaseConfigured) return <SetupNotice />
 
@@ -50,29 +44,6 @@ export function App() {
 }
 
 function AuthenticatedApp({ userEmail }: { userEmail: string }) {
-  const { state, go, back } = useAppNavigation()
-
-  if (state.surface === 'reflections') {
-    return (
-      <>
-        <LookingBack
-          onBack={back}
-          onOpenEntry={(id) => {
-            go({
-              surface: 'journal',
-              entryId: id,
-              restrictIds: null,
-              settings: null,
-              help: false,
-              sidebar: false,
-            })
-          }}
-        />
-        <UpdateToast />
-      </>
-    )
-  }
-
   return (
     <>
       <JournalScreen userEmail={userEmail} />

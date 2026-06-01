@@ -26,6 +26,7 @@ import {
 import type { EntryMenuAction } from './EntryContextMenu'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
+import { LookingBack } from '@/features/reflections/LookingBack'
 
 interface JournalScreenProps {
   userEmail: string
@@ -47,6 +48,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
+  const reflectionsActive = state.surface === 'reflections'
   const focus = useFocusMode(settingsOpen)
 
   // Block the browser context menu outside the editor and entry rows (editor keeps native macOS menu).
@@ -157,17 +159,41 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     if (entry) setContent(entry.body_markdown)
   }, [entryId, entries])
 
+  function toggleLookBack() {
+    if (reflectionsActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      go({ surface: 'reflections', settings: null, help: false, sidebar: false })
+    }
+  }
+
+  function toggleEntries() {
+    if (reflectionsActive) {
+      go({ surface: 'journal', sidebar: isMobile })
+      setEntriesOpen(true)
+      return
+    }
+    if (isMobile) {
+      if (state.sidebar) back()
+      else go({ sidebar: true })
+    } else {
+      setEntriesOpen((open) => !open)
+    }
+  }
+
+  // Reflections owns the canvas — keep the journal list tucked away.
+  useEffect(() => {
+    if (!reflectionsActive) return
+    setEntriesOpen(false)
+    if (state.sidebar) go({ sidebar: false }, { replace: true })
+  }, [reflectionsActive, state.sidebar, go])
+
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onToggleEntries: () => {
-      if (isMobile) go({ sidebar: !state.sidebar })
-      else setEntriesOpen((open) => !open)
-    },
-    onLookBack: () => {
-      if (state.surface === 'reflections') back()
-      else go({ surface: 'reflections', settings: null, help: false, sidebar: false })
-    },
+    onToggleEntries: toggleEntries,
+    onLookBack: toggleLookBack,
     onOpenSettings: () => {
       if (settingsOpen) back()
       else openSettings()
@@ -210,16 +236,22 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   async function handleNew() {
     await saveNow()
     skipEntrySyncRef.current = true
-    go({ entryId: null })
+    go({ surface: 'journal', entryId: null })
     setContent('')
   }
 
   async function handleSelect(entry: Entry) {
-    if (entry.id === entryId) return
+    if (entry.id === entryId && !reflectionsActive) return
     await saveNow()
     skipEntrySyncRef.current = true
-    go({ entryId: entry.id })
+    go({ surface: 'journal', entryId: entry.id })
     setContent(entry.body_markdown)
+  }
+
+  function handleOpenReflectionEntry(id: string) {
+    const entry = entries.find((e) => e.id === id)
+    if (!entry) return
+    void handleSelect(entry)
   }
 
   async function handleDuplicate(entry: Entry) {
@@ -232,7 +264,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       })
       setEntries((prev) => [copy, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
       skipEntrySyncRef.current = true
-      go({ entryId: copy.id })
+      go({ surface: 'journal', entryId: copy.id })
       setContent(copy.body_markdown)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to duplicate entry')
@@ -276,10 +308,10 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       skipEntrySyncRef.current = true
       const next = remaining[0] ?? null
       if (next) {
-        go({ entryId: next.id })
+        go({ surface: 'journal', entryId: next.id })
         setContent(next.body_markdown)
       } else {
-        go({ entryId: null })
+        go({ surface: 'journal', entryId: null })
         setContent('')
       }
     }
@@ -320,7 +352,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     />
   )
 
-  const mainSlot = restrictIds ? (
+  const mainSlot = reflectionsActive ? (
+    <LookingBack embedded onOpenEntry={handleOpenReflectionEntry} />
+  ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="restrict-banner">
         <span>
@@ -352,7 +386,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onNew: () => void handleNew(),
     query,
     onQueryChange: setQuery,
-    onLookBack: () => go({ surface: 'reflections', settings: null, help: false, sidebar: false }),
+    onLookBack: toggleLookBack,
     onOpenSettings: () => openSettings(),
     settings,
     updateSettings,
@@ -363,8 +397,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       else go({ sidebar: true })
     },
     entriesOpen,
-    onToggleEntries: () => setEntriesOpen((o) => !o),
+    onToggleEntries: toggleEntries,
     mainSlot,
+    reflectionsActive,
   }
 
   return (

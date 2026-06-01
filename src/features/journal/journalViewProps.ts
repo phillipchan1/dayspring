@@ -39,4 +39,6 @@ export interface JournalViewProps {
   onToggleEntries: () => void
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
+  /** True when Looking back fills the main canvas (rail + entries stay visible). */
+  reflectionsActive: boolean
 }

@@ -25,10 +25,12 @@ export function MobileJournal(props: JournalViewProps) {
     entries, activeId, status, lastSavedAt, saveError,
     onSelect, onEntryMenuAction, onNew, query, onQueryChange, onLookBack, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
+    reflectionsActive,
   } = props
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
+  const journalChrome = !reflectionsActive
 
   function closeDrawer() {
     if (sidebarOpen) onToggleSidebar()
@@ -69,7 +71,7 @@ export function MobileJournal(props: JournalViewProps) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {!focused && (
+      {!focused && journalChrome && (
         <header
           style={{
             display: 'flex',
@@ -101,8 +103,11 @@ export function MobileJournal(props: JournalViewProps) {
         </header>
       )}
 
-      <div className="journal-canvas" style={{ flex: 1, minHeight: 0 }}>
-        {!focused && (
+      <div
+        className={`journal-canvas${reflectionsActive ? ' journal-canvas--reflections' : ''}`}
+        style={{ flex: 1, minHeight: 0 }}
+      >
+        {!focused && journalChrome && (
           <>
             <div className="journal-horizon" aria-hidden />
             <div className="journal-glow" aria-hidden />
@@ -110,7 +115,10 @@ export function MobileJournal(props: JournalViewProps) {
         )}
         <div
           className="journal-canvas__content"
-          style={{ padding: focused ? '0 1rem' : '2.5rem 1rem 1.25rem', overflow: 'hidden' }}
+          style={{
+            padding: focused ? '0 1rem' : reflectionsActive ? '0' : '2.5rem 1rem 1.25rem',
+            overflow: 'hidden',
+          }}
         >
           {mainSlot}
         </div>
@@ -125,14 +133,16 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={onLookBack} aria-label="Looking back" title="Looking back (⌘2)">
               ⟲
             </button>
-            <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
-              focus
-            </button>
+            {journalChrome && (
+              <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
+                focus
+              </button>
+            )}
             <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘, or ⌘3)">
               ⚙
             </button>
           </nav>
-          <FabNew onClick={onNew} />
+          {journalChrome && <FabNew onClick={onNew} />}
         </>
       )}
 
@@ -167,7 +177,9 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      {journalChrome && (
+        <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      )}
     </div>
   )
 }

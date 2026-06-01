@@ -28,10 +28,12 @@ export function DesktopJournal(props: JournalViewProps) {
     entries, activeId, words, status, lastSavedAt, saveError,
     onSelect, onEntryMenuAction, onNew, query, onQueryChange, onLookBack, onOpenSettings,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
+    reflectionsActive,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
+  const journalChrome = !reflectionsActive
 
   return (
     <div className="app-shell">
@@ -39,13 +41,14 @@ export function DesktopJournal(props: JournalViewProps) {
         <Rail
           onToggleEntries={onToggleEntries}
           entriesOpen={entriesOpen}
+          lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
           onOpenSettings={onOpenSettings}
           nativeTopInset={NATIVE ? MAC_TRAFFIC_INSET.railTop : undefined}
         />
       )}
 
-      {!focused && (
+      {!focused && !reflectionsActive && (
         <div
           className="entries-panel"
           data-open={entriesOpen ? 'true' : 'false'}
@@ -76,7 +79,7 @@ export function DesktopJournal(props: JournalViewProps) {
       )}
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {!focused && (
+        {!focused && journalChrome && (
           <header
             className="journal-topbar"
             style={NATIVE ? { paddingTop: MAC_TRAFFIC_INSET.mainTop } : undefined}
@@ -100,8 +103,11 @@ export function DesktopJournal(props: JournalViewProps) {
           </header>
         )}
 
-        <div className="journal-canvas" style={{ flex: 1, minHeight: 0 }}>
-          {!focused && (
+        <div
+          className={`journal-canvas${reflectionsActive ? ' journal-canvas--reflections' : ''}`}
+          style={{ flex: 1, minHeight: 0 }}
+        >
+          {!focused && journalChrome && (
             <>
               <div className="journal-horizon" aria-hidden />
               <div className="journal-glow" aria-hidden />
@@ -109,16 +115,25 @@ export function DesktopJournal(props: JournalViewProps) {
           )}
           <div
             className="journal-canvas__content"
-            style={{ padding: focused ? '0 1.5rem' : '4rem 1.5rem 2.5rem', overflow: 'hidden' }}
+            style={{
+              padding: focused
+                ? '0 1.5rem'
+                : reflectionsActive
+                  ? '0'
+                  : '4rem 1.5rem 2.5rem',
+              overflow: 'hidden',
+            }}
           >
             {mainSlot}
           </div>
         </div>
       </main>
 
-      {!focused && <FabNew onClick={onNew} />}
+      {!focused && journalChrome && <FabNew onClick={onNew} />}
 
-      <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      {!reflectionsActive && (
+        <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      )}
     </div>
   )
 }

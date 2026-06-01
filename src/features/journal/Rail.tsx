@@ -4,6 +4,7 @@ import { Mark } from '@/components/Mark'
 interface RailProps {
   onToggleEntries: () => void
   entriesOpen: boolean
+  lookBackActive: boolean
   onLookBack: () => void
   onOpenSettings: () => void
   /** macOS traffic-light top clearance under Tauri's overlay title bar. */
@@ -14,11 +15,13 @@ interface RailProps {
  * The desktop navigation spine: a slim, full-height rail. The sunrise Mark up
  * top, the destinations in the middle, Settings pinned to the foot (Sign out
  * lives inside Settings → About). Quiet at rest; the active destination
- * (Entries, when its panel is open) warms to the accent. Desktop-only.
+ * (Entries on journal, or Looking back on reflections) warms to the accent.
+ * Desktop-only.
  */
 export function Rail({
   onToggleEntries,
   entriesOpen,
+  lookBackActive,
   onLookBack,
   onOpenSettings,
   nativeTopInset,
@@ -33,10 +36,16 @@ export function Rail({
           label="Entries"
           title="Entries (⌘1)"
           onClick={onToggleEntries}
-          active={entriesOpen}
+          active={entriesOpen && !lookBackActive}
           icon={<EntriesIcon />}
         />
-        <RailButton label="Looking back" title="Looking back (⌘2)" onClick={onLookBack} icon={<LookBackIcon />} />
+        <RailButton
+          label="Looking back"
+          title="Looking back (⌘2)"
+          onClick={onLookBack}
+          active={lookBackActive}
+          icon={<LookBackIcon />}
+        />
       </div>
       <div className="rail__footer">
         <RailButton label="Settings" title="Settings (⌘, or ⌘3)" onClick={onOpenSettings} icon={<SettingsIcon />} />

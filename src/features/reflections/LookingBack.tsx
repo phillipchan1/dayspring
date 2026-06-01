@@ -52,14 +52,15 @@ const EMPTY_HINT: Record<Horizon, string> = {
 const FADE_MS = 280
 
 interface Props {
-  onBack: () => void
   onOpenEntry?: (entryId: string) => void
+  /** Fills the journal canvas column instead of a full-screen takeover. */
+  embedded?: boolean
 }
 
 /** undefined = still loading; null = no rollup yet; else the live reflection. */
 type Loaded = Reflection | null | undefined
 
-export function LookingBack({ onBack, onOpenEntry }: Props) {
+export function LookingBack({ onOpenEntry, embedded = false }: Props) {
   const isMobile = useIsMobile()
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
@@ -146,12 +147,11 @@ export function LookingBack({ onBack, onOpenEntry }: Props) {
   const loaded = data[meta.key]
 
   return (
-    <div className="looking-back" data-horizon={meta.key}>
+    <div
+      className={embedded ? 'looking-back looking-back--embedded' : 'looking-back'}
+      data-horizon={meta.key}
+    >
       <div className="looking-back__bg" aria-hidden />
-
-      <button className="looking-back__back" onClick={onBack} aria-label="Back to writing">
-        ←
-      </button>
 
       <nav className="looking-back__pill" aria-label="Reflection horizon">
         {HORIZONS.map((h, i) => (

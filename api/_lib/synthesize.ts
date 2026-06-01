@@ -55,6 +55,9 @@ export interface BuildResult {
 
 // ── validation (the no-fabrication gate) ───────────────────────────────────
 
+/** Max chars of each entry body fed to the weekly model (input-token cap). */
+const MAX_ENTRY_CHARS = 1800
+
 interface Source {
   date: string
   text: string
@@ -135,8 +138,11 @@ function cleanProse(arr: string[] | undefined): string[] {
 function validateQuestions(qs: RawQuestion[] | undefined): ReflectionQuestion[] {
   const out: ReflectionQuestion[] = []
   for (const q of qs ?? []) {
-    // Drop a redundant "self:" / "God:" prefix the model sometimes prepends.
-    const text = stripIds((q?.text ?? '').trim()).replace(/^(self|god)\s*:\s*/i, '')
+    // Drop a redundant addressee label: "self," / "self:" / "God:" — but keep a
+    // natural prayer vocative ("God, …" / "Lord, …") on questions to God.
+    const text = stripIds((q?.text ?? '').trim())
+      .replace(/^self\s*[:,]\s*/i, '')
+      .replace(/^god\s*:\s*/i, '')
     if (!text) continue
     out.push({ id: `q${out.length + 1}`, text, addressee: q.addressee === 'God' ? 'God' : 'self' })
     if (out.length >= 3) break
@@ -308,11 +314,13 @@ export async function buildWeekly(ownerId: string, period: Period): Promise<Buil
   const facts = computeFacts(entries as FactEntry[], period.start, period.end, null)
   const entryLabels = labelsFromEntries(entries)
 
+  // Token diet: the model only needs enough text to pick quotes + read themes.
+  // Validation below uses the FULL body, so quotes stay verbatim regardless.
   const input = entries.map((e) => ({
     id: e.id,
     date: e.created_at.slice(0, 10),
     title: deriveTitle(e.body_markdown) || 'Untitled',
-    text: e.body_markdown,
+    text: e.body_markdown.slice(0, MAX_ENTRY_CHARS),
   }))
 
   const sources = new Map<string, Source[]>()
@@ -519,6 +527,7 @@ export async function buildQuarterly(ownerId: string, period: Period): Promise<B
     input,
     QUARTERLY_SCHEMA as Record<string, unknown>,
     'quarterly',
+    'medium',
   )
 
   const ebenezer = validatePairs(model.ebenezer, sources)
@@ -586,6 +595,7 @@ export async function buildYearly(ownerId: string, period: Period): Promise<Buil
     input,
     YEARLY_SCHEMA as Record<string, unknown>,
     'yearly',
+    'medium',
   )
 
   const stones = validatePairs(model.stones, sources)
