@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Compartment, EditorState, type Extension } from '@codemirror/state'
+import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as cmPlaceholder, drawSelection } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -103,7 +103,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           history(),
           drawSelection(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
-          formatKeymap,
+          // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
+          Prec.highest(formatKeymap),
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
           firstLineTitleExtension,

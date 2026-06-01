@@ -23,7 +23,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEntryMenuAction, onNew, query, onQueryChange, onLookBack, onOpenSettings,
+    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
     reflectionsActive,
   } = props
@@ -168,6 +168,7 @@ export function MobileJournal(props: JournalViewProps) {
                 activeId={activeId}
                 onSelect={handleSelect}
                 onMenuAction={onEntryMenuAction}
+                onDeleteEntries={onDeleteEntries}
                 query={query}
                 onQueryChange={onQueryChange}
                 fullWidth

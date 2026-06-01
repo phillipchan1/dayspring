@@ -5,14 +5,17 @@ import { applyFormat } from './formatSelection'
 export const formatKeymap = keymap.of([
   {
     key: 'Mod-b',
+    preventDefault: true,
     run: (view) => applyFormat(view, 'bold'),
   },
   {
     key: 'Mod-i',
+    preventDefault: true,
     run: (view) => applyFormat(view, 'italic'),
   },
   {
     key: 'Mod-e',
+    preventDefault: true,
     run: (view) => applyFormat(view, 'code'),
   },
   {

@@ -121,6 +121,78 @@ export async function flush(): Promise<void> {
   }
 }
 
+function entryMatchesRemote(local: Entry, remote: Entry): boolean {
+  return local.updated_at === remote.updated_at && local.body_markdown === remote.body_markdown
+}
+
+/** Apply a remote row using the same last-write-wins rules as sync(). */
+export async function mergeRemoteEntry(
+  remote: Entry,
+  preserveId?: string | null,
+): Promise<'applied' | 'skipped'> {
+  const ops = await cache.outboxAll()
+  if (ops.some((o) => o.entryId === remote.id) || remote.id === preserveId) return 'skipped'
+
+  const local = await cache.cacheGet(remote.id)
+  if (local) {
+    if (local.updated_at > remote.updated_at) return 'skipped'
+    if (entryMatchesRemote(local, remote)) return 'skipped'
+  }
+
+  await cache.cachePut(remote)
+  syncStore.setSynced(Date.now())
+  return 'applied'
+}
+
+/** Apply a remote delete; skip echoes of our own deletes and in-flight local edits. */
+export async function mergeRemoteDelete(entryId: string): Promise<'applied' | 'skipped'> {
+  const ops = await cache.outboxAll()
+  if (ops.some((o) => o.entryId === entryId)) return 'skipped'
+
+  const local = await cache.cacheGet(entryId)
+  if (!local) return 'skipped'
+
+  await cache.cacheDelete(entryId)
+  syncStore.setSynced(Date.now())
+  return 'applied'
+}
+
+export type RemoteEntryChange =
+  | { kind: 'delete'; entryId: string }
+  | { kind: 'upsert'; entry: Entry }
+
+export interface RemoteChangeResult {
+  deletedIds: string[]
+  upserted: Entry[]
+}
+
+/** Merge a burst of realtime events (bulk delete, import). Falls back to full sync when huge. */
+export async function applyRemoteChanges(
+  changes: RemoteEntryChange[],
+  preserveId?: string | null,
+): Promise<RemoteChangeResult | 'resync'> {
+  if (changes.length >= 20) return 'resync'
+
+  const deletedIds: string[] = []
+  const upserted: Entry[] = []
+
+  for (const change of changes) {
+    if (change.kind === 'delete') {
+      if ((await mergeRemoteDelete(change.entryId)) === 'applied') {
+        deletedIds.push(change.entryId)
+      }
+      continue
+    }
+    if ((await mergeRemoteEntry(change.entry, preserveId)) === 'applied') {
+      const idx = upserted.findIndex((e) => e.id === change.entry.id)
+      if (idx >= 0) upserted[idx] = change.entry
+      else upserted.push(change.entry)
+    }
+  }
+
+  return { deletedIds, upserted }
+}
+
 /**
  * Flush queued writes, then pull the server into the cache (last-write-wins).
  * `preserveId` keeps the actively-edited entry's local copy from being

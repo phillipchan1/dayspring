@@ -22,6 +22,7 @@ export interface JournalViewProps {
   saveError: string | null
   onSelect: (entry: Entry) => void
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
+  onDeleteEntries: (ids: string[]) => Promise<void>
   onNew: () => void
   query: string
   onQueryChange: (q: string) => void

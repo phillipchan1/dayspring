@@ -5,6 +5,8 @@ import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { wordCount } from '@/lib/entries'
+import { subscribeEntryChanges } from '@/lib/entriesRealtime'
+import { isSupabaseConfigured } from '@/lib/env'
 import * as repo from '@/lib/repo'
 import { syncStore } from '@/lib/sync'
 import type { Entry } from '@/lib/types'
@@ -106,6 +108,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const entryIdRef = useRef<string | null>(null)
   entryIdRef.current = entryId
+  const skipEntrySyncRef = useRef(false)
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
@@ -192,6 +195,65 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }, [])
 
+  function navigateAwayFromDeletedEntry(remaining: Entry[]) {
+    skipEntrySyncRef.current = true
+    const next = remaining[0] ?? null
+    if (next) {
+      go({ surface: 'journal', entryId: next.id })
+      setContent(next.body_markdown)
+    } else {
+      go({ surface: 'journal', entryId: null })
+      setContent('')
+    }
+  }
+
+  // Live updates from other tabs / devices via Supabase Realtime.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+
+    return subscribeEntryChanges((events) => {
+      void (async () => {
+        const preserveId = entryIdRef.current
+        const changes = events.map((event) =>
+          event.eventType === 'DELETE'
+            ? ({ kind: 'delete' as const, entryId: event.entryId })
+            : ({ kind: 'upsert' as const, entry: event.entry }),
+        )
+
+        const result = await repo.applyRemoteChanges(changes, preserveId)
+        if (result === 'resync') {
+          const synced = await repo.sync(preserveId)
+          if (!synced) return
+          setEntries(synced)
+          if (preserveId && !synced.some((e) => e.id === preserveId)) {
+            navigateAwayFromDeletedEntry(synced)
+          }
+          return
+        }
+
+        const { deletedIds, upserted } = result
+        if (deletedIds.length === 0 && upserted.length === 0) return
+
+        const deletedSet = new Set(deletedIds)
+        setEntries((prev) => {
+          let next = prev.filter((e) => !deletedSet.has(e.id))
+          for (const entry of upserted) {
+            const idx = next.findIndex((e) => e.id === entry.id)
+            if (idx >= 0) next = next.map((e, i) => (i === idx ? entry : e))
+            else next = [entry, ...next]
+          }
+          return next.sort((a, b) => b.created_at.localeCompare(a.created_at))
+        })
+
+        if (preserveId && deletedSet.has(preserveId)) {
+          const remaining = (await repo.listEntries()).filter((e) => !deletedSet.has(e.id))
+          navigateAwayFromDeletedEntry(remaining)
+        }
+      })()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable subscription; refs hold live ids
+  }, [])
+
   const { status, lastSavedAt, error: saveError, saveNow } = useAutosave({
     entryId,
     content,
@@ -210,7 +272,6 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   }, [entryId, saveNow])
 
   // Browser back / forward: load the entry body for the restored frame.
-  const skipEntrySyncRef = useRef(false)
   useEffect(() => {
     if (skipEntrySyncRef.current) {
       skipEntrySyncRef.current = false
@@ -366,10 +427,16 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   }
 
   async function handleDelete(entry: Entry) {
-    if (entry.id === entryId) await saveNow()
+    await handleDeleteEntries([entry.id])
+  }
 
-    const remaining = entries.filter((e) => e.id !== entry.id)
-    if (entry.id === entryId) {
+  async function handleDeleteEntries(ids: string[]) {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    if (entryId && idSet.has(entryId)) await saveNow()
+
+    const remaining = entries.filter((e) => !idSet.has(e.id))
+    if (entryId && idSet.has(entryId)) {
       skipEntrySyncRef.current = true
       const next = remaining[0] ?? null
       if (next) {
@@ -382,10 +449,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
 
     try {
-      await repo.removeEntry(entry.id)
+      await Promise.all(ids.map((id) => repo.removeEntry(id)))
       setEntries(remaining)
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Failed to delete entry')
+      setLoadError(
+        e instanceof Error
+          ? e.message
+          : ids.length === 1
+            ? 'Failed to delete entry'
+            : 'Failed to delete entries',
+      )
+      throw e
     }
   }
 
@@ -458,6 +532,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     saveError,
     onSelect: (e) => void handleSelect(e),
     onEntryMenuAction: handleEntryMenuAction,
+    onDeleteEntries: handleDeleteEntries,
     onNew: () => void handleNew(),
     query,
     onQueryChange: setQuery,

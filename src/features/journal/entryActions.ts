@@ -14,7 +14,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function filenameFor(entry: Entry): string {
+export function filenameFor(entry: Entry): string {
   const base = entryTitle(entry)
     .toLowerCase()
     .replace(/[^\w\s-]/g, '')
