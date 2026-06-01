@@ -25,8 +25,9 @@ export function detectSlash(view: EditorView): SlashState | null {
   const coords = view.coordsAtPos(from)
   if (!coords) return null
 
+  const query: string = match[1] !== undefined ? match[1] : ''
   return {
-    query: match[1] ?? '',
+    query,
     from: slashPos,
     to: from,
     x: coords.left,
