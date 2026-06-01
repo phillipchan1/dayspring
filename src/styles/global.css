@@ -912,6 +912,11 @@ a {
   line-height: 1;
 }
 
+html[data-platform='desktop'] .looking-back__back {
+  top: max(var(--mac-traffic-sidebar-top), env(safe-area-inset-top));
+  left: max(var(--mac-traffic-x), env(safe-area-inset-left));
+}
+
 /* Fixed center pill — the one piece of persistent chrome. Glassy, translucent. */
 .looking-back__pill {
   position: absolute;
@@ -928,6 +933,10 @@ a {
   box-shadow: 0 6px 24px -12px rgba(40, 30, 15, 0.5);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   backdrop-filter: blur(14px) saturate(1.2);
+}
+
+html[data-platform='desktop'] .looking-back__pill {
+  top: max(var(--mac-traffic-sidebar-top), env(safe-area-inset-top));
 }
 .looking-back__seg {
   border: none;
@@ -1847,4 +1856,23 @@ a {
 .update-toast__btn:hover {
   background: var(--accent);
   color: #fff;
+}
+
+/* ── Settings → About: manual update checker (desktop) ─────────────────────── */
+.settings-update__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.settings-update__status {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+.settings-update__status[data-status='ready'] {
+  color: var(--accent);
+}
+.settings-update__status[data-status='error'] {
+  color: var(--danger);
 }

@@ -1,6 +1,6 @@
 import type { Entry } from '@/lib/types'
 import { Brand } from '@/components/Mark'
-import { isTauri } from '@/lib/platform'
+import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { deriveTitle } from './deriveTitle'
 import { matchSnippet } from './search'
 
@@ -40,7 +40,9 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
     >
       <div
         style={{
-          padding: `${NATIVE && !fullWidth ? '2.4rem' : '0.7rem'} 0.75rem 0.5rem`,
+          padding: NATIVE && !fullWidth
+            ? `${MAC_TRAFFIC_INSET.sidebarTop} ${MAC_TRAFFIC_INSET.sidebarX} 0.5rem`
+            : '0.7rem 0.75rem 0.5rem',
           position: 'sticky',
           top: 0,
           background: 'var(--bg-elevated)',

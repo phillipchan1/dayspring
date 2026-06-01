@@ -6,7 +6,9 @@ import { useAppUpdate } from '@/hooks/useAppUpdate'
 export function UpdateToast() {
   const { state, restart } = useAppUpdate()
 
-  if (state.status === 'idle') return null
+  // The toast only speaks up for in-progress / ready states. Manual-check
+  // feedback ("checking", "up to date", "error") shows in Settings, not here.
+  if (state.status !== 'downloading' && state.status !== 'ready') return null
 
   const downloading = state.status === 'downloading'
 

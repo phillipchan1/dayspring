@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { signOut } from '@/lib/auth'
-import { isTauri } from '@/lib/platform'
+import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
@@ -48,7 +48,9 @@ export function DesktopJournal(props: JournalViewProps) {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: NATIVE
-                ? `1.45rem 1rem 0.6rem ${showList ? '1rem' : '5rem'}`
+                ? `${MAC_TRAFFIC_INSET.mainTop} ${MAC_TRAFFIC_INSET.mainX} 0.6rem ${
+                    showList ? MAC_TRAFFIC_INSET.mainX : MAC_TRAFFIC_INSET.mainLeftCollapsed
+                  }`
                 : '0.6rem 1rem',
               borderBottom: '1px solid var(--border-subtle)',
               boxShadow: 'var(--shadow-1)',

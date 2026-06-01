@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
+import { useAppUpdate } from '@/hooks/useAppUpdate'
+import { isTauri } from '@/lib/platform'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
@@ -188,11 +190,54 @@ function AboutTab() {
           <dd>Private to you · synced</dd>
         </div>
       </dl>
+      {isTauri() && <UpdateChecker />}
       <div className="settings-divider" />
       <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
         Reset all settings to defaults
       </button>
     </div>
+  )
+}
+
+// Desktop-only: manually check for an update and, when one is staged, restart
+// into it. Mirrors the background poll but on demand. Shares state with the
+// bottom-left toast via the update store, so the two never disagree.
+function UpdateChecker() {
+  const { state, check, restart } = useAppUpdate()
+  const busy = state.status === 'checking' || state.status === 'downloading'
+
+  const message = {
+    idle: '',
+    checking: 'Checking…',
+    'up-to-date': 'You’re on the latest version.',
+    downloading: `Downloading v${state.version ?? ''}…`,
+    ready: `Version ${state.version ?? ''} is ready.`,
+    error: 'Couldn’t check right now — try again.',
+  }[state.status]
+
+  return (
+    <>
+      <div className="settings-divider" />
+      <div className="settings-update">
+        <div className="settings-update__row">
+          <span className="settings-field__label">Updates</span>
+          {state.status === 'ready' ? (
+            <button className="btn btn--accent" onClick={() => void restart()}>
+              Restart to update
+            </button>
+          ) : (
+            <button className="btn btn--ghost" onClick={() => void check()} disabled={busy}>
+              {busy ? 'Checking…' : 'Check for updates'}
+            </button>
+          )}
+        </div>
+        {message && (
+          <p className="settings-update__status" data-status={state.status}>
+            {message}
+          </p>
+        )}
+      </div>
+    </>
   )
 }
 
