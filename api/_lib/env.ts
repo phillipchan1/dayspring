@@ -18,5 +18,5 @@ export const env = {
   // Optional — if set, reminder notifications are sent via Resend.
   // If unset, the cron marks reminders fired but sends nothing.
   resendKey: () => process.env.RESEND_API_KEY ?? null,
-  appUrl: () => process.env.APP_URL ?? 'https://dayspring.app',
+  appUrl: () => process.env.APP_URL ?? 'https://dayspring-eosin.vercel.app',
 }

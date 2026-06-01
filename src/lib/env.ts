@@ -3,8 +3,8 @@ import { isTauri } from './platform'
 // Centralised, typed access to environment configuration.
 // Reads names only — actual secret values live in .env.local (gitignored).
 
-/** Production web origin — also hosts /api/* for the desktop app. */
-const DEFAULT_API_BASE = 'https://dayspring.app'
+/** Production Vercel origin — also hosts /api/* for the desktop app. */
+const DEFAULT_API_BASE = 'https://dayspring-eosin.vercel.app'
 
 export const env = {
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? '',
