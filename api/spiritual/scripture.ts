@@ -75,7 +75,7 @@ export async function POST(req: Request): Promise<Response> {
       { content },
       SCHEMA,
       'scripture_passages',
-      'minimal',
+      'none',
       8192,
     )
     return withCors(req, Response.json(result))

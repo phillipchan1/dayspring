@@ -10,7 +10,7 @@ function openai(): OpenAI {
 // Some nano reasoning models accept a reasoning-effort hint; it isn't in the
 // base ChatCompletion params type, so we widen the params object here.
 type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
-  reasoning_effort?: 'minimal' | 'low' | 'medium' | 'high'
+  reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh'
 }
 
 /**
@@ -28,7 +28,7 @@ export async function callModel<T>(
   name: string,
   // Picking quotes + short prose (weekly/monthly) is cheap at "low"; the longer
   // multi-month synthesis (quarterly/yearly) gets "medium". Token-efficiency lever.
-  effort: 'minimal' | 'low' | 'medium' = 'low',
+  effort: 'none' | 'low' | 'medium' | 'high' = 'low',
   // Nano models default to a small output window; callers can override.
   maxTokens = 2048,
 ): Promise<T> {
