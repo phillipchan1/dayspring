@@ -17,6 +17,10 @@
     "store:allow-get",
     "store:allow-set",
     "store:allow-save",
-    "store:allow-delete"
+    "store:allow-delete",
+    "deep-link:default",
+    "deep-link:allow-get-current",
+    "opener:default",
+    "opener:allow-open-url"
   ]
 }

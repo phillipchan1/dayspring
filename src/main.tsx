@@ -21,11 +21,16 @@ import './styles/global.css'
 import { App } from './App'
 import { applyPlatformClass } from './lib/platform'
 import { supabase } from './lib/supabase'
+import { initDeepLinkAuth } from './lib/auth'
 
 async function bootstrap() {
   // Tag <html> as desktop before first paint so native-only layout (e.g. room for
   // the macOS traffic lights under the overlay title bar) applies immediately.
   applyPlatformClass()
+
+  // Desktop: start listening for the dayspring:// OAuth callback before anything
+  // else, so a cold launch via the deep link is captured. No-op on web.
+  void initDeepLinkAuth()
 
   // Finish reading persisted session / OAuth callback before we choose Sign-in vs journal.
   if (supabase) {

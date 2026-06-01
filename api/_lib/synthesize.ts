@@ -109,16 +109,34 @@ export function validateObservation(
   return { text, evidence }
 }
 
-/** Trim prose paragraphs, drop empties. Generated text — not verbatim-validated. */
+const UUID_SRC = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+const UUID_RE = new RegExp(UUID_SRC, 'gi')
+const UUID_PAREN_RE = new RegExp(`\\(\\s*${UUID_SRC}\\s*,?\\s*`, 'gi')
+
+/** Belt-and-braces: strip any raw entry UUIDs the model slipped into prose, and
+ *  tidy the punctuation/whitespace left behind (e.g. "(uuid, 2026-04-07)" → "(2026-04-07)"). */
+function stripIds(s: string): string {
+  return s
+    .replace(UUID_PAREN_RE, '(')
+    .replace(UUID_RE, '')
+    .replace(/\(\s*,\s*/g, '(')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+([.,;:)])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+/** Trim prose paragraphs, strip stray ids, drop empties. Not verbatim-validated. */
 function cleanProse(arr: string[] | undefined): string[] {
-  return (arr ?? []).map((s) => (s ?? '').trim()).filter((s) => s.length > 0)
+  return (arr ?? []).map((s) => stripIds((s ?? '').trim())).filter((s) => s.length > 0)
 }
 
 /** Reflective-Prompting output: non-empty, addressee ∈ {self,God}, max 3. */
 function validateQuestions(qs: RawQuestion[] | undefined): ReflectionQuestion[] {
   const out: ReflectionQuestion[] = []
   for (const q of qs ?? []) {
-    const text = (q?.text ?? '').trim()
+    // Drop a redundant "self:" / "God:" prefix the model sometimes prepends.
+    const text = stripIds((q?.text ?? '').trim()).replace(/^(self|god)\s*:\s*/i, '')
     if (!text) continue
     out.push({ id: `q${out.length + 1}`, text, addressee: q.addressee === 'God' ? 'God' : 'self' })
     if (out.length >= 3) break
@@ -432,7 +450,7 @@ export async function buildMonthly(ownerId: string, period: Period): Promise<Bui
 
   const quotes = validateQuotes(model.quotes, sources) // candidates only
   const observation = validateObservation(model.observation, validIds, entryLabels)
-  const gapWatch = (model.gap_watch ?? '').trim()
+  const gapWatch = stripIds((model.gap_watch ?? '').trim())
   const reflection: ReflectionContent = {
     letter: cleanProse(model.letter),
     gain: cleanProse(model.gain),

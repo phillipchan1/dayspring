@@ -28,6 +28,11 @@ export function App() {
     root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
   }, [resolvedTheme, settings.fontSize, settings.lineHeight, settings.maxWidth, settings.editorFont])
 
+  // TEMP-VERIFY: remove — preview-only bypass to view LookingBack without auth.
+  if (typeof window !== 'undefined' && window.location.search.includes('lb')) {
+    return <LookingBack onBack={() => {}} onOpenEntry={() => {}} />
+  }
+
   // Before keys exist, the app still boots and tells you what to configure.
   if (!isSupabaseConfigured) return <SetupNotice />
 
