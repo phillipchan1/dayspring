@@ -28,11 +28,11 @@ export async function callModel<T>(
   name: string,
   // Picking quotes + short prose (weekly/monthly) is cheap at "low"; the longer
   // multi-month synthesis (quarterly/yearly) gets "medium". Token-efficiency lever.
-  effort: 'low' | 'medium' = 'low',
+  effort: 'minimal' | 'low' | 'medium' = 'low',
   // Nano models default to a small output window; callers can override.
   maxTokens = 2048,
 ): Promise<T> {
-  const params: ChatParams = {
+  const baseParams: ChatParams = {
     model: env.model(),
     // This model family only accepts the default temperature (1); grounding is
     // enforced in code (verbatim validation), so sampling temp doesn't matter.
@@ -49,9 +49,15 @@ export async function callModel<T>(
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
+    const params: ChatParams = {
+      ...baseParams,
+      // Reasoning models can exhaust the budget on hidden tokens; retry with headroom.
+      max_completion_tokens: attempt === 0 ? maxTokens : maxTokens * 2,
+    }
     const completion = await openai().chat.completions.create(params)
     const choice = completion.choices[0]
     const msg = choice?.message
+    const finish = choice?.finish_reason
 
     // Newer SDK versions expose a pre-parsed object for json_schema responses.
     const maybeParsed = (msg as Record<string, unknown> | undefined)?.parsed
@@ -60,7 +66,7 @@ export async function callModel<T>(
     }
 
     const raw = msg?.content
-    console.error(`[callModel:${name}] attempt=${attempt} finish=${choice?.finish_reason} content_len=${raw?.length ?? 'null'} refusal=${msg?.refusal ?? 'none'}`)
+    console.error(`[callModel:${name}] attempt=${attempt} finish=${finish} content_len=${raw?.length ?? 'null'} refusal=${msg?.refusal ?? 'none'}`)
     if (raw) {
       // Strip markdown code-block wrapping that some models add despite json_schema.
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
@@ -71,6 +77,9 @@ export async function callModel<T>(
         console.error(`[callModel:${name}] JSON.parse failed: ${e}`)
       }
     }
+
+    // Truncated output (nano often reports content_filter when the budget runs out).
+    if (finish === 'length' || finish === 'content_filter') continue
   }
   throw new Error('Model returned malformed output after retry')
 }

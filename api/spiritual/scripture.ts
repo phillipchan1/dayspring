@@ -14,9 +14,9 @@ const SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          reference: { type: 'string' },
-          text: { type: 'string' },
-          reason: { type: 'string' },
+          reference: { type: 'string', maxLength: 48 },
+          text: { type: 'string', maxLength: 160 },
+          reason: { type: 'string', maxLength: 120 },
         },
         required: ['reference', 'text', 'reason'],
         additionalProperties: false,
@@ -34,10 +34,10 @@ Given the user's journal entry text or topic, return exactly 3 relevant Bible pa
 
 For each passage provide:
 - reference: book, chapter, and verse range (e.g. "Psalm 23:1-4" or "Romans 8:28")
-- text: the ESV passage text verbatim (1–2 verses max; keep it brief and quotable)
-- reason: one sentence explaining why this passage speaks to what the user wrote
+- text: one ESV verse only, quoted verbatim, under 25 words
+- reason: one short sentence (under 15 words) on why it fits
 
-Choose verses that feel like a gentle companion — comfort, perspective, or quiet truth — not a sermon. Match the specific tone and concerns of the user's words.`
+Keep the full JSON compact. Choose verses that feel like a gentle companion — comfort, perspective, or quiet truth — not a sermon.`
 
 interface ScriptureResult {
   passages: Array<{ reference: string; text: string; reason: string }>
@@ -75,7 +75,8 @@ export async function POST(req: Request): Promise<Response> {
       { content },
       SCHEMA,
       'scripture_passages',
-      'low',
+      'minimal',
+      8192,
     )
     return withCors(req, Response.json(result))
   } catch (e) {
