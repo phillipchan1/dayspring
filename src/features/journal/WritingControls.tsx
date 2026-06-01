@@ -32,7 +32,7 @@ export function WritingControls({ settings, update, focus, visible }: Props) {
             onClick={() => update({ typewriter: !settings.typewriter })}
             title="Keep the active line centered"
           >
-            Typewriter
+            typewriter
           </button>
           <button
             className="toggle-pill"
@@ -40,10 +40,10 @@ export function WritingControls({ settings, update, focus, visible }: Props) {
             onClick={() => update({ dimming: !settings.dimming })}
             title="Fade everything but the current paragraph"
           >
-            Dim
+            dim
           </button>
           <button className="toggle-pill" onClick={focus.exit} title="Exit focus (Esc)">
-            ✕ Esc
+            ✕ esc
           </button>
         </>
       )}

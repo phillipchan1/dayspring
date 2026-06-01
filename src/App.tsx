@@ -7,7 +7,7 @@ import { EDITOR_FONT_VARS } from './lib/settings'
 import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
-import { ReflectionsScreen } from './features/reflections/ReflectionsScreen'
+import { LookingBack } from './features/reflections/LookingBack'
 
 type Surface = 'journal' | 'reflections'
 
@@ -46,16 +46,11 @@ export function App() {
   // Google OAuth consent screen (Testing mode) and per-row RLS (owner = auth.uid()).
   if (surface === 'reflections') {
     return (
-      <ReflectionsScreen
+      <LookingBack
         onBack={() => setSurface('journal')}
         onOpenEntry={(id) => {
           setRestrictIds(null)
           setJumpEntryId(id)
-          setSurface('journal')
-        }}
-        onFilterEntries={(ids) => {
-          setJumpEntryId(null)
-          setRestrictIds(ids)
           setSurface('journal')
         }}
       />

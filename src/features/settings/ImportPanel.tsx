@@ -18,28 +18,31 @@ export function ImportPanel() {
         never pass through another service.
       </p>
       <div className="import-grid">
-        {IMPORT_SOURCES.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className="import-card"
-            onClick={() => setSelectedId(s.id)}
-            data-soon={s.status === 'coming-soon'}
-          >
-            <span className="import-card__badge" style={{ background: s.tint }}>
-              {s.monogram || s.name.slice(0, 2)}
-            </span>
-            <span className="import-card__body">
-              <span className="import-card__name">{s.name}</span>
-              <span className="import-card__tagline">{s.tagline}</span>
-            </span>
-            {s.status === 'coming-soon' ? (
-              <span className="import-card__soon">Soon</span>
-            ) : (
-              <span className="import-card__go" aria-hidden="true">→</span>
-            )}
-          </button>
-        ))}
+        {IMPORT_SOURCES.map((s) => {
+          const soon = s.status === 'coming-soon'
+          return (
+            <button
+              key={s.id}
+              type="button"
+              className="import-card"
+              disabled={soon}
+              onClick={() => setSelectedId(s.id)}
+            >
+              <span className="import-card__badge" style={{ background: s.tint }}>
+                {s.monogram || s.name.slice(0, 2)}
+              </span>
+              <span className="import-card__body">
+                <span className="import-card__name">{s.name}</span>
+                <span className="import-card__tagline">{s.tagline}</span>
+              </span>
+              {soon ? (
+                <span className="import-card__soon">Soon</span>
+              ) : (
+                <span className="import-card__go" aria-hidden="true">→</span>
+              )}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

@@ -91,8 +91,12 @@ export function MobileJournal(props: JournalViewProps) {
           >
             {heading}
           </span>
-          <SyncBadge />
-          <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} />
+          <div className="status-cluster">
+            <span className="status-cluster__dot" data-status={status} aria-hidden />
+            <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
+            <span className="status-cluster__sep" aria-hidden>·</span>
+            <SyncBadge bare />
+          </div>
         </header>
       )}
 
@@ -114,23 +118,23 @@ export function MobileJournal(props: JournalViewProps) {
       {!focused && (
         <>
           <nav className="mobile-bar">
-            <button className="btn btn--ghost" onClick={openDrawer} aria-label="Entries">
+            <button className="nav-btn" onClick={openDrawer} aria-label="Entries">
               ☰
             </button>
             <button
-              className="btn btn--ghost"
+              className="nav-btn"
               onClick={onToggleMode}
               title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
             >
-              {mode === 'write' ? 'Read' : 'Edit'}
+              {mode === 'write' ? 'read' : 'edit'}
             </button>
-            <button className="btn btn--ghost" onClick={onLookBack} aria-label="Looking back">
+            <button className="nav-btn" onClick={onLookBack} aria-label="Looking back">
               ⟲
             </button>
-            <button className="btn btn--ghost" onClick={focus.enter}>
-              Focus
+            <button className="nav-btn" onClick={focus.enter}>
+              focus
             </button>
-            <button className="btn btn--ghost" onClick={onOpenSettings} aria-label="Settings">
+            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings">
               ⚙
             </button>
           </nav>

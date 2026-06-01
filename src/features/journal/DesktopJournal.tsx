@@ -55,43 +55,48 @@ export function DesktopJournal(props: JournalViewProps) {
               gap: '1rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
               <button
-                className="btn btn--ghost"
+                className="nav-btn"
                 title={showList ? 'Hide entries' : 'Show entries'}
                 onClick={() => setShowList((s) => !s)}
               >
                 {showList ? '◀' : '☰'}
               </button>
-              <button className="btn btn--ghost" onClick={onNew} title="New entry (C)">
-                + New
+              <button className="nav-btn" onClick={onNew} title="New entry (C)">
+                new
               </button>
               <button
-                className="btn btn--ghost"
+                className="nav-btn"
                 onClick={onToggleMode}
                 title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
               >
-                {mode === 'write' ? 'Read' : 'Edit'}
+                {mode === 'write' ? 'read' : 'edit'}
               </button>
-              <button className="btn btn--ghost" onClick={onLookBack} title="Monthly reflections">
-                Looking back
+              <button className="nav-btn" onClick={onLookBack} title="Monthly reflections">
+                looking back
               </button>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <span style={{ color: 'var(--text-faint)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-                {words} {words === 1 ? 'word' : 'words'}
-              </span>
-              <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} />
-              <SyncBadge />
-              <button className="btn btn--ghost" onClick={focus.enter} title="Focus mode (⌘⏎)">
-                Focus
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+              {mode === 'write' && (
+                <div className="status-cluster" style={{ marginRight: '0.6rem' }}>
+                  <span className="status-cluster__dot" data-status={status} aria-hidden />
+                  <span>{words} {words === 1 ? 'word' : 'words'}</span>
+                  <span className="status-cluster__sep" aria-hidden>·</span>
+                  <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
+                  <span className="status-cluster__sep" aria-hidden>·</span>
+                  <SyncBadge bare />
+                </div>
+              )}
+              <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
+                focus
               </button>
-              <button className="btn btn--ghost" onClick={onOpenSettings} title="Settings (⌘,)">
+              <button className="nav-btn" onClick={onOpenSettings} title="Settings (⌘,)">
                 ⚙
               </button>
-              <button className="btn btn--ghost" onClick={() => void signOut()} title={userEmail}>
-                Sign out
+              <button className="nav-btn" onClick={() => void signOut()} title={userEmail}>
+                sign out
               </button>
             </div>
           </header>
