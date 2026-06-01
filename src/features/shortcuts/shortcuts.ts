@@ -25,6 +25,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     items: [
       { keys: ['Mod', 'N'], label: 'New entry' },
       { keys: ['Mod', 'S'], label: 'Save now' },
+      { keys: ['Mod', 'B'], label: 'Bold', when: 'with text selected in the editor' },
+      { keys: ['Mod', 'I'], label: 'Italic', when: 'with text selected in the editor' },
+      { keys: ['Mod', 'E'], label: 'Inline code', when: 'with text selected in the editor' },
+      { keys: ['Mod', 'K'], label: 'Link', when: 'with text selected in the editor' },
       { keys: ['Mod', 'Enter'], label: 'Toggle focus mode' },
       { keys: ['Esc'], label: 'Exit focus mode', when: 'while in focus mode' },
     ],
@@ -32,8 +36,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Navigation',
     items: [
-      { keys: ['Mod', 'K'], label: 'Search your entries' },
-      { keys: ['Mod', ','], label: 'Open settings' },
+      { keys: ['Mod', '1'], label: 'Toggle entries panel' },
+      { keys: ['Mod', '2'], label: 'Looking back' },
+      { keys: ['Mod', '3'], label: 'Settings' },
+      { keys: ['Mod', 'K'], label: 'Search your entries', when: 'outside the editor' },
     ],
   },
   {

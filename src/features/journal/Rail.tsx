@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
 
 interface RailProps {
-  onNew: () => void
   onToggleEntries: () => void
   entriesOpen: boolean
   onLookBack: () => void
@@ -18,7 +17,11 @@ interface RailProps {
  * (Entries, when its panel is open) warms to the accent. Desktop-only.
  */
 export function Rail({
-  onNew, onToggleEntries, entriesOpen, onLookBack, onOpenSettings, nativeTopInset,
+  onToggleEntries,
+  entriesOpen,
+  onLookBack,
+  onOpenSettings,
+  nativeTopInset,
 }: RailProps) {
   return (
     <nav className="rail" style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}>
@@ -26,18 +29,17 @@ export function Rail({
         <Mark size={24} />
       </div>
       <div className="rail__nav">
-        <RailButton label="New" title="New entry (⌘N)" onClick={onNew} icon={<NewIcon />} />
         <RailButton
           label="Entries"
-          title="Toggle entries (⌘K)"
+          title="Entries (⌘1)"
           onClick={onToggleEntries}
           active={entriesOpen}
           icon={<EntriesIcon />}
         />
-        <RailButton label="Looking back" title="Monthly reflections" onClick={onLookBack} icon={<LookBackIcon />} />
+        <RailButton label="Looking back" title="Looking back (⌘2)" onClick={onLookBack} icon={<LookBackIcon />} />
       </div>
       <div className="rail__footer">
-        <RailButton label="Settings" title="Settings (⌘,)" onClick={onOpenSettings} icon={<SettingsIcon />} />
+        <RailButton label="Settings" title="Settings (⌘3)" onClick={onOpenSettings} icon={<SettingsIcon />} />
       </div>
     </nav>
   )
@@ -76,15 +78,6 @@ function Icon({ children }: { children: ReactNode }) {
     >
       {children}
     </svg>
-  )
-}
-
-function NewIcon() {
-  return (
-    <Icon>
-      <path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" />
-      <path d="M14 7l3 3" />
-    </Icon>
   )
 }
 

@@ -17,6 +17,14 @@ import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
 import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
+import {
+  copyEntryMarkdown,
+  copyEntryText,
+  downloadEntryMarkdown,
+  printEntry,
+} from './entryActions'
+import type { EntryMenuAction } from './EntryContextMenu'
+import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
 
 interface JournalScreenProps {
@@ -40,6 +48,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
   const focus = useFocusMode(settingsOpen)
+
+  // Block the browser context menu outside the editor and entry rows (editor keeps native macOS menu).
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      if (isEntryRowTarget(e.target)) return
+      if (isInEditor(e.target)) return
+      e.preventDefault()
+    }
+    document.addEventListener('contextmenu', onContextMenu, true)
+    return () => document.removeEventListener('contextmenu', onContextMenu, true)
+  }, [])
 
   const entryIdRef = useRef<string | null>(null)
   entryIdRef.current = entryId
@@ -141,7 +160,18 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onOpenSettings: openSettings,
+    onToggleEntries: () => {
+      if (isMobile) go({ sidebar: !state.sidebar })
+      else setEntriesOpen((open) => !open)
+    },
+    onLookBack: () => {
+      if (state.surface === 'reflections') back()
+      else go({ surface: 'reflections', settings: null, help: false, sidebar: false })
+    },
+    onOpenSettings: () => {
+      if (settingsOpen) back()
+      else openSettings()
+    },
     onFocusSearch: () => {
       // Reveal the list before focusing search: desktop opens its panel, mobile
       // its drawer. The input mounts immediately, so one frame is enough.
@@ -190,6 +220,76 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     skipEntrySyncRef.current = true
     go({ entryId: entry.id })
     setContent(entry.body_markdown)
+  }
+
+  async function handleDuplicate(entry: Entry) {
+    await saveNow()
+    try {
+      const copy = await repo.createEntry({
+        body_markdown: entry.body_markdown,
+        title: entry.title,
+        tags: [...entry.tags],
+      })
+      setEntries((prev) => [copy, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+      skipEntrySyncRef.current = true
+      go({ entryId: copy.id })
+      setContent(copy.body_markdown)
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to duplicate entry')
+    }
+  }
+
+  function handleEntryMenuAction(action: EntryMenuAction, entry: Entry) {
+    void (async () => {
+      try {
+        switch (action) {
+          case 'copy-text':
+            await copyEntryText(entry)
+            break
+          case 'copy-markdown':
+            await copyEntryMarkdown(entry)
+            break
+          case 'export-markdown':
+            downloadEntryMarkdown(entry)
+            break
+          case 'duplicate':
+            await handleDuplicate(entry)
+            break
+          case 'print':
+            printEntry(entry)
+            break
+          case 'delete':
+            await handleDelete(entry)
+            break
+        }
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : 'That action failed')
+      }
+    })()
+  }
+
+  async function handleDelete(entry: Entry) {
+    if (entry.id === entryId) await saveNow()
+
+    const remaining = entries.filter((e) => e.id !== entry.id)
+    if (entry.id === entryId) {
+      skipEntrySyncRef.current = true
+      const next = remaining[0] ?? null
+      if (next) {
+        go({ entryId: next.id })
+        setContent(next.body_markdown)
+      } else {
+        go({ entryId: null })
+        setContent('')
+      }
+    }
+
+    try {
+      await repo.removeEntry(entry.id)
+      setEntries(remaining)
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to delete entry')
+    }
   }
 
   function openSettings() {
@@ -248,6 +348,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     lastSavedAt,
     saveError,
     onSelect: (e) => void handleSelect(e),
+    onEntryMenuAction: handleEntryMenuAction,
     onNew: () => void handleNew(),
     query,
     onQueryChange: setQuery,

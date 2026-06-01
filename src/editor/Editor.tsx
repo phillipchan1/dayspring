@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as cmPlaceholder, drawSelection } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -9,6 +9,8 @@ import { markdownHighlight } from './highlight'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { firstLineTitleExtension } from './firstLineTitle'
+import { formatKeymap } from './formatKeymap'
+import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 
 interface EditorProps {
   /** Initial document. Re-seeded only when `docKey` changes (i.e. a different entry). */
@@ -44,7 +46,18 @@ export function Editor({
   const typewriterCompartment = useRef(new Compartment())
   const dimCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
+  const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
+  const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
   onChangeRef.current = onChange
+  setFormatBarRef.current = setFormatBar
+
+  const syncFormatBar = useCallback((view: EditorView) => {
+    if (!view.hasFocus || view.state.selection.main.empty) {
+      setFormatBarRef.current(null)
+      return
+    }
+    setFormatBarRef.current(anchorFromView(view))
+  }, [])
 
   // Create the view once.
   useEffect(() => {
@@ -58,6 +71,7 @@ export function Editor({
           history(),
           drawSelection(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
+          formatKeymap,
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
           firstLineTitleExtension,
@@ -68,6 +82,7 @@ export function Editor({
           cmPlaceholder(placeholder ?? 'Write…'),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onChangeRef.current(u.state.doc.toString())
+            if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
           }),
         ],
       }),
@@ -75,9 +90,14 @@ export function Editor({
     viewRef.current = view
     if (autofocus) view.focus()
 
+    const onScroll = () => setFormatBarRef.current(null)
+    view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
+
     return () => {
+      view.scrollDOM.removeEventListener('scroll', onScroll)
       view.destroy()
       viewRef.current = null
+      setFormatBarRef.current(null)
     }
     // Intentionally run once; doc swaps + compartments handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +127,12 @@ export function Editor({
     reconfigure(viewRef.current, dimCompartment.current, dimming ? dimmingExtension : [])
   }, [dimming])
 
-  return <div ref={hostRef} style={{ height: '100%' }} />
+  return (
+    <>
+      <div ref={hostRef} className="editor-host" style={{ height: '100%' }} />
+      <SelectionFormatBar anchor={formatBar} />
+    </>
+  )
 }
 
 function reconfigure(view: EditorView | null, compartment: Compartment, ext: Extension) {

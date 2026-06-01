@@ -1,0 +1,78 @@
+import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { EditorView } from '@codemirror/view'
+import { applyFormat, selectionAnchorRect, type FormatAction } from './formatSelection'
+import { FORMAT_BAR_ACTIONS, FormatBarIcon } from './formatBarIcons'
+
+export interface FormatBarAnchor {
+  view: EditorView
+  rect: DOMRect
+}
+
+interface Props {
+  anchor: FormatBarAnchor | null
+}
+
+function clampPosition(rect: DOMRect, bar: DOMRect) {
+  const pad = 10
+  const gap = 10
+  let top = rect.top - bar.height - gap
+  if (top < pad) top = rect.bottom + gap
+  let left = rect.left + rect.width / 2 - bar.width / 2
+  left = Math.max(pad, Math.min(left, window.innerWidth - bar.width - pad))
+  top = Math.max(pad, Math.min(top, window.innerHeight - bar.height - pad))
+  return { left, top }
+}
+
+/** Single-line markdown formatter that floats above the current selection. */
+export function SelectionFormatBar({ anchor }: Props) {
+  const barRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ left: 0, top: 0 })
+
+  useLayoutEffect(() => {
+    const el = barRef.current
+    if (!anchor || !el) return
+    const barRect = el.getBoundingClientRect()
+    setPos(clampPosition(anchor.rect, barRect))
+  }, [anchor])
+
+  if (!anchor) return null
+
+  const run = (action: FormatAction) => {
+    applyFormat(anchor.view, action)
+  }
+
+  return createPortal(
+    <div
+      ref={barRef}
+      className="format-bar"
+      role="toolbar"
+      aria-label="Formatting"
+      style={{ left: pos.left, top: pos.top }}
+      onMouseDown={(e) => e.preventDefault()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {FORMAT_BAR_ACTIONS.map(({ action, label, title }, i) => (
+        <span key={action} className="format-bar__group">
+          {i === 4 ? <span className="format-bar__sep" aria-hidden /> : null}
+          <button
+            type="button"
+            className="format-bar__btn"
+            title={title}
+            aria-label={label}
+            onClick={() => run(action)}
+          >
+            <FormatBarIcon action={action} />
+          </button>
+        </span>
+      ))}
+    </div>,
+    document.body,
+  )
+}
+
+export function anchorFromView(view: EditorView): FormatBarAnchor | null {
+  const rect = selectionAnchorRect(view)
+  if (!rect) return null
+  return { view, rect }
+}

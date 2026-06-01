@@ -5,6 +5,7 @@ import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
+import { FabNew } from './FabNew'
 import { WritingControls } from './WritingControls'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
@@ -22,7 +23,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, onLookBack, onOpenSettings,
+    onSelect, onEntryMenuAction, onNew, query, onQueryChange, onLookBack, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
   } = props
   const vh = useViewportHeight()
@@ -118,22 +119,20 @@ export function MobileJournal(props: JournalViewProps) {
       {!focused && (
         <>
           <nav className="mobile-bar">
-            <button className="nav-btn" onClick={openDrawer} aria-label="Entries">
+            <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">
               ☰
             </button>
-            <button className="nav-btn" onClick={onLookBack} aria-label="Looking back">
+            <button className="nav-btn" onClick={onLookBack} aria-label="Looking back" title="Looking back (⌘2)">
               ⟲
             </button>
-            <button className="nav-btn" onClick={focus.enter}>
+            <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
               focus
             </button>
-            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings">
+            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘3)">
               ⚙
             </button>
           </nav>
-          <button className="fab-new" onClick={onNew} aria-label="New entry">
-            +
-          </button>
+          <FabNew onClick={onNew} />
         </>
       )}
 
@@ -158,6 +157,7 @@ export function MobileJournal(props: JournalViewProps) {
                 entries={entries}
                 activeId={activeId}
                 onSelect={handleSelect}
+                onMenuAction={onEntryMenuAction}
                 query={query}
                 onQueryChange={onQueryChange}
                 fullWidth

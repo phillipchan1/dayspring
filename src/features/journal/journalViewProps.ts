@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Entry } from '@/lib/types'
+import type { EntryMenuAction } from './EntryContextMenu'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
 
@@ -20,6 +21,7 @@ export interface JournalViewProps {
   lastSavedAt: number | null
   saveError: string | null
   onSelect: (entry: Entry) => void
+  onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onNew: () => void
   query: string
   onQueryChange: (q: string) => void
