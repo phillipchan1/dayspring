@@ -6,6 +6,8 @@ export type Appearance = 'light' | 'dark' | 'auto'
 /** The writing/reading surface face. The picker maps each to a CSS var. */
 export type EditorFont = 'serif' | 'literary' | 'typewriter' | 'mono' | 'sans' | 'readable'
 
+export type BibleTranslation = 'ESV' | 'NIV' | 'NLT' | 'KJV' | 'NASB'
+
 /**
  * EditorFont → the CSS custom property fed into `--font-editor`. Points at the
  * family tokens declared in themes.css (`:root`) rather than raw stacks, so the
@@ -42,6 +44,9 @@ export interface Settings {
 
   /** Entries sidebar: flat list vs month/year section headers. */
   entriesGroupBy: EntriesGroupBy
+
+  /** Default Bible translation for scripture search. */
+  scriptureTranslation: BibleTranslation
 }
 
 const DEFAULTS: Settings = {
@@ -53,6 +58,7 @@ const DEFAULTS: Settings = {
   appearance: 'auto',
   editorFont: 'serif',
   entriesGroupBy: 'month',
+  scriptureTranslation: 'ESV',
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

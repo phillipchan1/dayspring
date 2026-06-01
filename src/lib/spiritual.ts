@@ -74,7 +74,7 @@ export async function unmarkPrayerAnswered(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function fetchScripturePassages(content: string): Promise<ScripturePassage[]> {
+export async function fetchScripturePassages(content: string, translation = 'ESV'): Promise<ScripturePassage[]> {
   const sb = requireSupabase()
   const {
     data: { session },
@@ -87,7 +87,7 @@ export async function fetchScripturePassages(content: string): Promise<Scripture
       'Content-Type': 'application/json',
       Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, translation }),
   })
 
   if (!res.ok) {
@@ -96,5 +96,5 @@ export async function fetchScripturePassages(content: string): Promise<Scripture
   }
 
   const result = (await res.json()) as { passages: ScripturePassage[] }
-  return result.passages
+  return result.passages.map((p) => ({ ...p, translation }))
 }

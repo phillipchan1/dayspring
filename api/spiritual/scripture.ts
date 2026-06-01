@@ -29,15 +29,17 @@ const SCHEMA = {
   additionalProperties: false,
 }
 
-const SYSTEM = `You are a scripture companion for a private Christian journaling app.
-Given the user's journal entry text or topic, return exactly 3 relevant Bible passages from the ESV translation.
+function buildSystem(translation: string): string {
+  return `You are a scripture companion for a private Christian journaling app.
+Given the user's journal entry text or topic, return exactly 3 relevant Bible passages from the ${translation} translation.
 
 For each passage provide:
 - reference: book, chapter, and verse range (e.g. "Psalm 23:1-4" or "Romans 8:28")
-- text: one ESV verse only, quoted verbatim, under 25 words
+- text: one ${translation} verse only, quoted verbatim, under 25 words
 - reason: one short sentence (under 15 words) on why it fits
 
 Keep the full JSON compact. Choose verses that feel like a gentle companion — comfort, perspective, or quiet truth — not a sermon.`
+}
 
 interface ScriptureResult {
   passages: Array<{ reference: string; text: string; reason: string }>
@@ -59,7 +61,7 @@ export async function POST(req: Request): Promise<Response> {
   } = await sb.auth.getUser(jwt)
   if (authError || !user) return withCors(req, Response.json({ error: 'unauthorized' }, { status: 401 }))
 
-  let body: { content?: string }
+  let body: { content?: string; translation?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -69,9 +71,13 @@ export async function POST(req: Request): Promise<Response> {
   const content = (body.content ?? '').trim()
   if (!content) return withCors(req, Response.json({ error: 'content is required' }, { status: 400 }))
 
+  const VALID_TRANSLATIONS = new Set(['ESV', 'NIV', 'NLT', 'KJV', 'NASB'])
+  const rawTranslation = (body.translation ?? 'ESV').trim().toUpperCase()
+  const translation = VALID_TRANSLATIONS.has(rawTranslation) ? rawTranslation : 'ESV'
+
   try {
     const result = await callModel<ScriptureResult>(
-      SYSTEM,
+      buildSystem(translation),
       { content },
       SCHEMA,
       'scripture_passages',

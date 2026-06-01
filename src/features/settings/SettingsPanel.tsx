@@ -5,7 +5,7 @@ import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { signOut } from '@/lib/auth'
 import { isTauri } from '@/lib/platform'
 import type { SettingsTab } from '@/lib/appHistory'
-import type { Settings } from '@/lib/settings'
+import type { BibleTranslation, Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
@@ -164,6 +164,13 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         checked={settings.dimming}
         onChange={(v) => update({ dimming: v })}
       />
+      <div className="settings-divider" />
+      <Field label="Bible translation" hint="Translation used when searching scripture.">
+        <TranslationPicker
+          value={settings.scriptureTranslation}
+          onChange={(scriptureTranslation) => update({ scriptureTranslation })}
+        />
+      </Field>
     </div>
   )
 }
@@ -254,6 +261,33 @@ function UpdateChecker() {
         )}
       </div>
     </>
+  )
+}
+
+const TRANSLATIONS: { value: BibleTranslation; title: string }[] = [
+  { value: 'ESV', title: 'English Standard Version' },
+  { value: 'NIV', title: 'New International Version' },
+  { value: 'NLT', title: 'New Living Translation' },
+  { value: 'KJV', title: 'King James Version' },
+  { value: 'NASB', title: 'New American Standard Bible' },
+]
+
+function TranslationPicker({ value, onChange }: { value: BibleTranslation; onChange: (v: BibleTranslation) => void }) {
+  return (
+    <div className="segmented" role="group" aria-label="Bible translation">
+      {TRANSLATIONS.map((t) => (
+        <button
+          key={t.value}
+          type="button"
+          className="segmented__btn"
+          data-active={t.value === value}
+          title={t.title}
+          onClick={() => onChange(t.value)}
+        >
+          {t.value}
+        </button>
+      ))}
+    </div>
   )
 }
 

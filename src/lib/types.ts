@@ -52,4 +52,6 @@ export interface ScripturePassage {
   reference: string
   text: string
   reason: string
+  /** The translation used (e.g. "ESV", "NIV"). Set client-side from the user's preference. */
+  translation?: string
 }

@@ -3,6 +3,7 @@ import { createSpiritualItem, fetchScripturePassages } from '@/lib/spiritual'
 import { formatScriptureInsert } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { ScripturePassage } from '@/lib/types'
+import { settingsStore } from '@/lib/settings'
 import {
   CommandPopover,
   CommandPopoverChrome,
@@ -36,6 +37,7 @@ export function InlineScripturePopover({
 }: Props) {
   const autoContext = scriptureSearchContext(entryContent, insertAt)
   const hasContext = hasScriptureSearchContext(entryContent, insertAt)
+  const translation = settingsStore.get().scriptureTranslation
   const [query, setQuery] = useState('')
   const [passages, setPassages] = useState<ScripturePassage[] | null>(null)
   const [loading, setLoading] = useState(hasContext)
@@ -71,7 +73,7 @@ export function InlineScripturePopover({
     setSelectedIdx(null)
     setSearchSource(source)
     try {
-      const results = await fetchScripturePassages(text)
+      const results = await fetchScripturePassages(text, translation)
       setPassages(results)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not reach scripture search'
@@ -96,7 +98,8 @@ export function InlineScripturePopover({
   const handleSelect = useCallback(
     (p: ScripturePassage) => {
       const id = crypto.randomUUID()
-      onInsert(formatScriptureInsert(id, p.text, p.reference, entryContent, insertAt))
+      const refWithTranslation = p.translation ? `${p.reference} · ${p.translation}` : p.reference
+      onInsert(formatScriptureInsert(id, p.text, refWithTranslation, entryContent, insertAt))
       void createSpiritualItem({
         id,
         entry_id: entryId,
@@ -240,7 +243,10 @@ export function InlineScripturePopover({
                   inputRef.current?.blur()
                 }}
               >
-                <span className="command-popover__ref">{p.reference}</span>
+                <span className="command-popover__ref">
+                  {p.reference}
+                  {p.translation && <span className="command-popover__translation"> · {p.translation}</span>}
+                </span>
                 <span className="command-popover__verse">{p.text}</span>
               </button>
             </li>
