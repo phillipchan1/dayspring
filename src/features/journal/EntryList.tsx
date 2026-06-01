@@ -198,7 +198,9 @@ export function EntryList({
         onContextMenu={blockNativeMenu}
       >
         {!fullWidth && (
-          <Brand showMark={false} wordmarkRem={1.1} className="entry-list__brand" />
+          <div data-tauri-drag-region={NATIVE ? '' : undefined}>
+            <Brand showMark={false} wordmarkRem={1.1} className="entry-list__brand" />
+          </div>
         )}
         <input
           data-entry-search

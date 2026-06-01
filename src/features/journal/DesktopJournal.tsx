@@ -88,13 +88,17 @@ export function DesktopJournal(props: JournalViewProps) {
         {!focused && journalChrome && (
           <header
             className="journal-topbar"
+            // No native title bar (overlay style), so the top bar doubles as the
+            // window drag handle. Buttons/inputs inside lack the attribute, so
+            // they stay clickable — Tauri only drags when the target itself has it.
+            data-tauri-drag-region
             style={NATIVE ? { paddingTop: MAC_TRAFFIC_INSET.mainTop } : undefined}
           >
-            <div className="journal-topbar__lead">
+            <div className="journal-topbar__lead" data-tauri-drag-region>
               {activeEntry ? formatBreadcrumb(activeEntry.created_at) : ''}
             </div>
             <div className="journal-topbar__actions">
-              <div className="status-cluster" style={{ marginRight: '0.6rem' }}>
+              <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>
                 <span className="status-cluster__dot" data-status={status} aria-hidden />
                 <span>{words} {words === 1 ? 'word' : 'words'}</span>
                 <span className="status-cluster__sep" aria-hidden>·</span>
