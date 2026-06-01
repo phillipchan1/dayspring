@@ -47,7 +47,8 @@ export async function callModel<T>(
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const completion = await openai().chat.completions.create(params)
-    const msg = completion.choices[0]?.message
+    const choice = completion.choices[0]
+    const msg = choice?.message
 
     // Newer SDK versions expose a pre-parsed object for json_schema responses.
     const maybeParsed = (msg as Record<string, unknown> | undefined)?.parsed
@@ -56,13 +57,15 @@ export async function callModel<T>(
     }
 
     const raw = msg?.content
+    console.error(`[callModel:${name}] attempt=${attempt} finish=${choice?.finish_reason} content_len=${raw?.length ?? 'null'} refusal=${msg?.refusal ?? 'none'}`)
     if (raw) {
       // Strip markdown code-block wrapping that some models add despite json_schema.
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+      console.error(`[callModel:${name}] raw_head=${cleaned.slice(0, 120)}`)
       try {
         return JSON.parse(cleaned) as T
-      } catch {
-        /* fall through to retry */
+      } catch (e) {
+        console.error(`[callModel:${name}] JSON.parse failed: ${e}`)
       }
     }
   }
