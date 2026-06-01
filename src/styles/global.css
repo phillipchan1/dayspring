@@ -915,7 +915,21 @@ a {
   transition: flex-basis 0.22s ease, max-width 0.22s ease;
 }
 .rail[data-labels='true'] {
-  --rail-width: 9.75rem;
+  /* Fixed label column sized for "Looking back" — row centered in the rail */
+  --rail-label-width: 6.75rem;
+  --rail-row-width: calc(var(--rail-slot) + 0.5rem + var(--rail-label-width));
+  --rail-width: calc(var(--rail-row-width) + 2 * var(--rail-gutter));
+  align-items: center;
+}
+.rail[data-labels='true'] > .rail__brand,
+.rail[data-labels='true'] > .rail__nav,
+.rail[data-labels='true'] > .rail__footer {
+  width: var(--rail-row-width);
+  flex-shrink: 0;
+}
+.rail[data-labels='true'] .rail__rule {
+  width: 100%;
+  margin-inline: 0;
 }
 /* Icon-only: one centered column — no stretch, no hidden label flex bleed */
 .rail[data-labels='false'] {
@@ -1056,6 +1070,9 @@ a {
   justify-content: center;
   padding-inline: 0;
 }
+.rail[data-labels='true'] .rail-btn {
+  padding-inline: 0;
+}
 .rail-btn__label {
   min-width: 0;
   flex: 1;
@@ -1072,8 +1089,10 @@ a {
     max-width 0.22s ease;
 }
 .rail[data-labels='true'] .rail-btn__label {
+  flex: 0 0 var(--rail-label-width);
+  width: var(--rail-label-width);
   opacity: 1;
-  max-width: 6.5rem;
+  max-width: var(--rail-label-width);
 }
 .rail:not([data-labels='true']) .rail-btn__label,
 .rail:not([data-labels='true']) .rail-toggle__label {
@@ -1123,10 +1142,13 @@ a {
 }
 .rail[data-labels='true'] .rail-toggle {
   justify-content: flex-start;
+  padding-inline: 0;
 }
 .rail[data-labels='true'] .rail-toggle__label {
+  flex: 0 0 var(--rail-label-width);
+  width: var(--rail-label-width);
   opacity: 1;
-  max-width: 5.5rem;
+  max-width: var(--rail-label-width);
 }
 .rail:not([data-labels='true']) .rail-toggle {
   padding-inline: 0;
