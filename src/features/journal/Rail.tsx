@@ -39,7 +39,7 @@ export function Rail({
         <RailButton label="Looking back" title="Looking back (⌘2)" onClick={onLookBack} icon={<LookBackIcon />} />
       </div>
       <div className="rail__footer">
-        <RailButton label="Settings" title="Settings (⌘3)" onClick={onOpenSettings} icon={<SettingsIcon />} />
+        <RailButton label="Settings" title="Settings (⌘, or ⌘3)" onClick={onOpenSettings} icon={<SettingsIcon />} />
       </div>
     </nav>
   )

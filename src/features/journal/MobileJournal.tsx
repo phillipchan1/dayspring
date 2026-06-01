@@ -128,7 +128,7 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
               focus
             </button>
-            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘3)">
+            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘, or ⌘3)">
               ⚙
             </button>
           </nav>

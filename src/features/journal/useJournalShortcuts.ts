@@ -18,7 +18,7 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * ⌘N new · ⌘1–3 rail · ⌘S save · ⌘K search · ⌘⏎ focus mode
+ * ⌘N new · ⌘1–3 rail · ⌘, settings · ⌘S save · ⌘K search · ⌘⏎ focus
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
@@ -43,6 +43,12 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       if (key === 'n') {
         e.preventDefault()
         onNew()
+        return
+      }
+
+      if (key === ',') {
+        e.preventDefault()
+        onOpenSettings()
         return
       }
 

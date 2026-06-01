@@ -52,7 +52,7 @@ export function Editor({
   setFormatBarRef.current = setFormatBar
 
   const syncFormatBar = useCallback((view: EditorView) => {
-    if (!view.hasFocus || view.state.selection.main.empty) {
+    if (view.state.selection.main.empty) {
       setFormatBarRef.current(null)
       return
     }
@@ -90,7 +90,7 @@ export function Editor({
     viewRef.current = view
     if (autofocus) view.focus()
 
-    const onScroll = () => setFormatBarRef.current(null)
+    const onScroll = () => syncFormatBar(view)
     view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
 
     return () => {
