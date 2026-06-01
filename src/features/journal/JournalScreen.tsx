@@ -14,6 +14,7 @@ import type { Entry } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
+import { useEntryEditorFocusToggle } from './useEntryEditorFocusToggle'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
@@ -32,6 +33,13 @@ import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
 import { LookingBack } from '@/features/reflections/LookingBack'
 import { AltarView } from '@/features/altar/AltarView'
+import { EntryBulkCanvas } from './EntryBulkCanvas'
+import {
+  copyEntriesMarkdown,
+  copyEntriesText,
+  exportEntriesZip,
+} from './entryBulkActions'
+import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi'
 import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
@@ -129,6 +137,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   entryIdRef.current = entryId
   const skipEntrySyncRef = useRef(false)
   const skipEditorAutofocusRef = useRef(false)
+  const selectionApiRef = useRef<EntrySelectionApi | null>(null)
+  const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
+  const [rangeSelectActive, setRangeSelectActive] = useState(false)
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
@@ -415,6 +426,12 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     settingsOpen,
   })
 
+  const revealEntryList = useCallback(() => {
+    if (canvasAlternateActive || focus.active) return
+    if (isMobile) go({ sidebar: true })
+    else setEntriesOpen(true)
+  }, [canvasAlternateActive, focus.active, isMobile, go])
+
   // After chrome hides, return focus to the editor once layout has settled.
   useEffect(() => {
     if (!focusEditorReady || !entriesReady) return
@@ -453,9 +470,23 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     setContent('')
   }
 
-  async function handleSelect(entry: Entry) {
-    if (entry.id === entryId && !canvasAlternateActive) return
+  async function handleBrowse(entry: Entry) {
     skipEditorAutofocusRef.current = true
+    if (bulkSelection.length >= 2 || rangeSelectActive) return
+
+    if (entry.id === entryId && !canvasAlternateActive) return
+    skipEntrySyncRef.current = true
+    go({ surface: 'journal', entryId: entry.id })
+    setContent(entry.body_markdown)
+  }
+
+  async function handleEditEntry(entry: Entry) {
+    selectionApiRef.current?.clear()
+    skipEditorAutofocusRef.current = false
+    if (entry.id === entryId && !canvasAlternateActive) {
+      requestAnimationFrame(() => editorRef.current?.focus())
+      return
+    }
     await saveNow()
     skipEntrySyncRef.current = true
     go({ surface: 'journal', entryId: entry.id })
@@ -465,8 +496,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   function handleOpenReflectionEntry(id: string) {
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
-    void handleSelect(entry)
+    void handleBrowse(entry)
   }
+
+  const handleSelectionChange = useCallback((state: EntrySelectionState, api: EntrySelectionApi) => {
+    selectionApiRef.current = api
+    setRangeSelectActive(state.rangeActive)
+    setBulkSelection(state.entries)
+    if (state.rangeActive || state.entries.length >= 2) {
+      skipEditorAutofocusRef.current = true
+    }
+  }, [])
 
   async function handleDuplicate(entry: Entry) {
     await saveNow()
@@ -563,10 +603,40 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
     return filterEntries(entries, query)
   }, [entries, query, restrictIds])
+
+  useEntryEditorFocusToggle({
+    activeIdRef: entryIdRef,
+    entries: visibleEntries,
+    onEditEntry: (entry) => void handleEditEntry(entry),
+    onRevealList: revealEntryList,
+    blocked:
+      settingsOpen ||
+      helpOpen ||
+      focus.active ||
+      canvasAlternateActive ||
+      slashCapture !== null,
+  })
+
   const docKey = entryId ?? 'new'
+
+  const bulkActive = bulkSelection.length >= 2
 
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
+  ) : bulkActive ? (
+    <EntryBulkCanvas
+      count={bulkSelection.length}
+      onCopyText={() => void copyEntriesText(bulkSelection)}
+      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection)}
+      onExportZip={() => void exportEntriesZip(bulkSelection)}
+      onDelete={() => selectionApiRef.current?.requestDelete()}
+      onClear={() => selectionApiRef.current?.clear()}
+    />
+  ) : rangeSelectActive ? (
+    <div className="entry-range-canvas">
+      <p className="entry-range-canvas__eyebrow">Selecting</p>
+      <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
+    </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {resurface && (
@@ -624,7 +694,12 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     status,
     lastSavedAt,
     saveError,
-    onSelect: (e) => void handleSelect(e),
+    onSelect: (e) => void handleBrowse(e),
+    onEditEntry: (e) => void handleEditEntry(e),
+    onSelectionChange: handleSelectionChange,
+    bulkActive,
+    bulkCount: bulkSelection.length,
+    rangeSelectActive,
     onEntryMenuAction: handleEntryMenuAction,
     onDeleteEntries: handleDeleteEntries,
     onNew: () => void handleNew(),

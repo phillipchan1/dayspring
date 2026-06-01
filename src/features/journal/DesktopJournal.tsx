@@ -25,12 +25,19 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive,
+    reflectionsActive, altarActive, bulkActive, bulkCount, rangeSelectActive,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
+  const topbarLabel = bulkActive
+    ? `${bulkCount} entries selected`
+    : rangeSelectActive
+      ? 'Selecting entries'
+      : activeEntry
+        ? formatBreadcrumb(activeEntry.created_at)
+        : ''
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
   const canvasAlternateActive = reflectionsActive || altarActive
   const journalChrome = !canvasAlternateActive
@@ -64,6 +71,8 @@ export function DesktopJournal(props: JournalViewProps) {
             entries={entries}
             activeId={activeId}
             onSelect={onSelect}
+            onEditEntry={onEditEntry}
+            {...(onSelectionChange ? { onSelectionChange } : {})}
             onMenuAction={onEntryMenuAction}
             onDeleteEntries={onDeleteEntries}
             query={query}
@@ -95,16 +104,24 @@ export function DesktopJournal(props: JournalViewProps) {
             style={NATIVE ? { paddingTop: MAC_TRAFFIC_INSET.mainTop } : undefined}
           >
             <div className="journal-topbar__lead" data-tauri-drag-region>
-              {activeEntry ? formatBreadcrumb(activeEntry.created_at) : ''}
+              {topbarLabel}
             </div>
             <div className="journal-topbar__actions">
               <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>
-                <span className="status-cluster__dot" data-status={status} aria-hidden />
-                <span>{words} {words === 1 ? 'word' : 'words'}</span>
-                <span className="status-cluster__sep" aria-hidden>·</span>
+                {!bulkActive && !rangeSelectActive && (
+                  <>
+                    <span className="status-cluster__dot" data-status={status} aria-hidden />
+                    <span>{words} {words === 1 ? 'word' : 'words'}</span>
+                    <span className="status-cluster__sep" aria-hidden>·</span>
+                  </>
+                )}
                 <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
-                <span className="status-cluster__sep" aria-hidden>·</span>
-                <SyncBadge bare />
+                {!bulkActive && !rangeSelectActive && (
+                  <>
+                    <span className="status-cluster__sep" aria-hidden>·</span>
+                    <SyncBadge bare />
+                  </>
+                )}
               </div>
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 focus

@@ -419,6 +419,142 @@ a {
   color: var(--text-bright);
 }
 
+/* Bulk selection toolbar (sidebar compact + main canvas). */
+.entry-selection-bar {
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--bg-elevated));
+}
+.entry-selection-bar--compact {
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.6rem;
+}
+.entry-selection-bar--canvas {
+  padding: 1rem 1.25rem;
+  max-width: 32rem;
+  width: 100%;
+}
+.entry-selection-bar__count {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--accent);
+  margin-bottom: 0.45rem;
+}
+.entry-selection-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  justify-content: center;
+}
+.entry-selection-bar--compact .entry-selection-bar__actions {
+  justify-content: flex-start;
+}
+.entry-selection-bar__btn {
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
+.entry-selection-bar--canvas .entry-selection-bar__btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+}
+.entry-selection-bar__btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--text-bright);
+}
+.entry-selection-bar__btn--danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+.entry-selection-bar__btn--danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-input));
+}
+.entry-selection-bar__btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-dim);
+}
+.entry-selection-bar__btn--ghost:hover {
+  color: var(--text-bright);
+}
+
+/* Main canvas when multiple entries are selected. */
+.entry-bulk-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 12rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  gap: 0.65rem;
+}
+.entry-bulk-canvas__eyebrow {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.entry-bulk-canvas__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 400;
+  color: var(--text-bright);
+}
+.entry-bulk-canvas__hint {
+  margin: 0 0 0.75rem;
+  max-width: 22rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.entry-range-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 12rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  gap: 0.5rem;
+}
+.entry-range-canvas__eyebrow {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.entry-range-canvas__hint {
+  margin: 0;
+  max-width: 20rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
 /* ── Entry context menu ──────────────────────────────────────────────────── */
 .entry-context-backdrop {
   position: fixed;

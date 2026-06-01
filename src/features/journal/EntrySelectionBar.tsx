@@ -5,9 +5,10 @@ interface Props {
   onExportZip: () => void
   onDelete: () => void
   onClear: () => void
+  /** Compact strip in the sidebar vs centered panel in the main canvas. */
+  layout?: 'compact' | 'canvas'
 }
 
-/** Shown when two or more entries are selected in the sidebar. */
 export function EntrySelectionBar({
   count,
   onCopyText,
@@ -15,26 +16,31 @@ export function EntrySelectionBar({
   onExportZip,
   onDelete,
   onClear,
+  layout = 'compact',
 }: Props) {
   return (
-    <div className="entry-list__selection" role="toolbar" aria-label="Selected entries">
-      <span className="entry-list__selection-count">
-        {count} selected
-      </span>
-      <div className="entry-list__selection-actions">
-        <button type="button" className="entry-list__selection-btn" onClick={onCopyText}>
+    <div
+      className={`entry-selection-bar entry-selection-bar--${layout}`}
+      role="toolbar"
+      aria-label="Selected entries"
+    >
+      {layout === 'compact' && (
+        <span className="entry-selection-bar__count">{count} selected</span>
+      )}
+      <div className="entry-selection-bar__actions">
+        <button type="button" className="entry-selection-bar__btn" onClick={onCopyText}>
           Copy text
         </button>
-        <button type="button" className="entry-list__selection-btn" onClick={onCopyMarkdown}>
+        <button type="button" className="entry-selection-bar__btn" onClick={onCopyMarkdown}>
           Copy Markdown
         </button>
-        <button type="button" className="entry-list__selection-btn" onClick={onExportZip}>
+        <button type="button" className="entry-selection-bar__btn" onClick={onExportZip}>
           Export .zip
         </button>
-        <button type="button" className="entry-list__selection-btn entry-list__selection-btn--danger" onClick={onDelete}>
+        <button type="button" className="entry-selection-bar__btn entry-selection-bar__btn--danger" onClick={onDelete}>
           Delete…
         </button>
-        <button type="button" className="entry-list__selection-btn entry-list__selection-btn--ghost" onClick={onClear}>
+        <button type="button" className="entry-selection-bar__btn entry-selection-bar__btn--ghost" onClick={onClear}>
           Clear
         </button>
       </div>

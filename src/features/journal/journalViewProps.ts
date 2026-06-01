@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { Entry } from '@/lib/types'
 import type { EntryMenuAction } from './EntryContextMenu'
+import type { EntrySelectionChange } from './entrySelectionApi'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
 
@@ -21,6 +22,15 @@ export interface JournalViewProps {
   lastSavedAt: number | null
   saveError: string | null
   onSelect: (entry: Entry) => void
+  /** Load entry and focus the editor for typing (Enter / double-click). */
+  onEditEntry: (entry: Entry) => void
+  /** Sidebar reports multi-select state for the main canvas. */
+  onSelectionChange?: EntrySelectionChange
+  /** True when two or more entries are selected. */
+  bulkActive: boolean
+  bulkCount: number
+  /** Shift+arrow range in progress — editor stays hidden. */
+  rangeSelectActive: boolean
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[]) => Promise<void>
   onNew: () => void

@@ -11,7 +11,6 @@ import {
   type EntryMenuPhase,
 } from './EntryContextMenu'
 import { EntryBulkMenu, type EntryBulkAction, type EntryBulkMenuPhase } from './EntryBulkMenu'
-import { EntrySelectionBar } from './EntrySelectionBar'
 import { useSuppressNativeContextMenu } from './useSuppressNativeContextMenu'
 import { EntriesGroupToggle } from './EntriesGroupToggle'
 import {
@@ -24,12 +23,14 @@ import { orderedEntryIds } from './orderedEntryIds'
 import { useEntryGroupCollapse } from './useEntryGroupCollapse'
 import { useEntryMultiSelect } from './useEntryMultiSelect'
 import { useVirtualRange } from './useVirtualRange'
+import { useEntryListKeyboard } from './useEntryListKeyboard'
 import {
   copyEntriesMarkdown,
   copyEntriesText,
   exportEntriesZip,
 } from './entryBulkActions'
-import { isInEditor, isInEntryList, shouldIgnoreTarget } from './keyboard'
+import type { EntrySelectionChange } from './entrySelectionApi'
+import { focusEntryRow, focusedEntryIdInList } from './entryListFocus'
 
 const NATIVE = isTauri()
 const FLAT_VIRTUAL_THRESHOLD = 100
@@ -38,22 +39,29 @@ interface Props {
   entries: Entry[]
   activeId: string | null
   onSelect: (entry: Entry) => void
+  onEditEntry: (entry: Entry) => void
+  /** Called after a row click selects (e.g. mobile closes the drawer). */
+  onRowActivate?: () => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[]) => Promise<void>
   query: string
   onQueryChange: (q: string) => void
   fullWidth?: boolean
+  onSelectionChange?: EntrySelectionChange
 }
 
 export function EntryList({
   entries,
   activeId,
   onSelect,
+  onEditEntry,
+  onRowActivate,
   onMenuAction,
   onDeleteEntries,
   query,
   onQueryChange,
   fullWidth = false,
+  onSelectionChange,
 }: Props) {
   const { settings, update: updateSettings } = useSettings()
   const [phase, setPhase] = useState<EntryMenuPhase>({ kind: 'closed' })
@@ -83,52 +91,52 @@ export function EntryList({
     [entries, multi.selectedIds],
   )
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (phase.kind !== 'closed' || bulkPhase.kind !== 'closed') return
-
-      if (e.key === 'Escape' && multi.selectionCount >= 2) {
-        e.preventDefault()
-        e.stopPropagation()
-        multi.clearSelection()
-        return
-      }
-
-      if (e.key !== 'Backspace' && e.key !== 'Delete') return
-      if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (!isInEntryList(e.target)) return
-      if (isInEditor(e.target) || shouldIgnoreTarget(e.target)) return
-      if (e.target instanceof HTMLElement && e.target.closest('[data-entry-search]')) return
-
-      e.preventDefault()
-      e.stopPropagation()
-
-      if (multi.selectionCount >= 2) {
-        setBulkPhase({ kind: 'confirm', entries: selectedEntries })
-        return
-      }
-
-      if (!activeId) return
-      const entry = entries.find((item) => item.id === activeId)
-      if (entry) setPhase({ kind: 'confirm', entry })
-    }
-
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [
-    activeId,
-    entries,
-    multi.selectionCount,
-    multi.clearSelection,
-    phase.kind,
-    bulkPhase.kind,
-    selectedEntries,
-  ])
-
   const flatVirtual =
     !groups && !searching && entries.length >= FLAT_VIRTUAL_THRESHOLD
   const virtual = useVirtualRange(listRef, entries.length, flatVirtual)
   const flatSlice = flatVirtual ? entries.slice(virtual.start, virtual.end) : entries
+
+  const menuOpen = phase.kind !== 'closed' || bulkPhase.kind !== 'closed'
+
+  useEntryListKeyboard({
+    listRef,
+    orderIds,
+    entries,
+    activeId,
+    flatVirtual,
+    menuOpen,
+    multi,
+    onBrowse: onSelect,
+    onEdit: onEditEntry,
+    onDeleteSingle: (entry) => setPhase({ kind: 'confirm', entry }),
+    onDeleteBulk: (bulk) => setBulkPhase({ kind: 'confirm', entries: bulk }),
+    selectedEntries,
+  })
+
+  useEffect(() => {
+    if (!onSelectionChange) return
+    onSelectionChange(
+      { entries: selectedEntries, rangeActive: multi.rangeActive },
+      {
+        clear: multi.clearSelection,
+        requestDelete: () => setBulkPhase({ kind: 'confirm', entries: selectedEntries }),
+      },
+    )
+  }, [selectedEntries, multi.rangeActive, onSelectionChange, multi.clearSelection])
+
+  // Keep list focus during shift-range select (editor must not steal keys).
+  useEffect(() => {
+    if (!multi.rangeActive && multi.selectedIds.size === 0) return
+    const listEl = listRef.current
+    if (!listEl) return
+    const focusId =
+      focusedEntryIdInList(listEl) ??
+      (multi.rangeActive ? multi.rangeExtentId : null) ??
+      activeId ??
+      [...multi.selectedIds][0]
+    if (!focusId) return
+    requestAnimationFrame(() => focusEntryRow(listEl, focusId))
+  }, [multi.selectedIds, multi.rangeActive, multi.rangeExtentId, activeId])
 
   function openMenu(entry: Entry, x: number, y: number) {
     setBulkPhase({ kind: 'closed' })
@@ -174,9 +182,9 @@ export function EntryList({
 
   const countLabel = searching
     ? `${entries.length} match${entries.length === 1 ? '' : 'es'}`
-    : `${entries.length} entries`
-
-  const showSelectionBar = multi.selectionCount >= 2
+    : multi.selectionCount >= 2
+      ? `${multi.selectionCount} selected`
+      : `${entries.length} entries`
 
   return (
     <aside
@@ -216,19 +224,9 @@ export function EntryList({
             onChange={(entriesGroupBy) => updateSettings({ entriesGroupBy })}
           />
         )}
-        {showSelectionBar ? (
-          <EntrySelectionBar
-            count={multi.selectionCount}
-            onCopyText={() => void copyEntriesText(selectedEntries)}
-            onCopyMarkdown={() => void copyEntriesMarkdown(selectedEntries)}
-            onExportZip={() => void exportEntriesZip(selectedEntries)}
-            onDelete={() => setBulkPhase({ kind: 'confirm', entries: selectedEntries })}
-            onClear={multi.clearSelection}
-          />
-        ) : (
-          <div className="entry-list__count-row">
-            <span className="entry-list__count">{countLabel}</span>
-            {groups && collapse.showBulkActions && (
+        <div className="entry-list__count-row">
+          <span className="entry-list__count">{countLabel}</span>
+          {groups && collapse.showBulkActions && multi.selectionCount < 2 && (
               <span className="entry-list__bulk">
                 <button type="button" className="entry-list__bulk-btn" onClick={collapse.collapseOlder}>
                   Collapse older
@@ -245,8 +243,7 @@ export function EntryList({
                 )}
               </span>
             )}
-          </div>
-        )}
+        </div>
       </div>
 
       {entries.length === 0 ? (
@@ -267,6 +264,8 @@ export function EntryList({
               query={query}
               groupBy={groupBy}
               onSelect={onSelect}
+              onEditEntry={onEditEntry}
+              {...(onRowActivate ? { onRowActivate } : {})}
               onRowClick={multi.handleRowClick}
               onOpenMenu={openMenu}
               onOpenBulkMenu={openBulkMenu}
@@ -294,6 +293,8 @@ export function EntryList({
               query={query}
               groupBy="flat"
               onSelect={onSelect}
+              onEditEntry={onEditEntry}
+              {...(onRowActivate ? { onRowActivate } : {})}
               onRowClick={multi.handleRowClick}
               onOpenMenu={openMenu}
               onOpenBulkMenu={openBulkMenu}
@@ -329,6 +330,8 @@ interface EntryGroupSectionProps {
   query: string
   groupBy: EntriesGroupBy
   onSelect: (entry: Entry) => void
+  onEditEntry: (entry: Entry) => void
+  onRowActivate?: () => void
   onRowClick: ReturnType<typeof useEntryMultiSelect>['handleRowClick']
   onOpenMenu: (entry: Entry, x: number, y: number) => void
   onOpenBulkMenu: (entries: Entry[], x: number, y: number) => void
@@ -345,6 +348,8 @@ function EntryGroupSection({
   query,
   groupBy,
   onSelect,
+  onEditEntry,
+  onRowActivate,
   onRowClick,
   onOpenMenu,
   onOpenBulkMenu,
@@ -376,6 +381,8 @@ function EntryGroupSection({
               query={query}
               groupBy={groupBy}
               onSelect={onSelect}
+              onEditEntry={onEditEntry}
+              {...(onRowActivate ? { onRowActivate } : {})}
               onRowClick={onRowClick}
               onOpenMenu={onOpenMenu}
               onOpenBulkMenu={onOpenBulkMenu}
@@ -396,6 +403,8 @@ interface EntryRowProps {
   query: string
   groupBy: EntriesGroupBy
   onSelect: (entry: Entry) => void
+  onEditEntry: (entry: Entry) => void
+  onRowActivate?: () => void
   onRowClick: ReturnType<typeof useEntryMultiSelect>['handleRowClick']
   onOpenMenu: (entry: Entry, x: number, y: number) => void
   onOpenBulkMenu: (entries: Entry[], x: number, y: number) => void
@@ -410,6 +419,8 @@ function EntryRow({
   query,
   groupBy,
   onSelect,
+  onEditEntry,
+  onRowActivate,
   onRowClick,
   onOpenMenu,
   onOpenBulkMenu,
@@ -427,15 +438,24 @@ function EntryRow({
         type="button"
         className="entry-row"
         data-entry-row
+        data-entry-id={entry.id}
         data-active={active ? 'true' : undefined}
         data-selected={selected ? 'true' : undefined}
         data-context={context ? 'true' : undefined}
+        title={active ? `${title} — Tab or Enter to edit` : title}
         onClick={(e) => {
           const result = onRowClick(entry.id, e)
           if (result === 'open') {
             onSelect(entry)
+            onRowActivate?.()
+            e.currentTarget.focus()
+          } else if (result === 'range') {
             e.currentTarget.focus()
           }
+        }}
+        onDoubleClick={(e) => {
+          e.preventDefault()
+          onEditEntry(entry)
         }}
         onContextMenu={(e) => {
           e.preventDefault()

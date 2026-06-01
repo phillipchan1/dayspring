@@ -22,9 +22,9 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
-    reflectionsActive, altarActive,
+    reflectionsActive, altarActive, bulkActive, bulkCount, rangeSelectActive,
   } = props
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -56,13 +56,19 @@ export function MobileJournal(props: JournalViewProps) {
     touchStart.current = null
   }
 
-  function handleSelect(entry: Entry) {
-    onSelect(entry)
+  function handleEditEntry(entry: Entry) {
+    onEditEntry(entry)
     closeDrawer()
   }
 
   const activeEntry = entries.find((e) => e.id === activeId)
-  const heading = activeEntry ? deriveTitle(activeEntry.body_markdown) || 'Untitled' : 'New entry'
+  const heading = bulkActive
+    ? `${bulkCount} entries selected`
+    : rangeSelectActive
+      ? 'Selecting entries'
+      : activeEntry
+        ? deriveTitle(activeEntry.body_markdown) || 'Untitled'
+        : 'New entry'
 
   return (
     <div
@@ -171,7 +177,10 @@ export function MobileJournal(props: JournalViewProps) {
               <EntryList
                 entries={entries}
                 activeId={activeId}
-                onSelect={handleSelect}
+                onSelect={onSelect}
+                onEditEntry={handleEditEntry}
+                {...(onSelectionChange ? { onSelectionChange } : {})}
+                onRowActivate={closeDrawer}
                 onMenuAction={onEntryMenuAction}
                 onDeleteEntries={onDeleteEntries}
                 query={query}
