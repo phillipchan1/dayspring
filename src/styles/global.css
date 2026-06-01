@@ -144,6 +144,142 @@ a {
   50% { opacity: 0.7; }
 }
 
+/* ── Desktop navigation rail ─────────────────────────────────────────────
+   The slim left spine that owns navigation. Quiet by default; the active
+   destination (Entries, while its panel is open) warms to the accent. Slim on
+   purpose — the wordmark lives in the Entries panel header, not here. */
+.rail {
+  flex: 0 0 4.25rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0.6rem 0.4rem;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+.rail__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0 0.9rem;
+}
+.rail__nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.rail__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.55rem 0.2rem;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  transition: color var(--transition), background var(--transition);
+}
+.rail-btn:hover {
+  color: var(--text-dim);
+  background: var(--bg-hover);
+}
+.rail-btn[data-active='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.rail-btn__icon {
+  display: inline-flex;
+}
+.rail-btn__label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  text-align: center;
+}
+
+/* ── Entries panel (desktop) — slides in/out beside the rail ──────────────
+   Kept mounted so it animates both ways (and so ⌘K can focus its search even
+   from collapsed). When closed it slides left behind the rail and gives its
+   width back to the canvas; the global reduced-motion reset makes it instant. */
+.entries-panel {
+  --entries-panel-width: 17rem;
+  flex: 0 0 var(--entries-panel-width);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  transition: margin-left var(--transition), opacity var(--transition);
+}
+.entries-panel[data-open='false'] {
+  margin-left: calc(-1 * var(--entries-panel-width));
+  opacity: 0;
+  pointer-events: none;
+}
+.entries-panel[data-resizing='true'] {
+  transition: opacity var(--transition);
+}
+.entries-panel__resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+.entries-panel__resize::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: transparent;
+  transition: background var(--transition);
+}
+.entries-panel__resize:hover::after,
+.entries-panel[data-resizing='true'] .entries-panel__resize::after {
+  background: var(--accent);
+}
+
+/* ── Desktop top bar (stripped) ──────────────────────────────────────────
+   Mostly-empty calm: a faint date breadcrumb at the lead, the ambient status
+   cluster + Focus at the trailing edge. Navigation lives on the rail. */
+.journal-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-1);
+}
+.journal-topbar__lead {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--text-faint);
+}
+.journal-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .select-wrap {
   position: relative;
   width: 100%;
@@ -296,6 +432,53 @@ a {
   width: 100%;
   display: flex;
   overflow: hidden;
+}
+
+/* ── Tauri overlay title bar: drag the window from chrome, not the editor ──
+   macOS/Windows WebView2 honour -webkit-app-region. Interactive nodes below
+   stay clickable via no-drag (buttons, inputs, CodeMirror, etc.). */
+html[data-platform='desktop'] button,
+html[data-platform='desktop'] input,
+html[data-platform='desktop'] textarea,
+html[data-platform='desktop'] select,
+html[data-platform='desktop'] a,
+html[data-platform='desktop'] label,
+html[data-platform='desktop'] .cm-editor,
+html[data-platform='desktop'] .cm-scroller,
+html[data-platform='desktop'] .cm-content,
+html[data-platform='desktop'] .dropzone,
+html[data-platform='desktop'] .settings-range,
+html[data-platform='desktop'] [role='switch'],
+html[data-platform='desktop'] [role='separator'] {
+  -webkit-app-region: no-drag;
+}
+
+html[data-platform='desktop'] .rail,
+html[data-platform='desktop'] .journal-topbar,
+html[data-platform='desktop'] .entry-list__head,
+html[data-platform='desktop'] .entries-panel,
+html[data-platform='desktop'] .journal-canvas,
+html[data-platform='desktop'] .looking-back,
+html[data-platform='desktop'] .settings-nav,
+html[data-platform='desktop'] .settings-main__head,
+html[data-platform='desktop'] .center-screen {
+  -webkit-app-region: drag;
+}
+
+/* Focus mode hides the top bar — keep a grab strip under the traffic lights. */
+html[data-platform='desktop'] .journal-canvas {
+  position: relative;
+}
+html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.75rem;
+  -webkit-app-region: drag;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 /* ── Focus mode floating controls ───────────────────────────────────────── */
@@ -1333,6 +1516,13 @@ html[data-platform='desktop'] .looking-back__pill {
   margin: 0.2rem 0 0;
   color: var(--text-bright);
   font-size: 0.86rem;
+}
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
 }
 
 /* ════════════════════════════════════════════════════════════════════════ */

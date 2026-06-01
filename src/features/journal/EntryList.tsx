@@ -28,7 +28,7 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
   return (
     <aside
       style={{
-        width: fullWidth ? '100%' : '17rem',
+        width: '100%',
         flexShrink: 0,
         borderRight: fullWidth ? 'none' : '1px solid var(--border-subtle)',
         background: 'var(--bg-elevated)',
@@ -39,6 +39,7 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
       }}
     >
       <div
+        className={!fullWidth ? 'entry-list__head' : undefined}
         style={{
           padding: NATIVE && !fullWidth
             ? `${MAC_TRAFFIC_INSET.sidebarTop} ${MAC_TRAFFIC_INSET.sidebarX} 0.5rem`
@@ -49,7 +50,9 @@ export function EntryList({ entries, activeId, onSelect, query, onQueryChange, f
         }}
       >
         {!fullWidth && (
-          <Brand size={20} wordmarkRem={1.1} style={{ padding: '0.15rem 0.1rem 0.7rem' }} />
+          // Wordmark only — the navigation rail already shows the sunrise mark,
+          // so a second one here would be redundant.
+          <Brand showMark={false} wordmarkRem={1.1} style={{ padding: '0.15rem 0.1rem 0.7rem' }} />
         )}
         <input
           data-entry-search

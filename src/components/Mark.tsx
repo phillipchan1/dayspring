@@ -41,18 +41,21 @@ interface BrandProps {
   size?: number
   /** Wordmark font size in rem. */
   wordmarkRem?: number
+  /** Hide the sunrise mark, leaving the wordmark only (e.g. when the nav rail
+   *  already shows the mark and a second one would be redundant). */
+  showMark?: boolean
   className?: string
   style?: CSSProperties
 }
 
 /** Mark + the "Dayspring" wordmark in Fraunces — the shared brand lockup. */
-export function Brand({ size = 22, wordmarkRem = 1.15, className, style }: BrandProps) {
+export function Brand({ size = 22, wordmarkRem = 1.15, showMark = true, className, style }: BrandProps) {
   return (
     <span
       className={className}
       style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', ...style }}
     >
-      <Mark size={size} />
+      {showMark && <Mark size={size} />}
       <span
         style={{
           fontFamily: 'var(--font-display)',

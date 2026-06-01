@@ -31,6 +31,10 @@ export interface JournalViewProps {
   focus: FocusApi
   sidebarOpen: boolean
   onToggleSidebar: () => void
+  /** Desktop entries-panel open state — lifted to JournalScreen so ⌘K can open
+   *  it (mobile uses `sidebarOpen` for its drawer and ignores these). */
+  entriesOpen: boolean
+  onToggleEntries: () => void
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
 }

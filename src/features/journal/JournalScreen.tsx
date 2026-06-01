@@ -14,7 +14,7 @@ import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
-import { isInEditor, shouldIgnoreTarget } from './keyboard'
+import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
 import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
 import type { JournalViewProps } from './journalViewProps'
@@ -31,6 +31,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const [content, setContent] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
+  const [entriesOpen, setEntriesOpen] = useState(true)
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
@@ -140,6 +142,13 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onNew: () => void handleNew(),
     onSave: saveNow,
     onOpenSettings: openSettings,
+    onFocusSearch: () => {
+      // Reveal the list before focusing search: desktop opens its panel, mobile
+      // its drawer. The input mounts immediately, so one frame is enough.
+      if (isMobile) go({ sidebar: true })
+      else setEntriesOpen(true)
+      requestAnimationFrame(() => focusEntrySearch())
+    },
     focusActive: focus.active,
     settingsOpen,
   })
@@ -252,6 +261,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       if (sidebarOpen) back()
       else go({ sidebar: true })
     },
+    entriesOpen,
+    onToggleEntries: () => setEntriesOpen((o) => !o),
     mainSlot,
   }
 
@@ -265,6 +276,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           onClose={back}
           tab={state.settings.tab}
           importSourceId={state.settings.importSource}
+          userEmail={userEmail}
           onTabChange={(tab) =>
             go(
               {

@@ -15,6 +15,7 @@ export type UpdateStatus =
 export interface UpdateState {
   status: UpdateStatus
   version: string | null // the available/staged version, when known
+  error: string | null // short message for the 'error' status, when known
 }
 
 const POLL_MS = 30 * 60 * 1000 // background re-check every 30 min while open
@@ -24,7 +25,8 @@ function isDesktop(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
-let state: UpdateState = { status: 'idle', version: null }
+const IDLE: UpdateState = { status: 'idle', version: null, error: null }
+let state: UpdateState = IDLE
 const listeners = new Set<() => void>()
 let relaunchFn: (() => Promise<void>) | null = null
 let inFlight = false
@@ -46,7 +48,7 @@ function setTransient(next: UpdateState) {
   window.clearTimeout(transientTimer)
   transientTimer = window.setTimeout(() => {
     // Only clear if nothing more important happened since.
-    if (state.status === next.status) set({ status: 'idle', version: null })
+    if (state.status === next.status) set(IDLE)
   }, TRANSIENT_MS)
 }
 
@@ -58,30 +60,46 @@ function setTransient(next: UpdateState) {
 export async function checkForUpdate(manual = false): Promise<void> {
   if (!isDesktop() || inFlight || staged) return
   inFlight = true
-  if (manual) set({ status: 'checking', version: null })
+  if (manual) set({ status: 'checking', version: null, error: null })
+  try {
+    await runCheck(manual)
+  } finally {
+    inFlight = false
+  }
+}
+
+// One check attempt, with a single automatic retry on transient failures —
+// network blips and brief GitHub hiccups are common and shouldn't read as a
+// dead end (which is what bit us: a successful poll moments later proved the
+// endpoint was fine).
+async function runCheck(manual: boolean, attempt = 1): Promise<void> {
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
     const update = await check()
 
     if (!update) {
-      if (manual) setTransient({ status: 'up-to-date', version: null })
-      else if (state.status !== 'ready') set({ status: 'idle', version: null })
+      if (manual) setTransient({ status: 'up-to-date', version: null, error: null })
+      else if (state.status !== 'ready') set(IDLE)
       return
     }
 
-    set({ status: 'downloading', version: update.version })
+    set({ status: 'downloading', version: update.version, error: null })
     await update.downloadAndInstall()
 
     const { relaunch } = await import('@tauri-apps/plugin-process')
     relaunchFn = relaunch
     staged = true
-    set({ status: 'ready', version: update.version })
+    set({ status: 'ready', version: update.version, error: null })
   } catch (err) {
-    console.error('[updater] check/install failed', err)
-    if (manual) setTransient({ status: 'error', version: null })
-    else if (state.status !== 'ready') set({ status: 'idle', version: null })
-  } finally {
-    inFlight = false
+    console.error(`[updater] attempt ${attempt} failed`, err)
+    if (attempt < 2) {
+      // brief backoff, then one retry
+      await new Promise((r) => window.setTimeout(r, 1200))
+      return runCheck(manual, attempt + 1)
+    }
+    const msg = err instanceof Error ? err.message : String(err)
+    if (manual) setTransient({ status: 'error', version: null, error: msg })
+    else if (state.status !== 'ready') set(IDLE)
   }
 }
 

@@ -22,6 +22,8 @@ export function applyPlatformClass(): void {
 
 /** Room for macOS traffic lights under Tauri’s overlay title bar. */
 export const MAC_TRAFFIC_INSET = {
+  /** Navigation rail top — push the Mark/nav below the traffic lights */
+  railTop: '2.85rem',
   /** Sidebar brand + search block */
   sidebarTop: '2.85rem',
   sidebarX: '1rem',

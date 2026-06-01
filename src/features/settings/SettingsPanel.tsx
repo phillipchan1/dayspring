@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
+import { signOut } from '@/lib/auth'
 import { isTauri } from '@/lib/platform'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
@@ -18,6 +19,8 @@ interface Props {
   onTabChange: (tab: SettingsTab) => void
   onImportSourceChange: (sourceId: string) => void
   onImportSourceBack: () => void
+  /** Signed-in account, shown alongside Sign out in the About tab. */
+  userEmail: string
 }
 
 const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
@@ -37,6 +40,7 @@ export function SettingsPanel({
   onTabChange,
   onImportSourceChange,
   onImportSourceBack,
+  userEmail,
 }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -96,7 +100,7 @@ export function SettingsPanel({
               />
             )}
             {tab === 'shortcuts' && <ShortcutsTab />}
-            {tab === 'about' && <AboutTab />}
+            {tab === 'about' && <AboutTab userEmail={userEmail} />}
           </div>
         </div>
       </div>
@@ -175,7 +179,7 @@ function ShortcutsTab() {
   )
 }
 
-function AboutTab() {
+function AboutTab({ userEmail }: { userEmail: string }) {
   return (
     <div className="settings-about">
       <div className="settings-about__mark">Dayspring</div>
@@ -192,9 +196,18 @@ function AboutTab() {
       </dl>
       {isTauri() && <UpdateChecker />}
       <div className="settings-divider" />
-      <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
-        Reset all settings to defaults
-      </button>
+      <div className="settings-field__head settings-field__head--row">
+        <span className="settings-field__label">Account</span>
+        {userEmail && <span className="settings-field__value">{userEmail}</span>}
+      </div>
+      <div className="settings-actions">
+        <button className="btn btn--ghost" onClick={() => void signOut()}>
+          Sign out
+        </button>
+        <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
+          Reset all settings to defaults
+        </button>
+      </div>
     </div>
   )
 }
@@ -212,7 +225,9 @@ function UpdateChecker() {
     'up-to-date': 'You’re on the latest version.',
     downloading: `Downloading v${state.version ?? ''}…`,
     ready: `Version ${state.version ?? ''} is ready.`,
-    error: 'Couldn’t check right now — try again.',
+    error: state.error
+      ? `Couldn’t check — ${state.error}. Try again.`
+      : 'Couldn’t check right now — try again.',
   }[state.status]
 
   return (
