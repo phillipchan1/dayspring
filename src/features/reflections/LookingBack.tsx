@@ -1,342 +1,154 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
-import { listRollups, type Rollup, type RollupPayload, type RollupType } from '@/lib/insights'
-import { deriveTitle, humanizeObservationText } from '@/lib/entryLabels'
-import paintingUrl from '@/assets/looking-back.jpg'
+import {
+  loadReflection,
+  recordEbenezerMark,
+  recordWin,
+  type EbenezerMark,
+  type EbenezerStone,
+  type Excerpt,
+  type Horizon,
+  type MonthlyReflection,
+  type Prose,
+  type QuarterlyReflection,
+  type Question,
+  type Reflection,
+  type WeeklyReflection,
+  type Win,
+  type YearlyReflection,
+} from './reflectionData'
 
 /* ════════════════════════════════════════════════════════════════════════ */
-/* Tuning constants — everything you'd reach for first lives here.           */
+/* Looking Back — four time horizons, each with its own three-slot content.  */
+/* No moving art, no dashboard metrics. Elegance through typography + words.  */
+/* Content is LIVE — loaded from the rollup cascade (see reflectionData.ts).  */
 /* ════════════════════════════════════════════════════════════════════════ */
 
-/**
- * The single tall landscape behind everything. One image, one moving camera —
- * never a crossfade. Swap the hi-res file here (one line) when it lands.
- * Intrinsic size is needed to compute the camera math (see cameraTransform).
- */
-const PAINTING = { url: paintingUrl, width: 1024, height: 4128 }
-
-/**
- * Four camera presets over the one image. `scale` zooms; `focus` is the
- * vertical fraction of the image that should sit at screen center
- * (0 = top / mountains + dawn, 1 = bottom / forest floor).
- *
- * The wide scale spread (≈2.7→1.05) is deliberate: moving toward "year" should
- * read as *zooming out to take in the view*, not just panning up. Tune freely —
- * especially how tightly "week" frames the forest floor.
- *
- * `type` maps the horizon to a server rollup. quarter has no rollup type yet,
- * and yearly isn't generated yet — both fall back to a graceful empty state.
- */
-type HorizonKey = 'week' | 'month' | 'quarter' | 'year'
-
-interface Horizon {
-  key: HorizonKey
+interface HorizonMeta {
+  key: Horizon
   label: string
-  type: RollupType | null
-  scale: number
-  focus: number
-  /** Veil opacity at this altitude — lightens slightly as you climb. */
-  veil: number
-  /** Small uppercase prefix; the real period is appended when data loads. */
   kicker: string
-  /** Editorial framing — the invitation. The grounded answer comes from data. */
   title: string
-  /** Shown when there's no rollup for this horizon yet. */
-  emptyHint: string
-  /** Used as the left-ruled line only when no verbatim quote is available. */
-  question: string
 }
 
-const HORIZONS: Horizon[] = [
-  {
-    key: 'week',
-    label: 'Week',
-    type: 'weekly',
-    kicker: 'this week',
-    scale: 2.7,
-    focus: 0.94,
-    veil: 0.8,
-    title: 'What’s still alive in you?',
-    emptyHint: 'Your first weekly reflection is still gathering — keep writing.',
-    question: 'What from this week do you want to carry into the next?',
-  },
-  {
-    key: 'month',
-    label: 'Month',
-    type: 'monthly',
-    kicker: 'last month',
-    scale: 2.0,
-    focus: 0.66,
-    veil: 0.78,
-    title: 'Here’s what changed in you.',
-    emptyHint: 'A month’s arc unlocks after a few weeks of writing.',
-    question: 'Where did you grow without noticing?',
-  },
-  {
-    key: 'quarter',
-    label: 'Quarter',
-    type: null,
-    kicker: 'this quarter',
-    scale: 1.45,
-    focus: 0.36,
-    veil: 0.74,
-    title: 'The arc you can’t see from inside a week.',
-    emptyHint: 'A season’s view composes as the months add up.',
-    question: 'If this quarter were a chapter, what would you title it?',
-  },
-  {
-    key: 'year',
-    label: 'Year',
-    type: 'yearly',
-    kicker: 'this year',
-    scale: 1.05,
-    focus: 0.07,
-    veil: 0.68,
-    title: 'Who you were a year ago — and who you are now.',
-    emptyHint: 'Your year-in-review composes as the months add up.',
-    question: 'What would the you of a year ago be surprised to find true today?',
-  },
+const HORIZONS: HorizonMeta[] = [
+  { key: 'week', label: 'Week', kicker: 'this week', title: 'The Sabbath stop.' },
+  { key: 'month', label: 'Month', kicker: 'last month', title: 'A letter to yourself.' },
+  { key: 'quarter', label: 'Quarter', kicker: 'this quarter', title: 'The arc you can’t see from inside a week.' },
+  { key: 'year', label: 'Year', kicker: 'this year', title: 'Who you were — and who you are now.' },
 ]
 
-/**
- * Camera move — slow and unhurried. Land between 2.4s and 4.6s once felt.
- * NB: a smooth, symmetric ease-in-out is what makes the move *read* as slow.
- * Front-loaded curves (e.g. a 2nd control point near x=0.15,y=1) finish ~all
- * the visible motion in the first ~20% of the duration, so the camera looks
- * fast no matter how long the duration is. Keep the easing even.
- */
-const CAMERA_DURATION_MS = 4200
-const CAMERA_EASING = 'cubic-bezier(.42, 0, .58, 1)'
+const ORDER: Horizon[] = ['week', 'month', 'quarter', 'year']
 
-/** Text crossfades on its own timing so it never smears mid-camera-move. */
-const TEXT_FADE_MS = 750
-
-/* ────────────────────────────────────────────────────────────────────────
- * Why text + veil colors are NOT theme tokens (a deliberate decision):
- * The painting is fixed warm-daylight art and is always bright. A warm
- * off-white veil over it reads best at every horizon, so the veil stays
- * parchment and the text stays warm ink regardless of the app theme — that
- * guarantees legibility over the art. (Per the build spec's allowance to make
- * this a deliberate, commented choice rather than letting text go invisible
- * on a dark theme.) These are CSS vars on .looking-back so they stay tunable.
- * ──────────────────────────────────────────────────────────────────────── */
-
-/* ════════════════════════════════════════════════════════════════════════ */
-/* Grounded content — derived from the server rollups (insights table).      */
-/* ════════════════════════════════════════════════════════════════════════ */
-
-interface FeaturedQuote {
-  entryId: string
-  date: string
-  text: string
+/** "still gathering" copy when a horizon has no rollup yet. */
+const EMPTY_HINT: Record<Horizon, string> = {
+  week: 'Your first weekly reflection is still gathering — keep writing.',
+  month: 'A month’s letter unlocks after a few weeks of writing.',
+  quarter: 'A season’s view composes as the months add up.',
+  year: 'Your year-in-review composes as the months add up.',
 }
 
-interface HorizonContent {
-  state: 'loading' | 'ready' | 'empty'
-  /** Real period label, e.g. "May 18 – 24" or "May 2026". Empty while loading. */
-  period: string
-  /** The grounded observation (humanized) or a facts sentence. */
-  body: string
-  /** One verbatim line in your own words, set off with the accent rule. */
-  quote: FeaturedQuote | null
-}
-
-function fmtDay(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
-}
-
-function periodLabel(rollup: Rollup): string {
-  const { type, period_start, period_end } = rollup
-  if (type === 'monthly') {
-    return new Date(`${period_start}T00:00:00Z`).toLocaleDateString(undefined, {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    })
-  }
-  if (type === 'yearly') {
-    return String(new Date(`${period_start}T00:00:00Z`).getUTCFullYear())
-  }
-  return `${fmtDay(period_start)} – ${fmtDay(period_end)}`
-}
-
-/** Readable cite map for observation prose when the server didn't supply one. */
-function fallbackLabels(quotes: RollupPayload['quotes']): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const q of quotes) {
-    out[q.entry_id] = `${deriveTitle(q.text) || 'Untitled'} (${fmtDay(q.date)})`
-  }
-  return out
-}
-
-/** When there's no AI observation, say something true from the numbers alone. */
-function factsSentence(f: RollupPayload['facts']): string {
-  const days = `${f.days_written} of ${f.days_in_period} ${f.days_in_period === 1 ? 'day' : 'days'}`
-  return `You showed up on ${days}, ${f.words.toLocaleString()} words in all — enough to leave a trace worth reading back.`
-}
-
-function deriveContent(rollup: Rollup | null | undefined): HorizonContent {
-  if (rollup === undefined) return { state: 'loading', period: '', body: '', quote: null }
-  if (rollup === null) return { state: 'empty', period: '', body: '', quote: null }
-
-  const p = rollup.payload
-  const labels = p.entry_labels ?? fallbackLabels(p.quotes)
-  const body = p.observation?.text.trim()
-    ? humanizeObservationText(p.observation.text, labels)
-    : factsSentence(p.facts)
-  const q = p.quotes[0]
-  return {
-    state: 'ready',
-    period: periodLabel(rollup),
-    body,
-    quote: q ? { entryId: q.entry_id, date: q.date, text: q.text } : null,
-  }
-}
+/** Gentle text crossfade on horizon change. Gated by prefers-reduced-motion. */
+const FADE_MS = 280
 
 interface Props {
-  /** Back to the writing surface — the one bit of chrome besides the pill. */
   onBack: () => void
-  /** Open one entry in the journal reader (from a verbatim quote). */
   onOpenEntry?: (entryId: string) => void
 }
 
-/**
- * Compute the image layer's transform for a given camera preset.
- *
- * The image is laid out at full container width, transform-origin center top,
- * so a point at vertical fraction `f` sits (before transform) at f·H from the
- * top, where H is the rendered (layout) height. Scaling about the top and then
- * translating gives screen_y = translateY + f·H·scale. We want the focus point
- * at screen center, so translateY = centerY − focus·H·scale.
- */
-function cameraTransform(h: Horizon, containerW: number, containerH: number): string {
-  const renderedHeight = containerW * (PAINTING.height / PAINTING.width)
-  const ideal = containerH / 2 - h.focus * renderedHeight * h.scale
-  // Coverage guard: never reveal past the image edges (e.g. a flat gap above
-  // the dawn at "year" on wide viewports). Clamp keeps the painting filling the
-  // screen; within the normal range the specced focus math is untouched.
-  const scaledHeight = renderedHeight * h.scale
-  const translateY = Math.min(0, Math.max(containerH - scaledHeight, ideal))
-  return `translateY(${translateY}px) scale(${h.scale})`
-}
+/** undefined = still loading; null = no rollup yet; else the live reflection. */
+type Loaded = Reflection | null | undefined
 
 export function LookingBack({ onBack, onOpenEntry }: Props) {
   const isMobile = useIsMobile()
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState({ w: 0, h: 0 })
-  // The first camera position must apply instantly; only later horizon changes
-  // tween. Without this the image animates from its un-transformed top (clouds)
-  // down to the opening preset on every mount — an unwanted intro fly-in.
-  const [cameraReady, setCameraReady] = useState(false)
-
-  // Latest rollup per type (undefined = still loading, null = none exists).
-  const [rollups, setRollups] = useState<Record<RollupType, Rollup | null | undefined>>({
-    weekly: undefined,
-    monthly: undefined,
-    yearly: undefined,
+  const [data, setData] = useState<Record<Horizon, Loaded>>({
+    week: undefined,
+    month: undefined,
+    quarter: undefined,
+    year: undefined,
   })
 
-  // Active horizon = where the camera is headed. `shown` lags it so the text
-  // can fade out, swap, and fade back in without smearing mid-move.
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [shownIndex, setShownIndex] = useState(0)
-  const [textVisible, setTextVisible] = useState(true)
+  // The user's local edits, applied over whatever the job produced.
+  const [markOverrides, setMarkOverrides] = useState<Record<string, EbenezerMark>>({})
+  const [winEdits, setWinEdits] = useState<Record<string, string>>({})
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set())
 
-  // Pull the grounded rollups. Each resolves independently; a missing table or
-  // an ungenerated type just leaves that horizon in its empty state.
+  // Load each horizon independently; a failure/empty leaves that one in its
+  // "still gathering" state without blocking the others.
   useEffect(() => {
     let cancelled = false
-    const load = (type: RollupType) =>
-      listRollups(type)
-        .then((list) => {
-          if (!cancelled) setRollups((prev) => ({ ...prev, [type]: list[0] ?? null }))
+    for (const h of ORDER) {
+      loadReflection(h)
+        .then((r) => {
+          if (!cancelled) setData((prev) => ({ ...prev, [h]: r }))
         })
         .catch(() => {
-          if (!cancelled) setRollups((prev) => ({ ...prev, [type]: null }))
+          if (!cancelled) setData((prev) => ({ ...prev, [h]: null }))
         })
-    void load('weekly')
-    void load('monthly')
-    void load('yearly')
+    }
     return () => {
       cancelled = true
     }
   }, [])
 
-  // Measure the container so the camera math has real pixels to work with.
-  useLayoutEffect(() => {
-    const el = rootRef.current
-    if (!el) return
-    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight })
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  function markStone(id: string, next: EbenezerMark, fallback: EbenezerMark) {
+    const current = markOverrides[id] ?? fallback
+    const value = current === next ? 'unmarked' : next
+    setMarkOverrides((prev) => ({ ...prev, [id]: value }))
+    recordEbenezerMark(id, value)
+  }
+  function dismissQuestion(id: string) {
+    setDismissed((prev) => new Set(prev).add(id))
+  }
+  function editWin(id: string, text: string) {
+    setWinEdits((prev) => ({ ...prev, [id]: text }))
+    recordWin(id, text)
+  }
 
-  // Enable camera transitions only after the opening preset has painted once.
-  useEffect(() => {
-    if (size.w === 0 || cameraReady) return
-    const id = requestAnimationFrame(() => setCameraReady(true))
-    return () => cancelAnimationFrame(id)
-  }, [size.w, cameraReady])
+  const ctx: ViewCtx = {
+    onOpenEntry,
+    markFor: (s) => markOverrides[s.id] ?? s.mark,
+    markStone,
+    dismissed,
+    dismissQuestion,
+    winValue: (w) => ({
+      text: winEdits[w.id] ?? w.text,
+      suggested: w.suggested && !(w.id in winEdits),
+    }),
+    editWin,
+  }
 
-  // Crossfade the text when the horizon changes (instant swap if reduced motion).
+  // Active horizon + a light crossfade when it changes.
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [shownIndex, setShownIndex] = useState(0)
+  const [visible, setVisible] = useState(true)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (activeIndex === shownIndex) return
     if (reduceMotion) {
       setShownIndex(activeIndex)
+      scrollRef.current?.scrollTo({ top: 0 })
       return
     }
-    setTextVisible(false)
+    setVisible(false)
     const t = setTimeout(() => {
       setShownIndex(activeIndex)
-      setTextVisible(true)
-    }, TEXT_FADE_MS)
+      scrollRef.current?.scrollTo({ top: 0 })
+      setVisible(true)
+    }, FADE_MS)
     return () => clearTimeout(t)
   }, [activeIndex, shownIndex, reduceMotion])
 
-  const active = HORIZONS[activeIndex]!
-  const shown = HORIZONS[shownIndex]!
-  const content = deriveContent(shown.type ? rollups[shown.type] : null)
-
-  const transform = size.w > 0 ? cameraTransform(active, size.w, size.h) : undefined
+  const meta = HORIZONS[shownIndex]!
+  const loaded = data[meta.key]
 
   return (
-    <div className="looking-back" ref={rootRef} data-horizon={active.key}>
-      {/* Camera layer — one image, animated transform only (slide + zoom-out). */}
-      <div
-        className="looking-back__sky"
-        aria-hidden
-        style={{
-          backgroundImage: `url(${PAINTING.url})`,
-          transform,
-          transition:
-            reduceMotion || !cameraReady
-              ? 'none'
-              : `transform ${CAMERA_DURATION_MS}ms ${CAMERA_EASING}`,
-        }}
-      />
+    <div className="looking-back" data-horizon={meta.key}>
+      <div className="looking-back__bg" aria-hidden />
 
-      {/* Warm veil for legibility — opacity lightens as altitude increases. */}
-      <div
-        className="looking-back__veil"
-        aria-hidden
-        style={{
-          opacity: active.veil,
-          transition:
-            reduceMotion || !cameraReady
-              ? 'none'
-              : `opacity ${CAMERA_DURATION_MS}ms ${CAMERA_EASING}`,
-        }}
-      />
-
-      {/* The only persistent chrome: a back affordance + the horizon pill. */}
       <button className="looking-back__back" onClick={onBack} aria-label="Back to writing">
         ←
       </button>
@@ -354,51 +166,323 @@ export function LookingBack({ onBack, onOpenEntry }: Props) {
         ))}
       </nav>
 
-      {/* Free-floating serif text — no cards, no boxes. Crossfades on its own. */}
-      <div className={`looking-back__stage${isMobile ? ' is-mobile' : ''}`}>
+      <div className="looking-back__scroll" ref={scrollRef}>
         <article
-          className={`looking-back__text${textVisible ? ' is-visible' : ''}`}
-          style={{ transition: reduceMotion ? 'none' : `opacity ${TEXT_FADE_MS}ms ease` }}
+          className={`looking-back__content${isMobile ? ' is-mobile' : ''}${visible ? ' is-visible' : ''}`}
+          style={{ transition: reduceMotion ? 'none' : `opacity ${FADE_MS}ms ease` }}
         >
           <p className="looking-back__kicker">
-            {content.period ? `${shown.kicker} · ${content.period}` : shown.kicker}
+            {meta.kicker}
+            {loaded ? ` · ${loaded.periodLabel}` : ''}
           </p>
-          <h1 className="looking-back__title">{shown.title}</h1>
+          <h1 className="looking-back__title">{meta.title}</h1>
 
-          {content.state === 'loading' && (
-            <p className="looking-back__body looking-back__body--muted">Gathering your reflection…</p>
+          {loaded === undefined && (
+            <p className="looking-back__hint">Gathering your reflection…</p>
           )}
-
-          {content.state === 'empty' && (
-            <p className="looking-back__body looking-back__body--muted">{shown.emptyHint}</p>
-          )}
-
-          {content.state === 'ready' && (
-            <>
-              <p className="looking-back__body">{content.body}</p>
-              {content.quote ? (
-                <blockquote className="looking-back__quote">
-                  <p className="looking-back__quote-text">“{content.quote.text}”</p>
-                  <footer className="looking-back__quote-meta">
-                    {fmtDay(content.quote.date)}
-                    {onOpenEntry && (
-                      <button
-                        type="button"
-                        className="looking-back__quote-open"
-                        onClick={() => onOpenEntry(content.quote!.entryId)}
-                      >
-                        → open entry
-                      </button>
-                    )}
-                  </footer>
-                </blockquote>
-              ) : (
-                <p className="looking-back__question">{shown.question}</p>
-              )}
-            </>
-          )}
+          {loaded === null && <p className="looking-back__hint">{EMPTY_HINT[meta.key]}</p>}
+          {loaded && <HorizonView reflection={loaded} ctx={ctx} />}
         </article>
       </div>
     </div>
+  )
+}
+
+/* ── Shared view context + small building blocks ─────────────────────────── */
+
+interface ViewCtx {
+  onOpenEntry?: ((entryId: string) => void) | undefined
+  markFor: (stone: EbenezerStone) => EbenezerMark
+  markStone: (id: string, mark: EbenezerMark, fallback: EbenezerMark) => void
+  dismissed: Set<string>
+  dismissQuestion: (id: string) => void
+  winValue: (win: Win) => { text: string; suggested: boolean }
+  editWin: (id: string, text: string) => void
+}
+
+function Section({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="looking-back__section">
+      <h2 className="looking-back__label">{label}</h2>
+      {children}
+    </section>
+  )
+}
+
+function ProseBlock({ prose }: { prose: Prose }) {
+  if (prose.paragraphs.length === 0) {
+    return <p className="looking-back__hint">Still composing this — it fills in as you write.</p>
+  }
+  return (
+    <>
+      {prose.paragraphs.map((p, i) => (
+        <p key={i} className="looking-back__prose">
+          {p}
+        </p>
+      ))}
+    </>
+  )
+}
+
+function fmtDay(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+/** The hero unit — the user's own words, tappable to open the source entry. */
+function ExcerptLine({ excerpt, onOpen }: { excerpt: Excerpt; onOpen?: ((id: string) => void) | undefined }) {
+  return (
+    <blockquote className="looking-back__excerpt">
+      <p className="looking-back__excerpt-text">“{excerpt.text}”</p>
+      <footer className="looking-back__excerpt-meta">
+        {fmtDay(excerpt.date)}
+        {onOpen && (
+          <button className="looking-back__open" onClick={() => onOpen(excerpt.entryId)}>
+            → open entry
+          </button>
+        )}
+      </footer>
+    </blockquote>
+  )
+}
+
+function Questions({ questions, ctx }: { questions: Question[]; ctx: ViewCtx }) {
+  const live = questions.filter((q) => !ctx.dismissed.has(q.id))
+  if (live.length === 0) return null
+  return (
+    <div className="looking-back__questions">
+      {live.map((q) => (
+        <div key={q.id} className="looking-back__question">
+          <p className="looking-back__question-text">{q.text}</p>
+          <button
+            className="looking-back__question-dismiss"
+            onClick={() => ctx.dismissQuestion(q.id)}
+            aria-label="Dismiss this prompt"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const MARKS: { value: EbenezerMark; label: string }[] = [
+  { value: 'answered', label: 'Answered' },
+  { value: 'not_yet', label: 'Not yet' },
+  { value: 'no', label: 'No' },
+]
+
+/** Two stones side by side; the user — not the AI — decides if it's an Ebenezer. */
+function Stone({ stone, ctx }: { stone: EbenezerStone; ctx: ViewCtx }) {
+  const mark = ctx.markFor(stone)
+  return (
+    <div className={`looking-back__stone-pair is-${mark}`}>
+      <div className="looking-back__stone">
+        <span className="looking-back__stone-when">{fmtDay(stone.ask.date)} · you asked</span>
+        <button className="looking-back__stone-text" onClick={() => ctx.onOpenEntry?.(stone.ask.entryId)}>
+          “{stone.ask.text}”
+        </button>
+      </div>
+      <div className="looking-back__stone">
+        <span className="looking-back__stone-when">{fmtDay(stone.later.date)} · later</span>
+        <button className="looking-back__stone-text" onClick={() => ctx.onOpenEntry?.(stone.later.entryId)}>
+          “{stone.later.text}”
+        </button>
+      </div>
+      <div className="looking-back__marks" role="group" aria-label="Mark this pairing">
+        {MARKS.map((m) => (
+          <button
+            key={m.value}
+            className={`looking-back__mark${mark === m.value ? ' is-on' : ''}`}
+            aria-pressed={mark === m.value}
+            onClick={() => ctx.markStone(stone.id, m.value, stone.mark)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ── Per-horizon views ───────────────────────────────────────────────────── */
+
+function HorizonView({ reflection, ctx }: { reflection: Reflection; ctx: ViewCtx }) {
+  switch (reflection.horizon) {
+    case 'week':
+      return <WeeklyView r={reflection} ctx={ctx} />
+    case 'month':
+      return <MonthlyView r={reflection} ctx={ctx} />
+    case 'quarter':
+      return <QuarterlyView r={reflection} ctx={ctx} />
+    case 'year':
+      return <YearlyView r={reflection} ctx={ctx} />
+  }
+}
+
+function WeeklyView({ r, ctx }: { r: WeeklyReflection; ctx: ViewCtx }) {
+  const hasWins = r.wins.thisWeek.length > 0 || r.wins.nextWeek.length > 0
+  return (
+    <>
+      <Section label="Where the week landed">
+        <ProseBlock prose={r.synthesis} />
+        {r.citations.map((c, i) => (
+          <ExcerptLine key={`${c.entryId}-${i}`} excerpt={c} onOpen={ctx.onOpenEntry} />
+        ))}
+      </Section>
+
+      {hasWins && (
+        <Section label="Wins — yours to keep or rewrite">
+          <div className="looking-back__wins">
+            <WinColumn heading="3 wins this week" wins={r.wins.thisWeek} ctx={ctx} />
+            <WinColumn heading="3 wins I want next week" wins={r.wins.nextWeek} ctx={ctx} />
+          </div>
+        </Section>
+      )}
+
+      {r.jumpstart.length > 0 && (
+        <Section label="A weekly jumpstart">
+          <Questions questions={r.jumpstart} ctx={ctx} />
+        </Section>
+      )}
+    </>
+  )
+}
+
+function WinColumn({ heading, wins, ctx }: { heading: string; wins: Win[]; ctx: ViewCtx }) {
+  return (
+    <div className="looking-back__win-col">
+      <p className="looking-back__win-head">{heading}</p>
+      {wins.map((w) => (
+        <WinInput key={w.id} win={w} ctx={ctx} />
+      ))}
+    </div>
+  )
+}
+
+/** Inline-editable win — an auto-growing textarea so long wins wrap, not clip. */
+function WinInput({ win, ctx }: { win: Win; ctx: ViewCtx }) {
+  const { text, suggested } = ctx.winValue(win)
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [text])
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className={`looking-back__win${suggested ? ' is-suggested' : ''}`}
+      value={text}
+      onChange={(e) => ctx.editWin(win.id, e.target.value)}
+      spellCheck={false}
+    />
+  )
+}
+
+function MonthlyView({ r, ctx }: { r: MonthlyReflection; ctx: ViewCtx }) {
+  return (
+    <>
+      <Section label="The letter">
+        <div className="looking-back__letter">
+          <ProseBlock prose={r.letter} />
+        </div>
+      </Section>
+
+      <Section label="What you gained">
+        <ProseBlock prose={r.gain} />
+        {r.gainEvidence.map((c, i) => (
+          <ExcerptLine key={`${c.entryId}-${i}`} excerpt={c} onOpen={ctx.onOpenEntry} />
+        ))}
+        {r.gapWatch && <p className="looking-back__aside">{r.gapWatch}</p>}
+      </Section>
+
+      <Section label="What kept recurring">
+        <ProseBlock prose={r.themes} />
+      </Section>
+    </>
+  )
+}
+
+function QuarterlyView({ r, ctx }: { r: QuarterlyReflection; ctx: ViewCtx }) {
+  return (
+    <>
+      <Section label="From the retreat distance">
+        <ProseBlock prose={r.synthesis} />
+      </Section>
+
+      <Section label="The Ebenezer thread">
+        {r.ebenezer.length > 0 ? (
+          <>
+            <p className="looking-back__hint">
+              Two moments, set side by side. Only you can say whether it’s a stone worth raising.
+            </p>
+            <div className="looking-back__ebenezer">
+              {r.ebenezer.map((s) => (
+                <Stone key={s.id} stone={s} ctx={ctx} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="looking-back__hint">
+            No clear pairings yet — when an earlier prayer and a later answer line up, they’ll
+            surface here for you to weigh.
+          </p>
+        )}
+      </Section>
+
+      {r.jumpstart.length > 0 && (
+        <Section label="A retreat jumpstart">
+          <Questions questions={r.jumpstart} ctx={ctx} />
+        </Section>
+      )}
+    </>
+  )
+}
+
+function YearlyView({ r, ctx }: { r: YearlyReflection; ctx: ViewCtx }) {
+  const answered = r.stones.filter((s) => ctx.markFor(s) === 'answered')
+  return (
+    <>
+      <Section label="The throughline">
+        <div className="looking-back__letter">
+          <ProseBlock prose={r.throughline} />
+        </div>
+      </Section>
+
+      <Section label="Stones in a row">
+        {answered.length > 0 ? (
+          <div className="looking-back__stones-row">
+            {answered.map((s) => (
+              <button
+                key={s.id}
+                className="looking-back__stone-chip"
+                onClick={() => ctx.onOpenEntry?.(s.ask.entryId)}
+              >
+                <span className="looking-back__stone-chip-text">“{s.ask.text}”</span>
+                <span className="looking-back__stone-chip-when">
+                  {new Date(`${s.ask.date}T00:00:00Z`).getUTCFullYear()}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="looking-back__hint">
+            The stones you mark “answered” across the quarters gather here — a year of evidence in
+            your own handwriting.
+          </p>
+        )}
+      </Section>
+
+      <Section label="The year’s themes">
+        <ProseBlock prose={r.themes} />
+      </Section>
+    </>
   )
 }

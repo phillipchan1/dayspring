@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { env, isSupabaseConfigured } from './env'
+import { authStorage } from './authStorage'
 
 /** True when the URL is an OAuth / magic-link callback (not a normal app launch). */
 function hasAuthCallbackInUrl(): boolean {
@@ -22,6 +23,10 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         // Only parse the URL on OAuth return — avoids touching storage on cold start.
         detectSessionInUrl: hasAuthCallbackInUrl(),
         flowType: 'pkce',
+        // Desktop: persist to the origin-independent Tauri store so the session
+        // survives the OAuth origin switch + app restarts. undefined on web →
+        // Supabase keeps its default localStorage.
+        ...(authStorage ? { storage: authStorage } : {}),
       },
     })
   : null
