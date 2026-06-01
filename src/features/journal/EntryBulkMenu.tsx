@@ -51,6 +51,7 @@ function MenuSep() {
 
 export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const deleteBtnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
   const open = phase.kind !== 'closed'
 
@@ -66,10 +67,18 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
       onClose()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      e.stopPropagation()
-      onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+        return
+      }
+      if (phase.kind === 'confirm' && e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+        onAction('delete', phase.entries)
+        onClose()
+      }
     }
     const id = window.requestAnimationFrame(() => {
       document.addEventListener('pointerdown', onPointerDown, true)
@@ -80,9 +89,13 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
       document.removeEventListener('pointerdown', onPointerDown, true)
       window.removeEventListener('keydown', onKey, true)
     }
-  }, [open, phase.kind, onClose])
+  }, [open, phase, onClose, onAction])
 
   useLayoutEffect(() => {
+    if (phase.kind === 'confirm') {
+      deleteBtnRef.current?.focus()
+      return
+    }
     if (phase.kind !== 'menu' || !menuRef.current) return
     const pad = 8
     const rect = menuRef.current.getBoundingClientRect()
@@ -122,6 +135,7 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
               Cancel
             </button>
             <button
+              ref={deleteBtnRef}
               type="button"
               className="btn btn--danger"
               onClick={() => {

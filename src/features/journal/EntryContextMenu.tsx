@@ -59,6 +59,7 @@ function MenuSep() {
 /** Portaled entry context menu with backdrop dismiss (desktop-grade). */
 export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const deleteBtnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
 
   const open = phase.kind !== 'closed'
@@ -78,10 +79,18 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
     }
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      e.stopPropagation()
-      onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+        return
+      }
+      if (phase.kind === 'confirm' && e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+        onAction('delete', phase.entry)
+        onClose()
+      }
     }
 
     const onScroll = () => onClose()
@@ -98,9 +107,13 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('scroll', onScroll, true)
     }
-  }, [open, phase.kind, onClose])
+  }, [open, phase, onClose, onAction])
 
   useLayoutEffect(() => {
+    if (phase.kind === 'confirm') {
+      deleteBtnRef.current?.focus()
+      return
+    }
     if (phase.kind !== 'menu' || !menuRef.current) return
     const pad = 8
     const rect = menuRef.current.getBoundingClientRect()
@@ -143,6 +156,7 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
               Cancel
             </button>
             <button
+              ref={deleteBtnRef}
               type="button"
               className="btn btn--danger"
               onClick={() => {

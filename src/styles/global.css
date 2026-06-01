@@ -781,6 +781,29 @@ a {
 .rail[data-labels='true'] {
   --rail-width: 9.75rem;
 }
+/* Icon-only: one centered column — no stretch, no hidden label flex bleed */
+.rail[data-labels='false'] {
+  align-items: center;
+  padding-inline: 0;
+}
+.rail[data-labels='false'] .rail__nav,
+.rail[data-labels='false'] .rail__actions,
+.rail[data-labels='false'] .rail__destinations,
+.rail[data-labels='false'] .rail__footer {
+  width: var(--rail-slot);
+  align-items: center;
+}
+.rail[data-labels='false'] .rail-btn,
+.rail[data-labels='false'] .rail__brand.rail-btn,
+.rail[data-labels='false'] .rail-toggle {
+  width: var(--rail-slot);
+  padding: 0;
+  justify-content: center;
+}
+.rail[data-labels='false'] .rail__rule {
+  width: 1.35rem;
+  margin-inline: auto;
+}
 .rail__glow {
   position: absolute;
   top: -15%;
@@ -803,18 +826,21 @@ a {
   pointer-events: none;
   cursor: default;
 }
+.rail__brand--lockup {
+  margin-bottom: 0.35rem;
+}
+.rail__brand--lockup .rail-btn__label {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-bright);
+}
 .rail__brand.rail-btn:hover,
 .rail__brand.rail-btn:active {
   color: var(--text-dim);
   background: transparent;
   transform: none;
-}
-.rail__brand .rail-btn__label {
-  font-family: var(--font-display);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-bright);
 }
 .rail__mark {
   display: block;
@@ -904,10 +930,7 @@ a {
   letter-spacing: -0.01em;
   text-align: left;
   white-space: nowrap;
-  opacity: 0;
-  max-width: 0;
   overflow: hidden;
-  pointer-events: none;
   transition:
     opacity 0.16s ease 0.04s,
     max-width 0.22s ease;
@@ -915,6 +938,10 @@ a {
 .rail[data-labels='true'] .rail-btn__label {
   opacity: 1;
   max-width: 6.5rem;
+}
+.rail:not([data-labels='true']) .rail-btn__label,
+.rail:not([data-labels='true']) .rail-toggle__label {
+  display: none;
 }
 .rail-toggle {
   display: flex;
@@ -953,8 +980,6 @@ a {
   font-weight: 400;
   letter-spacing: 0;
   white-space: nowrap;
-  opacity: 0;
-  max-width: 0;
   overflow: hidden;
   transition:
     opacity 0.16s ease 0.04s,
@@ -969,10 +994,6 @@ a {
 }
 .rail:not([data-labels='true']) .rail-toggle {
   padding-inline: 0;
-}
-.rail:not([data-labels='true']) .rail-toggle__well {
-  width: var(--rail-slot);
-  margin: 0 auto;
 }
 .rail-btn:focus {
   outline: none;

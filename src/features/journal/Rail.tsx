@@ -33,6 +33,9 @@ export function Rail({
   onToggleLabels,
   nativeTopInset,
 }: RailProps) {
+  const showBrandLockup = labelsExpanded && !entriesOpen
+  const showBrand = !labelsExpanded || showBrandLockup
+
   return (
     <nav
       className="rail"
@@ -40,14 +43,17 @@ export function Rail({
       style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}
     >
       <div className="rail__glow" aria-hidden />
-      <div className="rail__brand rail-btn rail-btn--brand" aria-hidden={!labelsExpanded}>
-        <span className="rail-btn__well">
-          <Mark size={20} className="rail__mark" />
-        </span>
-        {labelsExpanded && !entriesOpen ? (
-          <span className="rail-btn__label">Dayspring</span>
-        ) : null}
-      </div>
+      {showBrand ? (
+        <div
+          className={`rail__brand rail-btn rail-btn--brand${showBrandLockup ? ' rail__brand--lockup' : ''}`}
+          aria-hidden={!labelsExpanded}
+        >
+          <span className="rail-btn__well">
+            <Mark size={20} className="rail__mark" />
+          </span>
+          {showBrandLockup ? <span className="rail-btn__label">Dayspring</span> : null}
+        </div>
+      ) : null}
       <div className="rail__nav">
         <div className="rail__actions">
           <RailButton
@@ -105,9 +111,11 @@ export function Rail({
           <span className="rail__icon-slot rail-toggle__well" aria-hidden>
             <IconRailExpand expanded={labelsExpanded} />
           </span>
-          <span className="rail-toggle__label">
-            {labelsExpanded ? 'Icons only' : 'Show names'}
-          </span>
+          {labelsExpanded ? (
+            <span className="rail-toggle__label">
+              {labelsExpanded ? 'Icons only' : 'Show names'}
+            </span>
+          ) : null}
         </button>
       </div>
     </nav>
@@ -142,9 +150,7 @@ function RailButton({
       onClick={onClick}
     >
       <span className="rail-btn__well">{icon}</span>
-      <span className="rail-btn__label" aria-hidden={!labelsExpanded}>
-        {label}
-      </span>
+      {labelsExpanded ? <span className="rail-btn__label">{label}</span> : null}
     </button>
   )
 }
