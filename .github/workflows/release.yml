@@ -96,6 +96,11 @@ jobs:
           PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
+          # Stable-named copy of the .dmg so the marketing site can always link to
+          # releases/latest/download/Dayspring-aarch64.dmg (no version in the URL).
+          STABLE_DMG="Dayspring-aarch64.dmg"
+          cp "$DMG" "$STABLE_DMG"
+
           # Updater manifest the app polls. Tauri verifies `signature` against the
           # embedded public key before installing.
           jq -n \
@@ -114,4 +119,4 @@ jobs:
             --title "Dayspring v${APP_VERSION}" \
             --notes "Automated build from ${{ github.sha }}. Installed apps auto-update to this version." \
             --latest \
-            "$DMG" "$APPTAR" latest.json
+            "$DMG" "$STABLE_DMG" "$APPTAR" latest.json
