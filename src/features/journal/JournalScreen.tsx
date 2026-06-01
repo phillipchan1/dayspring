@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Editor } from '@/editor/Editor'
+import { Editor, type EditorHandle } from '@/editor/Editor'
+import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -27,6 +28,9 @@ import type { EntryMenuAction } from './EntryContextMenu'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
 import { LookingBack } from '@/features/reflections/LookingBack'
+import { ScriptureModal } from '@/features/reflect/ScriptureModal'
+import { PrayModal } from '@/features/reflect/PrayModal'
+import { SenseModal } from '@/features/reflect/SenseModal'
 
 interface JournalScreenProps {
   userEmail: string
@@ -64,6 +68,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const entryIdRef = useRef<string | null>(null)
   entryIdRef.current = entryId
+
+  // Slash command modals
+  const editorRef = useRef<EditorHandle>(null)
+  const [slashModal, setSlashModal] = useState<{
+    cmd: SlashCommandId
+    insertAt: number
+  } | null>(null)
+
+  function handleSlashCommand(cmd: SlashCommandId, insertAt: number) {
+    setSlashModal({ cmd, insertAt })
+  }
 
   // Cache-first load: show local entries instantly, then sync from the server.
   useEffect(() => {
@@ -342,6 +357,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
   ) : (
     <Editor
+      ref={editorRef}
       docKey={docKey}
       initialDoc={content}
       onChange={setContent}
@@ -349,6 +365,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       autofocus
       typewriter={focus.active && settings.typewriter}
       dimming={focus.active && settings.dimming}
+      slashEnabled
+      onSlashCommand={handleSlashCommand}
     />
   )
 
@@ -405,6 +423,31 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   return (
     <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
+
+      {slashModal?.cmd === 'scripture' && (
+        <ScriptureModal
+          entryId={entryId}
+          entryContent={content}
+          onInsert={(text) => {
+            editorRef.current?.insertAt(slashModal.insertAt, text)
+          }}
+          onClose={() => setSlashModal(null)}
+        />
+      )}
+      {slashModal?.cmd === 'pray' && (
+        <PrayModal
+          entryId={entryId}
+          entryContent={content}
+          onClose={() => setSlashModal(null)}
+        />
+      )}
+      {slashModal?.cmd === 'sense' && (
+        <SenseModal
+          entryId={entryId}
+          onClose={() => setSlashModal(null)}
+        />
+      )}
+
       {settingsOpen && state.settings && (
         <SettingsPanel
           settings={settings}

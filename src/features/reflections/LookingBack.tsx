@@ -17,6 +17,8 @@ import {
   type Win,
   type YearlyReflection,
 } from './reflectionData'
+import { ReflectView } from '@/features/reflect/ReflectView'
+import '@/features/reflect/Reflect.css'
 
 /* ════════════════════════════════════════════════════════════════════════ */
 /* Looking Back — four time horizons, each with its own three-slot content.  */
@@ -121,6 +123,9 @@ export function LookingBack({ onOpenEntry, embedded = false }: Props) {
     editWin,
   }
 
+  // Top-level section: Looking Back or Reflect (Prayer / Words).
+  const [section, setSection] = useState<'lookback' | 'reflect'>('lookback')
+
   // Active horizon + a light crossfade when it changes.
   const [activeIndex, setActiveIndex] = useState(0)
   const [shownIndex, setShownIndex] = useState(0)
@@ -153,37 +158,61 @@ export function LookingBack({ onOpenEntry, embedded = false }: Props) {
     >
       <div className="looking-back__bg" aria-hidden />
 
-      <nav className="looking-back__pill" aria-label="Reflection horizon">
-        {HORIZONS.map((h, i) => (
-          <button
-            key={h.key}
-            className={`looking-back__seg${i === activeIndex ? ' is-active' : ''}`}
-            aria-pressed={i === activeIndex}
-            onClick={() => setActiveIndex(i)}
-          >
-            {h.label}
-          </button>
-        ))}
+      {/* Top-level section switcher: Looking Back ↔ Reflect */}
+      <nav className="lookback-section-tabs" aria-label="Journal sections">
+        <button
+          className="lookback-section-tab"
+          data-active={section === 'lookback' ? 'true' : undefined}
+          onClick={() => setSection('lookback')}
+        >
+          Looking Back
+        </button>
+        <button
+          className="lookback-section-tab"
+          data-active={section === 'reflect' ? 'true' : undefined}
+          onClick={() => setSection('reflect')}
+        >
+          Reflect
+        </button>
       </nav>
 
-      <div className="looking-back__scroll" ref={scrollRef}>
-        <article
-          className={`looking-back__content${isMobile ? ' is-mobile' : ''}${visible ? ' is-visible' : ''}`}
-          style={{ transition: reduceMotion ? 'none' : `opacity ${FADE_MS}ms ease` }}
-        >
-          <p className="looking-back__kicker">
-            {meta.kicker}
-            {loaded ? ` · ${loaded.periodLabel}` : ''}
-          </p>
-          <h1 className="looking-back__title">{meta.title}</h1>
+      {section === 'reflect' ? (
+        <ReflectView />
+      ) : (
+        <>
+          <nav className="looking-back__pill" aria-label="Reflection horizon">
+            {HORIZONS.map((h, i) => (
+              <button
+                key={h.key}
+                className={`looking-back__seg${i === activeIndex ? ' is-active' : ''}`}
+                aria-pressed={i === activeIndex}
+                onClick={() => setActiveIndex(i)}
+              >
+                {h.label}
+              </button>
+            ))}
+          </nav>
 
-          {loaded === undefined && (
-            <p className="looking-back__hint">Gathering your reflection…</p>
-          )}
-          {loaded === null && <p className="looking-back__hint">{EMPTY_HINT[meta.key]}</p>}
-          {loaded && <HorizonView reflection={loaded} ctx={ctx} />}
-        </article>
-      </div>
+          <div className="looking-back__scroll" ref={scrollRef}>
+            <article
+              className={`looking-back__content${isMobile ? ' is-mobile' : ''}${visible ? ' is-visible' : ''}`}
+              style={{ transition: reduceMotion ? 'none' : `opacity ${FADE_MS}ms ease` }}
+            >
+              <p className="looking-back__kicker">
+                {meta.kicker}
+                {loaded ? ` · ${loaded.periodLabel}` : ''}
+              </p>
+              <h1 className="looking-back__title">{meta.title}</h1>
+
+              {loaded === undefined && (
+                <p className="looking-back__hint">Gathering your reflection…</p>
+              )}
+              {loaded === null && <p className="looking-back__hint">{EMPTY_HINT[meta.key]}</p>}
+              {loaded && <HorizonView reflection={loaded} ctx={ctx} />}
+            </article>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as cmPlaceholder, drawSelection } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -11,6 +11,14 @@ import { dimmingExtension } from './dimming'
 import { firstLineTitleExtension } from './firstLineTitle'
 import { formatKeymap } from './formatKeymap'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
+import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
+import { SlashPalette } from './SlashPalette'
+
+export interface EditorHandle {
+  /** Insert text at the given document position (e.g. after removing a /command). */
+  insertAt: (pos: number, text: string) => void
+  focus: () => void
+}
 
 interface EditorProps {
   /** Initial document. Re-seeded only when `docKey` changes (i.e. a different entry). */
@@ -22,6 +30,10 @@ interface EditorProps {
   autofocus?: boolean
   typewriter?: boolean
   dimming?: boolean
+  slashEnabled?: boolean
+  /** Called when the user confirms a slash command; carries the doc position where
+   *  the /command text began so the caller knows where to insert a response. */
+  onSlashCommand?: (cmd: SlashCommandId, insertAt: number) => void
 }
 
 /**
@@ -32,24 +44,44 @@ interface EditorProps {
  * `docKey` changes (loading another entry), preserving the caret otherwise.
  * Typewriter / dimming live in compartments so they toggle without rebuilding.
  */
-export function Editor({
-  initialDoc,
-  docKey,
-  onChange,
-  placeholder,
-  autofocus,
-  typewriter = false,
-  dimming = false,
-}: EditorProps) {
+export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
+  {
+    initialDoc,
+    docKey,
+    onChange,
+    placeholder,
+    autofocus,
+    typewriter = false,
+    dimming = false,
+    slashEnabled = false,
+    onSlashCommand,
+  },
+  ref,
+) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
   const typewriterCompartment = useRef(new Compartment())
   const dimCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
+  const slashEnabledRef = useRef(slashEnabled)
   const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
+  const [slashState, setSlashState] = useState<SlashState | null>(null)
+  const setSlashRef = useRef(setSlashState)
   onChangeRef.current = onChange
   setFormatBarRef.current = setFormatBar
+  slashEnabledRef.current = slashEnabled
+  setSlashRef.current = setSlashState
+
+  useImperativeHandle(ref, () => ({
+    insertAt: (pos: number, text: string) => {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({ changes: { from: pos, to: pos, insert: text } })
+      view.focus()
+    },
+    focus: () => viewRef.current?.focus(),
+  }))
 
   const syncFormatBar = useCallback((view: EditorView) => {
     if (view.state.selection.main.empty) {
@@ -83,6 +115,9 @@ export function Editor({
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onChangeRef.current(u.state.doc.toString())
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
+            if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
+              setSlashRef.current(detectSlash(u.view))
+            }
           }),
         ],
       }),
@@ -98,6 +133,7 @@ export function Editor({
       view.destroy()
       viewRef.current = null
       setFormatBarRef.current(null)
+      setSlashRef.current(null)
     }
     // Intentionally run once; doc swaps + compartments handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,13 +163,34 @@ export function Editor({
     reconfigure(viewRef.current, dimCompartment.current, dimming ? dimmingExtension : [])
   }, [dimming])
 
+  function handleSlashSelect(cmd: SlashCommandId) {
+    const view = viewRef.current
+    const s = slashState
+    if (!view || !s) return
+    // Remove the /command text from the document.
+    view.dispatch({ changes: { from: s.from, to: s.to, insert: '' } })
+    setSlashState(null)
+    onSlashCommand?.(cmd, s.from)
+  }
+
+  function handleSlashDismiss() {
+    setSlashState(null)
+  }
+
   return (
     <>
       <div ref={hostRef} className="editor-host" style={{ height: '100%' }} />
       <SelectionFormatBar anchor={formatBar} />
+      {slashState && slashEnabled && (
+        <SlashPalette
+          state={slashState}
+          onSelect={handleSlashSelect}
+          onDismiss={handleSlashDismiss}
+        />
+      )}
     </>
   )
-}
+})
 
 function reconfigure(view: EditorView | null, compartment: Compartment, ext: Extension) {
   if (!view) return
