@@ -37,18 +37,39 @@ if (!raw || !KEY) {
   process.exit(0)
 }
 
-const system = `You write release notes for "Dayspring", a quiet daily journaling app.
-Voice: warm, friendly, and a little playful — like a thoughtful friend telling you what's new, never corporate.
-Rewrite the raw git commit messages below into a short changelog for end users.
+// System: a strict transformer, NOT a chat assistant. Small models (gpt-5.4-nano)
+// will otherwise reply conversationally ("Sure thing — paste the commits…") and
+// that text leaks into a release. Forbid questions/addressing the reader outright.
+const system =
+  'You are a release-notes generator. You transform git commit messages into a finished changelog and output ONLY that changelog. Never ask a question, never address the reader, never explain what you are doing, never request more input — the commits are already provided.'
+
+// User: the rules AND the commits in one message, with the commits clearly
+// delimited so the model can't mistake them for absent.
+const instructions = `Rewrite the COMMITS below into Dayspring's release notes. Dayspring is a quiet daily journaling app.
+
+Voice: warm, friendly, a little playful — like a thoughtful friend telling you what's new, never corporate.
+
 Rules:
-- A SINGLE FLAT LIST of bullets. No headings, no sections, no grouping of any kind. Each bullet starts with "- ".
+- A SINGLE FLAT LIST of bullets. No headings, no sections, no grouping. Each bullet starts with "- ".
 - One short, friendly bullet per user-visible change, in plain language. No jargon, no commit prefixes (feat:/fix:), no file names, no SHAs.
-- For a notable/major new feature, lead that bullet with a fitting emoji and celebrate a little (e.g. "🎉", "✨"). Keep small fixes calm and emoji-free.
-- Silently drop internal-only commits (refactors, CI, build tooling, dependency bumps, version bumps) unless they clearly affect users.
-- Keep it tight — at most ~5 bullets.
-- The notes are shown as plain text, so output plain text bullets only (no Markdown headings, bold, or links).
-- If nothing is user-facing, output exactly one friendly line: "✨ A little polish and a few behind-the-scenes fixes."
-- No title, no preamble, no closing remarks — just the bullets.`
+- For a notable/major new feature, lead that bullet with a fitting emoji and celebrate a little (e.g. 🎉, ✨). Keep small fixes calm and emoji-free.
+- Silently drop internal-only commits (refactors, CI, build tooling, dependency/version bumps) unless they clearly affect users.
+- At most ~5 bullets. Plain text only (the notes render as plain text — no Markdown headings, bold, or links).
+- If nothing is user-facing, output EXACTLY this one line and nothing else: ✨ A little polish and a few behind-the-scenes fixes.
+
+COMMITS:
+${raw}
+
+Now output ONLY the changelog bullets — no preamble, no questions, no commentary.`
+
+// Reject a response that's clearly the model chatting instead of producing notes,
+// so it falls back to the clean commit list rather than shipping the chatter.
+function looksConversational(text) {
+  return (
+    /\b(sure thing|paste|let me know|go ahead|i'?ll rewrite|raw git commit|you want me|happy to|here'?s what|could you)\b/i.test(text) ||
+    /\?\s*$/.test(text)
+  )
+}
 
 try {
   const body = {
@@ -56,7 +77,7 @@ try {
     max_completion_tokens: 2000,
     messages: [
       { role: 'system', content: system },
-      { role: 'user', content: raw },
+      { role: 'user', content: instructions },
     ],
   }
   // gpt-5/o-series/nano are reasoning models: cap hidden reasoning so the token
@@ -72,6 +93,7 @@ try {
   const json = await res.json()
   const text = json.choices?.[0]?.message?.content?.trim()
   if (!text) throw new Error('empty completion')
+  if (looksConversational(text)) throw new Error(`model returned conversational text, not notes: ${text.slice(0, 80)}`)
   process.stdout.write(text)
 } catch (err) {
   process.stderr.write(`[release-notes] falling back to raw commits: ${err}\n`)
