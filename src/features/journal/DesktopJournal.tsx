@@ -36,6 +36,8 @@ export function DesktopJournal(props: JournalViewProps) {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {!focused && (
           <header
+            className="desktop-topbar"
+            data-sidebar-hidden={!showList}
             style={{
               display: 'flex',
               alignItems: 'center',
