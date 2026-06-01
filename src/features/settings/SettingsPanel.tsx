@@ -57,14 +57,15 @@ export function SettingsPanel({
   const active = TABS.find((t) => t.id === tab)!
 
   return (
-    <div className="scrim settings-scrim" onClick={onClose}>
+    <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
       <div
-        className="settings-modal"
+        className="settings-modal glass-surface"
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="glass-surface__glow" aria-hidden />
         <nav className="settings-nav" aria-label="Settings sections">
           <div className="settings-nav__brand">Dayspring</div>
           {TABS.map((t) => (

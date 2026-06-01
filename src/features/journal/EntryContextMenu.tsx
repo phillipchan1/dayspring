@@ -124,12 +124,13 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
         }}
       >
         <div
-          className="entry-confirm"
+          className="entry-confirm glass-surface glass-surface--compact"
           role="alertdialog"
           aria-modal="true"
           aria-labelledby="entry-confirm-title"
           onPointerDown={(e) => e.stopPropagation()}
         >
+          <div className="glass-surface__glow" aria-hidden />
           <h3 id="entry-confirm-title" className="entry-confirm__title">
             Delete entry?
           </h3>
