@@ -36,7 +36,72 @@ export interface SpiritualItem {
   content: string
   metadata: Record<string, unknown> | null
   created_at: string
+  /** @deprecated legacy answered-binary — superseded by `encounters`. Read-only. */
   resolved_at: string | null
+  /** The prayer_thread this prayer/sense belongs to (set server-side). */
+  thread_id: string | null
+}
+
+// ── Altar — remembrance ───────────────────────────────────────────────────────
+// Light = ENCOUNTER, not transaction. A thread "lights" only when an `encounters`
+// row exists. There is no answered/unanswered; "still carrying" = no encounter.
+
+/** How God moved when He met the writer (the lit vocabulary). Never AI-assigned. */
+export type Movement = 'answered' | 'redirected' | 'he_met_me' | 'surrendered' | 'he_changed_me'
+
+/** Display labels for the movement words (DB stores the snake_case enum). */
+export const MOVEMENT_LABEL: Record<Movement, string> = {
+  answered: 'answered',
+  redirected: 'redirected',
+  he_met_me: 'He met me',
+  surrendered: 'surrendered',
+  he_changed_me: 'He changed me',
+}
+
+/** Order shown in the naming UI. */
+export const MOVEMENTS: Movement[] = [
+  'answered',
+  'redirected',
+  'he_met_me',
+  'surrendered',
+  'he_changed_me',
+]
+
+/** A recurring prayer line + every return. Drives the cairn. */
+export interface PrayerThread {
+  id: string
+  owner: string
+  title: string
+  carries: string[]
+  planted_at: string
+  last_touch_at: string
+  seed_item_id: string | null
+  created_at: string
+}
+
+/** The user's testimony of how God moved. One per thread, editable. */
+export interface Encounter {
+  id: string
+  owner: string
+  thread_id: string
+  movement: Movement
+  named_at: string
+  source_entry_id: string | null
+  reflection_text: string | null
+  created_at: string
+}
+
+/** AI-surfaced evidence beside an open thread — a quote + a gentle question, never a verdict. */
+export interface AltarCandidate {
+  id: string
+  thread_id: string
+  source_entry_id: string | null
+  entry_date: string
+  quote: string
+  char_start: number | null
+  char_end: number | null
+  one_line_reason: string
+  gentle_question: string
 }
 
 export interface NewSpiritualItem {

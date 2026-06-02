@@ -11,6 +11,7 @@ import {
   type ReturningRef,
   type SeasonSummary,
 } from '@/lib/scripture/query'
+import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { ScriptureBookView, type BookTarget } from './ScriptureBookView'
 import { heatColor, intensity } from './heat'
 import { useScriptureScan } from './useScriptureScan'
@@ -145,7 +146,12 @@ export function ScriptureView({ onOpenEntry }: Props) {
     return <p className="scripture__error">{loadError}</p>
   }
   if (!heat) {
-    return <div className="scripture scripture--loading">Loading…</div>
+    return (
+      <div className="scripture">
+        <div className="scripture__bg" aria-hidden />
+        <SurfaceLoader label="Lighting the lamp…" />
+      </div>
+    )
   }
 
   return (

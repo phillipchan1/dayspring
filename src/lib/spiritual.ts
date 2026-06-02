@@ -3,6 +3,10 @@ import { parseSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
 import type { NewSpiritualItem, SpiritualItem, SpiritualItemType } from './types'
 
+// Every SpiritualItem field EXCEPT the server-only `embedding` vector — never
+// ship 1536 floats to the client (see ENTRY_COLUMNS in entries.ts).
+const ITEM_COLUMNS = 'id, owner, entry_id, type, content, metadata, created_at, resolved_at, thread_id'
+
 export async function createSpiritualItem(item: NewSpiritualItem): Promise<SpiritualItem> {
   const sb = requireSupabase()
   const {
@@ -20,7 +24,7 @@ export async function createSpiritualItem(item: NewSpiritualItem): Promise<Spiri
       content: item.content,
       metadata: item.metadata ?? null,
     })
-    .select()
+    .select(ITEM_COLUMNS)
     .single()
 
   if (error) throw error
@@ -31,7 +35,7 @@ export async function listSpiritualItems(type?: SpiritualItemType): Promise<Spir
   const sb = requireSupabase()
   let q = sb
     .from('spiritual_items')
-    .select('*')
+    .select(ITEM_COLUMNS)
     .order('created_at', { ascending: false })
 
   if (type) q = q.eq('type', type)
@@ -43,11 +47,17 @@ export async function listSpiritualItems(type?: SpiritualItemType): Promise<Spir
 
 export async function getSpiritualItem(id: string): Promise<SpiritualItem | null> {
   const sb = requireSupabase()
-  const { data, error } = await sb.from('spiritual_items').select('*').eq('id', id).maybeSingle()
+  const { data, error } = await sb.from('spiritual_items').select(ITEM_COLUMNS).eq('id', id).maybeSingle()
   if (error) throw error
   return (data as SpiritualItem | null) ?? null
 }
 
+/**
+ * @deprecated The binary answered/unanswered model is retired — light = ENCOUNTER
+ * now (see src/lib/altar/encounters.ts). Existing resolved_at rows are migrated to
+ * `answered` encounters by scripts/altar-backfill.ts. Kept only so historical data
+ * isn't lost; do not call from new code.
+ */
 export async function markPrayerAnswered(id: string): Promise<void> {
   const sb = requireSupabase()
   const { error } = await sb

@@ -1,4 +1,8 @@
-/* ── Altar — contemplative stream of spiritual artifacts ─────────────────── */
+/* ── Altar — a place of remembrance ──────────────────────────────────────────
+   Light = encounter. A cairn's capstone lights gold ONLY when an encounter
+   exists; "carrying" glows ember; a seed is a single quiet stone. Palette rides
+   the app's "First Light" ember→gold ramp (--scripture-ember / --scripture-gold)
+   so the Altar and the Scripture surface glow with the same warmth. */
 
 .altar {
   position: relative;
@@ -14,9 +18,7 @@
 .altar__bg {
   position: absolute;
   inset: 0;
-  background:
-    var(--journal-glow),
-    linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 55%);
+  background: var(--journal-glow), linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 55%);
   pointer-events: none;
 }
 
@@ -29,13 +31,17 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* One centered column — same measure as the writing surface. */
+.altar__scroll[data-dim='true'] {
+  filter: saturate(0.85) brightness(0.82);
+  transition: filter var(--transition-slow);
+}
+
 .altar__column {
   box-sizing: border-box;
   width: 100%;
-  max-width: var(--editor-max-width);
+  max-width: 860px;
   margin: 0 auto;
-  padding: 2.75rem 2rem 4rem;
+  padding: 2.75rem 2rem 5rem;
 }
 
 .altar--loading,
@@ -43,15 +49,13 @@
   position: relative;
   z-index: 1;
   padding: 2.75rem 2rem;
-  max-width: var(--editor-max-width);
+  max-width: 860px;
   margin: 0 auto;
 }
-
 .altar--loading {
   color: var(--text-dim);
   font-size: 0.9rem;
 }
-
 .altar__error {
   color: var(--danger);
 }
@@ -59,185 +63,731 @@
 .altar__header {
   margin-bottom: 1.5rem;
 }
-
 .altar__title {
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-size: clamp(2rem, 5vw, 2.75rem);
   font-weight: 400;
   color: var(--text-bright);
   margin: 0;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
-
 .altar__subtitle {
-  margin: 0.35rem 0 0;
-  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
   color: var(--text-dim);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
+  font-style: italic;
 }
 
-.altar__toolbar {
+/* ── tabs ─────────────────────────────────────────────────────────────────── */
+.altar-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  margin-bottom: 2rem;
+  gap: 1.6rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.4rem;
 }
-
-.altar__search {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
+.altar-tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  padding: 0 0 0.75rem;
+  cursor: pointer;
+  position: relative;
+  transition: color var(--transition);
+}
+.altar-tab:hover {
   color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 0.88rem;
+}
+.altar-tab--on {
+  color: rgb(var(--scripture-gold));
+}
+.altar-tab--on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1.5px;
+  background: rgb(var(--scripture-gold));
 }
 
-.altar__search:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-}
-
-.altar__lenses {
+/* ── controls (season scrubber + prayer/sense filter) ─────────────────────── */
+.altar-controls {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.25rem;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  margin-bottom: 0.85rem;
 }
-
-.altar__lens {
+.altar-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.altar-chips__label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-right: 0.35rem;
+}
+.altar-chip {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+.altar-chip:hover {
+  color: var(--text);
+}
+.altar-chip[data-on='true'] {
+  background: var(--accent-soft);
+  color: rgb(var(--scripture-gold));
+}
+.altar-pill {
+  background: none;
+  border: none;
+  color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
-  padding: 0.28rem 0.65rem;
+  padding: 0.3rem 0.7rem;
   border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: transparent;
-  color: var(--text-dim);
   cursor: pointer;
-  transition:
-    color var(--transition),
-    border-color var(--transition),
-    background var(--transition);
+  text-transform: lowercase;
+  transition: color var(--transition), background var(--transition);
 }
-
-.altar__lens:hover {
+.altar-pill:hover {
   color: var(--text);
-  border-color: var(--border);
+}
+.altar-pill[data-on='true'] {
+  background: var(--accent-soft);
+  color: rgb(var(--scripture-gold));
 }
 
-.altar__lens[data-active='true'] {
+/* ── contemplative voice line ─────────────────────────────────────────────── */
+.altar-voice {
+  color: rgb(var(--scripture-gold));
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0.5rem 0 1.85rem;
+  max-width: 44ch;
+  opacity: 0.92;
+}
+.altar-voice--tight {
+  font-size: 0.95rem;
+  margin-top: 0.4rem;
+  max-width: 60ch;
+}
+
+/* ── field of cairns ──────────────────────────────────────────────────────── */
+.altar-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem 0.9rem;
+  align-items: flex-start;
+}
+.altar-cairn {
+  position: relative;
+  width: 150px;
+  text-align: center;
+  cursor: pointer;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: altarRise 0.6s both;
+}
+.altar-pile {
+  position: relative;
+  width: 120px;
+  height: 148px;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.altar-peb {
+  position: absolute;
+  border-radius: 48% 52% 50% 50% / 56% 56% 44% 44%;
+  background: linear-gradient(160deg, var(--bg-hover), var(--bg-elevated));
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  animation: altarRise 0.55s both;
+}
+.altar-ground {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.4), transparent);
+}
+
+/* carrying — ember, unlit */
+.altar-cairn[data-state='carrying'] .altar-peb {
+  background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--scripture-ember)) 24%, var(--bg-elevated)), var(--bg));
+}
+.altar-cairn[data-state='carrying'] .altar-peb--cap {
+  box-shadow: 0 0 12px -4px rgba(var(--scripture-ember), 0.5);
+}
+
+/* lit — the capstone carries gold light */
+.altar-cairn[data-state='lit'] .altar-peb--cap {
+  background: linear-gradient(160deg, rgb(var(--scripture-gold)), color-mix(in srgb, rgb(var(--scripture-gold)) 70%, #a9682f));
+  border-color: transparent;
+  box-shadow: 0 0 22px -2px rgba(var(--scripture-gold), 0.7), inset 0 0 12px -3px rgba(255, 235, 200, 0.6);
+  animation: altarRise 0.55s both, altarBreathe 6s ease-in-out infinite 1s;
+}
+
+.altar-cairn__type {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.altar-cairn__title {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.25;
+  color: var(--text);
+  margin-top: 0.2rem;
+  transition: color var(--transition);
+}
+.altar-cairn:hover .altar-cairn__title {
   color: var(--text-bright);
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-  background: var(--accent-soft);
+}
+.altar-cairn__mark {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: rgb(var(--scripture-gold));
+  margin-top: 0.35rem;
+}
+.altar-cairn__mark--ember {
+  color: rgb(var(--scripture-ember));
+}
+.altar-cairn__mark--dim {
+  color: var(--text-dim);
+}
+
+/* ── "the names you keep bringing to God" ─────────────────────────────────── */
+.altar-carry {
+  margin-top: 2.9rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.altar-carry__label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.altar-carry__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+.altar-carry__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.altar-carry__chip em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+/* ── across time ──────────────────────────────────────────────────────────── */
+.altar-time {
+  margin-top: 0.25rem;
+}
+.altar-time__svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.altar-time__tick {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--text-dim);
+}
+.altar-arc {
+  cursor: pointer;
+  animation: altarFade 0.8s both;
+}
+.altar-arc:hover path {
+  stroke-width: 2;
+}
+.altar-arc__seed {
+  fill: var(--text-faint);
+}
+.altar-arc__lit {
+  fill: rgb(var(--scripture-gold));
+  filter: drop-shadow(0 0 6px rgba(var(--scripture-gold), 0.8));
+}
+.altar-arc__lbl {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 10.5px;
+  fill: color-mix(in srgb, rgb(var(--scripture-gold)) 85%, white);
+}
+.altar-arc__carry {
+  fill: rgba(var(--scripture-ember), 0.85);
+  cursor: pointer;
+}
+.altar-arc__rest {
+  fill: var(--text-faint);
+  cursor: pointer;
+}
+
+/* ── where He met me (harvest) ────────────────────────────────────────────── */
+.altar-harvest {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.altar-harvest__head {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.35rem;
+  color: rgb(var(--scripture-gold));
+  margin: 0.25rem 0 0.9rem;
+}
+.altar-harvest__card {
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--scripture-gold)) 8%, var(--bg-elevated)), var(--bg));
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem;
+  box-shadow: 0 0 0 1px rgba(var(--scripture-gold), 0.16), 0 0 24px -10px rgba(var(--scripture-gold), 0.3);
+  transition: transform 0.25s;
+  animation: altarRise 0.6s both;
+}
+.altar-harvest__card:hover {
+  transform: translateY(-3px);
+}
+.altar-harvest__meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.altar-harvest__title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--text-bright);
+  margin: 0.65rem 0 0.5rem;
+}
+.altar-harvest__seed {
+  color: var(--text-dim);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+.altar-harvest__answer {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  line-height: 1.55;
+  margin: 0.4rem 0 0.75rem;
+  color: var(--text-bright);
+}
+.altar-harvest__foot {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.altar-harvest__share {
+  opacity: 0;
+  transition: opacity var(--transition);
+  color: rgb(var(--scripture-gold));
+}
+.altar-harvest__card:hover .altar-harvest__share {
+  opacity: 1;
 }
 
 .altar__quiet {
   margin: 0 0 2rem;
-  text-align: center;
   color: var(--text-dim);
-  font-size: 0.88rem;
+  font-style: italic;
+  font-size: 0.92rem;
 }
-
 .altar__quiet code {
   font-family: var(--font-mono);
   font-size: 0.82em;
 }
 
-.altar__month + .altar__month {
-  margin-top: 2.25rem;
+/* ── click-in thread panel (mirrors the Scripture book panel) ─────────────── */
+.altar-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: var(--glass-scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-slow);
 }
-
-.altar__month-label {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin: 0 0 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-subtle);
+.altar-scrim--open {
+  opacity: 1;
+  pointer-events: auto;
 }
-
-.altar__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2.85rem;
+.altar-thread {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(480px, 94vw);
+  z-index: 40;
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg));
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-3);
+  transform: translateX(102%);
+  transition: transform var(--transition-slow);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
-
-.altar__item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+.altar-thread--open {
+  transform: translateX(0);
 }
-
-.altar__type {
+.altar-thread__inner {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 2.6rem 2.2rem 4rem;
+}
+.altar-thread__back {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin: 0 0 0.1rem;
-}
-
-.altar__type[data-type='sense'] {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1.4rem;
+  transition: color var(--transition);
 }
-
-.altar__content {
-  font-family: var(--font-display);
-  font-size: 1.08rem;
-  line-height: 1.58;
+.altar-thread__back:hover {
   color: var(--text-bright);
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
 }
-
-.altar__meta {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.35rem;
+.altar-thread__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.85rem;
+  line-height: 1.15;
+  color: var(--text-bright);
+  margin: 0.5rem 0 0.3rem;
 }
-
-.altar__date {
+.altar-thread__sub {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-dim);
+  margin: 0;
 }
 
-.altar__open-entry {
+.altar-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.altar-lbl--gold {
+  color: rgb(var(--scripture-gold));
+}
+.altar-mono {
   font-family: var(--font-mono);
   font-size: 0.72rem;
+}
+.altar-mono--gold {
+  color: rgb(var(--scripture-gold));
+}
+
+.altar-seed {
+  margin-top: 1.6rem;
+}
+.altar-seed__body {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-top: 0.6rem;
+  color: var(--text-bright);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+.altar-open-entry {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
   color: var(--text-dim);
   background: none;
   border: none;
   padding: 0;
+  margin-top: 0.5rem;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--transition), color var(--transition);
+  transition: color var(--transition);
+}
+.altar-open-entry:hover {
+  color: rgb(var(--scripture-gold));
 }
 
-.altar__item:hover .altar__open-entry,
-.altar__open-entry:focus-visible {
-  opacity: 1;
+.altar-returns {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.altar-return {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-dim);
+}
+.altar-return__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(var(--scripture-ember));
+  flex: 0 0 5px;
+  transform: translateY(-2px);
+}
+.altar-return__date {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  flex: 0 0 auto;
+}
+.altar-return__text {
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.altar-return:hover .altar-return__text {
+  color: var(--text-bright);
 }
 
-.altar__open-entry:hover {
-  color: var(--accent);
+/* evidence + naming */
+.altar-ev {
+  margin-top: 1.75rem;
+  padding: 1.25rem;
+  border-radius: 14px;
+  background: var(--bg-input);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+.altar-ev--quiet {
+  background: none;
+  box-shadow: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+.altar-ev__quote {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  margin: 0.6rem 0 0.25rem;
+  font-family: var(--font-mono);
+}
+.altar-ev__body {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  font-style: italic;
+  color: var(--text-bright);
+  margin: 0;
+}
+.altar-ev__body--muted {
+  color: var(--text-dim);
+}
+.altar-ev__reason {
+  margin-top: 0.85rem;
+  font-family: var(--font-serif);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.altar-ev__ask {
+  margin-top: 0.4rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+.altar-ev__btns {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  flex-wrap: wrap;
+}
+.altar-ev__yes {
+  background: var(--accent-soft);
+  color: rgb(var(--scripture-gold));
+  border: 1px solid rgba(var(--scripture-gold), 0.28);
+  padding: 0.5rem 0.85rem;
+  border-radius: 20px;
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform var(--transition), background var(--transition);
+}
+.altar-ev__yes:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 22%, transparent);
+  transform: translateY(-1px);
+}
+.altar-ev__no,
+.altar-ev__name {
+  background: none;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.85rem;
+  border-radius: 20px;
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.altar-ev__name {
+  margin-top: 1rem;
+}
+.altar-ev__no:hover:not(:disabled),
+.altar-ev__name:hover {
+  color: var(--text-bright);
+}
+.altar-ev__yes:disabled,
+.altar-ev__no:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.altar-ev__note {
+  margin-top: 0.9rem;
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-style: italic;
+  font-family: var(--font-serif);
+}
+
+/* bloomed (encountered) */
+.altar-bloom {
+  margin-top: 1.75rem;
+  padding: 1.25rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 7%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(var(--scripture-gold), 0.2);
+  animation: altarBloom 0.8s ease both;
+}
+.altar-bloom__answer {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0.6rem 0;
+  color: var(--text-bright);
+}
+.altar-bloom__edit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.altar-bloom__edit button {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 20px;
+  padding: 0.35rem 0.7rem;
+  font-family: var(--font-serif);
+  font-style: normal;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: color var(--transition);
+}
+.altar-bloom__edit button:hover:not(:disabled) {
+  color: var(--text-bright);
+}
+
+@keyframes altarRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes altarFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes altarBloom {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes altarBreathe {
+  0%,
+  100% {
+    box-shadow: 0 0 18px -3px rgba(var(--scripture-gold), 0.6), inset 0 0 10px -3px rgba(255, 235, 200, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px -1px rgba(var(--scripture-gold), 0.85), inset 0 0 14px -2px rgba(255, 235, 200, 0.7);
+  }
 }
 
 @media (max-width: 768px) {
   .altar__column {
     padding: 2rem 1.25rem 3.5rem;
+  }
+  .altar-controls {
+    gap: 0.75rem;
   }
 }

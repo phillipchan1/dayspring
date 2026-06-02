@@ -30,7 +30,7 @@ export async function getImportedEntryCount(): Promise<number> {
   const sb = requireSupabase()
   const { count, error } = await sb
     .from('entries')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .neq('source', 'native')
   if (error) throw error
   return count ?? 0
@@ -51,7 +51,7 @@ export async function scanAllForRefs(
 ): Promise<ScanResult> {
   const sb = requireSupabase()
 
-  const { count } = await sb.from('entries').select('*', { count: 'exact', head: true })
+  const { count } = await sb.from('entries').select('id', { count: 'exact', head: true })
   const total = count ?? 0
 
   let scanned = 0

@@ -27,6 +27,7 @@ import {
   buildYearly,
   type BuildResult,
 } from '../_lib/synthesize'
+import { embedUnembedded, threadItems, migrateLegacyAnswered, sweepOpenThreads } from '../_lib/altar'
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
@@ -34,8 +35,17 @@ export async function GET(req: Request): Promise<Response> {
   const now = new Date()
   const owner = env.appOwnerId()
   const results: BuildResult[] = []
+  const altar: Record<string, unknown> = {}
 
   try {
+    // Altar — keep the cairns current every day: embed + thread any new prayers,
+    // migrate any legacy answered-binary, and (weekly) lay evidence beside open
+    // threads. Nano-only; frontier stays reserved for the monthly/yearly rollups.
+    altar.embedded = await embedUnembedded(owner)
+    altar.threaded = await threadItems(owner)
+    altar.migrated = await migrateLegacyAnswered(owner)
+    if (isMonday(now)) altar.sweep = await sweepOpenThreads(owner)
+
     if (isMonday(now)) {
       results.push(await buildWeekly(owner, previousWeek(now)))
     }
@@ -64,10 +74,10 @@ export async function GET(req: Request): Promise<Response> {
     }
   } catch (e) {
     return Response.json(
-      { ran_at: now.toISOString(), error: e instanceof Error ? e.message : 'failed', results },
+      { ran_at: now.toISOString(), error: e instanceof Error ? e.message : 'failed', results, altar },
       { status: 500 },
     )
   }
 
-  return Response.json({ ran_at: now.toISOString(), did_work: results.length > 0, results })
+  return Response.json({ ran_at: now.toISOString(), did_work: results.length > 0, results, altar })
 }
