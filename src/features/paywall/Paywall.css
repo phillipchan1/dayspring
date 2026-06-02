@@ -459,3 +459,83 @@
   width: 100%;
   max-width: 18rem;
 }
+
+/* ── Mobile responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .paywall {
+    padding: 1.5rem 1rem;
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .paywall__content {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .paywall__headline {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+
+  .paywall__plans {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .paywall__plan {
+    min-width: unset;
+    padding: 0.9rem 1rem;
+    min-height: 48px;
+  }
+
+  .paywall__plan-price {
+    font-size: 1.35rem;
+  }
+
+  .paywall__plan-cadence,
+  .paywall__plan-note {
+    font-size: 0.75rem;
+  }
+
+  .paywall__trial-note {
+    font-size: 0.8rem;
+  }
+
+  .btn {
+    min-height: 48px;
+    padding: 0.65rem 0.9rem;
+  }
+
+  .trial-welcome {
+    padding: 1.5rem 1rem;
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .trial-welcome__content {
+    max-width: 100%;
+  }
+
+  .trial-welcome__headline {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+
+  .locked-screen {
+    padding: 1.5rem 1rem;
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .locked-screen__content {
+    max-width: 100%;
+  }
+
+  .locked-screen__headline {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+
+  .locked-screen__actions {
+    max-width: 100%;
+  }
+}
