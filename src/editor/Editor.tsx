@@ -32,6 +32,8 @@ export interface EditorHandle {
   focus: () => void
   /** Return focus to the editor, optionally restoring the caret. */
   focusAt: (pos?: number) => void
+  /** Trigger a slash command at the current cursor position (for mobile UI). */
+  triggerCommand: (cmd: SlashCommandId) => void
 }
 
 interface EditorProps {
@@ -138,6 +140,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         view.dispatch({ selection: { anchor: clamped, head: clamped } })
       }
       view.focus()
+    },
+    triggerCommand: (cmd: SlashCommandId) => {
+      const view = viewRef.current
+      if (!view || !onSlashCommand) return
+      const insertAt = view.state.selection.main.head
+      const anchor = computeInlinePanelAnchor(view, insertAt)
+      onSlashCommand(cmd, insertAt, anchor)
     },
   }))
 

@@ -433,3 +433,62 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
+
+/* ── Mobile command toolbar ────────────────────────────────────────────── */
+
+.command-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-top: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  justify-content: space-around;
+}
+
+.command-toolbar__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  min-width: 60px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+}
+
+.command-toolbar__btn:active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.command-toolbar__btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.command-toolbar__icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.command-toolbar__label {
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Hide toolbar on desktop */
+@media (min-width: 768px) {
+  .command-toolbar {
+    display: none;
+  }
+}

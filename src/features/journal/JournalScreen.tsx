@@ -50,6 +50,7 @@ import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
+import { CommandToolbar } from '@/editor/CommandToolbar'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
@@ -897,6 +898,12 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           />
         ) : null}
       </div>
+      {isMobile && !focus.active && (
+        <CommandToolbar
+          onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
+          visible={!slashPaletteOpen}
+        />
+      )}
     </div>
   )
 
