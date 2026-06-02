@@ -42,3 +42,7 @@ pnpm-debug.log*
 *.tsbuildinfo
 .vercel
 .env*.local
+
+# Generated in CI and bundled into the desktop build (not committed)
+public/changelog.json
+RELEASE_NOTES.md

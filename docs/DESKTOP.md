@@ -22,6 +22,15 @@ to a **public** releases repo, and installed apps auto-update from there.
   repo **[phillipchan1/dayspring-releases](https://github.com/phillipchan1/dayspring-releases)**
   with the `.dmg`, the `.app.tar.gz`, and a generated `latest.json`. Source stays
   in this private repo; only binaries are public.
+- **Version history:** before the build, [scripts/assemble-changelog.mjs](../scripts/assemble-changelog.mjs)
+  pulls the last ~50 GitHub releases (each body is the notes above), prepends the
+  build being published, and writes `public/changelog.json` — which Vite bundles
+  into the app. Settings → About reads it **same-origin** (no CORS, no extra
+  plugin, works offline) and shows a "What's new" version history, collapsing runs
+  of minor/internal builds so the notable changes stand out. A freshly-installed
+  build always carries the full history through the version just landed on, so
+  someone who's been away for days can catch up on everything they missed — not
+  just the single hop they auto-updated through.
 - **Auto-update:** on launch the app polls `releases/latest/download/latest.json`
   via the shared update store ([src/lib/appUpdate.ts](../src/lib/appUpdate.ts)),
   and if a newer version exists, downloads + installs it and surfaces a Restart

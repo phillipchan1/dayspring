@@ -74,6 +74,41 @@ jobs:
             echo "No Apple identity configured — building unsigned (ad-hoc)"
           fi
 
+      # Human-readable "what's new" for THIS build, generated from the commits in
+      # this push (previous tip → now). Runs BEFORE the build so it can be bundled
+      # into the changelog below; also feeds latest.json + the release body later.
+      # Best-effort: scripts/release-notes.mjs falls back to a cleaned commit list
+      # if OPENAI_API_KEY is unset or the API errors, so it never blocks a release.
+      - name: Generate release notes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -uo pipefail
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "PUB_DATE=$PUB_DATE" >> "$GITHUB_ENV"
+          BEFORE="${{ github.event.before }}"
+          ZEROS="0000000000000000000000000000000000000000"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "$ZEROS" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            # First build / force-push / unreachable base: just describe the tip.
+            COMMITS=$(git log -1 --no-merges --pretty=format:'- %s')
+          else
+            COMMITS=$(git log "${BEFORE}..HEAD" --no-merges --pretty=format:'- %s')
+          fi
+          [ -z "$COMMITS" ] && COMMITS="- Minor improvements and behind-the-scenes fixes."
+          printf '%s\n' "$COMMITS" | node scripts/release-notes.mjs > RELEASE_NOTES.md
+          echo "Generated release notes:"; cat RELEASE_NOTES.md
+
+      # Assemble the cumulative changelog (prior GitHub releases + this build) into
+      # public/changelog.json so Vite bundles it into the app. Runs BEFORE the
+      # build. Best-effort: writes the current entry alone if the API is down.
+      - name: Assemble bundled changelog
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          set -uo pipefail
+          node scripts/assemble-changelog.mjs
+          echo "Bundled changelog:"; cat public/changelog.json
+
       # Build + sign directly (we publish to the public repo ourselves below).
       # The .dmg step (hdiutil/bundle_dmg.sh) is flaky on headless runners, so
       # we retry and clear any stale mount between attempts. --verbose surfaces
@@ -124,28 +159,6 @@ jobs:
           done
           echo "All build attempts failed"; exit 1
 
-      # Human-readable "what's new", generated from the commits in THIS push
-      # (previous tip → now). Best-effort: scripts/release-notes.mjs falls back to
-      # a cleaned commit list if OPENAI_API_KEY is unset or the API errors, so a
-      # notes failure never blocks the release. The result feeds both latest.json
-      # (which the app shows in its update prompt) and the GitHub release body.
-      - name: Generate release notes
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          set -uo pipefail
-          BEFORE="${{ github.event.before }}"
-          ZEROS="0000000000000000000000000000000000000000"
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "$ZEROS" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            # First build / force-push / unreachable base: just describe the tip.
-            COMMITS=$(git log -1 --no-merges --pretty=format:'- %s')
-          else
-            COMMITS=$(git log "${BEFORE}..HEAD" --no-merges --pretty=format:'- %s')
-          fi
-          [ -z "$COMMITS" ] && COMMITS="- Minor improvements and behind-the-scenes fixes."
-          printf '%s\n' "$COMMITS" | node scripts/release-notes.mjs > RELEASE_NOTES.md
-          echo "Generated release notes:"; cat RELEASE_NOTES.md
-
       - name: Publish to public releases repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
@@ -158,7 +171,7 @@ jobs:
           APPTAR=$(ls "$BUNDLE"/macos/*.app.tar.gz | head -1)
           SIG=$(cat "$BUNDLE"/macos/*.app.tar.gz.sig)
           APPTAR_NAME=$(basename "$APPTAR")
-          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # PUB_DATE is set earlier (Generate release notes step) and shared via env.
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
           # Stable-named copy of the .dmg so the marketing site can always link to

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
+import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
 import { signOut } from '@/lib/auth'
 import { isTauri } from '@/lib/platform'
@@ -218,6 +219,7 @@ function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => vo
         </div>
       </dl>
       {isTauri() && <UpdateChecker />}
+      {isTauri() && <ReleaseHistory />}
       <div className="settings-divider" />
       <div className="settings-field__head settings-field__head--row">
         <span className="settings-field__label">Welcome</span>
@@ -296,6 +298,75 @@ function UpdateChecker() {
       </div>
     </>
   )
+}
+
+// Desktop-only: the cumulative version history bundled into the app by CI. Lets
+// someone who's been away a while catch up on everything that changed, not just
+// the single hop they last auto-updated through. Notable releases are listed
+// individually; runs of minor/internal builds collapse into a count so the major
+// changes stand out. Hides itself when no changelog is bundled (web/dev).
+function ReleaseHistory() {
+  const [entries, setEntries] = useState<ChangelogEntry[] | null>(null)
+  useEffect(() => {
+    void loadChangelog().then(setEntries)
+  }, [])
+
+  if (!entries || entries.length === 0) return null
+
+  // Walk newest-first, emitting notable releases and folding consecutive
+  // minor/internal builds into a single muted "N smaller updates" row.
+  type Row = { kind: 'release'; entry: ChangelogEntry } | { kind: 'minor'; count: number }
+  const rows: Row[] = []
+  let minorRun = 0
+  for (const entry of entries) {
+    if (isMinor(entry.notes)) {
+      minorRun += 1
+      continue
+    }
+    if (minorRun) {
+      rows.push({ kind: 'minor', count: minorRun })
+      minorRun = 0
+    }
+    rows.push({ kind: 'release', entry })
+  }
+  if (minorRun) rows.push({ kind: 'minor', count: minorRun })
+
+  return (
+    <>
+      <div className="settings-divider" />
+      <details className="settings-changelog">
+        <summary className="settings-changelog__summary">What’s new</summary>
+        <ul className="settings-changelog__list">
+          {rows.map((row, i) =>
+            row.kind === 'release' ? (
+              <li key={row.entry.version} className="settings-changelog__item">
+                <div className="settings-changelog__head">
+                  <span className="settings-changelog__ver">
+                    v{row.entry.version}
+                    {row.entry.version === __APP_VERSION__ && (
+                      <span className="settings-changelog__current"> · current</span>
+                    )}
+                  </span>
+                  <span className="settings-changelog__date">{formatReleaseDate(row.entry.date)}</span>
+                </div>
+                <div className="settings-changelog__notes">{row.entry.notes}</div>
+              </li>
+            ) : (
+              <li key={`minor-${i}`} className="settings-changelog__minor">
+                + {row.count} smaller update{row.count > 1 ? 's' : ''}
+              </li>
+            ),
+          )}
+        </ul>
+      </details>
+    </>
+  )
+}
+
+function formatReleaseDate(iso: string): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return ''
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
