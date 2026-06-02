@@ -39,8 +39,9 @@ export function Rail({
   onToggleLabels,
   nativeTopInset,
 }: RailProps) {
+  // Wordmark only when the entries panel is closed — it carries its own "Dayspring"
+  // title. The sunrise mark stays put in every mode.
   const showBrandLockup = labelsExpanded && !entriesOpen
-  const showBrand = !labelsExpanded || showBrandLockup
 
   return (
     <nav
@@ -49,17 +50,15 @@ export function Rail({
       style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}
     >
       <div className="rail__glow" aria-hidden />
-      {showBrand ? (
-        <div
-          className={`rail__brand rail-btn rail-btn--brand${showBrandLockup ? ' rail__brand--lockup' : ''}`}
-          aria-hidden={!labelsExpanded}
-        >
-          <span className="rail-btn__well">
-            <Mark size={20} className="rail__mark" />
-          </span>
-          {showBrandLockup ? <span className="rail-btn__label">Dayspring</span> : null}
-        </div>
-      ) : null}
+      <div
+        className={`rail__brand rail-btn rail-btn--brand${showBrandLockup ? ' rail__brand--lockup' : ''}`}
+        aria-hidden={!labelsExpanded}
+      >
+        <span className="rail-btn__well">
+          <Mark size={20} className="rail__mark" />
+        </span>
+        {showBrandLockup ? <span className="rail-btn__label">Dayspring</span> : null}
+      </div>
       <div className="rail__nav">
         <div className="rail__actions">
           <RailButton
