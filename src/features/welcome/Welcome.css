@@ -155,6 +155,13 @@
   outline-offset: 2px;
 }
 
+/* Desktop (Tauri/macOS): clear the traffic-light buttons under the overlay
+   title bar. Drop the top row so the theme toggle doesn't collide with them. */
+html[data-platform='desktop'] .welcome-flow__theme,
+html[data-platform='desktop'] .welcome-flow__skip {
+  top: 3.25rem;
+}
+
 .welcome-flow__stage {
   position: relative;
   z-index: 2;

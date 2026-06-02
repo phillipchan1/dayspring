@@ -87,7 +87,9 @@
 .ascent-station {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
+  /* Anchor the group at the rail line; the dot straddles it (below) so the
+   * labels sit fully to the right and the line never crosses the words. */
+  transform: none;
   background: none;
   border: none;
   cursor: pointer;
@@ -100,6 +102,7 @@
 .ascent-station__dot {
   width: 11px;
   height: 11px;
+  margin-left: -5.5px; /* center the dot on the rail line */
   border-radius: 50%;
   background: #2a3040;
   border: 1.5px solid rgba(255, 255, 255, 0.2);
@@ -125,6 +128,12 @@
   transition: 0.3s;
   line-height: 1.2;
   text-align: left;
+  /* Soft frosted backing so the rail line + air don't muddy the words. */
+  padding: 3px 10px 4px 9px;
+  border-radius: 8px;
+  background: rgba(13, 16, 24, 0.32);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
 }
 .ascent-station__label em {
   font-family: var(--font-mono);
@@ -851,6 +860,7 @@
 }
 .ascent--light .ascent-station__label {
   color: rgba(74, 64, 53, 0.5);
+  background: rgba(251, 246, 238, 0.6);
 }
 .ascent--light .ascent-station:hover .ascent-station__label,
 .ascent--light .ascent-station:focus-visible .ascent-station__label {

@@ -13,13 +13,14 @@ import { supabaseAdmin } from './supabaseAdmin'
 import { callModel } from './openai'
 import { centroid, cosine, embed, toVectorLiteral } from './embeddings'
 
-// ── tuning knobs (cosine similarity of text-embedding-3-small) ───────────────
-// Above STRONG: clearly the same prayer line → attach without asking the model.
-// In [WEAK, STRONG): borderline → a cheap Nano "same line?" confirm decides.
-// Below WEAK: a new thread. Conservative on purpose — a false split (two cairns
-// for one prayer) is gentler than a false merge (collapsing distinct cries).
-const STRONG = 0.78
-const WEAK = 0.62
+// ── clustering knob (cosine similarity of text-embedding-3-small) ────────────
+// A prayer attaches to its nearest existing cairn when similarity ≥ this; else it
+// starts a new one. PURE THRESHOLD — no per-pair model call (doesn't scale, and
+// biased toward over-splitting). This is the recurring-CONCERN bar, not exact-line
+// identity: tuned so years of "draw near to God" cries collapse into one tall
+// heap rather than a thousand near-singletons. THE key tuning knob — raise it for
+// more, smaller cairns; lower it for fewer, taller (riskier) merges.
+const MERGE_THRESHOLD = 0.64
 // Open-thread sweep: cosine DISTANCE (1 - sim); only entries this close are
 // even shown to the Nano evidence pass.
 const SWEEP_MAX_DISTANCE = 0.45
@@ -171,19 +172,6 @@ export async function embedUnembedded(
 }
 
 // ── 2. clustering into threads ─────────────────────────────────────────────────
-const SAME_LINE_PROMPT = `You compare two short notes from one person's private prayer journal.
-Decide whether the SECOND is a RETURN to the SAME ongoing prayer as the FIRST — the same concern, the same
-person/situation, the same petition carried forward over time — NOT merely the same broad theme.
-Two notes about "my anxiety" and "praying for a friend's anxiety" are DIFFERENT lines. Be conservative:
-when unsure, answer false. Return JSON {"same_line": boolean} only.`
-
-const SAME_LINE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['same_line'],
-  properties: { same_line: { type: 'boolean' } },
-} as const
-
 const LABEL_PROMPT = `You are labeling a thread of recurring prayer-journal notes (the same prayer carried over time).
 Given the member notes, return JSON {"title": string, "carries": string[]}:
 - title: a short, plain, reverent label for what is being prayed (max 6 words). No quotes, no punctuation flourish.
@@ -200,22 +188,6 @@ const LABEL_SCHEMA = {
     carries: { type: 'array', items: { type: 'string' } },
   },
 } as const
-
-async function confirmSameLine(a: string, b: string): Promise<boolean> {
-  try {
-    const out = await callModel<{ same_line: boolean }>(
-      SAME_LINE_PROMPT,
-      { first: a.slice(0, 600), second: b.slice(0, 600) },
-      SAME_LINE_SCHEMA as Record<string, unknown>,
-      'altar_same_line',
-      'low',
-      256,
-    )
-    return out.same_line === true
-  } catch {
-    return false // a failed confirm errs toward a new thread (false split), never a merge.
-  }
-}
 
 async function labelThread(contents: string[]): Promise<{ title: string; carries: string[] }> {
   const seedFallback = (contents[0] ?? 'A prayer').split('\n')[0]!.slice(0, 60).trim()
@@ -306,13 +278,7 @@ export async function threadItems(
       }
     }
 
-    let target: Cluster | null = null
-    if (best && bestSim >= STRONG) {
-      target = best
-    } else if (best && bestSim >= WEAK) {
-      const ok = await confirmSameLine(seedMember(best).content, m.content)
-      if (ok) target = best
-    }
+    const target: Cluster | null = best && bestSim >= MERGE_THRESHOLD ? best : null
 
     if (target) {
       target.members.push(m)
@@ -331,7 +297,7 @@ export async function threadItems(
     if (c.members.length === 0) continue
     const seed = seedMember(c)
     const last = c.members.reduce((a, b) => (a.date >= b.date ? a : b))
-    const { title, carries } = await labelThread([seed.content, ...c.members.map((m) => m.content)])
+    const { title, carries } = await labelFor(c.members)
     const { data, error } = await sb
       .from('prayer_threads')
       .insert({
@@ -360,7 +326,7 @@ export async function threadItems(
     if (!c.dirty || !c.id) continue
     const seed = seedMember(c)
     const last = c.members.reduce((a, b) => (a.date >= b.date ? a : b))
-    const { title, carries } = await labelThread([seed.content, ...c.members.map((m) => m.content)])
+    const { title, carries } = await labelFor(c.members)
     await sb
       .from('prayer_threads')
       .update({
@@ -497,7 +463,26 @@ const HARVEST_SCHEMA = {
   },
 } as const
 
+// Only recurring cairns (≥ this many touches) earn an LLM-generated title; a lone
+// prayer IS its own label, so we derive its title from the seed text — no model
+// call. Keeps labeling cost proportional to the (few) heaps, not every singleton.
+const LABEL_MIN_MEMBERS = 2
+
 const normalizeWs = (s: string) => s.replace(/\s+/g, ' ').trim()
+
+/** A title for a single-prayer cairn: the seed's first line, trimmed. No model call. */
+function seedTitle(content: string): string {
+  const first = content.split('\n').find((l) => l.trim()) ?? content
+  const t = normalizeWs(first)
+  return t.length > 60 ? `${t.slice(0, 57).trimEnd()}…` : t || 'A prayer'
+}
+
+/** Label a cluster — LLM only for recurring heaps; seed-derived for singletons. */
+async function labelFor(members: Member[]): Promise<{ title: string; carries: string[] }> {
+  const seed = members.reduce((a, b) => (a.date <= b.date ? a : b))
+  if (members.length < LABEL_MIN_MEMBERS) return { title: seedTitle(seed.content), carries: [] }
+  return labelThread([seed.content, ...members.map((m) => m.content)])
+}
 
 /** The extracted passage must be the writer's actual words — a (whitespace-tolerant) substring. */
 function isVerbatim(body: string, text: string): boolean {

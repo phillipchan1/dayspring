@@ -139,8 +139,8 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">
               ☰
             </button>
-            <button className="nav-btn" onClick={onLookBack} aria-label="Looking back" title="Looking back (⌘2)">
-              ⟲
+            <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">
+              ▲
             </button>
             <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
               ✦

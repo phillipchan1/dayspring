@@ -146,6 +146,16 @@ function toAltarThread(
   }
 }
 
+/** Cheap count of cairns planted in a window — drives the adaptive default season. */
+export async function countThreads(window?: DateWindow): Promise<number> {
+  const sb = requireSupabase()
+  let q = sb.from('prayer_threads').select('id', { count: 'exact', head: true })
+  q = inWindowClause(q, window)
+  const { count, error } = await q
+  if (error) throw error
+  return count ?? 0
+}
+
 /** Every thread in the window, with derived light state. The Field/Time hero data. */
 export async function listThreads(window?: DateWindow): Promise<AltarThread[]> {
   const sb = requireSupabase()

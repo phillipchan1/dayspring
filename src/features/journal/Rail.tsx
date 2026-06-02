@@ -79,11 +79,12 @@ export function Rail({
             labelsExpanded={labelsExpanded}
           />
           <RailButton
-            label="Looking back"
+            label="Ascent"
+            subline="The climb through your seasons"
             shortcut="⌘2"
             onClick={onLookBack}
             active={lookBackActive}
-            icon={<IconLookBack />}
+            icon={<IconAscent />}
             labelsExpanded={labelsExpanded}
           />
           <RailButton
@@ -98,6 +99,7 @@ export function Rail({
           />
           <RailButton
             label="Altar"
+            subline="The prayers you return to"
             shortcut="⌘4"
             onClick={onAltar}
             active={altarActive}
@@ -114,26 +116,10 @@ export function Rail({
           icon={<IconSettings />}
           labelsExpanded={labelsExpanded}
         />
-        <RailHint
-          label={labelsExpanded ? 'Icons only' : 'Expand sidebar'}
-          shortcut={RAIL_EXPAND_KEY}
-          active={!labelsExpanded}
-        >
-          <button
-            type="button"
-            className="rail-toggle"
-            onClick={onToggleLabels}
-            aria-pressed={labelsExpanded}
-            aria-label={labelsExpanded ? 'Icons only' : 'Expand sidebar'}
-          >
-            <span className="rail__icon-slot rail-toggle__well" aria-hidden>
-              <IconMenu />
-            </span>
-            {labelsExpanded ? (
-              <span className="rail-toggle__label">Icons only</span>
-            ) : null}
-          </button>
-        </RailHint>
+        <RailToggle
+          labelsExpanded={labelsExpanded}
+          onToggle={onToggleLabels}
+        />
       </div>
     </nav>
   )
@@ -180,6 +166,39 @@ function RailButton({
 
   return (
     <RailHint label={label} subline={subline} shortcut={shortcut} active>
+      {button}
+    </RailHint>
+  )
+}
+
+function RailToggle({
+  labelsExpanded,
+  onToggle,
+}: {
+  labelsExpanded: boolean
+  onToggle: () => void
+}) {
+  const hint = labelsExpanded ? 'Collapse sidebar' : 'Expand sidebar'
+
+  const button = (
+    <button
+      type="button"
+      className="rail-btn"
+      onClick={onToggle}
+      aria-pressed={labelsExpanded}
+      aria-label={hint}
+    >
+      <span className="rail-btn__well">
+        <IconMenu />
+      </span>
+      {labelsExpanded ? <span className="rail-btn__label">Collapse</span> : null}
+    </button>
+  )
+
+  if (labelsExpanded) return button
+
+  return (
+    <RailHint label={hint} shortcut={RAIL_EXPAND_KEY} active>
       {button}
     </RailHint>
   )
@@ -232,11 +251,12 @@ function IconEntries() {
   )
 }
 
-function IconLookBack() {
+function IconAscent() {
+  // A mountain range — the climb from valley to summit.
   return (
     <NavIcon>
-      <path d="M4 12a8 8 0 1 0 3-6.2" />
-      <path d="M4 4v4h4" />
+      <path d="M3 19h18" />
+      <path d="M6 19l4-8.5 3 4.5 2.5-3.5L19 19" />
     </NavIcon>
   )
 }
