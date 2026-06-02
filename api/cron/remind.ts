@@ -4,7 +4,6 @@
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { sendReminderNotification } from '../_lib/notify.js'
-import { env } from '../_lib/env.js'
 
 interface ReminderRow {
   id: string
@@ -13,11 +12,6 @@ interface ReminderRow {
   content: string
   remind_at: string
   created_at: string
-}
-
-interface UserRow {
-  id: string
-  email: string
 }
 
 function formatDate(iso: string): string {

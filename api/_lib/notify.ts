@@ -27,7 +27,6 @@ export async function sendReminderNotification(opts: ReminderNotification): Prom
   }
 
   const entryUrl = `${env.appUrl()}/?entry=${opts.entryId}`
-  const _name = opts.ownerName ?? 'Friend'
 
   const html = `
 <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:2rem 1.5rem;color:#2a2a2a">
