@@ -1,8 +1,16 @@
+import { stripSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
 import type { Entry, EntrySource, NewEntry } from './types'
 
+// Explicit column list = every Entry field EXCEPT the server-only `embedding`
+// vector. Selecting `*` would drag 1536 floats per row to the client; at list
+// sizes (~1000 rows) that blows past the authenticated role's statement timeout
+// (→ 500). Embeddings are never read client-side.
+const ENTRY_COLUMNS =
+  'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id'
+
 export function wordCount(markdown: string): number {
-  const trimmed = markdown.trim()
+  const trimmed = stripSpiritualBlocks(markdown).trim()
   if (!trimmed) return 0
   return trimmed.split(/\s+/).length
 }
@@ -19,7 +27,7 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
       word_count: wordCount(input.body_markdown),
       source: 'native',
     })
-    .select()
+    .select(ENTRY_COLUMNS)
     .single()
 
   if (error) throw error
@@ -46,7 +54,7 @@ export async function upsertEntryRow(entry: Entry): Promise<Entry> {
       source: entry.source,
       external_id: entry.external_id,
     })
-    .select()
+    .select(ENTRY_COLUMNS)
     .single()
 
   if (error) throw error
@@ -101,7 +109,7 @@ export async function updateEntryBody(id: string, body_markdown: string): Promis
     .from('entries')
     .update({ body_markdown, word_count: wordCount(body_markdown) })
     .eq('id', id)
-    .select()
+    .select(ENTRY_COLUMNS)
     .single()
 
   if (error) throw error
@@ -115,15 +123,80 @@ export async function deleteEntry(id: string): Promise<void> {
   if (error) throw error
 }
 
+/** Fetch one entry by id — for history beyond the locally-cached recent window. */
+export async function getEntryById(id: string): Promise<Entry | null> {
+  const sb = requireSupabase()
+  const { data, error } = await sb.from('entries').select(ENTRY_COLUMNS).eq('id', id).maybeSingle()
+  if (error) throw error
+  return (data as Entry | null) ?? null
+}
+
+/** Fetch specific entries by id (chunked to stay under PostgREST URL limits). */
+export async function fetchEntriesByIds(ids: string[]): Promise<Entry[]> {
+  if (ids.length === 0) return []
+  const sb = requireSupabase()
+  const out: Entry[] = []
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200)
+    const { data, error } = await sb.from('entries').select(ENTRY_COLUMNS).in('id', chunk)
+    if (error) throw error
+    for (const e of (data ?? []) as Entry[]) out.push(e)
+  }
+  return out
+}
+
 /** List entries newest-first. */
 export async function listEntries(limit = 50): Promise<Entry[]> {
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('entries')
-    .select('*')
+    .select(ENTRY_COLUMNS)
     .order('created_at', { ascending: false })
     .limit(limit)
 
   if (error) throw error
   return (data ?? []) as Entry[]
+}
+
+/**
+ * Entries whose `created_at` falls in [fromISO, toExclusiveISO), oldest-first —
+ * the lived order the Valley reads. Mirrors the server's windowed read
+ * (`api/_lib/synthesize.ts fetchEntries`) so the week shows exactly what fed the
+ * weekly rollup.
+ */
+export async function listEntriesInWindow(fromISO: string, toExclusiveISO: string): Promise<Entry[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('entries')
+    .select(ENTRY_COLUMNS)
+    .gte('created_at', fromISO)
+    .lt('created_at', toExclusiveISO)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Entry[]
+}
+
+const ENTRY_PAGE = 1000
+
+/**
+ * Every entry, newest-first — paginated past PostgREST's ~1000-row cap so the
+ * whole journal can be cached locally (not just a recent window). One-time cost
+ * on first sync; cheap thereafter.
+ */
+export async function listAllEntries(): Promise<Entry[]> {
+  const sb = requireSupabase()
+  const out: Entry[] = []
+  for (let from = 0; ; from += ENTRY_PAGE) {
+    const { data, error } = await sb
+      .from('entries')
+      .select(ENTRY_COLUMNS)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + ENTRY_PAGE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as Entry[]
+    out.push(...rows)
+    if (rows.length < ENTRY_PAGE) break
+  }
+  return out
 }

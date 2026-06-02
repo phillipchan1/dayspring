@@ -57,13 +57,14 @@ create policy "entries are private to owner"
   with check (auth.uid() = owner);
 
 -- ── insights (§5) ──────────────────────────────────────────────────────────
--- Grounded rollups (weekly → monthly → yearly). Facts are computed in code; the
--- model only selects verbatim quotes, labels topics, and writes one hedged note.
+-- Grounded rollups (weekly → monthly → quarterly → yearly). Facts are computed in
+-- code; quotes/excerpts/Ebenezer pairings are verbatim-validated; the reflective
+-- prose is generated and grounded by feeding only the level beneath.
 create table if not exists public.insights (
   id                uuid primary key default gen_random_uuid(),
   owner             uuid not null default auth.uid() references auth.users (id) on delete cascade,
   entry_id          uuid references public.entries (id) on delete set null,  -- null for period rollups
-  type              text not null check (type in ('per_entry','weekly','monthly','yearly','win')),
+  type              text not null check (type in ('per_entry','weekly','monthly','quarterly','yearly','win')),
   lens              text,
   period_start      date,
   period_end        date,
@@ -84,7 +85,7 @@ create table if not exists public.insights (
 -- database-level guard against ever landing two rows for the same period.
 create unique index if not exists insights_period_key
   on public.insights (owner, type, period_start, period_end)
-  where type in ('weekly','monthly','yearly');
+  where type in ('weekly','monthly','quarterly','yearly');
 
 create index if not exists insights_type_period_idx
   on public.insights (owner, type, period_start desc);

@@ -29,6 +29,7 @@ export const editorTheme = EditorView.theme({
   },
   '.cm-line': {
     padding: '0',
+    fontFamily: 'var(--font-editor)',
   },
   '&.cm-focused': {
     outline: 'none',
@@ -37,8 +38,20 @@ export const editorTheme = EditorView.theme({
     borderLeftColor: 'var(--accent)',
     borderLeftWidth: '2px',
   },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'var(--accent-soft)',
+  // Thematic text selection (accent-tinted, readable in every theme). We style
+  // ::selection directly instead of drawSelection so selected text gets a proper
+  // foreground color — not the system blue on macOS or faint accent washes.
+  // !important wins over inline syntax tag colors on nested spans.
+  '.cm-content ::selection, .cm-content *::selection': {
+    backgroundColor: 'var(--selection-bg) !important',
+    color: 'var(--selection-fg) !important',
+  },
+  '.cm-content::-moz-selection, .cm-content *::-moz-selection': {
+    backgroundColor: 'var(--selection-bg) !important',
+    color: 'var(--selection-fg) !important',
+  },
+  '.cm-selectionBackground': {
+    backgroundColor: 'transparent !important',
   },
   '.cm-placeholder': {
     color: 'var(--text-faint)',
@@ -47,5 +60,16 @@ export const editorTheme = EditorView.theme({
   // Active line stays subtle — focus mode handles emphasis later.
   '.cm-activeLine': {
     backgroundColor: 'transparent',
+  },
+  '.cm-commandLine': {
+    backgroundColor: 'var(--accent-soft)',
+  },
+  // Quiet underline on recognized scripture references — warm, passive, the
+  // same gold as the Scripture surface. Never changes layout or caret behavior.
+  '.cm-scriptureRef': {
+    textDecoration: 'underline',
+    textDecorationColor: 'color-mix(in srgb, rgb(var(--scripture-gold)) 45%, transparent)',
+    textDecorationThickness: '1px',
+    textUnderlineOffset: '3px',
   },
 })

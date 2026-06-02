@@ -11,9 +11,11 @@ interface Props {
   onChange: (mode: Appearance) => void
   /** Compact styling for the floating writing bar. */
   compact?: boolean
+  /** When false, keep out of the Tab order while writing (mouse still works). */
+  tabFocus?: boolean
 }
 
-export function AppearanceToggle({ appearance, onChange, compact = false }: Props) {
+export function AppearanceToggle({ appearance, onChange, compact = false, tabFocus = true }: Props) {
   return (
     <div
       className={compact ? 'segmented segmented--compact' : 'segmented'}
@@ -27,6 +29,7 @@ export function AppearanceToggle({ appearance, onChange, compact = false }: Prop
           className="segmented__btn"
           data-active={appearance === opt.value}
           title={opt.title}
+          tabIndex={tabFocus ? 0 : -1}
           onClick={() => onChange(opt.value)}
         >
           {opt.label}

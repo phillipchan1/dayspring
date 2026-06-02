@@ -31,8 +31,8 @@ export const markdownHighlight = HighlightStyle.define([
   // Quotes.
   { tag: t.quote, fontStyle: 'italic', color: 'var(--md-quote)' },
 
-  // List bullets / numbers.
-  { tag: t.list, color: 'var(--md-list)' },
+  // List markers — faded like #, *, >; body text keeps the writing font.
+  { tag: t.list, color: 'var(--text-faint)' },
 
   // The markdown markers themselves (#, *, _, >, `, -, link brackets) — faded.
   { tag: t.processingInstruction, color: 'var(--text-faint)' },

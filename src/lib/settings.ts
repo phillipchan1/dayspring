@@ -25,6 +25,8 @@ export const FONT_SIZE_MAX = 36
 
 const SETTINGS_FORMAT_VERSION = 3
 
+export type EntriesGroupBy = 'flat' | 'month' | 'year'
+
 export interface Settings {
   // Focus-mode behaviour
   typewriter: boolean // keep the active line vertically centered
@@ -37,6 +39,12 @@ export interface Settings {
 
   appearance: Appearance
   editorFont: EditorFont // the writing/reading face
+
+  /** Entries sidebar: flat list vs month/year section headers. */
+  entriesGroupBy: EntriesGroupBy
+
+  /** Desktop rail: show text labels beside icons. */
+  railLabels: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -47,6 +55,8 @@ const DEFAULTS: Settings = {
   maxWidth: 42,
   appearance: 'auto',
   editorFont: 'serif',
+  entriesGroupBy: 'month',
+  railLabels: false,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

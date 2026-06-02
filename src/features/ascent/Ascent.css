@@ -1,0 +1,1041 @@
+/* THE ASCENT — elevation over one terrain. Immersive dark surface (theme-
+ * independent, like the Welcome flow); fonts come from the app's tokens. The
+ * morph between altitudes is a CSS crossfade-and-rise (no animation lib); it
+ * degrades to a plain fade under prefers-reduced-motion (handled globally). */
+
+.ascent {
+  position: relative;
+  height: 100%;
+  min-height: 560px;
+  overflow: hidden;
+  display: flex;
+  color: #ece7df;
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  --ascent-gold: #e8b873;
+  --ascent-gold-soft: #f0c587;
+  --a0: #0d1018;
+  --a1: #141a28;
+  /* Mountain rock gradient (parametrised so the light theme can warm it). */
+  --ascent-rock-top: #2a2436;
+  --ascent-rock-bottom: #171520;
+}
+
+.ascent-air {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(130% 90% at 50% 112%, var(--a1), transparent 62%),
+    linear-gradient(180deg, var(--a0), var(--a1));
+  animation: ascent-airfade 1.1s ease;
+}
+.ascent-stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+  background-image:
+    radial-gradient(1px 1px at 20% 18%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 67% 12%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 83% 28%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 38% 8%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 52% 22%, rgba(255, 255, 255, 0.3), transparent);
+}
+
+/* Visually-hidden live region for altitude announcements. */
+.ascent-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── climb rail ─────────────────────────────────────────────────────────── */
+.ascent-rail {
+  position: relative;
+  z-index: 3;
+  width: 128px;
+  flex: 0 0 128px;
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
+}
+.ascent-rail__track {
+  position: relative;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin: 30px 0;
+}
+.ascent-rail__fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(0deg, var(--ascent-gold), var(--ascent-gold-soft));
+  border-radius: 2px;
+  transition: height 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 12px -1px rgba(232, 184, 115, 0.6);
+}
+.ascent-station {
+  position: absolute;
+  left: 50%;
+  /* Anchor the group at the rail line; the dot straddles it (below) so the
+   * labels sit fully to the right and the line never crosses the words. */
+  transform: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  white-space: nowrap;
+}
+.ascent-station__dot {
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px; /* center the dot on the rail line */
+  border-radius: 50%;
+  background: #2a3040;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  transition: 0.4s;
+  flex: 0 0 11px;
+  z-index: 2;
+}
+.ascent-station.below .ascent-station__dot {
+  background: var(--ascent-gold);
+  border-color: var(--ascent-gold);
+}
+.ascent-station.on .ascent-station__dot {
+  background: var(--ascent-gold-soft);
+  border-color: var(--ascent-gold-soft);
+  transform: scale(1.5);
+  box-shadow: 0 0 16px -1px rgba(240, 197, 135, 0.8);
+}
+.ascent-station__label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  color: rgba(236, 231, 223, 0.4);
+  transition: 0.3s;
+  line-height: 1.2;
+  text-align: left;
+  /* Soft frosted backing so the rail line + air don't muddy the words. */
+  padding: 3px 10px 4px 9px;
+  border-radius: 8px;
+  background: rgba(13, 16, 24, 0.32);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+.ascent-station__label em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  opacity: 0.6;
+}
+.ascent-station.on .ascent-station__label {
+  color: var(--ascent-gold-soft);
+}
+.ascent-station:hover .ascent-station__label,
+.ascent-station:focus-visible .ascent-station__label {
+  color: #ece7df;
+}
+.ascent-station:focus-visible {
+  outline: 2px solid var(--ascent-gold-soft);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* ── main column ────────────────────────────────────────────────────────── */
+.ascent-main {
+  flex: 1;
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 56px 48px 32px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.ascent-head {
+  animation: ascent-rise 0.7s both;
+}
+.ascent-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--ascent-gold);
+  opacity: 0.85;
+}
+.ascent-title {
+  font-size: 36px;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 14px 0 12px;
+}
+.ascent-line {
+  font-size: 16px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.6);
+  max-width: 500px;
+  line-height: 1.6;
+  margin: 0;
+}
+.ascent-terrain {
+  flex: 1;
+  margin-top: 36px;
+}
+.ascent-voice {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(236, 231, 223, 0.4);
+  margin-top: 26px;
+  letter-spacing: 0.03em;
+  font-style: normal;
+}
+.ascent-voice.quiet {
+  color: rgba(236, 231, 223, 0.32);
+}
+.ascent-voice.ask {
+  color: rgba(232, 184, 115, 0.55);
+}
+.ascent-empty {
+  font-size: 16px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.5);
+  line-height: 1.6;
+  max-width: 440px;
+  margin: 8px 0 0;
+}
+
+/* ── Valley: entries ────────────────────────────────────────────────────── */
+.ascent-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ascent-entry {
+  display: flex;
+  gap: 16px;
+  animation: ascent-rise 0.6s both;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.ascent-entry__bar {
+  width: 2px;
+  background: linear-gradient(180deg, var(--ascent-gold), transparent);
+  border-radius: 2px;
+  flex: 0 0 2px;
+}
+.ascent-entry__body {
+  display: block;
+}
+.ascent-entry__text {
+  display: block;
+  font-size: 17px;
+  line-height: 1.55;
+  margin: 0 0 6px;
+  color: #e6e1d8;
+}
+.ascent-entry__text.is-quote {
+  font-style: italic;
+  color: #efe9df;
+}
+.ascent-entry__date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-entry__date em {
+  color: var(--ascent-gold);
+  font-style: normal;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.ascent-entry:hover .ascent-entry__date em,
+.ascent-entry:focus-visible .ascent-entry__date em {
+  opacity: 1;
+}
+
+/* ── Hillside: arcs ─────────────────────────────────────────────────────── */
+.ascent-arcs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.ascent-arc {
+  position: relative;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+  animation: ascent-rise 0.6s both;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.ascent-arc.is-merge-target {
+  cursor: pointer;
+  border-color: rgba(232, 184, 115, 0.4);
+}
+.ascent-arc.is-merge-source {
+  opacity: 0.55;
+}
+.ascent-arc__weight {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.ascent-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ascent-gold);
+  opacity: 0.85;
+  animation: ascent-pop 0.4s both;
+}
+.ascent-arc__name {
+  font-size: 18px;
+  margin: 0 0 8px;
+  line-height: 1.25;
+}
+.ascent-arc__note {
+  font-size: 14px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.6);
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.ascent-arc__from {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(236, 231, 223, 0.35);
+}
+.ascent-arc__actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+}
+.ascent-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ascent-gold);
+  transition: color 0.2s;
+}
+.ascent-link:hover {
+  color: var(--ascent-gold-soft);
+}
+.ascent-link.dim {
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-link.dim:hover {
+  color: rgba(236, 231, 223, 0.7);
+}
+.ascent-arc__rename {
+  margin: 0 0 8px;
+}
+.ascent-arc__input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(232, 184, 115, 0.4);
+  border-radius: 8px;
+  color: #efe9df;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  padding: 8px 10px;
+}
+.ascent-arc__input:focus {
+  outline: none;
+  border-color: var(--ascent-gold-soft);
+}
+.ascent-arc__rename-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.ascent-arc__merge-target {
+  display: block;
+  margin-top: 12px;
+  background: none;
+  border: 1px dashed rgba(232, 184, 115, 0.4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(236, 231, 223, 0.6);
+}
+.ascent-arc__merge-target strong {
+  color: var(--ascent-gold-soft);
+}
+
+/* ── Ridge: tensions ────────────────────────────────────────────────────── */
+.ascent-tensions {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ascent-tension {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 2px solid rgba(232, 184, 115, 0.5);
+  border-radius: 14px;
+  padding: 24px;
+  animation: ascent-rise 0.7s both;
+}
+.ascent-tension__thread {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.45);
+}
+.ascent-tension__q {
+  font-size: 20px;
+  font-style: italic;
+  line-height: 1.5;
+  color: #efe9df;
+  margin: 12px 0 16px;
+}
+.ascent-tension__act {
+  background: none;
+  border: none;
+  color: var(--ascent-gold);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  padding: 0;
+  transition: 0.2s;
+}
+.ascent-tension__act:hover:not(:disabled) {
+  color: var(--ascent-gold-soft);
+}
+.ascent-tension__act:disabled {
+  cursor: default;
+  color: rgba(236, 231, 223, 0.45);
+}
+
+/* ── Summit: forming mountain ───────────────────────────────────────────── */
+.ascent-summit {
+  animation: ascent-rise 0.9s both;
+}
+.ascent-mountain {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  display: block;
+}
+.ascent-dawn-band {
+  animation: ascent-fade 1.6s ease both 0.3s;
+}
+.ascent-solid-land {
+  animation: ascent-rise-land 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) both 0.2s;
+}
+.ascent-stone-g {
+  animation: ascent-fade 0.7s both;
+}
+.ascent-stone-dot {
+  filter: drop-shadow(0 0 6px rgba(240, 197, 135, 0.7));
+  animation: ascent-breathe 5s ease-in-out infinite;
+}
+.ascent-stone-ring {
+  transform-origin: center;
+  animation: ascent-ring 4s ease-in-out infinite;
+}
+.ascent-peak-seed {
+  animation: ascent-peakpulse 3.5s ease-in-out infinite;
+}
+.ascent-peak-halo {
+  transform-origin: 300px 40px;
+  animation: ascent-peakhalo 3.5s ease-in-out infinite;
+}
+.ascent-peak-lit {
+  filter: drop-shadow(0 0 12px rgba(240, 197, 135, 0.9));
+}
+.ascent-status-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  max-width: 340px;
+  margin: 18px auto 10px;
+  overflow: hidden;
+}
+.ascent-status-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ascent-gold-soft), var(--ascent-gold));
+  border-radius: 3px;
+  box-shadow: 0 0 10px -1px rgba(232, 184, 115, 0.6);
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ascent-status-text {
+  display: block;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(236, 231, 223, 0.45);
+}
+.ascent-formed-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 32px;
+}
+.ascent-formed-cell {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 22px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.ascent-fc-num {
+  font-size: 40px;
+  font-weight: 500;
+  color: var(--ascent-gold-soft);
+  display: block;
+  line-height: 1;
+}
+.ascent-fc-num.small {
+  font-size: 21px;
+}
+.ascent-fc-label {
+  font-size: 14px;
+  color: rgba(236, 231, 223, 0.6);
+  font-style: italic;
+  display: block;
+  margin-top: 8px;
+}
+.ascent-refrain {
+  margin-top: 30px;
+  text-align: center;
+  padding: 28px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ascent-formed-lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-refrain__text {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #efe9df;
+  font-family: var(--font-serif);
+  font-size: 25px;
+  font-style: italic;
+  line-height: 1.4;
+  margin: 14px 0 12px;
+  text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
+}
+.ascent-refrain__note {
+  font-size: 13px;
+  color: rgba(236, 231, 223, 0.45);
+  font-style: italic;
+}
+
+/* ── Wrapped: Your Year, Unfolding ──────────────────────────────────────── */
+.ascent-wrapped {
+  margin-top: 30px;
+  border-radius: 18px;
+  padding: 22px 24px;
+  background: linear-gradient(
+    135deg,
+    rgba(232, 184, 115, 0.14),
+    rgba(157, 120, 180, 0.1),
+    rgba(90, 110, 160, 0.08)
+  );
+  border: 1px solid rgba(232, 184, 115, 0.22);
+  text-align: center;
+}
+.ascent-wrapped__kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--ascent-gold-soft);
+}
+.ascent-wrapped__peeks {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 16px;
+}
+.ascent-wrapped__peek {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: rgba(236, 231, 223, 0.55);
+  font-style: italic;
+}
+.ascent-wrapped__peek em {
+  font-style: normal;
+  font-size: 18px;
+  color: var(--ascent-gold-soft);
+}
+.ascent-wrapped__throughline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+}
+.ascent-wrapped__tl-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-wrapped__tl-pending {
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(232, 184, 115, 0.6);
+}
+.ascent-wrapped__teaser {
+  font-size: 14px;
+  color: rgba(236, 231, 223, 0.6);
+  font-style: italic;
+  line-height: 1.6;
+  margin: 14px 0 0;
+}
+.ascent-wrapped__open {
+  margin-top: 16px;
+  background: linear-gradient(160deg, rgba(240, 197, 135, 0.22), rgba(220, 163, 94, 0.12));
+  border: 1px solid rgba(232, 184, 115, 0.35);
+  color: var(--ascent-gold-soft);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 10px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.25s;
+}
+.ascent-wrapped__open:hover {
+  transform: translateY(-1px);
+}
+
+/* paged review (year complete) */
+.ascent-review {
+  margin-top: 30px;
+  border-radius: 18px;
+  padding: 36px 24px 24px;
+  background: linear-gradient(160deg, rgba(232, 184, 115, 0.16), rgba(90, 110, 160, 0.08));
+  border: 1px solid rgba(232, 184, 115, 0.28);
+  text-align: center;
+}
+.ascent-review__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 160px;
+  justify-content: center;
+  animation: ascent-rise 0.5s both;
+}
+.ascent-review__header {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(236, 231, 223, 0.55);
+}
+.ascent-review__big {
+  font-size: 30px;
+  font-style: italic;
+  color: var(--ascent-gold-soft);
+  line-height: 1.3;
+}
+.ascent-review__big.as-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+}
+.ascent-review__sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(236, 231, 223, 0.45);
+}
+.ascent-review__dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0 16px;
+}
+.ascent-review__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+}
+.ascent-review__dot.on {
+  background: var(--ascent-gold-soft);
+}
+.ascent-review__nav {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── controls ───────────────────────────────────────────────────────────── */
+.ascent-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ascent-ctrl-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ece7df;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 10px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.25s;
+}
+.ascent-ctrl-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+.ascent-ctrl-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.ascent-ctrl-btn.up {
+  background: linear-gradient(160deg, rgba(240, 197, 135, 0.22), rgba(220, 163, 94, 0.12));
+  border-color: rgba(232, 184, 115, 0.35);
+  color: var(--ascent-gold-soft);
+}
+.ascent-ctrl-alt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(236, 231, 223, 0.4);
+  letter-spacing: 0.05em;
+}
+
+/* ── keyframes ──────────────────────────────────────────────────────────── */
+@keyframes ascent-airfade {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ascent-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ascent-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ascent-pop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+@keyframes ascent-rise-land {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ascent-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes ascent-ring {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.15);
+  }
+}
+@keyframes ascent-peakpulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+@keyframes ascent-peakhalo {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.28;
+    transform: scale(1.3);
+  }
+}
+
+/* ── light theme (dawn): a daybreak version of the climb ─────────────────────
+ * Same elevation metaphor, but a pale predawn sky warming to golden morning
+ * instead of night → gold. Dark ink text on warm paper; gold deepened to amber
+ * so it reads on light; the night stars are hidden; the mountain becomes a
+ * dawn-lit slope. `ink` rgba values are the dawn theme's --text (74,64,53). */
+.ascent.ascent--light {
+  color: var(--text);
+  --ascent-gold: #b5772c;
+  --ascent-gold-soft: #c98a36;
+  --ascent-rock-top: #7d7480;
+  --ascent-rock-bottom: #565060;
+}
+.ascent--light .ascent-stars {
+  display: none;
+}
+.ascent--light .ascent-rail__track {
+  background: rgba(74, 64, 53, 0.16);
+}
+.ascent--light .ascent-station__dot {
+  background: #ddd2c0;
+  border-color: rgba(74, 64, 53, 0.25);
+}
+.ascent--light .ascent-station__label {
+  color: rgba(74, 64, 53, 0.5);
+  background: rgba(251, 246, 238, 0.6);
+}
+.ascent--light .ascent-station:hover .ascent-station__label,
+.ascent--light .ascent-station:focus-visible .ascent-station__label {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-title {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-line {
+  color: rgba(74, 64, 53, 0.72);
+}
+.ascent--light .ascent-voice {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-voice.quiet {
+  color: rgba(74, 64, 53, 0.42);
+}
+.ascent--light .ascent-voice.ask {
+  color: rgba(168, 106, 38, 0.85);
+}
+.ascent--light .ascent-empty {
+  color: rgba(74, 64, 53, 0.6);
+}
+
+/* Valley */
+.ascent--light .ascent-entry__text {
+  color: #3a322a;
+}
+.ascent--light .ascent-entry__text.is-quote {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-entry__date {
+  color: rgba(74, 64, 53, 0.5);
+}
+
+/* Hillside */
+.ascent--light .ascent-arc,
+.ascent--light .ascent-formed-cell {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(74, 64, 53, 0.14);
+  box-shadow: var(--shadow-2);
+}
+.ascent--light .ascent-arc__name {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-arc__note {
+  color: rgba(74, 64, 53, 0.7);
+}
+.ascent--light .ascent-arc__from {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-link.dim {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-link.dim:hover {
+  color: rgba(74, 64, 53, 0.8);
+}
+.ascent--light .ascent-arc__input {
+  background: #fffdf8;
+  color: var(--text-bright);
+  border-color: rgba(181, 119, 44, 0.5);
+}
+.ascent--light .ascent-arc__merge-target {
+  color: rgba(74, 64, 53, 0.7);
+  border-color: rgba(181, 119, 44, 0.4);
+}
+
+/* Ridge */
+.ascent--light .ascent-tension {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(74, 64, 53, 0.14);
+  border-left-color: rgba(181, 119, 44, 0.55);
+  box-shadow: var(--shadow-2);
+}
+.ascent--light .ascent-tension__thread {
+  color: rgba(74, 64, 53, 0.55);
+}
+.ascent--light .ascent-tension__q {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-tension__act:disabled {
+  color: rgba(74, 64, 53, 0.5);
+}
+
+/* Summit */
+.ascent--light .ascent-status-bar {
+  background: rgba(74, 64, 53, 0.12);
+}
+.ascent--light .ascent-status-text {
+  color: rgba(74, 64, 53, 0.55);
+}
+.ascent--light .ascent-fc-label {
+  color: rgba(74, 64, 53, 0.7);
+}
+.ascent--light .ascent-refrain {
+  border-color: rgba(74, 64, 53, 0.12);
+}
+.ascent--light .ascent-formed-lbl {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-refrain__text {
+  color: var(--text-bright);
+  text-shadow: none;
+}
+.ascent--light .ascent-refrain__note {
+  color: rgba(74, 64, 53, 0.55);
+}
+
+/* Wrapped */
+.ascent--light .ascent-wrapped,
+.ascent--light .ascent-review {
+  border-color: rgba(181, 119, 44, 0.3);
+}
+.ascent--light .ascent-wrapped__peek {
+  color: rgba(74, 64, 53, 0.6);
+}
+.ascent--light .ascent-wrapped__tl-label {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-wrapped__tl-pending {
+  color: rgba(168, 106, 38, 0.85);
+}
+.ascent--light .ascent-wrapped__teaser {
+  color: rgba(74, 64, 53, 0.65);
+}
+.ascent--light .ascent-review__header {
+  color: rgba(74, 64, 53, 0.6);
+}
+.ascent--light .ascent-review__sub {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-review__dot {
+  background: rgba(74, 64, 53, 0.2);
+}
+
+/* Controls */
+.ascent--light .ascent-ctrl {
+  border-top-color: rgba(74, 64, 53, 0.12);
+}
+.ascent--light .ascent-ctrl-btn {
+  background: rgba(74, 64, 53, 0.06);
+  border-color: rgba(74, 64, 53, 0.18);
+  color: var(--text-bright);
+}
+.ascent--light .ascent-ctrl-btn:hover:not(:disabled) {
+  background: rgba(74, 64, 53, 0.1);
+}
+.ascent--light .ascent-ctrl-alt {
+  color: rgba(74, 64, 53, 0.5);
+}
+
+/* ── responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ascent-rail {
+    width: 64px;
+    flex: 0 0 64px;
+    padding: 40px 0;
+  }
+  .ascent-station__label {
+    font-size: 11px;
+  }
+  .ascent-main {
+    padding: 40px 20px 28px;
+  }
+  .ascent-title {
+    font-size: 26px;
+  }
+  .ascent-arcs,
+  .ascent-formed-grid {
+    grid-template-columns: 1fr;
+  }
+  .ascent-refrain__text {
+    font-size: 20px;
+  }
+  .ascent-review__big {
+    font-size: 24px;
+  }
+}

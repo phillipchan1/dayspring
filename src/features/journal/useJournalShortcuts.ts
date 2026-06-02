@@ -1,16 +1,20 @@
 import { useEffect } from 'react'
-import { focusEntrySearch, hasMod, isInEditor, shouldIgnoreTarget } from './keyboard'
-import type { ViewMode } from './journalViewProps'
+import { hasMod, isInEditor, isTypingContext, shouldIgnoreTarget } from './keyboard'
+import { RAIL_EXPAND_KEY } from './railHints'
+import { isTauri } from '@/lib/platform'
 
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
+  onToggleEntries: () => void
+  onLookBack: () => void
+  onScripture: () => void
+  onAltar: () => void
   onOpenSettings: () => void
-  /** Write → read (Esc). */
-  onExitEdit: () => void
-  /** Read → write (E). */
-  onEnterEdit: () => void
-  mode: ViewMode
+  /** Open the entries panel (if collapsed) and focus its search field. */
+  onFocusSearch: () => void
+  /** Expand or collapse navigation rail labels. */
+  onToggleRailLabels: () => void
   /** Focus mode consumes Esc first (handled in useFocusMode). */
   focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
@@ -20,59 +24,100 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * C compose · E edit · Esc read · ⌘S save · ⌘, settings · ⌘K search
+ * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–4 rail · ⌘, settings
+ * ⌘S save · ⌘K search · ⌘⏎ focus
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
-    onNew, onSave, onOpenSettings, onExitEdit, onEnterEdit, mode, focusActive, settingsOpen,
+    onNew,
+    onSave,
+    onToggleEntries,
+    onLookBack,
+    onScripture,
+    onAltar,
+    onOpenSettings,
+    onFocusSearch,
+    onToggleRailLabels,
+    focusActive,
+    settingsOpen,
   } = actions
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (settingsOpen) return
+      if (e.key === 'Escape' && focusActive) return
 
-      if (e.key === 'Escape') {
-        if (focusActive) return
-        if (mode === 'write') {
-          e.preventDefault()
-          onExitEdit()
-        }
+      if (e.key === RAIL_EXPAND_KEY && !hasMod(e) && !e.altKey && !e.ctrlKey) {
+        if (settingsOpen || shouldIgnoreTarget(e.target) || isInEditor(e.target)) return
+        e.preventDefault()
+        onToggleRailLabels()
         return
       }
 
       const key = e.key.toLowerCase()
 
-      if (!hasMod(e) && !e.altKey && !e.shiftKey) {
-        if (shouldIgnoreTarget(e.target)) return
-
-        if (key === 'c' && !(mode === 'write' && isInEditor(e.target))) {
+      if (isTauri()) {
+        if (hasMod(e) && !e.altKey && key === 'n') {
           e.preventDefault()
           onNew()
           return
         }
-        if (key === 'e' && mode === 'read') {
-          e.preventDefault()
-          onEnterEdit()
-          return
-        }
+      } else if (
+        !hasMod(e) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        key === 'c' &&
+        !settingsOpen &&
+        !isTypingContext(e.target)
+      ) {
+        e.preventDefault()
+        onNew()
+        return
       }
 
-      if (!hasMod(e)) return
+      if (!hasMod(e) || e.altKey) return
+
+      if (key === ',') {
+        e.preventDefault()
+        onOpenSettings()
+        return
+      }
+
+      if (key >= '1' && key <= '4' && !e.shiftKey) {
+        e.preventDefault()
+        if (key === '1') onToggleEntries()
+        else if (key === '2') onLookBack()
+        else if (key === '3') onScripture()
+        else if (key === '4') onAltar()
+        return
+      }
+
+      if (settingsOpen) return
+
       if (shouldIgnoreTarget(e.target)) return
 
       if (key === 's') {
         e.preventDefault()
         void onSave()
-      } else if (key === ',') {
-        e.preventDefault()
-        onOpenSettings()
       } else if (key === 'k') {
+        if (isInEditor(e.target)) return
         e.preventDefault()
-        focusEntrySearch()
+        onFocusSearch()
       }
     }
 
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onNew, onSave, onOpenSettings, onExitEdit, onEnterEdit, mode, focusActive, settingsOpen])
+  }, [
+    onNew,
+    onSave,
+    onToggleEntries,
+    onLookBack,
+    onScripture,
+    onAltar,
+    onOpenSettings,
+    onFocusSearch,
+    onToggleRailLabels,
+    focusActive,
+    settingsOpen,
+  ])
 }

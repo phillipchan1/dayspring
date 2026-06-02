@@ -6,9 +6,16 @@
 
 import { isAuthorized, unauthorized } from '../_lib/auth'
 import { env } from '../_lib/env'
-import { buildWeekly, buildMonthly } from '../_lib/synthesize'
+import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from '../_lib/synthesize'
+import type { RollupType } from '../_lib/types'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const BUILDERS = {
+  weekly: buildWeekly,
+  monthly: buildMonthly,
+  quarterly: buildQuarterly,
+  yearly: buildYearly,
+} as const
 
 export async function POST(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
@@ -24,17 +31,18 @@ export async function POST(req: Request): Promise<Response> {
   if (!start || !end || !DATE_RE.test(start) || !DATE_RE.test(end)) {
     return Response.json({ error: 'start and end (YYYY-MM-DD) are required' }, { status: 400 })
   }
-  if (type !== 'weekly' && type !== 'monthly') {
-    return Response.json({ error: "type must be 'weekly' or 'monthly'" }, { status: 400 })
+  if (!type || !(type in BUILDERS)) {
+    return Response.json(
+      { error: "type must be 'weekly', 'monthly', 'quarterly', or 'yearly'" },
+      { status: 400 },
+    )
   }
 
   const owner = env.appOwnerId()
   const period = { start, end }
 
   try {
-    const result = type === 'weekly'
-      ? await buildWeekly(owner, period)
-      : await buildMonthly(owner, period)
+    const result = await BUILDERS[type as RollupType](owner, period)
     return Response.json(result)
   } catch (e) {
     return Response.json(

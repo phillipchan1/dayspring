@@ -24,6 +24,10 @@ jobs:
       RELEASES_REPO: phillipchan1/dayspring-releases
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so the release-notes step can diff this build against
+          # the previous tip of master (github.event.before..HEAD).
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -54,6 +58,22 @@ jobs:
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Building version $VERSION"
 
+      # When an Apple signing identity is configured, swap the ad-hoc "-" in
+      # tauri.conf.json for the real identity so the build does Developer ID
+      # signing + notarization. Without the secret, the ad-hoc value stays and
+      # the build is unsigned (current behavior) — so this is safe pre-enrollment.
+      # (secrets can't be used in `if:`, so we gate inside the script via env.)
+      - name: Enable Apple signing when configured
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [ -n "$IDENTITY" ]; then
+            node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.bundle.macOS.signingIdentity=process.env.IDENTITY;fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
+            echo "Apple signing identity set — build will sign + notarize"
+          else
+            echo "No Apple identity configured — building unsigned (ad-hoc)"
+          fi
+
       # Build + sign directly (we publish to the public repo ourselves below).
       # The .dmg step (hdiutil/bundle_dmg.sh) is flaky on headless runners, so
       # we retry and clear any stale mount between attempts. --verbose surfaces
@@ -62,10 +82,33 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
+          # Updater signing (minisign) — unrelated to Apple code signing below.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Apple Developer ID signing + notarization. CRITICAL: these are gated
+          # on APPLE_CERTIFICATE being non-empty. If we passed an empty string,
+          # the Tauri CLI would see "env present" and try (and fail) to import an
+          # empty cert — which broke every build. The `&&` makes the var absent
+          # entirely (not "") when no cert is configured, so it falls back to the
+          # ad-hoc signingIdentity "-" and builds unsigned.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_TEAM_ID || '' }}
         run: |
           set -uo pipefail
+          # Belt-and-suspenders: if no real cert is configured, fully unset every
+          # APPLE_* var so the Tauri CLI never attempts (and fails) Apple signing.
+          # An empty-string env var still triggers the import path, so unset wins.
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+            echo "No Apple cert — building unsigned (ad-hoc)."
+          else
+            echo "Apple cert present — building signed + notarized."
+          fi
           for attempt in 1 2 3; do
             echo "::group::tauri build (attempt $attempt)"
             if npm run tauri build -- --target aarch64-apple-darwin --verbose; then
@@ -80,6 +123,28 @@ jobs:
             sleep 5
           done
           echo "All build attempts failed"; exit 1
+
+      # Human-readable "what's new", generated from the commits in THIS push
+      # (previous tip → now). Best-effort: scripts/release-notes.mjs falls back to
+      # a cleaned commit list if OPENAI_API_KEY is unset or the API errors, so a
+      # notes failure never blocks the release. The result feeds both latest.json
+      # (which the app shows in its update prompt) and the GitHub release body.
+      - name: Generate release notes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -uo pipefail
+          BEFORE="${{ github.event.before }}"
+          ZEROS="0000000000000000000000000000000000000000"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "$ZEROS" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            # First build / force-push / unreachable base: just describe the tip.
+            COMMITS=$(git log -1 --no-merges --pretty=format:'- %s')
+          else
+            COMMITS=$(git log "${BEFORE}..HEAD" --no-merges --pretty=format:'- %s')
+          fi
+          [ -z "$COMMITS" ] && COMMITS="- Minor improvements and behind-the-scenes fixes."
+          printf '%s\n' "$COMMITS" | node scripts/release-notes.mjs > RELEASE_NOTES.md
+          echo "Generated release notes:"; cat RELEASE_NOTES.md
 
       - name: Publish to public releases repo
         env:
@@ -96,11 +161,16 @@ jobs:
           PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
+          # Stable-named copy of the .dmg so the marketing site can always link to
+          # releases/latest/download/Dayspring-aarch64.dmg (no version in the URL).
+          STABLE_DMG="Dayspring-aarch64.dmg"
+          cp "$DMG" "$STABLE_DMG"
+
           # Updater manifest the app polls. Tauri verifies `signature` against the
           # embedded public key before installing.
           jq -n \
             --arg v "$APP_VERSION" \
-            --arg notes "Automated build from ${{ github.sha }}" \
+            --rawfile notes RELEASE_NOTES.md \
             --arg date "$PUB_DATE" \
             --arg sig "$SIG" \
             --arg url "$ASSET_URL" \
@@ -112,6 +182,6 @@ jobs:
           gh release create "$TAG" \
             --repo "$RELEASES_REPO" \
             --title "Dayspring v${APP_VERSION}" \
-            --notes "Automated build from ${{ github.sha }}. Installed apps auto-update to this version." \
+            --notes-file RELEASE_NOTES.md \
             --latest \
-            "$DMG" "$APPTAR" latest.json
+            "$DMG" "$STABLE_DMG" "$APPTAR" latest.json

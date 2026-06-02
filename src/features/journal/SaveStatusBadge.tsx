@@ -15,9 +15,12 @@ interface Props {
   status: SaveStatus
   lastSavedAt: number | null
   error: string | null
+  /** Render as plain inline text (no dot, inherits size/font) for the unified
+   *  status cluster. States/labels are unchanged. */
+  bare?: boolean
 }
 
-export function SaveStatusBadge({ status, lastSavedAt, error }: Props) {
+export function SaveStatusBadge({ status, lastSavedAt, error, bare = false }: Props) {
   // Re-render periodically so "saved 30s ago" stays accurate.
   const [, tick] = useState(0)
   useEffect(() => {
@@ -41,6 +44,16 @@ export function SaveStatusBadge({ status, lastSavedAt, error }: Props) {
       break
     default:
       label = lastSavedAt ? `Saved ${timeAgo(lastSavedAt)}` : 'Not saved yet'
+  }
+
+  if (bare) {
+    // The cluster owns the single dot and the lowercase/mono treatment;
+    // here we only contribute the label, quiet unless something's wrong.
+    return (
+      <span title={error ?? undefined} style={{ color: status === 'error' ? color : 'inherit' }}>
+        {label}
+      </span>
+    )
   }
 
   return (

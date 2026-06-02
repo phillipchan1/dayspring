@@ -1,96 +1,350 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Editor } from '@/editor/Editor'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Editor, type EditorHandle } from '@/editor/Editor'
+import type { SpiritualBlockEditTarget } from '@/editor/spiritualBlockDecoration'
+import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
+import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import { wordCount } from '@/lib/entries'
+import { asEntryMarkdown } from '@/lib/entryLabels'
+import { getEntryById, wordCount } from '@/lib/entries'
+import { subscribeEntryChanges } from '@/lib/entriesRealtime'
+import { isSupabaseConfigured } from '@/lib/env'
 import * as repo from '@/lib/repo'
+import { cacheGet } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
-import type { Entry } from '@/lib/types'
+import type { Entry, PrayerType } from '@/lib/types'
+import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
+import { useEntryEditorFocusToggle } from './useEntryEditorFocusToggle'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
-import { Reader } from './Reader'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
+import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
+import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
 import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
-import type { JournalViewProps, ViewMode } from './journalViewProps'
-
+import {
+  copyEntryMarkdown,
+  copyEntryText,
+  downloadEntryMarkdown,
+  printEntry,
+} from './entryActions'
+import type { EntryMenuAction } from './EntryContextMenu'
+import { isEntryRowTarget } from './useSuppressNativeContextMenu'
+import type { JournalViewProps } from './journalViewProps'
+import { AscentView } from '@/features/ascent/AscentView'
+import { AltarView } from '@/features/altar/AltarView'
+import { ScriptureView } from '@/features/scripture/ScriptureView'
+import { EntryBulkCanvas } from './EntryBulkCanvas'
+import {
+  copyEntriesMarkdown,
+  copyEntriesText,
+  exportEntriesZip,
+} from './entryBulkActions'
+import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi'
+import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
+import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
+import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
+import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
+import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
+import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
   userEmail: string
-  /** Route to the Reflections surface. */
-  onLookBack: () => void
-  /** When set, select & open this entry (from a rollup quote), then clear. */
-  jumpEntryId: string | null
-  onConsumeJump: () => void
-  /** When set, restrict the entry list to these ids (from a rollup topic). */
-  restrictIds: string[] | null
-  onClearRestrict: () => void
 }
 
-export function JournalScreen({
-  userEmail,
-  onLookBack,
-  jumpEntryId,
-  onConsumeJump,
-  restrictIds,
-  onClearRestrict,
-}: JournalScreenProps) {
+/**
+ * Extract the sentence nearest `pos` in `content` for pre-populating /remind.
+ * Strips any trailing /command text and falls back to the paragraph if the
+ * detected sentence is too short.
+ */
+function sentenceNear(content: string, pos: number): string {
+  const before = content.slice(0, pos)
+  if (!before.trim()) return ''
+
+  // Find the last sentence boundary before pos.
+  let lastBoundary = 0
+  const re = /[.!?]\s+/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(before)) !== null) lastBoundary = m.index + m[0].length
+
+  // Also treat paragraph breaks as sentence starts.
+  const lastPara = before.lastIndexOf('\n\n')
+  const start = Math.max(lastBoundary, lastPara < 0 ? 0 : lastPara + 2)
+
+  // Sentence extends to the first ., !, ? or \n after pos.
+  const after = content.slice(pos)
+  const endM = /^[^.!?\n]*[.!?\n]?/.exec(after)
+  const end = pos + (endM ? endM[0].length : 0)
+
+  const raw = content.slice(start, end)
+  // Strip the slash command text itself.
+  const cleaned = raw.replace(/\s*\/[a-z]*\s*/, ' ').trim()
+
+  // If too short, use last ~200 chars before pos.
+  if (cleaned.length < 15) {
+    return before.slice(-200).replace(/\s*\/[a-z]*\s*$/, '').trim()
+  }
+  return cleaned
+}
+
+export function JournalScreen({ userEmail }: JournalScreenProps) {
+  const { state, go, back } = useAppNavigation()
+  const { entryId, restrictIds } = state
+
   const [entries, setEntries] = useState<Entry[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
   const [content, setContent] = useState('')
+  const handleContentChange = useCallback((doc: string) => {
+    setContent((prev) => (prev === doc ? prev : doc))
+  }, [])
+  const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [mode, setMode] = useState<ViewMode>('write')
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
+  const [entriesOpen, setEntriesOpen] = useState(true)
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
-  const focus = useFocusMode(settingsOpen)
+  const settingsOpen = state.settings !== null
+  const helpOpen = state.help
+  const sidebarOpen = state.sidebar
+  const reflectionsActive = state.surface === 'reflections'
+  const altarActive = state.surface === 'altar'
+  const scriptureActive = state.surface === 'scripture'
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
+  const [focusEditorReady, setFocusEditorReady] = useState(false)
 
-  const activeIdRef = useRef<string | null>(null)
-  activeIdRef.current = activeId
+  useEffect(() => {
+    const base = 'Dayspring'
+    document.title = scriptureActive ? `Lamp — ${base}` : base
+    return () => {
+      document.title = base
+    }
+  }, [scriptureActive])
 
-  // Cache-first load: show local entries instantly, then sync from the server.
+  // Block the browser context menu outside the editor and entry rows (editor keeps native macOS menu).
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      if (isEntryRowTarget(e.target)) return
+      if (isInEditor(e.target)) return
+      e.preventDefault()
+    }
+    document.addEventListener('contextmenu', onContextMenu, true)
+    return () => document.removeEventListener('contextmenu', onContextMenu, true)
+  }, [])
+
+  const entryIdRef = useRef<string | null>(null)
+  entryIdRef.current = entryId
+  const contentRef = useRef(content)
+  contentRef.current = content
+  const skipEntrySyncRef = useRef(false)
+  /** While true, autosave may create an entry but we must not adopt its id (⌘N / C “new”). */
+  const skipAdoptOnCreateRef = useRef(false)
+  /** Last entry id whose body we loaded into the editor — avoids reloading on list sync. */
+  const loadedEntryIdRef = useRef<string | null>(null)
+  const skipEditorAutofocusRef = useRef(false)
+  const selectionApiRef = useRef<EntrySelectionApi | null>(null)
+  const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
+  const [rangeSelectActive, setRangeSelectActive] = useState(false)
+
+  // Slash command modals
+  const editorRef = useRef<EditorHandle>(null)
+  const [slashCapture, setSlashCapture] = useState<{
+    cmd: SlashCommandId
+    insertAt: number
+    anchor: InlinePanelAnchor
+    /** Present when editing an existing block in place rather than inserting. */
+    edit?: {
+      id: string
+      from: number
+      to: number
+      content: string
+      reference: string | null
+      prayerType: PrayerType | null
+    }
+  } | null>(null)
+  const slashCaptureRef = useRef(slashCapture)
+  slashCaptureRef.current = slashCapture
+
+  const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
+  const focusOverlaysOpen =
+    settingsOpen || helpOpen || slashCapture !== null || slashPaletteOpen
+  const focus = useFocusMode(focusOverlaysOpen)
+
+  useEffect(() => {
+    if (!focus.active) {
+      setFocusEditorReady(false)
+      return
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setFocusEditorReady(true))
+    })
+    return () => cancelAnimationFrame(id)
+  }, [focus.active])
+
+  function handleSlashCommand(
+    cmd: SlashCommandId,
+    insertAt: number,
+    anchor: InlinePanelAnchor,
+  ) {
+    setSlashCapture({ cmd, insertAt, anchor })
+  }
+
+  /** Map a clicked spiritual block to the popover that created it, pre-filled. */
+  const handleEditBlock = useCallback(
+    (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => {
+      const cmd: SlashCommandId =
+        target.type === 'prayer' ? 'pray' : target.type === 'sense' ? 'sense' : 'scripture'
+      setSlashCapture({
+        cmd,
+        insertAt: target.from,
+        anchor,
+        edit: {
+          id: target.id,
+          from: target.from,
+          to: target.to,
+          content: target.content,
+          reference: target.reference,
+          // Prayer type isn't carried in the fence; the pray popover rehydrates it.
+          prayerType: null,
+        },
+      })
+    },
+    [],
+  )
+
+  /** Insert at the slash position (or replace an edited block), then refocus. */
+  const completeSlashInsert = useCallback((text: string) => {
+    const cap = slashCaptureRef.current
+    if (!cap) return
+    if (cap.edit) {
+      editorRef.current?.replaceRange(cap.edit.from, cap.edit.to, text)
+      const after = cap.edit.from + text.length
+      setSlashCapture(null)
+      requestAnimationFrame(() => editorRef.current?.focusAt(after))
+      return
+    }
+    editorRef.current?.insertAt(cap.insertAt, text)
+    const after = cap.insertAt + text.length
+    setSlashCapture(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(after))
+  }, [])
+
+  /** Remove an edited block from the entry and delete its Altar row. */
+  const handleRemoveBlock = useCallback(() => {
+    const cap = slashCaptureRef.current
+    if (!cap?.edit) return
+    const { id, from, to } = cap.edit
+    editorRef.current?.replaceRange(from, to, '')
+    setSlashCapture(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+    void deleteSpiritualItem(id).catch(() => {
+      // Non-fatal — save-time reconciliation will prune the orphan
+    })
+  }, [])
+
+  const closeSlashCapture = useCallback(() => {
+    setSlashCapture((current) => {
+      if (current) {
+        const pos = current.insertAt
+        requestAnimationFrame(() => editorRef.current?.focusAt(pos))
+      }
+      return null
+    })
+  }, [])
+
+  function hydrateActiveEntry(list: Entry[]) {
+    const wantedId = entryIdRef.current
+    const match = wantedId ? list.find((e) => e.id === wantedId) : null
+    if (match) {
+      skipEntrySyncRef.current = true
+      setContent(asEntryMarkdown(match.body_markdown))
+      return
+    }
+    if (!wantedId && list[0] && !contentRef.current.trim()) {
+      skipEntrySyncRef.current = true
+      go({ entryId: list[0].id }, { replace: true })
+      setContent(asEntryMarkdown(list[0].body_markdown))
+    }
+  }
+
+  function applySyncedList(synced: Entry[]) {
+    setEntries(synced)
+    const wantedId = entryIdRef.current
+    const match = wantedId ? synced.find((e) => e.id === wantedId) : null
+    if (match) {
+      const body = asEntryMarkdown(match.body_markdown)
+      const shouldSeed =
+        loadedEntryIdRef.current !== wantedId ||
+        (!contentRef.current.trim() && body.trim() !== '')
+      if (shouldSeed && body !== contentRef.current) {
+        skipEntrySyncRef.current = true
+        setContent(body)
+        loadedEntryIdRef.current = wantedId
+      }
+      return
+    }
+    if (!wantedId && synced.length && !contentRef.current.trim()) {
+      skipEntrySyncRef.current = true
+      const first = synced[0]!
+      go({ entryId: first.id }, { replace: true })
+      setContent(asEntryMarkdown(first.body_markdown))
+      return
+    }
+    if (wantedId && synced.length) {
+      navigateAwayFromDeletedEntry(synced)
+    }
+  }
+
+  // Cache-first: editor and list unlock from IndexedDB immediately; full library
+  // sync runs in the background (can take a while on slow links).
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
+    setEntriesReady(true)
+
+    void (async () => {
       try {
         const cached = await repo.listEntries()
-        if (!cancelled && cached.length) {
-          setEntries(cached)
-          const first = cached[0]!
-          setActiveId(first.id)
-          setContent(first.body_markdown)
-        }
+        if (cancelled) return
+        setEntries(cached)
+        if (cached.length) hydrateActiveEntry(cached)
       } catch {
-        /* cache miss is fine; sync will populate */
-      }
-      try {
-        const synced = await repo.sync(activeIdRef.current)
-        if (!cancelled && synced) {
-          setEntries(synced)
-          if (activeIdRef.current === null && synced.length) {
-            const first = synced[0]!
-            setActiveId(first.id)
-            setContent(first.body_markdown)
-          }
-        }
-      } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to load')
+        /* empty cache is fine — background sync or a new entry will populate */
       }
     })()
+
+    if (!isSupabaseConfigured) return () => {
+      cancelled = true
+    }
+
+    void (async () => {
+      try {
+        const synced = await repo.sync(entryIdRef.current)
+        if (cancelled || !synced) return
+        applySyncedList(synced)
+      } catch (e) {
+        if (!cancelled) {
+          const cached = await repo.listEntries().catch(() => [] as Entry[])
+          if (cached.length === 0) {
+            setLoadError(e instanceof Error ? e.message : 'Failed to load')
+          }
+        }
+      }
+    })()
+
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on mount
   }, [])
 
   // Re-sync when we regain connectivity or refocus the tab; flag offline promptly.
   useEffect(() => {
     const resync = () => {
-      void repo.sync(activeIdRef.current).then((list) => {
-        if (list) setEntries(list)
+      void repo.sync(entryIdRef.current).then((list) => {
+        if (list) applySyncedList(list)
       })
     }
     const onOffline = () => syncStore.setOnline(false)
@@ -109,72 +363,385 @@ export function JournalScreen({
     }
   }, [])
 
+  function navigateAwayFromDeletedEntry(remaining: Entry[]) {
+    skipEntrySyncRef.current = true
+    const next = remaining[0] ?? null
+    if (next) {
+      go({ surface: 'journal', entryId: next.id })
+      setContent(asEntryMarkdown(next.body_markdown))
+    } else {
+      go({ surface: 'journal', entryId: null })
+      setContent('')
+    }
+  }
+
+  // Live updates from other tabs / devices via Supabase Realtime.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+
+    return subscribeEntryChanges((events) => {
+      void (async () => {
+        const preserveId = entryIdRef.current
+        const changes = events.map((event) =>
+          event.eventType === 'DELETE'
+            ? ({ kind: 'delete' as const, entryId: event.entryId })
+            : ({ kind: 'upsert' as const, entry: event.entry }),
+        )
+
+        const result = await repo.applyRemoteChanges(changes, preserveId)
+        if (result === 'resync') {
+          const synced = await repo.sync(preserveId)
+          if (!synced) return
+          setEntries(synced)
+          if (preserveId && !synced.some((e) => e.id === preserveId)) {
+            navigateAwayFromDeletedEntry(synced)
+          }
+          return
+        }
+
+        const { deletedIds, upserted } = result
+        if (deletedIds.length === 0 && upserted.length === 0) return
+
+        const deletedSet = new Set(deletedIds)
+        setEntries((prev) => {
+          let next = prev.filter((e) => !deletedSet.has(e.id))
+          for (const entry of upserted) {
+            const idx = next.findIndex((e) => e.id === entry.id)
+            if (idx >= 0) next = next.map((e, i) => (i === idx ? entry : e))
+            else next = [entry, ...next]
+          }
+          return next.sort((a, b) => b.created_at.localeCompare(a.created_at))
+        })
+
+        if (preserveId && deletedSet.has(preserveId)) {
+          const remaining = (await repo.listEntries()).filter((e) => !deletedSet.has(e.id))
+          navigateAwayFromDeletedEntry(remaining)
+        }
+      })()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable subscription; refs hold live ids
+  }, [])
+
   const { status, lastSavedAt, error: saveError, saveNow } = useAutosave({
-    entryId: activeId,
+    entryId,
     content,
-    enabled: mode === 'write',
+    enabled: entriesReady,
+    onAfterSave: (saved) => {
+      void syncSpiritualBlocksFromMarkdown(entryIdRef.current, saved).catch(() => {
+        // Non-fatal — entry body is already persisted
+      })
+      void syncScriptureRefsFromMarkdown(entryIdRef.current, saved).catch(() => {
+        // Non-fatal — refs just won't update until the next save
+      })
+    },
     onCreated: (created) => {
-      setActiveId(created.id)
-      setEntries((prev) => [created, ...prev])
+      if (!skipAdoptOnCreateRef.current) {
+        go({ entryId: created.id }, { replace: true })
+      }
+      setEntries((prev) => {
+        const idx = prev.findIndex((e) => e.id === created.id)
+        if (idx >= 0) return prev.map((e, i) => (i === idx ? created : e))
+        return [created, ...prev]
+      })
     },
   })
+
+  // Flush the entry we're leaving when back/forward changes `entryId`.
+  useEffect(() => {
+    return () => {
+      void saveNow()
+    }
+  }, [entryId, saveNow])
+
+  // Browser back / forward: load the entry body when the active entry changes.
+  // Do not reload when `entries` refreshes from list sync — that fights live typing.
+  useEffect(() => {
+    if (!entriesReady) return
+    if (skipEntrySyncRef.current) {
+      skipEntrySyncRef.current = false
+      loadedEntryIdRef.current = entryId
+      return
+    }
+    // Body can arrive after entriesReady; don't treat the id as "loaded" until
+    // we've applied the entry text (or confirmed a deliberate blank new doc).
+    if (entryId === null) {
+      if (loadedEntryIdRef.current !== null) {
+        loadedEntryIdRef.current = null
+        setContent('')
+      }
+      return
+    }
+    const entry = entries.find((e) => e.id === entryId)
+    if (!entry) return
+
+    const body = asEntryMarkdown(entry.body_markdown)
+    if (loadedEntryIdRef.current === entryId && body === content) return
+
+    loadedEntryIdRef.current = entryId
+    setContent(body)
+  }, [entryId, entries, entriesReady])
+
+  function toggleLookBack() {
+    if (reflectionsActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      go({ surface: 'reflections', settings: null, help: false, sidebar: false })
+    }
+  }
+
+  function toggleScripture() {
+    if (scriptureActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      // Always land on the canon map, never a stale book panel.
+      go({ surface: 'scripture', settings: null, help: false, sidebar: false, scriptureBook: null, scriptureVerse: null })
+    }
+  }
+
+  function toggleAltar() {
+    if (altarActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      go({ surface: 'altar', settings: null, help: false, sidebar: false })
+    }
+  }
+
+  function toggleEntries() {
+    if (canvasAlternateActive) {
+      go({ surface: 'journal', sidebar: isMobile })
+      setEntriesOpen(true)
+      return
+    }
+    if (isMobile) {
+      if (state.sidebar) back()
+      else go({ sidebar: true })
+    } else {
+      setEntriesOpen((open) => !open)
+    }
+  }
+
+  // Alternate surfaces own the canvas — keep the journal list tucked away.
+  useEffect(() => {
+    if (!canvasAlternateActive) return
+    setEntriesOpen(false)
+    if (state.sidebar) go({ sidebar: false }, { replace: true })
+  }, [canvasAlternateActive, state.sidebar, go])
 
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onExitEdit: () => setMode('read'),
-    onEnterEdit: () => setMode('write'),
-    onOpenSettings: openSettings,
-    mode,
+    onToggleEntries: toggleEntries,
+    onLookBack: toggleLookBack,
+    onScripture: toggleScripture,
+    onAltar: toggleAltar,
+    onOpenSettings: () => {
+      if (settingsOpen) back()
+      else openSettings()
+    },
+    onFocusSearch: () => {
+      // Reveal the list before focusing search: desktop opens its panel, mobile
+      // its drawer. The input mounts immediately, so one frame is enough.
+      if (isMobile) go({ sidebar: true })
+      else setEntriesOpen(true)
+      requestAnimationFrame(() => focusEntrySearch())
+    },
+    onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     focusActive: focus.active,
     settingsOpen,
   })
 
+  // After chrome hides, return focus to the editor once layout has settled.
+  useEffect(() => {
+    if (!focusEditorReady || !entriesReady) return
+    const id = requestAnimationFrame(() => editorRef.current?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [focusEditorReady, entriesReady])
+
+  // “?” summons the keyboard cheat-sheet anywhere (except while typing or when
+  // Settings is open, which has its own Shortcuts tab). ShortcutsOverlay owns Esc.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '?' || settingsOpen) return
+      if (shouldIgnoreTarget(e.target) || isInEditor(e.target)) return
+      e.preventDefault()
+      if (helpOpen) back()
+      else go({ help: true })
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [settingsOpen, helpOpen, go, back])
+
   // Keep the active entry's list row in sync as you type.
   useEffect(() => {
-    if (activeId === null) return
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.id === activeId ? { ...e, body_markdown: content, word_count: wordCount(content) } : e,
-      ),
-    )
-  }, [content, activeId])
+    if (entryId === null) return
+    const words = wordCount(content)
+    setEntries((prev) => {
+      const idx = prev.findIndex((e) => e.id === entryId)
+      if (idx === -1) return prev
+      const row = prev[idx]!
+      if (row.body_markdown === content && row.word_count === words) return prev
+      return prev.map((e) =>
+        e.id === entryId
+          ? { ...e, body_markdown: asEntryMarkdown(content), word_count: words }
+          : e,
+      )
+    })
+  }, [content, entryId])
 
   async function handleNew() {
-    await saveNow()
-    setActiveId(null)
-    setContent('')
-    setMode('write')
+    skipAdoptOnCreateRef.current = true
+    try {
+      await saveNow()
+      skipEntrySyncRef.current = true
+      go({ surface: 'journal', entryId: null })
+      setContent('')
+    } finally {
+      skipAdoptOnCreateRef.current = false
+    }
   }
 
-  async function handleSelect(entry: Entry) {
-    if (entry.id === activeId) return
+  async function handleBrowse(entry: Entry) {
+    skipEditorAutofocusRef.current = true
+    if (bulkSelection.length >= 2 || rangeSelectActive) return
+
+    const body = asEntryMarkdown(entry.body_markdown)
+    if (entry.id === entryId && !canvasAlternateActive) {
+      if (body !== content) {
+        skipEntrySyncRef.current = true
+        setContent(body)
+      }
+      return
+    }
+    skipEntrySyncRef.current = true
+    go({ surface: 'journal', entryId: entry.id })
+    setContent(body)
+  }
+
+  async function handleEditEntry(entry: Entry) {
+    selectionApiRef.current?.clear()
+    skipEditorAutofocusRef.current = false
+    if (entry.id === entryId && !canvasAlternateActive) {
+      requestAnimationFrame(() => editorRef.current?.focus())
+      return
+    }
     await saveNow()
-    setActiveId(entry.id)
-    setContent(entry.body_markdown)
+    skipEntrySyncRef.current = true
+    go({ surface: 'journal', entryId: entry.id })
+    setContent(asEntryMarkdown(entry.body_markdown))
+  }
+
+  async function handleOpenReflectionEntry(id: string) {
+    // The Scripture map and Altar reference entries spanning years; the one we
+    // want may be older than the locally-cached ~500-entry window, so fall back
+    // to the cache and then to the server.
+    const entry =
+      entries.find((e) => e.id === id) ?? (await cacheGet(id)) ?? (await getEntryById(id))
+    if (!entry) return
+    void handleBrowse(entry)
+  }
+
+  const handleSelectionChange = useCallback((state: EntrySelectionState, api: EntrySelectionApi) => {
+    selectionApiRef.current = api
+    setRangeSelectActive((prev) => (prev === state.rangeActive ? prev : state.rangeActive))
+    setBulkSelection((prev) => {
+      const next = state.entries
+      if (prev.length === next.length && prev.every((e, i) => e.id === next[i]?.id)) return prev
+      return next
+    })
+    if (state.rangeActive || state.entries.length >= 2) {
+      skipEditorAutofocusRef.current = true
+    }
+  }, [])
+
+  async function handleDuplicate(entry: Entry) {
+    await saveNow()
+    try {
+      const copy = await repo.createEntry({
+        body_markdown: entry.body_markdown,
+        title: entry.title,
+        tags: [...entry.tags],
+      })
+      setEntries((prev) => [copy, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+      skipEntrySyncRef.current = true
+      go({ surface: 'journal', entryId: copy.id })
+      setContent(asEntryMarkdown(copy.body_markdown))
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to duplicate entry')
+    }
+  }
+
+  function handleEntryMenuAction(action: EntryMenuAction, entry: Entry) {
+    void (async () => {
+      try {
+        switch (action) {
+          case 'copy-text':
+            await copyEntryText(entry)
+            break
+          case 'copy-markdown':
+            await copyEntryMarkdown(entry)
+            break
+          case 'export-markdown':
+            downloadEntryMarkdown(entry)
+            break
+          case 'duplicate':
+            await handleDuplicate(entry)
+            break
+          case 'print':
+            printEntry(entry)
+            break
+          case 'delete':
+            await handleDelete(entry)
+            break
+        }
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : 'That action failed')
+      }
+    })()
+  }
+
+  async function handleDelete(entry: Entry) {
+    await handleDeleteEntries([entry.id])
+  }
+
+  async function handleDeleteEntries(ids: string[]) {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    if (entryId && idSet.has(entryId)) await saveNow()
+
+    const remaining = entries.filter((e) => !idSet.has(e.id))
+    if (entryId && idSet.has(entryId)) {
+      skipEntrySyncRef.current = true
+      const next = remaining[0] ?? null
+      if (next) {
+        go({ surface: 'journal', entryId: next.id })
+        setContent(asEntryMarkdown(next.body_markdown))
+      } else {
+        go({ surface: 'journal', entryId: null })
+        setContent('')
+      }
+    }
+
+    try {
+      await Promise.all(ids.map((id) => repo.removeEntry(id)))
+      setEntries(remaining)
+    } catch (e) {
+      setLoadError(
+        e instanceof Error
+          ? e.message
+          : ids.length === 1
+            ? 'Failed to delete entry'
+            : 'Failed to delete entries',
+      )
+      throw e
+    }
   }
 
   function openSettings() {
-    setSettingsOpen(true)
+    go({ settings: { tab: 'appearance', importSource: null }, help: false })
   }
-
-  // A rollup quote click sets jumpEntryId: open that entry in the reader once
-  // it's loaded, then consume the intent so re-renders don't re-trigger it.
-  const consumedJumpRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!jumpEntryId || consumedJumpRef.current === jumpEntryId) return
-    const target = entries.find((e) => e.id === jumpEntryId)
-    if (!target) return // entries still loading; retry when they arrive
-    consumedJumpRef.current = jumpEntryId
-    void (async () => {
-      await saveNow()
-      setActiveId(jumpEntryId)
-      setContent(target.body_markdown)
-      setMode('read')
-      onConsumeJump()
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jumpEntryId, entries])
 
   const words = useMemo(() => wordCount(content), [content])
   const visibleEntries = useMemo(() => {
@@ -184,32 +751,82 @@ export function JournalScreen({
     }
     return filterEntries(entries, query)
   }, [entries, query, restrictIds])
-  const activeEntry = entries.find((e) => e.id === activeId) ?? null
-  const docKey = activeId ?? 'new'
+
+  useEntryEditorFocusToggle({
+    activeIdRef: entryIdRef,
+    entries: visibleEntries,
+    onEditEntry: (entry) => void handleEditEntry(entry),
+    blocked:
+      settingsOpen ||
+      helpOpen ||
+      focus.active ||
+      canvasAlternateActive ||
+      slashCapture !== null,
+  })
+
+  const docKey = entryId ?? 'new'
+
+  const bulkActive = bulkSelection.length >= 2
 
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
-  ) : mode === 'read' ? (
-    <Reader markdown={content} createdAt={activeEntry?.created_at} />
-  ) : (
-    <Editor
-      docKey={docKey}
-      initialDoc={content}
-      onChange={setContent}
-      placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
-      autofocus
-      typewriter={focus.active && settings.typewriter}
-      dimming={focus.active && settings.dimming}
+  ) : bulkActive ? (
+    <EntryBulkCanvas
+      count={bulkSelection.length}
+      onCopyText={() => void copyEntriesText(bulkSelection)}
+      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection)}
+      onExportZip={() => void exportEntriesZip(bulkSelection)}
+      onDelete={() => selectionApiRef.current?.requestDelete()}
+      onClear={() => selectionApiRef.current?.clear()}
     />
+  ) : rangeSelectActive ? (
+    <div className="entry-range-canvas">
+      <p className="entry-range-canvas__eyebrow">Selecting</p>
+      <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
+    </div>
+  ) : (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        {entriesReady ? (
+          <Editor
+            ref={editorRef}
+            docKey={docKey}
+            initialDoc={content}
+            onChange={handleContentChange}
+            placeholder={deriveTitle(asEntryMarkdown(content)) ? 'Keep going…' : 'Title'}
+            autofocus
+            skipAutofocusRef={skipEditorAutofocusRef}
+            typewriter={focus.active && focusEditorReady && settings.typewriter}
+            dimming={focus.active && focusEditorReady && settings.dimming}
+            slashEnabled
+            // Only band the line for a fresh /command; editing a block targets an
+            // atomic widget line, where a line decoration collides with the block.
+            commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
+            onSlashCommand={handleSlashCommand}
+            onEditBlock={handleEditBlock}
+            onSlashPaletteChange={setSlashPaletteOpen}
+          />
+        ) : null}
+      </div>
+    </div>
   )
 
-  const mainSlot = restrictIds ? (
+  const mainSlot = scriptureActive ? (
+    <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
+  ) : altarActive ? (
+    <AltarView onOpenEntry={handleOpenReflectionEntry} />
+  ) : reflectionsActive ? (
+    <AscentView onOpenEntry={handleOpenReflectionEntry} />
+  ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="restrict-banner">
         <span>
           Showing {visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'} from a topic
         </span>
-        <button className="btn btn--ghost" onClick={onClearRestrict}>
+        <button
+          className="btn btn--ghost"
+          onClick={() => go({ restrictIds: null }, { replace: true })}
+        >
           Clear
         </button>
       </div>
@@ -222,31 +839,135 @@ export function JournalScreen({
   const viewProps: JournalViewProps = {
     userEmail,
     entries: visibleEntries,
-    activeId,
+    activeId: entryId,
     words,
     status,
     lastSavedAt,
     saveError,
-    onSelect: (e) => void handleSelect(e),
+    onSelect: (e) => void handleBrowse(e),
+    onEditEntry: (e) => void handleEditEntry(e),
+    onSelectionChange: handleSelectionChange,
+    bulkActive,
+    bulkCount: bulkSelection.length,
+    rangeSelectActive,
+    onEntryMenuAction: handleEntryMenuAction,
+    onDeleteEntries: handleDeleteEntries,
     onNew: () => void handleNew(),
     query,
     onQueryChange: setQuery,
-    mode,
-    onToggleMode: () => setMode((m) => (m === 'write' ? 'read' : 'write')),
-    onLookBack,
-    onOpenSettings: openSettings,
+    onLookBack: toggleLookBack,
+    onScripture: toggleScripture,
+    onAltar: toggleAltar,
+    onOpenSettings: () => openSettings(),
     settings,
     updateSettings,
     focus,
+    sidebarOpen,
+    onToggleSidebar: () => {
+      if (sidebarOpen) back()
+      else go({ sidebar: true })
+    },
+    entriesOpen,
+    onToggleEntries: toggleEntries,
     mainSlot,
+    reflectionsActive,
+    altarActive,
+    scriptureActive,
   }
 
   return (
     <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
-      {settingsOpen && (
-        <SettingsPanel settings={settings} update={updateSettings} onClose={() => setSettingsOpen(false)} />
+
+      {slashCapture?.cmd === 'scripture' && (
+        <InlineScripturePopover
+          entryId={entryId}
+          entryContent={content}
+          insertAt={slashCapture.insertAt}
+          anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? {
+                  id: slashCapture.edit.id,
+                  reference: slashCapture.edit.reference,
+                  content: slashCapture.edit.content,
+                }
+              : undefined
+          }
+          onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
+          onClose={closeSlashCapture}
+        />
       )}
+      {slashCapture?.cmd === 'pray' && (
+        <InlinePrayPopover
+          entryId={entryId}
+          anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? {
+                  id: slashCapture.edit.id,
+                  content: slashCapture.edit.content,
+                  prayerType: slashCapture.edit.prayerType,
+                }
+              : undefined
+          }
+          onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
+          onClose={closeSlashCapture}
+        />
+      )}
+      {slashCapture?.cmd === 'sense' && (
+        <InlineSensePopover
+          entryId={entryId}
+          anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? { id: slashCapture.edit.id, content: slashCapture.edit.content }
+              : undefined
+          }
+          onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
+          onClose={closeSlashCapture}
+        />
+      )}
+      {slashCapture?.cmd === 'remind' && (
+        <InlineRemindPopover
+          entryId={entryId}
+          sentence={sentenceNear(content, slashCapture.insertAt)}
+          anchor={slashCapture.anchor}
+          onClose={closeSlashCapture}
+        />
+      )}
+
+      {settingsOpen && state.settings && (
+        <SettingsPanel
+          settings={settings}
+          update={updateSettings}
+          onClose={back}
+          tab={state.settings.tab}
+          importSourceId={state.settings.importSource}
+          userEmail={userEmail}
+          onTabChange={(tab) =>
+            go(
+              {
+                settings: {
+                  tab,
+                  importSource: tab === 'import' ? state.settings!.importSource : null,
+                },
+              },
+              { replace: true },
+            )
+          }
+          onImportSourceChange={(importSource) =>
+            go({ settings: { tab: 'import', importSource } }, { replace: true })
+          }
+          onImportSourceBack={() =>
+            go({ settings: { tab: 'import', importSource: null } }, { replace: true })
+          }
+        />
+      )}
+      {helpOpen && <ShortcutsOverlay onClose={back} />}
     </>
   )
 }

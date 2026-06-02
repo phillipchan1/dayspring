@@ -38,6 +38,25 @@
   --shadow-1: 0 1px 2px rgba(40, 24, 8, 0.16);
   --shadow-2: 0 6px 20px -10px rgba(40, 24, 8, 0.28);
   --shadow-3: 0 18px 44px -22px rgba(30, 18, 6, 0.42);
+
+  /* Glass overlays (settings, shortcuts) — defaults; themes override below. */
+  --glass-blur: 22px;
+  --glass-saturate: 1.12;
+  --glass-bg: rgba(27, 30, 39, 0.68);
+  --glass-nav-bg: rgba(20, 22, 29, 0.5);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-scrim: rgba(10, 8, 6, 0.55);
+  --glass-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.78);
+  --glass-shadow-glow: 0 0 60px -28px rgba(243, 189, 118, 0.16);
+  --glass-glow-spot: rgba(243, 189, 118, 0.2);
+
+  /* Scripture — "First Light". The warm ember→gold heat ramp is the surface's
+     signature and stays constant across themes (set in JS from these endpoints);
+     only the resting (unvisited) chapter cell adapts per theme. */
+  --scripture-ember: 197, 106, 110; /* low engagement (dawn-3) */
+  --scripture-gold: 243, 189, 118; /* high engagement (dawn-1) */
+  --scripture-cell-rest: rgba(236, 231, 221, 0.06);
 }
 
 /* ── One Dark ───────────────────────────────────────────────────────────── */
@@ -59,6 +78,8 @@
 
   --accent: #61afef;
   --accent-soft: rgba(97, 175, 239, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
 
   /* Markdown / syntax accents (used by the editor highlight theme) */
   --md-heading: #e5c07b;
@@ -74,6 +95,14 @@
 
   /* Writing + Looking back — shared horizon glow. */
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(229, 192, 123, 0.16), rgba(229, 192, 123, 0.05) 40%, transparent 64%);
+
+  --glass-bg: rgba(40, 44, 52, 0.7);
+  --glass-nav-bg: rgba(33, 37, 43, 0.55);
+  --glass-border: rgba(215, 218, 224, 0.11);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(10, 12, 18, 0.6);
+  --glass-shadow-glow: 0 0 56px -28px rgba(97, 175, 239, 0.12);
+  --glass-glow-spot: rgba(229, 192, 123, 0.16);
 }
 
 /* ── Dawn (light) ───────────────────────────────────────────────────────── */
@@ -95,6 +124,8 @@
 
   --accent: #c2683a;
   --accent-soft: rgba(194, 104, 58, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 36%, #fffdf8);
+  --selection-fg: var(--text-bright);
 
   --md-heading: #b5552c;
   --md-emphasis: #9a5ba6;
@@ -108,6 +139,18 @@
   --success: #9a7a3a; /* warm "saved" — not clinical green */
 
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(224, 150, 70, 0.22), rgba(181, 80, 58, 0.05) 40%, transparent 64%);
+
+  /* On light paper the resting cell needs a warm ink, not a faint white. */
+  --scripture-cell-rest: rgba(74, 64, 53, 0.1);
+
+  --glass-bg: rgba(255, 253, 248, 0.84);
+  --glass-nav-bg: rgba(251, 246, 238, 0.72);
+  --glass-border: rgba(74, 64, 53, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(42, 33, 24, 0.38);
+  --glass-shadow: 0 36px 64px -32px rgba(74, 64, 53, 0.28);
+  --glass-shadow-glow: 0 0 48px -24px rgba(224, 150, 70, 0.22);
+  --glass-glow-spot: rgba(224, 150, 70, 0.24);
 }
 
 /* ── Ink (dark, cool — default dark) ────────────────────────────────────── */
@@ -129,6 +172,8 @@
 
   --accent: #e0a64e;
   --accent-soft: rgba(224, 166, 78, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 46%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
 
   --md-heading: #e0a64e;
   --md-emphasis: #b98ce0;
@@ -144,6 +189,14 @@
   /* Moonlight, not sunrise — cool silver-blue glow (writing + Looking back). */
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(186, 202, 236, 0.14), rgba(150, 170, 210, 0.04) 45%, transparent 66%);
   --journal-horizon: rgba(186, 202, 236, 0.6);
+
+  --glass-bg: rgba(27, 30, 39, 0.72);
+  --glass-nav-bg: rgba(20, 22, 29, 0.55);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.09);
+  --glass-scrim: rgba(8, 9, 12, 0.58);
+  --glass-shadow-glow: 0 0 60px -30px rgba(224, 166, 78, 0.18);
+  --glass-glow-spot: rgba(224, 166, 78, 0.2);
 }
 
 /* ── Ember (dark, warm) ─────────────────────────────────────────────────── */
@@ -165,6 +218,8 @@
 
   --accent: #e8743c;
   --accent-soft: rgba(232, 116, 60, 0.16);
+  --selection-bg: color-mix(in srgb, var(--accent) 46%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
 
   --md-heading: #f0a868;
   --md-emphasis: #d98cc0;
@@ -178,4 +233,12 @@
   --success: #c2a86a; /* warm "saved" — not clinical green */
 
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(232, 116, 60, 0.20), rgba(232, 116, 60, 0.05) 40%, transparent 64%);
+
+  --glass-bg: rgba(34, 25, 21, 0.74);
+  --glass-nav-bg: rgba(26, 20, 17, 0.58);
+  --glass-border: rgba(244, 232, 220, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-scrim: rgba(12, 8, 6, 0.56);
+  --glass-shadow-glow: 0 0 58px -28px rgba(232, 116, 60, 0.2);
+  --glass-glow-spot: rgba(240, 168, 104, 0.22);
 }

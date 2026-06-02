@@ -7,7 +7,7 @@
 // "newest updated_at wins" is sufficient.
 
 import {
-  listEntries as serverList,
+  listAllEntries as serverListAll,
   upsertEntryRow,
   deleteEntry as serverDelete,
   wordCount,
@@ -53,7 +53,7 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
   }
   await cache.cachePut(entry)
   await queueUpsert(entry.id)
-  void flush()
+  await flush()
   return entry
 }
 
@@ -76,7 +76,7 @@ export async function updateEntryBody(id: string, body: string): Promise<Entry> 
       }
   await cache.cachePut(entry)
   await queueUpsert(id)
-  void flush()
+  await flush()
   return entry
 }
 
@@ -85,40 +85,112 @@ export async function removeEntry(id: string): Promise<void> {
   await cache.outboxRemoveForEntry(id, 'upsert')
   await cache.outboxAdd({ opId: crypto.randomUUID(), kind: 'delete', entryId: id, ts: Date.now() })
   await refreshPending()
-  void flush()
+  await flush()
 }
 
 // ── sync ────────────────────────────────────────────────────────────────
-let flushing = false
+/** Serializes outbox pushes so concurrent callers (autosave + sync + realtime) await the same run. */
+let flushChain: Promise<void> = Promise.resolve()
 
-export async function flush(): Promise<void> {
-  if (flushing) return
+async function flushOnce(): Promise<void> {
   if (!navigator.onLine) {
     syncStore.setOnline(false)
     return
   }
-  flushing = true
-  try {
-    for (const op of await cache.outboxAll()) {
-      try {
-        if (op.kind === 'upsert') {
-          const row = await cache.cacheGet(op.entryId)
-          if (row) await upsertEntryRow(row)
-        } else {
-          await serverDelete(op.entryId)
-        }
-        await cache.outboxRemove(op.opId)
-      } catch {
-        // Most likely offline / transient — stop and retry later.
-        syncStore.setOnline(false)
-        break
+  for (const op of await cache.outboxAll()) {
+    try {
+      if (op.kind === 'upsert') {
+        const row = await cache.cacheGet(op.entryId)
+        if (row) await upsertEntryRow(row)
+      } else {
+        await serverDelete(op.entryId)
       }
+      await cache.outboxRemove(op.opId)
+    } catch {
+      // Most likely offline / transient — stop and retry later.
+      syncStore.setOnline(false)
+      break
     }
-    syncStore.setOnline(navigator.onLine)
-  } finally {
-    flushing = false
-    await refreshPending()
   }
+  syncStore.setOnline(navigator.onLine)
+  await refreshPending()
+}
+
+export function flush(): Promise<void> {
+  flushChain = flushChain.then(flushOnce, flushOnce)
+  return flushChain
+}
+
+function entryMatchesRemote(local: Entry, remote: Entry): boolean {
+  return local.updated_at === remote.updated_at && local.body_markdown === remote.body_markdown
+}
+
+/** Apply a remote row using the same last-write-wins rules as sync(). */
+export async function mergeRemoteEntry(
+  remote: Entry,
+  preserveId?: string | null,
+): Promise<'applied' | 'skipped'> {
+  const ops = await cache.outboxAll()
+  if (ops.some((o) => o.entryId === remote.id) || remote.id === preserveId) return 'skipped'
+
+  const local = await cache.cacheGet(remote.id)
+  if (local) {
+    if (local.updated_at > remote.updated_at) return 'skipped'
+    if (entryMatchesRemote(local, remote)) return 'skipped'
+  }
+
+  await cache.cachePut(remote)
+  syncStore.setSynced(Date.now())
+  return 'applied'
+}
+
+/** Apply a remote delete; skip echoes of our own deletes and in-flight local edits. */
+export async function mergeRemoteDelete(entryId: string): Promise<'applied' | 'skipped'> {
+  const ops = await cache.outboxAll()
+  if (ops.some((o) => o.entryId === entryId)) return 'skipped'
+
+  const local = await cache.cacheGet(entryId)
+  if (!local) return 'skipped'
+
+  await cache.cacheDelete(entryId)
+  syncStore.setSynced(Date.now())
+  return 'applied'
+}
+
+export type RemoteEntryChange =
+  | { kind: 'delete'; entryId: string }
+  | { kind: 'upsert'; entry: Entry }
+
+export interface RemoteChangeResult {
+  deletedIds: string[]
+  upserted: Entry[]
+}
+
+/** Merge a burst of realtime events (bulk delete, import). Falls back to full sync when huge. */
+export async function applyRemoteChanges(
+  changes: RemoteEntryChange[],
+  preserveId?: string | null,
+): Promise<RemoteChangeResult | 'resync'> {
+  if (changes.length >= 20) return 'resync'
+
+  const deletedIds: string[] = []
+  const upserted: Entry[] = []
+
+  for (const change of changes) {
+    if (change.kind === 'delete') {
+      if ((await mergeRemoteDelete(change.entryId)) === 'applied') {
+        deletedIds.push(change.entryId)
+      }
+      continue
+    }
+    if ((await mergeRemoteEntry(change.entry, preserveId)) === 'applied') {
+      const idx = upserted.findIndex((e) => e.id === change.entry.id)
+      if (idx >= 0) upserted[idx] = change.entry
+      else upserted.push(change.entry)
+    }
+  }
+
+  return { deletedIds, upserted }
 }
 
 /**
@@ -129,8 +201,9 @@ export async function flush(): Promise<void> {
 export async function sync(preserveId?: string | null): Promise<Entry[] | null> {
   await flush()
   if (!navigator.onLine) return null
+  syncStore.setPulling(true)
   try {
-    const server = await serverList(500)
+    const server = await serverListAll()
     const localMap = new Map((await cache.cacheGetAll()).map((e) => [e.id, e]))
     const pending = new Set((await cache.outboxAll()).map((o) => o.entryId))
     const merged: Entry[] = []
@@ -154,5 +227,7 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
   } catch {
     syncStore.setOnline(false)
     return null
+  } finally {
+    syncStore.setPulling(false)
   }
 }

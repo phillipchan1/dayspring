@@ -4,7 +4,7 @@
 
 import { requireSupabase } from './supabase'
 
-export type RollupType = 'weekly' | 'monthly' | 'yearly'
+export type RollupType = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
 export interface Quote {
   entry_id: string
@@ -37,6 +37,67 @@ export interface Observation {
   evidence: ObservationEvidence[]
 }
 
+// Rich "Looking Back" content. Mirrors api/_lib/types.ts ReflectionContent.
+// Prose fields are generated; excerpt-bearing fields are verbatim-validated.
+export interface Excerpt {
+  entry_id: string
+  date: string
+  text: string
+}
+export interface EbenezerPair {
+  id: string
+  ask: Excerpt
+  later: Excerpt
+}
+export interface ReflectionQuestion {
+  id: string
+  text: string
+  addressee: 'self' | 'God'
+}
+export interface WinCandidate {
+  id: string
+  text: string
+}
+/** Hillside (monthly) recurrence — named tentatively, weight = supporting entries. */
+export interface Arc {
+  id: string
+  name: string
+  note: string
+  weight: number
+  entry_ids: string[]
+}
+/** Ridge (quarterly) open tension, handed back as a question — never resolved. */
+export interface Tension {
+  id: string
+  thread: string
+  question: string
+}
+/** Summit (yearly) verbatim refrain lifted from a real entry (with offsets). */
+export interface Refrain {
+  entry_id: string
+  date: string
+  text: string
+  char_start: number
+  char_end: number
+}
+export interface ReflectionContent {
+  synthesis?: string[]
+  letter?: string[]
+  gain?: string[]
+  gapWatch?: string
+  themes?: string[]
+  throughline?: string[]
+  citations?: Excerpt[]
+  gainEvidence?: Excerpt[]
+  ebenezer?: EbenezerPair[]
+  stones?: EbenezerPair[]
+  questions?: ReflectionQuestion[]
+  wins?: { thisWeek: WinCandidate[]; nextWeek: WinCandidate[] }
+  arcs?: Arc[]
+  tensions?: Tension[]
+  refrain?: Refrain
+}
+
 /** The §3 contract stored in insights.structured_payload. */
 export interface RollupPayload {
   period: { type: RollupType; start: string; end: string }
@@ -46,6 +107,8 @@ export interface RollupPayload {
   topics: Topic[]
   /** id → "Title (Apr 7)" for human-readable observation copy. */
   entry_labels?: Record<string, string>
+  /** Rich Looking Back content; absent on legacy rows. */
+  reflection?: ReflectionContent
   meta: { model: string; generated_at: string }
 }
 
@@ -88,6 +151,32 @@ export async function listRollups(type: RollupType): Promise<Rollup[]> {
     .order('period_start', { ascending: false })
   if (error) throw error
   return ((data ?? []) as InsightRow[]).map(toRollup)
+}
+
+/**
+ * Persist the user's Hillside arc edits (rename / dismiss / merge) back onto a
+ * monthly rollup. This is the ONE exception to "the client never writes
+ * insights": arc names are the user's tentative interpretation to own, not
+ * generated content. RLS scopes the update to the owner (auth.uid() = owner), so
+ * the anon client can write its own row safely. Note: a later regen rebuilds
+ * arcs from scratch — these edits live until the next monthly regeneration.
+ */
+export async function saveArcs(rollupId: string, arcs: Arc[]): Promise<void> {
+  const sb = requireSupabase()
+  const { data, error: readErr } = await sb
+    .from('insights')
+    .select('structured_payload')
+    .eq('id', rollupId)
+    .maybeSingle()
+  if (readErr) throw readErr
+  const payload = (data as { structured_payload: RollupPayload } | null)?.structured_payload
+  if (!payload) throw new Error('rollup not found')
+  const next: RollupPayload = {
+    ...payload,
+    reflection: { ...(payload.reflection ?? {}), arcs },
+  }
+  const { error } = await sb.from('insights').update({ structured_payload: next }).eq('id', rollupId)
+  if (error) throw error
 }
 
 /** One rollup by type + period start (the period switcher's key). */

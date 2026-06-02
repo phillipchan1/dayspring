@@ -1,17 +1,48 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
+import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
+import { useAppUpdate } from '@/hooks/useAppUpdate'
+import { signOut } from '@/lib/auth'
+import { isTauri } from '@/lib/platform'
+import { useWelcome } from '@/features/welcome/WelcomeProvider'
+import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
-import { DiarlyImport } from './DiarlyImport'
+import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
 
 interface Props {
   settings: Settings
   update: (patch: Partial<Settings>) => void
   onClose: () => void
+  tab: SettingsTab
+  importSourceId: string | null
+  onTabChange: (tab: SettingsTab) => void
+  onImportSourceChange: (sourceId: string) => void
+  onImportSourceBack: () => void
+  /** Signed-in account, shown alongside Sign out in the About tab. */
+  userEmail: string
 }
 
-export function SettingsPanel({ settings, update, onClose }: Props) {
+const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
+  { id: 'appearance', label: 'Appearance', icon: <IconSun /> },
+  { id: 'writing', label: 'Writing', icon: <IconPen /> },
+  { id: 'import', label: 'Import', icon: <IconImport /> },
+  { id: 'shortcuts', label: 'Shortcuts', icon: <IconKey /> },
+  { id: 'about', label: 'About', icon: <IconSpark /> },
+]
+
+export function SettingsPanel({
+  settings,
+  update,
+  onClose,
+  tab,
+  importSourceId,
+  onTabChange,
+  onImportSourceChange,
+  onImportSourceBack,
+  userEmail,
+}: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -24,89 +55,251 @@ export function SettingsPanel({ settings, update, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  return (
-    <div className="scrim" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(92vw, 30rem)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          background: 'var(--bg-elevated)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-3)',
-          padding: '1.25rem 1.4rem',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-bright)', fontFamily: 'var(--font-mono)', fontSize: '1rem' }}>
-            Settings
-          </h2>
-          <button className="btn btn--ghost" onClick={onClose}>✕</button>
-        </div>
+  const active = TABS.find((t) => t.id === tab)!
 
-        <div style={{ margin: '0.7rem 0' }}>
-          <span style={{ color: 'var(--text)', fontSize: '0.85rem' }}>Appearance</span>
-          <div style={{ marginTop: '0.45rem' }}>
-            <AppearanceToggle
-              appearance={settings.appearance}
-              onChange={(appearance) => update({ appearance })}
-            />
+  return (
+    <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
+      <div
+        className="settings-modal glass-surface"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="glass-surface__glow" aria-hidden />
+        <nav className="settings-nav" aria-label="Settings sections">
+          <div className="settings-nav__brand">Dayspring</div>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className="settings-nav__item"
+              data-active={t.id === tab}
+              onClick={() => onTabChange(t.id)}
+            >
+              <span className="settings-nav__icon">{t.icon}</span>
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="settings-main">
+          <header className="settings-main__head">
+            <h2 className="settings-main__title">{active.label}</h2>
+            <button className="btn btn--ghost" onClick={onClose} aria-label="Close settings">
+              ✕
+            </button>
+          </header>
+
+          <div key={tab} className="settings-main__body">
+            {tab === 'appearance' && <AppearanceTab settings={settings} update={update} />}
+            {tab === 'writing' && <WritingTab settings={settings} update={update} />}
+            {tab === 'import' && (
+              <ImportPanel
+                selectedId={importSourceId}
+                onSelectSource={onImportSourceChange}
+                onBack={onImportSourceBack}
+              />
+            )}
+            {tab === 'shortcuts' && <ShortcutsTab />}
+            {tab === 'about' && <AboutTab userEmail={userEmail} onClose={onClose} />}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
 
-        <div style={{ margin: '0.7rem 0' }}>
-          <label
-            htmlFor="writing-font"
-            style={{ display: 'block', color: 'var(--text)', fontSize: '0.85rem', marginBottom: '0.3rem' }}
-          >
-            Writing font
-          </label>
-          <WritingFontPicker
-            value={settings.editorFont}
-            onChange={(editorFont) => update({ editorFont })}
-          />
+function AppearanceTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
+  return (
+    <div className="settings-stack">
+      <Field label="Theme" hint="Match your system, or lock it light or dark.">
+        <AppearanceToggle appearance={settings.appearance} onChange={(appearance) => update({ appearance })} />
+      </Field>
+      <Field label="Writing font" hint="The face you read and write in.">
+        <WritingFontPicker value={settings.editorFont} onChange={(editorFont) => update({ editorFont })} />
+      </Field>
+      <Toggle
+        label="Navigation labels"
+        hint="Show names beside the sidebar icons. Press [ to toggle."
+        checked={settings.railLabels}
+        onChange={(railLabels) => update({ railLabels })}
+      />
+    </div>
+  )
+}
+
+function WritingTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
+  return (
+    <div className="settings-stack">
+      <Slider
+        label="Font size"
+        value={settings.fontSize}
+        min={FONT_SIZE_MIN}
+        max={FONT_SIZE_MAX}
+        step={1}
+        suffix="px"
+        onChange={(v) => update({ fontSize: v })}
+      />
+      <Slider
+        label="Line height"
+        value={settings.lineHeight}
+        min={1.3}
+        max={2.1}
+        step={0.05}
+        onChange={(v) => update({ lineHeight: v })}
+      />
+      <Slider
+        label="Column width"
+        value={settings.maxWidth}
+        min={32}
+        max={60}
+        step={1}
+        suffix="rem"
+        onChange={(v) => update({ maxWidth: v })}
+      />
+      <div className="settings-divider" />
+      <Toggle
+        label="Typewriter scrolling"
+        hint="Keep the active line centered (focus mode)"
+        checked={settings.typewriter}
+        onChange={(v) => update({ typewriter: v })}
+      />
+      <Toggle
+        label="Paragraph dimming"
+        hint="Fade all but the current paragraph (focus mode)"
+        checked={settings.dimming}
+        onChange={(v) => update({ dimming: v })}
+      />
+      <div className="settings-divider" />
+      <Field label="Scripture" hint="Passages are looked up word-for-word from the ESV.">
+        <p className="settings-attribution">
+          Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®),
+          © 2001 by Crossway, a publishing ministry of Good News Publishers. Used by permission.
+          All rights reserved.
+        </p>
+      </Field>
+    </div>
+  )
+}
+
+function ShortcutsTab() {
+  return (
+    <div>
+      <p className="settings-section__intro">
+        Dayspring is built to keep your hands on the keys. Press <kbd className="kbd">?</kbd> anywhere
+        to summon this guide.
+      </p>
+      <ShortcutsGuide />
+    </div>
+  )
+}
+
+function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => void }) {
+  const { replay } = useWelcome()
+  return (
+    <div className="settings-about">
+      <div className="settings-about__mark">Dayspring</div>
+      <p className="settings-about__tagline">A quiet place to write, every day.</p>
+      <dl className="settings-about__meta">
+        <div>
+          <dt>Version</dt>
+          <dd>{__APP_VERSION__}</dd>
         </div>
-
-        <Slider
-          label="Font size"
-          value={settings.fontSize}
-          min={FONT_SIZE_MIN}
-          max={FONT_SIZE_MAX}
-          step={1}
-          suffix="px"
-          onChange={(v) => update({ fontSize: v })}
-        />
-        <Slider
-          label="Line height"
-          value={settings.lineHeight}
-          min={1.3}
-          max={2.1}
-          step={0.05}
-          onChange={(v) => update({ lineHeight: v })}
-        />
-        <Slider
-          label="Column width"
-          value={settings.maxWidth}
-          min={32}
-          max={60}
-          step={1}
-          suffix="rem"
-          onChange={(v) => update({ maxWidth: v })}
-        />
-
-        <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '1rem 0', paddingTop: '0.5rem' }}>
-          <Toggle label="Typewriter scrolling" hint="Active line centered (focus mode)" checked={settings.typewriter} onChange={(v) => update({ typewriter: v })} />
-          <Toggle label="Paragraph dimming" hint="Fade all but the current paragraph (focus mode)" checked={settings.dimming} onChange={(v) => update({ dimming: v })} />
+        <div>
+          <dt>Storage</dt>
+          <dd>Private to you · synced</dd>
         </div>
-
-        <DiarlyImport />
-
-        <button className="btn btn--ghost" style={{ marginTop: '0.5rem' }} onClick={() => settingsStore.reset()}>
-          Reset to defaults
+      </dl>
+      {isTauri() && <UpdateChecker />}
+      <div className="settings-divider" />
+      <div className="settings-field__head settings-field__head--row">
+        <span className="settings-field__label">Welcome</span>
+        <button
+          className="btn btn--ghost"
+          onClick={() => {
+            onClose()
+            replay()
+          }}
+        >
+          Replay the welcome
         </button>
       </div>
+      <div className="settings-divider" />
+      <div className="settings-field__head settings-field__head--row">
+        <span className="settings-field__label">Account</span>
+        {userEmail && <span className="settings-field__value">{userEmail}</span>}
+      </div>
+      <div className="settings-actions">
+        <button className="btn btn--ghost" onClick={() => void signOut()}>
+          Sign out
+        </button>
+        <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
+          Reset all settings to defaults
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Desktop-only: manually check for an update and, when one is staged, restart
+// into it. Mirrors the background poll but on demand. Shares state with the
+// bottom-left toast via the update store, so the two never disagree.
+function UpdateChecker() {
+  const { state, check, restart } = useAppUpdate()
+  const busy = state.status === 'checking' || state.status === 'downloading'
+
+  const message = {
+    idle: '',
+    checking: 'Checking…',
+    'up-to-date': 'You’re on the latest version.',
+    downloading: `Downloading v${state.version ?? ''}…`,
+    ready: `Version ${state.version ?? ''} is ready.`,
+    error: state.error
+      ? `Couldn’t check — ${state.error}. Try again.`
+      : 'Couldn’t check right now — try again.',
+  }[state.status]
+
+  return (
+    <>
+      <div className="settings-divider" />
+      <div className="settings-update">
+        <div className="settings-update__row">
+          <span className="settings-field__label">Updates</span>
+          {state.status === 'ready' ? (
+            <button className="btn btn--accent" onClick={() => void restart()}>
+              Restart to update
+            </button>
+          ) : (
+            <button className="btn btn--ghost" onClick={() => void check()} disabled={busy}>
+              {busy ? 'Checking…' : 'Check for updates'}
+            </button>
+          )}
+        </div>
+        {message && (
+          <p className="settings-update__status" data-status={state.status}>
+            {message}
+          </p>
+        )}
+        {state.status === 'ready' && state.notes && (
+          <details className="settings-update__notes">
+            <summary>What’s new in v{state.version}</summary>
+            <div className="settings-update__notes-body">{state.notes}</div>
+          </details>
+        )}
+      </div>
+    </>
+  )
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="settings-field">
+      <div className="settings-field__head">
+        <span className="settings-field__label">{label}</span>
+        {hint && <span className="settings-field__hint">{hint}</span>}
+      </div>
+      {children}
     </div>
   )
 }
@@ -117,10 +310,10 @@ function Slider({
   label: string; value: number; min: number; max: number; step: number; suffix?: string; onChange: (v: number) => void
 }) {
   return (
-    <div style={{ margin: '0.7rem 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-        <span style={{ color: 'var(--text)', fontSize: '0.85rem' }}>{label}</span>
-        <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
+    <div className="settings-field">
+      <div className="settings-field__head settings-field__head--row">
+        <span className="settings-field__label">{label}</span>
+        <span className="settings-field__value">
           {Number.isInteger(value) ? value : value.toFixed(2)}{suffix}
         </span>
       </div>
@@ -131,7 +324,7 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ width: '100%', accentColor: 'var(--accent)' }}
+        className="settings-range"
       />
     </div>
   )
@@ -139,12 +332,70 @@ function Slider({
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.4rem 0', cursor: 'pointer' }}>
+    <label className="settings-toggle">
       <span>
-        <span style={{ color: 'var(--text)', fontSize: '0.85rem' }}>{label}</span>
-        {hint && <span style={{ display: 'block', color: 'var(--text-faint)', fontSize: '0.72rem' }}>{hint}</span>}
+        <span className="settings-field__label">{label}</span>
+        {hint && <span className="settings-toggle__hint">{hint}</span>}
       </span>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        className="switch"
+        data-on={checked}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="switch__thumb" />
+      </button>
     </label>
+  )
+}
+
+/* ── Inline section icons (1.25rem, currentColor stroke) ──────────────────── */
+
+function IconSun() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  )
+}
+
+function IconPen() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  )
+}
+
+function IconImport() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="m8 11 4 4 4-4" />
+      <path d="M5 19h14" />
+    </svg>
+  )
+}
+
+function IconKey() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8" />
+    </svg>
+  )
+}
+
+function IconSpark() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
+    </svg>
   )
 }

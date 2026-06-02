@@ -1,95 +1,143 @@
-import { useState } from 'react'
-import { signOut } from '@/lib/auth'
+import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { EntryList } from './EntryList'
+import { Rail } from './Rail'
+import { ENTRIES_PANEL_WIDTH_MAX, ENTRIES_PANEL_WIDTH_MIN } from './entriesPanelWidth'
+import { useEntriesPanelResize } from './useEntriesPanelResize'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
 import type { JournalViewProps } from './journalViewProps'
 
+// In the native macOS app the title bar is transparent (overlay style), so the
+// traffic-light buttons float over our content. The rail owns the top-left now,
+// so it carries the clearance; the top bar only needs a little extra height.
+const NATIVE = isTauri()
+
+function formatBreadcrumb(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
+}
+
 /**
- * Desktop: a centered writing column with deep margins (the column width comes
- * from the editor theme's max-width) plus a hideable entry-list panel. The
- * moment you enter focus mode, the panel and header vanish and the column
- * takes the whole screen.
+ * Desktop: three columns — a slim navigation rail, a toggleable Entries panel,
+ * and the centered writing canvas. Entering focus mode hides the rail, panel,
+ * and top bar so the canvas takes the whole screen.
  */
 export function DesktopJournal(props: JournalViewProps) {
   const {
-    userEmail, entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onNew, query, onQueryChange, mode, onToggleMode, onLookBack, onOpenSettings,
-    settings, updateSettings, focus, mainSlot,
+    entries, activeId, words, status, lastSavedAt, saveError,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
+    settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
+    reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
   } = props
-  const [showList, setShowList] = useState(true)
   const focused = focus.active
+  const activeEntry = entries.find((e) => e.id === activeId)
+  const topbarLabel = bulkActive
+    ? `${bulkCount} entries selected`
+    : rangeSelectActive
+      ? 'Selecting entries'
+      : activeEntry
+        ? formatBreadcrumb(activeEntry.created_at)
+        : ''
+  const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  const journalChrome = !canvasAlternateActive
 
   return (
     <div className="app-shell">
-      {!focused && showList && (
-        <EntryList
-          entries={entries}
-          activeId={activeId}
-          onSelect={onSelect}
-          query={query}
-          onQueryChange={onQueryChange}
+      {!focused && (
+        <Rail
+          onNew={onNew}
+          onToggleEntries={onToggleEntries}
+          entriesOpen={entriesOpen}
+          lookBackActive={reflectionsActive}
+          onLookBack={onLookBack}
+          scriptureActive={scriptureActive}
+          onScripture={onScripture}
+          altarActive={altarActive}
+          onAltar={onAltar}
+          onOpenSettings={onOpenSettings}
+          labelsExpanded={settings.railLabels}
+          onToggleLabels={() => updateSettings({ railLabels: !settings.railLabels })}
+          nativeTopInset={NATIVE ? MAC_TRAFFIC_INSET.railTop : undefined}
         />
       )}
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {!focused && (
-          <header
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.6rem 1rem',
-              borderBottom: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-1)',
-              gap: '1rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                className="btn btn--ghost"
-                title={showList ? 'Hide entries' : 'Show entries'}
-                onClick={() => setShowList((s) => !s)}
-              >
-                {showList ? '◀' : '☰'}
-              </button>
-              <button className="btn btn--ghost" onClick={onNew} title="New entry (C)">
-                + New
-              </button>
-              <button
-                className="btn btn--ghost"
-                onClick={onToggleMode}
-                title={mode === 'write' ? 'Read (Esc)' : 'Edit (E)'}
-              >
-                {mode === 'write' ? 'Read' : 'Edit'}
-              </button>
-              <button className="btn btn--ghost" onClick={onLookBack} title="Monthly reflections">
-                Looking back
-              </button>
-            </div>
+      {!focused && !canvasAlternateActive && (
+        <div
+          className="entries-panel"
+          data-open={entriesOpen ? 'true' : 'false'}
+          data-resizing={resizing ? 'true' : undefined}
+          style={{ '--entries-panel-width': `${entriesPanelWidth}px` } as React.CSSProperties}
+        >
+          <EntryList
+            entries={entries}
+            activeId={activeId}
+            onSelect={onSelect}
+            onEditEntry={onEditEntry}
+            {...(onSelectionChange ? { onSelectionChange } : {})}
+            onMenuAction={onEntryMenuAction}
+            onDeleteEntries={onDeleteEntries}
+            query={query}
+            onQueryChange={onQueryChange}
+            onCollapse={onToggleEntries}
+          />
+          {entriesOpen && (
+            <div
+              className="entries-panel__resize"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize entries panel"
+              aria-valuemin={ENTRIES_PANEL_WIDTH_MIN}
+              aria-valuemax={ENTRIES_PANEL_WIDTH_MAX}
+              aria-valuenow={entriesPanelWidth}
+              onPointerDown={onResizePointerDown}
+            />
+          )}
+        </div>
+      )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <span style={{ color: 'var(--text-faint)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-                {words} {words === 1 ? 'word' : 'words'}
-              </span>
-              <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} />
-              <SyncBadge />
-              <button className="btn btn--ghost" onClick={focus.enter} title="Focus mode (⌘⏎)">
-                Focus
-              </button>
-              <button className="btn btn--ghost" onClick={onOpenSettings} title="Settings (⌘,)">
-                ⚙
-              </button>
-              <button className="btn btn--ghost" onClick={() => void signOut()} title={userEmail}>
-                Sign out
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {!focused && journalChrome && (
+          <header
+            className="journal-topbar"
+            // No native title bar (overlay style), so the top bar doubles as the
+            // window drag handle. Buttons/inputs inside lack the attribute, so
+            // they stay clickable — Tauri only drags when the target itself has it.
+            data-tauri-drag-region
+            style={NATIVE ? { paddingTop: MAC_TRAFFIC_INSET.mainTop } : undefined}
+          >
+            <div className="journal-topbar__lead" data-tauri-drag-region>
+              {topbarLabel}
+            </div>
+            <div className="journal-topbar__actions">
+              <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>
+                {!bulkActive && !rangeSelectActive && (
+                  <>
+                    <span className="status-cluster__dot" data-status={status} aria-hidden />
+                    <span>{words} {words === 1 ? 'word' : 'words'}</span>
+                    <span className="status-cluster__sep" aria-hidden>·</span>
+                  </>
+                )}
+                <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
+                {!bulkActive && !rangeSelectActive && (
+                  <>
+                    <span className="status-cluster__sep" aria-hidden>·</span>
+                    <SyncBadge bare />
+                  </>
+                )}
+              </div>
+              <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
+                focus
               </button>
             </div>
           </header>
         )}
 
-        <div className="journal-canvas" style={{ flex: 1, minHeight: 0 }}>
-          {!focused && (
+        <div
+          className={`journal-canvas${canvasAlternateActive ? ' journal-canvas--reflections' : ''}`}
+          style={{ flex: 1, minHeight: 0 }}
+        >
+          {!focused && journalChrome && (
             <>
               <div className="journal-horizon" aria-hidden />
               <div className="journal-glow" aria-hidden />
@@ -97,19 +145,23 @@ export function DesktopJournal(props: JournalViewProps) {
           )}
           <div
             className="journal-canvas__content"
-            style={{ padding: focused ? '0 1.5rem' : '4rem 1.5rem 2.5rem', overflow: 'hidden' }}
+            style={{
+              padding: focused
+                ? '0 1.5rem'
+                : canvasAlternateActive
+                  ? '0'
+                  : '4rem 1.5rem 2.5rem',
+              overflow: 'hidden',
+            }}
           >
             {mainSlot}
           </div>
         </div>
       </main>
 
-      <WritingControls
-        settings={settings}
-        update={updateSettings}
-        focus={focus}
-        visible={mode === 'write'}
-      />
+      {!canvasAlternateActive && (
+        <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      )}
     </div>
   )
 }
