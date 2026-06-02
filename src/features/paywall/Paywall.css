@@ -179,6 +179,185 @@
   margin-top: 0.5rem;
 }
 
+/* ── "You're in!" post-checkout screen ──────────────────────────────────── */
+
+.trial-welcome {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1a1620 0%, #34262e 55%, #553a35 100%);
+  animation: tw-fade 0.7s ease both;
+  z-index: 1000;
+}
+
+[data-theme='dawn'] .trial-welcome {
+  background: linear-gradient(180deg, #fdf8ee 0%, #f9efdb 55%, #f5dcab 100%);
+}
+
+@keyframes tw-fade {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+.trial-welcome__bg-glow {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 65%;
+  background: radial-gradient(ellipse 100% 80% at 50% 100%, rgba(232, 184, 115, 0.18), transparent 70%);
+  pointer-events: none;
+}
+
+.trial-welcome__motif {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 100vw);
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.tw-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.tw-core {
+  transform-origin: 200px 220px;
+  animation: tw-pulse 5s ease-in-out infinite;
+}
+
+@keyframes tw-pulse {
+  0%, 100% { opacity: 0.88; transform: scale(1) }
+  50%       { opacity: 0.96; transform: scale(1.04) }
+}
+
+.tw-ray {
+  animation: tw-ray-in 1.4s ease both;
+}
+
+@keyframes tw-ray-in {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+.trial-welcome__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 24rem;
+  animation: tw-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+@keyframes tw-rise {
+  from { opacity: 0; transform: translateY(22px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+
+.trial-welcome__mark {
+  margin-bottom: 2.5rem;
+  opacity: 0.7;
+}
+
+[data-theme='dawn'] .trial-welcome__mark {
+  opacity: 0.85;
+}
+
+.trial-welcome__eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 184, 115, 0.65);
+}
+
+[data-theme='dawn'] .trial-welcome__eyebrow {
+  color: rgba(107, 77, 30, 0.6);
+}
+
+.trial-welcome__headline {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 7vw, 3.2rem);
+  font-weight: 400;
+  color: #f4cd8a;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+[data-theme='dawn'] .trial-welcome__headline {
+  color: #6b4d1e;
+}
+
+.trial-welcome__body {
+  margin: 0 0 2.25rem;
+  font-family: var(--font-serif);
+  font-size: 1.025rem;
+  font-style: italic;
+  color: rgba(244, 205, 138, 0.65);
+  line-height: 1.7;
+  max-width: 20rem;
+}
+
+[data-theme='dawn'] .trial-welcome__body {
+  color: rgba(107, 77, 30, 0.75);
+}
+
+.trial-welcome__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.72rem 1.8rem;
+  border: 1px solid rgba(232, 184, 115, 0.38);
+  border-radius: var(--radius-full);
+  background: rgba(232, 184, 115, 0.1);
+  color: rgba(244, 205, 138, 0.9);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    transform 0.14s ease;
+  backdrop-filter: blur(6px);
+}
+
+.trial-welcome__cta:hover {
+  background: rgba(232, 184, 115, 0.2);
+  border-color: rgba(232, 184, 115, 0.6);
+  color: #f4cd8a;
+  transform: translateY(-1px);
+}
+
+.trial-welcome__cta:active {
+  transform: scale(0.97);
+}
+
+[data-theme='dawn'] .trial-welcome__cta {
+  border-color: rgba(107, 77, 30, 0.3);
+  background: rgba(107, 77, 30, 0.07);
+  color: rgba(107, 77, 30, 0.85);
+}
+
+[data-theme='dawn'] .trial-welcome__cta:hover {
+  background: rgba(107, 77, 30, 0.13);
+  border-color: rgba(107, 77, 30, 0.45);
+  color: #6b4d1e;
+}
+
 /* ── Trial banner ───────────────────────────────────────────────────────── */
 
 .trial-banner {
