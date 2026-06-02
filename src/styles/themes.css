@@ -50,6 +50,13 @@
   --glass-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.78);
   --glass-shadow-glow: 0 0 60px -28px rgba(243, 189, 118, 0.16);
   --glass-glow-spot: rgba(243, 189, 118, 0.2);
+
+  /* Scripture — "First Light". The warm ember→gold heat ramp is the surface's
+     signature and stays constant across themes (set in JS from these endpoints);
+     only the resting (unvisited) chapter cell adapts per theme. */
+  --scripture-ember: 197, 106, 110; /* low engagement (dawn-3) */
+  --scripture-gold: 243, 189, 118; /* high engagement (dawn-1) */
+  --scripture-cell-rest: rgba(236, 231, 221, 0.06);
 }
 
 /* ── One Dark ───────────────────────────────────────────────────────────── */
@@ -128,6 +135,9 @@
   --success: #9a7a3a; /* warm "saved" — not clinical green */
 
   --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(224, 150, 70, 0.22), rgba(181, 80, 58, 0.05) 40%, transparent 64%);
+
+  /* On light paper the resting cell needs a warm ink, not a faint white. */
+  --scripture-cell-rest: rgba(74, 64, 53, 0.1);
 
   --glass-bg: rgba(255, 253, 248, 0.84);
   --glass-nav-bg: rgba(251, 246, 238, 0.72);

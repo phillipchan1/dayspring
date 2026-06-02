@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
 import { createReminder, type ReminderHorizon } from '@/lib/reminders'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { CommandPopover, CommandPopoverHint } from './CommandPopover'
+import { REMIND_KEEP_HINT, REMIND_READY_HINT } from './commandHints'
 import './Capture.css'
 
 const HORIZONS: { id: ReminderHorizon; label: string }[] = [
@@ -42,7 +43,8 @@ export function InlineRemindPopover({ entryId, sentence, anchor, onClose }: Prop
   }, [entryId, horizon, text, onClose])
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && e.shiftKey) return
+    if (e.key === 'Enter') {
       e.preventDefault()
       e.stopPropagation()
       void handleCommit()
@@ -66,9 +68,7 @@ export function InlineRemindPopover({ entryId, sentence, anchor, onClose }: Prop
       ariaLabel="Return to this"
       footer={
         <CommandPopoverHint>
-          {horizon
-            ? '⌘ enter to keep · esc to cancel'
-            : '⌘ enter to keep · pick a time · esc to cancel'}
+          {horizon ? REMIND_READY_HINT : REMIND_KEEP_HINT}
         </CommandPopoverHint>
       }
     >

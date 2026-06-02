@@ -38,6 +38,8 @@ export interface JournalViewProps {
   onQueryChange: (q: string) => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
+  /** Route to the Lamp (scripture canon) surface. */
+  onScripture: () => void
   /** Route to the Altar surface. */
   onAltar: () => void
   onOpenSettings: () => void
@@ -56,4 +58,6 @@ export interface JournalViewProps {
   reflectionsActive: boolean
   /** True when the Altar fills the main canvas. */
   altarActive: boolean
+  /** True when the Lamp surface fills the main canvas. */
+  scriptureActive: boolean
 }

@@ -1,5 +1,6 @@
 import { RangeSetBuilder } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
+import { isSpiritualFenceLine } from '@/lib/spiritualBlocks'
 
 const commandLineMark = Decoration.line({ class: 'cm-commandLine' })
 
@@ -31,6 +32,10 @@ function build(view: EditorView, pos: number): DecorationSet {
   if (pos < 0 || pos > doc.length) return Decoration.none
 
   const line = doc.lineAt(pos)
+  // A line decoration inside an atomic block-replace widget crashes CM's
+  // measure pass — never band a spiritual fence line.
+  if (isSpiritualFenceLine(line.text)) return Decoration.none
+
   const builder = new RangeSetBuilder<Decoration>()
   builder.add(line.from, line.from, commandLineMark)
   return builder.finish()

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
+import { RailHint } from './RailHint'
+import { RAIL_EXPAND_KEY } from './railHints'
 
 interface RailProps {
   onNew: () => void
@@ -9,6 +11,8 @@ interface RailProps {
   onLookBack: () => void
   altarActive: boolean
   onAltar: () => void
+  scriptureActive: boolean
+  onScripture: () => void
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -28,6 +32,8 @@ export function Rail({
   onLookBack,
   altarActive,
   onAltar,
+  scriptureActive,
+  onScripture,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -70,7 +76,7 @@ export function Rail({
             label="Entries"
             shortcut="⌘1"
             onClick={onToggleEntries}
-            active={entriesOpen && !lookBackActive && !altarActive}
+            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive}
             icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
@@ -83,8 +89,18 @@ export function Rail({
             labelsExpanded={labelsExpanded}
           />
           <RailButton
-            label="Altar"
+            label="Lamp"
+            subline="The verses you return to"
             shortcut="⌘3"
+            onClick={onScripture}
+            active={scriptureActive}
+            lamp
+            icon={<IconScripture />}
+            labelsExpanded={labelsExpanded}
+          />
+          <RailButton
+            label="Altar"
+            shortcut="⌘4"
             onClick={onAltar}
             active={altarActive}
             icon={<IconAltar />}
@@ -100,23 +116,26 @@ export function Rail({
           icon={<IconSettings />}
           labelsExpanded={labelsExpanded}
         />
-        <button
-          type="button"
-          className="rail-toggle"
-          onClick={onToggleLabels}
-          aria-pressed={labelsExpanded}
-          aria-label={labelsExpanded ? 'Icons only' : 'Show navigation labels'}
-          title={labelsExpanded ? 'Icons only' : 'Show names'}
+        <RailHint
+          label={labelsExpanded ? 'Icons only' : 'Expand sidebar'}
+          shortcut={RAIL_EXPAND_KEY}
+          active={!labelsExpanded}
         >
-          <span className="rail__icon-slot rail-toggle__well" aria-hidden>
-            <IconRailExpand expanded={labelsExpanded} />
-          </span>
-          {labelsExpanded ? (
-            <span className="rail-toggle__label">
-              {labelsExpanded ? 'Icons only' : 'Show names'}
+          <button
+            type="button"
+            className="rail-toggle"
+            onClick={onToggleLabels}
+            aria-pressed={labelsExpanded}
+            aria-label={labelsExpanded ? 'Icons only' : 'Expand sidebar'}
+          >
+            <span className="rail__icon-slot rail-toggle__well" aria-hidden>
+              <IconMenu />
             </span>
-          ) : null}
-        </button>
+            {labelsExpanded ? (
+              <span className="rail-toggle__label">Icons only</span>
+            ) : null}
+          </button>
+        </RailHint>
       </div>
     </nav>
   )
@@ -124,34 +143,47 @@ export function Rail({
 
 interface RailButtonProps {
   label: string
+  subline?: string | undefined
   shortcut: string
   onClick: () => void
   icon: ReactNode
   active?: boolean
+  /** Gold ember glow when active (Lamp). */
+  lamp?: boolean | undefined
   labelsExpanded: boolean
 }
 
 function RailButton({
   label,
+  subline,
   shortcut,
   onClick,
   icon,
   active = false,
+  lamp = false,
   labelsExpanded,
 }: RailButtonProps) {
-  return (
+  const button = (
     <button
       type="button"
       className="rail-btn"
       data-active={active ? 'true' : undefined}
+      data-lamp={lamp && active ? 'true' : undefined}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      title={`${label} (${shortcut})`}
       onClick={onClick}
     >
       <span className="rail-btn__well">{icon}</span>
       {labelsExpanded ? <span className="rail-btn__label">{label}</span> : null}
     </button>
+  )
+
+  if (labelsExpanded) return button
+
+  return (
+    <RailHint label={label} subline={subline} shortcut={shortcut} active>
+      {button}
+    </RailHint>
   )
 }
 
@@ -173,13 +205,12 @@ function NavIcon({ children }: { children: ReactNode }) {
   )
 }
 
-function IconRailExpand({ expanded }: { expanded: boolean }) {
+function IconMenu() {
   return (
     <NavIcon>
-      <path
-        d={expanded ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6'}
-        strokeWidth="1.65"
-      />
+      <path d="M5 7h14" />
+      <path d="M5 12h14" />
+      <path d="M5 17h14" />
     </NavIcon>
   )
 }
@@ -212,6 +243,16 @@ function IconLookBack() {
   )
 }
 
+function IconScripture() {
+  // Open book — two pages spread from a center spine.
+  return (
+    <NavIcon>
+      <path d="M12 7v13" />
+      <path d="M3 18a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4a4 4 0 0 1 5 3 4 4 0 0 1 5-3h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5a3 3 0 0 0-4 1 3 3 0 0 0-4-1z" />
+    </NavIcon>
+  )
+}
+
 function IconAltar() {
   return (
     <NavIcon>
@@ -224,7 +265,7 @@ function IconSettings() {
   return (
     <NavIcon>
       <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </NavIcon>
   )
 }

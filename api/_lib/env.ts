@@ -13,6 +13,8 @@ export const env = {
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
   openaiKey: () => need('OPENAI_API_KEY'),
   model: () => process.env.OPENAI_MODEL || 'gpt-5.4-nano',
+  // Crossway ESV API token (api.esv.org). Used to resolve verbatim verse text.
+  esvApiKey: () => need('ESV_API_KEY'),
   cronSecret: () => need('CRON_SECRET'),
   appOwnerId: () => need('APP_OWNER_ID'),
   // Optional — if set, reminder notifications are sent via Resend.

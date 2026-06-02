@@ -994,6 +994,7 @@ a {
 }
 .rail__mark {
   display: block;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 55%, transparent));
 }
 .rail__icon-slot,
 .rail-btn__well {
@@ -1191,11 +1192,112 @@ a {
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
 }
+/* Lamp — open book lit with ember→gold when the canon surface is active. */
+.rail-btn[data-lamp='true'] {
+  color: rgb(var(--scripture-gold));
+}
+.rail:not([data-labels='true']) .rail-btn[data-lamp='true'] .rail-btn__well {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(var(--scripture-gold)) 50%, transparent);
+}
+.rail[data-labels='true'] .rail-btn[data-lamp='true'] {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, rgb(var(--scripture-gold)) 50%, transparent);
+}
+.rail-btn[data-lamp='true'] svg {
+  filter: drop-shadow(0 0 8px rgba(228, 186, 124, 0.55));
+}
 .rail:not([data-labels='true']) .rail-btn:active .rail-btn__well {
   transform: scale(0.94);
 }
 .rail[data-labels='true'] .rail-btn:active {
   transform: scale(0.98);
+}
+
+/* Collapsed rail — Spark-style hover hints (label + shortcut to the right). */
+.rail-hint-wrap {
+  width: 100%;
+}
+.rail-hint {
+  position: fixed;
+  z-index: 8600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-edge);
+  -webkit-backdrop-filter: blur(16px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(16px) saturate(var(--glass-saturate));
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  animation: rail-hint-in 0.12s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.rail-hint--rich {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.28rem;
+  padding: 0.72rem 0.95rem;
+  min-width: 14.25rem;
+  border-radius: 0.8125rem;
+  white-space: normal;
+}
+.rail-hint__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+.rail-hint--rich .rail-hint__label {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.rail-hint__sub {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+@keyframes rail-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+.rail-hint__label {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-bright);
+}
+.rail-hint__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  padding: 0.1rem 0.38rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-input) 75%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-dim);
 }
 
 /* ── Entries panel (desktop) — slides in/out beside the rail ──────────────
@@ -2484,6 +2586,12 @@ html[data-focus-mode] .focus-controls {
   color: var(--text-dim);
   font-size: 0.8rem;
   font-family: var(--font-mono);
+}
+.settings-attribution {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 .settings-range {
   width: 100%;

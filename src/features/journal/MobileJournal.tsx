@@ -22,14 +22,14 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
-    reflectionsActive, altarActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
   } = props
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive = reflectionsActive || altarActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   const journalChrome = !canvasAlternateActive
 
   function closeDrawer() {
@@ -142,7 +142,10 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={onLookBack} aria-label="Looking back" title="Looking back (⌘2)">
               ⟲
             </button>
-            <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘3)">
+            <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
+              ✦
+            </button>
+            <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘4)">
               ◇
             </button>
             {journalChrome && (

@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorHandle } from '@/editor/Editor'
+import type { SpiritualBlockEditTarget } from '@/editor/spiritualBlockDecoration'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import { wordCount } from '@/lib/entries'
+import { getEntryById, wordCount } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
 import { isSupabaseConfigured } from '@/lib/env'
 import * as repo from '@/lib/repo'
+import { cacheGet } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
-import type { Entry } from '@/lib/types'
+import type { Entry, PrayerType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
@@ -33,6 +35,7 @@ import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
 import { LookingBack } from '@/features/reflections/LookingBack'
 import { AltarView } from '@/features/altar/AltarView'
+import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
   copyEntriesMarkdown,
@@ -44,7 +47,8 @@ import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
-import { syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
+import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
+import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 import { ResurfaceCard } from './ResurfaceCard'
 import { fetchCurrentResurface, type ResurfaceCard as ResurfaceCardData } from '@/lib/echoes'
 import '@/features/reflect/Reflect.css'
@@ -107,20 +111,18 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const sidebarOpen = state.sidebar
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
-  const canvasAlternateActive = reflectionsActive || altarActive
-  const focus = useFocusMode(settingsOpen)
+  const scriptureActive = state.surface === 'scripture'
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
+
   useEffect(() => {
-    if (!focus.active) {
-      setFocusEditorReady(false)
-      return
+    const base = 'Dayspring'
+    document.title = scriptureActive ? `Lamp — ${base}` : base
+    return () => {
+      document.title = base
     }
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setFocusEditorReady(true))
-    })
-    return () => cancelAnimationFrame(id)
-  }, [focus.active])
+  }, [scriptureActive])
 
   // Block the browser context menu outside the editor and entry rows (editor keeps native macOS menu).
   useEffect(() => {
@@ -147,9 +149,34 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     cmd: SlashCommandId
     insertAt: number
     anchor: InlinePanelAnchor
+    /** Present when editing an existing block in place rather than inserting. */
+    edit?: {
+      id: string
+      from: number
+      to: number
+      content: string
+      reference: string | null
+      prayerType: PrayerType | null
+    }
   } | null>(null)
   const slashCaptureRef = useRef(slashCapture)
   slashCaptureRef.current = slashCapture
+
+  const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
+  const focusOverlaysOpen =
+    settingsOpen || helpOpen || slashCapture !== null || slashPaletteOpen
+  const focus = useFocusMode(focusOverlaysOpen)
+
+  useEffect(() => {
+    if (!focus.active) {
+      setFocusEditorReady(false)
+      return
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setFocusEditorReady(true))
+    })
+    return () => cancelAnimationFrame(id)
+  }, [focus.active])
 
   function handleSlashCommand(
     cmd: SlashCommandId,
@@ -159,14 +186,57 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     setSlashCapture({ cmd, insertAt, anchor })
   }
 
-  /** Insert at the slash position, close the popover, return focus to the editor. */
+  /** Map a clicked spiritual block to the popover that created it, pre-filled. */
+  const handleEditBlock = useCallback(
+    (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => {
+      const cmd: SlashCommandId =
+        target.type === 'prayer' ? 'pray' : target.type === 'sense' ? 'sense' : 'scripture'
+      setSlashCapture({
+        cmd,
+        insertAt: target.from,
+        anchor,
+        edit: {
+          id: target.id,
+          from: target.from,
+          to: target.to,
+          content: target.content,
+          reference: target.reference,
+          // Prayer type isn't carried in the fence; the pray popover rehydrates it.
+          prayerType: null,
+        },
+      })
+    },
+    [],
+  )
+
+  /** Insert at the slash position (or replace an edited block), then refocus. */
   const completeSlashInsert = useCallback((text: string) => {
     const cap = slashCaptureRef.current
     if (!cap) return
+    if (cap.edit) {
+      editorRef.current?.replaceRange(cap.edit.from, cap.edit.to, text)
+      const after = cap.edit.from + text.length
+      setSlashCapture(null)
+      requestAnimationFrame(() => editorRef.current?.focusAt(after))
+      return
+    }
     editorRef.current?.insertAt(cap.insertAt, text)
     const after = cap.insertAt + text.length
     setSlashCapture(null)
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
+  }, [])
+
+  /** Remove an edited block from the entry and delete its Altar row. */
+  const handleRemoveBlock = useCallback(() => {
+    const cap = slashCaptureRef.current
+    if (!cap?.edit) return
+    const { id, from, to } = cap.edit
+    editorRef.current?.replaceRange(from, to, '')
+    setSlashCapture(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+    void deleteSpiritualItem(id).catch(() => {
+      // Non-fatal — save-time reconciliation will prune the orphan
+    })
   }, [])
 
   const closeSlashCapture = useCallback(() => {
@@ -330,8 +400,11 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     content,
     enabled: entriesReady,
     onAfterSave: (saved) => {
-      void syncSpiritualBlocksFromMarkdown(saved).catch(() => {
+      void syncSpiritualBlocksFromMarkdown(entryIdRef.current, saved).catch(() => {
         // Non-fatal — entry body is already persisted
+      })
+      void syncScriptureRefsFromMarkdown(entryIdRef.current, saved).catch(() => {
+        // Non-fatal — refs just won't update until the next save
       })
     },
     onCreated: (created) => {
@@ -375,6 +448,16 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }
 
+  function toggleScripture() {
+    if (scriptureActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      // Always land on the canon map, never a stale book panel.
+      go({ surface: 'scripture', settings: null, help: false, sidebar: false, scriptureBook: null, scriptureVerse: null })
+    }
+  }
+
   function toggleAltar() {
     if (altarActive) back()
     else {
@@ -410,6 +493,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onSave: saveNow,
     onToggleEntries: toggleEntries,
     onLookBack: toggleLookBack,
+    onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => {
       if (settingsOpen) back()
@@ -422,6 +506,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       else setEntriesOpen(true)
       requestAnimationFrame(() => focusEntrySearch())
     },
+    onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     focusActive: focus.active,
     settingsOpen,
   })
@@ -493,8 +578,12 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     setContent(entry.body_markdown)
   }
 
-  function handleOpenReflectionEntry(id: string) {
-    const entry = entries.find((e) => e.id === id)
+  async function handleOpenReflectionEntry(id: string) {
+    // The Scripture map and Altar reference entries spanning years; the one we
+    // want may be older than the locally-cached ~500-entry window, so fall back
+    // to the cache and then to the server.
+    const entry =
+      entries.find((e) => e.id === id) ?? (await cacheGet(id)) ?? (await getEntryById(id))
     if (!entry) return
     void handleBrowse(entry)
   }
@@ -655,15 +744,21 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             typewriter={focus.active && focusEditorReady && settings.typewriter}
             dimming={focus.active && focusEditorReady && settings.dimming}
             slashEnabled
-            commandLinePos={slashCapture?.insertAt ?? null}
+            // Only band the line for a fresh /command; editing a block targets an
+            // atomic widget line, where a line decoration collides with the block.
+            commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
             onSlashCommand={handleSlashCommand}
+            onEditBlock={handleEditBlock}
+            onSlashPaletteChange={setSlashPaletteOpen}
           />
         ) : null}
       </div>
     </div>
   )
 
-  const mainSlot = altarActive ? (
+  const mainSlot = scriptureActive ? (
+    <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
+  ) : altarActive ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <LookingBack embedded onOpenEntry={handleOpenReflectionEntry} />
@@ -706,6 +801,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     query,
     onQueryChange: setQuery,
     onLookBack: toggleLookBack,
+    onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => openSettings(),
     settings,
@@ -721,6 +817,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     mainSlot,
     reflectionsActive,
     altarActive,
+    scriptureActive,
   }
 
   return (
@@ -733,7 +830,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           entryContent={content}
           insertAt={slashCapture.insertAt}
           anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? {
+                  id: slashCapture.edit.id,
+                  reference: slashCapture.edit.reference,
+                  content: slashCapture.edit.content,
+                }
+              : undefined
+          }
           onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
           onClose={closeSlashCapture}
         />
       )}
@@ -741,7 +848,17 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         <InlinePrayPopover
           entryId={entryId}
           anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? {
+                  id: slashCapture.edit.id,
+                  content: slashCapture.edit.content,
+                  prayerType: slashCapture.edit.prayerType,
+                }
+              : undefined
+          }
           onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
           onClose={closeSlashCapture}
         />
       )}
@@ -749,7 +866,13 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         <InlineSensePopover
           entryId={entryId}
           anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? { id: slashCapture.edit.id, content: slashCapture.edit.content }
+              : undefined
+          }
           onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
           onClose={closeSlashCapture}
         />
       )}

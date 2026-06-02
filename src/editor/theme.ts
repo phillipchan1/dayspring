@@ -51,4 +51,12 @@ export const editorTheme = EditorView.theme({
   '.cm-commandLine': {
     backgroundColor: 'var(--accent-soft)',
   },
+  // Quiet underline on recognized scripture references — warm, passive, the
+  // same gold as the Scripture surface. Never changes layout or caret behavior.
+  '.cm-scriptureRef': {
+    textDecoration: 'underline',
+    textDecorationColor: 'color-mix(in srgb, rgb(var(--scripture-gold)) 45%, transparent)',
+    textDecorationThickness: '1px',
+    textUnderlineOffset: '3px',
+  },
 })

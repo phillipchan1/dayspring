@@ -116,6 +116,28 @@ export async function deleteEntry(id: string): Promise<void> {
   if (error) throw error
 }
 
+/** Fetch one entry by id — for history beyond the locally-cached recent window. */
+export async function getEntryById(id: string): Promise<Entry | null> {
+  const sb = requireSupabase()
+  const { data, error } = await sb.from('entries').select('*').eq('id', id).maybeSingle()
+  if (error) throw error
+  return (data as Entry | null) ?? null
+}
+
+/** Fetch specific entries by id (chunked to stay under PostgREST URL limits). */
+export async function fetchEntriesByIds(ids: string[]): Promise<Entry[]> {
+  if (ids.length === 0) return []
+  const sb = requireSupabase()
+  const out: Entry[] = []
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200)
+    const { data, error } = await sb.from('entries').select('*').in('id', chunk)
+    if (error) throw error
+    for (const e of (data ?? []) as Entry[]) out.push(e)
+  }
+  return out
+}
+
 /** List entries newest-first. */
 export async function listEntries(limit = 50): Promise<Entry[]> {
   const sb = requireSupabase()
@@ -127,4 +149,29 @@ export async function listEntries(limit = 50): Promise<Entry[]> {
 
   if (error) throw error
   return (data ?? []) as Entry[]
+}
+
+const ENTRY_PAGE = 1000
+
+/**
+ * Every entry, newest-first — paginated past PostgREST's ~1000-row cap so the
+ * whole journal can be cached locally (not just a recent window). One-time cost
+ * on first sync; cheap thereafter.
+ */
+export async function listAllEntries(): Promise<Entry[]> {
+  const sb = requireSupabase()
+  const out: Entry[] = []
+  for (let from = 0; ; from += ENTRY_PAGE) {
+    const { data, error } = await sb
+      .from('entries')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + ENTRY_PAGE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as Entry[]
+    out.push(...rows)
+    if (rows.length < ENTRY_PAGE) break
+  }
+  return out
 }

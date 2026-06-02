@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createSpiritualItem, fetchScripturePassages } from '@/lib/spiritual'
+import {
+  createSpiritualItem,
+  fetchScriptureRefs,
+  resolveScripturePassages,
+  updateSpiritualItem,
+} from '@/lib/spiritual'
+import { recordScriptureCommandRef } from '@/lib/scripture/capture'
 import { formatScriptureInsert } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
-import type { ScripturePassage } from '@/lib/types'
-import { settingsStore } from '@/lib/settings'
 import {
   CommandPopover,
   CommandPopoverChrome,
-  CommandPopoverHint,
+  CommandPopoverFooter,
 } from './CommandPopover'
 import { hasScriptureSearchContext, scriptureSearchContext } from './scriptureContext'
 import { ScriptureLoadingSkeleton } from './ScriptureLoadingSkeleton'
@@ -18,31 +22,50 @@ interface Props {
   entryContent: string
   insertAt: number
   anchor: InlinePanelAnchor
+  /** When set, picking a passage replaces this existing scripture block. */
+  edit?: { id: string; reference: string | null; content: string } | undefined
   onInsert: (text: string) => void
+  onRemove?: (() => void) | undefined
   onClose: () => void
 }
 
 type SearchSource = 'auto' | 'manual'
+/** Editing starts on a minimal menu so a click never spends an API call. */
+type Mode = 'menu' | 'search'
+
+/**
+ * A result row. `text === null` means the reference is shown but its verbatim
+ * ESV text is still resolving (progressive render — phase 2 fills it in).
+ */
+interface Row {
+  reference: string
+  reason: string
+  translation: string
+  text: string | null
+}
 
 const RESULTS_HINT = '↑↓ to choose · enter to set'
 const SEARCH_HINT = 'enter to search'
+const MENU_HINT = 'esc to close'
 
 export function InlineScripturePopover({
   entryId,
   entryContent,
   insertAt,
   anchor,
+  edit,
   onInsert,
+  onRemove,
   onClose,
 }: Props) {
   const autoContext = scriptureSearchContext(entryContent, insertAt)
   const hasContext = hasScriptureSearchContext(entryContent, insertAt)
-  const translation = settingsStore.get().scriptureTranslation
+  const [mode, setMode] = useState<Mode>(edit ? 'menu' : 'search')
   const [query, setQuery] = useState('')
-  const [passages, setPassages] = useState<ScripturePassage[] | null>(null)
-  const [loading, setLoading] = useState(hasContext)
+  const [passages, setPassages] = useState<Row[] | null>(null)
+  const [loading, setLoading] = useState(!edit && hasContext)
   const [searchSource, setSearchSource] = useState<SearchSource | null>(
-    hasContext ? 'auto' : null,
+    !edit && hasContext ? 'auto' : null,
   )
   const [error, setError] = useState<string | null>(null)
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
@@ -73,44 +96,78 @@ export function InlineScripturePopover({
     setSelectedIdx(null)
     setSearchSource(source)
     try {
-      const results = await fetchScripturePassages(text, translation)
-      setPassages(results)
+      // Phase 1 — the model picks references. These render immediately.
+      const candidates = await fetchScriptureRefs(text)
+      if (candidates.length === 0) {
+        setPassages([])
+        return
+      }
+      // Show the top 3 right away with their text still resolving (shimmer).
+      setPassages(
+        candidates.slice(0, 3).map((c) => ({
+          reference: c.reference,
+          reason: c.reason,
+          translation: 'ESV',
+          text: null,
+        })),
+      )
+      setLoading(false)
+
+      // Phase 2 — resolve verbatim ESV text and fill it in behind the refs.
+      // Resolve all candidates so a ref that fails backfills from the spares.
+      const resolved = await resolveScripturePassages(candidates.map((c) => c.reference))
+      const filled: Row[] = candidates
+        .map((c, i): Row | null => {
+          const r = resolved[i]
+          return r ? { reference: r.reference, reason: c.reason, translation: 'ESV', text: r.text } : null
+        })
+        .filter((r): r is Row => r !== null)
+        .slice(0, 3)
+      setPassages(filled)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not reach scripture search'
       setError(msg === 'Load failed' ? 'Network error reaching the API.' : msg)
+      setPassages(null)
     } finally {
       setLoading(false)
     }
   }
 
+  // Auto-search from surrounding text once we're in search mode — never while
+  // the edit menu is still showing (that's the whole point: no surprise calls).
   useEffect(() => {
-    if (!hasContext || autoFetchedRef.current) return
+    if (mode !== 'search' || !hasContext || autoFetchedRef.current) return
     autoFetchedRef.current = true
     void runSearch(autoContext, 'auto')
-  }, [hasContext, autoContext])
+  }, [mode, hasContext, autoContext])
 
-  // Always focus the search field when the panel opens (auto-search still runs in parallel).
+  // Focus the search field when search mode opens (auto-search runs in parallel).
   useEffect(() => {
+    if (mode !== 'search') return
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
     return () => clearTimeout(t)
-  }, [])
+  }, [mode])
 
   const handleSelect = useCallback(
-    (p: ScripturePassage) => {
-      const id = crypto.randomUUID()
+    (p: Row) => {
+      // Ignore selection until the verbatim text has resolved.
+      if (p.text === null) return
+      const id = edit?.id ?? crypto.randomUUID()
       const refWithTranslation = p.translation ? `${p.reference} · ${p.translation}` : p.reference
       onInsert(formatScriptureInsert(id, p.text, refWithTranslation, entryContent, insertAt))
-      void createSpiritualItem({
-        id,
-        entry_id: entryId,
-        type: 'scripture',
-        content: p.text,
-        metadata: { reference: p.reference, reason: p.reason },
-      }).catch(() => {
+      const metadata = { reference: p.reference, reason: p.reason }
+      const persist = edit
+        ? updateSpiritualItem(id, { content: p.text, metadata })
+        : createSpiritualItem({ id, entry_id: entryId, type: 'scripture', content: p.text, metadata })
+      void persist.catch(() => {
         // Non-fatal — fence block is already in the entry
       })
+      // Also light the Scripture map: persist a command-sourced ref for the passage.
+      void recordScriptureCommandRef(entryId, p.reference).catch(() => {
+        // Non-fatal — reconcile-on-save will still catch the reference in prose
+      })
     },
-    [entryId, entryContent, insertAt, onInsert],
+    [edit, entryId, entryContent, insertAt, onInsert],
   )
 
   function setSelectedIdx(idx: number | null) {
@@ -197,6 +254,41 @@ export function InlineScripturePopover({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [handleSelect])
 
+  if (mode === 'menu') {
+    return (
+      <CommandPopover
+        anchor={anchor}
+        onDismiss={onClose}
+        ariaLabel="Edit scripture"
+        variant="scripture"
+      >
+        <div className="command-popover__menu-bar">
+          <div className="command-popover__menu-actions">
+            <button
+              type="button"
+              className="command-popover__menu-link"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setMode('search')}
+            >
+              Edit
+            </button>
+            {onRemove && (
+              <button
+                type="button"
+                className="command-popover__menu-link command-popover__menu-link--danger"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={onRemove}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          <span className="command-popover__hint">{MENU_HINT}</span>
+        </div>
+      </CommandPopover>
+    )
+  }
+
   return (
     <CommandPopover
       anchor={anchor}
@@ -218,7 +310,7 @@ export function InlineScripturePopover({
           />
         </CommandPopoverChrome>
       }
-      footer={<CommandPopoverHint>{footerHint}</CommandPopoverHint>}
+      footer={<CommandPopoverFooter hint={footerHint} onRemove={edit ? onRemove : undefined} />}
     >
       {loading && <ScriptureLoadingSkeleton />}
       {error && !loading && <p className="command-popover__error">{error}</p>}
@@ -247,7 +339,17 @@ export function InlineScripturePopover({
                   {p.reference}
                   {p.translation && <span className="command-popover__translation"> · {p.translation}</span>}
                 </span>
-                <span className="command-popover__verse">{p.text}</span>
+                {p.text === null ? (
+                  <span
+                    className="command-popover__verse command-popover__verse--resolving"
+                    aria-label="Loading verse text"
+                  >
+                    <span className="command-popover__verse-shimmer" />
+                    <span className="command-popover__verse-shimmer command-popover__verse-shimmer--short" />
+                  </span>
+                ) : (
+                  <span className="command-popover__verse">{p.text}</span>
+                )}
               </button>
             </li>
           ))}

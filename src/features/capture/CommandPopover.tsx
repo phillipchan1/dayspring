@@ -91,6 +91,34 @@ export function CommandPopoverHint({ children }: { children: ReactNode }) {
   return <span className="command-popover__hint">{children}</span>
 }
 
+/**
+ * Footer with a keyboard hint and, when editing an existing block, a Remove
+ * action. `onMouseDown` is suppressed so clicking Remove doesn't blur-commit the
+ * field first.
+ */
+export function CommandPopoverFooter({
+  hint,
+  onRemove,
+}: {
+  hint: string
+  onRemove?: (() => void) | undefined
+}) {
+  if (!onRemove) return <CommandPopoverHint>{hint}</CommandPopoverHint>
+  return (
+    <div className="command-popover__footer-row">
+      <button
+        type="button"
+        className="command-popover__remove"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onRemove}
+      >
+        Remove
+      </button>
+      <CommandPopoverHint>{hint}</CommandPopoverHint>
+    </div>
+  )
+}
+
 export function CommandPopoverChrome({
   label,
   children,

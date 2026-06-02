@@ -25,9 +25,9 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onAltar, onOpenSettings,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -39,7 +39,7 @@ export function DesktopJournal(props: JournalViewProps) {
         ? formatBreadcrumb(activeEntry.created_at)
         : ''
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
-  const canvasAlternateActive = reflectionsActive || altarActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   const journalChrome = !canvasAlternateActive
 
   return (
@@ -51,6 +51,8 @@ export function DesktopJournal(props: JournalViewProps) {
           entriesOpen={entriesOpen}
           lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
+          scriptureActive={scriptureActive}
+          onScripture={onScripture}
           altarActive={altarActive}
           onAltar={onAltar}
           onOpenSettings={onOpenSettings}

@@ -55,3 +55,31 @@ export interface ScripturePassage {
   /** The translation used (e.g. "ESV", "NIV"). Set client-side from the user's preference. */
   translation?: string
 }
+
+// ── Scripture refs ──────────────────────────────────────────────────────────
+// One row per scripture reference captured from an entry. Mirrors the
+// scripture_refs table; ownership keys on `owner` like every other table.
+
+export type ScriptureRefSource = 'parsed' | 'inline' | 'command' | 'manual'
+export type ScriptureRefStatus = 'confirmed' | 'suggested'
+
+export interface ScriptureRef {
+  id: string
+  owner: string
+  entry_id: string
+  book_osis: string
+  book_name: string
+  book_order: number
+  chapter: number
+  verse_start: number | null
+  verse_end: number | null
+  osis_ref: string
+  /** Denormalized from entries.created_at — the source date, not the import date. */
+  entry_created_at: string
+  source: ScriptureRefSource
+  confidence: number
+  status: ScriptureRefStatus
+  char_start: number | null
+  char_end: number | null
+  created_at: string
+}

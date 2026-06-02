@@ -7,9 +7,22 @@ import {
 import { RangeSetBuilder, StateField, type Extension } from '@codemirror/state'
 import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { SpiritualItemType } from '@/lib/types'
+import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
+
+/** A spiritual block the user clicked, resolved fresh from the live document. */
+export interface SpiritualBlockEditTarget {
+  id: string
+  type: SpiritualItemType
+  content: string
+  reference: string | null
+  /** Character range of the fenced block in the current document. */
+  from: number
+  to: number
+}
 
 class SpiritualBlockWidget extends WidgetType {
   constructor(
+    readonly id: string,
     readonly type: SpiritualItemType,
     readonly content: string,
     readonly reference: string | null,
@@ -19,6 +32,7 @@ class SpiritualBlockWidget extends WidgetType {
 
   eq(other: SpiritualBlockWidget): boolean {
     return (
+      other.id === this.id &&
       other.type === this.type &&
       other.content === this.content &&
       other.reference === this.reference
@@ -29,6 +43,8 @@ class SpiritualBlockWidget extends WidgetType {
     const root = document.createElement('div')
     root.className = `cm-spiritual-block cm-spiritual-block--${this.type}`
     root.setAttribute('contenteditable', 'false')
+    root.dataset.blockId = this.id
+    root.title = 'Click to edit'
 
     if (this.type === 'scripture') {
       const verse = document.createElement('p')
@@ -90,7 +106,12 @@ function addBlockDecoration(
     block.from,
     block.to,
     Decoration.replace({
-      widget: new SpiritualBlockWidget(block.type, block.content, block.reference ?? null),
+      widget: new SpiritualBlockWidget(
+        block.id,
+        block.type,
+        block.content,
+        block.reference ?? null,
+      ),
       block: true,
       inclusive: false,
     }),
@@ -102,6 +123,16 @@ const spiritualBlockTheme = EditorView.theme({
     display: 'block',
     margin: '0.2rem 0',
     userSelect: 'none',
+    cursor: 'pointer',
+    borderRadius: 'var(--radius-md)',
+    transition: 'background 120ms ease, box-shadow 120ms ease',
+  },
+  '.cm-spiritual-block:hover': {
+    background: 'color-mix(in srgb, var(--accent-soft) 30%, transparent)',
+    boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent)',
+  },
+  '.cm-spiritual-block--prayer:hover': {
+    background: 'color-mix(in srgb, var(--accent-soft) 62%, transparent)',
   },
   '.cm-spiritual-block--prayer': {
     padding: '0.5rem 0 0.5rem 0.85rem',
@@ -179,7 +210,57 @@ const spiritualBlockField = StateField.define<DecorationSet>({
 })
 
 /**
- * Paint Dayspring spiritual fences as styled blocks; raw ```dayspring-*``` syntax
- * stays in the document for search, sync, and export.
+ * Click a rendered block to edit it: resolve the block fresh from the live
+ * document (positions stay correct even after edits above it) and hand the
+ * caller its range + contents so it can reopen the matching popover.
  */
-export const spiritualBlockExtension: Extension = [spiritualBlockTheme, spiritualBlockField]
+function blockClickHandler(
+  onEdit: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void,
+): Extension {
+  return EditorView.domEventHandlers({
+    mousedown(event, view) {
+      const el = event.target as HTMLElement | null
+      const blockEl = el?.closest('.cm-spiritual-block') as HTMLElement | null
+      const id = blockEl?.dataset.blockId
+      if (!id || !blockEl) return false
+      const docText = view.state.doc.toString()
+      const block = parseSpiritualBlocks(docText).find((b) => b.id === id)
+      if (!block) return false
+      event.preventDefault()
+      // Exclude the block's trailing newline so an in-place replace keeps the
+      // surrounding paragraph spacing intact.
+      const to = Math.min(block.to, docText.length)
+      const editTo = docText[to - 1] === '\n' ? to - 1 : to
+      onEdit(
+        {
+          id: block.id,
+          type: block.type,
+          content: block.content,
+          reference: block.reference ?? null,
+          from: block.from,
+          to: editTo,
+        },
+        computeBlockPanelAnchor(view, blockEl),
+      )
+      return true
+    },
+  })
+}
+
+/**
+ * Paint Dayspring spiritual fences as styled blocks; raw ```dayspring-*``` syntax
+ * stays in the document for search, sync, and export. Clicking a block invokes
+ * `onEdit` so the caller can reopen the matching capture popover.
+ */
+export function spiritualBlockExtension(
+  onEdit: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void,
+): Extension {
+  return [
+    spiritualBlockTheme,
+    spiritualBlockField,
+    // Treat each rendered block as a single atom: arrows skip over it and
+    // Backspace/Delete from an edge removes the whole fence in one stroke.
+    EditorView.atomicRanges.of((view) => view.state.field(spiritualBlockField)),
+    blockClickHandler(onEdit),
+  ]
+}

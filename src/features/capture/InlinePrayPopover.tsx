@@ -1,11 +1,28 @@
-import { useState } from 'react'
-import { createSpiritualItem } from '@/lib/spiritual'
+import { useEffect, useRef, useState } from 'react'
+import { createSpiritualItem, getSpiritualItem, updateSpiritualItem } from '@/lib/spiritual'
 import { formatSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { PrayerType } from '@/lib/types'
-import { CommandPopover, CommandPopoverHint } from './CommandPopover'
+import { CommandPopover, CommandPopoverFooter } from './CommandPopover'
 import { CommandProseField } from './CommandProseField'
+import { PROSE_KEEP_HINT, PROSE_SAVE_HINT } from './commandHints'
 import './Capture.css'
+
+/** Existing prayer being edited in place. */
+export interface PrayEdit {
+  id: string
+  content: string
+  prayerType: PrayerType | null
+}
+
+const PRAYER_TYPE_VALUES: PrayerType[] = ['intercession', 'gratitude', 'petition', 'praise']
+
+function readPrayerType(metadata: Record<string, unknown> | null): PrayerType | null {
+  const value = metadata?.prayer_type
+  return typeof value === 'string' && PRAYER_TYPE_VALUES.includes(value as PrayerType)
+    ? (value as PrayerType)
+    : null
+}
 
 const PRAYER_TYPES: { id: PrayerType; label: string }[] = [
   { id: 'intercession', label: 'Intercession' },
@@ -17,28 +34,46 @@ const PRAYER_TYPES: { id: PrayerType; label: string }[] = [
 interface Props {
   entryId: string | null
   anchor: InlinePanelAnchor
+  /** When set, the popover edits this existing prayer instead of creating one. */
+  edit?: PrayEdit | undefined
   onInsert: (text: string) => void
+  onRemove?: (() => void) | undefined
   onClose: () => void
 }
 
-export function InlinePrayPopover({ entryId, anchor, onInsert, onClose }: Props) {
-  const [text, setText] = useState('')
-  const [prayerType, setPrayerType] = useState<PrayerType | null>(null)
+export function InlinePrayPopover({ entryId, anchor, edit, onInsert, onRemove, onClose }: Props) {
+  const [text, setText] = useState(edit?.content ?? '')
+  const [prayerType, setPrayerType] = useState<PrayerType | null>(edit?.prayerType ?? null)
   const [error, setError] = useState<string | null>(null)
+  // The prayer type lives in the DB row, not the fence — hydrate it when editing,
+  // unless the user has already picked one in the meantime.
+  const userPickedRef = useRef(false)
+  const editId = edit?.id
+  useEffect(() => {
+    if (!editId) return
+    let cancelled = false
+    void getSpiritualItem(editId)
+      .then((item) => {
+        if (cancelled || userPickedRef.current || !item) return
+        setPrayerType(readPrayerType(item.metadata))
+      })
+      .catch(() => null)
+    return () => {
+      cancelled = true
+    }
+  }, [editId])
 
   async function handleCommit() {
     const content = text.trim()
     if (!content) return
     setError(null)
-    const id = crypto.randomUUID()
+    const id = edit?.id ?? crypto.randomUUID()
+    const metadata = prayerType ? { prayer_type: prayerType } : null
     onInsert(formatSpiritualBlock('prayer', id, content))
-    void createSpiritualItem({
-      id,
-      entry_id: entryId,
-      type: 'prayer',
-      content,
-      metadata: prayerType ? { prayer_type: prayerType } : null,
-    }).catch((e) => {
+    const persist = edit
+      ? updateSpiritualItem(id, { content, metadata })
+      : createSpiritualItem({ id, entry_id: entryId, type: 'prayer', content, metadata })
+    void persist.catch((e) => {
       setError(e instanceof Error ? e.message : 'Could not save')
     })
   }
@@ -47,11 +82,16 @@ export function InlinePrayPopover({ entryId, anchor, onInsert, onClose }: Props)
     <CommandPopover
       anchor={anchor}
       onDismiss={onClose}
-      ariaLabel="Prayer"
+      ariaLabel={edit ? 'Edit prayer' : 'Prayer'}
       variant="pray"
-      footer={<CommandPopoverHint>⌘ enter to keep · esc to cancel</CommandPopoverHint>}
+      footer={
+        <CommandPopoverFooter
+          hint={edit ? PROSE_SAVE_HINT : PROSE_KEEP_HINT}
+          onRemove={edit ? onRemove : undefined}
+        />
+      }
     >
-      <p className="command-popover__label">prayer</p>
+      <p className="command-popover__label">{edit ? 'edit prayer' : 'prayer'}</p>
       <CommandProseField
         value={text}
         onChange={setText}
@@ -69,7 +109,10 @@ export function InlinePrayPopover({ entryId, anchor, onInsert, onClose }: Props)
             className="command-popover__chip"
             data-active={prayerType === t.id ? 'true' : undefined}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setPrayerType(prayerType === t.id ? null : t.id)}
+            onClick={() => {
+              userPickedRef.current = true
+              setPrayerType(prayerType === t.id ? null : t.id)
+            }}
           >
             {t.label}
           </button>

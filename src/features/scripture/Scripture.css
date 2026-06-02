@@ -1,0 +1,722 @@
+/* ── Scripture — the whole canon as a field of light ─────────────────────── */
+
+.scripture {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text);
+}
+
+.scripture__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    var(--journal-glow),
+    linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 55%);
+  pointer-events: none;
+}
+
+.scripture__scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Wider than the writing column — the canon needs room to breathe. */
+.scripture__column {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 2.75rem 2.5rem 5rem;
+}
+
+.scripture--loading,
+.scripture__error {
+  position: relative;
+  z-index: 1;
+  padding: 2.75rem 2rem;
+  max-width: 70rem;
+  margin: 0 auto;
+}
+
+.scripture--loading {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.scripture__error {
+  color: var(--danger);
+}
+
+/* ── header ──────────────────────────────────────────────────────────────── */
+.scripture__header {
+  margin-bottom: 0.5rem;
+}
+
+.scripture__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.69rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.85rem;
+}
+
+.scripture__title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(1.9rem, 4vw, 2.35rem);
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.scripture__sub {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  margin: 0.65rem 0 0;
+  max-width: 48ch;
+  line-height: 1.45;
+}
+
+/* ── canon ───────────────────────────────────────────────────────────────── */
+.scripture__testament {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 2.5rem 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scripture__testament::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.scripture__canon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.scripture__book {
+  appearance: none;
+  display: block;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 9px 10px 10px;
+  background: color-mix(in srgb, var(--bg-elevated) 45%, transparent);
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    transform var(--transition);
+  min-width: 0;
+}
+
+.scripture__book:hover {
+  border-color: color-mix(in srgb, var(--text-faint) 60%, var(--border));
+  transform: translateY(-1px);
+}
+
+.scripture__book:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.scripture__book--lit {
+  border-color: var(--border);
+}
+
+.scripture__book--sel {
+  border-color: rgb(var(--scripture-gold));
+}
+
+.scripture__bname {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 7px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.scripture__book--lit .scripture__bname {
+  color: var(--text-bright);
+}
+
+.scripture__cells {
+  display: grid;
+  gap: 2.5px;
+}
+
+.scripture__cell {
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  background: var(--scripture-cell-rest);
+  transition:
+    background var(--transition-slow),
+    box-shadow var(--transition-slow);
+}
+
+/* ── legend ──────────────────────────────────────────────────────────────── */
+.scripture__legend {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 2rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.scripture__ramp {
+  display: flex;
+  gap: 3px;
+}
+
+.scripture__ramp i {
+  width: 8px;
+  height: 8px;
+  border-radius: 1.5px;
+  display: block;
+}
+
+.scripture__legend-note {
+  margin-left: 0.75rem;
+}
+
+/* ── season scrubber ─────────────────────────────────────────────────────── */
+.scripture__seasons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.85rem 0 0;
+}
+
+.scripture__seasons-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-right: 0.35rem;
+}
+
+.scripture__chip {
+  font-family: var(--font-serif);
+  font-size: 0.86rem;
+  color: var(--text-dim);
+  padding: 0.32rem 0.9rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.scripture__chip:hover {
+  color: var(--text-bright);
+  border-color: var(--border);
+}
+
+.scripture__chip[data-on='true'] {
+  color: var(--bg);
+  background: rgb(var(--scripture-gold));
+  border-color: rgb(var(--scripture-gold));
+}
+
+.scripture__season-note {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: rgb(var(--scripture-gold));
+  max-width: 60ch;
+  margin: 0.9rem 0 0;
+  min-height: 1.35rem;
+  opacity: 0;
+  transition: opacity var(--transition-slow);
+}
+
+.scripture__season-note--show {
+  opacity: 0.9;
+}
+
+/* ── scan-imports prompt (calm; only shows when imports are unscanned) ────── */
+.scripture__scan {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1.6rem 0 0;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid color-mix(in srgb, rgb(var(--scripture-gold)) 22%, var(--border-subtle));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 5%, transparent);
+}
+
+.scripture__scan-text {
+  flex: 1;
+  min-width: 16rem;
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.scripture__scan-btn {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--bg);
+  background: rgb(var(--scripture-gold));
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 0.4rem 0.95rem;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+.scripture__scan-btn:hover {
+  opacity: 0.88;
+}
+
+/* ── returning strip ─────────────────────────────────────────────────────── */
+.scripture__returning {
+  margin-top: 2.85rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.scripture__returning-title {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  margin: 0 0 0.9rem;
+}
+
+.scripture__verses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.scripture__verse-chip {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: rgb(var(--scripture-gold));
+  border: 1px solid color-mix(in srgb, rgb(var(--scripture-gold)) 28%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.42rem 0.8rem;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.scripture__verse-chip:hover {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 8%, transparent);
+}
+
+.scripture__verse-chip span {
+  color: var(--text-dim);
+  margin-left: 0.5rem;
+}
+
+/* ── book view (elegant slide-in panel) ──────────────────────────────────── */
+/* The canon stays beneath, dimmed; the book glides in from the right. */
+.scripture__scroll[data-dim='true'] {
+  filter: saturate(0.85) brightness(0.82);
+  transition: filter var(--transition-slow);
+}
+
+.scripture-book__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: var(--glass-scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-slow);
+}
+
+.scripture-book__scrim--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scripture-book {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(720px, 94vw);
+  z-index: 40;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-3);
+  transform: translateX(102%);
+  transition: transform var(--transition-slow);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scripture-book--open {
+  transform: translateX(0);
+}
+
+.scripture-book__inner {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 2.4rem 2.75rem 5rem;
+}
+
+.scripture-book__back {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1.85rem;
+  transition: color var(--transition);
+}
+
+.scripture-book__back:hover {
+  color: var(--text-bright);
+}
+
+.scripture-book__title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(2.4rem, 6vw, 3.25rem);
+  letter-spacing: -0.015em;
+  line-height: 1;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.scripture-book__rel {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  max-width: 54ch;
+  margin: 0.85rem 0 0;
+}
+
+.scripture-book__meta {
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--scripture-gold));
+  opacity: 0.9;
+  margin-top: 1.1rem;
+}
+
+.scripture-book__loading {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  margin-top: 2rem;
+}
+
+.scripture-book__section {
+  margin-top: 2.85rem;
+}
+
+.scripture-book__slabel {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scripture-book__slabel::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* chapter strip */
+.scripture-book__chapters {
+  display: grid;
+  gap: 4px;
+  max-width: 640px;
+}
+
+.scripture-book__ch {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  border: none;
+  padding: 0;
+  background: var(--scripture-cell-rest);
+  transition:
+    background var(--transition-slow),
+    box-shadow var(--transition-slow),
+    transform var(--transition);
+}
+
+.scripture-book__ch--lit {
+  cursor: pointer;
+}
+
+.scripture-book__ch--lit:hover {
+  transform: scale(1.3);
+}
+
+.scripture-book__ch--sel {
+  outline: 1.5px solid rgb(var(--scripture-gold));
+  outline-offset: 1px;
+}
+
+.scripture-book__cap {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
+  margin-top: 0.85rem;
+}
+
+/* timeline */
+.scripture-book__tl {
+  position: relative;
+  height: 92px;
+  max-width: 680px;
+}
+
+.scripture-book__tl-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  height: 1px;
+  background: var(--border);
+}
+
+.scripture-book__tl-band {
+  position: absolute;
+  bottom: 30px;
+  height: 54px;
+  border-radius: 3px;
+  opacity: 0.5;
+}
+
+.scripture-book__tl-bandlbl,
+.scripture-book__tl-yr {
+  position: absolute;
+  bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.scripture-book__tl-yr {
+  transform: translateX(-50%);
+}
+
+.scripture-book__tl-dot {
+  position: absolute;
+  bottom: 30px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  transform: translate(-50%, 50%);
+  cursor: pointer;
+  transition: transform var(--transition);
+}
+
+.scripture-book__tl-dot:hover {
+  transform: translate(-50%, 50%) scale(1.5);
+  z-index: 4;
+}
+
+/* verse chips */
+.scripture-book__verses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.scripture-book__vchip {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: rgb(var(--scripture-gold));
+  background: transparent;
+  border: 1px solid color-mix(in srgb, rgb(var(--scripture-gold)) 28%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  transition: background var(--transition), color var(--transition);
+}
+
+.scripture-book__vchip:hover {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 9%, transparent);
+}
+
+.scripture-book__vchip[data-on='true'] {
+  background: rgb(var(--scripture-gold));
+  color: var(--bg);
+  border-color: rgb(var(--scripture-gold));
+}
+
+.scripture-book__vchip-n {
+  opacity: 0.65;
+  font-size: 0.68rem;
+}
+
+/* filter bar */
+.scripture-book__fbar {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+.scripture-book__clear {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.scripture-book__clear:hover {
+  color: var(--text-bright);
+  border-color: var(--border);
+}
+
+.scripture-book__count {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin-bottom: 0.3rem;
+}
+
+/* entries */
+.scripture-book__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.4rem 0;
+  cursor: pointer;
+  transition: padding-left var(--transition);
+}
+
+.scripture-book__entry:hover {
+  padding-left: 8px;
+}
+
+.scripture-book__entry--flash {
+  padding-left: 8px;
+}
+
+.scripture-book__entry-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.scripture-book__entry-verse {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgb(var(--scripture-gold));
+}
+
+.scripture-book__entry-date {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.scripture-book__entry-text {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.scripture-book__entry-open {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.scripture-book__entry:hover .scripture-book__entry-open {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .scripture__column {
+    padding: 2rem 1.25rem 3.5rem;
+  }
+  .scripture-book__inner {
+    padding: 2rem 1.4rem 3.5rem;
+  }
+}

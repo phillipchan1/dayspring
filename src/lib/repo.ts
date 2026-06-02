@@ -7,7 +7,7 @@
 // "newest updated_at wins" is sufficient.
 
 import {
-  listEntries as serverList,
+  listAllEntries as serverListAll,
   upsertEntryRow,
   deleteEntry as serverDelete,
   wordCount,
@@ -202,7 +202,7 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
   await flush()
   if (!navigator.onLine) return null
   try {
-    const server = await serverList(500)
+    const server = await serverListAll()
     const localMap = new Map((await cache.cacheGetAll()).map((e) => [e.id, e]))
     const pending = new Set((await cache.outboxAll()).map((o) => o.entryId))
     const merged: Entry[] = []

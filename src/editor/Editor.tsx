@@ -9,10 +9,15 @@ import { markdownHighlight } from './highlight'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { firstLineTitleExtension } from './firstLineTitle'
-import { spiritualBlockExtension } from './spiritualBlockDecoration'
+import {
+  spiritualBlockExtension,
+  type SpiritualBlockEditTarget,
+} from './spiritualBlockDecoration'
+import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
+import { scriptureRefDecoration } from './scriptureRefDecoration'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
@@ -20,6 +25,8 @@ import { SlashPalette } from './SlashPalette'
 export interface EditorHandle {
   /** Insert text at the given document position (e.g. after removing a /command). */
   insertAt: (pos: number, text: string) => void
+  /** Replace the document range [from, to) — used to edit/remove a block in place. */
+  replaceRange: (from: number, to: number, text: string) => void
   focus: () => void
   /** Return focus to the editor, optionally restoring the caret. */
   focusAt: (pos?: number) => void
@@ -40,6 +47,8 @@ interface EditorProps {
   slashEnabled?: boolean
   /** Highlight the line at this doc position while a command popover is open. */
   commandLinePos?: number | null
+  /** Called when the /command picker opens or closes. */
+  onSlashPaletteChange?: (open: boolean) => void
   /** Called when the user confirms a slash command; carries the doc position where
    *  the /command text began so the caller knows where to insert a response. */
   onSlashCommand?: (
@@ -47,6 +56,8 @@ interface EditorProps {
     insertAt: number,
     anchor: ReturnType<typeof computeInlinePanelAnchor>,
   ) => void
+  /** Called when the user clicks a rendered spiritual block to edit it. */
+  onEditBlock?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
 }
 
 /**
@@ -69,6 +80,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     slashEnabled = false,
     commandLinePos = null,
     onSlashCommand,
+    onEditBlock,
+    onSlashPaletteChange,
     skipAutofocusRef,
   },
   ref,
@@ -79,12 +92,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const dimCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
+  const onEditBlockRef = useRef(onEditBlock)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
   const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const setSlashRef = useRef(setSlashState)
   onChangeRef.current = onChange
+  onEditBlockRef.current = onEditBlock
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
   setSlashRef.current = setSlashState
@@ -97,6 +112,18 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       view.dispatch({
         changes: { from: clamped, to: clamped, insert: text },
         selection: { anchor: clamped + text.length, head: clamped + text.length },
+      })
+      view.focus()
+    },
+    replaceRange: (from: number, to: number, text: string) => {
+      const view = viewRef.current
+      if (!view) return
+      const len = view.state.doc.length
+      const f = Math.max(0, Math.min(from, len))
+      const t = Math.max(f, Math.min(to, len))
+      view.dispatch({
+        changes: { from: f, to: t, insert: text },
+        selection: { anchor: f + text.length, head: f + text.length },
       })
       view.focus()
     },
@@ -137,7 +164,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
           firstLineTitleExtension,
-          spiritualBlockExtension,
+          spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
+          scriptureRefDecoration(),
           EditorView.lineWrapping,
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
@@ -206,6 +234,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       commandLineHighlight(commandLinePos),
     )
   }, [commandLinePos])
+
+  useEffect(() => {
+    onSlashPaletteChange?.(slashState !== null)
+  }, [slashState, onSlashPaletteChange])
 
   function handleSlashSelect(cmd: SlashCommandId) {
     const view = viewRef.current

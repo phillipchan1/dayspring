@@ -12,11 +12,15 @@ import {
   DEFAULT_APP_HISTORY,
   appHistoryEqual,
   isAppHistoryState,
+  isLegacyScripturePath,
   mergeAppHistory,
+  normalizePathname,
+  pathForSurface,
   pushAppHistory,
   readAppHistoryState,
   replaceAppHistory,
   stripAuthUrlNoise,
+  surfaceFromPath,
   type AppHistoryState,
 } from '@/lib/appHistory'
 
@@ -60,10 +64,14 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPop = (event: PopStateEvent) => {
-      const next = isAppHistoryState(event.state)
+      let next = isAppHistoryState(event.state)
         ? event.state
         : readAppHistoryState()
-      if (!next) return
+      if (!next) {
+        const fromPath = surfaceFromPath(window.location.pathname)
+        if (!fromPath) return
+        next = mergeAppHistory(DEFAULT_APP_HISTORY, { surface: fromPath })
+      }
       stateRef.current = next
       setState(next)
     }
@@ -76,11 +84,43 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     if (seededRef.current) return
     seededRef.current = true
     stripAuthUrlNoise()
-    const current = readAppHistoryState()
-    if (!current) replaceAppHistory(stateRef.current)
-    else {
-      stateRef.current = current
-      setState(current)
+
+    const pathSurface = surfaceFromPath(window.location.pathname)
+    let current = readAppHistoryState()
+
+    if (isLegacyScripturePath(window.location.pathname)) {
+      current = mergeAppHistory(current ?? DEFAULT_APP_HISTORY, {
+        surface: 'scripture',
+        entryId: null,
+        settings: null,
+        help: false,
+        sidebar: false,
+        scriptureBook: null,
+        scriptureVerse: null,
+      })
+    } else if (pathSurface) {
+      current = mergeAppHistory(current ?? DEFAULT_APP_HISTORY, {
+        surface: pathSurface,
+        entryId: null,
+        settings: null,
+        help: false,
+        sidebar: false,
+        scriptureBook: null,
+        scriptureVerse: null,
+      })
+    }
+
+    if (!current) {
+      replaceAppHistory(stateRef.current)
+      return
+    }
+
+    stateRef.current = current
+    setState(current)
+
+    const expectedPath = pathForSurface(current.surface)
+    if (normalizePathname(window.location.pathname) !== expectedPath) {
+      replaceAppHistory(current)
     }
   }, [])
 

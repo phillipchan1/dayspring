@@ -6,7 +6,7 @@ interface Props {
   onChange: (value: string) => void
   onCommit: () => void | Promise<void>
   onDismiss: () => void
-  /** When set, ⌘/Ctrl+Enter and blur-commit only run if this returns true. */
+  /** When set, Enter and blur-commit only run if this returns true. */
   canCommit?: () => boolean
   placeholder?: string
   rows?: number
@@ -16,7 +16,7 @@ interface Props {
 }
 
 /**
- * Prose capture field: Enter inserts a newline; ⌘/Ctrl+Enter commits; blur commits
+ * Prose capture field: Enter commits; Shift+Enter inserts a newline; blur commits
  * when non-empty or dismisses when empty.
  */
 export function CommandProseField({
@@ -35,7 +35,13 @@ export function CommandProseField({
   const committingRef = useRef(false)
 
   useEffect(() => {
-    if (autoFocus) ref.current?.focus()
+    if (!autoFocus) return
+    const el = ref.current
+    if (!el) return
+    el.focus()
+    // Place the caret at the end so editing existing text starts cleanly.
+    const end = el.value.length
+    el.setSelectionRange(end, end)
   }, [autoFocus])
 
   const commit = useCallback(async () => {
@@ -50,7 +56,8 @@ export function CommandProseField({
   }, [onCommit, canCommit])
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && e.shiftKey) return
+    if (e.key === 'Enter') {
       e.preventDefault()
       e.stopPropagation()
       void commit()

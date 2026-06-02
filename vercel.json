@@ -8,6 +8,13 @@
     { "path": "/api/cron/remind",     "schedule": "0 9 * * *" },
     { "path": "/api/cron/echoes",     "schedule": "0 10 * * 1" }
   ],
+  "redirects": [
+    {
+      "source": "/scripture",
+      "destination": "/lamp",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/)(?!@)(?!.*\\..*).*)",

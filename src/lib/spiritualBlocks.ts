@@ -123,7 +123,11 @@ export function parseSpiritualBlocks(markdown: string): ParsedSpiritualBlock[] {
           content: parsed.content,
           reference: parsed.reference,
           from: lineStart,
-          to: blockEnd,
+          // The closing-fence step adds +1 for a trailing newline; a block at
+          // end-of-document has none, so clamp or `to` overshoots the doc length
+          // — which makes the atomic block-replace range end past the document
+          // and crashes selection on click ("Selection points outside of document").
+          to: Math.min(blockEnd, markdown.length),
         })
         i = j
         offset = blockEnd

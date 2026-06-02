@@ -14,10 +14,10 @@ export interface FocusMode {
  *
  * Shortcuts: ⌘/Ctrl+Enter toggles, Esc exits (when no overlay is open).
  */
-export function useFocusMode(overlayOpen = false): FocusMode {
+export function useFocusMode(blockExitOnEsc = false): FocusMode {
   const [active, setActive] = useState(false)
-  const overlayOpenRef = useRef(overlayOpen)
-  overlayOpenRef.current = overlayOpen
+  const blockExitRef = useRef(blockExitOnEsc)
+  blockExitRef.current = blockExitOnEsc
 
   const enter = useCallback(() => {
     setActive(true)
@@ -48,7 +48,7 @@ export function useFocusMode(overlayOpen = false): FocusMode {
         return
       }
       if (e.key !== 'Escape' || !active) return
-      if (overlayOpenRef.current) return
+      if (blockExitRef.current) return
       e.preventDefault()
       exit()
     }

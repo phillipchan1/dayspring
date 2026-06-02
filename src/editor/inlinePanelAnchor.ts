@@ -58,3 +58,24 @@ export function computeInlinePanelAnchor(view: EditorView, pos: number): InlineP
     placeAbove: false,
   }
 }
+
+/**
+ * Anchor a panel to a rendered block element instead of a text position. Block
+ * widgets replace their text range, so `coordsAtPos` can't measure inside them —
+ * we use the element's bounding rect for vertical placement and the editor
+ * column for width/horizontal alignment.
+ */
+export function computeBlockPanelAnchor(view: EditorView, blockEl: HTMLElement): InlinePanelAnchor {
+  const rect = blockEl.getBoundingClientRect()
+  const column = editorColumnRect(view)
+  const left = column?.left ?? rect.left
+  const width = Math.min(column?.width ?? 672, PANEL_MAX_WIDTH_PX)
+
+  const belowTop = rect.bottom + GAP_PX
+  const wouldClip = belowTop + PANEL_ESTIMATE_PX > window.innerHeight * FLIP_VIEWPORT_FRACTION
+
+  if (wouldClip && rect.top > PANEL_ESTIMATE_PX + GAP_PX) {
+    return { left, width, top: rect.top - GAP_PX, placeAbove: true }
+  }
+  return { left, width, top: belowTop, placeAbove: false }
+}
