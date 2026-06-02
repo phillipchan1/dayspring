@@ -158,6 +158,24 @@ export async function listEntries(limit = 50): Promise<Entry[]> {
   return (data ?? []) as Entry[]
 }
 
+/**
+ * Entries whose `created_at` falls in [fromISO, toExclusiveISO), oldest-first —
+ * the lived order the Valley reads. Mirrors the server's windowed read
+ * (`api/_lib/synthesize.ts fetchEntries`) so the week shows exactly what fed the
+ * weekly rollup.
+ */
+export async function listEntriesInWindow(fromISO: string, toExclusiveISO: string): Promise<Entry[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('entries')
+    .select(ENTRY_COLUMNS)
+    .gte('created_at', fromISO)
+    .lt('created_at', toExclusiveISO)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Entry[]
+}
+
 const ENTRY_PAGE = 1000
 
 /**

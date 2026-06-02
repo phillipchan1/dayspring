@@ -56,7 +56,14 @@ topics, observations, syntheses) — speak in arcs across the weeks, NOT specifi
    report, not bullets. Warm and honest; Gain lens; speaks in arcs.
 5. gain: 1–2 sentences on how they've concretely gained vs. the prior month, grounded in the weekly arcs.
 6. gap_watch: ONE sentence naming a chronic measure-against-the-ideal reflex to watch (the Gap pattern), or "".
-7. themes: 1–2 recurring threads named in prose (a sentence or two). Singular beats exhaustive.`
+7. themes: 1–2 recurring threads named in prose (a sentence or two). Singular beats exhaustive.
+8. arcs: 3–5 recurrences that ran across the weeks — the threads the writer kept returning to. For each:
+   - name: a SHORT tentative label for the recurrence (3–6 words). This is the one interpretive move, so
+     offer it lightly — a name you'd propose with "this seems to connect", never a conclusion or verdict.
+   - note: ONE grounded sentence on what recurred, in the writer's own terms. No praise, no diagnosis.
+   - entry_ids: the supporting entry ids drawn from the candidate_quotes/topics you were given (real ids
+     only). The app shows the COUNT as weight, so include every entry that genuinely fed the arc.
+   Fewer, true arcs beat five forced ones. Return [] if nothing clearly recurred.`
 
 export const QUARTERLY_SYSTEM_PROMPT = `${GROUNDING}
 
@@ -70,7 +77,14 @@ You read this quarter's MONTHLY summaries (letters, themes, candidate quotes, ob
    the candidate quotes provided; ask.text and later.text MUST be copied verbatim with their entry_id + date,
    and "later" must be dated after "ask". Propose a pair ONLY when the connection is unmistakable — a HIGH bar.
    Below it, stay silent (better to miss a connection than fabricate one). Never claim God answered it; only set
-   the two side by side. Return [] if nothing clears the bar.`
+   the two side by side. Return [] if nothing clears the bar.
+4. tensions: 2–3 unresolved threads the writer keeps CIRCLING across the months — the open questions a retreat
+   exists to sit with. For each:
+   - thread: a SHORT label for the tension (3–6 words), often a "X vs. Y" pull (e.g. "forcing vs. stewarding").
+   - question: ONE invitational question that hands the tension BACK to the writer — present tense, "where is
+     this today?" energy. The AI ASKS; it NEVER answers, resolves, advises, or implies the right side. No
+     verdicts. Addressed to the writer (a prayer vocative like "Lord," is fine if natural).
+   Return [] if no genuine tension is recurring. Never manufacture conflict.`
 
 export const YEARLY_SYSTEM_PROMPT = `${GROUNDING}
 
@@ -79,7 +93,12 @@ HORIZON: YEARLY — "the mirror." The payoff. You read the year's MONTHLY summar
    stated outright but grounded only in what the months show. The honest before/after.
 2. themes: the year's dominant threads in restrained prose (a short paragraph). Singular beats exhaustive.
 3. stones: the strongest answered-prayer pairings across the year (earlier ask + later moment, same VERBATIM
-   rules and HIGH confidence bar as the quarterly Ebenezer thread). Return [] if none clear the bar.`
+   rules and HIGH confidence bar as the quarterly Ebenezer thread). Return [] if none clear the bar.
+4. refrain: ONE short line — a single sentence or clause — copied VERBATIM (exact characters, with entry_id +
+   date) from the candidate quotes, that reads as the note the writer kept sounding all year: their own words
+   that name the year better than any summary could. It MUST be an exact substring of a candidate quote — do
+   NOT paraphrase, smooth, combine, or improve it. If no single line carries that weight, return null. This is
+   the year's refrain; the app sets it large and stays silent — so let it be the writer's, untouched.`
 
 // ── JSON Schemas for Structured Outputs (strict: every prop required) ───────
 
@@ -169,6 +188,45 @@ const pairsSchema = {
 
 const stringArray = { type: 'array', items: { type: 'string' } } as const
 
+const arcsSchema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'note', 'entry_ids'],
+    properties: {
+      name: { type: 'string' },
+      note: { type: 'string' },
+      entry_ids: { type: 'array', items: { type: 'string' } },
+    },
+  },
+} as const
+
+const tensionsSchema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['thread', 'question'],
+    properties: {
+      thread: { type: 'string' },
+      question: { type: 'string' },
+    },
+  },
+} as const
+
+// Nullable: the year may have no single line that carries the refrain.
+const refrainSchema = {
+  type: ['object', 'null'],
+  additionalProperties: false,
+  required: ['entry_id', 'date', 'text'],
+  properties: {
+    entry_id: { type: 'string' },
+    date: { type: 'string' },
+    text: { type: 'string' },
+  },
+} as const
+
 export const WEEKLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -191,7 +249,7 @@ export const WEEKLY_SCHEMA = {
 export const MONTHLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['quotes', 'topics', 'observation', 'letter', 'gain', 'gap_watch', 'themes'],
+  required: ['quotes', 'topics', 'observation', 'letter', 'gain', 'gap_watch', 'themes', 'arcs'],
   properties: {
     quotes: quoteSchema,
     topics: topicsSchema,
@@ -200,27 +258,30 @@ export const MONTHLY_SCHEMA = {
     gain: stringArray,
     gap_watch: { type: 'string' },
     themes: stringArray,
+    arcs: arcsSchema,
   },
 } as const
 
 export const QUARTERLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['synthesis', 'questions', 'ebenezer'],
+  required: ['synthesis', 'questions', 'ebenezer', 'tensions'],
   properties: {
     synthesis: stringArray,
     questions: questionsSchema,
     ebenezer: pairsSchema,
+    tensions: tensionsSchema,
   },
 } as const
 
 export const YEARLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['throughline', 'themes', 'stones'],
+  required: ['throughline', 'themes', 'stones', 'refrain'],
   properties: {
     throughline: stringArray,
     themes: stringArray,
     stones: pairsSchema,
+    refrain: refrainSchema,
   },
 } as const

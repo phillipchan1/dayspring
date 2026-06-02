@@ -33,7 +33,7 @@ import {
 import type { EntryMenuAction } from './EntryContextMenu'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
-import { LookingBack } from '@/features/reflections/LookingBack'
+import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
@@ -761,7 +761,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   ) : altarActive ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
-    <LookingBack embedded onOpenEntry={handleOpenReflectionEntry} />
+    <AscentView onOpenEntry={handleOpenReflectionEntry} />
   ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="restrict-banner">

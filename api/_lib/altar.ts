@@ -439,18 +439,30 @@ const HARVEST_CUE =
 
 const HARVEST_LLM_BATCH = 6
 const HARVEST_MAX_CHARS = 4000
+// At most this many per entry — keeps an entry from spraying the field with
+// fragments; the model is also told to return only the clearest.
+const HARVEST_PER_ENTRY_CAP = 5
 
-const HARVEST_PROMPT = `You read entries from one person's private faith journal and surface the PRAYERS and SPIRITUAL
-IMPRESSIONS already written in them — so they can be remembered, never judged.
-For each given entry, extract every distinct:
- - prayer / petition / intercession — anything addressed to God, or asking / longing / interceding (for
-   themselves or others) — type "prayer".
- - sense / impression / leading — a felt sense that God is speaking, prompting, comforting, or showing
-   something — type "sense".
-Cast a WIDE net: include brief prayers, implicit ones, and prayers woven into ordinary reflection. When in
-doubt, include it.
+const HARVEST_PROMPT = `You read entries from one person's private faith journal and surface ONLY genuine PRAYERS and SENSES OF GOD
+— the writer's own words — so they can be remembered. Be SELECTIVE. Precision matters far more than coverage.
+
+Extract, as type "prayer": a passage ADDRESSED TO GOD (to You / Lord / Jesus / Father / Holy Spirit) — a
+petition, intercession, confession, thanksgiving, praise, or longing directed to God.
+
+Extract, as type "sense": a clear FIRST-PERSON experience of God speaking, leading, comforting, convicting, or
+showing the writer something (e.g. "God said to me…", "I felt the Lord leading me to…").
+
+Do NOT extract (leave these out entirely):
+ - plain narration of events, people, or feelings ("then he walked out", "there was such an amazing energy there")
+ - general self-reflection, plans, or resolutions NOT addressed to God ("i think i need to grow up and enjoy being here")
+ - what God is doing for, or saying to, OTHER people; or others' words
+ - passing mentions of God / church / faith that aren't themselves a prayer or a personal sense
+
+Return only what is UNMISTAKABLY a prayer or a personal sense of God — at most the 5 clearest per entry. When
+in doubt, leave it out.
+
 HARD RULE: each "text" MUST be copied VERBATIM (exact characters) from THAT entry — a contiguous span of the
-person's own words. Never paraphrase, summarize, translate, or invent. If an entry contains none, return an
+writer's own words. Never paraphrase, summarize, translate, or invent. If an entry contains none, return an
 empty prayers array for it.
 Return JSON {"entries":[{"id": string, "prayers":[{"type":"prayer"|"sense","text": string}]}]}.`
 
@@ -503,6 +515,30 @@ async function markScanned(sb: SupabaseClient, ids: string[]): Promise<void> {
       .in('id', ids.slice(i, i + 500))
     if (error) throw error
   }
+}
+
+/**
+ * Undo a harvest: delete every scanned prayer/sense (NOT the explicit /pray
+ * 'command' items, which are tied to editor fences) and clear the scan watermark
+ * so the next harvest reads the whole archive fresh. Safe because scanned items
+ * are never threaded until after harvest completes — here they're orphans.
+ */
+export async function resetHarvest(owner: string): Promise<{ deleted: number }> {
+  const sb = supabaseAdmin()
+  const { data, error } = await sb
+    .from('spiritual_items')
+    .delete()
+    .eq('owner', owner)
+    .eq('source', 'scanned')
+    .select('id')
+  if (error) throw error
+  const { error: clrErr } = await sb
+    .from('entries')
+    .update({ prayer_scanned_at: null })
+    .eq('owner', owner)
+    .not('prayer_scanned_at', 'is', null)
+  if (clrErr) throw clrErr
+  return { deleted: (data ?? []).length }
 }
 
 /** Dry-run plan: how many entries are unscanned, and how many clear the cue prefilter. */
@@ -569,7 +605,7 @@ export async function harvestPrayers(
     for (const r of out.entries ?? []) {
       const e = byId.get(r.id)
       if (!e) continue
-      for (const p of r.prayers ?? []) {
+      for (const p of (r.prayers ?? []).slice(0, HARVEST_PER_ENTRY_CAP)) {
         const text = (p.text || '').trim()
         if (!isVerbatim(e.body_markdown, text)) continue // honesty gate: the writer's own words only
         rows.push({

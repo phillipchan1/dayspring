@@ -13,8 +13,10 @@ type MotifName = 'sunrise' | 'line' | 'timeline' | 'cairn' | 'lamp' | 'horizon'
 
 export interface Slide {
   key: string
-  /** The three-stop gradient this slide warms TO. The arc tweens across slides. */
+  /** Dark-mode three-stop gradient this slide warms TO. The arc tweens across slides. */
   bg: [string, string, string]
+  /** Light-mode counterpart — a pale dawn warming to gold across the same arc. */
+  bgLight: [string, string, string]
   eyebrow: string
   /** May contain \n for deliberate line breaks (layout, not copy changes). */
   title: string
@@ -28,6 +30,7 @@ export const SLIDES: Slide[] = [
   {
     key: 'dawn',
     bg: ['#0c1018', '#121a2a', '#1a2236'],
+    bgLight: ['#f4f7fb', '#eef1f7', '#dde6f2'],
     eyebrow: 'DAYSPRING',
     title: 'A journal for\nspiritual growth.',
     body: 'Write through your days with God, and watch the long arc of your faith come into view. Dayspring is built for the slow work — the kind you only see when you look back across months and years.',
@@ -36,6 +39,7 @@ export const SLIDES: Slide[] = [
   {
     key: 'write',
     bg: ['#0e1118', '#171a26', '#241f2c'],
+    bgLight: ['#f5f5f9', '#eeeef4', '#e3e2ee'],
     eyebrow: 'START HERE',
     title: 'It begins with\na blank page.',
     body: "Open a new entry and write — about your day, a prayer, a passage, whatever's on you. It saves as you go. No prompts to answer, no boxes to fill. The writing is the whole practice; everything else is built on top of it.",
@@ -44,6 +48,7 @@ export const SLIDES: Slide[] = [
   {
     key: 'time',
     bg: ['#10121c', '#1c1d2e', '#2c2433'],
+    bgLight: ['#f7f4f8', '#f0ebf2', '#e9deec'],
     eyebrow: 'TIME IS THE GIFT',
     title: "What you write today\nbecomes something you'll\none day weep over.",
     body: "Your entries don't scroll away. Dayspring keeps them and brings the right ones back — weekly, monthly, across years — and weaves them into reflections that let you read the throughline of your own life.",
@@ -52,6 +57,7 @@ export const SLIDES: Slide[] = [
   {
     key: 'altar',
     bg: ['#141420', '#241f2a', '#352838'],
+    bgLight: ['#f9f4f4', '#f2eaec', '#efdde2'],
     eyebrow: 'THE ALTAR',
     title: 'Not a list of requests.\nA record of where He met you.',
     body: 'The Altar is where your prayers and senses live. The ones you return to grow into stones you can see. When God moves in one, you mark how — answered, redirected, or simply that He met you there. It becomes a record you can revisit.',
@@ -60,6 +66,7 @@ export const SLIDES: Slide[] = [
   {
     key: 'lamp',
     bg: ['#171520', '#2b2230', '#3d2c33'],
+    bgLight: ['#fbf5ef', '#f5eae2', '#f2ddca'],
     eyebrow: 'THE LAMP',
     title: 'See where your heart\nhas been leaning.',
     body: "Every passage you write about lights up its place in Scripture. Over time the Lamp becomes a map of where you've been dwelling — the books, the verses, the seasons your heart kept returning to.",
@@ -68,6 +75,7 @@ export const SLIDES: Slide[] = [
   {
     key: 'promise',
     bg: ['#1a1620', '#34262e', '#553a35'],
+    bgLight: ['#fdf8ee', '#f9efdb', '#f5dcab'],
     eyebrow: 'BEFORE YOU BEGIN',
     title: 'Write honestly.\nThe rest takes care\nof itself.',
     body: 'Dayspring surfaces the connections and brings your words back — but it never grades you or tells you what they mean. And your journal is yours: private by default, never sold, and never used to train AI.',
@@ -90,7 +98,7 @@ function Motif({ name }: { name: MotifName }) {
   switch (name) {
     case 'sunrise':
       return (
-        <svg viewBox="0 0 300 200" className="wf-motif" aria-hidden>
+        <svg viewBox="0 0 300 200" className="wf-motif wf-motif--sunrise" aria-hidden>
           <defs>
             <radialGradient id="wf-sun" cx="50%" cy="100%" r="80%">
               <stop offset="0%" stopColor="#f4cd8a" stopOpacity="0.95" />
@@ -100,7 +108,7 @@ function Motif({ name }: { name: MotifName }) {
           </defs>
           <circle cx="150" cy="200" r="120" fill="url(#wf-sun)" className="wf-m-sun" />
           <circle cx="150" cy="200" r="46" fill="#f4cd8a" opacity="0.9" className="wf-m-core" />
-          <line x1="40" y1="200" x2="260" y2="200" stroke="rgba(244,205,138,.4)" strokeWidth="1" />
+          <line x1="40" y1="200" x2="260" y2="200" stroke="rgba(244,205,138,.4)" strokeWidth="1" className="wf-sun-base" />
           {Array.from({ length: 7 }).map((_, i) => (
             <line
               key={i}
@@ -118,8 +126,8 @@ function Motif({ name }: { name: MotifName }) {
       )
     case 'line':
       return (
-        <svg viewBox="0 0 300 120" className="wf-motif" aria-hidden>
-          <line x1="40" y1="60" x2="260" y2="60" stroke="rgba(232,184,115,.25)" strokeWidth="1" strokeDasharray="2 4" />
+        <svg viewBox="0 0 300 120" className="wf-motif wf-motif--line" aria-hidden>
+          <line x1="40" y1="60" x2="260" y2="60" stroke="rgba(232,184,115,.25)" strokeWidth="1" strokeDasharray="2 4" className="wf-write-guide" />
           <rect x="40" y="55" width="150" height="2.5" rx="1" fill="#e8b873" className="wf-m-write" />
           <rect
             x="40"
@@ -128,7 +136,7 @@ function Motif({ name }: { name: MotifName }) {
             height="2.5"
             rx="1"
             fill="rgba(232,184,115,.5)"
-            className="wf-m-write"
+            className="wf-m-write wf-m-write--soft"
             style={{ animationDelay: '0.5s' }}
           />
           <circle cx="194" cy="56" r="2.5" fill="#f4cd8a" className="wf-m-caret" />
@@ -136,8 +144,8 @@ function Motif({ name }: { name: MotifName }) {
       )
     case 'timeline':
       return (
-        <svg viewBox="0 0 300 140" className="wf-motif" aria-hidden>
-          <line x1="30" y1="110" x2="270" y2="110" stroke="rgba(150,165,190,.25)" strokeWidth="1" />
+        <svg viewBox="0 0 300 140" className="wf-motif wf-motif--timeline" aria-hidden>
+          <line x1="30" y1="110" x2="270" y2="110" stroke="rgba(150,165,190,.25)" strokeWidth="1" className="wf-tl-base" />
           {[60, 110, 160, 210, 250].map((x, i) => (
             <circle
               key={i}
@@ -145,7 +153,7 @@ function Motif({ name }: { name: MotifName }) {
               cy="110"
               r={i === 4 ? 4 : 2.5}
               fill={i === 4 ? '#e8b873' : 'rgba(150,165,190,.5)'}
-              className="wf-m-node"
+              className={i === 4 ? 'wf-m-node wf-m-node--on' : 'wf-m-node'}
               style={{ animationDelay: `${i * 0.18}s` }}
             />
           ))}
@@ -171,8 +179,8 @@ function Motif({ name }: { name: MotifName }) {
       )
     case 'cairn':
       return (
-        <svg viewBox="0 0 200 180" className="wf-motif" aria-hidden>
-          <ellipse cx="100" cy="166" rx="46" ry="7" fill="rgba(0,0,0,.35)" />
+        <svg viewBox="0 0 200 180" className="wf-motif wf-motif--cairn" aria-hidden>
+          <ellipse cx="100" cy="166" rx="46" ry="7" fill="rgba(0,0,0,.35)" className="wf-cairn-shadow" />
           {[
             { w: 64, y: 132, fill: '#2a3242', dx: 0 },
             { w: 54, y: 104, fill: '#2d2535', dx: -6 },
@@ -199,7 +207,7 @@ function Motif({ name }: { name: MotifName }) {
         [2, 3], [2, 4], [3, 4], [3, 5], [4, 4], [4, 5], [4, 6], [5, 5], [2, 6], [3, 6], [1, 4],
       ]
       return (
-        <svg viewBox="0 0 220 160" className="wf-motif" aria-hidden>
+        <svg viewBox="0 0 220 160" className="wf-motif wf-motif--lamp" aria-hidden>
           {Array.from({ length: 7 }).map((_, r) =>
             Array.from({ length: 11 }).map((_, c) => {
               const on = lit.some(([rr, cc]) => rr === r && cc === c)
@@ -223,7 +231,7 @@ function Motif({ name }: { name: MotifName }) {
     }
     case 'horizon':
       return (
-        <svg viewBox="0 0 300 160" className="wf-motif" aria-hidden>
+        <svg viewBox="0 0 300 160" className="wf-motif wf-motif--horizon" aria-hidden>
           <defs>
             <linearGradient id="wf-hz" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#f4cd8a" stopOpacity="0.7" />
@@ -231,7 +239,7 @@ function Motif({ name }: { name: MotifName }) {
             </linearGradient>
           </defs>
           <rect x="0" y="40" width="300" height="80" fill="url(#wf-hz)" className="wf-m-glow" />
-          <line x1="20" y1="120" x2="280" y2="120" stroke="rgba(244,205,138,.5)" strokeWidth="1.5" />
+          <line x1="20" y1="120" x2="280" y2="120" stroke="rgba(244,205,138,.5)" strokeWidth="1.5" className="wf-hz-line" />
           <circle cx="150" cy="120" r="60" fill="none" stroke="rgba(244,205,138,.18)" strokeWidth="1" className="wf-m-ring" />
           <circle
             cx="150"
@@ -240,7 +248,7 @@ function Motif({ name }: { name: MotifName }) {
             fill="none"
             stroke="rgba(244,205,138,.1)"
             strokeWidth="1"
-            className="wf-m-ring"
+            className="wf-m-ring wf-m-ring--faint"
             style={{ animationDelay: '0.3s' }}
           />
         </svg>
@@ -253,15 +261,37 @@ interface WelcomeFlowProps {
   onClose: () => void
   /** The final "Begin" button. */
   onBegin: () => void
+  /** Render the light-mode palette (the app's Dawn theme). */
+  isLight?: boolean
+  /** Flip between light and dark (sets the app's appearance). Hides the toggle if omitted. */
+  onToggleTheme?: () => void
+}
+
+function IconSun() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+    </svg>
+  )
+}
+
+function IconMoon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M20 14.3A8 8 0 1 1 9.7 4a6.3 6.3 0 0 0 10.3 10.3Z" />
+    </svg>
+  )
 }
 
 /**
  * Self-contained, full-screen overlay. Mounted via portal so it floats above
  * all app chrome. Keyboard: ←/→ navigate, Esc closes. Touch: swipe to navigate.
  */
-export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
+export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }: WelcomeFlowProps) {
   const [i, setI] = useState(0)
   const slide = SLIDES[i]!
+  const palette = (s: Slide) => (isLight ? s.bgLight : s.bg)
   const isLast = i === SLIDES.length - 1
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -276,10 +306,26 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
   const next = useCallback(() => setI((v) => Math.min(v + 1, SLIDES.length - 1)), [])
   const back = useCallback(() => setI((v) => Math.max(v - 1, 0)), [])
 
+  // Graceful exit: instead of vanishing, the panel dissolves into the light and
+  // the overlay cross-fades out to hand off to the app. We stay mounted through
+  // the animation, then fire the real callback. `leaving` records the intent.
+  const [leaving, setLeaving] = useState<null | 'begin' | 'close'>(null)
+  const requestExit = useCallback((reason: 'begin' | 'close') => {
+    setLeaving((prev) => prev ?? reason)
+  }, [])
+
+  useEffect(() => {
+    if (!leaving) return
+    // Slightly longer than the CSS exit (700ms) so it always finishes first.
+    const t = window.setTimeout(() => (leaving === 'begin' ? onBegin() : onClose()), 760)
+    return () => window.clearTimeout(t)
+  }, [leaving, onBegin, onClose])
+
   // Keyboard: arrows navigate, Esc skips. Capture phase so it wins over the
   // app's own global key handlers while the overlay is up.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (leaving) return
       if (e.key === 'ArrowRight') {
         e.preventDefault()
         next()
@@ -289,12 +335,12 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
       } else if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
-        onClose()
+        requestExit('close')
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [next, back, onClose])
+  }, [next, back, requestExit, leaving])
 
   // Focus trap: move focus into the overlay on mount, keep Tab inside, and
   // restore focus to whatever was focused before on unmount.
@@ -343,7 +389,7 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
     txRef.current = e.touches[0]!.clientX
   }
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (txRef.current == null) return
+    if (txRef.current == null || leaving) return
     const dx = e.changedTouches[0]!.clientX - txRef.current
     if (dx < -50) next()
     else if (dx > 50) back()
@@ -353,8 +399,8 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
   return createPortal(
     <div
       ref={rootRef}
-      className="welcome-flow"
-      style={{ background: bgGradient(slide.bg) }}
+      className={`welcome-flow${isLight ? ' welcome-flow--light' : ''}${leaving ? ' welcome-flow--leaving' : ''}`}
+      style={{ background: bgGradient(palette(slide)) }}
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to Dayspring"
@@ -367,7 +413,7 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
       <div
         className="welcome-flow__bg"
         key={slide.key}
-        style={{ background: bgGradient(prevSlide.bg) }}
+        style={{ background: bgGradient(palette(prevSlide)) }}
         aria-hidden
       />
       <div className="welcome-flow__grain" aria-hidden />
@@ -377,7 +423,37 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
         {`Slide ${i + 1} of ${SLIDES.length}. ${slide.eyebrow}. ${slide.title.replace(/\n/g, ' ')}`}
       </div>
 
-      <button type="button" className="welcome-flow__skip" onClick={onClose}>
+      {onToggleTheme && (
+        <div className="welcome-flow__theme" role="group" aria-label="Appearance">
+          <span className="welcome-flow__theme-pill" data-light={isLight} aria-hidden />
+          <button
+            type="button"
+            className="welcome-flow__theme-opt"
+            data-active={!isLight}
+            aria-pressed={!isLight}
+            aria-label="Dark"
+            onClick={() => {
+              if (isLight) onToggleTheme()
+            }}
+          >
+            <IconMoon />
+          </button>
+          <button
+            type="button"
+            className="welcome-flow__theme-opt"
+            data-active={isLight}
+            aria-pressed={isLight}
+            aria-label="Light"
+            onClick={() => {
+              if (!isLight) onToggleTheme()
+            }}
+          >
+            <IconSun />
+          </button>
+        </div>
+      )}
+
+      <button type="button" className="welcome-flow__skip" onClick={() => requestExit('close')}>
         Skip
       </button>
 
@@ -427,7 +503,7 @@ export function WelcomeFlow({ onClose, onBegin }: WelcomeFlowProps) {
         </div>
 
         {isLast ? (
-          <button type="button" className="welcome-flow__begin" onClick={onBegin}>
+          <button type="button" className="welcome-flow__begin" onClick={() => requestExit('begin')}>
             Begin
           </button>
         ) : (

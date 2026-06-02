@@ -36,6 +36,7 @@ loadDotEnv()
 
 const args = process.argv.slice(2)
 const DRY = args.includes('--dry')
+const RESET = args.includes('--reset')
 const maxArg = args.find((a) => a.startsWith('--max='))
 const MAX = maxArg ? Number(maxArg.slice('--max='.length)) : undefined
 
@@ -64,7 +65,13 @@ async function main(): Promise<void> {
     return
   }
 
-  const { harvestPrayers, embedUnembedded, threadItems } = await import('../api/_lib/altar.ts')
+  const { harvestPrayers, embedUnembedded, threadItems, resetHarvest } = await import('../api/_lib/altar.ts')
+
+  if (RESET) {
+    console.log('Resetting prior harvest (deleting scanned items, clearing watermark)…')
+    const r = await resetHarvest(owner)
+    console.log(`  removed ${r.deleted} scanned items; all entries marked unscanned.\n`)
+  }
 
   console.log(`Step 1/3 — reading prose for prayers${MAX ? ` (first ${MAX} unscanned)` : ''}…`)
   const h = await harvestPrayers(owner, MAX ? { max: MAX } : {})

@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
+import { useSettings } from '@/hooks/useSettings'
+import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { useHasSeenWelcome } from './useHasSeenWelcome'
 import { WelcomeFlow } from './WelcomeFlow'
 
@@ -19,7 +21,15 @@ const WelcomeContext = createContext<WelcomeValue | null>(null)
 export function WelcomeProvider({ children }: { children: ReactNode }) {
   const { ready, shouldShow, markSeen } = useHasSeenWelcome()
   const { go } = useAppNavigation()
+  const { settings, update: updateSettings } = useSettings()
+  const isLight = useResolvedTheme(settings) === 'dawn'
   const [replaying, setReplaying] = useState(false)
+
+  // The welcome's theme toggle sets the app's appearance, so the choice the user
+  // makes here carries straight through to the app when they Begin.
+  const toggleTheme = useCallback(() => {
+    updateSettings({ appearance: isLight ? 'dark' : 'light' })
+  }, [isLight, updateSettings])
 
   const mode: 'hidden' | 'first-run' | 'replay' = replaying
     ? 'replay'
@@ -49,7 +59,14 @@ export function WelcomeProvider({ children }: { children: ReactNode }) {
   return (
     <WelcomeContext.Provider value={value}>
       {children}
-      {mode !== 'hidden' && <WelcomeFlow onClose={handleClose} onBegin={handleBegin} />}
+      {mode !== 'hidden' && (
+        <WelcomeFlow
+          onClose={handleClose}
+          onBegin={handleBegin}
+          isLight={isLight}
+          onToggleTheme={toggleTheme}
+        />
+      )}
     </WelcomeContext.Provider>
   )
 }

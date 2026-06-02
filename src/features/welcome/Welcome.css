@@ -87,6 +87,74 @@
   outline-offset: 2px;
 }
 
+/* Theme toggle — a subtle sun/moon segmented control, top-left.
+   Shows both options so users discover the app has a light + dark mode. */
+.welcome-flow__theme {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top, 0px));
+  left: 24px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+.welcome-flow__theme-pill {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  z-index: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(160deg, #f0c587, #dca35e);
+  box-shadow: 0 2px 8px -2px rgba(232, 184, 115, 0.6);
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.welcome-flow__theme-pill[data-light='true'] {
+  transform: translateX(28px);
+}
+
+.welcome-flow__theme-opt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  color: rgba(236, 231, 223, 0.45);
+  transition: color 0.25s ease;
+}
+.welcome-flow__theme-opt:hover {
+  color: rgba(236, 231, 223, 0.75);
+}
+.welcome-flow__theme-opt[data-active='true'] {
+  color: #2a1d10;
+}
+.welcome-flow__theme-opt[data-active='true']:hover {
+  color: #2a1d10;
+}
+.welcome-flow__theme-opt svg {
+  width: 15px;
+  height: 15px;
+}
+.welcome-flow__theme-opt:focus-visible {
+  outline: 2px solid rgba(244, 205, 138, 0.75);
+  outline-offset: 2px;
+}
+
 .welcome-flow__stage {
   position: relative;
   z-index: 2;
@@ -376,6 +444,206 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+/* ── Graceful exit (Begin / Skip) ─────────────────────────────────────────
+   Mirror of the enter: the overlay cross-fades out to reveal the app while the
+   panel lifts, scales, and blurs — dissolving into the light rather than cutting. */
+.welcome-flow--leaving {
+  animation: wf-leave 700ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.welcome-flow--leaving .welcome-flow__glass {
+  animation: wf-leave-panel 620ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* The grain shouldn't linger as a flat film once the gradient starts clearing. */
+.welcome-flow--leaving .welcome-flow__grain {
+  animation: wf-fade-out 500ms ease forwards;
+}
+/* No re-triggering controls mid-dismiss. */
+.welcome-flow--leaving .welcome-flow__nav,
+.welcome-flow--leaving .welcome-flow__skip,
+.welcome-flow--leaving .welcome-flow__theme {
+  pointer-events: none;
+}
+
+@keyframes wf-leave {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes wf-leave-panel {
+  from {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(1.05);
+    filter: blur(10px);
+  }
+}
+@keyframes wf-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── Light mode (the app's Dawn theme) ────────────────────────────────────
+   A pale dawn warming to gold on warm paper, with a light frosted panel and
+   warm-ink type. Layered on top of the dark base — only the deltas live here.
+   The per-slide light gradient is painted inline (see WelcomeFlow.tsx). */
+.welcome-flow--light {
+  color: #2a2118;
+}
+
+.welcome-flow--light .welcome-flow__skip {
+  color: rgba(74, 64, 53, 0.55);
+}
+.welcome-flow--light .welcome-flow__skip:hover {
+  color: rgba(42, 33, 24, 0.95);
+}
+
+.welcome-flow--light .welcome-flow__theme {
+  background: rgba(74, 64, 53, 0.05);
+  border-color: rgba(74, 64, 53, 0.14);
+}
+.welcome-flow--light .welcome-flow__theme-opt {
+  color: rgba(74, 64, 53, 0.5);
+}
+.welcome-flow--light .welcome-flow__theme-opt:hover {
+  color: rgba(42, 33, 24, 0.85);
+}
+.welcome-flow--light .welcome-flow__theme-opt[data-active='true'],
+.welcome-flow--light .welcome-flow__theme-opt[data-active='true']:hover {
+  color: #2a1d10;
+}
+
+.welcome-flow--light .welcome-flow__glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.34));
+  border-color: rgba(74, 64, 53, 0.16);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 30px 70px -34px rgba(74, 64, 53, 0.4),
+    0 0 54px -24px rgba(224, 150, 70, 0.28);
+}
+.welcome-flow--light .welcome-flow__glow {
+  background: radial-gradient(circle at 45% 45%, rgba(224, 150, 70, 0.3), transparent 68%);
+}
+.welcome-flow--light .welcome-flow__grain {
+  opacity: 0.035;
+}
+
+.welcome-flow--light .welcome-flow__eyebrow {
+  color: #b07a32;
+}
+.welcome-flow--light .welcome-flow__body {
+  color: rgba(74, 64, 53, 0.78);
+}
+
+.welcome-flow--light .welcome-flow__ghost {
+  color: rgba(74, 64, 53, 0.6);
+}
+.welcome-flow--light .welcome-flow__ghost:hover {
+  color: #2a2118;
+}
+
+.welcome-flow--light .welcome-flow__dot {
+  background: rgba(74, 64, 53, 0.22);
+}
+.welcome-flow--light .welcome-flow__dot.past {
+  background: rgba(176, 122, 50, 0.5);
+}
+.welcome-flow--light .welcome-flow__dot.on {
+  background: #c2832f;
+  box-shadow: 0 0 10px -1px rgba(194, 131, 47, 0.55);
+}
+
+.welcome-flow--light .welcome-flow__next {
+  background: rgba(74, 64, 53, 0.06);
+  color: #2a2118;
+  border-color: rgba(74, 64, 53, 0.18);
+}
+.welcome-flow--light .welcome-flow__next:hover {
+  background: rgba(74, 64, 53, 0.12);
+}
+/* The gold "Begin" CTA reads well on light paper — left as-is. */
+
+/* Motifs: deepen golds and warm the faint structural lines for light paper. */
+.welcome-flow--light .wf-m-core {
+  fill: #d6964a;
+}
+.welcome-flow--light .wf-motif--sunrise #wf-sun stop:nth-of-type(1) {
+  stop-color: #dca24a;
+}
+.welcome-flow--light .wf-motif--sunrise #wf-sun stop:nth-of-type(2),
+.welcome-flow--light .wf-motif--sunrise #wf-sun stop:nth-of-type(3) {
+  stop-color: #c2832f;
+}
+.welcome-flow--light .wf-sun-base {
+  stroke: rgba(194, 131, 47, 0.45);
+}
+.welcome-flow--light .wf-m-ray {
+  stroke: rgba(194, 131, 47, 0.28);
+}
+
+.welcome-flow--light .wf-write-guide {
+  stroke: rgba(176, 122, 50, 0.3);
+}
+.welcome-flow--light .wf-m-write {
+  fill: #b8772c;
+}
+.welcome-flow--light .wf-m-write--soft {
+  fill: rgba(184, 119, 44, 0.5);
+}
+.welcome-flow--light .wf-m-caret {
+  fill: #c2832f;
+}
+
+.welcome-flow--light .wf-tl-base {
+  stroke: rgba(120, 108, 92, 0.4);
+}
+.welcome-flow--light .wf-m-node {
+  fill: rgba(120, 108, 92, 0.55);
+}
+.welcome-flow--light .wf-m-node--on {
+  fill: #c2832f;
+}
+.welcome-flow--light .wf-motif--timeline #wf-tl stop:nth-of-type(1) {
+  stop-color: #c2832f;
+}
+.welcome-flow--light .wf-motif--timeline #wf-tl stop:nth-of-type(2) {
+  stop-color: rgba(120, 108, 92, 0.4);
+}
+
+.welcome-flow--light .wf-cairn-shadow {
+  fill: rgba(74, 64, 53, 0.18);
+}
+.welcome-flow--light .wf-m-capstone {
+  fill: #cf962f;
+}
+
+.welcome-flow--light .wf-m-square {
+  fill: rgba(120, 108, 92, 0.16);
+}
+.welcome-flow--light .wf-m-square.lit {
+  fill: #c98a34;
+}
+
+.welcome-flow--light .wf-motif--horizon #wf-hz stop:nth-of-type(1) {
+  stop-color: #dca24a;
+}
+.welcome-flow--light .wf-motif--horizon #wf-hz stop:nth-of-type(2) {
+  stop-color: #c98a34;
+}
+.welcome-flow--light .wf-hz-line {
+  stroke: rgba(194, 131, 47, 0.5);
+}
+.welcome-flow--light .wf-m-ring {
+  stroke: rgba(194, 131, 47, 0.28);
+}
+.welcome-flow--light .wf-m-ring--faint {
+  stroke: rgba(194, 131, 47, 0.16);
+}
+
 @media (max-width: 520px) {
   .welcome-flow__title {
     font-size: 26px;
@@ -404,5 +672,12 @@
   .welcome-flow {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+  /* Exit stays a plain cross-fade — no lift, scale, or blur. */
+  .welcome-flow--leaving {
+    animation: wf-leave 280ms ease forwards !important;
+  }
+  .welcome-flow--leaving .welcome-flow__glass {
+    animation: wf-fade-out 280ms ease forwards !important;
   }
 }

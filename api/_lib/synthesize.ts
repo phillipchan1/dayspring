@@ -22,19 +22,25 @@ import {
 import { addDays, dateStrToUTC, periodWindow, toDateStr, type Period } from './dates'
 import { deriveTitle, humanizeObservationText, labelsFromEntries } from './entryLabels'
 import type {
+  Arc,
   EbenezerPair,
   Excerpt,
   MonthlyModelOutput,
   Observation,
   QuarterlyModelOutput,
   Quote,
+  RawArc,
   RawExcerpt,
   RawPair,
   RawQuestion,
+  RawRefrain,
+  RawTension,
   ReflectionContent,
   ReflectionQuestion,
+  Refrain,
   RollupPayload,
   RollupType,
+  Tension,
   Topic,
   WeeklyModelOutput,
   WinCandidate,
@@ -51,6 +57,9 @@ export interface BuildResult {
   observation?: boolean
   ebenezer?: number
   questions?: number
+  arcs?: number
+  tensions?: number
+  refrain?: boolean
 }
 
 // ── validation (the no-fabrication gate) ───────────────────────────────────
@@ -188,6 +197,66 @@ function validatePairs(pairs: RawPair[] | undefined, sources: Map<string, Source
 
 function excerptsFromQuotes(quotes: Quote[]): Excerpt[] {
   return quotes.map((q) => ({ entry_id: q.entry_id, date: q.date, text: q.text }))
+}
+
+/** HILLSIDE arcs: keep only real entry_ids; weight is the verified id count (the
+ *  app shows it). name/note are the tentative interpretive move — cleaned, never
+ *  fabricated into a verdict. Drop empty or zero-weight arcs; max 5. */
+function validateArcs(arcs: RawArc[] | undefined, validIds: Set<string>): Arc[] {
+  const out: Arc[] = []
+  for (const a of arcs ?? []) {
+    const ids = [...new Set((a?.entry_ids ?? []).filter((id) => validIds.has(id)))]
+    const name = stripIds((a?.name ?? '').trim())
+    const note = stripIds((a?.note ?? '').trim())
+    if (!name || ids.length === 0) continue
+    out.push({ id: `a${out.length + 1}`, name, note, weight: ids.length, entry_ids: ids })
+    if (out.length >= 5) break
+  }
+  return out
+}
+
+/** RIDGE tensions: non-empty thread + question, ids stripped. The question is
+ *  handed back, never a verdict — same prefix-cleanup as questions; max 3. */
+function validateTensions(tensions: RawTension[] | undefined): Tension[] {
+  const out: Tension[] = []
+  for (const t of tensions ?? []) {
+    const thread = stripIds((t?.thread ?? '').trim()).replace(/^self\s*[:,]\s*/i, '')
+    const question = stripIds((t?.question ?? '').trim()).replace(/^self\s*[:,]\s*/i, '')
+    if (!thread || !question) continue
+    out.push({ id: `t${out.length + 1}`, thread, question })
+    if (out.length >= 3) break
+  }
+  return out
+}
+
+/** SUMMIT refrain (hard guardrail): the text must exact-match a candidate source
+ *  verbatim, AND be found in the real entry body so we can store true offsets.
+ *  Anything paraphrased or unlocatable is dropped — null, never invented. */
+async function validateRefrain(
+  raw: RawRefrain | null | undefined,
+  sources: Map<string, Source[]>,
+  sb: SupabaseClient,
+  ownerId: string,
+): Promise<Refrain | null> {
+  const matched = matchExcerpt(raw ?? undefined, sources)
+  if (!matched) return null
+  const { data, error } = await sb
+    .from('entries')
+    .select('body_markdown')
+    .eq('owner', ownerId)
+    .eq('id', matched.entry_id)
+    .maybeSingle()
+  if (error) throw error
+  const body = (data as { body_markdown?: string } | null)?.body_markdown ?? ''
+  const at = body.indexOf(matched.text)
+  if (at < 0) return null
+  return {
+    entry_id: matched.entry_id,
+    date: matched.date,
+    text: matched.text,
+    char_start: at,
+    char_end: at + matched.text.length,
+  }
 }
 
 // ── persistence (idempotent upsert; partial index can't be an arbiter) ──────
@@ -459,12 +528,20 @@ export async function buildMonthly(ownerId: string, period: Period): Promise<Bui
   const quotes = validateQuotes(model.quotes, sources) // candidates only
   const observation = validateObservation(model.observation, validIds, entryLabels)
   const gapWatch = stripIds((model.gap_watch ?? '').trim())
+  // Arcs may cite any entry the model saw — weekly quote ids OR topic ids.
+  const arcIds = new Set<string>(validIds)
+  for (const w of weeklies) {
+    for (const t of w.structured_payload?.topics ?? []) {
+      for (const id of t.entry_ids ?? []) arcIds.add(id)
+    }
+  }
   const reflection: ReflectionContent = {
     letter: cleanProse(model.letter),
     gain: cleanProse(model.gain),
     ...(gapWatch ? { gapWatch } : {}),
     themes: cleanProse(model.themes),
     gainEvidence: excerptsFromQuotes(quotes),
+    arcs: validateArcs(model.arcs, arcIds),
   }
 
   const payload: RollupPayload = {
@@ -495,6 +572,7 @@ export async function buildMonthly(ownerId: string, period: Period): Promise<Bui
     quotes: quotes.length,
     topics: topics.length,
     observation: observation !== null,
+    arcs: reflection.arcs?.length ?? 0,
   }
 }
 
@@ -531,10 +609,12 @@ export async function buildQuarterly(ownerId: string, period: Period): Promise<B
   )
 
   const ebenezer = validatePairs(model.ebenezer, sources)
+  const tensions = validateTensions(model.tensions)
   const reflection: ReflectionContent = {
     synthesis: cleanProse(model.synthesis),
     questions: validateQuestions(model.questions),
     ebenezer,
+    tensions,
   }
 
   const payload: RollupPayload = {
@@ -563,6 +643,7 @@ export async function buildQuarterly(ownerId: string, period: Period): Promise<B
     status: 'built',
     ebenezer: ebenezer.length,
     questions: reflection.questions?.length ?? 0,
+    tensions: tensions.length,
   }
 }
 
@@ -599,10 +680,12 @@ export async function buildYearly(ownerId: string, period: Period): Promise<Buil
   )
 
   const stones = validatePairs(model.stones, sources)
+  const refrain = await validateRefrain(model.refrain, sources, sb, ownerId)
   const reflection: ReflectionContent = {
     throughline: cleanProse(model.throughline),
     themes: cleanProse(model.themes),
     stones,
+    ...(refrain ? { refrain } : {}),
   }
 
   const payload: RollupPayload = {
@@ -625,5 +708,5 @@ export async function buildYearly(ownerId: string, period: Period): Promise<Buil
     source_model: env.model(),
   })
 
-  return { type: 'yearly', period, status: 'built', ebenezer: stones.length }
+  return { type: 'yearly', period, status: 'built', ebenezer: stones.length, refrain: refrain !== null }
 }

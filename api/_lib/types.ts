@@ -61,6 +61,36 @@ export interface ReflectionQuestion {
   addressee: 'self' | 'God'
 }
 
+/** HILLSIDE (monthly): a recurrence the app names TENTATIVELY. `weight` = the
+ *  count of validated supporting entries; `name`/`note` are prose (the one
+ *  interpretive move, hedged + user-editable). Never a verdict. */
+export interface Arc {
+  id: string
+  name: string
+  note: string
+  weight: number
+  entry_ids: string[]
+}
+
+/** RIDGE (quarterly): an open thread the writer keeps circling, handed back as a
+ *  QUESTION. `thread` is a short label; `question` invites — it never resolves. */
+export interface Tension {
+  id: string
+  thread: string
+  question: string
+}
+
+/** SUMMIT (yearly): the year's refrain — ONE line copied VERBATIM from a real
+ *  entry, with offsets so the UI can prove it. Hard guardrail: never paraphrased
+ *  or generated; dropped entirely if it doesn't exact-match a source. */
+export interface Refrain {
+  entry_id: string
+  date: string
+  text: string
+  char_start: number
+  char_end: number
+}
+
 /** AI-prefilled win candidate; the user edits/confirms it in the UI. */
 export interface WinCandidate {
   id: string
@@ -83,6 +113,12 @@ export interface ReflectionContent {
   gapWatch?: string
   /** monthly + yearly: the 1–2 recurring threads, in prose. */
   themes?: string[]
+  /** monthly (Hillside): 3–5 named recurrences with weight — the app names tentatively. */
+  arcs?: Arc[]
+  /** quarterly (Ridge): open tensions handed back as questions — the app asks, never answers. */
+  tensions?: Tension[]
+  /** yearly (Summit): the verbatim refrain lifted from a real entry. */
+  refrain?: Refrain
   /** yearly: who you were vs. who you are now (paragraphs). */
   throughline?: string[]
   /** weekly: verbatim lines worth rereading. */
@@ -127,6 +163,20 @@ export interface RawQuestion {
   text: string
   addressee: string
 }
+export interface RawArc {
+  name: string
+  note: string
+  entry_ids: string[]
+}
+export interface RawTension {
+  thread: string
+  question: string
+}
+export interface RawRefrain {
+  entry_id: string
+  date: string
+  text: string
+}
 
 /** Weekly: the grounding picks (quotes/topics/observation) + rich generated content. */
 export interface WeeklyModelOutput {
@@ -146,16 +196,19 @@ export interface MonthlyModelOutput {
   gain: string[]
   gap_watch: string
   themes: string[]
+  arcs: RawArc[]
 }
 
 export interface QuarterlyModelOutput {
   synthesis: string[]
   questions: RawQuestion[]
   ebenezer: RawPair[]
+  tensions: RawTension[]
 }
 
 export interface YearlyModelOutput {
   throughline: string[]
   themes: string[]
   stones: RawPair[]
+  refrain: RawRefrain | null
 }
