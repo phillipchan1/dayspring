@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { asEntryMarkdown } from '@/lib/entryLabels'
 import { createEntry, updateEntryBody } from '@/lib/repo'
 import type { Entry } from '@/lib/types'
 
@@ -80,7 +81,7 @@ export function useAutosave({
 
     while (contentRef.current !== savedContentRef.current) {
       const run = async () => {
-        const text = contentRef.current
+        const text = asEntryMarkdown(contentRef.current)
         if (text === savedContentRef.current) return // nothing new
         // Don't create empty rows; but DO persist clearing an existing entry.
         if (idRef.current === null && text.trim() === '') return

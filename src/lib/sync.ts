@@ -4,12 +4,15 @@ export interface SyncState {
   online: boolean
   pending: number // queued local writes not yet on the server
   lastSyncedAt: number | null
+  /** True while a full library pull from the server is in flight (background). */
+  pulling: boolean
 }
 
 let state: SyncState = {
   online: typeof navigator !== 'undefined' ? navigator.onLine : true,
   pending: 0,
   lastSyncedAt: null,
+  pulling: false,
 }
 
 const listeners = new Set<() => void>()
@@ -37,6 +40,11 @@ export const syncStore = {
   },
   setSynced(ts: number): void {
     state = { ...state, online: true, lastSyncedAt: ts }
+    emit()
+  },
+  setPulling(pulling: boolean): void {
+    if (state.pulling === pulling) return
+    state = { ...state, pulling }
     emit()
   },
 }

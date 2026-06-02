@@ -1,11 +1,11 @@
-import { isMac, renderKey, SHORTCUT_GROUPS, type Shortcut } from './shortcuts'
+import { getShortcutGroups, isMac, renderKey, type Shortcut } from './shortcuts'
 
 /** The shortcut listing, shared by the Settings tab and the “?” overlay. */
 export function ShortcutsGuide() {
   const mac = isMac()
   return (
     <div className="shortcuts">
-      {SHORTCUT_GROUPS.map((group) => (
+      {getShortcutGroups().map((group) => (
         <section key={group.title} className="shortcuts__group">
           <h4 className="shortcuts__group-title">{group.title}</h4>
           <ul className="shortcuts__list">

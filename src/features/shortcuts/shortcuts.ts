@@ -3,6 +3,8 @@
 // this list, so a shortcut is documented in exactly one place. Keep it in sync
 // with useJournalShortcuts / useFocusMode when bindings change.
 
+import { isTauri } from '@/lib/platform'
+
 /** A token in a shortcut. `Mod` renders as ⌘ on macOS, Ctrl elsewhere. */
 export type KeyToken = string
 
@@ -17,6 +19,15 @@ export interface Shortcut {
 export interface ShortcutGroup {
   title: string
   items: Shortcut[]
+}
+
+/** Native app: ⌘N. Browser: C (Gmail-style compose; ⌘N opens a new tab). */
+export function newEntryShortcutKeys(): KeyToken[] {
+  return isTauri() ? ['Mod', 'N'] : ['C']
+}
+
+export function formatNewEntryShortcut(mac = isMac()): string {
+  return newEntryShortcutKeys().map((k) => renderKey(k, mac)).join('')
 }
 
 export const SHORTCUT_GROUPS: ShortcutGroup[] = [
@@ -59,6 +70,21 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
 ]
+
+/** Shortcut groups with platform-accurate “new entry” keys. */
+export function getShortcutGroups(): ShortcutGroup[] {
+  const keys = newEntryShortcutKeys()
+  const when = isTauri() ? undefined : 'when not typing'
+  return SHORTCUT_GROUPS.map((group) => {
+    if (group.title !== 'Writing') return group
+    return {
+      ...group,
+      items: group.items.map((item) =>
+        item.label === 'New entry' ? { ...item, keys, when } : item,
+      ),
+    }
+  })
+}
 
 /** True on macOS-family devices, where the platform modifier is ⌘. */
 export function isMac(): boolean {

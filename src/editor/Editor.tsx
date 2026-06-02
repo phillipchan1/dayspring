@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state'
-import { EditorView, keymap, placeholder as cmPlaceholder, drawSelection } from '@codemirror/view'
+import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit, syntaxHighlighting } from '@codemirror/language'
@@ -159,7 +159,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         doc: initialDoc,
         extensions: [
           history(),
-          drawSelection(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
           Prec.highest(formatKeymap),
@@ -204,11 +203,17 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Swap the document when a different entry is loaded, then focus for typing.
+  // Keep the view in sync when the parent loads or switches entries. `docKey`
+  // handles navigation; `initialDoc` handles the body arriving after mount (cache
+  // / sync) without fighting live typing — CM and React content stay matched while
+  // you type, so this only runs when they diverge.
+  const prevDocKeyRef = useRef(docKey)
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
     const current = view.state.doc.toString()
+    const entryChanged = prevDocKeyRef.current !== docKey
+    prevDocKeyRef.current = docKey
     if (current !== initialDoc) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
     }
@@ -216,12 +221,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       skipAutofocusRef.current = false
       return
     }
-    if (!autofocus) return
+    if (!autofocus || !entryChanged) return
     view.focus()
     const atEnd = view.state.doc.length
     view.dispatch({ selection: { anchor: atEnd, head: atEnd } })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docKey])
+  }, [docKey, initialDoc, autofocus, skipAutofocusRef])
 
   // Reconfigure typewriter / dimming when their toggles change.
   useEffect(() => {

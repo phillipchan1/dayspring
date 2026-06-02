@@ -38,8 +38,20 @@ export const editorTheme = EditorView.theme({
     borderLeftColor: 'var(--accent)',
     borderLeftWidth: '2px',
   },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'var(--accent-soft)',
+  // Thematic text selection (accent-tinted, readable in every theme). We style
+  // ::selection directly instead of drawSelection so selected text gets a proper
+  // foreground color — not the system blue on macOS or faint accent washes.
+  // !important wins over inline syntax tag colors on nested spans.
+  '.cm-content ::selection, .cm-content *::selection': {
+    backgroundColor: 'var(--selection-bg) !important',
+    color: 'var(--selection-fg) !important',
+  },
+  '.cm-content::-moz-selection, .cm-content *::-moz-selection': {
+    backgroundColor: 'var(--selection-bg) !important',
+    color: 'var(--selection-fg) !important',
+  },
+  '.cm-selectionBackground': {
+    backgroundColor: 'transparent !important',
   },
   '.cm-placeholder': {
     color: 'var(--text-faint)',

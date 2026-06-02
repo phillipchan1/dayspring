@@ -1,8 +1,13 @@
 import { isSpiritualFenceLine } from './spiritualBlocks'
 
+/** Coerce nullable entry bodies to a string safe for editors and labels. */
+export function asEntryMarkdown(markdown: string | null | undefined): string {
+  return markdown ?? ''
+}
+
 /** Derive a short display title from markdown (first non-empty line). */
-export function deriveTitle(markdown: string): string {
-  const line = markdown
+export function deriveTitle(markdown: string | null | undefined): string {
+  const line = asEntryMarkdown(markdown)
     .split('\n')
     .map((l) => l.trim())
     .find((l) => l.length > 0 && !isSpiritualFenceLine(l))

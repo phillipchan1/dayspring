@@ -26,6 +26,11 @@ export function shouldIgnoreTarget(target: EventTarget | null): boolean {
   return false
 }
 
+/** True when the user is typing in any field, including the writing editor. */
+export function isTypingContext(target: EventTarget | null): boolean {
+  return shouldIgnoreTarget(target) || isInEditor(target)
+}
+
 /** True when focus is in the entry search field. */
 export function isInEntrySearch(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('[data-entry-search]') != null

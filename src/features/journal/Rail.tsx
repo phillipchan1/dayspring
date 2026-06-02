@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
+import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { RailHint } from './RailHint'
 import { RAIL_EXPAND_KEY } from './railHints'
 
@@ -65,7 +66,7 @@ export function Rail({
           </span>
           <RailButton
             label="New entry"
-            shortcut="⌘N"
+            shortcut={formatNewEntryShortcut()}
             onClick={onNew}
             icon={<IconNew />}
             labelsExpanded={labelsExpanded}

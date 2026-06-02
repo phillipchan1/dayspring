@@ -16,6 +16,9 @@ export function SyncBadge({ bare = false }: Props = {}) {
   if (!state.online) {
     label = state.pending > 0 ? `Offline · ${state.pending}` : 'Offline'
     color = 'var(--md-strong)' // amber-ish
+  } else if (state.pulling) {
+    label = 'Updating library'
+    color = 'var(--text-dim)'
   } else if (state.pending > 0) {
     label = `Syncing ${state.pending}`
     color = 'var(--text-dim)'

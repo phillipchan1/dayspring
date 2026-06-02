@@ -6,6 +6,7 @@ import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
 import { isSupabaseConfigured } from '@/lib/env'
@@ -49,10 +50,6 @@ import { InlineScripturePopover } from '@/features/capture/InlineScripturePopove
 import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
-import { ResurfaceCard } from './ResurfaceCard'
-import { fetchCurrentResurface, type ResurfaceCard as ResurfaceCardData } from '@/lib/echoes'
-import '@/features/reflect/Reflect.css'
-
 interface JournalScreenProps {
   userEmail: string
 }
@@ -140,7 +137,11 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const entryIdRef = useRef<string | null>(null)
   entryIdRef.current = entryId
+  const contentRef = useRef(content)
+  contentRef.current = content
   const skipEntrySyncRef = useRef(false)
+  /** While true, autosave may create an entry but we must not adopt its id (⌘N / C “new”). */
+  const skipAdoptOnCreateRef = useRef(false)
   /** Last entry id whose body we loaded into the editor — avoids reloading on list sync. */
   const loadedEntryIdRef = useRef<string | null>(null)
   const skipEditorAutofocusRef = useRef(false)
@@ -254,64 +255,85 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     })
   }, [])
 
-  // Resurfacing — one invitational card above the editor (echo, prayer, reminder, sense).
-  const [resurface, setResurface] = useState<ResurfaceCardData | null>(null)
-  useEffect(() => {
-    fetchCurrentResurface().then((card) => setResurface(card)).catch(() => null)
-  }, [])
-
   function hydrateActiveEntry(list: Entry[]) {
     const wantedId = entryIdRef.current
     const match = wantedId ? list.find((e) => e.id === wantedId) : null
     if (match) {
       skipEntrySyncRef.current = true
-      setContent(match.body_markdown)
+      setContent(asEntryMarkdown(match.body_markdown))
       return
     }
-    if (!wantedId && list[0]) {
+    if (!wantedId && list[0] && !contentRef.current.trim()) {
       skipEntrySyncRef.current = true
       go({ entryId: list[0].id }, { replace: true })
-      setContent(list[0].body_markdown)
+      setContent(asEntryMarkdown(list[0].body_markdown))
     }
   }
 
-  // Cache-first load: show local entries instantly, then sync from the server.
+  function applySyncedList(synced: Entry[]) {
+    setEntries(synced)
+    const wantedId = entryIdRef.current
+    const match = wantedId ? synced.find((e) => e.id === wantedId) : null
+    if (match) {
+      const body = asEntryMarkdown(match.body_markdown)
+      const shouldSeed =
+        loadedEntryIdRef.current !== wantedId ||
+        (!contentRef.current.trim() && body.trim() !== '')
+      if (shouldSeed && body !== contentRef.current) {
+        skipEntrySyncRef.current = true
+        setContent(body)
+        loadedEntryIdRef.current = wantedId
+      }
+      return
+    }
+    if (!wantedId && synced.length && !contentRef.current.trim()) {
+      skipEntrySyncRef.current = true
+      const first = synced[0]!
+      go({ entryId: first.id }, { replace: true })
+      setContent(asEntryMarkdown(first.body_markdown))
+      return
+    }
+    if (wantedId && synced.length) {
+      navigateAwayFromDeletedEntry(synced)
+    }
+  }
+
+  // Cache-first: editor and list unlock from IndexedDB immediately; full library
+  // sync runs in the background (can take a while on slow links).
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
+    setEntriesReady(true)
+
+    void (async () => {
       try {
         const cached = await repo.listEntries()
-        if (!cancelled && cached.length) {
-          setEntries(cached)
-          hydrateActiveEntry(cached)
-        }
+        if (cancelled) return
+        setEntries(cached)
+        if (cached.length) hydrateActiveEntry(cached)
       } catch {
-        /* cache miss is fine; sync will populate */
-      }
-      try {
-        const synced = await repo.sync(entryIdRef.current)
-        if (!cancelled && synced) {
-          setEntries(synced)
-          const wantedId = entryIdRef.current
-          const match = wantedId ? synced.find((e) => e.id === wantedId) : null
-          if (match) {
-            skipEntrySyncRef.current = true
-            setContent(match.body_markdown)
-          } else if (!wantedId && synced.length) {
-            skipEntrySyncRef.current = true
-            const first = synced[0]!
-            go({ entryId: first.id }, { replace: true })
-            setContent(first.body_markdown)
-          } else if (wantedId && synced.length) {
-            navigateAwayFromDeletedEntry(synced)
-          }
-        }
-      } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to load')
-      } finally {
-        if (!cancelled) setEntriesReady(true)
+        /* empty cache is fine — background sync or a new entry will populate */
       }
     })()
+
+    if (!isSupabaseConfigured) return () => {
+      cancelled = true
+    }
+
+    void (async () => {
+      try {
+        const synced = await repo.sync(entryIdRef.current)
+        if (cancelled || !synced) return
+        applySyncedList(synced)
+      } catch (e) {
+        if (!cancelled) {
+          const cached = await repo.listEntries().catch(() => [] as Entry[])
+          if (cached.length === 0) {
+            setLoadError(e instanceof Error ? e.message : 'Failed to load')
+          }
+        }
+      }
+    })()
+
     return () => {
       cancelled = true
     }
@@ -322,7 +344,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   useEffect(() => {
     const resync = () => {
       void repo.sync(entryIdRef.current).then((list) => {
-        if (list) setEntries(list)
+        if (list) applySyncedList(list)
       })
     }
     const onOffline = () => syncStore.setOnline(false)
@@ -346,7 +368,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     const next = remaining[0] ?? null
     if (next) {
       go({ surface: 'journal', entryId: next.id })
-      setContent(next.body_markdown)
+      setContent(asEntryMarkdown(next.body_markdown))
     } else {
       go({ surface: 'journal', entryId: null })
       setContent('')
@@ -413,7 +435,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       })
     },
     onCreated: (created) => {
-      go({ entryId: created.id }, { replace: true })
+      if (!skipAdoptOnCreateRef.current) {
+        go({ entryId: created.id }, { replace: true })
+      }
       setEntries((prev) => {
         const idx = prev.findIndex((e) => e.id === created.id)
         if (idx >= 0) return prev.map((e, i) => (i === idx ? created : e))
@@ -438,6 +462,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       loadedEntryIdRef.current = entryId
       return
     }
+    // Body can arrive after entriesReady; don't treat the id as "loaded" until
+    // we've applied the entry text (or confirmed a deliberate blank new doc).
     if (entryId === null) {
       if (loadedEntryIdRef.current !== null) {
         loadedEntryIdRef.current = null
@@ -445,13 +471,14 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       }
       return
     }
-    if (loadedEntryIdRef.current === entryId) return
-
     const entry = entries.find((e) => e.id === entryId)
     if (!entry) return
 
+    const body = asEntryMarkdown(entry.body_markdown)
+    if (loadedEntryIdRef.current === entryId && body === content) return
+
     loadedEntryIdRef.current = entryId
-    setContent(entry.body_markdown)
+    setContent(body)
   }, [entryId, entries, entriesReady])
 
   function toggleLookBack() {
@@ -557,26 +584,40 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       const row = prev[idx]!
       if (row.body_markdown === content && row.word_count === words) return prev
       return prev.map((e) =>
-        e.id === entryId ? { ...e, body_markdown: content, word_count: words } : e,
+        e.id === entryId
+          ? { ...e, body_markdown: asEntryMarkdown(content), word_count: words }
+          : e,
       )
     })
   }, [content, entryId])
 
   async function handleNew() {
-    await saveNow()
-    skipEntrySyncRef.current = true
-    go({ surface: 'journal', entryId: null })
-    setContent('')
+    skipAdoptOnCreateRef.current = true
+    try {
+      await saveNow()
+      skipEntrySyncRef.current = true
+      go({ surface: 'journal', entryId: null })
+      setContent('')
+    } finally {
+      skipAdoptOnCreateRef.current = false
+    }
   }
 
   async function handleBrowse(entry: Entry) {
     skipEditorAutofocusRef.current = true
     if (bulkSelection.length >= 2 || rangeSelectActive) return
 
-    if (entry.id === entryId && !canvasAlternateActive) return
+    const body = asEntryMarkdown(entry.body_markdown)
+    if (entry.id === entryId && !canvasAlternateActive) {
+      if (body !== content) {
+        skipEntrySyncRef.current = true
+        setContent(body)
+      }
+      return
+    }
     skipEntrySyncRef.current = true
     go({ surface: 'journal', entryId: entry.id })
-    setContent(entry.body_markdown)
+    setContent(body)
   }
 
   async function handleEditEntry(entry: Entry) {
@@ -589,7 +630,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     await saveNow()
     skipEntrySyncRef.current = true
     go({ surface: 'journal', entryId: entry.id })
-    setContent(entry.body_markdown)
+    setContent(asEntryMarkdown(entry.body_markdown))
   }
 
   async function handleOpenReflectionEntry(id: string) {
@@ -626,7 +667,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       setEntries((prev) => [copy, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
       skipEntrySyncRef.current = true
       go({ surface: 'journal', entryId: copy.id })
-      setContent(copy.body_markdown)
+      setContent(asEntryMarkdown(copy.body_markdown))
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to duplicate entry')
     }
@@ -676,7 +717,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       const next = remaining[0] ?? null
       if (next) {
         go({ surface: 'journal', entryId: next.id })
-        setContent(next.body_markdown)
+        setContent(asEntryMarkdown(next.body_markdown))
       } else {
         go({ surface: 'journal', entryId: null })
         setContent('')
@@ -745,9 +786,6 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      {resurface && (
-        <ResurfaceCard card={resurface} onDismiss={() => setResurface(null)} />
-      )}
       <div style={{ flex: 1, minHeight: 0 }}>
         {entriesReady ? (
           <Editor
@@ -755,7 +793,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
+            placeholder={deriveTitle(asEntryMarkdown(content)) ? 'Keep going…' : 'Title'}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}

@@ -201,6 +201,7 @@ export async function applyRemoteChanges(
 export async function sync(preserveId?: string | null): Promise<Entry[] | null> {
   await flush()
   if (!navigator.onLine) return null
+  syncStore.setPulling(true)
   try {
     const server = await serverListAll()
     const localMap = new Map((await cache.cacheGetAll()).map((e) => [e.id, e]))
@@ -226,5 +227,7 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
   } catch {
     syncStore.setOnline(false)
     return null
+  } finally {
+    syncStore.setPulling(false)
   }
 }

@@ -6,6 +6,7 @@ import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
+import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
 import type { JournalViewProps } from './journalViewProps'
@@ -133,7 +134,12 @@ export function MobileJournal(props: JournalViewProps) {
       {!focused && (
         <>
           <nav className="mobile-bar">
-            <button className="nav-btn" onClick={onNew} aria-label="New entry" title="New entry (⌘N)">
+            <button
+              className="nav-btn"
+              onClick={onNew}
+              aria-label="New entry"
+              title={`New entry (${formatNewEntryShortcut()})`}
+            >
               +
             </button>
             <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">

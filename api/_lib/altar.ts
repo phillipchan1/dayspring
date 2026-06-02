@@ -25,6 +25,29 @@ const MERGE_THRESHOLD = 0.64
 // even shown to the Nano evidence pass.
 const SWEEP_MAX_DISTANCE = 0.45
 const PAGE = 1000
+// How many model/DB calls run at once in the bulk passes. The bottleneck was
+// long SEQUENTIAL runs (they got killed before finishing); a small pool finishes
+// in minutes. Nano's RPM/TPM easily absorbs this.
+const POOL = 8
+
+/** Run `fn` over items with bounded concurrency, preserving result order. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    for (;;) {
+      const idx = next++
+      if (idx >= items.length) return
+      out[idx] = await fn(items[idx]!, idx)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker))
+  return out
+}
 
 // ── shapes ───────────────────────────────────────────────────────────────────
 interface ItemRow {
@@ -75,23 +98,29 @@ function seedMember(c: Cluster): Member {
   return c.members.reduce((a, b) => (a.date <= b.date ? a : b))
 }
 
-/** All rows of a table for an owner, paginated past PostgREST's ~1000 cap. */
+/**
+ * All rows of a table for an owner, paginated past PostgREST's ~1000 cap. Pass a
+ * smaller `pageSize` for reads that include the `embedding` column — serializing
+ * 1000 × 1536-float vectors in one statement blows the Postgres statement timeout
+ * (57014); ~250 keeps each page well under it.
+ */
 async function fetchAll<T>(
   sb: SupabaseClient,
   table: string,
   select: string,
   owner: string,
   refine?: (q: any) => any,
+  pageSize: number = PAGE,
 ): Promise<T[]> {
   const out: T[] = []
-  for (let from = 0; ; from += PAGE) {
-    let q = sb.from(table).select(select).eq('owner', owner).range(from, from + PAGE - 1)
+  for (let from = 0; ; from += pageSize) {
+    let q = sb.from(table).select(select).eq('owner', owner).range(from, from + pageSize - 1)
     if (refine) q = refine(q)
     const { data, error } = await q
     if (error) throw error
     const rows = (data ?? []) as T[]
     out.push(...rows)
-    if (rows.length < PAGE) break
+    if (rows.length < pageSize) break
   }
   return out
 }
@@ -227,6 +256,7 @@ export async function threadItems(
     'id, entry_id, type, content, created_at, resolved_at, thread_id, embedding',
     owner,
     (q) => q.in('type', ['prayer', 'sense']).order('created_at', { ascending: true }),
+    250, // small page: this read carries the embedding vector
   )
 
   // Effective (source) date per item: the entry's date when linked, else the row's.
@@ -291,10 +321,10 @@ export async function threadItems(
     placed++
   }
 
-  // Persist NEW threads (label, insert, link members).
-  let newThreads = 0
-  for (const c of newClusters) {
-    if (c.members.length === 0) continue
+  // Persist NEW threads (label, insert, link members) — concurrently, since the
+  // label calls are the slow part and each thread is independent.
+  const fresh = newClusters.filter((c) => c.members.length > 0)
+  await mapPool(fresh, POOL, async (c) => {
     const seed = seedMember(c)
     const last = c.members.reduce((a, b) => (a.date >= b.date ? a : b))
     const { title, carries } = await labelFor(c.members)
@@ -313,17 +343,12 @@ export async function threadItems(
       .single()
     if (error) throw error
     const id = (data as { id: string }).id
-    await sb
-      .from('spiritual_items')
-      .update({ thread_id: id })
-      .in('id', c.members.map((m) => m.itemId))
-    newThreads++
-  }
+    await sb.from('spiritual_items').update({ thread_id: id }).in('id', c.members.map((m) => m.itemId))
+  })
 
   // Persist EXISTING threads that gained members (re-aggregate + relabel).
-  let updatedThreads = 0
-  for (const c of clusters.values()) {
-    if (!c.dirty || !c.id) continue
+  const dirty = [...clusters.values()].filter((c) => c.dirty && c.id)
+  await mapPool(dirty, POOL, async (c) => {
     const seed = seedMember(c)
     const last = c.members.reduce((a, b) => (a.date >= b.date ? a : b))
     const { title, carries } = await labelFor(c.members)
@@ -337,16 +362,11 @@ export async function threadItems(
         seed_item_id: seed.itemId,
         embedding: toVectorLiteral(c.centroid),
       })
-      .eq('id', c.id)
-    // Link any members that weren't already attached.
-    await sb
-      .from('spiritual_items')
-      .update({ thread_id: c.id })
-      .in('id', c.members.map((m) => m.itemId))
-    updatedThreads++
-  }
+      .eq('id', c.id!)
+    await sb.from('spiritual_items').update({ thread_id: c.id! }).in('id', c.members.map((m) => m.itemId))
+  })
 
-  return { placed, newThreads, updatedThreads }
+  return { placed, newThreads: fresh.length, updatedThreads: dirty.length }
 }
 
 // ── 3. migrate the legacy binary → encounters ──────────────────────────────────
@@ -517,6 +537,21 @@ export async function resetHarvest(owner: string): Promise<{ deleted: number }> 
     .eq('source', 'scanned')
     .select('id')
   if (error) throw error
+
+  // Sweep up cairns left memberless by that delete (preserve any still referenced
+  // by a remaining explicit /pray item — and their encounters). Then re-cluster
+  // from a clean slate on the next harvest.
+  const { data: refd } = await sb
+    .from('spiritual_items')
+    .select('thread_id')
+    .eq('owner', owner)
+    .not('thread_id', 'is', null)
+  const keep = [...new Set(((refd ?? []) as { thread_id: string }[]).map((r) => r.thread_id))]
+  let del = sb.from('prayer_threads').delete().eq('owner', owner)
+  if (keep.length) del = del.not('id', 'in', `(${keep.join(',')})`)
+  const { error: delThreadsErr } = await del
+  if (delThreadsErr) throw delThreadsErr
+
   const { error: clrErr } = await sb
     .from('entries')
     .update({ prayer_scanned_at: null })
@@ -568,48 +603,55 @@ export async function harvestPrayers(
   // Entries with no prayer cue: nothing to read, just mark them scanned.
   await markScanned(sb, noncandidates.map((e) => e.id))
 
-  let planted = 0
+  // Batches run with bounded concurrency so the whole archive finishes in minutes
+  // (a long sequential run kept getting killed before it could complete).
+  const batches: typeof candidates[] = []
   for (let i = 0; i < candidates.length; i += HARVEST_LLM_BATCH) {
-    const batch = candidates.slice(i, i + HARVEST_LLM_BATCH)
-    let out: { entries?: { id: string; prayers?: { type: string; text: string }[] }[] }
-    try {
-      out = await callModel(
-        HARVEST_PROMPT,
-        { entries: batch.map((e) => ({ id: e.id, text: e.body_markdown.slice(0, HARVEST_MAX_CHARS) })) },
-        HARVEST_SCHEMA as Record<string, unknown>,
-        'altar_harvest',
-        'low',
-        2000,
-      )
-    } catch {
-      continue // leave this batch unmarked so it retries next run
-    }
-
-    const byId = new Map(batch.map((e) => [e.id, e]))
-    const rows: Record<string, unknown>[] = []
-    for (const r of out.entries ?? []) {
-      const e = byId.get(r.id)
-      if (!e) continue
-      for (const p of (r.prayers ?? []).slice(0, HARVEST_PER_ENTRY_CAP)) {
-        const text = (p.text || '').trim()
-        if (!isVerbatim(e.body_markdown, text)) continue // honesty gate: the writer's own words only
-        rows.push({
-          owner,
-          entry_id: e.id,
-          type: p.type === 'sense' ? 'sense' : 'prayer',
-          content: text,
-          source: 'scanned',
-          created_at: e.created_at, // date the cairn to when it was prayed, not now
-        })
-      }
-    }
-    if (rows.length > 0) {
-      const { error } = await sb.from('spiritual_items').insert(rows)
-      if (error) throw error
-      planted += rows.length
-    }
-    await markScanned(sb, batch.map((e) => e.id))
+    batches.push(candidates.slice(i, i + HARVEST_LLM_BATCH))
   }
+
+  const planted = (
+    await mapPool(batches, POOL, async (batch) => {
+      let out: { entries?: { id: string; prayers?: { type: string; text: string }[] }[] }
+      try {
+        out = await callModel(
+          HARVEST_PROMPT,
+          { entries: batch.map((e) => ({ id: e.id, text: e.body_markdown.slice(0, HARVEST_MAX_CHARS) })) },
+          HARVEST_SCHEMA as Record<string, unknown>,
+          'altar_harvest',
+          'low',
+          2000,
+        )
+      } catch {
+        return 0 // leave this batch unmarked so it retries next run
+      }
+
+      const byId = new Map(batch.map((e) => [e.id, e]))
+      const rows: Record<string, unknown>[] = []
+      for (const r of out.entries ?? []) {
+        const e = byId.get(r.id)
+        if (!e) continue
+        for (const p of (r.prayers ?? []).slice(0, HARVEST_PER_ENTRY_CAP)) {
+          const text = (p.text || '').trim()
+          if (!isVerbatim(e.body_markdown, text)) continue // honesty gate: the writer's own words only
+          rows.push({
+            owner,
+            entry_id: e.id,
+            type: p.type === 'sense' ? 'sense' : 'prayer',
+            content: text,
+            source: 'scanned',
+            created_at: e.created_at, // date the cairn to when it was prayed, not now
+          })
+        }
+      }
+      if (rows.length > 0) {
+        const { error } = await sb.from('spiritual_items').insert(rows)
+        if (error) throw error
+      }
+      await markScanned(sb, batch.map((e) => e.id))
+      return rows.length
+    })
+  ).reduce((a, b) => a + b, 0)
 
   return { scanned: pool.length, candidates: candidates.length, planted }
 }
@@ -653,7 +695,7 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     last_touch_at: string
     seed_item_id: string | null
     embedding: number[] | null
-  }>(sb, 'prayer_threads', 'id, title, last_touch_at, seed_item_id, embedding', owner)
+  }>(sb, 'prayer_threads', 'id, title, last_touch_at, seed_item_id, embedding', owner, undefined, 250)
 
   const encountered = new Set(
     (await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)).map((e) => e.thread_id),

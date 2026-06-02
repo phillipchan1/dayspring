@@ -7,7 +7,7 @@ function toEntry(row: Record<string, unknown>): Entry {
     id: row.id as string,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
-    body_markdown: row.body_markdown as string,
+    body_markdown: (row.body_markdown as string | null | undefined) ?? '',
     title: (row.title as string | null) ?? null,
     mood: (row.mood as string | null) ?? null,
     tags: (row.tags as string[]) ?? [],

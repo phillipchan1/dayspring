@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { hasMod, isInEditor, shouldIgnoreTarget } from './keyboard'
+import { hasMod, isInEditor, isTypingContext, shouldIgnoreTarget } from './keyboard'
 import { RAIL_EXPAND_KEY } from './railHints'
+import { isTauri } from '@/lib/platform'
 
 export interface JournalShortcutActions {
   onNew: () => void
@@ -23,8 +24,8 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * ⌘N new · ⌘1–4 rail · ⌘, settings · ⌘S save · ⌘K search · ⌘⏎ focus
- * ⌘1 entries · ⌘2 looking back · ⌘3 scripture · ⌘4 altar
+ * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–4 rail · ⌘, settings
+ * ⌘S save · ⌘K search · ⌘⏎ focus
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
@@ -54,13 +55,26 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
 
       const key = e.key.toLowerCase()
 
-      if (!hasMod(e) || e.altKey) return
-
-      if (key === 'n') {
+      if (isTauri()) {
+        if (hasMod(e) && !e.altKey && key === 'n') {
+          e.preventDefault()
+          onNew()
+          return
+        }
+      } else if (
+        !hasMod(e) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        key === 'c' &&
+        !settingsOpen &&
+        !isTypingContext(e.target)
+      ) {
         e.preventDefault()
         onNew()
         return
       }
+
+      if (!hasMod(e) || e.altKey) return
 
       if (key === ',') {
         e.preventDefault()

@@ -78,6 +78,8 @@
 
   --accent: #61afef;
   --accent-soft: rgba(97, 175, 239, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
 
   /* Markdown / syntax accents (used by the editor highlight theme) */
   --md-heading: #e5c07b;
@@ -122,6 +124,8 @@
 
   --accent: #c2683a;
   --accent-soft: rgba(194, 104, 58, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 36%, #fffdf8);
+  --selection-fg: var(--text-bright);
 
   --md-heading: #b5552c;
   --md-emphasis: #9a5ba6;
@@ -168,6 +172,8 @@
 
   --accent: #e0a64e;
   --accent-soft: rgba(224, 166, 78, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 46%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
 
   --md-heading: #e0a64e;
   --md-emphasis: #b98ce0;
@@ -212,6 +218,8 @@
 
   --accent: #e8743c;
   --accent-soft: rgba(232, 116, 60, 0.16);
+  --selection-bg: color-mix(in srgb, var(--accent) 46%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
 
   --md-heading: #f0a868;
   --md-emphasis: #d98cc0;

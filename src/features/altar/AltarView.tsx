@@ -550,6 +550,27 @@ export function AltarView({ onOpenEntry }: Props) {
     [threads],
   )
 
+  // The Field, grouped by the year a prayer was planted (newest year first) so a
+  // long archive reads as scannable seasons, not one endless grid. Within a year,
+  // significance leads: lit "He met me" cairns first, then the tallest heaps, then
+  // the rest — so what matters rises and the one-off seeds settle below.
+  const fieldByYear = useMemo(() => {
+    const m = new Map<number, AltarThread[]>()
+    for (const t of visible) {
+      const y = new Date(t.planted_at).getFullYear()
+      ;(m.get(y) ?? m.set(y, []).get(y)!).push(t)
+    }
+    for (const list of m.values()) {
+      list.sort((a, b) => {
+        const lit = (b.state === 'lit' ? 1 : 0) - (a.state === 'lit' ? 1 : 0)
+        if (lit) return lit
+        if (b.touches !== a.touches) return b.touches - a.touches
+        return b.planted_at.localeCompare(a.planted_at)
+      })
+    }
+    return [...m.entries()].sort((a, b) => b[0] - a[0])
+  }, [visible])
+
   if (loadError) return <p className="altar__error">{loadError}</p>
   if (threads === null)
     return (
@@ -621,17 +642,22 @@ export function AltarView({ onOpenEntry }: Props) {
           {tab === 'field' && (
             <>
               <p className="altar-voice">{fieldVoice}</p>
-              <div className="altar-field">
-                {visible.length === 0 && (
-                  <p className="altar__quiet">
-                    No heaps in this season yet — only quiet ground. Type <code>/pray</code> or{' '}
-                    <code>/sense</code> in an entry to plant a seed.
-                  </p>
-                )}
-                {visible.map((t, i) => (
-                  <Cairn key={t.id} t={t} i={i} onOpen={openThread} />
-                ))}
-              </div>
+              {visible.length === 0 && (
+                <p className="altar__quiet">
+                  No heaps in this season yet — only quiet ground. Type <code>/pray</code> or{' '}
+                  <code>/sense</code> in an entry to plant a seed.
+                </p>
+              )}
+              {fieldByYear.map(([year, list]) => (
+                <section key={year} className="altar-year">
+                  <h2 className="altar-year__label">{year}</h2>
+                  <div className="altar-field">
+                    {list.map((t, i) => (
+                      <Cairn key={t.id} t={t} i={i} onOpen={openThread} />
+                    ))}
+                  </div>
+                </section>
+              ))}
               {carries.length > 0 && (
                 <div className="altar-carry">
                   <span className="altar-carry__label">The names you keep bringing to God</span>
