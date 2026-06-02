@@ -13,6 +13,8 @@ export const env = {
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
   openaiKey: () => need('OPENAI_API_KEY'),
   model: () => process.env.OPENAI_MODEL || 'gpt-5.4-nano',
+  // Embedding model for the Altar threading + open-thread similarity sweep (1536d).
+  embedModel: () => process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
   // Crossway ESV API token (api.esv.org). Used to resolve verbatim verse text.
   esvApiKey: () => need('ESV_API_KEY'),
   cronSecret: () => need('CRON_SECRET'),

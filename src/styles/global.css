@@ -182,9 +182,6 @@ a {
   padding: 0.85rem 1rem 0.65rem;
   background: var(--bg-elevated);
 }
-.entry-list__brand {
-  padding: 0.1rem 0 0.85rem !important;
-}
 .entry-list__search {
   width: 100%;
   padding: 0.5rem 0.65rem;

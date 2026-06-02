@@ -39,9 +39,8 @@ export function Rail({
   onToggleLabels,
   nativeTopInset,
 }: RailProps) {
-  // Wordmark only when the entries panel is closed — it carries its own "Dayspring"
-  // title. The sunrise mark stays put in every mode.
-  const showBrandLockup = labelsExpanded && !entriesOpen
+  // Wordmark beside the mark when labels are expanded; icon-only when collapsed.
+  const showBrandLockup = labelsExpanded
 
   return (
     <nav

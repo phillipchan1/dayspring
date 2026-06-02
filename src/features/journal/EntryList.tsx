@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Entry } from '@/lib/types'
-import { Brand } from '@/components/Mark'
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { useSettings } from '@/hooks/useSettings'
 import { deriveTitle } from './deriveTitle'
@@ -205,11 +204,6 @@ export function EntryList({
         }
         onContextMenu={blockNativeMenu}
       >
-        {!fullWidth && (
-          <div data-tauri-drag-region={NATIVE ? '' : undefined}>
-            <Brand showMark={false} wordmarkRem={1.1} className="entry-list__brand" />
-          </div>
-        )}
         <input
           data-entry-search
           className="entry-list__search"
