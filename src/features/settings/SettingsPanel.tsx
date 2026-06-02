@@ -31,7 +31,7 @@ const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'writing', label: 'Writing', icon: <IconPen /> },
   { id: 'import', label: 'Import', icon: <IconImport /> },
   { id: 'shortcuts', label: 'Shortcuts', icon: <IconKey /> },
-  { id: 'subscription', label: 'Subscription', icon: <IconSubscription /> },
+  { id: 'billing', label: 'Billing', icon: <IconSubscription /> },
   { id: 'about', label: 'About', icon: <IconSpark /> },
 ]
 
@@ -105,7 +105,7 @@ export function SettingsPanel({
               />
             )}
             {tab === 'shortcuts' && <ShortcutsTab />}
-            {tab === 'subscription' && <SubscriptionTab />}
+            {tab === 'billing' && <BillingTab />}
             {tab === 'about' && <AboutTab userEmail={userEmail} onClose={onClose} />}
           </div>
         </div>
@@ -356,10 +356,20 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
   )
 }
 
-function SubscriptionTab() {
-  const { subscription, loading } = useSubscription()
+function BillingTab() {
+  const { subscription, loading, refetch } = useSubscription()
+  const [syncing, setSyncing] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      await refetch()
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function openPortal() {
     setPortalError(null)
@@ -375,111 +385,114 @@ function SubscriptionTab() {
   }
 
   if (loading) {
-    return (
-      <div className="settings-stack">
-        <p className="settings-section__intro" style={{ color: 'var(--text-faint)' }}>Loading…</p>
-      </div>
-    )
+    return <p style={{ color: 'var(--text-faint)', fontFamily: 'var(--font-sans)', fontSize: '0.88rem' }}>Loading…</p>
   }
 
   const plan = subscription?.plan ?? 'none'
   const trialDays = subscription ? trialDaysRemaining(subscription) : 0
+  const trialEnd = subscription?.trial_ends_at
+    ? new Date(subscription.trial_ends_at).toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric',
+      })
+    : null
 
-  const planLabel: Record<string, string> = {
-    none: 'No active subscription',
-    trialing: `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
-    active: 'Active',
-    cancelled: 'Cancelled',
-    past_due: 'Payment failed',
-  }
+  type StatusInfo = { label: string; color: string; detail: string | null }
+  const statusInfo: StatusInfo = {
+    none:     { label: 'No subscription',  color: 'var(--text-faint)', detail: null },
+    trialing: {
+      label:  `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
+      color:  'var(--accent)',
+      detail: trialEnd ? `Ends ${trialEnd} · No charge until then.` : null,
+    },
+    active:   { label: 'Active',           color: 'var(--success)',    detail: 'Your subscription is current.' },
+    cancelled:{ label: 'Cancelled',        color: 'var(--text-faint)', detail: 'Your subscription has ended.' },
+    past_due: { label: 'Payment issue',    color: 'var(--danger)',     detail: 'Update your payment method to restore access.' },
+  }[plan] ?? { label: plan, color: 'var(--text-faint)', detail: null }
+
+  const hasPortal = plan !== 'none'
+  const showPlans = plan === 'none' || plan === 'cancelled'
 
   return (
     <div className="settings-stack">
-      <p className="settings-section__intro">
-        Dayspring is a paid app with a 14-day free trial. Your journal and all its history stays
-        with you — subscribe to keep writing.
-      </p>
 
+      {/* Status */}
       <div className="settings-field">
         <div className="settings-field__head settings-field__head--row">
           <span className="settings-field__label">Status</span>
-          <span
-            className="settings-field__value"
-            style={{
-              color:
-                plan === 'active' || plan === 'trialing'
-                  ? 'var(--success)'
-                  : plan === 'past_due'
-                    ? 'var(--danger)'
-                    : 'var(--text-faint)',
-            }}
-          >
-            {planLabel[plan] ?? plan}
-          </span>
-        </div>
-      </div>
-
-      <div className="settings-divider" />
-
-      <div className="settings-field">
-        <div className="settings-field__head">
-          <span className="settings-field__label">Manage subscription</span>
-          <span className="settings-field__hint">
-            Update your payment method, switch plans, or cancel via the Stripe billing portal.
-          </span>
-        </div>
-        <div className="settings-actions">
-          <button
-            className="btn"
-            onClick={() => void openPortal()}
-            disabled={portalLoading || plan === 'none'}
-          >
-            {portalLoading ? 'Opening…' : 'Open billing portal'}
-          </button>
-          {portalError && (
-            <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: 0 }}>{portalError}</p>
-          )}
-          {plan === 'none' && (
-            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', margin: 0 }}>
-              No active subscription to manage.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="settings-divider" />
-
-      <div className="settings-field">
-        <div className="settings-field__head">
-          <span className="settings-field__label">Pricing</span>
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '0.6rem',
-          }}
-        >
-          {[
-            { label: 'Annual', price: '$64 / yr', note: '~$5.33 / mo' },
-            { label: 'Monthly', price: '$7 / mo', note: 'Cancel anytime' },
-          ].map((p) => (
-            <div
-              key={p.label}
-              style={{
-                padding: '0.7rem 0.8rem',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius)',
-              }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className="settings-field__value" style={{ color: statusInfo.color }}>
+              {statusInfo.label}
+            </span>
+            <button
+              className="btn btn--ghost"
+              style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', lineHeight: 1 }}
+              onClick={() => void handleSync()}
+              disabled={syncing}
+              title="Sync with Stripe"
             >
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>{p.label}</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>{p.price}</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>{p.note}</div>
-            </div>
-          ))}
+              {syncing ? '…' : '↻'}
+            </button>
+          </div>
         </div>
+        {statusInfo.detail && (
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)', lineHeight: 1.55 }}>
+            {statusInfo.detail}
+          </p>
+        )}
       </div>
+
+      {/* Manage billing portal */}
+      {hasPortal && (
+        <>
+          <div className="settings-divider" />
+          <div className="settings-field">
+            <div className="settings-field__head">
+              <span className="settings-field__label">Manage billing</span>
+              <span className="settings-field__hint">
+                Update your payment method, switch plans, or cancel via Stripe.
+              </span>
+            </div>
+            <div className="settings-actions">
+              <button className="btn" onClick={() => void openPortal()} disabled={portalLoading}>
+                {portalLoading ? 'Opening…' : 'Open billing portal →'}
+              </button>
+              {portalError && (
+                <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: 0 }}>{portalError}</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Pricing — only when user needs to make a purchasing decision */}
+      {showPlans && (
+        <>
+          <div className="settings-divider" />
+          <div className="settings-field">
+            <div className="settings-field__head">
+              <span className="settings-field__label">Plans</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+              {[
+                { label: 'Annual', price: '$64 / yr', note: '~$5.33 / mo' },
+                { label: 'Monthly', price: '$7 / mo', note: 'Cancel anytime' },
+              ].map((p) => (
+                <div key={p.label} style={{
+                  padding: '0.7rem 0.8rem',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius)',
+                }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>{p.label}</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>{p.price}</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>{p.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   )
 }

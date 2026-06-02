@@ -1,7 +1,7 @@
 /** Snapshot stored on each `history.pushState` / `replaceState` for in-app back/forward. */
 export const APP_HISTORY_TAG = 'dayspring' as const
 
-export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'subscription' | 'about'
+export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
 /** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
 export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections'

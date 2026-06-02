@@ -6,7 +6,7 @@ export interface SubscriptionState {
   subscription: Subscription | null
   entitled: boolean
   loading: boolean
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 export function useSubscription(): SubscriptionState {
