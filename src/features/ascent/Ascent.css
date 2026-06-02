@@ -1,7 +1,9 @@
-/* THE ASCENT — elevation over one terrain. Immersive dark surface (theme-
- * independent, like the Welcome flow); fonts come from the app's tokens. The
- * morph between altitudes is a CSS crossfade-and-rise (no animation lib); it
- * degrades to a plain fade under prefers-reduced-motion (handled globally). */
+/* THE ASCENT — elevation over one terrain. The volume INVERTS as you climb: the
+ * higher the altitude, the more it is the user's own words and the less the app
+ * speaks. The glow now MEANS clarity/distillation (it is the content, not decor).
+ * Immersive surface; fonts come from the app's tokens. The morph between
+ * altitudes is a CSS crossfade-and-rise (no animation lib); it degrades to a
+ * plain fade under prefers-reduced-motion (handled globally). */
 
 .ascent {
   position: relative;
@@ -16,7 +18,6 @@
   --ascent-gold-soft: #f0c587;
   --a0: #0d1018;
   --a1: #141a28;
-  /* Mountain rock gradient (parametrised so the light theme can warm it). */
   --ascent-rock-top: #2a2436;
   --ascent-rock-bottom: #171520;
 }
@@ -44,7 +45,6 @@
     radial-gradient(1px 1px at 52% 22%, rgba(255, 255, 255, 0.3), transparent);
 }
 
-/* Visually-hidden live region for altitude announcements. */
 .ascent-sr {
   position: absolute;
   width: 1px;
@@ -87,8 +87,6 @@
 .ascent-station {
   position: absolute;
   left: 50%;
-  /* Anchor the group at the rail line; the dot straddles it (below) so the
-   * labels sit fully to the right and the line never crosses the words. */
   transform: none;
   background: none;
   border: none;
@@ -102,7 +100,7 @@
 .ascent-station__dot {
   width: 11px;
   height: 11px;
-  margin-left: -5.5px; /* center the dot on the rail line */
+  margin-left: -5.5px;
   border-radius: 50%;
   background: #2a3040;
   border: 1.5px solid rgba(255, 255, 255, 0.2);
@@ -128,7 +126,6 @@
   transition: 0.3s;
   line-height: 1.2;
   text-align: left;
-  /* Soft frosted backing so the rail line + air don't muddy the words. */
   padding: 3px 10px 4px 9px;
   border-radius: 8px;
   background: rgba(13, 16, 24, 0.32);
@@ -196,22 +193,7 @@
 }
 .ascent-terrain {
   flex: 1;
-  margin-top: 36px;
-}
-.ascent-voice {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.6;
-  color: rgba(236, 231, 223, 0.4);
-  margin-top: 26px;
-  letter-spacing: 0.03em;
-  font-style: normal;
-}
-.ascent-voice.quiet {
-  color: rgba(236, 231, 223, 0.32);
-}
-.ascent-voice.ask {
-  color: rgba(232, 184, 115, 0.55);
+  margin-top: 28px;
 }
 .ascent-empty {
   font-size: 16px;
@@ -222,15 +204,134 @@
   margin: 8px 0 0;
 }
 
-/* ── Valley: entries ────────────────────────────────────────────────────── */
-.ascent-entries {
+/* ── lens row: "watching this season" (attention, not a filter bar) ───────── */
+.ascent-lenses {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 8px;
+  margin-top: 22px;
+  padding: 14px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  animation: ascent-rise 0.7s both 0.1s;
 }
-.ascent-entry {
+.ascent-lenses__label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: rgba(236, 231, 223, 0.35);
+}
+.ascent-lenses__chips {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.ascent-lens {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.62);
+}
+.ascent-lens__x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(236, 231, 223, 0.45);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.ascent-lens__x:hover {
+  color: var(--ascent-gold-soft);
+}
+.ascent-lens__input {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(232, 184, 115, 0.35);
+  border-radius: 6px;
+  color: #efe9df;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  padding: 3px 8px;
+  width: 120px;
+}
+.ascent-lens__input:focus {
+  outline: none;
+  border-color: var(--ascent-gold-soft);
+}
+.ascent-lenses__edit {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-lenses__edit:hover {
+  color: var(--ascent-gold-soft);
+}
+
+/* ── dimension stack (the four stable dimensions, per altitude) ───────────── */
+.ascent-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.ascent-stack--summit {
+  gap: 26px;
+  margin-top: 22px;
+}
+.ascent-dim {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: ascent-rise 0.6s both;
+}
+.ascent-dim__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: rgba(236, 231, 223, 0.45);
+}
+.ascent-dim__empty {
+  font-size: 14px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.4);
+  margin: 0;
+}
+.ascent-dim__open {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ascent-gold);
+  transition: color 0.2s;
+}
+.ascent-dim__open:hover {
+  color: var(--ascent-gold-soft);
+}
+.ascent-dim__note {
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.38);
+}
+
+/* Words */
+.ascent-words__list {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+}
+.ascent-word {
+  display: flex;
+  gap: 14px;
   animation: ascent-rise 0.6s both;
   background: none;
   border: none;
@@ -240,101 +341,167 @@
   color: inherit;
   font: inherit;
 }
-.ascent-entry__bar {
+.ascent-word__bar {
   width: 2px;
   background: linear-gradient(180deg, var(--ascent-gold), transparent);
   border-radius: 2px;
   flex: 0 0 2px;
 }
-.ascent-entry__body {
+.ascent-word__body {
   display: block;
 }
-.ascent-entry__text {
+.ascent-word__text {
   display: block;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.55;
-  margin: 0 0 6px;
+  margin: 0 0 5px;
   color: #e6e1d8;
 }
-.ascent-entry__text.is-quote {
+.ascent-word__text.is-quote {
   font-style: italic;
   color: #efe9df;
 }
-.ascent-entry__date {
+.ascent-word__date {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   color: rgba(236, 231, 223, 0.4);
 }
-.ascent-entry__date em {
-  color: var(--ascent-gold);
-  font-style: normal;
-  opacity: 0;
-  transition: opacity 0.2s;
+/* the one line of the year — set apart, hushed, the quietest content */
+.ascent-dim--words.is-year {
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 8px 0;
 }
-.ascent-entry:hover .ascent-entry__date em,
-.ascent-entry:focus-visible .ascent-entry__date em {
-  opacity: 1;
+.ascent-oneline {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #f3ecdf;
+  font-family: var(--font-serif);
+  font-size: 27px;
+  font-style: italic;
+  line-height: 1.4;
+  max-width: 540px;
+  text-shadow: 0 0 30px rgba(232, 184, 115, 0.22);
+}
+.ascent-oneline__date {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: rgba(236, 231, 223, 0.4);
 }
 
-/* ── Hillside: arcs ─────────────────────────────────────────────────────── */
-.ascent-arcs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.ascent-arc {
-  position: relative;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 20px;
-  animation: ascent-rise 0.6s both;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-}
-.ascent-arc.is-merge-target {
-  cursor: pointer;
-  border-color: rgba(232, 184, 115, 0.4);
-}
-.ascent-arc.is-merge-source {
-  opacity: 0.55;
-}
-.ascent-arc__weight {
+/* Scripture */
+.ascent-scrip__list {
   display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.ascent-pip {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ascent-gold);
-  opacity: 0.85;
-  animation: ascent-pop 0.4s both;
+.ascent-scrip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  animation: ascent-rise 0.5s both;
+  transition: border-color 0.2s, transform 0.2s;
 }
-.ascent-arc__name {
+.ascent-scrip:hover {
+  border-color: rgba(232, 184, 115, 0.45);
+  transform: translateY(-1px);
+}
+.ascent-scrip__ref {
+  font-size: 15px;
+  font-style: italic;
+  color: #efe9df;
+}
+.ascent-scrip__count {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-scrip__suggested {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: rgba(232, 184, 115, 0.5);
+  transition: color 0.2s;
+}
+.ascent-scrip__suggested:hover {
+  color: var(--ascent-gold-soft);
+}
+
+/* Prayer (pattern only) */
+.ascent-prayer__pattern {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-serif);
   font-size: 18px;
-  margin: 0 0 8px;
-  line-height: 1.25;
+  font-style: italic;
+  line-height: 1.45;
+  color: #efe9df;
 }
-.ascent-arc__note {
+.ascent-prayer__pattern:hover {
+  color: var(--ascent-gold-soft);
+}
+.ascent-ebenezer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px;
+  border-left: 2px solid rgba(232, 184, 115, 0.5);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  border-radius: 0 12px 12px 0;
+}
+.ascent-ebenezer__ask {
   font-size: 14px;
   font-style: italic;
   color: rgba(236, 231, 223, 0.6);
-  line-height: 1.55;
-  margin: 0 0 12px;
 }
-.ascent-arc__from {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: rgba(236, 231, 223, 0.35);
+.ascent-ebenezer__arrow {
+  color: var(--ascent-gold);
+  font-size: 14px;
 }
-.ascent-arc__actions {
-  display: flex;
-  gap: 14px;
-  margin-top: 14px;
+.ascent-ebenezer__stone {
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ascent-gold-soft);
+  text-shadow: 0 0 16px rgba(232, 184, 115, 0.25);
 }
+
+/* Learning (a question, never an answer) */
+.ascent-learning__q {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-style: italic;
+  line-height: 1.45;
+  color: #efe9df;
+}
+.ascent-learning__q:hover {
+  color: var(--ascent-gold-soft);
+}
+
+/* shared quiet link */
 .ascent-link {
   background: none;
   border: none;
@@ -349,101 +516,12 @@
 .ascent-link:hover {
   color: var(--ascent-gold-soft);
 }
-.ascent-link.dim {
+.ascent-link:disabled {
   color: rgba(236, 231, 223, 0.4);
-}
-.ascent-link.dim:hover {
-  color: rgba(236, 231, 223, 0.7);
-}
-.ascent-arc__rename {
-  margin: 0 0 8px;
-}
-.ascent-arc__input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(232, 184, 115, 0.4);
-  border-radius: 8px;
-  color: #efe9df;
-  font-family: var(--font-serif);
-  font-size: 16px;
-  padding: 8px 10px;
-}
-.ascent-arc__input:focus {
-  outline: none;
-  border-color: var(--ascent-gold-soft);
-}
-.ascent-arc__rename-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-}
-.ascent-arc__merge-target {
-  display: block;
-  margin-top: 12px;
-  background: none;
-  border: 1px dashed rgba(232, 184, 115, 0.4);
-  border-radius: 8px;
-  padding: 8px 10px;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: rgba(236, 231, 223, 0.6);
-}
-.ascent-arc__merge-target strong {
-  color: var(--ascent-gold-soft);
-}
-
-/* ── Ridge: tensions ────────────────────────────────────────────────────── */
-.ascent-tensions {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.ascent-tension {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 2px solid rgba(232, 184, 115, 0.5);
-  border-radius: 14px;
-  padding: 24px;
-  animation: ascent-rise 0.7s both;
-}
-.ascent-tension__thread {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(236, 231, 223, 0.45);
-}
-.ascent-tension__q {
-  font-size: 20px;
-  font-style: italic;
-  line-height: 1.5;
-  color: #efe9df;
-  margin: 12px 0 16px;
-}
-.ascent-tension__act {
-  background: none;
-  border: none;
-  color: var(--ascent-gold);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  padding: 0;
-  transition: 0.2s;
-}
-.ascent-tension__act:hover:not(:disabled) {
-  color: var(--ascent-gold-soft);
-}
-.ascent-tension__act:disabled {
   cursor: default;
-  color: rgba(236, 231, 223, 0.45);
 }
 
-/* ── Summit: forming mountain ───────────────────────────────────────────── */
+/* ── Summit: the climbed path, lit by the stones you set ──────────────────── */
 .ascent-summit {
   animation: ascent-rise 0.9s both;
 }
@@ -453,258 +531,33 @@
   overflow: visible;
   display: block;
 }
-.ascent-dawn-band {
+.ascent-trail {
   animation: ascent-fade 1.6s ease both 0.3s;
 }
-.ascent-solid-land {
-  animation: ascent-rise-land 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) both 0.2s;
-}
 .ascent-stone-g {
-  animation: ascent-fade 0.7s both;
+  animation: ascent-fade 0.8s both;
 }
 .ascent-stone-dot {
-  filter: drop-shadow(0 0 6px rgba(240, 197, 135, 0.7));
+  filter: drop-shadow(0 0 6px rgba(240, 197, 135, 0.75));
   animation: ascent-breathe 5s ease-in-out infinite;
 }
 .ascent-stone-ring {
   transform-origin: center;
   animation: ascent-ring 4s ease-in-out infinite;
 }
-.ascent-peak-seed {
-  animation: ascent-peakpulse 3.5s ease-in-out infinite;
-}
-.ascent-peak-halo {
-  transform-origin: 300px 40px;
-  animation: ascent-peakhalo 3.5s ease-in-out infinite;
+.ascent-peak-glow {
+  animation: ascent-breathe 6s ease-in-out infinite;
 }
 .ascent-peak-lit {
-  filter: drop-shadow(0 0 12px rgba(240, 197, 135, 0.9));
+  filter: drop-shadow(0 0 12px rgba(247, 236, 214, 0.9));
 }
-.ascent-status-bar {
-  height: 3px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  max-width: 340px;
-  margin: 18px auto 10px;
-  overflow: hidden;
-}
-.ascent-status-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--ascent-gold-soft), var(--ascent-gold));
-  border-radius: 3px;
-  box-shadow: 0 0 10px -1px rgba(232, 184, 115, 0.6);
-  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.ascent-status-text {
-  display: block;
+.ascent-summit__look {
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(236, 231, 223, 0.45);
-}
-.ascent-formed-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 32px;
-}
-.ascent-formed-cell {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 22px;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-}
-.ascent-fc-num {
-  font-size: 40px;
-  font-weight: 500;
-  color: var(--ascent-gold-soft);
-  display: block;
-  line-height: 1;
-}
-.ascent-fc-num.small {
-  font-size: 21px;
-}
-.ascent-fc-label {
-  font-size: 14px;
-  color: rgba(236, 231, 223, 0.6);
-  font-style: italic;
-  display: block;
-  margin-top: 8px;
-}
-.ascent-refrain {
-  margin-top: 30px;
-  text-align: center;
-  padding: 28px 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.ascent-formed-lbl {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
   color: rgba(236, 231, 223, 0.4);
-}
-.ascent-refrain__text {
-  display: block;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #efe9df;
-  font-family: var(--font-serif);
-  font-size: 25px;
-  font-style: italic;
-  line-height: 1.4;
-  margin: 14px 0 12px;
-  text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
-}
-.ascent-refrain__note {
-  font-size: 13px;
-  color: rgba(236, 231, 223, 0.45);
-  font-style: italic;
-}
-
-/* ── Wrapped: Your Year, Unfolding ──────────────────────────────────────── */
-.ascent-wrapped {
-  margin-top: 30px;
-  border-radius: 18px;
-  padding: 22px 24px;
-  background: linear-gradient(
-    135deg,
-    rgba(232, 184, 115, 0.14),
-    rgba(157, 120, 180, 0.1),
-    rgba(90, 110, 160, 0.08)
-  );
-  border: 1px solid rgba(232, 184, 115, 0.22);
-  text-align: center;
-}
-.ascent-wrapped__kicker {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: var(--ascent-gold-soft);
-}
-.ascent-wrapped__peeks {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 18px;
-  margin-top: 16px;
-}
-.ascent-wrapped__peek {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  color: rgba(236, 231, 223, 0.55);
-  font-style: italic;
-}
-.ascent-wrapped__peek em {
-  font-style: normal;
-  font-size: 18px;
-  color: var(--ascent-gold-soft);
-}
-.ascent-wrapped__throughline {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 16px;
-}
-.ascent-wrapped__tl-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: rgba(236, 231, 223, 0.4);
-}
-.ascent-wrapped__tl-pending {
-  font-size: 13px;
-  font-style: italic;
-  color: rgba(232, 184, 115, 0.6);
-}
-.ascent-wrapped__teaser {
-  font-size: 14px;
-  color: rgba(236, 231, 223, 0.6);
-  font-style: italic;
-  line-height: 1.6;
   margin: 14px 0 0;
-}
-.ascent-wrapped__open {
-  margin-top: 16px;
-  background: linear-gradient(160deg, rgba(240, 197, 135, 0.22), rgba(220, 163, 94, 0.12));
-  border: 1px solid rgba(232, 184, 115, 0.35);
-  color: var(--ascent-gold-soft);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  padding: 10px 18px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: 0.25s;
-}
-.ascent-wrapped__open:hover {
-  transform: translateY(-1px);
-}
-
-/* paged review (year complete) */
-.ascent-review {
-  margin-top: 30px;
-  border-radius: 18px;
-  padding: 36px 24px 24px;
-  background: linear-gradient(160deg, rgba(232, 184, 115, 0.16), rgba(90, 110, 160, 0.08));
-  border: 1px solid rgba(232, 184, 115, 0.28);
-  text-align: center;
-}
-.ascent-review__card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 160px;
-  justify-content: center;
-  animation: ascent-rise 0.5s both;
-}
-.ascent-review__header {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: rgba(236, 231, 223, 0.55);
-}
-.ascent-review__big {
-  font-size: 30px;
-  font-style: italic;
-  color: var(--ascent-gold-soft);
-  line-height: 1.3;
-}
-.ascent-review__big.as-link {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-serif);
-}
-.ascent-review__sub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(236, 231, 223, 0.45);
-}
-.ascent-review__dots {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin: 20px 0 16px;
-}
-.ascent-review__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
-}
-.ascent-review__dot.on {
-  background: var(--ascent-gold-soft);
-}
-.ascent-review__nav {
-  display: flex;
-  justify-content: space-between;
 }
 
 /* ── controls ───────────────────────────────────────────────────────────── */
@@ -748,6 +601,288 @@
   letter-spacing: 0.05em;
 }
 
+/* ── drill-in overlay (the season as a path of your own moments) ──────────── */
+.ascent-drill {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+.ascent-drill__scrim {
+  position: fixed;
+  inset: 0;
+  border: none;
+  cursor: pointer;
+  background: rgba(8, 10, 16, 0.72);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: ascent-fade 0.25s both;
+}
+.ascent-drill__panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 600px;
+  background: linear-gradient(165deg, #1a1622, #141019);
+  border: 1px solid rgba(232, 184, 115, 0.18);
+  border-radius: 18px;
+  padding: 22px 24px 26px;
+  box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7);
+  animation: ascent-rise 0.4s both;
+}
+.ascent-drill__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.ascent-drill__title {
+  font-size: 21px;
+  font-style: italic;
+  font-weight: 500;
+  margin: 0;
+  color: #f3ecdf;
+}
+.ascent-drill__close {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(236, 231, 223, 0.5);
+}
+.ascent-drill__close:hover {
+  color: var(--ascent-gold-soft);
+}
+
+/* the path substrate (scripture + prayer drill-ins) */
+.ascent-path {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.ascent-path::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1.5px;
+  background: linear-gradient(180deg, rgba(232, 184, 115, 0.5), rgba(232, 184, 115, 0.12));
+}
+.ascent-path__moment {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  padding: 0 0 22px 0;
+}
+.ascent-path__dot {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 11px;
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--ascent-gold);
+  box-shadow: 0 0 8px -1px rgba(232, 184, 115, 0.7);
+}
+.ascent-path__moment.is-suggested .ascent-path__dot {
+  background: none;
+  border: 1.5px dashed rgba(232, 184, 115, 0.5);
+  box-shadow: none;
+}
+.ascent-path__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ascent-path__excerpt {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.5;
+  color: #e6e1d8;
+}
+.ascent-path__excerpt:hover {
+  color: var(--ascent-gold-soft);
+}
+.ascent-path__moment.is-suggested .ascent-path__excerpt {
+  color: rgba(236, 231, 223, 0.5);
+}
+.ascent-path__date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-path__confirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.ascent-path__hint {
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.42);
+}
+.ascent-path__confirmed {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(232, 184, 115, 0.7);
+  margin-top: 4px;
+}
+
+/* verse rise across altitudes (scripture drill-in) */
+.ascent-vdrill__rise {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ascent-vdrill__rise-lbl {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-vdrill__rise-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  height: 64px;
+}
+.ascent-vdrill__rise-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 100%;
+  width: 34px;
+}
+.ascent-vdrill__rise-n {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ascent-gold-soft);
+  min-height: 12px;
+}
+.ascent-vdrill__rise-bar {
+  width: 18px;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, var(--ascent-gold-soft), rgba(232, 184, 115, 0.25));
+  transition: height 0.6s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.ascent-vdrill__rise-x {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(236, 231, 223, 0.4);
+}
+
+/* learning drill-in (the cross-lens cord) */
+.ascent-learndrill__card {
+  background: #f7f1e4;
+  border: 0.5px solid rgba(120, 90, 40, 0.18);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ascent-cord {
+  display: block;
+  font-family: var(--font-serif);
+}
+.ascent-cord__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  fill: #a8732a;
+}
+.ascent-cord__q {
+  font-style: italic;
+  font-size: 21px;
+  fill: #3a342b;
+}
+.ascent-cord__lens {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  fill: #a8732a;
+}
+.ascent-cord__frag {
+  font-style: italic;
+  font-size: 15px;
+  fill: #3a342b;
+}
+.ascent-cord__date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: #9a917f;
+}
+.ascent-learndrill__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+.ascent-learndrill__note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(236, 231, 223, 0.5);
+}
+
+/* prayer drill-in (asks → forward evidence → stone) */
+.ascent-praydrill__pattern {
+  font-size: 17px;
+  font-style: italic;
+  color: #efe9df;
+  margin: 0 0 22px;
+}
+.ascent-praydrill__forward {
+  position: relative;
+  margin: 10px 0 2px 4px;
+  padding-left: 18px;
+}
+.ascent-praydrill__thread {
+  position: absolute;
+  left: 0;
+  top: -4px;
+  bottom: 8px;
+  width: 0;
+  border-left: 1.5px dotted rgba(232, 184, 115, 0.6);
+}
+.ascent-praydrill__evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ascent-praydrill__ev-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.4);
+}
+
 /* ── keyframes ──────────────────────────────────────────────────────────── */
 @keyframes ascent-airfade {
   from {
@@ -775,26 +910,6 @@
     opacity: 1;
   }
 }
-@keyframes ascent-pop {
-  from {
-    opacity: 0;
-    transform: scale(0);
-  }
-  to {
-    opacity: 0.85;
-    transform: scale(1);
-  }
-}
-@keyframes ascent-rise-land {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes ascent-breathe {
   0%,
   100% {
@@ -815,32 +930,10 @@
     transform: scale(1.15);
   }
 }
-@keyframes ascent-peakpulse {
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-@keyframes ascent-peakhalo {
-  0%,
-  100% {
-    opacity: 0.12;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.28;
-    transform: scale(1.3);
-  }
-}
 
 /* ── light theme (dawn): a daybreak version of the climb ─────────────────────
- * Same elevation metaphor, but a pale predawn sky warming to golden morning
- * instead of night → gold. Dark ink text on warm paper; gold deepened to amber
- * so it reads on light; the night stars are hidden; the mountain becomes a
- * dawn-lit slope. `ink` rgba values are the dawn theme's --text (74,64,53). */
+ * Same elevation metaphor; pale predawn sky warming to morning, dark ink on warm
+ * paper, gold deepened to amber, stars hidden. `ink` rgba = dawn --text (74,64,53). */
 .ascent.ascent--light {
   color: var(--text);
   --ascent-gold: #b5772c;
@@ -872,131 +965,70 @@
 .ascent--light .ascent-line {
   color: rgba(74, 64, 53, 0.72);
 }
-.ascent--light .ascent-voice {
-  color: rgba(74, 64, 53, 0.5);
-}
-.ascent--light .ascent-voice.quiet {
-  color: rgba(74, 64, 53, 0.42);
-}
-.ascent--light .ascent-voice.ask {
-  color: rgba(168, 106, 38, 0.85);
-}
-.ascent--light .ascent-empty {
+.ascent--light .ascent-empty,
+.ascent--light .ascent-dim__empty,
+.ascent--light .ascent-dim__note {
   color: rgba(74, 64, 53, 0.6);
 }
-
-/* Valley */
-.ascent--light .ascent-entry__text {
-  color: #3a322a;
+.ascent--light .ascent-lenses {
+  border-top-color: rgba(74, 64, 53, 0.12);
 }
-.ascent--light .ascent-entry__text.is-quote {
-  color: var(--text-bright);
-}
-.ascent--light .ascent-entry__date {
+.ascent--light .ascent-lenses__label,
+.ascent--light .ascent-dim__eyebrow {
   color: rgba(74, 64, 53, 0.5);
 }
-
-/* Hillside */
-.ascent--light .ascent-arc,
-.ascent--light .ascent-formed-cell {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(74, 64, 53, 0.14);
-  box-shadow: var(--shadow-2);
+.ascent--light .ascent-lens {
+  color: rgba(74, 64, 53, 0.72);
 }
-.ascent--light .ascent-arc__name {
-  color: var(--text-bright);
-}
-.ascent--light .ascent-arc__note {
-  color: rgba(74, 64, 53, 0.7);
-}
-.ascent--light .ascent-arc__from {
-  color: rgba(74, 64, 53, 0.5);
-}
-.ascent--light .ascent-link.dim {
-  color: rgba(74, 64, 53, 0.5);
-}
-.ascent--light .ascent-link.dim:hover {
-  color: rgba(74, 64, 53, 0.8);
-}
-.ascent--light .ascent-arc__input {
+.ascent--light .ascent-lens__input {
   background: #fffdf8;
   color: var(--text-bright);
   border-color: rgba(181, 119, 44, 0.5);
 }
-.ascent--light .ascent-arc__merge-target {
-  color: rgba(74, 64, 53, 0.7);
-  border-color: rgba(181, 119, 44, 0.4);
-}
-
-/* Ridge */
-.ascent--light .ascent-tension {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(74, 64, 53, 0.14);
-  border-left-color: rgba(181, 119, 44, 0.55);
-  box-shadow: var(--shadow-2);
-}
-.ascent--light .ascent-tension__thread {
-  color: rgba(74, 64, 53, 0.55);
-}
-.ascent--light .ascent-tension__q {
-  color: var(--text-bright);
-}
-.ascent--light .ascent-tension__act:disabled {
+.ascent--light .ascent-lenses__edit {
   color: rgba(74, 64, 53, 0.5);
 }
 
-/* Summit */
-.ascent--light .ascent-status-bar {
-  background: rgba(74, 64, 53, 0.12);
+/* Words / Scripture / Prayer / Learning — light */
+.ascent--light .ascent-word__text {
+  color: #3a322a;
 }
-.ascent--light .ascent-status-text {
-  color: rgba(74, 64, 53, 0.55);
+.ascent--light .ascent-word__text.is-quote,
+.ascent--light .ascent-oneline,
+.ascent--light .ascent-prayer__pattern,
+.ascent--light .ascent-learning__q,
+.ascent--light .ascent-scrip__ref {
+  color: var(--text-bright);
 }
-.ascent--light .ascent-fc-label {
-  color: rgba(74, 64, 53, 0.7);
-}
-.ascent--light .ascent-refrain {
-  border-color: rgba(74, 64, 53, 0.12);
-}
-.ascent--light .ascent-formed-lbl {
+.ascent--light .ascent-word__date,
+.ascent--light .ascent-oneline__date,
+.ascent--light .ascent-scrip__count {
   color: rgba(74, 64, 53, 0.5);
 }
-.ascent--light .ascent-refrain__text {
-  color: var(--text-bright);
+.ascent--light .ascent-oneline {
   text-shadow: none;
 }
-.ascent--light .ascent-refrain__note {
-  color: rgba(74, 64, 53, 0.55);
+.ascent--light .ascent-scrip {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(74, 64, 53, 0.14);
+  box-shadow: var(--shadow-2);
 }
-
-/* Wrapped */
-.ascent--light .ascent-wrapped,
-.ascent--light .ascent-review {
-  border-color: rgba(181, 119, 44, 0.3);
+.ascent--light .ascent-ebenezer {
+  background: rgba(255, 255, 255, 0.55);
+  border-left-color: rgba(181, 119, 44, 0.55);
 }
-.ascent--light .ascent-wrapped__peek {
-  color: rgba(74, 64, 53, 0.6);
+.ascent--light .ascent-ebenezer__ask {
+  color: rgba(74, 64, 53, 0.7);
 }
-.ascent--light .ascent-wrapped__tl-label {
+.ascent--light .ascent-ebenezer__stone {
+  color: #a86a26;
+  text-shadow: none;
+}
+.ascent--light .ascent-summit__look {
   color: rgba(74, 64, 53, 0.5);
 }
-.ascent--light .ascent-wrapped__tl-pending {
-  color: rgba(168, 106, 38, 0.85);
-}
-.ascent--light .ascent-wrapped__teaser {
-  color: rgba(74, 64, 53, 0.65);
-}
-.ascent--light .ascent-review__header {
-  color: rgba(74, 64, 53, 0.6);
-}
-.ascent--light .ascent-review__sub {
-  color: rgba(74, 64, 53, 0.5);
-}
-.ascent--light .ascent-review__dot {
-  background: rgba(74, 64, 53, 0.2);
-}
 
-/* Controls */
+/* Controls — light */
 .ascent--light .ascent-ctrl {
   border-top-color: rgba(74, 64, 53, 0.12);
 }
@@ -1012,30 +1044,70 @@
   color: rgba(74, 64, 53, 0.5);
 }
 
+/* Drill-in — light */
+.ascent--light .ascent-drill__scrim {
+  background: rgba(60, 50, 38, 0.4);
+}
+.ascent--light .ascent-drill__panel {
+  background: linear-gradient(165deg, #fffdf8, #f7f1e8);
+  border-color: rgba(181, 119, 44, 0.28);
+}
+.ascent--light .ascent-drill__title {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-drill__close {
+  color: rgba(74, 64, 53, 0.55);
+}
+.ascent--light .ascent-path__excerpt {
+  color: #3a322a;
+}
+.ascent--light .ascent-path__moment.is-suggested .ascent-path__excerpt {
+  color: rgba(74, 64, 53, 0.55);
+}
+.ascent--light .ascent-path__date,
+.ascent--light .ascent-vdrill__rise-lbl,
+.ascent--light .ascent-vdrill__rise-x,
+.ascent--light .ascent-praydrill__ev-label {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-vdrill__rise {
+  border-bottom-color: rgba(74, 64, 53, 0.12);
+}
+.ascent--light .ascent-praydrill__pattern {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-learndrill__note {
+  color: rgba(74, 64, 53, 0.55);
+}
+
 /* ── responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ascent-rail {
-    width: 64px;
-    flex: 0 0 64px;
+    width: 30px;
+    flex: 0 0 30px;
     padding: 40px 0;
   }
+  /* Dots only on narrow screens — the labels would overflow into the content,
+   * and the active altitude is already announced in the header. */
   .ascent-station__label {
-    font-size: 11px;
+    display: none;
+  }
+  .ascent-station {
+    gap: 0;
   }
   .ascent-main {
-    padding: 40px 20px 28px;
+    padding: 40px 18px 28px;
   }
   .ascent-title {
     font-size: 26px;
   }
-  .ascent-arcs,
-  .ascent-formed-grid {
-    grid-template-columns: 1fr;
+  .ascent-oneline {
+    font-size: 21px;
   }
-  .ascent-refrain__text {
-    font-size: 20px;
+  .ascent-drill {
+    padding: 20px 12px;
   }
-  .ascent-review__big {
-    font-size: 24px;
+  .ascent-drill__panel {
+    padding: 18px 16px 22px;
   }
 }

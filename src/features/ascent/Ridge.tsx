@@ -1,63 +1,35 @@
-import { useState } from 'react'
-import { createSpiritualItem } from '@/lib/spiritual'
-import { EMPTY_COPY, RIDGE_COPY, type AltitudeMeta } from './ascent.config'
-import type { RidgeData } from './ascentData'
+import { EMPTY_COPY } from './ascent.config'
+import type { AltitudeData } from './data/types'
+import { LearningDimension } from './dimensions/LearningDimension'
+import { PrayerDimension } from './dimensions/PrayerDimension'
+import { ScriptureDimension } from './dimensions/ScriptureDimension'
+import { WordsDimension } from './dimensions/WordsDimension'
 
 interface Props {
-  data: RidgeData | null
-  meta: AltitudeMeta
+  data: AltitudeData | null
+  onOpenEntry?: ((entryId: string) => void) | undefined
+  onScriptureDrill: (osisRef: string) => void
+  onPrayerDrill: () => void
+  onLearningDrill: () => void
 }
 
-type CarryState = 'idle' | 'carrying' | 'carried'
-
 /**
- * RIDGE (quarter) — the unresolved tensions, handed back AS QUESTIONS. The app
- * asks; it never answers, resolves, or renders a verdict. Each tension can be
- * carried into prayer — laid on the Altar as a new prayer line, not resolved.
+ * RIDGE (quarter) — the long view. The same four dimensions at season scale: the
+ * phrases you circled, the season's anchor passage, the prayer and its first
+ * signs, what you now hold. There is no quarterly rollup — the Words are composed
+ * client-side from the quarter's months. Carrying a thread into prayer lives in
+ * the learning drill-in; the app still only asks.
  */
-export function Ridge({ data, meta }: Props) {
-  const [carry, setCarry] = useState<Record<string, CarryState>>({})
-
-  if (!data) {
+export function Ridge({ data, onOpenEntry, onScriptureDrill, onPrayerDrill, onLearningDrill }: Props) {
+  if (!data || (!data.words && !data.scripture && !data.prayer && !data.learning)) {
     return <p className="ascent-empty">{EMPTY_COPY.quarter.empty}</p>
   }
-
-  async function onCarry(id: string, prayerLine: string) {
-    if (carry[id] === 'carrying' || carry[id] === 'carried') return
-    setCarry((c) => ({ ...c, [id]: 'carrying' }))
-    try {
-      await createSpiritualItem({ type: 'prayer', content: prayerLine })
-      setCarry((c) => ({ ...c, [id]: 'carried' }))
-    } catch {
-      setCarry((c) => ({ ...c, [id]: 'idle' }))
-    }
-  }
-
   return (
-    <div className="ascent-tensions">
-      {data.tensions.map((t, i) => {
-        const state = carry[t.id] ?? 'idle'
-        const prayerLine = t.thread || t.question
-        return (
-          <div className="ascent-tension" key={t.id} style={{ animationDelay: `${i * 130}ms` }}>
-            {t.thread ? <span className="ascent-tension__thread">{t.thread}</span> : null}
-            <p className="ascent-tension__q">{t.question}</p>
-            <button
-              type="button"
-              className="ascent-tension__act"
-              onClick={() => void onCarry(t.id, prayerLine)}
-              disabled={state !== 'idle'}
-            >
-              {state === 'carried'
-                ? RIDGE_COPY.carried
-                : state === 'carrying'
-                  ? RIDGE_COPY.carrying
-                  : RIDGE_COPY.carry}
-            </button>
-          </div>
-        )
-      })}
-      <p className="ascent-voice ask">{meta.voice}</p>
+    <div className="ascent-stack">
+      <WordsDimension data={data.words} onOpenEntry={onOpenEntry} />
+      <ScriptureDimension data={data.scripture} onDrill={onScriptureDrill} />
+      <PrayerDimension data={data.prayer} onDrill={onPrayerDrill} />
+      <LearningDimension data={data.learning} onDrill={onLearningDrill} />
     </div>
   )
 }

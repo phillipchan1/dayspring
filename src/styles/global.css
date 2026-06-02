@@ -1341,10 +1341,36 @@ a {
   box-shadow: var(--shadow-1);
 }
 .journal-topbar__lead {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
   font-family: var(--font-sans);
   font-size: 0.8rem;
   letter-spacing: 0.01em;
   color: var(--text-dim);
+}
+.journal-topbar__back {
+  flex-shrink: 0;
+  padding: 0.2rem 0.45rem;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.journal-topbar__back:hover {
+  background: var(--bg-hover);
+}
+.journal-topbar__label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .journal-topbar__actions {
   display: flex;

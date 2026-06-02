@@ -80,12 +80,26 @@ export async function updateEntryBody(id: string, body: string): Promise<Entry> 
   return entry
 }
 
-export async function removeEntry(id: string): Promise<void> {
+/** Queue a delete locally; returns once IndexedDB/outbox are updated (no network wait). */
+async function queueRemoveEntry(id: string): Promise<void> {
   await cache.cacheDelete(id)
   await cache.outboxRemoveForEntry(id, 'upsert')
   await cache.outboxAdd({ opId: crypto.randomUUID(), kind: 'delete', entryId: id, ts: Date.now() })
+}
+
+/** Optimistic delete — local cache + outbox immediately; server flush in background. */
+export async function removeEntry(id: string): Promise<void> {
+  await queueRemoveEntry(id)
   await refreshPending()
-  await flush()
+  void flush()
+}
+
+/** Batch optimistic deletes with a single background flush. */
+export async function removeEntries(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  await Promise.all(ids.map((id) => queueRemoveEntry(id)))
+  await refreshPending()
+  void flush()
 }
 
 // ── sync ────────────────────────────────────────────────────────────────

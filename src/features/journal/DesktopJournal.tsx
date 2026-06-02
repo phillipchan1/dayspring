@@ -6,6 +6,7 @@ import { useEntriesPanelResize } from './useEntriesPanelResize'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
+import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import type { JournalViewProps } from './journalViewProps'
 
 // In the native macOS app the title bar is transparent (overlay style), so the
@@ -28,6 +29,7 @@ export function DesktopJournal(props: JournalViewProps) {
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -107,7 +109,16 @@ export function DesktopJournal(props: JournalViewProps) {
             style={NATIVE ? { paddingTop: MAC_TRAFFIC_INSET.mainTop } : undefined}
           >
             <div className="journal-topbar__lead" data-tauri-drag-region>
-              {topbarLabel}
+              {entryReturn ? (
+                <button
+                  type="button"
+                  className="journal-topbar__back"
+                  onClick={onReturnFromEntry}
+                >
+                  ← {ENTRY_RETURN_LABEL[entryReturn.surface]}
+                </button>
+              ) : null}
+              <span className="journal-topbar__label">{topbarLabel}</span>
             </div>
             <div className="journal-topbar__actions">
               <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>

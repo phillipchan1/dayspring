@@ -1,27 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { ALTITUDES, CONTROLS } from './ascent.config'
-import {
-  loadHillside,
-  loadRidge,
-  loadValley,
-  type HillsideData,
-  type RidgeData,
-  type ValleyData,
-} from './ascentData'
-import { loadSummit, type SummitData } from './summitData'
-import { Valley } from './Valley'
+import { loadAscent, type LoadedAscent } from './data'
 import { Hillside } from './Hillside'
+import { LensRow } from './LensRow'
 import { Ridge } from './Ridge'
 import { Summit } from './Summit'
+import { Valley } from './Valley'
+import { LearningDrillIn } from './drilldowns/LearningDrillIn'
+import { PrayerDrillIn } from './drilldowns/PrayerDrillIn'
+import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
 import './Ascent.css'
 
 interface Props {
   onOpenEntry?: ((entryId: string) => void) | undefined
 }
 
-/** undefined = loading, null = loaded-but-empty, value = ready. */
+/** undefined = loading, null = failed/empty, value = ready. */
 type Loaded<T> = T | null | undefined
+
+/** Which drill-in is open over the climb (the dimension's evidence). */
+type Drill =
+  | { kind: 'scripture'; osisRef: string }
+  | { kind: 'prayer' }
+  | { kind: 'learning' }
+  | null
 
 const LAST = ALTITUDES.length - 1
 const SWIPE_THRESHOLD = 56
@@ -34,9 +37,7 @@ function inTextField(): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable
 }
 
-/** Track the active palette so the Ascent gets a daybreak (light) treatment under
- *  the `dawn` theme and its night treatment under dark themes. Reacts live to
- *  theme switches via the `data-theme` attribute App sets on <html>. */
+/** Light (dawn) vs night palette, reacting live to the <html data-theme> switch. */
 function useIsLightTheme(): boolean {
   const [light, setLight] = useState(() => document.documentElement.dataset.theme === 'dawn')
   useEffect(() => {
@@ -52,23 +53,22 @@ function useIsLightTheme(): boolean {
 
 /**
  * THE ASCENT — Looking Back as elevation over one terrain. Four altitudes
- * (Valley → Hillside → Ridge → Summit) on one mountain; climbing is the
- * synthesis. The higher you go, the less the app interprets.
+ * (Valley → Hillside → Ridge → Summit) on one mountain; the SAME four dimensions
+ * persist and only change resolution. The volume INVERTS as you climb: the
+ * higher you go, the more it is the user's own words and the less the app speaks.
  */
 export function AscentView({ onOpenEntry }: Props) {
   const [idx, setIdx] = useState(0)
   const light = useIsLightTheme()
-  const [valley, setValley] = useState<Loaded<ValleyData>>(undefined)
-  const [hillside, setHillside] = useState<Loaded<HillsideData>>(undefined)
-  const [ridge, setRidge] = useState<Loaded<RidgeData>>(undefined)
-  const [summit, setSummit] = useState<Loaded<SummitData>>(undefined)
+  const [ascent, setAscent] = useState<Loaded<LoadedAscent>>(undefined)
+  const [drill, setDrill] = useState<Drill>(null)
 
   useEffect(() => {
     let alive = true
-    loadValley().then((d) => alive && setValley(d), () => alive && setValley(null))
-    loadHillside().then((d) => alive && setHillside(d), () => alive && setHillside(null))
-    loadRidge().then((d) => alive && setRidge(d), () => alive && setRidge(null))
-    loadSummit().then((d) => alive && setSummit(d), () => alive && setSummit(null))
+    loadAscent().then(
+      (d) => alive && setAscent(d),
+      () => alive && setAscent(null),
+    )
     return () => {
       alive = false
     }
@@ -77,10 +77,10 @@ export function AscentView({ onOpenEntry }: Props) {
   const up = useCallback(() => setIdx((v) => Math.min(v + 1, LAST)), [])
   const down = useCallback(() => setIdx((v) => Math.max(v - 1, 0)), [])
 
-  // ↑/↓ keys ascend/descend (unless typing in a field).
+  // ↑/↓ ascend/descend — unless typing or a drill-in is open.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (inTextField()) return
+      if (inTextField() || drill) return
       if (e.key === 'ArrowUp') {
         e.preventDefault()
         up()
@@ -91,9 +91,9 @@ export function AscentView({ onOpenEntry }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [up, down])
+  }, [up, down, drill])
 
-  // Vertical swipe: swipe up = ascend, swipe down = descend.
+  // Vertical swipe: up = ascend, down = descend.
   const touchY = useRef<number | null>(null)
   function onTouchStart(e: React.TouchEvent) {
     touchY.current = e.touches[0]?.clientY ?? null
@@ -101,15 +101,22 @@ export function AscentView({ onOpenEntry }: Props) {
   function onTouchEnd(e: React.TouchEvent) {
     const start = touchY.current
     touchY.current = null
-    if (start == null) return
+    if (start == null || drill) return
     const dy = (e.changedTouches[0]?.clientY ?? start) - start
     if (dy <= -SWIPE_THRESHOLD) up()
     else if (dy >= SWIPE_THRESHOLD) down()
   }
 
   const L = ALTITUDES[idx]!
-  const loading = [valley, hillside, ridge, summit][idx] === undefined
+  const loading = ascent === undefined
   const air = light ? L.airLight : L.air
+
+  const openScripture = useCallback((osisRef: string) => setDrill({ kind: 'scripture', osisRef }), [])
+  const openPrayer = useCallback(() => setDrill({ kind: 'prayer' }), [])
+  const openLearning = useCallback(() => setDrill({ kind: 'learning' }), [])
+  const closeDrill = useCallback(() => setDrill(null), [])
+
+  const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
 
   return (
     <div
@@ -121,7 +128,6 @@ export function AscentView({ onOpenEntry }: Props) {
       <div className="ascent-air" key={L.key} aria-hidden />
       <div className="ascent-stars" style={{ opacity: 1 - idx / LAST }} aria-hidden />
 
-      {/* live announcement of the current altitude for screen readers */}
       <div className="ascent-sr" aria-live="polite">
         {L.alt} — {L.label}
       </div>
@@ -135,17 +141,37 @@ export function AscentView({ onOpenEntry }: Props) {
           <p className="ascent-line">{L.line}</p>
         </header>
 
+        <LensRow />
+
         <div className="ascent-terrain" key={`${L.key}-t`}>
           {loading ? (
             <SurfaceLoader label="Reading the land…" />
           ) : idx === 0 ? (
-            <Valley data={valley ?? null} meta={L} onOpenEntry={onOpenEntry} />
+            <Valley data={altitude} onOpenEntry={onOpenEntry} onScriptureDrill={openScripture} />
           ) : idx === 1 ? (
-            <Hillside data={hillside ?? null} meta={L} />
+            <Hillside
+              data={altitude}
+              onOpenEntry={onOpenEntry}
+              onScriptureDrill={openScripture}
+              onPrayerDrill={openPrayer}
+              onLearningDrill={openLearning}
+            />
           ) : idx === 2 ? (
-            <Ridge data={ridge ?? null} meta={L} />
+            <Ridge
+              data={altitude}
+              onOpenEntry={onOpenEntry}
+              onScriptureDrill={openScripture}
+              onPrayerDrill={openPrayer}
+              onLearningDrill={openLearning}
+            />
           ) : (
-            <Summit data={summit ?? null} onOpenEntry={onOpenEntry} />
+            <Summit
+              data={ascent?.year ?? null}
+              onOpenEntry={onOpenEntry}
+              onScriptureDrill={openScripture}
+              onPrayerDrill={openPrayer}
+              onLearningDrill={openLearning}
+            />
           )}
         </div>
 
@@ -156,16 +182,26 @@ export function AscentView({ onOpenEntry }: Props) {
           <span className="ascent-ctrl-alt">
             {idx === LAST ? CONTROLS.atSummit : CONTROLS.toNext(ALTITUDES[idx + 1]!.label)}
           </span>
-          <button
-            type="button"
-            className="ascent-ctrl-btn up"
-            onClick={up}
-            disabled={idx === LAST}
-          >
+          <button type="button" className="ascent-ctrl-btn up" onClick={up} disabled={idx === LAST}>
             {CONTROLS.ascend}
           </button>
         </div>
       </main>
+
+      {drill?.kind === 'scripture' && ascent ? (
+        <ScriptureDrillIn
+          osisRef={drill.osisRef}
+          windows={ascent.windows}
+          onClose={closeDrill}
+          onOpenEntry={onOpenEntry}
+        />
+      ) : null}
+      {drill?.kind === 'learning' && altitude?.learning ? (
+        <LearningDrillIn data={altitude.learning} onClose={closeDrill} onOpenEntry={onOpenEntry} />
+      ) : null}
+      {drill?.kind === 'prayer' && altitude?.prayer ? (
+        <PrayerDrillIn data={altitude.prayer} onClose={closeDrill} onOpenEntry={onOpenEntry} />
+      ) : null}
     </div>
   )
 }

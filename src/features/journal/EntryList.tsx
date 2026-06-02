@@ -18,7 +18,7 @@ import {
   type EntriesGroupBy,
   type EntryGroup,
 } from './groupEntries'
-import { orderedEntryIds } from './orderedEntryIds'
+import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
 import { useEntryGroupCollapse } from './useEntryGroupCollapse'
 import { useEntryMultiSelect } from './useEntryMultiSelect'
 import { useVirtualRange } from './useVirtualRange'
@@ -29,7 +29,11 @@ import {
   exportEntriesZip,
 } from './entryBulkActions'
 import type { EntrySelectionChange } from './entrySelectionApi'
-import { focusEntryRow, focusedEntryIdInList } from './entryListFocus'
+import {
+  focusEntryRow,
+  focusedEntryIdInList,
+  scrollEntryIndexIntoView,
+} from './entryListFocus'
 
 const NATIVE = isTauri()
 const FLAT_VIRTUAL_THRESHOLD = 100
@@ -43,7 +47,7 @@ interface Props {
   /** Called after a row click selects (e.g. mobile closes the drawer). */
   onRowActivate?: () => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
-  onDeleteEntries: (ids: string[]) => Promise<void>
+  onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   query: string
   onQueryChange: (q: string) => void
   fullWidth?: boolean
@@ -165,7 +169,38 @@ export function EntryList({
     setBulkPhase({ kind: 'menu', entries: entriesForMenu, x, y })
   }
 
+  function deleteEntriesAndRestoreFocus(ids: string[]) {
+    if (ids.length === 0) return
+    const nextId = nextEntryIdAfterDelete(orderIds, ids)
+    const idSet = new Set(ids)
+    const remaining = entries.filter((e) => !idSet.has(e.id))
+    const nextEntry = nextId ? remaining.find((e) => e.id === nextId) : null
+    const nextOrder = orderedEntryIds(remaining, groups)
+    const nextIdx = nextId ? nextOrder.indexOf(nextId) : -1
+
+    onDeleteEntries(ids, nextId ?? null)
+    multi.endRange()
+    if (nextEntry && nextId) {
+      multi.navigateTo(nextId, 'single')
+      multi.setAnchor(nextId)
+      onSelect(nextEntry)
+      requestAnimationFrame(() => {
+        const listEl = listRef.current
+        if (!listEl) return
+        if (nextIdx >= 0) scrollEntryIndexIntoView(listEl, nextIdx, flatVirtual)
+        focusEntryRow(listEl, nextId)
+      })
+    } else {
+      multi.clearSelection()
+    }
+  }
+
   function handleMenuAction(action: EntryMenuAction, entry: Entry) {
+    if (action === 'delete') {
+      void deleteEntriesAndRestoreFocus([entry.id])
+      closeMenu()
+      return
+    }
     onMenuAction(action, entry)
     closeMenu()
   }
@@ -183,8 +218,7 @@ export function EntryList({
           await exportEntriesZip(bulkEntries)
           break
         case 'delete':
-          await onDeleteEntries(bulkEntries.map((e) => e.id))
-          multi.clearSelection()
+          deleteEntriesAndRestoreFocus(bulkEntries.map((e) => e.id))
           break
       }
     } catch {

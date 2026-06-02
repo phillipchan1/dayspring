@@ -56,6 +56,8 @@ export interface ThreadDetail extends AltarThread {
 }
 
 const PAGE = 1000
+// Max ids per `.in('id', [...])` — a long list overflows PostgREST's URL → 400.
+const IN_CHUNK = 150
 
 function inWindowClause(q: any, window?: DateWindow) {
   // Season scrubber filters by when the prayer was PLANTED.
@@ -77,16 +79,24 @@ interface ItemRow {
 async function loadMembers(threadIds: string[]): Promise<Map<string, Touch[]>> {
   const sb = requireSupabase()
   const byThread = new Map<string, ItemRow[]>()
-  for (let i = 0; i < threadIds.length; i += PAGE) {
-    const slice = threadIds.slice(i, i + PAGE)
-    const { data, error } = await sb
-      .from('spiritual_items')
-      .select('id, thread_id, type, content, created_at, entry_id')
-      .in('thread_id', slice)
-    if (error) throw error
-    for (const r of (data ?? []) as ItemRow[]) {
-      if (!r.thread_id) continue
-      ;(byThread.get(r.thread_id) ?? byThread.set(r.thread_id, []).get(r.thread_id)!).push(r)
+  // Chunk the thread_id IN-list (a long list overflows PostgREST's URL → 400) AND
+  // paginate rows (a busy set of threads has far more than the 1000-row cap).
+  for (let i = 0; i < threadIds.length; i += IN_CHUNK) {
+    const slice = threadIds.slice(i, i + IN_CHUNK)
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await sb
+        .from('spiritual_items')
+        .select('id, thread_id, type, content, created_at, entry_id')
+        .in('thread_id', slice)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) throw error
+      const rows = (data ?? []) as ItemRow[]
+      for (const r of rows) {
+        if (!r.thread_id) continue
+        ;(byThread.get(r.thread_id) ?? byThread.set(r.thread_id, []).get(r.thread_id)!).push(r)
+      }
+      if (rows.length < PAGE) break
     }
   }
   // Resolve entry dates so a touch reads as its source date, not its row date.
@@ -96,11 +106,11 @@ async function loadMembers(threadIds: string[]): Promise<Map<string, Touch[]>> {
     ),
   ]
   const entryDate = new Map<string, string>()
-  for (let i = 0; i < entryIds.length; i += PAGE) {
+  for (let i = 0; i < entryIds.length; i += IN_CHUNK) {
     const { data } = await sb
       .from('entries')
       .select('id, created_at')
-      .in('id', entryIds.slice(i, i + PAGE))
+      .in('id', entryIds.slice(i, i + IN_CHUNK))
     for (const e of (data ?? []) as { id: string; created_at: string }[]) entryDate.set(e.id, e.created_at)
   }
   const out = new Map<string, Touch[]>()

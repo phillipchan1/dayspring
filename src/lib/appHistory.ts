@@ -3,6 +3,21 @@ export const APP_HISTORY_TAG = 'dayspring' as const
 
 export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'subscription' | 'about'
 
+/** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
+export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections'
+
+export interface EntryReturnContext {
+  surface: EntryReturnSurface
+  scriptureBook: string | null
+  scriptureVerse: string | null
+}
+
+export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
+  scripture: 'Lamp',
+  altar: 'Altar',
+  reflections: 'Ascent',
+}
+
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
   surface: 'journal' | 'reflections' | 'altar' | 'scripture'
@@ -16,6 +31,8 @@ export interface AppHistoryState {
   scriptureBook: string | null
   /** Verse osis_ref the book panel opens focused on (a returning-strip jump). */
   scriptureVerse: string | null
+  /** Set when previewing an entry from Lamp/Altar/Ascent — Back returns here. */
+  entryReturn: EntryReturnContext | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -28,6 +45,7 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   restrictIds: null,
   scriptureBook: null,
   scriptureVerse: null,
+  entryReturn: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -60,6 +78,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.sidebar === b.sidebar &&
     a.scriptureBook === b.scriptureBook &&
     a.scriptureVerse === b.scriptureVerse &&
+    JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
   )
@@ -103,6 +122,24 @@ export function replaceAppHistory(state: AppHistoryState): void {
 }
 
 /** Remove Supabase OAuth tokens from the address bar after sign-in. */
+/** Snapshot return context when leaving an alt canvas to read an entry. */
+export function entryReturnFromState(state: AppHistoryState): EntryReturnContext | null {
+  if (state.surface === 'scripture') {
+    return {
+      surface: 'scripture',
+      scriptureBook: state.scriptureBook,
+      scriptureVerse: state.scriptureVerse,
+    }
+  }
+  if (state.surface === 'altar') {
+    return { surface: 'altar', scriptureBook: null, scriptureVerse: null }
+  }
+  if (state.surface === 'reflections') {
+    return { surface: 'reflections', scriptureBook: null, scriptureVerse: null }
+  }
+  return null
+}
+
 export function stripAuthUrlNoise(): void {
   if (!window.location.hash && !window.location.search) return
   const current = readAppHistoryState() ?? DEFAULT_APP_HISTORY

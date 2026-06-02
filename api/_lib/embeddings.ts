@@ -7,7 +7,10 @@ import { env } from './env.js'
 
 let client: OpenAI | null = null
 function openai(): OpenAI {
-  if (!client) client = new OpenAI({ apiKey: env.openaiKey() })
+  // Backfill makes thousands of calls over many minutes — tolerate transient
+  // network blips (connect timeouts) with generous SDK retries + a longer timeout
+  // instead of letting one failed connection abort the whole run.
+  if (!client) client = new OpenAI({ apiKey: env.openaiKey(), maxRetries: 8, timeout: 60_000 })
   return client
 }
 

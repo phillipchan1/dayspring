@@ -25,6 +25,8 @@ import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
 import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
+import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
+import { entryReturnFromState } from '@/lib/appHistory'
 import {
   copyEntryMarkdown,
   copyEntryText,
@@ -261,12 +263,14 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     if (match) {
       skipEntrySyncRef.current = true
       setContent(asEntryMarkdown(match.body_markdown))
+      loadedEntryIdRef.current = wantedId
       return
     }
     if (!wantedId && list[0] && !contentRef.current.trim()) {
       skipEntrySyncRef.current = true
       go({ entryId: list[0].id }, { replace: true })
       setContent(asEntryMarkdown(list[0].body_markdown))
+      loadedEntryIdRef.current = list[0]!.id
     }
   }
 
@@ -291,10 +295,11 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       const first = synced[0]!
       go({ entryId: first.id }, { replace: true })
       setContent(asEntryMarkdown(first.body_markdown))
+      loadedEntryIdRef.current = first.id
       return
     }
     if (wantedId && synced.length) {
-      navigateAwayFromDeletedEntry(synced)
+      navigateAwayFromDeletedEntry(synced, [wantedId])
     }
   }
 
@@ -363,16 +368,22 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }, [])
 
-  function navigateAwayFromDeletedEntry(remaining: Entry[]) {
+  function navigateAwayFromDeletedEntry(remaining: Entry[], deletedIds: string[]) {
     skipEntrySyncRef.current = true
-    const next = remaining[0] ?? null
-    if (next) {
-      go({ surface: 'journal', entryId: next.id })
-      setContent(asEntryMarkdown(next.body_markdown))
-    } else {
-      go({ surface: 'journal', entryId: null })
-      setContent('')
+    const orderBefore = orderedEntryIds(entries, null)
+    const nextId = nextEntryIdAfterDelete(orderBefore, deletedIds)
+    if (nextId) {
+      const next = remaining.find((e) => e.id === nextId) ?? remaining[0]
+      if (next) {
+        go({ surface: 'journal', entryId: next.id })
+        setContent(asEntryMarkdown(next.body_markdown))
+        loadedEntryIdRef.current = next.id
+        return
+      }
     }
+    go({ surface: 'journal', entryId: null })
+    setContent('')
+    loadedEntryIdRef.current = null
   }
 
   // Live updates from other tabs / devices via Supabase Realtime.
@@ -394,7 +405,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           if (!synced) return
           setEntries(synced)
           if (preserveId && !synced.some((e) => e.id === preserveId)) {
-            navigateAwayFromDeletedEntry(synced)
+            navigateAwayFromDeletedEntry(synced, [preserveId])
           }
           return
         }
@@ -415,7 +426,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
         if (preserveId && deletedSet.has(preserveId)) {
           const remaining = (await repo.listEntries()).filter((e) => !deletedSet.has(e.id))
-          navigateAwayFromDeletedEntry(remaining)
+          navigateAwayFromDeletedEntry(remaining, [preserveId])
         }
       })()
     })
@@ -457,9 +468,12 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   // Do not reload when `entries` refreshes from list sync — that fights live typing.
   useEffect(() => {
     if (!entriesReady) return
+    if (state.surface !== 'journal') {
+      loadedEntryIdRef.current = null
+      return
+    }
     if (skipEntrySyncRef.current) {
       skipEntrySyncRef.current = false
-      loadedEntryIdRef.current = entryId
       return
     }
     // Body can arrive after entriesReady; don't treat the id as "loaded" until
@@ -479,9 +493,13 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
     loadedEntryIdRef.current = entryId
     setContent(body)
-  }, [entryId, entries, entriesReady])
+  }, [entryId, entries, entriesReady, state.surface])
 
   function toggleLookBack() {
+    if (state.entryReturn?.surface === 'reflections') {
+      returnFromEntryOrigin()
+      return
+    }
     if (reflectionsActive) back()
     else {
       void saveNow()
@@ -491,16 +509,55 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   }
 
   function toggleScripture() {
+    if (state.entryReturn?.surface === 'scripture') {
+      returnFromEntryOrigin()
+      return
+    }
     if (scriptureActive) back()
     else {
       void saveNow()
       setEntriesOpen(false)
       // Always land on the canon map, never a stale book panel.
-      go({ surface: 'scripture', settings: null, help: false, sidebar: false, scriptureBook: null, scriptureVerse: null })
+      go({
+        surface: 'scripture',
+        settings: null,
+        help: false,
+        sidebar: false,
+        scriptureBook: null,
+        scriptureVerse: null,
+        entryReturn: null,
+      })
     }
   }
 
+  /** Leave an entry opened from Lamp / Altar / Ascent and restore that canvas. */
+  function returnFromEntryOrigin() {
+    const ret = state.entryReturn
+    if (!ret) {
+      back()
+      return
+    }
+    skipEntrySyncRef.current = true
+    loadedEntryIdRef.current = null
+    go(
+      {
+        surface: ret.surface,
+        entryId: null,
+        entryReturn: null,
+        scriptureBook: ret.scriptureBook,
+        scriptureVerse: ret.scriptureVerse,
+        settings: null,
+        help: false,
+      },
+      { replace: true },
+    )
+  }
+
   function toggleAltar() {
+    if (state.entryReturn?.surface === 'altar') {
+      returnFromEntryOrigin()
+      return
+    }
     if (altarActive) back()
     else {
       void saveNow()
@@ -574,9 +631,22 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [settingsOpen, helpOpen, go, back])
 
+  // Esc returns to Lamp / Altar / Ascent when previewing an entry from there.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !state.entryReturn) return
+      if (settingsOpen || helpOpen || focus.active || slashCapture !== null) return
+      if (shouldIgnoreTarget(e.target) || isInEditor(e.target)) return
+      e.preventDefault()
+      returnFromEntryOrigin()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [state.entryReturn, settingsOpen, helpOpen, focus.active, slashCapture])
+
   // Keep the active entry's list row in sync as you type.
   useEffect(() => {
-    if (entryId === null) return
+    if (state.surface !== 'journal' || entryId === null) return
     const words = wordCount(content)
     setEntries((prev) => {
       const idx = prev.findIndex((e) => e.id === entryId)
@@ -589,7 +659,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           : e,
       )
     })
-  }, [content, entryId])
+  }, [content, entryId, state.surface])
 
   async function handleNew() {
     skipAdoptOnCreateRef.current = true
@@ -616,6 +686,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       return
     }
     skipEntrySyncRef.current = true
+    loadedEntryIdRef.current = entry.id
     go({ surface: 'journal', entryId: entry.id })
     setContent(body)
   }
@@ -629,6 +700,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
     await saveNow()
     skipEntrySyncRef.current = true
+    loadedEntryIdRef.current = entry.id
     go({ surface: 'journal', entryId: entry.id })
     setContent(asEntryMarkdown(entry.body_markdown))
   }
@@ -640,7 +712,21 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     const entry =
       entries.find((e) => e.id === id) ?? (await cacheGet(id)) ?? (await getEntryById(id))
     if (!entry) return
-    void handleBrowse(entry)
+
+    const returnCtx = entryReturnFromState(state)
+    skipEditorAutofocusRef.current = true
+    skipEntrySyncRef.current = true
+    go({
+      surface: 'journal',
+      entryId: entry.id,
+      entryReturn: returnCtx,
+      scriptureBook: null,
+      scriptureVerse: null,
+      settings: null,
+      help: false,
+    })
+    setContent(asEntryMarkdown(entry.body_markdown))
+    loadedEntryIdRef.current = entry.id
   }
 
   const handleSelectionChange = useCallback((state: EntrySelectionState, api: EntrySelectionApi) => {
@@ -693,7 +779,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             printEntry(entry)
             break
           case 'delete':
-            await handleDelete(entry)
+            handleDelete(entry)
             break
         }
       } catch (e) {
@@ -702,32 +788,36 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     })()
   }
 
-  async function handleDelete(entry: Entry) {
-    await handleDeleteEntries([entry.id])
+  function handleDelete(entry: Entry) {
+    handleDeleteEntries([entry.id])
   }
 
-  async function handleDeleteEntries(ids: string[]) {
+  function handleDeleteEntries(ids: string[], focusAfterId?: string | null): void {
     if (ids.length === 0) return
     const idSet = new Set(ids)
-    if (entryId && idSet.has(entryId)) await saveNow()
-
     const remaining = entries.filter((e) => !idSet.has(e.id))
-    if (entryId && idSet.has(entryId)) {
+
+    // UI first — list + editor update synchronously so keyboard nav stays instant.
+    setEntries(remaining)
+    if (focusAfterId !== undefined) {
       skipEntrySyncRef.current = true
-      const next = remaining[0] ?? null
-      if (next) {
-        go({ surface: 'journal', entryId: next.id })
-        setContent(asEntryMarkdown(next.body_markdown))
+      if (focusAfterId) {
+        const next = remaining.find((e) => e.id === focusAfterId)
+        if (next) {
+          go({ surface: 'journal', entryId: next.id })
+          setContent(asEntryMarkdown(next.body_markdown))
+          loadedEntryIdRef.current = next.id
+        }
       } else {
         go({ surface: 'journal', entryId: null })
         setContent('')
+        loadedEntryIdRef.current = null
       }
+    } else if (entryId && idSet.has(entryId)) {
+      navigateAwayFromDeletedEntry(remaining, ids)
     }
 
-    try {
-      await Promise.all(ids.map((id) => repo.removeEntry(id)))
-      setEntries(remaining)
-    } catch (e) {
+    void repo.removeEntries(ids).catch((e) => {
       setLoadError(
         e instanceof Error
           ? e.message
@@ -735,8 +825,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             ? 'Failed to delete entry'
             : 'Failed to delete entries',
       )
-      throw e
-    }
+    })
   }
 
   function openSettings() {
@@ -873,6 +962,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     reflectionsActive,
     altarActive,
     scriptureActive,
+    entryReturn: state.entryReturn,
+    onReturnFromEntry: returnFromEntryOrigin,
   }
 
   return (

@@ -3,7 +3,9 @@ import { env } from './env.js'
 
 let client: OpenAI | null = null
 function openai(): OpenAI {
-  if (!client) client = new OpenAI({ apiKey: env.openaiKey() })
+  // Generous retries so a transient connect blip during a long backfill doesn't
+  // abort the run (the harvest/label passes make hundreds of calls).
+  if (!client) client = new OpenAI({ apiKey: env.openaiKey(), maxRetries: 8, timeout: 60_000 })
   return client
 }
 

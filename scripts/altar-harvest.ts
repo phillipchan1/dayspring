@@ -37,6 +37,8 @@ loadDotEnv()
 const args = process.argv.slice(2)
 const DRY = args.includes('--dry')
 const RESET = args.includes('--reset')
+const RETHREAD = args.includes('--rethread') // re-cluster only (reset threads → embed stragglers → thread)
+const SUBJECTS = args.includes('--subjects') // Altar v2: regroup prayers by subject (assumes harvested + embedded)
 const maxArg = args.find((a) => a.startsWith('--max='))
 const MAX = maxArg ? Number(maxArg.slice('--max='.length)) : undefined
 
@@ -65,7 +67,32 @@ async function main(): Promise<void> {
     return
   }
 
-  const { harvestPrayers, embedUnembedded, threadItems, resetHarvest } = await import('../api/_lib/altar.ts')
+  const { harvestPrayers, embedUnembedded, threadItems, resetHarvest, resetThreads, regroupSubjects } =
+    await import('../api/_lib/altar.ts')
+
+  if (SUBJECTS) {
+    console.log('Regrouping prayers by subject (Altar v2)…')
+    const e = await embedUnembedded(owner)
+    if (e.items) console.log(`  embedded ${e.items} stragglers first.`)
+    const r = await regroupSubjects(owner)
+    console.log(
+      `  tagged ${r.tagged} · kept ${r.kept} substantive · ${r.subjects} subjects · ${r.memberships} memberships.`,
+    )
+    console.log('\nDone regrouping by subject.')
+    return
+  }
+
+  if (RETHREAD) {
+    console.log('Re-clustering (keeping harvested prayers + embeddings)…')
+    const r = await resetThreads(owner)
+    console.log(`  cleared ${r.deletedThreads} threads.`)
+    const e = await embedUnembedded(owner)
+    console.log(`  embedded ${e.entries} entries, ${e.items} stragglers.`)
+    const t = await threadItems(owner)
+    console.log(`  placed ${t.placed} items · ${t.newThreads} new threads · ${t.updatedThreads} grown.`)
+    console.log('\nDone re-clustering.')
+    return
+  }
 
   if (RESET) {
     console.log('Resetting prior harvest (deleting scanned items, clearing watermark)…')

@@ -52,7 +52,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const go = useCallback(
     (patch: Partial<AppHistoryState>, opts?: { replace?: boolean }) => {
       const next = mergeAppHistory(stateRef.current, patch)
-      if (!opts?.replace && appHistoryEqual(next, stateRef.current)) return
+      if (appHistoryEqual(next, stateRef.current)) return
       commit(next, Boolean(opts?.replace))
     },
     [commit],
@@ -97,6 +97,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         sidebar: false,
         scriptureBook: null,
         scriptureVerse: null,
+        entryReturn: null,
       })
     } else if (pathSurface) {
       current = mergeAppHistory(current ?? DEFAULT_APP_HISTORY, {
@@ -107,6 +108,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         sidebar: false,
         scriptureBook: null,
         scriptureVerse: null,
+        entryReturn: null,
       })
     }
 

@@ -25,10 +25,13 @@ const MERGE_THRESHOLD = 0.64
 // even shown to the Nano evidence pass.
 const SWEEP_MAX_DISTANCE = 0.45
 const PAGE = 1000
+// Max ids in a single `.in('id', [...])` filter. PostgREST puts these in the URL;
+// ~1000 uuids (~37 KB) blows the URL length limit → a bare 400 "Bad Request".
+const IN_CHUNK = 150
 // How many model/DB calls run at once in the bulk passes. The bottleneck was
 // long SEQUENTIAL runs (they got killed before finishing); a small pool finishes
 // in minutes. Nano's RPM/TPM easily absorbs this.
-const POOL = 8
+const POOL = 3
 
 /** Run `fn` over items with bounded concurrency, preserving result order. */
 async function mapPool<T, R>(
@@ -99,6 +102,21 @@ function seedMember(c: Cluster): Member {
 }
 
 /**
+ * Point a set of items at a thread, CHUNKED. A tall recurring cairn can have
+ * thousands of members; a single `.in('id', [...])` would build a URL past
+ * PostgREST's length limit (→ 400). 100 ids/request stays well under it.
+ */
+async function linkMembers(sb: SupabaseClient, threadId: string, itemIds: string[]): Promise<void> {
+  for (let i = 0; i < itemIds.length; i += IN_CHUNK) {
+    const { error } = await sb
+      .from('spiritual_items')
+      .update({ thread_id: threadId })
+      .in('id', itemIds.slice(i, i + IN_CHUNK))
+    if (error) throw error
+  }
+}
+
+/**
  * All rows of a table for an owner, paginated past PostgREST's ~1000 cap. Pass a
  * smaller `pageSize` for reads that include the `embedding` column — serializing
  * 1000 × 1536-float vectors in one statement blows the Postgres statement timeout
@@ -129,7 +147,10 @@ async function fetchAll<T>(
 // One embed pass + one BULK write per batch (set_*_embeddings RPC) — not a
 // round-trip per row. The historical backfill embeds thousands of entries, so the
 // write strategy, not the OpenAI calls, was the bottleneck.
-const EMBED_WRITE_BATCH = 500
+// Small on purpose: a bulk vector UPDATE casting/writing N×1536 floats in one
+// statement crosses Postgres's statement timeout (57014) well before you'd think
+// — 100 keeps each write light and reliable.
+const EMBED_WRITE_BATCH = 100
 
 /**
  * Write a batch of embeddings in one statement via the bulk RPC. If that RPC
@@ -177,11 +198,14 @@ export async function embedUnembedded(
     owner,
     (q) => q.is('embedding', null),
   )
+  const entryBatches: { id: string; body_markdown: string }[][] = []
   for (let i = 0; i < entries.length; i += EMBED_WRITE_BATCH) {
-    const batch = entries.slice(i, i + EMBED_WRITE_BATCH)
+    entryBatches.push(entries.slice(i, i + EMBED_WRITE_BATCH))
+  }
+  await mapPool(entryBatches, POOL, async (batch) => {
     const vecs = await embed(batch.map((e) => e.body_markdown))
     await writeEmbeddings(sb, 'set_entry_embeddings', 'entries', owner, batch.map((e, k) => ({ id: e.id, emb: vecs[k]! })))
-  }
+  })
 
   // Prayers + senses (the clustering input).
   const items = await fetchAll<{ id: string; content: string }>(
@@ -191,11 +215,14 @@ export async function embedUnembedded(
     owner,
     (q) => q.in('type', ['prayer', 'sense']).is('embedding', null),
   )
+  const itemBatches: { id: string; content: string }[][] = []
   for (let i = 0; i < items.length; i += EMBED_WRITE_BATCH) {
-    const batch = items.slice(i, i + EMBED_WRITE_BATCH)
+    itemBatches.push(items.slice(i, i + EMBED_WRITE_BATCH))
+  }
+  await mapPool(itemBatches, POOL, async (batch) => {
     const vecs = await embed(batch.map((it) => it.content))
     await writeEmbeddings(sb, 'set_item_embeddings', 'spiritual_items', owner, batch.map((it, k) => ({ id: it.id, emb: vecs[k]! })))
-  }
+  })
 
   return { entries: entries.length, items: items.length }
 }
@@ -256,14 +283,14 @@ export async function threadItems(
     'id, entry_id, type, content, created_at, resolved_at, thread_id, embedding',
     owner,
     (q) => q.in('type', ['prayer', 'sense']).order('created_at', { ascending: true }),
-    250, // small page: this read carries the embedding vector
+    150, // small page: this read carries the embedding vector
   )
 
   // Effective (source) date per item: the entry's date when linked, else the row's.
   const entryIds = [...new Set(rows.map((r) => r.entry_id).filter((x): x is string => !!x))]
   const entryDate = new Map<string, string>()
-  for (let i = 0; i < entryIds.length; i += PAGE) {
-    const slice = entryIds.slice(i, i + PAGE)
+  for (let i = 0; i < entryIds.length; i += IN_CHUNK) {
+    const slice = entryIds.slice(i, i + IN_CHUNK)
     const { data, error } = await sb.from('entries').select('id, created_at').in('id', slice)
     if (error) throw error
     for (const e of (data ?? []) as { id: string; created_at: string }[]) entryDate.set(e.id, e.created_at)
@@ -343,7 +370,7 @@ export async function threadItems(
       .single()
     if (error) throw error
     const id = (data as { id: string }).id
-    await sb.from('spiritual_items').update({ thread_id: id }).in('id', c.members.map((m) => m.itemId))
+    await linkMembers(sb, id, c.members.map((m) => m.itemId))
   })
 
   // Persist EXISTING threads that gained members (re-aggregate + relabel).
@@ -363,7 +390,7 @@ export async function threadItems(
         embedding: toVectorLiteral(c.centroid),
       })
       .eq('id', c.id!)
-    await sb.from('spiritual_items').update({ thread_id: c.id! }).in('id', c.members.map((m) => m.itemId))
+    await linkMembers(sb, c.id!, c.members.map((m) => m.itemId))
   })
 
   return { placed, newThreads: fresh.length, updatedThreads: dirty.length }
@@ -513,11 +540,11 @@ function isVerbatim(body: string, text: string): boolean {
 
 async function markScanned(sb: SupabaseClient, ids: string[]): Promise<void> {
   const stamp = new Date().toISOString()
-  for (let i = 0; i < ids.length; i += 500) {
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
     const { error } = await sb
       .from('entries')
       .update({ prayer_scanned_at: stamp })
-      .in('id', ids.slice(i, i + 500))
+      .in('id', ids.slice(i, i + IN_CHUNK))
     if (error) throw error
   }
 }
@@ -559,6 +586,28 @@ export async function resetHarvest(owner: string): Promise<{ deleted: number }> 
     .not('prayer_scanned_at', 'is', null)
   if (clrErr) throw clrErr
   return { deleted: (data ?? []).length }
+}
+
+/**
+ * Clear all thread assignments + delete threads (except any the user has named an
+ * encounter on) so the next threadItems re-clusters from scratch — cheap, since
+ * embeddings are kept (no re-harvest, no re-embed). For tuning MERGE_THRESHOLD.
+ */
+export async function resetThreads(owner: string): Promise<{ deletedThreads: number }> {
+  const sb = supabaseAdmin()
+  const enc = await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)
+  const keep = [...new Set(enc.map((e) => e.thread_id))]
+
+  let unlink = sb.from('spiritual_items').update({ thread_id: null }).eq('owner', owner).not('thread_id', 'is', null)
+  if (keep.length) unlink = unlink.not('thread_id', 'in', `(${keep.join(',')})`)
+  const { error } = await unlink
+  if (error) throw error
+
+  let del = sb.from('prayer_threads').delete().eq('owner', owner).select('id')
+  if (keep.length) del = del.not('id', 'in', `(${keep.join(',')})`)
+  const { data, error: delErr } = await del
+  if (delErr) throw delErr
+  return { deletedThreads: (data ?? []).length }
 }
 
 /** Dry-run plan: how many entries are unscanned, and how many clear the cue prefilter. */
@@ -656,6 +705,255 @@ export async function harvestPrayers(
   return { scanned: pool.length, candidates: candidates.length, planted }
 }
 
+// ── 3c. subjects — group prayers by what they're ABOUT (Altar v2) ──────────────
+// A cairn is a SUBJECT (a person/place/theme you bring to God), not a text
+// cluster. Each prayer is tagged with up to 3 subjects; subjects are canonicalized
+// (so "trading discipline" + "playbook" become one) and become prayer_threads
+// rows. Membership is many-to-many via item_subjects. A cairn's height in any
+// season window = how many of its prayers fall in that window (computed by the
+// altar_field RPC), so the same subject rises across all-time and settles in a
+// season.
+
+const SUBJECT_TAG_BATCH = 6
+// Cosine bar for merging two subject LABELS into one canonical cairn. Labels are
+// short, so they cluster much tighter than full prayers — a higher bar is safe.
+const SUBJECT_MERGE = 0.62
+const MAX_SUBJECTS_PER_PRAYER = 3
+
+const TAG_PROMPT = `You read short prayers/notes from one person's private faith journal and identify what each is ABOUT — the
+person(s), place(s), or recurring theme(s) it concerns — so prayers about the same thing gather into one cairn.
+
+For each note return up to 3 subjects as {label, kind}:
+ - kind "person": a specific person or group prayed for — use their NAME if the note names them ("Esther",
+   "Daniel"); otherwise the relationship ("my wife", "the kids").
+ - kind "place": a place / community / work context ("Frontier", "trading", "our home").
+ - kind "theme": a recurring spiritual theme ("drawing near to God", "surrender", "patience", "anxiety").
+Use SHORT canonical labels (1–4 words), lowercase except proper names, and REUSE the same label across notes
+for the same thing.
+
+Set keep=false with empty subjects when the note is NOT a substantive, specific prayer or sense — generic
+devotional filler with no real subject ("make a way Lord"), or ordinary narration ("wearing new headphones,
+feels good"). A "sense" only counts if it is a genuine sense of GOD speaking / leading / showing something
+(never merely because the word "feel" appears).
+
+Return JSON {"notes":[{"id":string,"keep":boolean,"subjects":[{"label":string,"kind":"person"|"place"|"theme"}]}]}.`
+
+const TAG_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['notes'],
+  properties: {
+    notes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'keep', 'subjects'],
+        properties: {
+          id: { type: 'string' },
+          keep: { type: 'boolean' },
+          subjects: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['label', 'kind'],
+              properties: {
+                label: { type: 'string' },
+                kind: { type: 'string', enum: ['person', 'place', 'theme'] },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const
+
+interface RawTag {
+  label: string
+  kind: string
+}
+
+/**
+ * Regroup every harvested prayer/sense by SUBJECT. Tags each prayer (filtering
+ * filler + fixing "sense"), canonicalizes the subject vocabulary by embedding the
+ * labels and merging near-duplicates, then rebuilds prayer_threads (subjects) +
+ * item_subjects (membership). Idempotent: wipes prior subjects (those without an
+ * encounter) and rebuilds. Assumes prayers are already embedded.
+ */
+export async function regroupSubjects(
+  owner: string,
+): Promise<{ tagged: number; kept: number; subjects: number; memberships: number }> {
+  const sb = supabaseAdmin()
+
+  const items = await fetchAll<ItemRow>(
+    sb,
+    'spiritual_items',
+    'id, entry_id, type, content, created_at, resolved_at, thread_id, embedding',
+    owner,
+    (q) => q.in('type', ['prayer', 'sense']),
+    150,
+  )
+  // Effective (source) date + embedding per item.
+  const entryIds = [...new Set(items.map((r) => r.entry_id).filter((x): x is string => !!x))]
+  const entryDate = new Map<string, string>()
+  for (let i = 0; i < entryIds.length; i += IN_CHUNK) {
+    const { data } = await sb.from('entries').select('id, created_at').in('id', entryIds.slice(i, i + IN_CHUNK))
+    for (const e of (data ?? []) as { id: string; created_at: string }[]) entryDate.set(e.id, e.created_at)
+  }
+  const dateOf = (r: ItemRow) => (r.entry_id && entryDate.get(r.entry_id)) || r.created_at
+  const embOf = new Map<string, number[]>()
+  for (const r of items) {
+    const e = parseVector(r.embedding)
+    if (e) embOf.set(r.id, e)
+  }
+
+  // 1. Tag each prayer with its subjects (filter filler; fix sense).
+  const batches: ItemRow[][] = []
+  for (let i = 0; i < items.length; i += SUBJECT_TAG_BATCH) batches.push(items.slice(i, i + SUBJECT_TAG_BATCH))
+  const itemTags = new Map<string, RawTag[]>() // itemId → raw subject tags
+  await mapPool(batches, POOL, async (batch) => {
+    let out: { notes?: { id: string; keep: boolean; subjects?: RawTag[] }[] }
+    try {
+      out = await callModel(
+        TAG_PROMPT,
+        { notes: batch.map((r) => ({ id: r.id, text: r.content.slice(0, 600) })) },
+        TAG_SCHEMA as Record<string, unknown>,
+        'altar_tag',
+        'low',
+        1200,
+      )
+    } catch {
+      return
+    }
+    for (const n of out.notes ?? []) {
+      if (!n.keep) continue
+      const tags = (n.subjects ?? [])
+        .map((s) => ({ label: (s.label || '').trim(), kind: s.kind }))
+        .filter((s) => s.label)
+        .slice(0, MAX_SUBJECTS_PER_PRAYER)
+      if (tags.length) itemTags.set(n.id, tags)
+    }
+  })
+
+  // 2. Canonicalize the subject vocabulary: embed distinct labels, greedily merge
+  // near-duplicates into canonical subjects.
+  const labelInfo = new Map<string, { orig: string; kind: Record<string, number>; count: number }>()
+  for (const tags of itemTags.values()) {
+    for (const t of tags) {
+      const key = t.label.toLowerCase()
+      const info = labelInfo.get(key) ?? { orig: t.label, kind: {}, count: 0 }
+      info.count++
+      info.kind[t.kind] = (info.kind[t.kind] ?? 0) + 1
+      labelInfo.set(key, info)
+    }
+  }
+  const labels = [...labelInfo.keys()].sort((a, b) => labelInfo.get(b)!.count - labelInfo.get(a)!.count)
+  const labelVecs = new Map<string, number[]>()
+  {
+    const vecs = await embed(labels.map((l) => labelInfo.get(l)!.orig))
+    labels.forEach((l, i) => labelVecs.set(l, vecs[i]!))
+  }
+  interface Canon {
+    name: string
+    kind: string
+    centroid: number[]
+    n: number
+    members: string[] // lowercased labels in this canonical group
+  }
+  const canons: Canon[] = []
+  const labelToCanon = new Map<string, number>()
+  for (const l of labels) {
+    const v = labelVecs.get(l)!
+    let best = -1
+    let bestSim = -1
+    for (let i = 0; i < canons.length; i++) {
+      const sim = cosine(v, canons[i]!.centroid)
+      if (sim > bestSim) {
+        bestSim = sim
+        best = i
+      }
+    }
+    const info = labelInfo.get(l)!
+    if (best >= 0 && bestSim >= SUBJECT_MERGE) {
+      const c = canons[best]!
+      for (let d = 0; d < v.length; d++) c.centroid[d] = (c.centroid[d]! * c.n + v[d]!) / (c.n + 1)
+      c.n++
+      c.members.push(l)
+      labelToCanon.set(l, best)
+    } else {
+      const kind = Object.entries(info.kind).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'theme'
+      canons.push({ name: info.orig, kind, centroid: v.slice(), n: 1, members: [l] })
+      labelToCanon.set(l, canons.length - 1)
+    }
+  }
+
+  // 3. Assign each item to its canonical subjects (deduped).
+  const itemCanons = new Map<string, Set<number>>()
+  const canonItems = new Map<number, Set<string>>()
+  for (const [itemId, tags] of itemTags) {
+    const set = new Set<number>()
+    for (const t of tags) {
+      const ci = labelToCanon.get(t.label.toLowerCase())
+      if (ci != null) set.add(ci)
+    }
+    if (!set.size) continue
+    itemCanons.set(itemId, set)
+    for (const ci of set) (canonItems.get(ci) ?? canonItems.set(ci, new Set()).get(ci)!).add(itemId)
+  }
+
+  // 4. Wipe prior subjects (those without an encounter) + their memberships, then rebuild.
+  const enc = await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)
+  const keepEnc = new Set(enc.map((e) => e.thread_id))
+  await sb.from('item_subjects').delete().eq('owner', owner)
+  {
+    let del = sb.from('prayer_threads').delete().eq('owner', owner)
+    if (keepEnc.size) del = del.not('id', 'in', `(${[...keepEnc].join(',')})`)
+    const { error } = await del
+    if (error) throw error
+  }
+
+  // 5. Insert subjects, then memberships.
+  let memberships = 0
+  const subjectIds = await mapPool([...canonItems.keys()], POOL, async (ci) => {
+    const memberIds = [...canonItems.get(ci)!]
+    const dates = memberIds.map((id) => dateOf(items.find((r) => r.id === id)!))
+    const member_embs = memberIds.map((id) => embOf.get(id)).filter((x): x is number[] => !!x)
+    const c = canons[ci]!
+    const { data, error } = await sb
+      .from('prayer_threads')
+      .insert({
+        owner,
+        title: c.name,
+        kind: c.kind,
+        carries: c.kind === 'person' ? [c.name] : [],
+        planted_at: dates.reduce((a, b) => (a <= b ? a : b)),
+        last_touch_at: dates.reduce((a, b) => (a >= b ? a : b)),
+        seed_item_id: null,
+        embedding: member_embs.length ? toVectorLiteral(centroid(member_embs)) : null,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    const subjectId = (data as { id: string }).id
+    const rows = memberIds.map((item_id) => ({ owner, item_id, subject_id: subjectId }))
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error: e2 } = await sb.from('item_subjects').insert(rows.slice(i, i + 500))
+      if (e2) throw e2
+    }
+    memberships += rows.length
+    return subjectId
+  })
+
+  return {
+    tagged: items.length,
+    kept: itemTags.size,
+    subjects: subjectIds.length,
+    memberships,
+  }
+}
+
 // ── 4. weekly open-thread evidence sweep (P2) ──────────────────────────────────
 const CANDIDATE_PROMPT = `You help someone remember, with care. You are given one ongoing, still-open prayer (its title + the
 original words) and ONE later journal entry that a similarity search flagged as possibly related.
@@ -695,7 +993,7 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     last_touch_at: string
     seed_item_id: string | null
     embedding: number[] | null
-  }>(sb, 'prayer_threads', 'id, title, last_touch_at, seed_item_id, embedding', owner, undefined, 250)
+  }>(sb, 'prayer_threads', 'id, title, last_touch_at, seed_item_id, embedding', owner, undefined, 150)
 
   const encountered = new Set(
     (await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)).map((e) => e.thread_id),
@@ -731,11 +1029,11 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
   // Seed text per thread, for the Nano context.
   const seedIds = threads.map((t) => t.seed_item_id).filter((x): x is string => !!x)
   const seedText = new Map<string, string>()
-  for (let i = 0; i < seedIds.length; i += PAGE) {
+  for (let i = 0; i < seedIds.length; i += IN_CHUNK) {
     const { data } = await sb
       .from('spiritual_items')
       .select('id, content')
-      .in('id', seedIds.slice(i, i + PAGE))
+      .in('id', seedIds.slice(i, i + IN_CHUNK))
     for (const s of (data ?? []) as { id: string; content: string }[]) seedText.set(s.id, s.content)
   }
 

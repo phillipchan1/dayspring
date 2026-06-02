@@ -1,128 +1,101 @@
 import { EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
-import type { SummitData } from './summitData'
-import { Wrapped } from './Wrapped'
+import type { SummitView } from './data/types'
+import { LearningDimension } from './dimensions/LearningDimension'
+import { PrayerDimension } from './dimensions/PrayerDimension'
+import { ScriptureDimension } from './dimensions/ScriptureDimension'
+import { WordsDimension } from './dimensions/WordsDimension'
 
 interface Props {
-  data: SummitData | null
+  data: SummitView | null
   onOpenEntry?: ((entryId: string) => void) | undefined
+  onScriptureDrill: (osisRef: string) => void
+  onPrayerDrill: () => void
+  onLearningDrill: () => void
+}
+
+const W = 600
+const GROUND = 280
+const CLIMB = 232 // peak rise span (peak sits near y=48)
+
+/** Position a stone along the climbed path by its month (1–12). */
+function stonePos(month: number, i: number): { cx: number; cy: number } {
+  const t = Math.min(1, Math.max(0, month / 12))
+  return { cx: 120 + t * 190 + (i % 2 ? 26 : -16), cy: GROUND - t * CLIMB - (i % 3) * 4 }
 }
 
 /**
- * SUMMIT (year) — the forming mountain. It GESTATES in the open: solid rock rises
- * only as high as the year has been lived, dawn-glow climbs with it, a faint seed
- * pulses at the unreached peak. Never gated, never a countdown. The content is
- * the user's own marks, returned; the app stays near-silent.
+ * SUMMIT (year) — the quietest, most sacred ground. The mountain is redrawn as
+ * the PATH the user climbed, with the stones they set on the Wall as points of
+ * light along the mountainside: looking back down the year, the trail lit by
+ * their own markers. No progress bar, no stat cards, no countdown — the content
+ * is the user's own words and marks, and the app nearly disappears. The four
+ * dimensions persist here at their most distilled.
  */
-export function Summit({ data, onOpenEntry }: Props) {
-  if (!data) {
+export function Summit({ data, onOpenEntry, onScriptureDrill, onPrayerDrill, onLearningDrill }: Props) {
+  const empty =
+    !data || (!data.words && !data.scripture && !data.prayer && !data.learning && data.stones.length === 0)
+  if (empty) {
     return <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
   }
 
-  const pct = Math.min(1, data.monthsDone / data.total)
-  const W = 600
-  const H = 300
-  const groundY = 270
-  const climb = 230 // peak rise span
-  const solidH = pct * climb
-  const lineY = groundY - solidH
-
   return (
     <div className="ascent-summit">
-      <svg viewBox={`0 0 ${W} ${H}`} className="ascent-mountain" role="img"
-        aria-label={`The year ${data.year}, forming — ${data.monthsDone} of ${data.total} months written`}>
+      <svg viewBox={`0 0 ${W} 320`} className="ascent-mountain" role="img"
+        aria-label={`The year ${data.year} — the path you climbed, lit by the stones you set`}>
         <defs>
           <linearGradient id="ascent-rock" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--ascent-rock-top)" />
             <stop offset="100%" stopColor="var(--ascent-rock-bottom)" />
           </linearGradient>
-          <linearGradient id="ascent-dawn" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f0c587" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#e8b873" stopOpacity="0" />
-          </linearGradient>
-          <clipPath id="ascent-pk">
-            <polygon points="300,30 560,270 40,270" />
-          </clipPath>
+          <radialGradient id="ascent-peakglow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#f0c587" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#f0c587" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
-        {/* dawn band climbs only as high as the year has climbed */}
-        <rect x="0" y={groundY - pct * climb} width={W} height={pct * climb + 30}
-          fill="url(#ascent-dawn)" className="ascent-dawn-band" />
-        {/* faint full peak — the mountain it will become */}
-        <polygon points="300,30 560,270 40,270" fill="url(#ascent-rock)" opacity={data.complete ? 1 : 0.4} />
+        {/* the mountain you climbed */}
+        <polygon points={`300,48 560,${GROUND} 40,${GROUND}`} fill="url(#ascent-rock)" />
 
-        <g clipPath="url(#ascent-pk)">
-          {/* solid land — height IS the progress (poetic, not a ring) */}
-          <rect x="0" y={groundY - solidH} width={W} height={solidH} fill="url(#ascent-rock)" className="ascent-solid-land" />
-          {!data.complete ? (
-            <line x1="0" y1={lineY} x2={W} y2={lineY} stroke="rgba(232,184,115,.4)" strokeWidth="1" strokeDasharray="3 5" />
-          ) : null}
-        </g>
+        {/* the trail — your own path up the year */}
+        <path
+          d={`M120,${GROUND} C200,235 180,196 260,172 C330,150 285,112 300,52`}
+          fill="none"
+          stroke="rgba(232,184,115,.28)"
+          strokeWidth="1.5"
+          strokeDasharray="2 5"
+          className="ascent-trail"
+        />
 
-        {/* the trail */}
-        <path d="M120,270 C200,225 180,190 260,168 C330,150 285,115 300,40" fill="none"
-          stroke="rgba(232,184,115,.22)" strokeWidth="1.5" strokeDasharray="2 4" />
-
-        {/* stones the user set: gold = prayer/encounter, blue = Lamp verse */}
+        {/* the stones you set — points of light along the mountainside */}
         {data.stones.map((s, i) => {
-          const t = s.month / data.total
-          const cx = 120 + t * 200 + (i % 2 ? 28 : -18)
-          const cy = groundY - t * 225 - i * 5
-          const gold = s.kind === 'altar'
+          const { cx, cy } = stonePos(s.month, i)
           return (
-            <g key={`${s.kind}-${i}`} className="ascent-stone-g" style={{ animationDelay: `${i * 160 + 400}ms` }}>
+            <g
+              key={`${s.month}-${i}`}
+              className="ascent-stone-g"
+              style={{ animationDelay: `${i * 150 + 300}ms`, cursor: s.entryId ? 'pointer' : 'default' }}
+              onClick={() => s.entryId && onOpenEntry?.(s.entryId)}
+            >
               <title>{s.label}</title>
-              <circle cx={cx} cy={cy} r="6" fill={gold ? '#f0c587' : '#9db4d4'} className="ascent-stone-dot" />
-              <circle cx={cx} cy={cy} r="12" fill="none"
-                stroke={gold ? 'rgba(240,197,135,.3)' : 'rgba(157,180,212,.3)'} className="ascent-stone-ring" />
+              <circle cx={cx} cy={cy} r="11" fill="none" stroke="rgba(240,197,135,.28)" className="ascent-stone-ring" />
+              <circle cx={cx} cy={cy} r="5" fill="#f0c587" className="ascent-stone-dot" />
             </g>
           )
         })}
 
-        {/* seed of light at the unreached peak (still pulsing until whole) */}
-        {!data.complete ? (
-          <>
-            <circle cx="300" cy="40" r="5" fill="rgba(240,197,135,.3)" className="ascent-peak-seed" />
-            <circle cx="300" cy="40" r="13" fill="none" stroke="rgba(240,197,135,.15)" className="ascent-peak-halo" />
-          </>
-        ) : (
-          <circle cx="300" cy="40" r="7" fill="#f0c587" className="ascent-peak-lit" />
-        )}
+        {/* the peak — a quiet, settled light (clarity, not a countdown) */}
+        <circle cx="300" cy="48" r="34" fill="url(#ascent-peakglow)" className="ascent-peak-glow" />
+        <circle cx="300" cy="48" r="5" fill="#f7ecd6" className="ascent-peak-lit" />
       </svg>
 
-      {/* a quiet height marker — not a completion ring */}
-      <div className="ascent-status-bar" aria-hidden>
-        <div className="ascent-status-fill" style={{ width: `${pct * 100}%` }} />
+      <p className="ascent-summit__look">{SUMMIT_COPY.lookingBack}</p>
+
+      <div className="ascent-stack ascent-stack--summit">
+        <WordsDimension data={data.words} onOpenEntry={onOpenEntry} />
+        <ScriptureDimension data={data.scripture} onDrill={onScriptureDrill} />
+        <PrayerDimension data={data.prayer} onDrill={onPrayerDrill} />
+        <LearningDimension data={data.learning} onDrill={onLearningDrill} />
       </div>
-      <span className="ascent-status-text">
-        {data.complete ? SUMMIT_COPY.whole : SUMMIT_COPY.monthsLine(data.monthsDone, data.total)}
-      </span>
-
-      <div className="ascent-formed-grid">
-        <div className="ascent-formed-cell">
-          <span className="ascent-fc-num">{data.prayersMet}</span>
-          <span className="ascent-fc-label">{SUMMIT_COPY.prayersLabel}</span>
-        </div>
-        <div className="ascent-formed-cell">
-          <span className="ascent-fc-num small">{data.verse ?? '—'}</span>
-          <span className="ascent-fc-label">{SUMMIT_COPY.verseLabel}</span>
-        </div>
-      </div>
-
-      {data.refrain ? (
-        <div className="ascent-refrain">
-          <span className="ascent-formed-lbl">{SUMMIT_COPY.refrainLabel}</span>
-          <button
-            type="button"
-            className="ascent-refrain__text"
-            onClick={() => data.refrain && onOpenEntry?.(data.refrain.entryId)}
-          >
-            “{data.refrain.text}”
-          </button>
-          <span className="ascent-refrain__note">{SUMMIT_COPY.refrainNote}</span>
-        </div>
-      ) : null}
-
-      <Wrapped data={data} onOpenEntry={onOpenEntry} />
     </div>
   )
 }

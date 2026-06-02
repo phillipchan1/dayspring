@@ -53,6 +53,19 @@ export interface BookEntry {
   excerpt: string
 }
 
+export type RefStatus = 'confirmed' | 'suggested'
+
+/** One moment a single verse surfaced — the substrate of the Scripture drill-in.
+ *  Carries the row id + status so the funnel can promote a suggested allusion. */
+export interface VerseMoment {
+  ref_id: string
+  entry_id: string
+  entry_created_at: string
+  status: RefStatus
+  /** Short excerpt around char_start, from the cached/fetched entry body. */
+  excerpt: string
+}
+
 // ── loading ───────────────────────────────────────────────────────────────
 
 function inWindow(iso: string, w?: DateWindow): boolean {
@@ -163,6 +176,21 @@ export async function getReturning(
     .slice(0, limit)
 }
 
+/** How many faint, AI-inferred allusions await the user's nod in a window — the
+ *  size of the confirm funnel. A head/count query (no rows shipped). */
+export async function getSuggestedCount(window?: DateWindow): Promise<number> {
+  const sb = requireSupabase()
+  let q = sb
+    .from('scripture_refs')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'suggested')
+  if (window?.from) q = q.gte('entry_created_at', window.from.toISOString())
+  if (window?.to) q = q.lte('entry_created_at', window.to.toISOString())
+  const { count, error } = await q
+  if (error) return 0
+  return count ?? 0
+}
+
 /** Entries touching a book, chronological, with the matched refs + an excerpt. */
 export async function getBookEntries(bookOsis: string, window?: DateWindow): Promise<BookEntry[]> {
   const refs = (await loadRefs(window)).filter((r) => r.book_osis === bookOsis)
@@ -173,6 +201,61 @@ export async function getBookEntries(bookOsis: string, window?: DateWindow): Pro
 export async function getVerseThread(osisRef: string, window?: DateWindow): Promise<BookEntry[]> {
   const refs = (await loadRefs(window)).filter((r) => r.osis_ref === osisRef)
   return assembleEntries(refs)
+}
+
+/**
+ * Every moment one exact verse surfaced — both confirmed refs AND suggested
+ * (AI-inferred) allusions — chronological, each with an excerpt from the source
+ * entry. Unlike the heat/returning aggregations (confirmed only), this is the
+ * Scripture drill-in's substrate, so it carries `status` + `ref_id` to drive the
+ * quiet confirm affordance. Supabase-only: there is no offline fallback because
+ * suggested refs live only in the table (they are never re-derived from prose).
+ */
+export async function getVerseMoments(osisRef: string, window?: DateWindow): Promise<VerseMoment[]> {
+  const sb = requireSupabase()
+  let q = sb
+    .from('scripture_refs')
+    .select('id, entry_id, entry_created_at, status, char_start')
+    .eq('osis_ref', osisRef)
+    .order('entry_created_at', { ascending: true })
+  if (window?.from) q = q.gte('entry_created_at', window.from.toISOString())
+  if (window?.to) q = q.lte('entry_created_at', window.to.toISOString())
+  const { data, error } = await q
+  if (error) throw error
+  const rows = (data ?? []) as {
+    id: string
+    entry_id: string
+    entry_created_at: string
+    status: RefStatus
+    char_start: number | null
+  }[]
+  if (rows.length === 0) return []
+
+  // Resolve bodies for excerpts (cache first, then fetch + warm — mirrors assembleEntries).
+  const bodies = new Map<string, string>()
+  const missing: string[] = []
+  for (const id of new Set(rows.map((r) => r.entry_id))) {
+    const cached = await cache.cacheGet(id)
+    if (cached) bodies.set(id, cached.body_markdown)
+    else missing.push(id)
+  }
+  if (missing.length > 0) {
+    try {
+      const fetched = await fetchEntriesByIds(missing)
+      for (const e of fetched) bodies.set(e.id, e.body_markdown)
+      if (fetched.length > 0) await cache.cachePutMany(fetched)
+    } catch {
+      // Offline — uncached entries simply show no excerpt.
+    }
+  }
+
+  return rows.map((r) => ({
+    ref_id: r.id,
+    entry_id: r.entry_id,
+    entry_created_at: r.entry_created_at,
+    status: r.status,
+    excerpt: excerptAround(bodies.get(r.entry_id) ?? '', r.char_start),
+  }))
 }
 
 /** Group refs by entry, attach an excerpt from the entry body, chronological. */

@@ -1,45 +1,27 @@
-import { EMPTY_COPY, VALLEY_COPY, type AltitudeMeta } from './ascent.config'
-import type { ValleyData } from './ascentData'
+import { EMPTY_COPY } from './ascent.config'
+import type { AltitudeData } from './data/types'
+import { ScriptureDimension } from './dimensions/ScriptureDimension'
+import { WordsDimension } from './dimensions/WordsDimension'
 
 interface Props {
-  data: ValleyData | null
-  meta: AltitudeMeta
+  data: AltitudeData | null
   onOpenEntry?: ((entryId: string) => void) | undefined
+  onScriptureDrill: (osisRef: string) => void
 }
 
 /**
- * VALLEY (week) — your entries, in the order you lived them. The app's only move
- * is to ARRANGE; where a verbatim weekly citation exists it's shown as a quote.
+ * VALLEY (week) — closest to the ground. Only two dimensions surface here: your
+ * own words in lived order, and what you reached for in scripture. The app does
+ * nothing but arrange. Prayer-pattern and learning begin higher up.
  */
-export function Valley({ data, meta, onOpenEntry }: Props) {
-  if (!data) {
+export function Valley({ data, onOpenEntry, onScriptureDrill }: Props) {
+  if (!data || (!data.words && !data.scripture)) {
     return <p className="ascent-empty">{EMPTY_COPY.week.empty}</p>
   }
-
   return (
-    <div className="ascent-entries">
-      {data.entries.map((e, i) => (
-        <button
-          key={e.id}
-          type="button"
-          className="ascent-entry"
-          style={{ animationDelay: `${i * 70}ms` }}
-          onClick={() => onOpenEntry?.(e.id)}
-        >
-          <span className="ascent-entry__bar" aria-hidden />
-          <span className="ascent-entry__body">
-            <span className={`ascent-entry__text${e.isQuote ? ' is-quote' : ''}`}>
-              {e.isQuote ? `“${e.text}”` : e.text}
-            </span>
-            <span className="ascent-entry__date">
-              {e.dateLabel} <em>{VALLEY_COPY.open}</em>
-            </span>
-          </span>
-        </button>
-      ))}
-      <p className="ascent-voice quiet">
-        ↑ {data.entries.length} {data.entries.length === 1 ? 'entry' : 'entries'} {meta.voice}
-      </p>
+    <div className="ascent-stack">
+      <WordsDimension data={data.words} onOpenEntry={onOpenEntry} />
+      <ScriptureDimension data={data.scripture} onDrill={onScriptureDrill} />
     </div>
   )
 }

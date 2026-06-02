@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Entry } from '@/lib/types'
 import type { EntryMenuAction } from './EntryContextMenu'
 import type { EntrySelectionChange } from './entrySelectionApi'
+import type { EntryReturnContext } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
 
@@ -32,7 +33,8 @@ export interface JournalViewProps {
   /** Shift+arrow range in progress — editor stays hidden. */
   rangeSelectActive: boolean
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
-  onDeleteEntries: (ids: string[]) => Promise<void>
+  /** `focusAfterId` — next row to browse after delete; `null` — blank new doc. */
+  onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   onNew: () => void
   query: string
   onQueryChange: (q: string) => void
@@ -60,4 +62,7 @@ export interface JournalViewProps {
   altarActive: boolean
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
+  /** Set when reading an entry opened from Lamp / Altar / Ascent. */
+  entryReturn: EntryReturnContext | null
+  onReturnFromEntry: () => void
 }

@@ -6,6 +6,7 @@ import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
+import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
@@ -26,6 +27,7 @@ export function MobileJournal(props: JournalViewProps) {
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -88,6 +90,15 @@ export function MobileJournal(props: JournalViewProps) {
             borderBottom: '1px solid var(--border-subtle)',
           }}
         >
+          {entryReturn ? (
+            <button
+              type="button"
+              className="journal-topbar__back"
+              onClick={onReturnFromEntry}
+            >
+              ← {ENTRY_RETURN_LABEL[entryReturn.surface]}
+            </button>
+          ) : null}
           <span
             style={{
               flex: 1,

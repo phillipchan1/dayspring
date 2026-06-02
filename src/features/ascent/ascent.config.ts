@@ -40,7 +40,7 @@ export const ALTITUDES: AltitudeMeta[] = [
     label: 'Week',
     alt: 'VALLEY',
     title: 'Standing in the days.',
-    line: 'Close to the ground — your own words, in the order you lived them. The app only arranges.',
+    line: 'Close to the ground — your own words and what you reached for, in the order you lived them. The app only arranges.',
     air: ['#0d1018', '#141a28'],
     airLight: ['#eef1f6', '#f7f1e8'],
     voice: 'in order, nothing interpreted yet — you’re close enough to feel them.',
@@ -51,7 +51,7 @@ export const ALTITUDES: AltitudeMeta[] = [
     label: 'Month',
     alt: 'HILLSIDE',
     title: 'What you kept returning to.',
-    line: 'Step back and the entries cluster. These are the threads that recurred — named, but only as a question.',
+    line: 'Step back and the same dimensions resolve at month scale — the lines you kept, the verse you returned to. Named only as a question.',
     air: ['#10131e', '#1d1f30'],
     airLight: ['#f0eef4', '#f8f0e3'],
     voice: '↑ the app names what seems to connect — tentatively. Each is yours to rename or wave off.',
@@ -60,8 +60,8 @@ export const ALTITUDES: AltitudeMeta[] = [
     key: 'quarter',
     label: 'Quarter',
     alt: 'RIDGE',
-    title: 'The tensions you’ve been living inside.',
-    line: 'From the ridge, events fall away — what’s left are the questions you keep circling. The app holds them up and hands them back.',
+    title: 'The season, distilled.',
+    line: 'From the ridge the season distills: the phrases you circled, its anchor passage, the prayer and its first signs. The app holds them up and hands them back.',
     air: ['#15131f', '#2a2233'],
     airLight: ['#f3eef2', '#faeede'],
     voice: '↑ the app asks; it never answers. These go back to you, and to God — not to a verdict.',
@@ -71,16 +71,13 @@ export const ALTITUDES: AltitudeMeta[] = [
     key: 'year',
     label: 'Year',
     alt: 'SUMMIT',
-    title: 'Still being written.',
-    line: 'The summit can’t exist until you’ve climbed the year — so it forms in the open, from the stones you’ve set yourself.',
+    title: 'Looking back down the year.',
+    line: 'The quietest ground. Your own words and the stones you set — looking back down the trail you climbed. The app nearly disappears.',
     air: ['#1b1620', '#4a352f'],
     airLight: ['#faf0e2', '#fbe4c6'],
     voice: '',
   },
 ]
-
-/** Months in a year — the Summit's denominator (poetic height, not a progress ring). */
-export const YEAR_MONTHS = 12
 
 /** Per-altitude empty / insufficient copy (derivable client-side, no infra). */
 export const EMPTY_COPY: Record<AltitudeKey, { empty: string; insufficient: string }> = {
@@ -110,70 +107,76 @@ export const CONTROLS = {
   toNext: (label: string) => `climb to see the ${label.toLowerCase()}`,
 }
 
-/** Valley labels. */
-export const VALLEY_COPY = {
-  open: '→ open entry',
-}
-
-/** Hillside (arc) edit labels. */
-export const HILLSIDE_COPY = {
-  drawnFrom: (n: number) => `drawn from ${n} ${n === 1 ? 'entry' : 'entries'}`,
-  rename: 'rename',
-  dismiss: 'wave off',
-  merge: 'merge',
-  renamePlaceholder: 'name this thread…',
-  save: 'save',
-  cancel: 'cancel',
-  mergeHint: 'pick a thread to merge into',
-}
-
-/** Ridge (tension) labels. The action carries a tension to the Altar — never resolves it. */
-export const RIDGE_COPY = {
-  carry: 'carry into prayer →',
-  carried: 'laid on the altar ✓',
-  carrying: 'carrying…',
-}
-
-/** Summit labels — selecting + arranging the user's own marks, near-silent. */
+/** Summit labels — near-silent. The Summit returns the user's own marks; the app
+ *  arranges and points, and otherwise goes quiet (no progress, no counts). */
 export const SUMMIT_COPY = {
-  monthsLine: (done: number, total: number) =>
-    `${done} of ${total} months written · the summit forms as you climb`,
-  prayersLabel: 'prayers He met you in',
-  verseLabel: 'the verse you keep returning to',
-  refrainLabel: 'A LINE FROM YOUR OWN WRITING, SURFACING ALL YEAR',
-  refrainNote: '— you wrote this, and kept writing toward it. The app only noticed.',
-  whole: 'the year stands whole · written',
+  lookingBack: 'looking back down the year — the trail lit by the stones you set',
 }
 
-/** "Your Year, Unfolding" — a growing gift, never a locked one. */
-export const WRAPPED_COPY = {
-  kickerForming: (pct: number) => `✦ YOUR YEAR, UNFOLDING · forming ${pct}%`,
-  kickerComplete: '✦ YOUR YEAR, UNFOLDING',
-  teaserForming:
-    'The full look-back completes when the year does — not a locked gift, a growing one. You’ll have filled it yourself.',
-  teaserComplete: 'The year is whole. Step through it, in your own words and marks.',
-  open: 'open your year →',
-  arrivesInDecember: 'arrives in December',
-  throughlineLabel: 'THE THROUGHLINE',
-  versePeek: 'most-returned verse',
-  prayersPeek: 'prayers He met you in',
-  seasonPeek: 'the season you wrote most',
-  // Review card headers (shown only when the year is complete).
-  cards: {
-    versePeek: 'The verse you kept returning to',
-    prayersPeek: 'Prayers He met you in',
-    seasonPeek: 'You wrote most in',
-    refrain: 'The line you kept writing toward',
+// ── DIMENSIONS — the stable four, across every altitude ──────────────────────
+// The redesign's spine: the SAME dimensions persist as you climb and only change
+// RESOLUTION. The eyebrow over each block names its resolution. Higher = quieter.
+
+/** Per-dimension, per-altitude eyebrow labels (the only words the app supplies). */
+export const DIMENSION_COPY = {
+  words: {
+    week: 'YOUR WORDS · IN ORDER',
+    month: 'THE LINES YOU KEPT',
+    quarter: 'THE PHRASES YOU CIRCLED',
+    year: 'THE ONE LINE OF THE YEAR',
+    empty: 'nothing here yet — the page is the soul of it.',
   },
-  next: 'next →',
-  prev: '← back',
-  done: 'close',
+  scripture: {
+    week: 'WHAT YOU REACHED FOR',
+    month: 'THE MONTH’S RECURRING VERSE',
+    quarter: 'THE SEASON’S ANCHOR PASSAGE',
+    year: 'THE VERSE OF THE YEAR',
+    empty: 'no scripture surfaced here yet.',
+    inEntries: (n: number) => `in ${n} ${n === 1 ? 'entry' : 'entries'}`,
+    suggested: (n: number) => `${n} quieter ${n === 1 ? 'allusion' : 'allusions'} waiting →`,
+    open: 'follow it →',
+  },
+  prayer: {
+    month: 'WHAT YOU KEPT ASKING',
+    quarter: 'THE PRAYER, AND FIRST SIGNS',
+    year: 'THE PRAYER, AND THE EBENEZER',
+    pattern: 'pattern only — the prayers themselves rest on the Wall.',
+    open: 'follow the asks →',
+    ebenezerArrow: '→',
+  },
+  learning: {
+    month: 'YOU STARTED TO SEE…',
+    quarter: 'WHAT YOU NOW HOLD',
+    year: 'WHAT HE TAUGHT YOU THIS YEAR',
+    open: 'see how it was woven →',
+    note: 'a question, not a verdict — yours to name.',
+  },
+} as const
+
+/** The "watching this season" lens row — attention, not a filter bar. */
+export const LENS_COPY = {
+  label: 'WATCHING THIS SEASON',
+  add: '+ lens',
+  addPlaceholder: 'name a lens…',
+  edit: 'edit',
+  done: 'done',
+  remove: 'remove',
 }
 
-/** Season name for a month index (0–11) — for "the season you wrote most". */
-export function seasonOf(monthIndex: number): string {
-  if (monthIndex <= 1 || monthIndex === 11) return 'Winter'
-  if (monthIndex <= 4) return 'Spring'
-  if (monthIndex <= 7) return 'Summer'
-  return 'Autumn'
+/** Drill-in shells — quiet, dismissible. */
+export const DRILL_COPY = {
+  close: 'close',
+  scriptureTitle: (verse: string) => `Where you reached for ${verse}`,
+  scriptureRise: 'its rise as you climbed',
+  scriptureConfirm: 'I was reaching for this',
+  scriptureConfirmed: 'confirmed ✓',
+  scriptureSuggested: 'a quieter echo — was this here?',
+  learningFooter: 'the app gathers the threads · what they mean is yours to name',
+  learningCarry: 'carry into prayer →',
+  learningTop: 'WHAT YOU’RE COMING TO SEE',
+  prayerTitle: 'What you kept asking',
+  prayerConfirm: 'set this as a stone',
+  prayerConfirmed: 'a stone is set ✓',
+  prayerEvidence: 'later, this —',
+  earlier: 'EARLIER IN THE SEASON',
 }
