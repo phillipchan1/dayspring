@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  countThreads,
   getCarries,
   getThread,
   listThreads,
@@ -406,7 +407,8 @@ function ThreadPanel({
 
 export function AltarView({ onOpenEntry }: Props) {
   const seasons = useMemo(() => buildSeasons(), [])
-  const [seasonId, setSeasonId] = useState('all')
+  // '' until the adaptive default resolves on mount (don't load all-time first).
+  const [seasonId, setSeasonId] = useState('')
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
 
@@ -420,12 +422,44 @@ export function AltarView({ onOpenEntry }: Props) {
   const [detail, setDetail] = useState<ThreadDetail | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const season = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
+  // Adaptive default: open on the most recent season that actually has cairns —
+  // never an empty field, never the all-time wall. Harvested prayers are mostly
+  // historical, so a literal "last 90 days" can be empty; fall back through the
+  // windows to all-time.
+  useEffect(() => {
+    let cancelled = false
+    const pick = async () => {
+      const prefs: { id: string; min: number }[] = [
+        { id: 'season', min: 3 },
+        { id: 'year', min: 1 },
+        { id: 'last', min: 1 },
+      ]
+      for (const p of prefs) {
+        const s = seasons.find((x) => x.id === p.id)
+        if (!s) continue
+        try {
+          if ((await countThreads(s.window)) >= p.min) {
+            if (!cancelled) setSeasonId(p.id)
+            return
+          }
+        } catch {
+          break // on error, fall back to all-time below
+        }
+      }
+      if (!cancelled) setSeasonId('all')
+    }
+    void pick()
+    return () => {
+      cancelled = true
+    }
+  }, [seasons])
 
   useEffect(() => {
+    if (!seasonId) return // wait for the adaptive default
+    const sel = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
     const id = ++reqId.current
     let cancelled = false
-    Promise.all([listThreads(season.window), getCarries(season.window)])
+    Promise.all([listThreads(sel.window), getCarries(sel.window)])
       .then(([t, c]) => {
         if (cancelled || id !== reqId.current) return
         setThreads(t)
@@ -437,7 +471,7 @@ export function AltarView({ onOpenEntry }: Props) {
     return () => {
       cancelled = true
     }
-  }, [season, reloadKey])
+  }, [seasonId, seasons, reloadKey])
 
   // Load the open thread's detail.
   useEffect(() => {

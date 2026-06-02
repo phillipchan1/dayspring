@@ -59,7 +59,10 @@ export function Rail({
         {showBrandLockup ? <span className="rail-btn__label">Dayspring</span> : null}
       </div>
       <div className="rail__nav">
-        <div className="rail__actions">
+        <div className="rail__group" aria-label="Write">
+          <span className="rail__group-label" aria-hidden>
+            Write
+          </span>
           <RailButton
             label="New entry"
             shortcut="⌘N"
@@ -67,9 +70,6 @@ export function Rail({
             icon={<IconNew />}
             labelsExpanded={labelsExpanded}
           />
-        </div>
-        <div className="rail__rule" aria-hidden />
-        <div className="rail__destinations" aria-label="Destinations">
           <RailButton
             label="Entries"
             shortcut="⌘1"
@@ -78,6 +78,11 @@ export function Rail({
             icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
+        </div>
+        <div className="rail__group" aria-label="Return">
+          <span className="rail__group-label" aria-hidden>
+            Return
+          </span>
           <RailButton
             label="Ascent"
             subline="The climb through your seasons"

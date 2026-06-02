@@ -924,18 +924,13 @@ a {
   width: var(--rail-row-width);
   flex-shrink: 0;
 }
-.rail[data-labels='true'] .rail__rule {
-  width: 100%;
-  margin-inline: 0;
-}
 /* Icon-only: one centered column — no stretch, no hidden label flex bleed */
 .rail[data-labels='false'] {
   align-items: center;
   padding-inline: 0;
 }
 .rail[data-labels='false'] .rail__nav,
-.rail[data-labels='false'] .rail__actions,
-.rail[data-labels='false'] .rail__destinations,
+.rail[data-labels='false'] .rail__group,
 .rail[data-labels='false'] .rail__footer {
   width: var(--rail-slot);
   align-items: center;
@@ -945,10 +940,6 @@ a {
   width: var(--rail-slot);
   padding: 0;
   justify-content: center;
-}
-.rail[data-labels='false'] .rail__rule {
-  width: 1.35rem;
-  margin-inline: auto;
 }
 .rail__glow {
   position: absolute;
@@ -1011,27 +1002,45 @@ a {
   width: 100%;
   min-height: 0;
 }
-.rail__actions {
+.rail__group {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--rail-stack-gap);
   width: 100%;
 }
-.rail__rule {
-  flex-shrink: 0;
+/* Proximity does the grouping: a clear gap sets Write apart from Return. */
+.rail__group + .rail__group {
+  margin-top: 1.1rem;
+}
+/* Section label — shown only when the rail is expanded; over the icon column. */
+.rail__group-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 0 0.25rem 0.72rem;
+}
+.rail[data-labels='false'] .rail__group-label {
+  display: none;
+}
+/* Collapsed (icon-only): a short centered hairline marks the boundary instead. */
+.rail[data-labels='false'] .rail__group + .rail__group {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  position: relative;
+}
+.rail[data-labels='false'] .rail__group + .rail__group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.35rem;
   height: 1px;
-  margin-inline: 0.7rem;
   background: var(--border-subtle);
-}
-.rail__destinations {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--rail-stack-gap);
-  width: 100%;
-  flex: 1;
-  min-height: 0;
 }
 .rail__footer {
   position: relative;
