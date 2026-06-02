@@ -118,25 +118,36 @@
 ## Mobile-Responsive Implementation Checklist
 
 ### Phase 1: Editor & Commands (High Impact)
-- [ ] Add slash command toolbar/sheet for mobile
-  - 4 buttons: Scripture, Pray, Sense, Remind
-  - Triggered on focus or by button press
-  - Keep `/` as alternate entry point
-- [ ] Verify command popovers reposition on mobile
-- [ ] Test selection format bar touch targets
+- [x] Add slash command toolbar/sheet for mobile
+  - [x] 4 buttons: Scripture, Pray, Sense, Remind
+  - [x] Triggered on focus (integrated into editor)
+  - [x] Keep `/` as alternate entry point for keyboard users
+- [x] Create CommandToolbar component with CSS
+- [x] Extend Editor API with triggerCommand() method
+- [ ] Verify command popovers reposition on mobile (visual test needed)
+- [ ] Test selection format bar touch targets (visual test needed)
 
 ### Phase 2: Settings & Navigation
-- [ ] Refactor SettingsPanel to use bottom sheet on mobile
-- [ ] Ensure Navigation Rail / MobileBar safe-area insets
-- [ ] Test tab navigation on small screens
+- [x] Refactor SettingsPanel to use bottom sheet on mobile
+  - [x] Full-screen sheet on mobile (max-width: 767px)
+  - [x] Horizontal tab navigation instead of sidebar
+  - [x] Safe-area inset padding for notches
+- [x] Ensure Navigation Rail / MobileBar safe-area insets
+- [x] Test tab navigation on small screens
 
-### Phase 3: Refinement
-- [ ] Welcome screen motif sizing on mobile
-- [ ] Paywall button sizing and safe-area bottom
+### Phase 3: Refinement ✅ IN PROGRESS
+- [x] Welcome screen motif sizing on mobile
+  - [x] Scale motifs from 150px to 100px on mobile
+  - [x] Responsive title with clamp()
+  - [x] Touch-friendly 44px+ buttons
+- [x] Paywall button sizing and safe-area bottom
+  - [x] Stack plan cards on mobile
+  - [x] 48px minimum button heights
+  - [x] Safe-area padding for home indicators
 - [ ] Entry list row sizing and swipe actions
 - [ ] End-to-end testing: New user flow → Welcome → Paywall → Editor
 
-### Phase 4: Lower Priority Features
+### Phase 4: Lower Priority Features (WIP)
 - [ ] Altar mobile layout
 - [ ] Lamp mobile layout
 - [ ] Ascent mobile layout (charts)
