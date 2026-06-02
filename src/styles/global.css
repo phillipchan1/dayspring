@@ -2037,6 +2037,12 @@ html[data-focus-mode] .focus-controls {
   line-height: 1.55;
   max-width: 34rem;
 }
+.settings-section__heading {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
 .settings-back {
   display: inline-flex;
   align-items: center;

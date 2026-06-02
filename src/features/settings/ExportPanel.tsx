@@ -37,16 +37,16 @@ export function ExportPanel() {
 
   return (
     <div className="export-panel">
-      <h3 className="export-panel__title">Export</h3>
+      <h3 className="export-panel__title">Download backup</h3>
       <p className="export-panel__intro">
-        Download a complete backup of your journal as a zip. You can reimport it into Dayspring
-        any time using the "Dayspring Backup" importer above.
+        Save every entry to a zip you keep. Restore it anytime with the Dayspring Backup card
+        above.
       </p>
 
       {(phase === 'idle' || phase === 'error') && (
         <div>
           <button className="btn" onClick={() => void startExport()}>
-            Export journal
+            Download backup
           </button>
           {phase === 'error' && error && (
             <p className="import-error" style={{ marginTop: '0.6rem' }}>{error}</p>
@@ -82,7 +82,7 @@ export function ExportPanel() {
               setProgress({ fetched: 0, total: 0 })
             }}
           >
-            Export again
+            Download again
           </button>
         </div>
       )}

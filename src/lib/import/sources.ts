@@ -1,6 +1,6 @@
 // The catalogue of journals Dayspring can import from. Each source carries its
 // own export instructions and (when available) a browser-side parser. The
-// Settings → Import UI is driven entirely by this list, so adding a competitor
+// Settings → Import & backup UI is driven entirely by this list, so adding a competitor
 // is a matter of appending one entry.
 
 import type { EntrySource } from '../types'
@@ -53,7 +53,7 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
     accept: '.zip,application/zip',
     fileLabel: 'Dayspring backup (.zip)',
     instructions: [
-      'Go to Settings → Import and click "Export journal" to download your backup.',
+      'Go to Settings → Import & backup and click Download backup.',
       'Drop the resulting dayspring-backup-YYYY-MM-DD.zip here to restore.',
       'Entries are matched by their original ID, so reimporting never creates duplicates.',
     ],

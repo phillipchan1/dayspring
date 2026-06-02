@@ -9,7 +9,7 @@ interface Props {
   onBack: () => void
 }
 
-/** Settings → Import: pick a source, follow its export steps, then drop the file. */
+/** Settings → Import & backup: migrate in, download a zip, or restore. */
 export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
   const selected = selectedId ? IMPORT_SOURCES.find((s) => s.id === selectedId) ?? null : null
 
@@ -20,9 +20,11 @@ export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
   return (
     <div>
       <p className="settings-section__intro">
-        Bring your history with you. Everything is parsed privately in your browser — your entries
-        never pass through another service.
+        Move your journal in or out. Import from another app, download a backup zip, or restore a
+        previous Dayspring export — parsed privately in your browser, never sent through another
+        service.
       </p>
+      <h3 className="settings-section__heading">Import from</h3>
       <div className="import-grid">
         {IMPORT_SOURCES.map((s) => {
           const soon = s.status === 'coming-soon'
@@ -98,7 +100,7 @@ function SourceDetail({ source, onBack }: { source: ImportSourceDef; onBack: () 
   return (
     <div>
       <button type="button" className="settings-back" onClick={onBack}>
-        ← All sources
+        ← Import from
       </button>
 
       <div className="import-detail__head">

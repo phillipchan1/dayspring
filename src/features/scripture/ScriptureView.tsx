@@ -94,7 +94,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
   const [reloadKey, setReloadKey] = useState(0)
   const reqId = useRef(0)
 
-  // Scan CTA (dismissible here; also available in Settings → Import).
+  // Scan CTA (dismissible here; also available in Settings → Import & backup).
   const scan = useScriptureScan(() => setReloadKey((k) => k + 1))
 
   // The open book panel is its own history frame, so Back / Esc / the rail all
@@ -195,8 +195,8 @@ export function ScriptureView({ onOpenEntry }: Props) {
                     type="button"
                     className="scripture__scan-dismiss"
                     onClick={scan.dismiss}
-                    aria-label="Dismiss — scan later from Settings → Import"
-                    title="Dismiss (you can scan later from Settings → Import)"
+                    aria-label="Dismiss — scan later in Settings → Import & backup"
+                    title="Dismiss (you can scan later in Settings → Import & backup)"
                   >
                     ✕
                   </button>

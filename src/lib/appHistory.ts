@@ -22,6 +22,7 @@ export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
   surface: 'journal' | 'reflections' | 'altar' | 'scripture'
   entryId: string | null
+  /** Open settings modal; `importSource` set on a pushed frame when viewing a source. */
   settings: { tab: SettingsTab; importSource: string | null } | null
   help: boolean
   sidebar: boolean

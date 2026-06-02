@@ -30,6 +30,8 @@ interface AppNavigationValue {
   go: (patch: Partial<AppHistoryState>, opts?: { replace?: boolean }) => void
   /** Pop one in-app history frame (mouse back, Android back, overlay close). */
   back: () => void
+  /** Close settings, including an open Import source detail if one is on the stack. */
+  closeSettings: () => void
 }
 
 const AppNavigationContext = createContext<AppNavigationValue | null>(null)
@@ -60,6 +62,13 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
 
   const back = useCallback(() => {
     history.back()
+  }, [])
+
+  const closeSettings = useCallback(() => {
+    const s = stateRef.current
+    if (!s.settings) return
+    const delta = s.settings.importSource ? -2 : -1
+    history.go(delta)
   }, [])
 
   useEffect(() => {
@@ -126,7 +135,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ state, go, back }), [state, go, back])
+  const value = useMemo(() => ({ state, go, back, closeSettings }), [state, go, back, closeSettings])
 
   return (
     <AppNavigationContext.Provider value={value}>

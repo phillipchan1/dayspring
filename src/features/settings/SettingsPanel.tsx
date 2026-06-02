@@ -21,6 +21,7 @@ interface Props {
   importSourceId: string | null
   onTabChange: (tab: SettingsTab) => void
   onImportSourceChange: (sourceId: string) => void
+  /** Pop one settings history frame (e.g. import source detail → list). */
   onImportSourceBack: () => void
   /** Signed-in account, shown alongside Sign out in the About tab. */
   userEmail: string
@@ -29,7 +30,7 @@ interface Props {
 const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'appearance', label: 'Appearance', icon: <IconSun /> },
   { id: 'writing', label: 'Writing', icon: <IconPen /> },
-  { id: 'import', label: 'Import', icon: <IconImport /> },
+  { id: 'import', label: 'Import & backup', icon: <IconImport /> },
   { id: 'shortcuts', label: 'Shortcuts', icon: <IconKey /> },
   { id: 'billing', label: 'Billing', icon: <IconSubscription /> },
   { id: 'about', label: 'About', icon: <IconSpark /> },
@@ -52,11 +53,12 @@ export function SettingsPanel({
       // Capture + preventDefault: with fullscreen keyboard lock, Esc closes modal first.
       e.preventDefault()
       e.stopPropagation()
-      onClose()
+      if (importSourceId) onImportSourceBack()
+      else onClose()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  }, [importSourceId, onClose, onImportSourceBack])
 
   const active = TABS.find((t) => t.id === tab)!
 

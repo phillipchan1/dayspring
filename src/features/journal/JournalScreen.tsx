@@ -92,7 +92,7 @@ function sentenceNear(content: string, pos: number): string {
 }
 
 export function JournalScreen({ userEmail }: JournalScreenProps) {
-  const { state, go, back } = useAppNavigation()
+  const { state, go, back, closeSettings } = useAppNavigation()
   const { entryId, restrictIds } = state
 
   const [entries, setEntries] = useState<Entry[]>([])
@@ -595,7 +595,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => {
-      if (settingsOpen) back()
+      if (settingsOpen) closeSettings()
       else openSettings()
     },
     onFocusSearch: () => {
@@ -1035,7 +1035,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         <SettingsPanel
           settings={settings}
           update={updateSettings}
-          onClose={back}
+          onClose={closeSettings}
           tab={state.settings.tab}
           importSourceId={state.settings.importSource}
           userEmail={userEmail}
@@ -1051,11 +1051,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             )
           }
           onImportSourceChange={(importSource) =>
-            go({ settings: { tab: 'import', importSource } }, { replace: true })
+            go({ settings: { tab: 'import', importSource } })
           }
-          onImportSourceBack={() =>
-            go({ settings: { tab: 'import', importSource: null } }, { replace: true })
-          }
+          onImportSourceBack={back}
         />
       )}
       {helpOpen && <ShortcutsOverlay onClose={back} />}
