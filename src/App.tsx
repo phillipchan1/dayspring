@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from './lib/env'
 import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
 import { useResolvedTheme } from './hooks/useResolvedTheme'
+import { useSubscription } from './hooks/useSubscription'
 import { EDITOR_FONT_VARS } from './lib/settings'
 import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
@@ -10,25 +11,24 @@ import { JournalScreen } from './features/journal/JournalScreen'
 import { UpdateToast } from './components/UpdateToast'
 import { AppNavigationProvider } from './context/AppNavigation'
 import { WelcomeProvider } from './features/welcome/WelcomeProvider'
+import { PaywallScreen } from './features/paywall/PaywallScreen'
+import { LockedScreen } from './features/paywall/LockedScreen'
+import { TrialBanner } from './features/paywall/TrialBanner'
 
 export function App() {
   const { session, loading } = useSession()
   const { settings } = useSettings()
   const resolvedTheme = useResolvedTheme(settings)
 
-  // Apply per-device appearance (theme + editor typography) to CSS custom props.
   useEffect(() => {
     const root = document.documentElement
     root.setAttribute('data-theme', resolvedTheme)
     root.style.setProperty('--editor-font-size', `${settings.fontSize}px`)
     root.style.setProperty('--editor-line-height', String(settings.lineHeight))
     root.style.setProperty('--editor-max-width', `${settings.maxWidth}rem`)
-    // The writing/reading face — one token reskins both editor and reader.
-    // Reflections keeps Fraunces/Newsreader regardless (don't touch those tokens).
     root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
   }, [resolvedTheme, settings.fontSize, settings.lineHeight, settings.maxWidth, settings.editorFont])
 
-  // Before keys exist, the app still boots and tells you what to configure.
   if (!isSupabaseConfigured) return <SetupNotice />
 
   if (loading) {
@@ -47,8 +47,25 @@ export function App() {
 }
 
 function AuthenticatedApp({ userEmail }: { userEmail: string }) {
+  const { subscription, entitled, loading, refetch } = useSubscription()
+
+  if (loading) {
+    return <div className="center-screen" style={{ color: 'var(--text-dim)' }}>Loading…</div>
+  }
+
+  // No subscription yet — prompt to start a trial.
+  if (!subscription || subscription.plan === 'none') {
+    return <PaywallScreen />
+  }
+
+  // Trial or payment problem — subscription exists but access is revoked.
+  if (!entitled) {
+    return <LockedScreen plan={subscription.plan} onRefetch={refetch} />
+  }
+
   return (
     <>
+      {subscription.plan === 'trialing' && <TrialBanner subscription={subscription} />}
       <JournalScreen userEmail={userEmail} />
       <UpdateToast />
     </>

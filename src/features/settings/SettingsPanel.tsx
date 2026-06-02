@@ -1,13 +1,15 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
+import { useSubscription } from '@/hooks/useSubscription'
 import { signOut } from '@/lib/auth'
 import { isTauri } from '@/lib/platform'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
+import { fetchPortalUrl, trialDaysRemaining } from '@/lib/subscription'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
 
@@ -29,6 +31,7 @@ const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'writing', label: 'Writing', icon: <IconPen /> },
   { id: 'import', label: 'Import', icon: <IconImport /> },
   { id: 'shortcuts', label: 'Shortcuts', icon: <IconKey /> },
+  { id: 'subscription', label: 'Subscription', icon: <IconSubscription /> },
   { id: 'about', label: 'About', icon: <IconSpark /> },
 ]
 
@@ -102,6 +105,7 @@ export function SettingsPanel({
               />
             )}
             {tab === 'shortcuts' && <ShortcutsTab />}
+            {tab === 'subscription' && <SubscriptionTab />}
             {tab === 'about' && <AboutTab userEmail={userEmail} onClose={onClose} />}
           </div>
         </div>
@@ -352,6 +356,134 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
   )
 }
 
+function SubscriptionTab() {
+  const { subscription, loading } = useSubscription()
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
+
+  async function openPortal() {
+    setPortalError(null)
+    setPortalLoading(true)
+    try {
+      const url = await fetchPortalUrl()
+      window.open(url, '_blank', 'noopener')
+    } catch (e) {
+      setPortalError(e instanceof Error ? e.message : 'Could not open billing portal.')
+    } finally {
+      setPortalLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="settings-stack">
+        <p className="settings-section__intro" style={{ color: 'var(--text-faint)' }}>Loading…</p>
+      </div>
+    )
+  }
+
+  const plan = subscription?.plan ?? 'none'
+  const trialDays = subscription ? trialDaysRemaining(subscription) : 0
+
+  const planLabel: Record<string, string> = {
+    none: 'No active subscription',
+    trialing: `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
+    active: 'Active',
+    cancelled: 'Cancelled',
+    past_due: 'Payment failed',
+  }
+
+  return (
+    <div className="settings-stack">
+      <p className="settings-section__intro">
+        Dayspring is a paid app with a 14-day free trial. Your journal and all its history stays
+        with you — subscribe to keep writing.
+      </p>
+
+      <div className="settings-field">
+        <div className="settings-field__head settings-field__head--row">
+          <span className="settings-field__label">Status</span>
+          <span
+            className="settings-field__value"
+            style={{
+              color:
+                plan === 'active' || plan === 'trialing'
+                  ? 'var(--success)'
+                  : plan === 'past_due'
+                    ? 'var(--danger)'
+                    : 'var(--text-faint)',
+            }}
+          >
+            {planLabel[plan] ?? plan}
+          </span>
+        </div>
+      </div>
+
+      <div className="settings-divider" />
+
+      <div className="settings-field">
+        <div className="settings-field__head">
+          <span className="settings-field__label">Manage subscription</span>
+          <span className="settings-field__hint">
+            Update your payment method, switch plans, or cancel via the Stripe billing portal.
+          </span>
+        </div>
+        <div className="settings-actions">
+          <button
+            className="btn"
+            onClick={() => void openPortal()}
+            disabled={portalLoading || plan === 'none'}
+          >
+            {portalLoading ? 'Opening…' : 'Open billing portal'}
+          </button>
+          {portalError && (
+            <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: 0 }}>{portalError}</p>
+          )}
+          {plan === 'none' && (
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.78rem', margin: 0 }}>
+              No active subscription to manage.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="settings-divider" />
+
+      <div className="settings-field">
+        <div className="settings-field__head">
+          <span className="settings-field__label">Pricing</span>
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '0.6rem',
+          }}
+        >
+          {[
+            { label: 'Annual', price: '$64 / yr', note: '~$5.33 / mo' },
+            { label: 'Monthly', price: '$7 / mo', note: 'Cancel anytime' },
+          ].map((p) => (
+            <div
+              key={p.label}
+              style={{
+                padding: '0.7rem 0.8rem',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius)',
+              }}
+            >
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>{p.label}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>{p.price}</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>{p.note}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Inline section icons (1.25rem, currentColor stroke) ──────────────────── */
 
 function IconSun() {
@@ -396,6 +528,16 @@ function IconSpark() {
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
       <path d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
+    </svg>
+  )
+}
+
+function IconSubscription() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+      <path d="M6 15h4" />
     </svg>
   )
 }

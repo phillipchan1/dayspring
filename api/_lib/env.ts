@@ -23,4 +23,11 @@ export const env = {
   // If unset, the cron marks reminders fired but sends nothing.
   resendKey: () => process.env.RESEND_API_KEY ?? null,
   appUrl: () => process.env.APP_URL ?? 'https://dayspring-eosin.vercel.app',
+  // Stripe Billing (set in Vercel project settings after creating Stripe account)
+  stripeSecretKey: () => need('STRIPE_SECRET_KEY'),
+  stripeWebhookSecret: () => need('STRIPE_WEBHOOK_SECRET'),
+  stripeAnnualPriceId: () => need('STRIPE_ANNUAL_PRICE_ID'),
+  stripeMonthlyPriceId: () => need('STRIPE_MONTHLY_PRICE_ID'),
+  // RevenueCat (iOS IAP — add when Capacitor/App Store launch)
+  revenuecatWebhookSecret: () => process.env.REVENUECAT_WEBHOOK_SECRET ?? null,
 }
