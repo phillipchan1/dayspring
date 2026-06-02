@@ -60,7 +60,7 @@ export async function callModel<T>(
     const finish = choice?.finish_reason
 
     // Newer SDK versions expose a pre-parsed object for json_schema responses.
-    const maybeParsed = (msg as Record<string, unknown> | undefined)?.parsed
+    const maybeParsed = (msg as unknown as Record<string, unknown> | undefined)?.parsed
     if (maybeParsed !== null && maybeParsed !== undefined) {
       return maybeParsed as T
     }

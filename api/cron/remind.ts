@@ -53,12 +53,10 @@ export async function GET(req: Request): Promise<Response> {
   const { data: users } = await sb.auth.admin.listUsers({ perPage: 1000 })
   const emailById = new Map<string, string>(
     (users?.users ?? [])
-      .filter((u): u is UserRow => Boolean(u.id && u.email))
-      .filter((u) => ownerIds.includes(u.id))
-      .map((u) => [u.id, u.email] as [string, string]),
+      .filter((u) => Boolean(u.id && u.email) && ownerIds.includes(u.id))
+      .map((u) => [u.id, u.email as string] as [string, string]),
   )
 
-  const appUrl = env.appUrl()
   let fired = 0
   const errors: string[] = []
 

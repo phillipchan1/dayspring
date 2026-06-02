@@ -4,10 +4,7 @@
 // writes can reach Supabase once a real secret is set.
 
 import { env } from '../_lib/env.js'
-import {
-  updateSubscriptionByUserId,
-  updateSubscriptionByStripeCustomer,
-} from '../_lib/updateSubscription.js'
+import { updateSubscriptionByUserId } from '../_lib/updateSubscription.js'
 import type { Plan } from '../_lib/entitlement.js'
 
 // RevenueCat sends the secret in the Authorization header.

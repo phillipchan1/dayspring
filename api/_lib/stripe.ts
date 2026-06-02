@@ -6,7 +6,7 @@ let _stripe: Stripe | null = null
 export function stripe(): Stripe {
   if (!_stripe) {
     _stripe = new Stripe(env.stripeSecretKey(), {
-      apiVersion: '2025-05-28.basil',
+      apiVersion: '2026-05-27.dahlia',
     })
   }
   return _stripe

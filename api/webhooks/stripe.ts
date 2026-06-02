@@ -69,14 +69,10 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
 
       const plan = stripeStatusToPlan(sub.status)
       const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null
-      const periodEnd = sub.current_period_end
-        ? new Date(sub.current_period_end * 1000).toISOString()
-        : null
 
       await updateSubscriptionByStripeCustomer(customerId, {
         plan,
         trial_ends_at: trialEnd,
-        plan_expires_at: periodEnd,
         source: 'stripe',
       })
       break
