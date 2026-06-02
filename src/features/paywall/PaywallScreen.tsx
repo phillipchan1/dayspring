@@ -34,8 +34,7 @@ export function PaywallScreen() {
         <h1 className="paywall__headline">Begin your 14-day free trial</h1>
 
         <p className="paywall__sub">
-          A private place to write, reflect, and remember what matters. Your journal history is
-          the whole point — everything compounds over time.
+          Your journal history is the whole point — everything compounds over time.
         </p>
 
         <div className="paywall__plans">
@@ -77,10 +76,6 @@ export function PaywallScreen() {
 
         {error && <p className="paywall__error">{error}</p>}
 
-        <p className="paywall__privacy">
-          Your entries are encrypted, never sold, and never used to train AI. Only you can
-          reach your journal.
-        </p>
       </div>
     </div>
   )

@@ -49,7 +49,7 @@ export function TrialWelcome({ variant, onDismiss }: Props) {
         </div>
 
         <p className="trial-welcome__eyebrow">
-          {isTrial ? 'YOUR TRIAL HAS BEGUN' : 'WELCOME BACK'}
+          {isTrial ? 'WELCOME TO DAYSPRING' : 'WELCOME BACK'}
         </p>
 
         <h1 className="trial-welcome__headline">
@@ -58,12 +58,12 @@ export function TrialWelcome({ variant, onDismiss }: Props) {
 
         <p className="trial-welcome__body">
           {isTrial
-            ? '14 days, no charge today. Write honestly — the rest takes care of itself.'
+            ? 'The slow work begins now. 14 days free — your first entry is waiting.'
             : "Everything you've written is right where you left it. Welcome home."}
         </p>
 
         <button className="trial-welcome__cta" onClick={onDismiss}>
-          {isTrial ? 'Begin writing' : 'Continue writing'}
+          {isTrial ? 'Write your first entry' : 'Continue writing'}
           <span aria-hidden="true"> →</span>
         </button>
       </div>

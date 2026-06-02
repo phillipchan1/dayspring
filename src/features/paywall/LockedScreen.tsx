@@ -49,13 +49,13 @@ export function LockedScreen({ plan, onRefetch }: Props) {
         <Brand size={30} wordmarkRem={1.8} />
 
         <h1 className="locked-screen__headline">
-          {isPastDue ? 'There was a problem with your payment' : 'Your trial has ended'}
+          {isPastDue ? 'Your payment needs attention.' : 'Your journal is still here.'}
         </h1>
 
         <p className="locked-screen__body">
           {isPastDue
             ? 'Your journal is right here, waiting. Update your payment method to pick up where you left off.'
-            : "Your journal is here whenever you're ready to continue. Subscribe to keep writing and preserve everything you've built."}
+            : "Everything you wrote is saved. Subscribe to keep the slow work going."}
         </p>
 
         <div className="locked-screen__actions">
@@ -74,7 +74,7 @@ export function LockedScreen({ plan, onRefetch }: Props) {
                 disabled={busy}
                 onClick={() => void handleResubscribe('annual')}
               >
-                {loading === 'annual' ? 'Redirecting…' : 'Subscribe — $64 / year'}
+                {loading === 'annual' ? 'Redirecting…' : 'Continue — $64 / year'}
               </button>
               <button
                 className="btn btn--ghost"
@@ -86,7 +86,7 @@ export function LockedScreen({ plan, onRefetch }: Props) {
             </>
           )}
           <button className="btn btn--ghost" onClick={onRefetch} disabled={busy}>
-            I already subscribed — refresh
+            Already subscribed? Refresh
           </button>
         </div>
 
