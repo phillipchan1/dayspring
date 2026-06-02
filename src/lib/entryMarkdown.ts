@@ -1,4 +1,5 @@
 import { isSpiritualFenceLine } from './spiritualBlocks'
+import { isTaskLine, normalizeTaskLineForDisplay } from './taskListMarkdown'
 
 /** True when the line is already an ATX markdown heading. */
 export function isExplicitHeading(line: string): boolean {
@@ -21,6 +22,7 @@ function isNonTitleLine(line: string): boolean {
     /^[-*+]\s/.test(t) ||
     /^\d+\.\s/.test(t) ||
     /^>\s/.test(t) ||
+    /^(?:[-*+]\s+)?\[(?:\s|[xX])?\]\s*/.test(t) ||
     isSpiritualFenceLine(t) ||
     t === '```'
   )
@@ -44,8 +46,10 @@ export function markdownForDisplay(markdown: string): string {
 
   const raw = lines[idx]!
   const trimmed = raw.trim()
-  if (isExplicitHeading(trimmed) || isNonTitleLine(trimmed)) return markdown
+  if (isExplicitHeading(trimmed) || isNonTitleLine(trimmed)) {
+    return lines.map((line) => (isTaskLine(line) ? normalizeTaskLineForDisplay(line) : line)).join('\n')
+  }
 
   lines[idx] = `# ${trimmed}`
-  return lines.join('\n')
+  return lines.map((line) => (isTaskLine(line) ? normalizeTaskLineForDisplay(line) : line)).join('\n')
 }

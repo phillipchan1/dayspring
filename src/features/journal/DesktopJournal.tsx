@@ -79,6 +79,7 @@ export function DesktopJournal(props: JournalViewProps) {
             onDeleteEntries={onDeleteEntries}
             query={query}
             onQueryChange={onQueryChange}
+            onCollapse={onToggleEntries}
           />
           {entriesOpen && (
             <div

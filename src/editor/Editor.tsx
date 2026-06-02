@@ -18,6 +18,7 @@ import { formatKeymap } from './formatKeymap'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
+import { taskListExtension } from './taskListExtension'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
@@ -166,6 +167,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           firstLineTitleExtension,
           spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
           scriptureRefDecoration(),
+          taskListExtension(),
           EditorView.lineWrapping,
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),

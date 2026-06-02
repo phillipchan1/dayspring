@@ -33,6 +33,7 @@ import { focusEntryRow, focusedEntryIdInList } from './entryListFocus'
 
 const NATIVE = isTauri()
 const FLAT_VIRTUAL_THRESHOLD = 100
+const EMPTY_SELECTED: Entry[] = []
 
 interface Props {
   entries: Entry[]
@@ -47,6 +48,8 @@ interface Props {
   onQueryChange: (q: string) => void
   fullWidth?: boolean
   onSelectionChange?: EntrySelectionChange
+  /** Hide the list panel (desktop) — the discoverable handle for ⌘1. */
+  onCollapse?: (() => void) | undefined
 }
 
 export function EntryList({
@@ -61,6 +64,7 @@ export function EntryList({
   onQueryChange,
   fullWidth = false,
   onSelectionChange,
+  onCollapse,
 }: Props) {
   const { settings, update: updateSettings } = useSettings()
   const [phase, setPhase] = useState<EntryMenuPhase>({ kind: 'closed' })
@@ -85,10 +89,25 @@ export function EntryList({
   const orderIds = useMemo(() => orderedEntryIds(entries, groups), [entries, groups])
   const multi = useEntryMultiSelect(orderIds)
 
-  const selectedEntries = useMemo(
-    () => entries.filter((e) => multi.selectedIds.has(e.id)),
-    [entries, multi.selectedIds],
-  )
+  const selectedEntries = useMemo(() => {
+    if (multi.selectedIds.size === 0) return EMPTY_SELECTED
+    return entries.filter((e) => multi.selectedIds.has(e.id))
+  }, [entries, multi.selectedIds])
+
+  const selectionSig = useMemo(() => {
+    const ids = [...multi.selectedIds].sort().join('\0')
+    return `${ids}|${multi.rangeActive ? 1 : 0}`
+  }, [multi.selectedIds, multi.rangeActive])
+
+  const selectionNotifyRef = useRef('')
+  const selectionApiRef = useRef<{
+    clear: () => void
+    requestDelete: () => void
+  }>({ clear: () => {}, requestDelete: () => {} })
+  selectionApiRef.current.clear = multi.clearSelection
+  selectionApiRef.current.requestDelete = () => {
+    setBulkPhase({ kind: 'confirm', entries: selectedEntries })
+  }
 
   const flatVirtual =
     !groups && !searching && entries.length >= FLAT_VIRTUAL_THRESHOLD
@@ -114,14 +133,13 @@ export function EntryList({
 
   useEffect(() => {
     if (!onSelectionChange) return
+    if (selectionNotifyRef.current === selectionSig) return
+    selectionNotifyRef.current = selectionSig
     onSelectionChange(
       { entries: selectedEntries, rangeActive: multi.rangeActive },
-      {
-        clear: multi.clearSelection,
-        requestDelete: () => setBulkPhase({ kind: 'confirm', entries: selectedEntries }),
-      },
+      selectionApiRef.current,
     )
-  }, [selectedEntries, multi.rangeActive, onSelectionChange, multi.clearSelection])
+  }, [onSelectionChange, selectionSig, selectedEntries, multi.rangeActive])
 
   // Keep list focus during shift-range select (editor must not steal keys).
   useEffect(() => {
@@ -237,6 +255,29 @@ export function EntryList({
                 )}
               </span>
             )}
+          {onCollapse && !fullWidth && (
+            <button
+              type="button"
+              className="entry-list__collapse"
+              onClick={onCollapse}
+              title="Hide entries (⌘1)"
+              aria-label="Hide entries list"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 

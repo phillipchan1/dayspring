@@ -247,11 +247,15 @@ function IconNew() {
 }
 
 function IconEntries() {
+  // A bulleted list — distinct from the menu hamburger (the rail toggle).
   return (
     <NavIcon>
-      <path d="M5 6h14" />
-      <path d="M5 12h14" />
-      <path d="M5 18h14" />
+      <path d="M9 6h11" />
+      <path d="M9 12h11" />
+      <path d="M9 18h11" />
+      <path d="M4.5 6h.01" />
+      <path d="M4.5 12h.01" />
+      <path d="M4.5 18h.01" />
     </NavIcon>
   )
 }

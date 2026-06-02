@@ -255,6 +255,36 @@ a {
   color: var(--text-faint);
   user-select: none;
 }
+/* Discoverable handle to hide the list (same as ⌘1) — faint until you hover. */
+.entry-list__collapse {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.65;
+  transition:
+    color var(--transition),
+    opacity var(--transition),
+    background var(--transition);
+}
+.entry-list__head:hover .entry-list__collapse {
+  opacity: 1;
+}
+.entry-list__collapse:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.entry-list__collapse:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  opacity: 1;
+}
 .entry-list__groups {
   padding: 0.25rem 0 1.25rem;
 }

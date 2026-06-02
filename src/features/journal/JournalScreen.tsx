@@ -590,8 +590,12 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const handleSelectionChange = useCallback((state: EntrySelectionState, api: EntrySelectionApi) => {
     selectionApiRef.current = api
-    setRangeSelectActive(state.rangeActive)
-    setBulkSelection(state.entries)
+    setRangeSelectActive((prev) => (prev === state.rangeActive ? prev : state.rangeActive))
+    setBulkSelection((prev) => {
+      const next = state.entries
+      if (prev.length === next.length && prev.every((e, i) => e.id === next[i]?.id)) return prev
+      return next
+    })
     if (state.rangeActive || state.entries.length >= 2) {
       skipEditorAutofocusRef.current = true
     }
