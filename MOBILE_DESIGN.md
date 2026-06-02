@@ -207,8 +207,107 @@
 
 ---
 
+## Implementation Summary
+
+### ✅ Completed Work
+
+**Mobile Command Toolbar** (`src/editor/CommandToolbar.tsx`)
+- 4 quick-action buttons for slash commands (Scripture, Pray, Sense, Remind)
+- Integrated into editor for mobile users
+- Hides when slash palette is open (avoids UI confusion)
+- Preserves keyboard shortcut flow for power users
+- Touch-friendly 48px+ button heights with icons and labels
+
+**Settings Panel Bottom Sheet**
+- Responsive 2-column modal → full-screen bottom sheet on mobile
+- Navigation converted from vertical sidebar to horizontal scrollable tabs
+- Bottom indicator bar replaces left accent bar on mobile
+- Full-width content area optimized for narrow screens
+- Safe-area insets for notches and home indicators
+- Maintained smooth animations and transitions
+
+**Welcome Screen Mobile Optimization**
+- Motif SVGs scale down (150px → 100px on mobile)
+- Responsive headlines using clamp() for fluid scaling
+- Increased button touch targets to 44px+ minimum
+- Compact padding and spacing for small screens
+- Safe-area insets for full-screen cinematic experience
+
+**Paywall/Billing Screens**
+- Plan cards stack vertically on mobile (flex-wrap)
+- Responsive pricing display with clamp()
+- Minimum 48px button heights for touch accuracy
+- Safe-area bottom padding for home indicators
+- Full-width optimization for narrow viewports
+
+**Entry List Mobile Touch Targets**
+- Minimum 48px height for entry rows on mobile
+- Flex layout ensures vertical centering
+- Maintains 36px desktop minimum for compact view
+- Increased padding (0.75rem) for mobile spacing
+- Drawer respects safe-area-inset-top via CSS
+
+**Editor Integration**
+- Extended Editor API with `triggerCommand()` method
+- CommandToolbar shown below editor on mobile (hidden on desktop)
+- Properly hidden during focus mode
+- Responsive to keyboard and touch input
+
+### 📋 Testing Checklist (Manual)
+- [ ] Mobile (iPhone 12/13 - 390px viewport)
+  - [ ] Welcome screen: all slides readable, buttons tappable, animation smooth
+  - [ ] Paywall: plan cards stack, CTA button reachable without stretching
+  - [ ] Editor: command toolbar visible, each button works
+  - [ ] Settings: tabs scroll, content readable, safe area respected
+  - [ ] Entry list: rows tappable, drawer opens/closes smoothly
+
+- [ ] Tablet (iPad - 768px viewport)
+  - [ ] Settings uses desktop modal (not full-screen sheet)
+  - [ ] Entry list drawer is usable
+  - [ ] All controls sized appropriately for medium screens
+
+- [ ] Desktop (1024px+)
+  - [ ] Command toolbar hidden (no mobile toolbar visible)
+  - [ ] Settings modal centered, 2-column layout
+  - [ ] Navigation rail visible (not bottom bar)
+  - [ ] All existing functionality preserved
+
+- [ ] Safe-Area Testing (devices with notches/home indicators)
+  - [ ] Welcome theme toggle doesn't collide with notch
+  - [ ] Settings sheet respects top/bottom safe areas
+  - [ ] Paywall CTA button doesn't hide under home indicator
+  - [ ] Drawer header doesn't overlap notch
+  - [ ] Mobile bar at bottom respects home indicator space
+
+### 🎯 Next Steps (For When Ready)
+1. **Visual Testing**: Run app on real devices or emulator to verify responsive layout
+2. **Gesture Testing**: Test swipe-to-dismiss drawer, long-press for context menu
+3. **Performance**: Check animation performance on older iOS/Android devices
+4. **Accessibility**: Verify touch targets meet WCAG 2.1 AA standards (48px+)
+5. **Lower Priority Features**: Altar, Lamp, Ascent mobile layouts when features stabilize
+
 ## Design Files for Reference
-- See `src/styles/global.css` for primitive button/spacing
-- See `src/features/journal/MobileJournal.tsx` for mobile layout pattern
-- See `src/features/journal/DesktopJournal.tsx` for desktop layout pattern
-- Sketch/Figma: [Link to design system if available]
+- `src/styles/global.css` — Core responsive styles, breakpoints, safe-area handling
+- `src/editor/CommandToolbar.tsx` — Mobile command toolbar component
+- `src/features/journal/MobileJournal.tsx` — Mobile layout pattern (drawer + bottom nav)
+- `src/features/journal/DesktopJournal.tsx` — Desktop layout pattern (rail + panel + main)
+- `src/features/settings/SettingsPanel.tsx` — Settings component (responsive modal/sheet)
+- `src/features/welcome/Welcome.css` — Welcome screen responsive styles
+- `src/features/paywall/Paywall.css` — Paywall responsive styles
+
+## Responsive Breakpoints Used
+- **Mobile**: max-width: 480px (small phones)
+- **Mobile+**: max-width: 767px (phones and small tablets)
+- **Tablet**: 768px - 1023px
+- **Desktop**: 1024px+ 
+
+## Safe-Area CSS Variables
+App respects iOS/Android notches and home indicators using standard CSS:
+```css
+env(safe-area-inset-top)     /* Notch space at top */
+env(safe-area-inset-bottom)  /* Home indicator space at bottom */
+env(safe-area-inset-left)    /* Side notches (rare) */
+env(safe-area-inset-right)   /* Side notches (rare) */
+```
+
+Used throughout for padding, min-heights, and positioning.
