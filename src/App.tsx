@@ -113,9 +113,13 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
     )
   }
 
-  // No subscription yet — prompt to start a trial.
+  // No subscription yet — welcome flow first (first-run only), then paywall.
   if (!subscription || subscription.plan === 'none') {
-    return <PaywallScreen />
+    return (
+      <WelcomeProvider>
+        <PaywallScreen />
+      </WelcomeProvider>
+    )
   }
 
   // Entitled but trial/payment lapsed — show locked screen.
