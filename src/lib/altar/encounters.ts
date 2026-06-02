@@ -78,6 +78,31 @@ export async function clearEncounter(threadId: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * Remove a cairn the harvest got wrong. AI-scanned members are deleted outright
+ * (their source entry stays marked scanned, so removal sticks). Explicitly-typed
+ * /pray members are only UNLINKED — they're the writer's own words and are tied
+ * to editor fence blocks, so we never delete them here; they may re-form their
+ * own seed later. The thread row goes (its encounter + candidate cascade).
+ */
+export async function deleteThread(threadId: string): Promise<void> {
+  const sb = requireSupabase()
+  const { error: unlinkErr } = await sb
+    .from('spiritual_items')
+    .update({ thread_id: null })
+    .eq('thread_id', threadId)
+    .neq('source', 'scanned')
+  if (unlinkErr) throw unlinkErr
+  const { error: delItemsErr } = await sb
+    .from('spiritual_items')
+    .delete()
+    .eq('thread_id', threadId)
+    .eq('source', 'scanned')
+  if (delItemsErr) throw delItemsErr
+  const { error: delThreadErr } = await sb.from('prayer_threads').delete().eq('id', threadId)
+  if (delThreadErr) throw delThreadErr
+}
+
 /** Decline a surfaced candidate: it never resurfaces for this (thread, entry). */
 export async function dismissCandidate(threadId: string, entryId: string): Promise<void> {
   const sb = requireSupabase()

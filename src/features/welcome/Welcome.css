@@ -1,0 +1,408 @@
+/*
+ * Welcome flow — first-run cinematic intro.
+ * A fixed, full-screen overlay with its own living dawn gradient (deep night →
+ * gold across six slides). The surface is intentionally theme-independent: it
+ * keeps the same dark arc regardless of the app theme, so it hand-rolls its
+ * glass rather than reusing the themed --glass-* tokens. Type uses the shared
+ * font tokens (Newsreader / JetBrains Mono).
+ */
+
+.welcome-flow {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #ece7df;
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  /* The current slide's living gradient is painted here (inline, per slide) so
+     the background is always present — no see-through frame between slides. */
+  background: linear-gradient(180deg, #0c1018, #121a2a);
+}
+
+.welcome-flow *,
+.welcome-flow *::before,
+.welcome-flow *::after {
+  box-sizing: border-box;
+}
+
+.welcome-flow:focus {
+  outline: none;
+}
+
+.welcome-flow__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* background (the OUTGOING slide's gradient) is set inline. Keyed remount
+     replays this fade-out, cross-tweening over the current gradient below. */
+  animation: wf-bgfadeout 1.1s ease both;
+}
+
+.welcome-flow__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.05;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Visually-hidden live region for slide announcements. */
+.welcome-flow__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.welcome-flow__skip {
+  position: absolute;
+  top: max(22px, env(safe-area-inset-top, 0px));
+  right: 24px;
+  z-index: 5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(236, 231, 223, 0.5);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s ease;
+}
+.welcome-flow__skip:hover {
+  color: rgba(236, 231, 223, 0.9);
+}
+.welcome-flow__skip:focus-visible {
+  outline: 2px solid rgba(244, 205, 138, 0.7);
+  outline-offset: 2px;
+}
+
+.welcome-flow__stage {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  min-height: 0;
+}
+
+.welcome-flow__glass {
+  position: relative;
+  width: min(560px, 92vw);
+  padding: 48px 44px 44px;
+  border-radius: 28px;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 30px 80px -30px rgba(0, 0, 0, 0.7),
+    0 0 60px -20px rgba(232, 184, 115, 0.15);
+  animation: wf-enter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.welcome-flow__glass > :not(.welcome-flow__glow) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Corner dawn bloom. */
+.welcome-flow__glow {
+  position: absolute;
+  top: -38%;
+  right: -22%;
+  width: 58%;
+  height: 78%;
+  z-index: 0;
+  background: radial-gradient(circle at 45% 45%, rgba(243, 189, 118, 0.2), transparent 68%);
+  filter: blur(32px);
+  pointer-events: none;
+}
+
+.welcome-flow__motif-wrap {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.wf-motif {
+  height: 150px;
+  width: auto;
+  overflow: visible;
+}
+
+.welcome-flow__eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: #e8b873;
+  opacity: 0.85;
+  margin-bottom: 18px;
+  animation: wf-rise 0.6s both 0.15s;
+}
+
+.welcome-flow__title {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  margin: 0 0 20px;
+  animation: wf-rise 0.6s both 0.25s;
+}
+.welcome-flow__title span {
+  display: inline;
+}
+
+.welcome-flow__body {
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: rgba(236, 231, 223, 0.74);
+  max-width: 430px;
+  margin: 0 auto;
+  font-style: italic;
+  animation: wf-rise 0.6s both 0.38s;
+}
+
+.welcome-flow__nav {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 22px 30px max(30px, env(safe-area-inset-bottom, 0px));
+}
+
+.welcome-flow__ghost {
+  background: none;
+  border: none;
+  color: rgba(236, 231, 223, 0.55);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s ease;
+}
+.welcome-flow__ghost:hover {
+  color: #ece7df;
+}
+
+.welcome-flow__dots {
+  display: flex;
+  gap: 9px;
+}
+.welcome-flow__dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(236, 231, 223, 0.22);
+  cursor: pointer;
+  transition: width 0.35s ease, background 0.35s ease, border-radius 0.35s ease;
+}
+.welcome-flow__dot.past {
+  background: rgba(232, 184, 115, 0.45);
+}
+.welcome-flow__dot.on {
+  width: 22px;
+  border-radius: 4px;
+  background: #e8b873;
+  box-shadow: 0 0 10px -1px rgba(232, 184, 115, 0.7);
+}
+
+.welcome-flow__next,
+.welcome-flow__begin {
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  border-radius: 22px;
+  padding: 11px 26px;
+  transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+.welcome-flow__next {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ece7df;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.welcome-flow__next:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+.welcome-flow__begin {
+  background: linear-gradient(160deg, #f0c587, #dca35e);
+  color: #2a1d10;
+  font-weight: 500;
+  box-shadow: 0 8px 26px -8px rgba(232, 184, 115, 0.7);
+}
+.welcome-flow__begin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 34px -8px rgba(232, 184, 115, 0.85);
+}
+
+.welcome-flow__skip:focus-visible,
+.welcome-flow__ghost:focus-visible,
+.welcome-flow__dot:focus-visible,
+.welcome-flow__next:focus-visible,
+.welcome-flow__begin:focus-visible {
+  outline: 2px solid rgba(244, 205, 138, 0.75);
+  outline-offset: 3px;
+}
+
+/* ── motif animations ─────────────────────────────────────────────────── */
+.wf-m-sun {
+  transform-origin: 150px 200px;
+  animation: wf-sunrise 1.4s ease both 0.2s;
+}
+.wf-m-core {
+  transform-origin: 150px 200px;
+  animation: wf-sunrise 1.4s ease both 0.2s;
+}
+.wf-m-ray {
+  transform-origin: 150px 200px;
+  animation: wf-ray 1s ease both 0.6s;
+}
+.wf-m-write {
+  transform-origin: left;
+  animation: wf-typein 1s ease both 0.4s;
+}
+.wf-m-caret {
+  animation: wf-blink 1.1s steps(1) infinite 0.9s;
+}
+.wf-m-node {
+  animation: wf-pop 0.5s ease both;
+}
+.wf-m-arc {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: wf-draw 1.1s ease both;
+}
+.wf-m-stone {
+  transform-origin: center;
+  animation: wf-stack 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.wf-m-capstone {
+  transform-origin: center;
+  animation: wf-light 1s ease both 0.7s;
+}
+.wf-m-square {
+  animation: wf-fade 0.5s both;
+}
+.wf-m-square.lit {
+  animation: wf-kindle 0.7s ease both;
+}
+.wf-m-glow {
+  animation: wf-fade 1.3s ease both;
+}
+.wf-m-ring {
+  transform-origin: 150px 120px;
+  animation: wf-expand 1.4s ease both 0.2s;
+}
+
+@keyframes wf-bgfadeout {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes wf-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wf-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wf-sunrise {
+  from { transform: translateY(60px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes wf-ray {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes wf-typein {
+  from { transform: scaleX(0); opacity: 0.3; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+@keyframes wf-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes wf-pop {
+  from { opacity: 0; transform: scale(0); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes wf-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes wf-stack {
+  from { opacity: 0; transform: translateY(-14px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wf-light {
+  0% { opacity: 0.3; filter: drop-shadow(0 0 0 rgba(240, 197, 135, 0)); }
+  100% { opacity: 1; filter: drop-shadow(0 0 16px rgba(240, 197, 135, 0.8)); }
+}
+@keyframes wf-kindle {
+  from { opacity: 0; fill: rgba(150, 165, 190, 0.12); }
+  to { opacity: 1; }
+}
+@keyframes wf-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes wf-expand {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 520px) {
+  .welcome-flow__title {
+    font-size: 26px;
+  }
+  .welcome-flow__glass {
+    padding: 36px 26px 32px;
+  }
+  .welcome-flow__body {
+    font-size: 15.5px;
+  }
+}
+
+/* Reduced motion: cross-fades only, no transforms. */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-flow *,
+  .welcome-flow *::before,
+  .welcome-flow *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .welcome-flow__glass {
+    animation: wf-fade 0.3s both;
+  }
+  .welcome-flow__glass,
+  .welcome-flow {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

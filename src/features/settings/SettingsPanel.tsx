@@ -4,6 +4,7 @@ import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { signOut } from '@/lib/auth'
 import { isTauri } from '@/lib/platform'
+import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
@@ -101,7 +102,7 @@ export function SettingsPanel({
               />
             )}
             {tab === 'shortcuts' && <ShortcutsTab />}
-            {tab === 'about' && <AboutTab userEmail={userEmail} />}
+            {tab === 'about' && <AboutTab userEmail={userEmail} onClose={onClose} />}
           </div>
         </div>
       </div>
@@ -194,7 +195,8 @@ function ShortcutsTab() {
   )
 }
 
-function AboutTab({ userEmail }: { userEmail: string }) {
+function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => void }) {
+  const { replay } = useWelcome()
   return (
     <div className="settings-about">
       <div className="settings-about__mark">Dayspring</div>
@@ -210,6 +212,19 @@ function AboutTab({ userEmail }: { userEmail: string }) {
         </div>
       </dl>
       {isTauri() && <UpdateChecker />}
+      <div className="settings-divider" />
+      <div className="settings-field__head settings-field__head--row">
+        <span className="settings-field__label">Welcome</span>
+        <button
+          className="btn btn--ghost"
+          onClick={() => {
+            onClose()
+            replay()
+          }}
+        >
+          Replay the welcome
+        </button>
+      </div>
       <div className="settings-divider" />
       <div className="settings-field__head settings-field__head--row">
         <span className="settings-field__label">Account</span>

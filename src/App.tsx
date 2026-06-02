@@ -9,6 +9,7 @@ import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
 import { UpdateToast } from './components/UpdateToast'
 import { AppNavigationProvider } from './context/AppNavigation'
+import { WelcomeProvider } from './features/welcome/WelcomeProvider'
 
 export function App() {
   const { session, loading } = useSession()
@@ -38,7 +39,9 @@ export function App() {
 
   return (
     <AppNavigationProvider>
-      <AuthenticatedApp userEmail={session.user.email ?? ''} />
+      <WelcomeProvider>
+        <AuthenticatedApp userEmail={session.user.email ?? ''} />
+      </WelcomeProvider>
     </AppNavigationProvider>
   )
 }

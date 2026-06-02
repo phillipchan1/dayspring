@@ -424,6 +424,175 @@ export async function migrateLegacyAnswered(owner: string): Promise<{ migrated: 
   return { migrated }
 }
 
+// ── 3b. prayer harvest — surface prayers written in entry PROSE ────────────────
+// The Altar is otherwise fed only by explicit /pray, /sense slash-commands, so a
+// journal imported from elsewhere (never typed through the editor) shows almost
+// nothing. This reads the prose and lays the prayers already there onto the
+// altar — the writer's own VERBATIM words, never paraphrased. Auto-planted, easy
+// to remove. Mirrors the Lamp's prose scan. Cost-bounded by a cue prefilter + a
+// per-entry watermark (prayer_scanned_at) so an entry is read by the model once.
+
+// Wide net: a journal entry with NONE of these almost never contains a prayer, so
+// it skips the model entirely (marked scanned). Generous on purpose.
+const HARVEST_CUE =
+  /\b(lord|god|jesus|christ|holy spirit|pray(?:ing|ed|er|ers)?|amen|faith|bless(?:ed|ing|ings)?|forgive|forgiveness|grace|mercy|worship|hallelujah|hosanna|intercede|interceding|intercession|scripture|i feel like (?:god|the lord|he|you)|i sense|impression|he(?:'s| is) (?:saying|leading|showing|telling)|on my heart|cry out|petition|guide me|help me)\b/i
+
+const HARVEST_LLM_BATCH = 6
+const HARVEST_MAX_CHARS = 4000
+
+const HARVEST_PROMPT = `You read entries from one person's private faith journal and surface the PRAYERS and SPIRITUAL
+IMPRESSIONS already written in them — so they can be remembered, never judged.
+For each given entry, extract every distinct:
+ - prayer / petition / intercession — anything addressed to God, or asking / longing / interceding (for
+   themselves or others) — type "prayer".
+ - sense / impression / leading — a felt sense that God is speaking, prompting, comforting, or showing
+   something — type "sense".
+Cast a WIDE net: include brief prayers, implicit ones, and prayers woven into ordinary reflection. When in
+doubt, include it.
+HARD RULE: each "text" MUST be copied VERBATIM (exact characters) from THAT entry — a contiguous span of the
+person's own words. Never paraphrase, summarize, translate, or invent. If an entry contains none, return an
+empty prayers array for it.
+Return JSON {"entries":[{"id": string, "prayers":[{"type":"prayer"|"sense","text": string}]}]}.`
+
+const HARVEST_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['entries'],
+  properties: {
+    entries: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'prayers'],
+        properties: {
+          id: { type: 'string' },
+          prayers: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['type', 'text'],
+              properties: {
+                type: { type: 'string', enum: ['prayer', 'sense'] },
+                text: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const
+
+const normalizeWs = (s: string) => s.replace(/\s+/g, ' ').trim()
+
+/** The extracted passage must be the writer's actual words — a (whitespace-tolerant) substring. */
+function isVerbatim(body: string, text: string): boolean {
+  if (!text) return false
+  if (body.includes(text)) return true
+  return normalizeWs(body).includes(normalizeWs(text))
+}
+
+async function markScanned(sb: SupabaseClient, ids: string[]): Promise<void> {
+  const stamp = new Date().toISOString()
+  for (let i = 0; i < ids.length; i += 500) {
+    const { error } = await sb
+      .from('entries')
+      .update({ prayer_scanned_at: stamp })
+      .in('id', ids.slice(i, i + 500))
+    if (error) throw error
+  }
+}
+
+/** Dry-run plan: how many entries are unscanned, and how many clear the cue prefilter. */
+export async function harvestPlan(owner: string): Promise<{ unscanned: number; candidates: number }> {
+  const sb = supabaseAdmin()
+  const all = await fetchAll<{ id: string; body_markdown: string }>(
+    sb,
+    'entries',
+    'id, body_markdown',
+    owner,
+    (q) => q.is('prayer_scanned_at', null),
+  )
+  const candidates = all.filter((e) => HARVEST_CUE.test(e.body_markdown)).length
+  return { unscanned: all.length, candidates }
+}
+
+/**
+ * Harvest prayers/senses from the prose of entries not yet scanned. Creates
+ * spiritual_items (source='scanned') dated to the entry, so the existing
+ * embed→thread pipeline turns them into cairns. Idempotent: an entry is read by
+ * the model at most once (prayer_scanned_at watermark); a failed batch is left
+ * unmarked to retry. `opts.max` caps how many entries this run touches.
+ */
+export async function harvestPrayers(
+  owner: string,
+  opts: { max?: number } = {},
+): Promise<{ scanned: number; candidates: number; planted: number }> {
+  const sb = supabaseAdmin()
+
+  const all = await fetchAll<{ id: string; created_at: string; body_markdown: string }>(
+    sb,
+    'entries',
+    'id, created_at, body_markdown',
+    owner,
+    (q) => q.is('prayer_scanned_at', null).order('created_at', { ascending: true }),
+  )
+  const pool = opts.max ? all.slice(0, opts.max) : all
+
+  const candidates = pool.filter((e) => HARVEST_CUE.test(e.body_markdown))
+  const noncandidates = pool.filter((e) => !HARVEST_CUE.test(e.body_markdown))
+
+  // Entries with no prayer cue: nothing to read, just mark them scanned.
+  await markScanned(sb, noncandidates.map((e) => e.id))
+
+  let planted = 0
+  for (let i = 0; i < candidates.length; i += HARVEST_LLM_BATCH) {
+    const batch = candidates.slice(i, i + HARVEST_LLM_BATCH)
+    let out: { entries?: { id: string; prayers?: { type: string; text: string }[] }[] }
+    try {
+      out = await callModel(
+        HARVEST_PROMPT,
+        { entries: batch.map((e) => ({ id: e.id, text: e.body_markdown.slice(0, HARVEST_MAX_CHARS) })) },
+        HARVEST_SCHEMA as Record<string, unknown>,
+        'altar_harvest',
+        'low',
+        2000,
+      )
+    } catch {
+      continue // leave this batch unmarked so it retries next run
+    }
+
+    const byId = new Map(batch.map((e) => [e.id, e]))
+    const rows: Record<string, unknown>[] = []
+    for (const r of out.entries ?? []) {
+      const e = byId.get(r.id)
+      if (!e) continue
+      for (const p of r.prayers ?? []) {
+        const text = (p.text || '').trim()
+        if (!isVerbatim(e.body_markdown, text)) continue // honesty gate: the writer's own words only
+        rows.push({
+          owner,
+          entry_id: e.id,
+          type: p.type === 'sense' ? 'sense' : 'prayer',
+          content: text,
+          source: 'scanned',
+          created_at: e.created_at, // date the cairn to when it was prayed, not now
+        })
+      }
+    }
+    if (rows.length > 0) {
+      const { error } = await sb.from('spiritual_items').insert(rows)
+      if (error) throw error
+      planted += rows.length
+    }
+    await markScanned(sb, batch.map((e) => e.id))
+  }
+
+  return { scanned: pool.length, candidates: candidates.length, planted }
+}
+
 // ── 4. weekly open-thread evidence sweep (P2) ──────────────────────────────────
 const CANDIDATE_PROMPT = `You help someone remember, with care. You are given one ongoing, still-open prayer (its title + the
 original words) and ONE later journal entry that a similarity search flagged as possibly related.

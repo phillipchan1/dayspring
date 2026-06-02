@@ -745,6 +745,26 @@
   color: var(--text-bright);
 }
 
+.altar-thread__remove {
+  display: block;
+  margin: 2.5rem auto 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  transition: color var(--transition);
+}
+.altar-thread__remove:hover:not(:disabled) {
+  color: var(--danger);
+}
+.altar-thread__remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @keyframes altarRise {
   from {
     opacity: 0;

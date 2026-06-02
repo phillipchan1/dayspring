@@ -8,7 +8,7 @@ import {
   type DateWindow,
   type ThreadDetail,
 } from '@/lib/altar/query'
-import { clearEncounter, dismissCandidate, nameEncounter } from '@/lib/altar/encounters'
+import { clearEncounter, deleteThread, dismissCandidate, nameEncounter } from '@/lib/altar/encounters'
 import { MOVEMENTS, MOVEMENT_LABEL, type Movement } from '@/lib/types'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import './Altar.css'
@@ -254,6 +254,7 @@ function ThreadPanel({
   onClose,
   onName,
   onStillCarrying,
+  onRemove,
   onOpenEntry,
 }: {
   detail: ThreadDetail | null
@@ -262,6 +263,7 @@ function ThreadPanel({
   onClose: () => void
   onName: (movement: Movement) => void
   onStillCarrying: () => void
+  onRemove: () => void
   onOpenEntry: (entryId: string) => void
 }) {
   // Latch the last detail so the panel can slide out showing its content.
@@ -391,6 +393,9 @@ function ThreadPanel({
                   )}
                 </div>
               )}
+              <button className="altar-thread__remove" onClick={onRemove} disabled={busy}>
+                not a prayer — remove from the altar
+              </button>
             </>
           )}
         </div>
@@ -465,6 +470,18 @@ export function AltarView({ onOpenEntry }: Props) {
         reflection_text: c?.quote ?? null,
       })
       refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleRemove = async () => {
+    if (!detail) return
+    setBusy(true)
+    try {
+      await deleteThread(detail.id)
+      refresh()
+      closeThread()
     } finally {
       setBusy(false)
     }
@@ -609,6 +626,7 @@ export function AltarView({ onOpenEntry }: Props) {
         onClose={closeThread}
         onName={handleName}
         onStillCarrying={handleStillCarrying}
+        onRemove={handleRemove}
         onOpenEntry={onOpenEntry}
       />
     </div>

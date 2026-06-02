@@ -27,7 +27,13 @@ import {
   buildYearly,
   type BuildResult,
 } from '../_lib/synthesize'
-import { embedUnembedded, threadItems, migrateLegacyAnswered, sweepOpenThreads } from '../_lib/altar'
+import {
+  embedUnembedded,
+  threadItems,
+  migrateLegacyAnswered,
+  sweepOpenThreads,
+  harvestPrayers,
+} from '../_lib/altar'
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
@@ -38,9 +44,12 @@ export async function GET(req: Request): Promise<Response> {
   const altar: Record<string, unknown> = {}
 
   try {
-    // Altar — keep the cairns current every day: embed + thread any new prayers,
-    // migrate any legacy answered-binary, and (weekly) lay evidence beside open
-    // threads. Nano-only; frontier stays reserved for the monthly/yearly rollups.
+    // Altar — keep the cairns current every day: harvest prayers from any new
+    // prose (bounded so the function can't time out — the bulk archive harvest is
+    // the local script), then embed + thread, migrate the legacy binary, and
+    // (weekly) lay evidence beside open threads. Nano-only; frontier stays
+    // reserved for the monthly/yearly rollups.
+    altar.harvested = await harvestPrayers(owner, { max: 50 })
     altar.embedded = await embedUnembedded(owner)
     altar.threaded = await threadItems(owner)
     altar.migrated = await migrateLegacyAnswered(owner)

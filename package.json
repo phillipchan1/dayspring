@@ -12,6 +12,7 @@
     "backfill": "tsx scripts/backfill.ts",
     "backfill:scripture": "tsx scripts/backfill-scripture.ts",
     "backfill:altar": "tsx scripts/altar-backfill.ts",
+    "harvest:altar": "tsx scripts/altar-harvest.ts",
     "regen": "tsx scripts/regen.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
