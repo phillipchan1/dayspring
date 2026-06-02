@@ -2723,6 +2723,31 @@ html[data-focus-mode] .focus-controls {
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
   gap: 0.7rem;
 }
+
+/* Settings → Import: re-run the Scripture reference scan. */
+.import-scan {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+.import-scan__title {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.import-scan__intro {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 46ch;
+}
+.import-scan__status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
 .import-card {
   display: flex;
   align-items: center;

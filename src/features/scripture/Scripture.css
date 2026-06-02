@@ -310,6 +310,23 @@
   opacity: 0.88;
 }
 
+.scripture__scan-dismiss {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0.3rem;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.scripture__scan-dismiss:hover {
+  color: var(--text);
+}
+
 /* ── returning strip ─────────────────────────────────────────────────────── */
 .scripture__returning {
   margin-top: 2.85rem;

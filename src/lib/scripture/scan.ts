@@ -11,6 +11,20 @@
 import { requireSupabase } from '../supabase'
 import { parseReferences } from './parse'
 
+// "Have I scanned my imports" watermark — the imported-entry count at the last
+// scan OR dismiss. Native entries are captured live on save, so only imports
+// move this; the CTA shows while imported count exceeds it.
+const SCAN_WATERMARK_KEY = 'dayspring.scriptureScannedImported'
+
+export function readScanWatermark(): number {
+  if (typeof localStorage === 'undefined') return 0
+  return Number(localStorage.getItem(SCAN_WATERMARK_KEY) ?? '0') || 0
+}
+
+export function writeScanWatermark(n: number): void {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(SCAN_WATERMARK_KEY, String(n))
+}
+
 /** Count of imported (non-native) entries — the entries live capture never sees. */
 export async function getImportedEntryCount(): Promise<number> {
   const sb = requireSupabase()

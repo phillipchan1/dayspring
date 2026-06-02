@@ -1,4 +1,5 @@
 import { IMPORT_SOURCES, type ImportSourceDef } from '@/lib/import/sources'
+import { useScriptureScan } from '@/features/scripture/useScriptureScan'
 import { ImportRunner } from './ImportRunner'
 
 interface Props {
@@ -48,6 +49,45 @@ export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
           )
         })}
       </div>
+
+      <ScriptureScanSection />
+    </div>
+  )
+}
+
+/** Re-scannable from here so dismissing the Scripture prompt isn't a dead end. */
+function ScriptureScanSection() {
+  const scan = useScriptureScan()
+  return (
+    <div className="import-scan">
+      <h3 className="import-scan__title">Scripture references</h3>
+      <p className="import-scan__intro">
+        Imported entries skip the editor, so the Bible references in them aren’t added to your
+        Scripture map automatically. Scan to find them — pure on-device text parsing, nothing is
+        sent anywhere.
+      </p>
+      {scan.scanning ? (
+        <p className="import-scan__status">
+          Scanning…
+          {scan.scanning.total > 0
+            ? ` ${scan.scanning.done.toLocaleString()} / ${scan.scanning.total.toLocaleString()}`
+            : ''}
+        </p>
+      ) : scan.error ? (
+        <p className="import-scan__status">Couldn’t finish — {scan.error}</p>
+      ) : scan.result ? (
+        <p className="import-scan__status">
+          Lit {scan.result.refsWritten.toLocaleString()}{' '}
+          {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
+          {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
+        </p>
+      ) : (
+        <button type="button" className="btn" onClick={() => void scan.run()}>
+          {scan.pending > 0
+            ? `Scan ${scan.pending.toLocaleString()} imported ${scan.pending === 1 ? 'entry' : 'entries'}`
+            : 'Scan journal for references'}
+        </button>
+      )}
     </div>
   )
 }

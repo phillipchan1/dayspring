@@ -11,21 +11,10 @@ import {
   type ReturningRef,
   type SeasonSummary,
 } from '@/lib/scripture/query'
-import { getImportedEntryCount, scanAllForRefs, type ScanResult } from '@/lib/scripture/scan'
 import { ScriptureBookView, type BookTarget } from './ScriptureBookView'
 import { heatColor, intensity } from './heat'
+import { useScriptureScan } from './useScriptureScan'
 import './Scripture.css'
-
-// "Have I scanned my imports" watermark — the imported-entry count at last scan.
-// Native entries are captured live on save, so only imports drive the CTA.
-const SCAN_WATERMARK_KEY = 'dayspring.scriptureScannedImported'
-function readScanWatermark(): number {
-  if (typeof localStorage === 'undefined') return 0
-  return Number(localStorage.getItem(SCAN_WATERMARK_KEY) ?? '0') || 0
-}
-function writeScanWatermark(n: number): void {
-  if (typeof localStorage !== 'undefined') localStorage.setItem(SCAN_WATERMARK_KEY, String(n))
-}
 
 interface Props {
   /** Open an entry in the journal — wired through the book view's entry cards. */
@@ -102,39 +91,10 @@ export function ScriptureView({ onOpenEntry }: Props) {
   const [returning, setReturning] = useState<ReturningRef[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [pendingScan, setPendingScan] = useState(0)
-  const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null)
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const reqId = useRef(0)
 
-  // Surface the scan CTA when imported entries haven't been scanned yet.
-  useEffect(() => {
-    let cancelled = false
-    getImportedEntryCount()
-      .then((imported) => {
-        if (!cancelled) setPendingScan(Math.max(0, imported - readScanWatermark()))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [reloadKey])
-
-  async function runScan() {
-    setScanResult(null)
-    setScanning({ done: 0, total: 0 })
-    try {
-      const result = await scanAllForRefs((done, total) => setScanning({ done, total }))
-      writeScanWatermark(await getImportedEntryCount().catch(() => 0))
-      setPendingScan(0)
-      setScanResult(result)
-      setReloadKey((k) => k + 1) // relight the map with the freshly-found refs
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Scan failed')
-    } finally {
-      setScanning(null)
-    }
-  }
+  // Scan CTA (dismissible here; also available in Settings → Import).
+  const scan = useScriptureScan(() => setReloadKey((k) => k + 1))
 
   // The open book panel is its own history frame, so Back / Esc / the rail all
   // close it predictably (browser back pops straight here).
@@ -197,31 +157,42 @@ export function ScriptureView({ onOpenEntry }: Props) {
             <h1 className="scripture__title">Where your heart has been leaning</h1>
           </header>
 
-          {(scanning || pendingScan > 0 || scanResult) && (
+          {(scan.scanning || scan.pending > 0 || scan.result || scan.error) && (
             <div className="scripture__scan" role="status">
-              {scanning ? (
+              {scan.scanning ? (
                 <span className="scripture__scan-text">
                   Scanning your journal…
-                  {scanning.total > 0
-                    ? ` ${scanning.done.toLocaleString()} / ${scanning.total.toLocaleString()}`
+                  {scan.scanning.total > 0
+                    ? ` ${scan.scanning.done.toLocaleString()} / ${scan.scanning.total.toLocaleString()}`
                     : ''}
                 </span>
-              ) : scanResult ? (
+              ) : scan.error ? (
+                <span className="scripture__scan-text">Couldn’t finish the scan — {scan.error}</span>
+              ) : scan.result ? (
                 <span className="scripture__scan-text">
-                  Lit {scanResult.refsWritten.toLocaleString()}{' '}
-                  {scanResult.refsWritten === 1 ? 'reference' : 'references'} across{' '}
-                  {scanResult.booksTouched} {scanResult.booksTouched === 1 ? 'book' : 'books'}.
+                  Lit {scan.result.refsWritten.toLocaleString()}{' '}
+                  {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
+                  {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
                 </span>
               ) : (
                 <>
                   <span className="scripture__scan-text">
-                    {pendingScan.toLocaleString()} imported{' '}
-                    {pendingScan === 1 ? 'entry hasn’t' : 'entries haven’t'} been scanned for
+                    {scan.pending.toLocaleString()} imported{' '}
+                    {scan.pending === 1 ? 'entry hasn’t' : 'entries haven’t'} been scanned for
                     scripture yet — imported writing skips the editor, so its references aren’t on
                     the map.
                   </span>
-                  <button type="button" className="scripture__scan-btn" onClick={() => void runScan()}>
+                  <button type="button" className="scripture__scan-btn" onClick={() => void scan.run()}>
                     Scan now
+                  </button>
+                  <button
+                    type="button"
+                    className="scripture__scan-dismiss"
+                    onClick={scan.dismiss}
+                    aria-label="Dismiss — scan later from Settings → Import"
+                    title="Dismiss (you can scan later from Settings → Import)"
+                  >
+                    ✕
                   </button>
                 </>
               )}
