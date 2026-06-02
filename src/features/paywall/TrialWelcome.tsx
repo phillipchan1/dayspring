@@ -63,7 +63,7 @@ export function TrialWelcome({ variant, onDismiss }: Props) {
         </p>
 
         <button className="trial-welcome__cta" onClick={onDismiss}>
-          {isTrial ? 'Write your first entry' : 'Continue writing'}
+          {isTrial ? 'Begin writing' : 'Continue writing'}
           <span aria-hidden="true"> →</span>
         </button>
       </div>
