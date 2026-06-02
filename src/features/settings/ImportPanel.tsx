@@ -1,6 +1,7 @@
 import { IMPORT_SOURCES, type ImportSourceDef } from '@/lib/import/sources'
 import { useScriptureScan } from '@/features/scripture/useScriptureScan'
 import { ImportRunner } from './ImportRunner'
+import { ExportPanel } from './ExportPanel'
 
 interface Props {
   selectedId: string | null
@@ -51,6 +52,7 @@ export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
       </div>
 
       <ScriptureScanSection />
+      <ExportPanel />
     </div>
   )
 }

@@ -2452,6 +2452,26 @@ html[data-focus-mode] .focus-controls {
   font-size: 0.7rem;
 }
 
+/* Settings → Import: export backup section */
+.export-panel {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+.export-panel__title {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.export-panel__intro {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 46ch;
+}
+
 .btn--accent {
   border-color: var(--accent);
   background: var(--accent-soft);

@@ -7,6 +7,7 @@ import type { EntrySource } from '../types'
 import type { ImportParseResult } from './types'
 import { parseDiarlyZip } from '../diarlyImport'
 import { parseDayOneZip } from './dayOne'
+import { parseDayspringZip } from './dayspringImport'
 
 export interface ImportSourceDef {
   /** Maps to `entries.source`; also the dedup namespace. */
@@ -42,6 +43,23 @@ async function parseDiarly(data: ArrayBuffer): Promise<ImportParseResult> {
 }
 
 export const IMPORT_SOURCES: ImportSourceDef[] = [
+  {
+    id: 'other',
+    name: 'Dayspring Backup',
+    tagline: 'Restore from a Dayspring export',
+    monogram: 'Ds',
+    tint: 'var(--accent)',
+    status: 'available',
+    accept: '.zip,application/zip',
+    fileLabel: 'Dayspring backup (.zip)',
+    instructions: [
+      'Go to Settings → Import and click "Export journal" to download your backup.',
+      'Drop the resulting dayspring-backup-YYYY-MM-DD.zip here to restore.',
+      'Entries are matched by their original ID, so reimporting never creates duplicates.',
+    ],
+    note: 'All entry text, dates, tags, and titles are restored. Entries reimported this way appear as source "other."',
+    parse: parseDayspringZip,
+  },
   {
     id: 'diarly',
     name: 'Diarly',
