@@ -16,6 +16,7 @@ export function WritingControls({ settings, update, focus }: Props) {
     <div className={`focus-controls${docked ? ' focus-controls--docked' : ''}`}>
       <AppearanceToggle
         compact
+        tabFocus={false}
         appearance={settings.appearance}
         onChange={(appearance) => update({ appearance })}
       />
@@ -25,6 +26,7 @@ export function WritingControls({ settings, update, focus }: Props) {
           <button
             className="toggle-pill"
             data-on={settings.typewriter}
+            tabIndex={-1}
             onClick={() => update({ typewriter: !settings.typewriter })}
             title="Keep the active line centered"
           >
@@ -33,12 +35,13 @@ export function WritingControls({ settings, update, focus }: Props) {
           <button
             className="toggle-pill"
             data-on={settings.dimming}
+            tabIndex={-1}
             onClick={() => update({ dimming: !settings.dimming })}
             title="Fade everything but the current paragraph"
           >
             dim
           </button>
-          <button className="toggle-pill" onClick={focus.exit} title="Exit focus (Esc)">
+          <button className="toggle-pill" tabIndex={-1} onClick={focus.exit} title="Exit focus (Esc)">
             ✕ esc
           </button>
         </>

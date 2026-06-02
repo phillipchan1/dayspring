@@ -3,7 +3,7 @@ import { Compartment, EditorState, Prec, type Extension } from '@codemirror/stat
 import { EditorView, keymap, placeholder as cmPlaceholder, drawSelection } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { syntaxHighlighting } from '@codemirror/language'
+import { indentUnit, syntaxHighlighting } from '@codemirror/language'
 import { editorTheme } from './theme'
 import { markdownHighlight } from './highlight'
 import { typewriterExtension } from './typewriter'
@@ -19,6 +19,7 @@ import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './Sele
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
 import { taskListExtension } from './taskListExtension'
+import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
@@ -162,6 +163,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           keymap.of([...defaultKeymap, ...historyKeymap]),
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
           Prec.highest(formatKeymap),
+          editorTabKeymap,
+          indentUnit.of('  '),
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
           firstLineTitleExtension,

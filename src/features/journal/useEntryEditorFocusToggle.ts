@@ -7,39 +7,24 @@ interface Options {
   activeIdRef: RefObject<string | null>
   entries: Entry[]
   onEditEntry: (entry: Entry) => void
-  onRevealList: () => void
   blocked: boolean
 }
 
 /**
- * Tab / Shift+Tab between the entry list and editor:
- * - Tab in list (on a row) → edit focused entry
- * - Tab in search → focus active row (browse)
- * - Shift+Tab in editor → return to list
+ * Tab in the entry list → edit the focused row. Writing stays in CodeMirror,
+ * which owns Tab / Shift-Tab for indent (no editor focus stealing).
  */
 export function useEntryEditorFocusToggle({
   activeIdRef,
   entries,
   onEditEntry,
-  onRevealList,
   blocked,
 }: Options): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (blocked) return
-      if (e.key !== 'Tab' || e.metaKey || e.ctrlKey || e.altKey) return
-
-      if (e.shiftKey) {
-        if (!isInEditor(e.target)) return
-        e.preventDefault()
-        e.stopPropagation()
-        onRevealList()
-        const id = activeIdRef.current
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => focusEntryListRow(id))
-        })
-        return
-      }
+      if (e.key !== 'Tab' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return
+      if (isInEditor(e.target)) return
 
       if (!isInEntryList(e.target)) return
 
@@ -65,5 +50,5 @@ export function useEntryEditorFocusToggle({
 
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [activeIdRef, entries, onEditEntry, onRevealList, blocked])
+  }, [activeIdRef, entries, onEditEntry, blocked])
 }

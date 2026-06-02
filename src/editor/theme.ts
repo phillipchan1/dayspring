@@ -29,6 +29,7 @@ export const editorTheme = EditorView.theme({
   },
   '.cm-line': {
     padding: '0',
+    fontFamily: 'var(--font-editor)',
   },
   '&.cm-focused': {
     outline: 'none',

@@ -98,6 +98,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const [entries, setEntries] = useState<Entry[]>([])
   const [content, setContent] = useState('')
+  const handleContentChange = useCallback((doc: string) => {
+    setContent((prev) => (prev === doc ? prev : doc))
+  }, [])
   const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -138,6 +141,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   const entryIdRef = useRef<string | null>(null)
   entryIdRef.current = entryId
   const skipEntrySyncRef = useRef(false)
+  /** Last entry id whose body we loaded into the editor — avoids reloading on list sync. */
+  const loadedEntryIdRef = useRef<string | null>(null)
   const skipEditorAutofocusRef = useRef(false)
   const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
@@ -424,19 +429,29 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }, [entryId, saveNow])
 
-  // Browser back / forward: load the entry body for the restored frame.
+  // Browser back / forward: load the entry body when the active entry changes.
+  // Do not reload when `entries` refreshes from list sync — that fights live typing.
   useEffect(() => {
     if (!entriesReady) return
     if (skipEntrySyncRef.current) {
       skipEntrySyncRef.current = false
+      loadedEntryIdRef.current = entryId
       return
     }
     if (entryId === null) {
-      setContent('')
+      if (loadedEntryIdRef.current !== null) {
+        loadedEntryIdRef.current = null
+        setContent('')
+      }
       return
     }
+    if (loadedEntryIdRef.current === entryId) return
+
     const entry = entries.find((e) => e.id === entryId)
-    if (entry) setContent(entry.body_markdown)
+    if (!entry) return
+
+    loadedEntryIdRef.current = entryId
+    setContent(entry.body_markdown)
   }, [entryId, entries, entriesReady])
 
   function toggleLookBack() {
@@ -511,12 +526,6 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     settingsOpen,
   })
 
-  const revealEntryList = useCallback(() => {
-    if (canvasAlternateActive || focus.active) return
-    if (isMobile) go({ sidebar: true })
-    else setEntriesOpen(true)
-  }, [canvasAlternateActive, focus.active, isMobile, go])
-
   // After chrome hides, return focus to the editor once layout has settled.
   useEffect(() => {
     if (!focusEditorReady || !entriesReady) return
@@ -541,11 +550,16 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   // Keep the active entry's list row in sync as you type.
   useEffect(() => {
     if (entryId === null) return
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.id === entryId ? { ...e, body_markdown: content, word_count: wordCount(content) } : e,
-      ),
-    )
+    const words = wordCount(content)
+    setEntries((prev) => {
+      const idx = prev.findIndex((e) => e.id === entryId)
+      if (idx === -1) return prev
+      const row = prev[idx]!
+      if (row.body_markdown === content && row.word_count === words) return prev
+      return prev.map((e) =>
+        e.id === entryId ? { ...e, body_markdown: content, word_count: words } : e,
+      )
+    })
   }, [content, entryId])
 
   async function handleNew() {
@@ -701,7 +715,6 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     activeIdRef: entryIdRef,
     entries: visibleEntries,
     onEditEntry: (entry) => void handleEditEntry(entry),
-    onRevealList: revealEntryList,
     blocked:
       settingsOpen ||
       helpOpen ||
@@ -741,7 +754,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             ref={editorRef}
             docKey={docKey}
             initialDoc={content}
-            onChange={setContent}
+            onChange={handleContentChange}
             placeholder={deriveTitle(content) ? 'Keep going…' : 'Title'}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
