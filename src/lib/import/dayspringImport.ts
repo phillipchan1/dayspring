@@ -59,7 +59,7 @@ export async function parseDayspringZip(data: ArrayBuffer): Promise<ImportParseR
   dated.sort((a, b) => a.created_at.localeCompare(b.created_at))
 
   const dates = dated.map((e) => e.created_at)
-  const dateRange = dates.length > 0 ? { earliest: dates[0], latest: dates[dates.length - 1] } : null
+  const dateRange = dates.length > 0 ? { earliest: dates[0]!, latest: dates[dates.length - 1]! } : null
 
   return { dated, skipped, dateRange }
 }

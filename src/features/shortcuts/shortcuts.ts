@@ -80,7 +80,7 @@ export function getShortcutGroups(): ShortcutGroup[] {
     return {
       ...group,
       items: group.items.map((item) =>
-        item.label === 'New entry' ? { ...item, keys, when } : item,
+        item.label === 'New entry' ? { ...item, keys, ...(when !== undefined ? { when } : {}) } : item,
       ),
     }
   })
