@@ -21,6 +21,7 @@ export const EDITOR_FONT_VARS: Record<EditorFont, string> = {
 }
 
 export const FONT_SIZE_MIN = 18
+export const FONT_SIZE_DEFAULT = 24
 export const FONT_SIZE_MAX = 36
 
 const SETTINGS_FORMAT_VERSION = 3

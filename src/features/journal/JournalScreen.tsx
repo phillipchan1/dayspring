@@ -5,6 +5,7 @@ import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
+import { FONT_SIZE_MIN, FONT_SIZE_DEFAULT, FONT_SIZE_MAX } from '@/lib/settings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
 import { asEntryMarkdown } from '@/lib/entryLabels'
@@ -529,7 +530,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     else {
       void saveNow()
       setEntriesOpen(false)
-      go({ surface: 'reflections', settings: null, help: false, sidebar: false })
+      go({
+        surface: 'reflections',
+        entryId: null,
+        entryReturn: null,
+        ascentAltitude: 0,
+        ascentDrill: null,
+        settings: null,
+        help: false,
+        sidebar: false,
+      })
     }
   }
 
@@ -545,37 +555,27 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // Always land on the canon map, never a stale book panel.
       go({
         surface: 'scripture',
+        entryId: null,
+        entryReturn: null,
+        ascentDrill: null,
         settings: null,
         help: false,
         sidebar: false,
         scriptureBook: null,
         scriptureVerse: null,
-        entryReturn: null,
       })
     }
   }
 
-  /** Leave an entry opened from Lamp / Altar / Ascent and restore that canvas. */
+  /** Leave an entry opened from Lamp / Altar / Ascent — pop the pushed preview frame. */
   function returnFromEntryOrigin() {
-    const ret = state.entryReturn
-    if (!ret) {
+    if (!state.entryReturn) {
       back()
       return
     }
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = null
-    go(
-      {
-        surface: ret.surface,
-        entryId: null,
-        entryReturn: null,
-        scriptureBook: ret.scriptureBook,
-        scriptureVerse: ret.scriptureVerse,
-        settings: null,
-        help: false,
-      },
-      { replace: true },
-    )
+    back()
   }
 
   function toggleAltar() {
@@ -587,7 +587,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     else {
       void saveNow()
       setEntriesOpen(false)
-      go({ surface: 'altar', settings: null, help: false, sidebar: false })
+      go({
+        surface: 'altar',
+        entryId: null,
+        entryReturn: null,
+        ascentDrill: null,
+        settings: null,
+        help: false,
+        sidebar: false,
+      })
     }
   }
 
@@ -631,6 +639,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       requestAnimationFrame(() => focusEntrySearch())
     },
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
+    onFontSizeUp: () =>
+      updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
+    onFontSizeDown: () =>
+      updateSettings({ fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1) }),
+    onFontSizeReset: () => updateSettings({ fontSize: FONT_SIZE_DEFAULT }),
     focusActive: focus.active,
     settingsOpen,
   })
@@ -785,6 +798,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       surface: 'journal',
       entryId: entry.id,
       entryReturn: returnCtx,
+      ascentDrill: null,
       scriptureBook: null,
       scriptureVerse: null,
       settings: null,

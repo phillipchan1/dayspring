@@ -14,6 +14,7 @@ import {
   isAppHistoryState,
   isLegacyScripturePath,
   mergeAppHistory,
+  normalizeAppHistory,
   normalizePathname,
   pathForSurface,
   pushAppHistory,
@@ -75,12 +76,15 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     const onPop = (event: PopStateEvent) => {
       let next = isAppHistoryState(event.state)
         ? event.state
-        : readAppHistoryState()
+        : isAppHistoryState(history.state)
+          ? history.state
+          : readAppHistoryState()
       if (!next) {
         const fromPath = surfaceFromPath(window.location.pathname)
         if (!fromPath) return
         next = mergeAppHistory(DEFAULT_APP_HISTORY, { surface: fromPath })
       }
+      next = normalizeAppHistory(next)
       stateRef.current = next
       setState(next)
     }
@@ -107,6 +111,8 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         scriptureBook: null,
         scriptureVerse: null,
         entryReturn: null,
+        ascentAltitude: 0,
+        ascentDrill: null,
       })
     } else if (pathSurface) {
       current = mergeAppHistory(current ?? DEFAULT_APP_HISTORY, {
@@ -118,6 +124,8 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         scriptureBook: null,
         scriptureVerse: null,
         entryReturn: null,
+        ascentAltitude: 0,
+        ascentDrill: null,
       })
     }
 

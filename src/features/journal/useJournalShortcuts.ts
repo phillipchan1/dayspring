@@ -15,6 +15,12 @@ export interface JournalShortcutActions {
   onFocusSearch: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
+  /** Increase editor font size (⌘= or ⌘+). */
+  onFontSizeUp: () => void
+  /** Decrease editor font size (⌘-). */
+  onFontSizeDown: () => void
+  /** Reset editor font size to default (⌘0). */
+  onFontSizeReset: () => void
   /** Focus mode consumes Esc first (handled in useFocusMode). */
   focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
@@ -38,6 +44,9 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFocusSearch,
     onToggleRailLabels,
+    onFontSizeUp,
+    onFontSizeDown,
+    onFontSizeReset,
     focusActive,
     settingsOpen,
   } = actions
@@ -75,6 +84,24 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       }
 
       if (!hasMod(e) || e.altKey) return
+
+      if (key === '=' || key === '+') {
+        e.preventDefault()
+        onFontSizeUp()
+        return
+      }
+
+      if (key === '-') {
+        e.preventDefault()
+        onFontSizeDown()
+        return
+      }
+
+      if (key === '0') {
+        e.preventDefault()
+        onFontSizeReset()
+        return
+      }
 
       if (key === ',') {
         e.preventDefault()
@@ -117,6 +144,9 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFocusSearch,
     onToggleRailLabels,
+    onFontSizeUp,
+    onFontSizeDown,
+    onFontSizeReset,
     focusActive,
     settingsOpen,
   ])

@@ -212,6 +212,10 @@ const spiritualBlockField = StateField.define<DecorationSet>({
  * Click a rendered block to edit it: resolve the block fresh from the live
  * document (positions stay correct even after edits above it) and hand the
  * caller its range + contents so it can reopen the matching popover.
+ *
+ * Uses click-coordinate → document position lookup so that two blocks sharing
+ * the same UUID (e.g. copy-pasted) are each resolved to their own range rather
+ * than always resolving to the first occurrence.
  */
 function blockClickHandler(
   onEdit: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void,
@@ -220,10 +224,17 @@ function blockClickHandler(
     mousedown(event, view) {
       const el = event.target as HTMLElement | null
       const blockEl = el?.closest('.cm-spiritual-block') as HTMLElement | null
-      const id = blockEl?.dataset.blockId
-      if (!id || !blockEl) return false
-      const block = view.state.field(spiritualBlocksField).find((b) => b.id === id)
+      if (!blockEl) return false
+
+      // Resolve which block was clicked by position, not by ID — two blocks
+      // with the same UUID (copy-paste) must each be independently editable.
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+      if (pos === null) return false
+      const block = view.state
+        .field(spiritualBlocksField)
+        .find((b) => pos >= b.from && pos < b.to)
       if (!block) return false
+
       event.preventDefault()
       // Exclude the block's trailing newline so an in-place replace keeps the
       // surrounding paragraph spacing intact.

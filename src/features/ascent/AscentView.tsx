@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAppNavigation } from '@/context/AppNavigation'
+import type { AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { ALTITUDES, CONTROLS } from './ascent.config'
 import { loadAscent, type LoadedAscent } from './data'
-import type { Theme } from './data/types'
+import type { AltitudeData, Theme } from './data/types'
 import { Hillside } from './Hillside'
 import { LensRow } from './LensRow'
 import { Ridge } from './Ridge'
@@ -21,15 +23,16 @@ interface Props {
 /** undefined = loading, null = failed/empty, value = ready. */
 type Loaded<T> = T | null | undefined
 
-/** Which drill-in is open over the climb (the dimension's evidence). */
-type Drill =
-  | { kind: 'scripture'; osisRef: string }
-  | { kind: 'prayer' }
-  | { kind: 'learning' }
-  | { kind: 'theme'; theme: Theme }
-  | null
-
 const LAST = ALTITUDES.length - 1
+
+function clampAltitude(n: number | undefined): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 0
+  return Math.min(LAST, Math.max(0, Math.round(n)))
+}
+
+function findTheme(data: AltitudeData | null, themeId: string): Theme | null {
+  return data?.words?.themes.find((t) => t.id === themeId) ?? null
+}
 const SWIPE_THRESHOLD = 56
 
 /** True when focus is in a text field — so arrow keys don't hijack typing. */
@@ -61,10 +64,11 @@ function useIsLightTheme(): boolean {
  * higher you go, the more it is the user's own words and the less the app speaks.
  */
 export function AscentView({ onOpenEntry }: Props) {
-  const [idx, setIdx] = useState(0)
+  const { state, go, back } = useAppNavigation()
+  const idx = clampAltitude(state.ascentAltitude)
+  const drill = state.ascentDrill
   const light = useIsLightTheme()
   const [ascent, setAscent] = useState<Loaded<LoadedAscent>>(undefined)
-  const [drill, setDrill] = useState<Drill>(null)
 
   useEffect(() => {
     let alive = true
@@ -77,8 +81,12 @@ export function AscentView({ onOpenEntry }: Props) {
     }
   }, [])
 
-  const up = useCallback(() => setIdx((v) => Math.min(v + 1, LAST)), [])
-  const down = useCallback(() => setIdx((v) => Math.max(v - 1, 0)), [])
+  const setAltitude = useCallback(
+    (next: number) => go({ ascentAltitude: clampAltitude(next) }, { replace: true }),
+    [go],
+  )
+  const up = useCallback(() => setAltitude(idx + 1), [idx, setAltitude])
+  const down = useCallback(() => setAltitude(idx - 1), [idx, setAltitude])
 
   // ↑/↓ ascend/descend — unless typing or a drill-in is open.
   useEffect(() => {
@@ -114,13 +122,34 @@ export function AscentView({ onOpenEntry }: Props) {
   const loading = ascent === undefined
   const air = light ? L.airLight : L.air
 
-  const openScripture = useCallback((osisRef: string) => setDrill({ kind: 'scripture', osisRef }), [])
-  const openPrayer = useCallback(() => setDrill({ kind: 'prayer' }), [])
-  const openLearning = useCallback(() => setDrill({ kind: 'learning' }), [])
-  const openTheme = useCallback((theme: Theme) => setDrill({ kind: 'theme', theme }), [])
-  const closeDrill = useCallback(() => setDrill(null), [])
+  const pushDrill = useCallback((next: AscentDrill) => go({ ascentDrill: next }), [go])
+  const openScripture = useCallback(
+    (osisRef: string) => pushDrill({ kind: 'scripture', osisRef }),
+    [pushDrill],
+  )
+  const openPrayer = useCallback(() => pushDrill({ kind: 'prayer' }), [pushDrill])
+  const openLearning = useCallback(() => pushDrill({ kind: 'learning' }), [pushDrill])
+  const openTheme = useCallback(
+    (theme: Theme) => pushDrill({ kind: 'theme', themeId: theme.id }),
+    [pushDrill],
+  )
+  const closeDrill = useCallback(() => back(), [back])
+
+  // Esc closes a drill-in (browser / mouse Back use the same history frame).
+  useEffect(() => {
+    if (!drill) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || inTextField()) return
+      e.preventDefault()
+      closeDrill()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [drill, closeDrill])
 
   const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
+  const themeDrill =
+    drill?.kind === 'theme' ? findTheme(altitude, drill.themeId) : null
 
   return (
     <div
@@ -136,7 +165,7 @@ export function AscentView({ onOpenEntry }: Props) {
         {L.alt} — {L.label}
       </div>
 
-      <ClimbRail idx={idx} setIdx={setIdx} />
+      <ClimbRail idx={idx} setIdx={setAltitude} />
 
       <div className="ascent-scroll">
       <main className="ascent-main">
@@ -216,8 +245,8 @@ export function AscentView({ onOpenEntry }: Props) {
       {drill?.kind === 'prayer' && altitude?.prayer ? (
         <PrayerDrillIn data={altitude.prayer} onClose={closeDrill} onOpenEntry={onOpenEntry} />
       ) : null}
-      {drill?.kind === 'theme' ? (
-        <ThemeDrillIn data={drill.theme} onClose={closeDrill} onOpenEntry={onOpenEntry} />
+      {themeDrill ? (
+        <ThemeDrillIn data={themeDrill} onClose={closeDrill} onOpenEntry={onOpenEntry} />
       ) : null}
     </div>
   )

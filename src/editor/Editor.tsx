@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
-import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state'
+import { Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -14,6 +14,7 @@ import {
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
 import { spiritualBlocksField } from './spiritualBlocksField'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
 import { clearLink, linkUrlInRange, selectionAnchorRect, setLink } from './formatSelection'
@@ -203,6 +204,35 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
           titleCompartment.current.of(titleStyling ? firstLineTitleExtension : []),
+          // Rewrite duplicate block UUIDs (copy-paste creates same UUID twice).
+          // Runs as a transaction filter so duplication is fixed atomically,
+          // before decorations or listeners observe the new doc.
+          EditorState.transactionFilter.of((tr) => {
+            if (!tr.docChanged) return tr
+            const docStr = tr.newDoc.toString()
+            const blocks = parseSpiritualBlocks(docStr)
+            const seenIds = new Set<string>()
+            const changes: ChangeSpec[] = []
+            for (const block of blocks) {
+              if (!seenIds.has(block.id)) {
+                seenIds.add(block.id)
+                continue
+              }
+              // Duplicate found — replace its UUID in the opening fence line.
+              const newId = crypto.randomUUID()
+              const openLine = tr.newDoc.sliceString(block.from, tr.newDoc.lineAt(block.from).to)
+              const idPos = openLine.indexOf(block.id)
+              if (idPos >= 0) {
+                changes.push({
+                  from: block.from + idPos,
+                  to: block.from + idPos + block.id.length,
+                  insert: newId,
+                })
+              }
+            }
+            if (changes.length === 0) return tr
+            return [tr, { changes }]
+          }),
           // Parse spiritual blocks once per doc change; the three decorations
           // below all read this field instead of each re-parsing the full doc.
           // Must precede them so the value is ready when they update.

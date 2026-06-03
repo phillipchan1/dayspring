@@ -6,10 +6,20 @@ export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'b
 /** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
 export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections'
 
+/** Drill-in overlay on the Ascent canvas (week scripture, theme quotes, etc.). */
+export type AscentDrill =
+  | { kind: 'scripture'; osisRef: string }
+  | { kind: 'prayer' }
+  | { kind: 'learning' }
+  | { kind: 'theme'; themeId: string }
+
 export interface EntryReturnContext {
   surface: EntryReturnSurface
   scriptureBook: string | null
   scriptureVerse: string | null
+  /** Ascent altitude (0 = Valley/week … 3 = Summit) when returning from an entry preview. */
+  ascentAltitude: number
+  ascentDrill: AscentDrill | null
 }
 
 export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
@@ -34,6 +44,10 @@ export interface AppHistoryState {
   scriptureVerse: string | null
   /** Set when previewing an entry from Lamp/Altar/Ascent — Back returns here. */
   entryReturn: EntryReturnContext | null
+  /** Ascent altitude index (0 = Valley/week … 3 = Summit). */
+  ascentAltitude: number
+  /** Open Ascent drill-in; its own history frame for mouse / browser Back. */
+  ascentDrill: AscentDrill | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -47,6 +61,8 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   scriptureBook: null,
   scriptureVerse: null,
   entryReturn: null,
+  ascentAltitude: 0,
+  ascentDrill: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -57,8 +73,49 @@ export function isAppHistoryState(value: unknown): value is AppHistoryState {
   )
 }
 
+const ASCENT_ALTITUDE_MAX = 3
+
+function normalizeAscentAltitude(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.min(ASCENT_ALTITUDE_MAX, Math.max(0, Math.round(value)))
+}
+
+function normalizeAscentDrill(value: unknown): AscentDrill | null {
+  if (typeof value !== 'object' || value === null) return null
+  const d = value as AscentDrill
+  if (d.kind === 'scripture' && typeof d.osisRef === 'string') return d
+  if (d.kind === 'prayer' || d.kind === 'learning') return { kind: d.kind }
+  if (d.kind === 'theme' && typeof d.themeId === 'string') return d
+  return null
+}
+
+function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
+  if (typeof value !== 'object' || value === null) return null
+  const r = value as EntryReturnContext
+  if (r.surface !== 'scripture' && r.surface !== 'altar' && r.surface !== 'reflections') return null
+  return {
+    surface: r.surface,
+    scriptureBook: typeof r.scriptureBook === 'string' ? r.scriptureBook : null,
+    scriptureVerse: typeof r.scriptureVerse === 'string' ? r.scriptureVerse : null,
+    ascentAltitude: normalizeAscentAltitude(r.ascentAltitude),
+    ascentDrill: normalizeAscentDrill(r.ascentDrill),
+  }
+}
+
+/** Fill defaults for frames saved before ascent navigation fields existed. */
+export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
+  return {
+    ...DEFAULT_APP_HISTORY,
+    ...state,
+    tag: APP_HISTORY_TAG,
+    entryReturn: normalizeEntryReturn(state.entryReturn),
+    ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
+    ascentDrill: normalizeAscentDrill(state.ascentDrill),
+  }
+}
+
 export function readAppHistoryState(): AppHistoryState | null {
-  return isAppHistoryState(history.state) ? history.state : null
+  return isAppHistoryState(history.state) ? normalizeAppHistory(history.state) : null
 }
 
 /** Merge a partial patch; nested `settings` replaces the whole settings slot when provided. */
@@ -68,7 +125,7 @@ export function mergeAppHistory(
 ): AppHistoryState {
   const next: AppHistoryState = { ...prev, ...patch, tag: APP_HISTORY_TAG }
   if ('settings' in patch) next.settings = patch.settings ?? null
-  return next
+  return normalizeAppHistory(next)
 }
 
 export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean {
@@ -80,6 +137,8 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.scriptureBook === b.scriptureBook &&
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
+    a.ascentAltitude === b.ascentAltitude &&
+    JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
   )
@@ -130,13 +189,27 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       surface: 'scripture',
       scriptureBook: state.scriptureBook,
       scriptureVerse: state.scriptureVerse,
+      ascentAltitude: 0,
+      ascentDrill: null,
     }
   }
   if (state.surface === 'altar') {
-    return { surface: 'altar', scriptureBook: null, scriptureVerse: null }
+    return {
+      surface: 'altar',
+      scriptureBook: null,
+      scriptureVerse: null,
+      ascentAltitude: 0,
+      ascentDrill: null,
+    }
   }
   if (state.surface === 'reflections') {
-    return { surface: 'reflections', scriptureBook: null, scriptureVerse: null }
+    return {
+      surface: 'reflections',
+      scriptureBook: null,
+      scriptureVerse: null,
+      ascentAltitude: state.ascentAltitude,
+      ascentDrill: state.ascentDrill,
+    }
   }
   return null
 }
