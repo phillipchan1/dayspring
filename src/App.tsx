@@ -9,6 +9,7 @@ import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
 import { UpdateToast } from './components/UpdateToast'
+import { FeedbackWidget } from './components/FeedbackWidget'
 import { AppNavigationProvider } from './context/AppNavigation'
 import { WelcomeProvider } from './features/welcome/WelcomeProvider'
 import { PaywallScreen } from './features/paywall/PaywallScreen'
@@ -55,7 +56,7 @@ export function App() {
 type CheckoutState = 'idle' | 'waiting' | 'ready'
 
 function AuthenticatedApp({ userEmail }: { userEmail: string }) {
-  const { subscription, entitled, loading, refetch } = useSubscription()
+  const { subscription, entitled, featureFlags, loading, refetch } = useSubscription()
 
   const [checkoutState, setCheckoutState] = useState<CheckoutState>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -138,6 +139,7 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
     <WelcomeProvider>
       <JournalScreen userEmail={userEmail} />
       <UpdateToast />
+      <FeedbackWidget featureFlags={featureFlags} />
     </WelcomeProvider>
   )
 }

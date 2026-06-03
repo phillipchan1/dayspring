@@ -3170,3 +3170,159 @@ html[data-focus-mode] .focus-controls {
   color: var(--text-faint);
   opacity: 0.7;
 }
+
+/* ── Beta feedback widget (bottom-left; opposite corner from appearance toggle) ─ */
+.feedback-widget {
+  position: fixed;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 75;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.feedback-trigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity var(--transition);
+}
+.feedback-trigger:hover,
+.feedback-trigger[data-open='true'] {
+  opacity: 1;
+}
+
+.feedback-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 18rem;
+  padding: 0.75rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-edge);
+  -webkit-backdrop-filter: blur(16px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(16px) saturate(var(--glass-saturate));
+  animation: feedback-in var(--transition-slow) both;
+}
+@keyframes feedback-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.feedback-popover__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+.feedback-popover__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  padding: 0 0.15rem;
+  line-height: 1;
+  transition: color var(--transition);
+}
+.feedback-popover__close:hover { color: var(--text); }
+
+.feedback-popover__types {
+  display: flex;
+  gap: 0.25rem;
+}
+.feedback-type-btn {
+  flex: 1;
+  padding: 0.25rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+.feedback-type-btn[data-active='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.feedback-type-btn:hover:not([data-active='true']) {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.feedback-popover__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: inherit;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.feedback-popover__textarea:focus { border-color: var(--accent); }
+.feedback-popover__textarea::placeholder { color: var(--text-faint); }
+
+.feedback-popover__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.feedback-popover__hint {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+}
+.feedback-popover__submit {
+  padding: 0.28rem 0.65rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.feedback-popover__submit:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg);
+}
+.feedback-popover__submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.feedback-popover__done {
+  text-align: center;
+  padding: 0.75rem 0;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  margin: 0;
+}
+.feedback-popover__error {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  margin: 0;
+}
