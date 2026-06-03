@@ -79,13 +79,17 @@ export function useAutosave({
   const flush = useCallback(async () => {
     if (!enabled) return
 
-    while (contentRef.current !== savedContentRef.current) {
-      const run = async () => {
-        const text = asEntryMarkdown(contentRef.current)
-        if (text === savedContentRef.current) return // nothing new
-        // Don't create empty rows; but DO persist clearing an existing entry.
-        if (idRef.current === null && text.trim() === '') return
+    // Loop so edits that land mid-save get a follow-up persist. Every exit path
+    // is a `return`/`break`: the terminal conditions (nothing new, or an empty
+    // brand-new entry we won't create) are checked here, not inside `run` — so a
+    // no-op never leaves the `while` spinning the microtask queue (a frozen tab).
+    while (true) {
+      const text = asEntryMarkdown(contentRef.current)
+      if (text === savedContentRef.current) return // up to date
+      // Don't create empty rows; but DO persist clearing an existing entry.
+      if (idRef.current === null && text.trim() === '') return
 
+      const run = async () => {
         setStatus('saving')
         setError(null)
         try {

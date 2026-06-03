@@ -27,34 +27,47 @@ const LINE_STYLES: { action: 'list' | 'quote' | 'heading'; prefixes: string[] }[
   { action: 'list', prefixes: ['- ', '* '] },
 ]
 
+/**
+ * True when `t` is a single span wrapped by `marker` — i.e. the closing marker
+ * is the *first* occurrence after the opening one. This rejects selections that
+ * merely share an outer delimiter but hold several spans (`**a** and **b**`),
+ * which would otherwise be mis-peeled and corrupted on re-wrap.
+ */
+function isWrapped(t: string, marker: string): boolean {
+  const k = marker.length
+  if (t.length < k * 2) return false
+  if (!t.startsWith(marker) || !t.endsWith(marker)) return false
+  return t.indexOf(marker, k) === t.length - k
+}
+
 /** Peel recognized markdown wrappers until the plain phrase is exposed. */
 export function parseInlineMarks(text: string): { plain: string; marks: InlineMarks } {
   let t = text
   const marks: InlineMarks = { ...EMPTY_INLINE }
 
   for (let guard = 0; guard < 8; guard++) {
-    if (t.startsWith('`') && t.endsWith('`') && t.length >= 2) {
+    if (isWrapped(t, '`')) {
       marks.code = true
       t = t.slice(1, -1)
       continue
     }
-    if (t.startsWith('***') && t.endsWith('***') && t.length >= 6) {
+    if (isWrapped(t, '***')) {
       marks.bold = true
       marks.italic = true
       t = t.slice(3, -3)
       continue
     }
-    if (t.startsWith('**') && t.endsWith('**') && t.length >= 4) {
+    if (isWrapped(t, '**')) {
       marks.bold = true
       t = t.slice(2, -2)
       continue
     }
-    if (t.startsWith('~~') && t.endsWith('~~') && t.length >= 4) {
+    if (isWrapped(t, '~~')) {
       marks.strike = true
       t = t.slice(2, -2)
       continue
     }
-    if (t.startsWith('*') && t.endsWith('*') && t.length >= 2) {
+    if (isWrapped(t, '*')) {
       marks.italic = true
       t = t.slice(1, -1)
       continue
