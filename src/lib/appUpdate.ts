@@ -95,15 +95,22 @@ async function runCheck(manual: boolean, attempt = 1): Promise<void> {
     staged = true
     set({ status: 'ready', version: update.version, error: null, notes })
   } catch (err) {
-    console.error(`[updater] attempt ${attempt} failed`, err)
     if (attempt < 2) {
       // brief backoff, then one retry
       await new Promise((r) => window.setTimeout(r, 1200))
       return runCheck(manual, attempt + 1)
     }
     const msg = err instanceof Error ? err.message : String(err)
-    if (manual) setTransient({ status: 'error', version: null, error: msg, notes: null })
-    else if (state.status !== 'ready') set(IDLE)
+    if (manual) {
+      // The user asked, so give feedback — but as one quiet warning, not a
+      // per-attempt console.error. The UI shows a gentle, URL-free message.
+      console.warn('[updater] check failed:', msg)
+      setTransient({ status: 'error', version: null, error: msg, notes: null })
+    } else if (state.status !== 'ready') {
+      // Background poll: stay silent and idle. Offline / no published release yet
+      // is expected and must not spam the console for someone whose app works.
+      set(IDLE)
+    }
   }
 }
 

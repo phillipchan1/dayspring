@@ -3174,7 +3174,8 @@ html[data-focus-mode] .focus-controls {
   color: var(--accent);
 }
 .settings-update__status[data-status='error'] {
-  color: var(--danger);
+  /* A failed update check is benign — keep it muted, not alarm-red. */
+  color: var(--text-dim);
 }
 
 /* ── Settings → About: bundled version history (desktop) ───────────────────── */

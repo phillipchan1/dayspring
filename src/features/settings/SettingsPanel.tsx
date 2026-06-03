@@ -285,9 +285,9 @@ function UpdateChecker() {
     'up-to-date': 'You’re on the latest version.',
     downloading: `Downloading v${state.version ?? ''}…`,
     ready: `Version ${state.version ?? ''} is ready.`,
-    error: state.error
-      ? `Couldn’t check — ${state.error}. Try again.`
-      : 'Couldn’t check right now — try again.',
+    // A failed update check is harmless — the current build keeps working — so
+    // keep it gentle and never surface the raw request error / URL to the user.
+    error: 'Couldn’t check for updates right now. Try again later.',
   }[state.status]
 
   return (
