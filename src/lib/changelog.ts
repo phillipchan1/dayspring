@@ -1,7 +1,9 @@
-// Reads the cumulative changelog that CI bundles into the app at
-// public/changelog.json (see scripts/assemble-changelog.mjs). Same-origin fetch
-// of a bundled asset — no network/CORS. Absent on web/dev builds, where it
-// simply resolves to an empty list and the Settings section hides itself.
+// Reads the cumulative changelog. Primary source: public/changelog.json
+// bundled at build time by scripts/assemble-changelog.mjs (desktop builds,
+// and Vercel builds once a GH_TOKEN is configured). Fallback: the public
+// GitHub Releases API — works on localhost dev and any build where the
+// bundled file is absent or empty. In-memory cache so the API is hit at
+// most once per page session.
 
 export interface ChangelogEntry {
   version: string
@@ -19,15 +21,59 @@ export function isMinor(notes: string): boolean {
   return !t || GENERIC.test(t)
 }
 
+const RELEASES_REPO = 'phillipchan1/dayspring-releases'
+
 let cache: ChangelogEntry[] | null = null
+
+/** Map a GitHub release object to a ChangelogEntry. */
+function fromGitHubRelease(r: {
+  tag_name: string
+  published_at?: string
+  created_at?: string
+  body?: string
+  draft?: boolean
+}): ChangelogEntry {
+  return {
+    version: (r.tag_name || '').replace(/^app-v/, ''),
+    date: r.published_at || r.created_at || '',
+    notes: (r.body || '').trim(),
+  }
+}
+
+/** Fetch release history directly from the public GitHub Releases API. */
+async function fetchFromGitHub(): Promise<ChangelogEntry[]> {
+  const res = await fetch(
+    `https://api.github.com/repos/${RELEASES_REPO}/releases?per_page=50`,
+    { headers: { accept: 'application/vnd.github+json', 'user-agent': 'dayspring-web' } },
+  )
+  if (!res.ok) return []
+  const arr = (await res.json()) as Parameters<typeof fromGitHubRelease>[0][]
+  return arr.filter((r) => !r.draft).map(fromGitHubRelease)
+}
 
 export async function loadChangelog(): Promise<ChangelogEntry[]> {
   if (cache) return cache
+
+  // 1. Try the bundled JSON (desktop builds + Vercel CI builds).
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}changelog.json`, { cache: 'no-store' })
-    if (!res.ok) return (cache = [])
-    const data = (await res.json()) as { versions?: ChangelogEntry[] }
-    cache = Array.isArray(data?.versions) ? data.versions : []
+    if (res.ok) {
+      const data = (await res.json()) as { versions?: ChangelogEntry[] }
+      const versions = Array.isArray(data?.versions) ? data.versions : []
+      if (versions.length > 0) {
+        return (cache = versions)
+      }
+      // Empty bundle — fall through to GitHub API below.
+    }
+  } catch {
+    // fetch error — fall through
+  }
+
+  // 2. Fallback: live GitHub Releases API. Public repo, no auth required.
+  //    Works on localhost dev and Vercel builds that haven't run the
+  //    assemble-changelog script yet.
+  try {
+    cache = await fetchFromGitHub()
   } catch {
     cache = []
   }
