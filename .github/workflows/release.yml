@@ -18,7 +18,36 @@ permissions:
   contents: read
 
 jobs:
+  # Cheap pre-flight (Ubuntu, ~10s) — reads the last-built SHA from the
+  # releases repo and skips the expensive macOS job if HEAD hasn't changed.
+  # Manual workflow_dispatch always bypasses this check.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.diff.outputs.has_changes }}
+    steps:
+      - name: Compare HEAD to last-built SHA
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          RELEASES_REPO="phillipchan1/dayspring-releases"
+          LAST_SHA=$(gh api "repos/${RELEASES_REPO}/contents/last-built-sha.txt" \
+            --jq '.content' 2>/dev/null | base64 -d | tr -d '[:space:]' || echo "")
+          CURRENT="${{ github.sha }}"
+          echo "Last built : ${LAST_SHA:-<none>}"
+          echo "Current    : $CURRENT"
+          if [ "$LAST_SHA" = "$CURRENT" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No new commits — skipping build."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "New commits since last build — will build."
+          fi
+
   release:
+    needs: check
+    if: needs.check.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest # Apple Silicon runner
     env:
       RELEASES_REPO: phillipchan1/dayspring-releases
@@ -198,3 +227,21 @@ jobs:
             --notes-file RELEASE_NOTES.md \
             --latest \
             "$DMG" "$STABLE_DMG" "$APPTAR" latest.json
+
+      - name: Record built SHA (skips next scheduled build if no new commits)
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          set -euo pipefail
+          CONTENT=$(printf '%s' '${{ github.sha }}' | base64)
+          # Fetch the current file SHA so we can update (not re-create) the file.
+          FILE_SHA=$(gh api "repos/${RELEASES_REPO}/contents/last-built-sha.txt" \
+            --jq '.sha' 2>/dev/null || echo "")
+          EXTRA_ARGS=()
+          [ -n "$FILE_SHA" ] && EXTRA_ARGS+=(--field "sha=$FILE_SHA")
+          gh api "repos/${RELEASES_REPO}/contents/last-built-sha.txt" \
+            --method PUT \
+            --field "message=Record built SHA ${{ github.sha }}" \
+            --field "content=$CONTENT" \
+            "${EXTRA_ARGS[@]}"
+          echo "Recorded built SHA: ${{ github.sha }}"
