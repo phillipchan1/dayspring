@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import type { SlashCommandId, SlashState } from './slashDetect'
 
 const COMMANDS: { id: SlashCommandId; label: string; hint: string }[] = [
-  { id: 'scripture', label: '/scripture', hint: 'Look up a verse or seek passages by theme' },
+  { id: 'scripture', label: '/scripture', hint: 'Find relevant Bible passages' },
   { id: 'pray',      label: '/pray',      hint: 'Log a prayer' },
   { id: 'sense',     label: '/sense',     hint: 'Record a word or impression' },
   { id: 'remind',    label: '/remind',    hint: 'Return to these words later' },
