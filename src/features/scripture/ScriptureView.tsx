@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { NT_BOOKS, OT_BOOKS, type BibleBook } from '@/lib/bible/canon'
 import { formatOsisRef, osisBookOf } from '@/lib/scripture/format'
+import { getCache, windowCacheKey } from '@/lib/asyncCache'
 import {
-  getCanonHeat,
-  getReturning,
-  getSeasonSummary,
+  invalidateScriptureCache,
+  loadScriptureCanonPage,
   type CanonHeat,
   type DateWindow,
   type ReturningRef,
@@ -86,16 +86,27 @@ function seasonNote(season: Season, s: SeasonSummary): string {
 export function ScriptureView({ onOpenEntry }: Props) {
   const { state, go, back } = useAppNavigation()
   const seasons = useMemo(() => buildSeasons(), [])
+  const initialCanon = useMemo(() => {
+    const all = seasons.find((s) => s.id === 'all')!
+    return getCache<Awaited<ReturnType<typeof loadScriptureCanonPage>>>(
+      `scripture:canon:${windowCacheKey(all.window)}`,
+    )
+  }, [seasons])
   const [seasonId, setSeasonId] = useState('all')
-  const [heat, setHeat] = useState<CanonHeat | null>(null)
-  const [summary, setSummary] = useState<SeasonSummary | null>(null)
-  const [returning, setReturning] = useState<ReturningRef[]>([])
+  const [heat, setHeat] = useState<CanonHeat | null>(initialCanon?.heat ?? null)
+  const [summary, setSummary] = useState<SeasonSummary | null>(initialCanon?.summary ?? null)
+  const [returning, setReturning] = useState<ReturningRef[]>(initialCanon?.returning ?? [])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const reqId = useRef(0)
+  const freshLoad = useRef(false)
 
   // Scan CTA (dismissible here; also available in Settings → Import & backup).
-  const scan = useScriptureScan(() => setReloadKey((k) => k + 1))
+  const scan = useScriptureScan(() => {
+    invalidateScriptureCache()
+    freshLoad.current = true
+    setReloadKey((k) => k + 1)
+  })
 
   // The open book panel is its own history frame, so Back / Esc / the rail all
   // close it predictably (browser back pops straight here).
@@ -108,19 +119,30 @@ export function ScriptureView({ onOpenEntry }: Props) {
   const season = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
 
   useEffect(() => {
+    const cacheKey = `scripture:canon:${windowCacheKey(season.window)}`
+    const cached = getCache<Awaited<ReturnType<typeof loadScriptureCanonPage>>>(cacheKey)
+    if (cached) {
+      setHeat(cached.heat)
+      setSummary(cached.summary)
+      setReturning(cached.returning)
+      setLoadError(null)
+    } else {
+      setHeat(null)
+      setSummary(null)
+      setReturning([])
+    }
+
     const id = ++reqId.current
     let cancelled = false
-    Promise.all([
-      getCanonHeat(season.window),
-      getSeasonSummary(season.window),
-      getReturning(6, season.window),
-    ])
-      .then(([h, sum, ret]) => {
-        // Ignore stale responses — only the latest season wins.
+    const fresh = freshLoad.current
+    freshLoad.current = false
+    loadScriptureCanonPage(season.window, { fresh })
+      .then((page) => {
         if (cancelled || id !== reqId.current) return
-        setHeat(h)
-        setSummary(sum)
-        setReturning(ret)
+        setHeat(page.heat)
+        setSummary(page.summary)
+        setReturning(page.returning)
+        setLoadError(null)
       })
       .catch((e) => {
         if (!cancelled && id === reqId.current) {

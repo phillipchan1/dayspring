@@ -698,8 +698,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
-    go({ surface: 'journal', entryId: entry.id })
     setContent(body)
+    go({ surface: 'journal', entryId: entry.id }, { replace: true })
   }
 
   async function handleEditEntry(entry: Entry) {
@@ -712,7 +712,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     await saveNow()
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
-    go({ surface: 'journal', entryId: entry.id })
+    go({ surface: 'journal', entryId: entry.id }, { replace: true })
     setContent(asEntryMarkdown(entry.body_markdown))
   }
 

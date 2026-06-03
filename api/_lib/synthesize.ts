@@ -25,12 +25,14 @@ import type {
   Arc,
   EbenezerPair,
   Excerpt,
+  Highlight,
   MonthlyModelOutput,
   Observation,
   QuarterlyModelOutput,
   Quote,
   RawArc,
   RawExcerpt,
+  RawHighlight,
   RawPair,
   RawQuestion,
   RawRefrain,
@@ -60,6 +62,7 @@ export interface BuildResult {
   arcs?: number
   tensions?: number
   refrain?: boolean
+  highlights?: number
 }
 
 // ── validation (the no-fabrication gate) ───────────────────────────────────
@@ -197,6 +200,23 @@ function validatePairs(pairs: RawPair[] | undefined, sources: Map<string, Source
 
 function excerptsFromQuotes(quotes: Quote[]): Excerpt[] {
   return quotes.map((q) => ({ entry_id: q.entry_id, date: q.date, text: q.text }))
+}
+
+/** THEMES grounded in the writer's own words. Each highlight's quotes run through
+ *  the SAME verbatim gate as `quotes` — fabricated lines are dropped — and a theme
+ *  needs ≥2 surviving quotes to stand (a theme is a pattern, not a single line).
+ *  The label is the one interpretive move (cleaned, never a verdict). Max 4. */
+function validateHighlights(raw: RawHighlight[] | undefined, sources: Map<string, Source[]>): Highlight[] {
+  const out: Highlight[] = []
+  for (const h of raw ?? []) {
+    const label = stripIds((h?.label ?? '').trim())
+    if (!label) continue
+    const quotes = validateQuotes((h?.quotes ?? []) as Quote[], sources)
+    if (quotes.length < 2) continue
+    out.push({ id: `h${out.length + 1}`, label, quotes: excerptsFromQuotes(quotes) })
+    if (out.length >= 4) break
+  }
+  return out
 }
 
 /** HILLSIDE arcs: keep only real entry_ids; weight is the verified id count (the
@@ -433,6 +453,7 @@ export async function buildWeekly(ownerId: string, period: Period): Promise<Buil
       nextWeek: candidateWins(model.wins?.next_week, 'wn'),
     },
     questions: validateQuestions(model.questions),
+    highlights: validateHighlights(model.highlights, sources),
   }
 
   const payload: RollupPayload = {
@@ -464,6 +485,7 @@ export async function buildWeekly(ownerId: string, period: Period): Promise<Buil
     topics: topics.length,
     observation: observation !== null,
     questions: reflection.questions?.length ?? 0,
+    highlights: reflection.highlights?.length ?? 0,
   }
 }
 
@@ -542,6 +564,7 @@ export async function buildMonthly(ownerId: string, period: Period): Promise<Bui
     themes: cleanProse(model.themes),
     gainEvidence: excerptsFromQuotes(quotes),
     arcs: validateArcs(model.arcs, arcIds),
+    highlights: validateHighlights(model.highlights, sources),
   }
 
   const payload: RollupPayload = {
@@ -573,6 +596,7 @@ export async function buildMonthly(ownerId: string, period: Period): Promise<Bui
     topics: topics.length,
     observation: observation !== null,
     arcs: reflection.arcs?.length ?? 0,
+    highlights: reflection.highlights?.length ?? 0,
   }
 }
 

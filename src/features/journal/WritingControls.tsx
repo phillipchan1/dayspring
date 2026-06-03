@@ -8,14 +8,14 @@ interface Props {
   focus: FocusMode
 }
 
-/** Subtle floating pills while writing; typewriter / dim / exit in focus mode. */
+/** Subtle floating appearance on every surface; typewriter / dim / exit in focus mode. */
 export function WritingControls({ settings, update, focus }: Props) {
   const docked = !focus.active
 
   return (
     <div className={`focus-controls${docked ? ' focus-controls--docked' : ''}`}>
       <AppearanceToggle
-        compact
+        icon
         tabFocus={false}
         appearance={settings.appearance}
         onChange={(appearance) => update({ appearance })}

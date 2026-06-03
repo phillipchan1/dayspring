@@ -1,14 +1,14 @@
-const ROW_HEIGHT_PX = 58
+import { ENTRY_LIST_ROW_HEIGHT_PX } from './useVirtualRange'
 
-/** Scroll the entries list so `index` is visible (flat virtual lists). */
+/** Scroll the entries list so flat list index `index` is visible. */
 export function scrollEntryIndexIntoView(
   listEl: HTMLElement,
   index: number,
   virtual: boolean,
 ): void {
   if (index < 0 || !virtual) return
-  const rowTop = index * ROW_HEIGHT_PX
-  const rowBottom = rowTop + ROW_HEIGHT_PX
+  const rowTop = index * ENTRY_LIST_ROW_HEIGHT_PX
+  const rowBottom = rowTop + ENTRY_LIST_ROW_HEIGHT_PX
   const { scrollTop, clientHeight } = listEl
   if (rowTop < scrollTop) listEl.scrollTop = rowTop
   else if (rowBottom > scrollTop + clientHeight) listEl.scrollTop = rowBottom - clientHeight

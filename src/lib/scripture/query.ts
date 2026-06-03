@@ -7,6 +7,7 @@
 // deriving refs from the locally-cached entries with the same isomorphic parser
 // — so the map still lights up offline. RLS scopes every read to the owner.
 
+import { getCache, invalidateCachePrefix, setCache, windowCacheKey } from '../asyncCache'
 import { bookByOsis } from '../bible/canon'
 import * as cache from '../db'
 import { fetchEntriesByIds } from '../entries'
@@ -78,12 +79,29 @@ function inWindow(iso: string, w?: DateWindow): boolean {
 
 const REF_PAGE = 1000
 
+const refsInflight = new Map<string, Promise<RefLike[]>>()
+
+/** Drop cached canon/book reads (after scan completes, etc.). */
+export function invalidateScriptureCache(): void {
+  invalidateCachePrefix('scripture:')
+  refsInflight.clear()
+}
+
 /**
  * Confirmed refs for the owner across the WHOLE journal (paginated past
  * PostgREST's default ~1000-row cap, so the map never silently truncates).
  * Falls back to local parse when offline.
  */
 async function loadRefs(window?: DateWindow): Promise<RefLike[]> {
+  const key = windowCacheKey(window)
+  const inflight = refsInflight.get(key)
+  if (inflight) return inflight
+  const p = loadRefsOnce(window).finally(() => refsInflight.delete(key))
+  refsInflight.set(key, p)
+  return p
+}
+
+async function loadRefsOnce(window?: DateWindow): Promise<RefLike[]> {
   try {
     const sb = requireSupabase()
     const out: RefLike[] = []
@@ -132,10 +150,7 @@ async function deriveRefsFromCache(window?: DateWindow): Promise<RefLike[]> {
 
 // ── aggregations ────────────────────────────────────────────────────────────
 
-/** Per (book, chapter): distinct-entry count within the window. Returning across
- *  many sittings is the signal, so we count distinct entries, not raw mentions. */
-export async function getCanonHeat(window?: DateWindow): Promise<CanonHeat> {
-  const refs = await loadRefs(window)
+function canonHeatFromRefs(refs: RefLike[]): CanonHeat {
   const chapterSets = new Map<string, Set<string>>()
   const bookSets = new Map<string, Set<string>>()
   for (const r of refs) {
@@ -154,6 +169,74 @@ export async function getCanonHeat(window?: DateWindow): Promise<CanonHeat> {
   return { chapters, books, max }
 }
 
+function seasonSummaryFromRefs(refs: RefLike[]): SeasonSummary {
+  const bookSets = new Map<string, Set<string>>()
+  const verseSets = new Map<string, Set<string>>()
+  for (const r of refs) {
+    ;(bookSets.get(r.book_osis) ?? bookSets.set(r.book_osis, new Set()).get(r.book_osis)!).add(r.entry_id)
+    ;(verseSets.get(r.osis_ref) ?? verseSets.set(r.osis_ref, new Set()).get(r.osis_ref)!).add(r.entry_id)
+  }
+  const topBooks = [...bookSets.entries()]
+    .map(([osis, set]) => ({ osis, name: bookByOsis(osis)?.name ?? osis, count: set.size }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 3)
+  const topVerse = [...verseSets.entries()]
+    .map(([osis_ref, set]) => ({ osis_ref, count: set.size }))
+    .sort((a, b) => b.count - a.count || a.osis_ref.localeCompare(b.osis_ref))[0]
+  return {
+    totalRefs: refs.length,
+    distinctVerses: verseSets.size,
+    topBooks,
+    topVerse: topVerse ?? null,
+  }
+}
+
+function returningFromRefs(refs: RefLike[], limit: number, bookOsis?: string): ReturningRef[] {
+  const filtered = bookOsis ? refs.filter((r) => r.book_osis === bookOsis) : refs
+  const sets = new Map<string, { book_osis: string; entries: Set<string> }>()
+  for (const r of filtered) {
+    const slot = sets.get(r.osis_ref) ?? { book_osis: r.book_osis, entries: new Set<string>() }
+    slot.entries.add(r.entry_id)
+    sets.set(r.osis_ref, slot)
+  }
+  return [...sets.entries()]
+    .map(([osis_ref, v]) => ({ osis_ref, book_osis: v.book_osis, count: v.entries.size }))
+    .sort((a, b) => b.count - a.count || a.osis_ref.localeCompare(b.osis_ref))
+    .slice(0, limit)
+}
+
+export interface ScriptureCanonPage {
+  heat: CanonHeat
+  summary: SeasonSummary
+  returning: ReturningRef[]
+}
+
+/** Lamp home — one ref pass for heat, summary, and returning (cached in memory). */
+export async function loadScriptureCanonPage(
+  window?: DateWindow,
+  opts?: { fresh?: boolean },
+): Promise<ScriptureCanonPage> {
+  const key = `scripture:canon:${windowCacheKey(window)}`
+  if (!opts?.fresh) {
+    const hit = getCache<ScriptureCanonPage>(key)
+    if (hit) return hit
+  }
+  const refs = await loadRefs(window)
+  const payload: ScriptureCanonPage = {
+    heat: canonHeatFromRefs(refs),
+    summary: seasonSummaryFromRefs(refs),
+    returning: returningFromRefs(refs, 6),
+  }
+  setCache(key, payload)
+  return payload
+}
+
+/** Per (book, chapter): distinct-entry count within the window. Returning across
+ *  many sittings is the signal, so we count distinct entries, not raw mentions. */
+export async function getCanonHeat(window?: DateWindow): Promise<CanonHeat> {
+  return canonHeatFromRefs(await loadRefs(window))
+}
+
 /**
  * Top osis_refs by distinct-entry count — the "you keep returning to…" strip.
  * Pass `bookOsis` to scope to a single book (the book view's verse chips).
@@ -163,17 +246,7 @@ export async function getReturning(
   window?: DateWindow,
   bookOsis?: string,
 ): Promise<ReturningRef[]> {
-  const refs = (await loadRefs(window)).filter((r) => !bookOsis || r.book_osis === bookOsis)
-  const sets = new Map<string, { book_osis: string; entries: Set<string> }>()
-  for (const r of refs) {
-    const slot = sets.get(r.osis_ref) ?? { book_osis: r.book_osis, entries: new Set<string>() }
-    slot.entries.add(r.entry_id)
-    sets.set(r.osis_ref, slot)
-  }
-  return [...sets.entries()]
-    .map(([osis_ref, v]) => ({ osis_ref, book_osis: v.book_osis, count: v.entries.size }))
-    .sort((a, b) => b.count - a.count || a.osis_ref.localeCompare(b.osis_ref))
-    .slice(0, limit)
+  return returningFromRefs(await loadRefs(window), limit, bookOsis)
 }
 
 /** How many faint, AI-inferred allusions await the user's nod in a window — the
@@ -314,26 +387,7 @@ export interface SeasonSummary {
 
 /** Evidence for the one-line season note — described, never judged. */
 export async function getSeasonSummary(window?: DateWindow): Promise<SeasonSummary> {
-  const refs = await loadRefs(window)
-  const bookSets = new Map<string, Set<string>>()
-  const verseSets = new Map<string, Set<string>>()
-  for (const r of refs) {
-    ;(bookSets.get(r.book_osis) ?? bookSets.set(r.book_osis, new Set()).get(r.book_osis)!).add(r.entry_id)
-    ;(verseSets.get(r.osis_ref) ?? verseSets.set(r.osis_ref, new Set()).get(r.osis_ref)!).add(r.entry_id)
-  }
-  const topBooks = [...bookSets.entries()]
-    .map(([osis, set]) => ({ osis, name: bookByOsis(osis)?.name ?? osis, count: set.size }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-    .slice(0, 3)
-  const topVerse = [...verseSets.entries()]
-    .map(([osis_ref, set]) => ({ osis_ref, count: set.size }))
-    .sort((a, b) => b.count - a.count || a.osis_ref.localeCompare(b.osis_ref))[0]
-  return {
-    totalRefs: refs.length,
-    distinctVerses: verseSets.size,
-    topBooks,
-    topVerse: topVerse ?? null,
-  }
+  return seasonSummaryFromRefs(await loadRefs(window))
 }
 
 export interface BookChapterHeat {

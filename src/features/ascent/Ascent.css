@@ -8,7 +8,7 @@
 .ascent {
   position: relative;
   height: 100%;
-  min-height: 560px;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   color: #ece7df;
@@ -152,18 +152,24 @@
   border-radius: 4px;
 }
 
-/* ── main column ────────────────────────────────────────────────────────── */
-.ascent-main {
+/* ── scroll + main column (scroll spans the canvas; content stays centered) ─ */
+.ascent-scroll {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   position: relative;
   z-index: 2;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.ascent-main {
+  box-sizing: border-box;
   max-width: 760px;
   width: 100%;
   margin: 0 auto;
   padding: 56px 48px 32px;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
 }
 .ascent-head {
   animation: ascent-rise 0.7s both;
@@ -389,6 +395,93 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: rgba(236, 231, 223, 0.4);
+}
+
+/* Themes — the highlight layer (grounded in verbatim quotes) */
+.ascent-themes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ascent-theme {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-left: 2px solid rgba(232, 184, 115, 0.55);
+  border-radius: 12px;
+  padding: 14px 16px;
+  animation: ascent-rise 0.5s both;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.ascent-theme:hover {
+  border-color: rgba(232, 184, 115, 0.5);
+  border-left-color: var(--ascent-gold-soft);
+  transform: translateY(-1px);
+}
+.ascent-theme__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ascent-theme__label {
+  font-size: 17px;
+  font-style: italic;
+  color: #efe9df;
+  line-height: 1.3;
+}
+.ascent-theme__count {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-theme__peek {
+  font-size: 13.5px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.5);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+/* "the week, in order" — the lived days, folded quietly beneath the themes */
+.ascent-inorder {
+  margin-top: 4px;
+}
+.ascent-inorder__summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(236, 231, 223, 0.4);
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+.ascent-inorder__summary::-webkit-details-marker {
+  display: none;
+}
+.ascent-inorder__summary::before {
+  content: '▸ ';
+  color: var(--ascent-gold);
+}
+.ascent-inorder[open] .ascent-inorder__summary::before {
+  content: '▾ ';
+}
+.ascent-inorder__summary:hover {
+  color: var(--ascent-gold-soft);
+}
+.ascent-inorder .ascent-words__list {
+  margin-top: 14px;
 }
 
 /* Scripture */
@@ -747,6 +840,13 @@
   color: rgba(232, 184, 115, 0.7);
   margin-top: 4px;
 }
+.ascent-drill__foot {
+  margin: 18px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: rgba(236, 231, 223, 0.45);
+}
 
 /* verse rise across altitudes (scripture drill-in) */
 .ascent-vdrill__rise {
@@ -1008,10 +1108,27 @@
 .ascent--light .ascent-oneline {
   text-shadow: none;
 }
-.ascent--light .ascent-scrip {
+.ascent--light .ascent-scrip,
+.ascent--light .ascent-theme {
   background: rgba(255, 255, 255, 0.6);
   border-color: rgba(74, 64, 53, 0.14);
   box-shadow: var(--shadow-2);
+}
+.ascent--light .ascent-theme {
+  border-left-color: rgba(181, 119, 44, 0.55);
+}
+.ascent--light .ascent-theme__label {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-theme__peek {
+  color: rgba(74, 64, 53, 0.6);
+}
+.ascent--light .ascent-theme__count,
+.ascent--light .ascent-inorder__summary {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ascent--light .ascent-drill__foot {
+  color: rgba(74, 64, 53, 0.55);
 }
 .ascent--light .ascent-ebenezer {
   background: rgba(255, 255, 255, 0.55);

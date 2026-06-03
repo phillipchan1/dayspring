@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { ALTITUDES, CONTROLS } from './ascent.config'
 import { loadAscent, type LoadedAscent } from './data'
+import type { Theme } from './data/types'
 import { Hillside } from './Hillside'
 import { LensRow } from './LensRow'
 import { Ridge } from './Ridge'
@@ -10,6 +11,7 @@ import { Valley } from './Valley'
 import { LearningDrillIn } from './drilldowns/LearningDrillIn'
 import { PrayerDrillIn } from './drilldowns/PrayerDrillIn'
 import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
+import { ThemeDrillIn } from './drilldowns/ThemeDrillIn'
 import './Ascent.css'
 
 interface Props {
@@ -24,6 +26,7 @@ type Drill =
   | { kind: 'scripture'; osisRef: string }
   | { kind: 'prayer' }
   | { kind: 'learning' }
+  | { kind: 'theme'; theme: Theme }
   | null
 
 const LAST = ALTITUDES.length - 1
@@ -114,6 +117,7 @@ export function AscentView({ onOpenEntry }: Props) {
   const openScripture = useCallback((osisRef: string) => setDrill({ kind: 'scripture', osisRef }), [])
   const openPrayer = useCallback(() => setDrill({ kind: 'prayer' }), [])
   const openLearning = useCallback(() => setDrill({ kind: 'learning' }), [])
+  const openTheme = useCallback((theme: Theme) => setDrill({ kind: 'theme', theme }), [])
   const closeDrill = useCallback(() => setDrill(null), [])
 
   const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
@@ -134,6 +138,7 @@ export function AscentView({ onOpenEntry }: Props) {
 
       <ClimbRail idx={idx} setIdx={setIdx} />
 
+      <div className="ascent-scroll">
       <main className="ascent-main">
         <header className="ascent-head" key={`${L.key}-h`}>
           <span className="ascent-eyebrow">{L.alt}</span>
@@ -147,7 +152,12 @@ export function AscentView({ onOpenEntry }: Props) {
           {loading ? (
             <SurfaceLoader label="Reading the land…" />
           ) : idx === 0 ? (
-            <Valley data={altitude} onOpenEntry={onOpenEntry} onScriptureDrill={openScripture} />
+            <Valley
+              data={altitude}
+              onOpenEntry={onOpenEntry}
+              onScriptureDrill={openScripture}
+              onThemeDrill={openTheme}
+            />
           ) : idx === 1 ? (
             <Hillside
               data={altitude}
@@ -155,6 +165,7 @@ export function AscentView({ onOpenEntry }: Props) {
               onScriptureDrill={openScripture}
               onPrayerDrill={openPrayer}
               onLearningDrill={openLearning}
+              onThemeDrill={openTheme}
             />
           ) : idx === 2 ? (
             <Ridge
@@ -163,6 +174,7 @@ export function AscentView({ onOpenEntry }: Props) {
               onScriptureDrill={openScripture}
               onPrayerDrill={openPrayer}
               onLearningDrill={openLearning}
+              onThemeDrill={openTheme}
             />
           ) : (
             <Summit
@@ -171,6 +183,7 @@ export function AscentView({ onOpenEntry }: Props) {
               onScriptureDrill={openScripture}
               onPrayerDrill={openPrayer}
               onLearningDrill={openLearning}
+              onThemeDrill={openTheme}
             />
           )}
         </div>
@@ -187,6 +200,7 @@ export function AscentView({ onOpenEntry }: Props) {
           </button>
         </div>
       </main>
+      </div>
 
       {drill?.kind === 'scripture' && ascent ? (
         <ScriptureDrillIn
@@ -201,6 +215,9 @@ export function AscentView({ onOpenEntry }: Props) {
       ) : null}
       {drill?.kind === 'prayer' && altitude?.prayer ? (
         <PrayerDrillIn data={altitude.prayer} onClose={closeDrill} onOpenEntry={onOpenEntry} />
+      ) : null}
+      {drill?.kind === 'theme' ? (
+        <ThemeDrillIn data={drill.theme} onClose={closeDrill} onOpenEntry={onOpenEntry} />
       ) : null}
     </div>
   )

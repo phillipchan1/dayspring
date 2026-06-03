@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { getCache, windowCacheKey } from '@/lib/asyncCache'
 import {
-  countThreads,
-  getCarries,
   getThread,
-  listThreads,
+  invalidateAltarFieldCache,
+  loadAltarField,
+  pickAltarDefaultSeason,
   type AltarThread,
   type CarriedName,
   type DateWindow,
@@ -405,15 +406,23 @@ function ThreadPanel({
   )
 }
 
+function altarFieldFromCache(seasonId: string, seasons: { id: string; window: DateWindow }[]) {
+  const sel = seasons.find((s) => s.id === seasonId)
+  if (!sel) return null
+  return getCache<Awaited<ReturnType<typeof loadAltarField>>>(`altar:field:${windowCacheKey(sel.window)}`)
+}
+
 export function AltarView({ onOpenEntry }: Props) {
   const seasons = useMemo(() => buildSeasons(), [])
-  // '' until the adaptive default resolves on mount (don't load all-time first).
-  const [seasonId, setSeasonId] = useState('')
+  const rememberedSeason = getCache<string>('altar:defaultSeason') ?? ''
+  const initialField = altarFieldFromCache(rememberedSeason, seasons)
+  // '' until the adaptive default resolves on first visit (don't load all-time first).
+  const [seasonId, setSeasonId] = useState(rememberedSeason)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
 
-  const [threads, setThreads] = useState<AltarThread[] | null>(null)
-  const [carries, setCarries] = useState<CarriedName[]>([])
+  const [threads, setThreads] = useState<AltarThread[] | null>(initialField?.threads ?? null)
+  const [carries, setCarries] = useState<CarriedName[]>(initialField?.carries ?? [])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const reqId = useRef(0)
@@ -422,48 +431,41 @@ export function AltarView({ onOpenEntry }: Props) {
   const [detail, setDetail] = useState<ThreadDetail | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // Adaptive default: open on the most recent season that actually has cairns —
-  // never an empty field, never the all-time wall. Harvested prayers are mostly
-  // historical, so a literal "last 90 days" can be empty; fall back through the
-  // windows to all-time.
+  // Adaptive default: open on the most recent season that actually has cairns.
   useEffect(() => {
+    if (seasonId) return
     let cancelled = false
-    const pick = async () => {
-      const prefs: { id: string; min: number }[] = [
-        { id: 'season', min: 3 },
-        { id: 'year', min: 1 },
-        { id: 'last', min: 1 },
-      ]
-      for (const p of prefs) {
-        const s = seasons.find((x) => x.id === p.id)
-        if (!s) continue
-        try {
-          if ((await countThreads(s.window)) >= p.min) {
-            if (!cancelled) setSeasonId(p.id)
-            return
-          }
-        } catch {
-          break // on error, fall back to all-time below
-        }
-      }
-      if (!cancelled) setSeasonId('all')
-    }
-    void pick()
+    void pickAltarDefaultSeason(seasons).then((id) => {
+      if (!cancelled) setSeasonId(id)
+    })
     return () => {
       cancelled = true
     }
-  }, [seasons])
+  }, [seasonId, seasons])
 
   useEffect(() => {
-    if (!seasonId) return // wait for the adaptive default
+    if (!seasonId) return
     const sel = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
+    const cached = getCache<Awaited<ReturnType<typeof loadAltarField>>>(
+      `altar:field:${windowCacheKey(sel.window)}`,
+    )
+    if (cached) {
+      setThreads(cached.threads)
+      setCarries(cached.carries)
+      setLoadError(null)
+    } else {
+      setThreads(null)
+      setCarries([])
+    }
+
     const id = ++reqId.current
     let cancelled = false
-    Promise.all([listThreads(sel.window), getCarries(sel.window)])
-      .then(([t, c]) => {
+    loadAltarField(sel.window)
+      .then((field) => {
         if (cancelled || id !== reqId.current) return
-        setThreads(t)
-        setCarries(c)
+        setThreads(field.threads)
+        setCarries(field.carries)
+        setLoadError(null)
       })
       .catch((e) => {
         if (!cancelled && id === reqId.current) setLoadError(e instanceof Error ? e.message : 'Could not load')
@@ -491,7 +493,10 @@ export function AltarView({ onOpenEntry }: Props) {
   }
   const closeThread = () => setOpenId(null)
 
-  const refresh = () => setReloadKey((k) => k + 1)
+  const refresh = () => {
+    invalidateAltarFieldCache()
+    setReloadKey((k) => k + 1)
+  }
 
   const handleName = async (movement: Movement) => {
     if (!detail) return

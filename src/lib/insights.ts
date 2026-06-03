@@ -80,6 +80,13 @@ export interface Refrain {
   char_start: number
   char_end: number
 }
+/** A theme grounded in verbatim quotes — the highlight layer (tap a theme → its
+ *  lines → the entry). Label is descriptive (a pattern, never a verdict). */
+export interface Highlight {
+  id: string
+  label: string
+  quotes: Excerpt[]
+}
 export interface ReflectionContent {
   synthesis?: string[]
   letter?: string[]
@@ -96,6 +103,7 @@ export interface ReflectionContent {
   arcs?: Arc[]
   tensions?: Tension[]
   refrain?: Refrain
+  highlights?: Highlight[]
 }
 
 /** The §3 contract stored in insights.structured_payload. */

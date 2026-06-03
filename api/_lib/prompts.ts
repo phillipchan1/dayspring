@@ -43,7 +43,15 @@ cite specific days. You are given this week's entries as JSON [{id,date,title,te
    next_week = up to 3 forward intentions implied by open threads. Plain language, no fluff.
 6. questions: 2–3 invitational prompts to seed the next entry, drawn from open threads. The AI ASKS, never
    answers. Each addressed to "self" or "God" (the addressee is a separate field — do NOT prefix the text
-   with "self:" or "God:"; a prayer may begin naturally with "Lord," if it reads that way). Never quiz-like.`
+   with "self:" or "God:"; a prayer may begin naturally with "Lord," if it reads that way). Never quiz-like.
+7. highlights: group the week's writing into 2–4 THEMES, each carrying the writer's OWN words. For each:
+   - label: a SHORT descriptive phrase (2–5 words) naming the pattern in the writer's life — e.g. "receiving
+     over striving", "building Dayspring", "homeschool & surrender". A neutral noun phrase, NOT a verdict,
+     praise, diagnosis, or sentence. It only names what the lines below have in common.
+   - quotes: 2–4 VERBATIM passages (entry_id + date + exact text) from this week's entries that belong to
+     this theme. Exact substrings only — same hard rule as the quotes field; if unsure, omit the line.
+   A theme MUST carry at least 2 real quotes or it is not a theme — drop it. Themes may reuse lines from your
+   quotes list. Fewer, true themes beat forced ones. Return [] if nothing clusters.`
 
 export const MONTHLY_SYSTEM_PROMPT = `${GROUNDING}
 
@@ -63,7 +71,14 @@ topics, observations, syntheses) — speak in arcs across the weeks, NOT specifi
    - note: ONE grounded sentence on what recurred, in the writer's own terms. No praise, no diagnosis.
    - entry_ids: the supporting entry ids drawn from the candidate_quotes/topics you were given (real ids
      only). The app shows the COUNT as weight, so include every entry that genuinely fed the arc.
-   Fewer, true arcs beat five forced ones. Return [] if nothing clearly recurred.`
+   Fewer, true arcs beat five forced ones. Return [] if nothing clearly recurred.
+9. highlights: the month's recurring THEMES, each carrying the writer's OWN words. For each:
+   - label: a SHORT descriptive phrase (2–5 words) naming the recurring pattern — a neutral noun phrase,
+     never a verdict, praise, or diagnosis. It only names what the lines below share.
+   - quotes: 2–4 VERBATIM passages FROM THE CANDIDATE QUOTES ONLY (entry_id + date + exact text) that
+     belong to this theme. Exact substrings only; if unsure, omit the line.
+   A theme MUST carry at least 2 real quotes or drop it. Speak in recurrences across the weeks, not single
+   days. Fewer, true themes beat forced ones. Return [] if nothing recurred.`
 
 export const QUARTERLY_SYSTEM_PROMPT = `${GROUNDING}
 
@@ -202,6 +217,19 @@ const arcsSchema = {
   },
 } as const
 
+const highlightsSchema = {
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['label', 'quotes'],
+    properties: {
+      label: { type: 'string' },
+      quotes: quoteSchema,
+    },
+  },
+} as const
+
 const tensionsSchema = {
   type: 'array',
   items: {
@@ -230,7 +258,7 @@ const refrainSchema = {
 export const WEEKLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['quotes', 'topics', 'observation', 'synthesis', 'wins', 'questions'],
+  required: ['quotes', 'topics', 'observation', 'synthesis', 'wins', 'questions', 'highlights'],
   properties: {
     quotes: quoteSchema,
     topics: topicsSchema,
@@ -243,13 +271,14 @@ export const WEEKLY_SCHEMA = {
       properties: { this_week: stringArray, next_week: stringArray },
     },
     questions: questionsSchema,
+    highlights: highlightsSchema,
   },
 } as const
 
 export const MONTHLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['quotes', 'topics', 'observation', 'letter', 'gain', 'gap_watch', 'themes', 'arcs'],
+  required: ['quotes', 'topics', 'observation', 'letter', 'gain', 'gap_watch', 'themes', 'arcs', 'highlights'],
   properties: {
     quotes: quoteSchema,
     topics: topicsSchema,
@@ -259,6 +288,7 @@ export const MONTHLY_SCHEMA = {
     gap_watch: { type: 'string' },
     themes: stringArray,
     arcs: arcsSchema,
+    highlights: highlightsSchema,
   },
 } as const
 

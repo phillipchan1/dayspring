@@ -1,5 +1,5 @@
 import { EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
-import type { SummitView } from './data/types'
+import type { SummitView, Theme } from './data/types'
 import { LearningDimension } from './dimensions/LearningDimension'
 import { PrayerDimension } from './dimensions/PrayerDimension'
 import { ScriptureDimension } from './dimensions/ScriptureDimension'
@@ -11,6 +11,7 @@ interface Props {
   onScriptureDrill: (osisRef: string) => void
   onPrayerDrill: () => void
   onLearningDrill: () => void
+  onThemeDrill: (theme: Theme) => void
 }
 
 const W = 600
@@ -31,7 +32,14 @@ function stonePos(month: number, i: number): { cx: number; cy: number } {
  * is the user's own words and marks, and the app nearly disappears. The four
  * dimensions persist here at their most distilled.
  */
-export function Summit({ data, onOpenEntry, onScriptureDrill, onPrayerDrill, onLearningDrill }: Props) {
+export function Summit({
+  data,
+  onOpenEntry,
+  onScriptureDrill,
+  onPrayerDrill,
+  onLearningDrill,
+  onThemeDrill,
+}: Props) {
   const empty =
     !data || (!data.words && !data.scripture && !data.prayer && !data.learning && data.stones.length === 0)
   if (empty) {
@@ -91,7 +99,7 @@ export function Summit({ data, onOpenEntry, onScriptureDrill, onPrayerDrill, onL
       <p className="ascent-summit__look">{SUMMIT_COPY.lookingBack}</p>
 
       <div className="ascent-stack ascent-stack--summit">
-        <WordsDimension data={data.words} onOpenEntry={onOpenEntry} />
+        <WordsDimension data={data.words} onOpenEntry={onOpenEntry} onThemeDrill={onThemeDrill} />
         <ScriptureDimension data={data.scripture} onDrill={onScriptureDrill} />
         <PrayerDimension data={data.prayer} onDrill={onPrayerDrill} />
         <LearningDimension data={data.learning} onDrill={onLearningDrill} />

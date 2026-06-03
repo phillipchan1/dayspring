@@ -31,9 +31,30 @@ export interface WordMoment {
   isQuote: boolean
 }
 
+/** One verbatim line under a theme — links back to its source entry. */
+export interface ThemeQuote {
+  entryId: string
+  /** YYYY-MM-DD, for ordering along the season. */
+  date: string
+  dateLabel: string
+  text: string
+}
+
+/** A theme grounded in the writer's own words: a descriptive label over the
+ *  verbatim quotes that share it. Surface = the label; drill = these quotes →
+ *  the entry. The "intelligence highlights" layer. */
+export interface Theme {
+  id: string
+  label: string
+  quotes: ThemeQuote[]
+}
+
 export interface WordsData {
   resolution: Resolution
   periodLabel: string
+  /** The highlight layer — themes grounded in verbatim quotes. May be empty (no
+   *  synthesis yet); the dimension falls back to `moments` then. */
+  themes: Theme[]
   /** week: entries in lived order · month: the lines kept · quarter: the phrases
    *  circled · year: the one line of the year. Fewer + more distilled as you climb. */
   moments: WordMoment[]

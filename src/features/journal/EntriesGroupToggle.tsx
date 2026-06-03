@@ -1,9 +1,9 @@
 import type { EntriesGroupBy } from './groupEntries'
 
-const OPTIONS: { value: EntriesGroupBy; label: string; title: string }[] = [
-  { value: 'flat', label: 'List', title: 'Flat list, newest first' },
-  { value: 'month', label: 'Month', title: 'Group by month' },
-  { value: 'year', label: 'Year', title: 'Group by year' },
+const OPTIONS: { value: EntriesGroupBy; label: string }[] = [
+  { value: 'flat', label: 'List' },
+  { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' },
 ]
 
 interface Props {
@@ -13,14 +13,14 @@ interface Props {
 
 export function EntriesGroupToggle({ value, onChange }: Props) {
   return (
-    <div className="segmented entry-list__view-toggle" role="group" aria-label="Organize entries">
+    <div className="entry-list__view-switcher" role="group" aria-label="Organize entries">
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}
           type="button"
-          className="segmented__btn"
-          data-active={value === opt.value}
-          title={opt.title}
+          className="entry-list__view-btn"
+          data-active={value === opt.value ? 'true' : undefined}
+          aria-pressed={value === opt.value}
           onClick={() => onChange(opt.value)}
         >
           {opt.label}

@@ -10,6 +10,8 @@ interface Options {
   entries: Entry[]
   activeId: string | null
   flatVirtual: boolean
+  /** Map entry id → flat list index (includes date headers) for virtual scroll. */
+  scrollIndexForEntryId?: (entryId: string) => number
   menuOpen: boolean
   multi: ReturnType<typeof useEntryMultiSelect>
   onBrowse: (entry: Entry) => void
@@ -30,6 +32,7 @@ export function useEntryListKeyboard({
   entries,
   activeId,
   flatVirtual,
+  scrollIndexForEntryId,
   menuOpen,
   multi,
   onBrowse,
@@ -127,7 +130,8 @@ export function useEntryListKeyboard({
       if (e.shiftKey) {
         if (!multi.rangePivotId) multi.beginRange(currentId)
         multi.selectRangeTo(nextId, multi.rangePivotId)
-        scrollEntryIndexIntoView(listEl, nextIdx, flatVirtual)
+        const scrollIdx = scrollIndexForEntryId?.(nextId) ?? nextIdx
+        scrollEntryIndexIntoView(listEl, scrollIdx, flatVirtual)
         requestAnimationFrame(() => focusEntryRow(listEl, nextId))
         return
       }
@@ -135,7 +139,8 @@ export function useEntryListKeyboard({
       multi.endRange()
       multi.navigateTo(nextId, 'single')
       onBrowse(entry)
-      scrollEntryIndexIntoView(listEl, nextIdx, flatVirtual)
+      const scrollIdx = scrollIndexForEntryId?.(nextId) ?? nextIdx
+      scrollEntryIndexIntoView(listEl, scrollIdx, flatVirtual)
       requestAnimationFrame(() => focusEntryRow(listEl, nextId))
     }
 
@@ -147,6 +152,7 @@ export function useEntryListKeyboard({
     entries,
     activeId,
     flatVirtual,
+    scrollIndexForEntryId,
     menuOpen,
     multi,
     onBrowse,

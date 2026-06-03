@@ -97,6 +97,17 @@ export interface WinCandidate {
   text: string
 }
 
+/** A THEME grounded in the writer's own words: a short descriptive label over the
+ *  verbatim quotes that share it. The label is the one interpretive move — a
+ *  pattern, never a verdict; every quote validates verbatim and links to its
+ *  entry. This is the "intelligence highlights" layer: surface = theme, drill =
+ *  the actual lines, → the source entry. */
+export interface Highlight {
+  id: string
+  label: string
+  quotes: Excerpt[]
+}
+
 /**
  * The rich, horizon-shaped content the Looking Back UI renders. Every field is
  * optional — each horizon fills only the slots that belong to it. Stored under
@@ -133,6 +144,9 @@ export interface ReflectionContent {
   questions?: ReflectionQuestion[]
   /** weekly: AI-prefilled win candidates the user can keep or rewrite. */
   wins?: { thisWeek: WinCandidate[]; nextWeek: WinCandidate[] }
+  /** weekly + monthly: themes grounded in verbatim quotes — the highlight layer
+   *  the Ascent surfaces (tap a theme → its lines → the entry). */
+  highlights?: Highlight[]
 }
 
 export interface RollupPayload {
@@ -168,6 +182,10 @@ export interface RawArc {
   note: string
   entry_ids: string[]
 }
+export interface RawHighlight {
+  label: string
+  quotes: RawExcerpt[]
+}
 export interface RawTension {
   thread: string
   question: string
@@ -186,6 +204,7 @@ export interface WeeklyModelOutput {
   synthesis: string[]
   wins: { this_week: string[]; next_week: string[] }
   questions: RawQuestion[]
+  highlights: RawHighlight[]
 }
 
 export interface MonthlyModelOutput {
@@ -197,6 +216,7 @@ export interface MonthlyModelOutput {
   gap_watch: string
   themes: string[]
   arcs: RawArc[]
+  highlights: RawHighlight[]
 }
 
 export interface QuarterlyModelOutput {

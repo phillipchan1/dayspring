@@ -8,6 +8,7 @@
 // them, so when Supabase is unreachable the surface shows its error/empty state
 // rather than a half-truth.
 
+import { getCache, invalidateCachePrefix, setCache, windowCacheKey } from '../asyncCache'
 import { requireSupabase } from '../supabase'
 import type { AltarCandidate, Encounter, Movement, PrayerThread } from '../types'
 
@@ -154,6 +155,54 @@ function toAltarThread(
     reflection: encounter?.reflection_text ?? null,
     hasCandidate,
   }
+}
+
+/** Drop cached field reads for every season window (after cairn edits). */
+export function invalidateAltarFieldCache(): void {
+  invalidateCachePrefix('altar:field:')
+}
+
+export interface AltarFieldPayload {
+  threads: AltarThread[]
+  carries: CarriedName[]
+}
+
+/** Field + carries for a season window (cached in memory). */
+export async function loadAltarField(window?: DateWindow): Promise<AltarFieldPayload> {
+  const key = `altar:field:${windowCacheKey(window)}`
+  const hit = getCache<AltarFieldPayload>(key)
+  if (hit) return hit
+  const [threads, carries] = await Promise.all([listThreads(window), getCarries(window)])
+  const payload = { threads, carries }
+  setCache(key, payload)
+  return payload
+}
+
+/** Adaptive default season — cached so revisits skip the count probe chain. */
+export async function pickAltarDefaultSeason(
+  seasons: { id: string; window: DateWindow }[],
+): Promise<string> {
+  const remembered = getCache<string>('altar:defaultSeason')
+  if (remembered) return remembered
+  const prefs: { id: string; min: number }[] = [
+    { id: 'season', min: 3 },
+    { id: 'year', min: 1 },
+    { id: 'last', min: 1 },
+  ]
+  for (const p of prefs) {
+    const s = seasons.find((x) => x.id === p.id)
+    if (!s) continue
+    try {
+      if ((await countThreads(s.window)) >= p.min) {
+        setCache('altar:defaultSeason', p.id)
+        return p.id
+      }
+    } catch {
+      break
+    }
+  }
+  setCache('altar:defaultSeason', 'all')
+  return 'all'
 }
 
 /** Cheap count of cairns planted in a window — drives the adaptive default season. */

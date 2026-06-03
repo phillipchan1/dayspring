@@ -1,5 +1,5 @@
 import { EMPTY_COPY } from './ascent.config'
-import type { AltitudeData } from './data/types'
+import type { AltitudeData, Theme } from './data/types'
 import { LearningDimension } from './dimensions/LearningDimension'
 import { PrayerDimension } from './dimensions/PrayerDimension'
 import { ScriptureDimension } from './dimensions/ScriptureDimension'
@@ -11,6 +11,7 @@ interface Props {
   onScriptureDrill: (osisRef: string) => void
   onPrayerDrill: () => void
   onLearningDrill: () => void
+  onThemeDrill: (theme: Theme) => void
 }
 
 /**
@@ -18,13 +19,20 @@ interface Props {
  * the lines you kept, the month's recurring verse, what you kept asking, and the
  * thread you started to see. The app names tentatively and only as a question.
  */
-export function Hillside({ data, onOpenEntry, onScriptureDrill, onPrayerDrill, onLearningDrill }: Props) {
+export function Hillside({
+  data,
+  onOpenEntry,
+  onScriptureDrill,
+  onPrayerDrill,
+  onLearningDrill,
+  onThemeDrill,
+}: Props) {
   if (!data || (!data.words && !data.scripture && !data.prayer && !data.learning)) {
     return <p className="ascent-empty">{EMPTY_COPY.month.empty}</p>
   }
   return (
     <div className="ascent-stack">
-      <WordsDimension data={data.words} onOpenEntry={onOpenEntry} />
+      <WordsDimension data={data.words} onOpenEntry={onOpenEntry} onThemeDrill={onThemeDrill} />
       <ScriptureDimension data={data.scripture} onDrill={onScriptureDrill} />
       <PrayerDimension data={data.prayer} onDrill={onPrayerDrill} />
       <LearningDimension data={data.learning} onDrill={onLearningDrill} />

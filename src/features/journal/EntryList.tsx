@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import type { Entry } from '@/lib/types'
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { useSettings } from '@/hooks/useSettings'
@@ -13,13 +13,19 @@ import { EntryBulkMenu, type EntryBulkAction, type EntryBulkMenuPhase } from './
 import { useSuppressNativeContextMenu } from './useSuppressNativeContextMenu'
 import { EntriesGroupToggle } from './EntriesGroupToggle'
 import {
-  formatEntryRowDate,
+  flatIndexByEntryId,
+  flattenDateGroups,
   groupEntries,
+  groupMonthsByYear,
+  groupYearsWithMonths,
+  monthKeyForEntry,
+  yearKeyForEntry,
   type EntriesGroupBy,
-  type EntryGroup,
+  type MonthGroup,
+  type YearGroup,
+  type YearSection,
 } from './groupEntries'
 import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
-import { useEntryGroupCollapse } from './useEntryGroupCollapse'
 import { useEntryMultiSelect } from './useEntryMultiSelect'
 import { useVirtualRange } from './useVirtualRange'
 import { useEntryListKeyboard } from './useEntryListKeyboard'
@@ -88,10 +94,51 @@ export function EntryList({
 
   const searching = query.trim().length > 0
   const groupBy: EntriesGroupBy = searching ? 'flat' : settings.entriesGroupBy
-  const groups = groupEntries(entries, groupBy)
-  const collapse = useEntryGroupCollapse(groups, groupBy, activeId, entries, entries.length)
+  const groups = useMemo(() => groupEntries(entries, groupBy), [entries, groupBy])
+  const flatItems = useMemo(() => (groups ? flattenDateGroups(groups) : []), [groups])
+  const flatIndexById = useMemo(() => flatIndexByEntryId(flatItems), [flatItems])
+  const monthSections = useMemo(
+    () => (groupBy === 'month' && !searching ? groupMonthsByYear(entries) : []),
+    [entries, groupBy, searching],
+  )
+  const yearGroups = useMemo(
+    () => (groupBy === 'year' && !searching ? groupYearsWithMonths(entries) : []),
+    [entries, groupBy, searching],
+  )
   const orderIds = useMemo(() => orderedEntryIds(entries, groups), [entries, groups])
   const multi = useEntryMultiSelect(orderIds)
+
+  const activeEntry = useMemo(
+    () => (activeId ? entries.find((e) => e.id === activeId) : undefined),
+    [entries, activeId],
+  )
+  const activeMonthKey = activeEntry ? monthKeyForEntry(activeEntry) : null
+  const activeYearKey = activeEntry ? yearKeyForEntry(activeEntry) : null
+
+  const [expandedYears, setExpandedYears] = useState<Set<string>>(() => new Set())
+  const yearInitRef = useRef(false)
+
+  useEffect(() => {
+    yearInitRef.current = false
+    setExpandedYears(new Set())
+  }, [groupBy])
+
+  useEffect(() => {
+    if (groupBy !== 'year' || yearGroups.length === 0) return
+    if (!yearInitRef.current) {
+      yearInitRef.current = true
+      const seed = activeYearKey ?? yearGroups[0]!.key
+      setExpandedYears(new Set([seed]))
+      return
+    }
+    if (!activeYearKey) return
+    setExpandedYears((prev) => {
+      if (prev.has(activeYearKey)) return prev
+      const next = new Set(prev)
+      next.add(activeYearKey)
+      return next
+    })
+  }, [groupBy, yearGroups, activeYearKey])
 
   const selectedEntries = useMemo(() => {
     if (multi.selectedIds.size === 0) return EMPTY_SELECTED
@@ -113,10 +160,14 @@ export function EntryList({
     setBulkPhase({ kind: 'confirm', entries: selectedEntries })
   }
 
-  const flatVirtual =
-    !groups && !searching && entries.length >= FLAT_VIRTUAL_THRESHOLD
-  const virtual = useVirtualRange(listRef, entries.length, flatVirtual)
-  const flatSlice = flatVirtual ? entries.slice(virtual.start, virtual.end) : entries
+  const listVirtual = Boolean(groups) && flatItems.length >= FLAT_VIRTUAL_THRESHOLD
+  const virtual = useVirtualRange(listRef, flatItems.length, listVirtual)
+  const flatSlice = listVirtual ? flatItems.slice(virtual.start, virtual.end) : flatItems
+
+  const scrollIndexForEntryId = useCallback(
+    (entryId: string) => flatIndexById.get(entryId) ?? -1,
+    [flatIndexById],
+  )
 
   const menuOpen = phase.kind !== 'closed' || bulkPhase.kind !== 'closed'
 
@@ -125,7 +176,8 @@ export function EntryList({
     orderIds,
     entries,
     activeId,
-    flatVirtual,
+    flatVirtual: listVirtual,
+    scrollIndexForEntryId,
     menuOpen,
     multi,
     onBrowse: onSelect,
@@ -187,7 +239,10 @@ export function EntryList({
       requestAnimationFrame(() => {
         const listEl = listRef.current
         if (!listEl) return
-        if (nextIdx >= 0) scrollEntryIndexIntoView(listEl, nextIdx, flatVirtual)
+        if (nextIdx >= 0) {
+          const flatIdx = flatIndexById.get(nextId) ?? nextIdx
+          scrollEntryIndexIntoView(listEl, flatIdx, listVirtual)
+        }
         focusEntryRow(listEl, nextId)
       })
     } else {
@@ -227,6 +282,26 @@ export function EntryList({
     closeBulkMenu()
   }
 
+  function selectMonth(month: MonthGroup) {
+    const entry = month.entries[0]
+    if (entry) onSelect(entry)
+  }
+
+  function toggleYear(yearKey: string) {
+    setExpandedYears((prev) => {
+      const next = new Set(prev)
+      if (next.has(yearKey)) next.delete(yearKey)
+      else next.add(yearKey)
+      return next
+    })
+  }
+
+  function collapseOtherYears() {
+    setExpandedYears(activeYearKey ? new Set([activeYearKey]) : new Set())
+  }
+
+  const showYearCollapse = groupBy === 'year' && yearGroups.length > 2
+
   function blockNativeMenu(e: React.MouseEvent) {
     e.preventDefault()
   }
@@ -235,7 +310,7 @@ export function EntryList({
     ? `${entries.length} match${entries.length === 1 ? '' : 'es'}`
     : multi.selectionCount >= 2
       ? `${multi.selectionCount} selected`
-      : `${entries.length} entries`
+      : 'Journal'
 
   return (
     <aside
@@ -256,124 +331,157 @@ export function EntryList({
         }
         onContextMenu={blockNativeMenu}
       >
-        <input
-          data-entry-search
-          className="entry-list__search"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search entries…"
-          onContextMenu={blockNativeMenu}
-        />
+        <label className="entry-list__search-bar">
+          <svg
+            className="entry-list__search-icon"
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input
+            data-entry-search
+            className="entry-list__search-input"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search entries..."
+            onContextMenu={blockNativeMenu}
+          />
+        </label>
         {!searching && (
           <EntriesGroupToggle
             value={settings.entriesGroupBy}
             onChange={(entriesGroupBy) => updateSettings({ entriesGroupBy })}
           />
         )}
-        <div className="entry-list__count-row">
-          <span className="entry-list__count">{countLabel}</span>
-          {groups && collapse.showBulkActions && multi.selectionCount < 2 && (
-              <span className="entry-list__bulk">
-                <button type="button" className="entry-list__bulk-btn" onClick={collapse.collapseOlder}>
-                  Collapse older
-                </button>
-                {entries.length < 200 && (
-                  <>
-                    <span className="entry-list__bulk-sep" aria-hidden>
-                      ·
-                    </span>
-                    <button type="button" className="entry-list__bulk-btn" onClick={collapse.expandAll}>
-                      Expand all
-                    </button>
-                  </>
-                )}
-              </span>
-            )}
-          {onCollapse && !fullWidth && (
-            <button
-              type="button"
-              className="entry-list__collapse"
-              onClick={onCollapse}
-              title="Hide entries (⌘1)"
-              aria-label="Hide entries list"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M15 6l-6 6 6 6" />
-              </svg>
-            </button>
-          )}
-        </div>
       </div>
 
-      {entries.length === 0 ? (
-        <p className="entry-list__empty" onContextMenu={blockNativeMenu}>
-          {searching ? 'No matches.' : 'Nothing yet. Start writing →'}
-        </p>
-      ) : groups ? (
-        <div className="entry-list__groups" onContextMenu={blockNativeMenu}>
-          {groups.map((group) => (
-            <EntryGroupSection
-              key={group.key}
-              group={group}
-              expanded={collapse.isExpanded(group.key)}
-              onToggle={() => collapse.toggle(group.key)}
-              activeId={activeId}
-              menuTargetId={menuTargetId}
-              selectedIds={multi.selectedIds}
-              query={query}
-              groupBy={groupBy}
-              onSelect={onSelect}
-              onEditEntry={onEditEntry}
-              {...(onRowActivate ? { onRowActivate } : {})}
-              onRowClick={multi.handleRowClick}
-              onOpenMenu={openMenu}
-              onOpenBulkMenu={openBulkMenu}
-              selectedEntries={selectedEntries}
-              touchTapEdits={!fullWidth}
-            />
-          ))}
+      <div className="entry-list__body" onContextMenu={blockNativeMenu}>
+        <div className="entry-list__journal-header">
+          <span
+            className={
+              searching || multi.selectionCount >= 2
+                ? 'entry-list__count'
+                : 'entry-list__label'
+            }
+          >
+            {countLabel}
+          </span>
+          <div className="entry-list__journal-actions">
+            {showYearCollapse && multi.selectionCount < 2 && (
+              <button
+                type="button"
+                className="entry-list__collapse-years"
+                onClick={collapseOtherYears}
+                title="Collapse other years"
+                aria-label="Collapse other years"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M18 15l-6-6-6 6" />
+                </svg>
+              </button>
+            )}
+            {onCollapse && !fullWidth && (
+              <button
+                type="button"
+                className="entry-list__collapse"
+                onClick={onCollapse}
+                title="Hide entries (⌘1)"
+                aria-label="Hide entries list"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
-      ) : (
-        <ul
-          className="entry-list__flat"
-          style={
-            flatVirtual
-              ? { paddingTop: virtual.topSpacer, paddingBottom: virtual.bottomSpacer }
-              : undefined
-          }
-          onContextMenu={blockNativeMenu}
-        >
-          {flatSlice.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              activeId={activeId}
-              menuTargetId={menuTargetId}
-              selected={multi.selectedIds.has(entry.id)}
-              query={query}
-              groupBy="flat"
-              onSelect={onSelect}
-              onEditEntry={onEditEntry}
-              {...(onRowActivate ? { onRowActivate } : {})}
-              onRowClick={multi.handleRowClick}
-              onOpenMenu={openMenu}
-              onOpenBulkMenu={openBulkMenu}
-              selectedEntries={selectedEntries}
-              touchTapEdits={!fullWidth}
-            />
-          ))}
-        </ul>
-      )}
+
+        {entries.length === 0 ? (
+          <p className="entry-list__empty">{searching ? 'No matches.' : 'Nothing yet. Start writing →'}</p>
+        ) : groupBy === 'month' && !searching ? (
+          <MonthView
+            sections={monthSections}
+            activeMonthKey={activeMonthKey}
+            onSelectMonth={selectMonth}
+          />
+        ) : groupBy === 'year' && !searching ? (
+          <YearView
+            years={yearGroups}
+            expandedYears={expandedYears}
+            activeYearKey={activeYearKey}
+            activeMonthKey={activeMonthKey}
+            onToggleYear={toggleYear}
+            onSelectMonth={selectMonth}
+          />
+        ) : groups ? (
+          <div
+            className="entry-list__groups"
+            style={
+              listVirtual
+                ? { paddingTop: virtual.topSpacer, paddingBottom: virtual.bottomSpacer }
+                : undefined
+            }
+          >
+            {flatSlice.map((item) =>
+              item.kind === 'header' ? (
+                <h3
+                  key={item.key}
+                  className={`entry-list__date-header${item.first ? ' entry-list__date-header--first' : ''}`}
+                >
+                  {item.label}
+                </h3>
+              ) : (
+                <EntryRow
+                  key={item.entry.id}
+                  bare
+                  entry={item.entry}
+                  activeId={activeId}
+                  menuTargetId={menuTargetId}
+                  selected={multi.selectedIds.has(item.entry.id)}
+                  query={query}
+                  onSelect={onSelect}
+                  onEditEntry={onEditEntry}
+                  {...(onRowActivate ? { onRowActivate } : {})}
+                  onRowClick={multi.handleRowClick}
+                  onOpenMenu={openMenu}
+                  onOpenBulkMenu={openBulkMenu}
+                  selectedEntries={selectedEntries}
+                  touchTapEdits={!fullWidth}
+                />
+              ),
+            )}
+          </div>
+        ) : null}
+      </div>
 
       <EntryContextMenu
         phase={phase}
@@ -391,93 +499,114 @@ export function EntryList({
   )
 }
 
-interface EntryGroupSectionProps {
-  group: EntryGroup
-  expanded: boolean
-  onToggle: () => void
-  activeId: string | null
-  menuTargetId: string | null
-  selectedIds: Set<string>
-  query: string
-  groupBy: EntriesGroupBy
-  onSelect: (entry: Entry) => void
-  onEditEntry: (entry: Entry) => void
-  onRowActivate?: () => void
-  onRowClick: ReturnType<typeof useEntryMultiSelect>['handleRowClick']
-  onOpenMenu: (entry: Entry, x: number, y: number) => void
-  onOpenBulkMenu: (entries: Entry[], x: number, y: number) => void
-  selectedEntries: Entry[]
-  /** Desktop list: a touch tap opens the entry for editing (the phone drawer
-   *  keeps its browse-then-close behavior). */
-  touchTapEdits: boolean
+interface MonthViewProps {
+  sections: YearSection[]
+  activeMonthKey: string | null
+  onSelectMonth: (month: MonthGroup) => void
 }
 
-function EntryGroupSection({
-  group,
-  expanded,
-  onToggle,
-  activeId,
-  menuTargetId,
-  selectedIds,
-  query,
-  groupBy,
-  onSelect,
-  onEditEntry,
-  onRowActivate,
-  onRowClick,
-  onOpenMenu,
-  onOpenBulkMenu,
-  selectedEntries,
-  touchTapEdits,
-}: EntryGroupSectionProps) {
-  const count = group.entries.length
-
+function MonthView({ sections, activeMonthKey, onSelectMonth }: MonthViewProps) {
   return (
-    <section className="entry-list__group" data-expanded={expanded ? 'true' : 'false'}>
-      <button
-        type="button"
-        className="entry-list__group-toggle"
-        aria-expanded={expanded}
-        onClick={onToggle}
-      >
-        <span className="entry-list__group-chevron" aria-hidden />
-        <span className="entry-list__group-label">{group.label}</span>
-        <span className="entry-list__group-count">{count}</span>
-      </button>
-      {expanded && (
-        <ul className="entry-list__group-list">
-          {group.entries.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              activeId={activeId}
-              menuTargetId={menuTargetId}
-              selected={selectedIds.has(entry.id)}
-              query={query}
-              groupBy={groupBy}
-              onSelect={onSelect}
-              onEditEntry={onEditEntry}
-              {...(onRowActivate ? { onRowActivate } : {})}
-              onRowClick={onRowClick}
-              onOpenMenu={onOpenMenu}
-              onOpenBulkMenu={onOpenBulkMenu}
-              selectedEntries={selectedEntries}
-              touchTapEdits={touchTapEdits}
-            />
-          ))}
-        </ul>
-      )}
-    </section>
+    <div className="entry-list__month-view">
+      {sections.map((section, sectionIndex) => (
+        <section key={section.key} className="entry-list__year-section">
+          <h3
+            className={`entry-list__section-label${sectionIndex > 0 ? ' entry-list__section-label--spaced' : ''}`}
+          >
+            {section.label}
+          </h3>
+          {section.months.map((month) => {
+            const active = month.key === activeMonthKey
+            return (
+              <button
+                key={month.key}
+                type="button"
+                className="entry-list__month-row"
+                data-active={active ? 'true' : undefined}
+                onClick={() => onSelectMonth(month)}
+              >
+                <span className="entry-list__month-label">{month.label}</span>
+                <span className="entry-list__count-badge">{month.entries.length}</span>
+              </button>
+            )
+          })}
+        </section>
+      ))}
+    </div>
+  )
+}
+
+interface YearViewProps {
+  years: YearGroup[]
+  expandedYears: Set<string>
+  activeYearKey: string | null
+  activeMonthKey: string | null
+  onToggleYear: (yearKey: string) => void
+  onSelectMonth: (month: MonthGroup) => void
+}
+
+function YearView({
+  years,
+  expandedYears,
+  activeYearKey,
+  activeMonthKey,
+  onToggleYear,
+  onSelectMonth,
+}: YearViewProps) {
+  return (
+    <div className="entry-list__year-view">
+      <h3 className="entry-list__section-label entry-list__section-label--first">Years</h3>
+      {years.map((year) => {
+        const expanded = expandedYears.has(year.key)
+        const yearActive = year.key === activeYearKey
+        return (
+          <section key={year.key} className="entry-list__year-block">
+            <button
+              type="button"
+              className="entry-list__year-row"
+              data-expanded={expanded ? 'true' : undefined}
+              data-active={yearActive ? 'true' : undefined}
+              aria-expanded={expanded}
+              onClick={() => onToggleYear(year.key)}
+            >
+              <span className="entry-list__year-label">{year.label}</span>
+              <span className="entry-list__count-badge">{year.count}</span>
+            </button>
+            {expanded && (
+              <div className="entry-list__year-months">
+                {year.months.map((month) => {
+                  const active = month.key === activeMonthKey
+                  return (
+                    <button
+                      key={month.key}
+                      type="button"
+                      className="entry-list__year-month-row"
+                      data-active={active ? 'true' : undefined}
+                      onClick={() => onSelectMonth(month)}
+                    >
+                      <span className="entry-list__year-month-label">{month.label}</span>
+                      <span className="entry-list__count-badge entry-list__count-badge--sm">
+                        {month.entries.length}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )
+      })}
+    </div>
   )
 }
 
 interface EntryRowProps {
   entry: Entry
+  bare?: boolean
   activeId: string | null
   menuTargetId: string | null
   selected: boolean
   query: string
-  groupBy: EntriesGroupBy
   onSelect: (entry: Entry) => void
   onEditEntry: (entry: Entry) => void
   onRowActivate?: () => void
@@ -491,13 +620,13 @@ interface EntryRowProps {
 const LONG_PRESS_MS = 500
 const LONG_PRESS_MOVE_PX = 10
 
-function EntryRow({
+const EntryRow = memo(function EntryRow({
   entry,
+  bare = false,
   activeId,
   menuTargetId,
   selected,
   query,
-  groupBy,
   onSelect,
   onEditEntry,
   onRowActivate,
@@ -509,9 +638,10 @@ function EntryRow({
 }: EntryRowProps) {
   const active = entry.id === activeId
   const context = entry.id === menuTargetId
-  const title = deriveTitle(entry.body_markdown) || 'Untitled'
+  const derived = deriveTitle(entry.body_markdown)
+  const untitled = !derived
+  const title = derived || 'Untitled'
   const snippet = matchSnippet(entry.body_markdown, query)
-  const dateLabel = formatEntryRowDate(entry.created_at, groupBy)
 
   // Touch gestures: long-press opens the context menu (no right-click on touch),
   // a plain tap opens the entry. Mouse keeps right-click + click/double-click.
@@ -534,8 +664,7 @@ function EntryRow({
     pressOriginRef.current = null
   }
 
-  return (
-    <li>
+  const row = (
       <button
         type="button"
         className="entry-row"
@@ -544,6 +673,7 @@ function EntryRow({
         data-active={active ? 'true' : undefined}
         data-selected={selected ? 'true' : undefined}
         data-context={context ? 'true' : undefined}
+        data-untitled={untitled ? 'true' : undefined}
         title={active ? `${title} — Tab or Enter to edit` : title}
         onPointerDown={(e) => {
           pointerTypeRef.current = e.pointerType
@@ -604,10 +734,20 @@ function EntryRow({
       >
         <span className="entry-row__title">{title}</span>
         {snippet ? <span className="entry-row__snippet">{snippet}</span> : null}
-        <span className="entry-row__meta">
-          {dateLabel} · {entry.word_count} w
-        </span>
       </button>
-    </li>
+  )
+
+  return bare ? row : <li>{row}</li>
+}, entryRowPropsEqual)
+
+function entryRowPropsEqual(prev: EntryRowProps, next: EntryRowProps): boolean {
+  return (
+    prev.entry.id === next.entry.id &&
+    prev.entry.body_markdown === next.entry.body_markdown &&
+    prev.activeId === next.activeId &&
+    prev.menuTargetId === next.menuTargetId &&
+    prev.selected === next.selected &&
+    prev.query === next.query &&
+    prev.bare === next.bare
   )
 }

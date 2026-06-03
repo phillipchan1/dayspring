@@ -170,9 +170,7 @@ export function DesktopJournal(props: JournalViewProps) {
         </div>
       </main>
 
-      {!canvasAlternateActive && (
-        <WritingControls settings={settings} update={updateSettings} focus={focus} />
-      )}
+      <WritingControls settings={settings} update={updateSettings} focus={focus} />
     </div>
   )
 }

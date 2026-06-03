@@ -10,9 +10,9 @@
  */
 
 import { listEntriesInWindow } from '@/lib/entries'
-import type { Excerpt, Quote, Rollup } from '@/lib/insights'
+import type { Excerpt, Highlight, Quote, Rollup } from '@/lib/insights'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
-import type { WordMoment, WordsData } from './types'
+import type { Theme, WordMoment, WordsData } from './types'
 
 // ── date helpers (moved here from the old ascentData/summitData) ───────────────
 
@@ -86,6 +86,41 @@ function keptLines(r: Rollup): WordMoment[] {
   return out
 }
 
+// ── themes (the highlight layer — grounded in verbatim quotes) ─────────────────
+
+/** Map a stored Highlight → the Theme view model (quotes sorted along the season). */
+function toTheme(h: Highlight): Theme {
+  const quotes = h.quotes
+    .map((q) => ({ entryId: q.entry_id, date: q.date, dateLabel: fmtDay(q.date), text: q.text }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  return { id: h.id, label: h.label, quotes }
+}
+
+function themesOf(r: Rollup | undefined): Theme[] {
+  return (r?.payload.reflection?.highlights ?? []).map(toTheme)
+}
+
+/** RIDGE has no quarterly tier — compose the season's themes by merging the
+ *  quarter's monthly highlights by label, concatenating (deduped) their quotes. */
+function composeQuarterThemes(monthlies: Rollup[]): Theme[] {
+  const byLabel = new Map<string, Theme>()
+  for (const m of monthlies) {
+    for (const t of themesOf(m)) {
+      const key = t.label.trim().toLowerCase()
+      const existing = byLabel.get(key)
+      if (!existing) {
+        byLabel.set(key, { ...t, quotes: [...t.quotes] })
+        continue
+      }
+      const seen = new Set(existing.quotes.map((q) => q.text))
+      for (const q of t.quotes) if (!seen.has(q.text)) existing.quotes.push(q)
+    }
+  }
+  return [...byLabel.values()]
+    .map((t) => ({ ...t, quotes: t.quotes.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4) }))
+    .slice(0, 3)
+}
+
 // ── loaders (rollups are passed in by the seam to avoid duplicate reads) ───────
 
 /** Shortest a non-cited entry can be before it reads as noise, not a day. Cited
@@ -127,16 +162,18 @@ export async function loadWeekWords(weekly: Rollup | undefined): Promise<WordsDa
       isQuote: quote !== undefined,
     })
   }
-  if (moments.length === 0) return null
-  return { resolution: 'week', periodLabel: periodLabel(weekly), moments }
+  const themes = themesOf(weekly)
+  if (moments.length === 0 && themes.length === 0) return null
+  return { resolution: 'week', periodLabel: periodLabel(weekly), themes, moments }
 }
 
-/** HILLSIDE — the lines you kept, from the latest monthly rollup. */
+/** HILLSIDE — the month's themes (grounded), with the kept lines as fallback. */
 export function monthWords(monthly: Rollup | undefined): WordsData | null {
   if (!monthly) return null
+  const themes = themesOf(monthly)
   const moments = keptLines(monthly).slice(0, 6)
-  if (moments.length === 0) return null
-  return { resolution: 'month', periodLabel: periodLabel(monthly), moments }
+  if (moments.length === 0 && themes.length === 0) return null
+  return { resolution: 'month', periodLabel: periodLabel(monthly), themes, moments }
 }
 
 /** RIDGE — the phrases you circled, composed from the monthly rollups spanning
@@ -158,8 +195,9 @@ export function quarterWords(monthlies: Rollup[]): WordsData | null {
       moments.push(line)
     }
   }
-  if (moments.length === 0) return null
-  return { resolution: 'quarter', periodLabel: `Q${q + 1} ${y}`, moments: moments.slice(0, 4) }
+  const themes = composeQuarterThemes(inQuarter)
+  if (moments.length === 0 && themes.length === 0) return null
+  return { resolution: 'quarter', periodLabel: `Q${q + 1} ${y}`, themes, moments: moments.slice(0, 4) }
 }
 
 /** SUMMIT — the one line of the year (the yearly refrain), verbatim. */
@@ -169,6 +207,7 @@ export function yearWords(yearly: Rollup | undefined): WordsData | null {
   return {
     resolution: 'year',
     periodLabel: String(yearOf(yearly!.period_start)),
+    themes: [],
     moments: [
       {
         entryId: refrain.entry_id,

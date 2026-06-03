@@ -125,6 +125,15 @@ export const DIMENSION_COPY = {
     quarter: 'THE PHRASES YOU CIRCLED',
     year: 'THE ONE LINE OF THE YEAR',
     empty: 'nothing here yet — the page is the soul of it.',
+    // Eyebrow when the grounded themes layer leads (the highlights).
+    themes: {
+      week: 'WHAT SURFACED THIS WEEK',
+      month: 'THE THREADS THIS MONTH',
+      quarter: 'WHAT HELD THIS SEASON',
+      year: 'THE THREAD OF THE YEAR',
+    },
+    inOrder: 'the week, in order',
+    lines: (n: number) => `${n} ${n === 1 ? 'line' : 'lines'}`,
   },
   scripture: {
     week: 'WHAT YOU REACHED FOR',
@@ -179,4 +188,5 @@ export const DRILL_COPY = {
   prayerConfirmed: 'a stone is set ✓',
   prayerEvidence: 'later, this —',
   earlier: 'EARLIER IN THE SEASON',
+  themeFooter: 'these are your own words, gathered · what they mean is yours',
 }

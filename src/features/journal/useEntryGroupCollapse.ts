@@ -9,7 +9,9 @@ const LARGE_LIBRARY = 80
 function defaultExpandedKeys(
   groups: EntryGroup[],
   activeGroupKey: string | null,
+  groupBy: EntriesGroupBy,
 ): Set<string> {
+  if (groupBy === 'flat') return new Set(groups.map((g) => g.key))
   const keys = new Set<string>()
   if (groups[0]) keys.add(groups[0].key)
   if (activeGroupKey && !keys.has(activeGroupKey)) keys.add(activeGroupKey)
@@ -49,7 +51,7 @@ export function useEntryGroupCollapse(
     }
     if (!initRef.current) {
       initRef.current = true
-      setExpanded(defaultExpandedKeys(groups, activeGroupKey))
+      setExpanded(defaultExpandedKeys(groups, activeGroupKey, groupBy))
     }
   }, [groups, groupBy, activeGroupKey])
 
@@ -89,7 +91,10 @@ export function useEntryGroupCollapse(
   const isExpanded = useCallback((key: string) => expanded.has(key), [expanded])
 
   const showBulkActions =
-    Boolean(groups) && entryCount >= LARGE_LIBRARY && groups!.length > 1
+    Boolean(groups) &&
+    groupBy !== 'flat' &&
+    entryCount >= LARGE_LIBRARY &&
+    groups!.length > 1
 
   return {
     isExpanded,

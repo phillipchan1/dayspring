@@ -1,6 +1,8 @@
 import { useEffect, useState, type RefObject } from 'react'
 
-const ROW_HEIGHT_PX = 58
+/** Approximate row height for list virtual scroll (entry row + date header average). */
+export const ENTRY_LIST_ROW_HEIGHT_PX = 30
+const ROW_HEIGHT_PX = ENTRY_LIST_ROW_HEIGHT_PX
 const OVERSCAN = 10
 
 /** Window a long flat list — only mount rows near the scroll viewport. */
