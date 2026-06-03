@@ -339,6 +339,7 @@ export function EntryList({
               onOpenMenu={openMenu}
               onOpenBulkMenu={openBulkMenu}
               selectedEntries={selectedEntries}
+              touchTapEdits={!fullWidth}
             />
           ))}
         </div>
@@ -368,6 +369,7 @@ export function EntryList({
               onOpenMenu={openMenu}
               onOpenBulkMenu={openBulkMenu}
               selectedEntries={selectedEntries}
+              touchTapEdits={!fullWidth}
             />
           ))}
         </ul>
@@ -405,6 +407,9 @@ interface EntryGroupSectionProps {
   onOpenMenu: (entry: Entry, x: number, y: number) => void
   onOpenBulkMenu: (entries: Entry[], x: number, y: number) => void
   selectedEntries: Entry[]
+  /** Desktop list: a touch tap opens the entry for editing (the phone drawer
+   *  keeps its browse-then-close behavior). */
+  touchTapEdits: boolean
 }
 
 function EntryGroupSection({
@@ -423,6 +428,7 @@ function EntryGroupSection({
   onOpenMenu,
   onOpenBulkMenu,
   selectedEntries,
+  touchTapEdits,
 }: EntryGroupSectionProps) {
   const count = group.entries.length
 
@@ -456,6 +462,7 @@ function EntryGroupSection({
               onOpenMenu={onOpenMenu}
               onOpenBulkMenu={onOpenBulkMenu}
               selectedEntries={selectedEntries}
+              touchTapEdits={touchTapEdits}
             />
           ))}
         </ul>
@@ -478,7 +485,11 @@ interface EntryRowProps {
   onOpenMenu: (entry: Entry, x: number, y: number) => void
   onOpenBulkMenu: (entries: Entry[], x: number, y: number) => void
   selectedEntries: Entry[]
+  touchTapEdits: boolean
 }
+
+const LONG_PRESS_MS = 500
+const LONG_PRESS_MOVE_PX = 10
 
 function EntryRow({
   entry,
@@ -494,12 +505,34 @@ function EntryRow({
   onOpenMenu,
   onOpenBulkMenu,
   selectedEntries,
+  touchTapEdits,
 }: EntryRowProps) {
   const active = entry.id === activeId
   const context = entry.id === menuTargetId
   const title = deriveTitle(entry.body_markdown) || 'Untitled'
   const snippet = matchSnippet(entry.body_markdown, query)
   const dateLabel = formatEntryRowDate(entry.created_at, groupBy)
+
+  // Touch gestures: long-press opens the context menu (no right-click on touch),
+  // a plain tap opens the entry. Mouse keeps right-click + click/double-click.
+  const pointerTypeRef = useRef<string>('mouse')
+  const longPressedRef = useRef(false)
+  const pressOriginRef = useRef<{ x: number; y: number } | null>(null)
+  const longPressTimerRef = useRef<number | undefined>(undefined)
+
+  const openMenuAt = (x: number, y: number) => {
+    const inBulk = selectedEntries.length > 1 && selectedEntries.some((e) => e.id === entry.id)
+    if (inBulk) onOpenBulkMenu(selectedEntries, x, y)
+    else onOpenMenu(entry, x, y)
+  }
+
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current !== undefined) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = undefined
+    }
+    pressOriginRef.current = null
+  }
 
   return (
     <li>
@@ -512,7 +545,42 @@ function EntryRow({
         data-selected={selected ? 'true' : undefined}
         data-context={context ? 'true' : undefined}
         title={active ? `${title} — Tab or Enter to edit` : title}
+        onPointerDown={(e) => {
+          pointerTypeRef.current = e.pointerType
+          longPressedRef.current = false
+          if (e.pointerType === 'mouse') return
+          const { clientX: x, clientY: y } = e
+          pressOriginRef.current = { x, y }
+          cancelLongPress()
+          longPressTimerRef.current = window.setTimeout(() => {
+            longPressedRef.current = true
+            longPressTimerRef.current = undefined
+            openMenuAt(x, y)
+          }, LONG_PRESS_MS)
+        }}
+        onPointerMove={(e) => {
+          const origin = pressOriginRef.current
+          if (!origin) return
+          if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > LONG_PRESS_MOVE_PX) {
+            cancelLongPress()
+          }
+        }}
+        onPointerUp={cancelLongPress}
+        onPointerCancel={cancelLongPress}
+        onPointerLeave={cancelLongPress}
         onClick={(e) => {
+          // A long-press already opened the menu — swallow the trailing click.
+          if (longPressedRef.current) {
+            longPressedRef.current = false
+            e.preventDefault()
+            return
+          }
+          // Touch tap in the desktop list: open straight into the editor.
+          if (touchTapEdits && pointerTypeRef.current !== 'mouse') {
+            onEditEntry(entry)
+            onRowActivate?.()
+            return
+          }
           const result = onRowClick(entry.id, e)
           if (result === 'open') {
             onSelect(entry)
@@ -529,10 +597,9 @@ function EntryRow({
         onContextMenu={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          const inBulk =
-            selectedEntries.length > 1 && selectedEntries.some((x) => x.id === entry.id)
-          if (inBulk) onOpenBulkMenu(selectedEntries, e.clientX, e.clientY)
-          else onOpenMenu(entry, e.clientX, e.clientY)
+          // Touch long-press is handled by the timer above; only act on a real
+          // mouse right-click here so we don't open the menu twice.
+          if (pointerTypeRef.current === 'mouse') openMenuAt(e.clientX, e.clientY)
         }}
       >
         <span className="entry-row__title">{title}</span>

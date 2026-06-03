@@ -1300,6 +1300,11 @@ a {
   .restrict-banner .btn {
     min-height: 44px;
   }
+  /* Let our long-press own the gesture — no iOS text-selection callout. */
+  .entry-row {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
 }
 /* Phones already size entry rows at ≤767px; this lifts the iPad/desktop list
    without shrinking the phone's larger rows. */
