@@ -3275,7 +3275,7 @@ html[data-focus-mode] .focus-controls {
   overflow-y: auto;
 }
 .settings-update__notes {
-  margin-top: 0.5rem;
+  margin: 0 0.75rem 0.4rem;
   font-size: 0.78rem;
   color: var(--text-faint);
 }
@@ -3290,9 +3290,24 @@ html[data-focus-mode] .focus-controls {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-height: 2rem;
+  padding: 0.4rem 0.75rem;
 }
+
+/* Label in the update row matches account row labels */
+.settings-update__row .settings-field__label {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+
+/* Compact "Check for updates" / "Restart to update" button */
+.settings-update__row .btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.82rem;
+}
+
 .settings-update__status {
-  margin: 0.5rem 0 0;
+  margin: 0 0.75rem 0.4rem;
   font-size: 0.78rem;
   color: var(--text-faint);
 }

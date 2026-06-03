@@ -236,7 +236,10 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
       {/* Updates section (desktop only) */}
       {isTauri() && (
         <div className="settings-about__section">
-          <UpdateChecker />
+          <div className="settings-about__section-title">Updates</div>
+          <div className="settings-about__group">
+            <UpdateChecker />
+          </div>
           <ReleaseHistory />
         </div>
       )}
@@ -307,7 +310,6 @@ function UpdateChecker() {
 
   return (
     <>
-      <div className="settings-divider" />
       <div className="settings-update">
         <div className="settings-update__row">
           <span className="settings-field__label">Updates</span>
