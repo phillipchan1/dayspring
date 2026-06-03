@@ -8,7 +8,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view'
-import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { spiritualBlocksField, posInsideBlock } from './spiritualBlocksField'
 import {
   parseTaskLine,
   taskBodyStart,
@@ -110,8 +110,8 @@ function continueTaskOnEnter(view: EditorView): boolean {
 function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
-  const blocks = parseSpiritualBlocks(doc.toString())
-  const insideBlock = (pos: number) => blocks.some((b) => pos >= b.from && pos < b.to)
+  const blocks = view.state.field(spiritualBlocksField)
+  const insideBlock = (pos: number) => posInsideBlock(blocks, pos)
 
   for (const { from, to } of view.visibleRanges) {
     let pos = from

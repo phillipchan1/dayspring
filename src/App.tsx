@@ -15,6 +15,7 @@ import { WelcomeProvider } from './features/welcome/WelcomeProvider'
 import { PaywallScreen } from './features/paywall/PaywallScreen'
 import { LockedScreen } from './features/paywall/LockedScreen'
 import { TrialWelcome } from './features/paywall/TrialWelcome'
+import { SurfaceLoader } from './components/SurfaceLoader'
 
 // localStorage key used by useHasSeenWelcome — set before WelcomeProvider
 // mounts so the first-run flow is suppressed for users coming through checkout.
@@ -37,7 +38,7 @@ export function App() {
   if (!isSupabaseConfigured) return <SetupNotice />
 
   if (loading) {
-    return <div className="center-screen" style={{ color: 'var(--text-dim)' }}>Loading…</div>
+    return <div className="app-shell"><SurfaceLoader /></div>
   }
 
   if (!session) return <SignIn />
@@ -100,7 +101,7 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
   }
 
   if (loading) {
-    return <div className="center-screen" style={{ color: 'var(--text-dim)' }}>Loading…</div>
+    return <div className="app-shell"><SurfaceLoader /></div>
   }
 
   // Waiting for the Stripe webhook — subscription hasn't updated yet.
@@ -137,7 +138,7 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
   // Full app — WelcomeProvider only mounts once the user is entitled.
   return (
     <WelcomeProvider>
-      <JournalScreen userEmail={userEmail} />
+      <JournalScreen userEmail={userEmail} featureFlags={featureFlags} />
       <UpdateToast />
       <FeedbackWidget featureFlags={featureFlags} />
     </WelcomeProvider>

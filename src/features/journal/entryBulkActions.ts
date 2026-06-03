@@ -1,4 +1,3 @@
-import JSZip from 'jszip'
 import { markdownForDisplay } from '@/lib/entryMarkdown'
 import type { Entry } from '@/lib/types'
 import { deriveTitle } from './deriveTitle'
@@ -28,6 +27,7 @@ export async function copyEntriesMarkdown(entries: Entry[], asTitle = true): Pro
 }
 
 export async function exportEntriesZip(entries: Entry[], asTitle = true): Promise<void> {
+  const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   const used = new Set<string>()
   for (const entry of entries) {

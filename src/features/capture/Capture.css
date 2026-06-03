@@ -421,6 +421,114 @@
   margin-bottom: 0;
 }
 
+/* ── Scripture mode pills (Reference / AI Search toggle) ────────────────── */
+
+.command-popover__mode-pills {
+  display: flex;
+  gap: 0.2rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.command-popover__mode-pill {
+  padding: 0.1rem 0.45rem;
+  border: 0.5px solid var(--border-subtle);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  background: none;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  white-space: nowrap;
+}
+
+.command-popover__mode-pill:hover {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.command-popover__mode-pill--active {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent);
+}
+
+/* ── Reference mode: empty-state instructions ────────────────────────────── */
+
+.command-popover__ref-empty {
+  padding: 0.65rem 0.7rem 0.5rem;
+}
+
+.command-popover__ref-guide {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.command-popover__ref-guide--sub {
+  color: var(--text-faint);
+  font-size: 0.625rem;
+}
+
+.command-popover__ref-eg {
+  color: var(--text-bright);
+}
+
+.command-popover__ref-key {
+  display: inline-block;
+  padding: 0 0.3em;
+  border: 0.5px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  background: var(--bg-subtle, color-mix(in srgb, var(--bg-elevated) 70%, var(--bg)));
+}
+
+/* ── Reference resolving: inline shimmer ────────────────────────────────── */
+
+.command-popover__ref-resolving {
+  padding: 0.6rem 0.7rem 0.4rem;
+}
+
+/* ── Reference result: chapter-only hint ────────────────────────────────── */
+
+.command-popover__ref-hint {
+  display: block;
+  margin: 0.1rem 0 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* Ref result is always visually selected (auto-highlighted) */
+.command-popover__result--ref-active,
+.command-popover__result--ref-active:hover {
+  background: var(--accent-soft);
+}
+
+.command-popover__result--ref-active .command-popover__ref {
+  color: var(--accent);
+}
+
+/* ── AI result reason line ───────────────────────────────────────────────── */
+
+.command-popover__reason {
+  display: block;
+  margin: 0.08rem 0 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-faint);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Pray type chips ─────────────────────────────────────────────────────── */
 
 .command-popover__chips {

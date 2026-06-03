@@ -15,6 +15,16 @@ export function wordCount(markdown: string): number {
   return trimmed.split(/\s+/).length
 }
 
+/**
+ * Newest-first comparator for ISO-8601 `created_at`. Plain string comparison is
+ * orders of magnitude cheaper than `localeCompare` and gives identical ordering
+ * for ISO timestamps (lexicographic == chronological). Used for the entry list,
+ * which sorts thousands of rows on every sync / realtime update.
+ */
+export function byCreatedDesc(a: { created_at: string }, b: { created_at: string }): number {
+  return a.created_at > b.created_at ? -1 : a.created_at < b.created_at ? 1 : 0
+}
+
 /** Insert a new native entry and return the persisted row. */
 export async function createEntry(input: NewEntry): Promise<Entry> {
   const sb = requireSupabase()
@@ -191,6 +201,32 @@ export async function listAllEntries(): Promise<Entry[]> {
       .from('entries')
       .select(ENTRY_COLUMNS)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + ENTRY_PAGE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as Entry[]
+    out.push(...rows)
+    if (rows.length < ENTRY_PAGE) break
+  }
+  return out
+}
+
+/**
+ * Entries whose `updated_at` is strictly after `cursorISO`, for incremental
+ * sync — only what changed since the last pull, instead of the whole library.
+ * Ordered by `updated_at` so paging is stable. Note: server-side deletes are
+ * invisible to this query (a deleted row simply isn't returned); callers rely on
+ * realtime + a periodic full reconcile to drop deleted rows.
+ */
+export async function listEntriesSince(cursorISO: string): Promise<Entry[]> {
+  const sb = requireSupabase()
+  const out: Entry[] = []
+  for (let from = 0; ; from += ENTRY_PAGE) {
+    const { data, error } = await sb
+      .from('entries')
+      .select(ENTRY_COLUMNS)
+      .gt('updated_at', cursorISO)
+      .order('updated_at', { ascending: true })
       .order('id', { ascending: false })
       .range(from, from + ENTRY_PAGE - 1)
     if (error) throw error

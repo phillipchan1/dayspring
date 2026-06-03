@@ -5,9 +5,10 @@ import {
   type DecorationSet,
 } from '@codemirror/view'
 import { RangeSetBuilder, StateField, type Extension } from '@codemirror/state'
-import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
+import { type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { SpiritualItemType } from '@/lib/types'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
+import { spiritualBlocksField } from './spiritualBlocksField'
 
 /** A spiritual block the user clicked, resolved fresh from the live document. */
 export interface SpiritualBlockEditTarget {
@@ -85,9 +86,7 @@ class SpiritualBlockWidget extends WidgetType {
   }
 }
 
-function buildDecorations(state: EditorView['state']): DecorationSet {
-  const markdown = state.doc.toString()
-  const blocks = parseSpiritualBlocks(markdown)
+function buildDecorations(blocks: readonly ParsedSpiritualBlock[]): DecorationSet {
   if (blocks.length === 0) return Decoration.none
 
   const builder = new RangeSetBuilder<Decoration>()
@@ -200,10 +199,10 @@ const spiritualBlockTheme = EditorView.theme({
 /** Block replace widgets must live on EditorView.decorations, not ViewPlugin. */
 const spiritualBlockField = StateField.define<DecorationSet>({
   create(state) {
-    return buildDecorations(state)
+    return buildDecorations(state.field(spiritualBlocksField))
   },
   update(deco, tr) {
-    if (tr.docChanged) return buildDecorations(tr.state)
+    if (tr.docChanged) return buildDecorations(tr.state.field(spiritualBlocksField))
     return deco.map(tr.changes)
   },
   provide: (f) => EditorView.decorations.from(f),
@@ -223,14 +222,14 @@ function blockClickHandler(
       const blockEl = el?.closest('.cm-spiritual-block') as HTMLElement | null
       const id = blockEl?.dataset.blockId
       if (!id || !blockEl) return false
-      const docText = view.state.doc.toString()
-      const block = parseSpiritualBlocks(docText).find((b) => b.id === id)
+      const block = view.state.field(spiritualBlocksField).find((b) => b.id === id)
       if (!block) return false
       event.preventDefault()
       // Exclude the block's trailing newline so an in-place replace keeps the
       // surrounding paragraph spacing intact.
-      const to = Math.min(block.to, docText.length)
-      const editTo = docText[to - 1] === '\n' ? to - 1 : to
+      const docLen = view.state.doc.length
+      const to = Math.min(block.to, docLen)
+      const editTo = to > 0 && view.state.doc.sliceString(to - 1, to) === '\n' ? to - 1 : to
       onEdit(
         {
           id: block.id,

@@ -1012,6 +1012,63 @@ a {
   gap: 0.5rem;
 }
 
+/* ── Edit-date modal ──────────────────────────────────────────────────── */
+.entry-edit-date {
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 1.2rem 1.25rem;
+  border-radius: var(--radius-lg);
+  animation: glass-modal-in var(--transition-slow) both;
+}
+.entry-edit-date__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.entry-edit-date__entry-name {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-edit-date__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.1rem;
+}
+.entry-edit-date__label {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.entry-edit-date__input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-subtle, color-mix(in srgb, var(--bg) 85%, var(--accent)));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  color: var(--text-bright);
+  font-size: 0.92rem;
+  font-family: var(--font-mono);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  color-scheme: dark;
+}
+.entry-edit-date__input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.entry-edit-date__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 /* ── Chrome nav labels (header + mobile bar) ─────────────────────────────
    Quiet monospace at rest, warming on hover. Active = weight + accent +
    a faint accent wash, never a heavy fill. Single glyphs (⚙ ☰ ◀) ride the

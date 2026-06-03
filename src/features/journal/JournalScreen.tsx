@@ -8,7 +8,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
 import { asEntryMarkdown } from '@/lib/entryLabels'
-import { getEntryById, wordCount } from '@/lib/entries'
+import { getEntryById, wordCount, byCreatedDesc } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
 import { isSupabaseConfigured } from '@/lib/env'
 import { isTauri } from '@/lib/platform'
@@ -36,6 +36,7 @@ import {
   printEntry,
 } from './entryActions'
 import type { EntryMenuAction } from './EntryContextMenu'
+import { EntryEditDateModal } from './EntryEditDateModal'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
@@ -57,6 +58,7 @@ import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spir
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
   userEmail: string
+  featureFlags: string[]
 }
 
 /**
@@ -94,7 +96,7 @@ function sentenceNear(content: string, pos: number): string {
   return cleaned
 }
 
-export function JournalScreen({ userEmail }: JournalScreenProps) {
+export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const { state, go, back, closeSettings } = useAppNavigation()
   const { entryId, restrictIds } = state
 
@@ -105,6 +107,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   }, [])
   const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [editDateEntry, setEditDateEntry] = useState<Entry | null>(null)
   const [query, setQuery] = useState('')
   // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
   const [entriesOpen, setEntriesOpen] = useState(true)
@@ -358,24 +361,32 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
   }, [])
 
   // Re-sync when we regain connectivity or refocus the tab; flag offline promptly.
+  // Refocus (focus / visibility) pulls only what changed — realtime kept us
+  // current while open, so this stays cheap. Reconnecting (`online`) does a full
+  // reconcile, since realtime was down while offline and may have missed deletes.
   useEffect(() => {
-    const resync = () => {
+    const resyncFull = () => {
       void repo.sync(entryIdRef.current).then((list) => {
+        if (list) applySyncedList(list)
+      })
+    }
+    const resyncChanged = () => {
+      void repo.syncChanged(entryIdRef.current).then((list) => {
         if (list) applySyncedList(list)
       })
     }
     const onOffline = () => syncStore.setOnline(false)
     const onVisible = () => {
-      if (document.visibilityState === 'visible') resync()
+      if (document.visibilityState === 'visible') resyncChanged()
     }
-    window.addEventListener('online', resync)
+    window.addEventListener('online', resyncFull)
     window.addEventListener('offline', onOffline)
-    window.addEventListener('focus', resync)
+    window.addEventListener('focus', resyncChanged)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
-      window.removeEventListener('online', resync)
+      window.removeEventListener('online', resyncFull)
       window.removeEventListener('offline', onOffline)
-      window.removeEventListener('focus', resync)
+      window.removeEventListener('focus', resyncChanged)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [])
@@ -433,7 +444,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             if (idx >= 0) next = next.map((e, i) => (i === idx ? entry : e))
             else next = [entry, ...next]
           }
-          return next.sort((a, b) => b.created_at.localeCompare(a.created_at))
+          return next.sort(byCreatedDesc)
         })
 
         if (preserveId && deletedSet.has(preserveId)) {
@@ -672,22 +683,49 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [state.entryReturn, settingsOpen, helpOpen, focus.active, slashCapture])
 
-  // Keep the active entry's list row in sync as you type.
-  useEffect(() => {
-    if (state.surface !== 'journal' || entryId === null) return
-    const words = wordCount(content)
+  // Keep the active entry's list row (title + word count) in sync as you type.
+  // Rebuilding the `entries` array re-filters and re-groups the whole library
+  // (several O(n) passes per keystroke at thousands of entries), so we debounce
+  // it: a burst of typing rebuilds the list at most once per pause instead of on
+  // every character. The trailing edge is flushed the instant you leave the
+  // entry (the effect below) so a back-navigation — which reloads the body from
+  // this in-memory list — never reads stale text.
+  const syncActiveRow = useCallback((id: string, text: string) => {
+    const md = asEntryMarkdown(text)
+    const words = wordCount(md)
     setEntries((prev) => {
-      const idx = prev.findIndex((e) => e.id === entryId)
+      const idx = prev.findIndex((e) => e.id === id)
       if (idx === -1) return prev
       const row = prev[idx]!
-      if (row.body_markdown === content && row.word_count === words) return prev
-      return prev.map((e) =>
-        e.id === entryId
-          ? { ...e, body_markdown: asEntryMarkdown(content), word_count: words }
-          : e,
-      )
+      if (row.body_markdown === md && row.word_count === words) return prev
+      return prev.map((e, i) => (i === idx ? { ...e, body_markdown: md, word_count: words } : e))
     })
-  }, [content, entryId, state.surface])
+  }, [])
+
+  // The latest (id, text) pair in the editor, captured each keystroke so the
+  // flush-on-leave effect can land the final text even mid-burst.
+  const pendingRowSyncRef = useRef<{ id: string | null; text: string }>({ id: null, text: '' })
+
+  useEffect(() => {
+    if (state.surface !== 'journal' || entryId === null) return
+    pendingRowSyncRef.current = { id: entryId, text: content }
+    const id = entryId
+    const text = content
+    const timer = setTimeout(() => syncActiveRow(id, text), 200)
+    return () => clearTimeout(timer)
+  }, [content, entryId, state.surface, syncActiveRow])
+
+  // Leaving the entry (id change or unmount): flush the last typed text into the
+  // list synchronously, before the load effect or a re-open reads from it. Reads
+  // the ref (not a `content` closure) so it isn't torn down on every keystroke;
+  // cleanups run before the next render's effect bodies, so the ref still holds
+  // the entry we're leaving.
+  useEffect(() => {
+    return () => {
+      const { id, text } = pendingRowSyncRef.current
+      if (id !== null) syncActiveRow(id, text)
+    }
+  }, [entryId, syncActiveRow])
 
   async function handleNew() {
     skipAdoptOnCreateRef.current = true
@@ -707,10 +745,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
     const body = asEntryMarkdown(entry.body_markdown)
     if (entry.id === entryId && !canvasAlternateActive) {
-      if (body !== content) {
-        skipEntrySyncRef.current = true
-        setContent(body)
-      }
+      // Re-selecting the already-open entry: the editor holds the live text and
+      // the list row is only a debounced echo of it, so never reload from the
+      // list — that could clobber keystrokes the row sync hasn't caught up to.
       return
     }
     skipEntrySyncRef.current = true
@@ -778,12 +815,26 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         title: entry.title,
         tags: [...entry.tags],
       })
-      setEntries((prev) => [copy, ...prev].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+      setEntries((prev) => [copy, ...prev].sort(byCreatedDesc))
       skipEntrySyncRef.current = true
       go({ surface: 'journal', entryId: copy.id })
       setContent(asEntryMarkdown(copy.body_markdown))
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to duplicate entry')
+    }
+  }
+
+  async function handleEditDateSave(entry: Entry, newCreatedAt: string) {
+    setEditDateEntry(null)
+    try {
+      const updated = await repo.updateEntryDate(entry.id, newCreatedAt)
+      setEntries((prev) =>
+        prev
+          .map((e) => (e.id === updated.id ? updated : e))
+          .sort(byCreatedDesc),
+      )
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to update date')
     }
   }
 
@@ -805,6 +856,9 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             break
           case 'print':
             printEntry(entry, settings.firstLineTitle)
+            break
+          case 'edit-date':
+            setEditDateEntry(entry)
             break
           case 'delete':
             handleDelete(entry)
@@ -1088,6 +1142,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           tab={state.settings.tab}
           importSourceId={state.settings.importSource}
           userEmail={userEmail}
+          featureFlags={featureFlags}
           onTabChange={(tab) =>
             go(
               {
@@ -1106,6 +1161,11 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
         />
       )}
       {helpOpen && <ShortcutsOverlay onClose={back} />}
+      <EntryEditDateModal
+        entry={editDateEntry}
+        onClose={() => setEditDateEntry(null)}
+        onSave={handleEditDateSave}
+      />
     </>
   )
 }

@@ -27,6 +27,7 @@ interface Props {
   onImportSourceBack: () => void
   /** Signed-in account, shown alongside Sign out in the About tab. */
   userEmail: string
+  featureFlags: string[]
 }
 
 const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
@@ -48,6 +49,7 @@ export function SettingsPanel({
   onImportSourceChange,
   onImportSourceBack,
   userEmail,
+  featureFlags,
 }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -110,7 +112,7 @@ export function SettingsPanel({
             )}
             {tab === 'shortcuts' && <ShortcutsTab />}
             {tab === 'billing' && <BillingTab />}
-            {tab === 'about' && <AboutTab userEmail={userEmail} onClose={onClose} />}
+            {tab === 'about' && <AboutTab userEmail={userEmail} onClose={onClose} featureFlags={featureFlags} />}
           </div>
         </div>
       </div>
@@ -210,7 +212,7 @@ function ShortcutsTab() {
   )
 }
 
-function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => void }) {
+function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onClose: () => void; featureFlags: string[] }) {
   const { replay } = useWelcome()
   const { settings, update } = useSettings()
   return (
@@ -247,12 +249,11 @@ function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => vo
         <span className="settings-field__label">Account</span>
         {userEmail && <span className="settings-field__value">{userEmail}</span>}
       </div>
-      {isTauri() && (
+      {isTauri() && featureFlags.includes('beta') && (
         <>
           <div className="settings-divider" />
           <Toggle
             label="Developer mode"
-            hint="Enable ⌘⌥I to open Web Inspector."
             checked={settings.devMode}
             onChange={(devMode) => update({ devMode })}
           />

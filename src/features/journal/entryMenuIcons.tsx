@@ -6,6 +6,7 @@ export type EntryMenuIconName =
   | 'export'
   | 'duplicate'
   | 'print'
+  | 'edit-date'
   | 'delete'
 
 /** 16×16 line icons — same stroke idiom as the desktop rail. */
@@ -64,6 +65,18 @@ const paths: Record<EntryMenuIconName, ReactNode> = {
       <path d="M7 17h10v3H7z" />
       <path d="M9 13h.01" />
       <path d="M15 13h.01" />
+    </>
+  ),
+  'edit-date': (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <path d="M8 14h.01" />
+      <path d="M12 14h.01" />
+      <path d="M8 17.5h.01" />
+      <path d="M12 17.5h.01" />
     </>
   ),
   delete: (

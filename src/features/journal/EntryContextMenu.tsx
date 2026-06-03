@@ -15,6 +15,7 @@ export type EntryMenuAction =
   | 'export-markdown'
   | 'duplicate'
   | 'print'
+  | 'edit-date'
   | 'delete'
 
 interface Props {
@@ -206,6 +207,8 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
         <MenuItem label="Copy Markdown" icon="copy-markdown" onClick={() => act('copy-markdown')} />
         <MenuSep />
         <MenuItem label="Export Markdown…" icon="export" onClick={() => act('export-markdown')} />
+        <MenuSep />
+        <MenuItem label="Change date…" icon="edit-date" onClick={() => act('edit-date')} />
         <MenuSep />
         <MenuItem label="Duplicate" icon="duplicate" onClick={() => act('duplicate')} />
         <MenuItem label="Print…" icon="print" onClick={() => act('print')} />

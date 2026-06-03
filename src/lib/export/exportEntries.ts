@@ -1,4 +1,3 @@
-import JSZip from 'jszip'
 import { requireSupabase } from '../supabase'
 import type { Entry } from '../types'
 
@@ -50,6 +49,7 @@ export async function exportEntriesToZip(
     2,
   )
 
+  const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   zip.file('entries.json', payload)
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })

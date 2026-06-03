@@ -7,7 +7,6 @@
 // There is no frontmatter — the entry date comes ONLY from <Year> + MM-DD in
 // the path, pinned to noon UTC so a timezone can never flip the calendar day.
 
-import JSZip from 'jszip'
 import { wordCount } from './entries'
 
 /** A dated file we can import, already mapped to `entries` columns. */
@@ -169,6 +168,7 @@ function isAttachment(path: string): boolean {
  * never produce two rows that would collide on upsert.
  */
 export async function parseDiarlyZip(data: ArrayBuffer | Blob): Promise<DiarlyParseResult> {
+  const { default: JSZip } = await import('jszip')
   const zip = await JSZip.loadAsync(data)
 
   const datedByExternalId = new Map<string, ParsedDiarlyEntry>()

@@ -1,6 +1,6 @@
 import { RangeSetBuilder } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
-import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { spiritualBlocksField, posInsideBlock } from './spiritualBlocksField'
 import { parseReferences } from '@/lib/scripture/parse'
 
 const refMark = Decoration.mark({ class: 'cm-scriptureRef' })
@@ -38,14 +38,16 @@ function build(view: EditorView): DecorationSet {
   // decoration landing ANYWHERE inside one (e.g. the reference line of an
   // inserted scripture block, which parses as a ref) crashes CM's measure pass.
   // Skip every line that falls within a block, not just the opening fence line.
-  const blocks = parseSpiritualBlocks(doc.toString())
-  const insideBlock = (pos: number) => blocks.some((b) => pos >= b.from && pos < b.to)
+  const blocks = view.state.field(spiritualBlocksField)
+  const insideBlock = (pos: number) => posInsideBlock(blocks, pos)
 
   for (const { from, to } of view.visibleRanges) {
     let pos = from
     while (pos <= to) {
       const line = doc.lineAt(pos)
-      if (line.text && !insideBlock(line.from)) {
+      // A scripture reference always carries a chapter/verse number, so a line
+      // with no digit can't contain one — skip the heavy canon regex on prose.
+      if (line.text && /\d/.test(line.text) && !insideBlock(line.from)) {
         let lastEnd = -1
         for (const ref of parseReferences(line.text)) {
           const start = line.from + ref.char_start

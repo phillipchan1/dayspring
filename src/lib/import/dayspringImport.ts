@@ -1,4 +1,3 @@
-import JSZip from 'jszip'
 import type { ImportParseResult } from './types'
 import type { ImportedEntry } from '../entries'
 
@@ -22,6 +21,7 @@ interface BackupManifest {
 }
 
 export async function parseDayspringZip(data: ArrayBuffer): Promise<ImportParseResult> {
+  const { default: JSZip } = await import('jszip')
   const zip = await JSZip.loadAsync(data)
   const jsonFile = zip.file('entries.json')
   if (!jsonFile) throw new Error('Not a Dayspring backup — entries.json not found inside the zip.')

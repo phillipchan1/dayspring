@@ -10,7 +10,6 @@
 // `creationDate`. `text` is escaped Markdown with `dayone-moment://` embeds for
 // attachments; we unescape it and drop the embeds (attachments aren't imported).
 
-import JSZip from 'jszip'
 import { wordCount } from '../entries'
 import { deriveImportTitle, extractTags } from '../diarlyImport'
 import type { ImportedEntry, ImportParseResult, SkippedFile } from './types'
@@ -107,6 +106,7 @@ function parseEntry(
  * produce two rows that collide on upsert.
  */
 export async function parseDayOneZip(data: ArrayBuffer | Blob): Promise<ImportParseResult> {
+  const { default: JSZip } = await import('jszip')
   const zip = await JSZip.loadAsync(data)
 
   const jsonFiles = Object.values(zip.files).filter(

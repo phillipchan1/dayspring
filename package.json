@@ -25,7 +25,7 @@
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/language": "^6.12.3",
     "@codemirror/state": "^6.6.0",
-    "@codemirror/view": "^6.43.0",
+    "@codemirror/view": "6.38.8",
     "@fontsource/atkinson-hyperlegible": "^5.2.8",
     "@fontsource/fraunces": "^5.2.9",
     "@fontsource/ia-writer-duo": "^5.2.5",
@@ -50,6 +50,10 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "stripe": "^22.2.0"
+  },
+  "comment:overrides": "Pin @codemirror/view to 6.38.8 — the last release before the 6.39 'tile'/block-wrapper rendering rewrite, which crashes (No tile at position …) on mouse selection / scroll / update when block-replace widgets (our spiritual blocks) are present. Revisit once the upstream tile bug is fixed.",
+  "overrides": {
+    "@codemirror/view": "6.38.8"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",

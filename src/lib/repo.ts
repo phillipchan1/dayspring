@@ -8,9 +8,11 @@
 
 import {
   listAllEntries as serverListAll,
+  listEntriesSince as serverListSince,
   upsertEntryRow,
   deleteEntry as serverDelete,
   wordCount,
+  byCreatedDesc,
 } from './entries'
 import * as cache from './db'
 import { syncStore } from './sync'
@@ -33,7 +35,7 @@ async function queueUpsert(entryId: string): Promise<void> {
 // ── reads ────────────────────────────────────────────────────────────────
 export async function listEntries(): Promise<Entry[]> {
   const rows = await cache.cacheGetAll()
-  return rows.sort((a, b) => b.created_at.localeCompare(a.created_at))
+  return rows.sort(byCreatedDesc)
 }
 
 // ── writes (optimistic) ────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
   }
   await cache.cachePut(entry)
   await queueUpsert(entry.id)
-  await flush()
+  scheduleFlush()
   return entry
 }
 
@@ -76,7 +78,17 @@ export async function updateEntryBody(id: string, body: string): Promise<Entry> 
       }
   await cache.cachePut(entry)
   await queueUpsert(id)
-  await flush()
+  scheduleFlush()
+  return entry
+}
+
+export async function updateEntryDate(id: string, newCreatedAt: string): Promise<Entry> {
+  const base = await cache.cacheGet(id)
+  if (!base) throw new Error('Entry not found')
+  const entry: Entry = { ...base, created_at: newCreatedAt, updated_at: nowISO() }
+  await cache.cachePut(entry)
+  await queueUpsert(id)
+  scheduleFlush()
   return entry
 }
 
@@ -135,6 +147,22 @@ export function flush(): Promise<void> {
   return flushChain
 }
 
+// Background push. Writes return after the local cache + outbox update — instant
+// and offline-durable — and this drains the outbox to Supabase a moment later,
+// coalescing a burst of autosaves into one round-trip instead of one per save
+// (autosave fires ~every 0.6s while typing). An un-pushed write persists in the
+// outbox, so if the timer hasn't fired it still goes out on the next flush()/
+// sync() (focus, online, realtime, or app relaunch). Throttled, not debounced,
+// so continuous typing still pushes within the window rather than starving.
+let flushTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleFlush(delay = 1500): void {
+  if (flushTimer) return
+  flushTimer = setTimeout(() => {
+    flushTimer = null
+    void flush()
+  }, delay)
+}
+
 function entryMatchesRemote(local: Entry, remote: Entry): boolean {
   return local.updated_at === remote.updated_at && local.body_markdown === remote.body_markdown
 }
@@ -143,9 +171,10 @@ function entryMatchesRemote(local: Entry, remote: Entry): boolean {
 export async function mergeRemoteEntry(
   remote: Entry,
   preserveId?: string | null,
+  pendingIds?: Set<string>,
 ): Promise<'applied' | 'skipped'> {
-  const ops = await cache.outboxAll()
-  if (ops.some((o) => o.entryId === remote.id) || remote.id === preserveId) return 'skipped'
+  const pending = pendingIds ?? new Set((await cache.outboxAll()).map((o) => o.entryId))
+  if (pending.has(remote.id) || remote.id === preserveId) return 'skipped'
 
   const local = await cache.cacheGet(remote.id)
   if (local) {
@@ -159,9 +188,12 @@ export async function mergeRemoteEntry(
 }
 
 /** Apply a remote delete; skip echoes of our own deletes and in-flight local edits. */
-export async function mergeRemoteDelete(entryId: string): Promise<'applied' | 'skipped'> {
-  const ops = await cache.outboxAll()
-  if (ops.some((o) => o.entryId === entryId)) return 'skipped'
+export async function mergeRemoteDelete(
+  entryId: string,
+  pendingIds?: Set<string>,
+): Promise<'applied' | 'skipped'> {
+  const pending = pendingIds ?? new Set((await cache.outboxAll()).map((o) => o.entryId))
+  if (pending.has(entryId)) return 'skipped'
 
   const local = await cache.cacheGet(entryId)
   if (!local) return 'skipped'
@@ -187,17 +219,21 @@ export async function applyRemoteChanges(
 ): Promise<RemoteChangeResult | 'resync'> {
   if (changes.length >= 20) return 'resync'
 
+  // Read the outbox once for the whole burst instead of per-event (was an N+1
+  // of full `getAll('outbox')` reads, all awaited serially). The merge helpers
+  // never touch the outbox, so a single snapshot is equivalent.
+  const pendingIds = new Set((await cache.outboxAll()).map((o) => o.entryId))
   const deletedIds: string[] = []
   const upserted: Entry[] = []
 
   for (const change of changes) {
     if (change.kind === 'delete') {
-      if ((await mergeRemoteDelete(change.entryId)) === 'applied') {
+      if ((await mergeRemoteDelete(change.entryId, pendingIds)) === 'applied') {
         deletedIds.push(change.entryId)
       }
       continue
     }
-    if ((await mergeRemoteEntry(change.entry, preserveId)) === 'applied') {
+    if ((await mergeRemoteEntry(change.entry, preserveId, pendingIds)) === 'applied') {
       const idx = upserted.findIndex((e) => e.id === change.entry.id)
       if (idx >= 0) upserted[idx] = change.entry
       else upserted.push(change.entry)
@@ -207,10 +243,30 @@ export async function applyRemoteChanges(
   return { deletedIds, upserted }
 }
 
+// High-water mark of `updated_at` merged into the cache this session. Set by the
+// full sync() and advanced by syncChanged(); null until the first full sync, so
+// syncChanged() falls back to a full pull when it has no cursor yet.
+let syncCursor: string | null = null
+
+// When the last full reconcile ran. syncChanged() forces a full pull if it's been
+// longer than this — bounds how stale a delete can get if the realtime socket
+// silently dropped (a blip that fires no browser `offline` event), without making
+// every refocus pay for a full pull.
+let lastFullSyncAt = 0
+const FULL_RECONCILE_INTERVAL_MS = 5 * 60_000
+
+function maxUpdatedAt(rows: Entry[]): string | null {
+  let max: string | null = null
+  for (const r of rows) if (max === null || r.updated_at > max) max = r.updated_at
+  return max
+}
+
 /**
- * Flush queued writes, then pull the server into the cache (last-write-wins).
- * `preserveId` keeps the actively-edited entry's local copy from being
- * overwritten mid-edit. Returns the merged list, or null when offline.
+ * Flush queued writes, then pull the WHOLE server library into the cache
+ * (last-write-wins). This is the full reconcile — it's the only path that drops
+ * rows deleted while the app was closed. Run on cold start, on reconnect, and on
+ * a realtime burst overflow. `preserveId` keeps the actively-edited entry's local
+ * copy from being overwritten mid-edit. Returns the merged list, or null offline.
  */
 export async function sync(preserveId?: string | null): Promise<Entry[] | null> {
   await flush()
@@ -236,8 +292,60 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
     }
 
     await cache.cachePutMany(merged)
+    syncCursor = maxUpdatedAt(merged)
+    lastFullSyncAt = Date.now()
     syncStore.setSynced(Date.now())
-    return merged.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    return merged.sort(byCreatedDesc)
+  } catch {
+    syncStore.setOnline(false)
+    return null
+  } finally {
+    syncStore.setPulling(false)
+  }
+}
+
+/**
+ * Lightweight refocus sync: pull only rows whose `updated_at` is newer than the
+ * last sync, instead of the whole library — this is what makes tabbing back into
+ * the app cheap (usually zero rows fetched, zero cache writes, no re-render).
+ *
+ * Deletes are invisible to an `updated_at` query, so this does NOT drop deleted
+ * rows. That's intentional and safe for its callers: it only runs while the app
+ * has been open (focus / visibility), during which the realtime channel has
+ * already applied any deletes. Cold start and reconnect use the full sync()
+ * instead. Falls back to a full sync() when there's no cursor yet.
+ *
+ * Returns the full current list when something changed (so the caller replaces
+ * its entries), or null when nothing changed / offline (caller skips — no churn).
+ */
+export async function syncChanged(preserveId?: string | null): Promise<Entry[] | null> {
+  if (syncCursor === null || Date.now() - lastFullSyncAt > FULL_RECONCILE_INTERVAL_MS) {
+    return sync(preserveId)
+  }
+  await flush()
+  if (!navigator.onLine) return null
+  syncStore.setPulling(true)
+  try {
+    const changed = await serverListSince(syncCursor)
+    syncStore.setSynced(Date.now())
+    if (changed.length === 0) return null
+
+    const pending = new Set((await cache.outboxAll()).map((o) => o.entryId))
+    const toPut: Entry[] = []
+    for (const s of changed) {
+      const local = await cache.cacheGet(s.id)
+      const keepLocal =
+        !!local && (pending.has(s.id) || s.id === preserveId || local.updated_at > s.updated_at)
+      if (!keepLocal) toPut.push(s)
+    }
+    const newMax = maxUpdatedAt(changed)
+    if (newMax && newMax > syncCursor) syncCursor = newMax
+
+    // Everything the server returned was our own echo / already-newer-local —
+    // nothing to write, so don't churn the list.
+    if (toPut.length === 0) return null
+    await cache.cachePutMany(toPut)
+    return (await cache.cacheGetAll()).sort(byCreatedDesc)
   } catch {
     syncStore.setOnline(false)
     return null

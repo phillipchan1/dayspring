@@ -13,6 +13,7 @@ import {
   spiritualBlockExtension,
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
+import { spiritualBlocksField } from './spiritualBlocksField'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
 import { clearLink, linkUrlInRange, selectionAnchorRect, setLink } from './formatSelection'
@@ -202,6 +203,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
           titleCompartment.current.of(titleStyling ? firstLineTitleExtension : []),
+          // Parse spiritual blocks once per doc change; the three decorations
+          // below all read this field instead of each re-parsing the full doc.
+          // Must precede them so the value is ready when they update.
+          spiritualBlocksField,
           spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
           scriptureRefDecoration(),
           taskListExtension(),
