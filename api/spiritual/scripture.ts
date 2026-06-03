@@ -76,7 +76,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!content) return withCors(req, Response.json({ error: 'content is required' }, { status: 400 }))
 
   try {
-    const picked = await callModel<RefResult>(SYSTEM, { content }, SCHEMA, 'scripture_refs', 'none', 8192)
+    const picked = await callModel<RefResult>(SYSTEM, { content }, SCHEMA, 'scripture_refs', 'none', 512)
     return withCors(req, Response.json({ passages: picked.passages }))
   } catch (e) {
     return withCors(req, Response.json({ error: e instanceof Error ? e.message : 'failed' }, { status: 500 }))
