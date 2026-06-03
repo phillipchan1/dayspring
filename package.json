@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/assemble-changelog.mjs; vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
