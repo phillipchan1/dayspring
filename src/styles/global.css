@@ -2517,42 +2517,168 @@ html[data-focus-mode] .focus-controls {
 }
 
 /* ── About tab ─────────────────────────────────────────────────────────── */
+.settings-about {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  max-width: 30rem;
+}
+
+.settings-about__header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .settings-about__mark {
   font-family: var(--font-display);
   font-size: 1.8rem;
   font-weight: 600;
   color: var(--text-bright);
+  margin: 0;
 }
+
 .settings-about__tagline {
-  margin: 0.2rem 0 1.4rem;
+  margin: 0.25rem 0 0.75rem;
   font-family: var(--font-serif);
   font-style: italic;
+  font-size: 0.95rem;
   color: var(--text-dim);
 }
+
 .settings-about__meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.75rem;
-  margin: 0 0 1.4rem;
+  gap: 0.6rem;
+  margin: 0;
 }
+
 .settings-about__meta > div {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  padding: 0.7rem 0.8rem;
+  padding: 0.45rem 0.65rem;
 }
+
 .settings-about__meta dt {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
+
 .settings-about__meta dd {
-  margin: 0.2rem 0 0;
+  margin: 0.15rem 0 0;
   color: var(--text-bright);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
+
+.settings-about__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-about__section-title {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.35rem 0.75rem;
+}
+
+.settings-about__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  transition: background var(--transition);
+}
+
+.settings-about__group {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.settings-about__group > .settings-about__row:last-child,
+.settings-about__group > .settings-about__row-toggle:last-child {
+  border-bottom: none;
+}
+
+.settings-about__row:hover {
+  background: var(--bg-hover);
+}
+
+/* Row left label: slightly smaller + dimmer than a primary settings label */
+.settings-about__row .settings-field__label {
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  color: var(--text-dim);
+}
+
+/* Row right value: subdued data text */
+.settings-about__row .settings-field__value {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  color: var(--text-faint);
+}
+
+/* Inline action buttons (e.g. "Replay the welcome") — strip excess btn padding */
+.settings-about__row .btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.settings-about__row-toggle {
+  padding: 0.4rem 0.75rem;
+  border-radius: 0;
+  transition: background var(--transition);
+}
+
+.settings-about__row-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.settings-about__danger {
+  margin-top: 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+}
+
+.settings-about__danger-title {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.4rem;
+}
+
+.settings-about__danger .btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.84rem;
+  margin-bottom: 0;
+}
+
+.settings-about__danger .btn:last-child {
+  margin-bottom: 0;
+}
+
 .settings-actions {
   display: flex;
   flex-direction: column;

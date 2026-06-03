@@ -217,50 +217,65 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
   const { settings, update } = useSettings()
   return (
     <div className="settings-about">
-      <div className="settings-about__mark">Dayspring</div>
-      <p className="settings-about__tagline">A quiet place to write, every day.</p>
-      <dl className="settings-about__meta">
-        <div>
-          <dt>Version</dt>
-          <dd>{__APP_VERSION__}</dd>
-        </div>
-        <div>
-          <dt>Storage</dt>
-          <dd>Private to you · synced</dd>
-        </div>
-      </dl>
-      {isTauri() && <UpdateChecker />}
-      {isTauri() && <ReleaseHistory />}
-      <div className="settings-divider" />
-      <div className="settings-field__head settings-field__head--row">
-        <span className="settings-field__label">Welcome</span>
-        <button
-          className="btn btn--ghost"
-          onClick={() => {
-            onClose()
-            replay()
-          }}
-        >
-          Replay the welcome
-        </button>
+      {/* App identity: title + tagline + metadata */}
+      <div className="settings-about__header">
+        <div className="settings-about__mark">Dayspring</div>
+        <p className="settings-about__tagline">A journal built for spiritual growth.</p>
+        <dl className="settings-about__meta">
+          <div>
+            <dt>Version</dt>
+            <dd>{__APP_VERSION__}</dd>
+          </div>
+          <div>
+            <dt>Storage</dt>
+            <dd>Private to you · synced</dd>
+          </div>
+        </dl>
       </div>
-      <div className="settings-divider" />
-      <div className="settings-field__head settings-field__head--row">
-        <span className="settings-field__label">Account</span>
-        {userEmail && <span className="settings-field__value">{userEmail}</span>}
-      </div>
-      {isTauri() && featureFlags.includes('beta') && (
-        <>
-          <div className="settings-divider" />
-          <Toggle
-            label="Developer mode"
-            checked={settings.devMode}
-            onChange={(devMode) => update({ devMode })}
-          />
-        </>
+
+      {/* Updates section (desktop only) */}
+      {isTauri() && (
+        <div className="settings-about__section">
+          <UpdateChecker />
+          <ReleaseHistory />
+        </div>
       )}
-      <div className="settings-divider" />
-      <div className="settings-actions">
+
+      {/* Account & preferences section */}
+      <div className="settings-about__section">
+        <div className="settings-about__section-title">Account</div>
+        <div className="settings-about__group">
+          <div className="settings-about__row">
+            <span className="settings-field__label">Email</span>
+            {userEmail && <span className="settings-field__value">{userEmail}</span>}
+          </div>
+          <div className="settings-about__row">
+            <span className="settings-field__label">Welcome</span>
+            <button
+              className="btn btn--ghost"
+              onClick={() => {
+                onClose()
+                replay()
+              }}
+            >
+              Replay the welcome
+            </button>
+          </div>
+          {isTauri() && featureFlags.includes('beta') && (
+            <div className="settings-about__row-toggle">
+              <Toggle
+                label="Developer mode"
+                checked={settings.devMode}
+                onChange={(devMode) => update({ devMode })}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Danger zone: account actions */}
+      <div className="settings-about__danger">
+        <div className="settings-about__danger-title">Account Actions</div>
         <button className="btn btn--ghost" onClick={() => void signOut()}>
           Sign out
         </button>
