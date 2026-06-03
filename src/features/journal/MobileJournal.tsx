@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { signOut } from '@/lib/auth'
 import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
+import { useKeyboardOpen } from '@/hooks/useKeyboard'
 import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
@@ -30,6 +31,7 @@ export function MobileJournal(props: JournalViewProps) {
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
+  const keyboardOpen = useKeyboardOpen()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
@@ -142,7 +144,10 @@ export function MobileJournal(props: JournalViewProps) {
         </div>
       </div>
 
-      {!focused && (
+      {/* While the keyboard is up, the command-accessory bar (rendered with the
+          editor) takes over the bottom; the global nav steps aside so we never
+          stack two bars. It returns the moment the keyboard drops. */}
+      {!focused && !keyboardOpen && (
         <>
           <nav className="mobile-bar">
             <button

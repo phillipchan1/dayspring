@@ -6,6 +6,7 @@ import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useKeyboardOpen } from '@/hooks/useKeyboard'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
@@ -109,6 +110,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
+  const keyboardOpen = useKeyboardOpen(isMobile)
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
@@ -898,9 +900,10 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           />
         ) : null}
       </div>
-      {isMobile && !focus.active && (
+      {isMobile && !focus.active && keyboardOpen && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
+          onDismissKeyboard={() => editorRef.current?.blur()}
           visible={!slashPaletteOpen && slashCapture === null}
         />
       )}

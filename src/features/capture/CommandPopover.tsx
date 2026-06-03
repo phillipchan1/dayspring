@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useKeyboardInset } from '@/hooks/useKeyboard'
 import './Capture.css'
 
 export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture'
@@ -123,34 +124,6 @@ export function CommandPopover({
     ),
     document.body,
   )
-}
-
-/**
- * Height of the soft keyboard (and any bottom browser chrome) in px, derived
- * from the visual viewport. Lets a bottom-docked sheet sit directly above the
- * keyboard instead of hiding behind it. Returns 0 on desktop / when idle.
- */
-function useKeyboardInset(enabled: boolean): number {
-  const [inset, setInset] = useState(0)
-  useEffect(() => {
-    if (!enabled) {
-      setInset(0)
-      return
-    }
-    const vv = window.visualViewport
-    if (!vv) return
-    const update = () => {
-      setInset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop))
-    }
-    update()
-    vv.addEventListener('resize', update)
-    vv.addEventListener('scroll', update)
-    return () => {
-      vv.removeEventListener('resize', update)
-      vv.removeEventListener('scroll', update)
-    }
-  }, [enabled])
-  return inset
 }
 
 export function CommandPopoverHint({ children }: { children: ReactNode }) {
