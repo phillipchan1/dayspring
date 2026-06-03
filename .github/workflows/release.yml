@@ -95,12 +95,17 @@ jobs:
       - name: Enable Apple signing when configured
         env:
           IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          if [ -n "$IDENTITY" ]; then
+          # All three must be present — if the cert password is missing, the
+          # security import will fail and codesign can't find anything in the
+          # keychain. Keep tauri.conf.json at "-" (ad-hoc) unless everything is ready.
+          if [ -n "$IDENTITY" ] && [ -n "$CERT" ] && [ -n "$CERT_PASSWORD" ]; then
             node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.bundle.macOS.signingIdentity=process.env.IDENTITY;fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
             echo "Apple signing identity set — build will sign + notarize"
           else
-            echo "No Apple identity configured — building unsigned (ad-hoc)"
+            echo "Missing cert, password, or identity — building unsigned (ad-hoc)"
           fi
 
       # Human-readable "what's new" for THIS build, generated from the commits in
