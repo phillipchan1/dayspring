@@ -456,7 +456,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stable subscription; refs hold live ids
   }, [])
 
-  const { status, lastSavedAt, error: saveError, saveNow } = useAutosave({
+  const { status, lastSavedAt, error: saveError, saveNow, resetEntry } = useAutosave({
     entryId,
     content,
     enabled: entriesReady,
@@ -743,12 +743,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     skipAdoptOnCreateRef.current = true
     try {
       await saveNow()
-      skipEntrySyncRef.current = true
-      go({ surface: 'journal', entryId: null })
-      setContent('')
     } finally {
       skipAdoptOnCreateRef.current = false
     }
+    // When entryId is already null, go({ entryId: null }) is a no-op so the
+    // [entryId] effect in useAutosave never fires — idRef would keep pointing at
+    // the entry we just saved, causing the next typing session to update it
+    // instead of creating a fresh one. Reset explicitly here.
+    resetEntry()
+    skipEntrySyncRef.current = true
+    go({ surface: 'journal', entryId: null })
+    setContent('')
   }
 
   async function handleBrowse(entry: Entry) {
@@ -828,7 +833,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         title: entry.title,
         tags: [...entry.tags],
       })
-      setEntries((prev) => [copy, ...prev].sort(byCreatedDesc))
+      setEntries((prev) => {
+        const idx = prev.findIndex((e) => e.id === copy.id)
+        if (idx >= 0) return prev.map((e, i) => (i === idx ? copy : e)).sort(byCreatedDesc)
+        return [copy, ...prev].sort(byCreatedDesc)
+      })
       skipEntrySyncRef.current = true
       go({ surface: 'journal', entryId: copy.id })
       setContent(asEntryMarkdown(copy.body_markdown))
@@ -929,11 +938,21 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   const words = useMemo(() => wordCount(content), [content])
   const visibleEntries = useMemo(() => {
+    let list: Entry[]
     if (restrictIds) {
       const set = new Set(restrictIds)
-      return entries.filter((e) => set.has(e.id))
+      list = entries.filter((e) => set.has(e.id))
+    } else {
+      list = filterEntries(entries, query)
     }
-    return filterEntries(entries, query)
+    // Defensive dedup — should never be needed but prevents duplicate rows from
+    // appearing in the list if concurrent state updates race in unexpected ways.
+    const seen = new Set<string>()
+    return list.filter((e) => {
+      if (seen.has(e.id)) return false
+      seen.add(e.id)
+      return true
+    })
   }, [entries, query, restrictIds])
 
   useEntryEditorFocusToggle({

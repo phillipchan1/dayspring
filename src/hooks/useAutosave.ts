@@ -26,6 +26,13 @@ interface UseAutosaveResult {
   error: string | null
   /** Force an immediate flush (e.g. before navigating away). */
   saveNow: () => Promise<void>
+  /**
+   * Reset entry tracking so the next keystroke starts a fresh entry rather than
+   * updating the one that was just saved. Call this after saveNow() whenever the
+   * navigation entryId will stay null (handleNew while already on a blank entry),
+   * because the [entryId] effect that normally resets idRef only fires on changes.
+   */
+  resetEntry: () => void
 }
 
 /**
@@ -162,5 +169,14 @@ export function useAutosave({
     await flush()
   }, [flush])
 
-  return { status, lastSavedAt, error, saveNow }
+  const resetEntry = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    idRef.current = null
+    savedContentRef.current = ''
+  }, [])
+
+  return { status, lastSavedAt, error, saveNow, resetEntry }
 }
