@@ -233,8 +233,8 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         </dl>
       </div>
 
-      {/* Updates section (desktop only) */}
-      {isTauri() && (
+      {/* Updates — desktop: update checker + history; web: history only */}
+      {isTauri() ? (
         <div className="settings-about__section">
           <div className="settings-about__section-title">Updates</div>
           <div className="settings-about__group">
@@ -242,6 +242,8 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
           </div>
           <ReleaseHistory />
         </div>
+      ) : (
+        <ReleaseHistory withSection />
       )}
 
       {/* Account & preferences section */}
@@ -344,7 +346,12 @@ function UpdateChecker() {
 // the single hop they last auto-updated through. Notable releases are listed
 // individually; runs of minor/internal builds collapse into a count so the major
 // changes stand out. Hides itself when no changelog is bundled (web/dev).
-function ReleaseHistory() {
+//
+// withSection=true (web): wraps in a settings-about__section with its own title,
+// and returns null entirely when empty so no orphaned section header appears.
+// withSection=false (desktop, default): bare fragment with a leading divider,
+// nested inside the Updates section that UpdateChecker already owns.
+function ReleaseHistory({ withSection = false }: { withSection?: boolean }) {
   const [entries, setEntries] = useState<ChangelogEntry[] | null>(null)
   useEffect(() => {
     void loadChangelog().then(setEntries)
@@ -354,7 +361,7 @@ function ReleaseHistory() {
 
   // Walk newest-first, emitting notable releases and folding consecutive
   // minor/internal builds into a single muted "N smaller updates" row.
-  type Row = { kind: 'release'; entry: ChangelogEntry } | { kind: 'minor'; count: number }
+  type Row = { kind: ‘release’; entry: ChangelogEntry } | { kind: ‘minor’; count: number }
   const rows: Row[] = []
   let minorRun = 0
   for (const entry of entries) {
@@ -363,41 +370,54 @@ function ReleaseHistory() {
       continue
     }
     if (minorRun) {
-      rows.push({ kind: 'minor', count: minorRun })
+      rows.push({ kind: ‘minor’, count: minorRun })
       minorRun = 0
     }
-    rows.push({ kind: 'release', entry })
+    rows.push({ kind: ‘release’, entry })
   }
-  if (minorRun) rows.push({ kind: 'minor', count: minorRun })
+  if (minorRun) rows.push({ kind: ‘minor’, count: minorRun })
+
+  const list = (
+    <details className="settings-changelog">
+      <summary className="settings-changelog__summary">What’s new</summary>
+      <ul className="settings-changelog__list">
+        {rows.map((row, i) =>
+          row.kind === ‘release’ ? (
+            <li key={row.entry.version} className="settings-changelog__item">
+              <div className="settings-changelog__head">
+                <span className="settings-changelog__ver">
+                  v{row.entry.version}
+                  {row.entry.version === __APP_VERSION__ && (
+                    <span className="settings-changelog__current"> · current</span>
+                  )}
+                </span>
+                <span className="settings-changelog__date">{formatReleaseDate(row.entry.date)}</span>
+              </div>
+              <div className="settings-changelog__notes">{row.entry.notes}</div>
+            </li>
+          ) : (
+            <li key={`minor-${i}`} className="settings-changelog__minor">
+              + {row.count} smaller update{row.count > 1 ? ‘s’ : ‘’}
+            </li>
+          ),
+        )}
+      </ul>
+    </details>
+  )
+
+  if (withSection) {
+    return (
+      <div className="settings-about__section">
+        <div className="settings-about__section-title">What’s new</div>
+        {list}
+      </div>
+    )
+  }
 
   return (
     <>
       <div className="settings-divider" />
-      <details className="settings-changelog">
-        <summary className="settings-changelog__summary">What’s new</summary>
-        <ul className="settings-changelog__list">
-          {rows.map((row, i) =>
-            row.kind === 'release' ? (
-              <li key={row.entry.version} className="settings-changelog__item">
-                <div className="settings-changelog__head">
-                  <span className="settings-changelog__ver">
-                    v{row.entry.version}
-                    {row.entry.version === __APP_VERSION__ && (
-                      <span className="settings-changelog__current"> · current</span>
-                    )}
-                  </span>
-                  <span className="settings-changelog__date">{formatReleaseDate(row.entry.date)}</span>
-                </div>
-                <div className="settings-changelog__notes">{row.entry.notes}</div>
-              </li>
-            ) : (
-              <li key={`minor-${i}`} className="settings-changelog__minor">
-                + {row.count} smaller update{row.count > 1 ? 's' : ''}
-              </li>
-            ),
-          )}
-        </ul>
-      </details>
+      {list}
     </>
   )
 }
