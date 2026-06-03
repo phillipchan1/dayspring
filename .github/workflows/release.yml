@@ -4,15 +4,14 @@ name: Release desktop app
 # PUBLIC releases repo (phillipchan1/dayspring-releases), updating latest.json so
 # installed apps auto-update. The source for this repo stays private.
 on:
-  push:
-    branches: [master]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
+  schedule:
+    - cron: "0 14 * * *"  # 9am ET / 6am PT
+    - cron: "0 22 * * *"  # 5pm ET / 2pm PT
+  workflow_dispatch:       # manual trigger anytime from GitHub Actions tab
 
 concurrency:
   group: release-desktop
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
