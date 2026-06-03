@@ -52,6 +52,8 @@ interface EditorProps {
   autofocus?: boolean
   typewriter?: boolean
   dimming?: boolean
+  /** Style the first content line as the entry title. Defaults to true. */
+  titleStyling?: boolean
   slashEnabled?: boolean
   /** Highlight the line at this doc position while a command popover is open. */
   commandLinePos?: number | null
@@ -85,6 +87,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     autofocus,
     typewriter = false,
     dimming = false,
+    titleStyling = true,
     slashEnabled = false,
     commandLinePos = null,
     onSlashCommand,
@@ -98,6 +101,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const viewRef = useRef<EditorView | null>(null)
   const typewriterCompartment = useRef(new Compartment())
   const dimCompartment = useRef(new Compartment())
+  const titleCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
@@ -197,7 +201,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           indentUnit.of('  '),
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
-          firstLineTitleExtension,
+          titleCompartment.current.of(titleStyling ? firstLineTitleExtension : []),
           spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
           scriptureRefDecoration(),
           taskListExtension(),
@@ -267,6 +271,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     reconfigure(viewRef.current, dimCompartment.current, dimming ? dimmingExtension : [])
   }, [dimming])
+
+  useEffect(() => {
+    reconfigure(
+      viewRef.current,
+      titleCompartment.current,
+      titleStyling ? firstLineTitleExtension : [],
+    )
+  }, [titleStyling])
 
   useEffect(() => {
     reconfigure(

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { deriveTitle } from './entryLabels'
-import { firstContentLineNumber, isExplicitHeading, markdownForDisplay } from './entryMarkdown'
+import {
+  firstContentLineNumber,
+  firstLineIsTitle,
+  isExplicitHeading,
+  isNonTitleLine,
+  markdownForDisplay,
+} from './entryMarkdown'
 
 describe('isExplicitHeading', () => {
   it('matches ATX headings only', () => {
@@ -8,6 +14,21 @@ describe('isExplicitHeading', () => {
     expect(isExplicitHeading('### Deep')).toBe(true)
     expect(isExplicitHeading('#nospace')).toBe(false)
     expect(isExplicitHeading('plain')).toBe(false)
+  })
+})
+
+describe('firstLineIsTitle / isNonTitleLine', () => {
+  it('treats plain prose as a title', () => {
+    expect(firstLineIsTitle('My morning')).toBe(true)
+  })
+  it('does not treat structure or headings as an auto-title', () => {
+    for (const line of ['- item', '1. step', '> quote', '[] todo', '- [x] done', '# Heading']) {
+      expect(firstLineIsTitle(line)).toBe(false)
+    }
+  })
+  it('flags structural lines as non-title', () => {
+    expect(isNonTitleLine('- item')).toBe(true)
+    expect(isNonTitleLine('plain')).toBe(false)
   })
 })
 
@@ -32,6 +53,18 @@ describe('markdownForDisplay', () => {
   it('returns empty/whitespace docs unchanged', () => {
     expect(markdownForDisplay('')).toBe('')
     expect(markdownForDisplay('\n\n')).toBe('\n\n')
+  })
+
+  it('does not promote the title when asTitle is false', () => {
+    expect(markdownForDisplay('My day\n\nBody', { asTitle: false })).toBe('My day\n\nBody')
+    // tasks still normalize regardless of the title setting
+    expect(markdownForDisplay('[] todo', { asTitle: false })).toBe('- [ ] todo')
+  })
+
+  it('promotes the first line exactly once (no duplicate title)', () => {
+    const out = markdownForDisplay('Morning thoughts\nToday I woke up')
+    expect(out).toBe('# Morning thoughts\nToday I woke up')
+    expect(out.match(/Morning thoughts/g)).toHaveLength(1)
   })
 })
 

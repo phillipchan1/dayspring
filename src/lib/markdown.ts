@@ -1,6 +1,6 @@
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { markdownForDisplay } from './entryMarkdown'
+import { markdownForDisplay, type DisplayOptions } from './entryMarkdown'
 
 marked.setOptions({
   gfm: true,
@@ -8,7 +8,7 @@ marked.setOptions({
 })
 
 /** Render markdown to sanitized HTML for the read-only reading view. */
-export function renderMarkdown(md: string): string {
-  const raw = marked.parse(markdownForDisplay(md), { async: false })
+export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
+  const raw = marked.parse(markdownForDisplay(md, opts), { async: false })
   return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
 }

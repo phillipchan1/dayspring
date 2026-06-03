@@ -1,4 +1,5 @@
 import { renderMarkdown } from '@/lib/markdown'
+import { markdownForDisplay } from '@/lib/entryMarkdown'
 import type { Entry } from '@/lib/types'
 import { deriveTitle } from './deriveTitle'
 
@@ -29,14 +30,14 @@ export async function copyEntryText(entry: Entry): Promise<void> {
   await navigator.clipboard.writeText(entry.body_markdown)
 }
 
-export async function copyEntryMarkdown(entry: Entry): Promise<void> {
-  const title = entryTitle(entry)
-  await navigator.clipboard.writeText(`# ${title}\n\n${entry.body_markdown}`)
+export async function copyEntryMarkdown(entry: Entry, asTitle = true): Promise<void> {
+  // The body already opens with the first line; promote it to `# …` (when titles
+  // are on) instead of prepending a second copy — which duplicated the title.
+  await navigator.clipboard.writeText(markdownForDisplay(entry.body_markdown, { asTitle }))
 }
 
-export function downloadEntryMarkdown(entry: Entry): void {
-  const title = entryTitle(entry)
-  const body = `# ${title}\n\n${entry.body_markdown}`
+export function downloadEntryMarkdown(entry: Entry, asTitle = true): void {
+  const body = markdownForDisplay(entry.body_markdown, { asTitle })
   const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -47,9 +48,9 @@ export function downloadEntryMarkdown(entry: Entry): void {
 }
 
 /** Opens a minimal print view for the entry body. */
-export function printEntry(entry: Entry): void {
+export function printEntry(entry: Entry, asTitle = true): void {
   const title = entryTitle(entry)
-  const html = renderMarkdown(entry.body_markdown)
+  const html = renderMarkdown(entry.body_markdown, { asTitle })
   const win = window.open('', '_blank', 'noopener')
   if (!win) return
   const safeTitle = escapeHtml(title)
