@@ -473,20 +473,52 @@
   background: var(--accent-soft);
 }
 
-/* ── Mobile command toolbar (keyboard-accessory bar) ─────────────────────
-   Rendered inside the padded editor canvas, so it bleeds to the screen edges
-   and sits flush above the keyboard — one bar, the nav steps aside while it's
-   up. */
+/* ── Command toolbar (keyboard-accessory bar) ────────────────────────────
+   Phone: rendered inside the padded editor canvas, so it bleeds to the screen
+   edges and sits flush above the keyboard. iPad/desktop with an on-screen
+   keyboard: the same bar floats centered above the keyboard (see __dock).
+   Either way it's JS-gated to the on-screen keyboard, so it never shows for
+   mouse/hardware-keyboard users. */
 
 .command-toolbar {
-  display: flex;
-  gap: 0.4rem;
   margin: 0 -1rem -1.25rem;
-  padding: 0.4rem 0.6rem;
-  padding-bottom: 0.5rem;
   background: var(--bg);
   border-top: 1px solid var(--border-subtle);
+}
+
+.command-toolbar__row {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  padding-bottom: 0.5rem;
   justify-content: space-between;
+}
+
+/* iPad/desktop on-screen keyboard: float the bar, centered to the editor width. */
+.command-toolbar__dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 8400;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.command-toolbar--docked {
+  pointer-events: auto;
+  width: min(680px, 100%);
+  margin: 0;
+  background: var(--bg-elevated);
+  box-shadow: 0 -8px 28px -14px rgba(0, 0, 0, 0.45);
+  animation: command-dock-in 180ms ease;
+}
+.command-toolbar--docked .command-toolbar__row {
+  padding: 0.45rem 0.75rem;
+  padding-bottom: max(0.45rem, env(safe-area-inset-bottom));
+}
+@keyframes command-dock-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 .command-toolbar__btn {
@@ -537,11 +569,4 @@
 .command-toolbar__label {
   font-weight: 500;
   text-align: center;
-}
-
-/* Hide toolbar on desktop */
-@media (min-width: 768px) {
-  .command-toolbar {
-    display: none;
-  }
 }
