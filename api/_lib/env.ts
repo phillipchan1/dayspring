@@ -30,4 +30,6 @@ export const env = {
   stripeMonthlyPriceId: () => need('STRIPE_MONTHLY_PRICE_ID'),
   // RevenueCat (iOS IAP — add when Capacitor/App Store launch)
   revenuecatWebhookSecret: () => process.env.REVENUECAT_WEBHOOK_SECRET ?? null,
+  // GitHub PAT (repo scope) for posting beta feedback as issues.
+  githubToken: () => need('GITHUB_TOKEN'),
 }
