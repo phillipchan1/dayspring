@@ -2,14 +2,14 @@
 // before the cron ever fires). Same Bearer guard as the cron.
 //   POST /api/reflections/generate
 //   Authorization: Bearer ${CRON_SECRET}
-//   { "type": "weekly" | "monthly", "start": "2026-05-01", "end": "2026-05-31" }
+//   { "owner": "<user-uuid>", "type": "weekly" | "monthly", "start": "2026-05-01", "end": "2026-05-31" }
 
 import { isAuthorized, unauthorized } from '../_lib/auth'
-import { env } from '../_lib/env'
 import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from '../_lib/synthesize'
 import type { RollupType } from '../_lib/types'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BUILDERS = {
   weekly: buildWeekly,
   monthly: buildMonthly,
@@ -20,14 +20,17 @@ const BUILDERS = {
 export async function POST(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
 
-  let body: { type?: string; start?: string; end?: string }
+  let body: { owner?: string; type?: string; start?: string; end?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
     return Response.json({ error: 'invalid JSON body' }, { status: 400 })
   }
 
-  const { type, start, end } = body
+  const { owner, type, start, end } = body
+  if (!owner || !UUID_RE.test(owner)) {
+    return Response.json({ error: 'owner (user UUID) is required' }, { status: 400 })
+  }
   if (!start || !end || !DATE_RE.test(start) || !DATE_RE.test(end)) {
     return Response.json({ error: 'start and end (YYYY-MM-DD) are required' }, { status: 400 })
   }
@@ -38,7 +41,6 @@ export async function POST(req: Request): Promise<Response> {
     )
   }
 
-  const owner = env.appOwnerId()
   const period = { start, end }
 
   try {

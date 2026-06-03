@@ -3,13 +3,14 @@
 // Compares recent entry themes against historical rollup excerpts.
 // When genuine thematic resonance is found, stores ONE sentence as the
 // current echo_candidate. No echo is stored on a weak or absent match.
+// Runs for every registered user (from profiles table), not just the app owner.
 //
 // Cost discipline: reads only from rollup summaries, never raw entries.
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { callModel } from '../_lib/openai.js'
-import { env } from '../_lib/env.js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 // ── AI schema + prompt ──────────────────────────────────────────────────────
 
@@ -73,14 +74,12 @@ interface RollupRow {
   }
 }
 
-// ── Handler ────────────────────────────────────────────────────────────────
+// ── Per-owner logic ─────────────────────────────────────────────────────────
 
-export async function GET(req: Request): Promise<Response> {
-  if (!isAuthorized(req)) return unauthorized()
-
-  const owner = env.appOwnerId()
-  const sb = supabaseAdmin()
-
+async function runEchoesForOwner(
+  owner: string,
+  sb: SupabaseClient,
+): Promise<{ skipped?: string; stored?: boolean; entry_id?: string; error?: string }> {
   // 1. Get the most recent weekly rollup for "current themes".
   const { data: weeklyRows, error: wErr } = await sb
     .from('insights')
@@ -90,10 +89,10 @@ export async function GET(req: Request): Promise<Response> {
     .order('period_start', { ascending: false })
     .limit(1)
 
-  if (wErr) return Response.json({ error: wErr.message }, { status: 500 })
+  if (wErr) return { error: wErr.message }
 
   const weekly = weeklyRows?.[0] as RollupRow | undefined
-  if (!weekly) return Response.json({ skipped: 'no weekly rollup yet' })
+  if (!weekly) return { skipped: 'no weekly rollup yet' }
 
   // 2. Get historical monthly rollups (older than 4 weeks ago).
   const cutoff = new Date()
@@ -109,12 +108,10 @@ export async function GET(req: Request): Promise<Response> {
     .order('period_start', { ascending: false })
     .limit(6)
 
-  if (hErr) return Response.json({ error: hErr.message }, { status: 500 })
+  if (hErr) return { error: hErr.message }
 
   const historical = (historicalRows ?? []) as RollupRow[]
-  if (historical.length === 0) {
-    return Response.json({ skipped: 'not enough history yet' })
-  }
+  if (historical.length === 0) return { skipped: 'not enough history yet' }
 
   // 3. Collect the pool: all quotes from historical rollups.
   const pool: Quote[] = []
@@ -132,9 +129,7 @@ export async function GET(req: Request): Promise<Response> {
     return true
   })
 
-  if (dedupedPool.length === 0) {
-    return Response.json({ skipped: 'historical pool is empty' })
-  }
+  if (dedupedPool.length === 0) return { skipped: 'historical pool is empty' }
 
   // 4. Get dismissed entry IDs so the AI can skip them.
   const { data: dismissals } = await sb
@@ -166,12 +161,10 @@ export async function GET(req: Request): Promise<Response> {
   try {
     result = await callModel<EchoResult>(SYSTEM, input, SCHEMA, 'echo_resonance', 'low')
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : 'model error' }, { status: 500 })
+    return { error: e instanceof Error ? e.message : 'model error' }
   }
 
-  if (!result.found || !result.entry_id || !result.text) {
-    return Response.json({ skipped: 'no resonance found' })
-  }
+  if (!result.found || !result.entry_id || !result.text) return { skipped: 'no resonance found' }
 
   // 7. Validate: the text must match verbatim in our pool.
   const poolMatch = dedupedPool.find(
@@ -179,7 +172,7 @@ export async function GET(req: Request): Promise<Response> {
   )
   if (!poolMatch) {
     console.warn('[echoes] text failed verbatim validation — skipping')
-    return Response.json({ skipped: 'verbatim validation failed' })
+    return { skipped: 'verbatim validation failed' }
   }
 
   // 8. Upsert the echo candidate (one row per user; replaces the prior echo).
@@ -193,7 +186,27 @@ export async function GET(req: Request): Promise<Response> {
     { onConflict: 'owner' },
   )
 
-  if (upsertErr) return Response.json({ error: upsertErr.message }, { status: 500 })
+  if (upsertErr) return { error: upsertErr.message }
 
-  return Response.json({ stored: true, entry_id: result.entry_id })
+  return { stored: true, entry_id: result.entry_id }
+}
+
+// ── Handler ────────────────────────────────────────────────────────────────
+
+export async function GET(req: Request): Promise<Response> {
+  if (!isAuthorized(req)) return unauthorized()
+
+  const sb = supabaseAdmin()
+
+  const { data: userRows, error: usersErr } = await sb.from('profiles').select('owner')
+  if (usersErr) return Response.json({ error: usersErr.message }, { status: 500 })
+
+  const ownerIds = (userRows ?? []).map((r: { owner: string }) => r.owner)
+
+  const results = await Promise.all(
+    ownerIds.map(async (owner) => ({ owner, ...(await runEchoesForOwner(owner, sb)) })),
+  )
+
+  const hasErrors = results.some((r) => r.error)
+  return Response.json({ results }, { status: hasErrors ? 207 : 200 })
 }

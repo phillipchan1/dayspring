@@ -72,7 +72,6 @@ export async function callModel<T>(
     if (raw) {
       // Strip markdown code-block wrapping that some models add despite json_schema.
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-      console.error(`[callModel:${name}] raw_head=${cleaned.slice(0, 120)}`)
       try {
         return JSON.parse(cleaned) as T
       } catch (e) {

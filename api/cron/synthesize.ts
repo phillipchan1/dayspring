@@ -5,9 +5,10 @@
 //   • 1st of the quarter  → last quarter's monthlies (ensured), then the quarterly
 //   • Jan 1               → last year's monthlies (ensured), then the yearly
 // Idempotent (builders upsert), so re-running never duplicates.
+// Runs for every registered user (from profiles table), not just the app owner.
 
 import { isAuthorized, unauthorized } from '../_lib/auth'
-import { env } from '../_lib/env'
+import { supabaseAdmin } from '../_lib/supabaseAdmin'
 import {
   isMonday,
   isFirstOfMonth,
@@ -35,20 +36,14 @@ import {
   harvestPrayers,
 } from '../_lib/altar'
 
-export async function GET(req: Request): Promise<Response> {
-  if (!isAuthorized(req)) return unauthorized()
-
-  const now = new Date()
-  const owner = env.appOwnerId()
+async function runForOwner(
+  owner: string,
+  now: Date,
+): Promise<{ results: BuildResult[]; altar: Record<string, unknown>; error?: string }> {
   const results: BuildResult[] = []
   const altar: Record<string, unknown> = {}
 
   try {
-    // Altar — keep the cairns current every day: harvest prayers from any new
-    // prose (bounded so the function can't time out — the bulk archive harvest is
-    // the local script), then embed + thread, migrate the legacy binary, and
-    // (weekly) lay evidence beside open threads. Nano-only; frontier stays
-    // reserved for the monthly/yearly rollups.
     altar.harvested = await harvestPrayers(owner, { max: 50 })
     altar.embedded = await embedUnembedded(owner)
     altar.threaded = await threadItems(owner)
@@ -60,7 +55,6 @@ export async function GET(req: Request): Promise<Response> {
     }
     if (isFirstOfMonth(now)) {
       const month = previousMonth(now)
-      // Ensure the month's weeklies exist before rolling them up.
       for (const week of weeksOverlappingMonth(month)) {
         results.push(await buildWeekly(owner, week))
       }
@@ -68,7 +62,6 @@ export async function GET(req: Request): Promise<Response> {
     }
     if (isFirstOfQuarter(now)) {
       const quarter = previousQuarter(now)
-      // Ensure each month's monthly exists before the retreat reads them.
       for (const month of monthsInPeriod(quarter)) {
         results.push(await buildMonthly(owner, month))
       }
@@ -81,12 +74,31 @@ export async function GET(req: Request): Promise<Response> {
       }
       results.push(await buildYearly(owner, year))
     }
-  } catch (e) {
-    return Response.json(
-      { ran_at: now.toISOString(), error: e instanceof Error ? e.message : 'failed', results, altar },
-      { status: 500 },
-    )
-  }
 
-  return Response.json({ ran_at: now.toISOString(), did_work: results.length > 0, results, altar })
+    return { results, altar }
+  } catch (e) {
+    return { results, altar, error: e instanceof Error ? e.message : 'failed' }
+  }
+}
+
+export async function GET(req: Request): Promise<Response> {
+  if (!isAuthorized(req)) return unauthorized()
+
+  const now = new Date()
+  const sb = supabaseAdmin()
+
+  const { data: userRows, error: usersErr } = await sb.from('profiles').select('owner')
+  if (usersErr) return Response.json({ error: usersErr.message }, { status: 500 })
+
+  const ownerIds = (userRows ?? []).map((r: { owner: string }) => r.owner)
+
+  const allUsers = await Promise.all(
+    ownerIds.map(async (owner) => ({ owner, ...(await runForOwner(owner, now)) })),
+  )
+
+  const hasErrors = allUsers.some((u) => u.error)
+  return Response.json(
+    { ran_at: now.toISOString(), users: allUsers },
+    { status: hasErrors ? 207 : 200 },
+  )
 }
