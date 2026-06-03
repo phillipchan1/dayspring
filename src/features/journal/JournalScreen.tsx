@@ -901,7 +901,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
       {isMobile && !focus.active && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
-          visible={!slashPaletteOpen}
+          visible={!slashPaletteOpen && slashCapture === null}
         />
       )}
     </div>

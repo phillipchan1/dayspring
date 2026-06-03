@@ -13,7 +13,10 @@ export function useMediaQuery(query: string): boolean {
   )
 }
 
-/** True on phone-width viewports. Drives the single-column mobile layout. */
+/** True on phone-width viewports. Drives the single-column mobile layout.
+ *  Boundary kept at 767px so it matches the CSS breakpoints (max-width: 767px)
+ *  used by the settings sheet, entry rows, etc. — otherwise an exactly-768px
+ *  viewport (iPad portrait) gets the mobile shell with desktop-styled chrome. */
 export function useIsMobile(): boolean {
-  return useMediaQuery('(max-width: 768px)')
+  return useMediaQuery('(max-width: 767px)')
 }

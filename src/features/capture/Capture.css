@@ -34,6 +34,22 @@
   padding: 0.5rem 0.55rem 0.35rem;
 }
 
+/* Mobile: dock as a full-width sheet above the keyboard (see CommandPopover). */
+.command-popover--sheet {
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  max-height: min(60vh, 420px);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -8px 28px -12px rgba(40, 24, 8, 0.4);
+  animation: command-sheet-in 200ms ease;
+}
+@keyframes command-sheet-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 .command-popover__footer {
   flex-shrink: 0;
   padding: 0.35rem 0.55rem 0.45rem;
@@ -470,10 +486,12 @@
   color: var(--accent);
 }
 
-.command-toolbar__btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-  color: var(--text-bright);
+@media (hover: hover) {
+  .command-toolbar__btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--text-bright);
+  }
 }
 
 .command-toolbar__icon {
