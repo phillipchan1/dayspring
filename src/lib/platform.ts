@@ -14,7 +14,6 @@ export function applyPlatformClass(): void {
   const root = document.documentElement
   root.dataset.platform = 'desktop'
   const style = root.style
-  style.setProperty('--mac-traffic-sidebar-top', MAC_TRAFFIC_INSET.sidebarTop)
   style.setProperty('--mac-traffic-x', MAC_TRAFFIC_INSET.sidebarX)
   style.setProperty('--mac-traffic-main-top', MAC_TRAFFIC_INSET.mainTop)
   style.setProperty('--mac-traffic-main-left-collapsed', MAC_TRAFFIC_INSET.mainLeftCollapsed)
@@ -24,8 +23,6 @@ export function applyPlatformClass(): void {
 export const MAC_TRAFFIC_INSET = {
   /** Navigation rail top — push the Mark/nav below the traffic lights */
   railTop: '2.85rem',
-  /** Sidebar brand + search block */
-  sidebarTop: '2.85rem',
   sidebarX: '1rem',
   /** Main toolbar when the entry list is visible */
   mainTop: '1.7rem',

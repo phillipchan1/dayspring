@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import type { Entry } from '@/lib/types'
-import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { useSettings } from '@/hooks/useSettings'
 import { deriveTitle } from './deriveTitle'
 import { matchSnippet } from './search'
@@ -41,7 +40,6 @@ import {
   scrollEntryIndexIntoView,
 } from './entryListFocus'
 
-const NATIVE = isTauri()
 const FLAT_VIRTUAL_THRESHOLD = 100
 const EMPTY_SELECTED: Entry[] = []
 
@@ -318,19 +316,7 @@ export function EntryList({
       className={`entry-list${fullWidth ? ' entry-list--drawer' : ''}`}
       onContextMenu={blockNativeMenu}
     >
-      <div
-        className="entry-list__head"
-        style={
-          NATIVE && !fullWidth
-            ? {
-                paddingTop: MAC_TRAFFIC_INSET.sidebarTop,
-                paddingLeft: MAC_TRAFFIC_INSET.sidebarX,
-                paddingRight: MAC_TRAFFIC_INSET.sidebarX,
-              }
-            : undefined
-        }
-        onContextMenu={blockNativeMenu}
-      >
+      <div className="entry-list__head" onContextMenu={blockNativeMenu}>
         <label className="entry-list__search-bar">
           <svg
             className="entry-list__search-icon"
