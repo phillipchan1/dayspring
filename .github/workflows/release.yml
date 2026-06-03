@@ -5,8 +5,9 @@ name: Release desktop app
 # installed apps auto-update. The source for this repo stays private.
 on:
   schedule:
-    - cron: "0 14 * * *"  # 9am ET / 6am PT
-    - cron: "0 22 * * *"  # 5pm ET / 2pm PT
+    - cron: "0 6 * * *"   # 2am ET — overnight, fresh build by morning
+    - cron: "0 16 * * *"  # 12pm ET — lunch
+    - cron: "0 22 * * *"  # 6pm ET — dinner
   workflow_dispatch:       # manual trigger anytime from GitHub Actions tab
 
 concurrency:
