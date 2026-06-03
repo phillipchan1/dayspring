@@ -38,14 +38,37 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
  * Push a full entry row to the server (insert or update). Used by the sync
  * layer to replay local writes. `owner` is intentionally omitted so the DB
  * default (auth.uid()) fills it on insert and RLS keeps it private.
+ *
+ * Note: `entries` is a view backed by encrypted storage. Views don't support
+ * ON CONFLICT, so we try INSERT first and fall back to UPDATE on duplicate id.
  */
 export async function upsertEntryRow(entry: Entry): Promise<Entry> {
   const sb = requireSupabase()
+  const row = {
+    id: entry.id,
+    created_at: entry.created_at,
+    body_markdown: entry.body_markdown,
+    title: entry.title,
+    mood: entry.mood,
+    tags: entry.tags,
+    word_count: entry.word_count,
+    source: entry.source,
+    external_id: entry.external_id,
+  }
+
+  const { data: inserted, error: insertErr } = await sb
+    .from('entries')
+    .insert(row)
+    .select(ENTRY_COLUMNS)
+    .single()
+
+  if (!insertErr) return inserted as Entry
+  // 23505 = unique_violation (id already exists — this is a sync replay)
+  if ((insertErr as { code?: string }).code !== '23505') throw insertErr
+
   const { data, error } = await sb
     .from('entries')
-    .upsert({
-      id: entry.id,
-      created_at: entry.created_at,
+    .update({
       body_markdown: entry.body_markdown,
       title: entry.title,
       mood: entry.mood,
@@ -54,6 +77,7 @@ export async function upsertEntryRow(entry: Entry): Promise<Entry> {
       source: entry.source,
       external_id: entry.external_id,
     })
+    .eq('id', entry.id)
     .select(ENTRY_COLUMNS)
     .single()
 
@@ -78,6 +102,9 @@ const IMPORT_BATCH_SIZE = 500
  * re-importing the same export never creates duplicates. `owner` is omitted so
  * the DB default (auth.uid()) fills it and RLS keeps the rows private.
  * `onProgress(done, total)` fires after each batch.
+ *
+ * Note: `entries` is a view backed by encrypted storage. Views don't support
+ * ON CONFLICT, so we SELECT existing rows first then INSERT or UPDATE accordingly.
  */
 export async function upsertImportedEntries(
   rows: ImportedEntry[],
@@ -86,18 +113,55 @@ export async function upsertImportedEntries(
 ): Promise<void> {
   const sb = requireSupabase()
   for (let i = 0; i < rows.length; i += IMPORT_BATCH_SIZE) {
-    const batch = rows.slice(i, i + IMPORT_BATCH_SIZE).map((r) => ({
-      created_at: r.created_at,
-      body_markdown: r.body_markdown,
-      title: r.title,
-      mood: null,
-      tags: r.tags,
-      word_count: r.word_count,
-      source,
-      external_id: r.external_id,
-    }))
-    const { error } = await sb.from('entries').upsert(batch, { onConflict: 'source,external_id' })
-    if (error) throw error
+    const batch = rows.slice(i, i + IMPORT_BATCH_SIZE)
+    const extIds = batch.map((r) => r.external_id).filter(Boolean)
+
+    // Find which (source, external_id) pairs already exist.
+    const { data: existing, error: selectErr } = extIds.length > 0
+      ? await sb
+          .from('entries')
+          .select('id, external_id')
+          .eq('source', source)
+          .in('external_id', extIds)
+      : { data: [] as { id: string; external_id: string }[], error: null }
+    if (selectErr) throw selectErr
+
+    const existingMap = new Map((existing ?? []).map((e) => [e.external_id, e.id]))
+
+    const toInsert = batch.filter((r) => !existingMap.has(r.external_id))
+    const toUpdate = batch
+      .filter((r) => existingMap.has(r.external_id))
+      .map((r) => ({ ...r, _id: existingMap.get(r.external_id)! }))
+
+    if (toInsert.length > 0) {
+      const { error } = await sb.from('entries').insert(
+        toInsert.map((r) => ({
+          created_at: r.created_at,
+          body_markdown: r.body_markdown,
+          title: r.title,
+          mood: null,
+          tags: r.tags,
+          word_count: r.word_count,
+          source,
+          external_id: r.external_id,
+        })),
+      )
+      if (error) throw error
+    }
+
+    // Update existing entries (bounded concurrency to avoid hammering the DB).
+    const UPDATE_POOL = 10
+    for (let j = 0; j < toUpdate.length; j += UPDATE_POOL) {
+      await Promise.all(
+        toUpdate.slice(j, j + UPDATE_POOL).map(({ _id, created_at, body_markdown, title, tags, word_count }) =>
+          sb
+            .from('entries')
+            .update({ created_at, body_markdown, title, tags, word_count })
+            .eq('id', _id),
+        ),
+      )
+    }
+
     onProgress?.(Math.min(i + batch.length, rows.length), rows.length)
   }
 }
