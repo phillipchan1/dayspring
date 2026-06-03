@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { isSupabaseConfigured } from './lib/env'
 import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
+import { useSettingsSync } from './hooks/useSettingsSync'
 import { useResolvedTheme } from './hooks/useResolvedTheme'
 import { useSubscription } from './hooks/useSubscription'
 import { EDITOR_FONT_VARS } from './lib/settings'
@@ -57,6 +58,7 @@ export function App() {
 type CheckoutState = 'idle' | 'waiting' | 'ready'
 
 function AuthenticatedApp({ userEmail }: { userEmail: string }) {
+  useSettingsSync() // pull remote settings on login, push changes on edit
   const { subscription, entitled, featureFlags, loading, refetch } = useSubscription()
 
   const [checkoutState, setCheckoutState] = useState<CheckoutState>(() => {

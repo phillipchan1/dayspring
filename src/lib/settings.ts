@@ -1,5 +1,5 @@
-// Per-device settings (§4: "Settings persist per device"). localStorage-backed,
-// exposed via a tiny external store so any component can read/update reactively.
+// Settings are localStorage-backed for instant reads, and synced to the cloud
+// via profiles.settings so they follow the user across desktop and web.
 
 export type Appearance = 'light' | 'dark' | 'auto'
 
@@ -136,5 +136,20 @@ export const settingsStore = {
   },
   reset(): void {
     settingsStore.update(DEFAULTS)
+  },
+  /**
+   * Apply remote settings fetched from the cloud without triggering a
+   * remote write-back (avoids a pointless round-trip on login).
+   * Remote wins over whatever is currently in localStorage so the user's
+   * intentional choices on other devices take effect immediately.
+   */
+  applyRemote(remote: Partial<Settings>): void {
+    state = { ...state, ...remote }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, v: SETTINGS_FORMAT_VERSION }))
+    } catch {
+      // ignore quota / private-mode failures
+    }
+    emit()
   },
 }

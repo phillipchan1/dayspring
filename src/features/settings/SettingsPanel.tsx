@@ -302,12 +302,12 @@ function UpdateChecker() {
   const message = {
     idle: '',
     checking: 'Checking…',
-    'up-to-date': 'You’re on the latest version.',
+    'up-to-date': "You're on the latest version.",
     downloading: `Downloading v${state.version ?? ''}…`,
     ready: `Version ${state.version ?? ''} is ready.`,
     // A failed update check is harmless — the current build keeps working — so
     // keep it gentle and never surface the raw request error / URL to the user.
-    error: 'Couldn’t check for updates right now. Try again later.',
+    error: "Couldn't check for updates right now. Try again later.",
   }[state.status]
 
   return (
@@ -332,7 +332,7 @@ function UpdateChecker() {
         )}
         {state.status === 'ready' && state.notes && (
           <details className="settings-update__notes">
-            <summary>What’s new in v{state.version}</summary>
+            <summary>What's new in v{state.version}</summary>
             <div className="settings-update__notes-body">{state.notes}</div>
           </details>
         )}
@@ -361,7 +361,7 @@ function ReleaseHistory({ withSection = false }: { withSection?: boolean }) {
 
   // Walk newest-first, emitting notable releases and folding consecutive
   // minor/internal builds into a single muted "N smaller updates" row.
-  type Row = { kind: ‘release’; entry: ChangelogEntry } | { kind: ‘minor’; count: number }
+  type Row = { kind: 'release'; entry: ChangelogEntry } | { kind: 'minor'; count: number }
   const rows: Row[] = []
   let minorRun = 0
   for (const entry of entries) {
@@ -370,19 +370,19 @@ function ReleaseHistory({ withSection = false }: { withSection?: boolean }) {
       continue
     }
     if (minorRun) {
-      rows.push({ kind: ‘minor’, count: minorRun })
+      rows.push({ kind: 'minor', count: minorRun })
       minorRun = 0
     }
-    rows.push({ kind: ‘release’, entry })
+    rows.push({ kind: 'release', entry })
   }
-  if (minorRun) rows.push({ kind: ‘minor’, count: minorRun })
+  if (minorRun) rows.push({ kind: 'minor', count: minorRun })
 
   const list = (
     <details className="settings-changelog">
-      <summary className="settings-changelog__summary">What’s new</summary>
+      <summary className="settings-changelog__summary">What's new</summary>
       <ul className="settings-changelog__list">
         {rows.map((row, i) =>
-          row.kind === ‘release’ ? (
+          row.kind === 'release' ? (
             <li key={row.entry.version} className="settings-changelog__item">
               <div className="settings-changelog__head">
                 <span className="settings-changelog__ver">
@@ -397,7 +397,7 @@ function ReleaseHistory({ withSection = false }: { withSection?: boolean }) {
             </li>
           ) : (
             <li key={`minor-${i}`} className="settings-changelog__minor">
-              + {row.count} smaller update{row.count > 1 ? ‘s’ : ‘’}
+              + {row.count} smaller update{row.count > 1 ? 's' : ''}
             </li>
           ),
         )}
@@ -408,7 +408,7 @@ function ReleaseHistory({ withSection = false }: { withSection?: boolean }) {
   if (withSection) {
     return (
       <div className="settings-about__section">
-        <div className="settings-about__section-title">What’s new</div>
+        <div className="settings-about__section-title">What's new</div>
         {list}
       </div>
     )
