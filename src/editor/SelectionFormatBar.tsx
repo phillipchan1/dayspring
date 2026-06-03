@@ -19,6 +19,8 @@ export interface FormatBarAnchor {
 
 interface Props {
   anchor: FormatBarAnchor | null
+  /** Open the link popover for the current selection (⌘K equivalent). */
+  onRequestLink: (view: EditorView) => void
 }
 
 function clampPosition(rect: DOMRect, bar: DOMRect) {
@@ -33,7 +35,7 @@ function clampPosition(rect: DOMRect, bar: DOMRect) {
 }
 
 /** Single-line markdown formatter that floats above the current selection. */
-export function SelectionFormatBar({ anchor }: Props) {
+export function SelectionFormatBar({ anchor, onRequestLink }: Props) {
   const barRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
 
@@ -47,6 +49,10 @@ export function SelectionFormatBar({ anchor }: Props) {
   if (!anchor) return null
 
   const run = (action: FormatAction) => {
+    if (action === 'link') {
+      onRequestLink(anchor.view)
+      return
+    }
     applyFormat(anchor.view, action)
   }
 

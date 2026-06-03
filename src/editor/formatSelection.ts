@@ -231,30 +231,44 @@ function applyLineFormat(view: EditorView, action: 'list' | 'quote' | 'heading')
   return true
 }
 
-function applyLink(view: EditorView): boolean {
-  const { from, to } = view.state.selection.main
+/** Existing link URL covering `[from, to)`, or null when the range isn't a link. */
+export function linkUrlInRange(view: EditorView, from: number, to: number): string | null {
+  const existing = parseLink(view.state.sliceDoc(from, to))
+  return existing ? existing.url : null
+}
+
+/**
+ * Wrap `[from, to)` as a link to `url`, preserving any inline marks on the label.
+ * Re-linking an existing link swaps the URL rather than nesting. Replaces the
+ * old `window.prompt` flow, which renders an ugly native dialog (and is blocked
+ * outright in some desktop webviews).
+ */
+export function setLink(view: EditorView, from: number, to: number, url: string): void {
+  const trimmed = url.trim()
+  if (!trimmed) return
   const raw = view.state.sliceDoc(from, to)
   const existing = parseLink(raw)
-
-  if (existing) {
-    view.dispatch({
-      changes: { from, to, insert: existing.plain },
-      selection: { anchor: from, head: from + existing.plain.length },
-    })
-    view.focus()
-    return true
-  }
-
-  const { plain } = parseInlineMarks(raw)
-  const url = globalThis.prompt('Link URL', 'https://')
-  if (url == null || !url.trim()) return false
-  const insert = `[${plain || 'link'}](${url.trim()})`
+  const label = (existing ? existing.plain : raw) || 'link'
+  const insert = `[${label}](${trimmed})`
   view.dispatch({
     changes: { from, to, insert },
     selection: { anchor: from, head: from + insert.length },
   })
   view.focus()
-  return true
+}
+
+/** Unwrap a link in `[from, to)`, keeping the visible label text. */
+export function clearLink(view: EditorView, from: number, to: number): void {
+  const existing = parseLink(view.state.sliceDoc(from, to))
+  if (!existing) {
+    view.focus()
+    return
+  }
+  view.dispatch({
+    changes: { from, to, insert: existing.plain },
+    selection: { anchor: from, head: from + existing.plain.length },
+  })
+  view.focus()
 }
 
 export function applyFormat(view: EditorView, action: FormatAction): boolean {
@@ -268,7 +282,9 @@ export function applyFormat(view: EditorView, action: FormatAction): boolean {
     case 'code':
       return applyInlineFormat(view, 'code')
     case 'link':
-      return applyLink(view)
+      // Links are captured through the link popover (see Editor), not a synchronous
+      // text edit — the format bar / ⌘K route to onRequestLink instead.
+      return false
     case 'list':
       return applyLineFormat(view, 'list')
     case 'quote':
