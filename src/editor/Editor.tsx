@@ -15,6 +15,8 @@ import {
 } from './spiritualBlockDecoration'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
+import { clearLink, linkUrlInRange, selectionAnchorRect, setLink } from './formatSelection'
+import { LinkPopover, type LinkPopoverTarget } from './LinkPopover'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
@@ -103,12 +105,29 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const slashEnabledRef = useRef(slashEnabled)
   const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
   const [slashState, setSlashState] = useState<SlashState | null>(null)
+  const [linkTarget, setLinkTarget] = useState<LinkPopoverTarget | null>(null)
   const setSlashRef = useRef(setSlashState)
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
   setSlashRef.current = setSlashState
+
+  // Open the link popover for the live selection (⌘K or the format-bar link button).
+  const requestLink = useCallback((view: EditorView) => {
+    const sel = view.state.selection.main
+    if (sel.empty) return
+    const rect = selectionAnchorRect(view)
+    if (!rect) return
+    setLinkTarget({
+      from: sel.from,
+      to: sel.to,
+      url: linkUrlInRange(view, sel.from, sel.to) ?? '',
+      rect,
+    })
+  }, [])
+  const requestLinkRef = useRef(requestLink)
+  requestLinkRef.current = requestLink
 
   useImperativeHandle(ref, () => ({
     insertAt: (pos: number, text: string) => {
@@ -173,7 +192,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
-          Prec.highest(formatKeymap),
+          Prec.highest(formatKeymap((view) => requestLinkRef.current(view))),
           editorTabKeymap,
           indentUnit.of('  '),
           markdown({ base: markdownLanguage, codeLanguages: [] }),
@@ -210,6 +229,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       viewRef.current = null
       setFormatBarRef.current(null)
       setSlashRef.current(null)
+      setLinkTarget(null)
     }
     // Intentionally run once; doc swaps + compartments handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -278,7 +298,29 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   return (
     <>
       <div ref={hostRef} className="editor-host" style={{ height: '100%' }} />
-      <SelectionFormatBar anchor={formatBar} />
+      <SelectionFormatBar
+        anchor={linkTarget ? null : formatBar}
+        onRequestLink={(view) => requestLinkRef.current(view)}
+      />
+      {linkTarget && (
+        <LinkPopover
+          target={linkTarget}
+          onSubmit={(url) => {
+            const view = viewRef.current
+            if (view) setLink(view, linkTarget.from, linkTarget.to, url)
+            setLinkTarget(null)
+          }}
+          onRemove={() => {
+            const view = viewRef.current
+            if (view) clearLink(view, linkTarget.from, linkTarget.to)
+            setLinkTarget(null)
+          }}
+          onCancel={() => {
+            setLinkTarget(null)
+            viewRef.current?.focus()
+          }}
+        />
+      )}
       {slashState && slashEnabled && (
         <SlashPalette
           state={slashState}

@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 import { readFileSync } from 'node:fs'
@@ -24,5 +25,10 @@ export default defineConfig({
   server: {
     port: 5180,
     strictPort: true,
+  },
+  test: {
+    // Pure logic (markdown parsing, formatting, slash detection) needs no DOM.
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 })

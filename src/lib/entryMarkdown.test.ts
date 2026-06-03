@@ -1,0 +1,55 @@
+import { describe, expect, it } from 'vitest'
+import { deriveTitle } from './entryLabels'
+import { firstContentLineNumber, isExplicitHeading, markdownForDisplay } from './entryMarkdown'
+
+describe('isExplicitHeading', () => {
+  it('matches ATX headings only', () => {
+    expect(isExplicitHeading('# Title')).toBe(true)
+    expect(isExplicitHeading('### Deep')).toBe(true)
+    expect(isExplicitHeading('#nospace')).toBe(false)
+    expect(isExplicitHeading('plain')).toBe(false)
+  })
+})
+
+describe('markdownForDisplay', () => {
+  it('promotes a plain first line to an H1 title', () => {
+    expect(markdownForDisplay('My day\n\nBody text')).toBe('# My day\n\nBody text')
+  })
+
+  it('leaves an explicit heading alone', () => {
+    expect(markdownForDisplay('# Already\n\nBody')).toBe('# Already\n\nBody')
+  })
+
+  it('does not promote a list / quote / task as a title', () => {
+    expect(markdownForDisplay('- item\nmore')).toBe('- item\nmore')
+    expect(markdownForDisplay('> quote')).toBe('> quote')
+  })
+
+  it('normalizes task lines for rendering', () => {
+    expect(markdownForDisplay('# T\n\n[] todo')).toBe('# T\n\n- [ ] todo')
+  })
+
+  it('returns empty/whitespace docs unchanged', () => {
+    expect(markdownForDisplay('')).toBe('')
+    expect(markdownForDisplay('\n\n')).toBe('\n\n')
+  })
+})
+
+describe('firstContentLineNumber', () => {
+  it('skips leading blank lines (1-based)', () => {
+    expect(firstContentLineNumber('\n\nhi')).toBe(3)
+    expect(firstContentLineNumber('   \n')).toBeNull()
+  })
+})
+
+describe('deriveTitle', () => {
+  it('strips markdown syntax from the first line', () => {
+    expect(deriveTitle('# **Bold** title\nbody')).toBe('Bold title')
+    expect(deriveTitle('- a list item')).toBe('a list item')
+    expect(deriveTitle('> a quote')).toBe('a quote')
+  })
+  it('returns empty for blank docs', () => {
+    expect(deriveTitle('')).toBe('')
+    expect(deriveTitle(null)).toBe('')
+  })
+})

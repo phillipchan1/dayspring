@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { SlashCommandId, SlashState } from './slashDetect'
 
@@ -18,10 +18,31 @@ interface Props {
 export function SlashPalette({ state, onSelect, onDismiss }: Props) {
   const filtered = COMMANDS.filter((c) => c.id.startsWith(state.query))
   const [activeIdx, setActiveIdx] = useState(0)
+  const paletteRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   useEffect(() => {
     setActiveIdx(0)
   }, [state.query])
+
+  // Measure the rendered palette, then place it: clamp to the viewport on both
+  // axes and flip above the caret when there isn't room below. Runs before paint
+  // (useLayoutEffect) so it never flashes at the wrong spot.
+  useLayoutEffect(() => {
+    const el = paletteRef.current
+    if (!el || filtered.length === 0) return
+    const r = el.getBoundingClientRect()
+    const pad = 8
+    const gap = 8
+    const left = Math.max(pad, Math.min(state.x, window.innerWidth - r.width - pad))
+    let top = state.y + gap
+    if (top + r.height > window.innerHeight - pad) {
+      const above = state.yTop - r.height - gap
+      // Prefer above only when it actually fits better; otherwise pin in view.
+      top = above >= pad ? above : Math.max(pad, window.innerHeight - r.height - pad)
+    }
+    setPos({ left, top })
+  }, [state.x, state.y, state.yTop, filtered.length])
 
   useEffect(() => {
     if (filtered.length === 0) {
@@ -54,15 +75,21 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
 
   if (filtered.length === 0) return null
 
-  const OFFSET = 8
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: Math.min(state.x, window.innerWidth - 280),
-    top: state.y + OFFSET,
+    left: pos?.left ?? state.x,
+    top: pos?.top ?? state.y + 8,
+    visibility: pos ? 'visible' : 'hidden',
   }
 
   return createPortal(
-    <div className="slash-palette glass-surface" style={style} role="listbox" aria-label="Commands">
+    <div
+      ref={paletteRef}
+      className="slash-palette glass-surface"
+      style={style}
+      role="listbox"
+      aria-label="Commands"
+    >
       <div className="glass-surface__glow" aria-hidden />
       {filtered.map((cmd, i) => (
         <button
