@@ -883,7 +883,7 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            placeholder={deriveTitle(asEntryMarkdown(content)) ? 'Keep going…' : 'Title'}
+            placeholder={deriveTitle(asEntryMarkdown(content)) ? 'Keep going — or type / for scripture, prayer & more' : 'Title'}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}
