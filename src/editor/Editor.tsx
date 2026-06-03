@@ -241,6 +241,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           scriptureRefDecoration(),
           taskListExtension(),
           EditorView.lineWrapping,
+          EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
           dimCompartment.current.of(dimming ? dimmingExtension : []),

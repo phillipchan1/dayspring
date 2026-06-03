@@ -24,6 +24,9 @@ export const editorTheme = EditorView.theme({
     // sets paddingTop/Bottom and a shorthand here would reset them.
     paddingLeft: '0',
     paddingRight: '0',
+    // Scroll-past-end breathing room. Typewriter theme overrides this with its
+    // dynamic 45% padding when active (it's registered later in the ext array).
+    paddingBottom: '40vh',
     maxWidth: 'var(--editor-max-width)',
     margin: '0 auto',
   },

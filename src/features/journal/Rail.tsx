@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
+import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
 import { RAIL_EXPAND_KEY } from './railHints'
+
+const NATIVE = isTauri()
 
 interface RailProps {
   onNew: () => void
@@ -43,25 +46,29 @@ export function Rail({
   // Wordmark beside the mark when labels are expanded; icon-only when collapsed.
   const showBrandLockup = labelsExpanded
 
+  const drag = NATIVE ? true : undefined
+
   return (
     <nav
       className="rail"
       data-labels={labelsExpanded ? 'true' : 'false'}
       style={nativeTopInset ? { paddingTop: nativeTopInset } : undefined}
+      data-tauri-drag-region={drag}
     >
-      <div className="rail__glow" aria-hidden />
+      <div className="rail__glow" aria-hidden data-tauri-drag-region={drag} />
       <div
         className={`rail__brand rail-btn rail-btn--brand${showBrandLockup ? ' rail__brand--lockup' : ''}`}
         aria-hidden={!labelsExpanded}
+        data-tauri-drag-region={drag}
       >
-        <span className="rail-btn__well">
+        <span className="rail-btn__well" data-tauri-drag-region={drag}>
           <Mark size={20} className="rail__mark" />
         </span>
-        {showBrandLockup ? <span className="rail-btn__label">Dayspring</span> : null}
+        {showBrandLockup ? <span className="rail-btn__label" data-tauri-drag-region={drag}>Dayspring</span> : null}
       </div>
-      <div className="rail__nav">
-        <div className="rail__group" aria-label="Write">
-          <span className="rail__group-label" aria-hidden>
+      <div className="rail__nav" data-tauri-drag-region={drag}>
+        <div className="rail__group" aria-label="Write" data-tauri-drag-region={drag}>
+          <span className="rail__group-label" aria-hidden data-tauri-drag-region={drag}>
             Write
           </span>
           <RailButton
@@ -80,8 +87,8 @@ export function Rail({
             labelsExpanded={labelsExpanded}
           />
         </div>
-        <div className="rail__group" aria-label="Return">
-          <span className="rail__group-label" aria-hidden>
+        <div className="rail__group" aria-label="Return" data-tauri-drag-region={drag}>
+          <span className="rail__group-label" aria-hidden data-tauri-drag-region={drag}>
             Return
           </span>
           <RailButton
@@ -114,7 +121,7 @@ export function Rail({
           />
         </div>
       </div>
-      <div className="rail__footer">
+      <div className="rail__footer" data-tauri-drag-region={drag}>
         <RailButton
           label="Settings"
           shortcut="⌘,"
