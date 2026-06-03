@@ -3327,3 +3327,46 @@ html[data-focus-mode] .focus-controls {
   color: var(--text-dim);
   margin: 0;
 }
+
+/* ── Slash palette ───────────────────────────────────────────────────────── */
+
+.slash-palette {
+  z-index: 9000;
+  border-radius: var(--radius-lg);
+  padding: 0.3rem;
+  min-width: 260px;
+  max-width: 320px;
+  overflow: hidden;
+}
+
+.slash-palette__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: calc(var(--radius-lg) - 4px);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.slash-palette__item:hover,
+.slash-palette__item[data-active='true'] {
+  background: var(--bg-hover);
+}
+
+.slash-palette__label {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-bright);
+  letter-spacing: 0.01em;
+}
+
+.slash-palette__hint {
+  font-size: 0.77rem;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+}
