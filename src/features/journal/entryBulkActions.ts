@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { markdownForDisplay } from '@/lib/entryMarkdown'
 import type { Entry } from '@/lib/types'
 import { deriveTitle } from './deriveTitle'
 import { filenameFor } from './entryActions'
@@ -7,9 +8,8 @@ function entryTitle(entry: Entry): string {
   return deriveTitle(entry.body_markdown) || entry.title || 'Untitled'
 }
 
-function markdownDocument(entry: Entry): string {
-  const title = entryTitle(entry)
-  return `# ${title}\n\n${entry.body_markdown}`
+function markdownDocument(entry: Entry, asTitle: boolean): string {
+  return markdownForDisplay(entry.body_markdown, { asTitle })
 }
 
 export async function copyEntriesText(entries: Entry[]): Promise<void> {
@@ -22,12 +22,12 @@ export async function copyEntriesText(entries: Entry[]): Promise<void> {
   await navigator.clipboard.writeText(body)
 }
 
-export async function copyEntriesMarkdown(entries: Entry[]): Promise<void> {
-  const body = entries.map((e) => markdownDocument(e)).join('\n\n---\n\n')
+export async function copyEntriesMarkdown(entries: Entry[], asTitle = true): Promise<void> {
+  const body = entries.map((e) => markdownDocument(e, asTitle)).join('\n\n---\n\n')
   await navigator.clipboard.writeText(body)
 }
 
-export async function exportEntriesZip(entries: Entry[]): Promise<void> {
+export async function exportEntriesZip(entries: Entry[], asTitle = true): Promise<void> {
   const zip = new JSZip()
   const used = new Set<string>()
   for (const entry of entries) {
@@ -41,7 +41,7 @@ export async function exportEntriesZip(entries: Entry[]): Promise<void> {
       name = `${stem}-${n}${ext}`
     }
     used.add(name)
-    zip.file(name, markdownDocument(entry))
+    zip.file(name, markdownDocument(entry, asTitle))
   }
   const blob = await zip.generateAsync({ type: 'blob' })
   const day = new Date().toISOString().slice(0, 10)

@@ -1,6 +1,6 @@
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import { RangeSetBuilder, type Extension } from '@codemirror/state'
-import { isExplicitHeading } from '@/lib/entryMarkdown'
+import { isExplicitHeading, isNonTitleLine } from '@/lib/entryMarkdown'
 import { isSpiritualFenceLine } from '@/lib/spiritualBlocks'
 
 function firstContentLine(doc: EditorView['state']['doc']): number | null {
@@ -17,6 +17,9 @@ function buildDecorations(view: EditorView): DecorationSet {
   if (titleAt === null) return Decoration.none
 
   const text = doc.line(titleAt).text
+  // A leading list / quote / task is content, not a title — leave it to the
+  // normal markdown highlighting so the editor matches the rendered view.
+  if (isNonTitleLine(text)) return Decoration.none
   const explicit = isExplicitHeading(text)
   const hasBodyBelow = titleAt < doc.lines
   const classes = [

@@ -45,6 +45,9 @@ export interface Settings {
 
   /** Desktop rail: show text labels beside icons. */
   railLabels: boolean
+
+  /** Style the first line as the entry title (editor + rendered/exported markdown). */
+  firstLineTitle: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -57,6 +60,7 @@ const DEFAULTS: Settings = {
   editorFont: 'serif',
   entriesGroupBy: 'month',
   railLabels: false,
+  firstLineTitle: true,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

@@ -778,16 +778,16 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             await copyEntryText(entry)
             break
           case 'copy-markdown':
-            await copyEntryMarkdown(entry)
+            await copyEntryMarkdown(entry, settings.firstLineTitle)
             break
           case 'export-markdown':
-            downloadEntryMarkdown(entry)
+            downloadEntryMarkdown(entry, settings.firstLineTitle)
             break
           case 'duplicate':
             await handleDuplicate(entry)
             break
           case 'print':
-            printEntry(entry)
+            printEntry(entry, settings.firstLineTitle)
             break
           case 'delete':
             handleDelete(entry)
@@ -874,8 +874,8 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     <EntryBulkCanvas
       count={bulkSelection.length}
       onCopyText={() => void copyEntriesText(bulkSelection)}
-      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection)}
-      onExportZip={() => void exportEntriesZip(bulkSelection)}
+      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection, settings.firstLineTitle)}
+      onExportZip={() => void exportEntriesZip(bulkSelection, settings.firstLineTitle)}
       onDelete={() => selectionApiRef.current?.requestDelete()}
       onClear={() => selectionApiRef.current?.clear()}
     />
@@ -893,11 +893,18 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            placeholder={deriveTitle(asEntryMarkdown(content)) ? 'Keep going — or type / for scripture, prayer & more' : 'Title'}
+            placeholder={
+              deriveTitle(asEntryMarkdown(content))
+                ? 'Keep going — or type / for scripture, prayer & more'
+                : settings.firstLineTitle
+                  ? 'Title'
+                  : 'Write…'
+            }
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}
             dimming={focus.active && focusEditorReady && settings.dimming}
+            titleStyling={settings.firstLineTitle}
             slashEnabled
             // Only band the line for a fresh /command; editing a block targets an
             // atomic widget line, where a line decoration collides with the block.

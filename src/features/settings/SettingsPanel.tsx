@@ -167,6 +167,13 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
       />
       <div className="settings-divider" />
       <Toggle
+        label="First line as title"
+        hint="Style each entry's first line as its title. Off keeps it as plain text."
+        checked={settings.firstLineTitle}
+        onChange={(v) => update({ firstLineTitle: v })}
+      />
+      <div className="settings-divider" />
+      <Toggle
         label="Typewriter scrolling"
         hint="Keep the active line centered (focus mode)"
         checked={settings.typewriter}
