@@ -34,19 +34,42 @@
   padding: 0.5rem 0.55rem 0.35rem;
 }
 
-/* Mobile: dock as a full-width sheet above the keyboard (see CommandPopover). */
+/* Mobile: dock as a full-width sheet above the keyboard (see CommandPopover).
+   The sheet sizes to its content but can grow toward full-screen for heavy
+   actions (scripture results, prayer); the inline max-height caps it just below
+   a ~56px peek of the entry. The scrim dims that peek so you stay oriented in
+   "I'm still editing my entry, focused on this one thing." */
+.command-popover__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 8499;
+  background: rgba(0, 0, 0, 0.42);
+  animation: command-scrim-in 180ms ease;
+}
 .command-popover--sheet {
   border-left: none;
   border-right: none;
   border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  max-height: min(60vh, 420px);
   padding-bottom: env(safe-area-inset-bottom);
-  box-shadow: 0 -8px 28px -12px rgba(40, 24, 8, 0.4);
-  animation: command-sheet-in 200ms ease;
+  box-shadow: 0 -10px 36px -14px rgba(40, 24, 8, 0.5);
+  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Grab handle — the universal "this is a sheet, swipe/tap away to go back" cue. */
+.command-popover__grab {
+  flex-shrink: 0;
+  width: 34px;
+  height: 4px;
+  margin: 8px auto 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+@keyframes command-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 @keyframes command-sheet-in {
-  from { transform: translateY(12px); opacity: 0; }
+  from { transform: translateY(16px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
 

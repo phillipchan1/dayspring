@@ -79,6 +79,10 @@ export function CommandPopover({
         left: 0,
         right: 0,
         bottom: keyboardInset,
+        // Grow toward full-screen for heavy actions (scripture results, prayer
+        // text) while leaving a ~56px peek of the entry above, dimmed by the
+        // scrim — so you stay anchored in "still editing my entry".
+        maxHeight: `calc(100dvh - ${keyboardInset}px - 56px)`,
         zIndex: 8500,
       }
     : {
@@ -91,7 +95,7 @@ export function CommandPopover({
         transform: anchor.placeAbove ? 'translateY(-100%)' : undefined,
       }
 
-  return createPortal(
+  const sheet = (
     <div
       className={`command-popover command-popover--${variant}${isMobile ? ' command-popover--sheet' : ''}`}
       style={style}
@@ -99,10 +103,24 @@ export function CommandPopover({
       aria-label={ariaLabel}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {isMobile && <div className="command-popover__grab" aria-hidden />}
       {header}
       <div className="command-popover__body">{children}</div>
       {footer != null && <footer className="command-popover__footer">{footer}</footer>}
-    </div>,
+    </div>
+  )
+
+  return createPortal(
+    isMobile ? (
+      <>
+        {/* Dimmed peek of the entry behind the sheet — context stays visible,
+            tap it to dismiss. */}
+        <div className="command-popover__scrim" onClick={onDismiss} aria-hidden />
+        {sheet}
+      </>
+    ) : (
+      sheet
+    ),
     document.body,
   )
 }
