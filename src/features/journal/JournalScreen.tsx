@@ -410,50 +410,81 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   // Live updates from other tabs / devices via Supabase Realtime.
+  // Shared full-reconcile helper used by realtime reconnect and the heartbeat.
+  const resyncFull = useCallback(() => {
+    void repo.sync(entryIdRef.current).then((list) => {
+      if (list) applySyncedList(list)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- applySyncedList is stable; refs hold live ids
+  }, [])
+
+  // Live updates from other tabs / devices via Supabase Realtime.
+  // onReconnect triggers a full reconcile when the WebSocket re-establishes
+  // after a drop — catches any events missed during the outage.
   useEffect(() => {
     if (!isSupabaseConfigured) return
 
-    return subscribeEntryChanges((events) => {
-      void (async () => {
-        const preserveId = entryIdRef.current
-        const changes = events.map((event) =>
-          event.eventType === 'DELETE'
-            ? ({ kind: 'delete' as const, entryId: event.entryId })
-            : ({ kind: 'upsert' as const, entry: event.entry }),
-        )
+    return subscribeEntryChanges({
+      onBatch: (events) => {
+        void (async () => {
+          const preserveId = entryIdRef.current
+          const changes = events.map((event) =>
+            event.eventType === 'DELETE'
+              ? ({ kind: 'delete' as const, entryId: event.entryId })
+              : ({ kind: 'upsert' as const, entry: event.entry }),
+          )
 
-        const result = await repo.applyRemoteChanges(changes, preserveId)
-        if (result === 'resync') {
-          const synced = await repo.sync(preserveId)
-          if (!synced) return
-          setEntries(synced)
-          if (preserveId && !synced.some((e) => e.id === preserveId)) {
-            navigateAwayFromDeletedEntry(synced, [preserveId])
+          const result = await repo.applyRemoteChanges(changes, preserveId)
+          if (result === 'resync') {
+            const synced = await repo.sync(preserveId)
+            if (!synced) return
+            setEntries(synced)
+            if (preserveId && !synced.some((e) => e.id === preserveId)) {
+              navigateAwayFromDeletedEntry(synced, [preserveId])
+            }
+            return
           }
-          return
-        }
 
-        const { deletedIds, upserted } = result
-        if (deletedIds.length === 0 && upserted.length === 0) return
+          const { deletedIds, upserted } = result
+          if (deletedIds.length === 0 && upserted.length === 0) return
 
-        const deletedSet = new Set(deletedIds)
-        setEntries((prev) => {
-          let next = prev.filter((e) => !deletedSet.has(e.id))
-          for (const entry of upserted) {
-            const idx = next.findIndex((e) => e.id === entry.id)
-            if (idx >= 0) next = next.map((e, i) => (i === idx ? entry : e))
-            else next = [entry, ...next]
+          const deletedSet = new Set(deletedIds)
+          setEntries((prev) => {
+            let next = prev.filter((e) => !deletedSet.has(e.id))
+            for (const entry of upserted) {
+              const idx = next.findIndex((e) => e.id === entry.id)
+              if (idx >= 0) next = next.map((e, i) => (i === idx ? entry : e))
+              else next = [entry, ...next]
+            }
+            return next.sort(byCreatedDesc)
+          })
+
+          if (preserveId && deletedSet.has(preserveId)) {
+            const remaining = (await repo.listEntries()).filter((e) => !deletedSet.has(e.id))
+            navigateAwayFromDeletedEntry(remaining, [preserveId])
           }
-          return next.sort(byCreatedDesc)
-        })
-
-        if (preserveId && deletedSet.has(preserveId)) {
-          const remaining = (await repo.listEntries()).filter((e) => !deletedSet.has(e.id))
-          navigateAwayFromDeletedEntry(remaining, [preserveId])
-        }
-      })()
+        })()
+      },
+      onReconnect: resyncFull,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stable subscription; refs hold live ids
+  }, [resyncFull])
+
+  // Heartbeat: every 2 minutes, pull any entries changed since the last sync.
+  // syncChanged() is cursor-based — when nothing changed it's a single cheap
+  // HTTP request that returns an empty array (no IDB writes, no re-render).
+  // It auto-escalates to a full sync() when >5 min have passed since the last
+  // full reconcile, which bounds cross-device staleness even if realtime drops
+  // silently and focus/visibility events never fire (e.g. app stays open all day).
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const id = setInterval(() => {
+      void repo.syncChanged(entryIdRef.current).then((list) => {
+        if (list) applySyncedList(list)
+      })
+    }, 2 * 60_000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- applySyncedList is stable; ref holds live id
   }, [])
 
   const { status, lastSavedAt, error: saveError, saveNow, resetEntry } = useAutosave({
