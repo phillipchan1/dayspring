@@ -158,6 +158,27 @@ a {
 .entry-row[data-context='true'] .entry-row__snippet {
   color: color-mix(in srgb, var(--text) 72%, var(--dayspring-amber));
 }
+.entry-row__preview {
+  display: block;
+  font-family: var(--font-entry-list);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.005em;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+.entry-row[data-active='true'] .entry-row__preview,
+.entry-row[data-selected='true'] .entry-row__preview,
+.entry-row[data-context='true'] .entry-row__preview {
+  color: var(--text-dim);
+}
+.entry-row[data-has-preview='true'] {
+  padding: 7px 8px;
+}
 
 /* ── Entries sidebar — native journal index ─────────────────────────────── */
 .entry-list {

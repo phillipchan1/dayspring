@@ -135,6 +135,12 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
         checked={settings.railLabels}
         onChange={(railLabels) => update({ railLabels })}
       />
+      <Toggle
+        label="Show entry preview"
+        hint="Display a short excerpt below each entry title in the list."
+        checked={settings.showEntryPreview}
+        onChange={(showEntryPreview) => update({ showEntryPreview })}
+      />
     </div>
   )
 }

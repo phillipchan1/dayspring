@@ -454,6 +454,7 @@ export function EntryList({
                   menuTargetId={menuTargetId}
                   selected={multi.selectedIds.has(item.entry.id)}
                   query={query}
+                  showEntryPreview={settings.showEntryPreview}
                   onSelect={onSelect}
                   onEditEntry={onEditEntry}
                   {...(onRowActivate ? { onRowActivate } : {})}
@@ -586,6 +587,23 @@ function YearView({
   )
 }
 
+function extractEntryPreview(body: string, maxLength = 80): string | null {
+  if (!body) return null
+  const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+  for (const line of lines) {
+    if (line.startsWith('/')) continue
+    if (line.length < 4) continue
+    const cleaned = line
+      .replace(/^#{1,6}\s+/, '')
+      .replace(/[*_~`>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!cleaned) continue
+    return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trimEnd() + '…' : cleaned
+  }
+  return null
+}
+
 interface EntryRowProps {
   entry: Entry
   bare?: boolean
@@ -593,6 +611,7 @@ interface EntryRowProps {
   menuTargetId: string | null
   selected: boolean
   query: string
+  showEntryPreview: boolean
   onSelect: (entry: Entry) => void
   onEditEntry: (entry: Entry) => void
   onRowActivate?: () => void
@@ -613,6 +632,7 @@ const EntryRow = memo(function EntryRow({
   menuTargetId,
   selected,
   query,
+  showEntryPreview,
   onSelect,
   onEditEntry,
   onRowActivate,
@@ -628,6 +648,7 @@ const EntryRow = memo(function EntryRow({
   const untitled = !derived
   const title = derived || 'Untitled'
   const snippet = matchSnippet(entry.body_markdown, query)
+  const preview = showEntryPreview && !query ? extractEntryPreview(entry.body_markdown) : null
 
   // Touch gestures: long-press opens the context menu (no right-click on touch),
   // a plain tap opens the entry. Mouse keeps right-click + click/double-click.
@@ -660,6 +681,7 @@ const EntryRow = memo(function EntryRow({
         data-selected={selected ? 'true' : undefined}
         data-context={context ? 'true' : undefined}
         data-untitled={untitled ? 'true' : undefined}
+        data-has-preview={preview ? 'true' : undefined}
         title={active ? `${title} — Tab or Enter to edit` : title}
         onPointerDown={(e) => {
           pointerTypeRef.current = e.pointerType
@@ -720,6 +742,7 @@ const EntryRow = memo(function EntryRow({
       >
         <span className="entry-row__title">{title}</span>
         {snippet ? <span className="entry-row__snippet">{snippet}</span> : null}
+        {preview && !snippet ? <span className="entry-row__preview">{preview}</span> : null}
       </button>
   )
 
@@ -734,6 +757,7 @@ function entryRowPropsEqual(prev: EntryRowProps, next: EntryRowProps): boolean {
     prev.menuTargetId === next.menuTargetId &&
     prev.selected === next.selected &&
     prev.query === next.query &&
-    prev.bare === next.bare
+    prev.bare === next.bare &&
+    prev.showEntryPreview === next.showEntryPreview
   )
 }

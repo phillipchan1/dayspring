@@ -52,6 +52,9 @@ export interface Settings {
 
   /** Desktop only: enable developer tools shortcut (⌘⌥I). */
   devMode: boolean
+
+  /** Sidebar: show a one-line body excerpt below each entry title. */
+  showEntryPreview: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -66,6 +69,7 @@ const DEFAULTS: Settings = {
   railLabels: false,
   firstLineTitle: true,
   devMode: false,
+  showEntryPreview: false,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'
