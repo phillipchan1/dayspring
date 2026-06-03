@@ -26,7 +26,7 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings, onSync,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
@@ -133,7 +133,7 @@ export function DesktopJournal(props: JournalViewProps) {
                 {!bulkActive && !rangeSelectActive && (
                   <>
                     <span className="status-cluster__sep" aria-hidden>·</span>
-                    <SyncBadge bare />
+                    <SyncBadge bare onSync={onSync} />
                   </>
                 )}
               </div>

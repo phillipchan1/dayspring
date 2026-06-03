@@ -11,6 +11,7 @@ import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
 import { isSupabaseConfigured } from '@/lib/env'
+import { isTauri } from '@/lib/platform'
 import * as repo from '@/lib/repo'
 import { cacheGet } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
@@ -475,8 +476,10 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     }
   }, [entryId, saveNow])
 
-  // Browser back / forward: load the entry body when the active entry changes.
-  // Do not reload when `entries` refreshes from list sync — that fights live typing.
+  // Load the entry body when navigating to a different entry. Do not reload when
+  // `entries` refreshes from local typing — that clobbered the caret to line 1.
+  // The early return on same-entry is the key fix: entries updates every keystroke
+  // (keep-in-sync effect), so we'd otherwise overwrite live typing with stale data.
   useEffect(() => {
     if (!entriesReady) return
     if (state.surface !== 'journal') {
@@ -499,11 +502,11 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     const entry = entries.find((e) => e.id === entryId)
     if (!entry) return
 
-    const body = asEntryMarkdown(entry.body_markdown)
-    if (loadedEntryIdRef.current === entryId && body === content) return
+    // Same entry — list sync / autosave echoes must not overwrite live typing.
+    if (loadedEntryIdRef.current === entryId) return
 
     loadedEntryIdRef.current = entryId
-    setContent(body)
+    setContent(asEntryMarkdown(entry.body_markdown))
   }, [entryId, entries, entriesReady, state.surface])
 
   function toggleLookBack() {
@@ -641,6 +644,20 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [settingsOpen, helpOpen, go, back])
+
+  // ⌘⌥I — open Web Inspector on desktop when dev mode is enabled.
+  useEffect(() => {
+    if (!isTauri() || !settings.devMode) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'i' || !e.metaKey || !e.altKey) return
+      e.preventDefault()
+      void import('@tauri-apps/api/core').then(({ invoke }) => {
+        void invoke('open_devtools')
+      })
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [settings.devMode])
 
   // Esc returns to Lamp / Altar / Ascent when previewing an entry from there.
   useEffect(() => {
@@ -975,6 +992,11 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => openSettings(),
+    onSync: () => {
+      void repo.sync(entryIdRef.current).then((list) => {
+        if (list) applySyncedList(list)
+      })
+    },
     settings,
     updateSettings,
     focus,

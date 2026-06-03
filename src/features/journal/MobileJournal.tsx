@@ -25,7 +25,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings, onSync,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
@@ -118,7 +118,7 @@ export function MobileJournal(props: JournalViewProps) {
             <span className="status-cluster__dot" data-status={status} aria-hidden />
             <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
             <span className="status-cluster__sep" aria-hidden>·</span>
-            <SyncBadge bare />
+            <SyncBadge bare onSync={onSync} />
           </div>
         </header>
       )}

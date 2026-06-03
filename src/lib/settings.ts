@@ -48,6 +48,9 @@ export interface Settings {
 
   /** Style the first line as the entry title (editor + rendered/exported markdown). */
   firstLineTitle: boolean
+
+  /** Desktop only: enable developer tools shortcut (⌘⌥I). */
+  devMode: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -61,6 +64,7 @@ const DEFAULTS: Settings = {
   entriesGroupBy: 'month',
   railLabels: false,
   firstLineTitle: true,
+  devMode: false,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

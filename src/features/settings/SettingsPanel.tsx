@@ -7,6 +7,7 @@ import { useSubscription } from '@/hooks/useSubscription'
 import { signOut } from '@/lib/auth'
 import { isTauri } from '@/lib/platform'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
+import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
@@ -211,6 +212,7 @@ function ShortcutsTab() {
 
 function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => void }) {
   const { replay } = useWelcome()
+  const { settings, update } = useSettings()
   return (
     <div className="settings-about">
       <div className="settings-about__mark">Dayspring</div>
@@ -245,6 +247,18 @@ function AboutTab({ userEmail, onClose }: { userEmail: string; onClose: () => vo
         <span className="settings-field__label">Account</span>
         {userEmail && <span className="settings-field__value">{userEmail}</span>}
       </div>
+      {isTauri() && (
+        <>
+          <div className="settings-divider" />
+          <Toggle
+            label="Developer mode"
+            hint="Enable ⌘⌥I to open Web Inspector."
+            checked={settings.devMode}
+            onChange={(devMode) => update({ devMode })}
+          />
+        </>
+      )}
+      <div className="settings-divider" />
       <div className="settings-actions">
         <button className="btn btn--ghost" onClick={() => void signOut()}>
           Sign out

@@ -45,6 +45,8 @@ export interface JournalViewProps {
   /** Route to the Altar surface. */
   onAltar: () => void
   onOpenSettings: () => void
+  /** Force a full re-sync from the server (pull latest + flush outbox). */
+  onSync: () => void
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
   focus: FocusApi

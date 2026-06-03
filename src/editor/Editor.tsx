@@ -251,7 +251,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     const entryChanged = prevDocKeyRef.current !== docKey
     prevDocKeyRef.current = docKey
     if (current !== initialDoc) {
-      view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
+      // Swapping entries replaces the doc; on the same entry only seed an empty
+      // editor when the body arrives after mount — never fight live typing.
+      if (entryChanged || (current.trim() === '' && initialDoc.trim() !== '')) {
+        view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
+      }
     }
     if (skipAutofocusRef?.current) {
       skipAutofocusRef.current = false

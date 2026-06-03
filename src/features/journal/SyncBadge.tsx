@@ -5,10 +5,12 @@ interface Props {
   /** Render as plain inline text (no dot, inherits size/font) for the unified
    *  status cluster. States/labels are unchanged. */
   bare?: boolean
+  /** When provided, tapping/clicking the badge triggers a manual re-sync. */
+  onSync?: () => void
 }
 
 /** Subtle connectivity / queue indicator: Offline · N, Syncing N, or Synced. */
-export function SyncBadge({ bare = false }: Props = {}) {
+export function SyncBadge({ bare = false, onSync }: Props = {}) {
   const state = useSyncExternalStore(syncStore.subscribe, syncStore.get)
 
   let label: string
@@ -26,12 +28,31 @@ export function SyncBadge({ bare = false }: Props = {}) {
     label = 'Synced'
   }
 
+  const title = state.online
+    ? (onSync ? 'Click to sync now' : 'Connected')
+    : 'Changes are saved locally and will sync when you reconnect'
+
   if (bare) {
     // Offline stays amber (it matters); everything else inherits the cluster's
     // quiet tone. The cluster supplies the dot.
-    return (
-      <span title={state.online ? 'Connected' : 'Changes are saved locally and will sync when you reconnect'}
-        style={{ color: state.online ? 'inherit' : color }}>
+    return onSync ? (
+      <button
+        type="button"
+        onClick={onSync}
+        title={title}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: state.online ? 'inherit' : color,
+          font: 'inherit',
+        }}
+      >
+        {label}
+      </button>
+    ) : (
+      <span title={title} style={{ color: state.online ? 'inherit' : color }}>
         {label}
       </span>
     )
@@ -39,7 +60,8 @@ export function SyncBadge({ bare = false }: Props = {}) {
 
   return (
     <span
-      title={state.online ? 'Connected' : 'Changes are saved locally and will sync when you reconnect'}
+      title={title}
+      onClick={onSync}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -47,6 +69,7 @@ export function SyncBadge({ bare = false }: Props = {}) {
         color,
         fontSize: '0.72rem',
         fontFamily: 'var(--font-mono)',
+        cursor: onSync ? 'pointer' : undefined,
       }}
     >
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
