@@ -997,7 +997,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             initialDoc={content}
             onChange={handleContentChange}
             placeholder={settings.firstLineTitle ? 'Title' : 'Write…'}
-            bodyPlaceholder={settings.firstLineTitle ? 'Keep going — or type / for scripture, prayer & more' : undefined}
+            {...(settings.firstLineTitle && { bodyPlaceholder: 'Keep going — or type / for scripture, prayer & more' })}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}
