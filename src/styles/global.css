@@ -3171,15 +3171,16 @@ html[data-focus-mode] .focus-controls {
   opacity: 0.7;
 }
 
-/* ── Beta feedback widget (bottom-left; opposite corner from appearance toggle) ─ */
+/* ── Beta feedback widget (bottom-center; clear of rail and appearance toggle) ─ */
 .feedback-widget {
   position: fixed;
-  left: max(1rem, env(safe-area-inset-left));
+  left: 50%;
+  transform: translateX(-50%);
   bottom: max(1rem, env(safe-area-inset-bottom));
   z-index: 75;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.5rem;
 }
 
