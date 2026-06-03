@@ -286,9 +286,20 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
         !!local && (pending.has(s.id) || s.id === preserveId || local.updated_at > s.updated_at)
       merged.push(keepLocal ? (local as Entry) : s)
     }
-    // Local-only rows (e.g. created while offline, not yet pushed).
+    // Local-only rows: keep ONLY if they have a pending outbox op (i.e. created
+    // offline and not yet pushed). If a local entry is absent from the server AND
+    // has no pending op, it was deleted by another client — drop it from the cache.
     for (const [id, local] of localMap) {
-      if (!seen.has(id)) merged.push(local)
+      if (!seen.has(id) && pending.has(id)) merged.push(local)
+    }
+
+    // Purge any local cache entries that are no longer in the merged set —
+    // cachePutMany only writes, so without this explicit delete, server-side
+    // deletes from other clients/apps are never reflected locally.
+    const mergedIds = new Set(merged.map((e) => e.id))
+    const toDelete = [...localMap.keys()].filter((id) => !mergedIds.has(id))
+    if (toDelete.length) {
+      await Promise.all(toDelete.map((id) => cache.cacheDelete(id)))
     }
 
     await cache.cachePutMany(merged)
