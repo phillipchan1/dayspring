@@ -73,6 +73,7 @@ export function InlineScripturePopover({
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const autoFetchedRef = useRef(false)
+  const selectedRef = useRef(false)
   const passagesRef = useRef(passages)
   const activeIdxRef = useRef(activeIdx)
   const queryRef = useRef(query)
@@ -178,6 +179,10 @@ export function InlineScripturePopover({
     (p: Row) => {
       // Ignore selection until the verbatim text has resolved.
       if (p.text === null) return
+      // Guard against key-repeat or rapid double-click firing a second insertion
+      // before React can unmount this popover after the first selection.
+      if (selectedRef.current) return
+      selectedRef.current = true
       const id = edit?.id ?? crypto.randomUUID()
       const refWithTranslation = p.translation ? `${p.reference} · ${p.translation}` : p.reference
       onInsert(formatScriptureInsert(id, p.text, refWithTranslation, entryContent, insertAt))

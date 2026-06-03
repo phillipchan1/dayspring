@@ -3,6 +3,7 @@ import {
   getImportedEntryCount,
   readScanWatermark,
   scanAllForRefs,
+  syncScanWatermark,
   writeScanWatermark,
   type ScanResult,
 } from '@/lib/scripture/scan'
@@ -31,7 +32,8 @@ export function useScriptureScan(onComplete?: () => void): ScriptureScan {
 
   useEffect(() => {
     let cancelled = false
-    getImportedEntryCount()
+    syncScanWatermark()
+      .then(() => getImportedEntryCount())
       .then((c) => {
         if (cancelled) return
         setImportedCount(c)

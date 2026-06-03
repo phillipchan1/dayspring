@@ -14,6 +14,10 @@ import { parseReferences } from './parse'
 // "Have I scanned my imports" watermark — the imported-entry count at the last
 // scan OR dismiss. Native entries are captured live on save, so only imports
 // move this; the CTA shows while imported count exceeds it.
+//
+// Source of truth is profiles.scripture_scan_watermark (follows the account
+// across devices). localStorage is a fast-path cache populated by
+// syncScanWatermark(); reads are always synchronous against the local cache.
 const SCAN_WATERMARK_KEY = 'dayspring.scriptureScannedImported'
 
 export function readScanWatermark(): number {
@@ -21,8 +25,42 @@ export function readScanWatermark(): number {
   return Number(localStorage.getItem(SCAN_WATERMARK_KEY) ?? '0') || 0
 }
 
+/** Pull the watermark from profiles into localStorage. Call before reading. */
+export async function syncScanWatermark(): Promise<void> {
+  try {
+    const sb = requireSupabase()
+    const { data, error } = await sb
+      .from('profiles')
+      .select('scripture_scan_watermark')
+      .maybeSingle()
+    if (error || data == null) return
+    const remote = data.scripture_scan_watermark ?? 0
+    // Only advance the local cache — never roll it back (local dismiss is valid too).
+    if (remote > readScanWatermark()) {
+      if (typeof localStorage !== 'undefined')
+        localStorage.setItem(SCAN_WATERMARK_KEY, String(remote))
+    }
+  } catch {
+    // Network failure is non-fatal; fall back to whatever is in localStorage.
+  }
+}
+
 export function writeScanWatermark(n: number): void {
   if (typeof localStorage !== 'undefined') localStorage.setItem(SCAN_WATERMARK_KEY, String(n))
+  // Persist to profiles so it survives device switches. Fire-and-forget.
+  persistScanWatermark(n).catch(() => {})
+}
+
+async function persistScanWatermark(n: number): Promise<void> {
+  const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) return
+  await sb
+    .from('profiles')
+    .upsert({ owner: session.user.id, scripture_scan_watermark: n }, { onConflict: 'owner' })
+    .throwOnError()
 }
 
 /** Count of imported (non-native) entries — the entries live capture never sees. */

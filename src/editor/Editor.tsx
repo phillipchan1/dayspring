@@ -9,6 +9,7 @@ import { markdownHighlight } from './highlight'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { firstLineTitleExtension } from './firstLineTitle'
+import { bodyLinePlaceholder } from './bodyLinePlaceholder'
 import {
   spiritualBlockExtension,
   type SpiritualBlockEditTarget,
@@ -56,6 +57,8 @@ interface EditorProps {
   dimming?: boolean
   /** Style the first content line as the entry title. Defaults to true. */
   titleStyling?: boolean
+  /** Placeholder shown on the first body line (line 2) when a title exists but no body has been written. */
+  bodyPlaceholder?: string
   slashEnabled?: boolean
   /** Highlight the line at this doc position while a command popover is open. */
   commandLinePos?: number | null
@@ -86,6 +89,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     docKey,
     onChange,
     placeholder,
+    bodyPlaceholder,
     autofocus,
     typewriter = false,
     dimming = false,
@@ -109,6 +113,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const onEditBlockRef = useRef(onEditBlock)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
+  const titleStylingRef = useRef(titleStyling)
   const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const [linkTarget, setLinkTarget] = useState<LinkPopoverTarget | null>(null)
@@ -117,6 +122,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   onEditBlockRef.current = onEditBlock
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
+  titleStylingRef.current = titleStyling
   setSlashRef.current = setSlashState
 
   // Open the link popover for the live selection (⌘K or the format-bar link button).
@@ -203,7 +209,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           indentUnit.of('  '),
           markdown({ base: markdownLanguage, codeLanguages: [] }),
           syntaxHighlighting(markdownHighlight),
-          titleCompartment.current.of(titleStyling ? firstLineTitleExtension : []),
+          titleCompartment.current.of(
+            titleStyling
+              ? [firstLineTitleExtension, ...(bodyPlaceholder ? [bodyLinePlaceholder(bodyPlaceholder)] : [])]
+              : [],
+          ),
           // Rewrite duplicate block UUIDs (copy-paste creates same UUID twice).
           // Runs as a transaction filter so duplication is fixed atomically,
           // before decorations or listeners observe the new doc.
@@ -251,7 +261,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             if (u.docChanged) onChangeRef.current(u.state.doc.toString())
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
-              setSlashRef.current(detectSlash(u.view))
+              setSlashRef.current(detectSlash(u.view, titleStylingRef.current))
             }
           }),
         ],
@@ -313,12 +323,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   }, [dimming])
 
   useEffect(() => {
-    reconfigure(
-      viewRef.current,
-      titleCompartment.current,
-      titleStyling ? firstLineTitleExtension : [],
-    )
-  }, [titleStyling])
+    reconfigure(viewRef.current, titleCompartment.current, titleStyling
+      ? [firstLineTitleExtension, ...(bodyPlaceholder ? [bodyLinePlaceholder(bodyPlaceholder)] : [])]
+      : [])
+  }, [titleStyling, bodyPlaceholder])
 
   useEffect(() => {
     reconfigure(

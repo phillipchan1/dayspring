@@ -26,7 +26,6 @@ import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
-import { deriveTitle } from './deriveTitle'
 import { filterEntries } from './search'
 import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
 import { entryReturnFromState } from '@/lib/appHistory'
@@ -978,13 +977,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            placeholder={
-              deriveTitle(asEntryMarkdown(content))
-                ? 'Keep going — or type / for scripture, prayer & more'
-                : settings.firstLineTitle
-                  ? 'Title'
-                  : 'Write…'
-            }
+            placeholder={settings.firstLineTitle ? 'Title' : 'Write…'}
+            bodyPlaceholder={settings.firstLineTitle ? 'Keep going — or type / for scripture, prayer & more' : undefined}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}

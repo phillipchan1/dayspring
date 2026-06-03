@@ -39,12 +39,13 @@ export function matchSlashBefore(before: string, cursor: number): SlashMatch | n
 }
 
 /** Scan back from the cursor; return non-null when we're in a /command sequence. */
-export function detectSlash(view: EditorView): SlashState | null {
+export function detectSlash(view: EditorView, blockOnTitleLine = false): SlashState | null {
   const state = view.state
   const { from, to } = state.selection.main
   if (from !== to) return null
 
   const line = state.doc.lineAt(from)
+  if (blockOnTitleLine && line.number === 1) return null
   const before = line.text.slice(0, from - line.from)
   const matched = matchSlashBefore(before, from)
   if (!matched) return null
