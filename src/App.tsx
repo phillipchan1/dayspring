@@ -56,7 +56,7 @@ export function App() {
 type CheckoutState = 'idle' | 'waiting' | 'ready'
 
 function AuthenticatedApp({ userEmail }: { userEmail: string }) {
-  const { subscription, entitled, loading, refetch } = useSubscription()
+  const { subscription, entitled, isBeta, loading, refetch } = useSubscription()
 
   const [checkoutState, setCheckoutState] = useState<CheckoutState>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -139,7 +139,7 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
     <WelcomeProvider>
       <JournalScreen userEmail={userEmail} />
       <UpdateToast />
-      <FeedbackWidget />
+      <FeedbackWidget isBeta={isBeta} />
     </WelcomeProvider>
   )
 }

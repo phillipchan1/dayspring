@@ -1,12 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { submitFeedback } from '@/lib/feedback'
 
-const ENABLED = import.meta.env.VITE_BETA_FEEDBACK_ENABLED === 'true'
+// Master kill switch — set VITE_BETA_FEEDBACK_ENABLED=true in Vercel to enable
+// the feature at all. Individual users also need is_beta=true on their profile.
+const MASTER_ENABLED = import.meta.env.VITE_BETA_FEEDBACK_ENABLED === 'true'
 
 type FeedbackType = 'bug' | 'idea' | 'other'
 type Status = 'idle' | 'submitting' | 'done' | 'error'
 
-export function FeedbackWidget() {
+interface Props {
+  isBeta: boolean
+}
+
+export function FeedbackWidget({ isBeta }: Props) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [type, setType] = useState<FeedbackType>('idea')
@@ -17,7 +23,7 @@ export function FeedbackWidget() {
     if (open && textareaRef.current) textareaRef.current.focus()
   }, [open])
 
-  if (!ENABLED) return null
+  if (!MASTER_ENABLED || !isBeta) return null
 
   async function handleSubmit() {
     if (!message.trim() || status === 'submitting') return
