@@ -18,6 +18,18 @@ function editorColumnRect(view: EditorView): DOMRect | null {
 }
 
 /**
+ * The line below which a panel would feel cramped. Normally the bottom third of
+ * the window, but when an on-screen keyboard is up (phone, or iPad without a
+ * hardware keyboard) the visual viewport shrinks — so we also flip above the
+ * top of the keyboard, never behind it.
+ */
+function flipLine(): number {
+  const vv = window.visualViewport
+  const keyboardTop = vv ? vv.offsetTop + vv.height - GAP_PX : window.innerHeight
+  return Math.min(window.innerHeight * FLIP_VIEWPORT_FRACTION, keyboardTop)
+}
+
+/**
  * Anchor a flat inline panel to the line at `pos` (caret after slash removal).
  * Panel width matches the centered editor column (capped at 440px); sits 6px below
  * the line unless
@@ -40,7 +52,7 @@ export function computeInlinePanelAnchor(view: EditorView, pos: number): InlineP
   }
 
   const belowTop = lineEnd.bottom + GAP_PX
-  const wouldClip = belowTop + PANEL_ESTIMATE_PX > window.innerHeight * FLIP_VIEWPORT_FRACTION
+  const wouldClip = belowTop + PANEL_ESTIMATE_PX > flipLine()
 
   if (wouldClip && lineStart.top > PANEL_ESTIMATE_PX + GAP_PX) {
     return {
@@ -72,7 +84,7 @@ export function computeBlockPanelAnchor(view: EditorView, blockEl: HTMLElement):
   const width = Math.min(column?.width ?? 672, PANEL_MAX_WIDTH_PX)
 
   const belowTop = rect.bottom + GAP_PX
-  const wouldClip = belowTop + PANEL_ESTIMATE_PX > window.innerHeight * FLIP_VIEWPORT_FRACTION
+  const wouldClip = belowTop + PANEL_ESTIMATE_PX > flipLine()
 
   if (wouldClip && rect.top > PANEL_ESTIMATE_PX + GAP_PX) {
     return { left, width, top: rect.top - GAP_PX, placeAbove: true }

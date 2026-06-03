@@ -5,8 +5,8 @@ import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import type { SlashCommandId } from '@/editor/slashDetect'
 import { useAutosave } from '@/hooks/useAutosave'
 import { useSettings } from '@/hooks/useSettings'
-import { useIsMobile } from '@/hooks/useMediaQuery'
-import { useKeyboardOpen } from '@/hooks/useKeyboard'
+import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
+import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
@@ -110,7 +110,15 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
-  const keyboardOpen = useKeyboardOpen(isMobile)
+  // Touch-primary device (phone or iPad without a trackpad/mouse). With a Magic
+  // Keyboard trackpad the pointer becomes fine, so iPad then behaves like desktop.
+  const coarsePointer = useMediaQuery('(pointer: coarse)')
+  const keyboardOpen = useKeyboardOpen()
+  const keyboardInset = useKeyboardInset()
+  // Show the touch command bar whenever the on-screen keyboard is up on a touch
+  // device — phone or iPad. It rides in-flow on phones, docked above the keyboard
+  // on tablets. Hardware-keyboard users get no on-screen keyboard, so they use `/`.
+  const showCommandBar = (isMobile || coarsePointer) && keyboardOpen
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
@@ -907,11 +915,13 @@ export function JournalScreen({ userEmail }: JournalScreenProps) {
           />
         ) : null}
       </div>
-      {isMobile && !focus.active && keyboardOpen && (
+      {showCommandBar && !focus.active && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
           onDismissKeyboard={() => editorRef.current?.blur()}
           visible={!slashPaletteOpen && slashCapture === null}
+          docked={!isMobile}
+          keyboardInset={keyboardInset}
         />
       )}
     </div>

@@ -68,10 +68,10 @@ export function CommandPopover({
 
   const isMobile = useIsMobile()
 
-  // On a phone the caret-anchored desktop placement lands the panel behind the
-  // soft keyboard. Instead, dock it as a full-width sheet pinned just above the
-  // keyboard, tracking the visual viewport so it follows the keyboard up/down.
-  const keyboardInset = useKeyboardInset(isMobile)
+  // Track the keyboard everywhere: a phone gets the full bottom sheet, while
+  // iPad/desktop keep the caret-anchored panel but clamp it so a tall panel
+  // (e.g. scripture results) can never spill behind an on-screen keyboard.
+  const keyboardInset = useKeyboardInset()
 
   const panelWidth = Math.min(440, anchor.width, window.innerWidth - 32)
   const style: React.CSSProperties = isMobile
@@ -94,6 +94,12 @@ export function CommandPopover({
         zIndex: 8500,
         top: anchor.top,
         transform: anchor.placeAbove ? 'translateY(-100%)' : undefined,
+        // Keyboard up (iPad on-screen keyboard) and anchored below: cap height
+        // to the space above the keyboard. No keyboard → undefined → CSS
+        // controls it, so mouse-desktop is unchanged.
+        ...(keyboardInset > 0 && !anchor.placeAbove
+          ? { maxHeight: `calc(100dvh - ${keyboardInset}px - ${anchor.top}px - 8px)` }
+          : {}),
       }
 
   const sheet = (

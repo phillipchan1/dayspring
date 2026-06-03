@@ -111,9 +111,11 @@ a {
     min-height: 48px;
   }
 }
-.entry-row:hover:not([data-context='true']) {
-  background: var(--bg-hover);
-  color: var(--text-bright);
+@media (hover: hover) {
+  .entry-row:hover:not([data-context='true']) {
+    background: var(--bg-hover);
+    color: var(--text-bright);
+  }
 }
 .entry-row[data-active='true'] {
   background: var(--accent-soft);
@@ -951,9 +953,11 @@ a {
   line-height: 1;
   transition: color var(--transition), background var(--transition);
 }
-.nav-btn:hover {
-  color: var(--text-bright);
-  background: var(--bg-hover);
+@media (hover: hover) {
+  .nav-btn:hover {
+    color: var(--text-bright);
+    background: var(--bg-hover);
+  }
 }
 .nav-btn[data-active='true'] {
   color: var(--accent);
@@ -1236,14 +1240,16 @@ a {
     transform 0.14s ease,
     box-shadow var(--transition-slow);
 }
-.rail-btn:hover {
-  color: var(--text-bright);
-}
-.rail:not([data-labels='true']) .rail-btn:hover .rail-btn__well {
-  background: color-mix(in srgb, var(--bg-hover) 55%, transparent);
-}
-.rail[data-labels='true'] .rail-btn:hover {
-  background: color-mix(in srgb, var(--bg-hover) 55%, transparent);
+@media (hover: hover) {
+  .rail-btn:hover {
+    color: var(--text-bright);
+  }
+  .rail:not([data-labels='true']) .rail-btn:hover .rail-btn__well {
+    background: color-mix(in srgb, var(--bg-hover) 55%, transparent);
+  }
+  .rail[data-labels='true'] .rail-btn:hover {
+    background: color-mix(in srgb, var(--bg-hover) 55%, transparent);
+  }
 }
 .rail-btn[data-active='true'] {
   color: var(--accent);
@@ -1276,6 +1282,31 @@ a {
 }
 .rail[data-labels='true'] .rail-btn:active {
   transform: scale(0.98);
+}
+
+/* ── Touch ergonomics (iPad / touchscreens) ───────────────────────────────
+   Bumps the desktop-layout chrome to ≥44px hit targets on coarse pointers
+   only. Mouse-desktop and the Tauri app (fine pointer) are untouched; an iPad
+   with a Magic Keyboard trackpad reports a fine pointer too, so it keeps the
+   tighter desktop sizing. */
+@media (pointer: coarse) {
+  .rail {
+    --rail-slot: 2.75rem;
+  }
+  .nav-btn {
+    min-height: 44px;
+  }
+  .journal-topbar__back,
+  .restrict-banner .btn {
+    min-height: 44px;
+  }
+}
+/* Phones already size entry rows at ≤767px; this lifts the iPad/desktop list
+   without shrinking the phone's larger rows. */
+@media (pointer: coarse) and (min-width: 768px) {
+  .entry-row {
+    min-height: 44px;
+  }
 }
 
 /* Collapsed rail — Spark-style hover hints (label + shortcut to the right). */
