@@ -34,6 +34,45 @@
   padding: 0.5rem 0.55rem 0.35rem;
 }
 
+/* Mobile: dock as a full-width sheet above the keyboard (see CommandPopover).
+   The sheet sizes to its content but can grow toward full-screen for heavy
+   actions (scripture results, prayer); the inline max-height caps it just below
+   a ~56px peek of the entry. The scrim dims that peek so you stay oriented in
+   "I'm still editing my entry, focused on this one thing." */
+.command-popover__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 8499;
+  background: rgba(0, 0, 0, 0.42);
+  animation: command-scrim-in 180ms ease;
+}
+.command-popover--sheet {
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -10px 36px -14px rgba(40, 24, 8, 0.5);
+  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Grab handle — the universal "this is a sheet, swipe/tap away to go back" cue. */
+.command-popover__grab {
+  flex-shrink: 0;
+  width: 34px;
+  height: 4px;
+  margin: 8px auto 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+@keyframes command-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes command-sheet-in {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 .command-popover__footer {
   flex-shrink: 0;
   padding: 0.35rem 0.55rem 0.45rem;
@@ -434,26 +473,30 @@
   background: var(--accent-soft);
 }
 
-/* ── Mobile command toolbar ────────────────────────────────────────────── */
+/* ── Mobile command toolbar (keyboard-accessory bar) ─────────────────────
+   Rendered inside the padded editor canvas, so it bleeds to the screen edges
+   and sits flush above the keyboard — one bar, the nav steps aside while it's
+   up. */
 
 .command-toolbar {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem;
+  gap: 0.4rem;
+  margin: 0 -1rem -1.25rem;
+  padding: 0.4rem 0.6rem;
+  padding-bottom: 0.5rem;
   background: var(--bg);
   border-top: 1px solid var(--border-subtle);
-  overflow-x: auto;
-  justify-content: space-around;
+  justify-content: space-between;
 }
 
 .command-toolbar__btn {
   display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  min-width: 60px;
-  flex-shrink: 0;
+  gap: 0.2rem;
+  padding: 0.4rem 0.3rem;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   background: var(--bg-input);
@@ -461,7 +504,15 @@
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
   font-family: var(--font-sans);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+}
+
+/* "Done" reads as a quiet trailing affordance, not another insert action. */
+.command-toolbar__btn--dismiss {
+  flex: 0 0 auto;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-faint);
 }
 
 .command-toolbar__btn:active {
@@ -470,10 +521,12 @@
   color: var(--accent);
 }
 
-.command-toolbar__btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-  color: var(--text-bright);
+@media (hover: hover) {
+  .command-toolbar__btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--text-bright);
+  }
 }
 
 .command-toolbar__icon {

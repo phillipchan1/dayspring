@@ -34,6 +34,8 @@ export interface EditorHandle {
   focus: () => void
   /** Return focus to the editor, optionally restoring the caret. */
   focusAt: (pos?: number) => void
+  /** Blur the editor — dismisses the soft keyboard on mobile. */
+  blur: () => void
   /** Trigger a slash command at the current cursor position (for mobile UI). */
   triggerCommand: (cmd: SlashCommandId) => void
 }
@@ -151,6 +153,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       view.focus()
     },
     focus: () => viewRef.current?.focus(),
+    blur: () => viewRef.current?.contentDOM.blur(),
     focusAt: (pos?: number) => {
       const view = viewRef.current
       if (!view) return

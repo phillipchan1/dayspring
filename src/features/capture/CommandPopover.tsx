@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useKeyboardInset } from '@/hooks/useKeyboard'
 import './Capture.css'
 
 export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture'
@@ -46,43 +48,80 @@ export function CommandPopover({
   }, [onDismiss])
 
   useEffect(() => {
-    const onPointer = (e: MouseEvent) => {
+    const onPointer = (e: MouseEvent | TouchEvent) => {
       const t = e.target
       if (t instanceof Node && document.querySelector('.command-popover')?.contains(t)) return
       onDismiss()
     }
     const t = window.setTimeout(() => {
+      // `mousedown` covers desktop; `touchstart` covers phones where a tap on a
+      // non-interactive surface doesn't reliably synthesize a mouse event.
       document.addEventListener('mousedown', onPointer, true)
+      document.addEventListener('touchstart', onPointer, true)
     }, 0)
     return () => {
       clearTimeout(t)
       document.removeEventListener('mousedown', onPointer, true)
+      document.removeEventListener('touchstart', onPointer, true)
     }
   }, [onDismiss])
 
-  const panelWidth = Math.min(440, anchor.width, window.innerWidth - 32)
-  const style: React.CSSProperties = {
-    position: 'fixed',
-    left: Math.min(anchor.left, window.innerWidth - panelWidth - 16),
-    width: panelWidth,
-    maxWidth: panelWidth,
-    zIndex: 8500,
-    top: anchor.top,
-    transform: anchor.placeAbove ? 'translateY(-100%)' : undefined,
-  }
+  const isMobile = useIsMobile()
 
-  return createPortal(
+  // On a phone the caret-anchored desktop placement lands the panel behind the
+  // soft keyboard. Instead, dock it as a full-width sheet pinned just above the
+  // keyboard, tracking the visual viewport so it follows the keyboard up/down.
+  const keyboardInset = useKeyboardInset(isMobile)
+
+  const panelWidth = Math.min(440, anchor.width, window.innerWidth - 32)
+  const style: React.CSSProperties = isMobile
+    ? {
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: keyboardInset,
+        // Grow toward full-screen for heavy actions (scripture results, prayer
+        // text) while leaving a ~56px peek of the entry above, dimmed by the
+        // scrim — so you stay anchored in "still editing my entry".
+        maxHeight: `calc(100dvh - ${keyboardInset}px - 56px)`,
+        zIndex: 8500,
+      }
+    : {
+        position: 'fixed',
+        left: Math.min(anchor.left, window.innerWidth - panelWidth - 16),
+        width: panelWidth,
+        maxWidth: panelWidth,
+        zIndex: 8500,
+        top: anchor.top,
+        transform: anchor.placeAbove ? 'translateY(-100%)' : undefined,
+      }
+
+  const sheet = (
     <div
-      className={`command-popover command-popover--${variant}`}
+      className={`command-popover command-popover--${variant}${isMobile ? ' command-popover--sheet' : ''}`}
       style={style}
       role={role}
       aria-label={ariaLabel}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {isMobile && <div className="command-popover__grab" aria-hidden />}
       {header}
       <div className="command-popover__body">{children}</div>
       {footer != null && <footer className="command-popover__footer">{footer}</footer>}
-    </div>,
+    </div>
+  )
+
+  return createPortal(
+    isMobile ? (
+      <>
+        {/* Dimmed peek of the entry behind the sheet — context stays visible,
+            tap it to dismiss. */}
+        <div className="command-popover__scrim" onClick={onDismiss} aria-hidden />
+        {sheet}
+      </>
+    ) : (
+      sheet
+    ),
     document.body,
   )
 }
