@@ -352,6 +352,13 @@
   color: var(--danger);
 }
 
+.command-popover__offline-notice {
+  margin: 0.3rem 0.7rem 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-faint);
+}
+
 /* ── Scripture results ───────────────────────────────────────────────────── */
 
 .command-popover__results {

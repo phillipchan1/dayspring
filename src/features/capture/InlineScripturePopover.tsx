@@ -7,6 +7,7 @@ import {
 } from '@/lib/spiritual'
 import { recordScriptureCommandRef } from '@/lib/scripture/capture'
 import { formatScriptureInsert } from '@/lib/spiritualBlocks'
+import { matchOfflinePassages } from '@/lib/scripture/offlinePassages'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import {
   CommandPopover,
@@ -29,7 +30,7 @@ interface Props {
   onClose: () => void
 }
 
-type SearchSource = 'auto' | 'manual'
+type SearchSource = 'auto' | 'manual' | 'offline'
 /** Editing starts on a minimal menu so a click never spends an API call. */
 type Mode = 'menu' | 'search'
 
@@ -68,6 +69,7 @@ export function InlineScripturePopover({
     !edit && hasContext ? 'auto' : null,
   )
   const [error, setError] = useState<string | null>(null)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const autoFetchedRef = useRef(false)
@@ -78,11 +80,24 @@ export function InlineScripturePopover({
   activeIdxRef.current = activeIdx
   queryRef.current = query
 
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false)
+    const goOffline = () => setIsOffline(true)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
+
   const showingResults = (passages?.length ?? 0) > 0
   const chromeLabel =
-    searchSource === 'auto'
-      ? 'scripture · from what you wrote'
-      : 'scripture · search by topic'
+    searchSource === 'offline'
+      ? 'scripture · offline suggestions'
+      : searchSource === 'auto'
+        ? 'scripture · from what you wrote'
+        : 'scripture · search by topic'
   const searchPlaceholder =
     searchSource === 'auto' && showingResults
       ? 'Search something else…'
@@ -94,6 +109,17 @@ export function InlineScripturePopover({
     setError(null)
     setPassages(null)
     setSelectedIdx(null)
+
+    if (!navigator.onLine) {
+      const matches = matchOfflinePassages(text)
+      setPassages(
+        matches.map((m) => ({ reference: m.reference, reason: m.reason, translation: 'ESV', text: m.text })),
+      )
+      setSearchSource('offline')
+      setLoading(false)
+      return
+    }
+
     setSearchSource(source)
     try {
       // Phase 1 — the model picks references. These render immediately.
@@ -314,6 +340,12 @@ export function InlineScripturePopover({
     >
       {loading && <ScriptureLoadingSkeleton />}
       {error && !loading && <p className="command-popover__error">{error}</p>}
+
+      {isOffline && passages && passages.length > 0 && (
+        <p className="command-popover__offline-notice">
+          Offline — showing general suggestions, not personalized to your entry.
+        </p>
+      )}
 
       {passages && passages.length === 0 && !loading && (
         <p className="command-popover__status">No passages found.</p>
