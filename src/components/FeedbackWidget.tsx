@@ -9,10 +9,10 @@ type FeedbackType = 'bug' | 'idea' | 'other'
 type Status = 'idle' | 'submitting' | 'done' | 'error'
 
 interface Props {
-  isBeta: boolean
+  featureFlags: string[]
 }
 
-export function FeedbackWidget({ isBeta }: Props) {
+export function FeedbackWidget({ featureFlags }: Props) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [type, setType] = useState<FeedbackType>('idea')
@@ -23,7 +23,7 @@ export function FeedbackWidget({ isBeta }: Props) {
     if (open && textareaRef.current) textareaRef.current.focus()
   }, [open])
 
-  if (!MASTER_ENABLED || !isBeta) return null
+  if (!MASTER_ENABLED || !featureFlags.includes('beta')) return null
 
   async function handleSubmit() {
     if (!message.trim() || status === 'submitting') return

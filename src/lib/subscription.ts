@@ -7,7 +7,7 @@ export interface Subscription {
   plan: Plan
   trial_ends_at: string | null
   plan_expires_at: string | null
-  is_beta: boolean
+  featureFlags: string[]
 }
 
 export function isEntitled(sub: Subscription | null): boolean {
@@ -30,7 +30,7 @@ export async function fetchSubscription(): Promise<Subscription> {
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('profiles')
-    .select('plan, trial_ends_at, plan_expires_at, is_beta')
+    .select('plan, trial_ends_at, plan_expires_at, feature_flags')
     .maybeSingle()
 
   if (error) throw error
@@ -39,7 +39,7 @@ export async function fetchSubscription(): Promise<Subscription> {
     plan: (data?.plan as Plan | null) ?? 'none',
     trial_ends_at: data?.trial_ends_at ?? null,
     plan_expires_at: data?.plan_expires_at ?? null,
-    is_beta: data?.is_beta ?? false,
+    featureFlags: (data?.feature_flags as string[] | null) ?? [],
   }
 }
 

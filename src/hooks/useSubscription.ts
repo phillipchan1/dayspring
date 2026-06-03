@@ -5,7 +5,7 @@ import type { Subscription } from '@/lib/subscription'
 export interface SubscriptionState {
   subscription: Subscription | null
   entitled: boolean
-  isBeta: boolean
+  featureFlags: string[]
   loading: boolean
   refetch: () => Promise<void>
 }
@@ -46,7 +46,7 @@ export function useSubscription(): SubscriptionState {
   return {
     subscription,
     entitled: isEntitled(subscription),
-    isBeta: subscription?.is_beta ?? false,
+    featureFlags: subscription?.featureFlags ?? [],
     loading,
     refetch: load,
   }
