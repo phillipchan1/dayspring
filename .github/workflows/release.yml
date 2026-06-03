@@ -167,11 +167,13 @@ jobs:
           # Belt-and-suspenders: if no real cert is configured, fully unset every
           # APPLE_* var so the Tauri CLI never attempts (and fails) Apple signing.
           # An empty-string env var still triggers the import path, so unset wins.
-          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+          # Fall back to unsigned if either the cert OR its password is absent —
+          # an empty password causes `security import` to fail with "wrong password".
+          if [ -z "${APPLE_CERTIFICATE:-}" ] || [ -z "${APPLE_CERTIFICATE_PASSWORD:-}" ]; then
             unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
-            echo "No Apple cert — building unsigned (ad-hoc)."
+            echo "No Apple cert/password — building unsigned (ad-hoc)."
           else
-            echo "Apple cert present — building signed + notarized."
+            echo "Apple cert + password present — building signed + notarized."
           fi
           for attempt in 1 2 3; do
             echo "::group::tauri build (attempt $attempt)"
