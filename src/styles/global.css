@@ -2130,6 +2130,16 @@ html[data-focus-mode] .focus-controls {
 }
 .markdown-body img { max-width: 100%; border-radius: var(--radius); }
 
+/* ── Inline attachment image animations (used by attachmentImageExtension) ── */
+@keyframes cm-attachment-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes cm-attachment-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 0.35; }
+}
+
 /* ── Mobile entry drawer ────────────────────────────────────────────────── */
 .scrim {
   position: fixed;

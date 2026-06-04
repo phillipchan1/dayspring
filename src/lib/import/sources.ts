@@ -75,7 +75,7 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
       'Choose “All journals” (or a single journal) and save the .zip file.',
       'Drop that .zip below — entries are read in your browser and added to your journal.',
     ],
-    note: 'Dates come from each file’s folder. Photos and other attachments aren’t imported.',
+    note: ‘Dates come from each file’s folder. Photos are imported and stored in Supabase Storage.’,
     parse: parseDiarly,
   },
   {
@@ -93,7 +93,7 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
       'Save the resulting .zip — it contains a JSON file per journal.',
       'Drop that .zip below. Every journal in the export is brought in at once.',
     ],
-    note: 'Full timestamps, tags, and starred entries carry over. Photos, audio, and PDFs aren’t imported.',
+    note: ‘Full timestamps, tags, and starred entries carry over. Photos are imported; audio and PDFs are not.’,
     parse: parseDayOneZip,
   },
   {

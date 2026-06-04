@@ -3,13 +3,16 @@ import { upsertImportedEntries, type ImportedEntry } from '@/lib/entries'
 import type { ImportParseResult } from '@/lib/import/types'
 import type { ImportSourceDef } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
+import { requireSupabase } from '@/lib/supabase'
+import { importDayOneImages, importDiarlyImages, type ImageImportProgress } from '@/lib/import/importImages'
 
-type Phase = 'idle' | 'parsing' | 'preview' | 'importing' | 'done' | 'error'
+type Phase = 'idle' | 'parsing' | 'preview' | 'importing' | 'uploading-images' | 'done' | 'error'
 
 interface Summary {
   imported: number
   skipped: ImportParseResult['skipped']
   dateRange: ImportParseResult['dateRange']
+  images?: { uploaded: number; skipped: number; failed: number; missing: number }
 }
 
 /** Calendar day from an ISO timestamp (created_at may carry a real time). */
@@ -48,9 +51,11 @@ export function ImportRunner({ source }: Props) {
   const [result, setResult] = useState<ImportParseResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [imgProgress, setImgProgress] = useState<ImageImportProgress | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileBufferRef = useRef<ArrayBuffer | null>(null)
 
   async function handleFile(file: File) {
     if (!source.parse) return
@@ -62,7 +67,9 @@ export function ImportRunner({ source }: Props) {
     setPhase('parsing')
     setError(null)
     try {
-      const parsed = await source.parse(await file.arrayBuffer())
+      const buffer = await file.arrayBuffer()
+      fileBufferRef.current = buffer
+      const parsed = await source.parse(buffer)
       if (parsed.dated.length === 0 && parsed.skipped.length === 0) {
         setError(`Nothing importable found in this file. Is it a ${source.name} export?`)
         setPhase('error')
@@ -84,7 +91,52 @@ export function ImportRunner({ source }: Props) {
       await upsertImportedEntries(result.dated, source.id as EntrySource, (done, total) =>
         setProgress({ done, total }),
       )
-      setSummary({ imported: result.dated.length, skipped: result.skipped, dateRange: result.dateRange })
+
+      // Image import phase — Day One and Diarly only
+      const buffer = fileBufferRef.current
+      const hasImages = source.id === 'day_one' || source.id === 'diarly'
+      let imageSummary: Summary['images'] | undefined
+
+      if (buffer && hasImages) {
+        setPhase('uploading-images')
+        setImgProgress({ done: 0, total: 0, uploaded: 0, skipped: 0 })
+
+        const sb = requireSupabase()
+        const { data: { user } } = await sb.auth.getUser()
+
+        if (user) {
+          const importFn = source.id === 'day_one' ? importDayOneImages : importDiarlyImages
+          const imgResult = await importFn(
+            buffer,
+            result.dated,
+            sb,
+            user.id,
+            (p) => setImgProgress(p),
+          )
+
+          // Update entries whose body was rewritten with resolved attachment refs
+          const changed = imgResult.entries.filter(
+            (e, i) => e.body_markdown !== result.dated[i]?.body_markdown,
+          )
+          if (changed.length > 0) {
+            await upsertImportedEntries(changed, source.id as EntrySource)
+          }
+
+          imageSummary = {
+            uploaded: imgResult.uploaded,
+            skipped: imgResult.skipped,
+            failed: imgResult.failed,
+            missing: imgResult.missing,
+          }
+        }
+      }
+
+      setSummary({
+        imported: result.dated.length,
+        skipped: result.skipped,
+        dateRange: result.dateRange,
+        images: imageSummary,
+      })
       setPhase('done')
     } catch (e) {
       setError(describeWriteError(e))
@@ -98,6 +150,8 @@ export function ImportRunner({ source }: Props) {
     setError(null)
     setSummary(null)
     setProgress({ done: 0, total: 0 })
+    setImgProgress(null)
+    fileBufferRef.current = null
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -148,6 +202,9 @@ export function ImportRunner({ source }: Props) {
             <Stat label="Importable" value={`${result.dated.length}`} />
             <Stat label="Skipped" value={`${result.skipped.length}`} />
             <Stat label="Date range" value={range(result.dateRange)} />
+            {countImageRefs(result.dated, source.id) > 0 && (
+              <Stat label="Photos" value={`~${countImageRefs(result.dated, source.id)}`} />
+            )}
           </div>
 
           {result.dated[0] && (
@@ -178,12 +235,30 @@ export function ImportRunner({ source }: Props) {
       {phase === 'importing' && (
         <div>
           <p className="import-status">
-            Importing… {progress.done} / {progress.total}
+            Importing entries… {progress.done} / {progress.total}
           </p>
           <div className="import-progress">
             <div
               className="import-progress__bar"
               style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {phase === 'uploading-images' && imgProgress && (
+        <div>
+          <p className="import-status">
+            Uploading photos… {imgProgress.done} / {imgProgress.total}
+            {imgProgress.uploaded > 0 && ` · ${imgProgress.uploaded} new`}
+            {imgProgress.skipped > 0 && ` · ${imgProgress.skipped} already stored`}
+          </p>
+          <div className="import-progress">
+            <div
+              className="import-progress__bar"
+              style={{
+                width: `${imgProgress.total ? (imgProgress.done / imgProgress.total) * 100 : 0}%`,
+              }}
             />
           </div>
         </div>
@@ -195,6 +270,19 @@ export function ImportRunner({ source }: Props) {
             ✓ {summary.imported} {summary.imported === 1 ? 'entry' : 'entries'} imported
             {summary.skipped.length > 0 && ` · ${summary.skipped.length} skipped`}
           </p>
+          {summary.images && (summary.images.uploaded + summary.images.skipped) > 0 && (
+            <p className="import-hint">
+              Photos: {summary.images.uploaded} uploaded
+              {summary.images.skipped > 0 && `, ${summary.images.skipped} already stored`}
+              {summary.images.failed > 0 && `, ${summary.images.failed} failed`}
+              {summary.images.missing > 0 && `, ${summary.images.missing} not found in export`}
+            </p>
+          )}
+          {summary.images && summary.images.uploaded === 0 && summary.images.skipped === 0 && summary.images.failed > 0 && (
+            <p className="import-hint">
+              Photos: {summary.images.failed} failed — run the attachments migration in Supabase then re-import.
+            </p>
+          )}
           <p className="import-hint">Date range: {range(summary.dateRange)}</p>
           {summary.skipped.length > 0 && (
             <details className="import-skipped">
@@ -253,4 +341,12 @@ function SampleField({ label, value, mono }: { label: string; value: string; mon
       <span className={`import-sample__val${mono ? ' import-sample__val--mono' : ''}`}>{value}</span>
     </div>
   )
+}
+
+function countImageRefs(entries: ImportedEntry[], sourceId: string): number {
+  const re =
+    sourceId === 'day_one'
+      ? /attachment-pending:/g
+      : /\]\(data\//g
+  return entries.reduce((n, e) => n + (e.body_markdown.match(re)?.length ?? 0), 0)
 }
