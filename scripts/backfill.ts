@@ -47,6 +47,18 @@ const FORCE = args.includes('--force')
 // does), instead of scanning all history.
 const RECENT = args.includes('--recent')
 const fromArg = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a))
+// --concurrency N: run N weekly/monthly builds in parallel (default 1 = serial).
+// Weeklies are fully independent; monthlies are independent of other months.
+// Safe values: 8–12. Higher risks OpenAI rate-limit 429s.
+const concurrencyIdx = args.findIndex((a) => a === '--concurrency' || a.startsWith('--concurrency='))
+const CONCURRENCY = concurrencyIdx >= 0
+  ? Math.max(1, parseInt(
+      args[concurrencyIdx]!.includes('=')
+        ? args[concurrencyIdx]!.split('=')[1]!
+        : (args[concurrencyIdx + 1] ?? '1'),
+      10,
+    ))
+  : 1
 
 const REQUIRED =
   RECENT && DRY
@@ -181,39 +193,43 @@ async function main(): Promise<void> {
   }
 
   // ── 1. Weeklies first (monthly reads them) ──────────────────────────────────
-  console.log(`\nStep 1/2 — building ${weeksToBuild.length} weeklies…`)
+  console.log(`\nStep 1/2 — building ${weeksToBuild.length} weeklies… (concurrency=${CONCURRENCY})`)
   let wBuilt = 0
-  for (let i = 0; i < weeksToBuild.length; i++) {
-    const period = weekPeriod(weeksToBuild[i]!)
+  let wDone = 0
+  await runConcurrent(weeksToBuild, CONCURRENCY, async (start) => {
+    const period = weekPeriod(start)
+    const idx = ++wDone
     try {
       const r = await buildWeekly(owner, period)
       if (r.status === 'built') wBuilt++
       console.log(
-        `  [${i + 1}/${weeksToBuild.length}] ${period.start}…${period.end}  ` +
+        `  [${idx}/${weeksToBuild.length}] ${period.start}…${period.end}  ` +
           (r.status === 'built' ? `✓ ${r.quotes} quotes, ${r.topics} topics${r.observation ? ', note' : ''}` : '· empty'),
       )
     } catch (err) {
-      console.error(`  [${i + 1}/${weeksToBuild.length}] ${period.start}…${period.end}  ✗ ${errMsg(err)}`)
+      console.error(`  [${idx}/${weeksToBuild.length}] ${period.start}…${period.end}  ✗ ${errMsg(err)}`)
     }
-  }
+  })
   console.log(`Weeklies built: ${wBuilt}.`)
 
   // ── 2. Monthlies ────────────────────────────────────────────────────────────
-  console.log(`\nStep 2/2 — building ${monthsToBuild.length} monthlies…`)
+  console.log(`\nStep 2/2 — building ${monthsToBuild.length} monthlies… (concurrency=${CONCURRENCY})`)
   let mBuilt = 0
-  for (let i = 0; i < monthsToBuild.length; i++) {
-    const period = monthPeriod(monthsToBuild[i]!)
+  let mDone = 0
+  await runConcurrent(monthsToBuild, CONCURRENCY, async (start) => {
+    const period = monthPeriod(start)
+    const idx = ++mDone
     try {
       const r = await buildMonthly(owner, period)
       if (r.status === 'built') mBuilt++
       console.log(
-        `  [${i + 1}/${monthsToBuild.length}] ${period.start.slice(0, 7)}  ` +
+        `  [${idx}/${monthsToBuild.length}] ${period.start.slice(0, 7)}  ` +
           (r.status === 'built' ? `✓ ${r.quotes} quotes, ${r.topics} topics` : '· no weeklies'),
       )
     } catch (err) {
-      console.error(`  [${i + 1}/${monthsToBuild.length}] ${period.start.slice(0, 7)}  ✗ ${errMsg(err)}`)
+      console.error(`  [${idx}/${monthsToBuild.length}] ${period.start.slice(0, 7)}  ✗ ${errMsg(err)}`)
     }
-  }
+  })
   console.log(`Monthlies built: ${mBuilt}.`)
   console.log('\nDone. Reload Reflections and use the period switcher.')
 }
@@ -245,6 +261,29 @@ function monthPeriod(start: string): Period {
 function errMsg(e: unknown): string {
   const pg = e as { message?: string } | null
   return pg?.message ?? (e instanceof Error ? e.message : String(e))
+}
+
+/** Run `fn` over every item in `items` with at most `concurrency` in-flight at once. */
+async function runConcurrent<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (concurrency <= 1) {
+    for (const item of items) await fn(item)
+    return
+  }
+  // Slot-based: keep exactly `concurrency` promises live until the queue drains.
+  const queue = [...items]
+  const active = new Set<Promise<void>>()
+  while (queue.length > 0 || active.size > 0) {
+    while (active.size < concurrency && queue.length > 0) {
+      const item = queue.shift()!
+      const p = fn(item).finally(() => active.delete(p))
+      active.add(p)
+    }
+    if (active.size > 0) await Promise.race(active)
+  }
 }
 
 main().catch((e) => {

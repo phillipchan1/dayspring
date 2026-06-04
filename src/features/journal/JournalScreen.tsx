@@ -42,6 +42,8 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
+import { ThreadsView } from '@/features/threads/ThreadsView'
+import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
   copyEntriesMarkdown,
@@ -127,9 +129,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
   const reflectionsActive = state.surface === 'reflections'
+  const threadsActive = state.surface === 'threads'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  const threadsRopes = resolveFlag(featureFlags, 'threadsRopes')
+  const canvasAlternateActive = reflectionsActive || threadsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
 
@@ -156,6 +160,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   entryIdRef.current = entryId
   const contentRef = useRef(content)
   contentRef.current = content
+  const entriesRef = useRef(entries)
+  entriesRef.current = entries
   const skipEntrySyncRef = useRef(false)
   /** While true, autosave may create an entry but we must not adopt its id (⌘N / C “new”). */
   const skipAdoptOnCreateRef = useRef(false)
@@ -290,10 +296,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   function applySyncedList(synced: Entry[]) {
-    setEntries(synced)
     const wantedId = entryIdRef.current
     const match = wantedId ? synced.find((e) => e.id === wantedId) : null
     if (match) {
+      // Current entry is in the synced list — straightforward update.
+      setEntries(synced)
       const body = asEntryMarkdown(match.body_markdown)
       const shouldSeed =
         loadedEntryIdRef.current !== wantedId ||
@@ -306,6 +313,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (!wantedId && synced.length && !contentRef.current.trim()) {
+      setEntries(synced)
       skipEntrySyncRef.current = true
       const first = synced[0]!
       go({ entryId: first.id }, { replace: true })
@@ -314,7 +322,25 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (wantedId && synced.length) {
+      // The current entry is not in the server's list. Before treating it as
+      // deleted, check whether it still exists in local state — a just-created
+      // entry that hasn't been pushed yet won't appear in a sync that started
+      // before the push. In that case keep the entry in the list and stay put;
+      // the next sync (after the push succeeds) will include it.
+      const localEntry = entriesRef.current.find((e) => e.id === wantedId)
+      if (localEntry) {
+        // Preserve the local-only entry alongside the server list.
+        setEntries((prev) => {
+          const syncedIds = new Set(synced.map((e) => e.id))
+          const localOnly = prev.filter((e) => !syncedIds.has(e.id))
+          return [...localOnly, ...synced].sort(byCreatedDesc)
+        })
+        return
+      }
+      setEntries(synced)
       navigateAwayFromDeletedEntry(synced, [wantedId])
+    } else {
+      setEntries(synced)
     }
   }
 
@@ -573,6 +599,28 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }
 
+  function toggleThreads() {
+    if (state.entryReturn?.surface === 'threads') {
+      returnFromEntryOrigin()
+      return
+    }
+    if (threadsActive) back()
+    else {
+      void saveNow()
+      setEntriesOpen(false)
+      go({
+        surface: 'threads',
+        entryId: null,
+        entryReturn: null,
+        ascentAltitude: 0,
+        ascentDrill: null,
+        settings: null,
+        help: false,
+        sidebar: false,
+      })
+    }
+  }
+
   function toggleScripture() {
     if (state.entryReturn?.surface === 'scripture') {
       returnFromEntryOrigin()
@@ -654,7 +702,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onNew: () => void handleNew(),
     onSave: saveNow,
     onToggleEntries: toggleEntries,
-    onLookBack: toggleLookBack,
+    onLookBack: threadsRopes ? toggleThreads : toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => {
@@ -1060,6 +1108,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
   ) : altarActive ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
+  ) : threadsActive ? (
+    // Flag OFF ⇒ this branch is never reached; redirect to reflections for safety.
+    threadsRopes
+      ? <ThreadsView onOpenEntry={handleOpenReflectionEntry} />
+      : <AscentView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
   ) : restrictIds ? (
@@ -1101,6 +1154,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     query,
     onQueryChange: setQuery,
     onLookBack: toggleLookBack,
+    onThreads: toggleThreads,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => openSettings(),
@@ -1121,6 +1175,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onToggleEntries: toggleEntries,
     mainSlot,
     reflectionsActive,
+    threadsActive,
+    threadsRopes,
     altarActive,
     scriptureActive,
     entryReturn: state.entryReturn,
@@ -1128,7 +1184,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   return (
-    <>
+    <FeatureFlagProvider flags={featureFlags}>
+      <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
 
       {slashCapture?.cmd === 'scripture' && (
@@ -1225,5 +1282,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         onSave={handleEditDateSave}
       />
     </>
+    </FeatureFlagProvider>
   )
 }

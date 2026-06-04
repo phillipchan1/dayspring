@@ -1,0 +1,42 @@
+import { createContext, useContext } from 'react'
+import type { ReactNode } from 'react'
+
+/** Map of flag key → Vite env variable name. */
+const FLAG_ENV: Record<string, string> = {
+  threadsRopes: 'VITE_FF_THREADS_ROPES',
+}
+
+/**
+ * Resolve a feature flag for a given user.
+ *
+ * Resolution order:
+ *   1. Per-user override: profiles.feature_flags (text[]) read once on boot.
+ *   2. Env default: VITE_FF_<KEY> === 'true'.
+ *   3. Off.
+ *
+ * // TODO: wire real A/B bucketing — for now, assignment is manual via the
+ * // profiles.feature_flags jsonb field (set 'threadsRopes' in the array).
+ */
+export function resolveFlag(flags: string[], key: string): boolean {
+  if (flags.includes(key)) return true
+  const envKey = FLAG_ENV[key]
+  return envKey !== undefined && import.meta.env[envKey] === 'true'
+}
+
+const FeatureFlagContext = createContext<string[]>([])
+
+/** Wrap JournalScreen (or any subtree) to make flags available via useFeatureFlag. */
+export function FeatureFlagProvider({
+  flags,
+  children,
+}: {
+  flags: string[]
+  children: ReactNode
+}) {
+  return <FeatureFlagContext.Provider value={flags}>{children}</FeatureFlagContext.Provider>
+}
+
+/** Read a single feature flag from the nearest FeatureFlagProvider. */
+export function useFeatureFlag(key: string): boolean {
+  return resolveFlag(useContext(FeatureFlagContext), key)
+}

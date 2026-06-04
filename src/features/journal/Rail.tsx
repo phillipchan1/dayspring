@@ -13,6 +13,10 @@ interface RailProps {
   entriesOpen: boolean
   lookBackActive: boolean
   onLookBack: () => void
+  threadsActive: boolean
+  onThreads: () => void
+  /** When true the rail shows "Threads" instead of "Ascent". */
+  threadsRopes: boolean
   altarActive: boolean
   onAltar: () => void
   scriptureActive: boolean
@@ -34,6 +38,9 @@ export function Rail({
   entriesOpen,
   lookBackActive,
   onLookBack,
+  threadsActive,
+  onThreads,
+  threadsRopes,
   altarActive,
   onAltar,
   scriptureActive,
@@ -91,15 +98,27 @@ export function Rail({
           <span className="rail__group-label" aria-hidden data-tauri-drag-region={drag}>
             Return
           </span>
-          <RailButton
-            label="Ascent"
-            subline="The climb through your seasons"
-            shortcut="⌘2"
-            onClick={onLookBack}
-            active={lookBackActive}
-            icon={<IconAscent />}
-            labelsExpanded={labelsExpanded}
-          />
+          {threadsRopes ? (
+            <RailButton
+              label="Threads"
+              subline="The threads that run through time"
+              shortcut="⌘2"
+              onClick={onThreads}
+              active={threadsActive}
+              icon={<IconThreads />}
+              labelsExpanded={labelsExpanded}
+            />
+          ) : (
+            <RailButton
+              label="Ascent"
+              subline="The climb through your seasons"
+              shortcut="⌘2"
+              onClick={onLookBack}
+              active={lookBackActive}
+              icon={<IconAscent />}
+              labelsExpanded={labelsExpanded}
+            />
+          )}
           <RailButton
             label="Lamp"
             subline="The verses you return to"
@@ -292,6 +311,17 @@ function IconAltar() {
   return (
     <NavIcon>
       <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </NavIcon>
+  )
+}
+
+function IconThreads() {
+  // Three wave lines — horizontal threads, no altitude/climb language.
+  return (
+    <NavIcon>
+      <path d="M3 8 Q7 5 12 8 Q17 11 21 8" />
+      <path d="M3 12 Q7 9 12 12 Q17 15 21 12" />
+      <path d="M3 16 Q7 13 12 16 Q17 19 21 16" />
     </NavIcon>
   )
 }

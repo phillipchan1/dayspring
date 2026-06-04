@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createSpiritualItem, updateSpiritualItem } from '@/lib/spiritual'
 import { formatSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
@@ -26,10 +26,14 @@ interface Props {
 export function InlineSensePopover({ entryId, anchor, edit, onInsert, onRemove, onClose }: Props) {
   const [text, setText] = useState(edit?.content ?? '')
   const [error, setError] = useState<string | null>(null)
+  // Guard against key-repeat or blur firing a second insert before React unmounts.
+  const committedRef = useRef(false)
 
   function handleCommit() {
     const content = text.trim()
     if (!content) return
+    if (committedRef.current) return
+    committedRef.current = true
     setError(null)
     const id = edit?.id ?? crypto.randomUUID()
     onInsert(formatSpiritualBlock('sense', id, content))

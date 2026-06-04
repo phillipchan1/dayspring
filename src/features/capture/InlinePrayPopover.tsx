@@ -48,6 +48,8 @@ export function InlinePrayPopover({ entryId, anchor, edit, onInsert, onRemove, o
   // The prayer type lives in the DB row, not the fence — hydrate it when editing,
   // unless the user has already picked one in the meantime.
   const userPickedRef = useRef(false)
+  // Guard against key-repeat or blur firing a second insert before React unmounts.
+  const committedRef = useRef(false)
   const editId = edit?.id
   useEffect(() => {
     if (!editId) return
@@ -66,6 +68,8 @@ export function InlinePrayPopover({ entryId, anchor, edit, onInsert, onRemove, o
   async function handleCommit() {
     const content = text.trim()
     if (!content) return
+    if (committedRef.current) return
+    committedRef.current = true
     setError(null)
     const id = edit?.id ?? crypto.randomUUID()
     const metadata = prayerType ? { prayer_type: prayerType } : null

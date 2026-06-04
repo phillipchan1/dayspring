@@ -3,8 +3,8 @@ export const APP_HISTORY_TAG = 'dayspring' as const
 
 export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
-/** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
-export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections'
+/** Where the user was before opening an entry from Lamp, Altar, Ascent, or Threads. */
+export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'threads'
 
 /** Drill-in overlay on the Ascent canvas (week scripture, theme quotes, etc.). */
 export type AscentDrill =
@@ -26,11 +26,12 @@ export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
   scripture: 'Lamp',
   altar: 'Altar',
   reflections: 'Ascent',
+  threads: 'Threads',
 }
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
-  surface: 'journal' | 'reflections' | 'altar' | 'scripture'
+  surface: 'journal' | 'reflections' | 'altar' | 'scripture' | 'threads'
   entryId: string | null
   /** Open settings modal; `importSource` set on a pushed frame when viewing a source. */
   settings: { tab: SettingsTab; importSource: string | null } | null
@@ -92,7 +93,8 @@ function normalizeAscentDrill(value: unknown): AscentDrill | null {
 function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
   if (typeof value !== 'object' || value === null) return null
   const r = value as EntryReturnContext
-  if (r.surface !== 'scripture' && r.surface !== 'altar' && r.surface !== 'reflections') return null
+  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'threads']
+  if (!validSurface.includes(r.surface)) return null
   return {
     surface: r.surface,
     scriptureBook: typeof r.scriptureBook === 'string' ? r.scriptureBook : null,
@@ -145,6 +147,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
 }
 
 export const LAMP_PATH = '/lamp' as const
+export const THREADS_PATH = '/threads' as const
 export const LEGACY_SCRIPTURE_PATH = '/scripture' as const
 
 export function normalizePathname(pathname: string): string {
@@ -152,15 +155,18 @@ export function normalizePathname(pathname: string): string {
   return trimmed === '' ? '/' : trimmed
 }
 
-/** User-facing path for a main canvas surface (Lamp only has a dedicated segment). */
+/** User-facing path for a main canvas surface. */
 export function pathForSurface(surface: AppHistoryState['surface']): string {
-  return surface === 'scripture' ? LAMP_PATH : '/'
+  if (surface === 'scripture') return LAMP_PATH
+  if (surface === 'threads') return THREADS_PATH
+  return '/'
 }
 
 /** Map a bookmarked path to a canvas surface, when history.state is missing. */
 export function surfaceFromPath(pathname: string): AppHistoryState['surface'] | null {
   const p = normalizePathname(pathname)
   if (p === LAMP_PATH || p === LEGACY_SCRIPTURE_PATH) return 'scripture'
+  if (p === THREADS_PATH) return 'threads'
   return null
 }
 
@@ -209,6 +215,15 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: state.ascentAltitude,
       ascentDrill: state.ascentDrill,
+    }
+  }
+  if (state.surface === 'threads') {
+    return {
+      surface: 'threads',
+      scriptureBook: null,
+      scriptureVerse: null,
+      ascentAltitude: 0,
+      ascentDrill: null,
     }
   }
   return null
