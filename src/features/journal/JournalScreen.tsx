@@ -14,7 +14,7 @@ import { subscribeEntryChanges } from '@/lib/entriesRealtime'
 import { isSupabaseConfigured } from '@/lib/env'
 import { isTauri } from '@/lib/platform'
 import * as repo from '@/lib/repo'
-import { cacheGet } from '@/lib/db'
+import { cacheGet, cachePut } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
 import type { Entry, PrayerType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
@@ -510,10 +510,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- applySyncedList is stable; ref holds live id
   }, [])
 
+  // Autosave must be dormant on alternate surfaces (Ascent / Altar / Lamp). The
+  // editor isn't visible there, but `content` still holds the last entry's body
+  // while `entryId` is null — so a flush (debounce, or the visibilitychange /
+  // beforeunload listeners that fire when a desktop window loses focus) would see
+  // idRef === null with a full existing body and CREATE a duplicate row. Gating
+  // `enabled` on the journal surface removes those listeners and short-circuits
+  // flush() off-surface; returning to journal re-baselines via the wasEnabled
+  // effect so no spurious save fires. This is the actual source of the recurring
+  // "duplicate entry" bug — do not loosen this gate without reading that flow.
   const { status, lastSavedAt, error: saveError, saveNow, resetEntry } = useAutosave({
     entryId,
     content,
-    enabled: entriesReady,
+    enabled: entriesReady && state.surface === 'journal',
     onAfterSave: (saved) => {
       void syncSpiritualBlocksFromMarkdown(entryIdRef.current, saved).catch(() => {
         // Non-fatal — entry body is already persisted
@@ -845,8 +854,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // The Scripture map and Altar reference entries spanning years; the one we
     // want may be older than the locally-cached ~500-entry window, so fall back
     // to the cache and then to the server.
-    const entry =
-      entries.find((e) => e.id === id) ?? (await cacheGet(id)) ?? (await getEntryById(id))
+    let entry = entries.find((e) => e.id === id) ?? (await cacheGet(id))
+    if (!entry) {
+      const remote = await getEntryById(id)
+      if (remote) {
+        await cachePut(remote)
+        entry = remote
+      }
+    }
     if (!entry) return
 
     const returnCtx = entryReturnFromState(state)

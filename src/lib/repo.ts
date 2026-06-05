@@ -61,21 +61,9 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
 
 export async function updateEntryBody(id: string, body: string): Promise<Entry> {
   const base = await cache.cacheGet(id)
+  if (!base) throw new Error(`Entry ${id} not found in local cache — cannot update`)
   const ts = nowISO()
-  const entry: Entry = base
-    ? { ...base, body_markdown: body, word_count: wordCount(body), updated_at: ts }
-    : {
-        id,
-        created_at: ts,
-        updated_at: ts,
-        body_markdown: body,
-        title: null,
-        mood: null,
-        tags: [],
-        word_count: wordCount(body),
-        source: 'native',
-        external_id: null,
-      }
+  const entry: Entry = { ...base, body_markdown: body, word_count: wordCount(body), updated_at: ts }
   await cache.cachePut(entry)
   await queueUpsert(id)
   scheduleFlush()
