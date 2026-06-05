@@ -176,10 +176,14 @@ export async function loadThread(threadId: string): Promise<ThreadDetail | null>
     .order('entries(created_at)', { ascending: true })
   if (merr) { console.error('[threads] member query error', merr.message); return null }
 
-  const moments: MomentItem[] = ((mdata ?? []) as {
-    entry_id: string; register: string
+  // Cast through unknown — Supabase infers the joined `entries` column as an
+  // array type, but PostgREST returns a single object for FK many-to-one joins.
+  type MemberRow = {
+    entry_id: string
+    register: string
     entries: { id: string; body_markdown: string; created_at: string } | null
-  }[])
+  }
+  const moments: MomentItem[] = ((mdata ?? []) as unknown as MemberRow[])
     .filter((m) => m.entries)
     .map((m) => ({
       entryId: m.entry_id,
