@@ -31,6 +31,9 @@
     "active": true,
     "targets": ["app", "dmg"],
     "createUpdaterArtifacts": true,
+    "iOS": {
+      "developmentTeam": "4629AQ24Z2"
+    },
     "macOS": {
       "signingIdentity": "-"
     },
