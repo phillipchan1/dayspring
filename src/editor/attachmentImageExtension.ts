@@ -158,7 +158,7 @@ function fetchMissingUrls(view: EditorView): void {
       inFlight.delete(key)
       if (!url || resolvedUrls.has(key)) return
       resolvedUrls.set(key, url)
-      if (!view.isDestroyed) {
+      if (!(view as unknown as { isDestroyed?: boolean }).isDestroyed) {
         view.dispatch({ effects: urlResolved.of(undefined) })
       }
     }).catch(() => {

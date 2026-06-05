@@ -135,7 +135,7 @@ export function ImportRunner({ source }: Props) {
         imported: result.dated.length,
         skipped: result.skipped,
         dateRange: result.dateRange,
-        images: imageSummary,
+        ...(imageSummary ? { images: imageSummary } : {}),
       })
       setPhase('done')
     } catch (e) {

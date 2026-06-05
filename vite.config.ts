@@ -61,8 +61,13 @@ export default defineConfig({
     port: 5180,
     strictPort: true,
     watch: {
-      // Rust build artifacts (target/) and iOS/Xcode outputs (gen/) — not frontend.
-      ignored: [`${process.cwd()}/src-tauri/**`],
+      // Exclude large/irrelevant trees that aren't frontend source.
+      ignored: [
+        `${process.cwd()}/src-tauri/**`,  // Rust build artifacts + iOS/Xcode
+        `${process.cwd()}/dist/**`,        // vite build output
+        `${process.cwd()}/scripts/**`,     // server-side scripts (not bundled)
+        `${process.cwd()}/.git/**`,
+      ],
     },
   },
   test: {
