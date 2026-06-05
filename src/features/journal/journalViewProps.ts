@@ -40,8 +40,6 @@ export interface JournalViewProps {
   onQueryChange: (q: string) => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
-  /** Route to the Threads & Ropes surface (shown when threadsRopes flag is ON). */
-  onThreads: () => void
   /** Route to the Lamp (scripture canon) surface. */
   onScripture: () => void
   /** Route to the Altar surface. */
@@ -62,8 +60,6 @@ export interface JournalViewProps {
   mainSlot: ReactNode
   /** True when Looking back fills the main canvas (rail + entries stay visible). */
   reflectionsActive: boolean
-  /** True when the Threads & Ropes surface fills the main canvas. */
-  threadsActive: boolean
   /** True when the Altar fills the main canvas. */
   altarActive: boolean
   /** True when the Lamp surface fills the main canvas. */

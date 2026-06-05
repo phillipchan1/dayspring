@@ -3,22 +3,13 @@ export const APP_HISTORY_TAG = 'dayspring' as const
 
 export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
-/** Where the user was before opening an entry from Lamp, Altar, Ascent, or Threads. */
-export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'threads'
+/** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
+export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections'
 
-/** Internal navigation state for the Threads & Ropes surface. */
-export type ThreadsNav =
-  | { level: 'field' }
-  | { level: 'rope';   ropeId: string; ropeName: string }
-  | { level: 'thread'; threadId: string; threadName: string; ropeId: string | null; ropeName: string | null }
-  | { level: 'entry';  entryId: string; threadId: string; threadName: string; ropeId: string | null; ropeName: string | null }
-
-/** Drill-in overlay on the Ascent canvas (week scripture, theme quotes, etc.). */
+/** Drill-in overlay on the Ascent canvas (a verse's rise, or a rope's tended life). */
 export type AscentDrill =
   | { kind: 'scripture'; osisRef: string }
-  | { kind: 'prayer' }
-  | { kind: 'learning' }
-  | { kind: 'theme'; themeId: string }
+  | { kind: 'band'; bandId: string; bandKind: 'rope' | 'thread'; label: string }
 
 export interface EntryReturnContext {
   surface: EntryReturnSurface
@@ -33,12 +24,13 @@ export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
   scripture: 'Lamp',
   altar: 'Altar',
   reflections: 'Ascent',
-  threads: 'Threads',
 }
+
+export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture'
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
-  surface: 'journal' | 'reflections' | 'altar' | 'scripture' | 'threads'
+  surface: Surface
   entryId: string | null
   /** Open settings modal; `importSource` set on a pushed frame when viewing a source. */
   settings: { tab: SettingsTab; importSource: string | null } | null
@@ -56,8 +48,6 @@ export interface AppHistoryState {
   ascentAltitude: number
   /** Open Ascent drill-in; its own history frame for mouse / browser Back. */
   ascentDrill: AscentDrill | null
-  /** Threads & Ropes internal nav; its own history frame so Back works per level. */
-  threadsNav: ThreadsNav | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -73,7 +63,6 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   entryReturn: null,
   ascentAltitude: 0,
   ascentDrill: null,
-  threadsNav: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -95,15 +84,24 @@ function normalizeAscentDrill(value: unknown): AscentDrill | null {
   if (typeof value !== 'object' || value === null) return null
   const d = value as AscentDrill
   if (d.kind === 'scripture' && typeof d.osisRef === 'string') return d
-  if (d.kind === 'prayer' || d.kind === 'learning') return { kind: d.kind }
-  if (d.kind === 'theme' && typeof d.themeId === 'string') return d
+  if (d.kind === 'band' && typeof d.bandId === 'string' && (d.bandKind === 'rope' || d.bandKind === 'thread') && typeof d.label === 'string') return d
   return null
+}
+
+/** Coerce a surface to a live one — folds the retired 'threads' surface (and any
+ *  unknown value from a stale history frame) into Ascent, so Back never strands. */
+function normalizeSurface(value: unknown): Surface {
+  if (value === 'reflections' || value === 'altar' || value === 'scripture' || value === 'journal') return value
+  if (value === 'threads') return 'reflections' // Threads folded into Ascent
+  return 'journal'
 }
 
 function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
   if (typeof value !== 'object' || value === null) return null
   const r = value as EntryReturnContext
-  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'threads']
+  // A stale entryReturn pointing at the retired 'threads' surface → reflections.
+  if ((r.surface as string) === 'threads') r.surface = 'reflections'
+  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections']
   if (!validSurface.includes(r.surface)) return null
   return {
     surface: r.surface,
@@ -120,6 +118,7 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     ...DEFAULT_APP_HISTORY,
     ...state,
     tag: APP_HISTORY_TAG,
+    surface: normalizeSurface(state.surface),
     entryReturn: normalizeEntryReturn(state.entryReturn),
     ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
@@ -151,7 +150,6 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
-    JSON.stringify(a.threadsNav) === JSON.stringify(b.threadsNav) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
   )
@@ -169,15 +167,15 @@ export function normalizePathname(pathname: string): string {
 /** User-facing path for a main canvas surface. */
 export function pathForSurface(surface: AppHistoryState['surface']): string {
   if (surface === 'scripture') return LAMP_PATH
-  if (surface === 'threads') return THREADS_PATH
   return '/'
 }
 
-/** Map a bookmarked path to a canvas surface, when history.state is missing. */
+/** Map a bookmarked path to a canvas surface, when history.state is missing.
+ *  The retired /threads path redirects to Ascent (Threads folded in). */
 export function surfaceFromPath(pathname: string): AppHistoryState['surface'] | null {
   const p = normalizePathname(pathname)
   if (p === LAMP_PATH || p === LEGACY_SCRIPTURE_PATH) return 'scripture'
-  if (p === THREADS_PATH) return 'threads'
+  if (p === THREADS_PATH) return 'reflections'
   return null
 }
 
@@ -226,15 +224,6 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: state.ascentAltitude,
       ascentDrill: state.ascentDrill,
-    }
-  }
-  if (state.surface === 'threads') {
-    return {
-      surface: 'threads',
-      scriptureBook: null,
-      scriptureVerse: null,
-      ascentAltitude: 0,
-      ascentDrill: null,
     }
   }
   return null

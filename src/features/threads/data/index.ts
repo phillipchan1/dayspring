@@ -6,9 +6,13 @@
  */
 
 import { requireSupabase } from '@/lib/supabase'
+import {
+  buildBands, buildTended, reframeFor,
+  type RawThread, type RawRope, type RawMember, type RawTendedMember,
+} from './bands'
 import type {
   Horizon, FieldItem, ThreadItem, ThreadDetail, EntryDetail,
-  MomentItem, Register,
+  MomentItem, Register, WarmthBand, BandTended,
 } from './types'
 
 // ── horizon → days back ───────────────────────────────────────────────────────
@@ -21,22 +25,7 @@ const HORIZON_DAYS: Record<Horizon, number | null> = {
   4: null,
 }
 
-// ── deterministic reframe line ────────────────────────────────────────────────
-
-function reframeFor(spanStart: string, spanEnd: string, _memberCount: number, hasMeeting: boolean): string {
-  const ms = new Date(spanEnd).getTime() - new Date(spanStart).getTime()
-  const days = ms / 86_400_000
-  const years = Math.floor(days / 365)
-  const months = Math.floor(days / 30)
-
-  const meetingSuffix = hasMeeting ? ' — and you weren\'t the only one who kept showing up.' : '.'
-
-  if (days < 60)  return 'A current weight — recent, still being carried.'
-  if (days < 180) return `You've returned here across ${months} months. Each return is the thread.`
-  if (years < 1)  return `${months} months of returning to this. The thread is the returning${meetingSuffix}`
-  if (years < 3)  return `You've returned here across ${years === 1 ? 'a year' : `${years} years`}. Each time the thread stayed.`
-  return `You've come back to this for ${years} years. The returning is its own faithfulness${meetingSuffix}`
-}
+// ── label resolution ──────────────────────────────────────────────────────────
 
 function resolveLabel(row: { label?: string | null; label_ai?: string | null; label_user?: string | null }): string {
   return row.label_user ?? row.label_ai ?? row.label ?? ''
@@ -132,6 +121,117 @@ export async function loadField(horizon: Horizon): Promise<FieldItem[]> {
   return items
 }
 
+// ── warmth bands at a horizon (the converged Ascent read) ─────────────────────
+
+/**
+ * Ropes (and standalone threads) as abstract warmth bands, windowed up to a
+ * horizon. Pure aggregation over thread_members ⋈ entries — no clustering, no
+ * LLM, no schema change. The same bands persist across altitudes and thicken as
+ * the window widens. See ./bands for the encoding.
+ */
+export async function getRopesAtHorizon(horizon: Horizon): Promise<WarmthBand[]> {
+  const sb = requireSupabase()
+
+  // Visible threads (engine drops dismissed; RLS scopes to the owner).
+  const { data: tdata, error: terr } = await sb
+    .from('threads')
+    .select('id, lens, domain, rope_id, label, label_ai, label_user, private, dismissed')
+    .eq('dismissed', false)
+  if (terr) { console.error('[threads] horizon thread query', terr.message); return [] }
+  const threads = (tdata ?? []) as RawThread[]
+  if (threads.length === 0) return []
+
+  const { data: rdata } = await sb.from('ropes').select('id, label, label_user')
+  const ropes = (rdata ?? []) as RawRope[]
+
+  // Members joined to their non-superseded entries. PostgREST returns the FK join
+  // as an object (cast through unknown — it infers an array type).
+  const threadIds = threads.map((t) => t.id)
+  const { data: mdata, error: merr } = await sb
+    .from('thread_members')
+    .select('thread_id, entry_id, entries(created_at, body_markdown, superseded)')
+    .in('thread_id', threadIds)
+  if (merr) { console.error('[threads] horizon member query', merr.message); return [] }
+
+  type MRow = {
+    thread_id: string
+    entry_id: string
+    entries: { created_at: string; body_markdown: string; superseded: boolean } | null
+  }
+  const members: RawMember[] = ((mdata ?? []) as unknown as MRow[])
+    .filter((m) => m.entries && !m.entries.superseded)
+    .map((m) => ({
+      thread_id: m.thread_id,
+      entry_id: m.entry_id,
+      created_at: m.entries!.created_at,
+      body: m.entries!.body_markdown,
+    }))
+
+  return buildBands(threads, ropes, members, horizon, Date.now())
+}
+
+// ── a band's tended life (the click-in) ───────────────────────────────────────
+
+/**
+ * One band's full life — every member moment ordered by entry_created_at, down to
+ * the source entries. NOT windowed: the field band is abstract-at-distance, but
+ * the click-in is concrete and complete. Works for a rope (union of its threads,
+ * deduped by entry) or a standalone thread; assembly is pure (buildTended).
+ */
+export async function getBandTimeline(id: string, kind: 'rope' | 'thread'): Promise<BandTended | null> {
+  const sb = requireSupabase()
+
+  // Resolve the band's threads, label, and hue lenses (domain ?? rope ?? lens).
+  let threadIds: string[] = []
+  let label = ''
+  const lenses = new Set<string>()
+  if (kind === 'thread') {
+    const { data } = await sb
+      .from('threads')
+      .select('id, lens, domain, label, label_ai, label_user')
+      .eq('id', id).maybeSingle()
+    if (!data) return null
+    const t = data as { id: string; lens: string | null; domain: string | null; label: string; label_ai: string | null; label_user: string | null }
+    threadIds = [t.id]
+    label = resolveLabel(t)
+    const hl = t.domain ?? t.lens
+    if (hl) lenses.add(hl)
+  } else {
+    const { data: rope } = await sb.from('ropes').select('id, label, label_user').eq('id', id).maybeSingle()
+    const { data: ths } = await sb
+      .from('threads')
+      .select('id, lens, domain')
+      .eq('rope_id', id).eq('dismissed', false)
+    const r = rope as { label: string; label_user: string | null } | null
+    const threads = (ths ?? []) as { id: string; lens: string | null; domain: string | null }[]
+    if (!r || threads.length === 0) return null
+    label = r.label_user ?? r.label
+    threadIds = threads.map((t) => t.id)
+    for (const t of threads) {
+      const hl = t.domain ?? r.label_user ?? r.label ?? t.lens
+      if (hl) lenses.add(hl)
+    }
+  }
+
+  // Members joined to their non-superseded entries; assembly (dedupe/order/pools/
+  // reframe) is the pure buildTended.
+  const { data: mdata, error } = await sb
+    .from('thread_members')
+    .select('entry_id, register, entries(id, body_markdown, created_at, superseded)')
+    .in('thread_id', threadIds)
+  if (error) { console.error('[threads] band timeline query', error.message); return null }
+  type MRow = { entry_id: string; register: string; entries: { id: string; body_markdown: string; created_at: string; superseded: boolean } | null }
+
+  const raw: RawTendedMember[] = ((mdata ?? []) as unknown as MRow[])
+    .filter((m) => m.entries && !m.entries.superseded)
+    .map((m) => ({ entryId: m.entry_id, created_at: m.entries!.created_at, register: m.register, body: m.entries!.body_markdown }))
+
+  const tended = buildTended(raw)
+  if (!tended) return null
+
+  return { id, kind, label, lenses: [...lenses], heft: tended.heft, pools: tended.pools, reframe: tended.reframe, moments: tended.moments }
+}
+
 // ── rope decompose ────────────────────────────────────────────────────────────
 
 export async function loadRope(ropeId: string): Promise<ThreadItem[]> {
@@ -221,4 +321,4 @@ export async function loadEntry(entryId: string): Promise<EntryDetail | null> {
   return { id: e.id, date: e.created_at, title, body }
 }
 
-export type { Horizon, FieldItem, ThreadItem, ThreadDetail, EntryDetail }
+export type { Horizon, FieldItem, ThreadItem, ThreadDetail, EntryDetail, WarmthBand, BandTended }

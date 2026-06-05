@@ -42,7 +42,6 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
-import { ThreadsView } from '@/features/threads/ThreadsView'
 import { FeatureFlagProvider } from '@/features/flags'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
@@ -129,10 +128,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
   const reflectionsActive = state.surface === 'reflections'
-  const threadsActive = state.surface === 'threads'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
-  const canvasAlternateActive = reflectionsActive || threadsActive || altarActive || scriptureActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
 
@@ -598,28 +596,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }
 
-  function toggleThreads() {
-    if (state.entryReturn?.surface === 'threads') {
-      returnFromEntryOrigin()
-      return
-    }
-    if (threadsActive) back()
-    else {
-      void saveNow()
-      setEntriesOpen(false)
-      go({
-        surface: 'threads',
-        entryId: null,
-        entryReturn: null,
-        ascentAltitude: 0,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
-  }
-
   function toggleScripture() {
     if (state.entryReturn?.surface === 'scripture') {
       returnFromEntryOrigin()
@@ -702,7 +678,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onSave: saveNow,
     onToggleEntries: toggleEntries,
     onLookBack: toggleLookBack,
-    onThreads: toggleThreads,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => {
@@ -1108,8 +1083,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
   ) : altarActive ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
-  ) : threadsActive ? (
-    <ThreadsView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
   ) : restrictIds ? (
@@ -1151,7 +1124,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     query,
     onQueryChange: setQuery,
     onLookBack: toggleLookBack,
-    onThreads: toggleThreads,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => openSettings(),
@@ -1172,7 +1144,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onToggleEntries: toggleEntries,
     mainSlot,
     reflectionsActive,
-    threadsActive,
     altarActive,
     scriptureActive,
     entryReturn: state.entryReturn,

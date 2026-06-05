@@ -10,7 +10,6 @@ export interface JournalShortcutActions {
   onLookBack: () => void
   onScripture: () => void
   onAltar: () => void
-  onThreads?: () => void
   onOpenSettings: () => void
   /** Open the entries panel (if collapsed) and focus its search field. */
   onFocusSearch: () => void
@@ -110,13 +109,12 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      if (key >= '1' && key <= '5' && !e.shiftKey) {
+      if (key >= '1' && key <= '4' && !e.shiftKey) {
         e.preventDefault()
         if (key === '1') onToggleEntries()
         else if (key === '2') onLookBack()
         else if (key === '3') onScripture()
         else if (key === '4') onAltar()
-        else if (key === '5') actions.onThreads?.()
         return
       }
 
