@@ -57,7 +57,7 @@ export default defineConfig({
     },
   },
   server: {
-    host: process.env.TAURI_DEV_HOST || 'localhost',
+    host: process.env.TAURI_DEV_HOST || '0.0.0.0',
     port: 5180,
     strictPort: true,
   },
