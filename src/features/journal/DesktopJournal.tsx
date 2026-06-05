@@ -28,7 +28,7 @@ export function DesktopJournal(props: JournalViewProps) {
     entries, activeId, words, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onThreads, onScripture, onAltar, onOpenSettings, onSync,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, threadsActive, threadsRopes, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, threadsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
@@ -55,7 +55,6 @@ export function DesktopJournal(props: JournalViewProps) {
           onLookBack={onLookBack}
           threadsActive={threadsActive}
           onThreads={onThreads}
-          threadsRopes={threadsRopes}
           scriptureActive={scriptureActive}
           onScripture={onScripture}
           altarActive={altarActive}

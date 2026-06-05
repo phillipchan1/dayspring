@@ -27,7 +27,7 @@ export function MobileJournal(props: JournalViewProps) {
     entries, activeId, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onThreads, onScripture, onAltar, onOpenSettings, onSync,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
-    reflectionsActive, threadsActive, threadsRopes, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, threadsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -161,15 +161,12 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">
               ☰
             </button>
-            {threadsRopes ? (
-              <button className="nav-btn" onClick={onThreads} aria-label="Threads" title="Threads (⌘2)" data-active={threadsActive ? 'true' : undefined}>
-                ≋
-              </button>
-            ) : (
-              <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">
-                ▲
-              </button>
-            )}
+            <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">
+              ▲
+            </button>
+            <button className="nav-btn" onClick={onThreads} aria-label="Threads" title="Threads (⌘5)" data-active={threadsActive ? 'true' : undefined}>
+              ≋
+            </button>
             <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
               ✦
             </button>

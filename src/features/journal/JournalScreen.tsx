@@ -43,7 +43,7 @@ import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { ThreadsView } from '@/features/threads/ThreadsView'
-import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
+import { FeatureFlagProvider } from '@/features/flags'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
   copyEntriesMarkdown,
@@ -132,7 +132,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const threadsActive = state.surface === 'threads'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
-  const threadsRopes = resolveFlag(featureFlags, 'threadsRopes')
   const canvasAlternateActive = reflectionsActive || threadsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
@@ -702,7 +701,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onNew: () => void handleNew(),
     onSave: saveNow,
     onToggleEntries: toggleEntries,
-    onLookBack: threadsRopes ? toggleThreads : toggleLookBack,
+    onLookBack: toggleLookBack,
+    onThreads: toggleThreads,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onOpenSettings: () => {
@@ -1109,10 +1109,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   ) : altarActive ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : threadsActive ? (
-    // Flag OFF ⇒ this branch is never reached; redirect to reflections for safety.
-    threadsRopes
-      ? <ThreadsView onOpenEntry={handleOpenReflectionEntry} />
-      : <AscentView onOpenEntry={handleOpenReflectionEntry} />
+    <ThreadsView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
   ) : restrictIds ? (
@@ -1176,7 +1173,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     mainSlot,
     reflectionsActive,
     threadsActive,
-    threadsRopes,
     altarActive,
     scriptureActive,
     entryReturn: state.entryReturn,

@@ -15,8 +15,6 @@ interface RailProps {
   onLookBack: () => void
   threadsActive: boolean
   onThreads: () => void
-  /** When true the rail shows "Threads" instead of "Ascent". */
-  threadsRopes: boolean
   altarActive: boolean
   onAltar: () => void
   scriptureActive: boolean
@@ -40,7 +38,6 @@ export function Rail({
   onLookBack,
   threadsActive,
   onThreads,
-  threadsRopes,
   altarActive,
   onAltar,
   scriptureActive,
@@ -98,27 +95,24 @@ export function Rail({
           <span className="rail__group-label" aria-hidden data-tauri-drag-region={drag}>
             Return
           </span>
-          {threadsRopes ? (
-            <RailButton
-              label="Threads"
-              subline="The threads that run through time"
-              shortcut="⌘2"
-              onClick={onThreads}
-              active={threadsActive}
-              icon={<IconThreads />}
-              labelsExpanded={labelsExpanded}
-            />
-          ) : (
-            <RailButton
-              label="Ascent"
-              subline="The climb through your seasons"
-              shortcut="⌘2"
-              onClick={onLookBack}
-              active={lookBackActive}
-              icon={<IconAscent />}
-              labelsExpanded={labelsExpanded}
-            />
-          )}
+          <RailButton
+            label="Ascent"
+            subline="The climb through your seasons"
+            shortcut="⌘2"
+            onClick={onLookBack}
+            active={lookBackActive}
+            icon={<IconAscent />}
+            labelsExpanded={labelsExpanded}
+          />
+          <RailButton
+            label="Threads"
+            subline="The threads that run through time"
+            shortcut="⌘5"
+            onClick={onThreads}
+            active={threadsActive}
+            icon={<IconThreads />}
+            labelsExpanded={labelsExpanded}
+          />
           <RailButton
             label="Lamp"
             subline="The verses you return to"

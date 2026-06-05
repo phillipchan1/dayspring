@@ -68,8 +68,6 @@ export interface JournalViewProps {
   altarActive: boolean
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
-  /** True when the threadsRopes feature flag is on for this user. */
-  threadsRopes: boolean
   /** Set when reading an entry opened from Lamp / Altar / Ascent. */
   entryReturn: EntryReturnContext | null
   onReturnFromEntry: () => void
