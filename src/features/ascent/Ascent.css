@@ -1228,3 +1228,344 @@
     padding: 18px 16px 22px;
   }
 }
+
+/* ── WARMTH BANDS — the ropes rendered as abstract light up the altitudes ──────
+ * Heft = thickness + saturation; glow pools = when it gathered; hue = which parts
+ * of life. Soft light on the dark air — never a chart bar, never a count. */
+.ascent-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ascent-bands__rest {
+  font-size: 12.5px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.34);
+  margin: 6px 0 0;
+}
+.ascent-band {
+  padding: 16px 0;
+  border-top: 1px solid rgba(236, 231, 223, 0.08);
+  animation: ascent-rise 0.6s both;
+}
+.ascent-band:first-child {
+  border-top: 0;
+}
+.ascent-band__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ascent-band__name {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 19px;
+  color: #ece7df;
+}
+.ascent-band__name.is-hero {
+  color: var(--ascent-gold-soft);
+}
+.ascent-band__lens {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(236, 231, 223, 0.4);
+  text-transform: lowercase;
+}
+.ascent-band__snip {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.62);
+  margin: 5px 0 10px;
+}
+.ascent-band__warmth {
+  width: 100%;
+}
+.ascent-band__caption {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: rgba(236, 231, 223, 0.42);
+  margin: 9px 0 0;
+}
+.ascent-band--private {
+  opacity: 0.66;
+  border-style: dashed;
+}
+.ascent-band__lock,
+.ascent-band__locknote {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-band__locknote {
+  margin: 8px 0 0;
+}
+
+/* how to read this — one-time, dismissible (NOT a permanent legend) */
+.ascent-howto {
+  margin: 2px 0 6px;
+}
+.ascent-howto__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.4);
+  transition: color 0.2s;
+}
+.ascent-howto__toggle:hover {
+  color: var(--ascent-gold);
+}
+.ascent-howto__key {
+  margin-top: 11px;
+  padding: 13px 15px;
+  border: 1px solid rgba(236, 231, 223, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  animation: ascent-rise 0.4s both;
+}
+.ascent-howto__key p {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.6);
+  margin: 0 0 6px;
+}
+.ascent-howto__key b {
+  color: #ece7df;
+  font-weight: 500;
+}
+.ascent-howto__dismiss {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 4px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--ascent-gold);
+}
+
+/* light (dawn) theme — darken ink so warmth bands read on parchment */
+.ascent--light .ascent-band {
+  border-top-color: rgba(46, 38, 32, 0.1);
+}
+.ascent--light .ascent-band__name {
+  color: #2e2620;
+}
+.ascent--light .ascent-band__snip {
+  color: rgba(46, 38, 32, 0.66);
+}
+.ascent--light .ascent-band__lens,
+.ascent--light .ascent-band__caption,
+.ascent--light .ascent-bands__rest,
+.ascent--light .ascent-band__lock,
+.ascent--light .ascent-band__locknote,
+.ascent--light .ascent-howto__toggle {
+  color: rgba(46, 38, 32, 0.5);
+}
+.ascent--light .ascent-howto__key {
+  border-color: rgba(46, 38, 32, 0.12);
+  background: rgba(255, 255, 255, 0.5);
+}
+.ascent--light .ascent-howto__key p {
+  color: rgba(46, 38, 32, 0.7);
+}
+.ascent--light .ascent-howto__key b {
+  color: #2e2620;
+}
+
+/* clickable warmth band (button reset — was a div) */
+.ascent-band.ascent-band--open,
+.ascent-band--private {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  transition: background 0.2s;
+}
+.ascent-band--open:hover {
+  background: linear-gradient(90deg, rgba(232, 184, 115, 0.06), transparent);
+}
+
+/* ── the tended timeline (click-in) ──────────────────────────────────────────── */
+.ascent-tended__mini {
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 6px;
+}
+.ascent-tended__lenses {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(236, 231, 223, 0.42);
+  text-transform: lowercase;
+  margin: 0 0 14px;
+}
+.ascent-tended__reframe {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.45;
+  color: rgba(236, 231, 223, 0.72);
+  max-width: 54ch;
+  margin: 0 0 22px;
+}
+/* muted hollow node = bringing/neutral; gold lit node = meeting (default dot) */
+.ascent-tended__moment.is-bringing .ascent-path__dot,
+.ascent-tended__moment.is-neutral .ascent-path__dot {
+  background: none;
+  border: 1.5px solid rgba(236, 231, 223, 0.3);
+  box-shadow: none;
+}
+.ascent-tended__moment.is-meeting .ascent-path__dot {
+  background: var(--ascent-gold-soft);
+  box-shadow: 0 0 0 4px rgba(238, 201, 126, 0.16), 0 0 14px 2px rgba(238, 201, 126, 0.5);
+}
+.ascent-tended__when {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.ascent-tended__when {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-tended__kind {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.is-meeting .ascent-tended__kind {
+  color: var(--ascent-gold);
+}
+.is-bringing .ascent-tended__kind,
+.is-neutral .ascent-tended__kind {
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-tended__open {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: rgba(236, 231, 223, 0.32);
+}
+.ascent-tended__entry {
+  margin-top: 9px;
+  padding: 13px 15px;
+  border: 1px solid rgba(236, 231, 223, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  animation: ascent-rise 0.35s both;
+}
+.ascent-tended__edate {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.4);
+  margin-bottom: 7px;
+}
+.ascent-tended__ebody {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.62;
+  color: #e6e1d8;
+  white-space: pre-line;
+}
+.ascent-tended__loading {
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(236, 231, 223, 0.4);
+}
+.ascent-tended__where {
+  margin: 8px 0 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: rgba(236, 231, 223, 0.5);
+}
+.ascent-tended__tend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(236, 231, 223, 0.08);
+}
+.ascent-tended__tendlabel {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(236, 231, 223, 0.35);
+}
+.ascent-tended__tendact {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(236, 231, 223, 0.5);
+}
+.ascent-tended__tendact:hover {
+  color: var(--ascent-gold);
+}
+
+/* light (dawn) theme */
+.ascent--light .ascent-band--open:hover {
+  background: linear-gradient(90deg, rgba(192, 97, 61, 0.07), transparent);
+}
+.ascent--light .ascent-tended__reframe {
+  color: rgba(46, 38, 32, 0.72);
+}
+.ascent--light .ascent-tended__ebody {
+  color: #2e2620;
+}
+.ascent--light .ascent-tended__lenses,
+.ascent--light .ascent-tended__when,
+.ascent--light .ascent-tended__where,
+.ascent--light .ascent-tended__tendlabel,
+.ascent--light .ascent-tended__tendact {
+  color: rgba(46, 38, 32, 0.5);
+}
+.ascent--light .ascent-tended__moment.is-bringing .ascent-path__dot,
+.ascent--light .ascent-tended__moment.is-neutral .ascent-path__dot {
+  border-color: rgba(46, 38, 32, 0.3);
+}
+.ascent--light .ascent-tended__entry {
+  border-color: rgba(46, 38, 32, 0.12);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Summit — the closing question (converged: copy only, a question not a verdict) */
+.ascent-summit__ask {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.45;
+  color: rgba(236, 231, 223, 0.82);
+  margin: 0;
+}
+.ascent--light .ascent-summit__ask {
+  color: rgba(46, 38, 32, 0.82);
+}

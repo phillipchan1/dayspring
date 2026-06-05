@@ -52,6 +52,53 @@ export interface ThreadDetail {
   moments: MomentItem[]
 }
 
+/** A representative member line selected (never synthesized) for a horizon. */
+export interface RepLine {
+  entryId: string
+  date: string         // ISO (entry_created_at)
+  excerpt: string      // verbatim slice of the entry body
+}
+
+/**
+ * A rope or standalone thread rendered as an abstract warmth band, with its
+ * state windowed up to a horizon. Pure aggregation of thread_members — no
+ * counts surface in the UI; heft drives thickness/saturation, felt not numbered.
+ */
+export interface WarmthBand {
+  id: string
+  kind: 'rope' | 'thread'
+  /** label_user ?? label_ai ?? label. */
+  label: string
+  private: boolean
+  /** # member entries within the window (cumulative as the window widens). */
+  heft: number
+  /** Distinct lenses among the windowed members' threads — drives hue blend. */
+  lenses: string[]
+  /** Sub-period buckets over the window, each 0–1 relative density — glow pools. */
+  pools: number[]
+  /** Most-central windowed member (temporal median). Selection, not generation. */
+  repLine: RepLine | null
+  spanStart: string
+  spanEnd: string
+}
+
+/**
+ * A band's full tended life (NOT windowed) — the click-in view. The band's own
+ * encoding (heft/lenses/pools over its whole span) reappears small at the top to
+ * confirm itself, then its moments resolve down to the source entries.
+ */
+export interface BandTended {
+  id: string
+  kind: 'rope' | 'thread'
+  label: string
+  lenses: string[]
+  heft: number
+  pools: number[]
+  /** Deterministic reframe line — template, not LLM. */
+  reframe: string
+  moments: MomentItem[]
+}
+
 /** Source entry for the deepest drill level. */
 export interface EntryDetail {
   id: string

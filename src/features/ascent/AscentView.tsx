@@ -4,16 +4,12 @@ import type { AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { ALTITUDES, CONTROLS } from './ascent.config'
 import { loadAscent, type LoadedAscent } from './data'
-import type { AltitudeData, Theme } from './data/types'
-import { Hillside } from './Hillside'
+import { AltitudeBands } from './AltitudeBands'
 import { LensRow } from './LensRow'
-import { Ridge } from './Ridge'
 import { Summit } from './Summit'
-import { Valley } from './Valley'
-import { LearningDrillIn } from './drilldowns/LearningDrillIn'
-import { PrayerDrillIn } from './drilldowns/PrayerDrillIn'
+import { BandDrillIn } from './drilldowns/BandDrillIn'
 import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
-import { ThemeDrillIn } from './drilldowns/ThemeDrillIn'
+import type { WarmthBand } from '@/features/threads/data'
 import './Ascent.css'
 
 interface Props {
@@ -30,9 +26,6 @@ function clampAltitude(n: number | undefined): number {
   return Math.min(LAST, Math.max(0, Math.round(n)))
 }
 
-function findTheme(data: AltitudeData | null, themeId: string): Theme | null {
-  return data?.words?.themes.find((t) => t.id === themeId) ?? null
-}
 const SWIPE_THRESHOLD = 56
 
 /** True when focus is in a text field — so arrow keys don't hijack typing. */
@@ -127,10 +120,8 @@ export function AscentView({ onOpenEntry }: Props) {
     (osisRef: string) => pushDrill({ kind: 'scripture', osisRef }),
     [pushDrill],
   )
-  const openPrayer = useCallback(() => pushDrill({ kind: 'prayer' }), [pushDrill])
-  const openLearning = useCallback(() => pushDrill({ kind: 'learning' }), [pushDrill])
-  const openTheme = useCallback(
-    (theme: Theme) => pushDrill({ kind: 'theme', themeId: theme.id }),
+  const openBand = useCallback(
+    (band: WarmthBand) => pushDrill({ kind: 'band', bandId: band.id, bandKind: band.kind, label: band.label }),
     [pushDrill],
   )
   const closeDrill = useCallback(() => back(), [back])
@@ -148,8 +139,6 @@ export function AscentView({ onOpenEntry }: Props) {
   }, [drill, closeDrill])
 
   const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
-  const themeDrill =
-    drill?.kind === 'theme' ? findTheme(altitude, drill.themeId) : null
 
   return (
     <div
@@ -180,39 +169,18 @@ export function AscentView({ onOpenEntry }: Props) {
         <div className="ascent-terrain" key={`${L.key}-t`}>
           {loading ? (
             <SurfaceLoader label="Reading the land…" />
-          ) : idx === 0 ? (
-            <Valley
-              data={altitude}
-              onOpenEntry={onOpenEntry}
+          ) : idx < LAST ? (
+            <AltitudeBands
+              horizon={idx as 0 | 1 | 2}
+              scripture={altitude?.scripture ?? null}
               onScriptureDrill={openScripture}
-              onThemeDrill={openTheme}
-            />
-          ) : idx === 1 ? (
-            <Hillside
-              data={altitude}
-              onOpenEntry={onOpenEntry}
-              onScriptureDrill={openScripture}
-              onPrayerDrill={openPrayer}
-              onLearningDrill={openLearning}
-              onThemeDrill={openTheme}
-            />
-          ) : idx === 2 ? (
-            <Ridge
-              data={altitude}
-              onOpenEntry={onOpenEntry}
-              onScriptureDrill={openScripture}
-              onPrayerDrill={openPrayer}
-              onLearningDrill={openLearning}
-              onThemeDrill={openTheme}
+              onOpenBand={openBand}
             />
           ) : (
             <Summit
-              data={ascent?.year ?? null}
-              onOpenEntry={onOpenEntry}
+              scripture={ascent?.year?.scripture ?? null}
               onScriptureDrill={openScripture}
-              onPrayerDrill={openPrayer}
-              onLearningDrill={openLearning}
-              onThemeDrill={openTheme}
+              onOpenBand={openBand}
             />
           )}
         </div>
@@ -231,6 +199,14 @@ export function AscentView({ onOpenEntry }: Props) {
       </main>
       </div>
 
+      {drill?.kind === 'band' ? (
+        <BandDrillIn
+          bandId={drill.bandId}
+          bandKind={drill.bandKind}
+          label={drill.label}
+          onClose={closeDrill}
+        />
+      ) : null}
       {drill?.kind === 'scripture' && ascent ? (
         <ScriptureDrillIn
           osisRef={drill.osisRef}
@@ -238,15 +214,6 @@ export function AscentView({ onOpenEntry }: Props) {
           onClose={closeDrill}
           onOpenEntry={onOpenEntry}
         />
-      ) : null}
-      {drill?.kind === 'learning' && altitude?.learning ? (
-        <LearningDrillIn data={altitude.learning} onClose={closeDrill} onOpenEntry={onOpenEntry} />
-      ) : null}
-      {drill?.kind === 'prayer' && altitude?.prayer ? (
-        <PrayerDrillIn data={altitude.prayer} onClose={closeDrill} onOpenEntry={onOpenEntry} />
-      ) : null}
-      {themeDrill ? (
-        <ThemeDrillIn data={themeDrill} onClose={closeDrill} onOpenEntry={onOpenEntry} />
       ) : null}
     </div>
   )

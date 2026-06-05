@@ -25,16 +25,16 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onThreads, onScripture, onAltar, onOpenSettings, onSync,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings, onSync,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
-    reflectionsActive, threadsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive = reflectionsActive || threadsActive || altarActive || scriptureActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   const journalChrome = !canvasAlternateActive
 
   function closeDrawer() {
@@ -163,9 +163,6 @@ export function MobileJournal(props: JournalViewProps) {
             </button>
             <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">
               ▲
-            </button>
-            <button className="nav-btn" onClick={onThreads} aria-label="Threads" title="Threads (⌘5)" data-active={threadsActive ? 'true' : undefined}>
-              ≋
             </button>
             <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
               ✦

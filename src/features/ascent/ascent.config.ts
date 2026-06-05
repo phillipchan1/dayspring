@@ -110,7 +110,9 @@ export const CONTROLS = {
 /** Summit labels — near-silent. The Summit returns the user's own marks; the app
  *  arranges and points, and otherwise goes quiet (no progress, no counts). */
 export const SUMMIT_COPY = {
-  lookingBack: 'looking back down the year — the trail lit by the stones you set',
+  lookingBack: 'looking back down the year — the trail lit by the ropes you climbed past',
+  /** The closing question — a question, never a verdict. Yours to name. */
+  taught: 'Looking back down the trail — what did He teach you this year?',
 }
 
 // ── DIMENSIONS — the stable four, across every altitude ──────────────────────

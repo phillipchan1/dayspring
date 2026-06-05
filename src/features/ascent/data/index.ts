@@ -10,10 +10,7 @@
 
 import { listRollups, type Rollup } from '@/lib/insights'
 import type { DateWindow } from '@/lib/scripture/query'
-import { loadLearning } from './learning'
-import { loadPrayer } from './prayer'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
-import { loadStones } from './stones'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
 import { loadWeekWords, monthWords, quarterWords, yearWords } from './words'
 
@@ -87,35 +84,37 @@ export async function loadAscent(): Promise<LoadedAscent> {
   const quaWords = quarterWords(monthly)
   const yeaWords = yearWords(yearly[0])
 
+  // Prayer/learning/stones are retired (the converged Ascent reads the rope engine
+  // for its content); only the real Words + Scripture dimensions feed the seam now.
   const week: AltitudeData = {
     resolution: 'week',
     words: weekWords,
     scripture: withLabel(scrWeek, weekWords?.periodLabel),
-    prayer: loadPrayer('week'),
-    learning: loadLearning('week'),
+    prayer: null,
+    learning: null,
   }
   const month: AltitudeData = {
     resolution: 'month',
     words: monWords,
     scripture: withLabel(scrMonth, monWords?.periodLabel),
-    prayer: loadPrayer('month'),
-    learning: loadLearning('month'),
+    prayer: null,
+    learning: null,
   }
   const quarter: AltitudeData = {
     resolution: 'quarter',
     words: quaWords,
     scripture: withLabel(scrQuarter, quaWords?.periodLabel),
-    prayer: loadPrayer('quarter'),
-    learning: loadLearning('quarter'),
+    prayer: null,
+    learning: null,
   }
   const year: SummitView = {
     resolution: 'year',
     words: yeaWords,
     scripture: withLabel(scrYear, yeaWords?.periodLabel ?? String(yearNum)),
-    prayer: loadPrayer('year'),
-    learning: loadLearning('year'),
+    prayer: null,
+    learning: null,
     year: yearNum,
-    stones: loadStones(yearNum),
+    stones: [],
   }
 
   return { week, month, quarter, year, windows }

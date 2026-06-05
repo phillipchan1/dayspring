@@ -1,55 +1,81 @@
-import { EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
-import type { SummitView, Theme } from './data/types'
-import { LearningDimension } from './dimensions/LearningDimension'
-import { PrayerDimension } from './dimensions/PrayerDimension'
+import { useEffect, useState } from 'react'
+import { getRopesAtHorizon } from '@/features/threads/data'
+import type { WarmthBand } from '@/features/threads/data'
+import { SurfaceLoader } from '@/components/SurfaceLoader'
+import { DIMENSION_COPY, EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
+import type { ScriptureData } from './data/types'
 import { ScriptureDimension } from './dimensions/ScriptureDimension'
-import { WordsDimension } from './dimensions/WordsDimension'
+import { hueFor } from './warmth'
 
 interface Props {
-  data: SummitView | null
-  onOpenEntry?: ((entryId: string) => void) | undefined
+  /** Year-of-the-year verse (real scripture, kept). */
+  scripture: ScriptureData | null
   onScriptureDrill: (osisRef: string) => void
-  onPrayerDrill: () => void
-  onLearningDrill: () => void
-  onThemeDrill: (theme: Theme) => void
+  /** Tap a stone (a rope you climbed past) → its tended timeline. */
+  onOpenBand: (band: WarmthBand) => void
 }
 
 const W = 600
 const GROUND = 280
 const CLIMB = 232 // peak rise span (peak sits near y=48)
+const MAX_STONES = 8
 
-/** Position a stone along the climbed path by its month (1–12). */
-function stonePos(month: number, i: number): { cx: number; cy: number } {
-  const t = Math.min(1, Math.max(0, month / 12))
+/** Peak pool bucket → position along the year (0 = early/bottom, 1 = recent/peak). */
+function peakSlot(pools: number[]): number {
+  if (pools.length <= 1) return 0.5
+  let peak = 0
+  for (let i = 1; i < pools.length; i++) if (pools[i]! > pools[peak]!) peak = i
+  return peak / (pools.length - 1)
+}
+
+/** Position a stone along the climbed path by its slot (0–1) up the trail. */
+function stonePos(slot: number, i: number): { cx: number; cy: number } {
+  const t = Math.min(1, Math.max(0, slot))
   return { cx: 120 + t * 190 + (i % 2 ? 26 : -16), cy: GROUND - t * CLIMB - (i % 3) * 4 }
 }
 
 /**
- * SUMMIT (year) — the quietest, most sacred ground. The mountain is redrawn as
- * the PATH the user climbed, with the stones they set on the Wall as points of
- * light along the mountainside: looking back down the year, the trail lit by
- * their own markers. No progress bar, no stat cards, no countdown — the content
- * is the user's own words and marks, and the app nearly disappears. The four
- * dimensions persist here at their most distilled.
+ * SUMMIT (year) — the quietest, most sacred ground, and the ONE illustrative
+ * altitude. The mountain is the path climbed; the stones are the ropes climbed
+ * past (the year's warmth bands), lit along the mountainside — tap one to walk
+ * its tended timeline. Below: the one line of the year (a SELECTED member line,
+ * never synthesized), the verse of the year, and the closing question. No
+ * verdict, no counts; the app nearly disappears.
  */
-export function Summit({
-  data,
-  onOpenEntry,
-  onScriptureDrill,
-  onPrayerDrill,
-  onLearningDrill,
-  onThemeDrill,
-}: Props) {
-  const empty =
-    !data || (!data.words && !data.scripture && !data.prayer && !data.learning && data.stones.length === 0)
-  if (empty) {
+export function Summit({ scripture, onScriptureDrill, onOpenBand }: Props) {
+  const [bands, setBands] = useState<WarmthBand[] | null | undefined>(undefined)
+
+  useEffect(() => {
+    let alive = true
+    getRopesAtHorizon(3).then(
+      (b) => alive && setBands(b),
+      () => alive && setBands(null),
+    )
+    return () => { alive = false }
+  }, [])
+
+  const year = new Date().getFullYear()
+  const open = (bands ?? []).filter((b) => !b.private)
+  const stones = open.slice(0, MAX_STONES)
+  const hero = open[0]
+  const oneLine = hero?.repLine ?? null
+
+  if (bands === undefined) {
+    return <SurfaceLoader label="Looking back down the year…" />
+  }
+  if (open.length === 0 && (!scripture || scripture.refs.length === 0)) {
     return <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
+  }
+
+  const dateLabel = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }
+    catch { return iso.slice(0, 10) }
   }
 
   return (
     <div className="ascent-summit">
       <svg viewBox={`0 0 ${W} 320`} className="ascent-mountain" role="img"
-        aria-label={`The year ${data.year} — the path you climbed, lit by the stones you set`}>
+        aria-label={`The year ${year} — the path you climbed, lit by the ropes you climbed past`}>
         <defs>
           <linearGradient id="ascent-rock" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--ascent-rock-top)" />
@@ -74,19 +100,21 @@ export function Summit({
           className="ascent-trail"
         />
 
-        {/* the stones you set — points of light along the mountainside */}
-        {data.stones.map((s, i) => {
-          const { cx, cy } = stonePos(s.month, i)
+        {/* the ropes you climbed past — points of light, sized by heft, hued by lens */}
+        {stones.map((b, i) => {
+          const { cx, cy } = stonePos(peakSlot(b.pools), i)
+          const r = 4 + Math.min(5, Math.sqrt(b.heft))
+          const tone = hueFor(b.lenses[0] ?? 'gold')
           return (
             <g
-              key={`${s.month}-${i}`}
+              key={b.id}
               className="ascent-stone-g"
-              style={{ animationDelay: `${i * 150 + 300}ms`, cursor: s.entryId ? 'pointer' : 'default' }}
-              onClick={() => s.entryId && onOpenEntry?.(s.entryId)}
+              style={{ animationDelay: `${i * 150 + 300}ms`, cursor: 'pointer' }}
+              onClick={() => onOpenBand(b)}
             >
-              <title>{s.label}</title>
-              <circle cx={cx} cy={cy} r="11" fill="none" stroke="rgba(240,197,135,.28)" className="ascent-stone-ring" />
-              <circle cx={cx} cy={cy} r="5" fill="#f0c587" className="ascent-stone-dot" />
+              <title>{b.label}</title>
+              <circle cx={cx} cy={cy} r={r + 6} fill="none" stroke="rgba(240,197,135,.28)" className="ascent-stone-ring" />
+              <circle cx={cx} cy={cy} r={r} fill={tone} className="ascent-stone-dot" />
             </g>
           )
         })}
@@ -99,10 +127,23 @@ export function Summit({
       <p className="ascent-summit__look">{SUMMIT_COPY.lookingBack}</p>
 
       <div className="ascent-stack ascent-stack--summit">
-        <WordsDimension data={data.words} onOpenEntry={onOpenEntry} onThemeDrill={onThemeDrill} />
-        <ScriptureDimension data={data.scripture} onDrill={onScriptureDrill} />
-        <PrayerDimension data={data.prayer} onDrill={onPrayerDrill} />
-        <LearningDimension data={data.learning} onDrill={onLearningDrill} />
+        {oneLine ? (
+          <section className="ascent-dim ascent-dim--words is-year">
+            <span className="ascent-dim__eyebrow">{DIMENSION_COPY.words.year}</span>
+            <button type="button" className="ascent-oneline" onClick={() => hero && onOpenBand(hero)}>
+              “{oneLine.excerpt}”
+            </button>
+            <span className="ascent-oneline__date">{dateLabel(oneLine.date)}</span>
+          </section>
+        ) : null}
+
+        <ScriptureDimension data={scripture} onDrill={onScriptureDrill} />
+
+        <section className="ascent-dim">
+          <span className="ascent-dim__eyebrow">{DIMENSION_COPY.learning.year}</span>
+          <p className="ascent-summit__ask">{SUMMIT_COPY.taught}</p>
+          <p className="ascent-dim__note">{DIMENSION_COPY.learning.note}</p>
+        </section>
       </div>
     </div>
   )
