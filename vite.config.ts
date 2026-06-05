@@ -60,6 +60,10 @@ export default defineConfig({
     host: process.env.TAURI_DEV_HOST || '0.0.0.0',
     port: 5180,
     strictPort: true,
+    watch: {
+      // Rust build artifacts (target/) and iOS/Xcode outputs (gen/) — not frontend.
+      ignored: [`${process.cwd()}/src-tauri/**`],
+    },
   },
   test: {
     // Pure logic (markdown parsing, formatting, slash detection) needs no DOM.

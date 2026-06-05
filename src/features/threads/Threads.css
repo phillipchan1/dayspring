@@ -471,3 +471,102 @@
   .strand-row__title { font-size: 17px; }
   .horizon-pill__btn { font-size: 10px; padding: 6px 11px; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   WALKABLE NAVIGATION — 4-level view router (dayspring-walk.html)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.threads__view { animation: threads-view-fade 0.4s ease; }
+@keyframes threads-view-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* breadcrumb */
+.threads__crumb {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+  color: var(--text-faint); display: flex; align-items: center; gap: 7px;
+  flex-wrap: wrap; min-height: 18px; margin-bottom: 4px;
+}
+.threads__crumb-link {
+  color: var(--tr-terracotta); cursor: pointer; background: none; border: none;
+  font-family: var(--font-mono); font-size: 10.5px; padding: 0;
+}
+.threads__crumb-link:hover { text-decoration: underline; }
+.threads__crumb-sep { color: var(--border); }
+.threads__back {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+  background: none; border: none; cursor: pointer; margin: 12px 0 6px; padding: 0; display: block;
+}
+.threads__back:hover { color: var(--tr-terracotta); }
+
+/* field rows (level 1) */
+.field-row {
+  border-top: 1px solid var(--tr-line); padding: 17px 0;
+  cursor: pointer; transition: background 200ms ease;
+}
+.field-row:first-child { border-top: none; }
+.field-row:hover { background: linear-gradient(90deg, rgba(238,201,126,.08), transparent 70%); }
+.field-row--private { border-top-style: dashed; opacity: 0.72; }
+.field-row__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.field-row__name { font-family: var(--font-display); font-style: italic; font-weight: 300; font-size: 19px; color: var(--text-bright); }
+.field-row__kind {
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 1px 8px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-dim); margin-left: 9px; vertical-align: middle;
+}
+.field-row__kind--rope { color: var(--tr-terracotta); border-color: var(--tr-terracotta); }
+.field-row__meta { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-faint); white-space: nowrap; flex-shrink: 0; }
+.field-row__lock { font-family: var(--font-mono); font-size: 9.5px; color: var(--tr-terracotta); margin-top: 6px; }
+
+/* rope view (level 2) */
+.rope-view__title { font-family: var(--font-display); font-style: italic; font-weight: 300; font-size: 28px; margin: 8px 0 3px; color: var(--text-bright); }
+.rope-view__sub { font-family: var(--font-display); font-style: italic; font-weight: 300; font-size: 15px; color: var(--text-dim); margin-bottom: 18px; }
+.thread-row {
+  border-top: 1px solid var(--tr-line); padding: 14px 0;
+  cursor: pointer; transition: background 200ms ease;
+}
+.thread-row:first-child { border-top: none; }
+.thread-row:hover { background: linear-gradient(90deg, rgba(238,201,126,.07), transparent 70%); }
+.thread-row__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.thread-row__name { font-family: var(--font-display); font-style: italic; font-weight: 300; font-size: 17px; color: var(--text-bright); }
+.thread-row__meta { font-family: var(--font-mono); font-size: 9px; color: var(--text-faint); white-space: nowrap; }
+
+/* thread timeline (level 3) */
+.timeline-view__title { font-family: var(--font-display); font-style: italic; font-weight: 300; font-size: 28px; margin: 8px 0 3px; color: var(--text-bright); }
+.timeline__reframe { font-family: var(--font-display); font-style: italic; font-weight: 300; font-size: 15.5px; color: var(--text-dim); margin: 4px 0 20px; line-height: 1.4; }
+.timeline { position: relative; margin-left: 6px; padding-left: 24px; border-left: 1.5px solid var(--border); }
+.moment { position: relative; padding: 11px 0; cursor: pointer; }
+.moment:hover .moment__said { color: var(--tr-terracotta); }
+.moment::before {
+  content: ''; position: absolute; left: -31px; top: 17px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--bg); border: 1.5px solid var(--text-faint);
+}
+.moment--meeting::before {
+  background: var(--tr-gold); border-color: var(--tr-gold);
+  box-shadow: 0 0 0 4px rgba(238,201,126,.22), 0 0 14px 3px rgba(238,201,126,.5);
+}
+.moment__when { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-faint); }
+.moment__kind { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; margin-left: 8px; }
+.moment--bringing .moment__kind { color: var(--text-faint); }
+.moment--meeting  .moment__kind { color: var(--tr-gold); }
+.moment__said { font-family: var(--font-serif); font-size: 16px; color: var(--text); line-height: 1.46; margin-top: 3px; transition: color 150ms ease; }
+.moment__openhint { font-family: var(--font-mono); font-size: 8.5px; color: var(--text-faint); opacity: 0; transition: opacity 150ms ease; }
+.moment:hover .moment__openhint { opacity: 1; }
+.timeline__actions { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.timeline__actlabel { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--border); }
+.timeline__act { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; color: var(--text-faint); background: none; border: none; cursor: pointer; transition: color 150ms ease; }
+.timeline__act:hover { color: var(--text-dim); }
+
+/* entry view (level 4) */
+.entry-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-elevated); padding: 26px 28px; }
+.entry-card__date { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--text-faint); text-transform: uppercase; }
+.entry-card__title { font-family: var(--font-display); font-weight: 380; font-size: 22px; margin: 8px 0 14px; color: var(--text-bright); }
+.entry-card__body { font-family: var(--font-serif); font-size: 17px; line-height: 1.62; color: var(--text); white-space: pre-line; }
+.entry-card__foot { margin-top: 20px; font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.03em; }
+
+@media (max-width: 540px) {
+  .field-row__name { font-size: 17px; }
+  .rope-view__title, .timeline-view__title { font-size: 24px; }
+  .entry-card__body { font-size: 15px; }
+}

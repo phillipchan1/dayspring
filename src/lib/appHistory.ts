@@ -6,6 +6,13 @@ export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'b
 /** Where the user was before opening an entry from Lamp, Altar, Ascent, or Threads. */
 export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'threads'
 
+/** Internal navigation state for the Threads & Ropes surface. */
+export type ThreadsNav =
+  | { level: 'field' }
+  | { level: 'rope';   ropeId: string; ropeName: string }
+  | { level: 'thread'; threadId: string; threadName: string; ropeId: string | null; ropeName: string | null }
+  | { level: 'entry';  entryId: string; threadId: string; threadName: string; ropeId: string | null; ropeName: string | null }
+
 /** Drill-in overlay on the Ascent canvas (week scripture, theme quotes, etc.). */
 export type AscentDrill =
   | { kind: 'scripture'; osisRef: string }
@@ -49,6 +56,8 @@ export interface AppHistoryState {
   ascentAltitude: number
   /** Open Ascent drill-in; its own history frame for mouse / browser Back. */
   ascentDrill: AscentDrill | null
+  /** Threads & Ropes internal nav; its own history frame so Back works per level. */
+  threadsNav: ThreadsNav | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -64,6 +73,7 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   entryReturn: null,
   ascentAltitude: 0,
   ascentDrill: null,
+  threadsNav: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -141,6 +151,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
+    JSON.stringify(a.threadsNav) === JSON.stringify(b.threadsNav) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
   )
