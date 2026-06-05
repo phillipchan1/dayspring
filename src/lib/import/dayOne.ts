@@ -48,13 +48,18 @@ function isMediaSidecar(path: string): boolean {
 /**
  * Day One's `text` is escaped Markdown: punctuation is backslash-escaped and
  * attachments appear as `![](dayone-moment://UUID)`. Unescape the punctuation
- * and drop the (now-dangling) attachment embeds so the body reads cleanly.
+ * and convert attachment embeds to `attachment-pending:UUID` — a stable,
+ * source-agnostic placeholder that importImages.ts later resolves to a real
+ * `attachment:<sha256>.<ext>` ref after uploading the file.
  */
 export function cleanDayOneText(text: string): string {
   return stripBom(text)
-    .replace(/!\[[^\]]*\]\(dayone-moment:\/\/[^)]*\)/g, '') // attachments not imported
+    .replace(
+      /!\[([^\]]*)\]\(dayone-moment:\/\/([^)]+)\)/g,
+      '![$1](attachment-pending:$2)',
+    )
     .replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~])/g, '$1') // unescape ASCII punctuation
-    .replace(/\n{3,}/g, '\n\n') // collapse gaps left by removed embeds
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 
