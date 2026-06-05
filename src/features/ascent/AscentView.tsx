@@ -124,19 +124,9 @@ export function AscentView({ onOpenEntry }: Props) {
     (band: WarmthBand) => pushDrill({ kind: 'band', bandId: band.id, bandKind: band.kind, label: band.label }),
     [pushDrill],
   )
+  // Drill-ins close themselves on Esc / scrim / Back (DrillSheet owns Escape and
+  // stops it propagating). closeDrill pops the one pushed history frame.
   const closeDrill = useCallback(() => back(), [back])
-
-  // Esc closes a drill-in (browser / mouse Back use the same history frame).
-  useEffect(() => {
-    if (!drill) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || inTextField()) return
-      e.preventDefault()
-      closeDrill()
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [drill, closeDrill])
 
   const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
 
