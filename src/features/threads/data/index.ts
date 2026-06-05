@@ -23,7 +23,7 @@ const HORIZON_DAYS: Record<Horizon, number | null> = {
 
 // ── deterministic reframe line ────────────────────────────────────────────────
 
-function reframeFor(spanStart: string, spanEnd: string, memberCount: number, hasMeeting: boolean): string {
+function reframeFor(spanStart: string, spanEnd: string, _memberCount: number, hasMeeting: boolean): string {
   const ms = new Date(spanEnd).getTime() - new Date(spanStart).getTime()
   const days = ms / 86_400_000
   const years = Math.floor(days / 365)
