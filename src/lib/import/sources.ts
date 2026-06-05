@@ -75,7 +75,7 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
       'Choose “All journals” (or a single journal) and save the .zip file.',
       'Drop that .zip below — entries are read in your browser and added to your journal.',
     ],
-    note: ‘Dates come from each file’s folder. Photos are imported and stored in Supabase Storage.’,
+    note: ‘Entry dates come from each file path. Photos are imported and stored in Supabase Storage.’,
     parse: parseDiarly,
   },
   {
