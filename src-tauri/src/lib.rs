@@ -7,6 +7,7 @@ fn open_devtools(window: tauri::WebviewWindow) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  #[cfg_attr(not(desktop), allow(unused_mut))]
   let mut builder = tauri::Builder::default()
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_store::Builder::new().build())
