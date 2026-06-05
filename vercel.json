@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "buildCommand": "node scripts/assemble-changelog.mjs && npm run build",
+  "devCommand": "ulimit -n 65536; vite --port $PORT",
   "outputDirectory": "dist",
   "crons": [
     { "path": "/api/cron/synthesize", "schedule": "0 8 * * *" },

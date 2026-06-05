@@ -1,0 +1,9 @@
+# Tauri desktop/iOS project — Rust build artifacts (src-tauri/target, 4.6GB+)
+# and the generated Xcode/iOS scaffolding (src-tauri/gen). None of this is part
+# of the Vercel web deploy, and watching its ~17k files makes `vercel dev` hit
+# EMFILE (too many open files) on macOS. Excluding it keeps the dev watcher and
+# deploy uploads to the actual web app.
+src-tauri
+
+# Desktop release notes / changelog inputs that aren't needed by the web build
+RELEASE_NOTES.md
