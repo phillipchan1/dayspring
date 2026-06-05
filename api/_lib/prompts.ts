@@ -32,7 +32,15 @@ HORIZON: WEEKLY — "the Sabbath stop." Tactical; what's alive right now. This i
 cite specific days. You are given this week's entries as JSON [{id,date,title,text}] and, when available,
 "prior_week" context (last week's observation + topics) for a backward comparison. Return JSON only:
 1. quotes: 2–4 short VERBATIM passages the writer would want to reread (with entry_id + date).
-2. topics: up to 5 concrete recurring topics (nouns/themes), each with count + entry_ids.
+2. topics: up to 5 SPECIFIC MATTERS the writer was actually wrestling with this week — the concrete situation,
+   tension, question, or recurring pattern beneath the surface. Name the MATTER, not the activity:
+   - NOT "prayer" → "asking God whether to leave the job" or "praying for Esther's health"
+   - NOT "trading" → "forcing trades before confirmation" or "options account drawdown"
+   - NOT "seeking God" → "wondering if the Frontier direction is right"
+   - NOT "gratitude" → only include if gratitude for something specific AND recurring
+   Skip anything that would be true of almost every entry (prayer generically, seeking God, morning devotion,
+   general thanksgiving). If the writer prays or reads scripture ABOUT something, label WHAT they were
+   bringing — the specific burden, fear, decision, or desire. Each topic with count + entry_ids.
 3. observation: AT MOST ONE short neutral factual sentence about a visible pattern; cite entries by title+date
    in the text (never raw UUIDs); evidence array uses entry_ids. Empty if nothing factual stands out.
 4. synthesis: 2–4 sentences measuring this week against last week using the Gain lens (further than where you
