@@ -7,7 +7,6 @@ const COMMANDS: { id: SlashCommandId; label: string; hint: string }[] = [
   { id: 'pray',      label: '/pray',      hint: 'Log a prayer' },
   { id: 'sense',     label: '/sense',     hint: 'Record a word or impression' },
   { id: 'practice',  label: '/practice',  hint: 'Tried and true forms for the inner life' },
-  { id: 'remind',    label: '/remind',    hint: 'Return to these words later' },
 ]
 
 interface Props {

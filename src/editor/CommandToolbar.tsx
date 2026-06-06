@@ -20,7 +20,6 @@ const COMMANDS: Array<{ id: SlashCommandId; icon: string; label: string; hint: s
   { id: 'pray', icon: '🙏', label: 'Pray', hint: 'Log prayer' },
   { id: 'sense', icon: '✨', label: 'Sense', hint: 'Record impression' },
   { id: 'practice', icon: '✶', label: 'Practice', hint: 'Forms for the inner life' },
-  { id: 'remind', icon: '⏱', label: 'Remind', hint: 'Return later' },
 ]
 
 /**

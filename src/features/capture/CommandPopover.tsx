@@ -23,7 +23,7 @@ interface CommandPopoverProps {
 
 /**
  * Shared slash-command shell: column-anchored, flat elevated chrome, Esc/outside
- * dismiss, optional footer hint. Scripture, pray, sense, and remind all render inside.
+ * dismiss, optional footer hint. Scripture, pray, and sense all render inside.
  */
 export function CommandPopover({
   anchor,

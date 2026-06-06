@@ -53,7 +53,6 @@ import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi
 import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
-import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
 import type { Practice } from '@/editor/practices/practicesData'
@@ -63,41 +62,6 @@ import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
   userEmail: string
   featureFlags: string[]
-}
-
-/**
- * Extract the sentence nearest `pos` in `content` for pre-populating /remind.
- * Strips any trailing /command text and falls back to the paragraph if the
- * detected sentence is too short.
- */
-function sentenceNear(content: string, pos: number): string {
-  const before = content.slice(0, pos)
-  if (!before.trim()) return ''
-
-  // Find the last sentence boundary before pos.
-  let lastBoundary = 0
-  const re = /[.!?]\s+/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(before)) !== null) lastBoundary = m.index + m[0].length
-
-  // Also treat paragraph breaks as sentence starts.
-  const lastPara = before.lastIndexOf('\n\n')
-  const start = Math.max(lastBoundary, lastPara < 0 ? 0 : lastPara + 2)
-
-  // Sentence extends to the first ., !, ? or \n after pos.
-  const after = content.slice(pos)
-  const endM = /^[^.!?\n]*[.!?\n]?/.exec(after)
-  const end = pos + (endM ? endM[0].length : 0)
-
-  const raw = content.slice(start, end)
-  // Strip the slash command text itself.
-  const cleaned = raw.replace(/\s*\/[a-z]*\s*/, ' ').trim()
-
-  // If too short, use last ~200 chars before pos.
-  if (cleaned.length < 15) {
-    return before.slice(-200).replace(/\s*\/[a-z]*\s*$/, '').trim()
-  }
-  return cleaned
 }
 
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
@@ -1248,14 +1212,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           }
           onInsert={completeSlashInsert}
           onRemove={handleRemoveBlock}
-          onClose={closeSlashCapture}
-        />
-      )}
-      {slashCapture?.cmd === 'remind' && (
-        <InlineRemindPopover
-          entryId={entryId}
-          sentence={sentenceNear(content, slashCapture.insertAt)}
-          anchor={slashCapture.anchor}
           onClose={closeSlashCapture}
         />
       )}
