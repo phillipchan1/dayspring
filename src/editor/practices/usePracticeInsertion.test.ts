@@ -24,7 +24,7 @@ describe('buildPracticeBlock', () => {
 
   it('places the caret on the first blank answer line', () => {
     const { text, cursorOffset } = buildPracticeBlock(examen, '', 0)
-    const firstSection = `<!-- practice:section:${examen.prompts[0].label} -->\n`
+    const firstSection = `<!-- practice:section:${examen.prompts[0]!.label} -->\n`
     const expected = `<!-- practice:name:The Daily Examen -->\n`.length + firstSection.length
     expect(cursorOffset).toBe(expected)
     // The character at the caret is the newline of the (empty) answer line.

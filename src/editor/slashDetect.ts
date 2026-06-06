@@ -1,8 +1,5 @@
 import type { EditorView } from '@codemirror/view'
 
-// Note: 'scripture' | 'pray' | 'sense' remain in the union because existing
-// rendered blocks still open their editors when clicked (see handleEditBlock),
-// but they are no longer offered as active slash commands — see SlashPalette.
 export type SlashCommandId = 'scripture' | 'pray' | 'sense' | 'remind' | 'practice'
 
 export interface SlashState {

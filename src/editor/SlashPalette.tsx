@@ -2,12 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { SlashCommandId, SlashState } from './slashDetect'
 
-// Scripture references are detected passively via inline parser — no slash command needed.
-// /sense and /pray were removed: discernment is now engine-detected from prose, and prayer
-// is planted inline from prose rather than logged through a dedicated command.
 const COMMANDS: { id: SlashCommandId; label: string; hint: string }[] = [
-  { id: 'practice', label: '/practice', hint: 'Tried and true forms for the inner life' },
-  { id: 'remind',   label: '/remind',   hint: 'Return to these words later' },
+  { id: 'scripture', label: '/scripture', hint: 'Find relevant Bible passages' },
+  { id: 'pray',      label: '/pray',      hint: 'Log a prayer' },
+  { id: 'sense',     label: '/sense',     hint: 'Record a word or impression' },
+  { id: 'practice',  label: '/practice',  hint: 'Tried and true forms for the inner life' },
+  { id: 'remind',    label: '/remind',    hint: 'Return to these words later' },
 ]
 
 interface Props {
