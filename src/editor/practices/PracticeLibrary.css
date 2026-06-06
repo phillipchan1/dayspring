@@ -1,0 +1,401 @@
+/*
+ * Practices Library — full-screen "First Light" overlay opened by /practice.
+ * All colour/type tokens map to the existing theme layer and fall back to the
+ * First Light reference values only where a theme variable doesn't exist, so
+ * the library reads correctly under every Dayspring theme.
+ */
+
+.practice-modal {
+  --pl-parchment: var(--bg, #faf6f0);
+  --pl-surface: var(--bg-elevated, #ffffff);
+  --pl-ink: var(--text-bright, #1c1612);
+  --pl-ink-soft: var(--text, #4a3f35);
+  --pl-muted: var(--text-dim, #8c7b6e);
+  --pl-ghost: var(--text-faint, #c4b5a8);
+  --pl-border: var(--border-subtle, #ede3d4);
+  --pl-amber: var(--accent, #c8853a);
+  --pl-amber-glow: var(--accent-soft, rgba(200, 133, 58, 0.12));
+  --pl-amber-glow-strong: color-mix(in srgb, var(--pl-amber) 22%, transparent);
+  --pl-display: var(--font-display, 'Fraunces', Georgia, serif);
+  --pl-body: var(--font-serif, 'Newsreader', Georgia, serif);
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--pl-parchment);
+  color: var(--pl-ink);
+  font-family: var(--pl-body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  animation: pl-modal-in 0.3s ease;
+}
+
+@keyframes pl-modal-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Library view ──────────────────────────────────────────────────────── */
+
+.practice-library {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.practice-library__header {
+  padding: 48px 40px 0;
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.practice-library__eyebrow {
+  font-family: var(--pl-body);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pl-amber);
+  margin-bottom: 12px;
+}
+
+.practice-library__title {
+  font-family: var(--pl-display);
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 300;
+  color: var(--pl-ink);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.practice-library__title em {
+  font-style: italic;
+  color: var(--pl-amber);
+}
+
+.practice-library__subline {
+  margin-top: 10px;
+  font-family: var(--pl-body);
+  font-size: 15px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-muted);
+  line-height: 1.6;
+}
+
+.practice-library__filters {
+  padding: 32px 40px 0;
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.practice-filter {
+  font-family: var(--pl-body);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--pl-muted);
+  background: transparent;
+  border: 1px solid var(--pl-border);
+  border-radius: 100px;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.practice-filter:hover {
+  color: var(--pl-ink-soft);
+  border-color: var(--pl-ghost);
+}
+
+.practice-filter[data-active='true'] {
+  color: var(--pl-amber);
+  border-color: var(--pl-amber);
+  background: var(--pl-amber-glow);
+}
+
+.practice-library__grid {
+  padding: 28px 40px 60px;
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.practice-card {
+  background: var(--pl-surface);
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  padding: 24px 22px 20px;
+  cursor: pointer;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: pl-card-in 0.5s ease forwards;
+}
+
+.practice-card:nth-child(1) { animation-delay: 0.05s; }
+.practice-card:nth-child(2) { animation-delay: 0.1s; }
+.practice-card:nth-child(3) { animation-delay: 0.15s; }
+.practice-card:nth-child(4) { animation-delay: 0.2s; }
+.practice-card:nth-child(5) { animation-delay: 0.25s; }
+.practice-card:nth-child(6) { animation-delay: 0.3s; }
+.practice-card:nth-child(7) { animation-delay: 0.35s; }
+.practice-card:nth-child(8) { animation-delay: 0.4s; }
+.practice-card:nth-child(9) { animation-delay: 0.45s; }
+
+@keyframes pl-card-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.practice-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at top left, var(--pl-amber-glow) 0%, transparent 65%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.practice-card:hover {
+  border-color: color-mix(in srgb, var(--pl-amber) 35%, transparent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(28, 22, 18, 0.08);
+}
+
+.practice-card:hover::before {
+  opacity: 1;
+}
+
+.practice-card--hidden {
+  display: none;
+}
+
+.practice-card__function {
+  font-family: var(--pl-body);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--pl-amber);
+}
+
+.practice-card__name {
+  font-family: var(--pl-display);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--pl-ink);
+  letter-spacing: -0.01em;
+}
+
+.practice-card__origin {
+  font-family: var(--pl-body);
+  font-size: 11px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-ghost);
+}
+
+.practice-card__quote {
+  font-family: var(--pl-body);
+  font-size: 12.5px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-muted);
+  line-height: 1.55;
+  border-left: 2px solid var(--pl-border);
+  padding-left: 10px;
+  margin-top: 2px;
+  flex: 1;
+}
+
+.practice-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.practice-card__tag {
+  font-family: var(--pl-body);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--pl-ghost);
+  background: var(--pl-parchment);
+  border-radius: 100px;
+  padding: 3px 9px;
+}
+
+.practice-card__arrow {
+  color: var(--pl-ghost);
+  font-size: 14px;
+  line-height: 1;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.practice-card:hover .practice-card__arrow {
+  color: var(--pl-amber);
+  transform: translateX(3px);
+}
+
+/* ── Threshold view ────────────────────────────────────────────────────── */
+
+.practice-threshold {
+  position: absolute;
+  inset: 0;
+  background: var(--pl-parchment);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.practice-threshold[data-visible='true'] {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.practice-threshold__inner {
+  text-align: center;
+  max-width: 440px;
+  padding: 40px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease 0.25s, transform 0.6s ease 0.25s;
+}
+
+.practice-threshold[data-visible='true'] .practice-threshold__inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.practice-threshold__function {
+  font-family: var(--pl-body);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--pl-amber);
+  margin-bottom: 20px;
+}
+
+.practice-threshold__name {
+  font-family: var(--pl-display);
+  font-size: clamp(32px, 5vw, 42px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-ink);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.practice-threshold__origin {
+  font-family: var(--pl-body);
+  font-size: 13px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-ghost);
+  margin-bottom: 32px;
+}
+
+.practice-threshold__divider {
+  width: 32px;
+  height: 1px;
+  background: var(--pl-amber);
+  margin: 0 auto 28px;
+  opacity: 0.5;
+}
+
+.practice-threshold__intention {
+  font-family: var(--pl-body);
+  font-size: 16px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-ink-soft);
+  line-height: 1.65;
+  margin-bottom: 44px;
+}
+
+.practice-threshold__begin {
+  font-family: var(--pl-display);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--pl-amber);
+  background: transparent;
+  border: 1px solid var(--pl-amber);
+  border-radius: 100px;
+  padding: 10px 28px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.practice-threshold__begin:hover {
+  background: var(--pl-amber-glow-strong);
+}
+
+.practice-threshold__back {
+  position: absolute;
+  top: 32px;
+  left: 32px;
+  font-family: var(--pl-body);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--pl-ghost);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  transition: color 0.2s ease;
+}
+
+.practice-threshold__back:hover {
+  color: var(--pl-muted);
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .practice-library__header,
+  .practice-library__filters,
+  .practice-library__grid {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .practice-library__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-modal,
+  .practice-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

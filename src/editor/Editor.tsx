@@ -29,6 +29,7 @@ import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
 import { attachmentImageExtension } from './attachmentImageExtension'
+import { practicePromptExtension } from './practices/usePracticeInsertion'
 
 export interface EditorHandle {
   /** Insert text at the given document position (e.g. after removing a /command). */
@@ -251,6 +252,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
           scriptureRefDecoration(),
           taskListExtension(),
+          // Renders /practice prompts as display-only decorations over hidden tokens.
+          practicePromptExtension,
           attachmentImageExtension,
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),

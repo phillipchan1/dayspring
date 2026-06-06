@@ -54,6 +54,9 @@ import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { InlineRemindPopover } from '@/features/capture/InlineRemindPopover'
+import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
+import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
+import type { Practice } from '@/editor/practices/practicesData'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
@@ -255,6 +258,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setSlashCapture(null)
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])
+
+  /** Insert a practice's structured prompt block, then close the library. */
+  const beginPractice = usePracticeInsertion(editorRef)
+  const handleBeginPractice = useCallback(
+    (practice: Practice) => {
+      const cap = slashCaptureRef.current
+      if (!cap) return
+      setSlashCapture(null)
+      beginPractice(practice, cap.insertAt, contentRef.current)
+    },
+    [beginPractice],
+  )
 
   /** Remove an edited block from the entry and delete its Altar row. */
   const handleRemoveBlock = useCallback(() => {
@@ -1243,6 +1258,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           anchor={slashCapture.anchor}
           onClose={closeSlashCapture}
         />
+      )}
+      {slashCapture?.cmd === 'practice' && (
+        <PracticeLibrary onBegin={handleBeginPractice} onClose={closeSlashCapture} />
       )}
 
       {settingsOpen && state.settings && (
