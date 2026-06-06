@@ -49,19 +49,21 @@ export function buildPracticeBlock(
 }
 
 // ── Decorations ────────────────────────────────────────────────────────────
+//
+// We never *replace* the token lines with block widgets: a block replace that
+// ends where the answer line begins "claims" that boundary, leaving the empty
+// answer line an unclickable sliver (and swallowing the placeholder). Instead we
+// hide the token line with a CSS line class and render each prompt as a block
+// widget anchored *above* its answer line, then give that answer line a real
+// min-height so it's an obvious place to click and write.
 
-/** A `practice:name` line — rendered to nothing so the token never shows. */
-class HiddenTokenWidget extends WidgetType {
-  eq(): boolean {
-    return true
-  }
-  toDOM(): HTMLElement {
-    const el = document.createElement('div')
-    el.className = 'cm-practice-hidden'
-    el.setAttribute('aria-hidden', 'true')
-    return el
-  }
-}
+/** Hides a `practice:*` token line without removing it from the document. */
+const hiddenLineDeco = Decoration.line({ class: 'cm-practice-token' })
+/** Marks the writing line below a prompt so it has a comfortable click target. */
+const answerLineDeco = Decoration.line({ class: 'cm-practice-answer' })
+/** Zero-styling mark used only to keep token lines atomic for cursor motion. */
+const atomicMark = Decoration.mark({})
+
 
 /** A `practice:section` line — rendered as the amber label + italic question. */
 class PracticePromptWidget extends WidgetType {
@@ -164,40 +166,43 @@ function buildDecorations(state: EditorState): PracticeDecorations {
 
   tokens.forEach((token, idx) => {
     const line = doc.line(token.line)
-    // Span the whole line including its trailing break so block widgets fully
-    // collapse the source token line (mirrors the spiritual-block convention).
-    const blockTo = Math.min(line.to + 1, doc.length)
+    // Hide the token line via CSS and keep it atomic so the caret skips the
+    // invisible markup when arrowing through the entry.
+    ranges.push(hiddenLineDeco.range(line.from))
+    const atomicTo = Math.min(line.to + 1, doc.length)
+    if (atomicTo > line.from) atomicRanges.push(atomicMark.range(line.from, atomicTo))
 
     if (token.kind === 'name') {
       currentPractice = PRACTICE_BY_NAME.get(token.value)
-      const hidden = Decoration.replace({
-        widget: new HiddenTokenWidget(),
-        block: true,
-      }).range(line.from, blockTo)
-      ranges.push(hidden)
-      atomicRanges.push(hidden)
       return
     }
 
-    // Section content runs from the next line up to the following token (or EOF).
+    // No answer line follows (token is the last line) — nothing to write into.
+    if (token.line + 1 > doc.lines) return
+    const answer = doc.line(token.line + 1)
+
+    // Section content runs from the answer line up to the following token (or EOF).
     const nextTokenLine = tokens[idx + 1]?.line ?? doc.lines + 1
     let content = ''
     for (let n = token.line + 1; n < nextTokenLine; n++) {
       content += doc.line(n).text
     }
     const filled = content.trim().length > 0
-
     const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
-    const promptDeco = Decoration.replace({
-      widget: new PracticePromptWidget(token.value, prompt?.question ?? '', filled),
-      block: true,
-    }).range(line.from, blockTo)
-    ranges.push(promptDeco)
-    atomicRanges.push(promptDeco)
 
-    // Placeholder hint sits on the first (empty) answer line.
-    if (!filled && prompt?.placeholder && token.line + 1 <= doc.lines) {
-      const answer = doc.line(token.line + 1)
+    // The prompt renders as a block *above* the answer line (side -1) — the
+    // answer line itself stays a normal, editable line.
+    ranges.push(
+      Decoration.widget({
+        widget: new PracticePromptWidget(token.value, prompt?.question ?? '', filled),
+        block: true,
+        side: -1,
+      }).range(answer.from),
+    )
+    ranges.push(answerLineDeco.range(answer.from))
+
+    // Placeholder hint sits on the (empty) answer line until the writer begins.
+    if (!filled && prompt?.placeholder) {
       ranges.push(
         Decoration.widget({
           widget: new PracticePlaceholderWidget(prompt.placeholder),
@@ -223,17 +228,27 @@ const practiceField = StateField.define<PracticeDecorations>({
 })
 
 const practiceTheme = EditorView.theme({
-  '.cm-practice-hidden': {
+  // The raw `<!-- practice:* -->` token lines stay in the document but never show.
+  '.cm-practice-token': {
     display: 'none',
+  },
+  // Writing line beneath a prompt — a generous, obvious target to click into.
+  '.cm-practice-answer': {
+    minHeight: '2.6em',
   },
   '.cm-practice-prompt': {
     display: 'block',
-    margin: '1.5rem 0 0.5rem',
+    margin: '1.4rem 0 0.4rem',
     userSelect: 'none',
-    transition: 'opacity 360ms ease',
+    overflow: 'hidden',
+    transition: 'opacity 320ms ease',
   },
+  // Once the section has content, the prompt fades and collapses so only the
+  // writer's own words remain.
   '.cm-practice-prompt--filled': {
     opacity: '0',
+    maxHeight: '0',
+    margin: '0',
     pointerEvents: 'none',
   },
   '.cm-practice-prompt__label': {
