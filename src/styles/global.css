@@ -180,6 +180,23 @@ a {
   padding: 7px 8px;
 }
 
+/* ── New Entry placeholder row ──────────────────────────────────────────── */
+.entry-list__new-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  margin-bottom: 1px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: var(--entry-row-active-bg);
+}
+.entry-list__new-row .entry-row__title {
+  font-weight: 500;
+  color: var(--entry-list-title-active);
+  font-style: italic;
+}
+
 /* ── Entries sidebar — native journal index ─────────────────────────────── */
 .entry-list {
   width: 100%;
@@ -2131,6 +2148,12 @@ html[data-focus-mode] .focus-controls {
 .markdown-body img { max-width: 100%; border-radius: var(--radius); }
 
 /* ── Inline attachment image animations (used by attachmentImageExtension) ── */
+.editor-host--drag-over .cm-editor {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-soft) 35%, transparent);
+}
 @keyframes cm-attachment-fadein {
   from { opacity: 0; }
   to   { opacity: 1; }

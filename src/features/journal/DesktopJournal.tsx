@@ -26,7 +26,7 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
@@ -75,6 +75,7 @@ export function DesktopJournal(props: JournalViewProps) {
           <EntryList
             entries={entries}
             activeId={activeId}
+            isNewEntry={isNewEntry}
             onSelect={onSelect}
             onEditEntry={onEditEntry}
             {...(onSelectionChange ? { onSelectionChange } : {})}

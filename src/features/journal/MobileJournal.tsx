@@ -24,7 +24,7 @@ const EDGE_ZONE = 28
  */
 export function MobileJournal(props: JournalViewProps) {
   const {
-    entries, activeId, status, lastSavedAt, saveError,
+    entries, activeId, isNewEntry, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
@@ -204,6 +204,7 @@ export function MobileJournal(props: JournalViewProps) {
               <EntryList
                 entries={entries}
                 activeId={activeId}
+                isNewEntry={isNewEntry}
                 onSelect={onSelect}
                 onEditEntry={handleEditEntry}
                 {...(onSelectionChange ? { onSelectionChange } : {})}

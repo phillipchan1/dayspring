@@ -36,6 +36,8 @@ export interface JournalViewProps {
   /** `focusAfterId` — next row to browse after delete; `null` — blank new doc. */
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   onNew: () => void
+  /** True while a new entry is being composed but not yet persisted. */
+  isNewEntry: boolean
   query: string
   onQueryChange: (q: string) => void
   /** Route to the Reflections ("Looking back") surface. */

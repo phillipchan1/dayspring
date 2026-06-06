@@ -53,6 +53,7 @@ export async function loadField(horizon: Horizon): Promise<FieldItem[]> {
     .from('threads')
     .select('id, label, label_ai, label_user, lens, domain, rope_id, weight, temperature, span_start, span_end, private, dismissed')
     .eq('dismissed', false)
+    .eq('kind', 'derived')   // declared (/pray, /sense) threads live on the Altar lens, not the Ascent field
     .order('weight', { ascending: false })
   if (windowStart) threadQ = threadQ.gte('span_end', windowStart)
   const { data: threadData, error } = await threadQ
@@ -137,6 +138,7 @@ export async function getRopesAtHorizon(horizon: Horizon): Promise<WarmthBand[]>
     .from('threads')
     .select('id, lens, domain, rope_id, label, label_ai, label_user, private, dismissed')
     .eq('dismissed', false)
+    .eq('kind', 'derived')   // declared threads (Altar lens) carry spiritual_item members, not entry members
   if (terr) { console.error('[threads] horizon thread query', terr.message); return [] }
   const threads = (tdata ?? []) as RawThread[]
   if (threads.length === 0) return []

@@ -46,6 +46,8 @@ const EMPTY_SELECTED: Entry[] = []
 interface Props {
   entries: Entry[]
   activeId: string | null
+  /** True while a new entry is being composed but not yet persisted. */
+  isNewEntry?: boolean
   onSelect: (entry: Entry) => void
   onEditEntry: (entry: Entry) => void
   /** Called after a row click selects (e.g. mobile closes the drawer). */
@@ -63,6 +65,7 @@ interface Props {
 export function EntryList({
   entries,
   activeId,
+  isNewEntry = false,
   onSelect,
   onEditEntry,
   onRowActivate,
@@ -410,6 +413,12 @@ export function EntryList({
             )}
           </div>
         </div>
+
+        {isNewEntry && !searching && (
+          <div className="entry-list__new-row">
+            <span className="entry-row__title">New Entry</span>
+          </div>
+        )}
 
         {entries.length === 0 ? (
           <p className="entry-list__empty">{searching ? 'No matches.' : 'Nothing yet. Start writing →'}</p>

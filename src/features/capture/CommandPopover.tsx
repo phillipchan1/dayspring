@@ -5,7 +5,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import './Capture.css'
 
-export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture'
+export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture' | 'image'
 
 interface CommandPopoverProps {
   anchor: InlinePanelAnchor
@@ -23,7 +23,7 @@ interface CommandPopoverProps {
 
 /**
  * Shared slash-command shell: column-anchored, flat elevated chrome, Esc/outside
- * dismiss, optional footer hint. Scripture, pray, and sense all render inside.
+ * dismiss, optional footer hint. Scripture, pray, sense, practice, and image render inside.
  */
 export function CommandPopover({
   anchor,

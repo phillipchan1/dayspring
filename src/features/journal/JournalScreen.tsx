@@ -56,6 +56,10 @@ import { InlineScripturePopover } from '@/features/capture/InlineScripturePopove
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
 import type { Practice } from '@/editor/practices/practicesData'
+import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
+import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
+import type { AttachmentEditTarget } from '@/editor/attachmentImageExtension'
+import { formatAttachmentMarkdown, formatPendingAttachmentMarkdown } from '@/lib/attachments'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
@@ -137,6 +141,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const loadedEntryIdRef = useRef<string | null>(null)
   const skipEditorAutofocusRef = useRef(false)
   const selectionApiRef = useRef<EntrySelectionApi | null>(null)
+  const [isNewEntryMode, setIsNewEntryMode] = useState(false)
   const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
   const [rangeSelectActive, setRangeSelectActive] = useState(false)
 
@@ -159,9 +164,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const slashCaptureRef = useRef(slashCapture)
   slashCaptureRef.current = slashCapture
 
+  const [imageEdit, setImageEdit] = useState<{
+    target: AttachmentEditTarget
+    anchor: InlinePanelAnchor
+  } | null>(null)
+  const imageEditRef = useRef(imageEdit)
+  imageEditRef.current = imageEdit
+
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
   const focusOverlaysOpen =
-    settingsOpen || helpOpen || slashCapture !== null || slashPaletteOpen
+    settingsOpen || helpOpen || slashCapture !== null || imageEdit !== null || slashPaletteOpen
   const focus = useFocusMode(focusOverlaysOpen)
 
   useEffect(() => {
@@ -205,6 +217,41 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     [],
   )
+
+  /** Map a clicked photo block to the edit popover. */
+  const handleEditAttachment = useCallback(
+    (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => {
+      setImageEdit({ target, anchor })
+    },
+    [],
+  )
+
+  const closeImageEdit = useCallback(() => {
+    setImageEdit((current) => {
+      if (current) {
+        requestAnimationFrame(() => editorRef.current?.focusAt(current.target.from))
+      }
+      return null
+    })
+  }, [])
+
+  const handleSaveImageCaption = useCallback((alt: string) => {
+    const edit = imageEditRef.current
+    if (!edit) return
+    const { hash, ext, from, to } = edit.target
+    editorRef.current?.replaceRange(from, to, formatAttachmentMarkdown(hash, ext, alt))
+    setImageEdit(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+  }, [])
+
+  const handleRemoveImage = useCallback(() => {
+    const edit = imageEditRef.current
+    if (!edit) return
+    const { from, to } = edit.target
+    editorRef.current?.replaceRange(from, to, '')
+    setImageEdit(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+  }, [])
 
   /** Insert at the slash position (or replace an edited block), then refocus. */
   const completeSlashInsert = useCallback((text: string) => {
@@ -517,6 +564,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onCreated: (created) => {
       if (!skipAdoptOnCreateRef.current) {
         go({ entryId: created.id }, { replace: true })
+        setIsNewEntryMode(false)
       }
       setEntries((prev) => {
         const idx = prev.findIndex((e) => e.id === created.id)
@@ -806,13 +854,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // the entry we just saved, causing the next typing session to update it
     // instead of creating a fresh one. Reset explicitly here.
     resetEntry()
+    skipEditorAutofocusRef.current = false
     skipEntrySyncRef.current = true
+    setIsNewEntryMode(true)
     go({ surface: 'journal', entryId: null })
     setContent('')
   }
 
   async function handleBrowse(entry: Entry) {
     skipEditorAutofocusRef.current = true
+    setIsNewEntryMode(false)
     if (bulkSelection.length >= 2 || rangeSelectActive) return
 
     const body = asEntryMarkdown(entry.body_markdown)
@@ -831,6 +882,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   async function handleEditEntry(entry: Entry) {
     selectionApiRef.current?.clear()
     skipEditorAutofocusRef.current = false
+    setIsNewEntryMode(false)
     if (entry.id === entryId && !canvasAlternateActive) {
       requestAnimationFrame(() => editorRef.current?.focus())
       return
@@ -1070,6 +1122,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
             onSlashCommand={handleSlashCommand}
             onEditBlock={handleEditBlock}
+            onEditAttachment={handleEditAttachment}
             onSlashPaletteChange={setSlashPaletteOpen}
           />
         ) : null}
@@ -1078,7 +1131,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
           onDismissKeyboard={() => editorRef.current?.blur()}
-          visible={!slashPaletteOpen && slashCapture === null}
+          visible={!slashPaletteOpen && slashCapture === null && imageEdit === null}
           docked={!isMobile}
           keyboardInset={keyboardInset}
         />
@@ -1128,6 +1181,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onEntryMenuAction: handleEntryMenuAction,
     onDeleteEntries: handleDeleteEntries,
     onNew: () => void handleNew(),
+    isNewEntry: isNewEntryMode,
     query,
     onQueryChange: setQuery,
     onLookBack: toggleLookBack,
@@ -1217,6 +1271,46 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       )}
       {slashCapture?.cmd === 'practice' && (
         <PracticeLibrary onBegin={handleBeginPractice} onClose={closeSlashCapture} />
+      )}
+      {imageEdit && (
+        <InlineImageEditPopover
+          target={imageEdit.target}
+          anchor={imageEdit.anchor}
+          onSaveCaption={handleSaveImageCaption}
+          onReplaceBegin={(pendingId, alt, from, to) => {
+            editorRef.current?.replaceRange(from, to, formatPendingAttachmentMarkdown(pendingId, alt))
+          }}
+          onReplaceComplete={(pendingId, hash, ext, alt) => {
+            editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
+          }}
+          onReplaceFailed={(pendingId) => {
+            editorRef.current?.removePendingAttachment(pendingId)
+          }}
+          onRemove={handleRemoveImage}
+          onClose={closeImageEdit}
+        />
+      )}
+
+      {slashCapture?.cmd === 'image' && (
+        <InlineImagePopover
+          anchor={slashCapture.anchor}
+          onBeginUpload={(pendingId, alt) => {
+            const cap = slashCaptureRef.current
+            if (!cap) return
+            const after =
+              editorRef.current?.insertBlockPendingAttachment(cap.insertAt, pendingId, alt) ??
+              cap.insertAt
+            setSlashCapture(null)
+            requestAnimationFrame(() => editorRef.current?.focusAt(after))
+          }}
+          onUploadComplete={(pendingId, hash, ext, alt) => {
+            editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
+          }}
+          onUploadFailed={(pendingId) => {
+            editorRef.current?.removePendingAttachment(pendingId)
+          }}
+          onClose={closeSlashCapture}
+        />
       )}
 
       {settingsOpen && state.settings && (

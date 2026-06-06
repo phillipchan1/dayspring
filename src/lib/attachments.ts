@@ -7,6 +7,8 @@
 // Never store expiring signed URLs in entry bodies — resolve them at render time.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { prepareImageForUpload } from './imageCompress'
+import type { AttachmentPhotoMeta } from './attachmentCaption'
 
 const BUCKET = 'attachments'
 const SIGNED_URL_TTL_S = 3600 // 1 hour
@@ -27,6 +29,64 @@ export interface EnsureResult {
   isNew: boolean
 }
 
+const IMAGE_EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+}
+
+/** Infer a stable file extension from an image upload. */
+export function extFromImageFile(file: File): string {
+  const name = file.name
+  const dot = name.lastIndexOf('.')
+  if (dot >= 0) {
+    const ext = name.slice(dot + 1).toLowerCase()
+    if (/^[a-z0-9]+$/.test(ext)) return ext
+  }
+  return IMAGE_EXT_BY_MIME[file.type] ?? 'jpg'
+}
+
+/** Markdown ref written into entry bodies — resolved to signed URLs at render time. */
+export function formatAttachmentMarkdown(hash: string, ext: string, alt = ''): string {
+  return `![${alt}](attachment:${hash}.${ext})`
+}
+
+/** Temporary ref while an editor upload is in flight — replaced once stored. */
+export function formatPendingAttachmentMarkdown(pendingId: string, alt = ''): string {
+  return `![${alt}](attachment-pending:${pendingId})`
+}
+
+/**
+ * Matches `![alt](attachment:<64-char sha256>.<ext>)` in markdown.
+ * Groups: [full, alt, hash, ext]
+ */
+export const ATTACHMENT_REF_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\)/g
+
+/** Matches in-flight editor uploads. Groups: [full, alt, pendingId] */
+export const PENDING_ATTACHMENT_REF_RE =
+  /!\[([^\]]*)\]\(attachment-pending:([a-f0-9-]{36})\)/g
+
+/**
+ * Upload an image for the signed-in user. Idempotent by content hash.
+ * @throws when Supabase is unavailable or the user is not signed in.
+ */
+export async function uploadImageAttachment(
+  supabase: SupabaseClient,
+  file: File,
+  meta?: AttachmentPhotoMeta,
+): Promise<EnsureResult & { ext: string }> {
+  const { data } = await supabase.auth.getUser()
+  const ownerId = data.user?.id
+  if (!ownerId) throw new Error('Sign in to add photos')
+  const prepared = await prepareImageForUpload(file)
+  const ext = extFromImageFile(prepared)
+  const result = await ensureAttachment(supabase, ownerId, prepared, ext, meta)
+  return { ...result, ext }
+}
+
 /**
  * Upload a blob and upsert the attachments metadata row.
  * Idempotent: if (owner, hash) already exists the upload is skipped.
@@ -37,6 +97,7 @@ export async function ensureAttachment(
   ownerId: string,
   blob: Blob,
   ext: string,
+  meta?: AttachmentPhotoMeta,
 ): Promise<EnsureResult> {
   const hash = await computeSha256(blob)
   const storageKey = `${ownerId}/${hash}.${ext}`
@@ -54,17 +115,40 @@ export async function ensureAttachment(
     .from(BUCKET)
     .upload(storageKey, blob, { contentType: blob.type || `image/${ext}`, upsert: false })
 
-  // "already exists" means a previous run uploaded it before we could insert the row.
   if (uploadErr && !uploadErr.message.toLowerCase().includes('already exists')) {
     throw new Error(`Storage upload failed: ${uploadErr.message}`)
   }
 
-  await supabase.from('attachments').upsert(
-    { owner: ownerId, hash, storage_key: storageKey, mime: blob.type || null, bytes: blob.size },
-    { onConflict: 'owner,hash', ignoreDuplicates: true },
-  )
+  const row: Record<string, unknown> = {
+    owner: ownerId,
+    hash,
+    storage_key: storageKey,
+    mime: blob.type || null,
+    bytes: blob.size,
+  }
+  if (meta && Object.keys(meta).length > 0) row.metadata = meta
+
+  await supabase.from('attachments').upsert(row, { onConflict: 'owner,hash', ignoreDuplicates: true })
 
   return { hash, isNew: true }
+}
+
+/** Load stored metadata for a photo (capture time, etc.). */
+export async function fetchAttachmentMeta(
+  supabase: SupabaseClient,
+  ownerId: string,
+  hash: string,
+): Promise<AttachmentPhotoMeta | null> {
+  const { data } = await supabase
+    .from('attachments')
+    .select('metadata')
+    .eq('owner', ownerId)
+    .eq('hash', hash)
+    .maybeSingle()
+  if (!data?.metadata || typeof data.metadata !== 'object') return null
+  const m = data.metadata as Record<string, unknown>
+  const takenAt = typeof m.takenAt === 'string' ? m.takenAt : undefined
+  return takenAt ? { takenAt } : null
 }
 
 /**
@@ -93,12 +177,6 @@ export async function resolveAttachmentUrl(
   })
   return data.signedUrl
 }
-
-/**
- * Matches `![alt](attachment:<64-char sha256>.<ext>)` in markdown.
- * Groups: [full, alt, hash, ext]
- */
-export const ATTACHMENT_REF_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\)/g
 
 /**
  * Replace all `attachment:<hash>.<ext>` refs in `markdown` with fresh signed URLs.

@@ -28,7 +28,15 @@ import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
-import { attachmentImageExtension } from './attachmentImageExtension'
+import { attachmentImageExtension, type AttachmentEditTarget } from './attachmentImageExtension'
+import {
+  attachmentBlockNormalizeExtension,
+  insertBlockAttachmentAt,
+  insertBlockPendingAttachmentsAt,
+  removePendingAttachmentInView,
+  replacePendingAttachmentInView,
+} from './attachmentInsert'
+import { attachmentDropExtension } from './attachmentDropExtension'
 import { practicePromptExtension } from './practices/usePracticeInsertion'
 
 export interface EditorHandle {
@@ -43,6 +51,12 @@ export interface EditorHandle {
   blur: () => void
   /** Trigger a slash command at the current cursor position (for mobile UI). */
   triggerCommand: (cmd: SlashCommandId) => void
+  /** Insert a block-isolated attachment image at the given position. Returns caret after. */
+  insertBlockAttachment: (pos: number, hash: string, ext: string, alt?: string) => number
+  /** Show an uploading placeholder, then resolve via replace/remove helpers. */
+  insertBlockPendingAttachment: (pos: number, pendingId: string, alt?: string) => number
+  replacePendingAttachment: (pendingId: string, hash: string, ext: string, alt?: string) => void
+  removePendingAttachment: (pendingId: string) => void
 }
 
 interface EditorProps {
@@ -75,6 +89,8 @@ interface EditorProps {
   ) => void
   /** Called when the user clicks a rendered spiritual block to edit it. */
   onEditBlock?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
+  /** Called when the user clicks a photo block to edit it. */
+  onEditAttachment?: (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => void
 }
 
 /**
@@ -100,6 +116,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     commandLinePos = null,
     onSlashCommand,
     onEditBlock,
+    onEditAttachment,
     onSlashPaletteChange,
     skipAutofocusRef,
   },
@@ -113,6 +130,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
+  const onEditAttachmentRef = useRef(onEditAttachment)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
   const titleStylingRef = useRef(titleStyling)
@@ -122,6 +140,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const setSlashRef = useRef(setSlashState)
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
+  onEditAttachmentRef.current = onEditAttachment
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
   titleStylingRef.current = titleStyling
@@ -183,6 +202,26 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const insertAt = view.state.selection.main.head
       const anchor = computeInlinePanelAnchor(view, insertAt)
       onSlashCommand(cmd, insertAt, anchor)
+    },
+    insertBlockAttachment: (pos, hash, ext, alt) => {
+      const view = viewRef.current
+      if (!view) return pos
+      return insertBlockAttachmentAt(view, pos, hash, ext, alt)
+    },
+    insertBlockPendingAttachment: (pos, pendingId, alt) => {
+      const view = viewRef.current
+      if (!view) return pos
+      return insertBlockPendingAttachmentsAt(view, pos, [{ id: pendingId, alt: alt ?? '' }])
+    },
+    replacePendingAttachment: (pendingId, hash, ext, alt) => {
+      const view = viewRef.current
+      if (!view) return
+      replacePendingAttachmentInView(view, pendingId, hash, ext, alt ?? '')
+    },
+    removePendingAttachment: (pendingId) => {
+      const view = viewRef.current
+      if (!view) return
+      removePendingAttachmentInView(view, pendingId)
     },
   }))
 
@@ -254,7 +293,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           taskListExtension(),
           // Renders /practice prompts as display-only decorations over hidden tokens.
           practicePromptExtension,
-          attachmentImageExtension,
+          attachmentBlockNormalizeExtension(),
+          attachmentImageExtension((target, anchor) =>
+            onEditAttachmentRef.current?.(target, anchor),
+          ),
+          attachmentDropExtension(),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
           editorTheme,

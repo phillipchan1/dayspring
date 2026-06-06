@@ -3,6 +3,17 @@ export type Horizon = 0 | 1 | 2 | 3 | 4
 
 export type Register = 'bringing' | 'meeting' | 'neutral'
 
+/**
+ * How a strand entered the field.
+ *   declared — the writer marked it (/pray, /sense): a deliberate object.
+ *   derived  — the app wove it from recurring prose: a noticed pattern.
+ * Orthogonal to the structural rope|thread shape (FieldItem.kind).
+ */
+export type StrandKind = 'declared' | 'derived'
+
+/** Declared-thread subtype. null for derived/none. The "Altar" lens filters on this. */
+export type StrandType = 'prayer' | 'sense' | null
+
 /** A row shown on the field — may be a rope (group of threads) or a standalone thread. */
 export interface FieldItem {
   id: string
@@ -19,6 +30,10 @@ export interface FieldItem {
   private: boolean
   /** For ropes: number of component threads. For threads: 1. */
   threadCount: number
+  /** declared (marked /pray, /sense) vs derived (woven from prose). Phase 2+ populated. */
+  strandKind?: StrandKind
+  /** prayer | sense | null — drives the Altar lens filter. Phase 2+ populated. */
+  type?: StrandType
 }
 
 /** A thread row inside a rope decompose view. */
@@ -80,6 +95,10 @@ export interface WarmthBand {
   repLine: RepLine | null
   spanStart: string
   spanEnd: string
+  /** declared (marked /pray, /sense) vs derived (woven from prose). Phase 2+ populated. */
+  strandKind?: StrandKind
+  /** prayer | sense | null — drives the Altar lens filter. Phase 2+ populated. */
+  type?: StrandType
 }
 
 /**
