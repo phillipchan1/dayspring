@@ -15,6 +15,8 @@ interface RailProps {
   onLookBack: () => void
   altarActive: boolean
   onAltar: () => void
+  /** Altar is feature-flagged off until ready — hide its rail destination when false. */
+  altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
   onOpenSettings: () => void
@@ -36,6 +38,7 @@ export function Rail({
   onLookBack,
   altarActive,
   onAltar,
+  altarEnabled,
   scriptureActive,
   onScripture,
   onOpenSettings,
@@ -110,15 +113,17 @@ export function Rail({
             icon={<IconScripture />}
             labelsExpanded={labelsExpanded}
           />
-          <RailButton
-            label="Altar"
-            subline="The prayers you return to"
-            shortcut="⌘4"
-            onClick={onAltar}
-            active={altarActive}
-            icon={<IconAltar />}
-            labelsExpanded={labelsExpanded}
-          />
+          {altarEnabled && (
+            <RailButton
+              label="Altar"
+              subline="The prayers you return to"
+              shortcut="⌘4"
+              onClick={onAltar}
+              active={altarActive}
+              icon={<IconAltar />}
+              labelsExpanded={labelsExpanded}
+            />
+          )}
         </div>
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>

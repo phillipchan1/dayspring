@@ -44,6 +44,8 @@ export interface JournalViewProps {
   onScripture: () => void
   /** Route to the Altar surface. */
   onAltar: () => void
+  /** Altar is gated behind the `altar` feature flag until it's ready to ship. */
+  altarEnabled: boolean
   onOpenSettings: () => void
   /** Force a full re-sync from the server (pull latest + flush outbox). */
   onSync: () => void

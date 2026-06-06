@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 /** Map of flag key → Vite env variable name. */
 const FLAG_ENV: Record<string, string> = {
   threadsRopes: 'VITE_FF_THREADS_ROPES',
+  altar: 'VITE_FF_ALTAR',
 }
 
 /**

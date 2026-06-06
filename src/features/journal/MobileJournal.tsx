@@ -25,7 +25,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, onOpenSettings, onSync,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
@@ -167,9 +167,11 @@ export function MobileJournal(props: JournalViewProps) {
             <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
               ✦
             </button>
-            <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘4)">
-              ◇
-            </button>
+            {altarEnabled && (
+              <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘4)">
+                ◇
+              </button>
+            )}
             {journalChrome && (
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 focus

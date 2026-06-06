@@ -42,7 +42,7 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
-import { FeatureFlagProvider } from '@/features/flags'
+import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
   copyEntriesMarkdown,
@@ -130,6 +130,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
+  // Altar is unfinished — hidden behind the `altar` flag (per-profile or
+  // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
+  // any stray navigation to the surface is redirected back to the journal.
+  const altarEnabled = resolveFlag(featureFlags, 'altar')
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
@@ -641,6 +645,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   function toggleAltar() {
+    if (!altarEnabled) return
     if (state.entryReturn?.surface === 'altar') {
       returnFromEntryOrigin()
       return
@@ -681,6 +686,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setEntriesOpen(false)
     if (state.sidebar) go({ sidebar: false }, { replace: true })
   }, [canvasAlternateActive, state.sidebar, go])
+
+  // Altar is flag-gated: never strand a user on it (e.g. a stale history frame
+  // from before the flag, or a profile that lost the flag) — send them home.
+  useEffect(() => {
+    if (altarActive && !altarEnabled) {
+      go({ surface: 'journal', entryId: null, entryReturn: null }, { replace: true })
+    }
+  }, [altarActive, altarEnabled, go])
 
   useJournalShortcuts({
     onNew: () => void handleNew(),
@@ -1096,7 +1109,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   const mainSlot = scriptureActive ? (
     <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
-  ) : altarActive ? (
+  ) : altarActive && altarEnabled ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
@@ -1141,6 +1154,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
+    altarEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       void repo.sync(entryIdRef.current).then((list) => {
