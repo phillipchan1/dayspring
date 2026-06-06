@@ -44,18 +44,25 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         typeof session.customer === 'string' ? session.customer : session.customer?.id
       if (!userId || !customerId) break
 
-      // Subscription starts in trial.
+      // Derive the plan from the real Stripe subscription status rather than
+      // assuming a trial. This supports both onboarding models:
+      //  • app-managed reverse trial (default): the in-app trial already ran, so
+      //    Checkout creates an immediately-active subscription → status 'active'
+      //    → plan 'active'.
+      //  • card-first: Checkout attaches trial_period_days → status 'trialing'
+      //    → plan 'trialing'.
       const sub =
         typeof session.subscription === 'string'
           ? await stripe().subscriptions.retrieve(session.subscription)
           : (session.subscription as Stripe.Subscription | null)
 
+      const plan = sub ? stripeStatusToPlan(sub.status) : 'active'
       const trialEnd = sub?.trial_end
         ? new Date(sub.trial_end * 1000).toISOString()
         : null
 
       await updateSubscriptionByUserId(userId, {
-        plan: 'trialing',
+        plan: plan === 'none' ? 'active' : plan,
         trial_ends_at: trialEnd,
         stripe_customer_id: customerId,
         source: 'stripe',

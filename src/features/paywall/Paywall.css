@@ -360,19 +360,41 @@
 
 /* ── Trial banner ───────────────────────────────────────────────────────── */
 
+/* Floating, light-touch pill — pinned top-centre so it never reflows or covers
+   the journal. Dismissible per session. Respects the iOS safe-area inset. */
 .trial-banner {
+  position: fixed;
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.65rem;
-  padding: 0.38rem 1rem;
+  gap: 0.6rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.85rem;
   background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-elevated));
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-2);
   font-family: var(--font-sans);
   font-size: 0.78rem;
   color: var(--text-dim);
-  flex-shrink: 0;
-  -webkit-app-region: drag;
+  max-width: calc(100vw - 2rem);
+}
+
+.trial-banner__dismiss {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  transition: color var(--transition);
+}
+.trial-banner__dismiss:hover {
+  color: var(--text);
 }
 
 .trial-banner__days {

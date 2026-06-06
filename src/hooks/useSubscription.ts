@@ -21,7 +21,7 @@ export function useSubscription(): SubscriptionState {
       if (mountedRef.current) setSubscription(sub)
     } catch {
       // On error treat as unknown — don't block the app, let them retry
-      if (mountedRef.current) setSubscription({ plan: 'none', trial_ends_at: null, plan_expires_at: null, featureFlags: [] })
+      if (mountedRef.current) setSubscription({ plan: 'none', trial_ends_at: null, plan_expires_at: null, onboarded_at: null, featureFlags: [] })
     } finally {
       if (mountedRef.current) setLoading(false)
     }

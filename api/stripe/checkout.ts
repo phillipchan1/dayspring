@@ -38,12 +38,19 @@ export async function POST(req: Request): Promise<Response> {
 
   const existingCustomerId = profile?.stripe_customer_id ?? undefined
 
+  // Trial model (see api/_lib/env.ts → onboardingRequireCard):
+  //  • app-managed (default): the 14-day reverse trial was already granted in-app
+  //    at first sign-in, so tapping "Subscribe" converts straight to a paid
+  //    subscription — no second trial here.
+  //  • card-first: Checkout is where the trial starts, so attach trial_period_days.
+  const requireCard = env.onboardingRequireCard()
+
   const session = await stripe().checkout.sessions.create({
     mode: 'subscription',
     customer: existingCustomerId,
     ...(!existingCustomerId && user.email ? { customer_email: user.email } : {}),
     line_items: [{ price: priceId, quantity: 1 }],
-    subscription_data: { trial_period_days: 14 },
+    ...(requireCard ? { subscription_data: { trial_period_days: 14 } } : {}),
     client_reference_id: user.id,
     success_url: `${appUrl}/?checkout=success`,
     cancel_url: `${appUrl}/?checkout=cancelled`,
