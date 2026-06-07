@@ -181,6 +181,12 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         checked={settings.firstLineTitle}
         onChange={(v) => update({ firstLineTitle: v })}
       />
+      <Toggle
+        label="Ritual previews"
+        hint="Preview a ritual’s questions before you begin. Off jumps straight into writing."
+        checked={!settings.skipRitualPreview}
+        onChange={(v) => update({ skipRitualPreview: !v })}
+      />
       <div className="settings-divider" />
       <Toggle
         label="Typewriter scrolling"

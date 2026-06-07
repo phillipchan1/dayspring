@@ -1305,7 +1305,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         />
       )}
       {slashCapture?.cmd === 'ritual' && (
-        <PracticeLibrary onBegin={handleBeginPractice} onClose={closeSlashCapture} />
+        <PracticeLibrary
+          onBegin={handleBeginPractice}
+          onClose={closeSlashCapture}
+          skipPreview={settings.skipRitualPreview}
+          onToggleSkipPreview={(v) => updateSettings({ skipRitualPreview: v })}
+        />
       )}
       {aboutPractice && (
         <PracticeAboutSheet

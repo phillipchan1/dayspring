@@ -55,6 +55,9 @@ export interface Settings {
 
   /** Sidebar: show a one-line body excerpt below each entry title. */
   showEntryPreview: boolean
+
+  /** Skip a ritual's preview/threshold and begin writing on selection. */
+  skipRitualPreview: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -70,6 +73,7 @@ const DEFAULTS: Settings = {
   firstLineTitle: true,
   devMode: false,
   showEntryPreview: false,
+  skipRitualPreview: false,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'

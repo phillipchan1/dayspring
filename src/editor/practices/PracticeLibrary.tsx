@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   PRACTICES,
@@ -9,35 +9,87 @@ import {
 import './PracticeLibrary.css'
 
 interface Props {
-  /** Begin a practice — the caller closes the modal and seeds the editor. */
+  /** Begin a ritual — the caller closes the modal and seeds the editor. */
   onBegin: (practice: Practice) => void
   /** Dismiss without beginning (Escape / scrim) — caller restores the caret. */
   onClose: () => void
+  /** When true, selecting a ritual begins immediately (no preview/threshold). */
+  skipPreview: boolean
+  /** Persist the "skip the preview" preference. */
+  onToggleSkipPreview: (value: boolean) => void
 }
 
 type Filter = PracticeFunction | 'all'
 
 /**
- * Full-screen Practices Library: browse the forms, pass through an orienting
- * threshold, then begin writing. Nothing is inserted into the entry until the
- * writer presses "Begin writing".
+ * Full-screen Rituals Library: browse the forms, pass through an orienting
+ * preview (its questions), then begin writing. Fully keyboard-navigable — arrow
+ * through the cards, Enter to choose, Enter again to begin. Power users can skip
+ * the preview entirely (restored from Settings). Nothing is inserted into the
+ * entry until "Begin writing".
  */
-export function PracticeLibrary({ onBegin, onClose }: Props) {
+export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPreview }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
   const [selected, setSelected] = useState<Practice | null>(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const gridRef = useRef<HTMLDivElement>(null)
 
-  // Escape always closes the whole modal and returns the caret to the editor.
+  const visible = useMemo(
+    () => PRACTICES.filter((p) => filter === 'all' || p.function === filter),
+    [filter],
+  )
+
+  // Reset the keyboard cursor when the filtered set changes.
+  useEffect(() => setActiveIdx(0), [filter])
+
+  // Selecting a ritual either previews it (threshold) or begins straight away.
+  const choose = (practice: Practice) => {
+    if (skipPreview) onBegin(practice)
+    else setSelected(practice)
+  }
+
+  // Keep the keyboard-active card in view.
+  useEffect(() => {
+    if (selected) return
+    const el = gridRef.current?.querySelector<HTMLElement>('[data-active="true"]')
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [activeIdx, selected, visible.length])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
-        onClose()
+        if (selected) setSelected(null)
+        else onClose()
+        return
+      }
+      if (selected) {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onBegin(selected)
+        } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+          e.preventDefault()
+          setSelected(null)
+        }
+        return
+      }
+      if (visible.length === 0) return
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActiveIdx((i) => (i + 1) % visible.length)
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActiveIdx((i) => (i - 1 + visible.length) % visible.length)
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const practice = visible[activeIdx]
+        if (practice) choose(practice)
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+  })
 
   const functionLabel = (fn: PracticeFunction) =>
     PRACTICE_FUNCTIONS.find((f) => f.id === fn)?.label ?? fn
@@ -56,7 +108,7 @@ export function PracticeLibrary({ onBegin, onClose }: Props) {
           </p>
         </header>
 
-        <div className="practice-library__filters" role="tablist" aria-label="Filter practices">
+        <div className="practice-library__filters" role="tablist" aria-label="Filter rituals">
           {PRACTICE_FUNCTIONS.map((f) => (
             <button
               key={f.id}
@@ -72,16 +124,16 @@ export function PracticeLibrary({ onBegin, onClose }: Props) {
           ))}
         </div>
 
-        <div className="practice-library__grid">
-          {PRACTICES.map((practice) => (
+        <div className="practice-library__grid" ref={gridRef}>
+          {visible.map((practice, i) => (
             <button
               key={practice.name}
               type="button"
-              className={`practice-card${
-                filter !== 'all' && practice.function !== filter ? ' practice-card--hidden' : ''
-              }`}
+              className="practice-card"
               data-function={practice.function}
-              onClick={() => setSelected(practice)}
+              data-active={i === activeIdx ? 'true' : undefined}
+              onMouseEnter={() => setActiveIdx(i)}
+              onClick={() => choose(practice)}
             >
               <span className="practice-card__function">
                 {functionLabel(practice.function)}
@@ -117,6 +169,19 @@ export function PracticeLibrary({ onBegin, onClose }: Props) {
             <div className="practice-threshold__origin">{selected.origin}</div>
             <div className="practice-threshold__divider" aria-hidden />
             <p className="practice-threshold__intention">{selected.intention}</p>
+
+            <div className="practice-threshold__movements-label">
+              {selected.prompts.length} movements
+            </div>
+            <ol className="practice-threshold__movements">
+              {selected.prompts.map((prompt) => (
+                <li key={prompt.label} className="practice-threshold__movement">
+                  <span className="practice-threshold__movement-name">{prompt.label}</span>
+                  <span className="practice-threshold__movement-q">{prompt.question}</span>
+                </li>
+              ))}
+            </ol>
+
             <button
               type="button"
               className="practice-threshold__begin"
@@ -124,6 +189,14 @@ export function PracticeLibrary({ onBegin, onClose }: Props) {
             >
               Begin writing
             </button>
+            <label className="practice-threshold__skip">
+              <input
+                type="checkbox"
+                checked={skipPreview}
+                onChange={(e) => onToggleSkipPreview(e.target.checked)}
+              />
+              Skip this preview next time
+            </label>
           </div>
         )}
       </div>
