@@ -15,7 +15,7 @@ import {
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
 import { spiritualBlocksField } from './spiritualBlocksField'
-import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
 import { clearLink, linkUrlInRange, selectionAnchorRect, setLink } from './formatSelection'
@@ -240,7 +240,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
-        doc: initialDoc,
+        doc: ensureBlockSeparation(initialDoc),
         extensions: [
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -358,7 +358,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       // Swapping entries replaces the doc; on the same entry only seed an empty
       // editor when the body arrives after mount — never fight live typing.
       if (entryChanged || (current.trim() === '' && initialDoc.trim() !== '')) {
-        view.dispatch({ changes: { from: 0, to: current.length, insert: initialDoc } })
+        view.dispatch({ changes: { from: 0, to: current.length, insert: ensureBlockSeparation(initialDoc) } })
       }
     }
     if (skipAutofocusRef?.current) {

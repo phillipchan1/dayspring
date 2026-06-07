@@ -1,4 +1,5 @@
 import type { SpiritualItemType } from './types'
+import { isPracticeTokenLine } from './practiceTokens'
 
 const FENCE_TYPES: SpiritualItemType[] = ['prayer', 'sense', 'scripture']
 
@@ -140,4 +141,28 @@ export function parseSpiritualBlocks(markdown: string): ParsedSpiritualBlock[] {
   }
 
   return blocks
+}
+
+/**
+ * Guarantee an editable blank line between a spiritual block and a following
+ * practice section token. A block is atomic and the token line is hidden +
+ * atomic, so without a normal line between them there's nowhere to place the
+ * caret to keep writing beneath the block. Idempotent — a block already followed
+ * by a blank line is left untouched — so it's safe to run on every entry load.
+ */
+export function ensureBlockSeparation(markdown: string): string {
+  if (!markdown.includes('<!-- practice:')) return markdown
+  const inserts: number[] = []
+  for (const block of parseSpiritualBlocks(markdown)) {
+    if (block.to >= markdown.length) continue
+    let lineEnd = markdown.indexOf('\n', block.to)
+    if (lineEnd === -1) lineEnd = markdown.length
+    if (isPracticeTokenLine(markdown.slice(block.to, lineEnd).trim())) inserts.push(block.to)
+  }
+  if (inserts.length === 0) return markdown
+  let out = markdown
+  for (const pos of [...new Set(inserts)].sort((a, b) => b - a)) {
+    out = out.slice(0, pos) + '\n' + out.slice(pos)
+  }
+  return out
 }

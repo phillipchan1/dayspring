@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ensureBlockSeparation,
   formatSpiritualBlock,
   isSpiritualFenceLine,
   parseSpiritualBlocks,
@@ -58,6 +59,23 @@ describe('stripSpiritualBlocks', () => {
   })
   it('leaves block-free markdown intact', () => {
     expect(stripSpiritualBlocks('just words')).toBe('just words')
+  })
+})
+
+describe('ensureBlockSeparation', () => {
+  const block = `\`\`\`dayspring-scripture ${UUID}\nBe still\nPsalm 46:10\n\`\`\``
+  it('inserts a blank line between a block and a following practice token', () => {
+    const doc = `<!-- practice:section:Lectio -->\n${block}\n<!-- practice:section:Meditatio -->\n`
+    const out = ensureBlockSeparation(doc)
+    expect(out).toContain('```\n\n<!-- practice:section:Meditatio -->')
+  })
+  it('is idempotent — a separated block is left untouched', () => {
+    const doc = `<!-- practice:section:Lectio -->\n${block}\n<!-- practice:section:Meditatio -->\n`
+    expect(ensureBlockSeparation(ensureBlockSeparation(doc))).toBe(ensureBlockSeparation(doc))
+  })
+  it('leaves non-practice documents alone', () => {
+    const doc = `${block}\nsome prose`
+    expect(ensureBlockSeparation(doc)).toBe(doc)
   })
 })
 
