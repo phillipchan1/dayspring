@@ -11,7 +11,8 @@ import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
 import { UpdateToast } from './components/UpdateToast'
 import { FeedbackWidget } from './components/FeedbackWidget'
-import { AppNavigationProvider } from './context/AppNavigation'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { AppNavigationProvider, useAppNavigation } from './context/AppNavigation'
 import { WelcomeProvider } from './features/welcome/WelcomeProvider'
 import { PaywallScreen } from './features/paywall/PaywallScreen'
 import { LockedScreen } from './features/paywall/LockedScreen'
@@ -187,10 +188,41 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
       {showTrialBanner && (
         <TrialBanner subscription={subscription} onDismiss={() => setBannerDismissed(true)} />
       )}
-      <JournalScreen userEmail={userEmail} featureFlags={featureFlags} />
+      <SurfaceErrorBoundary>
+        <JournalScreen userEmail={userEmail} featureFlags={featureFlags} />
+      </SurfaceErrorBoundary>
       <UpdateToast />
       <FeedbackWidget featureFlags={featureFlags} />
     </WelcomeProvider>
+  )
+}
+
+/**
+ * Thin wrapper so the ErrorBoundary can call useAppNavigation (class components
+ * can't use hooks directly). On "Go Home" it navigates back to the journal
+ * surface without a full page reload, preserving any outbox state.
+ */
+function SurfaceErrorBoundary({ children }: { children: React.ReactNode }) {
+  const { state, go } = useAppNavigation()
+  const goHome = () =>
+    go(
+      {
+        surface: 'journal',
+        entryId: null,
+        settings: null,
+        help: false,
+        scriptureBook: null,
+        scriptureVerse: null,
+        entryReturn: null,
+        ascentAltitude: 0,
+        ascentDrill: null,
+      },
+      { replace: true },
+    )
+  return (
+    <ErrorBoundary variant="surface" surface={state.surface} onGoHome={goHome}>
+      {children}
+    </ErrorBoundary>
   )
 }
 

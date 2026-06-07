@@ -24,6 +24,7 @@ import {
   surfaceFromPath,
   type AppHistoryState,
 } from '@/lib/appHistory'
+import { addBreadcrumb } from '@/lib/crashReport'
 
 interface AppNavigationValue {
   state: AppHistoryState
@@ -46,10 +47,17 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const seededRef = useRef(false)
 
   const commit = useCallback((next: AppHistoryState, replace: boolean) => {
+    const prev = stateRef.current
     stateRef.current = next
     setState(next)
     if (replace) replaceAppHistory(next)
     else pushAppHistory(next)
+    // Breadcrumb for crash reports — log surface changes and settings opens.
+    if (prev.surface !== next.surface) {
+      addBreadcrumb('navigation', `opened ${next.surface}`)
+    } else if (!prev.settings && next.settings) {
+      addBreadcrumb('navigation', `opened settings:${next.settings.tab}`)
+    }
   }, [])
 
   const go = useCallback(

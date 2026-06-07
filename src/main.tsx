@@ -21,7 +21,9 @@ import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
 import './styles/global.css'
 import { App } from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { applyPlatformClass } from './lib/platform'
+import { installGlobalHandlers } from './lib/crashReport'
 import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
 
@@ -29,6 +31,9 @@ async function bootstrap() {
   // Tag <html> as desktop before first paint so native-only layout (e.g. room for
   // the macOS traffic lights under the overlay title bar) applies immediately.
   applyPlatformClass()
+
+  // Catch non-React errors (unhandled rejections, stray throws) and report them.
+  installGlobalHandlers()
 
   // Desktop: start listening for the dayspring:// OAuth callback before anything
   // else, so a cold launch via the deep link is captured. No-op on web.
@@ -44,7 +49,9 @@ async function bootstrap() {
 
   createRoot(rootEl).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary variant="root">
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   )
 }

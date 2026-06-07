@@ -1,0 +1,187 @@
+/* Error Boundary — contemplative fallback, same visual language as SurfaceLoader
+   but inverted: a dimmed ember that pulses slowly instead of breathing to life.
+   Calm, not alarming. */
+
+/* Shared layout for both variants */
+.error-boundary {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-boundary--root {
+  /* Full viewport — last resort when the app shell itself crashes */
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+}
+
+.error-boundary--surface {
+  /* In-shell — sits inside the app layout, preserves sidebar/nav */
+  padding: 2rem 1rem;
+}
+
+.error-boundary__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 26rem;
+  text-align: center;
+}
+
+/* Dimmed ember — a subdued version of the SurfaceLoader breathing mark */
+.error-boundary__mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(var(--scripture-gold), 0.5),
+    rgba(var(--scripture-ember), 0.25) 58%,
+    transparent 72%
+  );
+  opacity: 0.65;
+  animation: errorPulse 3.4s ease-in-out infinite;
+}
+
+/* Main label — serif italic like SurfaceLoader */
+.error-boundary__label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  margin: 0;
+}
+
+/* Supporting copy */
+.error-boundary__sub {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* Actions row */
+.error-boundary__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Button base */
+.error-boundary__btn {
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0.5rem 1.2rem;
+  border-radius: var(--radius, 8px);
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition, 140ms ease),
+              opacity var(--transition, 140ms ease);
+}
+
+.error-boundary__btn:hover {
+  opacity: 0.85;
+}
+
+.error-boundary__btn:active {
+  transform: scale(0.97);
+}
+
+/* Primary = accent-colored solid button */
+.error-boundary__btn--primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+[data-theme='light'] .error-boundary__btn--primary {
+  color: #fff;
+}
+
+/* Ghost = transparent outline button */
+.error-boundary__btn--ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.error-boundary__btn--ghost:hover {
+  background: var(--bg-elevated);
+  opacity: 1;
+}
+
+/* Collapsible technical details */
+.error-boundary__details-wrap {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.error-boundary__details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  transition: color var(--transition, 140ms ease);
+}
+
+.error-boundary__details-toggle:hover {
+  color: var(--text-dim);
+}
+
+.error-boundary__details {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+  background: var(--bg-elevated, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-faint);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow-y: auto;
+  text-align: left;
+}
+
+/* Slow pulse — subdued, not anxious. A dimmed heartbeat. */
+@keyframes errorPulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.45;
+    box-shadow: 0 0 14px -4px rgba(var(--scripture-gold), 0.3);
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.7;
+    box-shadow: 0 0 22px -2px rgba(var(--scripture-gold), 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-boundary__mark {
+    animation: none;
+    opacity: 0.6;
+    box-shadow: 0 0 18px -4px rgba(var(--scripture-gold), 0.4);
+  }
+}
