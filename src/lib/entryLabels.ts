@@ -1,6 +1,29 @@
-import { isSpiritualFenceLine, stripSpiritualBlocks } from './spiritualBlocks'
+import { isSpiritualFenceLine, parseSpiritualBlocks, stripSpiritualBlocks } from './spiritualBlocks'
 import { isPracticeTokenLine, practiceNameFromLine } from './practiceTokens'
 import { ATTACHMENT_REF_RE } from './attachments'
+
+/**
+ * Label fallback for an entry with no prose — just a spiritual block (e.g. a
+ * `/scripture` insert and nothing else). Surfaces something meaningful instead
+ * of "Untitled": a scripture's reference as the title and its verse as the
+ * preview; a prayer/sense's own words as the title.
+ */
+function spiritualBlockLabel(
+  markdown: string | null | undefined,
+): { title: string; preview: string | null } | null {
+  const [block] = parseSpiritualBlocks(asEntryMarkdown(markdown))
+  if (!block) return null
+  const content = block.content.replace(/\s+/g, ' ').trim()
+  if (block.type === 'scripture') {
+    // Reference is stored as "Psalm 121:7-8 · ESV" — drop the translation so the
+    // title reads as a clean citation; the verse becomes the preview.
+    const reference = (block.reference ?? '').split('·')[0]!.trim()
+    return { title: reference || content || 'Scripture', preview: content || null }
+  }
+  // Prayer / sense: the user's own words are the most meaningful label.
+  const fallbackName = block.type === 'prayer' ? 'Prayer' : 'Reflection'
+  return { title: content || fallbackName, preview: null }
+}
 
 /** Coerce nullable entry bodies to a string safe for editors and labels. */
 export function asEntryMarkdown(markdown: string | null | undefined): string {
@@ -48,7 +71,9 @@ export function deriveTitle(markdown: string | null | undefined): string {
     const name = practiceNameFromLine(raw.trim())
     if (name) return name
   }
-  return ''
+  // Still nothing prose-like — surface a lone spiritual block (a /scripture
+  // insert with no other writing) instead of falling through to "Untitled".
+  return spiritualBlockLabel(markdown)?.title ?? ''
 }
 
 /** One-line body preview for the entry list — verbatim prose, scaffolding-free. */
@@ -66,6 +91,14 @@ export function deriveEntryPreview(
       .trim()
     if (!cleaned) continue
     return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trimEnd() + '…' : cleaned
+  }
+  // No prose — preview the verse of a lone scripture block (its reference is
+  // already the title), so a scripture-only entry reads as ref + verse.
+  const blockPreview = spiritualBlockLabel(markdown)?.preview
+  if (blockPreview) {
+    return blockPreview.length > maxLength
+      ? blockPreview.slice(0, maxLength).trimEnd() + '…'
+      : blockPreview
   }
   return null
 }

@@ -1,24 +1,21 @@
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import { RangeSetBuilder, type Extension } from '@codemirror/state'
 import { isExplicitHeading, isNonTitleLine } from '@/lib/entryMarkdown'
-import { isSpiritualFenceLine } from '@/lib/spiritualBlocks'
-
-function firstContentLine(doc: EditorView['state']['doc']): number | null {
-  for (let n = 1; n <= doc.lines; n++) {
-    const t = doc.line(n).text.trim()
-    if (t && !isSpiritualFenceLine(t) && t !== '```') return n
-  }
-  return null
-}
 
 function buildDecorations(view: EditorView): DecorationSet {
   const { doc } = view.state
-  const titleAt = firstContentLine(doc)
-  if (titleAt === null) return Decoration.none
-
+  // The title is strictly line 1. If the writer pressed Enter to push their
+  // first words down (a blank first line), or led with a spiritual block, they
+  // opted out of a title — nothing below line 1 is ever auto-promoted. This
+  // keeps the title a convenience, not something forced onto the first text
+  // wherever it happens to land.
+  const titleAt = 1
   const text = doc.line(titleAt).text
-  // A leading list / quote / task is content, not a title — leave it to the
-  // normal markdown highlighting so the editor matches the rendered view.
+  if (!text.trim()) return Decoration.none
+
+  // A blank, list, quote, task, or spiritual-fence first line is content (or
+  // nothing), not a title — leave it to the normal markdown highlighting so the
+  // editor matches the rendered view.
   if (isNonTitleLine(text)) return Decoration.none
   const explicit = isExplicitHeading(text)
   const hasBodyBelow = titleAt < doc.lines

@@ -66,6 +66,19 @@ describe('markdownForDisplay', () => {
     expect(out).toBe('# Morning thoughts\nToday I woke up')
     expect(out.match(/Morning thoughts/g)).toHaveLength(1)
   })
+
+  it('does NOT promote text when a blank line precedes it (writer opted out)', () => {
+    // Pressing Enter first pushes the words down — no forced title.
+    expect(markdownForDisplay('\nmy words')).toBe('\nmy words')
+    expect(markdownForDisplay('\n\n\nthird line down')).toBe('\n\n\nthird line down')
+  })
+
+  it('does NOT promote prose that follows a leading spiritual block', () => {
+    const body =
+      '```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nBe still.\nPsalm 46:10 · ESV\n```\nresting in that'
+    // The block leads; "resting in that" stays body, never an H1.
+    expect(markdownForDisplay(body)).toBe(body)
+  })
 })
 
 describe('firstContentLineNumber', () => {
@@ -104,6 +117,16 @@ describe('deriveTitle', () => {
     const body = `![a sunrise](attachment:${'a'.repeat(64)}.jpg)\nmorning light`
     expect(deriveTitle(body)).toBe('morning light')
   })
+  it('uses a lone scripture block reference instead of "Untitled"', () => {
+    const body =
+      '```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nThe LORD will keep you from all evil.\nPsalm 121:7-8 · ESV\n```\n'
+    expect(deriveTitle(body)).toBe('Psalm 121:7-8')
+  })
+  it('uses a lone prayer block’s own words as the title', () => {
+    const body =
+      '```dayspring-pray 53430d30-3e0c-4d5a-9b1a-000000000001\nLord, steady my heart today\n```\n'
+    expect(deriveTitle(body)).toBe('Lord, steady my heart today')
+  })
 })
 
 describe('deriveEntryPreview', () => {
@@ -118,5 +141,10 @@ describe('deriveEntryPreview', () => {
     const body =
       '<!-- practice:name:Lectio Divina -->\n<!-- practice:section:Lectio -->\n'
     expect(deriveEntryPreview(body)).toBeNull()
+  })
+  it('previews the verse of a lone scripture block (ref is the title)', () => {
+    const body =
+      '```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nThe LORD will keep you from all evil.\nPsalm 121:7-8 · ESV\n```\n'
+    expect(deriveEntryPreview(body)).toBe('The LORD will keep you from all evil.')
   })
 })

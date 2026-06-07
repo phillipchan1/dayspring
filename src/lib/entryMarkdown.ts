@@ -45,22 +45,21 @@ export interface DisplayOptions {
 }
 
 /**
- * Day One / Diarly style: the first line is the entry title (rendered as H1).
+ * Day One / Diarly style: the *first line* is the entry title (rendered as H1).
  * Storage stays plain text; we inject `#` only for display, and only when title
- * styling is enabled (`asTitle`). Task lines are normalized to GFM either way so
- * downstream renderers show real checkboxes.
+ * styling is enabled (`asTitle`).
+ *
+ * The title is strictly positional — line 1 only. If a blank line (or a leading
+ * spiritual block) pushes the first words down, the writer has opted out of a
+ * title and the text stays body, never auto-promoted. Task lines are normalized
+ * to GFM either way so downstream renderers show real checkboxes.
  */
 export function markdownForDisplay(markdown: string, opts: DisplayOptions = {}): string {
   const asTitle = opts.asTitle ?? true
   const lines = markdown.split('\n')
 
-  if (asTitle) {
-    for (let i = 0; i < lines.length; i++) {
-      const t = lines[i]!.trim()
-      if (!t || isSpiritualFenceLine(t) || t === '```') continue
-      if (firstLineIsTitle(t)) lines[i] = `# ${t}`
-      break // the first content line decides; stop scanning either way
-    }
+  if (asTitle && firstLineIsTitle((lines[0] ?? '').trim())) {
+    lines[0] = `# ${lines[0]!.trim()}`
   }
 
   return lines.map((line) => (isTaskLine(line) ? normalizeTaskLineForDisplay(line) : line)).join('\n')
