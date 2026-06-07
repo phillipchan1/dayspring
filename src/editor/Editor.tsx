@@ -44,6 +44,8 @@ export interface EditorHandle {
   insertAt: (pos: number, text: string) => void
   /** Replace the document range [from, to) — used to edit/remove a block in place. */
   replaceRange: (from: number, to: number, text: string) => void
+  /** The editor's live document — authoritative when React `content` may lag. */
+  getDoc: () => string
   focus: () => void
   /** Return focus to the editor, optionally restoring the caret. */
   focusAt: (pos?: number) => void
@@ -190,6 +192,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       })
       view.focus()
     },
+    getDoc: () => viewRef.current?.state.doc.toString() ?? '',
     focus: () => viewRef.current?.focus(),
     blur: () => viewRef.current?.contentDOM.blur(),
     focusAt: (pos?: number) => {
