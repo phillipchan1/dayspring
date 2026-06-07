@@ -225,7 +225,7 @@ export function InlineScripturePopover({
     const onKey = (e: KeyboardEvent) => {
       const list = passagesRef.current
       if (!list?.length) {
-        if (e.key === 'Enter' && isSearchFocused() && queryRef.current.trim()) {
+        if (e.key === 'Enter' && !e.repeat && isSearchFocused() && queryRef.current.trim()) {
           e.preventDefault()
           e.stopPropagation()
           void runSearch(queryRef.current.trim(), 'manual')
@@ -263,7 +263,7 @@ export function InlineScripturePopover({
         return
       }
 
-      if (e.key !== 'Enter') return
+      if (e.key !== 'Enter' || e.repeat) return
 
       // Selected a result — insert (even if the search field still has text).
       if (idx !== null && !inSearch) {

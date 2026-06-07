@@ -19,6 +19,10 @@ const keepCentered = ViewPlugin.fromClass(
   class {
     private frame = 0
     private padFrame = 0
+    private dragging = false
+    private dom: HTMLElement | null = null
+    private onMouseDown = () => { this.dragging = true }
+    private onMouseUp = () => { this.dragging = false }
 
     constructor(view: EditorView) {
       this.syncPadding(view)
@@ -26,13 +30,16 @@ const keepCentered = ViewPlugin.fromClass(
       if (view.scrollDOM.clientHeight === 0) {
         this.retryPadding(view)
       }
+      this.dom = view.dom
+      this.dom.addEventListener('mousedown', this.onMouseDown)
+      this.dom.addEventListener('mouseup', this.onMouseUp)
     }
 
     update(update: ViewUpdate) {
       if (update.geometryChanged) {
         this.syncPadding(update.view)
       }
-      if (update.docChanged || update.selectionSet) {
+      if ((update.docChanged || update.selectionSet) && !this.dragging) {
         this.schedule(update.view)
       }
     }
@@ -67,6 +74,8 @@ const keepCentered = ViewPlugin.fromClass(
     destroy() {
       cancelAnimationFrame(this.frame)
       cancelAnimationFrame(this.padFrame)
+      this.dom?.removeEventListener('mousedown', this.onMouseDown)
+      this.dom?.removeEventListener('mouseup', this.onMouseUp)
     }
   },
 )

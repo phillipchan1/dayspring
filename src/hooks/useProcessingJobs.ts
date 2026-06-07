@@ -76,8 +76,11 @@ export function useProcessingJobs(): ProcessingState {
 
     refetch()
 
+    // Unique suffix avoids collisions with channels from React StrictMode's
+    // effect double-fire — sb.channel() returns an already-subscribed channel
+    // when one with the same name exists, and .on() throws after subscribe().
     const channel = sb
-      .channel(`processing_jobs:${owner}`)
+      .channel(`processing_jobs:${owner}:${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'processing_jobs', filter: `owner=eq.${owner}` },

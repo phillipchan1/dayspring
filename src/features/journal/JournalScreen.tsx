@@ -264,6 +264,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const completeSlashInsert = useCallback((text: string) => {
     const cap = slashCaptureRef.current
     if (!cap) return
+    // Synchronous guard: null the ref immediately so a second call (from key
+    // repeat, React batching race, or any other double-fire path) is blocked
+    // before React re-renders. setSlashCapture(null) below keeps state in sync.
+    slashCaptureRef.current = null
     if (cap.edit) {
       // Re-resolve the block's live range by id before replacing. The stored
       // from/to can go stale if the document shifted between opening the editor

@@ -57,7 +57,7 @@ export function CommandProseField({
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && e.shiftKey) return
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.repeat) {
       e.preventDefault()
       e.stopPropagation()
       void commit()

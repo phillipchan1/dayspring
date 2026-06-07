@@ -63,7 +63,7 @@ export function subscribeEntryChanges({ onBatch, onReconnect }: SubscribeOptions
   }
 
   const channel = sb
-    .channel('entries-live')
+    .channel(`entries-live:${crypto.randomUUID()}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'entries' },

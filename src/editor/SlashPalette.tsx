@@ -67,7 +67,7 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
         e.stopPropagation()
         // Wrap from the first item back to the last.
         setActiveIdx((i) => (i - 1 + filtered.length) % filtered.length)
-      } else if (e.key === 'Enter' || e.key === 'Tab') {
+      } else if ((e.key === 'Enter' || e.key === 'Tab') && !e.repeat) {
         e.preventDefault()
         e.stopPropagation()
         const cmd = filtered[activeIdx]
