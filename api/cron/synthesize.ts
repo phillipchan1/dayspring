@@ -7,7 +7,7 @@
 // Idempotent (builders upsert), so re-running never duplicates.
 
 import { isAuthorized, unauthorized } from '../_lib/auth'
-import { env } from '../_lib/env'
+import { supabaseAdmin } from '../_lib/supabaseAdmin'
 import {
   isMonday,
   isFirstOfMonth,
@@ -39,7 +39,31 @@ export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
 
   const now = new Date()
-  const owner = env.appOwnerId()
+
+  // Steady-state heartbeat for every account (the one-time archive catch-up is
+  // the processing engine). Profiles is one row per user.
+  const sb = supabaseAdmin()
+  const { data: owners, error } = await sb.from('profiles').select('owner')
+  if (error) {
+    return Response.json(
+      { ran_at: now.toISOString(), error: error.message },
+      { status: 500 },
+    )
+  }
+
+  const perOwner: Array<{ owner: string; results: BuildResult[]; altar: Record<string, unknown> }> = []
+  for (const row of owners ?? []) {
+    perOwner.push(await synthesizeOwner(row.owner as string, now))
+  }
+
+  const didWork = perOwner.some((o) => o.results.length > 0)
+  return Response.json({ ran_at: now.toISOString(), owners: perOwner.length, did_work: didWork, perOwner })
+}
+
+async function synthesizeOwner(
+  owner: string,
+  now: Date,
+): Promise<{ owner: string; results: BuildResult[]; altar: Record<string, unknown> }> {
   const results: BuildResult[] = []
   const altar: Record<string, unknown> = {}
 
@@ -82,11 +106,9 @@ export async function GET(req: Request): Promise<Response> {
       results.push(await buildYearly(owner, year))
     }
   } catch (e) {
-    return Response.json(
-      { ran_at: now.toISOString(), error: e instanceof Error ? e.message : 'failed', results, altar },
-      { status: 500 },
-    )
+    // One owner's failure must not abort the rest of the heartbeat.
+    altar.error = e instanceof Error ? e.message : 'failed'
   }
 
-  return Response.json({ ran_at: now.toISOString(), did_work: results.length > 0, results, altar })
+  return { owner, results, altar }
 }

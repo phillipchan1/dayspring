@@ -5,9 +5,10 @@
   "devCommand": "ulimit -n 65536; vite --port $PORT",
   "outputDirectory": "dist",
   "crons": [
-    { "path": "/api/cron/synthesize", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/remind",     "schedule": "0 9 * * *" },
-    { "path": "/api/cron/echoes",     "schedule": "0 10 * * 1" }
+    { "path": "/api/cron/synthesize",   "schedule": "0 8 * * *" },
+    { "path": "/api/cron/process-tick", "schedule": "* * * * *" },
+    { "path": "/api/cron/remind",       "schedule": "0 9 * * *" },
+    { "path": "/api/cron/echoes",       "schedule": "0 10 * * 1" }
   ],
   "redirects": [
     {

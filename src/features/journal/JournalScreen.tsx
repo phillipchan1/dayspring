@@ -62,6 +62,7 @@ import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopove
 import type { AttachmentEditTarget } from '@/editor/attachmentImageExtension'
 import { formatAttachmentMarkdown, formatPendingAttachmentMarkdown } from '@/lib/attachments'
 import { CommandToolbar } from '@/editor/CommandToolbar'
+import { ProcessingBanner } from './ProcessingBanner'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
@@ -1230,6 +1231,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <FeatureFlagProvider flags={featureFlags}>
       <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
+
+      <ProcessingBanner />
 
       {slashCapture?.cmd === 'scripture' && (
         <InlineScripturePopover

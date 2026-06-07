@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { getCache, setCache } from '@/lib/asyncCache'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
+import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { warmthSvg, hueFor } from '@/features/ascent/warmth'
 import {
   loadAltarStrands,
@@ -402,6 +403,14 @@ export function AltarView({ onOpenEntry }: Props) {
       </div>
     )
 
+  // Import backfill: harvest → embed → thread. While any stage runs and nothing
+  // has surfaced yet, show honest progress instead of the "nothing here" copy.
+  const { byKind } = useProcessingJobs()
+  const harvestJob = byKind.altar_harvest
+  const altarBackfilling = [byKind.altar_harvest, byKind.altar_embed, byKind.altar_thread].some(
+    (j) => j != null && isActive(j.status),
+  )
+
   const topNames = visible.filter((s) => s.subjectKind === 'person').slice(0, 3).map((s) => s.label)
   const fieldVoice =
     topNames.length > 0
@@ -461,12 +470,22 @@ export function AltarView({ onOpenEntry }: Props) {
           {tab === 'field' && (
             <>
               <p className="altar-voice">{fieldVoice}</p>
-              {visible.length === 0 && (
-                <p className="altar__quiet">
-                  Nothing has gathered here yet. Type <code>/pray</code> or <code>/sense</code> in an entry to
-                  lay something down — strands appear once you've returned to them over time.
-                </p>
-              )}
+              {visible.length === 0 &&
+                (altarBackfilling ? (
+                  <SurfaceLoader
+                    label="Gathering the prayers in your archive…"
+                    progress={
+                      harvestJob && isActive(harvestJob.status)
+                        ? { completed: harvestJob.completed, total: harvestJob.total }
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <p className="altar__quiet">
+                    Nothing has gathered here yet. Type <code>/pray</code> or <code>/sense</code> in an entry to
+                    lay something down — strands appear once you've returned to them over time.
+                  </p>
+                ))}
               {grouped.map((g) => {
                 const shown = g.strands.slice(0, VISIBLE_PER_GROUP)
                 const resting = g.strands.length - shown.length

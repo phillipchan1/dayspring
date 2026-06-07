@@ -107,6 +107,59 @@ export function weeksOverlappingMonth(month: Period): Period[] {
   return weeks
 }
 
+// ── Full-range enumerators (backfill: walk an entire import range, not just the
+// previous period relative to now). Each returns periods oldest-first so the
+// reflections job can cascade weeks → months → quarters → years.
+
+/** Every Mon–Sun week overlapping an arbitrary range. */
+export function weeksInRange(range: Period): Period[] {
+  const end = dateStrToUTC(range.end)
+  const weeks: Period[] = []
+  let weekStart = mondayOf(dateStrToUTC(range.start))
+  while (weekStart.getTime() <= end.getTime()) {
+    weeks.push({ start: toDateStr(weekStart), end: toDateStr(addDays(weekStart, 6)) })
+    weekStart = addDays(weekStart, 7)
+  }
+  return weeks
+}
+
+/** Every calendar month overlapping a range (alias of monthsInPeriod, named for range use). */
+export function monthsInRange(range: Period): Period[] {
+  return monthsInPeriod(range)
+}
+
+/** Every calendar quarter overlapping a range. */
+export function quartersInRange(range: Period): Period[] {
+  const start = dateStrToUTC(range.start)
+  const end = dateStrToUTC(range.end)
+  const quarters: Period[] = []
+  let y = start.getUTCFullYear()
+  let qMonth = Math.floor(start.getUTCMonth() / 3) * 3
+  while (true) {
+    const qStart = new Date(Date.UTC(y, qMonth, 1))
+    if (qStart.getTime() > end.getTime()) break
+    const qEnd = new Date(Date.UTC(y, qMonth + 3, 0))
+    quarters.push({ start: toDateStr(qStart), end: toDateStr(qEnd) })
+    qMonth += 3
+    if (qMonth >= 12) {
+      qMonth = 0
+      y += 1
+    }
+  }
+  return quarters
+}
+
+/** Every calendar year overlapping a range. */
+export function yearsInRange(range: Period): Period[] {
+  const startY = dateStrToUTC(range.start).getUTCFullYear()
+  const endY = dateStrToUTC(range.end).getUTCFullYear()
+  const years: Period[] = []
+  for (let y = startY; y <= endY; y++) {
+    years.push({ start: `${y}-01-01`, end: `${y}-12-31` })
+  }
+  return years
+}
+
 /** Inclusive count of calendar days between two YYYY-MM-DD dates. */
 export function inclusiveDayCount(start: string, end: string): number {
   const diff = dateStrToUTC(end).getTime() - dateStrToUTC(start).getTime()

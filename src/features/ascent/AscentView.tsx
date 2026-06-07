@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
 import type { AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
+import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { ALTITUDES, CONTROLS } from './ascent.config'
 import { loadAscent, type LoadedAscent } from './data'
 import { AltitudeBands } from './AltitudeBands'
@@ -130,6 +131,13 @@ export function AscentView({ onOpenEntry }: Props) {
 
   const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
 
+  // While the import backfill is still building rollups, an empty altitude is
+  // "not computed yet", not "nothing to say" — show honest progress instead.
+  const { byKind } = useProcessingJobs()
+  const reflectionsJob = byKind.reflections
+  const altitudeEmpty = !altitude || (!altitude.words && !altitude.scripture)
+  const backfilling = !!reflectionsJob && isActive(reflectionsJob.status) && altitudeEmpty
+
   return (
     <div
       className={`ascent${light ? ' ascent--light' : ''}`}
@@ -159,6 +167,11 @@ export function AscentView({ onOpenEntry }: Props) {
         <div className="ascent-terrain" key={`${L.key}-t`}>
           {loading ? (
             <SurfaceLoader label="Reading the land…" />
+          ) : backfilling ? (
+            <SurfaceLoader
+              label="Building your reflections…"
+              progress={{ completed: reflectionsJob!.completed, total: reflectionsJob!.total }}
+            />
           ) : idx < LAST ? (
             <AltitudeBands
               horizon={idx as 0 | 1 | 2}

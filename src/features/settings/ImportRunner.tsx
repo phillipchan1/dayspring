@@ -4,6 +4,8 @@ import type { ImportParseResult } from '@/lib/import/types'
 import type { ImportSourceDef } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
 import { requireSupabase } from '@/lib/supabase'
+import { apiPost } from '@/lib/api'
+import { scanAllForRefs } from '@/lib/scripture/scan'
 import { importDayOneImages, importDiarlyImages, type ImageImportProgress } from '@/lib/import/importImages'
 
 type Phase = 'idle' | 'parsing' | 'preview' | 'importing' | 'uploading-images' | 'done' | 'error'
@@ -138,6 +140,18 @@ export function ImportRunner({ source }: Props) {
         ...(imageSummary ? { images: imageSummary } : {}),
       })
       setPhase('done')
+
+      // Kick off the background build of this archive's surfaces. Best-effort —
+      // a failure here must not undo a successful import (the entries are saved).
+      // Reflections + altar run server-side via processing_jobs; the Lamp's
+      // scripture map is a cheap client-side regex scan we auto-run here so the
+      // user doesn't have to click "Scan now".
+      if (result.dateRange) {
+        void apiPost('/api/processing/enqueue', {
+          range: { start: day(result.dateRange.earliest), end: day(result.dateRange.latest) },
+        }).catch((err) => console.warn('processing enqueue failed', err))
+      }
+      void scanAllForRefs().catch((err) => console.warn('scripture scan failed', err))
     } catch (e) {
       setError(describeWriteError(e))
       setPhase('error')

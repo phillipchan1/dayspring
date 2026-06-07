@@ -1,0 +1,258 @@
+// The per-owner processing engine. The daily synthesize cron is the steady-state
+// heartbeat for caught-up users; these jobs are the one-time catch-up that builds
+// a freshly-imported archive's reflections + altar in bounded, resumable chunks.
+// Triggered on import (api/processing/enqueue.ts), drained by the every-minute
+// worker (api/cron/process-tick.ts). See docs/PROCESSING_AND_ONBOARDING.md.
+
+import { supabaseAdmin } from './supabaseAdmin.js'
+import type { Period } from './dates.js'
+import { weeksInRange, monthsInRange, quartersInRange, yearsInRange } from './dates.js'
+import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from './synthesize.js'
+import { harvestPlan, harvestPrayers, embedUnembedded, threadItems } from './altar.js'
+
+export type JobKind =
+  | 'reflections'
+  | 'scripture'
+  | 'altar_harvest'
+  | 'altar_embed'
+  | 'altar_thread'
+
+export interface Job {
+  id: string
+  owner: string
+  kind: JobKind
+  status: 'queued' | 'running' | 'done' | 'failed'
+  cursor: ReflectionsCursor | Record<string, never>
+  total: number
+  completed: number
+  attempts: number
+}
+
+interface ReflectionsCursor {
+  range: Period
+  stage: Stage
+  index: number
+}
+
+const STAGES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const
+type Stage = (typeof STAGES)[number]
+
+// Tuning knobs (chunk = the per-tick budget that keeps each invocation under the
+// Vercel timeout). The next tick continues where this one left off.
+const REFLECTIONS_PER_TICK = 8 // model calls — the expensive cascade
+const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
+const MAX_ATTEMPTS = 5 // after this many failures, give up (status=failed)
+
+function stagePeriods(stage: Stage, range: Period): Period[] {
+  switch (stage) {
+    case 'weekly':
+      return weeksInRange(range)
+    case 'monthly':
+      return monthsInRange(range)
+    case 'quarterly':
+      return quartersInRange(range)
+    case 'yearly':
+      return yearsInRange(range)
+  }
+}
+
+function buildStagePeriod(stage: Stage, owner: string, period: Period) {
+  switch (stage) {
+    case 'weekly':
+      return buildWeekly(owner, period)
+    case 'monthly':
+      return buildMonthly(owner, period)
+    case 'quarterly':
+      return buildQuarterly(owner, period)
+    case 'yearly':
+      return buildYearly(owner, period)
+  }
+}
+
+// ── Enqueue ────────────────────────────────────────────────────────────────
+
+/**
+ * Insert the backfill job set for an owner over an import date range. Idempotent:
+ * skips a kind that already has an active (queued/running) job. Called on import
+ * completion and (no-op) on signup. The altar chain is seeded with altar_harvest;
+ * it enqueues altar_embed → altar_thread as each stage finishes.
+ */
+export async function enqueueBackfill(
+  owner: string,
+  range: Period,
+): Promise<{ enqueued: JobKind[] }> {
+  const sb = supabaseAdmin()
+  const enqueued: JobKind[] = []
+
+  const reflectionsTotal =
+    weeksInRange(range).length +
+    monthsInRange(range).length +
+    quartersInRange(range).length +
+    yearsInRange(range).length
+
+  const reflectionsCursor: ReflectionsCursor = { range, stage: 'weekly', index: 0 }
+  if (await insertIfInactive(sb, owner, 'reflections', reflectionsTotal, reflectionsCursor)) {
+    enqueued.push('reflections')
+  }
+
+  const { unscanned } = await harvestPlan(owner)
+  if (await insertIfInactive(sb, owner, 'altar_harvest', unscanned, {})) {
+    enqueued.push('altar_harvest')
+  }
+
+  return { enqueued }
+}
+
+async function insertIfInactive(
+  sb: ReturnType<typeof supabaseAdmin>,
+  owner: string,
+  kind: JobKind,
+  total: number,
+  cursor: ReflectionsCursor | Record<string, never>,
+): Promise<boolean> {
+  const { data: active } = await sb
+    .from('processing_jobs')
+    .select('id')
+    .eq('owner', owner)
+    .eq('kind', kind)
+    .in('status', ['queued', 'running'])
+    .maybeSingle()
+  if (active) return false
+
+  const { error } = await sb
+    .from('processing_jobs')
+    .insert({ owner, kind, total, cursor, status: 'queued' })
+  // 23505 = the partial-unique backstop fired (a concurrent enqueue won the race).
+  if (error && error.code !== '23505') throw error
+  return !error
+}
+
+// ── Drain ────────────────────────────────────────────────────────────────────
+
+/** Claim up to K jobs and advance each by one bounded chunk. */
+export async function drain(k: number): Promise<Array<Record<string, unknown>>> {
+  const sb = supabaseAdmin()
+  const { data: claimed, error } = await sb.rpc('claim_processing_jobs', { k })
+  if (error) throw error
+  const jobs = (claimed ?? []) as Job[]
+
+  const summaries: Array<Record<string, unknown>> = []
+  for (const job of jobs) {
+    summaries.push(await runChunk(job))
+  }
+  return summaries
+}
+
+async function runChunk(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  try {
+    switch (job.kind) {
+      case 'reflections':
+        return await runReflections(job)
+      case 'altar_harvest':
+        return await runAltarHarvest(job)
+      case 'altar_embed':
+        return await runAltarEmbed(job)
+      case 'altar_thread':
+        return await runAltarThread(job)
+      case 'scripture':
+        // Scripture is scanned client-side post-import; nothing to do server-side.
+        await sb.from('processing_jobs').update({ status: 'done', locked_at: null }).eq('id', job.id)
+        return { id: job.id, kind: job.kind, status: 'done', note: 'client-side' }
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'chunk failed'
+    // Transient: leave 'running' (locked_at keeps it out of reach for 5 min, a
+    // natural backoff) so a later tick reclaims and retries — until we give up.
+    const giveUp = job.attempts >= MAX_ATTEMPTS
+    await sb
+      .from('processing_jobs')
+      .update({ error: message, ...(giveUp ? { status: 'failed', locked_at: null } : {}) })
+      .eq('id', job.id)
+    return { id: job.id, kind: job.kind, status: giveUp ? 'failed' : 'retry', error: message }
+  }
+}
+
+async function runReflections(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  const cursor = job.cursor as ReflectionsCursor
+  let { stage, index } = cursor
+  const range = cursor.range
+  let completed = job.completed
+  let built = 0
+
+  while (built < REFLECTIONS_PER_TICK) {
+    const periods = stagePeriods(stage, range)
+    if (index >= periods.length) {
+      // Advance to the next stage (children are built before parents read them).
+      const next = STAGES[STAGES.indexOf(stage) + 1]
+      if (!next) {
+        // All stages done.
+        await sb
+          .from('processing_jobs')
+          .update({ status: 'done', completed, locked_at: null })
+          .eq('id', job.id)
+        return { id: job.id, kind: 'reflections', status: 'done', completed }
+      }
+      stage = next
+      index = 0
+      continue
+    }
+    await buildStagePeriod(stage, job.owner, periods[index]!)
+    index += 1
+    completed += 1
+    built += 1
+  }
+
+  // More to do — persist progress, leave running (clear lock so the next tick
+  // picks it straight up rather than waiting out the 5-min stale window).
+  await sb
+    .from('processing_jobs')
+    .update({ cursor: { range, stage, index }, completed, locked_at: null })
+    .eq('id', job.id)
+  return { id: job.id, kind: 'reflections', status: 'running', completed, of: job.total }
+}
+
+async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  const { scanned } = await harvestPrayers(job.owner, { max: HARVEST_PER_TICK })
+  const completed = job.completed + scanned
+  const { unscanned } = await harvestPlan(job.owner)
+
+  if (unscanned <= 0) {
+    await sb
+      .from('processing_jobs')
+      .update({ status: 'done', completed, locked_at: null })
+      .eq('id', job.id)
+    // Chain: embed everything we just harvested, then thread it.
+    await insertIfInactive(sb, job.owner, 'altar_embed', 1, {})
+    return { id: job.id, kind: 'altar_harvest', status: 'done', completed }
+  }
+
+  await sb
+    .from('processing_jobs')
+    .update({ completed, locked_at: null })
+    .eq('id', job.id)
+  return { id: job.id, kind: 'altar_harvest', status: 'running', completed, remaining: unscanned }
+}
+
+async function runAltarEmbed(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  const res = await embedUnembedded(job.owner) // batches internally
+  await sb
+    .from('processing_jobs')
+    .update({ status: 'done', completed: 1, total: 1, locked_at: null })
+    .eq('id', job.id)
+  await insertIfInactive(sb, job.owner, 'altar_thread', 1, {})
+  return { id: job.id, kind: 'altar_embed', status: 'done', ...res }
+}
+
+async function runAltarThread(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  const res = await threadItems(job.owner) // whole-owner pass, fast
+  await sb
+    .from('processing_jobs')
+    .update({ status: 'done', completed: 1, total: 1, locked_at: null })
+    .eq('id', job.id)
+  return { id: job.id, kind: 'altar_thread', status: 'done', ...res }
+}

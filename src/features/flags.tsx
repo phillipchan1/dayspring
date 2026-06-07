@@ -8,9 +8,16 @@ const FLAG_ENV: Record<string, string> = {
 }
 
 /**
+ * Flags that have graduated — shipped to everyone, gate retained only so the
+ * `useFeatureFlag('x')` call sites don't have to be torn out at once.
+ */
+const GRADUATED = new Set<string>(['altar'])
+
+/**
  * Resolve a feature flag for a given user.
  *
  * Resolution order:
+ *   0. Graduated: on for everyone.
  *   1. Per-user override: profiles.feature_flags (text[]) read once on boot.
  *   2. Env default: VITE_FF_<KEY> === 'true'.
  *   3. Off.
@@ -19,6 +26,7 @@ const FLAG_ENV: Record<string, string> = {
  * // profiles.feature_flags jsonb field (set 'threadsRopes' in the array).
  */
 export function resolveFlag(flags: string[], key: string): boolean {
+  if (GRADUATED.has(key)) return true
   if (flags.includes(key)) return true
   const envKey = FLAG_ENV[key]
   return envKey !== undefined && import.meta.env[envKey] === 'true'
