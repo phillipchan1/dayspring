@@ -6,8 +6,10 @@
  *   <!-- practice:name:The Daily Examen -->
  *   <!-- practice:section:Gratitude -->
  */
-export const PRACTICE_NAME_RE = /^<!-- practice:name:(.+) -->$/
-export const PRACTICE_SECTION_RE = /^<!-- practice:section:(.+) -->$/
+// Tokens are written with the `ritual:` prefix; the legacy `practice:` prefix is
+// still read so older entries keep rendering.
+export const PRACTICE_NAME_RE = /^<!-- (?:ritual|practice):name:(.+) -->$/
+export const PRACTICE_SECTION_RE = /^<!-- (?:ritual|practice):section:(.+) -->$/
 
 /** True for a `practice:name` or `practice:section` token line (already trimmed). */
 export function isPracticeTokenLine(line: string): boolean {

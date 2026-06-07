@@ -151,7 +151,7 @@ export function parseSpiritualBlocks(markdown: string): ParsedSpiritualBlock[] {
  * by a blank line is left untouched — so it's safe to run on every entry load.
  */
 export function ensureBlockSeparation(markdown: string): string {
-  if (!markdown.includes('<!-- practice:')) return markdown
+  if (!markdown.includes('<!-- ritual:') && !markdown.includes('<!-- practice:')) return markdown
   const inserts: number[] = []
   for (const block of parseSpiritualBlocks(markdown)) {
     if (block.to >= markdown.length) continue

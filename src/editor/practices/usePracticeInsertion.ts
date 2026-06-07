@@ -34,10 +34,10 @@ export function buildPracticeBlock(
 ): { text: string; cursorOffset: number } {
   const needLead = insertAt > 0 && doc[insertAt - 1] !== '\n'
   let text = needLead ? '\n' : ''
-  text += `<!-- practice:name:${practice.name} -->\n`
+  text += `<!-- ritual:name:${practice.name} -->\n`
   let cursorOffset = -1
   practice.prompts.forEach((prompt, i) => {
-    text += `<!-- practice:section:${prompt.label} -->\n`
+    text += `<!-- ritual:section:${prompt.label} -->\n`
     // First blank answer line — where the caret should land after insertion.
     if (cursorOffset < 0) cursorOffset = text.length
     // One blank answer line per prompt. The break that ends each line goes
@@ -183,8 +183,9 @@ const EMPTY: PracticeDecorations = { deco: Decoration.none, atomic: Decoration.n
 
 function buildDecorations(state: EditorState): PracticeDecorations {
   const { doc } = state
-  // Cheap bail-out: practice entries are rare, so most docs do nothing here.
-  if (!doc.toString().includes('<!-- practice:')) return EMPTY
+  // Cheap bail-out: ritual entries are rare, so most docs do nothing here.
+  const md = doc.toString()
+  if (!md.includes('<!-- ritual:') && !md.includes('<!-- practice:')) return EMPTY
 
   const tokens: ParsedToken[] = []
   for (let n = 1; n <= doc.lines; n++) {

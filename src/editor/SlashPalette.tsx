@@ -6,7 +6,7 @@ const COMMANDS: { id: SlashCommandId; label: string; hint: string }[] = [
   { id: 'scripture', label: '/scripture', hint: 'Find relevant Bible passages' },
   { id: 'pray',      label: '/pray',      hint: 'Log a prayer' },
   { id: 'sense',     label: '/sense',     hint: 'Record a word or impression' },
-  { id: 'practice',  label: '/ritual',    hint: 'Rituals for the inner life' },
+  { id: 'ritual',    label: '/ritual',    hint: 'Rituals for the inner life' },
   { id: 'image',     label: '/image',     hint: 'Add a photo to this entry' },
 ]
 

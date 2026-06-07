@@ -1304,7 +1304,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onClose={closeSlashCapture}
         />
       )}
-      {slashCapture?.cmd === 'practice' && (
+      {slashCapture?.cmd === 'ritual' && (
         <PracticeLibrary onBegin={handleBeginPractice} onClose={closeSlashCapture} />
       )}
       {aboutPractice && (

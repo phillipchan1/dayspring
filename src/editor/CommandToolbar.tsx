@@ -19,7 +19,7 @@ const COMMANDS: Array<{ id: SlashCommandId; icon: string; label: string; hint: s
   { id: 'scripture', icon: '✦', label: 'Scripture', hint: 'Find passages' },
   { id: 'pray', icon: '🙏', label: 'Pray', hint: 'Log prayer' },
   { id: 'sense', icon: '✨', label: 'Sense', hint: 'Record impression' },
-  { id: 'practice', icon: '✶', label: 'Ritual', hint: 'Rituals for the inner life' },
+  { id: 'ritual', icon: '✶', label: 'Ritual', hint: 'Rituals for the inner life' },
   { id: 'image', icon: '🖼', label: 'Image', hint: 'Add photo' },
 ]
 

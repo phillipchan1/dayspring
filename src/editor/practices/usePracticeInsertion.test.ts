@@ -16,9 +16,9 @@ function seeded(practice = examen): string {
 describe('buildPracticeBlock', () => {
   it('embeds the practice name and a section token per prompt', () => {
     const { text } = buildPracticeBlock(examen, '', 0)
-    expect(text).toContain('<!-- practice:name:The Daily Examen -->')
+    expect(text).toContain('<!-- ritual:name:The Daily Examen -->')
     for (const prompt of examen.prompts) {
-      expect(text).toContain(`<!-- practice:section:${prompt.label} -->`)
+      expect(text).toContain(`<!-- ritual:section:${prompt.label} -->`)
     }
   })
 
@@ -33,8 +33,8 @@ describe('buildPracticeBlock', () => {
 
   it('places the caret on the first blank answer line', () => {
     const { text, cursorOffset } = buildPracticeBlock(examen, '', 0)
-    const firstSection = `<!-- practice:section:${examen.prompts[0]!.label} -->\n`
-    const expected = `<!-- practice:name:The Daily Examen -->\n`.length + firstSection.length
+    const firstSection = `<!-- ritual:section:${examen.prompts[0]!.label} -->\n`
+    const expected = `<!-- ritual:name:The Daily Examen -->\n`.length + firstSection.length
     expect(cursorOffset).toBe(expected)
     // The character at the caret is the newline of the (empty) answer line.
     expect(text[cursorOffset]).toBe('\n')
@@ -50,7 +50,7 @@ describe('buildPracticeBlock', () => {
 
   it('does not prepend a newline at the start of a line', () => {
     const { text } = buildPracticeBlock(examen, 'line\n', 5)
-    expect(text.startsWith('<!-- practice:name:')).toBe(true)
+    expect(text.startsWith('<!-- ritual:name:')).toBe(true)
   })
 })
 
