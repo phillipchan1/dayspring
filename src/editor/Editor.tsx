@@ -240,7 +240,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
-        doc: ensureBlockSeparation(initialDoc),
+        // Seed verbatim so the view never diverges from React's `content` (create
+        // fires no onChange). Block separation is applied on the docKey-swap
+        // dispatch below, which *does* sync content back through onChange.
+        doc: initialDoc,
         extensions: [
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),

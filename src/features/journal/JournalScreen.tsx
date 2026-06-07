@@ -63,6 +63,7 @@ import type { AttachmentEditTarget } from '@/editor/attachmentImageExtension'
 import { formatAttachmentMarkdown, formatPendingAttachmentMarkdown } from '@/lib/attachments'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { ProcessingBanner } from './ProcessingBanner'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
@@ -260,8 +261,20 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const cap = slashCaptureRef.current
     if (!cap) return
     if (cap.edit) {
-      editorRef.current?.replaceRange(cap.edit.from, cap.edit.to, text)
-      const after = cap.edit.from + text.length
+      // Re-resolve the block's live range by id before replacing. The stored
+      // from/to can go stale if the document shifted between opening the editor
+      // and saving — and replacing a stale range leaves the original in place
+      // while inserting the edited copy elsewhere (the duplication bug).
+      let from = cap.edit.from
+      let to = cap.edit.to
+      const liveDoc = contentRef.current
+      const live = parseSpiritualBlocks(liveDoc).find((b) => b.id === cap.edit!.id)
+      if (live) {
+        from = live.from
+        to = live.to > live.from && liveDoc[live.to - 1] === '\n' ? live.to - 1 : live.to
+      }
+      editorRef.current?.replaceRange(from, to, text)
+      const after = from + text.length
       setSlashCapture(null)
       requestAnimationFrame(() => editorRef.current?.focusAt(after))
       return
