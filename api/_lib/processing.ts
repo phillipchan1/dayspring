@@ -4,7 +4,9 @@
 // Triggered on import (api/processing/enqueue.ts), drained by the every-minute
 // worker (api/cron/process-tick.ts). See docs/PROCESSING_AND_ONBOARDING.md.
 
+import { waitUntil } from '@vercel/functions'
 import { supabaseAdmin } from './supabaseAdmin.js'
+import { env } from './env.js'
 import type { Period } from './dates.js'
 import { weeksInRange, monthsInRange, quartersInRange, yearsInRange } from './dates.js'
 import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from './synthesize.js'
@@ -125,6 +127,27 @@ async function insertIfInactive(
   // 23505 = the partial-unique backstop fired (a concurrent enqueue won the race).
   if (error && error.code !== '23505') throw error
   return !error
+}
+
+// ── Self-re-arming drain ─────────────────────────────────────────────────────
+
+/**
+ * Fire-and-forget nudge to run the next chunk. The engine self-chains (enqueue
+ * kicks the first tick; each tick that did work kicks the next) so an imported
+ * archive drains in the background WITHOUT a sub-minute cron — Vercel Hobby-safe.
+ * `waitUntil` keeps the function alive long enough to dispatch the request.
+ */
+export function kickWorker(): void {
+  try {
+    const url = `${env.appUrl()}/api/cron/process-tick`
+    waitUntil(
+      fetch(url, { headers: { authorization: `Bearer ${env.cronSecret()}` } })
+        .then(() => undefined)
+        .catch(() => undefined),
+    )
+  } catch {
+    // appUrl/cronSecret unset, or not in a request context — ignore.
+  }
 }
 
 // ── Drain ────────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
 // status endpoint needed. See docs/PROCESSING_AND_ONBOARDING.md §6.
 
 import { getAuthedUser, notAuthenticated } from '../_lib/userAuth'
-import { enqueueBackfill } from '../_lib/processing'
+import { enqueueBackfill, kickWorker } from '../_lib/processing'
 import type { Period } from '../_lib/dates'
 
 function isDateStr(v: unknown): v is string {
@@ -32,6 +32,8 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const result = await enqueueBackfill(user.id, { start: range.start, end: range.end })
+    // Start draining immediately — the worker self-chains from here (no cron needed).
+    if (result.enqueued.length > 0) kickWorker()
     return Response.json({ ok: true, ...result })
   } catch (e) {
     return Response.json(
