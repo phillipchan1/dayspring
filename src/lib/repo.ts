@@ -16,6 +16,7 @@ import {
 } from './entries'
 import * as cache from './db'
 import { syncStore } from './sync'
+import { isAuthInvalidation, forceReauth } from './authError'
 import type { Entry, NewEntry } from './types'
 
 function nowISO(): string {
@@ -295,7 +296,14 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
     lastFullSyncAt = Date.now()
     syncStore.setSynced(Date.now())
     return merged.sort(byCreatedDesc)
-  } catch {
+  } catch (e) {
+    // A deleted/invalid user reads as a 401 here — recover to login rather than
+    // masquerade as 'offline' showing stale cached data. Network errors fall
+    // through to the offline path.
+    if (isAuthInvalidation(e)) {
+      void forceReauth()
+      return null
+    }
     syncStore.setOnline(false)
     return null
   } finally {
@@ -345,7 +353,11 @@ export async function syncChanged(preserveId?: string | null): Promise<Entry[] |
     if (toPut.length === 0) return null
     await cache.cachePutMany(toPut)
     return (await cache.cacheGetAll()).sort(byCreatedDesc)
-  } catch {
+  } catch (e) {
+    if (isAuthInvalidation(e)) {
+      void forceReauth()
+      return null
+    }
     syncStore.setOnline(false)
     return null
   } finally {

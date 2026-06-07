@@ -1,6 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { isAuthInvalidation, forceReauth } from '@/lib/authError'
+
+/**
+ * Validate a locally-cached session against the server. getSession() only reads
+ * the stored JWT, so a deleted/disabled account would otherwise linger showing
+ * stale cached data as 'offline'. getUser() hits the server; on a definitive
+ * auth rejection (not a network blip) we sign out → drop to login.
+ */
+function validateUser(sb: NonNullable<typeof supabase>): void {
+  void sb.auth.getUser().then(({ error }) => {
+    if (error && isAuthInvalidation(error)) void forceReauth()
+  })
+}
 
 export interface SessionState {
   session: Session | null
@@ -36,12 +49,14 @@ export function useSession(): SessionState {
 
       if (next) {
         settle(next)
+        validateUser(sb) // confirm the user still exists server-side
         return
       }
 
       // Stored refresh token may still be valid even when access session is empty.
       void sb.auth.refreshSession().then(({ data: { session: refreshed } }) => {
         settle(refreshed)
+        if (refreshed) validateUser(sb)
       })
     })
 
