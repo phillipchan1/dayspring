@@ -1,5 +1,6 @@
 import { requireSupabase } from './supabase'
 import { isTauri } from './platform'
+import { purgeOnSignOut } from './localData'
 
 // Custom URL scheme registered in tauri.conf.json (plugins.deep-link.desktop).
 // Google redirects here after sign-in; the deep-link listener completes it.
@@ -52,6 +53,9 @@ export async function signInWithGoogle(): Promise<void> {
 export async function signOut(): Promise<void> {
   const sb = requireSupabase()
   await sb.auth.signOut()
+  // Scrub cached journal content so it can't surface under the next person who
+  // signs in on this browser. Onboarding flags survive (same user re-login).
+  await purgeOnSignOut()
 }
 
 /**

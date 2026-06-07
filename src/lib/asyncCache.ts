@@ -27,3 +27,9 @@ export function invalidateCachePrefix(prefix: string): void {
     if (key.startsWith(prefix)) store.delete(key)
   }
 }
+
+/** Drop every cached surface read — used on sign-out / owner switch so one
+ *  account's altar/ascent content can't surface under another's session. */
+export function clearAllCache(): void {
+  store.clear()
+}

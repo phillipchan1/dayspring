@@ -84,9 +84,10 @@ export interface ImportedEntry {
 const IMPORT_BATCH_SIZE = 500
 
 /**
- * Upsert imported rows in batches, deduping on (source, external_id) so
- * re-importing the same export never creates duplicates. `owner` is omitted so
- * the DB default (auth.uid()) fills it and RLS keeps the rows private.
+ * Upsert imported rows in batches, deduping on (owner, source, external_id) so
+ * re-importing the same export never creates duplicates — and two different
+ * users' imports can't collide on a shared external_id. `owner` is set explicitly
+ * (matching the composite conflict target); RLS still requires it equal auth.uid().
  * `onProgress(done, total)` fires after each batch.
  */
 export async function upsertImportedEntries(
@@ -95,8 +96,13 @@ export async function upsertImportedEntries(
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
   const sb = requireSupabase()
+  const {
+    data: { user },
+  } = await sb.auth.getUser()
+  if (!user) throw new Error('not signed in')
   for (let i = 0; i < rows.length; i += IMPORT_BATCH_SIZE) {
     const batch = rows.slice(i, i + IMPORT_BATCH_SIZE).map((r) => ({
+      owner: user.id,
       created_at: r.created_at,
       body_markdown: r.body_markdown,
       title: r.title,
@@ -106,7 +112,9 @@ export async function upsertImportedEntries(
       source,
       external_id: r.external_id,
     }))
-    const { error } = await sb.from('entries').upsert(batch, { onConflict: 'source,external_id' })
+    const { error } = await sb
+      .from('entries')
+      .upsert(batch, { onConflict: 'owner,source,external_id' })
     if (error) throw error
     onProgress?.(Math.min(i + batch.length, rows.length), rows.length)
   }

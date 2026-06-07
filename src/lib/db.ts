@@ -49,6 +49,13 @@ export async function cacheDelete(id: string): Promise<void> {
 export async function cacheClear(): Promise<void> {
   await (await db()).clear('entries')
 }
+/** Wipe ALL local journal state — entries cache + pending outbox. Used on
+ *  sign-out and on an owner switch so one account's data never bleeds into
+ *  another's on a shared browser. */
+export async function cacheClearAll(): Promise<void> {
+  const d = await db()
+  await Promise.all([d.clear('entries'), d.clear('outbox')])
+}
 
 // ── outbox (pending writes) ─────────────────────────────────────────────────
 export async function outboxAll(): Promise<OutboxOp[]> {

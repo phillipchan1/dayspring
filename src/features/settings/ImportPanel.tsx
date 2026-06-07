@@ -1,5 +1,6 @@
 import { IMPORT_SOURCES, type ImportSourceDef } from '@/lib/import/sources'
 import { useScriptureScan } from '@/features/scripture/useScriptureScan'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { ImportRunner } from './ImportRunner'
 import { ExportPanel } from './ExportPanel'
 
@@ -11,7 +12,27 @@ interface Props {
 
 /** Settings → Import & backup: migrate in, download a zip, or restore. */
 export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
+  const isMobile = useIsMobile()
   const selected = selectedId ? IMPORT_SOURCES.find((s) => s.id === selectedId) ?? null : null
+
+  // Importing means picking a multi-hundred-MB zip and parsing it in memory —
+  // impractical and memory-risky on phones. Direct to desktop rather than offer
+  // a flow that will choke. Export + the on-device scan stay available.
+  if (isMobile) {
+    return (
+      <div>
+        <p className="settings-section__intro">
+          Move your journal in or out.
+        </p>
+        <div className="import-soon-banner">
+          Importing your journal is available in the <strong>desktop app</strong> — archives are
+          large and parse best on a computer. Open Dayspring on your Mac to bring your writing in.
+        </div>
+        <ScriptureScanSection />
+        <ExportPanel />
+      </div>
+    )
+  }
 
   if (selected) {
     return <SourceDetail source={selected} onBack={onBack} />

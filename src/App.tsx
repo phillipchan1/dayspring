@@ -20,6 +20,8 @@ import { TrialBanner } from './features/paywall/TrialBanner'
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { ensureProfile } from './lib/onboarding'
+import { fenceCacheToOwner } from './lib/localData'
+import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
 
 // localStorage key used by useHasSeenWelcome — set before WelcomeProvider
@@ -50,7 +52,7 @@ export function App() {
 
   return (
     <AppNavigationProvider>
-      <AuthenticatedApp userEmail={session.user.email ?? ''} />
+      <AuthenticatedApp userEmail={session.user.email ?? ''} ownerId={session.user.id} />
     </AppNavigationProvider>
   )
 }
@@ -61,7 +63,7 @@ export function App() {
 // 'ready'   → webhook confirmed, show "You're in!" screen
 type CheckoutState = 'idle' | 'waiting' | 'ready'
 
-function AuthenticatedApp({ userEmail }: { userEmail: string }) {
+function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: string }) {
   useSettingsSync() // pull remote settings on login, push changes on edit
   const { subscription, entitled, featureFlags, loading, refetch } = useSubscription()
 
@@ -72,15 +74,23 @@ function AuthenticatedApp({ userEmail }: { userEmail: string }) {
   const [initReady, setInitReady] = useState(false)
   useEffect(() => {
     let alive = true
-    ensureProfile()
-      .catch(() => { /* offline / not-yet-migrated — fall through to refetch */ })
-      .finally(() => {
-        if (!alive) return
-        setInitReady(true)
-        void refetch()
-      })
+    void (async () => {
+      // Privacy fence FIRST — scrub any other owner's cached content before the
+      // journal (and its sync) ever reads the cache. Then init the account.
+      try {
+        await fenceCacheToOwner(ownerId)
+      } catch { /* idb unavailable — proceed */ }
+      try {
+        await ensureProfile()
+      } catch { /* offline / not-yet-migrated — fall through to refetch */ }
+      if (!alive) return
+      setInitReady(true)
+      void refetch()
+      // Catch-up backfill for accounts with history but no processing yet.
+      void maybeBackfillOnLoad()
+    })()
     return () => { alive = false }
-  }, [refetch])
+  }, [refetch, ownerId])
 
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
