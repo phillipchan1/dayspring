@@ -144,13 +144,36 @@ class PracticeNameWidget extends WidgetType {
     name.className = 'cm-practice-header__name'
     name.textContent = this.name
 
+    const about = document.createElement('button')
+    about.type = 'button'
+    about.className = 'cm-practice-action cm-practice-action--about'
+    about.textContent = 'about'
+    about.title = 'What this practice is'
+
     const action = document.createElement('button')
     action.type = 'button'
     action.className = 'cm-practice-action cm-practice-action--freewrite'
     action.textContent = 'free write'
     action.title = 'Remove the prompts and keep only your words'
 
-    root.append(name, action)
+    root.append(name, about, action)
+
+    // A quiet, hover-revealed "about" panel — the same orienting blurb the
+    // library shows at the threshold, so the practice can re-introduce itself
+    // long after it was begun. Hidden until the "about" action is toggled.
+    const practice = PRACTICE_BY_NAME.get(this.name)
+    if (practice) {
+      const panel = document.createElement('div')
+      panel.className = 'cm-practice-about'
+      const intention = document.createElement('p')
+      intention.className = 'cm-practice-about__intention'
+      intention.textContent = practice.intention
+      const meta = document.createElement('p')
+      meta.className = 'cm-practice-about__meta'
+      meta.textContent = `${practice.origin} · ${practice.tradition}`
+      panel.append(intention, meta)
+      root.append(panel)
+    }
     return root
   }
   ignoreEvent(): boolean {
@@ -321,10 +344,41 @@ const practiceTheme = EditorView.theme({
   // Faint block header: practice name + the (hover-revealed) "free write" action.
   '.cm-practice-header': {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'baseline',
     gap: '0.7rem',
     margin: '0.3rem 0 1.1rem',
     userSelect: 'none',
+  },
+  // The orienting blurb, revealed by the "about" action. Sits on its own row
+  // below the header; quiet by default so it never competes with the writing.
+  '.cm-practice-about': {
+    flexBasis: '100%',
+    display: 'none',
+    margin: '0.1rem 0 0',
+    paddingLeft: '0.9rem',
+    borderLeft: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+  },
+  '.cm-practice-header.is-about-open .cm-practice-about': {
+    display: 'block',
+  },
+  '.cm-practice-about__intention': {
+    margin: '0',
+    fontFamily: 'var(--font-editor)',
+    fontStyle: 'italic',
+    fontSize: '0.92em',
+    lineHeight: '1.55',
+    color: 'var(--text-dim, #4a3f35)',
+    fontOpticalSizing: 'auto',
+  },
+  '.cm-practice-about__meta': {
+    margin: '0.4rem 0 0',
+    fontFamily: 'var(--font-editor)',
+    fontSize: '0.62em',
+    fontWeight: '500',
+    letterSpacing: '0.16em',
+    textTransform: 'uppercase',
+    color: 'var(--text-faint, #c4b5a8)',
   },
   '.cm-practice-header__name': {
     fontFamily: 'var(--font-editor)',
@@ -520,6 +574,13 @@ export const practicePromptExtension: Extension = [
       if (freewrite) {
         event.preventDefault()
         dissolvePracticeBlockAt(view, view.posAtDOM(freewrite))
+        return true
+      }
+      // Toggle the practice's "about" blurb open/closed — display only, no edit.
+      const about = node?.closest('.cm-practice-action--about')
+      if (about) {
+        event.preventDefault()
+        about.closest('.cm-practice-header')?.classList.toggle('is-about-open')
         return true
       }
       // A prompt is a contenteditable=false block widget with no editable target
