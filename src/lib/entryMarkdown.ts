@@ -23,6 +23,7 @@ export function firstContentLineNumber(markdown: string): number | null {
 export function isNonTitleLine(line: string): boolean {
   const t = line.trim()
   return (
+    t.startsWith('/') ||
     /^[-*+]\s/.test(t) ||
     /^\d+\.\s/.test(t) ||
     /^>\s/.test(t) ||

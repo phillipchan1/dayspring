@@ -45,7 +45,7 @@ export function detectSlash(view: EditorView, blockOnTitleLine = false): SlashSt
   if (from !== to) return null
 
   const line = state.doc.lineAt(from)
-  if (blockOnTitleLine && line.number === 1) return null
+  if (blockOnTitleLine && line.number === 1 && !line.text.trimStart().startsWith('/')) return null
   const before = line.text.slice(0, from - line.from)
   const matched = matchSlashBefore(before, from)
   if (!matched) return null
