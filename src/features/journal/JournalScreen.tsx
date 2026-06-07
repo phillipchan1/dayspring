@@ -301,7 +301,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       const cap = slashCaptureRef.current
       if (!cap) return
       setSlashCapture(null)
-      beginPractice(practice, cap.insertAt, contentRef.current)
+      // Use the editor's live document, not React `content`, which can still
+      // hold the just-removed "/ritual" trigger text — stale positions would
+      // insert the ritual in the wrong place and orphan the slash.
+      const doc = editorRef.current?.getDoc() ?? contentRef.current
+      beginPractice(practice, cap.insertAt, doc)
     },
     [beginPractice],
   )
