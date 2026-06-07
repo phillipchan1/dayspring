@@ -36,12 +36,15 @@ export function buildPracticeBlock(
   let text = needLead ? '\n' : ''
   text += `<!-- practice:name:${practice.name} -->\n`
   let cursorOffset = -1
-  for (const prompt of practice.prompts) {
+  practice.prompts.forEach((prompt, i) => {
     text += `<!-- practice:section:${prompt.label} -->\n`
     // First blank answer line — where the caret should land after insertion.
     if (cursorOffset < 0) cursorOffset = text.length
-    text += '\n'
-  }
+    // One blank answer line per prompt. The break that ends each line goes
+    // *between* sections; the last answer stays a terminal line so the block
+    // doesn't leave a stray empty line dangling below the final question.
+    if (i < practice.prompts.length - 1) text += '\n'
+  })
   // Keep a blank line between the practice and any text that follows.
   if (insertAt < doc.length && doc[insertAt] !== '\n') text += '\n'
   return { text, cursorOffset: cursorOffset < 0 ? text.length : cursorOffset }
@@ -69,20 +72,15 @@ class PracticePromptWidget extends WidgetType {
   constructor(
     readonly label: string,
     readonly question: string,
-    readonly filled: boolean,
   ) {
     super()
   }
   eq(other: PracticePromptWidget): boolean {
-    return (
-      other.label === this.label &&
-      other.question === this.question &&
-      other.filled === this.filled
-    )
+    return other.label === this.label && other.question === this.question
   }
   toDOM(): HTMLElement {
     const root = document.createElement('div')
-    root.className = `cm-practice-prompt${this.filled ? ' cm-practice-prompt--filled' : ''}`
+    root.className = 'cm-practice-prompt'
     root.setAttribute('contenteditable', 'false')
     root.setAttribute('aria-hidden', 'true')
 
@@ -234,10 +232,12 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
 
     // The prompt renders as a block *above* the answer line (side -1) — the
-    // answer line itself stays a normal, editable line.
+    // answer line itself stays a normal, editable line. The prompt stays visible
+    // as you write so the question you're answering is always in view; only the
+    // faint placeholder (below) clears once the section has content.
     ranges.push(
       Decoration.widget({
-        widget: new PracticePromptWidget(token.value, prompt?.question ?? '', filled),
+        widget: new PracticePromptWidget(token.value, prompt?.question ?? ''),
         block: true,
         side: -1,
       }).range(answer.from),
@@ -283,16 +283,6 @@ const practiceTheme = EditorView.theme({
     display: 'block',
     margin: '1.4rem 0 0.4rem',
     userSelect: 'none',
-    overflow: 'hidden',
-    transition: 'opacity 320ms ease',
-  },
-  // Once the section has content, the prompt fades and collapses so only the
-  // writer's own words remain.
-  '.cm-practice-prompt--filled': {
-    opacity: '0',
-    maxHeight: '0',
-    margin: '0',
-    pointerEvents: 'none',
   },
   '.cm-practice-prompt__label': {
     display: 'block',
@@ -526,14 +516,22 @@ export const practicePromptExtension: Extension = [
       // A prompt is a contenteditable=false block widget with no editable target
       // of its own. The last prompt has only open space below it (no following
       // prompt to bound its answer line), so a click there otherwise lands on the
-      // widget and no caret appears. Redirect into the answer line the widget
-      // anchors — its document position is the answer line's start.
+      // widget and no caret appears. Redirect into the answer line — found by the
+      // prompt's own label rather than posAtDOM, which on a block widget can
+      // resolve past the answer line and drop the caret a line or two too low.
       const prompt = node?.closest('.cm-practice-prompt')
       if (prompt) {
-        event.preventDefault()
-        view.dispatch({ selection: { anchor: view.posAtDOM(prompt) }, scrollIntoView: true })
-        view.focus()
-        return true
+        const label = prompt.querySelector('.cm-practice-prompt__label')?.textContent ?? ''
+        const doc = view.state.doc
+        for (let n = 1; n < doc.lines; n++) {
+          const match = PRACTICE_SECTION_RE.exec(doc.line(n).text)
+          if (match && match[1] === label) {
+            event.preventDefault()
+            view.dispatch({ selection: { anchor: doc.line(n + 1).from }, scrollIntoView: true })
+            view.focus()
+            return true
+          }
+        }
       }
       return false
     },
