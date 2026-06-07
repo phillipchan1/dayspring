@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import type { Entry } from '@/lib/types'
 import { useSettings } from '@/hooks/useSettings'
 import { deriveTitle } from './deriveTitle'
-import { isPracticeTokenLine } from '@/lib/practiceTokens'
+import { deriveEntryPreview } from '@/lib/entryLabels'
 import { matchSnippet } from './search'
 import {
   EntryContextMenu,
@@ -597,23 +597,6 @@ function YearView({
   )
 }
 
-function extractEntryPreview(body: string, maxLength = 80): string | null {
-  if (!body) return null
-  const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
-  for (const line of lines) {
-    if (line.startsWith('/')) continue
-    if (isPracticeTokenLine(line)) continue
-    if (line.length < 4) continue
-    const cleaned = line
-      .replace(/^#{1,6}\s+/, '')
-      .replace(/[*_~`>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-    if (!cleaned) continue
-    return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trimEnd() + '…' : cleaned
-  }
-  return null
-}
 
 interface EntryRowProps {
   entry: Entry
@@ -659,7 +642,7 @@ const EntryRow = memo(function EntryRow({
   const untitled = !derived
   const title = derived || 'Untitled'
   const snippet = matchSnippet(entry.body_markdown, query)
-  const preview = showEntryPreview && !query ? extractEntryPreview(entry.body_markdown) : null
+  const preview = showEntryPreview && !query ? deriveEntryPreview(entry.body_markdown) : null
 
   // Touch gestures: long-press opens the context menu (no right-click on touch),
   // a plain tap opens the entry. Mouse keeps right-click + click/double-click.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveTitle } from './entryLabels'
+import { deriveTitle, deriveEntryPreview } from './entryLabels'
 import {
   firstContentLineNumber,
   firstLineIsTitle,
@@ -94,5 +94,29 @@ describe('deriveTitle', () => {
     const written =
       '<!-- practice:name:The Daily Examen -->\n<!-- practice:section:Gratitude -->\ngrateful for the rain'
     expect(deriveTitle(written)).toBe('grateful for the rain')
+  })
+  it('never leaks a scripture fence token; uses the writing instead', () => {
+    const body =
+      'I am\n```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nBe still, and know that I am God.\nPsalm 46:10 · ESV\n```'
+    expect(deriveTitle(body)).toBe('I am')
+  })
+  it('skips a leading photo attachment ref', () => {
+    const body = `![a sunrise](attachment:${'a'.repeat(64)}.jpg)\nmorning light`
+    expect(deriveTitle(body)).toBe('morning light')
+  })
+})
+
+describe('deriveEntryPreview', () => {
+  it('never dumps the dayspring scripture token; shows the writing', () => {
+    const body =
+      'a few words here\n```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nBe still, and know that I am God.\nPsalm 46:10 · ESV\n```\nresting in that'
+    const preview = deriveEntryPreview(body)
+    expect(preview).toBe('a few words here')
+    expect(preview).not.toContain('dayspring-scripture')
+  })
+  it('returns null when the entry is only snippets', () => {
+    const body =
+      '<!-- practice:name:Lectio Divina -->\n<!-- practice:section:Lectio -->\n'
+    expect(deriveEntryPreview(body)).toBeNull()
   })
 })

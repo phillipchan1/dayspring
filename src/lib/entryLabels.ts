@@ -1,27 +1,40 @@
-import { isSpiritualFenceLine } from './spiritualBlocks'
+import { isSpiritualFenceLine, stripSpiritualBlocks } from './spiritualBlocks'
 import { isPracticeTokenLine, practiceNameFromLine } from './practiceTokens'
+import { ATTACHMENT_REF_RE } from './attachments'
 
 /** Coerce nullable entry bodies to a string safe for editors and labels. */
 export function asEntryMarkdown(markdown: string | null | undefined): string {
   return markdown ?? ''
 }
 
-/** Derive a short display title from markdown (first non-empty line). */
+/**
+ * Human-readable content lines from an entry body, with every slash-snippet
+ * scaffold removed so titles, previews, and search never surface raw markup:
+ * spiritual blocks (prayer/sense/scripture fences) are dropped whole, practice
+ * tokens are skipped, and inline photo refs are stripped. Order is preserved.
+ */
+export function entryContentLines(markdown: string | null | undefined): string[] {
+  const stripped = stripSpiritualBlocks(asEntryMarkdown(markdown))
+  const out: string[] = []
+  for (const raw of stripped.split('\n')) {
+    const trimmed = raw.trim()
+    if (!trimmed) continue
+    if (isPracticeTokenLine(trimmed)) continue
+    // Defensive: stripSpiritualBlocks removes well-formed fences, but skip any
+    // stray opener (e.g. an unclosed block) so the `dayspring-*` token can't leak.
+    if (isSpiritualFenceLine(trimmed)) continue
+    const line = trimmed.replace(ATTACHMENT_REF_RE, '').trim()
+    if (!line) continue
+    out.push(line)
+  }
+  return out
+}
+
+/** Derive a short display title from markdown (first meaningful content line). */
 export function deriveTitle(markdown: string | null | undefined): string {
-  const lines = asEntryMarkdown(markdown)
-    .split('\n')
-    .map((l) => l.trim())
-  // A practice entry leads with hidden tokens; until something is written, fall
-  // back to the practice name rather than leaking the raw comment.
-  let practiceName = ''
-  for (const l of lines) {
-    if (l.length === 0) continue
-    if (isPracticeTokenLine(l)) {
-      practiceName ||= practiceNameFromLine(l) ?? ''
-      continue
-    }
-    if (isSpiritualFenceLine(l)) continue
-    return l
+  const [first] = entryContentLines(markdown)
+  if (first) {
+    return first
       .replace(/^#{1,6}\s+/, '')
       .replace(/^>\s+/, '')
       .replace(/^[-*+]\s+/, '')
@@ -29,7 +42,32 @@ export function deriveTitle(markdown: string | null | undefined): string {
       .replace(/[*_`~]/g, '')
       .trim()
   }
-  return practiceName
+  // No written content yet — a freshly-begun practice should show its name
+  // rather than nothing.
+  for (const raw of asEntryMarkdown(markdown).split('\n')) {
+    const name = practiceNameFromLine(raw.trim())
+    if (name) return name
+  }
+  return ''
+}
+
+/** One-line body preview for the entry list — verbatim prose, scaffolding-free. */
+export function deriveEntryPreview(
+  markdown: string | null | undefined,
+  maxLength = 80,
+): string | null {
+  for (const line of entryContentLines(markdown)) {
+    if (line.startsWith('/')) continue
+    if (line.length < 4) continue
+    const cleaned = line
+      .replace(/^#{1,6}\s+/, '')
+      .replace(/[*_~`>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!cleaned) continue
+    return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trimEnd() + '…' : cleaned
+  }
+  return null
 }
 
 /** Human-readable cite for an entry in rollup prose, e.g. "Trading notes (Apr 7)". */
