@@ -4,7 +4,7 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view'
-import { RangeSetBuilder, StateField, type Extension } from '@codemirror/state'
+import { RangeSetBuilder, StateField, type Extension, type Text } from '@codemirror/state'
 import { type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { SpiritualItemType } from '@/lib/types'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
@@ -86,12 +86,12 @@ class SpiritualBlockWidget extends WidgetType {
   }
 }
 
-function buildDecorations(blocks: readonly ParsedSpiritualBlock[]): DecorationSet {
+function buildDecorations(blocks: readonly ParsedSpiritualBlock[], doc: Text): DecorationSet {
   if (blocks.length === 0) return Decoration.none
 
   const builder = new RangeSetBuilder<Decoration>()
   for (const block of blocks) {
-    addBlockDecoration(builder, block)
+    addBlockDecoration(builder, block, doc)
   }
   return builder.finish()
 }
@@ -99,11 +99,21 @@ function buildDecorations(blocks: readonly ParsedSpiritualBlock[]): DecorationSe
 function addBlockDecoration(
   builder: RangeSetBuilder<Decoration>,
   block: ParsedSpiritualBlock,
+  doc: Text,
 ): void {
-  if (block.to <= block.from) return
+  // End the replace range at the closing fence's line boundary, NOT past the
+  // trailing newline. A block:true replace range that extends beyond the final
+  // line break (e.g. a block at end-of-document, then Enter pressed to write
+  // beneath it) makes CodeMirror render the widget DOM twice — one fence in the
+  // text, two visible blocks, deleting either removes both. Stopping at the
+  // newline keeps the range aligned to a line boundary and renders exactly one.
+  // `block.to` stays untouched so click/edit/atomic logic keeps the full range.
+  let to = block.to
+  if (to > block.from && doc.sliceString(to - 1, to) === '\n') to -= 1
+  if (to <= block.from) return
   builder.add(
     block.from,
-    block.to,
+    to,
     Decoration.replace({
       widget: new SpiritualBlockWidget(
         block.id,
@@ -216,10 +226,10 @@ const spiritualBlockTheme = EditorView.theme({
 /** Block replace widgets must live on EditorView.decorations, not ViewPlugin. */
 const spiritualBlockField = StateField.define<DecorationSet>({
   create(state) {
-    return buildDecorations(state.field(spiritualBlocksField))
+    return buildDecorations(state.field(spiritualBlocksField), state.doc)
   },
   update(deco, tr) {
-    if (tr.docChanged) return buildDecorations(tr.state.field(spiritualBlocksField))
+    if (tr.docChanged) return buildDecorations(tr.state.field(spiritualBlocksField), tr.state.doc)
     return deco.map(tr.changes)
   },
   provide: (f) => EditorView.decorations.from(f),
