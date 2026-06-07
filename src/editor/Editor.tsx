@@ -91,6 +91,8 @@ interface EditorProps {
   onEditBlock?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
   /** Called when the user clicks a photo block to edit it. */
   onEditAttachment?: (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => void
+  /** Called when the user opens a practice's "about" sheet (by practice name). */
+  onAboutPractice?: (name: string) => void
 }
 
 /**
@@ -117,6 +119,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onSlashCommand,
     onEditBlock,
     onEditAttachment,
+    onAboutPractice,
     onSlashPaletteChange,
     skipAutofocusRef,
   },
@@ -131,6 +134,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
   const onEditAttachmentRef = useRef(onEditAttachment)
+  const onAboutPracticeRef = useRef(onAboutPractice)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
   const titleStylingRef = useRef(titleStyling)
@@ -141,6 +145,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
   onEditAttachmentRef.current = onEditAttachment
+  onAboutPracticeRef.current = onAboutPractice
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
   titleStylingRef.current = titleStyling
@@ -305,7 +310,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           scriptureRefDecoration(),
           taskListExtension(),
           // Renders /practice prompts as display-only decorations over hidden tokens.
-          practicePromptExtension,
+          practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
           attachmentBlockNormalizeExtension(),
           attachmentImageExtension((target, anchor) =>
             onEditAttachmentRef.current?.(target, anchor),

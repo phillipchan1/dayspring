@@ -55,8 +55,9 @@ import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
+import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
 import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
-import type { Practice } from '@/editor/practices/practicesData'
+import { PRACTICE_BY_NAME, type Practice } from '@/editor/practices/practicesData'
 import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
 import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
 import type { AttachmentEditTarget } from '@/editor/attachmentImageExtension'
@@ -173,6 +174,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   } | null>(null)
   const imageEditRef = useRef(imageEdit)
   imageEditRef.current = imageEdit
+
+  // The practice "about" slide-over (opened from a practice header).
+  const [aboutPractice, setAboutPractice] = useState<Practice | null>(null)
 
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
   const focusOverlaysOpen =
@@ -1151,6 +1155,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             onSlashCommand={handleSlashCommand}
             onEditBlock={handleEditBlock}
             onEditAttachment={handleEditAttachment}
+            onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
             onSlashPaletteChange={setSlashPaletteOpen}
           />
         ) : null}
@@ -1301,6 +1306,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       )}
       {slashCapture?.cmd === 'practice' && (
         <PracticeLibrary onBegin={handleBeginPractice} onClose={closeSlashCapture} />
+      )}
+      {aboutPractice && (
+        <PracticeAboutSheet
+          practice={aboutPractice}
+          onClose={() => {
+            setAboutPractice(null)
+            editorRef.current?.focus()
+          }}
+        />
       )}
       {imageEdit && (
         <InlineImageEditPopover

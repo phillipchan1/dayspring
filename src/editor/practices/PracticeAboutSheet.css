@@ -1,0 +1,176 @@
+/*
+ * Practice "about" slide-over. Shares the Practices Library palette/type so
+ * reading about a practice feels like the same world as the library/threshold,
+ * distinct from the writing surface. Tokens map to the theme with First Light
+ * fallbacks so it reads correctly under every Dayspring theme.
+ */
+.practice-sheet {
+  --ps-parchment: var(--bg, #faf6f0);
+  --ps-ink: var(--text-bright, #1c1612);
+  --ps-ink-soft: var(--text, #4a3f35);
+  --ps-muted: var(--text-dim, #8c7b6e);
+  --ps-ghost: var(--text-faint, #c4b5a8);
+  --ps-border: var(--border-subtle, #ede3d4);
+  --ps-amber: var(--accent, #c8853a);
+  --ps-display: var(--font-display, 'Fraunces', Georgia, serif);
+  --ps-body: var(--font-serif, 'Newsreader', Georgia, serif);
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.practice-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: color-mix(in srgb, var(--ps-ink) 26%, transparent);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+  animation: ps-fade 0.25s ease;
+}
+
+.practice-sheet__panel {
+  position: relative;
+  width: min(440px, 92vw);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--ps-parchment);
+  color: var(--ps-ink);
+  font-family: var(--ps-body);
+  padding: 2.6rem 2.2rem 3rem;
+  box-shadow: -24px 0 60px -30px rgba(0, 0, 0, 0.4);
+  -webkit-font-smoothing: antialiased;
+  animation: ps-slide 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ps-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ps-slide {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.practice-sheet__close {
+  position: absolute;
+  top: 1rem;
+  right: 1.1rem;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--ps-ghost);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.practice-sheet__close:hover {
+  color: var(--ps-amber);
+}
+
+.practice-sheet__eyebrow {
+  font-family: var(--ps-body);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ps-amber);
+}
+
+.practice-sheet__name {
+  margin: 0.5rem 0 0;
+  font-family: var(--ps-display);
+  font-size: clamp(24px, 5vw, 30px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--ps-ink);
+}
+
+.practice-sheet__origin {
+  margin-top: 0.45rem;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ps-muted);
+}
+
+.practice-sheet__divider {
+  height: 1px;
+  margin: 1.4rem 0;
+  background: linear-gradient(to right, var(--ps-amber), transparent);
+  opacity: 0.5;
+}
+
+.practice-sheet__lead {
+  margin: 0 0 1.9rem;
+  font-size: 16px;
+  line-height: 1.6;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--ps-ink-soft);
+}
+
+.practice-sheet__section {
+  margin-bottom: 1.7rem;
+}
+
+.practice-sheet__heading {
+  margin: 0 0 0.55rem;
+  font-family: var(--ps-body);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ps-amber);
+}
+
+.practice-sheet__body {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+  font-weight: 300;
+  color: var(--ps-ink-soft);
+}
+
+.practice-sheet__tips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.practice-sheet__tips li {
+  position: relative;
+  padding-left: 1.1rem;
+  margin-bottom: 0.6rem;
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 300;
+  color: var(--ps-ink-soft);
+}
+.practice-sheet__tips li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--ps-amber);
+  opacity: 0.7;
+}
+
+.practice-sheet__quote {
+  margin: 2rem 0 0;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--ps-border);
+  font-family: var(--ps-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ps-muted);
+}
+
+@media (max-width: 600px) {
+  .practice-sheet__panel {
+    width: 100%;
+  }
+}
