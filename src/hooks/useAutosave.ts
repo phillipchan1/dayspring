@@ -61,8 +61,10 @@ export function useAutosave({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onCreatedRef = useRef(onCreated)
   const onAfterSaveRef = useRef(onAfterSave)
+  const enabledRef = useRef(enabled)
   onCreatedRef.current = onCreated
   onAfterSaveRef.current = onAfterSave
+  enabledRef.current = enabled
 
   const wasEnabledRef = useRef(enabled)
 
@@ -101,6 +103,11 @@ export function useAutosave({
         setError(null)
         try {
           if (idRef.current === null) {
+            // Guard against stale flush closures: when enabled changes, the
+            // useEffect([flush]) cleanup fires the OLD closure (which captured
+            // enabled=true). This ref check prevents creating phantom entries
+            // after the user navigated away from the journal surface.
+            if (!enabledRef.current) return
             const created = await createEntry({ body_markdown: text })
             idRef.current = created.id
             savedContentRef.current = text

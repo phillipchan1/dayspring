@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
-import { Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
+import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -282,7 +282,17 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               }
             }
             if (changes.length === 0) return tr
-            return [tr, { changes }]
+            // Compose dedup fixes onto tr's changes so we return a single
+            // changeset mapping original→corrected. The old [tr, { changes }]
+            // form crashes because CM merges specs expecting positions relative
+            // to the original doc, but ours reference tr.newDoc.
+            const dedupCS = ChangeSet.of(changes, tr.newDoc.length)
+            return {
+              changes: tr.changes.compose(dedupCS),
+              selection: tr.selection,
+              effects: tr.effects,
+              scrollIntoView: tr.scrollIntoView,
+            }
           }),
           // Parse spiritual blocks once per doc change; the three decorations
           // below all read this field instead of each re-parsing the full doc.

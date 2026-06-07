@@ -87,16 +87,15 @@ const PERIODS: { key: Period; label: string; ms: number }[] = [
   { key: 'all', label: 'all', ms: 0 },
 ]
 
-function TimeArcs({ strands, onOpen }: { strands: AltarStrand[]; onOpen: (id: string) => void }) {
+function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period: Period; onOpen: (id: string) => void }) {
   const W = 920
-  const H = 380
+  const H = 280
   const padX = 44
-  const padY = 38
+  const padY = 24
   const baseY = H - padY
 
   const clipId = useId().replace(/:/g, '')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [period, setPeriod] = useState<Period>('all')
 
   const fullRange = useMemo((): [number, number] => {
     const starts = strands.map((s) => Date.parse(s.spanStart)).filter(Number.isFinite)
@@ -112,13 +111,7 @@ function TimeArcs({ strands, onOpen }: { strands: AltarStrand[]; onOpen: (id: st
 
   const xMain = (iso: string) => padX + ((Date.parse(iso) - viewMin) / (viewMax - viewMin || 1)) * (W - padX * 2)
 
-  const shown = useMemo(() => {
-    let filtered = strands
-    if (period !== 'all') {
-      filtered = strands.filter((s) => Date.parse(s.spanEnd) >= viewMin)
-    }
-    return filtered.slice(0, 28)
-  }, [strands, period, viewMin])
+  const shown = useMemo(() => strands.slice(0, 28), [strands])
 
   const ticks = useMemo(() => {
     const t: number[] = []
@@ -129,22 +122,10 @@ function TimeArcs({ strands, onOpen }: { strands: AltarStrand[]; onOpen: (id: st
   }, [viewMin, viewMax])
 
   const maxHeft = Math.max(1, ...shown.map((s) => s.heft))
+  const liftRange = baseY - padY - 40
 
   return (
     <div className="altar-time">
-      <div className="altar-chips altar-chips--time" role="group" aria-label="Time range">
-        {PERIODS.map((p) => (
-          <button
-            key={p.key}
-            className="altar-pill"
-            data-on={period === p.key ? 'true' : undefined}
-            onClick={() => setPeriod(p.key)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
       <svg viewBox={`0 0 ${W} ${H}`} className="altar-time__svg">
         <defs>
           <clipPath id={`arc-clip-${clipId}`}>
@@ -161,7 +142,7 @@ function TimeArcs({ strands, onOpen }: { strands: AltarStrand[]; onOpen: (id: st
             <g key={y}>
               <line x1={tx} y1={baseY} x2={tx} y2={baseY + 5} stroke="var(--border)" />
               {(y % 2 === 0 || ticks.length <= 8) && (
-                <text x={tx} y={baseY + 19} className="altar-time__tick" textAnchor="middle">
+                <text x={tx} y={baseY + 16} className="altar-time__tick" textAnchor="middle">
                   '{String(y).slice(2)}
                 </text>
               )}
@@ -177,7 +158,7 @@ function TimeArcs({ strands, onOpen }: { strands: AltarStrand[]; onOpen: (id: st
             const x2 = Math.min(W - padX, rawX2)
             if (x2 - x1 < 4) return null
             const midX = (x1 + x2) / 2
-            const lift = baseY - 26 - (s.heft / maxHeft) * (H - padY - 70)
+            const lift = baseY - 20 - Math.sqrt(s.heft / maxHeft) * liftRange
             const hue = hueFor(s.lenses[0] ?? 'gold')
             const isHovered = hoveredId === s.id
             const isDimmed = hoveredId !== null && !isHovered
@@ -208,17 +189,15 @@ function TimeArcs({ strands, onOpen }: { strands: AltarStrand[]; onOpen: (id: st
                 />
                 {showStart && <circle cx={x1} cy={baseY} r="2.6" fill={hue} className="altar-arc__dot" opacity={isDimmed ? 0.06 : 0.8} />}
                 {showEnd && <circle cx={x2} cy={baseY} r="3" fill={hue} className="altar-arc__dot" opacity={isDimmed ? 0.06 : 1} />}
-                {(isHovered || (!isDimmed && idx < 8)) && (
-                  <text
-                    x={midX}
-                    y={lift - 6}
-                    textAnchor="middle"
-                    className={`altar-arc__lbl${isHovered ? ' altar-arc__lbl--focus' : ''}`}
-                    opacity={isDimmed ? 0.06 : 1}
-                  >
+                {isHovered ? (
+                  <text x={midX} y={lift - 8} textAnchor="middle" className="altar-arc__lbl altar-arc__lbl--focus">
                     {s.label}
                   </text>
-                )}
+                ) : !isDimmed && idx < 8 ? (
+                  <text x={midX} y={lift - 5} textAnchor="middle" className="altar-arc__lbl">
+                    {s.label}
+                  </text>
+                ) : null}
               </g>
             )
           })}
@@ -263,6 +242,23 @@ function StrandPanel({
   }, [open, onClose])
 
   const t = shown
+
+  // Group moments by year, newest first
+  const yearGroups = useMemo(() => {
+    if (!t) return []
+    const reversed = [...t.moments].reverse()
+    const groups = new Map<number, typeof reversed>()
+    for (const m of reversed) {
+      const year = new Date(m.date).getFullYear()
+      if (!groups.has(year)) groups.set(year, [])
+      groups.get(year)!.push(m)
+    }
+    return Array.from(groups.entries())
+  }, [t])
+
+  const first = t?.moments[0] ?? null
+  const latest = t && t.moments.length >= 2 ? t.moments[t.moments.length - 1] : null
+
   return (
     <>
       <div className={`altar-scrim${open ? ' altar-scrim--open' : ''}`} onClick={onClose} aria-hidden />
@@ -271,7 +267,7 @@ function StrandPanel({
           {t && (
             <>
               <button className="altar-thread__back" onClick={onClose}>
-                ← the field
+                ← back
               </button>
               <span className="altar-lbl">{t.type.toUpperCase()}</span>
               <h2 className="altar-thread__title">{t.label}</h2>
@@ -285,19 +281,39 @@ function StrandPanel({
 
               <p className="altar-reframe">{t.reframe}</p>
 
+              {first && latest && (
+                <div className="altar-bookend">
+                  <div className="altar-bookend__half">
+                    <span className="altar-lbl">THEN</span>
+                    <span className="altar-bookend__date">{fmt(first.date)}</span>
+                    <p className="altar-bookend__text">{first.excerpt}</p>
+                  </div>
+                  <div className="altar-bookend__half">
+                    <span className="altar-lbl altar-lbl--gold">NOW</span>
+                    <span className="altar-bookend__date">{fmt(latest.date)}</span>
+                    <p className="altar-bookend__text">{latest.excerpt}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="altar-returns">
                 <span className="altar-lbl">Each time you brought it</span>
-                {t.moments.map((m) => (
-                  <button
-                    key={m.itemId}
-                    className="altar-return"
-                    onClick={() => m.entryId && onOpenEntry(m.entryId)}
-                    disabled={!m.entryId}
-                  >
-                    <span className="altar-return__dot" />
-                    <span className="altar-return__date">{fmt(m.date)}</span>
-                    <span className="altar-return__text">{m.excerpt}</span>
-                  </button>
+                {yearGroups.map(([year, moments]) => (
+                  <div key={year} className="altar-returns__year">
+                    <span className="altar-returns__year-lbl">{year} · {moments.length}</span>
+                    {moments.map((m) => (
+                      <button
+                        key={m.itemId}
+                        className="altar-return"
+                        onClick={() => m.entryId && onOpenEntry(m.entryId)}
+                        disabled={!m.entryId}
+                      >
+                        <span className="altar-return__dot" />
+                        <span className="altar-return__date">{fmt(m.date)}</span>
+                        <span className="altar-return__text">{m.excerpt}</span>
+                      </button>
+                    ))}
+                  </div>
                 ))}
               </div>
             </>
@@ -319,6 +335,7 @@ export function AltarView({ onOpenEntry }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
+  const [period, setPeriod] = useState<Period>('all')
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<AltarStrandDetail | null>(null)
@@ -361,8 +378,13 @@ export function AltarView({ onOpenEntry }: Props) {
 
   const visible = useMemo(() => {
     if (!strands) return []
-    return lens === 'all' ? strands : strands.filter((s) => s.type === lens)
-  }, [strands, lens])
+    let filtered = lens === 'all' ? strands : strands.filter((s) => s.type === lens)
+    if (period !== 'all') {
+      const cutoff = Date.now() - PERIODS.find((p) => p.key === period)!.ms
+      filtered = filtered.filter((s) => Date.parse(s.spanEnd) >= cutoff)
+    }
+    return filtered
+  }, [strands, lens, period])
 
   const grouped = useMemo(() => {
     return GROUPS.map((g) => ({
@@ -399,8 +421,8 @@ export function AltarView({ onOpenEntry }: Props) {
           <div className="altar-tabs">
             {(
               [
-                ['field', 'Field'],
-                ['time', 'Across time'],
+                ['field', 'Subjects'],
+                ['time', 'Over time'],
               ] as [Tab, string][]
             ).map(([k, l]) => (
               <button key={k} className={`altar-tab${tab === k ? ' altar-tab--on' : ''}`} onClick={() => setTab(k)}>
@@ -419,6 +441,18 @@ export function AltarView({ onOpenEntry }: Props) {
                   onClick={() => setLens(k)}
                 >
                   {k}
+                </button>
+              ))}
+            </div>
+            <div className="altar-chips" role="group" aria-label="Time range">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  className="altar-pill"
+                  data-on={period === p.key ? 'true' : undefined}
+                  onClick={() => setPeriod(p.key)}
+                >
+                  {p.label}
                 </button>
               ))}
             </div>
@@ -456,7 +490,7 @@ export function AltarView({ onOpenEntry }: Props) {
             </>
           )}
 
-          {tab === 'time' && <TimeArcs strands={visible} onOpen={openStrand} />}
+          {tab === 'time' && <TimeArcs strands={visible} period={period} onOpen={openStrand} />}
         </div>
       </div>
 

@@ -217,9 +217,17 @@ export function attachmentBlockNormalizeExtension(): Extension {
     const normalized = normalizeAttachmentBlocks(doc)
     if (!normalized || normalized === doc) return tr
 
-    const changes = ChangeSet.of([{ from: 0, to: doc.length, insert: normalized }], doc.length)
-    const selection = (tr.selection ?? tr.startState.selection).map(changes)
-    return [tr, { changes, selection }]
+    // Compose normalization onto tr's changes so we return a single changeset.
+    // [tr, { changes }] crashes because CM expects the second spec's positions
+    // relative to the original doc, but ours reference tr.newDoc.
+    const normCS = ChangeSet.of([{ from: 0, to: doc.length, insert: normalized }], doc.length)
+    const baseSel = tr.selection ?? tr.startState.selection.map(tr.changes)
+    return {
+      changes: tr.changes.compose(normCS),
+      selection: baseSel.map(normCS),
+      effects: tr.effects,
+      scrollIntoView: tr.scrollIntoView,
+    }
   })
 }
 
