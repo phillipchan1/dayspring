@@ -3,9 +3,10 @@ import {
   Decoration,
   EditorView,
   WidgetType,
+  keymap,
   type DecorationSet,
 } from '@codemirror/view'
-import { StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
+import { Prec, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
 import { PRACTICE_BY_NAME, type Practice } from './practicesData'
 
@@ -49,19 +50,21 @@ export function buildPracticeBlock(
 }
 
 // ── Decorations ────────────────────────────────────────────────────────────
+//
+// We never *replace* the token lines with block widgets: a block replace that
+// ends where the answer line begins "claims" that boundary, leaving the empty
+// answer line an unclickable sliver (and swallowing the placeholder). Instead we
+// hide the token line with a CSS line class and render each prompt as a block
+// widget anchored *above* its answer line, then give that answer line a real
+// min-height so it's an obvious place to click and write.
 
-/** A `practice:name` line — rendered to nothing so the token never shows. */
-class HiddenTokenWidget extends WidgetType {
-  eq(): boolean {
-    return true
-  }
-  toDOM(): HTMLElement {
-    const el = document.createElement('div')
-    el.className = 'cm-practice-hidden'
-    el.setAttribute('aria-hidden', 'true')
-    return el
-  }
-}
+/** Hides a `practice:*` token line without removing it from the document. */
+const hiddenLineDeco = Decoration.line({ class: 'cm-practice-token' })
+/** Marks the writing line below a prompt so it has a comfortable click target. */
+const answerLineDeco = Decoration.line({ class: 'cm-practice-answer' })
+/** Zero-styling mark used only to keep token lines atomic for cursor motion. */
+const atomicMark = Decoration.mark({})
+
 
 /** A `practice:section` line — rendered as the amber label + italic question. */
 class PracticePromptWidget extends WidgetType {
@@ -124,6 +127,41 @@ class PracticePlaceholderWidget extends WidgetType {
   }
 }
 
+/**
+ * A faint header at the top of a practice block: the practice name (orientation,
+ * since the raw name token is hidden) plus a quiet "free write" action that
+ * dissolves the whole template into plain prose. Revealed on hover/focus.
+ */
+class PracticeNameWidget extends WidgetType {
+  constructor(readonly name: string) {
+    super()
+  }
+  eq(other: PracticeNameWidget): boolean {
+    return other.name === this.name
+  }
+  toDOM(): HTMLElement {
+    const root = document.createElement('div')
+    root.className = 'cm-practice-header'
+    root.setAttribute('contenteditable', 'false')
+
+    const name = document.createElement('span')
+    name.className = 'cm-practice-header__name'
+    name.textContent = this.name
+
+    const action = document.createElement('button')
+    action.type = 'button'
+    action.className = 'cm-practice-action cm-practice-action--freewrite'
+    action.textContent = 'free write'
+    action.title = 'Remove the prompts and keep only your words'
+
+    root.append(name, action)
+    return root
+  }
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 interface ParsedToken {
   /** 1-based line number. */
   line: number
@@ -164,40 +202,52 @@ function buildDecorations(state: EditorState): PracticeDecorations {
 
   tokens.forEach((token, idx) => {
     const line = doc.line(token.line)
-    // Span the whole line including its trailing break so block widgets fully
-    // collapse the source token line (mirrors the spiritual-block convention).
-    const blockTo = Math.min(line.to + 1, doc.length)
+    // Hide the token line via CSS and keep it atomic so the caret skips the
+    // invisible markup when arrowing through the entry.
+    ranges.push(hiddenLineDeco.range(line.from))
+    const atomicTo = Math.min(line.to + 1, doc.length)
+    if (atomicTo > line.from) atomicRanges.push(atomicMark.range(line.from, atomicTo))
 
     if (token.kind === 'name') {
       currentPractice = PRACTICE_BY_NAME.get(token.value)
-      const hidden = Decoration.replace({
-        widget: new HiddenTokenWidget(),
-        block: true,
-      }).range(line.from, blockTo)
-      ranges.push(hidden)
-      atomicRanges.push(hidden)
+      // Render a faint header above the (hidden) name line for orientation and
+      // to host the "free write" action.
+      ranges.push(
+        Decoration.widget({
+          widget: new PracticeNameWidget(token.value),
+          block: true,
+          side: -1,
+        }).range(line.from),
+      )
       return
     }
 
-    // Section content runs from the next line up to the following token (or EOF).
+    // No answer line follows (token is the last line) — nothing to write into.
+    if (token.line + 1 > doc.lines) return
+    const answer = doc.line(token.line + 1)
+
+    // Section content runs from the answer line up to the following token (or EOF).
     const nextTokenLine = tokens[idx + 1]?.line ?? doc.lines + 1
     let content = ''
     for (let n = token.line + 1; n < nextTokenLine; n++) {
       content += doc.line(n).text
     }
     const filled = content.trim().length > 0
-
     const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
-    const promptDeco = Decoration.replace({
-      widget: new PracticePromptWidget(token.value, prompt?.question ?? '', filled),
-      block: true,
-    }).range(line.from, blockTo)
-    ranges.push(promptDeco)
-    atomicRanges.push(promptDeco)
 
-    // Placeholder hint sits on the first (empty) answer line.
-    if (!filled && prompt?.placeholder && token.line + 1 <= doc.lines) {
-      const answer = doc.line(token.line + 1)
+    // The prompt renders as a block *above* the answer line (side -1) — the
+    // answer line itself stays a normal, editable line.
+    ranges.push(
+      Decoration.widget({
+        widget: new PracticePromptWidget(token.value, prompt?.question ?? '', filled),
+        block: true,
+        side: -1,
+      }).range(answer.from),
+    )
+    ranges.push(answerLineDeco.range(answer.from))
+
+    // Placeholder hint sits on the (empty) answer line until the writer begins.
+    if (!filled && prompt?.placeholder) {
       ranges.push(
         Decoration.widget({
           widget: new PracticePlaceholderWidget(prompt.placeholder),
@@ -223,17 +273,27 @@ const practiceField = StateField.define<PracticeDecorations>({
 })
 
 const practiceTheme = EditorView.theme({
-  '.cm-practice-hidden': {
+  // The raw `<!-- practice:* -->` token lines stay in the document but never show.
+  '.cm-practice-token': {
     display: 'none',
+  },
+  // Writing line beneath a prompt — a generous, obvious target to click into.
+  '.cm-practice-answer': {
+    minHeight: '2.6em',
   },
   '.cm-practice-prompt': {
     display: 'block',
-    margin: '1.5rem 0 0.5rem',
+    margin: '1.4rem 0 0.4rem',
     userSelect: 'none',
-    transition: 'opacity 360ms ease',
+    overflow: 'hidden',
+    transition: 'opacity 320ms ease',
   },
+  // Once the section has content, the prompt fades and collapses so only the
+  // writer's own words remain.
   '.cm-practice-prompt--filled': {
     opacity: '0',
+    maxHeight: '0',
+    margin: '0',
     pointerEvents: 'none',
   },
   '.cm-practice-prompt__label': {
@@ -261,7 +321,185 @@ const practiceTheme = EditorView.theme({
     fontStyle: 'italic',
     pointerEvents: 'none',
   },
+  // Faint block header: practice name + the (hover-revealed) "free write" action.
+  '.cm-practice-header': {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.7rem',
+    margin: '0.3rem 0 1.1rem',
+    userSelect: 'none',
+  },
+  '.cm-practice-header__name': {
+    fontFamily: 'var(--font-serif)',
+    fontSize: '10px',
+    fontWeight: '400',
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
+    color: 'var(--accent, #c8853a)',
+  },
+  '.cm-practice-action': {
+    fontFamily: 'var(--font-serif)',
+    fontSize: '10px',
+    letterSpacing: '0.08em',
+    color: 'var(--text-faint, #c4b5a8)',
+    background: 'none',
+    border: 'none',
+    padding: '0',
+    cursor: 'pointer',
+    opacity: '0',
+    transition: 'opacity 200ms ease, color 200ms ease',
+  },
+  '.cm-practice-header:hover .cm-practice-action, .cm-practice-action:focus-visible': {
+    opacity: '1',
+  },
+  '.cm-practice-action:hover': {
+    color: 'var(--accent, #c8853a)',
+  },
+  // Touch devices have no hover — keep the action quietly visible there.
+  '@media (hover: none)': {
+    '.cm-practice-action': { opacity: '0.55' },
+  },
 })
+
+// ── Editing the scaffolding ─────────────────────────────────────────────────
+//
+// Practice entries are just text, so changing them uses gestures you already
+// know — plus undo as a fearless safety net:
+//   • Skip a prompt   → Backspace on its empty line (deletePracticeSection)
+//   • Free write      → the header's "free write" action (dissolvePracticeBlockAt)
+//   • Swap / add      → run /practice again (smart replace/append in the hook)
+
+const isTokenLine = (text: string) =>
+  PRACTICE_NAME_RE.test(text) || PRACTICE_SECTION_RE.test(text)
+
+/** The practice block (name → last section) containing `pos`, or null. */
+export interface PracticeBlock {
+  from: number
+  to: number
+  /** True when no section has any written content yet. */
+  empty: boolean
+}
+
+export function findPracticeBlockAt(doc: string, pos: number): PracticeBlock | null {
+  const lines = doc.split('\n')
+  const starts: number[] = []
+  let offset = 0
+  for (const line of lines) {
+    starts.push(offset)
+    offset += line.length + 1
+  }
+  let li = 0
+  for (let i = 0; i < lines.length; i++) {
+    if (pos >= starts[i]!) li = i
+    else break
+  }
+  let start = -1
+  for (let i = li; i >= 0; i--) {
+    if (PRACTICE_NAME_RE.test(lines[i]!)) {
+      start = i
+      break
+    }
+  }
+  if (start === -1) return null
+  let end = lines.length - 1
+  for (let i = start + 1; i < lines.length; i++) {
+    if (PRACTICE_NAME_RE.test(lines[i]!)) {
+      end = i - 1
+      break
+    }
+  }
+  if (li < start || li > end) return null
+
+  let content = ''
+  for (let i = start; i <= end; i++) {
+    if (!isTokenLine(lines[i]!)) content += lines[i]
+  }
+  return {
+    from: starts[start]!,
+    to: starts[end]! + lines[end]!.length,
+    empty: content.trim().length === 0,
+  }
+}
+
+/**
+ * Backspace at the start of an empty answer line removes that one prompt — like
+ * deleting an empty list item. Only fires in that exact case; otherwise the
+ * normal Backspace runs.
+ */
+function deletePracticeSection(view: EditorView): boolean {
+  const { state } = view
+  const sel = state.selection.main
+  if (!sel.empty) return false
+  const line = state.doc.lineAt(sel.head)
+  if (sel.head !== line.from || line.text.trim() !== '' || line.number === 1) return false
+  const prev = state.doc.line(line.number - 1)
+  if (!PRACTICE_SECTION_RE.test(prev.text)) return false
+
+  const from = prev.from
+  const to = Math.min(line.to + 1, state.doc.length)
+  // Land the caret at the end of the previous section's writing, when there is one.
+  let caret = from
+  if (prev.number - 1 >= 1) {
+    const above = state.doc.line(prev.number - 1)
+    if (!isTokenLine(above.text)) caret = above.to
+  }
+  view.dispatch({ changes: { from, to, insert: '' }, selection: { anchor: caret } })
+  return true
+}
+
+/**
+ * Drop the scaffolding token lines, keeping each section's written lines and
+ * separating the surviving answers with a blank line so they read as plain
+ * paragraphs. Pure so it can be unit-tested without an editor.
+ */
+export function dissolvePracticeProse(lines: string[]): string {
+  const groups: string[] = []
+  let current: string[] = []
+  const flush = () => {
+    const text = current.join('\n').trim()
+    if (text) groups.push(text)
+    current = []
+  }
+  for (const text of lines) {
+    if (isTokenLine(text)) flush()
+    else current.push(text)
+  }
+  flush()
+  return groups.join('\n\n')
+}
+
+/** Strip the practice block containing `pos`, keeping the writer's words as prose. */
+function dissolvePracticeBlockAt(view: EditorView, pos: number): void {
+  const { doc } = view.state
+  const posLine = doc.lineAt(pos).number
+  let startLine = -1
+  for (let n = posLine; n >= 1; n--) {
+    if (PRACTICE_NAME_RE.test(doc.line(n).text)) {
+      startLine = n
+      break
+    }
+  }
+  if (startLine === -1) return
+  let endLine = doc.lines
+  for (let n = startLine + 1; n <= doc.lines; n++) {
+    if (PRACTICE_NAME_RE.test(doc.line(n).text)) {
+      endLine = n - 1
+      break
+    }
+  }
+
+  const lines: string[] = []
+  for (let n = startLine; n <= endLine; n++) lines.push(doc.line(n).text)
+  const prose = dissolvePracticeProse(lines)
+
+  const from = doc.line(startLine).from
+  const to = doc.line(endLine).to
+  view.dispatch({
+    changes: { from, to, insert: prose },
+    selection: { anchor: from + prose.length },
+  })
+  view.focus()
+}
 
 /**
  * Paint hidden `practice:*` tokens as their prompts and fade each prompt as its
@@ -274,20 +512,47 @@ export const practicePromptExtension: Extension = [
   // Treat the hidden token lines as atoms so the caret skips them and a
   // backspace from a blank answer line removes the whole prompt in one stroke.
   EditorView.atomicRanges.of((view) => view.state.field(practiceField).atomic),
+  // Backspace on an empty section line removes that single prompt.
+  Prec.high(keymap.of([{ key: 'Backspace', run: deletePracticeSection }])),
+  // The header's "free write" action dissolves the template into prose.
+  EditorView.domEventHandlers({
+    mousedown(event, view) {
+      const target = (event.target as HTMLElement | null)?.closest(
+        '.cm-practice-action--freewrite',
+      )
+      if (!target) return false
+      event.preventDefault()
+      dissolvePracticeBlockAt(view, view.posAtDOM(target))
+      return true
+    },
+  }),
 ]
 
 // ── React glue ───────────────────────────────────────────────────────────
 
 /**
- * Returns a callback that inserts a practice's structured block at `insertAt`
- * and drops the caret onto the first answer line.
+ * Returns a callback that begins a practice, dropping the caret on the first
+ * answer line. If the cursor sits inside an existing practice block, choosing a
+ * new one *replaces* it when nothing has been written yet, or *appends* below it
+ * once writing has begun — so re-running /practice is both "swap" and "add".
  */
 export function usePracticeInsertion(editorRef: RefObject<EditorHandle | null>) {
   return useCallback(
     (practice: Practice, insertAt: number, doc: string) => {
-      const { text, cursorOffset } = buildPracticeBlock(practice, doc, insertAt)
-      editorRef.current?.insertAt(insertAt, text)
-      const caret = insertAt + cursorOffset
+      const block = findPracticeBlockAt(doc, insertAt)
+      let from = insertAt
+      let to = insertAt
+      let base = insertAt
+      if (block?.empty) {
+        from = block.from
+        to = block.to
+        base = block.from
+      } else if (block) {
+        from = to = base = block.to
+      }
+      const { text, cursorOffset } = buildPracticeBlock(practice, doc, base)
+      editorRef.current?.replaceRange(from, to, text)
+      const caret = base + cursorOffset
       requestAnimationFrame(() => editorRef.current?.focusAt(caret))
     },
     [editorRef],

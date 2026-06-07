@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { buildPracticeBlock } from './usePracticeInsertion'
+import {
+  buildPracticeBlock,
+  dissolvePracticeProse,
+  findPracticeBlockAt,
+} from './usePracticeInsertion'
 import { PRACTICES } from './practicesData'
 
 const examen = PRACTICES.find((p) => p.name === 'The Daily Examen')!
+
+/** The raw markdown a freshly-begun practice produces, at the doc start. */
+function seeded(practice = examen): string {
+  return buildPracticeBlock(practice, '', 0).text
+}
 
 describe('buildPracticeBlock', () => {
   it('embeds the practice name and a section token per prompt', () => {
@@ -42,5 +51,58 @@ describe('buildPracticeBlock', () => {
   it('does not prepend a newline at the start of a line', () => {
     const { text } = buildPracticeBlock(examen, 'line\n', 5)
     expect(text.startsWith('<!-- practice:name:')).toBe(true)
+  })
+})
+
+describe('findPracticeBlockAt', () => {
+  it('reports an untouched template as empty (so re-/practice swaps it)', () => {
+    const doc = seeded()
+    const block = findPracticeBlockAt(doc, 0)
+    expect(block).not.toBeNull()
+    expect(block!.empty).toBe(true)
+    expect(block!.from).toBe(0)
+  })
+
+  it('reports a started template as non-empty (so re-/practice appends)', () => {
+    const base = seeded()
+    // Write into the first answer line (right after the first section token).
+    const at = base.indexOf('\n', base.indexOf('section:Gratitude')) + 1
+    const doc = base.slice(0, at) + 'thankful for coffee' + base.slice(at)
+    const block = findPracticeBlockAt(doc, at)
+    expect(block!.empty).toBe(false)
+  })
+
+  it('returns null outside any practice block', () => {
+    expect(findPracticeBlockAt('just some free writing', 4)).toBeNull()
+  })
+})
+
+describe('dissolvePracticeProse', () => {
+  it('keeps only the written words, dropping all scaffolding', () => {
+    const lines = [
+      '<!-- practice:name:The Daily Examen -->',
+      '<!-- practice:section:Gratitude -->',
+      'grateful for the rain',
+      '<!-- practice:section:Awareness -->',
+      'felt distant at lunch',
+    ]
+    expect(dissolvePracticeProse(lines)).toBe('grateful for the rain\n\nfelt distant at lunch')
+  })
+
+  it('drops skipped (empty) sections entirely', () => {
+    const lines = [
+      '<!-- practice:name:The Daily Examen -->',
+      '<!-- practice:section:Gratitude -->',
+      'grateful for the rain',
+      '<!-- practice:section:Awareness -->',
+      '',
+      '<!-- practice:section:Prayer -->',
+      'help me rest',
+    ]
+    expect(dissolvePracticeProse(lines)).toBe('grateful for the rain\n\nhelp me rest')
+  })
+
+  it('returns empty prose when nothing was written', () => {
+    expect(dissolvePracticeProse(seeded().split('\n'))).toBe('')
   })
 })
