@@ -292,7 +292,7 @@ const practiceTheme = EditorView.theme({
   '.cm-practice-prompt__label': {
     display: 'block',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.66rem',
+    fontSize: '0.66em',
     fontWeight: '500',
     letterSpacing: '0.22em',
     textTransform: 'uppercase',
@@ -328,7 +328,7 @@ const practiceTheme = EditorView.theme({
   },
   '.cm-practice-header__name': {
     fontFamily: 'var(--font-editor)',
-    fontSize: '10px',
+    fontSize: '0.62em',
     fontWeight: '400',
     letterSpacing: '0.22em',
     textTransform: 'uppercase',
@@ -336,7 +336,7 @@ const practiceTheme = EditorView.theme({
   },
   '.cm-practice-action': {
     fontFamily: 'var(--font-editor)',
-    fontSize: '10px',
+    fontSize: '0.62em',
     letterSpacing: '0.08em',
     color: 'var(--text-faint, #c4b5a8)',
     background: 'none',

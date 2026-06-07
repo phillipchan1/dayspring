@@ -144,7 +144,7 @@ const spiritualBlockTheme = EditorView.theme({
   '.cm-spiritual-block__label': {
     display: 'block',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.66rem',
+    fontSize: '0.66em',
     fontWeight: '500',
     letterSpacing: '0.2em',
     textTransform: 'uppercase',
@@ -171,7 +171,9 @@ const spiritualBlockTheme = EditorView.theme({
   '.cm-spiritual-block__verse': {
     margin: '0',
     fontFamily: 'var(--font-editor)',
-    fontSize: '1em',
+    // A tier below the practice question (1.06em) so a quoted verse reads as
+    // supporting content, not a competing prompt.
+    fontSize: '0.92em',
     fontStyle: 'italic',
     lineHeight: '1.6',
     letterSpacing: '0.005em',
@@ -185,7 +187,7 @@ const spiritualBlockTheme = EditorView.theme({
   '.cm-spiritual-block__reference': {
     margin: '0.55em 0 0',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.66rem',
+    fontSize: '0.66em',
     fontWeight: '500',
     letterSpacing: '0.16em',
     textTransform: 'uppercase',
