@@ -55,6 +55,20 @@ export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPre
     el?.scrollIntoView({ block: 'nearest' })
   }, [activeIdx, selected, visible.length])
 
+  // Measure the live column count so arrow nav matches the rendered grid — which
+  // reflows responsively (3 cols → 2 → 1). Cards in the first row share offsetTop.
+  const columnCount = (): number => {
+    const cards = gridRef.current?.querySelectorAll<HTMLElement>('.practice-card')
+    if (!cards || cards.length === 0) return 1
+    const top = cards[0]!.offsetTop
+    let cols = 0
+    for (const c of cards) {
+      if (c.offsetTop === top) cols++
+      else break
+    }
+    return Math.max(1, cols)
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -74,18 +88,27 @@ export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPre
         }
         return
       }
-      if (visible.length === 0) return
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault()
-        setActiveIdx((i) => (i + 1) % visible.length)
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        setActiveIdx((i) => (i - 1 + visible.length) % visible.length)
-      } else if (e.key === 'Enter') {
+      const len = visible.length
+      if (len === 0) return
+      if (e.key === 'Enter') {
         e.preventDefault()
         const practice = visible[activeIdx]
         if (practice) choose(practice)
+        return
       }
+      // Spatial grid navigation: left/right step within a row, up/down jump a row
+      // by the live column count. In a single column, left/right are no-ops and
+      // only up/down move — matching what the eye expects from the layout.
+      const cols = columnCount()
+      const arrows = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp']
+      if (!arrows.includes(e.key)) return
+      e.preventDefault()
+      setActiveIdx((i) => {
+        if (e.key === 'ArrowRight') return i % cols !== cols - 1 && i + 1 < len ? i + 1 : i
+        if (e.key === 'ArrowLeft') return i % cols !== 0 ? i - 1 : i
+        if (e.key === 'ArrowDown') return i + cols < len ? i + cols : i
+        return i - cols >= 0 ? i - cols : i // ArrowUp
+      })
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
