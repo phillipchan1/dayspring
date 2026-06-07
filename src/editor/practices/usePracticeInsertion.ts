@@ -512,16 +512,30 @@ export const practicePromptExtension: Extension = [
   EditorView.atomicRanges.of((view) => view.state.field(practiceField).atomic),
   // Backspace on an empty section line removes that single prompt.
   Prec.high(keymap.of([{ key: 'Backspace', run: deletePracticeSection }])),
-  // The header's "free write" action dissolves the template into prose.
+  // The header's "free write" action dissolves the template into prose; clicking
+  // a prompt drops the caret into that prompt's answer line.
   EditorView.domEventHandlers({
     mousedown(event, view) {
-      const target = (event.target as HTMLElement | null)?.closest(
-        '.cm-practice-action--freewrite',
-      )
-      if (!target) return false
-      event.preventDefault()
-      dissolvePracticeBlockAt(view, view.posAtDOM(target))
-      return true
+      const node = event.target as HTMLElement | null
+      const freewrite = node?.closest('.cm-practice-action--freewrite')
+      if (freewrite) {
+        event.preventDefault()
+        dissolvePracticeBlockAt(view, view.posAtDOM(freewrite))
+        return true
+      }
+      // A prompt is a contenteditable=false block widget with no editable target
+      // of its own. The last prompt has only open space below it (no following
+      // prompt to bound its answer line), so a click there otherwise lands on the
+      // widget and no caret appears. Redirect into the answer line the widget
+      // anchors — its document position is the answer line's start.
+      const prompt = node?.closest('.cm-practice-prompt')
+      if (prompt) {
+        event.preventDefault()
+        view.dispatch({ selection: { anchor: view.posAtDOM(prompt) }, scrollIntoView: true })
+        view.focus()
+        return true
+      }
+      return false
     },
   }),
 ]
