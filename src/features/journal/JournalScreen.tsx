@@ -265,8 +265,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       requestAnimationFrame(() => editorRef.current?.focusAt(after))
       return
     }
-    editorRef.current?.insertAt(cap.insertAt, text)
-    const after = cap.insertAt + text.length
+    // Guarantee an editable line below the block: a block is atomic, so if it
+    // butts against the next atomic line (e.g. a practice section token, or the
+    // end of the doc) there's nowhere to place the caret to keep writing. Append
+    // a newline and drop the caret on the line that follows the block.
+    const withTrailingLine = text.endsWith('\n') ? text : `${text}\n`
+    editorRef.current?.insertAt(cap.insertAt, withTrailingLine)
+    const after = cap.insertAt + withTrailingLine.length
     setSlashCapture(null)
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])

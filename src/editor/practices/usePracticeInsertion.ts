@@ -242,7 +242,10 @@ function buildDecorations(state: EditorState): PracticeDecorations {
         side: -1,
       }).range(answer.from),
     )
-    ranges.push(answerLineDeco.range(answer.from))
+    // The min-height is a click target for an *empty* answer line. Once the
+    // section has content (text or an embedded block like scripture), the content
+    // sets the height — forcing min-height there just opens a dead gap.
+    if (!filled) ranges.push(answerLineDeco.range(answer.from))
 
     // Placeholder hint sits on the (empty) answer line until the writer begins.
     if (!filled && prompt?.placeholder) {

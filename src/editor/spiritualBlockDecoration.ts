@@ -243,11 +243,16 @@ function blockClickHandler(
 
       // Resolve which block was clicked by position, not by ID — two blocks
       // with the same UUID (copy-paste) must each be independently editable.
+      const blocks = view.state.field(spiritualBlocksField)
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-      if (pos === null) return false
-      const block = view.state
-        .field(spiritualBlocksField)
-        .find((b) => pos >= b.from && pos < b.to)
+      let block = pos === null ? undefined : blocks.find((b) => pos >= b.from && pos < b.to)
+      // Coords can land outside the block's range when it's rendered tight against
+      // another block widget (e.g. a scripture answer beneath a practice prompt)
+      // or when the click hits the citation at the very bottom edge. Fall back to
+      // the clicked element's own id so the block is always editable.
+      if (!block && blockEl.dataset.blockId) {
+        block = blocks.find((b) => b.id === blockEl.dataset.blockId)
+      }
       if (!block) return false
 
       event.preventDefault()

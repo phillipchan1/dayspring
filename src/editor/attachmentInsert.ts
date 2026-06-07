@@ -29,6 +29,22 @@ export function findAttachmentAtPos(doc: string, pos: number): AttachmentEditTar
   return null
 }
 
+/**
+ * Resolve the first attachment ref matching `<hash>.<ext>`. A click-coordinate
+ * fallback for when posAtCoords lands outside the ref range (e.g. a photo
+ * rendered tight against another block widget).
+ */
+export function findAttachmentByKey(doc: string, key: string): AttachmentEditTarget | null {
+  ATTACHMENT_REF_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = ATTACHMENT_REF_RE.exec(doc)) !== null) {
+    if (`${m[2]}.${m[3]}` === key) {
+      return { hash: m[2]!, ext: m[3]!, alt: m[1] ?? '', from: m.index, to: m.index + m[0]!.length }
+    }
+  }
+  return null
+}
+
 export function replaceAttachmentRefInView(
   view: EditorView,
   from: number,

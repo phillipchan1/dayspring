@@ -19,7 +19,7 @@ import {
   isMeaningfulCaption,
   type AttachmentPhotoMeta,
 } from '@/lib/attachmentCaption'
-import { findAttachmentAtPos, type AttachmentEditTarget } from './attachmentInsert'
+import { findAttachmentAtPos, findAttachmentByKey, type AttachmentEditTarget } from './attachmentInsert'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
 
 export type { AttachmentEditTarget } from './attachmentInsert'
@@ -171,6 +171,7 @@ class AttachmentImageWidget extends WidgetType {
     wrap.className = 'cm-attachment cm-attachment--interactive'
     wrap.contentEditable = 'false'
     wrap.title = 'Click to edit'
+    wrap.dataset.attachmentKey = this.cacheKey
 
     const url = this.resolvedUrl
     if (url) {
@@ -370,10 +371,14 @@ function attachmentClickHandler(
       const blockEl = el?.closest('.cm-attachment--interactive') as HTMLElement | null
       if (!blockEl) return false
 
+      const doc = view.state.doc.toString()
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-      if (pos === null) return false
-
-      const target = findAttachmentAtPos(view.state.doc.toString(), pos)
+      let target = pos === null ? null : findAttachmentAtPos(doc, pos)
+      // Coords can land outside the ref range (a photo rendered tight against
+      // another block widget); fall back to the clicked element's own key.
+      if (!target && blockEl.dataset.attachmentKey) {
+        target = findAttachmentByKey(doc, blockEl.dataset.attachmentKey)
+      }
       if (!target) return false
 
       event.preventDefault()
