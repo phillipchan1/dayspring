@@ -43,15 +43,15 @@ export function PracticeLibrary({ onBegin, onClose }: Props) {
     PRACTICE_FUNCTIONS.find((f) => f.id === fn)?.label ?? fn
 
   return createPortal(
-    <div className="practice-modal" role="dialog" aria-modal="true" aria-label="Practices">
+    <div className="practice-modal" role="dialog" aria-modal="true" aria-label="Rituals">
       <div className="practice-library">
         <header className="practice-library__header">
-          <div className="practice-library__eyebrow">The Practices</div>
+          <div className="practice-library__eyebrow">The Rituals</div>
           <h1 className="practice-library__title">
             How will you <em>draw near</em> today?
           </h1>
           <p className="practice-library__subline">
-            Tried and true forms for the inner life — gathered from two thousand
+            Tried and true rituals for the inner life — gathered from two thousand
             years of faithful writing.
           </p>
         </header>
@@ -106,7 +106,7 @@ export function PracticeLibrary({ onBegin, onClose }: Props) {
           className="practice-threshold__back"
           onClick={() => setSelected(null)}
         >
-          ← Practices
+          ← Rituals
         </button>
         {selected && (
           <div className="practice-threshold__inner">

@@ -6,7 +6,7 @@ const COMMANDS: { id: SlashCommandId; label: string; hint: string }[] = [
   { id: 'scripture', label: '/scripture', hint: 'Find relevant Bible passages' },
   { id: 'pray',      label: '/pray',      hint: 'Log a prayer' },
   { id: 'sense',     label: '/sense',     hint: 'Record a word or impression' },
-  { id: 'practice',  label: '/practice',  hint: 'Tried and true forms for the inner life' },
+  { id: 'practice',  label: '/ritual',    hint: 'Rituals for the inner life' },
   { id: 'image',     label: '/image',     hint: 'Add a photo to this entry' },
 ]
 
@@ -17,7 +17,9 @@ interface Props {
 }
 
 export function SlashPalette({ state, onSelect, onDismiss }: Props) {
-  const filtered = COMMANDS.filter((c) => c.id.startsWith(state.query))
+  // Match on the visible trigger word (label without the leading "/") so a
+  // command's typed name can differ from its internal id (e.g. /ritual → practice).
+  const filtered = COMMANDS.filter((c) => c.label.slice(1).startsWith(state.query))
   const [activeIdx, setActiveIdx] = useState(0)
   const paletteRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)

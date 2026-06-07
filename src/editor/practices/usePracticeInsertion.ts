@@ -149,7 +149,7 @@ class PracticeNameWidget extends WidgetType {
     about.type = 'button'
     about.className = 'cm-practice-action cm-practice-action--about'
     about.textContent = 'about'
-    about.title = 'Why this practice, how it moves, and a few tips'
+    about.title = 'Why this ritual, how it moves, and a few tips'
 
     const action = document.createElement('button')
     action.type = 'button'
