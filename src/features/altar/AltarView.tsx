@@ -394,6 +394,15 @@ export function AltarView({ onOpenEntry }: Props) {
     })).filter((g) => g.strands.length > 0)
   }, [visible])
 
+  // Import backfill: harvest → embed → thread. While any stage runs and nothing
+  // has surfaced yet, show honest progress instead of the "nothing here" copy.
+  // Must be called before any early return — Rules of Hooks.
+  const { byKind } = useProcessingJobs()
+  const harvestJob = byKind.altar_harvest
+  const altarBackfilling = [byKind.altar_harvest, byKind.altar_embed, byKind.altar_thread].some(
+    (j) => j != null && isActive(j.status),
+  )
+
   if (loadError) return <p className="altar__error">{loadError}</p>
   if (strands === null)
     return (
@@ -402,14 +411,6 @@ export function AltarView({ onOpenEntry }: Props) {
         <SurfaceLoader label="Gathering what you've laid down…" />
       </div>
     )
-
-  // Import backfill: harvest → embed → thread. While any stage runs and nothing
-  // has surfaced yet, show honest progress instead of the "nothing here" copy.
-  const { byKind } = useProcessingJobs()
-  const harvestJob = byKind.altar_harvest
-  const altarBackfilling = [byKind.altar_harvest, byKind.altar_embed, byKind.altar_thread].some(
-    (j) => j != null && isActive(j.status),
-  )
 
   const topNames = visible.filter((s) => s.subjectKind === 'person').slice(0, 3).map((s) => s.label)
   const fieldVoice =
