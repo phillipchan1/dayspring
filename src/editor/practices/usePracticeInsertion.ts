@@ -281,28 +281,34 @@ const practiceTheme = EditorView.theme({
   },
   '.cm-practice-prompt': {
     display: 'block',
-    margin: '1.4rem 0 0.4rem',
+    margin: '1.6rem 0 0.65rem',
     userSelect: 'none',
   },
+  // Small letter-spaced cap label — the elegance motif shared with scripture
+  // citations, so the whole surface reads as one type system in any font.
   '.cm-practice-prompt__label': {
     display: 'block',
     fontFamily: 'var(--font-editor)',
-    fontSize: '10px',
-    fontWeight: '400',
-    letterSpacing: '0.2em',
+    fontSize: '0.66rem',
+    fontWeight: '500',
+    letterSpacing: '0.22em',
     textTransform: 'uppercase',
     color: 'var(--accent, #c8853a)',
-    opacity: '0.75',
-    marginBottom: '0.45rem',
+    opacity: '0.8',
+    marginBottom: '0.5rem',
   },
+  // The "given voice" — italic, airy, dimmed a tier below the writer's words.
+  // Optical sizing lets variable serifs render this at a display weight.
   '.cm-practice-prompt__question': {
     margin: '0',
     fontFamily: 'var(--font-editor)',
     fontStyle: 'italic',
     fontWeight: '300',
-    fontSize: '1.02em',
-    lineHeight: '1.45',
+    fontSize: '1.06em',
+    lineHeight: '1.55',
+    letterSpacing: '0.005em',
     color: 'var(--text-dim, #4a3f35)',
+    fontOpticalSizing: 'auto',
   },
   '.cm-practice-placeholder': {
     color: 'var(--text-faint, #c4b5a8)',
