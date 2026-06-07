@@ -173,7 +173,7 @@ const spiritualBlockTheme = EditorView.theme({
     fontFamily: 'var(--font-editor)',
     // A tier below the practice question (1.06em) so a quoted verse reads as
     // supporting content, not a competing prompt.
-    fontSize: '0.92em',
+    fontSize: '0.9em',
     fontStyle: 'italic',
     lineHeight: '1.6',
     letterSpacing: '0.005em',
