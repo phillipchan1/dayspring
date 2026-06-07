@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import type { Entry } from '@/lib/types'
 import { useSettings } from '@/hooks/useSettings'
 import { deriveTitle } from './deriveTitle'
+import { isPracticeTokenLine } from '@/lib/practiceTokens'
 import { matchSnippet } from './search'
 import {
   EntryContextMenu,
@@ -601,6 +602,7 @@ function extractEntryPreview(body: string, maxLength = 80): string | null {
   const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
   for (const line of lines) {
     if (line.startsWith('/')) continue
+    if (isPracticeTokenLine(line)) continue
     if (line.length < 4) continue
     const cleaned = line
       .replace(/^#{1,6}\s+/, '')

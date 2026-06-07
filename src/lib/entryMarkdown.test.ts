@@ -85,4 +85,14 @@ describe('deriveTitle', () => {
     expect(deriveTitle('')).toBe('')
     expect(deriveTitle(null)).toBe('')
   })
+  it('never leaks practice tokens; uses the practice name until something is written', () => {
+    const untouched =
+      '<!-- practice:name:Wesley’s Questions -->\n<!-- practice:section:Honesty -->\n'
+    expect(deriveTitle(untouched)).toBe('Wesley’s Questions')
+  })
+  it('prefers the first written line of a practice entry over its name', () => {
+    const written =
+      '<!-- practice:name:The Daily Examen -->\n<!-- practice:section:Gratitude -->\ngrateful for the rain'
+    expect(deriveTitle(written)).toBe('grateful for the rain')
+  })
 })

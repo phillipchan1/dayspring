@@ -58,11 +58,13 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
       } else if (e.key === 'ArrowDown') {
         e.preventDefault()
         e.stopPropagation()
-        setActiveIdx((i) => Math.min(i + 1, filtered.length - 1))
+        // Wrap from the last item back to the first.
+        setActiveIdx((i) => (i + 1) % filtered.length)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         e.stopPropagation()
-        setActiveIdx((i) => Math.max(i - 1, 0))
+        // Wrap from the first item back to the last.
+        setActiveIdx((i) => (i - 1 + filtered.length) % filtered.length)
       } else if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault()
         e.stopPropagation()

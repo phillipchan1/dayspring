@@ -9,6 +9,7 @@ import {
 import { Prec, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
 import { PRACTICE_BY_NAME, type Practice } from './practicesData'
+import { PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
 
 /**
  * Practice entries are written directly into the document as plain markdown, but
@@ -24,9 +25,6 @@ import { PRACTICE_BY_NAME, type Practice } from './practicesData'
  * forward-looking hook so the rollup engine can one day recognise structured
  * practice entries by section. Nothing reads them yet.
  */
-
-export const PRACTICE_NAME_RE = /^<!-- practice:name:(.+) -->$/
-export const PRACTICE_SECTION_RE = /^<!-- practice:section:(.+) -->$/
 
 /** Build the raw markdown for a practice, ready to insert at `insertAt`. */
 export function buildPracticeBlock(

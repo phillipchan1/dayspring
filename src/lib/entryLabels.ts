@@ -1,4 +1,5 @@
 import { isSpiritualFenceLine } from './spiritualBlocks'
+import { isPracticeTokenLine, practiceNameFromLine } from './practiceTokens'
 
 /** Coerce nullable entry bodies to a string safe for editors and labels. */
 export function asEntryMarkdown(markdown: string | null | undefined): string {
@@ -7,18 +8,28 @@ export function asEntryMarkdown(markdown: string | null | undefined): string {
 
 /** Derive a short display title from markdown (first non-empty line). */
 export function deriveTitle(markdown: string | null | undefined): string {
-  const line = asEntryMarkdown(markdown)
+  const lines = asEntryMarkdown(markdown)
     .split('\n')
     .map((l) => l.trim())
-    .find((l) => l.length > 0 && !isSpiritualFenceLine(l))
-  if (!line) return ''
-  return line
-    .replace(/^#{1,6}\s+/, '')
-    .replace(/^>\s+/, '')
-    .replace(/^[-*+]\s+/, '')
-    .replace(/^\d+\.\s+/, '')
-    .replace(/[*_`~]/g, '')
-    .trim()
+  // A practice entry leads with hidden tokens; until something is written, fall
+  // back to the practice name rather than leaking the raw comment.
+  let practiceName = ''
+  for (const l of lines) {
+    if (l.length === 0) continue
+    if (isPracticeTokenLine(l)) {
+      practiceName ||= practiceNameFromLine(l) ?? ''
+      continue
+    }
+    if (isSpiritualFenceLine(l)) continue
+    return l
+      .replace(/^#{1,6}\s+/, '')
+      .replace(/^>\s+/, '')
+      .replace(/^[-*+]\s+/, '')
+      .replace(/^\d+\.\s+/, '')
+      .replace(/[*_`~]/g, '')
+      .trim()
+  }
+  return practiceName
 }
 
 /** Human-readable cite for an entry in rollup prose, e.g. "Trading notes (Apr 7)". */
