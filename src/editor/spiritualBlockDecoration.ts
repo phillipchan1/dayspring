@@ -141,7 +141,7 @@ const spiritualBlockTheme = EditorView.theme({
   },
   '.cm-spiritual-block__label': {
     display: 'block',
-    fontFamily: 'var(--font-mono)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '0.68rem',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -150,7 +150,7 @@ const spiritualBlockTheme = EditorView.theme({
   },
   '.cm-spiritual-block__content': {
     margin: '0',
-    fontFamily: 'var(--font-display)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '1.02em',
     lineHeight: '1.55',
     color: 'var(--text-bright)',
@@ -164,7 +164,7 @@ const spiritualBlockTheme = EditorView.theme({
   },
   '.cm-spiritual-block__verse': {
     margin: '0',
-    fontFamily: 'var(--font-display)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '0.9em',
     fontStyle: 'italic',
     lineHeight: '1.55',
@@ -174,7 +174,7 @@ const spiritualBlockTheme = EditorView.theme({
   },
   '.cm-spiritual-block__reference': {
     margin: '0.2em 0 0',
-    fontFamily: 'var(--font-mono)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '0.75em',
     lineHeight: '1.4',
     color: 'var(--text-faint)',
@@ -186,7 +186,7 @@ const spiritualBlockTheme = EditorView.theme({
   },
   '.cm-spiritual-block__sense': {
     margin: '0',
-    fontFamily: 'var(--font-display)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '0.95em',
     fontStyle: 'italic',
     lineHeight: '1.55',

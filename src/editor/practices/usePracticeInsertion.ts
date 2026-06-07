@@ -286,7 +286,7 @@ const practiceTheme = EditorView.theme({
   },
   '.cm-practice-prompt__label': {
     display: 'block',
-    fontFamily: 'var(--font-serif)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '10px',
     fontWeight: '400',
     letterSpacing: '0.2em',
@@ -297,7 +297,7 @@ const practiceTheme = EditorView.theme({
   },
   '.cm-practice-prompt__question': {
     margin: '0',
-    fontFamily: 'var(--font-serif)',
+    fontFamily: 'var(--font-editor)',
     fontStyle: 'italic',
     fontWeight: '300',
     fontSize: '1.02em',
@@ -318,7 +318,7 @@ const practiceTheme = EditorView.theme({
     userSelect: 'none',
   },
   '.cm-practice-header__name': {
-    fontFamily: 'var(--font-serif)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '10px',
     fontWeight: '400',
     letterSpacing: '0.22em',
@@ -326,7 +326,7 @@ const practiceTheme = EditorView.theme({
     color: 'var(--accent, #c8853a)',
   },
   '.cm-practice-action': {
-    fontFamily: 'var(--font-serif)',
+    fontFamily: 'var(--font-editor)',
     fontSize: '10px',
     letterSpacing: '0.08em',
     color: 'var(--text-faint, #c4b5a8)',
