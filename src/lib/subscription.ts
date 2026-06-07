@@ -7,6 +7,8 @@ export interface Subscription {
   plan: Plan
   trial_ends_at: string | null
   plan_expires_at: string | null
+  /** Null until the user finishes (or skips) the first-run onboarding flow. */
+  onboarded_at: string | null
   featureFlags: string[]
 }
 
@@ -30,7 +32,7 @@ export async function fetchSubscription(): Promise<Subscription> {
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('profiles')
-    .select('plan, trial_ends_at, plan_expires_at, feature_flags')
+    .select('plan, trial_ends_at, plan_expires_at, onboarded_at, feature_flags')
     .maybeSingle()
 
   if (error) throw error
@@ -39,6 +41,7 @@ export async function fetchSubscription(): Promise<Subscription> {
     plan: (data?.plan as Plan | null) ?? 'none',
     trial_ends_at: data?.trial_ends_at ?? null,
     plan_expires_at: data?.plan_expires_at ?? null,
+    onboarded_at: data?.onboarded_at ?? null,
     featureFlags: (data?.feature_flags as string[] | null) ?? [],
   }
 }

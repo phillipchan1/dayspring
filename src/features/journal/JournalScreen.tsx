@@ -29,6 +29,7 @@ import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
 import { filterEntries } from './search'
 import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
 import { entryReturnFromState } from '@/lib/appHistory'
+import { consumeSeedPrompt } from '@/lib/onboardingSeed'
 import {
   copyEntryMarkdown,
   copyEntryText,
@@ -1082,6 +1083,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   const docKey = entryId ?? 'new'
 
+  // One-shot opening prompt handed over from the fresh-start onboarding path.
+  // Shown as a gentle placeholder on the first new, empty entry only.
+  const [seedPrompt] = useState(() => consumeSeedPrompt())
+
   const bulkActive = bulkSelection.length >= 2
 
   const surface = loadError ? (
@@ -1109,7 +1114,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            placeholder={settings.firstLineTitle ? 'Title' : 'Write…'}
+            placeholder={
+              docKey === 'new' && seedPrompt
+                ? seedPrompt
+                : settings.firstLineTitle ? 'Title' : 'Write…'
+            }
             {...(settings.firstLineTitle && { bodyPlaceholder: 'Keep going — or type / for scripture, prayer & more' })}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}

@@ -23,6 +23,13 @@ export const env = {
   // If unset, the cron marks reminders fired but sends nothing.
   resendKey: () => process.env.RESEND_API_KEY ?? null,
   appUrl: () => process.env.APP_URL ?? 'https://dayspring-eosin.vercel.app',
+  // Onboarding trial model. Default (false): app-managed reverse trial — the
+  // trial is granted in-app at first sign-in (no Stripe object, no card), and
+  // Stripe Checkout is only touched on conversion (→ 'active'). When true:
+  // card-first — Checkout starts the trial (trial_period_days). Mirror of the
+  // client constant ONBOARDING_REQUIRE_CARD in src/features/onboarding/flags.ts.
+  onboardingRequireCard: () =>
+    (process.env.ONBOARDING_REQUIRE_CARD ?? 'false').toLowerCase() === 'true',
   // Stripe Billing (set in Vercel project settings after creating Stripe account)
   stripeSecretKey: () => need('STRIPE_SECRET_KEY'),
   stripeWebhookSecret: () => need('STRIPE_WEBHOOK_SECRET'),

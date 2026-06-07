@@ -30,6 +30,31 @@ export async function setWelcomeSeen(): Promise<void> {
 }
 
 /**
+ * Stamp the account as having completed (or skipped) the first-run onboarding
+ * flow. Idempotent upsert; once set, the flow never reappears. Also marks the
+ * legacy Welcome carousel as seen so it can't auto-fire after onboarding.
+ */
+export async function setOnboarded(): Promise<void> {
+  const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) return
+  try {
+    localStorage.setItem('dayspring.has_seen_welcome', 'true')
+  } catch {
+    /* ignore */
+  }
+  await sb
+    .from('profiles')
+    .upsert(
+      { owner: session.user.id, onboarded_at: new Date().toISOString(), has_seen_welcome: true },
+      { onConflict: 'owner' },
+    )
+    .throwOnError()
+}
+
+/**
  * Pull the user's saved settings from the cloud.
  * Returns null when no profile row exists yet or no settings have been saved.
  */
