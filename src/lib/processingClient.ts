@@ -11,9 +11,18 @@ import { apiPost } from './api'
 export async function maybeBackfillOnLoad(): Promise<void> {
   try {
     const sb = requireSupabase()
-    const { data, error } = await sb.from('processing_jobs').select('id').limit(1)
-    if (error) return // table missing / offline — skip silently
-    if (data && data.length > 0) return // already processed or in flight
+
+    // Already has engine jobs (queued/running/done) → nothing to kick off.
+    const jobs = await sb.from('processing_jobs').select('id').limit(1)
+    if (jobs.error) return // table missing / offline — skip silently
+    if (jobs.data && jobs.data.length > 0) return
+
+    // Already has derived artifacts (rollups built by the cron or the earlier
+    // hand-run scripts) → this account is NOT unprocessed; don't re-backfill.
+    const insights = await sb.from('insights').select('id').limit(1)
+    if (insights.error) return
+    if (insights.data && insights.data.length > 0) return
+
     await apiPost('/api/processing/enqueue', {}) // no range → server derives it
   } catch {
     /* best-effort — never block the app on this */

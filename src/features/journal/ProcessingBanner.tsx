@@ -18,8 +18,8 @@ export function ProcessingBanner() {
     <div className="processing-banner" role="status" aria-live="polite">
       <span className="processing-banner__mark" aria-hidden />
       <p className="processing-banner__text">
-        We’re reading through your writing — your reflections, scripture map, and altar will fill in
-        over the next few minutes. You can start writing now.
+        Preparing your reflections, scripture map, and altar — automatically, and only ever for you.
+        This takes a few minutes; you can start writing now.
       </p>
       <button
         type="button"
