@@ -7,14 +7,21 @@
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  max-width: min(38rem, calc(100vw - 2rem));
-  padding: 0.75rem 0.9rem 0.75rem 1.05rem;
-  border: 1px solid var(--border);
+  max-width: min(34rem, calc(100vw - 2rem));
+  padding: 0.7rem 0.85rem 0.7rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.85rem;
-  background: var(--surface, rgba(20, 24, 33, 0.92));
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 34px -12px rgba(0, 0, 0, 0.55);
+  /* Light, glassy — not a heavy slab. Theme-aware below. */
+  background: rgba(26, 22, 32, 0.6);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(120%);
+  box-shadow: 0 8px 26px -14px rgba(0, 0, 0, 0.4);
   animation: processingBannerIn 0.4s ease both;
+}
+[data-theme='dawn'] .processing-banner {
+  background: rgba(255, 252, 245, 0.72);
+  border-color: rgba(74, 64, 53, 0.14);
+  box-shadow: 0 8px 26px -16px rgba(74, 64, 53, 0.35);
 }
 
 .processing-banner__mark {

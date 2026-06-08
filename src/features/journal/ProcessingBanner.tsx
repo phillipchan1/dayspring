@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useProcessingJobs } from '@/hooks/useProcessingJobs'
+import { useAppNavigation } from '@/context/AppNavigation'
 import './ProcessingBanner.css'
 
 /**
@@ -10,9 +11,14 @@ import './ProcessingBanner.css'
  */
 export function ProcessingBanner() {
   const { anyActive, overallPct } = useProcessingJobs()
+  const { state } = useAppNavigation()
   const [dismissed, setDismissed] = useState(false)
 
-  if (!anyActive || dismissed) return null
+  // The intelligence surfaces (Ascent/Altar/Lamp) show their OWN forming state,
+  // so the global banner would be redundant there — show it only on the journal.
+  const onSurface = !!state.surface
+
+  if (!anyActive || dismissed || onSurface) return null
 
   return (
     <div className="processing-banner" role="status" aria-live="polite">
