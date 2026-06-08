@@ -73,9 +73,27 @@ function reflectionsTasks(range: Period): ReflectionsTask[] {
 
 // Tuning knobs (chunk = the per-tick budget that keeps each invocation under the
 // Vercel timeout). The next tick continues where this one left off.
-const REFLECTIONS_PER_TICK = 8 // model calls — the expensive cascade
+const REFLECTIONS_PER_TICK = 24 // periods built per tick (concurrently, same-stage)
+const REFLECTIONS_POOL = 6 // concurrent builds within a tick — caps model fan-out
 const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
 const MAX_ATTEMPTS = 5 // after this many failures, give up (status=failed)
+
+/** Run `fn` over items with bounded concurrency (no extra deps). */
+async function runPool<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<unknown>,
+): Promise<void> {
+  let next = 0
+  const worker = async () => {
+    for (;;) {
+      const i = next++
+      if (i >= items.length) return
+      await fn(items[i]!)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker))
+}
 
 function buildStagePeriod(stage: Stage, owner: string, period: Period) {
   switch (stage) {
@@ -228,18 +246,31 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
   let index = cursor.stage !== undefined ? 0 : (cursor.index ?? 0)
   let built = 0
 
-  while (built < REFLECTIONS_PER_TICK) {
-    if (index >= tasks.length) {
-      await sb
-        .from('processing_jobs')
-        .update({ status: 'done', completed: tasks.length, locked_at: null })
-        .eq('id', job.id)
-      return { id: job.id, kind: 'reflections', status: 'done', completed: tasks.length }
+  // Build in concurrent same-stage batches: gather consecutive tasks that share a
+  // stage (no intra-stage dependencies — a month only reads its OWN weeks, which
+  // a prior batch already built) and run them through a bounded pool. A stage
+  // change ends the batch, so a parent is never built alongside its children.
+  while (built < REFLECTIONS_PER_TICK && index < tasks.length) {
+    const stage = tasks[index]!.stage
+    const batch: Period[] = []
+    while (
+      index < tasks.length &&
+      tasks[index]!.stage === stage &&
+      batch.length < REFLECTIONS_PER_TICK - built
+    ) {
+      batch.push(tasks[index]!.period)
+      index += 1
     }
-    const task = tasks[index]!
-    await buildStagePeriod(task.stage, job.owner, task.period)
-    index += 1
-    built += 1
+    await runPool(batch, REFLECTIONS_POOL, (p) => buildStagePeriod(stage, job.owner, p))
+    built += batch.length
+  }
+
+  if (index >= tasks.length) {
+    await sb
+      .from('processing_jobs')
+      .update({ status: 'done', completed: tasks.length, locked_at: null })
+      .eq('id', job.id)
+    return { id: job.id, kind: 'reflections', status: 'done', completed: tasks.length }
   }
 
   // More to do — persist progress, leave running (clear lock so the next tick

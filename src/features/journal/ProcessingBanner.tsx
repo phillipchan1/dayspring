@@ -64,10 +64,10 @@ export function ProcessingBanner() {
           type="button"
           className="processing-banner__dismiss"
           onClick={() => setCollapsed(true)}
-          aria-label="Collapse"
-          title="Collapse"
+          aria-label="Minimize"
+          title="Minimize"
         >
-          ×
+          −
         </button>
       </div>
     )
