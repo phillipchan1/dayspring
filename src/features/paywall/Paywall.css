@@ -482,6 +482,140 @@
   max-width: 18rem;
 }
 
+/* ── Dawn unification ─────────────────────────────────────────────────────
+   Bring the subscribe / locked screens onto the SAME living dawn surface as the
+   welcome carousel and onboarding: dawn gradient backdrop, a glass content
+   panel, gold accents, shared serif type. Light variant keyed on the app's
+   Dawn theme, mirroring how the welcome carousel switches. Appended so these
+   win the cascade over the token-based rules above. */
+
+.paywall,
+.locked-screen {
+  color: #ece7df;
+  font-family: var(--font-serif);
+  background:
+    radial-gradient(120% 90% at 50% 118%, #553a35, transparent 60%),
+    radial-gradient(140% 100% at 80% -20%, color-mix(in srgb, #553a35 55%, transparent), transparent 55%),
+    linear-gradient(180deg, #1a1620, #34262e);
+}
+[data-theme='dawn'] .paywall,
+[data-theme='dawn'] .locked-screen {
+  color: #2a2118;
+  background:
+    radial-gradient(120% 90% at 50% 118%, #f5dcab, transparent 60%),
+    radial-gradient(140% 100% at 80% -20%, color-mix(in srgb, #f5dcab 55%, transparent), transparent 55%),
+    linear-gradient(180deg, #fdf8ee, #f9efdb);
+}
+
+/* Drop the old token glows — the gradient carries the light now. */
+.paywall__glow,
+.locked-screen__glow {
+  display: none;
+}
+
+/* Content sits in a glass panel, like the welcome slides. */
+.paywall__content,
+.locked-screen__content {
+  max-width: 30rem;
+  padding: 3rem 2.6rem 2.6rem;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 30px 80px -30px rgba(0, 0, 0, 0.7),
+    0 0 60px -20px rgba(232, 184, 115, 0.15);
+}
+[data-theme='dawn'] .paywall__content,
+[data-theme='dawn'] .locked-screen__content {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.34));
+  border-color: rgba(74, 64, 53, 0.16);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 30px 70px -34px rgba(74, 64, 53, 0.4),
+    0 0 54px -24px rgba(224, 150, 70, 0.28);
+}
+
+/* Type → cream/gold (dark) and warm ink (light). */
+.paywall__headline,
+.locked-screen__headline {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  color: #f3efe7;
+}
+.paywall__tagline,
+.paywall__sub,
+.locked-screen__body {
+  color: rgba(236, 231, 223, 0.74);
+}
+.paywall__trial-note,
+.paywall__privacy,
+.paywall__plan-note,
+.paywall__plan-cadence {
+  color: rgba(236, 231, 223, 0.6);
+}
+.paywall__trial-note strong { color: #f0c587; }
+[data-theme='dawn'] .paywall__headline,
+[data-theme='dawn'] .locked-screen__headline { color: #221a12; }
+[data-theme='dawn'] .paywall__tagline,
+[data-theme='dawn'] .paywall__sub,
+[data-theme='dawn'] .locked-screen__body { color: rgba(74, 64, 53, 0.78); }
+[data-theme='dawn'] .paywall__trial-note,
+[data-theme='dawn'] .paywall__privacy,
+[data-theme='dawn'] .paywall__plan-note,
+[data-theme='dawn'] .paywall__plan-cadence { color: rgba(74, 64, 53, 0.62); }
+
+/* Plan tiles → glass-on-glass. */
+.paywall__plan {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ece7df;
+}
+.paywall__plan:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(232, 184, 115, 0.55);
+}
+.paywall__plan[data-recommended='true'] {
+  border-color: rgba(232, 184, 115, 0.5);
+  box-shadow: 0 0 0 1px rgba(232, 184, 115, 0.18);
+}
+.paywall__plan-price { color: #f3efe7; }
+.paywall__plan-badge { background: rgba(232, 184, 115, 0.16); color: #f0c587; }
+[data-theme='dawn'] .paywall__plan {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(74, 64, 53, 0.16);
+  color: #2a2118;
+}
+[data-theme='dawn'] .paywall__plan:hover { background: rgba(255, 255, 255, 0.6); }
+[data-theme='dawn'] .paywall__plan-price { color: #221a12; }
+
+/* Primary actions → the gold "Begin" CTA; ghosts → glass. */
+.locked-screen .btn,
+.paywall .btn {
+  border-radius: 22px;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  background: linear-gradient(160deg, #f0c587, #dca35e);
+  color: #2a1d10;
+  border: none;
+  box-shadow: 0 8px 26px -8px rgba(232, 184, 115, 0.7);
+}
+.locked-screen .btn--ghost,
+.paywall .btn--ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ece7df;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+[data-theme='dawn'] .locked-screen .btn--ghost,
+[data-theme='dawn'] .paywall .btn--ghost {
+  background: rgba(74, 64, 53, 0.06);
+  color: #2a2118;
+  border-color: rgba(74, 64, 53, 0.18);
+}
+
 /* ── Mobile responsive ──────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {

@@ -57,7 +57,7 @@ export function OnboardingFlow({ onFinish }: Props) {
   }, [finish])
 
   return (
-    <div className="ob-root">
+    <div className={`ob-root${isLight ? ' is-light' : ''}`}>
       <div className="ob-bg" aria-hidden />
       <div className="ob-glow" aria-hidden />
 
