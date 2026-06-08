@@ -61,6 +61,34 @@ export function OnboardingFlow({ onFinish }: Props) {
       <div className="ob-bg" aria-hidden />
       <div className="ob-glow" aria-hidden />
 
+      {/* Theme toggle — present on the setup screens too (the carousel renders
+          its own). Lets the user pick light/dark anywhere in onboarding. */}
+      {step !== 'tour' && (
+        <div className="ob-theme" role="group" aria-label="Appearance">
+          <span className="ob-theme__pill" data-light={isLight} aria-hidden />
+          <button
+            type="button"
+            className="ob-theme__opt"
+            data-active={!isLight}
+            aria-pressed={!isLight}
+            aria-label="Dark"
+            onClick={() => { if (isLight) toggleTheme() }}
+          >
+            <IconMoon />
+          </button>
+          <button
+            type="button"
+            className="ob-theme__opt"
+            data-active={isLight}
+            aria-pressed={isLight}
+            aria-label="Light"
+            onClick={() => { if (!isLight) toggleTheme() }}
+          >
+            <IconSun />
+          </button>
+        </div>
+      )}
+
       {/* The welcome carousel is the front door — Begin/Skip lead INTO setup,
           not into the editor. */}
       {step === 'tour' && (
@@ -118,5 +146,22 @@ export function OnboardingFlow({ onFinish }: Props) {
         )}
       </main>
     </div>
+  )
+}
+
+function IconSun() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+    </svg>
+  )
+}
+
+function IconMoon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M20 14.3A8 8 0 1 1 9.7 4a6.3 6.3 0 0 0 10.3 10.3Z" />
+    </svg>
   )
 }

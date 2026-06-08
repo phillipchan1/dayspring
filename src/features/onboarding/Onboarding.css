@@ -67,6 +67,75 @@
   background: radial-gradient(circle at 50% 45%, rgba(224, 150, 70, 0.22), transparent 66%);
 }
 
+/* ── theme toggle (matches the carousel's, for the setup screens) ─────────── */
+.ob-theme {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top, 0px));
+  left: 24px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+.ob-root.is-light .ob-theme {
+  background: rgba(74, 64, 53, 0.05);
+  border-color: rgba(74, 64, 53, 0.14);
+}
+html[data-platform='desktop'] .ob-theme {
+  top: 3.25rem;
+}
+.ob-theme__pill {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  z-index: 0;
+  border-radius: var(--radius-full, 999px);
+  background: linear-gradient(160deg, #f0c587, #dca35e);
+  box-shadow: 0 2px 8px -2px rgba(232, 184, 115, 0.6);
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ob-theme__pill[data-light='true'] {
+  transform: translateX(28px);
+}
+.ob-theme__opt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-full, 999px);
+  color: rgba(236, 231, 223, 0.45);
+  transition: color 0.25s ease;
+}
+.ob-root.is-light .ob-theme__opt {
+  color: rgba(74, 64, 53, 0.5);
+}
+.ob-theme__opt:hover {
+  color: rgba(236, 231, 223, 0.75);
+}
+.ob-theme__opt[data-active='true'],
+.ob-theme__opt[data-active='true']:hover {
+  color: #2a1d10;
+}
+.ob-theme__opt svg {
+  width: 15px;
+  height: 15px;
+}
+
 .ob-column {
   position: relative;
   z-index: 1;
