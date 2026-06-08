@@ -6,8 +6,8 @@
 //   • Jan 1               → last year's monthlies (ensured), then the yearly
 // Idempotent (builders upsert), so re-running never duplicates.
 
-import { isAuthorized, unauthorized } from '../_lib/auth'
-import { supabaseAdmin } from '../_lib/supabaseAdmin'
+import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import {
   isMonday,
   isFirstOfMonth,
@@ -19,21 +19,21 @@ import {
   previousYear,
   weeksOverlappingMonth,
   monthsInPeriod,
-} from '../_lib/dates'
+} from '../_lib/dates.js'
 import {
   buildWeekly,
   buildMonthly,
   buildQuarterly,
   buildYearly,
   type BuildResult,
-} from '../_lib/synthesize'
+} from '../_lib/synthesize.js'
 import {
   embedUnembedded,
   threadItems,
   migrateLegacyAnswered,
   sweepOpenThreads,
   harvestPrayers,
-} from '../_lib/altar'
+} from '../_lib/altar.js'
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()

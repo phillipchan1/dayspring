@@ -3,10 +3,11 @@
 // reads processing_jobs directly under RLS (Realtime) for live progress — no
 // status endpoint needed. See docs/PROCESSING_AND_ONBOARDING.md §6.
 
-import { getAuthedUser, notAuthenticated } from '../_lib/userAuth'
-import { enqueueBackfill, kickWorker } from '../_lib/processing'
-import { supabaseAdmin } from '../_lib/supabaseAdmin'
-import type { Period } from '../_lib/dates'
+import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
+import { enqueueBackfill, kickWorker } from '../_lib/processing.js'
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { preflight, withCors } from '../_lib/cors.js'
+import type { Period } from '../_lib/dates.js'
 
 function isDateStr(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
@@ -36,9 +37,13 @@ async function deriveRange(owner: string): Promise<Period | null> {
   return { start: String(start).slice(0, 10), end: String(end).slice(0, 10) }
 }
 
+export async function OPTIONS(req: Request): Promise<Response> {
+  return preflight(req) ?? new Response(null, { status: 204 })
+}
+
 export async function POST(req: Request): Promise<Response> {
   const user = await getAuthedUser(req)
-  if (!user) return notAuthenticated()
+  if (!user) return withCors(req, notAuthenticated())
 
   // Body is optional: an explicit {range} from the import flow, or empty for the
   // catch-up trigger (range derived from the owner's entries).
@@ -54,17 +59,17 @@ export async function POST(req: Request): Promise<Response> {
     }
     if (!range) {
       // Empty journal — nothing to backfill yet.
-      return Response.json({ ok: true, enqueued: [] })
+      return withCors(req, Response.json({ ok: true, enqueued: [] }))
     }
 
     const result = await enqueueBackfill(user.id, range)
     // Start draining immediately — the worker self-chains from here (no cron needed).
     if (result.enqueued.length > 0) kickWorker()
-    return Response.json({ ok: true, ...result })
+    return withCors(req, Response.json({ ok: true, ...result }))
   } catch (e) {
-    return Response.json(
-      { error: e instanceof Error ? e.message : 'enqueue failed' },
-      { status: 500 },
+    return withCors(
+      req,
+      Response.json({ error: e instanceof Error ? e.message : 'enqueue failed' }, { status: 500 }),
     )
   }
 }

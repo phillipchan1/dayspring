@@ -6,8 +6,8 @@
 // chain that stalled; crashes also self-heal via the 5-minute lock reclaim.
 // See docs/PROCESSING_AND_ONBOARDING.md §4.
 
-import { isAuthorized, unauthorized } from '../_lib/auth'
-import { drain, kickWorker } from '../_lib/processing'
+import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { drain, kickWorker } from '../_lib/processing.js'
 
 // Owners processed per tick — also the natural OpenAI rate cap. skip-locked makes
 // overlapping ticks safe.

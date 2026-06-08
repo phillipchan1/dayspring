@@ -1,8 +1,8 @@
 // Facts are COMPUTED IN CODE — never by the model. This is the no-hallucination
 // surface: deterministic counts derived straight from the entry rows.
 
-import type { Facts } from './types'
-import { inclusiveDayCount } from './dates'
+import type { Facts } from './types.js'
+import { inclusiveDayCount } from './dates.js'
 
 export interface FactEntry {
   created_at: string // ISO timestamp

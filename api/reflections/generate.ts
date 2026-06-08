@@ -4,10 +4,10 @@
 //   Authorization: Bearer ${CRON_SECRET}
 //   { "type": "weekly" | "monthly", "start": "2026-05-01", "end": "2026-05-31" }
 
-import { isAuthorized, unauthorized } from '../_lib/auth'
-import { env } from '../_lib/env'
-import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from '../_lib/synthesize'
-import type { RollupType } from '../_lib/types'
+import { isAuthorized, unauthorized } from '../_lib/auth.js'
+import { env } from '../_lib/env.js'
+import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from '../_lib/synthesize.js'
+import type { RollupType } from '../_lib/types.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const BUILDERS = {

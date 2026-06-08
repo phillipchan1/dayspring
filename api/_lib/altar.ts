@@ -9,9 +9,9 @@
 // only, never entry/prayer text (§8).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { supabaseAdmin } from './supabaseAdmin'
-import { callModel } from './openai'
-import { centroid, cosine, embed, toVectorLiteral } from './embeddings'
+import { supabaseAdmin } from './supabaseAdmin.js'
+import { callModel } from './openai.js'
+import { centroid, cosine, embed, toVectorLiteral } from './embeddings.js'
 
 // ── clustering knob (cosine similarity of text-embedding-3-small) ────────────
 // A prayer attaches to its nearest existing cairn when similarity ≥ this; else it

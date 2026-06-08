@@ -1,6 +1,6 @@
-import { getAuthedUser, notAuthenticated } from './_lib/userAuth'
-import { preflight, withCors } from './_lib/cors'
-import { env } from './_lib/env'
+import { getAuthedUser, notAuthenticated } from './_lib/userAuth.js'
+import { preflight, withCors } from './_lib/cors.js'
+import { env } from './_lib/env.js'
 
 const REPO = 'phillipchan1/dayspring'
 

@@ -7,10 +7,15 @@ import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
 import { stripe } from '../_lib/stripe.js'
 import { env } from '../_lib/env.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { preflight, withCors } from '../_lib/cors.js'
+
+export async function OPTIONS(req: Request): Promise<Response> {
+  return preflight(req) ?? new Response(null, { status: 204 })
+}
 
 export async function GET(req: Request): Promise<Response> {
   const user = await getAuthedUser(req)
-  if (!user) return notAuthenticated()
+  if (!user) return withCors(req, notAuthenticated())
 
   const sb = supabaseAdmin()
   const { data: profile } = await sb
@@ -21,7 +26,7 @@ export async function GET(req: Request): Promise<Response> {
 
   const customerId = profile?.stripe_customer_id
   if (!customerId) {
-    return Response.json({ error: 'no subscription found' }, { status: 404 })
+    return withCors(req, Response.json({ error: 'no subscription found' }, { status: 404 }))
   }
 
   const session = await stripe().billingPortal.sessions.create({
@@ -29,5 +34,5 @@ export async function GET(req: Request): Promise<Response> {
     return_url: env.appUrl(),
   })
 
-  return Response.json({ url: session.url })
+  return withCors(req, Response.json({ url: session.url }))
 }

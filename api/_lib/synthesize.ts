@@ -5,10 +5,10 @@
 // + strict prompt rules. Never log entry text (§8): ids and counts only.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { supabaseAdmin } from './supabaseAdmin'
-import { env } from './env'
-import { computeFacts, type FactEntry } from './facts'
-import { callModel } from './openai'
+import { supabaseAdmin } from './supabaseAdmin.js'
+import { env } from './env.js'
+import { computeFacts, type FactEntry } from './facts.js'
+import { callModel } from './openai.js'
 import {
   WEEKLY_SYSTEM_PROMPT,
   MONTHLY_SYSTEM_PROMPT,
@@ -18,9 +18,9 @@ import {
   MONTHLY_SCHEMA,
   QUARTERLY_SCHEMA,
   YEARLY_SCHEMA,
-} from './prompts'
-import { addDays, dateStrToUTC, periodWindow, toDateStr, type Period } from './dates'
-import { deriveTitle, humanizeObservationText, labelsFromEntries } from './entryLabels'
+} from './prompts.js'
+import { addDays, dateStrToUTC, periodWindow, toDateStr, type Period } from './dates.js'
+import { deriveTitle, humanizeObservationText, labelsFromEntries } from './entryLabels.js'
 import type {
   Arc,
   EbenezerPair,
@@ -47,7 +47,7 @@ import type {
   WeeklyModelOutput,
   WinCandidate,
   YearlyModelOutput,
-} from './types'
+} from './types.js'
 
 export interface BuildResult {
   type: RollupType
