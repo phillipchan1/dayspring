@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { upsertImportedEntries } from '@/lib/entries'
+import { scanAllForRefs } from '@/lib/scripture/scan'
 import type { ImportParseResult } from '@/lib/import/types'
 import { IMPORT_SOURCES } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
@@ -121,6 +123,11 @@ export function ImportFlow({ onComplete, onBack }: Props) {
 
     // Entries are in. Now build the reflection.
     setPhase('building')
+
+    // Light the Lamp: imported entries skip the editor, so scan them for
+    // scripture refs now (cheap on-device regex, runs in the background). Without
+    // this the user lands on a "N entries haven't been scanned" CTA.
+    void scanAllForRefs().catch((err) => console.warn('scripture scan failed', err))
 
     // Kick off the full historical backfill in the background — never blocks.
     setBgBuilding(true)
@@ -299,20 +306,22 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         {copy.reveal.primary}
       </button>
 
-      {bgBuilding && !bgDismissed && (
-        <div className="ob-bg-indicator" role="status">
-          <span className="ob-bg-indicator__dot" aria-hidden />
-          <span>{copy.reveal.backgroundIndicator}</span>
-          <button
-            type="button"
-            className="ob-bg-indicator__dismiss"
-            aria-label="Dismiss"
-            onClick={() => setBgDismissed(true)}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {bgBuilding && !bgDismissed &&
+        createPortal(
+          <div className="ob-bg-indicator" role="status">
+            <span className="ob-bg-indicator__dot" aria-hidden />
+            <span>{copy.reveal.backgroundIndicator}</span>
+            <button
+              type="button"
+              className="ob-bg-indicator__dismiss"
+              aria-label="Dismiss"
+              onClick={() => setBgDismissed(true)}
+            >
+              ×
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

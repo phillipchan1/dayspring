@@ -46,8 +46,8 @@ export const onboardingCopy = {
   },
 
   importBuilding: {
-    title: 'We’re reading back through your years…',
-    body: 'This happens once. We’ll start with your most recent month.',
+    title: 'Preparing your reflections…',
+    body: 'This happens once, quietly on your account — starting with your most recent month. Nothing leaves your journal.',
     stillWorking: 'Still gathering — almost there…',
   },
 
@@ -56,7 +56,7 @@ export const onboardingCopy = {
     // Shown when the backfill hasn't produced the month in time.
     pendingTitle: 'Your first reflection is on its way.',
     pendingBody:
-      'Your reflections are still being written. We’ll let you know the moment your first one is ready.',
+      'Reflections take a few minutes to form — privately, on your account. You can start writing now; your first one will be ready soon.',
     backgroundIndicator: 'Building your full history…',
     primary: 'Enter your journal',
   },

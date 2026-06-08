@@ -1,0 +1,71 @@
+/* Shared sun/moon theme toggle. Position it via the `className` prop (callers
+   usually pin it top-left). Visuals match the welcome carousel's toggle. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+.theme-toggle.is-light {
+  background: rgba(74, 64, 53, 0.05);
+  border-color: rgba(74, 64, 53, 0.14);
+}
+.theme-toggle__pill {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  z-index: 0;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #f0c587, #dca35e);
+  box-shadow: 0 2px 8px -2px rgba(232, 184, 115, 0.6);
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.theme-toggle__pill[data-light='true'] {
+  transform: translateX(28px);
+}
+.theme-toggle__opt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 999px;
+  color: rgba(236, 231, 223, 0.45);
+  transition: color 0.25s ease;
+}
+.theme-toggle.is-light .theme-toggle__opt {
+  color: rgba(74, 64, 53, 0.5);
+}
+.theme-toggle__opt:hover {
+  color: rgba(236, 231, 223, 0.75);
+}
+.theme-toggle__opt[data-active='true'],
+.theme-toggle__opt[data-active='true']:hover {
+  color: #2a1d10;
+}
+.theme-toggle__opt svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Pinned top-left for full-screen surfaces (SignIn). */
+.theme-toggle--fixed {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top, 0px));
+  left: 24px;
+  z-index: 20;
+}
+html[data-platform='desktop'] .theme-toggle--fixed {
+  top: 3.25rem;
+}

@@ -1,12 +1,14 @@
-// Dev-only: reset a test account so the FULL onboarding flow replays — without
-// deleting the auth user (same Google login, no re-OAuth). Wipes the account's
-// data, resets onboarded_at + has_seen_welcome, and clears the desktop app's
-// local state (macOS). Then reopen Dayspring (or use a fresh web incognito tab).
+// Dev-only: reset a test account so the FULL onboarding flow replays.
 //
-//   npx tsx scripts/reset-onboarding.ts                  # default email below
-//   npx tsx scripts/reset-onboarding.ts you@example.com  # a specific account
+//   npx tsx scripts/reset-onboarding.ts                  # reset in place (keep
+//        the auth user; wipe data + reset onboarded_at/has_seen_welcome)
+//   npx tsx scripts/reset-onboarding.ts --delete         # DELETE the auth user
+//        entirely (cascade-wipes everything) → next sign-in = a genuinely new
+//        account: fresh profile, fresh trial grant. Truest "I have no account".
+//   npx tsx scripts/reset-onboarding.ts you@example.com [--delete]
 //
-// Runs locally with the service-role key from .env, like the other scripts.
+// Always clears the desktop app's local state (macOS). For web, use a fresh
+// incognito tab. Runs locally with the service-role key from .env.
 
 import { readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
@@ -35,7 +37,9 @@ function loadDotEnv(): void {
 }
 loadDotEnv()
 
-const EMAIL = process.argv[2] ?? 'phillipchan1@gmail.com'
+const ARGS = process.argv.slice(2)
+const DELETE = ARGS.includes('--delete')
+const EMAIL = ARGS.find((a) => !a.startsWith('--')) ?? 'phillipchan1@gmail.com'
 const BUNDLE = 'com.phillipchan.dayspring'
 
 // Owner-keyed tables to wipe. Child tables (thread_members, item_subjects,
@@ -70,6 +74,17 @@ async function main() {
     console.log(`No auth user for ${EMAIL} — sign in once first, or pass a different email.`)
     return
   }
+  // Delete mode: drop the auth user — every owner-keyed table cascades, so this
+  // wipes everything and the next sign-in is a brand-new account.
+  if (DELETE) {
+    console.log(`DELETING account ${EMAIL} (${user.id}) — cascade wipes all data`)
+    const { error } = await sb.auth.admin.deleteUser(user.id)
+    console.log(error ? `  ⚠️  ${error.message}` : '  ✓ auth user deleted (data cascaded)')
+    clearDesktopLocal()
+    console.log('\n✅ Done. Open a FRESH incognito tab → sign in → brand-new account, full onboarding.')
+    return
+  }
+
   console.log(`Resetting ${EMAIL} (${user.id})`)
 
   // 2. Wipe the account's data.
@@ -89,7 +104,14 @@ async function main() {
     .eq('owner', user.id)
   console.log(pErr ? `  ⚠️  profiles: ${pErr.message}` : '  reset onboarded_at + has_seen_welcome')
 
-  // 4. Clear the desktop app's local state (macOS), if installed.
+  // 4. Clear the desktop app's local state.
+  clearDesktopLocal()
+
+  console.log('\n✅ Done. Reopen Dayspring (or use a fresh web incognito tab) and sign in → full onboarding.')
+}
+
+/** Quit the desktop app and clear its macOS local state (session + webview data). */
+function clearDesktopLocal() {
   try {
     execSync('osascript -e \'tell application "Dayspring" to quit\' 2>/dev/null || true')
     execSync('pkill -f "/Applications/Dayspring.app/Contents/MacOS" 2>/dev/null || true')
@@ -100,8 +122,6 @@ async function main() {
   } catch {
     console.log('  (desktop app not found / not on macOS — skip local clear)')
   }
-
-  console.log('\n✅ Done. Reopen Dayspring (or use a fresh web incognito tab) and sign in → full onboarding.')
 }
 
 void main()

@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import { signInWithGoogle } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useSettings } from '@/hooks/useSettings'
+import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
   const [hovered, setHovered] = useState(false)
+  const { settings, update } = useSettings()
+  const isLight = useResolvedTheme(settings) === 'dawn'
 
   async function handleSignIn() {
     setError(null)
@@ -17,6 +22,12 @@ export function SignIn() {
 
   return (
     <div className="center-screen" style={{ position: 'relative' }}>
+      <ThemeToggle
+        isLight={isLight}
+        onToggle={() => update({ appearance: isLight ? 'dark' : 'light' })}
+        className="theme-toggle--fixed"
+      />
+
       {/* Ambient warm glow */}
       <div style={{
         position: 'fixed',
@@ -124,18 +135,28 @@ export function SignIn() {
 
         <p style={{
           fontFamily: "'Inter', -apple-system, sans-serif",
-          fontSize: 11,
+          fontSize: 10.5,
           color: 'var(--text-faint)',
           textAlign: 'center',
           lineHeight: 1.7,
-          letterSpacing: '0.01em',
+          letterSpacing: '0.02em',
           margin: 0,
         }}>
-          Your words stay private.<br />
-          By continuing you agree to our{' '}
-          <a href="/terms" style={{ color: 'var(--text-dim)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>terms</a>
-          {' '}and{' '}
-          <a href="/privacy" style={{ color: 'var(--text-dim)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>privacy policy</a>.
+          Your words stay private.
+          {' · '}
+          <a
+            href="https://dayspring.app/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'inherit',
+              textDecoration: 'underline',
+              textUnderlineOffset: '2px',
+              textDecorationColor: 'var(--border)',
+            }}
+          >
+            Privacy
+          </a>
         </p>
       </div>
     </div>
