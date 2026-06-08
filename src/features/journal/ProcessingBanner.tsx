@@ -19,7 +19,7 @@ import './ProcessingBanner.css'
 const ACK_KEY = 'dayspring.processing.ackedCompletion'
 
 export function ProcessingBanner() {
-  const { phase, overallPct, completionKey } = useProcessingJobs()
+  const { phase, overallPct, completionKey, etaMinutes } = useProcessingJobs()
   const [collapsed, setCollapsed] = useState(false)
   const [acked, setAcked] = useState<string | null>(() => {
     try {
@@ -50,14 +50,16 @@ export function ProcessingBanner() {
         <span className="processing-banner__mark" aria-hidden />
         <div className="processing-banner__body">
           <p className="processing-banner__text">
-            Still preparing your reflections and altar — what you see so far is partial. You can keep
-            writing; it fills in as it builds.
+            Building your reflections and altar from your whole journal. This runs on its own in the
+            background — keep writing, close the app, walk away; it finishes regardless.
           </p>
           <div className="processing-banner__progress">
             <div className="processing-banner__bar" aria-hidden>
               <div className="processing-banner__bar-fill" style={{ width: `${overallPct}%` }} />
             </div>
-            <span className="processing-banner__pct">{overallPct}%</span>
+            <span className="processing-banner__pct">
+              {overallPct}%{etaMinutes != null ? ` · ~${etaMinutes} min left` : ''}
+            </span>
           </div>
         </div>
         <button

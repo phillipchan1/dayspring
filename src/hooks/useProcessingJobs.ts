@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSession } from './useSession'
 
@@ -35,6 +35,8 @@ export interface ProcessingState {
    * stays dismissed across restarts — and a fresh import (newer key) re-celebrates.
    */
   completionKey: string | null
+  /** Rough minutes remaining from observed throughput, or null until measurable. */
+  etaMinutes: number | null
 }
 
 interface JobRow {
@@ -124,6 +126,27 @@ export function useProcessingJobs(): ProcessingState {
   const doneSum = jobs.reduce((s, j) => s + Math.min(j.completed, j.total), 0)
   const overallPct = totalSum > 0 ? Math.min(100, Math.round((doneSum / totalSum) * 100)) : 0
 
+  // ETA from observed throughput: average rate since we first saw it active.
+  // Resets when work stops or progress regresses (e.g. a mid-flight reorder).
+  const startRef = useRef<{ t: number; done: number } | null>(null)
+  let etaMinutes: number | null = null
+  if (anyActive && totalSum > 0) {
+    const now = Date.now()
+    if (!startRef.current || doneSum < startRef.current.done) {
+      startRef.current = { t: now, done: doneSum }
+    }
+    const dt = (now - startRef.current.t) / 1000
+    const dDone = doneSum - startRef.current.done
+    if (dt > 30 && dDone > 0) {
+      const secs = (totalSum - doneSum) / (dDone / dt)
+      const mins = secs / 60
+      // Round to the nearest 5 once it's more than ~10 min, to avoid false precision.
+      etaMinutes = mins >= 10 ? Math.round(mins / 5) * 5 : Math.max(1, Math.round(mins))
+    }
+  } else {
+    startRef.current = null
+  }
+
   // Completion = there WERE jobs and every one has finished cleanly (no active,
   // no failures). A failed step doesn't get a celebration.
   const allDone = jobs.length > 0 && jobs.every((j) => j.status === 'done')
@@ -132,5 +155,5 @@ export function useProcessingJobs(): ProcessingState {
     ? jobs.reduce((latest, j) => (j.updatedAt > latest ? j.updatedAt : latest), '')
     : null
 
-  return { byKind, anyActive, overallPct, phase, completionKey }
+  return { byKind, anyActive, overallPct, phase, completionKey, etaMinutes }
 }
