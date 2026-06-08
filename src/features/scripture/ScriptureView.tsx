@@ -195,9 +195,18 @@ export function ScriptureView({ onOpenEntry }: Props) {
         <div className="scripture__column">
           <header className="scripture__header">
             <h1 className="scripture__title">Where your heart has been leaning</h1>
+            {scan.result && !scan.scanning && !scan.error && (
+              <p className="scripture__lit">
+                Lit {scan.result.refsWritten.toLocaleString()}{' '}
+                {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
+                {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
+              </p>
+            )}
           </header>
 
-          {(scan.scanning || scan.result || scan.error) && (
+          {/* Boxed status ONLY while transient (scanning / error). Once it's done,
+              the count is a quiet fact in the header above, not a notification. */}
+          {(scan.scanning || scan.error) && (
             <div className="scripture__scan" role="status">
               {scan.scanning ? (
                 <div className="scripture__forming">
@@ -222,7 +231,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
                     %
                   </span>
                 </div>
-              ) : scan.error ? (
+              ) : (
                 <>
                   <span className="scripture__scan-text">
                     Couldn’t finish lighting the map — {scan.error}
@@ -231,13 +240,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
                     Try again
                   </button>
                 </>
-              ) : scan.result ? (
-                <span className="scripture__scan-text">
-                  Lit {scan.result.refsWritten.toLocaleString()}{' '}
-                  {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
-                  {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
-                </span>
-              ) : null}
+              )}
             </div>
           )}
 

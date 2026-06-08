@@ -91,6 +91,15 @@
   line-height: 1.45;
 }
 
+/* The scan count, once done — a quiet fact about the map, not a boxed status. */
+.scripture__lit {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  margin: 0.55rem 0 0;
+}
+
 /* ── canon ───────────────────────────────────────────────────────────────── */
 .scripture__testament {
   font-family: var(--font-mono);
