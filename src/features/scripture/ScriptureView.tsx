@@ -92,7 +92,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
       `scripture:canon:${windowCacheKey(all.window)}`,
     )
   }, [seasons])
-  const [seasonId, setSeasonId] = useState('all')
+  const [seasonId, setSeasonId] = useState('year')
   const [heat, setHeat] = useState<CanonHeat | null>(initialCanon?.heat ?? null)
   const [summary, setSummary] = useState<SeasonSummary | null>(initialCanon?.summary ?? null)
   const [returning, setReturning] = useState<ReturningRef[]>(initialCanon?.returning ?? [])

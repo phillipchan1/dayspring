@@ -68,7 +68,7 @@ const DEFAULTS: Settings = {
   maxWidth: 42,
   appearance: 'auto',
   editorFont: 'serif',
-  entriesGroupBy: 'month',
+  entriesGroupBy: 'flat',
   railLabels: false,
   firstLineTitle: true,
   devMode: false,

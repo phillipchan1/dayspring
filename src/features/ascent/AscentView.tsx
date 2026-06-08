@@ -179,7 +179,7 @@ export function AscentView({ onOpenEntry }: Props) {
             <SurfaceLoader label="Reading the land…" />
           ) : backfilling ? (
             <SurfaceLoader
-              label="Building your reflections…"
+              label="Preparing your reflections…"
               progress={{ completed: reflectionsJob!.completed, total: reflectionsJob!.total }}
             />
           ) : idx < LAST ? (

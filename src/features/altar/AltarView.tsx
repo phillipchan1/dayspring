@@ -336,7 +336,7 @@ export function AltarView({ onOpenEntry }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
-  const [period, setPeriod] = useState<Period>('all')
+  const [period, setPeriod] = useState<Period>('year')
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<AltarStrandDetail | null>(null)
@@ -417,7 +417,7 @@ export function AltarView({ onOpenEntry }: Props) {
     return (
       <div className="altar">
         <div className="altar__bg" aria-hidden />
-        <SurfaceLoader label="Gathering what you've laid down…" />
+        <SurfaceLoader label="Preparing your altar…" />
       </div>
     )
 
@@ -483,7 +483,7 @@ export function AltarView({ onOpenEntry }: Props) {
               {visible.length === 0 &&
                 (altarBackfilling ? (
                   <SurfaceLoader
-                    label="Gathering the prayers in your archive…"
+                    label="Preparing your altar…"
                     progress={
                       harvestJob && isActive(harvestJob.status)
                         ? { completed: harvestJob.completed, total: harvestJob.total }

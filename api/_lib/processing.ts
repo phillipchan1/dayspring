@@ -184,7 +184,15 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
         return { id: job.id, kind: job.kind, status: 'done', note: 'client-side' }
     }
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'chunk failed'
+    // Capture the real error — Supabase throws PostgrestError (a plain object,
+    // not an Error), which would otherwise mask as a useless 'chunk failed'.
+    const message =
+      e instanceof Error
+        ? e.message
+        : ((e as { message?: string; details?: string } | null)?.message ??
+          (e as { details?: string } | null)?.details ??
+          (typeof e === 'string' ? e : JSON.stringify(e)?.slice(0, 300)) ??
+          'chunk failed')
     // Transient: leave 'running' (locked_at keeps it out of reach for 5 min, a
     // natural backoff) so a later tick reclaims and retries — until we give up.
     const giveUp = job.attempts >= MAX_ATTEMPTS
