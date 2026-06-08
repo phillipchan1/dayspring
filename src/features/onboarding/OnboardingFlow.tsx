@@ -59,8 +59,6 @@ export function OnboardingFlow({ onFinish }: Props) {
     setStep('tour')
   }, [])
 
-  const skip = useCallback(() => void finish(), [finish])
-
   return (
     <div className="ob-root">
       <div className="ob-bg" aria-hidden />
@@ -125,12 +123,6 @@ export function OnboardingFlow({ onFinish }: Props) {
           </div>
         )}
 
-        {/* Hidden escape hatch — only before the user has committed to a path. */}
-        {(step === 'welcome' || step === 'fork') && (
-          <button type="button" className="ob-skip" onClick={skip} disabled={finishing}>
-            {copy.skip}
-          </button>
-        )}
       </main>
 
       {/* The welcome carousel as the final, mandatory leg — shown to everyone
