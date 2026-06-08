@@ -695,3 +695,204 @@
     max-width: 100%;
   }
 }
+
+/* ── Trial-ended decision point: anchor, soft actions, ask ─────────────────── */
+
+/* The personal value anchor — the emotional centerpiece. Their own accumulation,
+   shown as quiet, weighty numbers. */
+.locked-holding {
+  margin: 0.25rem 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+.locked-holding__lead {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.5);
+}
+[data-theme='dawn'] .locked-holding__lead {
+  color: rgba(74, 64, 53, 0.5);
+}
+.locked-holding__stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.4rem;
+}
+.locked-holding__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+.locked-holding__num {
+  font-family: var(--font-display, var(--font-serif));
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+  line-height: 1;
+  font-weight: 500;
+  color: #f0c587;
+  letter-spacing: -0.01em;
+}
+[data-theme='dawn'] .locked-holding__num {
+  color: #b9772b;
+}
+.locked-holding__lbl {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: rgba(236, 231, 223, 0.6);
+}
+[data-theme='dawn'] .locked-holding__lbl {
+  color: rgba(74, 64, 53, 0.62);
+}
+
+/* Reassurance — removing the fear of lock-in. */
+.locked-screen__reassure {
+  margin: 1.1rem 0 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.62);
+  max-width: 20rem;
+}
+[data-theme='dawn'] .locked-screen__reassure {
+  color: rgba(74, 64, 53, 0.66);
+}
+
+/* Soft secondary actions — quiet, never competing with Subscribe. */
+.locked-soft {
+  margin-top: 1.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem 1.1rem;
+}
+.locked-soft__link {
+  background: none;
+  border: none;
+  padding: 0.2rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: rgba(236, 231, 223, 0.62);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(236, 231, 223, 0.25);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.locked-soft__link:hover:not(:disabled) {
+  color: #f0c587;
+  text-decoration-color: rgba(240, 197, 135, 0.5);
+}
+.locked-soft__link:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+[data-theme='dawn'] .locked-soft__link {
+  color: rgba(74, 64, 53, 0.66);
+  text-decoration-color: rgba(74, 64, 53, 0.25);
+}
+[data-theme='dawn'] .locked-soft__link:hover:not(:disabled) {
+  color: #b9772b;
+  text-decoration-color: rgba(185, 119, 43, 0.5);
+}
+
+/* "Ask Phil" — a warm, contained composer. */
+.locked-ask {
+  margin-top: 1.1rem;
+  width: 100%;
+  max-width: 20rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: lockedAskIn 0.25s ease both;
+}
+[data-theme='dawn'] .locked-ask {
+  background: rgba(255, 255, 255, 0.42);
+  border-color: rgba(74, 64, 53, 0.16);
+}
+@keyframes lockedAskIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.locked-ask__lead {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.78);
+}
+[data-theme='dawn'] .locked-ask__lead {
+  color: rgba(74, 64, 53, 0.8);
+}
+.locked-ask--sent p {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.8);
+}
+[data-theme='dawn'] .locked-ask--sent p {
+  color: rgba(74, 64, 53, 0.82);
+}
+.locked-ask__field {
+  width: 100%;
+  resize: vertical;
+  min-height: 3.2rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 11px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #ece7df;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.locked-ask__field::placeholder { color: rgba(236, 231, 223, 0.4); }
+.locked-ask__field:focus {
+  outline: none;
+  border-color: rgba(240, 197, 135, 0.55);
+}
+[data-theme='dawn'] .locked-ask__field {
+  color: #2a2118;
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(74, 64, 53, 0.18);
+}
+[data-theme='dawn'] .locked-ask__field::placeholder { color: rgba(74, 64, 53, 0.4); }
+.locked-ask__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.locked-ask__send {
+  width: auto;
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+}
+
+/* The "already subscribed" refresh — the quietest thing on the screen. */
+.locked-screen__refresh {
+  margin-top: 1.5rem;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: rgba(236, 231, 223, 0.42);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.locked-screen__refresh:hover:not(:disabled) { color: rgba(236, 231, 223, 0.7); }
+[data-theme='dawn'] .locked-screen__refresh { color: rgba(74, 64, 53, 0.45); }
+[data-theme='dawn'] .locked-screen__refresh:hover:not(:disabled) { color: rgba(74, 64, 53, 0.72); }

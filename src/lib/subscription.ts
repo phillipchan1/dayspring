@@ -72,6 +72,59 @@ export async function startCheckout(plan: 'annual' | 'monthly'): Promise<string>
   return url
 }
 
+/** POST /api/trial/extend — one-time +7 day self-serve extension. */
+export async function extendTrial(): Promise<void> {
+  const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) throw new Error('not authenticated')
+
+  const res = await fetch(apiUrl('/api/trial/extend'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(err.error ?? `extend failed (${res.status})`)
+  }
+}
+
+/** What Dayspring is holding for this user — the personal value anchor. */
+export interface JournalHolding {
+  entries: number
+  years: number
+  prayers: number
+  scriptures: number
+}
+
+export async function fetchJournalHolding(): Promise<JournalHolding> {
+  const sb = requireSupabase()
+  const head = { count: 'exact' as const, head: true }
+  const [entriesRes, firstRes, prayersRes, scripturesRes] = await Promise.all([
+    sb.from('entries').select('id', head),
+    sb
+      .from('entries')
+      .select('created_at')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    sb.from('spiritual_items').select('id', head).eq('type', 'prayer'),
+    sb.from('scripture_refs').select('id', head),
+  ])
+  const entries = entriesRes.count ?? 0
+  const first = firstRes.data?.created_at ? new Date(firstRes.data.created_at) : null
+  const years = first
+    ? Math.max(1, Math.round((Date.now() - first.getTime()) / (365.25 * 864e5)))
+    : 0
+  return {
+    entries,
+    years,
+    prayers: prayersRes.count ?? 0,
+    scriptures: scripturesRes.count ?? 0,
+  }
+}
+
 /** GET /api/stripe/portal and return the Stripe Customer Portal URL. */
 export async function fetchPortalUrl(): Promise<string> {
   const sb = requireSupabase()

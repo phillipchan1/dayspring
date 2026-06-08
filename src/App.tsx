@@ -171,7 +171,15 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
 
   // Entitled but trial/payment lapsed — show locked screen.
   if (!entitled || !subscription) {
-    return <LockedScreen plan={subscription?.plan ?? 'none'} onRefetch={refetch} />
+    return (
+      <LockedScreen
+        plan={subscription?.plan ?? 'none'}
+        canExtend={
+          subscription?.plan === 'trialing' && !subscription.featureFlags.includes('trial_extended')
+        }
+        onRefetch={refetch}
+      />
+    )
   }
 
   // Post-checkout celebration — shown once after returning from Stripe.
