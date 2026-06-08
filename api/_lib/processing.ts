@@ -59,9 +59,13 @@ function reflectionsTasks(range: Period): ReflectionsTask[] {
   const years = yearsInRange(range).slice().reverse() // recent year first
   const tasks: ReflectionsTask[] = []
   for (const year of years) {
-    for (const w of weeksInRange(year)) tasks.push({ stage: 'weekly', period: w })
-    for (const m of monthsInRange(year)) tasks.push({ stage: 'monthly', period: m })
-    for (const q of quartersInRange(year)) tasks.push({ stage: 'quarterly', period: q })
+    // Recent-first WITHIN the year too, so the Ascent's most-recent week / month /
+    // quarter (what each altitude actually shows) build before the older ones.
+    // Safe for dependencies: every week of the year is built before any month,
+    // every month before any quarter — only the order inside each tier reverses.
+    for (const w of weeksInRange(year).slice().reverse()) tasks.push({ stage: 'weekly', period: w })
+    for (const m of monthsInRange(year).slice().reverse()) tasks.push({ stage: 'monthly', period: m })
+    for (const q of quartersInRange(year).slice().reverse()) tasks.push({ stage: 'quarterly', period: q })
     tasks.push({ stage: 'yearly', period: year })
   }
   return tasks
