@@ -4,9 +4,13 @@
   "buildCommand": "node scripts/assemble-changelog.mjs && npm run build",
   "devCommand": "ulimit -n 65536; vite --port $PORT",
   "outputDirectory": "dist",
+  "functions": {
+    "api/cron/process-tick.ts": { "maxDuration": 300 },
+    "api/cron/synthesize.ts": { "maxDuration": 300 }
+  },
   "crons": [
     { "path": "/api/cron/synthesize",   "schedule": "0 8 * * *" },
-    { "path": "/api/cron/process-tick", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/process-tick", "schedule": "* * * * *" },
     { "path": "/api/cron/remind",       "schedule": "0 9 * * *" },
     { "path": "/api/cron/echoes",       "schedule": "0 10 * * 1" }
   ],
