@@ -57,6 +57,16 @@
   animation: surfaceBreathe 2.8s ease-in-out infinite;
 }
 
+/* Done — a steady, fully-lit mark (no breathing) + a soft gold halo. */
+.processing-banner--done {
+  border-color: rgba(var(--scripture-gold), 0.4);
+}
+.processing-banner__mark--done {
+  animation: none;
+  background: radial-gradient(circle at 50% 40%, rgb(var(--scripture-gold)), rgba(var(--scripture-gold), 0.7) 70%);
+  box-shadow: 0 0 10px -1px rgba(var(--scripture-gold), 0.7);
+}
+
 .processing-banner__body {
   display: flex;
   flex-direction: column;

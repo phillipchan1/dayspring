@@ -32,31 +32,46 @@ export interface Job {
 
 interface ReflectionsCursor {
   range: Period
-  stage: Stage
+  /** Flat index into reflectionsTasks(range) — the recent-first build order. */
   index: number
 }
 
 const STAGES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const
 type Stage = (typeof STAGES)[number]
 
+interface ReflectionsTask {
+  stage: Stage
+  period: Period
+}
+
+/**
+ * The reflections build order: most-recent YEAR first, and within each year its
+ * children before its parents (weeks → months → quarters → year), because a
+ * monthly rollup reads its weeks, a quarterly reads its months, etc.
+ *
+ * Recent-first matters for UX: the Ascent's default view is the most recent
+ * week/month/quarter/year, so building the recent year's whole subtree first
+ * makes every altitude show real content within minutes — instead of staying
+ * empty for hours while an oldest-first cascade grinds through ~15 years of
+ * weeks before it ever reaches a quarter.
+ */
+function reflectionsTasks(range: Period): ReflectionsTask[] {
+  const years = yearsInRange(range).slice().reverse() // recent year first
+  const tasks: ReflectionsTask[] = []
+  for (const year of years) {
+    for (const w of weeksInRange(year)) tasks.push({ stage: 'weekly', period: w })
+    for (const m of monthsInRange(year)) tasks.push({ stage: 'monthly', period: m })
+    for (const q of quartersInRange(year)) tasks.push({ stage: 'quarterly', period: q })
+    tasks.push({ stage: 'yearly', period: year })
+  }
+  return tasks
+}
+
 // Tuning knobs (chunk = the per-tick budget that keeps each invocation under the
 // Vercel timeout). The next tick continues where this one left off.
 const REFLECTIONS_PER_TICK = 8 // model calls — the expensive cascade
 const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
 const MAX_ATTEMPTS = 5 // after this many failures, give up (status=failed)
-
-function stagePeriods(stage: Stage, range: Period): Period[] {
-  switch (stage) {
-    case 'weekly':
-      return weeksInRange(range)
-    case 'monthly':
-      return monthsInRange(range)
-    case 'quarterly':
-      return quartersInRange(range)
-    case 'yearly':
-      return yearsInRange(range)
-  }
-}
 
 function buildStagePeriod(stage: Stage, owner: string, period: Period) {
   switch (stage) {
@@ -86,13 +101,8 @@ export async function enqueueBackfill(
   const sb = supabaseAdmin()
   const enqueued: JobKind[] = []
 
-  const reflectionsTotal =
-    weeksInRange(range).length +
-    monthsInRange(range).length +
-    quartersInRange(range).length +
-    yearsInRange(range).length
-
-  const reflectionsCursor: ReflectionsCursor = { range, stage: 'weekly', index: 0 }
+  const reflectionsTotal = reflectionsTasks(range).length
+  const reflectionsCursor: ReflectionsCursor = { range, index: 0 }
   if (await insertIfInactive(sb, owner, 'reflections', reflectionsTotal, reflectionsCursor)) {
     enqueued.push('reflections')
   }
@@ -206,32 +216,25 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
 
 async function runReflections(job: Job): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
-  const cursor = job.cursor as ReflectionsCursor
-  let { stage, index } = cursor
+  const cursor = job.cursor as ReflectionsCursor & { stage?: Stage }
   const range = cursor.range
-  let completed = job.completed
+  const tasks = reflectionsTasks(range)
+  // Old-format cursors (which had a `stage`) predate the recent-first order;
+  // restart them at 0 so the recent year's subtree is built first (idempotent).
+  let index = cursor.stage !== undefined ? 0 : (cursor.index ?? 0)
   let built = 0
 
   while (built < REFLECTIONS_PER_TICK) {
-    const periods = stagePeriods(stage, range)
-    if (index >= periods.length) {
-      // Advance to the next stage (children are built before parents read them).
-      const next = STAGES[STAGES.indexOf(stage) + 1]
-      if (!next) {
-        // All stages done.
-        await sb
-          .from('processing_jobs')
-          .update({ status: 'done', completed, locked_at: null })
-          .eq('id', job.id)
-        return { id: job.id, kind: 'reflections', status: 'done', completed }
-      }
-      stage = next
-      index = 0
-      continue
+    if (index >= tasks.length) {
+      await sb
+        .from('processing_jobs')
+        .update({ status: 'done', completed: tasks.length, locked_at: null })
+        .eq('id', job.id)
+      return { id: job.id, kind: 'reflections', status: 'done', completed: tasks.length }
     }
-    await buildStagePeriod(stage, job.owner, periods[index]!)
+    const task = tasks[index]!
+    await buildStagePeriod(task.stage, job.owner, task.period)
     index += 1
-    completed += 1
     built += 1
   }
 
@@ -239,9 +242,9 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
   // picks it straight up rather than waiting out the 5-min stale window).
   await sb
     .from('processing_jobs')
-    .update({ cursor: { range, stage, index }, completed, locked_at: null })
+    .update({ cursor: { range, index }, completed: index, locked_at: null })
     .eq('id', job.id)
-  return { id: job.id, kind: 'reflections', status: 'running', completed, of: job.total }
+  return { id: job.id, kind: 'reflections', status: 'running', completed: index, of: job.total }
 }
 
 async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
