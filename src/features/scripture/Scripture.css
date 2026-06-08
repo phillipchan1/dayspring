@@ -292,6 +292,50 @@
   color: var(--text-dim);
 }
 
+/* Forming strip — the unified "lighting…" + progress, matching the SurfaceLoader
+   on Ascent/Altar so all three surfaces speak the same language. */
+.scripture__forming {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+}
+.scripture__forming .scripture__scan-text {
+  flex: none;
+  min-width: 0;
+  font-style: italic;
+}
+.scripture__forming-mark {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, rgb(var(--scripture-gold)), rgba(var(--scripture-ember), 0.55) 60%, transparent 74%);
+  animation: surfaceBreathe 2.8s ease-in-out infinite;
+}
+.scripture__forming-bar {
+  flex: 1;
+  min-width: 4rem;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(var(--scripture-gold), 0.18);
+  overflow: hidden;
+}
+.scripture__forming-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(var(--scripture-ember), 0.85), rgb(var(--scripture-gold)));
+  box-shadow: 0 0 8px -1px rgba(var(--scripture-gold), 0.6);
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.scripture__forming-pct {
+  flex: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
 .scripture__scan-btn {
   flex: none;
   font-family: var(--font-mono);

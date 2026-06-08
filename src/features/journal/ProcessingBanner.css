@@ -31,12 +31,46 @@
   animation: surfaceBreathe 2.8s ease-in-out infinite;
 }
 
+.processing-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .processing-banner__text {
   margin: 0;
   font-family: var(--font-serif);
   font-size: 0.9rem;
   line-height: 1.4;
   color: var(--text);
+}
+
+.processing-banner__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.processing-banner__bar {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(var(--scripture-gold), 0.18);
+  overflow: hidden;
+}
+.processing-banner__bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(var(--scripture-ember), 0.85), rgb(var(--scripture-gold)));
+  box-shadow: 0 0 8px -1px rgba(var(--scripture-gold), 0.6);
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.processing-banner__pct {
+  flex: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .processing-banner__dismiss {

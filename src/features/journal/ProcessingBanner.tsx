@@ -9,7 +9,7 @@ import './ProcessingBanner.css'
  * start writing immediately. See docs/PROCESSING_AND_ONBOARDING.md §7.
  */
 export function ProcessingBanner() {
-  const { anyActive } = useProcessingJobs()
+  const { anyActive, overallPct } = useProcessingJobs()
   const [dismissed, setDismissed] = useState(false)
 
   if (!anyActive || dismissed) return null
@@ -17,10 +17,18 @@ export function ProcessingBanner() {
   return (
     <div className="processing-banner" role="status" aria-live="polite">
       <span className="processing-banner__mark" aria-hidden />
-      <p className="processing-banner__text">
-        Preparing your reflections, scripture map, and altar — automatically, and only ever for you.
-        This takes a few minutes; you can start writing now.
-      </p>
+      <div className="processing-banner__body">
+        <p className="processing-banner__text">
+          Preparing your reflections, scripture map, and altar — automatically, and only ever for
+          you. You can start writing now.
+        </p>
+        <div className="processing-banner__progress">
+          <div className="processing-banner__bar" aria-hidden>
+            <div className="processing-banner__bar-fill" style={{ width: `${overallPct}%` }} />
+          </div>
+          <span className="processing-banner__pct">{overallPct}%</span>
+        </div>
+      </div>
       <button
         type="button"
         className="processing-banner__dismiss"

@@ -340,6 +340,7 @@ export function AltarView({ onOpenEntry }: Props) {
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<AltarStrandDetail | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const reqId = useRef(0)
 
   useEffect(() => {
@@ -358,7 +359,7 @@ export function AltarView({ onOpenEntry }: Props) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [reloadKey])
 
   useEffect(() => {
     if (!openId) return
@@ -402,6 +403,14 @@ export function AltarView({ onOpenEntry }: Props) {
   const altarBackfilling = [byKind.altar_harvest, byKind.altar_embed, byKind.altar_thread].some(
     (j) => j != null && isActive(j.status),
   )
+
+  // Fill in live: reload when the altar backfill (harvest→embed→thread) finishes
+  // so the strands appear without the user navigating away and back.
+  const wasBackfillingRef = useRef(altarBackfilling)
+  useEffect(() => {
+    if (wasBackfillingRef.current && !altarBackfilling) setReloadKey((k) => k + 1)
+    wasBackfillingRef.current = altarBackfilling
+  }, [altarBackfilling])
 
   if (loadError) return <p className="altar__error">{loadError}</p>
   if (strands === null)

@@ -101,12 +101,24 @@ export function ScriptureView({ onOpenEntry }: Props) {
   const reqId = useRef(0)
   const freshLoad = useRef(false)
 
-  // Scan CTA (dismissible here; also available in Settings → Import & backup).
+  // Scan orchestration (also available in Settings → Import & backup).
   const scan = useScriptureScan(() => {
     invalidateScriptureCache()
     freshLoad.current = true
     setReloadKey((k) => k + 1)
   })
+
+  // Auto-light the Lamp: imported entries skip the editor, so scan them for refs
+  // automatically (cheap on-device regex) — the unified "forming" experience, no
+  // "Scan now" wall. Runs once when there are pending imports.
+  const autoScannedRef = useRef(false)
+  useEffect(() => {
+    if (scan.pending > 0 && !scan.scanning && !autoScannedRef.current) {
+      autoScannedRef.current = true
+      void scan.run()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scan.pending, scan.scanning])
 
   // The open book panel is its own history frame, so Back / Esc / the rail all
   // close it predictably (browser back pops straight here).
@@ -185,45 +197,47 @@ export function ScriptureView({ onOpenEntry }: Props) {
             <h1 className="scripture__title">Where your heart has been leaning</h1>
           </header>
 
-          {(scan.scanning || scan.pending > 0 || scan.result || scan.error) && (
+          {(scan.scanning || scan.result || scan.error) && (
             <div className="scripture__scan" role="status">
               {scan.scanning ? (
-                <span className="scripture__scan-text">
-                  Scanning your journal…
-                  {scan.scanning.total > 0
-                    ? ` ${scan.scanning.done.toLocaleString()} / ${scan.scanning.total.toLocaleString()}`
-                    : ''}
-                </span>
+                <div className="scripture__forming">
+                  <span className="scripture__forming-mark" aria-hidden />
+                  <span className="scripture__scan-text">Lighting your scripture map…</span>
+                  <div className="scripture__forming-bar" aria-hidden>
+                    <div
+                      className="scripture__forming-fill"
+                      style={{
+                        width: `${
+                          scan.scanning.total > 0
+                            ? Math.min(100, Math.round((scan.scanning.done / scan.scanning.total) * 100))
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                  <span className="scripture__forming-pct">
+                    {scan.scanning.total > 0
+                      ? Math.min(100, Math.round((scan.scanning.done / scan.scanning.total) * 100))
+                      : 0}
+                    %
+                  </span>
+                </div>
               ) : scan.error ? (
-                <span className="scripture__scan-text">Couldn’t finish the scan — {scan.error}</span>
+                <>
+                  <span className="scripture__scan-text">
+                    Couldn’t finish lighting the map — {scan.error}
+                  </span>
+                  <button type="button" className="scripture__scan-btn" onClick={() => void scan.run()}>
+                    Try again
+                  </button>
+                </>
               ) : scan.result ? (
                 <span className="scripture__scan-text">
                   Lit {scan.result.refsWritten.toLocaleString()}{' '}
                   {scan.result.refsWritten === 1 ? 'reference' : 'references'} across{' '}
                   {scan.result.booksTouched} {scan.result.booksTouched === 1 ? 'book' : 'books'}.
                 </span>
-              ) : (
-                <>
-                  <span className="scripture__scan-text">
-                    {scan.pending.toLocaleString()} imported{' '}
-                    {scan.pending === 1 ? 'entry hasn’t' : 'entries haven’t'} been scanned for
-                    scripture yet — imported writing skips the editor, so its references aren’t on
-                    the map.
-                  </span>
-                  <button type="button" className="scripture__scan-btn" onClick={() => void scan.run()}>
-                    Scan now
-                  </button>
-                  <button
-                    type="button"
-                    className="scripture__scan-dismiss"
-                    onClick={scan.dismiss}
-                    aria-label="Dismiss — scan later in Settings → Import & backup"
-                    title="Dismiss (you can scan later in Settings → Import & backup)"
-                  >
-                    ✕
-                  </button>
-                </>
-              )}
+              ) : null}
             </div>
           )}
 

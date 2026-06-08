@@ -63,6 +63,7 @@ export function AscentView({ onOpenEntry }: Props) {
   const drill = state.ascentDrill
   const light = useIsLightTheme()
   const [ascent, setAscent] = useState<Loaded<LoadedAscent>>(undefined)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -73,7 +74,7 @@ export function AscentView({ onOpenEntry }: Props) {
     return () => {
       alive = false
     }
-  }, [])
+  }, [reloadKey])
 
   const setAltitude = useCallback(
     (next: number) => go({ ascentAltitude: clampAltitude(next) }, { replace: true }),
@@ -137,6 +138,15 @@ export function AscentView({ onOpenEntry }: Props) {
   const reflectionsJob = byKind.reflections
   const altitudeEmpty = !altitude || (!altitude.words && !altitude.scripture)
   const backfilling = !!reflectionsJob && isActive(reflectionsJob.status) && altitudeEmpty
+
+  // Fill in live: when the reflections backfill finishes, reload so the built
+  // rollups appear without the user having to leave and come back.
+  const reflectionsActive = reflectionsJob ? isActive(reflectionsJob.status) : false
+  const wasActiveRef = useRef(reflectionsActive)
+  useEffect(() => {
+    if (wasActiveRef.current && !reflectionsActive) setReloadKey((k) => k + 1)
+    wasActiveRef.current = reflectionsActive
+  }, [reflectionsActive])
 
   return (
     <div

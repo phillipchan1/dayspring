@@ -19,6 +19,8 @@ export interface ProcessingJob {
 export interface ProcessingState {
   byKind: Partial<Record<ProcessingKind, ProcessingJob>>
   anyActive: boolean
+  /** Aggregate progress across all known jobs (0–100), for the global banner. */
+  overallPct: number
 }
 
 interface JobRow {
@@ -94,6 +96,11 @@ export function useProcessingJobs(): ProcessingState {
     }
   }, [owner])
 
-  const anyActive = Object.values(byKind).some((j) => j != null && isActive(j.status))
-  return { byKind, anyActive }
+  const jobs = Object.values(byKind).filter((j): j is ProcessingJob => j != null)
+  const anyActive = jobs.some((j) => isActive(j.status))
+  const totalSum = jobs.reduce((s, j) => s + j.total, 0)
+  const doneSum = jobs.reduce((s, j) => s + Math.min(j.completed, j.total), 0)
+  const overallPct = totalSum > 0 ? Math.min(100, Math.round((doneSum / totalSum) * 100)) : 0
+
+  return { byKind, anyActive, overallPct }
 }
