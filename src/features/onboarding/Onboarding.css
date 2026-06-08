@@ -518,6 +518,17 @@ html[data-platform='desktop'] .ob-theme {
   margin: 0;
   max-width: 48ch;
 }
+
+.ob-hint {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(236, 231, 223, 0.5);
+  margin: 0;
+}
+.ob-root.is-light .ob-hint {
+  color: rgba(74, 64, 53, 0.55);
+}
 .ob-root.is-light .ob-reassure {
   color: rgba(74, 64, 53, 0.62);
 }

@@ -6,7 +6,8 @@ import type { ImportParseResult } from '@/lib/import/types'
 import { IMPORT_SOURCES } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
 import { getRollup, type Rollup } from '@/lib/insights'
-import { backfillRecentMonth, backfillFullHistory } from '@/lib/onboarding'
+import { backfillRecentMonth } from '@/lib/onboarding'
+import { apiPost } from '@/lib/api'
 import { onboardingCopy as copy } from './onboardingCopy'
 import { MonthReveal } from './MonthReveal'
 
@@ -129,9 +130,16 @@ export function ImportFlow({ onComplete, onBack }: Props) {
     // this the user lands on a "N entries haven't been scanned" CTA.
     void scanAllForRefs().catch((err) => console.warn('scripture scan failed', err))
 
-    // Kick off the full historical backfill in the background — never blocks.
+    // Build the full archive through the SAME processing engine the rest of the
+    // app reads — reflections AND altar — so the in-app banner + per-surface
+    // forming states (with %) reflect real progress, and the Altar actually gets
+    // built. The recent month is still built synchronously below for the Reveal.
     setBgBuilding(true)
-    void backfillFullHistory().finally(() => setBgBuilding(false))
+    if (result.dateRange) {
+      void apiPost('/api/processing/enqueue', {
+        range: { start: dayOf(result.dateRange.earliest), end: dayOf(result.dateRange.latest) },
+      }).catch((err) => console.warn('processing enqueue failed', err))
+    }
 
     // Race the most-recent month against a graceful timeout.
     let settled = false
@@ -283,6 +291,10 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         <span className="ob-bigpulse" aria-hidden />
         <h1 className="ob-title">{copy.importBuilding.title}</h1>
         <p className="ob-body">{copy.importBuilding.body}</p>
+        <p className="ob-hint">{copy.importBuilding.hint}</p>
+        <button type="button" className="ob-tertiary" onClick={onComplete}>
+          {copy.importBuilding.skip} →
+        </button>
       </div>
     )
   }

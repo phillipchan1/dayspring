@@ -48,6 +48,8 @@ export const onboardingCopy = {
   importBuilding: {
     title: 'Preparing your reflections…',
     body: 'This happens once, quietly on your account — starting with your most recent month. Nothing leaves your journal.',
+    hint: 'Usually under a minute. The rest keeps building after you’re in.',
+    skip: 'Skip ahead — enter your journal',
     stillWorking: 'Still gathering — almost there…',
   },
 
