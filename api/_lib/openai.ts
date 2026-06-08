@@ -34,12 +34,16 @@ export async function callModel<T>(
   // Nano models default to a small output window; callers can override.
   maxTokens = 2048,
 ): Promise<T> {
+  // Heavier reasoning models (gpt-5.4/5.5) spend output budget on hidden reasoning
+  // tokens and need far more headroom than nano. OPENAI_MAX_TOKENS lets you raise
+  // the ceiling globally when running a bigger model (and for A/B testing).
+  const cap = process.env.OPENAI_MAX_TOKENS ? Number(process.env.OPENAI_MAX_TOKENS) : maxTokens
   const baseParams: ChatParams = {
     model: env.model(),
     // This model family only accepts the default temperature (1); grounding is
     // enforced in code (verbatim validation), so sampling temp doesn't matter.
     reasoning_effort: effort,
-    max_completion_tokens: maxTokens,
+    max_completion_tokens: cap,
     response_format: {
       type: 'json_schema',
       json_schema: { name, strict: true, schema },
@@ -54,7 +58,7 @@ export async function callModel<T>(
     const params: ChatParams = {
       ...baseParams,
       // Reasoning models can exhaust the budget on hidden tokens; retry with headroom.
-      max_completion_tokens: attempt === 0 ? maxTokens : maxTokens * 2,
+      max_completion_tokens: attempt === 0 ? cap : cap * 2,
     }
     const completion = await openai().chat.completions.create(params)
     const choice = completion.choices[0]
