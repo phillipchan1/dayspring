@@ -85,7 +85,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         }
       }
       if (!parsed || (parsed.dated.length === 0 && parsed.skipped.length === 0)) {
-        setError('We couldn’t read that file. Is it a Day One or Diarly export (.zip)?')
+        setError('We couldn’t read that file. Is it a Dayspring backup, Day One, or Diarly export (.zip)?')
         setPhase('upload')
         return
       }

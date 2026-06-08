@@ -26,11 +26,11 @@ export const onboardingCopy = {
 
   importUpload: {
     title: 'Bring in your journal.',
-    body: 'Upload your Day One (.zip JSON export) or Diarly (.zip) export. Your entries are parsed on your device and written straight to your private journal — they never pass through anyone else.',
+    body: 'Upload a Dayspring backup, a Day One (.zip JSON) export, or a Diarly (.zip) export. Your entries are parsed on your device and written straight to your private journal — they never pass through anyone else.',
     dropzone: 'Drop your export here, or click to choose',
     reading: 'Reading your export…',
     chooseDifferent: 'Choose a different file',
-    sourceHint: 'Day One and Diarly exports (.zip)',
+    sourceHint: 'Dayspring backup, Day One, or Diarly exports (.zip)',
   },
 
   importPreview: {

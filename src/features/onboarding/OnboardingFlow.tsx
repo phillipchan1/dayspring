@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { setOnboarded } from '@/lib/profile'
@@ -8,7 +8,7 @@ import { onboardingCopy as copy, pickOpeningPrompt } from './onboardingCopy'
 import { ImportFlow } from './ImportFlow'
 import './Onboarding.css'
 
-type Step = 'welcome' | 'fork' | 'import' | 'fresh'
+type Step = 'welcome' | 'fork' | 'import' | 'fresh' | 'tour'
 
 interface Props {
   /** Called once onboarded_at is persisted; the parent re-reads and routes to
@@ -17,15 +17,17 @@ interface Props {
 }
 
 /**
- * The first-run experience: Welcome → Fork → (Import path | Fresh-start path).
- * Completing EITHER path — or the low-emphasis "Skip for now" link — stamps
- * onboarded_at so it never reappears. Nothing here gates on entitlement: the
- * whole flow runs inside the already-active in-app trial.
+ * The first-run experience: Welcome → Fork → (Import path | Fresh-start path) →
+ * Tour (the welcome carousel, shown to EVERYONE before the editor). Completing
+ * the tour — or the low-emphasis "Skip for now" link — stamps onboarded_at so it
+ * never reappears. Nothing here gates on entitlement: the whole flow runs inside
+ * the already-active in-app trial.
  */
 export function OnboardingFlow({ onFinish }: Props) {
   const [step, setStep] = useState<Step>('welcome')
-  const [showTour, setShowTour] = useState(false)
   const [finishing, setFinishing] = useState(false)
+  // Carried from the fresh-start path into the editor as a gentle first prompt.
+  const seedRef = useRef<string | undefined>(undefined)
   const { settings, update: updateSettings } = useSettings()
   const isLight = useResolvedTheme(settings) === 'dawn'
 
@@ -36,10 +38,10 @@ export function OnboardingFlow({ onFinish }: Props) {
   // Persist onboarded_at, then hand back to the parent. Best-effort: even if the
   // write fails we still enter the app (localStorage guards a re-show).
   const finish = useCallback(
-    async (seed?: string) => {
+    async () => {
       if (finishing) return
       setFinishing(true)
-      if (seed) setSeedPrompt(seed)
+      if (seedRef.current) setSeedPrompt(seedRef.current)
       try {
         await setOnboarded()
       } catch {
@@ -49,6 +51,13 @@ export function OnboardingFlow({ onFinish }: Props) {
     },
     [finishing, onFinish],
   )
+
+  // The last leg before the editor: everyone passes through the welcome tour,
+  // whether they imported a decade or are starting fresh.
+  const goToTour = useCallback((seed?: string) => {
+    seedRef.current = seed
+    setStep('tour')
+  }, [])
 
   const skip = useCallback(() => void finish(), [finish])
 
@@ -64,9 +73,6 @@ export function OnboardingFlow({ onFinish }: Props) {
             <p className="ob-body">{copy.welcome.body}</p>
             <button type="button" className="ob-primary" onClick={() => setStep('fork')}>
               {copy.welcome.primary}
-            </button>
-            <button type="button" className="ob-tertiary" onClick={() => setShowTour(true)}>
-              {copy.welcome.tour}
             </button>
           </div>
         )}
@@ -86,11 +92,14 @@ export function OnboardingFlow({ onFinish }: Props) {
                 <span className="ob-card__sub">{copy.fork.fresh.sub}</span>
               </button>
             </div>
+            <button type="button" className="ob-tertiary" onClick={() => setStep('welcome')}>
+              ← Back
+            </button>
           </div>
         )}
 
         {step === 'import' && (
-          <ImportFlow onComplete={() => void finish()} onBack={() => setStep('fork')} />
+          <ImportFlow onComplete={() => goToTour()} onBack={() => setStep('fork')} />
         )}
 
         {step === 'fresh' && (
@@ -106,14 +115,17 @@ export function OnboardingFlow({ onFinish }: Props) {
             <button
               type="button"
               className="ob-primary"
-              onClick={() => void finish(pickOpeningPrompt())}
+              onClick={() => goToTour(pickOpeningPrompt())}
             >
               {copy.fresh.primary}
+            </button>
+            <button type="button" className="ob-tertiary" onClick={() => setStep('fork')}>
+              ← Back
             </button>
           </div>
         )}
 
-        {/* Hidden escape hatch — only on Welcome and Fork. */}
+        {/* Hidden escape hatch — only before the user has committed to a path. */}
         {(step === 'welcome' || step === 'fork') && (
           <button type="button" className="ob-skip" onClick={skip} disabled={finishing}>
             {copy.skip}
@@ -121,14 +133,15 @@ export function OnboardingFlow({ onFinish }: Props) {
         )}
       </main>
 
-      {/* Folded-in product tour — the existing Welcome carousel, reused as an
-          optional step. Closing or finishing it returns to the flow. */}
-      {showTour && (
+      {/* The welcome carousel as the final, mandatory leg — shown to everyone
+          right before the editor, whether they imported or started fresh. Both
+          "Begin" and dismiss carry on into the journal. */}
+      {step === 'tour' && (
         <WelcomeFlow
           isLight={isLight}
           onToggleTheme={toggleTheme}
-          onClose={() => setShowTour(false)}
-          onBegin={() => setShowTour(false)}
+          onClose={() => void finish()}
+          onBegin={() => void finish()}
         />
       )}
     </div>
