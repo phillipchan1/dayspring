@@ -150,7 +150,10 @@ async function fetchAll<T>(
 // Small on purpose: a bulk vector UPDATE casting/writing N×1536 floats in one
 // statement crosses Postgres's statement timeout (57014) well before you'd think
 // — 100 keeps each write light and reliable.
-const EMBED_WRITE_BATCH = 100
+// Small write batches: each set_*_embeddings RPC writes this many 1536-dim
+// vectors (plus vector-index maintenance) in one statement. 100 exceeded the
+// Postgres statement timeout on a large import; keep it well under.
+const EMBED_WRITE_BATCH = 20
 
 /**
  * Write a batch of embeddings in one statement via the bulk RPC. If that RPC
