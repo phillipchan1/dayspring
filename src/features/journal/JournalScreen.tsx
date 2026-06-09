@@ -380,6 +380,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       go({ entryId: first.id }, { replace: true })
       setContent(asEntryMarkdown(first.body_markdown))
       loadedEntryIdRef.current = first.id
+      setIsNewEntryMode(false)
       return
     }
     if (wantedId && synced.length) {
@@ -417,6 +418,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         if (cancelled) return
         setEntries(cached)
         if (cached.length) hydrateActiveEntry(cached)
+        else setIsNewEntryMode(true)
       } catch {
         /* empty cache is fine — background sync or a new entry will populate */
       }
@@ -1353,15 +1355,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {slashCapture?.cmd === 'image' && (
         <InlineImagePopover
           anchor={slashCapture.anchor}
-          onBeginUpload={(pendingId, alt) => {
-            const cap = slashCaptureRef.current
-            if (!cap) return
-            const after =
-              editorRef.current?.insertBlockPendingAttachment(cap.insertAt, pendingId, alt) ??
-              cap.insertAt
+          onBeginUpload={((capturedInsertAt) => (pendingId, alt) => {
+            // Use the render-time insertAt so this works even if the popover was
+            // auto-dismissed (e.g. iOS synthesises a touchstart after the file
+            // picker returns, which clears slashCapture before onChange fires).
             setSlashCapture(null)
+            const after =
+              editorRef.current?.insertBlockPendingAttachment(capturedInsertAt, pendingId, alt) ??
+              capturedInsertAt
             requestAnimationFrame(() => editorRef.current?.focusAt(after))
-          }}
+          })(slashCapture.insertAt)}
           onUploadComplete={(pendingId, hash, ext, alt) => {
             editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
           }}

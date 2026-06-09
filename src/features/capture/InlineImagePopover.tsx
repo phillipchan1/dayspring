@@ -5,7 +5,7 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandPopover, CommandPopoverHint } from './CommandPopover'
 import { IMAGE_DROP_HINT } from './commandHints'
-import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
+import { IMAGE_MAX_BYTES, imageFilesFromDataTransfer, isImageFile } from '@/editor/attachmentInsert'
 import './Capture.css'
 
 interface Props {
@@ -109,7 +109,8 @@ export function InlineImagePopover({
           e.preventDefault()
           setDragging(false)
           if (phase === 'uploading') return
-          const file = e.dataTransfer.files?.[0]
+          // Use shared helper — handles dt.items (iOS) and dt.files (desktop)
+          const file = imageFilesFromDataTransfer(e.dataTransfer)[0]
           if (file) void handleFile(file)
         }}
       >

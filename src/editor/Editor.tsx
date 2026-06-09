@@ -318,7 +318,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           attachmentImageExtension((target, anchor) =>
             onEditAttachmentRef.current?.(target, anchor),
           ),
-          attachmentDropExtension(),
+          Prec.highest(attachmentDropExtension()),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
           editorTheme,

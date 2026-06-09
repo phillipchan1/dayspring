@@ -7,8 +7,8 @@
 // /api/spiritual/scripture-resolve) so references can render the instant this
 // returns while the text streams in behind them.
 //
-// We over-fetch (5 candidates, best-fit first) so a couple of references that
-// fail to resolve still leave the client 3 to show.
+// The model returns 3-6 candidates (best-fit first) — more when many passages
+// clearly fit, fewer when only a couple truly resonate.
 
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { callModel } from '../_lib/openai.js'
@@ -28,8 +28,8 @@ const SCHEMA = {
         required: ['reference', 'reason'],
         additionalProperties: false,
       },
-      minItems: 5,
-      maxItems: 5,
+      minItems: 3,
+      maxItems: 6,
     },
   },
   required: ['passages'],
@@ -37,7 +37,9 @@ const SCHEMA = {
 }
 
 const SYSTEM = `You are a scripture companion for a private Christian journaling app.
-Given the user's journal entry text or topic, pick 5 relevant Bible passages from the ESV, ordered best-fit first.
+Given the user's journal entry text or topic, pick 3-6 relevant Bible passages from the ESV, ordered best-fit first.
+
+Return more passages (up to 6) when several clearly speak to the theme. Return fewer (as few as 3) when only a handful truly fit — don't pad with loose connections.
 
 For each passage provide:
 - reference: a precise ESV reference using the standard English book name, e.g. "Psalm 23:1-4" or "Romans 8:28". Chapter-and-verse only — never include verse text.

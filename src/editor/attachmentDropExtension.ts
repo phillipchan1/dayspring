@@ -18,8 +18,24 @@ import {
 const DRAG_CLASS = 'editor-host--drag-over'
 let dragDepth = 0
 
+// `dt.types` is a DOMStringList on older Safari/iOS (no .includes()), so coerce it.
+function dtTypes(dt: DataTransfer): string[] {
+  return Array.from(dt.types)
+}
+
+function isImageMimeOrUti(type: string): boolean {
+  const t = type.toLowerCase()
+  if (t.startsWith('image/')) return true
+  // iOS drag from Photos uses UTI strings like 'public.jpeg'
+  return /^public\.(heic|heif|jpe?g|png|gif|tiff?|webp)$/.test(t)
+}
+
 function isFileDrag(dt: DataTransfer): boolean {
-  return dt.types.includes('Files') || imageFilesFromDataTransfer(dt).length > 0
+  const types = dtTypes(dt)
+  // Desktop: standard 'Files' entry is always present for file drags
+  if (types.includes('Files')) return true
+  // iOS/iPadOS: Photos sends UTI/MIME types instead of 'Files'
+  return types.some(isImageMimeOrUti)
 }
 
 function dragHost(view: EditorView): HTMLElement | null {
@@ -44,7 +60,11 @@ async function uploadFiles(
   pos: number,
   files: File[],
 ): Promise<void> {
-  if (files.length === 0 || !supabase) return
+  if (files.length === 0) return
+  if (!supabase) {
+    console.warn('[images] drop ignored — supabase not configured')
+    return
+  }
 
   const valid = files.filter((f) => isImageFile(f) && f.size <= IMAGE_MAX_BYTES)
   if (valid.length === 0) return
@@ -105,7 +125,10 @@ export function attachmentDropExtension(): Extension {
       const dt = event.dataTransfer
       if (!dt) return false
       const files = imageFilesFromDataTransfer(dt)
-      if (!files.length) return false
+      if (!files.length) {
+        console.warn('[images] drop fired but no image files found in transfer; types:', dtTypes(dt))
+        return false
+      }
       event.preventDefault()
       const pos = dropPos(view, event)
       void uploadFiles(view, pos, files)

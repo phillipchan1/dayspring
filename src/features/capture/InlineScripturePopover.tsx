@@ -129,9 +129,9 @@ export function InlineScripturePopover({
         setPassages([])
         return
       }
-      // Show the top 3 right away with their text still resolving (shimmer).
+      // Show all candidates right away with their text still resolving (shimmer).
       setPassages(
-        candidates.slice(0, 3).map((c) => ({
+        candidates.map((c) => ({
           reference: c.reference,
           reason: c.reason,
           translation: 'ESV',
@@ -141,7 +141,7 @@ export function InlineScripturePopover({
       setLoading(false)
 
       // Phase 2 — resolve verbatim ESV text and fill it in behind the refs.
-      // Resolve all candidates so a ref that fails backfills from the spares.
+      // Drop any that fail to resolve; the rest show in order.
       const resolved = await resolveScripturePassages(candidates.map((c) => c.reference))
       const filled: Row[] = candidates
         .map((c, i): Row | null => {
@@ -149,7 +149,6 @@ export function InlineScripturePopover({
           return r ? { reference: r.reference, reason: c.reason, translation: 'ESV', text: r.text } : null
         })
         .filter((r): r is Row => r !== null)
-        .slice(0, 3)
       setPassages(filled)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not reach scripture search'

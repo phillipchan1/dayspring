@@ -39,7 +39,9 @@ export function DesktopJournal(props: JournalViewProps) {
       ? 'Selecting entries'
       : activeEntry
         ? formatBreadcrumb(activeEntry.created_at)
-        : ''
+        : isNewEntry
+          ? formatBreadcrumb(new Date().toISOString())
+          : ''
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   const journalChrome = !canvasAlternateActive
