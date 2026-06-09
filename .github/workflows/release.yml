@@ -80,12 +80,17 @@ jobs:
         # is brittle here. `npm install` resolves them per-runner.
         run: npm install --no-audit --no-fund
 
-      - name: Compute version (1.0.<run number>)
+      - name: Compute version (<major.minor from package.json>.<run number>)
         run: |
-          VERSION="1.0.${{ github.run_number }}"
+          # package.json is the single source of truth for major.minor.
+          # Patch = CI run number so it auto-increments on every build — no
+          # manual bumping needed. Only touch package.json when you want a
+          # meaningful milestone bump (e.g. 1.0 → 1.1 or 2.0).
+          MAJOR_MINOR=$(node -p "const v=require('./package.json').version.split('.');v.slice(0,2).join('.')")
+          VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
           node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.version='$VERSION';fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Building version $VERSION"
+          echo "Building version $VERSION (major.minor from package.json: $MAJOR_MINOR)"
 
       # When an Apple signing identity is configured, swap the ad-hoc "-" in
       # tauri.conf.json for the real identity so the build does Developer ID

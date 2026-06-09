@@ -36,11 +36,13 @@ function resolveAppVersion(): string {
     // file still missing after failed generation — fall through
   }
 
-  // Fallback: tauri.conf.json (always 0.1.0 in repo, correct during Tauri CI)
-  const tauriConf = JSON.parse(
-    readFileSync(fileURLToPath(new URL('./src-tauri/tauri.conf.json', import.meta.url)), 'utf8'),
+  // Fallback: package.json — single source of truth for major.minor.
+  // (tauri.conf.json is always 1.0.0 in the repo; CI patches it at build time
+  // so it would show a stale version in local dev and Vercel preview builds.)
+  const pkg = JSON.parse(
+    readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
   ) as { version: string }
-  return tauriConf.version
+  return pkg.version
 }
 
 const APP_VERSION = resolveAppVersion()
