@@ -179,6 +179,23 @@ export async function resolveAttachmentUrl(
 }
 
 /**
+ * Download the raw stored bytes for an attachment. Used by the backup export to
+ * bundle image binaries into the zip so a restore is self-contained.
+ * Returns null if the object is missing or unreadable.
+ */
+export async function downloadAttachmentBlob(
+  supabase: SupabaseClient,
+  ownerId: string,
+  hash: string,
+  ext: string,
+): Promise<Blob | null> {
+  const storageKey = `${ownerId}/${hash}.${ext}`
+  const { data, error } = await supabase.storage.from(BUCKET).download(storageKey)
+  if (error || !data) return null
+  return data
+}
+
+/**
  * Replace all `attachment:<hash>.<ext>` refs in `markdown` with fresh signed URLs.
  * Used by the render layer before passing to marked. Returns the rewritten string.
  */

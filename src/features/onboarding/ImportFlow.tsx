@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { upsertImportedEntries } from '@/lib/entries'
 import { scanAllForRefs } from '@/lib/scripture/scan'
@@ -55,6 +55,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
   const [phase, setPhase] = useState<Phase>('upload')
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [showExportHelp, setShowExportHelp] = useState(false)
   const [result, setResult] = useState<ImportParseResult | null>(null)
   const [sourceId, setSourceId] = useState<EntrySource>('other')
   const [progress, setProgress] = useState({ done: 0, total: 0 })
@@ -216,6 +217,35 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         )}
 
         {error && <p className="ob-error">{error}</p>}
+        {phase === 'upload' && (
+          <div className="ob-export-help">
+            <button
+              type="button"
+              className="ob-export-help__trigger"
+              aria-expanded={showExportHelp}
+              onClick={() => setShowExportHelp((v) => !v)}
+            >
+              <span className="ob-export-help__chevron" aria-hidden>
+                {showExportHelp ? '▾' : '▸'}
+              </span>
+              {copy.importUpload.howToExport.trigger}
+            </button>
+            {showExportHelp && (
+              <div className="ob-export-help__panel">
+                {copy.importUpload.howToExport.sources.map((src) => (
+                  <Fragment key={src.name}>
+                    <h3 className="ob-export-help__app">{src.name}</h3>
+                    <ol className="ob-export-help__steps">
+                      {src.steps.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ol>
+                  </Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {phase === 'upload' && (
           <button type="button" className="ob-tertiary" onClick={onBack}>
             ← Back

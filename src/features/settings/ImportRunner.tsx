@@ -6,7 +6,7 @@ import type { EntrySource } from '@/lib/types'
 import { requireSupabase } from '@/lib/supabase'
 import { apiPost } from '@/lib/api'
 import { scanAllForRefs } from '@/lib/scripture/scan'
-import { importDayOneImages, importDiarlyImages, type ImageImportProgress } from '@/lib/import/importImages'
+import { importDayOneImages, importDiarlyImages, importDayspringImages, type ImageImportProgress } from '@/lib/import/importImages'
 
 type Phase = 'idle' | 'parsing' | 'preview' | 'importing' | 'uploading-images' | 'done' | 'error'
 
@@ -94,9 +94,9 @@ export function ImportRunner({ source }: Props) {
         setProgress({ done, total }),
       )
 
-      // Image import phase — Day One and Diarly only
+      // Image import phase — Day One, Diarly, and Dayspring backups carry photos
       const buffer = fileBufferRef.current
-      const hasImages = source.id === 'day_one' || source.id === 'diarly'
+      const hasImages = source.id === 'day_one' || source.id === 'diarly' || source.id === 'other'
       let imageSummary: Summary['images'] | undefined
 
       if (buffer && hasImages) {
@@ -107,7 +107,12 @@ export function ImportRunner({ source }: Props) {
         const { data: { user } } = await sb.auth.getUser()
 
         if (user) {
-          const importFn = source.id === 'day_one' ? importDayOneImages : importDiarlyImages
+          const importFn =
+            source.id === 'day_one'
+              ? importDayOneImages
+              : source.id === 'diarly'
+                ? importDiarlyImages
+                : importDayspringImages
           const imgResult = await importFn(
             buffer,
             result.dated,
@@ -361,6 +366,8 @@ function countImageRefs(entries: ImportedEntry[], sourceId: string): number {
   const re =
     sourceId === 'day_one'
       ? /attachment-pending:/g
-      : /\]\(data\//g
+      : sourceId === 'diarly'
+        ? /\]\(data\//g
+        : /\]\(attachment:/g // Dayspring backup — refs already finalized
   return entries.reduce((n, e) => n + (e.body_markdown.match(re)?.length ?? 0), 0)
 }

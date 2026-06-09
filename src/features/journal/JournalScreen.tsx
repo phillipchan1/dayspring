@@ -13,6 +13,7 @@ import { getEntryById, wordCount, byCreatedDesc } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
 import { isSupabaseConfigured } from '@/lib/env'
 import { isTauri } from '@/lib/platform'
+import { addBreadcrumb } from '@/lib/crashReport'
 import * as repo from '@/lib/repo'
 import { cacheGet, cachePut } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
@@ -199,6 +200,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     insertAt: number,
     anchor: InlinePanelAnchor,
   ) {
+    addBreadcrumb('command', `slash:${cmd}`)
     setSlashCapture({ cmd, insertAt, anchor })
   }
 

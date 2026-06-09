@@ -10,6 +10,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ImportedEntry } from './types'
+import type { AttachmentPhotoMeta } from '../attachmentCaption'
 import { ensureAttachment } from '../attachments'
 
 export interface ImageImportProgress {
@@ -102,6 +103,111 @@ export async function importDayOneImages(
         else prog.skipped++
       } catch {
         body = body.replace(full!, '')
+        failed++
+      }
+
+      onProgress({ ...prog, done: ++prog.done })
+    }
+
+    updated.push({ ...entry, body_markdown: body })
+  }
+
+  return { uploaded: prog.uploaded, skipped: prog.skipped, failed, missing, entries: updated }
+}
+
+// ── Dayspring backup (own export format) ──────────────────────────────────────
+
+// Refs are already in the stable final form: `![alt](attachment:<sha256>.<ext>)`.
+const DAYSPRING_IMG_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\)/g
+
+/**
+ * Re-upload photos bundled in a Dayspring backup zip (`attachments/<hash>.<ext>`).
+ * Entries must already have been text-upserted. Because refs are content-hashed
+ * and we re-upload the exact stored bytes, ensureAttachment reproduces the same
+ * hash and the existing refs resolve as-is — so no body rewrite is normally
+ * needed. The metadata manifest (`attachments.json`) restores capture times.
+ */
+export async function importDayspringImages(
+  buffer: ArrayBuffer,
+  entries: ImportedEntry[],
+  supabase: SupabaseClient,
+  ownerId: string,
+  onProgress: (p: ImageImportProgress) => void,
+): Promise<ImageImportResult> {
+  const { default: JSZip } = await import('jszip')
+  const zip = await JSZip.loadAsync(buffer)
+
+  // Index bundled binaries by "<hash>.<ext>" (under an `attachments/` folder).
+  const fileMap = new Map<string, import('jszip').JSZipObject>()
+  for (const [name, file] of Object.entries(zip.files)) {
+    if (file.dir) continue
+    const segs = name.split('/')
+    if (!segs.some((s) => s.toLowerCase() === 'attachments')) continue
+    const filename = segs[segs.length - 1] ?? ''
+    if (filename) fileMap.set(filename.toLowerCase(), file)
+  }
+
+  // Optional metadata manifest: hash → capture time, etc.
+  const metaByHash = new Map<string, AttachmentPhotoMeta>()
+  const manifestFile = zip.file('attachments.json')
+  if (manifestFile) {
+    try {
+      const parsed = JSON.parse(await manifestFile.async('string')) as {
+        attachments?: Record<string, { metadata?: AttachmentPhotoMeta }>
+      }
+      for (const [hash, info] of Object.entries(parsed.attachments ?? {})) {
+        if (info?.metadata && typeof info.metadata === 'object') metaByHash.set(hash, info.metadata)
+      }
+    } catch {
+      // Missing/corrupt manifest is non-fatal — binaries still import.
+    }
+  }
+
+  const total = entries.reduce(
+    (n, e) => n + (e.body_markdown.match(DAYSPRING_IMG_RE)?.length ?? 0),
+    0,
+  )
+  const prog: ImageImportProgress = { done: 0, total, uploaded: 0, skipped: 0 }
+  let failed = 0
+  let missing = 0
+  const updated: ImportedEntry[] = []
+
+  for (const entry of entries) {
+    DAYSPRING_IMG_RE.lastIndex = 0
+    if (!DAYSPRING_IMG_RE.test(entry.body_markdown)) {
+      DAYSPRING_IMG_RE.lastIndex = 0
+      updated.push(entry)
+      continue
+    }
+    DAYSPRING_IMG_RE.lastIndex = 0
+
+    let body = entry.body_markdown
+    const refs = [...body.matchAll(DAYSPRING_IMG_RE)]
+
+    for (const [full, alt, origHash, rawExt] of refs) {
+      const ext = rawExt!.toLowerCase()
+      const photoFile = fileMap.get(`${origHash}.${ext}`.toLowerCase())
+
+      if (!photoFile) {
+        // Binary not bundled (e.g. an older text-only backup). Leave the ref in
+        // place — it may still resolve against existing storage on this account.
+        missing++
+        onProgress({ ...prog, done: ++prog.done })
+        continue
+      }
+
+      try {
+        const blob = await photoFile.async('blob')
+        const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, metaByHash.get(origHash!))
+        // The re-derived hash should equal the original; rewrite only on the rare
+        // chance it doesn't, so the ref still points at what we just stored.
+        if (hash !== origHash) {
+          body = body.replace(full!, `![${alt ?? ''}](attachment:${hash}.${ext})`)
+        }
+        if (isNew) prog.uploaded++
+        else prog.skipped++
+      } catch {
+        // Keep the ref on transient upload failure — a later re-import can fix it.
         failed++
       }
 

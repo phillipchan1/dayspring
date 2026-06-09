@@ -28,6 +28,7 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
   const [askOpen, setAskOpen] = useState(false)
 
   const isPastDue = plan === 'past_due'
+  const isCancelled = plan === 'cancelled'
 
   useEffect(() => {
     if (isPastDue) return
@@ -135,7 +136,9 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
       <div className="locked-screen__content">
         <Brand size={30} wordmarkRem={1.8} />
 
-        <h1 className="locked-screen__headline">Your journal is still here.</h1>
+        <h1 className="locked-screen__headline">
+          {isCancelled ? 'Your journal is still here.' : 'Your trial has ended.'}
+        </h1>
 
         {holding && holding.entries > 0 && (
           <div className="locked-holding" aria-label="What Dayspring is holding for you">
@@ -154,8 +157,9 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
         )}
 
         <p className="locked-screen__body">
-          Every word you wrote is saved. Subscribe to keep the slow work going — new reflections,
-          your altar, the scripture map, all still gathering.
+          {isCancelled
+            ? 'You cancelled, but everything you wrote is still here. Come back whenever you\'re ready.'
+            : 'Every word you wrote is saved. Subscribe to keep the slow work going — new reflections, your altar, the scripture map, all still gathering.'}
         </p>
 
         <div className="locked-screen__actions">
@@ -206,7 +210,7 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
         {askOpen && <AskPhil onClose={() => setAskOpen(false)} />}
 
         <button className="locked-screen__refresh" onClick={onRefetch} disabled={busy}>
-          Already subscribed? Refresh
+          {isCancelled ? 'Just resubscribed? Refresh' : 'Already subscribed? Refresh'}
         </button>
 
         {error && <p className="paywall__error">{error}</p>}

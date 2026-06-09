@@ -31,6 +31,37 @@ export const onboardingCopy = {
     reading: 'Reading your export…',
     chooseDifferent: 'Choose a different file',
     sourceHint: 'Dayspring backup, Day One, or Diarly exports (.zip)',
+    howToExport: {
+      trigger: 'How do I export from my current app?',
+      sources: [
+        {
+          name: 'Day One',
+          steps: [
+            'Open Day One on Mac or iPhone.',
+            'Tap the journal you want to export (or select all journals).',
+            'Mac: File → Export → JSON. iPhone: ··· → Export Journal → JSON.',
+            'Save the resulting .zip and drop it here.',
+          ],
+        },
+        {
+          name: 'Diarly',
+          steps: [
+            'Open Diarly on Mac or iPhone.',
+            'Mac: File → Export → Export All. iPhone: Settings → Export.',
+            'Choose the .zip option and save the file.',
+            'Drop that .zip here.',
+          ],
+        },
+        {
+          name: 'Dayspring',
+          steps: [
+            'Open Dayspring and go to Settings.',
+            'Tap Export to download a .zip backup of your journal.',
+            'Drop that .zip here to restore or transfer your entries.',
+          ],
+        },
+      ],
+    },
   },
 
   importPreview: {

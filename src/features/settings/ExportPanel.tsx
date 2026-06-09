@@ -6,17 +6,22 @@ type ExportPhase = 'idle' | 'exporting' | 'building' | 'done' | 'error'
 export function ExportPanel() {
   const [phase, setPhase] = useState<ExportPhase>('idle')
   const [progress, setProgress] = useState({ fetched: 0, total: 0 })
+  const [imgProgress, setImgProgress] = useState({ done: 0, total: 0 })
   const [error, setError] = useState<string | null>(null)
 
   async function startExport() {
     setPhase('exporting')
     setError(null)
     setProgress({ fetched: 0, total: 0 })
+    setImgProgress({ done: 0, total: 0 })
     try {
-      const blob = await exportEntriesToZip((fetched, total) => {
-        setProgress({ fetched, total })
-        if (total > 0 && fetched >= total) setPhase('building')
-      })
+      const blob = await exportEntriesToZip(
+        (fetched, total) => {
+          setProgress({ fetched, total })
+          if (total > 0 && fetched >= total) setPhase('building')
+        },
+        (done, total) => setImgProgress({ done, total }),
+      )
       const date = new Date().toISOString().slice(0, 10)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -69,7 +74,13 @@ export function ExportPanel() {
         </div>
       )}
 
-      {phase === 'building' && <p className="import-status">Building export…</p>}
+      {phase === 'building' && (
+        <p className="import-status">
+          {imgProgress.total > 0
+            ? `Bundling photos… ${imgProgress.done} / ${imgProgress.total}`
+            : 'Building export…'}
+        </p>
+      )}
 
       {phase === 'done' && (
         <div>

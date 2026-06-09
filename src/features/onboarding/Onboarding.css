@@ -688,6 +688,88 @@ html[data-platform='desktop'] .ob-theme {
   }
 }
 
+/* ── export help disclosure ──────────────────────────────────────────────── */
+
+.ob-export-help {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ob-export-help__trigger {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: rgba(236, 231, 223, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 140ms ease;
+}
+.ob-export-help__trigger:hover {
+  color: rgba(236, 231, 223, 0.75);
+}
+.ob-root.is-light .ob-export-help__trigger {
+  color: rgba(74, 64, 53, 0.45);
+}
+.ob-root.is-light .ob-export-help__trigger:hover {
+  color: rgba(74, 64, 53, 0.75);
+}
+
+.ob-export-help__chevron {
+  font-size: 10px;
+}
+
+.ob-export-help__panel {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  animation: ob-fade-in 180ms ease both;
+}
+.ob-root.is-light .ob-export-help__panel {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+.ob-export-help__app {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #e8b873;
+  margin: 0 0 8px;
+}
+.ob-export-help__app:not(:first-child) {
+  margin-top: 18px;
+}
+
+.ob-export-help__steps {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ob-export-help__steps li {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.72);
+}
+.ob-root.is-light .ob-export-help__steps li {
+  color: rgba(74, 64, 53, 0.75);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ob-fade-in,
   .ob-screen,
