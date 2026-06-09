@@ -147,6 +147,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const skipEditorAutofocusRef = useRef(false)
   const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [isNewEntryMode, setIsNewEntryMode] = useState(false)
+  // Monotonically increasing counter so docKey always changes on handleNew(),
+  // even when entryId is already null (go() would be a no-op, keeping docKey
+  // at 'new' and preventing the Editor sync effect from clearing the CM view).
+  const [newEntryGeneration, setNewEntryGeneration] = useState(0)
   const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
   const [rangeSelectActive, setRangeSelectActive] = useState(false)
 
@@ -893,6 +897,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     skipEditorAutofocusRef.current = false
     skipEntrySyncRef.current = true
     setIsNewEntryMode(true)
+    setNewEntryGeneration((g) => g + 1)
     go({ surface: 'journal', entryId: null })
     setContent('')
   }
@@ -1116,7 +1121,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       slashCapture !== null,
   })
 
-  const docKey = entryId ?? 'new'
+  const docKey = entryId ?? `new-${newEntryGeneration}`
 
   // One-shot opening prompt handed over from the fresh-start onboarding path.
   // Shown as a gentle placeholder on the first new, empty entry only.
@@ -1150,7 +1155,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             initialDoc={content}
             onChange={handleContentChange}
             placeholder={
-              docKey === 'new' && seedPrompt
+              entryId === null && seedPrompt
                 ? seedPrompt
                 : settings.firstLineTitle ? 'Title' : 'Write…'
             }
