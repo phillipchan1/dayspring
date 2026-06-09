@@ -36,9 +36,12 @@ pub fn run() {
       // show and focus here so every launch — including relaunches — brings
       // the window to the front.
       #[cfg(desktop)]
-      if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
+      {
+        use tauri::Manager;
+        if let Some(window) = app.get_webview_window("main") {
+          let _ = window.show();
+          let _ = window.set_focus();
+        }
       }
 
       Ok(())
