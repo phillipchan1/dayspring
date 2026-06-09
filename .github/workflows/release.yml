@@ -18,36 +18,46 @@ permissions:
   contents: read
 
 jobs:
-  # Cheap pre-flight (Ubuntu, ~10s) — reads the last-built SHA from the
-  # releases repo and skips the expensive macOS job if HEAD hasn't changed.
-  # Manual workflow_dispatch always bypasses this check.
+  # Cheap pre-flight (Ubuntu, ~10s). Skips the macOS build when:
+  #   • HEAD SHA hasn't changed since the last successful build, OR
+  #   • The package.json version tag already exists in the releases repo
+  #     (multiple pushes at the same version only produce one release).
+  # Manual workflow_dispatch always bypasses both checks.
   check:
     runs-on: ubuntu-latest
     outputs:
-      has_changes: ${{ steps.diff.outputs.has_changes }}
+      should_build: ${{ steps.diff.outputs.should_build }}
     steps:
-      - name: Compare HEAD to last-built SHA
+      - uses: actions/checkout@v5
+      - name: Check SHA + version tag
         id: diff
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           RELEASES_REPO="phillipchan1/dayspring-releases"
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="app-v${VERSION}"
           LAST_SHA=$(gh api "repos/${RELEASES_REPO}/contents/last-built-sha.txt" \
             --jq '.content' 2>/dev/null | base64 -d | tr -d '[:space:]' || echo "")
           CURRENT="${{ github.sha }}"
+          echo "Version    : $VERSION"
+          echo "Tag        : $TAG"
           echo "Last built : ${LAST_SHA:-<none>}"
           echo "Current    : $CURRENT"
           if [ "$LAST_SHA" = "$CURRENT" ]; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "No new commits — skipping build."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Same SHA as last build — skipping."
+          elif gh release view "$TAG" --repo "$RELEASES_REPO" &>/dev/null; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG already exists — bump package.json to release a new version."
           else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "New commits since last build — will build."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "New version $VERSION — will build."
           fi
 
   release:
     needs: check
-    if: needs.check.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.check.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest # Apple Silicon runner
     env:
       RELEASES_REPO: phillipchan1/dayspring-releases
@@ -80,17 +90,14 @@ jobs:
         # is brittle here. `npm install` resolves them per-runner.
         run: npm install --no-audit --no-fund
 
-      - name: Compute version (<major.minor from package.json>.<run number>)
+      - name: Sync version from package.json
         run: |
-          # package.json is the single source of truth for major.minor.
-          # Patch = CI run number so it auto-increments on every build — no
-          # manual bumping needed. Only touch package.json when you want a
-          # meaningful milestone bump (e.g. 1.0 → 1.1 or 2.0).
-          MAJOR_MINOR=$(node -p "const v=require('./package.json').version.split('.');v.slice(0,2).join('.')")
-          VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          # package.json is the single source of truth. Patch tauri.conf.json
+          # so Tauri builds with the exact same version string.
+          VERSION=$(node -p "require('./package.json').version")
           node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.version='$VERSION';fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Building version $VERSION (major.minor from package.json: $MAJOR_MINOR)"
+          echo "Building version $VERSION"
 
       # When an Apple signing identity is configured, swap the ad-hoc "-" in
       # tauri.conf.json for the real identity so the build does Developer ID
