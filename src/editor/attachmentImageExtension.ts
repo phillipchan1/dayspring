@@ -428,7 +428,7 @@ function attachmentMenuHandler(
       // Suppress the native browser menu on photos only; text keeps spellcheck.
       return open(event, view)
     },
-    dragstart(event, view) {
+    dragstart(event, _view) {
       const blockEl = (event.target as HTMLElement | null)?.closest(
         '.cm-attachment--interactive',
       ) as HTMLElement | null
