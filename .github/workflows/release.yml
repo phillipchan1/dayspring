@@ -15,44 +15,35 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write   # needed to push the version write-back commit
 
 jobs:
-  # Cheap pre-flight (Ubuntu, ~10s). Skips the macOS build when:
-  #   • HEAD SHA hasn't changed since the last successful build, OR
-  #   • The package.json version tag already exists in the releases repo
-  #     (multiple pushes at the same version only produce one release).
-  # Manual workflow_dispatch always bypasses both checks.
+  # Cheap pre-flight (Ubuntu, ~10s) — skips the macOS build when HEAD SHA
+  # hasn't changed since the last successful build. Every new commit gets a
+  # new version automatically (major.minor from package.json + run number).
+  # Manual workflow_dispatch always bypasses this check.
   check:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.diff.outputs.should_build }}
     steps:
-      - uses: actions/checkout@v5
-      - name: Check SHA + version tag
+      - name: Compare HEAD to last-built SHA
         id: diff
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           RELEASES_REPO="phillipchan1/dayspring-releases"
-          VERSION=$(node -p "require('./package.json').version")
-          TAG="app-v${VERSION}"
           LAST_SHA=$(gh api "repos/${RELEASES_REPO}/contents/last-built-sha.txt" \
             --jq '.content' 2>/dev/null | base64 -d | tr -d '[:space:]' || echo "")
           CURRENT="${{ github.sha }}"
-          echo "Version    : $VERSION"
-          echo "Tag        : $TAG"
           echo "Last built : ${LAST_SHA:-<none>}"
           echo "Current    : $CURRENT"
           if [ "$LAST_SHA" = "$CURRENT" ]; then
             echo "should_build=false" >> "$GITHUB_OUTPUT"
-            echo "Same SHA as last build — skipping."
-          elif gh release view "$TAG" --repo "$RELEASES_REPO" &>/dev/null; then
-            echo "should_build=false" >> "$GITHUB_OUTPUT"
-            echo "Tag $TAG already exists — bump package.json to release a new version."
+            echo "No new commits — skipping build."
           else
             echo "should_build=true" >> "$GITHUB_OUTPUT"
-            echo "New version $VERSION — will build."
+            echo "New commits — will build."
           fi
 
   release:
@@ -90,11 +81,13 @@ jobs:
         # is brittle here. `npm install` resolves them per-runner.
         run: npm install --no-audit --no-fund
 
-      - name: Sync version from package.json
+      - name: Compute version (major.minor from package.json + run number as patch)
         run: |
-          # package.json is the single source of truth. Patch tauri.conf.json
-          # so Tauri builds with the exact same version string.
-          VERSION=$(node -p "require('./package.json').version")
+          # major.minor comes from package.json; patch = CI run number so every
+          # push produces a strictly-increasing version without any manual bump.
+          MAJOR_MINOR=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          # Patch tauri.conf.json in-place (not committed — CI-only).
           node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.version='$VERSION';fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Building version $VERSION"
@@ -264,3 +257,27 @@ jobs:
             --field "content=$CONTENT" \
             "${EXTRA_ARGS[@]}"
           echo "Recorded built SHA: ${{ github.sha }}"
+
+      - name: Write version back to package.json
+        # Keeps package.json in sync with the version that actually shipped.
+        # The [skip ci] tag prevents this commit from triggering another build.
+        run: |
+          set -euo pipefail
+          node -e "
+            const fs = require('fs');
+            const p = 'package.json';
+            const pkg = JSON.parse(fs.readFileSync(p));
+            pkg.version = process.env.APP_VERSION;
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          # Only commit if there's actually a change (first run at this version would be new).
+          if git diff --cached --quiet; then
+            echo "package.json already at $APP_VERSION — no write-back needed."
+          else
+            git commit -m "chore: sync version to $APP_VERSION [skip ci]"
+            git push
+            echo "Wrote version $APP_VERSION back to package.json."
+          fi
