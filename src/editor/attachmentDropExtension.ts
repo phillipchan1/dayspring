@@ -86,7 +86,10 @@ async function uploadFiles(
       const { hash, ext } = await uploadImageAttachment(supabase, item.file, photoMetaFromFile(item.file))
       if (!viewAlive(view)) return
       replacePendingAttachmentInView(view, item.id, hash, ext, item.alt)
-    } catch {
+    } catch (e) {
+      // Surface the failure — a silent catch here made dropped uploads vanish
+      // with no console trace, indistinguishable from "nothing happened".
+      console.warn('[images] drop upload failed', e)
       if (viewAlive(view)) removePendingAttachmentInView(view, item.id)
     }
   }
