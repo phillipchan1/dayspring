@@ -30,6 +30,7 @@ import {
 import {
   embedUnembedded,
   threadItems,
+  relabelDeclaredThreads,
   migrateLegacyAnswered,
   sweepOpenThreads,
   harvestPrayers,
@@ -76,6 +77,7 @@ async function synthesizeOwner(
     altar.harvested = await harvestPrayers(owner, { max: 50 })
     altar.embedded = await embedUnembedded(owner)
     altar.threaded = await threadItems(owner)
+    altar.relabeled = await relabelDeclaredThreads(owner, { max: 20 })
     altar.migrated = await migrateLegacyAnswered(owner)
     if (isMonday(now)) altar.sweep = await sweepOpenThreads(owner)
 

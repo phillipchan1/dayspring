@@ -381,19 +381,22 @@ export async function threadItems(
     placed++
   }
 
-  // Persist NEW threads into the unified threads table (kind='declared') + thread_members.
-  // Concurrently — the label calls are the slow part and each thread is independent.
+  // ── Phase 1: insert threads + members with seed titles — NO LLM calls.
+  // This is fast (pure DB) and handles any archive size without timing out.
+  // LLM relabeling of multi-member threads happens in relabelDeclaredThreads(),
+  // called separately with a bounded per-run cap so it can never time out.
   const fresh = newClusters.filter((c) => c.members.length > 0)
-  await mapPool(fresh, POOL, async (c) => {
+  // Sequential to avoid overwhelming Postgres with hundreds of concurrent inserts.
+  for (const c of fresh) {
     const seed = seedMember(c)
     const seedRow = rowById.get(seed.itemId)
-    const { title } = await labelFor(c.members)
+    const title = seedTitle(seed.content)
     const { data, error } = await sb
       .from('threads')
       .insert({
         owner,
         label: title,
-        label_ai: title,
+        label_ai: null,   // null = needs LLM relabeling; relabelDeclaredThreads() fills this
         kind: 'declared',
         type: seedRow?.type ?? 'prayer',
         seed_item_id: seed.itemId,
@@ -405,22 +408,77 @@ export async function threadItems(
     if (error) throw error
     const id = (data as { id: string }).id
     await linkDeclaredMembers(sb, id, c.members.map((m) => m.itemId))
-  })
+  }
 
-  // Persist EXISTING threads that gained members — relabel + link new items.
+  // Persist EXISTING threads that gained new members — just link, don't relabel here.
+  // relabelDeclaredThreads() will update the label if the cluster has grown.
   const dirty = [...clusters.values()].filter((c) => c.dirty && c.id)
-  await mapPool(dirty, POOL, async (c) => {
-    const { title } = await labelFor(c.members)
-    await sb
-      .from('threads')
-      .update({ label: title, label_ai: title })
-      .eq('id', c.id!)
-      .eq('owner', owner)
-    // linkDeclaredMembers is idempotent — already-linked items are skipped.
+  for (const c of dirty) {
+    // linkDeclaredMembers is idempotent — already-linked items are silently skipped.
     await linkDeclaredMembers(sb, c.id!, c.members.map((m) => m.itemId))
-  })
+  }
 
   return { placed, newThreads: fresh.length, updatedThreads: dirty.length }
+}
+
+/**
+ * LLM relabeling pass — give each multi-member declared thread a proper AI
+ * label. Bounded by `max` so this can never time out. Threads with label_ai
+ * already set are skipped; threads that grow (more members since last label)
+ * are eligible again once label_ai is cleared by clearing it to null.
+ *
+ * Called daily from synthesize.ts after threadItems.
+ */
+export async function relabelDeclaredThreads(
+  owner: string,
+  opts: { max?: number } = {},
+): Promise<{ relabeled: number }> {
+  const sb = supabaseAdmin()
+
+  // Threads that need labeling: label_ai is null AND they have ≥ LABEL_MIN_MEMBERS members.
+  const { data: threadData } = await sb
+    .from('threads')
+    .select('id, seed_item_id')
+    .eq('owner', owner)
+    .eq('kind', 'declared')
+    .eq('dismissed', false)
+    .is('label_ai', null)
+  if (!threadData || threadData.length === 0) return { relabeled: 0 }
+
+  // Load member content for each candidate thread.
+  type ThreadMeta = { id: string; seed_item_id: string | null }
+  const candidates = (threadData as ThreadMeta[])
+  const pool = opts.max ? candidates.slice(0, opts.max) : candidates
+
+  let relabeled = 0
+  await mapPool(pool, POOL, async (t) => {
+    const { data: mdata } = await sb
+      .from('thread_members')
+      .select('spiritual_items(content, created_at)')
+      .eq('thread_id', t.id)
+      .not('spiritual_item_id', 'is', null)
+    type MRow = { spiritual_items: { content: string; created_at: string } | null }
+    const members = ((mdata ?? []) as unknown as MRow[])
+      .map((m) => m.spiritual_items)
+      .filter((x): x is { content: string; created_at: string } => !!x)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+
+    if (members.length < LABEL_MIN_MEMBERS) {
+      // Not enough members — use seed title and mark as done (set label_ai = label).
+      const { data: seedRow } = await sb.from('spiritual_items').select('content').eq('id', t.seed_item_id ?? '').maybeSingle()
+      const title = seedRow ? seedTitle((seedRow as { content: string }).content) : 'A prayer'
+      await sb.from('threads').update({ label: title, label_ai: title }).eq('id', t.id).eq('owner', owner)
+      relabeled++
+      return
+    }
+
+    const memberObjs: Member[] = members.map((m) => ({ itemId: '', emb: [], date: m.created_at, content: m.content }))
+    const { title } = await labelFor(memberObjs)
+    await sb.from('threads').update({ label: title, label_ai: title }).eq('id', t.id).eq('owner', owner)
+    relabeled++
+  })
+
+  return { relabeled }
 }
 
 // ── 3. migrate the legacy binary → encounters ──────────────────────────────────
