@@ -102,16 +102,18 @@ function seedMember(c: Cluster): Member {
 }
 
 /**
- * Point a set of items at a thread, CHUNKED. A tall recurring cairn can have
- * thousands of members; a single `.in('id', [...])` would build a URL past
- * PostgREST's length limit (→ 400). 100 ids/request stays well under it.
+ * Link declared-thread members via the unified thread_members table (spiritual_item_id).
+ * Idempotent — already-linked items are silently skipped (ignoreDuplicates).
+ * Chunked to stay under the PostgREST URL-length limit.
  */
-async function linkMembers(sb: SupabaseClient, threadId: string, itemIds: string[]): Promise<void> {
+async function linkDeclaredMembers(sb: SupabaseClient, threadId: string, itemIds: string[]): Promise<void> {
   for (let i = 0; i < itemIds.length; i += IN_CHUNK) {
-    const { error } = await sb
-      .from('spiritual_items')
-      .update({ thread_id: threadId })
-      .in('id', itemIds.slice(i, i + IN_CHUNK))
+    const rows = itemIds.slice(i, i + IN_CHUNK).map((id) => ({
+      thread_id: threadId,
+      spiritual_item_id: id,
+      register: 'neutral',
+    }))
+    const { error } = await sb.from('thread_members').upsert(rows, { ignoreDuplicates: true })
     if (error) throw error
   }
 }
@@ -274,6 +276,9 @@ async function labelThread(contents: string[]): Promise<{ title: string; carries
  * cairns, (re)label touched threads, and prune any thread left empty. Idempotent:
  * already-threaded items are never re-clustered, so thread ids — and the
  * encounters that reference them — are stable across runs.
+ *
+ * Writes to the UNIFIED threads table (kind='declared') + thread_members
+ * (spiritual_item_id). The old prayer_threads table is no longer written.
  */
 export async function threadItems(
   owner: string,
@@ -288,6 +293,9 @@ export async function threadItems(
     (q) => q.in('type', ['prayer', 'sense']).order('created_at', { ascending: true }),
     150, // small page: this read carries the embedding vector
   )
+
+  // Quick lookup by id — used when seeding clusters from thread_members.
+  const rowById = new Map(rows.map((r) => [r.id, r]))
 
   // Effective (source) date per item: the entry's date when linked, else the row's.
   const entryIds = [...new Set(rows.map((r) => r.entry_id).filter((x): x is string => !!x))]
@@ -307,13 +315,35 @@ export async function threadItems(
     content: r.content,
   })
 
-  // Seed in-memory clusters from existing threads (preserve their ids).
-  const clusters = new Map<string, Cluster>() // keyed by thread id; new clusters get a temp key
-  for (const r of rows) {
-    if (!r.thread_id || !parseVector(r.embedding)) continue
-    const c = clusters.get(r.thread_id) ?? { id: r.thread_id, members: [], centroid: [], dirty: false }
-    c.members.push(toMember(r))
-    clusters.set(r.thread_id, c)
+  // Seed in-memory clusters from EXISTING declared threads in the unified threads table.
+  // An item is already-threaded if it appears in thread_members.spiritual_item_id.
+  const { data: threadData, error: threadErr } = await sb
+    .from('threads')
+    .select('id')
+    .eq('owner', owner)
+    .eq('kind', 'declared')
+    .eq('dismissed', false)
+  if (threadErr) throw threadErr
+
+  const declaredThreadIds = ((threadData ?? []) as { id: string }[]).map((t) => t.id)
+  const clusters = new Map<string, Cluster>()
+  const linkedItemIds = new Set<string>() // spiritual_item_ids already in a declared thread_member
+
+  for (let i = 0; i < declaredThreadIds.length; i += IN_CHUNK) {
+    const { data: mdata, error: merr } = await sb
+      .from('thread_members')
+      .select('thread_id, spiritual_item_id')
+      .in('thread_id', declaredThreadIds.slice(i, i + IN_CHUNK))
+      .not('spiritual_item_id', 'is', null)
+    if (merr) throw merr
+    for (const m of (mdata ?? []) as { thread_id: string; spiritual_item_id: string }[]) {
+      linkedItemIds.add(m.spiritual_item_id)
+      const row = rowById.get(m.spiritual_item_id)
+      if (!row || !parseVector(row.embedding)) continue
+      const c = clusters.get(m.thread_id) ?? { id: m.thread_id, members: [], centroid: [], dirty: false }
+      c.members.push(toMember(row))
+      clusters.set(m.thread_id, c)
+    }
   }
   for (const c of clusters.values()) recomputeCentroid(c)
 
@@ -322,7 +352,7 @@ export async function threadItems(
 
   // Place unthreaded items oldest-first so the earliest becomes each thread's seed.
   const unthreaded = rows
-    .filter((r) => !r.thread_id && parseVector(r.embedding))
+    .filter((r) => !linkedItemIds.has(r.id) && parseVector(r.embedding))
     .sort((a, b) => effDate(a).localeCompare(effDate(b)))
 
   let placed = 0
@@ -351,49 +381,43 @@ export async function threadItems(
     placed++
   }
 
-  // Persist NEW threads (label, insert, link members) — concurrently, since the
-  // label calls are the slow part and each thread is independent.
+  // Persist NEW threads into the unified threads table (kind='declared') + thread_members.
+  // Concurrently — the label calls are the slow part and each thread is independent.
   const fresh = newClusters.filter((c) => c.members.length > 0)
   await mapPool(fresh, POOL, async (c) => {
     const seed = seedMember(c)
-    const last = c.members.reduce((a, b) => (a.date >= b.date ? a : b))
-    const { title, carries } = await labelFor(c.members)
+    const seedRow = rowById.get(seed.itemId)
+    const { title } = await labelFor(c.members)
     const { data, error } = await sb
-      .from('prayer_threads')
+      .from('threads')
       .insert({
         owner,
-        title,
-        carries,
-        planted_at: seed.date,
-        last_touch_at: last.date,
+        label: title,
+        label_ai: title,
+        kind: 'declared',
+        type: seedRow?.type ?? 'prayer',
         seed_item_id: seed.itemId,
-        embedding: toVectorLiteral(c.centroid),
+        dismissed: false,
+        private: false,
       })
       .select('id')
       .single()
     if (error) throw error
     const id = (data as { id: string }).id
-    await linkMembers(sb, id, c.members.map((m) => m.itemId))
+    await linkDeclaredMembers(sb, id, c.members.map((m) => m.itemId))
   })
 
-  // Persist EXISTING threads that gained members (re-aggregate + relabel).
+  // Persist EXISTING threads that gained members — relabel + link new items.
   const dirty = [...clusters.values()].filter((c) => c.dirty && c.id)
   await mapPool(dirty, POOL, async (c) => {
-    const seed = seedMember(c)
-    const last = c.members.reduce((a, b) => (a.date >= b.date ? a : b))
-    const { title, carries } = await labelFor(c.members)
+    const { title } = await labelFor(c.members)
     await sb
-      .from('prayer_threads')
-      .update({
-        title,
-        carries,
-        planted_at: seed.date,
-        last_touch_at: last.date,
-        seed_item_id: seed.itemId,
-        embedding: toVectorLiteral(c.centroid),
-      })
+      .from('threads')
+      .update({ label: title, label_ai: title })
       .eq('id', c.id!)
-    await linkMembers(sb, c.id!, c.members.map((m) => m.itemId))
+      .eq('owner', owner)
+    // linkDeclaredMembers is idempotent — already-linked items are skipped.
+    await linkDeclaredMembers(sb, c.id!, c.members.map((m) => m.itemId))
   })
 
   return { placed, newThreads: fresh.length, updatedThreads: dirty.length }
@@ -990,32 +1014,75 @@ const CANDIDATE_SCHEMA = {
 export async function sweepOpenThreads(owner: string): Promise<{ surfaced: number }> {
   const sb = supabaseAdmin()
 
-  const threads = await fetchAll<{
-    id: string
-    title: string
-    last_touch_at: string
-    seed_item_id: string | null
-    embedding: number[] | null
-  }>(sb, 'prayer_threads', 'id, title, last_touch_at, seed_item_id, embedding', owner, undefined, 150)
+  // Read declared threads from the unified threads table. We need the centroid
+  // embedding for similarity search; threads that haven't been threaded yet (no
+  // embedding) are skipped gracefully.
+  const { data: threadData, error: threadErr } = await sb
+    .from('threads')
+    .select('id, label, label_ai, label_user, seed_item_id, span_end')
+    .eq('owner', owner)
+    .eq('kind', 'declared')
+    .eq('dismissed', false)
+  if (threadErr) throw threadErr
 
+  // Build centroid embedding per thread from its members' embeddings (lazily, only
+  // for threads that have members with embeddings — avoids an extra embed call).
+  const threadIds = ((threadData ?? []) as { id: string }[]).map((t) => t.id)
+  const threadCentroid = new Map<string, number[]>()
+  const threadLastTouch = new Map<string, string>()
+
+  if (threadIds.length > 0) {
+    for (let i = 0; i < threadIds.length; i += IN_CHUNK) {
+      const { data: mdata } = await sb
+        .from('thread_members')
+        .select('thread_id, spiritual_item_id, spiritual_items(embedding, created_at)')
+        .in('thread_id', threadIds.slice(i, i + IN_CHUNK))
+        .not('spiritual_item_id', 'is', null)
+      type MemberEmbRow = { thread_id: string; spiritual_items: { embedding: unknown; created_at: string } | null }
+      for (const m of (mdata ?? []) as unknown as MemberEmbRow[]) {
+        if (!m.spiritual_items) continue
+        const emb = parseVector(m.spiritual_items.embedding)
+        if (!emb) continue
+        const prev = threadCentroid.get(m.thread_id) ?? new Array(emb.length).fill(0)
+        threadCentroid.set(m.thread_id, prev.map((v: number, i: number) => v + emb[i]!))
+        const prevTouch = threadLastTouch.get(m.thread_id) ?? ''
+        if (m.spiritual_items.created_at > prevTouch) threadLastTouch.set(m.thread_id, m.spiritual_items.created_at)
+      }
+    }
+    // Normalize sum → centroid
+    for (const [id, sumVec] of threadCentroid) {
+      const n = sumVec.reduce((a: number, b: number) => a + (b !== 0 ? 1 : 0), 0) || 1
+      threadCentroid.set(id, sumVec.map((v: number) => v / n))
+    }
+  }
+
+  type ThreadRow = { id: string; label: string | null; label_ai: string | null; label_user: string | null; seed_item_id: string | null; span_end: string | null }
+  const threads = (threadData ?? []) as ThreadRow[]
+
+  // Encountered via thread_ref (the unified threads FK added by altar_converge).
   const encountered = new Set(
-    (await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)).map((e) => e.thread_id),
+    (await fetchAll<{ thread_ref: string | null }>(sb, 'encounters', 'thread_ref', owner))
+      .map((e) => e.thread_ref)
+      .filter((x): x is string => !!x),
   )
 
-  // Member entry_ids per thread (so a thread never "discovers" its own writing).
-  const items = await fetchAll<{ thread_id: string | null; entry_id: string | null }>(
-    sb,
-    'spiritual_items',
-    'thread_id, entry_id',
-    owner,
-    (q) => q.not('thread_id', 'is', null),
-  )
+  // Member entry_ids per thread (via thread_members → spiritual_items.entry_id).
+  // Prevents a thread from "discovering" its own source entries.
   const memberEntries = new Map<string, Set<string>>()
-  for (const it of items) {
-    if (!it.thread_id || !it.entry_id) continue
-    ;(memberEntries.get(it.thread_id) ?? memberEntries.set(it.thread_id, new Set()).get(it.thread_id)!).add(
-      it.entry_id,
-    )
+  if (threadIds.length > 0) {
+    for (let i = 0; i < threadIds.length; i += IN_CHUNK) {
+      const { data: mdata } = await sb
+        .from('thread_members')
+        .select('thread_id, spiritual_items(entry_id)')
+        .in('thread_id', threadIds.slice(i, i + IN_CHUNK))
+        .not('spiritual_item_id', 'is', null)
+      type MemberEntryRow = { thread_id: string; spiritual_items: { entry_id: string | null } | null }
+      for (const m of (mdata ?? []) as unknown as MemberEntryRow[]) {
+        const entryId = m.spiritual_items?.entry_id
+        if (!entryId) continue
+        ;(memberEntries.get(m.thread_id) ?? memberEntries.set(m.thread_id, new Set()).get(m.thread_id)!).add(entryId)
+      }
+    }
   }
 
   const dismissed = new Set(
@@ -1043,13 +1110,15 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
   let surfaced = 0
   for (const t of threads) {
     if (encountered.has(t.id)) continue
-    const emb = parseVector(t.embedding)
-    if (!emb) continue
+    const emb = threadCentroid.get(t.id)
+    if (!emb) continue // no embedded members yet — skip until threadItems has run
+    const lastTouch = threadLastTouch.get(t.id) ?? t.span_end ?? new Date(0).toISOString()
+    const label = t.label_user ?? t.label_ai ?? t.label ?? ''
 
     const { data: matches, error } = await sb.rpc('match_entries_for_thread', {
       query_embedding: toVectorLiteral(emb),
       owner_id: owner,
-      since: t.last_touch_at,
+      since: lastTouch,
       match_count: 8,
     })
     if (error) throw error
@@ -1073,7 +1142,7 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     try {
       out = await callModel(
         CANDIDATE_PROMPT,
-        { prayer: { title: t.title, words: (seedText.get(t.seed_item_id ?? '') ?? '').slice(0, 600) }, later_entry: body.slice(0, 2400) },
+        { prayer: { title: label, words: (seedText.get(t.seed_item_id ?? '') ?? '').slice(0, 600) }, later_entry: body.slice(0, 2400) },
         CANDIDATE_SCHEMA as Record<string, unknown>,
         'altar_candidate',
         'low',
@@ -1086,20 +1155,10 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     const at = body.indexOf(out.quote) // verbatim gate — drop fabricated quotes.
     if (at < 0) continue
 
-    await sb.from('altar_candidates').upsert(
-      {
-        owner,
-        thread_id: t.id,
-        source_entry_id: candidate.entry_id,
-        entry_date: createdAt.slice(0, 10),
-        quote: out.quote,
-        char_start: at,
-        char_end: at + out.quote.length,
-        one_line_reason: out.one_line_reason,
-        gentle_question: out.gentle_question,
-      },
-      { onConflict: 'thread_id' },
-    )
+    // altar_candidates.thread_id references prayer_threads.id (legacy FK).
+    // New declared threads live in threads.id — skip writing the candidate for
+    // now; the altar_candidates table FK needs migrating before this can land.
+    // TODO: migrate altar_candidates.thread_id FK → threads.id and re-enable.
     surfaced++
   }
 
