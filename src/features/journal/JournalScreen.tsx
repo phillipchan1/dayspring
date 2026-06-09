@@ -691,7 +691,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useEffect(() => {
     if (!entriesReady) return
     if (state.surface !== 'journal') {
+      // Leaving the journal fully detaches the doc: consume any pending skip
+      // flag (a leaked one used to suppress the clear below on return) and drop
+      // the leftover text. A surviving (entryId=null + old body) pair is the
+      // torn state that minted duplicate entry rows. Safe to clear here: the
+      // editor is unmounted off-surface, and the autosave session became a
+      // create-blocked draft when entryId nulled, so no flush can blank a row.
+      skipEntrySyncRef.current = false
       loadedEntryIdRef.current = null
+      if (contentRef.current !== '') setContent('')
       return
     }
     if (skipEntrySyncRef.current) {
@@ -717,14 +725,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setContent(asEntryMarkdown(entry.body_markdown))
   }, [entryId, entries, entriesReady, state.surface])
 
-  function toggleLookBack() {
+  async function toggleLookBack() {
     if (state.entryReturn?.surface === 'reflections') {
       returnFromEntryOrigin()
       return
     }
     if (reflectionsActive) back()
     else {
-      void saveNow()
+      // Persist outstanding keystrokes BEFORE navigating (local-only, ~ms).
+      // Unawaited, the flush raced the entryId→null transition and could land
+      // after the autosave session reset — losing the tail of the entry.
+      await saveNow()
       setEntriesOpen(false)
       go({
         surface: 'reflections',
@@ -739,14 +750,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }
 
-  function toggleScripture() {
+  async function toggleScripture() {
     if (state.entryReturn?.surface === 'scripture') {
       returnFromEntryOrigin()
       return
     }
     if (scriptureActive) back()
     else {
-      void saveNow()
+      await saveNow() // see toggleLookBack — must complete before entryId nulls
       setEntriesOpen(false)
       // Always land on the canon map, never a stale book panel.
       go({
@@ -774,7 +785,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     back()
   }
 
-  function toggleAltar() {
+  async function toggleAltar() {
     if (!altarEnabled) return
     if (state.entryReturn?.surface === 'altar') {
       returnFromEntryOrigin()
@@ -782,7 +793,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
     if (altarActive) back()
     else {
-      void saveNow()
+      await saveNow() // see toggleLookBack — must complete before entryId nulls
       setEntriesOpen(false)
       go({
         surface: 'altar',
@@ -959,6 +970,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     resetEntry()
     skipEditorAutofocusRef.current = false
     skipEntrySyncRef.current = true
+    // The blank draft is now the loaded doc. Left stale at the previous entry's
+    // id, a later entries-list sync would hit the null-entry branch of the load
+    // effect and clear the draft mid-typing.
+    loadedEntryIdRef.current = null
     setIsNewEntryMode(true)
     setNewEntryGeneration((g) => g + 1)
     go({ surface: 'journal', entryId: null })

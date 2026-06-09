@@ -40,10 +40,16 @@ export async function listEntries(): Promise<Entry[]> {
 }
 
 // ── writes (optimistic) ────────────────────────────────────────────────────
-export async function createEntry(input: NewEntry): Promise<Entry> {
+/**
+ * `id` lets the caller pre-allocate the row id (autosave drafts mint one per
+ * editing session). Creation is then idempotent end-to-end: cachePut overwrites
+ * by key, the outbox dedups per entry, and the server push is an upsert — so
+ * racing flushes converge on ONE row instead of inserting duplicates.
+ */
+export async function createEntry(input: NewEntry, id?: string): Promise<Entry> {
   const ts = nowISO()
   const entry: Entry = {
-    id: crypto.randomUUID(),
+    id: id ?? crypto.randomUUID(),
     created_at: ts,
     updated_at: ts,
     body_markdown: input.body_markdown,
