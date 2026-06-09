@@ -93,7 +93,7 @@ function toTheme(h: Highlight): Theme {
   const quotes = h.quotes
     .map((q) => ({ entryId: q.entry_id, date: q.date, dateLabel: fmtDay(q.date), text: q.text }))
     .sort((a, b) => a.date.localeCompare(b.date))
-  return { id: h.id, label: h.label, quotes }
+  return { id: h.id, label: h.label, quotes, reason: h.reason }
 }
 
 function themesOf(r: Rollup | undefined): Theme[] {

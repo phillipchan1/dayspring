@@ -97,15 +97,22 @@ export interface WinCandidate {
   text: string
 }
 
+/** Why a theme earned its place — the three-word "oh yeah" tag, chosen off a
+ *  ranked ladder (highest pull first): an ask that was MET > a thread you kept
+ *  returning to > a first naming/decision > something NEW vs. the prior period. */
+export type HighlightReason = 'answered' | 'recurred' | 'turning' | 'new'
+
 /** A THEME grounded in the writer's own words: a short descriptive label over the
  *  verbatim quotes that share it. The label is the one interpretive move — a
  *  pattern, never a verdict; every quote validates verbatim and links to its
- *  entry. This is the "intelligence highlights" layer: surface = theme, drill =
- *  the actual lines, → the source entry. */
+ *  entry. This is the "intelligence highlights" layer: surface = theme + why it
+ *  surfaced, drill = the actual lines, → the source entry. */
 export interface Highlight {
   id: string
   label: string
   quotes: Excerpt[]
+  /** Why this surfaced (the tag). Always set on fresh rollups; absent on legacy. */
+  reason?: HighlightReason
 }
 
 /**
@@ -185,6 +192,7 @@ export interface RawArc {
 export interface RawHighlight {
   label: string
   quotes: RawExcerpt[]
+  reason: string
 }
 export interface RawTension {
   thread: string

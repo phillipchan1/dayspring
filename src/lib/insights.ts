@@ -80,12 +80,17 @@ export interface Refrain {
   char_start: number
   char_end: number
 }
+/** Why a theme earned its place — chosen off a ranked ladder (highest pull first):
+ *  an ask that was MET > a thread returned to > a first naming/decision > NEW. */
+export type HighlightReason = 'answered' | 'recurred' | 'turning' | 'new'
 /** A theme grounded in verbatim quotes — the highlight layer (tap a theme → its
- *  lines → the entry). Label is descriptive (a pattern, never a verdict). */
+ *  lines → the entry). Label is descriptive (a pattern, never a verdict); reason
+ *  is the "why it surfaced" tag (absent on legacy rows). */
 export interface Highlight {
   id: string
   label: string
   quotes: Excerpt[]
+  reason?: HighlightReason
 }
 export interface ReflectionContent {
   synthesis?: string[]

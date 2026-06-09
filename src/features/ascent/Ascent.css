@@ -1601,6 +1601,101 @@
   max-width: 60ch;
 }
 
+/* ── Words dimension: the highlight spine (what surfaced, anchored + expandable) */
+
+.ascent-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.ascent-hl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: ascent-rise 0.6s ease both;
+}
+.ascent-hl__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ascent-hl__name {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.3;
+  color: #f3ecdf;
+  letter-spacing: -0.005em;
+}
+.ascent-hl__tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(232, 184, 115, 0.7);
+  white-space: nowrap;
+}
+.ascent-hl__anchor,
+.ascent-hl__line {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.ascent-hl__quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(243, 236, 223, 0.92);
+  max-width: 60ch;
+  transition: color 0.18s ease;
+}
+.ascent-hl__anchor:hover .ascent-hl__quote,
+.ascent-hl__line:hover .ascent-hl__quote {
+  color: #fff7ea;
+  text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
+}
+.ascent-hl__date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(236, 231, 223, 0.38);
+}
+.ascent-hl__more {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 2px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(232, 184, 115, 0.18);
+  animation: ascent-rise 0.4s ease both;
+}
+.ascent-hl__toggle,
+.ascent-dim__showall {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 2px 0 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(236, 231, 223, 0.4);
+  transition: color 0.18s ease;
+}
+.ascent-hl__toggle:hover,
+.ascent-dim__showall:hover {
+  color: rgba(232, 184, 115, 0.85);
+}
+.ascent-dim__showall {
+  margin-top: 22px;
+}
+
 .ascent-dim__eyebrow--sub {
   margin-top: 18px;
 }
@@ -1657,4 +1752,32 @@
 }
 .ascent--light .ascent-line__date {
   color: rgba(74, 60, 45, 0.5);
+}
+.ascent--light .ascent-hl__name {
+  color: #2c2218;
+}
+.ascent--light .ascent-hl__tag {
+  color: rgba(176, 122, 46, 0.9);
+}
+.ascent--light .ascent-hl__quote {
+  color: rgba(50, 40, 28, 0.9);
+}
+.ascent--light .ascent-hl__anchor:hover .ascent-hl__quote,
+.ascent--light .ascent-hl__line:hover .ascent-hl__quote {
+  color: #1f1810;
+  text-shadow: none;
+}
+.ascent--light .ascent-hl__date {
+  color: rgba(74, 60, 45, 0.5);
+}
+.ascent--light .ascent-hl__more {
+  border-left-color: rgba(176, 122, 46, 0.3);
+}
+.ascent--light .ascent-hl__toggle,
+.ascent--light .ascent-dim__showall {
+  color: rgba(74, 60, 45, 0.55);
+}
+.ascent--light .ascent-hl__toggle:hover,
+.ascent--light .ascent-dim__showall:hover {
+  color: rgba(176, 122, 46, 0.95);
 }

@@ -26,6 +26,7 @@ import type {
   EbenezerPair,
   Excerpt,
   Highlight,
+  HighlightReason,
   MonthlyModelOutput,
   Observation,
   QuarterlyModelOutput,
@@ -202,10 +203,23 @@ function excerptsFromQuotes(quotes: Quote[]): Excerpt[] {
   return quotes.map((q) => ({ entry_id: q.entry_id, date: q.date, text: q.text }))
 }
 
+/** The "why it surfaced" ladder — highest pull first. The validated reason floats
+ *  the most meaningful theme to the top of the list (stable within a rung). */
+const REASON_RANK: Record<HighlightReason, number> = { answered: 0, recurred: 1, turning: 2, new: 3 }
+
+/** Coerce the model's reason to the enum; default to `recurred` — a validated
+ *  highlight is, by construction, a recurring pattern (≥2 lines), so it is the
+ *  safe, honest fallback when the model offers something off-ladder. */
+function cleanReason(raw: string | undefined): HighlightReason {
+  const r = (raw ?? '').trim().toLowerCase()
+  return r in REASON_RANK ? (r as HighlightReason) : 'recurred'
+}
+
 /** THEMES grounded in the writer's own words. Each highlight's quotes run through
  *  the SAME verbatim gate as `quotes` — fabricated lines are dropped — and a theme
  *  needs ≥2 surviving quotes to stand (a theme is a pattern, not a single line).
- *  The label is the one interpretive move (cleaned, never a verdict). Max 4. */
+ *  The label + reason are the interpretive moves (cleaned, never a verdict). The
+ *  result is sorted by the ladder so the most meaningful theme leads. Max 4. */
 function validateHighlights(raw: RawHighlight[] | undefined, sources: Map<string, Source[]>): Highlight[] {
   const out: Highlight[] = []
   for (const h of raw ?? []) {
@@ -213,10 +227,19 @@ function validateHighlights(raw: RawHighlight[] | undefined, sources: Map<string
     if (!label) continue
     const quotes = validateQuotes((h?.quotes ?? []) as Quote[], sources)
     if (quotes.length < 2) continue
-    out.push({ id: `h${out.length + 1}`, label, quotes: excerptsFromQuotes(quotes) })
+    out.push({
+      id: `h${out.length + 1}`,
+      label,
+      quotes: excerptsFromQuotes(quotes),
+      reason: cleanReason(h?.reason),
+    })
     if (out.length >= 4) break
   }
+  // Lead with the most meaningful rung; preserve the model's order within a rung.
   return out
+    .map((h, i) => ({ h, i }))
+    .sort((a, b) => REASON_RANK[a.h.reason ?? 'recurred'] - REASON_RANK[b.h.reason ?? 'recurred'] || a.i - b.i)
+    .map((x) => x.h)
 }
 
 /** HILLSIDE arcs: keep only real entry_ids; weight is the verified id count (the

@@ -40,13 +40,21 @@ export interface ThemeQuote {
   text: string
 }
 
+/** Why a theme earned its place — the three-word "oh yeah" tag. Ranked highest
+ *  pull first: an ask that was met > a thread you kept returning to > a first
+ *  naming/decision > something new vs. last period. Frontend derives `recurred`
+ *  from quote weight today; the synthesis pass fills the richer reasons. */
+export type HighlightReason = 'answered' | 'recurred' | 'turning' | 'new'
+
 /** A theme grounded in the writer's own words: a descriptive label over the
- *  verbatim quotes that share it. Surface = the label; drill = these quotes →
- *  the entry. The "intelligence highlights" layer. */
+ *  verbatim quotes that share it. Surface = the label + its anchor line + why it
+ *  surfaced; drill = the rest of its quotes → the entry. The highlight layer. */
 export interface Theme {
   id: string
   label: string
   quotes: ThemeQuote[]
+  /** Why this surfaced (the tag). Absent on legacy rollups → treated as recurrence. */
+  reason?: HighlightReason
 }
 
 /** A narrative movement of the period — "what you kept returning to". The richest

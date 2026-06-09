@@ -58,6 +58,11 @@ cite specific days. You are given this week's entries as JSON [{id,date,title,te
      praise, diagnosis, or sentence. It only names what the lines below have in common.
    - quotes: 2–4 VERBATIM passages (entry_id + date + exact text) from this week's entries that belong to
      this theme. Exact substrings only — same hard rule as the quotes field; if unsure, omit the line.
+   - reason: WHY this theme matters — the SINGLE strongest rung that is TRUE on this ranked ladder (earlier
+     wins ties): "answered" = an earlier ask, fear, or need in these lines is met or eased by a later line in
+     the same theme; "recurred" = the writer kept returning to this across entries (the honest default for a
+     real pattern); "turning" = these lines name something for the first time, or mark a decision or shift;
+     "new" = this surfaced this week but is absent from prior_week. When unsure, use "recurred". One word only.
    A theme MUST carry at least 2 real quotes or it is not a theme — drop it. Themes may reuse lines from your
    quotes list. Fewer, true themes beat forced ones. Return [] if nothing clusters.`
 
@@ -85,6 +90,9 @@ topics, observations, syntheses) — speak in arcs across the weeks, NOT specifi
      never a verdict, praise, or diagnosis. It only names what the lines below share.
    - quotes: 2–4 VERBATIM passages FROM THE CANDIDATE QUOTES ONLY (entry_id + date + exact text) that
      belong to this theme. Exact substrings only; if unsure, omit the line.
+   - reason: the SINGLE strongest TRUE rung (earlier wins ties): "answered" = an earlier ask in these lines is
+     later met or eased; "recurred" = returned to across the weeks (the honest default); "turning" = a first
+     naming, decision, or shift; "new" = emerged only late in the month. When unsure, "recurred". One word only.
    A theme MUST carry at least 2 real quotes or drop it. Speak in recurrences across the weeks, not single
    days. Fewer, true themes beat forced ones. Return [] if nothing recurred.`
 
@@ -230,10 +238,11 @@ const highlightsSchema = {
   items: {
     type: 'object',
     additionalProperties: false,
-    required: ['label', 'quotes'],
+    required: ['label', 'quotes', 'reason'],
     properties: {
       label: { type: 'string' },
       quotes: quoteSchema,
+      reason: { type: 'string', enum: ['answered', 'recurred', 'turning', 'new'] },
     },
   },
 } as const
