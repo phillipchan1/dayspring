@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { EditorState } from '@codemirror/state'
 import {
+  attachmentBlockNormalizeExtension,
   normalizeAttachmentBlocks,
+  planAttachmentMove,
   splitInlineAttachments,
   wrapBlockAttachmentInsert,
   findAttachmentAtPos,
@@ -55,6 +58,43 @@ describe('findAttachmentAtPos', () => {
     const found = findAttachmentAtPos(doc, from + 2)
     expect(found?.hash).toBe('a'.repeat(64))
     expect(found?.ext).toBe('jpg')
+  })
+})
+
+describe('planAttachmentMove', () => {
+  const KEY = `${'a'.repeat(64)}.jpg`
+
+  // Apply the planned changes through the same normalize filter the editor uses,
+  // so the test reflects the real on-screen result.
+  function applyMove(doc: string, toPos: number): string | null {
+    const changes = planAttachmentMove(doc, KEY, toPos)
+    if (!changes) return null
+    const state = EditorState.create({
+      doc,
+      extensions: [attachmentBlockNormalizeExtension()],
+    })
+    return state.update({ changes }).newDoc.toString()
+  }
+
+  it('moves a photo from the top to between two later paragraphs', () => {
+    const doc = `${IMG}\n\nfirst\n\nsecond`
+    const toPos = doc.indexOf('second') // drop right before "second"
+    expect(applyMove(doc, toPos)).toBe(`first\n\n${IMG}\n\nsecond`)
+  })
+
+  it('moves a photo from the bottom up to the start', () => {
+    const doc = `first\n\nsecond\n\n${IMG}`
+    expect(applyMove(doc, 0)).toBe(`${IMG}\n\nfirst\n\nsecond`)
+  })
+
+  it('is a no-op when dropped inside its own range', () => {
+    const doc = `before\n\n${IMG}\n\nafter`
+    const inside = doc.indexOf('![') + 4
+    expect(planAttachmentMove(doc, KEY, inside)).toBeNull()
+  })
+
+  it('returns null when the key is absent', () => {
+    expect(planAttachmentMove('just text', KEY, 0)).toBeNull()
   })
 })
 

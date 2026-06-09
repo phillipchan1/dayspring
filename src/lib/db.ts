@@ -8,20 +8,46 @@ export interface OutboxOp {
   ts: number
 }
 
+/** One cached display-sized image blob, keyed by `<hash>.<ext>`. */
+export interface AttBlobRow {
+  key: string
+  blob: Blob
+}
+
+/** Lightweight metadata for a cached blob — scanned for LRU eviction without
+ *  loading the blob bytes (kept in a separate store so scans stay cheap). */
+export interface AttMetaRow {
+  key: string
+  owner: string
+  bytes: number
+  lastAccessedAt: number
+}
+
 interface DayspringDB extends DBSchema {
   entries: { key: string; value: Entry }
   outbox: { key: string; value: OutboxOp; indexes: { 'by-entry': string } }
+  attBlobs: { key: string; value: AttBlobRow }
+  attMeta: { key: string; value: AttMetaRow; indexes: { 'by-last-accessed': number } }
 }
 
 let dbp: Promise<IDBPDatabase<DayspringDB>> | null = null
 
 function db(): Promise<IDBPDatabase<DayspringDB>> {
   if (!dbp) {
-    dbp = openDB<DayspringDB>('dayspring', 1, {
-      upgrade(d) {
-        d.createObjectStore('entries', { keyPath: 'id' })
-        const outbox = d.createObjectStore('outbox', { keyPath: 'opId' })
-        outbox.createIndex('by-entry', 'entryId')
+    dbp = openDB<DayspringDB>('dayspring', 2, {
+      upgrade(d, oldVersion) {
+        if (oldVersion < 1) {
+          d.createObjectStore('entries', { keyPath: 'id' })
+          const outbox = d.createObjectStore('outbox', { keyPath: 'opId' })
+          outbox.createIndex('by-entry', 'entryId')
+        }
+        if (oldVersion < 2) {
+          // Bounded LRU cache of display-sized image blobs (perf + offline).
+          // The cloud is the source of truth, so eviction here is lossless.
+          d.createObjectStore('attBlobs', { keyPath: 'key' })
+          const meta = d.createObjectStore('attMeta', { keyPath: 'key' })
+          meta.createIndex('by-last-accessed', 'lastAccessedAt')
+        }
       },
     })
   }
@@ -54,7 +80,72 @@ export async function cacheClear(): Promise<void> {
  *  another's on a shared browser. */
 export async function cacheClearAll(): Promise<void> {
   const d = await db()
-  await Promise.all([d.clear('entries'), d.clear('outbox')])
+  await Promise.all([d.clear('entries'), d.clear('outbox'), d.clear('attBlobs'), d.clear('attMeta')])
+}
+
+// ── image blob cache (bounded LRU) ───────────────────────────────────────────
+// Update lastAccessedAt at most this often, so reads don't thrash the store.
+const LRU_TOUCH_INTERVAL_MS = 6 * 60 * 60 * 1000
+
+/**
+ * Choose which cached entries to evict so that `incomingBytes` fits under
+ * `budgetBytes`. Pure (no idb) for testability: evicts least-recently-used
+ * first. Returns the keys to drop.
+ */
+export function selectEvictions(
+  metas: Array<{ key: string; bytes: number; lastAccessedAt: number }>,
+  budgetBytes: number,
+  incomingBytes: number,
+): string[] {
+  const total = metas.reduce((sum, m) => sum + m.bytes, 0)
+  let over = total + incomingBytes - budgetBytes
+  if (over <= 0) return []
+  const evict: string[] = []
+  for (const m of [...metas].sort((a, b) => a.lastAccessedAt - b.lastAccessedAt)) {
+    if (over <= 0) break
+    evict.push(m.key)
+    over -= m.bytes
+  }
+  return evict
+}
+
+export async function attachmentCacheGet(key: string): Promise<Blob | undefined> {
+  const d = await db()
+  const row = await d.get('attBlobs', key)
+  if (!row) return undefined
+  // Throttled LRU touch — only write when the timestamp is meaningfully stale.
+  const meta = await d.get('attMeta', key)
+  if (meta && Date.now() - meta.lastAccessedAt > LRU_TOUCH_INTERVAL_MS) {
+    void d.put('attMeta', { ...meta, lastAccessedAt: Date.now() })
+  }
+  return row.blob
+}
+
+export async function attachmentCachePut(
+  key: string,
+  owner: string,
+  blob: Blob,
+  budgetBytes: number,
+): Promise<void> {
+  const d = await db()
+  const metas = await d.getAll('attMeta')
+  const evict = selectEvictions(
+    metas.filter((m) => m.key !== key),
+    budgetBytes,
+    blob.size,
+  )
+  const tx = d.transaction(['attBlobs', 'attMeta'], 'readwrite')
+  await Promise.all([
+    ...evict.flatMap((k) => [tx.objectStore('attBlobs').delete(k), tx.objectStore('attMeta').delete(k)]),
+    tx.objectStore('attBlobs').put({ key, blob }),
+    tx.objectStore('attMeta').put({ key, owner, bytes: blob.size, lastAccessedAt: Date.now() }),
+    tx.done,
+  ])
+}
+
+export async function attachmentCacheTotalBytes(): Promise<number> {
+  const metas = await (await db()).getAll('attMeta')
+  return metas.reduce((sum, m) => sum + m.bytes, 0)
 }
 
 // ── outbox (pending writes) ─────────────────────────────────────────────────

@@ -1,20 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { AttachmentEditTarget } from '@/editor/attachmentInsert'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import {
   resolveCachedAttachmentMeta,
   resolveCachedAttachmentPreview,
 } from '@/editor/attachmentImageExtension'
-import { uploadImageAttachment } from '@/lib/attachments'
-import { supabase } from '@/lib/supabase'
-import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
-import {
-  altFromFile,
-  formatPhotoMetaLine,
-  isMeaningfulCaption,
-  takenAtFromFile,
-} from '@/lib/attachmentCaption'
-import { CommandPopover, CommandPopoverFooter } from './CommandPopover'
+import { formatPhotoMetaLine, isMeaningfulCaption } from '@/lib/attachmentCaption'
+import { CommandPopover, CommandPopoverHint } from './CommandPopover'
 import { IMAGE_EDIT_HINT } from './commandHints'
 import './Capture.css'
 
@@ -22,31 +14,60 @@ interface Props {
   target: AttachmentEditTarget
   anchor: InlinePanelAnchor
   onSaveCaption: (alt: string) => void
-  onReplaceBegin: (pendingId: string, alt: string, from: number, to: number) => void
-  onReplaceComplete: (pendingId: string, hash: string, ext: string, alt: string) => void
-  onReplaceFailed: (pendingId: string) => void
-  onRemove: () => void
   onClose: () => void
 }
 
-export function InlineImageEditPopover({
-  target,
-  anchor,
-  onSaveCaption,
-  onReplaceBegin,
-  onReplaceComplete,
-  onReplaceFailed,
-  onRemove,
-  onClose,
-}: Props) {
+/**
+ * Caption editor for a photo. Replace and Remove live in the photo options menu
+ * (ImageContextMenu); this popover is just the caption field + a preview.
+ */
+export function InlineImageEditPopover({ target, anchor, onSaveCaption, onClose }: Props) {
   const [caption, setCaption] = useState(() =>
     isMeaningfulCaption(target.alt) ? target.alt : '',
   )
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [metaLine, setMetaLine] = useState<string | null>(null)
-  const [replacing, setReplacing] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
   const committedRef = useRef(false)
+
+  // Sit just below the photo's bottom edge and track it on scroll — a fixed
+  // popover otherwise floats with the viewport and detaches from the image.
+  // Clamped to the viewport so a tall photo's off-screen bottom still keeps the
+  // editor on screen; closes once the photo has scrolled above the top (or its
+  // widget is recycled by CodeMirror on a far scroll).
+  const [trackedTop, setTrackedTop] = useState(anchor.top)
+  useLayoutEffect(() => {
+    const key = `${target.hash}.${target.ext}`
+    const find = () =>
+      document.querySelector<HTMLElement>(`.cm-attachment[data-attachment-key="${key}"]`)
+
+    let raf = 0
+    const reposition = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const el = find()
+        const rect = el?.getBoundingClientRect()
+        if (!rect || rect.bottom < 8) {
+          onClose()
+          return
+        }
+        const GAP = 6
+        const PAD = 12
+        const panelH = document.querySelector('.command-popover')?.getBoundingClientRect().height ?? 320
+        const maxTop = window.innerHeight - panelH - PAD
+        setTrackedTop(Math.max(PAD, Math.min(rect.bottom + GAP, maxTop)))
+      })
+    }
+    reposition()
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+    // target identifies this photo; anchor is the open-time fallback only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target.hash, target.ext])
 
   useEffect(() => {
     let cancelled = false
@@ -67,45 +88,22 @@ export function InlineImageEditPopover({
     onSaveCaption(caption.trim())
   }
 
-  async function handleReplaceFile(file: File) {
-    if (replacing || !isImageFile(file) || file.size > IMAGE_MAX_BYTES || !supabase) return
-    const pendingId = crypto.randomUUID()
-    const alt = altFromFile(file) || caption.trim()
-    const meta = takenAtFromFile(file)
-    setReplacing(true)
-    onReplaceBegin(pendingId, alt, target.from, target.to)
-    onClose()
-    try {
-      const { hash, ext } = await uploadImageAttachment(
-        supabase,
-        file,
-        meta ? { takenAt: meta } : undefined,
-      )
-      onReplaceComplete(pendingId, hash, ext, alt)
-    } catch {
-      onReplaceFailed(pendingId)
-    }
-  }
-
   return (
     <CommandPopover
-      anchor={anchor}
+      anchor={{ ...anchor, top: trackedTop }}
       onDismiss={onClose}
-      ariaLabel="Edit photo"
+      ariaLabel="Edit caption"
       variant="image"
-      footer={
-        <CommandPopoverFooter hint={IMAGE_EDIT_HINT} onRemove={onRemove} />
-      }
+      skipViewportClamp
+      footer={<CommandPopoverHint>{IMAGE_EDIT_HINT}</CommandPopoverHint>}
     >
-      <p className="command-popover__label">edit photo</p>
+      <p className="command-popover__label">edit caption</p>
       {previewUrl && (
         <div className="command-popover__image-preview">
           <img src={previewUrl} alt={caption || 'Photo preview'} />
         </div>
       )}
-      {metaLine && (
-        <p className="command-popover__photo-meta">{metaLine}</p>
-      )}
+      {metaLine && <p className="command-popover__photo-meta">{metaLine}</p>}
       <label className="command-popover__field-label" htmlFor="image-caption">
         caption
       </label>
@@ -123,25 +121,6 @@ export function InlineImageEditPopover({
         placeholder="What is this a photo of?"
         autoFocus
       />
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="command-popover__file-input"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) void handleReplaceFile(file)
-        }}
-      />
-      <button
-        type="button"
-        className="command-popover__menu-link"
-        disabled={replacing}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => fileRef.current?.click()}
-      >
-        Replace photo
-      </button>
     </CommandPopover>
   )
 }

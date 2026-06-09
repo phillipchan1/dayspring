@@ -1,4 +1,4 @@
-import { ChangeSet, EditorState, type Extension, type Transaction } from '@codemirror/state'
+import { ChangeSet, EditorState, type ChangeSpec, type Extension, type Transaction } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import {
   ATTACHMENT_REF_RE,
@@ -43,6 +43,69 @@ export function findAttachmentByKey(doc: string, key: string): AttachmentEditTar
     }
   }
   return null
+}
+
+/**
+ * Private DataTransfer type set when dragging a photo block inside the editor.
+ * Lets the drop handler tell an internal reorder apart from a file-drag-in.
+ */
+export const ATTACHMENT_DND_MIME = 'application/x-dayspring-attachment'
+
+/**
+ * Plan the change to move an existing photo ref (identified by `<hash>.<ext>`)
+ * to `toPos`: delete the source range and re-insert the block-isolated markdown
+ * at the target. Returns null (no-op) when the ref isn't found or the target
+ * lands inside the source range. Both ranges reference the original doc; CM
+ * applies them in order, and the insert's surrounding-newline decision is
+ * computed from the original text (the deletion is outside `toPos`).
+ */
+export function planAttachmentMove(
+  doc: string,
+  key: string,
+  toPos: number,
+): ChangeSpec[] | null {
+  const target = findAttachmentByKey(doc, key)
+  if (!target) return null
+  const { from, to, hash, ext, alt } = target
+
+  // Swallow the blank-line separator the isolated block leaves behind (trailing
+  // first, else leading at EOF) so repeated reorders don't pile up empty lines.
+  let delFrom = from
+  let delTo = to
+  let consumed = 0
+  while (delTo < doc.length && doc[delTo] === '\n' && consumed < 2) {
+    delTo++
+    consumed++
+  }
+  if (consumed === 0) {
+    while (delFrom > 0 && doc[delFrom - 1] === '\n' && consumed < 2) {
+      delFrom--
+      consumed++
+    }
+  }
+
+  if (toPos >= delFrom && toPos <= delTo) return null
+
+  const md = formatAttachmentMarkdown(hash, ext, alt)
+  const before = doc.slice(0, toPos)
+  const after = doc.slice(toPos)
+  const insert = wrapBlockAttachmentInsert(toPos, doc.length, before, after, md)
+
+  return [
+    { from: delFrom, to: delTo, insert: '' },
+    { from: toPos, to: toPos, insert },
+  ]
+}
+
+/**
+ * Move a photo ref to `toPos` in one transaction. `attachmentBlockNormalizeExtension`
+ * tidies the surrounding blank lines afterward.
+ */
+export function moveAttachmentRef(view: EditorView, key: string, toPos: number): void {
+  const changes = planAttachmentMove(view.state.doc.toString(), key, toPos)
+  if (!changes) return
+  view.dispatch({ changes })
+  view.focus()
 }
 
 export function replaceAttachmentRefInView(

@@ -61,8 +61,16 @@ import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
 import { PRACTICE_BY_NAME, type Practice } from '@/editor/practices/practicesData'
 import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
 import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
-import type { AttachmentEditTarget } from '@/editor/attachmentImageExtension'
-import { formatAttachmentMarkdown, formatPendingAttachmentMarkdown } from '@/lib/attachments'
+import { ImageContextMenu, type ImageMenuPhase } from './ImageContextMenu'
+import type { AttachmentEditTarget, ImageMenuPoint } from '@/editor/attachmentImageExtension'
+import {
+  formatAttachmentMarkdown,
+  formatPendingAttachmentMarkdown,
+  uploadImageAttachment,
+} from '@/lib/attachments'
+import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
+import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
+import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { ProcessingBanner } from './ProcessingBanner'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
@@ -180,12 +188,25 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const imageEditRef = useRef(imageEdit)
   imageEditRef.current = imageEdit
 
+  // Photo options menu (left- or right-click on a photo). Carries the caption
+  // popover's anchor so "Edit caption…" can open it in place.
+  const [imageMenu, setImageMenu] = useState<{
+    target: AttachmentEditTarget
+    point: ImageMenuPoint
+    anchor: InlinePanelAnchor
+  } | null>(null)
+
   // The practice "about" slide-over (opened from a practice header).
   const [aboutPractice, setAboutPractice] = useState<Practice | null>(null)
 
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
   const focusOverlaysOpen =
-    settingsOpen || helpOpen || slashCapture !== null || imageEdit !== null || slashPaletteOpen
+    settingsOpen ||
+    helpOpen ||
+    slashCapture !== null ||
+    imageEdit !== null ||
+    imageMenu !== null ||
+    slashPaletteOpen
   const focus = useFocusMode(focusOverlaysOpen)
 
   useEffect(() => {
@@ -231,10 +252,55 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     [],
   )
 
-  /** Map a clicked photo block to the edit popover. */
-  const handleEditAttachment = useCallback(
-    (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => {
-      setImageEdit({ target, anchor })
+  /** Open the photo options menu at the pointer (left- or right-click). */
+  const handleImageMenu = useCallback(
+    (target: AttachmentEditTarget, point: ImageMenuPoint, anchor: InlinePanelAnchor) => {
+      setImageMenu({ target, point, anchor })
+    },
+    [],
+  )
+
+  const closeImageMenu = useCallback(() => {
+    setImageMenu((current) => {
+      if (current) requestAnimationFrame(() => editorRef.current?.focusAt(current.target.from))
+      return null
+    })
+  }, [])
+
+  /** "Edit caption…" — hand off from the menu to the caption popover. The
+   *  popover anchors to the photo's bottom edge and tracks it on scroll (see
+   *  InlineImageEditPopover); we pass the column-aligned block anchor as the
+   *  initial position and force below-placement. */
+  const handleMenuEditCaption = useCallback((target: AttachmentEditTarget) => {
+    setImageMenu((current) => {
+      if (current) setImageEdit({ target, anchor: { ...current.anchor, placeAbove: false } })
+      return null
+    })
+  }, [])
+
+  /** Replace a photo's bytes in place: pending placeholder → upload → swap. */
+  const handleReplaceImageFile = useCallback(
+    async (target: AttachmentEditTarget, file: File) => {
+      if (!isImageFile(file) || file.size > IMAGE_MAX_BYTES || !supabase) return
+      const pendingId = crypto.randomUUID()
+      const alt = altFromFile(file) || target.alt
+      const takenAt = takenAtFromFile(file)
+      editorRef.current?.replaceRange(
+        target.from,
+        target.to,
+        formatPendingAttachmentMarkdown(pendingId, alt),
+      )
+      try {
+        const { hash, ext } = await uploadImageAttachment(
+          supabase,
+          file,
+          takenAt ? { takenAt } : undefined,
+        )
+        editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
+      } catch (e) {
+        console.warn('[images] replace upload failed', e)
+        editorRef.current?.removePendingAttachment(pendingId)
+      }
     },
     [],
   )
@@ -257,13 +323,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     requestAnimationFrame(() => editorRef.current?.focusAt(from))
   }, [])
 
-  const handleRemoveImage = useCallback(() => {
-    const edit = imageEditRef.current
-    if (!edit) return
-    const { from, to } = edit.target
-    editorRef.current?.replaceRange(from, to, '')
-    setImageEdit(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+  const handleRemoveImage = useCallback((target: AttachmentEditTarget) => {
+    editorRef.current?.replaceRange(target.from, target.to, '')
+    setImageMenu(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(target.from))
   }, [])
 
   /** Insert at the slash position (or replace an edited block), then refocus. */
@@ -1171,7 +1234,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
             onSlashCommand={handleSlashCommand}
             onEditBlock={handleEditBlock}
-            onEditAttachment={handleEditAttachment}
+            onImageMenu={handleImageMenu}
             onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
             onSlashPaletteChange={setSlashPaletteOpen}
           />
@@ -1181,7 +1244,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
           onDismissKeyboard={() => editorRef.current?.blur()}
-          visible={!slashPaletteOpen && slashCapture === null && imageEdit === null}
+          visible={
+            !slashPaletteOpen && slashCapture === null && imageEdit === null && imageMenu === null
+          }
           docked={!isMobile}
           keyboardInset={keyboardInset}
         />
@@ -1338,21 +1403,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           }}
         />
       )}
+      <ImageContextMenu
+        phase={
+          (imageMenu
+            ? { kind: 'menu', target: imageMenu.target, point: imageMenu.point }
+            : { kind: 'closed' }) as ImageMenuPhase
+        }
+        onClose={closeImageMenu}
+        onEditCaption={handleMenuEditCaption}
+        onReplaceFile={handleReplaceImageFile}
+        onRemove={handleRemoveImage}
+      />
       {imageEdit && (
         <InlineImageEditPopover
           target={imageEdit.target}
           anchor={imageEdit.anchor}
           onSaveCaption={handleSaveImageCaption}
-          onReplaceBegin={(pendingId, alt, from, to) => {
-            editorRef.current?.replaceRange(from, to, formatPendingAttachmentMarkdown(pendingId, alt))
-          }}
-          onReplaceComplete={(pendingId, hash, ext, alt) => {
-            editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
-          }}
-          onReplaceFailed={(pendingId) => {
-            editorRef.current?.removePendingAttachment(pendingId)
-          }}
-          onRemove={handleRemoveImage}
           onClose={closeImageEdit}
         />
       )}

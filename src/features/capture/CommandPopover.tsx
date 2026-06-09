@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -18,6 +18,9 @@ interface CommandPopoverProps {
   /** Chrome row above the body (e.g. scripture · from what you wrote). */
   header?: ReactNode
   footer?: ReactNode
+  /** Skip the auto viewport top-clamp when the caller manages `anchor.top`
+   *  itself (e.g. the image caption popover, which tracks its photo on scroll). */
+  skipViewportClamp?: boolean
   children: ReactNode
 }
 
@@ -33,6 +36,7 @@ export function CommandPopover({
   variant = 'neutral',
   header,
   footer,
+  skipViewportClamp = false,
   children,
 }: CommandPopoverProps) {
   useEffect(() => {
@@ -67,6 +71,35 @@ export function CommandPopover({
   }, [onDismiss])
 
   const isMobile = useIsMobile()
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Pull the panel up if it would spill past the bottom of the viewport — a tall
+  // photo can anchor a caption popover far below the fold. Desktop, anchored-below
+  // only; never pushes down, so a panel that already fits is untouched. A
+  // ResizeObserver re-clamps when content grows after mount (e.g. the preview
+  // image finishes loading and the panel gets taller).
+  const [topClamp, setTopClamp] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const el = panelRef.current
+    if (isMobile || anchor.placeAbove || skipViewportClamp || !el) {
+      setTopClamp(null)
+      return
+    }
+    const pad = 12
+    const recompute = () => {
+      const height = el.getBoundingClientRect().height
+      const maxTop = window.innerHeight - height - pad
+      setTopClamp(anchor.top > maxTop ? Math.max(pad, maxTop) : null)
+    }
+    recompute()
+    const ro = new ResizeObserver(recompute)
+    ro.observe(el)
+    window.addEventListener('resize', recompute)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', recompute)
+    }
+  }, [isMobile, anchor.top, anchor.placeAbove, skipViewportClamp])
 
   // Track the keyboard everywhere: a phone gets the full bottom sheet, while
   // iPad/desktop keep the caret-anchored panel but clamp it so a tall panel
@@ -92,7 +125,7 @@ export function CommandPopover({
         width: panelWidth,
         maxWidth: panelWidth,
         zIndex: 8500,
-        top: anchor.top,
+        top: topClamp ?? anchor.top,
         transform: anchor.placeAbove ? 'translateY(-100%)' : undefined,
         // Keyboard up (iPad on-screen keyboard) and anchored below: cap height
         // to the space above the keyboard. No keyboard → undefined → CSS
@@ -104,6 +137,7 @@ export function CommandPopover({
 
   const sheet = (
     <div
+      ref={panelRef}
       className={`command-popover command-popover--${variant}${isMobile ? ' command-popover--sheet' : ''}`}
       style={style}
       role={role}
