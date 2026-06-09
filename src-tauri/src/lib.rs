@@ -30,6 +30,17 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      // After a post-update relaunch on macOS the new process starts without
+      // activating, leaving the window hidden behind other apps. Explicitly
+      // show and focus here so every launch — including relaunches — brings
+      // the window to the front.
+      #[cfg(desktop)]
+      if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+      }
+
       Ok(())
     })
     .run(tauri::generate_context!())
