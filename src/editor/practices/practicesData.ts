@@ -15,6 +15,9 @@ export type PracticeFunction =
   | 'gratitude'
   | 'form'
 
+/** When in the day a practice is best suited — the rhythmic filter taxonomy. */
+export type PracticeRhythm = 'morning' | 'midday' | 'evening' | 'anytime'
+
 export interface PracticePrompt {
   /** Short section name — rendered as an amber small-caps eyebrow. */
   label: string
@@ -27,6 +30,8 @@ export interface PracticePrompt {
 export interface Practice {
   name: string
   function: PracticeFunction
+  /** When in the day this practice is best suited. Multiple values allowed. */
+  rhythm: PracticeRhythm[]
   /** Who and when — e.g. "Ignatius of Loyola, 16th century". */
   origin: string
   /** Denomination / stream tag shown as a pill. */
@@ -48,6 +53,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'The Daily Examen',
     function: 'examine',
+    rhythm: ['evening'],
     origin: 'Ignatius of Loyola, 16th century',
     tradition: 'Ignatian',
     intention:
@@ -89,6 +95,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'Lectio Divina',
     function: 'encounter',
+    rhythm: ['morning'],
     origin: 'Benedict of Nursia, 6th century',
     tradition: 'Benedictine',
     intention:
@@ -131,6 +138,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'Wesley’s Questions',
     function: 'form',
+    rhythm: ['evening'],
     origin: 'John Wesley, 18th century',
     tradition: 'Wesleyan',
     intention:
@@ -167,6 +175,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'SOAP',
     function: 'encounter',
+    rhythm: ['morning'],
     origin: 'Wayne Cordeiro, contemporary',
     tradition: 'Evangelical',
     intention:
@@ -207,6 +216,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'Psalmic Lament',
     function: 'lament',
+    rhythm: ['anytime'],
     origin: 'Ancient — the Hebrew Psalter',
     tradition: 'Hebrew',
     intention:
@@ -248,6 +258,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'Prayer of Recollection',
     function: 'listen',
+    rhythm: ['morning', 'midday'],
     origin: 'Teresa of Ávila, 16th century',
     tradition: 'Carmelite',
     intention:
@@ -285,6 +296,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'Emotionally Healthy Examen',
     function: 'examine',
+    rhythm: ['evening'],
     origin: 'Peter Scazzero, contemporary',
     tradition: 'Contemplative',
     intention:
@@ -323,6 +335,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'The Examen of Consolation',
     function: 'gratitude',
+    rhythm: ['midday', 'evening'],
     origin: 'Ignatius of Loyola, 16th century',
     tradition: 'Ignatian',
     intention:
@@ -360,6 +373,7 @@ export const PRACTICES: Practice[] = [
   {
     name: 'Ignatian Discernment',
     function: 'listen',
+    rhythm: ['anytime'],
     origin: 'Ignatius of Loyola, 16th century',
     tradition: 'Ignatian',
     intention:
@@ -406,7 +420,16 @@ export const PRACTICE_BY_NAME: ReadonlyMap<string, Practice> = new Map(
   PRACTICES.map((p) => [p.name, p]),
 )
 
-/** The filter taxonomy, in display order, with human-facing labels. */
+/** The rhythm filter, in day order, with human-facing labels. */
+export const PRACTICE_RHYTHMS: { id: PracticeRhythm | 'all'; label: string }[] = [
+  { id: 'all', label: 'Any hour' },
+  { id: 'morning', label: 'To begin' },
+  { id: 'midday', label: 'To pause' },
+  { id: 'evening', label: 'To close' },
+  { id: 'anytime', label: 'Need-based' },
+]
+
+/** The function filter taxonomy, in display order, with human-facing labels. */
 export const PRACTICE_FUNCTIONS: { id: PracticeFunction | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'examine', label: 'Examine' },

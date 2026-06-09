@@ -95,6 +95,20 @@
   flex-wrap: wrap;
 }
 
+.practice-library__filters--fn {
+  padding-top: 10px;
+}
+
+.practice-filter--fn {
+  font-size: 11px;
+  padding: 3px 11px;
+  opacity: 0.75;
+}
+
+.practice-filter--fn[data-active='true'] {
+  opacity: 1;
+}
+
 .practice-filter {
   font-family: var(--pl-body);
   font-size: 12px;

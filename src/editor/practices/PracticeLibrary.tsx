@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom'
 import {
   PRACTICES,
   PRACTICE_FUNCTIONS,
+  PRACTICE_RHYTHMS,
   type Practice,
   type PracticeFunction,
+  type PracticeRhythm,
 } from './practicesData'
 import './PracticeLibrary.css'
 
@@ -20,6 +22,7 @@ interface Props {
 }
 
 type Filter = PracticeFunction | 'all'
+type RhythmFilter = PracticeRhythm | 'all'
 
 /**
  * Full-screen Rituals Library: browse the forms, pass through an orienting
@@ -30,17 +33,23 @@ type Filter = PracticeFunction | 'all'
  */
 export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPreview }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
+  const [rhythm, setRhythm] = useState<RhythmFilter>('all')
   const [selected, setSelected] = useState<Practice | null>(null)
   const [activeIdx, setActiveIdx] = useState(0)
   const gridRef = useRef<HTMLDivElement>(null)
 
   const visible = useMemo(
-    () => PRACTICES.filter((p) => filter === 'all' || p.function === filter),
-    [filter],
+    () =>
+      PRACTICES.filter(
+        (p) =>
+          (rhythm === 'all' || p.rhythm.includes(rhythm)) &&
+          (filter === 'all' || p.function === filter),
+      ),
+    [filter, rhythm],
   )
 
   // Reset the keyboard cursor when the filtered set changes.
-  useEffect(() => setActiveIdx(0), [filter])
+  useEffect(() => setActiveIdx(0), [filter, rhythm])
 
   // Selecting a ritual either previews it (threshold) or begins straight away.
   const choose = (practice: Practice) => {
@@ -131,13 +140,28 @@ export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPre
           </p>
         </header>
 
-        <div className="practice-library__filters" role="tablist" aria-label="Filter rituals">
+        <div className="practice-library__filters" role="tablist" aria-label="Filter by time of day">
+          {PRACTICE_RHYTHMS.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              role="tab"
+              className="practice-filter"
+              data-active={rhythm === r.id ? 'true' : undefined}
+              aria-selected={rhythm === r.id}
+              onClick={() => setRhythm(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <div className="practice-library__filters practice-library__filters--fn" role="tablist" aria-label="Filter by practice type">
           {PRACTICE_FUNCTIONS.map((f) => (
             <button
               key={f.id}
               type="button"
               role="tab"
-              className="practice-filter"
+              className="practice-filter practice-filter--fn"
               data-active={filter === f.id ? 'true' : undefined}
               aria-selected={filter === f.id}
               onClick={() => setFilter(f.id)}
