@@ -1,0 +1,4 @@
+#!/bin/sh
+# Run TypeScript type-check before push to catch compile errors before CI does.
+echo "Running typecheck before push…"
+npm run typecheck

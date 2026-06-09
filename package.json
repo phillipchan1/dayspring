@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "dev": "node scripts/assemble-changelog.mjs; ulimit -n 65536; vite",
     "build": "tsc -b && vite build",
     "build:skip-types": "vite build",
