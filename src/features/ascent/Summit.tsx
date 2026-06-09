@@ -1,81 +1,43 @@
-import { useEffect, useState } from 'react'
-import { getRopesAtHorizon } from '@/features/threads/data'
-import type { WarmthBand } from '@/features/threads/data'
-import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { DIMENSION_COPY, EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
-import type { ScriptureData } from './data/types'
+import type { ScriptureData, WordsData } from './data/types'
 import { ScriptureDimension } from './dimensions/ScriptureDimension'
-import { hueFor } from './warmth'
 
 interface Props {
+  /** The year's reflection rollup — the refrain (one line) + the year's arcs. */
+  words: WordsData | null
   /** Year-of-the-year verse (real scripture, kept). */
   scripture: ScriptureData | null
   onScriptureDrill: (osisRef: string) => void
-  /** Tap a stone (a rope you climbed past) → its tended timeline. */
-  onOpenBand: (band: WarmthBand) => void
+  onOpenEntry?: ((entryId: string) => void) | undefined
 }
 
 const W = 600
 const GROUND = 280
-const CLIMB = 232 // peak rise span (peak sits near y=48)
-const MAX_STONES = 8
-
-/** Peak pool bucket → position along the year (0 = early/bottom, 1 = recent/peak). */
-function peakSlot(pools: number[]): number {
-  if (pools.length <= 1) return 0.5
-  let peak = 0
-  for (let i = 1; i < pools.length; i++) if (pools[i]! > pools[peak]!) peak = i
-  return peak / (pools.length - 1)
-}
-
-/** Position a stone along the climbed path by its slot (0–1) up the trail. */
-function stonePos(slot: number, i: number): { cx: number; cy: number } {
-  const t = Math.min(1, Math.max(0, slot))
-  return { cx: 120 + t * 190 + (i % 2 ? 26 : -16), cy: GROUND - t * CLIMB - (i % 3) * 4 }
-}
 
 /**
- * SUMMIT (year) — the quietest, most sacred ground, and the ONE illustrative
- * altitude. The mountain is the path climbed; the stones are the ropes climbed
- * past (the year's warmth bands), lit along the mountainside — tap one to walk
- * its tended timeline. Below: the one line of the year (a SELECTED member line,
- * never synthesized), the verse of the year, and the closing question. No
- * verdict, no counts; the app nearly disappears.
+ * SUMMIT (year) — the quietest, most sacred ground. The mountain is the path
+ * climbed; below it the ONE line of the year (the verbatim refrain), the year's
+ * threads, the verse of the year, and the closing question. No verdict, no counts.
+ * (The earlier "stones" were the rope engine's bands — never wired to real data;
+ * the Summit now reads the yearly rollup like every other altitude.)
  */
-export function Summit({ scripture, onScriptureDrill, onOpenBand }: Props) {
-  const [bands, setBands] = useState<WarmthBand[] | null | undefined>(undefined)
-
-  useEffect(() => {
-    let alive = true
-    getRopesAtHorizon(3).then(
-      (b) => alive && setBands(b),
-      () => alive && setBands(null),
-    )
-    return () => { alive = false }
-  }, [])
-
+export function Summit({ words, scripture, onScriptureDrill, onOpenEntry }: Props) {
   const year = new Date().getFullYear()
-  const open = (bands ?? []).filter((b) => !b.private)
-  const stones = open.slice(0, MAX_STONES)
-  const hero = open[0]
-  const oneLine = hero?.repLine ?? null
+  const oneLine = words?.moments?.[0] ?? null
+  const arcs = words?.arcs ?? []
 
-  if (bands === undefined) {
-    return <SurfaceLoader label="Looking back down the year…" />
-  }
-  if (open.length === 0 && (!scripture || scripture.refs.length === 0)) {
+  if (!oneLine && arcs.length === 0 && (!scripture || scripture.refs.length === 0)) {
     return <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
-  }
-
-  const dateLabel = (iso: string) => {
-    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }
-    catch { return iso.slice(0, 10) }
   }
 
   return (
     <div className="ascent-summit">
-      <svg viewBox={`0 0 ${W} 320`} className="ascent-mountain" role="img"
-        aria-label={`The year ${year} — the path you climbed, lit by the ropes you climbed past`}>
+      <svg
+        viewBox={`0 0 ${W} 320`}
+        className="ascent-mountain"
+        role="img"
+        aria-label={`The year ${year} — the path you climbed`}
+      >
         <defs>
           <linearGradient id="ascent-rock" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--ascent-rock-top)" />
@@ -87,10 +49,7 @@ export function Summit({ scripture, onScriptureDrill, onOpenBand }: Props) {
           </radialGradient>
         </defs>
 
-        {/* the mountain you climbed */}
         <polygon points={`300,48 560,${GROUND} 40,${GROUND}`} fill="url(#ascent-rock)" />
-
-        {/* the trail — your own path up the year */}
         <path
           d={`M120,${GROUND} C200,235 180,196 260,172 C330,150 285,112 300,52`}
           fill="none"
@@ -99,27 +58,6 @@ export function Summit({ scripture, onScriptureDrill, onOpenBand }: Props) {
           strokeDasharray="2 5"
           className="ascent-trail"
         />
-
-        {/* the ropes you climbed past — points of light, sized by heft, hued by lens */}
-        {stones.map((b, i) => {
-          const { cx, cy } = stonePos(peakSlot(b.pools), i)
-          const r = 4 + Math.min(5, Math.sqrt(b.heft))
-          const tone = hueFor(b.lenses[0] ?? 'gold')
-          return (
-            <g
-              key={b.id}
-              className="ascent-stone-g"
-              style={{ animationDelay: `${i * 150 + 300}ms`, cursor: 'pointer' }}
-              onClick={() => onOpenBand(b)}
-            >
-              <title>{b.label}</title>
-              <circle cx={cx} cy={cy} r={r + 6} fill="none" stroke="rgba(240,197,135,.28)" className="ascent-stone-ring" />
-              <circle cx={cx} cy={cy} r={r} fill={tone} className="ascent-stone-dot" />
-            </g>
-          )
-        })}
-
-        {/* the peak — a quiet, settled light (clarity, not a countdown) */}
         <circle cx="300" cy="48" r="34" fill="url(#ascent-peakglow)" className="ascent-peak-glow" />
         <circle cx="300" cy="48" r="5" fill="#f7ecd6" className="ascent-peak-lit" />
       </svg>
@@ -130,10 +68,28 @@ export function Summit({ scripture, onScriptureDrill, onOpenBand }: Props) {
         {oneLine ? (
           <section className="ascent-dim ascent-dim--words is-year">
             <span className="ascent-dim__eyebrow">{DIMENSION_COPY.words.year}</span>
-            <button type="button" className="ascent-oneline" onClick={() => hero && onOpenBand(hero)}>
-              “{oneLine.excerpt}”
+            <button
+              type="button"
+              className="ascent-oneline"
+              onClick={() => onOpenEntry?.(oneLine.entryId)}
+            >
+              “{oneLine.text}”
             </button>
-            <span className="ascent-oneline__date">{dateLabel(oneLine.date)}</span>
+            <span className="ascent-oneline__date">{oneLine.dateLabel}</span>
+          </section>
+        ) : null}
+
+        {arcs.length > 0 ? (
+          <section className="ascent-dim ascent-dim--words">
+            <span className="ascent-dim__eyebrow">{DIMENSION_COPY.words.themes.year}</span>
+            <div className="ascent-arcs">
+              {arcs.map((a, i) => (
+                <div key={a.name + i} className="ascent-arc">
+                  <span className="ascent-arc__name">{a.name}</span>
+                  <p className="ascent-arc__note">{a.note}</p>
+                </div>
+              ))}
+            </div>
           </section>
         ) : null}
 

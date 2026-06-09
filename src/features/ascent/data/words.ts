@@ -12,7 +12,7 @@
 import { listEntriesInWindow } from '@/lib/entries'
 import type { Excerpt, Highlight, Quote, Rollup } from '@/lib/insights'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
-import type { Theme, WordMoment, WordsData } from './types'
+import type { AscentArc, Theme, WordMoment, WordsData } from './types'
 
 // ── date helpers (moved here from the old ascentData/summitData) ───────────────
 
@@ -100,6 +100,21 @@ function themesOf(r: Rollup | undefined): Theme[] {
   return (r?.payload.reflection?.highlights ?? []).map(toTheme)
 }
 
+// ── arcs (the narrative movements — "what you kept returning to") ──────────────
+
+function arcsOf(r: Rollup | undefined): AscentArc[] {
+  return (r?.payload.reflection?.arcs ?? [])
+    .filter((a) => a.name && a.note)
+    .map((a) => ({ name: a.name, note: a.note }))
+}
+
+/** Merge arcs across a quarter's monthlies, deduped by name. */
+function composeQuarterArcs(monthlies: Rollup[]): AscentArc[] {
+  const byName = new Map<string, AscentArc>()
+  for (const m of monthlies) for (const a of arcsOf(m)) if (!byName.has(a.name)) byName.set(a.name, a)
+  return [...byName.values()].slice(0, 4)
+}
+
 /** RIDGE has no quarterly tier — compose the season's themes by merging the
  *  quarter's monthly highlights by label, concatenating (deduped) their quotes. */
 function composeQuarterThemes(monthlies: Rollup[]): Theme[] {
@@ -163,17 +178,19 @@ export async function loadWeekWords(weekly: Rollup | undefined): Promise<WordsDa
     })
   }
   const themes = themesOf(weekly)
-  if (moments.length === 0 && themes.length === 0) return null
-  return { resolution: 'week', periodLabel: periodLabel(weekly), themes, moments }
+  const arcs = arcsOf(weekly)
+  if (moments.length === 0 && themes.length === 0 && arcs.length === 0) return null
+  return { resolution: 'week', periodLabel: periodLabel(weekly), arcs, themes, moments }
 }
 
 /** HILLSIDE — the month's themes (grounded), with the kept lines as fallback. */
 export function monthWords(monthly: Rollup | undefined): WordsData | null {
   if (!monthly) return null
   const themes = themesOf(monthly)
+  const arcs = arcsOf(monthly)
   const moments = keptLines(monthly).slice(0, 6)
-  if (moments.length === 0 && themes.length === 0) return null
-  return { resolution: 'month', periodLabel: periodLabel(monthly), themes, moments }
+  if (moments.length === 0 && themes.length === 0 && arcs.length === 0) return null
+  return { resolution: 'month', periodLabel: periodLabel(monthly), arcs, themes, moments }
 }
 
 /** RIDGE — the phrases you circled, composed from the monthly rollups spanning
@@ -196,17 +213,29 @@ export function quarterWords(monthlies: Rollup[]): WordsData | null {
     }
   }
   const themes = composeQuarterThemes(inQuarter)
-  if (moments.length === 0 && themes.length === 0) return null
-  return { resolution: 'quarter', periodLabel: `Q${q + 1} ${y}`, themes, moments: moments.slice(0, 4) }
+  const arcs = composeQuarterArcs(inQuarter)
+  if (moments.length === 0 && themes.length === 0 && arcs.length === 0) return null
+  return {
+    resolution: 'quarter',
+    periodLabel: `Q${q + 1} ${y}`,
+    arcs,
+    themes,
+    moments: moments.slice(0, 4),
+  }
 }
 
 /** SUMMIT — the one line of the year (the yearly refrain), verbatim. */
 export function yearWords(yearly: Rollup | undefined): WordsData | null {
   const refrain = yearly?.payload.reflection?.refrain
-  if (!refrain) return null
+  const arcs = arcsOf(yearly)
+  if (!refrain && arcs.length === 0) return null
+  if (!refrain) {
+    return { resolution: 'year', periodLabel: String(yearOf(yearly!.period_start)), arcs, themes: [], moments: [] }
+  }
   return {
     resolution: 'year',
     periodLabel: String(yearOf(yearly!.period_start)),
+    arcs,
     themes: [],
     moments: [
       {

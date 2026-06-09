@@ -10,7 +10,6 @@ import { LensRow } from './LensRow'
 import { Summit } from './Summit'
 import { BandDrillIn } from './drilldowns/BandDrillIn'
 import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
-import type { WarmthBand } from '@/features/threads/data'
 import './Ascent.css'
 
 interface Props {
@@ -122,10 +121,6 @@ export function AscentView({ onOpenEntry }: Props) {
     (osisRef: string) => pushDrill({ kind: 'scripture', osisRef }),
     [pushDrill],
   )
-  const openBand = useCallback(
-    (band: WarmthBand) => pushDrill({ kind: 'band', bandId: band.id, bandKind: band.kind, label: band.label }),
-    [pushDrill],
-  )
   // Drill-ins close themselves on Esc / scrim / Back (DrillSheet owns Escape and
   // stops it propagating). closeDrill pops the one pushed history frame.
   const closeDrill = useCallback(() => back(), [back])
@@ -184,16 +179,17 @@ export function AscentView({ onOpenEntry }: Props) {
             />
           ) : idx < LAST ? (
             <AltitudeBands
-              horizon={idx as 0 | 1 | 2}
+              words={altitude?.words ?? null}
               scripture={altitude?.scripture ?? null}
               onScriptureDrill={openScripture}
-              onOpenBand={openBand}
+              onOpenEntry={onOpenEntry}
             />
           ) : (
             <Summit
+              words={ascent?.year?.words ?? null}
               scripture={ascent?.year?.scripture ?? null}
               onScriptureDrill={openScripture}
-              onOpenBand={openBand}
+              onOpenEntry={onOpenEntry}
             />
           )}
         </div>

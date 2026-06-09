@@ -49,9 +49,18 @@ export interface Theme {
   quotes: ThemeQuote[]
 }
 
+/** A narrative movement of the period — "what you kept returning to". The richest
+ *  reflection layer: a short name over a grounded note. */
+export interface AscentArc {
+  name: string
+  note: string
+}
+
 export interface WordsData {
   resolution: Resolution
   periodLabel: string
+  /** The arcs — the movements of the period ("what kept returning"). Primary. */
+  arcs: AscentArc[]
   /** The highlight layer — themes grounded in verbatim quotes. May be empty (no
    *  synthesis yet); the dimension falls back to `moments` then. */
   themes: Theme[]
