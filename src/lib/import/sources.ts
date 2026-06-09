@@ -4,10 +4,11 @@
 // is a matter of appending one entry.
 
 import type { EntrySource } from '../types'
+import type { ImportArchive } from './archive'
 import type { ImportParseResult } from './types'
-import { parseDiarlyZip } from '../diarlyImport'
-import { parseDayOneZip } from './dayOne'
-import { parseDayspringZip } from './dayspringImport'
+import { parseDiarly } from '../diarlyImport'
+import { parseDayOne } from './dayOne'
+import { parseDayspring } from './dayspringImport'
 
 export interface ImportSourceDef {
   /** Maps to `entries.source`; also the dedup namespace. */
@@ -29,12 +30,12 @@ export interface ImportSourceDef {
   /** What gets imported vs. left behind — sets honest expectations. */
   note?: string
   /** Browser-side parser. Present iff status === 'available'. */
-  parse?: (data: ArrayBuffer) => Promise<ImportParseResult>
+  parse?: (archive: ImportArchive) => Promise<ImportParseResult>
 }
 
-/** Adapt the original Diarly parser (its own result shape) to ImportParseResult. */
-async function parseDiarly(data: ArrayBuffer): Promise<ImportParseResult> {
-  const r = await parseDiarlyZip(data)
+/** Adapt the Diarly parser (its own result shape) to ImportParseResult. */
+async function parseDiarlySource(archive: ImportArchive): Promise<ImportParseResult> {
+  const r = await parseDiarly(archive)
   return {
     dated: r.dated,
     skipped: r.undated.map((u) => ({ path: u.path, reason: 'No date in the file path' })),
@@ -51,14 +52,14 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
     tint: 'var(--accent)',
     status: 'available',
     accept: '.zip,application/zip',
-    fileLabel: 'Dayspring backup (.zip)',
+    fileLabel: 'Dayspring backup (.zip or folder)',
     instructions: [
       'Go to Settings → Import & backup and click Download backup.',
-      'Drop the resulting dayspring-backup-YYYY-MM-DD.zip here to restore.',
+      'Drop the resulting dayspring-backup-YYYY-MM-DD.zip here to restore — or the unzipped folder.',
       'Entries are matched by their original ID, so reimporting never creates duplicates.',
     ],
     note: 'All entry text, dates, tags, and titles are restored. Entries reimported this way appear as source "other."',
-    parse: parseDayspringZip,
+    parse: parseDayspring,
   },
   {
     id: 'diarly',
@@ -68,15 +69,15 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
     tint: 'var(--accent)',
     status: 'available',
     accept: '.zip,application/zip',
-    fileLabel: 'Diarly Markdown export (.zip)',
+    fileLabel: 'Diarly Markdown export (.zip or folder)',
     instructions: [
       'Open Diarly on your Mac and choose Diarly → Preferences → Sync & Backup.',
       'Click "Export" and pick Markdown as the format.',
       'Choose "All journals" (or a single journal) and save the .zip file.',
-      'Drop that .zip below — entries are read in your browser and added to your journal.',
+      'Drop the .zip (or the unzipped folder) below — entries are read in your browser and added to your journal.',
     ],
     note: 'Entry dates come from each file path. Photos are imported and stored in Supabase Storage.',
-    parse: parseDiarly,
+    parse: parseDiarlySource,
   },
   {
     id: 'day_one',
@@ -86,15 +87,15 @@ export const IMPORT_SOURCES: ImportSourceDef[] = [
     tint: '#4c8dff',
     status: 'available',
     accept: '.zip,application/zip',
-    fileLabel: 'Day One JSON export (.zip)',
+    fileLabel: 'Day One JSON export (.zip or folder)',
     instructions: [
       'Open Day One and choose File → Export → Day One (or All Entries).',
       'Pick JSON as the export format (not PDF or plain text).',
       'Save the resulting .zip — it contains a JSON file per journal.',
-      'Drop that .zip below. Every journal in the export is brought in at once.',
+      'Drop that .zip below, or just drag in the unzipped folder. Every journal in the export is brought in at once.',
     ],
     note: 'Full timestamps, tags, and starred entries carry over. Photos are imported; audio and PDFs are not.',
-    parse: parseDayOneZip,
+    parse: parseDayOne,
   },
   {
     id: 'journey',

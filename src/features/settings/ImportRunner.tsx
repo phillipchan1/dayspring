@@ -6,6 +6,7 @@ import type { EntrySource } from '@/lib/types'
 import { requireSupabase } from '@/lib/supabase'
 import { apiPost } from '@/lib/api'
 import { scanAllForRefs } from '@/lib/scripture/scan'
+import { archiveFromDrop, archiveFromFiles, type ImportArchive } from '@/lib/import/archive'
 import { importDayOneImages, importDiarlyImages, importDayspringImages, type ImageImportProgress } from '@/lib/import/importImages'
 
 type Phase = 'idle' | 'parsing' | 'preview' | 'importing' | 'uploading-images' | 'done' | 'error'
@@ -57,30 +58,30 @@ export function ImportRunner({ source }: Props) {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const fileBufferRef = useRef<ArrayBuffer | null>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  const archiveRef = useRef<ImportArchive | null>(null)
 
-  async function handleFile(file: File) {
+  async function handleArchive(archive: ImportArchive | null) {
     if (!source.parse) return
-    if (!file.name.toLowerCase().endsWith('.zip')) {
-      setError(`Please choose a ${source.fileLabel ?? 'export (.zip)'}.`)
+    if (!archive || archive.files.length === 0) {
+      setError(`Please choose a ${source.fileLabel ?? 'export (.zip or folder)'}.`)
       setPhase('error')
       return
     }
     setPhase('parsing')
     setError(null)
     try {
-      const buffer = await file.arrayBuffer()
-      fileBufferRef.current = buffer
-      const parsed = await source.parse(buffer)
+      archiveRef.current = archive
+      const parsed = await source.parse(archive)
       if (parsed.dated.length === 0 && parsed.skipped.length === 0) {
-        setError(`Nothing importable found in this file. Is it a ${source.name} export?`)
+        setError(`Nothing importable found. Is it a ${source.name} export (.zip or its unzipped folder)?`)
         setPhase('error')
         return
       }
       setResult(parsed)
       setPhase('preview')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not read the file.')
+      setError(e instanceof Error ? e.message : 'Could not read the export.')
       setPhase('error')
     }
   }
@@ -95,11 +96,11 @@ export function ImportRunner({ source }: Props) {
       )
 
       // Image import phase — Day One, Diarly, and Dayspring backups carry photos
-      const buffer = fileBufferRef.current
+      const archive = archiveRef.current
       const hasImages = source.id === 'day_one' || source.id === 'diarly' || source.id === 'other'
       let imageSummary: Summary['images'] | undefined
 
-      if (buffer && hasImages) {
+      if (archive && hasImages) {
         setPhase('uploading-images')
         setImgProgress({ done: 0, total: 0, uploaded: 0, skipped: 0 })
 
@@ -114,7 +115,7 @@ export function ImportRunner({ source }: Props) {
                 ? importDiarlyImages
                 : importDayspringImages
           const imgResult = await importFn(
-            buffer,
+            archive,
             result.dated,
             sb,
             user.id,
@@ -170,8 +171,9 @@ export function ImportRunner({ source }: Props) {
     setSummary(null)
     setProgress({ done: 0, total: 0 })
     setImgProgress(null)
-    fileBufferRef.current = null
+    archiveRef.current = null
     if (inputRef.current) inputRef.current.value = ''
+    if (folderInputRef.current) folderInputRef.current.value = ''
   }
 
   return (
@@ -184,8 +186,18 @@ export function ImportRunner({ source }: Props) {
             accept={source.accept ?? '.zip,application/zip'}
             style={{ display: 'none' }}
             onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) void handleFile(f)
+              void archiveFromFiles(e.target.files).then(handleArchive)
+            }}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            // @ts-expect-error — webkitdirectory is a non-standard but widely supported attr
+            webkitdirectory=""
+            directory=""
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              void archiveFromFiles(e.target.files).then(handleArchive)
             }}
           />
           <button
@@ -200,14 +212,20 @@ export function ImportRunner({ source }: Props) {
             onDrop={(e) => {
               e.preventDefault()
               setDragging(false)
-              const f = e.dataTransfer.files?.[0]
-              if (f) void handleFile(f)
+              void archiveFromDrop(e.dataTransfer).then(handleArchive)
             }}
           >
             <span className="dropzone__icon" aria-hidden="true">↓</span>
             <span className="dropzone__text">
-              Drop your <code>.zip</code> here, or click to choose
+              Drop your <code>.zip</code> or exported folder here, or click to choose
             </span>
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost dropzone__folder-btn"
+            onClick={() => folderInputRef.current?.click()}
+          >
+            Or choose a folder…
           </button>
           {phase === 'error' && error && <p className="import-error">{error}</p>}
         </>

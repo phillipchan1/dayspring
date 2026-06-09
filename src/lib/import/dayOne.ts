@@ -1,8 +1,10 @@
 // Day One JSON export → `entries` rows.
 //
-// Day One exports a .zip containing one JSON file per journal at the root
-// (`Journal.json`, plus `<Name>.json` for additional journals) alongside media
-// folders (photos/, videos/, …) that we don't import. Each JSON looks like:
+// Day One exports one JSON file per journal at the root (`Journal.json`, plus
+// `<Name>.json` for additional journals) alongside media folders (photos/,
+// videos/, …) that we don't import. That export may arrive as a .zip OR as a
+// plain folder — we read both the same way via the ImportArchive interface.
+// Each JSON looks like:
 //   { "metadata": { "version": "1.0" },
 //     "entries": [ { "uuid", "creationDate", "text", "tags", "starred", … } ] }
 //
@@ -12,6 +14,7 @@
 
 import { wordCount } from '../entries'
 import { deriveImportTitle, extractTags } from '../diarlyImport'
+import type { ImportArchive } from './archive'
 import type { ImportedEntry, ImportParseResult, SkippedFile } from './types'
 
 /** Media/asset folders that may also contain JSON sidecars we must ignore. */
@@ -106,33 +109,30 @@ function parseEntry(
 }
 
 /**
- * Parse a Day One JSON export zip. Walks every root-level .json, skips media
- * sidecars, and dedupes by external_id (last wins) so a single zip can never
- * produce two rows that collide on upsert.
+ * Parse a Day One JSON export (zip or folder). Walks every .json that isn't a
+ * media sidecar, skips media folders, and dedupes by external_id (last wins) so
+ * a single export can never produce two rows that collide on upsert.
  */
-export async function parseDayOneZip(data: ArrayBuffer | Blob): Promise<ImportParseResult> {
-  const { default: JSZip } = await import('jszip')
-  const zip = await JSZip.loadAsync(data)
-
-  const jsonFiles = Object.values(zip.files).filter(
-    (f) => !f.dir && /\.json$/i.test(f.name) && !isMediaSidecar(f.name),
+export async function parseDayOne(archive: ImportArchive): Promise<ImportParseResult> {
+  const jsonFiles = archive.files.filter(
+    (f) => /\.json$/i.test(f.path) && !isMediaSidecar(f.path),
   )
 
   const byExternalId = new Map<string, ImportedEntry>()
   const skipped: SkippedFile[] = []
 
   for (const file of jsonFiles) {
-    const journal = journalName(file.name)
+    const journal = journalName(file.path)
     let parsed: DayOneJournal
     try {
-      parsed = JSON.parse(stripBom(await file.async('string'))) as DayOneJournal
+      parsed = JSON.parse(stripBom(await file.text())) as DayOneJournal
     } catch {
-      skipped.push({ path: file.name, reason: 'Not valid JSON' })
+      skipped.push({ path: file.path, reason: 'Not valid JSON' })
       continue
     }
 
     if (!Array.isArray(parsed.entries)) {
-      skipped.push({ path: file.name, reason: 'No "entries" array — not a Day One export?' })
+      skipped.push({ path: file.path, reason: 'No "entries" array — not a Day One export?' })
       continue
     }
 

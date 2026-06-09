@@ -1,14 +1,16 @@
 // Image import pipeline for Day One and Diarly exports.
 //
 // Called after the text entries have been upserted. Scans entry bodies for
-// image references, reads each file lazily from the zip (never inflating the
-// whole archive), uploads to Supabase Storage via ensureAttachment, then
-// rewrites the body reference to the stable `attachment:<sha256>.<ext>` form.
+// image references, reads each file lazily from the archive (a zip stays
+// compressed, a folder reads straight off disk), uploads to Supabase Storage
+// via ensureAttachment, then rewrites the body reference to the stable
+// `attachment:<sha256>.<ext>` form.
 //
 // Day One:  `![alt](attachment-pending:<UUID>)` → `![alt](attachment:<sha256>.<ext>)`
 // Diarly:   `![alt](data/<hash>.<ext>)` → `![alt](attachment:<sha256>.<ext>)`
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { baseName, findByName, type ArchiveFile, type ImportArchive } from './archive'
 import type { ImportedEntry } from './types'
 import type { AttachmentPhotoMeta } from '../attachmentCaption'
 import { ensureAttachment } from '../attachments'
@@ -35,29 +37,24 @@ export interface ImageImportResult {
 const DAY_ONE_PENDING_RE = /!\[([^\]]*)\]\(attachment-pending:([0-9A-Fa-f-]{32,})\)/g
 
 /**
- * Import photos from a Day One JSON export buffer.
+ * Import photos from a Day One JSON export (zip or folder).
  * Entries must already have been text-upserted; this step uploads photos and
  * rewrites `attachment-pending:UUID` refs to `attachment:<sha256>.<ext>`.
  * Images are processed one at a time to keep memory bounded on large exports.
  */
 export async function importDayOneImages(
-  buffer: ArrayBuffer,
+  archive: ImportArchive,
   entries: ImportedEntry[],
   supabase: SupabaseClient,
   ownerId: string,
   onProgress: (p: ImageImportProgress) => void,
 ): Promise<ImageImportResult> {
-  const { default: JSZip } = await import('jszip')
-  const zip = await JSZip.loadAsync(buffer)
-
-  // Index: uppercase UUID → zip entry (handles photos/ at any folder depth)
-  const photoMap = new Map<string, import('jszip').JSZipObject>()
-  for (const [name, file] of Object.entries(zip.files)) {
-    if (file.dir) continue
-    const segs = name.split('/')
-    const photosIdx = segs.findIndex((s) => s.toLowerCase() === 'photos')
-    if (photosIdx === -1) continue
-    const filename = segs[segs.length - 1] ?? ''
+  // Index: uppercase UUID → archive file (handles photos/ at any folder depth)
+  const photoMap = new Map<string, ArchiveFile>()
+  for (const file of archive.files) {
+    const segs = file.path.split('/')
+    if (!segs.some((s) => s.toLowerCase() === 'photos')) continue
+    const filename = baseName(file.path)
     const dot = filename.lastIndexOf('.')
     if (dot === -1) continue
     photoMap.set(filename.slice(0, dot).toUpperCase(), file)
@@ -92,11 +89,11 @@ export async function importDayOneImages(
         continue
       }
 
-      const filename = photoFile.name.split('/').pop() ?? ''
+      const filename = baseName(photoFile.path)
       const ext = filename.slice(filename.lastIndexOf('.') + 1).toLowerCase() || 'jpg'
 
       try {
-        const blob = await photoFile.async('blob')
+        const blob = await photoFile.blob()
         const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext)
         body = body.replace(full!, `![${alt ?? ''}](attachment:${hash}.${ext})`)
         if (isNew) prog.uploaded++
@@ -128,31 +125,27 @@ const DAYSPRING_IMG_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\
  * needed. The metadata manifest (`attachments.json`) restores capture times.
  */
 export async function importDayspringImages(
-  buffer: ArrayBuffer,
+  archive: ImportArchive,
   entries: ImportedEntry[],
   supabase: SupabaseClient,
   ownerId: string,
   onProgress: (p: ImageImportProgress) => void,
 ): Promise<ImageImportResult> {
-  const { default: JSZip } = await import('jszip')
-  const zip = await JSZip.loadAsync(buffer)
-
   // Index bundled binaries by "<hash>.<ext>" (under an `attachments/` folder).
-  const fileMap = new Map<string, import('jszip').JSZipObject>()
-  for (const [name, file] of Object.entries(zip.files)) {
-    if (file.dir) continue
-    const segs = name.split('/')
+  const fileMap = new Map<string, ArchiveFile>()
+  for (const file of archive.files) {
+    const segs = file.path.split('/')
     if (!segs.some((s) => s.toLowerCase() === 'attachments')) continue
-    const filename = segs[segs.length - 1] ?? ''
+    const filename = baseName(file.path)
     if (filename) fileMap.set(filename.toLowerCase(), file)
   }
 
   // Optional metadata manifest: hash → capture time, etc.
   const metaByHash = new Map<string, AttachmentPhotoMeta>()
-  const manifestFile = zip.file('attachments.json')
+  const manifestFile = findByName(archive, 'attachments.json')
   if (manifestFile) {
     try {
-      const parsed = JSON.parse(await manifestFile.async('string')) as {
+      const parsed = JSON.parse(await manifestFile.text()) as {
         attachments?: Record<string, { metadata?: AttachmentPhotoMeta }>
       }
       for (const [hash, info] of Object.entries(parsed.attachments ?? {})) {
@@ -197,7 +190,7 @@ export async function importDayspringImages(
       }
 
       try {
-        const blob = await photoFile.async('blob')
+        const blob = await photoFile.blob()
         const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, metaByHash.get(origHash!))
         // The re-derived hash should equal the original; rewrite only on the rare
         // chance it doesn't, so the ref still points at what we just stored.
@@ -226,24 +219,27 @@ export async function importDayspringImages(
 const DIARLY_IMG_RE = /!\[([^\]]*)\]\(data\/([a-f0-9]+)\.([a-zA-Z0-9]+)\)/g
 
 /**
- * Import photos from a Diarly Markdown export buffer.
+ * Import photos from a Diarly Markdown export (zip or folder).
  * Entries must already have been text-upserted. Rewrites `data/<hash>.<ext>`
  * refs to `attachment:<sha256>.<ext>`.
  */
 export async function importDiarlyImages(
-  buffer: ArrayBuffer,
+  archive: ImportArchive,
   entries: ImportedEntry[],
   supabase: SupabaseClient,
   ownerId: string,
   onProgress: (p: ImageImportProgress) => void,
 ): Promise<ImageImportResult> {
-  const { default: JSZip } = await import('jszip')
-  const zip = await JSZip.loadAsync(buffer)
-
-  // Lowercase path index for case-insensitive matching.
-  const fileMap = new Map<string, import('jszip').JSZipObject>()
-  for (const [name, file] of Object.entries(zip.files)) {
-    if (!file.dir) fileMap.set(name.toLowerCase(), file)
+  // Index files by lowercased basename ("<hash>.<ext>"); a ref then picks the
+  // candidate whose path ends with its "<journal>/<year>/data/" suffix. Matching
+  // on the suffix (not a fixed "Export/" prefix) means a dropped folder — whose
+  // top-level name is whatever the user named it — resolves the same as a zip.
+  const byBase = new Map<string, ArchiveFile[]>()
+  for (const file of archive.files) {
+    const key = baseName(file.path).toLowerCase()
+    const list = byBase.get(key)
+    if (list) list.push(file)
+    else byBase.set(key, [file])
   }
 
   const total = entries.reduce(
@@ -267,17 +263,21 @@ export async function importDiarlyImages(
     let body = entry.body_markdown
     const refs = [...body.matchAll(DIARLY_IMG_RE)]
 
-    // Reconstruct the Data/ folder from external_id: "<Journal>/<Year>/<base>"
-    // Zip path: "Export/<Journal>/<Year>/Data/<hash>.<ext>"
+    // Reconstruct the Data/ folder suffix from external_id "<Journal>/<Year>/<base>":
+    //   "<journal>/<year>/data/"  (anything may precede it — "Export/", a folder name, …)
     const idParts = entry.external_id.split('/')
-    const dataFolder = idParts.length >= 3
-      ? `export/${idParts.slice(0, idParts.length - 1).join('/')}/data/`
+    const dataSuffix = idParts.length >= 3
+      ? `${idParts.slice(0, idParts.length - 1).join('/')}/data/`.toLowerCase()
       : 'data/'
 
     for (const [full, alt, hash, rawExt] of refs) {
       const ext = rawExt!.toLowerCase()
-      const imgKey = `${dataFolder}${hash!}.${ext}`.toLowerCase()
-      const photoFile = fileMap.get(imgKey)
+      const wantSuffix = `${dataSuffix}${hash!}.${ext}`.toLowerCase()
+      const candidates = byBase.get(`${hash!}.${ext}`.toLowerCase()) ?? []
+      const photoFile = candidates.find((f) => {
+        const p = f.path.toLowerCase()
+        return p === wantSuffix || p.endsWith(`/${wantSuffix}`)
+      })
 
       if (!photoFile) {
         missing++
@@ -286,7 +286,7 @@ export async function importDiarlyImages(
       }
 
       try {
-        const blob = await photoFile.async('blob')
+        const blob = await photoFile.blob()
         const { hash: sha, isNew } = await ensureAttachment(supabase, ownerId, blob, ext)
         body = body.replace(full!, `![${alt ?? ''}](attachment:${sha}.${ext})`)
         if (isNew) prog.uploaded++

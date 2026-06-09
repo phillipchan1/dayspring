@@ -1,3 +1,4 @@
+import { findByName, type ImportArchive } from './archive'
 import type { ImportParseResult } from './types'
 import type { ImportedEntry } from '../entries'
 
@@ -20,13 +21,11 @@ interface BackupManifest {
   entries: BackupEntry[]
 }
 
-export async function parseDayspringZip(data: ArrayBuffer): Promise<ImportParseResult> {
-  const { default: JSZip } = await import('jszip')
-  const zip = await JSZip.loadAsync(data)
-  const jsonFile = zip.file('entries.json')
-  if (!jsonFile) throw new Error('Not a Dayspring backup — entries.json not found inside the zip.')
+export async function parseDayspring(archive: ImportArchive): Promise<ImportParseResult> {
+  const jsonFile = findByName(archive, 'entries.json')
+  if (!jsonFile) throw new Error('Not a Dayspring backup — entries.json not found.')
 
-  const text = await jsonFile.async('string')
+  const text = await jsonFile.text()
   let manifest: BackupManifest
   try {
     manifest = JSON.parse(text) as BackupManifest
