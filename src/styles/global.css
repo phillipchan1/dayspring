@@ -2148,11 +2148,22 @@ html[data-focus-mode] .focus-controls {
 .markdown-body img { max-width: 100%; border-radius: var(--radius); }
 
 /* ── Inline attachment image animations (used by attachmentImageExtension) ── */
+/* Softer than before so the live drop caret (cm-dropCursor) reads as the
+   primary "it lands here" signal; the tint just says "drop anywhere in here". */
 .editor-host--drag-over .cm-editor {
-  outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  outline: 1.5px dashed color-mix(in srgb, var(--accent) 40%, transparent);
   outline-offset: -2px;
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent-soft) 35%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+}
+/* A photo is a draggable object; show it, and dim it while it's in flight. */
+.cm-attachment--interactive { cursor: grab; }
+.cm-attachment--interactive:active { cursor: grabbing; }
+.cm-attachment--dragging { opacity: 0.4; }
+/* Make the drop caret thicker than the text cursor during a drag. */
+.cm-dropCursor {
+  border-left-width: 3px !important;
+  border-left-color: var(--accent) !important;
 }
 @keyframes cm-attachment-fadein {
   from { opacity: 0; }

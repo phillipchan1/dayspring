@@ -7,14 +7,55 @@
 // Never store expiring signed URLs in entry bodies — resolve them at render time.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { prepareImageForUpload } from './imageCompress'
+import { makeDisplayVariant, prepareImageForUpload } from './imageCompress'
+import { attachmentCacheGet, attachmentCachePut } from './db'
+import { isTauri } from './platform'
 import type { AttachmentPhotoMeta } from './attachmentCaption'
 
 const BUCKET = 'attachments'
 const SIGNED_URL_TTL_S = 3600 // 1 hour
 
-// Module-level cache: storageKey → { url, expiresAt (ms) }
+// Display transform requested from Supabase Storage (Pro feature): a ~1400px,
+// quality-72 render so we ship a fraction of the stored bytes to the viewport.
+const DISPLAY_TRANSFORM = { width: 1400, quality: 72, resize: 'contain' as const }
+
+// Module-level cache: `${storageKey}|${transformSig}` → { url, expiresAt (ms) }
 const urlCache = new Map<string, { url: string; expiresAt: number }>()
+
+// Live object URLs for cached blobs, keyed by `<hash>.<ext>`. Reused so we don't
+// mint duplicates; they live for the session (revoked implicitly on reload).
+const objectUrlCache = new Map<string, string>()
+
+const MB = 1024 * 1024
+let persistRequested = false
+
+/** Ask the browser to keep our storage through memory pressure (best-effort). */
+function requestPersistentStorage(): void {
+  if (persistRequested) return
+  persistRequested = true
+  try {
+    void navigator.storage?.persist?.()
+  } catch {
+    /* not supported — eviction is lossless anyway */
+  }
+}
+
+/**
+ * Local image-cache budget. Desktop (Tauri) gets a generous cap, mobile a
+ * conservative one; both are clamped to ~half the reported quota where the
+ * Storage API exposes it. The cache is bounded LRU, so this is a ceiling, not a
+ * reservation.
+ */
+async function displayCacheBudgetBytes(): Promise<number> {
+  const cap = isTauri() ? 500 * MB : 150 * MB
+  try {
+    const quota = (await navigator.storage?.estimate?.())?.quota
+    if (quota) return Math.max(50 * MB, Math.min(cap, Math.floor(quota * 0.5)))
+  } catch {
+    /* estimate unsupported */
+  }
+  return cap
+}
 
 export async function computeSha256(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer()
@@ -84,7 +125,28 @@ export async function uploadImageAttachment(
   const prepared = await prepareImageForUpload(file)
   const ext = extFromImageFile(prepared)
   const result = await ensureAttachment(supabase, ownerId, prepared, ext, meta)
+  // Seed the local cache with a display variant so the photo we just added is
+  // instant on this device (and other devices fill their cache on first view).
+  void cacheDisplayVariant(ownerId, result.hash, ext, prepared)
   return { ...result, ext }
+}
+
+/** Generate + store a display-sized blob locally. Fire-and-forget; failures are
+ *  harmless (the network path rebuilds it on demand). */
+async function cacheDisplayVariant(
+  ownerId: string,
+  hash: string,
+  ext: string,
+  source: Blob,
+): Promise<void> {
+  try {
+    const variant = await makeDisplayVariant(source)
+    if (!variant) return
+    requestPersistentStorage()
+    await attachmentCachePut(`${hash}.${ext}`, ownerId, variant, await displayCacheBudgetBytes())
+  } catch {
+    /* cache is best-effort */
+  }
 }
 
 /**
@@ -151,31 +213,79 @@ export async function fetchAttachmentMeta(
   return takenAt ? { takenAt } : null
 }
 
+type SignedTransform = { width: number; quality: number; resize: 'contain' }
+
 /**
- * Resolve `attachment:<hash>.<ext>` to a signed URL.
- * Results are cached until 60 s before the URL expires.
+ * Resolve `attachment:<hash>.<ext>` to a signed URL, optionally a transformed
+ * (resized) render. Results are cached until 60 s before the URL expires.
  */
 export async function resolveAttachmentUrl(
   supabase: SupabaseClient,
   ownerId: string,
   hash: string,
   ext: string,
+  transform?: SignedTransform,
 ): Promise<string | null> {
   const storageKey = `${ownerId}/${hash}.${ext}`
-  const cached = urlCache.get(storageKey)
+  const cacheKey = transform ? `${storageKey}|${transform.width}q${transform.quality}` : storageKey
+  const cached = urlCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.url
 
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(storageKey, SIGNED_URL_TTL_S)
+    .createSignedUrl(storageKey, SIGNED_URL_TTL_S, transform ? { transform } : undefined)
 
   if (error || !data) return null
 
-  urlCache.set(storageKey, {
+  urlCache.set(cacheKey, {
     url: data.signedUrl,
     expiresAt: Date.now() + (SIGNED_URL_TTL_S - 60) * 1000,
   })
   return data.signedUrl
+}
+
+/**
+ * Resolve a photo to a display URL, preferring the local cache:
+ *   live object URL → IndexedDB blob → network (signed transform, then cached).
+ * Falls back to the raw signed transform URL if the blob fetch fails (offline
+ * with a cold cache, or a CORS hiccup) so the photo still shows over the wire.
+ * Returns null only when even a signed URL can't be obtained.
+ */
+export async function resolveAttachmentDisplayUrl(
+  supabase: SupabaseClient,
+  ownerId: string,
+  hash: string,
+  ext: string,
+): Promise<string | null> {
+  const key = `${hash}.${ext}`
+
+  const live = objectUrlCache.get(key)
+  if (live) return live
+
+  const cachedBlob = await attachmentCacheGet(key)
+  if (cachedBlob) {
+    const url = URL.createObjectURL(cachedBlob)
+    objectUrlCache.set(key, url)
+    return url
+  }
+
+  const signed = await resolveAttachmentUrl(supabase, ownerId, hash, ext, DISPLAY_TRANSFORM)
+  if (!signed) return null
+
+  try {
+    const res = await fetch(signed)
+    if (!res.ok) return signed
+    const blob = await res.blob()
+    requestPersistentStorage()
+    await attachmentCachePut(key, ownerId, blob, await displayCacheBudgetBytes())
+    const url = URL.createObjectURL(blob)
+    objectUrlCache.set(key, url)
+    return url
+  } catch {
+    // Network fetch failed — hand back the signed URL; the <img> can still load
+    // it directly (no CORS constraint on image display).
+    return signed
+  }
 }
 
 /**
@@ -193,24 +303,4 @@ export async function downloadAttachmentBlob(
   const { data, error } = await supabase.storage.from(BUCKET).download(storageKey)
   if (error || !data) return null
   return data
-}
-
-/**
- * Replace all `attachment:<hash>.<ext>` refs in `markdown` with fresh signed URLs.
- * Used by the render layer before passing to marked. Returns the rewritten string.
- */
-export async function resolveAttachmentsInMarkdown(
-  supabase: SupabaseClient,
-  ownerId: string,
-  markdown: string,
-): Promise<string> {
-  const refs = [...markdown.matchAll(ATTACHMENT_REF_RE)]
-  if (refs.length === 0) return markdown
-
-  let result = markdown
-  for (const [full, alt, hash, ext] of refs) {
-    const url = await resolveAttachmentUrl(supabase, ownerId, hash!, ext!)
-    if (url) result = result.replace(full!, `![${alt ?? ''}](${url})`)
-  }
-  return result
 }

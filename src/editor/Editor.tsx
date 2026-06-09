@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
-import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
+import { dropCursor, EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit, syntaxHighlighting } from '@codemirror/language'
@@ -28,7 +28,11 @@ import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
-import { attachmentImageExtension, type AttachmentEditTarget } from './attachmentImageExtension'
+import {
+  attachmentImageExtension,
+  type AttachmentEditTarget,
+  type ImageMenuPoint,
+} from './attachmentImageExtension'
 import {
   attachmentBlockNormalizeExtension,
   insertBlockAttachmentAt,
@@ -91,8 +95,12 @@ interface EditorProps {
   ) => void
   /** Called when the user clicks a rendered spiritual block to edit it. */
   onEditBlock?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
-  /** Called when the user clicks a photo block to edit it. */
-  onEditAttachment?: (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => void
+  /** Called when the user left- or right-clicks a photo block to open its options menu. */
+  onImageMenu?: (
+    target: AttachmentEditTarget,
+    point: ImageMenuPoint,
+    anchor: InlinePanelAnchor,
+  ) => void
   /** Called when the user opens a practice's "about" sheet (by practice name). */
   onAboutPractice?: (name: string) => void
 }
@@ -120,7 +128,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     commandLinePos = null,
     onSlashCommand,
     onEditBlock,
-    onEditAttachment,
+    onImageMenu,
     onAboutPractice,
     onSlashPaletteChange,
     skipAutofocusRef,
@@ -135,7 +143,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
-  const onEditAttachmentRef = useRef(onEditAttachment)
+  const onImageMenuRef = useRef(onImageMenu)
   const onAboutPracticeRef = useRef(onAboutPractice)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
@@ -146,7 +154,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const setSlashRef = useRef(setSlashState)
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
-  onEditAttachmentRef.current = onEditAttachment
+  onImageMenuRef.current = onImageMenu
   onAboutPracticeRef.current = onAboutPractice
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
@@ -315,9 +323,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // Renders /practice prompts as display-only decorations over hidden tokens.
           practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
           attachmentBlockNormalizeExtension(),
-          attachmentImageExtension((target, anchor) =>
-            onEditAttachmentRef.current?.(target, anchor),
+          attachmentImageExtension((target, point, anchor) =>
+            onImageMenuRef.current?.(target, point, anchor),
           ),
+          // Live insertion caret while dragging a file in or reordering a photo.
+          dropCursor(),
           Prec.highest(attachmentDropExtension()),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),

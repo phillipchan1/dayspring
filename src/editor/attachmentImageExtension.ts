@@ -13,14 +13,28 @@ import {
 } from '@codemirror/view'
 import { RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state'
 import { supabase } from '@/lib/supabase'
-import { PENDING_ATTACHMENT_REF_RE, fetchAttachmentMeta, resolveAttachmentUrl } from '@/lib/attachments'
+import {
+  PENDING_ATTACHMENT_REF_RE,
+  fetchAttachmentMeta,
+  resolveAttachmentDisplayUrl,
+} from '@/lib/attachments'
 import {
   formatPhotoMetaLine,
   isMeaningfulCaption,
   type AttachmentPhotoMeta,
 } from '@/lib/attachmentCaption'
-import { findAttachmentAtPos, findAttachmentByKey, type AttachmentEditTarget } from './attachmentInsert'
+import {
+  ATTACHMENT_DND_MIME,
+  findAttachmentAtPos,
+  findAttachmentByKey,
+  type AttachmentEditTarget,
+} from './attachmentInsert'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
+
+export interface ImageMenuPoint {
+  x: number
+  y: number
+}
 
 export type { AttachmentEditTarget } from './attachmentInsert'
 
@@ -116,7 +130,7 @@ function fetchAttachmentUrl(hash: string, ext: string): Promise<string | null> {
   const promise = getOwnerId()
     .then((ownerId) => {
       if (!ownerId || !supabase) return null
-      return resolveAttachmentUrl(supabase, ownerId, hash, ext)
+      return resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext)
     })
     .then((url) => {
       pendingFetches.delete(key)
@@ -170,7 +184,8 @@ class AttachmentImageWidget extends WidgetType {
     const wrap = document.createElement('div')
     wrap.className = 'cm-attachment cm-attachment--interactive'
     wrap.contentEditable = 'false'
-    wrap.title = 'Click to edit'
+    wrap.title = 'Click for options · drag to move'
+    wrap.draggable = true
     wrap.dataset.attachmentKey = this.cacheKey
 
     const url = this.resolvedUrl
@@ -191,7 +206,7 @@ class AttachmentImageWidget extends WidgetType {
       label.textContent = 'photo'
       const hint = document.createElement('span')
       hint.className = 'cm-attachment__chrome-hint'
-      hint.textContent = this.caption ? 'edit' : 'add caption'
+      hint.textContent = this.caption ? 'options' : 'add caption'
       chrome.append(label, hint)
       wrap.append(chrome)
     } else {
@@ -362,28 +377,72 @@ function attachmentInitPlugin(): Extension {
   })
 }
 
-function attachmentClickHandler(
-  onEdit: (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => void,
+function resolveAttachmentTarget(
+  view: EditorView,
+  blockEl: HTMLElement,
+  clientX: number,
+  clientY: number,
+): AttachmentEditTarget | null {
+  const doc = view.state.doc.toString()
+  const pos = view.posAtCoords({ x: clientX, y: clientY })
+  let target = pos === null ? null : findAttachmentAtPos(doc, pos)
+  // Coords can land outside the ref range (a photo rendered tight against
+  // another block widget); fall back to the clicked element's own key.
+  if (!target && blockEl.dataset.attachmentKey) {
+    target = findAttachmentByKey(doc, blockEl.dataset.attachmentKey)
+  }
+  return target
+}
+
+/**
+ * A photo is an object, not text, so left- and right-click both open the same
+ * options menu (anchored at the pointer). `dragstart` tags the transfer so the
+ * drop handler can move the ref instead of treating it as a file drop.
+ */
+function attachmentMenuHandler(
+  onMenu: (
+    target: AttachmentEditTarget,
+    point: ImageMenuPoint,
+    anchor: InlinePanelAnchor,
+  ) => void,
 ): Extension {
+  const open = (event: MouseEvent, view: EditorView): boolean => {
+    const blockEl = (event.target as HTMLElement | null)?.closest(
+      '.cm-attachment--interactive',
+    ) as HTMLElement | null
+    if (!blockEl) return false
+    const target = resolveAttachmentTarget(view, blockEl, event.clientX, event.clientY)
+    if (!target) return false
+    event.preventDefault()
+    onMenu(target, { x: event.clientX, y: event.clientY }, computeBlockPanelAnchor(view, blockEl))
+    return true
+  }
+
   return EditorView.domEventHandlers({
-    mousedown(event, view) {
-      const el = event.target as HTMLElement | null
-      const blockEl = el?.closest('.cm-attachment--interactive') as HTMLElement | null
-      if (!blockEl) return false
-
-      const doc = view.state.doc.toString()
-      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-      let target = pos === null ? null : findAttachmentAtPos(doc, pos)
-      // Coords can land outside the ref range (a photo rendered tight against
-      // another block widget); fall back to the clicked element's own key.
-      if (!target && blockEl.dataset.attachmentKey) {
-        target = findAttachmentByKey(doc, blockEl.dataset.attachmentKey)
+    // A completed drag emits no `click`, so a plain handler won't fire mid-move.
+    click(event, view) {
+      if (event.button !== 0) return false
+      return open(event, view)
+    },
+    contextmenu(event, view) {
+      // Suppress the native browser menu on photos only; text keeps spellcheck.
+      return open(event, view)
+    },
+    dragstart(event, view) {
+      const blockEl = (event.target as HTMLElement | null)?.closest(
+        '.cm-attachment--interactive',
+      ) as HTMLElement | null
+      const key = blockEl?.dataset.attachmentKey
+      if (!blockEl || !key || !event.dataTransfer) return false
+      event.dataTransfer.setData(ATTACHMENT_DND_MIME, key)
+      event.dataTransfer.effectAllowed = 'move'
+      blockEl.classList.add('cm-attachment--dragging')
+      const clear = () => {
+        blockEl.classList.remove('cm-attachment--dragging')
+        blockEl.removeEventListener('dragend', clear)
       }
-      if (!target) return false
-
-      event.preventDefault()
-      onEdit(target, computeBlockPanelAnchor(view, blockEl))
-      return true
+      blockEl.addEventListener('dragend', clear)
+      return false
     },
   })
 }
@@ -486,16 +545,20 @@ const attachmentTheme = EditorView.theme({
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-/** @param onEdit Called when the user clicks a resolved photo block. */
+/** @param onMenu Called when the user left- or right-clicks a resolved photo block. */
 export function attachmentImageExtension(
-  onEdit?: (target: AttachmentEditTarget, anchor: InlinePanelAnchor) => void,
+  onMenu?: (
+    target: AttachmentEditTarget,
+    point: ImageMenuPoint,
+    anchor: InlinePanelAnchor,
+  ) => void,
 ): Extension {
   return [
     attachmentTheme,
     attachmentDecoField,
     EditorView.atomicRanges.of((view) => view.state.field(attachmentDecoField)),
     attachmentInitPlugin(),
-    ...(onEdit ? [attachmentClickHandler(onEdit)] : []),
+    ...(onMenu ? [attachmentMenuHandler(onMenu)] : []),
   ]
 }
 
@@ -509,7 +572,7 @@ export async function resolveCachedAttachmentPreview(
   if (!supabase) return null
   const ownerId = await getOwnerId()
   if (!ownerId) return null
-  const url = await resolveAttachmentUrl(supabase, ownerId, hash, ext)
+  const url = await resolveAttachmentDisplayUrl(supabase, ownerId, hash, ext)
   if (url) resolvedUrls.set(key, url)
   return url
 }

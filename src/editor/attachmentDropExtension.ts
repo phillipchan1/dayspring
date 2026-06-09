@@ -6,11 +6,13 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { uploadImageAttachment } from '@/lib/attachments'
 import { supabase } from '@/lib/supabase'
 import {
+  ATTACHMENT_DND_MIME,
   IMAGE_MAX_BYTES,
   imageFilesFromClipboard,
   imageFilesFromDataTransfer,
   insertBlockPendingAttachmentsAt,
   isImageFile,
+  moveAttachmentRef,
   removePendingAttachmentInView,
   replacePendingAttachmentInView,
 } from './attachmentInsert'
@@ -36,6 +38,11 @@ function isFileDrag(dt: DataTransfer): boolean {
   if (types.includes('Files')) return true
   // iOS/iPadOS: Photos sends UTI/MIME types instead of 'Files'
   return types.some(isImageMimeOrUti)
+}
+
+// A photo block being dragged within the editor (set on dragstart).
+function isInternalAttachmentDrag(dt: DataTransfer): boolean {
+  return dtTypes(dt).includes(ATTACHMENT_DND_MIME)
 }
 
 function dragHost(view: EditorView): HTMLElement | null {
@@ -111,7 +118,15 @@ export function attachmentDropExtension(): Extension {
     },
     dragover(event, view) {
       const dt = event.dataTransfer
-      if (!dt || !isFileDrag(dt)) return false
+      if (!dt) return false
+      // Allow the drop and let dropCursor track the line. An internal photo move
+      // doesn't tint the whole editor (it's already inside) — only files do.
+      if (isInternalAttachmentDrag(dt)) {
+        event.preventDefault()
+        dt.dropEffect = 'move'
+        return false
+      }
+      if (!isFileDrag(dt)) return false
       event.preventDefault()
       dt.dropEffect = 'copy'
       setDragOver(view, true)
@@ -127,6 +142,16 @@ export function attachmentDropExtension(): Extension {
       setDragOver(view, false)
       const dt = event.dataTransfer
       if (!dt) return false
+
+      // Internal photo reorder: move the ref to the dropped line instead of
+      // uploading anything.
+      const movedKey = dt.getData(ATTACHMENT_DND_MIME)
+      if (movedKey) {
+        event.preventDefault()
+        moveAttachmentRef(view, movedKey, dropPos(view, event))
+        return true
+      }
+
       const files = imageFilesFromDataTransfer(dt)
       if (!files.length) {
         console.warn('[images] drop fired but no image files found in transfer; types:', dtTypes(dt))
