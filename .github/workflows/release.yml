@@ -52,14 +52,14 @@ jobs:
     env:
       RELEASES_REPO: phillipchan1/dayspring-releases
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Full history so the release-notes step can diff this build against
           # the previous tip of master (github.event.before..HEAD).
           fetch-depth: 0
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
