@@ -21,6 +21,13 @@ export interface FormatState {
 
 const EMPTY_INLINE: InlineMarks = { bold: false, italic: false, strike: false, code: false }
 
+const INLINE_MARKER: Record<InlineMark, string> = {
+  bold: '**',
+  italic: '*',
+  strike: '~~',
+  code: '`',
+}
+
 const LINE_STYLES: { action: 'list' | 'quote' | 'heading'; prefixes: string[] }[] = [
   { action: 'heading', prefixes: ['### ', '## ', '# '] },
   { action: 'quote', prefixes: ['> '] },
@@ -175,7 +182,16 @@ function toggleInlineMark(marks: InlineMarks, mark: InlineMark): InlineMarks {
 
 function applyInlineFormat(view: EditorView, mark: InlineMark): boolean {
   const { from, to } = view.state.selection.main
-  if (from === to) return false
+
+  if (from === to) {
+    const m = INLINE_MARKER[mark]
+    view.dispatch({
+      changes: { from, insert: m + m },
+      selection: { anchor: from + m.length },
+    })
+    view.focus()
+    return true
+  }
 
   const raw = view.state.sliceDoc(from, to)
   const linkParsed = parseLink(raw)

@@ -2,9 +2,9 @@ import { keymap, type EditorView } from '@codemirror/view'
 import { applyFormat } from './formatSelection'
 
 /**
- * Editor-local formatting shortcuts (won't fire when the selection is empty).
- * `onRequestLink` is invoked for ⌘K so the caller can open the link popover —
- * link entry is a UI flow, not a synchronous text edit.
+ * Editor-local formatting shortcuts. With no selection, inline marks (bold/italic/code/strike)
+ * insert paired markers and place the cursor between them. `onRequestLink` is invoked for ⌘K
+ * so the caller can open the link popover — link entry is a UI flow, not a synchronous text edit.
  */
 export function formatKeymap(onRequestLink: (view: EditorView) => void) {
   return keymap.of([
