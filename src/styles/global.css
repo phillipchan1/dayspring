@@ -2951,6 +2951,10 @@ html[data-focus-mode] .focus-controls {
   font-size: 0.9em;
   color: var(--accent);
 }
+.dropzone__folder-btn {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+}
 .import-error {
   color: var(--danger);
   font-size: 0.8rem;

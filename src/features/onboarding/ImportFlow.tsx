@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { upsertImportedEntries } from '@/lib/entries'
 import { scanAllForRefs } from '@/lib/scripture/scan'
 import type { ImportParseResult } from '@/lib/import/types'
+import { archiveFromDrop, archiveFromFiles, type ImportArchive } from '@/lib/import/archive'
 import { IMPORT_SOURCES } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
 import { getRollup, type Rollup } from '@/lib/insights'
@@ -63,22 +64,22 @@ export function ImportFlow({ onComplete, onBack }: Props) {
   const [bgBuilding, setBgBuilding] = useState(false)
   const [bgDismissed, setBgDismissed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
-  async function handleFile(file: File) {
-    if (!file.name.toLowerCase().endsWith('.zip')) {
-      setError('Please choose a .zip export.')
+  async function handleArchive(archive: ImportArchive | null) {
+    if (!archive || archive.files.length === 0) {
+      setError('Please choose a .zip export or its unzipped folder.')
       return
     }
     setError(null)
     setPhase('parsing')
     try {
-      const buffer = await file.arrayBuffer()
       // Auto-detect: try each available parser, keep the first that finds entries.
       let parsed: ImportParseResult | null = null
       let detected: EntrySource = 'other'
       for (const src of PARSERS) {
         try {
-          const r = await src.parse!(buffer.slice(0))
+          const r = await src.parse!(archive)
           if (r.dated.length > 0 || r.skipped.length > 0) {
             parsed = r
             detected = src.id as EntrySource
@@ -89,7 +90,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         }
       }
       if (!parsed || (parsed.dated.length === 0 && parsed.skipped.length === 0)) {
-        setError('We couldn’t read that file. Is it a Dayspring backup, Day One, or Diarly export (.zip)?')
+        setError('We couldn’t read that. Is it a Dayspring backup, Day One, or Diarly export (.zip or folder)?')
         setPhase('upload')
         return
       }
@@ -97,7 +98,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
       setSourceId(detected)
       setPhase('preview')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not read the file.')
+      setError(e instanceof Error ? e.message : 'Could not read the export.')
       setPhase('upload')
     }
   }
@@ -107,6 +108,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
     setError(null)
     setPhase('upload')
     if (inputRef.current) inputRef.current.value = ''
+    if (folderInputRef.current) folderInputRef.current.value = ''
   }
 
   async function confirmImport() {
@@ -183,8 +185,18 @@ export function ImportFlow({ onComplete, onBack }: Props) {
           accept=".zip,application/zip"
           style={{ display: 'none' }}
           onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) void handleFile(f)
+            void archiveFromFiles(e.target.files).then(handleArchive)
+          }}
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          // @ts-expect-error — webkitdirectory is a non-standard but widely supported attr
+          webkitdirectory=""
+          directory=""
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            void archiveFromFiles(e.target.files).then(handleArchive)
           }}
         />
 
@@ -194,26 +206,34 @@ export function ImportFlow({ onComplete, onBack }: Props) {
             <span>{copy.importUpload.reading}</span>
           </div>
         ) : (
-          <button
-            type="button"
-            className={`ob-dropzone${dragging ? ' ob-dropzone--active' : ''}`}
-            onClick={() => inputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragging(false)
-              const f = e.dataTransfer.files?.[0]
-              if (f) void handleFile(f)
-            }}
-          >
-            <span className="ob-dropzone__icon" aria-hidden>↓</span>
-            <span className="ob-dropzone__text">{copy.importUpload.dropzone}</span>
-            <span className="ob-dropzone__hint">{copy.importUpload.sourceHint}</span>
-          </button>
+          <>
+            <button
+              type="button"
+              className={`ob-dropzone${dragging ? ' ob-dropzone--active' : ''}`}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragging(false)
+                void archiveFromDrop(e.dataTransfer).then(handleArchive)
+              }}
+            >
+              <span className="ob-dropzone__icon" aria-hidden>↓</span>
+              <span className="ob-dropzone__text">{copy.importUpload.dropzone}</span>
+              <span className="ob-dropzone__hint">{copy.importUpload.sourceHint}</span>
+            </button>
+            <button
+              type="button"
+              className="ob-tertiary"
+              onClick={() => folderInputRef.current?.click()}
+            >
+              Or choose a folder…
+            </button>
+          </>
         )}
 
         {error && <p className="ob-error">{error}</p>}

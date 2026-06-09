@@ -8,6 +8,7 @@
 // the path, pinned to noon UTC so a timezone can never flip the calendar day.
 
 import { wordCount } from './entries'
+import type { ImportArchive } from './import/archive'
 
 /** A dated file we can import, already mapped to `entries` columns. */
 export interface ParsedDiarlyEntry {
@@ -163,28 +164,25 @@ function isAttachment(path: string): boolean {
 }
 
 /**
- * Parse a Diarly Markdown export zip. Walks every .md file, skips attachments,
- * and dedupes dated entries by external_id (last file wins) so a single zip can
- * never produce two rows that would collide on upsert.
+ * Parse a Diarly Markdown export (zip or folder). Walks every .md file, skips
+ * attachments, and dedupes dated entries by external_id (last file wins) so a
+ * single export can never produce two rows that would collide on upsert.
  */
-export async function parseDiarlyZip(data: ArrayBuffer | Blob): Promise<DiarlyParseResult> {
-  const { default: JSZip } = await import('jszip')
-  const zip = await JSZip.loadAsync(data)
-
+export async function parseDiarly(archive: ImportArchive): Promise<DiarlyParseResult> {
   const datedByExternalId = new Map<string, ParsedDiarlyEntry>()
   const undated: UndatedDiarlyFile[] = []
 
-  const files = Object.values(zip.files).filter(
-    (f) => !f.dir && MD_EXT.test(f.name) && !isAttachment(f.name),
+  const files = archive.files.filter(
+    (f) => MD_EXT.test(f.path) && !isAttachment(f.path),
   )
 
   for (const file of files) {
-    const body = await file.async('string')
-    const parsed = parseDiarlyFile(file.name, body)
+    const body = await file.text()
+    const parsed = parseDiarlyFile(file.path, body)
     if (parsed) {
       datedByExternalId.set(parsed.external_id, parsed)
     } else {
-      undated.push({ path: file.name, journal: undatedJournal(file.name) })
+      undated.push({ path: file.path, journal: undatedJournal(file.path) })
     }
   }
 
