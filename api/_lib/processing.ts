@@ -115,6 +115,10 @@ function buildStagePeriod(stage: Stage, owner: string, period: Period) {
  * skips a kind that already has an active (queued/running) job. Called on import
  * completion and (no-op) on signup. The altar chain is seeded with altar_harvest;
  * it enqueues altar_embed → altar_thread as each stage finishes.
+ *
+ * If a reflections job is already active (e.g. the user imported while a previous
+ * backfill was still running), we extend its range to cover the new import range
+ * rather than silently dropping the new periods.
  */
 export async function enqueueBackfill(
   owner: string,
@@ -127,6 +131,10 @@ export async function enqueueBackfill(
   const reflectionsCursor: ReflectionsCursor = { range, index: 0 }
   if (await insertIfInactive(sb, owner, 'reflections', reflectionsTotal, reflectionsCursor)) {
     enqueued.push('reflections')
+  } else {
+    // A job is already active — widen its range so the newly-imported periods
+    // aren't left unprocessed. The job restarts from scratch with the merged range.
+    await extendActiveReflections(sb, owner, range)
   }
 
   const { unscanned } = await harvestPlan(owner)
@@ -135,6 +143,40 @@ export async function enqueueBackfill(
   }
 
   return { enqueued }
+}
+
+/**
+ * If a reflections job is currently active and the new import range extends
+ * beyond it, widen the job to cover both. Resets the cursor to index 0 so the
+ * merged range is built from scratch (recent-first, idempotent).
+ */
+async function extendActiveReflections(
+  sb: ReturnType<typeof supabaseAdmin>,
+  owner: string,
+  newRange: Period,
+): Promise<void> {
+  const { data: active } = await sb
+    .from('processing_jobs')
+    .select('id, cursor')
+    .eq('owner', owner)
+    .eq('kind', 'reflections')
+    .in('status', ['queued', 'running'])
+    .maybeSingle()
+  if (!active) return // completed between the insertIfInactive check and now
+
+  const existing = (active.cursor as ReflectionsCursor).range
+  const merged: Period = {
+    start: newRange.start < existing.start ? newRange.start : existing.start,
+    end: newRange.end > existing.end ? newRange.end : existing.end,
+  }
+  // Already covers the new range — nothing to do.
+  if (merged.start === existing.start && merged.end === existing.end) return
+
+  const tasks = reflectionsTasks(merged)
+  await sb
+    .from('processing_jobs')
+    .update({ cursor: { range: merged, index: 0 }, total: tasks.length, completed: 0 })
+    .eq('id', active.id)
 }
 
 async function insertIfInactive(
