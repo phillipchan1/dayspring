@@ -67,6 +67,15 @@
   box-shadow: 0 0 10px -1px rgba(var(--scripture-gold), 0.7);
 }
 
+/* Failed — a muted amber signal, no breathing. */
+.processing-banner--failed {
+  border-color: rgba(var(--scripture-ember), 0.35);
+}
+.processing-banner__mark--failed {
+  animation: none;
+  background: radial-gradient(circle at 50% 40%, rgba(var(--scripture-ember), 0.9), rgba(var(--scripture-ember), 0.4) 70%);
+}
+
 .processing-banner__body {
   display: flex;
   flex-direction: column;

@@ -75,6 +75,21 @@ export function ProcessingBanner() {
     )
   }
 
+  // ── FAILED ────────────────────────────────────────────────────────────────
+  if (phase === 'failed') {
+    return (
+      <div className="processing-banner processing-banner--failed" role="alert" aria-live="assertive">
+        <span className="processing-banner__mark processing-banner__mark--failed" aria-hidden />
+        <div className="processing-banner__body">
+          <p className="processing-banner__text">
+            Something went wrong building your reflections or altar. Re-importing your archive will
+            pick up where it left off.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   // ── COMPLETE ──────────────────────────────────────────────────────────────
   if (phase === 'complete' && completionKey && completionKey !== acked) {
     const ack = () => {

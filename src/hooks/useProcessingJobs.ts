@@ -17,7 +17,7 @@ export interface ProcessingJob {
   updatedAt: string
 }
 
-export type ProcessingPhase = 'idle' | 'active' | 'complete'
+export type ProcessingPhase = 'idle' | 'active' | 'complete' | 'failed'
 
 export interface ProcessingState {
   byKind: Partial<Record<ProcessingKind, ProcessingJob>>
@@ -150,7 +150,17 @@ export function useProcessingJobs(): ProcessingState {
   // Completion = there WERE jobs and every one has finished cleanly (no active,
   // no failures). A failed step doesn't get a celebration.
   const allDone = jobs.length > 0 && jobs.every((j) => j.status === 'done')
-  const phase: ProcessingPhase = jobs.length === 0 ? 'idle' : anyActive ? 'active' : allDone ? 'complete' : 'idle'
+  const anyFailed = jobs.some((j) => j.status === 'failed')
+  const phase: ProcessingPhase =
+    jobs.length === 0
+      ? 'idle'
+      : anyActive
+        ? 'active'
+        : allDone
+          ? 'complete'
+          : anyFailed
+            ? 'failed'
+            : 'idle'
   const completionKey = phase === 'complete'
     ? jobs.reduce((latest, j) => (j.updatedAt > latest ? j.updatedAt : latest), '')
     : null
