@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import {
   attachmentBlockNormalizeExtension,
+  findAttachmentByKey,
   normalizeAttachmentBlocks,
   planAttachmentMove,
   splitInlineAttachments,
   wrapBlockAttachmentInsert,
   findAttachmentAtPos,
 } from './attachmentInsert'
+import { formatAttachmentMarkdown } from '@/lib/attachments'
 
 const IMG =
   '![sunset](attachment:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg)'
@@ -48,6 +50,41 @@ describe('normalizeAttachmentBlocks', () => {
   it('pads an image-only line with blank lines', () => {
     const doc = `Before\n${IMG}\nAfter`
     expect(normalizeAttachmentBlocks(doc)).toBe(`Before\n\n${IMG}\n\nAfter`)
+  })
+})
+
+describe('image size hint', () => {
+  const HASH = 'a'.repeat(64)
+  const KEY = `${HASH}.jpg`
+
+  it('omits the param for the default medium size', () => {
+    expect(formatAttachmentMarkdown(HASH, 'jpg', 'sunset', 'm')).toBe(IMG)
+  })
+
+  it('round-trips small and full through format + parse', () => {
+    for (const size of ['s', 'f'] as const) {
+      const md = formatAttachmentMarkdown(HASH, 'jpg', 'sunset', size)
+      expect(md).toContain(`?size=${size})`)
+      expect(findAttachmentByKey(md, KEY)?.size).toBe(size)
+    }
+  })
+
+  it('defaults to medium when no param is present', () => {
+    expect(findAttachmentByKey(IMG, KEY)?.size).toBe('m')
+  })
+
+  it('preserves the size when a sized photo is moved', () => {
+    const sized = formatAttachmentMarkdown(HASH, 'jpg', 'sunset', 'f')
+    const doc = `${sized}\n\nfirst\n\nsecond`
+    const changes = planAttachmentMove(doc, KEY, doc.indexOf('second'))
+    const out = EditorState.create({
+      doc,
+      extensions: [attachmentBlockNormalizeExtension()],
+    })
+      .update({ changes: changes! })
+      .newDoc.toString()
+    expect(out).toBe(`first\n\n${sized}\n\nsecond`)
+    expect(out).toContain('?size=f)')
   })
 })
 

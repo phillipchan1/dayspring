@@ -4,13 +4,16 @@ import {
   ATTACHMENT_REF_RE,
   formatAttachmentMarkdown,
   formatPendingAttachmentMarkdown,
+  imageSizeFrom,
   PENDING_ATTACHMENT_REF_RE,
+  type ImageSize,
 } from '@/lib/attachments'
 
 export interface AttachmentEditTarget {
   hash: string
   ext: string
   alt: string
+  size: ImageSize
   from: number
   to: number
 }
@@ -23,7 +26,7 @@ export function findAttachmentAtPos(doc: string, pos: number): AttachmentEditTar
     const from = m.index
     const to = from + m[0]!.length
     if (pos >= from && pos < to) {
-      return { hash: m[2]!, ext: m[3]!, alt: m[1] ?? '', from, to }
+      return { hash: m[2]!, ext: m[3]!, alt: m[1] ?? '', size: imageSizeFrom(m[4]), from, to }
     }
   }
   return null
@@ -39,7 +42,14 @@ export function findAttachmentByKey(doc: string, key: string): AttachmentEditTar
   let m: RegExpExecArray | null
   while ((m = ATTACHMENT_REF_RE.exec(doc)) !== null) {
     if (`${m[2]}.${m[3]}` === key) {
-      return { hash: m[2]!, ext: m[3]!, alt: m[1] ?? '', from: m.index, to: m.index + m[0]!.length }
+      return {
+        hash: m[2]!,
+        ext: m[3]!,
+        alt: m[1] ?? '',
+        size: imageSizeFrom(m[4]),
+        from: m.index,
+        to: m.index + m[0]!.length,
+      }
     }
   }
   return null
@@ -66,7 +76,7 @@ export function planAttachmentMove(
 ): ChangeSpec[] | null {
   const target = findAttachmentByKey(doc, key)
   if (!target) return null
-  const { from, to, hash, ext, alt } = target
+  const { from, to, hash, ext, alt, size } = target
 
   // Swallow the blank-line separator the isolated block leaves behind (trailing
   // first, else leading at EOF) so repeated reorders don't pile up empty lines.
@@ -86,7 +96,7 @@ export function planAttachmentMove(
 
   if (toPos >= delFrom && toPos <= delTo) return null
 
-  const md = formatAttachmentMarkdown(hash, ext, alt)
+  const md = formatAttachmentMarkdown(hash, ext, alt, size)
   const before = doc.slice(0, toPos)
   const after = doc.slice(toPos)
   const insert = wrapBlockAttachmentInsert(toPos, doc.length, before, after, md)
@@ -138,7 +148,7 @@ export function replaceWithPendingInView(
 }
 
 const ATTACHMENT_LINE_RE =
-  /^\s*!\[[^\]]*\]\((?:attachment:[a-f0-9]{64}\.[a-z0-9]+|attachment-pending:[a-f0-9-]{36})\)\s*$/
+  /^\s*!\[[^\]]*\]\((?:attachment:[a-f0-9]{64}\.[a-z0-9]+(?:\?size=[smf])?|attachment-pending:[a-f0-9-]{36})\)\s*$/
 
 /** Wrap an attachment markdown line with newlines so it sits on its own block. */
 export function wrapBlockAttachmentInsert(
@@ -439,11 +449,12 @@ export function replacePendingAttachmentInView(
   hash: string,
   ext: string,
   alt: string,
+  size: ImageSize = 'm',
 ): void {
   const doc = view.state.doc.toString()
   const range = findPendingAttachmentRange(doc, pendingId)
   if (!range) return
-  const finalMd = formatAttachmentMarkdown(hash, ext, alt || range.alt)
+  const finalMd = formatAttachmentMarkdown(hash, ext, alt || range.alt, size)
   view.dispatch({ changes: { from: range.from, to: range.to, insert: finalMd } })
 }
 

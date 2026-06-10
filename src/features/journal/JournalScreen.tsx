@@ -67,6 +67,7 @@ import {
   formatAttachmentMarkdown,
   formatPendingAttachmentMarkdown,
   uploadImageAttachment,
+  type ImageSize,
 } from '@/lib/attachments'
 import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
@@ -296,7 +297,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           file,
           takenAt ? { takenAt } : undefined,
         )
-        editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
+        editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt, target.size)
       } catch (e) {
         console.warn('[images] replace upload failed', e)
         editorRef.current?.removePendingAttachment(pendingId)
@@ -304,6 +305,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     [],
   )
+
+  /** Set a photo's rendered size (Small/Medium/Full) — persists in the ref. */
+  const handleSetImageSize = useCallback((target: AttachmentEditTarget, size: ImageSize) => {
+    editorRef.current?.replaceRange(
+      target.from,
+      target.to,
+      formatAttachmentMarkdown(target.hash, target.ext, target.alt, size),
+    )
+    setImageMenu(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(target.from))
+  }, [])
 
   const closeImageEdit = useCallback(() => {
     setImageEdit((current) => {
@@ -317,8 +329,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const handleSaveImageCaption = useCallback((alt: string) => {
     const edit = imageEditRef.current
     if (!edit) return
-    const { hash, ext, from, to } = edit.target
-    editorRef.current?.replaceRange(from, to, formatAttachmentMarkdown(hash, ext, alt))
+    const { hash, ext, from, to, size } = edit.target
+    editorRef.current?.replaceRange(from, to, formatAttachmentMarkdown(hash, ext, alt, size))
     setImageEdit(null)
     requestAnimationFrame(() => editorRef.current?.focusAt(from))
   }, [])
@@ -1427,6 +1439,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         onClose={closeImageMenu}
         onEditCaption={handleMenuEditCaption}
         onReplaceFile={handleReplaceImageFile}
+        onSetSize={handleSetImageSize}
         onRemove={handleRemoveImage}
       />
       {imageEdit && (

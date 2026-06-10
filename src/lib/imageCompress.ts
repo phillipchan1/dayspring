@@ -58,6 +58,39 @@ export async function prepareImageForUpload(file: File): Promise<File> {
 const DISPLAY_MAX_EDGE = 1400
 const DISPLAY_QUALITY = 0.72
 
+export interface ImageAnalysis {
+  width?: number
+  height?: number
+  /** Dominant (average) color as #rrggbb — used for the matte + loading wash. */
+  color?: string
+}
+
+/**
+ * Read an image's intrinsic dimensions and average color. Used at upload time so
+ * the editor can crop extreme aspect ratios and tint the frame. Best-effort:
+ * returns {} on any decode failure.
+ */
+export async function analyzeImage(source: Blob): Promise<ImageAnalysis> {
+  try {
+    const bitmap = await createImageBitmap(source)
+    const out: ImageAnalysis = { width: bitmap.width, height: bitmap.height }
+    // Downscale to 1×1 — the browser averages the whole image into one pixel.
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 1
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (ctx) {
+      ctx.drawImage(bitmap, 0, 0, 1, 1)
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+      out.color = `#${[r, g, b].map((c) => (c ?? 0).toString(16).padStart(2, '0')).join('')}`
+    }
+    bitmap.close()
+    return out
+  } catch {
+    return {}
+  }
+}
+
 /**
  * Produce a display-sized JPEG from an image blob, for the local cache. Returns
  * null for GIFs or on any decode/encode failure (caller falls back to network).

@@ -26,6 +26,11 @@ export function takenAtFromFile(file: File): string | undefined {
 
 export interface AttachmentPhotoMeta {
   takenAt?: string
+  /** Intrinsic pixel size — drives the editor's aspect-ratio crop decision. */
+  width?: number
+  height?: number
+  /** Dominant color (#rrggbb) for the matte + loading wash + tinted shadow. */
+  color?: string
 }
 
 /** Mono subtitle under a photo — weekday, date, and time in the user's locale. */

@@ -33,6 +33,7 @@ import {
   type AttachmentEditTarget,
   type ImageMenuPoint,
 } from './attachmentImageExtension'
+import type { ImageSize } from '@/lib/attachments'
 import {
   attachmentBlockNormalizeExtension,
   insertBlockAttachmentAt,
@@ -61,7 +62,13 @@ export interface EditorHandle {
   insertBlockAttachment: (pos: number, hash: string, ext: string, alt?: string) => number
   /** Show an uploading placeholder, then resolve via replace/remove helpers. */
   insertBlockPendingAttachment: (pos: number, pendingId: string, alt?: string) => number
-  replacePendingAttachment: (pendingId: string, hash: string, ext: string, alt?: string) => void
+  replacePendingAttachment: (
+    pendingId: string,
+    hash: string,
+    ext: string,
+    alt?: string,
+    size?: ImageSize,
+  ) => void
   removePendingAttachment: (pendingId: string) => void
 }
 
@@ -229,10 +236,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       if (!view) return pos
       return insertBlockPendingAttachmentsAt(view, pos, [{ id: pendingId, alt: alt ?? '' }])
     },
-    replacePendingAttachment: (pendingId, hash, ext, alt) => {
+    replacePendingAttachment: (pendingId, hash, ext, alt, size) => {
       const view = viewRef.current
       if (!view) return
-      replacePendingAttachmentInView(view, pendingId, hash, ext, alt ?? '')
+      replacePendingAttachmentInView(view, pendingId, hash, ext, alt ?? '', size ?? 'm')
     },
     removePendingAttachment: (pendingId) => {
       const view = viewRef.current

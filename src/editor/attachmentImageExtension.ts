@@ -16,7 +16,9 @@ import { supabase } from '@/lib/supabase'
 import {
   PENDING_ATTACHMENT_REF_RE,
   fetchAttachmentMeta,
+  imageSizeFrom,
   resolveAttachmentDisplayUrl,
+  type ImageSize,
 } from '@/lib/attachments'
 import {
   formatPhotoMetaLine,
@@ -38,7 +40,8 @@ export interface ImageMenuPoint {
 
 export type { AttachmentEditTarget } from './attachmentInsert'
 
-const ATTACHMENT_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\)/g
+const ATTACHMENT_RE =
+  /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)(?:\?size=([smf]))?\)/g
 
 const urlResolved = StateEffect.define<void>()
 const metaResolved = StateEffect.define<void>()
@@ -161,12 +164,36 @@ function syncCachedUrls(view: EditorView): void {
 
 // ── Widgets ───────────────────────────────────────────────────────────────────
 
+// Crop only genuinely extreme aspect ratios — normal phone photos (3:4, 4:3,
+// 3:2, 16:9) render whole; only tall screenshots and panoramas get reined in,
+// so we never trim a person out of a portrait.
+const MAX_PORTRAIT_RATIO = 2 / 3 // 0.667 — taller than this (e.g. 9:16) gets cropped
+const MAX_LANDSCAPE_RATIO = 16 / 9 // 1.78 — wider than this (e.g. 21:9) gets cropped
+
+export type CropPlan = { aspect: string; axis: 'height' | 'width' } | null
+
+/**
+ * Decide whether a photo should be cover-cropped to a calmer aspect. Full size
+ * and unknown dimensions are never cropped (whole image shown). Pure for tests.
+ */
+export function cropFor(size: ImageSize, width?: number, height?: number): CropPlan {
+  if (size === 'f' || !width || !height) return null
+  const ratio = width / height
+  if (ratio < MAX_PORTRAIT_RATIO) return { aspect: '2 / 3', axis: 'height' }
+  if (ratio > MAX_LANDSCAPE_RATIO) return { aspect: '16 / 9', axis: 'width' }
+  return null
+}
+
 class AttachmentImageWidget extends WidgetType {
   constructor(
     readonly cacheKey: string,
     readonly resolvedUrl: string | null,
     readonly caption: string | null,
     readonly metaLine: string | null,
+    readonly size: ImageSize,
+    readonly width: number | undefined,
+    readonly height: number | undefined,
+    readonly color: string | undefined,
   ) {
     super()
   }
@@ -176,17 +203,46 @@ class AttachmentImageWidget extends WidgetType {
       other.cacheKey === this.cacheKey &&
       other.resolvedUrl === this.resolvedUrl &&
       other.caption === this.caption &&
-      other.metaLine === this.metaLine
+      other.metaLine === this.metaLine &&
+      other.size === this.size &&
+      other.width === this.width &&
+      other.height === this.height &&
+      other.color === this.color
     )
   }
 
   toDOM(): HTMLElement {
     const wrap = document.createElement('div')
-    wrap.className = 'cm-attachment cm-attachment--interactive'
+    wrap.className = `cm-attachment cm-attachment--interactive cm-attachment--size-${this.size}`
     wrap.contentEditable = 'false'
     wrap.title = 'Click for options · drag to move'
     wrap.draggable = true
     wrap.dataset.attachmentKey = this.cacheKey
+
+    // Dominant color tints the drop shadow and backs the media box so the photo
+    // feels woven into the page (and the loading wash matches).
+    if (this.color) wrap.style.setProperty('--photo-tint', this.color)
+
+    // A centered frame that hugs the image so the hover chrome and caption align
+    // to the photo — not the empty column — when a portrait renders narrow.
+    const frame = document.createElement('div')
+    frame.className = 'cm-attachment__frame'
+    wrap.append(frame)
+
+    // Media box holds the image + hover chrome so the chrome overlays the photo's
+    // bottom edge, never the caption/meta text that sits below it.
+    const media = document.createElement('div')
+    media.className = 'cm-attachment__media'
+    if (this.color) media.style.backgroundColor = this.color
+    // Cover-crop extreme aspect ratios (S/M only) to a calmer frame; the axis
+    // class fixes the constrained dimension and the inline aspect-ratio derives
+    // the other. Full and within-bounds photos render whole.
+    const crop = cropFor(this.size, this.width, this.height)
+    if (crop) {
+      wrap.classList.add(crop.axis === 'height' ? 'cm-attachment--crop-h' : 'cm-attachment--crop-w')
+      media.style.aspectRatio = crop.aspect
+    }
+    frame.append(media)
 
     const url = this.resolvedUrl
     if (url) {
@@ -196,7 +252,7 @@ class AttachmentImageWidget extends WidgetType {
       img.className = 'cm-attachment__img'
       img.loading = 'lazy'
       img.draggable = false
-      wrap.append(img)
+      media.append(img)
 
       const chrome = document.createElement('div')
       chrome.className = 'cm-attachment__chrome'
@@ -208,26 +264,28 @@ class AttachmentImageWidget extends WidgetType {
       hint.className = 'cm-attachment__chrome-hint'
       hint.textContent = this.caption ? 'options' : 'add caption'
       chrome.append(label, hint)
-      wrap.append(chrome)
+      media.append(chrome)
     } else {
       const ph = document.createElement('div')
       ph.className = 'cm-attachment__placeholder'
       ph.setAttribute('aria-hidden', 'true')
-      wrap.append(ph)
+      // Loading wash in the photo's own color (falls back to the CSS gray).
+      if (this.color) ph.style.background = this.color
+      media.append(ph)
     }
 
     if (this.metaLine && !this.caption) {
       const meta = document.createElement('p')
       meta.className = 'cm-attachment__meta'
       meta.textContent = this.metaLine
-      wrap.append(meta)
+      frame.append(meta)
     }
 
     if (this.caption) {
       const cap = document.createElement('p')
       cap.className = 'cm-attachment__caption'
       cap.textContent = this.caption
-      wrap.append(cap)
+      frame.append(cap)
     }
 
     return wrap
@@ -297,10 +355,11 @@ function buildDecos(text: string): DecorationSet {
   ATTACHMENT_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTACHMENT_RE.exec(text)) !== null) {
-    const [full, alt, hash, ext] = m
+    const [full, alt, hash, ext, sizeRaw] = m
     const key = `${hash!}.${ext!}`
     const caption = isMeaningfulCaption(alt ?? '') ? alt!.trim() : null
-    const metaLine = formatPhotoMetaLine(resolvedMeta.get(hash!) ?? undefined)
+    const meta = resolvedMeta.get(hash!) ?? undefined
+    const metaLine = formatPhotoMetaLine(meta)
     matches.push({
       from: m.index,
       to: m.index + full!.length,
@@ -310,6 +369,10 @@ function buildDecos(text: string): DecorationSet {
           resolvedUrls.get(key) ?? null,
           caption,
           caption ? null : metaLine,
+          imageSizeFrom(sizeRaw),
+          meta?.width,
+          meta?.height,
+          meta?.color,
         ),
         block: true,
         inclusive: false,
@@ -454,23 +517,80 @@ const attachmentTheme = EditorView.theme({
     lineHeight: '1',
   },
   '.cm-attachment--interactive': {
-    position: 'relative',
     cursor: 'pointer',
+  },
+  // The frame hugs the image (fit-content) and centers it, so a portrait that
+  // renders narrow leaves balanced whitespace and the chrome/caption align to
+  // the photo — not the full-width wrapper.
+  '.cm-attachment__frame': {
+    position: 'relative',
+    display: 'block',
+    width: 'fit-content',
+    maxWidth: '100%',
+    margin: '0 auto',
+  },
+  // Media box owns the rounded clip, drop shadow, and a hairline ring so the
+  // photo edge stays crisp against the warm page background (light photos
+  // otherwise bleed into it). Chrome overlays this box, not the caption below.
+  '.cm-attachment__media': {
+    position: 'relative',
+    display: 'block',
+    maxWidth: '100%',
     borderRadius: 'var(--radius-lg)',
+    overflow: 'hidden',
+    // Drop shadow tinted by the photo's dominant color (neutral fallback), plus
+    // a hairline ring to keep the edge crisp on the warm page.
+    boxShadow:
+      '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 40%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07)',
     transition: 'box-shadow 160ms ease',
   },
-  '.cm-attachment--interactive:hover': {
-    boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent)',
+  '.cm-attachment--interactive:hover .cm-attachment__media': {
+    boxShadow:
+      '0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 48%, transparent), inset 0 0 0 1px rgba(20, 12, 4, 0.07), 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent)',
   },
   '.cm-attachment__img': {
     display: 'block',
-    width: '100%',
+    width: 'auto',
     maxWidth: '100%',
-    borderRadius: 'var(--radius-lg)',
-    boxShadow: 'var(--shadow-2)',
+    // Default cap so a tall portrait can't dominate the entry; size classes
+    // below tune it. Landscape stays full-width (the cap doesn't bind).
+    maxHeight: 'min(56vh, 480px)',
+    height: 'auto',
     margin: '0',
     background: 'var(--bg-input)',
     animation: 'cm-attachment-fadein 220ms ease both',
+  },
+  '.cm-attachment--size-s .cm-attachment__img': {
+    maxHeight: 'min(34vh, 260px)',
+  },
+  '.cm-attachment--size-m .cm-attachment__img': {
+    maxHeight: 'min(56vh, 480px)',
+  },
+  // Full: fill the text column (the original behavior), opt-in per photo.
+  '.cm-attachment--size-f .cm-attachment__img': {
+    width: '100%',
+    maxHeight: 'none',
+  },
+  // Cover-crop modes (extreme aspect ratios). The media box's aspect-ratio is set
+  // inline; here we fix the constrained dimension and let the image fill it.
+  // Listed after the size rules so the cover override wins on equal specificity.
+  '.cm-attachment--crop-h.cm-attachment--size-s .cm-attachment__media': {
+    height: 'min(34vh, 260px)',
+    width: 'auto',
+  },
+  '.cm-attachment--crop-h.cm-attachment--size-m .cm-attachment__media': {
+    height: 'min(56vh, 480px)',
+    width: 'auto',
+  },
+  '.cm-attachment--crop-w .cm-attachment__media': {
+    width: '100%',
+    height: 'auto',
+  },
+  '.cm-attachment--crop-h .cm-attachment__img, .cm-attachment--crop-w .cm-attachment__img': {
+    width: '100%',
+    height: '100%',
+    maxHeight: 'none',
+    objectFit: 'cover',
   },
   '.cm-attachment__chrome': {
     position: 'absolute',
@@ -504,17 +624,19 @@ const attachmentTheme = EditorView.theme({
     letterSpacing: '0.02em',
     color: 'rgba(255, 255, 255, 0.72)',
   },
+  // Caption/meta are a fixed readable size (not scaled to the photo) — but
+  // trimmed so they don't feel oversized under a small image.
   '.cm-attachment__caption': {
     margin: '0.35rem 0 0',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.9em',
-    lineHeight: '1.45',
+    fontSize: '0.82em',
+    lineHeight: '1.4',
     color: 'var(--text-dim)',
   },
   '.cm-attachment__meta': {
-    margin: '0.35rem 0 0',
+    margin: '0.3rem 0 0',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.7em',
+    fontSize: '0.62em',
     letterSpacing: '0.02em',
     color: 'var(--text-faint)',
     lineHeight: '1.4',

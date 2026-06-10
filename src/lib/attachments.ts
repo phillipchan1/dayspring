@@ -7,7 +7,7 @@
 // Never store expiring signed URLs in entry bodies — resolve them at render time.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { makeDisplayVariant, prepareImageForUpload } from './imageCompress'
+import { analyzeImage, makeDisplayVariant, prepareImageForUpload } from './imageCompress'
 import { attachmentCacheGet, attachmentCachePut } from './db'
 import { isTauri } from './platform'
 import type { AttachmentPhotoMeta } from './attachmentCaption'
@@ -90,9 +90,24 @@ export function extFromImageFile(file: File): string {
   return IMAGE_EXT_BY_MIME[file.type] ?? 'jpg'
 }
 
+/** Rendered display size for an inline photo. 'm' (medium) is the default and
+ *  carries no marker; 's' (small) and 'f' (full) are persisted as `?size=`. */
+export type ImageSize = 's' | 'm' | 'f'
+
 /** Markdown ref written into entry bodies — resolved to signed URLs at render time. */
-export function formatAttachmentMarkdown(hash: string, ext: string, alt = ''): string {
-  return `![${alt}](attachment:${hash}.${ext})`
+export function formatAttachmentMarkdown(
+  hash: string,
+  ext: string,
+  alt = '',
+  size: ImageSize = 'm',
+): string {
+  const sizeParam = size === 'm' ? '' : `?size=${size}`
+  return `![${alt}](attachment:${hash}.${ext}${sizeParam})`
+}
+
+/** Normalize a captured `?size=` group (or undefined) to an ImageSize. */
+export function imageSizeFrom(raw: string | undefined | null): ImageSize {
+  return raw === 's' || raw === 'f' ? raw : 'm'
 }
 
 /** Temporary ref while an editor upload is in flight — replaced once stored. */
@@ -104,7 +119,8 @@ export function formatPendingAttachmentMarkdown(pendingId: string, alt = ''): st
  * Matches `![alt](attachment:<64-char sha256>.<ext>)` in markdown.
  * Groups: [full, alt, hash, ext]
  */
-export const ATTACHMENT_REF_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\)/g
+export const ATTACHMENT_REF_RE =
+  /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)(?:\?size=([smf]))?\)/g
 
 /** Matches in-flight editor uploads. Groups: [full, alt, pendingId] */
 export const PENDING_ATTACHMENT_REF_RE =
@@ -124,7 +140,11 @@ export async function uploadImageAttachment(
   if (!ownerId) throw new Error('Sign in to add photos')
   const prepared = await prepareImageForUpload(file)
   const ext = extFromImageFile(prepared)
-  const result = await ensureAttachment(supabase, ownerId, prepared, ext, meta)
+  // Capture dimensions + dominant color so the editor can crop extreme aspect
+  // ratios and tint the frame. Merges with the caller's capture-time meta.
+  const analysis = await analyzeImage(prepared)
+  const fullMeta: AttachmentPhotoMeta = { ...meta, ...analysis }
+  const result = await ensureAttachment(supabase, ownerId, prepared, ext, fullMeta)
   // Seed the local cache with a display variant so the photo we just added is
   // instant on this device (and other devices fill their cache on first view).
   void cacheDisplayVariant(ownerId, result.hash, ext, prepared)
@@ -209,8 +229,12 @@ export async function fetchAttachmentMeta(
     .maybeSingle()
   if (!data?.metadata || typeof data.metadata !== 'object') return null
   const m = data.metadata as Record<string, unknown>
-  const takenAt = typeof m.takenAt === 'string' ? m.takenAt : undefined
-  return takenAt ? { takenAt } : null
+  const out: AttachmentPhotoMeta = {}
+  if (typeof m.takenAt === 'string') out.takenAt = m.takenAt
+  if (typeof m.width === 'number') out.width = m.width
+  if (typeof m.height === 'number') out.height = m.height
+  if (typeof m.color === 'string') out.color = m.color
+  return Object.keys(out).length > 0 ? out : null
 }
 
 type SignedTransform = { width: number; quality: number; resize: 'contain' }

@@ -2,6 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { AttachmentEditTarget } from '@/editor/attachmentInsert'
 import type { ImageMenuPoint } from '@/editor/attachmentImageExtension'
+import type { ImageSize } from '@/lib/attachments'
+
+const SIZE_OPTIONS: ReadonlyArray<{ value: ImageSize; label: string }> = [
+  { value: 's', label: 'Small' },
+  { value: 'm', label: 'Medium' },
+  { value: 'f', label: 'Full' },
+]
 
 export type ImageMenuPhase =
   | { kind: 'closed' }
@@ -12,6 +19,7 @@ interface Props {
   onClose: () => void
   onEditCaption: (target: AttachmentEditTarget) => void
   onReplaceFile: (target: AttachmentEditTarget, file: File) => void
+  onSetSize: (target: AttachmentEditTarget, size: ImageSize) => void
   onRemove: (target: AttachmentEditTarget) => void
 }
 
@@ -92,7 +100,14 @@ function MenuItem({
  * EntryContextMenu (portal, backdrop dismiss, viewport clamp) so a photo of any
  * size can never push the controls off-screen.
  */
-export function ImageContextMenu({ phase, onClose, onEditCaption, onReplaceFile, onRemove }: Props) {
+export function ImageContextMenu({
+  phase,
+  onClose,
+  onEditCaption,
+  onReplaceFile,
+  onSetSize,
+  onRemove,
+}: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
@@ -162,6 +177,29 @@ export function ImageContextMenu({ phase, onClose, onEditCaption, onReplaceFile,
         onPointerDown={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.preventDefault()}
       >
+        <div className="image-context-menu__size" role="group" aria-label="Photo size">
+          <span className="image-context-menu__size-label">Size</span>
+          <div className="image-context-menu__size-options">
+            {SIZE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className="image-context-menu__size-btn"
+                aria-pressed={target.size === opt.value}
+                data-active={target.size === opt.value}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSetSize(target, opt.value)
+                  onClose()
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="entry-context-menu__sep" role="separator" />
         <MenuItem
           label="Edit caption…"
           icon="caption"

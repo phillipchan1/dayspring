@@ -842,6 +842,46 @@ a {
   );
 }
 
+/* Photo size segmented control inside the image context menu. */
+.image-context-menu__size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0.55rem 0.4rem;
+}
+.image-context-menu__size-label {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+.image-context-menu__size-options {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--bg-input);
+  border-radius: var(--radius);
+}
+.image-context-menu__size-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.image-context-menu__size-btn:hover {
+  color: var(--text);
+}
+.image-context-menu__size-btn[data-active='true'] {
+  background: var(--bg-elevated, var(--bg));
+  color: var(--text);
+  box-shadow: var(--shadow-1);
+}
+
 /* ── Selection format bar (editor) ───────────────────────────────────────── */
 .format-bar {
   position: fixed;
@@ -2145,7 +2185,14 @@ html[data-focus-mode] .focus-controls {
   border-top: 1px solid var(--border);
   margin: 1.6em 0;
 }
-.markdown-body img { max-width: 100%; border-radius: var(--radius); }
+.markdown-body img {
+  max-width: 100%;
+  /* Match the editor's height cap so portraits don't dominate the read view. */
+  max-height: min(56vh, 480px);
+  width: auto;
+  height: auto;
+  border-radius: var(--radius);
+}
 
 /* ── Inline attachment image animations (used by attachmentImageExtension) ── */
 /* Softer than before so the live drop caret (cm-dropCursor) reads as the

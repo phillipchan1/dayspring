@@ -115,7 +115,8 @@ export async function importDayOneImages(
 // ── Dayspring backup (own export format) ──────────────────────────────────────
 
 // Refs are already in the stable final form: `![alt](attachment:<sha256>.<ext>)`.
-const DAYSPRING_IMG_RE = /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)\)/g
+const DAYSPRING_IMG_RE =
+  /!\[([^\]]*)\]\(attachment:([a-f0-9]{64})\.([a-z0-9]+)(?:\?size=[smf])?\)/g
 
 /**
  * Re-upload photos bundled in a Dayspring backup zip (`attachments/<hash>.<ext>`).
