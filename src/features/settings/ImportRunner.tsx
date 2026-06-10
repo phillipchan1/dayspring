@@ -5,7 +5,7 @@ import type { ImportSourceDef } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
 import { requireSupabase } from '@/lib/supabase'
 import { apiPost } from '@/lib/api'
-import { scanAllForRefs } from '@/lib/scripture/scan'
+import { scanAllForRefs, getImportedEntryCount, writeScanWatermark } from '@/lib/scripture/scan'
 import { archiveFromDrop, archiveFromFiles, type ImportArchive } from '@/lib/import/archive'
 import { importDayOneImages, importDiarlyImages, importDayspringImages, type ImageImportProgress } from '@/lib/import/importImages'
 
@@ -157,7 +157,14 @@ export function ImportRunner({ source }: Props) {
           range: { start: day(result.dateRange.earliest), end: day(result.dateRange.latest) },
         }).catch((err) => console.warn('processing enqueue failed', err))
       }
-      void scanAllForRefs().catch((err) => console.warn('scripture scan failed', err))
+      void scanAllForRefs()
+        .then(async () => {
+          try {
+            const count = await getImportedEntryCount()
+            writeScanWatermark(count)
+          } catch { /* non-fatal */ }
+        })
+        .catch((err) => console.warn('scripture scan failed', err))
     } catch (e) {
       setError(describeWriteError(e))
       setPhase('error')
