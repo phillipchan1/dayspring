@@ -52,15 +52,18 @@ export function buildPracticeBlock(
 
 // ── Decorations ────────────────────────────────────────────────────────────
 //
-// We never *replace* the token lines with block widgets: a block replace that
-// ends where the answer line begins "claims" that boundary, leaving the empty
-// answer line an unclickable sliver (and swallowing the placeholder). Instead we
-// hide the token line with a CSS line class and render each prompt as a block
-// widget anchored *above* its answer line, then give that answer line a real
-// min-height so it's an obvious place to click and write.
+// Each `ritual:*` token line is *replaced* by its block widget (the practice
+// header or a prompt). The replace range stops at the line's text — the trailing
+// newline survives, so the answer line below stays its own editable line, and
+// each prompt renders directly above the answer it introduces.
+//
+// We do NOT hide the token lines with `display:none`: CodeMirror can't measure a
+// `display:none` `.cm-line`, so it keeps a stale height estimate (a hidden 1-line
+// token measures as ~16px instead of 0) and its coordinate→position map drifts
+// out of sync with the DOM. That drift made clicks on a ritual answer line resolve
+// to the wrong line — the reported "can't click the last line of a response" bug.
+// A replace widget is measured like any other block, so the map stays aligned.
 
-/** Hides a `practice:*` token line without removing it from the document. */
-const hiddenLineDeco = Decoration.line({ class: 'cm-practice-token' })
 /** Marks the writing line below a prompt so it has a comfortable click target. */
 const answerLineDeco = Decoration.line({ class: 'cm-practice-answer' })
 /** Zero-styling mark used only to keep token lines atomic for cursor motion. */
@@ -206,25 +209,38 @@ function buildDecorations(state: EditorState): PracticeDecorations {
 
   tokens.forEach((token, idx) => {
     const line = doc.line(token.line)
-    // Hide the token line via CSS and keep it atomic so the caret skips the
-    // invisible markup when arrowing through the entry.
-    ranges.push(hiddenLineDeco.range(line.from))
+    // Keep the token line atomic so the caret skips the (now replaced) markup
+    // when arrowing through the entry.
     const atomicTo = Math.min(line.to + 1, doc.length)
     if (atomicTo > line.from) atomicRanges.push(atomicMark.range(line.from, atomicTo))
 
     if (token.kind === 'name') {
       currentPractice = PRACTICE_BY_NAME.get(token.value)
-      // Render a faint header above the (hidden) name line for orientation and
-      // to host the "free write" action.
+      // Replace the raw name token with a faint header block (orientation + the
+      // "about" / "free write" actions). Range stops at line.to so the newline
+      // stays and the section below keeps its own line.
       ranges.push(
-        Decoration.widget({
+        Decoration.replace({
           widget: new PracticeNameWidget(token.value),
           block: true,
-          side: -1,
-        }).range(line.from),
+          inclusive: false,
+        }).range(line.from, line.to),
       )
       return
     }
+
+    // Replace the section token with its prompt block. It renders in place of the
+    // token line — directly above the answer line — and stays visible as you write
+    // so the question you're answering is always in view; only the faint
+    // placeholder (below) clears once the section has content.
+    const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
+    ranges.push(
+      Decoration.replace({
+        widget: new PracticePromptWidget(token.value, prompt?.question ?? ''),
+        block: true,
+        inclusive: false,
+      }).range(line.from, line.to),
+    )
 
     // No answer line follows (token is the last line) — nothing to write into.
     if (token.line + 1 > doc.lines) return
@@ -237,19 +253,7 @@ function buildDecorations(state: EditorState): PracticeDecorations {
       content += doc.line(n).text
     }
     const filled = content.trim().length > 0
-    const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
 
-    // The prompt renders as a block *above* the answer line (side -1) — the
-    // answer line itself stays a normal, editable line. The prompt stays visible
-    // as you write so the question you're answering is always in view; only the
-    // faint placeholder (below) clears once the section has content.
-    ranges.push(
-      Decoration.widget({
-        widget: new PracticePromptWidget(token.value, prompt?.question ?? ''),
-        block: true,
-        side: -1,
-      }).range(answer.from),
-    )
     // The min-height is a click target for an *empty* answer line. Once the
     // section has content (text or an embedded block like scripture), the content
     // sets the height — forcing min-height there just opens a dead gap.
@@ -282,17 +286,17 @@ const practiceField = StateField.define<PracticeDecorations>({
 })
 
 const practiceTheme = EditorView.theme({
-  // The raw `<!-- practice:* -->` token lines stay in the document but never show.
-  '.cm-practice-token': {
-    display: 'none',
-  },
   // Writing line beneath a prompt — a generous, obvious target to click into.
   '.cm-practice-answer': {
     minHeight: '2.6em',
   },
   '.cm-practice-prompt': {
     display: 'block',
-    margin: '1.6rem 0 0.65rem',
+    // Spacing as PADDING, not margin: CodeMirror measures a block widget's
+    // height from its bounding rect, which excludes margins — an outer margin
+    // would push the DOM down without being counted, drifting the
+    // coordinate→position map and again making answer lines below unclickable.
+    padding: '1.6rem 0 0.65rem',
     userSelect: 'none',
   },
   // Small letter-spaced cap label — the elegance motif shared with scripture
@@ -327,11 +331,13 @@ const practiceTheme = EditorView.theme({
     pointerEvents: 'none',
   },
   // Faint block header: practice name + the (hover-revealed) "free write" action.
+  // Padding (not margin) so CodeMirror counts the spacing in the block's measured
+  // height — see the note on .cm-practice-prompt.
   '.cm-practice-header': {
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.7rem',
-    margin: '0.3rem 0 1.1rem',
+    padding: '0.3rem 0 1.1rem',
     userSelect: 'none',
   },
   '.cm-practice-header__name': {
