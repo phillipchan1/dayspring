@@ -274,7 +274,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           Prec.highest(formatKeymap((view) => requestLinkRef.current(view))),
           editorTabKeymap,
           indentUnit.of('  '),
-          markdown({ base: markdownLanguage, codeLanguages: [] }),
+          // `remove: ['IndentedCode']` — this is a prose journal, not a code
+          // editor. CommonMark turns any line indented ≥4 spaces (or a tab) at a
+          // block start into an indented code block, which the highlighter then
+          // renders in the mono face (CodeText → tags.monospace → --font-mono).
+          // So a single stray-indented line silently flips a serif entry to
+          // "mono" regardless of the writing-font setting. Drop the rule so
+          // indented prose stays prose; fenced ``` blocks (scripture/altar
+          // spiritual blocks) are untouched.
+          markdown({ base: markdownLanguage, codeLanguages: [], extensions: { remove: ['IndentedCode'] } }),
           syntaxHighlighting(markdownHighlight),
           titleCompartment.current.of(
             titleStyling

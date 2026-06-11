@@ -1,19 +1,27 @@
 import { indentLess, indentWithTab, insertNewline } from '@codemirror/commands'
+import { insertNewlineContinueMarkup } from '@codemirror/lang-markdown'
 import { Prec } from '@codemirror/state'
-import { keymap } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 
 /**
  * CodeMirror's standard Tab / Shift-Tab indent — works for lists, checkboxes,
  * and indented prose without custom parsing or navigation side effects.
  *
- * Enter is overridden with insertNewline (no auto-indent) so new paragraphs
- * always start at column zero. Task-list Enter handling sits at Prec.highest
- * and therefore still fires first for checklist lines.
+ * Enter continues markdown list/quote markup first (so `1.` → `2.`, `-` → `-`,
+ * and an empty item ends the list), then falls back to a plain newline with no
+ * auto-indent — prose paragraphs still start at column zero.
+ * insertNewlineContinueMarkup returns false outside a list/quote, so prose hits
+ * the fallback. Task-list Enter handling sits at Prec.highest and still fires
+ * first for checklist lines.
  */
+function continueListOrNewline(view: EditorView): boolean {
+  return insertNewlineContinueMarkup(view) || insertNewline(view)
+}
+
 export const editorTabKeymap = Prec.high(
   keymap.of([
     indentWithTab,
     { key: 'Shift-Tab', run: indentLess },
-    { key: 'Enter', run: insertNewline },
+    { key: 'Enter', run: continueListOrNewline },
   ]),
 )
