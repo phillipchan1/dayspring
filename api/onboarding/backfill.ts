@@ -21,6 +21,7 @@ import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { preflight, withCors } from '../_lib/cors.js'
 import { buildWeekly, buildMonthly, type BuildResult } from '../_lib/synthesize.js'
+import { scanConcordance } from '../_lib/concordance.js'
 import {
   monthsInPeriod,
   weeksOverlappingMonth,
@@ -119,6 +120,17 @@ export async function POST(req: Request): Promise<Response> {
   try {
     if (scope === 'recent') {
       const month = targetMonth(span)
+      // Seed the Concordance over the Reveal's window FIRST — synchronously, so
+      // the window is fully seeded before the Reveal job reads (bounded to one
+      // month of entries; the rest of the corpus drains via the 'concordance'
+      // processing job). Fail open: the Concordance is a fidelity layer, never a
+      // dependency — an extraction failure must not delay or block the Reveal.
+      try {
+        const { fromISO, toExclusiveISO } = periodWindow(month)
+        await scanConcordance(owner, { window: { fromISO, toExclusiveISO }, source: 'import' })
+      } catch (e) {
+        console.warn('concordance reveal-window seed failed', e)
+      }
       const results = await buildMonth(owner, month)
       const monthly = results.find((r) => r.type === 'monthly')
       return withCors(

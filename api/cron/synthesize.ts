@@ -35,6 +35,7 @@ import {
   sweepOpenThreads,
   harvestPrayers,
 } from '../_lib/altar.js'
+import { scanConcordance, consolidateConcordance } from '../_lib/concordance.js'
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
@@ -52,7 +53,12 @@ export async function GET(req: Request): Promise<Response> {
     )
   }
 
-  const perOwner: Array<{ owner: string; results: BuildResult[]; altar: Record<string, unknown> }> = []
+  const perOwner: Array<{
+    owner: string
+    results: BuildResult[]
+    altar: Record<string, unknown>
+    concordance: Record<string, unknown>
+  }> = []
   for (const row of owners ?? []) {
     perOwner.push(await synthesizeOwner(row.owner as string, now))
   }
@@ -64,9 +70,28 @@ export async function GET(req: Request): Promise<Response> {
 async function synthesizeOwner(
   owner: string,
   now: Date,
-): Promise<{ owner: string; results: BuildResult[]; altar: Record<string, unknown> }> {
+): Promise<{
+  owner: string
+  results: BuildResult[]
+  altar: Record<string, unknown>
+  concordance: Record<string, unknown>
+}> {
   const results: BuildResult[] = []
   const altar: Record<string, unknown> = {}
+  const concordance: Record<string, unknown> = {}
+
+  // Concordance maintenance (dark — nothing reads it yet). Its OWN try/catch:
+  // a fidelity-layer failure must never block the letter or the altar (rendering
+  // aid, never a dependency). Daily: a bounded top-up extracting names/spellings
+  // from entries the model hasn't read (covers fresh native writing; the import
+  // catch-up is the 'concordance' processing job). Mondays: the consolidation
+  // pass — dedup aliases, merge duplicates, decay year-stale rows to dormant.
+  try {
+    concordance.scan = await scanConcordance(owner, { max: 50, source: 'repetition' })
+    if (isMonday(now)) concordance.consolidated = await consolidateConcordance(owner)
+  } catch (e) {
+    concordance.error = e instanceof Error ? e.message : 'failed'
+  }
 
   try {
     // Altar — keep the cairns current every day: harvest prayers from any new
@@ -112,5 +137,5 @@ async function synthesizeOwner(
     altar.error = e instanceof Error ? e.message : 'failed'
   }
 
-  return { owner, results, altar }
+  return { owner, results, altar, concordance }
 }

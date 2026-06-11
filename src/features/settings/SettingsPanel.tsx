@@ -12,6 +12,7 @@ import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { fetchPortalUrl, trialDaysRemaining } from '@/lib/subscription'
+import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
 
@@ -227,6 +228,7 @@ function ShortcutsTab() {
 function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onClose: () => void; featureFlags: string[] }) {
   const { replay } = useWelcome()
   const { settings, update } = useSettings()
+  const [showConcordance, setShowConcordance] = useState(false)
   return (
     <div className="settings-about">
       {/* App identity: title + tagline + metadata */}
@@ -278,6 +280,15 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
               Replay the welcome
             </button>
           </div>
+          {/* The fidelity record's inspectable list — names and spellings the
+              app has learned, with confirm/edit/forget. Quiet by design. */}
+          <div className="settings-about__row">
+            <span className="settings-field__label">Concordance</span>
+            <button className="btn btn--ghost" onClick={() => setShowConcordance(true)}>
+              Names &amp; spellings
+            </button>
+          </div>
+          {showConcordance && <ConcordanceDrawer onClose={() => setShowConcordance(false)} />}
           {isTauri() && featureFlags.includes('beta') && (
             <div className="settings-about__row-toggle">
               <Toggle
