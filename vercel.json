@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
+  "installCommand": "npm install --no-audit --no-fund",
   "buildCommand": "node scripts/assemble-changelog.mjs && npm run build",
   "devCommand": "ulimit -n 65536; vite --port $PORT",
   "outputDirectory": "dist",
