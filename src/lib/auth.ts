@@ -2,12 +2,13 @@ import { requireSupabase } from './supabase'
 import { isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
 
-// Custom URL scheme registered in tauri.conf.json (plugins.deep-link.desktop).
-// Google redirects here after sign-in; the deep-link listener completes it.
+// Custom URL scheme registered in tauri.conf.json (plugins.deep-link.desktop)
+// and, for iOS, in gen/apple/app_iOS/Info.plist (CFBundleURLTypes). Google
+// redirects here after sign-in; the deep-link listener completes it.
 const DEEP_LINK_REDIRECT = 'dayspring://auth-callback'
 
-/** Where OAuth should return. Desktop uses the deep-link scheme; web uses the
- *  page origin. Both must be in Supabase's redirect allow-list. */
+/** Where OAuth should return. The native apps use the deep-link scheme; web
+ *  uses the page origin. Both must be in Supabase's redirect allow-list. */
 export function authRedirectUrl(): string {
   return isTauri() ? DEEP_LINK_REDIRECT : window.location.origin
 }
@@ -59,10 +60,11 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Desktop only: listen for the dayspring://auth-callback deep link and finish
- * sign-in. Supabase (PKCE) returns a `code` we exchange for a session — which
- * then persists via the origin-independent Tauri store. Also handles the case
- * where the app was launched cold by the deep link. No-ops on web.
+ * Native apps (desktop + iOS): listen for the dayspring://auth-callback deep
+ * link and finish sign-in. Supabase (PKCE) returns a `code` we exchange for a
+ * session — which then persists via the origin-independent Tauri store. Also
+ * handles the case where the app was launched cold by the deep link. No-ops on
+ * web.
  */
 export async function initDeepLinkAuth(): Promise<void> {
   if (!isTauri()) return

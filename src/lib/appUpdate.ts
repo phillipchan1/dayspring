@@ -4,6 +4,8 @@
 // UpdateToast) and the manual "Check for updates" button in Settings → About,
 // so they never disagree about state. No-ops in the browser build.
 
+import { isDesktopTauri } from './platform'
+
 export type UpdateStatus =
   | 'idle' // nothing to report
   | 'checking' // a check is in flight (manual checks surface this)
@@ -23,7 +25,9 @@ const POLL_MS = 30 * 60 * 1000 // background re-check every 30 min while open
 const TRANSIENT_MS = 4000 // how long "up to date"/"error" lingers before idling
 
 function isDesktop(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+  // Desktop Tauri only — the updater plugin isn't registered on iOS/Android
+  // (see src-tauri/src/lib.rs), so a check there can only ever fail.
+  return isDesktopTauri()
 }
 
 const IDLE: UpdateState = { status: 'idle', version: null, error: null, notes: null }

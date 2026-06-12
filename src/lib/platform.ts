@@ -1,17 +1,35 @@
-// Runtime platform detection for the Tauri desktop wrapper.
+// Runtime platform detection for the Tauri wrappers (macOS desktop + iOS).
 //
-// The same dist/ bundle runs on the web (Vercel) and inside the native app, so
+// The same dist/ bundle runs on the web (Vercel) and inside the native apps, so
 // any desktop-only chrome (e.g. leaving room for the macOS traffic-light
-// buttons under the overlay title bar) must be gated on this check.
+// buttons under the overlay title bar) must be gated on these checks.
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
-// Tags <html data-platform="desktop"> inside the native app so CSS can adapt.
-// No-ops in a plain browser.
+/** True inside the Tauri app on a touch device (iPhone/iPad/Android).
+ *  iPadOS masquerades as "Macintosh" in the UA, so multi-touch is the tell. */
+export function isMobileTauri(): boolean {
+  if (!isTauri()) return false
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1
+}
+
+/** Tauri on an actual desktop (macOS/Windows/Linux) — the only place the
+ *  overlay title bar, traffic-light insets, and auto-updater exist. */
+export function isDesktopTauri(): boolean {
+  return isTauri() && !isMobileTauri()
+}
+
+// Tags <html data-platform="desktop"|"mobile"> inside the native app so CSS can
+// adapt. No-ops in a plain browser. The iOS app must NOT get "desktop" — that
+// would reserve room for macOS traffic lights and mark drag regions.
 export function applyPlatformClass(): void {
   if (!isTauri()) return
   const root = document.documentElement
+  if (isMobileTauri()) {
+    root.dataset.platform = 'mobile'
+    return
+  }
   root.dataset.platform = 'desktop'
   const style = root.style
   style.setProperty('--mac-traffic-x', MAC_TRAFFIC_INSET.sidebarX)

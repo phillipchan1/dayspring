@@ -13,6 +13,12 @@ body,
   height: 100%;
 }
 
+html {
+  /* iOS Safari/WKWebView inflates text on rotation without this. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -20,6 +26,9 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* App-shell, not a page: no rubber-banding the whole chrome on iOS.
+     Inner scrollers (entry list, surfaces) still bounce normally. */
+  overscroll-behavior: none;
 }
 
 #root {
@@ -3497,6 +3506,12 @@ html[data-focus-mode] .focus-controls {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+/* Phone: sit above the bottom nav bar instead of on top of it. */
+@media (max-width: 767px) {
+  .feedback-widget {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .feedback-trigger {

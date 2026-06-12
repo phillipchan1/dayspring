@@ -151,6 +151,13 @@
   outline-offset: 4px;
   border-radius: 4px;
 }
+/* Invisible hit-area: the 11px dot alone is far below the 44px touch minimum.
+   Stations sit dozens of px apart on the rail, so the expansion can't overlap. */
+.ascent-station::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+}
 
 /* ── scroll + main column (scroll spans the canvas; content stays centered) ─ */
 .ascent-scroll {

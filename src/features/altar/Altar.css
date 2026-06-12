@@ -838,6 +838,33 @@
   .altar-controls {
     gap: 0.75rem;
   }
+  /* Phone: the thread panel takes (nearly) the whole screen — 48vw would leave
+     an unusable 190px column. The 6vw sliver keeps the tap-to-close scrim. */
+  .altar-thread {
+    width: 94vw;
+  }
+  .altar-thread__inner {
+    padding: 1.9rem 1.3rem 3.5rem;
+  }
+  .altar-bookend {
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
+  }
+  /* Over-time arcs: the 920-unit chart compresses to illegibility at phone
+     width — let it keep a readable size and pan horizontally instead. */
+  .altar-time {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .altar-time__svg {
+    min-width: 640px;
+  }
+}
+
+/* Touch devices can't hover — give taps the same feedback the pointer gets. */
+.altar-strand:active {
+  border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 45%, var(--border));
+  background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
 }
 
 /* ── strands (the abstract field, replacing skeuomorphic cairns) ───────────── */

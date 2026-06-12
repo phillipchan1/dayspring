@@ -18,6 +18,12 @@
   box-shadow: 0 8px 26px -14px rgba(0, 0, 0, 0.4);
   animation: processingBannerIn 0.4s ease both;
 }
+/* Phone: clear the bottom nav bar (≈64px + home indicator) instead of covering it. */
+@media (max-width: 767px) {
+  .processing-banner {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
 [data-theme='dawn'] .processing-banner {
   background: rgba(255, 252, 245, 0.72);
   border-color: rgba(74, 64, 53, 0.14);

@@ -28,24 +28,46 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
     setActiveIdx(0)
   }, [state.query])
 
-  // Measure the rendered palette, then place it: clamp to the viewport on both
-  // axes and flip above the caret when there isn't room below. Runs before paint
-  // (useLayoutEffect) so it never flashes at the wrong spot.
+  // Reposition when the visual viewport changes — on iOS the on-screen keyboard
+  // shrinks visualViewport (window.innerHeight stays put), so without this the
+  // palette can sit behind the keyboard.
+  const [vvTick, setVvTick] = useState(0)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const onChange = () => setVvTick((t) => t + 1)
+    vv.addEventListener('resize', onChange)
+    vv.addEventListener('scroll', onChange)
+    return () => {
+      vv.removeEventListener('resize', onChange)
+      vv.removeEventListener('scroll', onChange)
+    }
+  }, [])
+
+  // Measure the rendered palette, then place it: clamp to the *visual* viewport
+  // (the part not covered by the on-screen keyboard) on both axes and flip above
+  // the caret when there isn't room below. Runs before paint (useLayoutEffect)
+  // so it never flashes at the wrong spot.
   useLayoutEffect(() => {
     const el = paletteRef.current
     if (!el || filtered.length === 0) return
     const r = el.getBoundingClientRect()
     const pad = 8
     const gap = 8
-    const left = Math.max(pad, Math.min(state.x, window.innerWidth - r.width - pad))
+    const vv = window.visualViewport
+    const vpLeft = vv?.offsetLeft ?? 0
+    const vpTop = vv?.offsetTop ?? 0
+    const vpRight = vpLeft + (vv?.width ?? window.innerWidth)
+    const vpBottom = vpTop + (vv?.height ?? window.innerHeight)
+    const left = Math.max(vpLeft + pad, Math.min(state.x, vpRight - r.width - pad))
     let top = state.y + gap
-    if (top + r.height > window.innerHeight - pad) {
+    if (top + r.height > vpBottom - pad) {
       const above = state.yTop - r.height - gap
       // Prefer above only when it actually fits better; otherwise pin in view.
-      top = above >= pad ? above : Math.max(pad, window.innerHeight - r.height - pad)
+      top = above >= vpTop + pad ? above : Math.max(vpTop + pad, vpBottom - r.height - pad)
     }
     setPos({ left, top })
-  }, [state.x, state.y, state.yTop, filtered.length])
+  }, [state.x, state.y, state.yTop, filtered.length, vvTick])
 
   useEffect(() => {
     if (filtered.length === 0) {
@@ -104,6 +126,13 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
           className="slash-palette__item"
           data-active={i === activeIdx ? 'true' : undefined}
           onMouseDown={(e) => {
+            e.preventDefault()
+            onSelect(cmd.id)
+          }}
+          // Touch: select on touchend and swallow the synthesized mouse events.
+          // iOS can drop the synthetic mousedown when the row re-renders under
+          // the finger (the mouseenter highlight), which made taps unreliable.
+          onTouchEnd={(e) => {
             e.preventDefault()
             onSelect(cmd.id)
           }}
