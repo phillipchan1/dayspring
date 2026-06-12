@@ -74,6 +74,7 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { ProcessingBanner } from './ProcessingBanner'
+import { lightEmber, markSurfaceVisited } from './surfaceEmbers'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
@@ -349,6 +350,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // repeat, React batching race, or any other double-fire path) is blocked
     // before React re-renders. setSlashCapture(null) below keeps state in sync.
     slashCaptureRef.current = null
+    // A committed block means its Return surface now holds something of the
+    // user's — light the one-time discovery ember (no-op once visited).
+    if (cap.cmd === 'scripture') lightEmber('scripture')
+    else if (cap.cmd === 'pray' || cap.cmd === 'sense') lightEmber('altar')
     if (cap.edit) {
       // Re-resolve the block's live range by id before replacing. The stored
       // from/to can go stale if the document shifted between opening the editor
@@ -848,6 +853,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }, [altarActive, altarEnabled, go])
 
+  // First visit to a Return surface puts its discovery ember out for good.
+  useEffect(() => {
+    const s = state.surface
+    if (s === 'reflections' || s === 'scripture' || s === 'altar') markSurfaceVisited(s)
+  }, [state.surface])
+
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
@@ -1247,9 +1258,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             placeholder={
               entryId === null && seedPrompt
                 ? seedPrompt
-                : settings.firstLineTitle ? 'Title' : 'Write…'
+                : settings.firstLineTitle
+                  ? 'Title'
+                  : 'Write — or type / for scripture, prayer & rituals'
             }
-            {...(settings.firstLineTitle && { bodyPlaceholder: 'Keep going — or type / for scripture, prayer & more' })}
+            {...(settings.firstLineTitle && { bodyPlaceholder: 'Keep going — or type / for scripture, prayer & rituals' })}
             autofocus
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}
@@ -1359,7 +1372,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       <>
       {isMobile ? <MobileJournal {...viewProps} /> : <DesktopJournal {...viewProps} />}
 
-      <ProcessingBanner />
+      <ProcessingBanner
+        onSeeAscent={() => {
+          if (!reflectionsActive) void toggleLookBack()
+        }}
+      />
 
       {slashCapture?.cmd === 'scripture' && (
         <InlineScripturePopover

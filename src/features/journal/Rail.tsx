@@ -4,6 +4,7 @@ import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
 import { RAIL_EXPAND_KEY } from './railHints'
+import { useSurfaceEmbers } from './surfaceEmbers'
 
 const NATIVE = isTauri()
 
@@ -48,6 +49,9 @@ export function Rail({
 }: RailProps) {
   // Wordmark beside the mark when labels are expanded; icon-only when collapsed.
   const showBrandLockup = labelsExpanded
+
+  // One-time discovery embers on the Return destinations (see surfaceEmbers.ts).
+  const embers = useSurfaceEmbers()
 
   const drag = NATIVE ? true : undefined
 
@@ -100,6 +104,7 @@ export function Rail({
             shortcut="⌘2"
             onClick={onLookBack}
             active={lookBackActive}
+            ember={embers.reflections}
             icon={<IconAscent />}
             labelsExpanded={labelsExpanded}
           />
@@ -110,6 +115,7 @@ export function Rail({
             onClick={onScripture}
             active={scriptureActive}
             lamp
+            ember={embers.scripture}
             icon={<IconScripture />}
             labelsExpanded={labelsExpanded}
           />
@@ -120,6 +126,7 @@ export function Rail({
               shortcut="⌘4"
               onClick={onAltar}
               active={altarActive}
+              ember={embers.altar}
               icon={<IconAltar />}
               labelsExpanded={labelsExpanded}
             />
@@ -152,6 +159,8 @@ interface RailButtonProps {
   active?: boolean
   /** Gold ember glow when active (Lamp). */
   lamp?: boolean | undefined
+  /** One-time discovery ember — the surface holds something not yet seen. */
+  ember?: boolean | undefined
   labelsExpanded: boolean
 }
 
@@ -163,6 +172,7 @@ function RailButton({
   icon,
   active = false,
   lamp = false,
+  ember = false,
   labelsExpanded,
 }: RailButtonProps) {
   const button = (
@@ -175,7 +185,10 @@ function RailButton({
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
     >
-      <span className="rail-btn__well">{icon}</span>
+      <span className="rail-btn__well">
+        {icon}
+        {ember && !active ? <span className="rail-btn__ember" aria-hidden /> : null}
+      </span>
       {labelsExpanded ? <span className="rail-btn__label">{label}</span> : null}
     </button>
   )

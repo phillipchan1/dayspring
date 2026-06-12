@@ -1498,6 +1498,49 @@ a {
   transform: scale(0.98);
 }
 
+/* ── Discovery embers ─────────────────────────────────────────────────────
+   A faint warm point on a Return destination the first time it holds
+   something of the user's (first citation → Lamp, first prayer → Altar,
+   finished backfill → all three). One-time: the first visit puts it out
+   for good — never a recurring badge. See surfaceEmbers.ts. */
+.rail-btn__well {
+  position: relative;
+}
+.mobile-bar .nav-btn {
+  position: relative;
+}
+.rail-btn__ember,
+.nav-btn__ember {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(var(--scripture-gold));
+  box-shadow: 0 0 6px 1.5px rgba(var(--scripture-gold), 0.5);
+  animation: emberBreathe 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.rail-btn__ember {
+  top: 5px;
+  right: 5px;
+}
+/* Mobile bar glyphs are centered in a stretchy button — pin the ember to the
+   glyph's shoulder, not the button's far corner. */
+.nav-btn__ember {
+  top: 9px;
+  right: calc(50% - 14px);
+}
+@keyframes emberBreathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-btn__ember,
+  .nav-btn__ember {
+    animation: none;
+  }
+}
+
 /* ── Touch ergonomics (iPad / touchscreens) ───────────────────────────────
    Bumps the desktop-layout chrome to ≥44px hit targets on coarse pointers
    only. Mouse-desktop and the Tauri app (fine pointer) are untouched; an iPad
