@@ -74,7 +74,8 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { ProcessingBanner } from './ProcessingBanner'
-import { lightEmber, markSurfaceVisited } from './surfaceEmbers'
+import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
+import { track } from '@/lib/analytics'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
@@ -228,6 +229,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     anchor: InlinePanelAnchor,
   ) {
     addBreadcrumb('command', `slash:${cmd}`)
+    track('slash_used', { cmd })
     setSlashCapture({ cmd, insertAt, anchor })
   }
 
@@ -391,6 +393,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       const cap = slashCaptureRef.current
       if (!cap) return
       setSlashCapture(null)
+      track('ritual_begun')
       // Use the editor's live document, not React `content`, which can still
       // hold the just-removed "/ritual" trigger text — stale positions would
       // insert the ritual in the wrong place and orphan the slash.
@@ -856,7 +859,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // First visit to a Return surface puts its discovery ember out for good.
   useEffect(() => {
     const s = state.surface
-    if (s === 'reflections' || s === 'scripture' || s === 'altar') markSurfaceVisited(s)
+    if (s !== 'reflections' && s !== 'scripture' && s !== 'altar') return
+    const first = !hasVisitedSurface(s)
+    markSurfaceVisited(s)
+    track('surface_opened', { surface: s, first })
   }, [state.surface])
 
   useJournalShortcuts({

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useProcessingJobs } from '@/hooks/useProcessingJobs'
 import { lightEmber } from './surfaceEmbers'
+import { track } from '@/lib/analytics'
 import './ProcessingBanner.css'
 
 /**
@@ -109,6 +110,7 @@ export function ProcessingBanner({ onSeeAscent }: { onSeeAscent?: () => void }) 
               className="processing-banner__cta"
               onClick={() => {
                 ack()
+                track('processing_cta_clicked')
                 onSeeAscent()
               }}
             >

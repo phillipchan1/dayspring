@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { track } from '@/lib/analytics'
 
 /**
  * Discovery embers — a faint warm dot on a Return destination (Ascent, Lamp,
@@ -58,14 +59,22 @@ function notify() {
 export function lightEmber(surface: EmberSurface) {
   if (read(surface) !== null) return
   write(surface, 'lit')
+  track('ember_lit', { surface })
   notify()
 }
 
 /** Record a visit: puts the ember out and bars it from ever relighting. */
 export function markSurfaceVisited(surface: EmberSurface) {
-  if (read(surface) === 'visited') return
+  const prev = read(surface)
+  if (prev === 'visited') return
   write(surface, 'visited')
+  if (prev === 'lit') track('ember_followed', { surface })
   notify()
+}
+
+/** True once the surface has been opened at least once on this device. */
+export function hasVisitedSurface(surface: EmberSurface): boolean {
+  return read(surface) === 'visited'
 }
 
 function subscribe(onChange: () => void) {
