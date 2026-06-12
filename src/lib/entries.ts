@@ -89,11 +89,17 @@ const IMPORT_BATCH_SIZE = 500
  * users' imports can't collide on a shared external_id. `owner` is set explicitly
  * (matching the composite conflict target); RLS still requires it equal auth.uid().
  * `onProgress(done, total)` fires after each batch.
+ *
+ * `ignoreDuplicates` (default true): existing entries are left untouched so any
+ * manual edits made after the first import are preserved. Pass false only when
+ * you intentionally need to overwrite body content — e.g. the image-import phase
+ * writing back resolved attachment refs.
  */
 export async function upsertImportedEntries(
   rows: ImportedEntry[],
   source: EntrySource,
   onProgress?: (done: number, total: number) => void,
+  { ignoreDuplicates = true }: { ignoreDuplicates?: boolean } = {},
 ): Promise<void> {
   const sb = requireSupabase()
   const {
@@ -114,7 +120,7 @@ export async function upsertImportedEntries(
     }))
     const { error } = await sb
       .from('entries')
-      .upsert(batch, { onConflict: 'owner,source,external_id' })
+      .upsert(batch, { onConflict: 'owner,source,external_id', ignoreDuplicates })
     if (error) throw error
     onProgress?.(Math.min(i + batch.length, rows.length), rows.length)
   }

@@ -127,7 +127,7 @@ export function ImportRunner({ source }: Props) {
             (e, i) => e.body_markdown !== result.dated[i]?.body_markdown,
           )
           if (changed.length > 0) {
-            await upsertImportedEntries(changed, source.id as EntrySource)
+            await upsertImportedEntries(changed, source.id as EntrySource, undefined, { ignoreDuplicates: false })
           }
 
           imageSummary = {
