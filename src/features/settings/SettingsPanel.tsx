@@ -5,7 +5,7 @@ import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
 import { signOut } from '@/lib/auth'
-import { isTauri } from '@/lib/platform'
+import { isDesktopTauri, isTauri } from '@/lib/platform'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
@@ -245,8 +245,9 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         </dl>
       </div>
 
-      {/* Updates — desktop: update checker + history; web: history only */}
-      {isTauri() ? (
+      {/* Updates — desktop: update checker + history; web/iOS: history only
+          (mobile updates ship through the App Store, not the in-app updater) */}
+      {isDesktopTauri() ? (
         <div className="settings-about__section">
           <div className="settings-about__section-title">Updates</div>
           <div className="settings-about__group">

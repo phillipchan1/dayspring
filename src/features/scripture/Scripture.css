@@ -789,4 +789,17 @@
   .scripture-book__inner {
     padding: 2rem 1.4rem 3.5rem;
   }
+  /* Chapter heat-map: ChapterStrip sets up to 30 inline columns, which squeezes
+     cells to ~10px on a phone. Wrap into as many rows as needed instead —
+     !important is required to beat the inline gridTemplateColumns. */
+  .scripture-book__chapters {
+    grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)) !important;
+  }
+}
+
+/* Touch devices can't hover — keep the "open in journal" cue quietly visible. */
+@media (hover: none) {
+  .scripture-book__entry-open {
+    opacity: 0.6;
+  }
 }

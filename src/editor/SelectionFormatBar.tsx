@@ -26,11 +26,19 @@ interface Props {
 function clampPosition(rect: DOMRect, bar: DOMRect) {
   const pad = 10
   const gap = 10
+  // Clamp to the visual viewport: on iOS the on-screen keyboard shrinks
+  // visualViewport while window.innerHeight stays put, so clamping to the
+  // window could park the bar behind the keyboard.
+  const vv = window.visualViewport
+  const vpLeft = vv?.offsetLeft ?? 0
+  const vpTop = vv?.offsetTop ?? 0
+  const vpRight = vpLeft + (vv?.width ?? window.innerWidth)
+  const vpBottom = vpTop + (vv?.height ?? window.innerHeight)
   let top = rect.top - bar.height - gap
-  if (top < pad) top = rect.bottom + gap
+  if (top < vpTop + pad) top = rect.bottom + gap
   let left = rect.left + rect.width / 2 - bar.width / 2
-  left = Math.max(pad, Math.min(left, window.innerWidth - bar.width - pad))
-  top = Math.max(pad, Math.min(top, window.innerHeight - bar.height - pad))
+  left = Math.max(vpLeft + pad, Math.min(left, vpRight - bar.width - pad))
+  top = Math.max(vpTop + pad, Math.min(top, vpBottom - bar.height - pad))
   return { left, top }
 }
 
