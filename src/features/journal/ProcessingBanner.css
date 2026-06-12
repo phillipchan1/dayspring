@@ -115,6 +115,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Done — the invitation into what was just built. */
+.processing-banner__cta {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  font-style: italic;
+  color: rgb(var(--scripture-gold));
+}
+.processing-banner__cta:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .processing-banner__dismiss {
   flex: none;
   border: none;

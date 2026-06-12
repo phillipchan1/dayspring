@@ -291,6 +291,21 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         </div>
       </div>
 
+      {/* Privacy */}
+      <div className="settings-about__section">
+        <div className="settings-about__section-title">Privacy</div>
+        <div className="settings-about__group">
+          <div className="settings-about__row-toggle">
+            <Toggle
+              label="Share anonymous usage"
+              hint="Counts which features are used — never your entries, prayers, or any words you write."
+              checked={settings.shareUsage}
+              onChange={(shareUsage) => update({ shareUsage })}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Danger zone: account actions */}
       <div className="settings-about__danger">
         <div className="settings-about__danger-title">Account Actions</div>
