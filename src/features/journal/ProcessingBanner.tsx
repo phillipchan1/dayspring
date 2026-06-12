@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useProcessingJobs } from '@/hooks/useProcessingJobs'
+import { lightEmber } from './surfaceEmbers'
+import { track } from '@/lib/analytics'
 import './ProcessingBanner.css'
 
 /**
@@ -18,7 +20,7 @@ import './ProcessingBanner.css'
  */
 const ACK_KEY = 'dayspring.processing.ackedCompletion'
 
-export function ProcessingBanner() {
+export function ProcessingBanner({ onSeeAscent }: { onSeeAscent?: () => void }) {
   const { phase, overallPct, completionKey, etaMinutes } = useProcessingJobs()
   const [collapsed, setCollapsed] = useState(false)
   const [acked, setAcked] = useState<string | null>(() => {
@@ -28,6 +30,16 @@ export function ProcessingBanner() {
       return null
     }
   })
+
+  // A finished backfill is the moment every Return surface first holds the
+  // user's own material — light the one-time discovery embers (each is a no-op
+  // for a surface the user has already visited).
+  useEffect(() => {
+    if (phase !== 'complete' || !completionKey || completionKey === acked) return
+    lightEmber('reflections')
+    lightEmber('scripture')
+    lightEmber('altar')
+  }, [phase, completionKey, acked])
 
   // ── ACTIVE ────────────────────────────────────────────────────────────────
   if (phase === 'active') {
@@ -92,6 +104,19 @@ export function ProcessingBanner() {
           <p className="processing-banner__text">
             All set — your reflections, scripture map, and altar are ready. 🎉
           </p>
+          {onSeeAscent && (
+            <button
+              type="button"
+              className="processing-banner__cta"
+              onClick={() => {
+                ack()
+                track('processing_cta_clicked')
+                onSeeAscent()
+              }}
+            >
+              See your Ascent →
+            </button>
+          )}
         </div>
         <button
           type="button"

@@ -9,6 +9,7 @@ import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
+import { useSurfaceEmbers } from './surfaceEmbers'
 import { deriveTitle } from './deriveTitle'
 import type { Entry } from '@/lib/types'
 import type { JournalViewProps } from './journalViewProps'
@@ -32,6 +33,8 @@ export function MobileJournal(props: JournalViewProps) {
   } = props
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
+  // One-time discovery embers on the Return destinations (see surfaceEmbers.ts).
+  const embers = useSurfaceEmbers()
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
@@ -163,13 +166,16 @@ export function MobileJournal(props: JournalViewProps) {
             </button>
             <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">
               ▲
+              {embers.reflections && !reflectionsActive ? <span className="nav-btn__ember" aria-hidden /> : null}
             </button>
             <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
               ✦
+              {embers.scripture && !scriptureActive ? <span className="nav-btn__ember" aria-hidden /> : null}
             </button>
             {altarEnabled && (
               <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘4)">
                 ◇
+                {embers.altar && !altarActive ? <span className="nav-btn__ember" aria-hidden /> : null}
               </button>
             )}
             {journalChrome && (

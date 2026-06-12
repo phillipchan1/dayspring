@@ -58,6 +58,9 @@ export interface Settings {
 
   /** Skip a ritual's preview/threshold and begin writing on selection. */
   skipRitualPreview: boolean
+
+  /** Share anonymous feature-usage counts — never entry content. See lib/analytics.ts. */
+  shareUsage: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -74,6 +77,7 @@ const DEFAULTS: Settings = {
   devMode: false,
   showEntryPreview: false,
   skipRitualPreview: false,
+  shareUsage: true,
 }
 
 const STORAGE_KEY = 'dayspring.settings.v1'
