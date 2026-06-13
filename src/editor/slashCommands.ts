@@ -1,0 +1,331 @@
+import type { EditorView } from '@codemirror/view'
+import { applyFormat } from './formatSelection'
+import type { SlashCommandId } from './slashDetect'
+
+/**
+ * Markdown formatting commands offered alongside the spiritual capture blocks.
+ * These are applied directly to the document (no popover), the way Notion's
+ * slash menu turns the current line into a heading/list/quote.
+ */
+export type FormatCommandId =
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'bold'
+  | 'italic'
+  | 'strike'
+  | 'code'
+  | 'bullet'
+  | 'numbered'
+  | 'todo'
+  | 'quote'
+  | 'divider'
+
+/** What the palette emits on select: a spiritual block, or a format command. */
+export type SlashSelection =
+  | { kind: 'spiritual'; id: SlashCommandId }
+  | { kind: 'format'; id: FormatCommandId }
+
+export type SlashColumnKey = 'capture' | 'format'
+
+export interface SlashItem {
+  selection: SlashSelection
+  column: SlashColumnKey
+  /** Friendly name shown in the row. */
+  label: string
+  /** One-line description under the label. */
+  hint: string
+  /** Compact glyph or markdown marker shown in the leading badge. */
+  badge: string
+  /** Visual flavor for the badge (e.g. render "B" bold). */
+  badgeStyle?: 'bold' | 'italic'
+  /** Lowercase tokens matched against the typed query. */
+  keywords: string[]
+}
+
+/** The two visible columns, in display order. */
+export const SLASH_COLUMNS: { key: SlashColumnKey; title: string }[] = [
+  { key: 'capture', title: 'Capture' },
+  { key: 'format', title: 'Format' },
+]
+
+export const SLASH_ITEMS: SlashItem[] = [
+  // ── Capture: spiritual blocks (open a popover) ──────────────────────────
+  {
+    selection: { kind: 'spiritual', id: 'scripture' },
+    column: 'capture',
+    label: 'Scripture',
+    hint: 'Find relevant passages',
+    badge: '✦',
+    keywords: ['scripture', 'verse', 'passage', 'bible', 'scr'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'pray' },
+    column: 'capture',
+    label: 'Prayer',
+    hint: 'Log a prayer',
+    badge: '🙏',
+    keywords: ['pray', 'prayer'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'sense' },
+    column: 'capture',
+    label: 'Sense',
+    hint: 'A word or impression',
+    badge: '✨',
+    keywords: ['sense', 'impression', 'word'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'ritual' },
+    column: 'capture',
+    label: 'Ritual',
+    hint: 'Practices for the inner life',
+    badge: '✶',
+    keywords: ['ritual', 'practice', 'examen', 'lectio'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'image' },
+    column: 'capture',
+    label: 'Image',
+    hint: 'Add a photo',
+    badge: '🖼',
+    keywords: ['image', 'photo', 'picture', 'img'],
+  },
+
+  // ── Format: markdown (applied inline) ───────────────────────────────────
+  {
+    selection: { kind: 'format', id: 'h1' },
+    column: 'format',
+    label: 'Heading',
+    hint: 'Large section title',
+    badge: '#',
+    keywords: ['heading', 'title', 'head', 'big'],
+  },
+  {
+    selection: { kind: 'format', id: 'h2' },
+    column: 'format',
+    label: 'Subheading',
+    hint: 'Medium section title',
+    badge: '##',
+    keywords: ['subheading', 'subtitle', 'sub'],
+  },
+  {
+    selection: { kind: 'format', id: 'h3' },
+    column: 'format',
+    label: 'Small heading',
+    hint: 'Minor section title',
+    badge: '###',
+    keywords: ['heading', 'minor', 'small'],
+  },
+  {
+    selection: { kind: 'format', id: 'bold' },
+    column: 'format',
+    label: 'Bold',
+    hint: 'Strong emphasis',
+    badge: 'B',
+    badgeStyle: 'bold',
+    keywords: ['bold', 'strong'],
+  },
+  {
+    selection: { kind: 'format', id: 'italic' },
+    column: 'format',
+    label: 'Italic',
+    hint: 'Light emphasis',
+    badge: 'I',
+    badgeStyle: 'italic',
+    keywords: ['italic', 'emphasis', 'em'],
+  },
+  {
+    selection: { kind: 'format', id: 'strike' },
+    column: 'format',
+    label: 'Strikethrough',
+    hint: 'Crossed-out text',
+    badge: 'S',
+    keywords: ['strike', 'strikethrough', 'cross'],
+  },
+  {
+    selection: { kind: 'format', id: 'code' },
+    column: 'format',
+    label: 'Code',
+    hint: 'Inline monospace',
+    badge: '</>',
+    keywords: ['code', 'mono', 'inline'],
+  },
+  {
+    selection: { kind: 'format', id: 'bullet' },
+    column: 'format',
+    label: 'Bullet list',
+    hint: 'Unordered list',
+    badge: '•',
+    keywords: ['bullet', 'list', 'unordered'],
+  },
+  {
+    selection: { kind: 'format', id: 'numbered' },
+    column: 'format',
+    label: 'Numbered list',
+    hint: 'Ordered list',
+    badge: '1.',
+    keywords: ['numbered', 'ordered', 'list', 'number'],
+  },
+  {
+    selection: { kind: 'format', id: 'todo' },
+    column: 'format',
+    label: 'To-do',
+    hint: 'Checklist item',
+    badge: '☐',
+    keywords: ['todo', 'task', 'checkbox', 'check'],
+  },
+  {
+    selection: { kind: 'format', id: 'quote' },
+    column: 'format',
+    label: 'Quote',
+    hint: 'Block quotation',
+    badge: '❝',
+    keywords: ['quote', 'blockquote', 'citation'],
+  },
+  {
+    selection: { kind: 'format', id: 'divider' },
+    column: 'format',
+    label: 'Divider',
+    hint: 'Horizontal rule',
+    badge: '—',
+    keywords: ['divider', 'rule', 'separator', 'line'],
+  },
+]
+
+function matches(item: SlashItem, q: string): boolean {
+  if (!q) return true
+  return item.keywords.some((k) => k.startsWith(q)) || item.label.toLowerCase().includes(q)
+}
+
+/** Filter the catalog by the typed query, split into its two columns. */
+export function filterSlashItems(query: string): { capture: SlashItem[]; format: SlashItem[] } {
+  const q = query.toLowerCase()
+  return {
+    capture: SLASH_ITEMS.filter((i) => i.column === 'capture' && matches(i, q)),
+    format: SLASH_ITEMS.filter((i) => i.column === 'format' && matches(i, q)),
+  }
+}
+
+// ── Keyboard navigation over the two columns ──────────────────────────────
+
+export interface SlashCursor {
+  col: 0 | 1
+  row: number
+}
+
+export type SlashNavDir = 'up' | 'down' | 'left' | 'right'
+
+/** First selectable cell: the first non-empty column at row 0, or null. */
+export function firstCursor(cols: SlashItem[][]): SlashCursor | null {
+  for (let c = 0; c < cols.length; c++) {
+    if ((cols[c]?.length ?? 0) > 0) return { col: c as 0 | 1, row: 0 }
+  }
+  return null
+}
+
+export function itemAt(cols: SlashItem[][], cursor: SlashCursor | null): SlashItem | null {
+  if (!cursor) return null
+  return cols[cursor.col]?.[cursor.row] ?? null
+}
+
+/**
+ * Omnidirectional move. Up/down wrap within a column; left/right hop to the
+ * adjacent column (no wrap), clamping the row so the cursor never lands on a
+ * gap when columns differ in length. Empty target columns are ignored.
+ */
+export function moveCursor(cols: SlashItem[][], cursor: SlashCursor, dir: SlashNavDir): SlashCursor {
+  const len = cols[cursor.col]?.length ?? 0
+  if (len === 0) return firstCursor(cols) ?? cursor
+
+  if (dir === 'down') return { ...cursor, row: (cursor.row + 1) % len }
+  if (dir === 'up') return { ...cursor, row: (cursor.row - 1 + len) % len }
+
+  const target = dir === 'right' ? cursor.col + 1 : cursor.col - 1
+  if (target < 0 || target > 1) return cursor
+  const targetLen = cols[target]?.length ?? 0
+  if (targetLen === 0) return cursor
+  return { col: target as 0 | 1, row: Math.min(cursor.row, targetLen - 1) }
+}
+
+// ── Applying a format command to the editor ───────────────────────────────
+
+// Recognized block prefixes we strip before applying a new one, so switching
+// between block types replaces the marker instead of stacking it.
+const BLOCK_PREFIX_RE = /^(\s*)(#{1,6}\s+|>\s+|[-*+]\s+\[(?:\s|[xX])?\]\s+|[-*+]\s+|\d+\.\s+)/
+
+function stripBlockPrefix(text: string): { indent: string; body: string } {
+  const m = BLOCK_PREFIX_RE.exec(text)
+  if (!m) {
+    const indent = /^\s*/.exec(text)?.[0] ?? ''
+    return { indent, body: text.slice(indent.length) }
+  }
+  return { indent: m[1] ?? '', body: text.slice(m[0].length) }
+}
+
+function setLinePrefix(view: EditorView, prefix: string): void {
+  const pos = view.state.selection.main.head
+  const line = view.state.doc.lineAt(pos)
+  const { indent, body } = stripBlockPrefix(line.text)
+  const insert = `${indent}${prefix}${body}`
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert },
+    // Drop the caret at the end of the (now prefixed) line, ready to type.
+    selection: { anchor: line.from + insert.length },
+  })
+  view.focus()
+}
+
+function insertDivider(view: EditorView): void {
+  const pos = view.state.selection.main.head
+  const line = view.state.doc.lineAt(pos)
+  if (line.text.trim() === '') {
+    const insert = '---\n'
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert },
+      selection: { anchor: line.from + insert.length },
+    })
+  } else {
+    const insert = '\n\n---\n'
+    view.dispatch({ changes: { from: line.to, insert }, selection: { anchor: line.to + insert.length } })
+  }
+  view.focus()
+}
+
+/** Apply a markdown format command at the current caret. */
+export function applyFormatCommand(view: EditorView, id: FormatCommandId): void {
+  switch (id) {
+    case 'bold':
+    case 'italic':
+    case 'strike':
+    case 'code':
+      // With an empty selection these insert paired markers and place the
+      // caret between them — type-then-formatted, just like the format bar.
+      applyFormat(view, id)
+      return
+    case 'h1':
+      setLinePrefix(view, '# ')
+      return
+    case 'h2':
+      setLinePrefix(view, '## ')
+      return
+    case 'h3':
+      setLinePrefix(view, '### ')
+      return
+    case 'bullet':
+      setLinePrefix(view, '- ')
+      return
+    case 'numbered':
+      setLinePrefix(view, '1. ')
+      return
+    case 'todo':
+      setLinePrefix(view, '- [ ] ')
+      return
+    case 'quote':
+      setLinePrefix(view, '> ')
+      return
+    case 'divider':
+      insertDivider(view)
+      return
+  }
+}

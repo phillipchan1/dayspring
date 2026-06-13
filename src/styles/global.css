@@ -3705,19 +3705,41 @@ html[data-focus-mode] .focus-controls {
 
 .slash-palette {
   z-index: 9000;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
   border-radius: var(--radius-lg);
   padding: 0.3rem;
-  min-width: 260px;
-  max-width: 320px;
-  overflow: hidden;
+  max-width: min(440px, calc(100vw - 16px));
+  max-height: min(58vh, 360px);
+  overflow-y: auto;
+}
+
+.slash-palette__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1 1 0;
+  min-width: 158px;
+}
+
+.slash-palette__heading {
+  padding: 0.3rem 0.6rem 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 
 .slash-palette__item {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
   width: 100%;
-  padding: 0.55rem 0.75rem;
+  padding: 0.4rem 0.55rem;
   border-radius: calc(var(--radius-lg) - 4px);
   border: none;
   background: transparent;
@@ -3731,15 +3753,48 @@ html[data-focus-mode] .focus-controls {
   background: var(--bg-hover);
 }
 
-.slash-palette__label {
+.slash-palette__badge {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: calc(var(--radius-lg) - 7px);
+  background: color-mix(in srgb, var(--bg-input) 70%, transparent);
+  border: 1px solid var(--border-soft, var(--bg-hover));
   font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--text-bright);
+}
+
+.slash-palette__badge--bold {
+  font-weight: 800;
+}
+
+.slash-palette__badge--italic {
+  font-style: italic;
+}
+
+.slash-palette__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.slash-palette__label {
+  font-family: var(--font-sans);
   font-size: 0.82rem;
   color: var(--text-bright);
   letter-spacing: 0.01em;
 }
 
 .slash-palette__hint {
-  font-size: 0.77rem;
+  font-size: 0.72rem;
   color: var(--text-dim);
   font-family: var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
