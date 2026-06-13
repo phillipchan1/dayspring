@@ -28,6 +28,7 @@ import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
+import { applyFormatCommand, type SlashSelection } from './slashCommands'
 import {
   attachmentImageExtension,
   type AttachmentEditTarget,
@@ -436,15 +437,20 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onSlashPaletteChange?.(slashState !== null)
   }, [slashState, onSlashPaletteChange])
 
-  function handleSlashSelect(cmd: SlashCommandId) {
+  function handleSlashSelect(sel: SlashSelection) {
     const view = viewRef.current
     const s = slashState
     if (!view || !s) return
-    // Remove the /command text from the document.
-    view.dispatch({ changes: { from: s.from, to: s.to, insert: '' } })
+    // Remove the /command text from the document, collapsing the caret to its start.
+    view.dispatch({ changes: { from: s.from, to: s.to, insert: '' }, selection: { anchor: s.from } })
     setSlashState(null)
+    // Markdown formatting is a synchronous edit at the caret — no popover.
+    if (sel.kind === 'format') {
+      applyFormatCommand(view, sel.id)
+      return
+    }
     const panelAnchor = computeInlinePanelAnchor(view, s.from)
-    onSlashCommand?.(cmd, s.from, panelAnchor)
+    onSlashCommand?.(sel.id, s.from, panelAnchor)
   }
 
   function handleSlashDismiss() {
