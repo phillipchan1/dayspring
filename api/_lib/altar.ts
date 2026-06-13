@@ -344,32 +344,40 @@ export async function threadItems(
 
   // Seed in-memory clusters from EXISTING declared threads in the unified threads table.
   // An item is already-threaded if it appears in thread_members.spiritual_item_id.
-  const { data: threadData, error: threadErr } = await sb
-    .from('threads')
-    .select('id')
-    .eq('owner', owner)
-    .eq('kind', 'declared')
-    .eq('dismissed', false)
-  if (threadErr) throw threadErr
-
-  const declaredThreadIds = ((threadData ?? []) as { id: string }[]).map((t) => t.id)
+  // BOTH reads paginate (ordered for stability): a caught-up owner can have
+  // thousands of declared threads, and one large cluster alone can exceed
+  // PostgREST's 1000-row default — a truncated seed read would drop members from
+  // linkedItemIds and re-thread them into DUPLICATE threads on the next resumable
+  // tick (the bug that put items into 2+ threads).
+  const declaredThreadIds = (
+    await fetchAll<{ id: string }>(sb, 'threads', 'id', owner, (q) =>
+      q.eq('kind', 'declared').eq('dismissed', false).order('id', { ascending: true }),
+    )
+  ).map((t) => t.id)
   const clusters = new Map<string, Cluster>()
   const linkedItemIds = new Set<string>() // spiritual_item_ids already in a declared thread_member
 
   for (let i = 0; i < declaredThreadIds.length; i += IN_CHUNK) {
-    const { data: mdata, error: merr } = await sb
-      .from('thread_members')
-      .select('thread_id, spiritual_item_id')
-      .in('thread_id', declaredThreadIds.slice(i, i + IN_CHUNK))
-      .not('spiritual_item_id', 'is', null)
-    if (merr) throw merr
-    for (const m of (mdata ?? []) as { thread_id: string; spiritual_item_id: string }[]) {
-      linkedItemIds.add(m.spiritual_item_id)
-      const row = rowById.get(m.spiritual_item_id)
-      if (!row || !parseVector(row.embedding)) continue
-      const c = clusters.get(m.thread_id) ?? { id: m.thread_id, members: [], centroid: [], dirty: false }
-      c.members.push(toMember(row))
-      clusters.set(m.thread_id, c)
+    const ids = declaredThreadIds.slice(i, i + IN_CHUNK)
+    for (let from = 0; ; from += PAGE) {
+      const { data: mdata, error: merr } = await sb
+        .from('thread_members')
+        .select('id, thread_id, spiritual_item_id')
+        .in('thread_id', ids)
+        .not('spiritual_item_id', 'is', null)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (merr) throw merr
+      const batch = (mdata ?? []) as { thread_id: string; spiritual_item_id: string }[]
+      for (const m of batch) {
+        linkedItemIds.add(m.spiritual_item_id)
+        const row = rowById.get(m.spiritual_item_id)
+        if (!row || !parseVector(row.embedding)) continue
+        const c = clusters.get(m.thread_id) ?? { id: m.thread_id, members: [], centroid: [], dirty: false }
+        c.members.push(toMember(row))
+        clusters.set(m.thread_id, c)
+      }
+      if (batch.length < PAGE) break
     }
   }
   for (const c of clusters.values()) recomputeCentroid(c)
