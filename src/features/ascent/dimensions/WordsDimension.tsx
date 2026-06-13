@@ -79,7 +79,7 @@ export function WordsDimension({ data, onOpenEntry }: Props) {
           </button>
         ) : (
           <>
-            <span className="ascent-dim__eyebrow ascent-dim__eyebrow--sub">{linesEyebrow}</span>
+            <span className={`ascent-dim__eyebrow${hasSpine ? ' ascent-dim__eyebrow--sub' : ''}`}>{linesEyebrow}</span>
             <div className="ascent-lines">
               {moments.map((m, i) => (
                 <button

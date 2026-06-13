@@ -136,13 +136,15 @@ function composeQuarterThemes(monthlies: Rollup[]): Theme[] {
 const MIN_VALLEY_CHARS = 16
 
 /**
- * VALLEY — the entries of the TRAILING 7 DAYS, oldest-first (the days you're
- * actually living, not the last completed Mon–Sun rollup — so it never reads stale
- * mid-week, and it works for a user whose weekly rollup hasn't synthesized yet).
- * The app only ARRANGES, but arranging ≠ dumping: it leads with the verbatim lines
- * the latest weekly synthesis kept (highlights, shown as quotes, lit up wherever
- * that entry falls in the window) and skips literal noise — empty bodies,
- * sub-threshold fragments, exact dupes. Order is preserved; nothing is ranked.
+ * VALLEY — purely the entries of the TRAILING 7 DAYS, oldest-first: your own words
+ * in the order you lived them, plus (separately) the scripture you reached for. No
+ * synthesized "what recurred" cards here — that distillation only exists for
+ * COMPLETED weeks, so under a live trailing-7 window it would surface stale,
+ * date-mismatched content. The themes/arcs live upslope (Month/Quarter), where the
+ * window IS the rollup period. The app only ARRANGES: it still leads each line with
+ * the verbatim slice the latest synthesis kept (when that entry falls in the
+ * window) and skips literal noise — blanks, fragments, exact dupes — but ranks and
+ * interprets nothing.
  */
 export async function loadWeekWords(
   weekly: Rollup | undefined,
@@ -153,8 +155,9 @@ export async function loadWeekWords(
   const toISO = new Date(window.from!.getTime() + 7 * 86_400_000).toISOString()
   const entries = await listEntriesInWindow(fromISO, toISO)
 
-  // Highlights/citations come from the most recent weekly rollup (the synthesized
-  // layer); the lines themselves are live from the window above.
+  // Citations enrich a line with the verbatim slice the synthesis kept — but only
+  // for entries that actually fall in the live window (keyed by entry_id, so a
+  // misaligned rollup simply contributes nothing rather than stale dates).
   const citations = new Map<string, string>()
   for (const c of weekly?.payload.reflection?.citations ?? []) {
     if (!citations.has(c.entry_id)) citations.set(c.entry_id, c.text)
@@ -177,11 +180,10 @@ export async function loadWeekWords(
       isQuote: quote !== undefined,
     })
   }
-  const themes = themesOf(weekly)
-  const arcs = arcsOf(weekly)
-  if (moments.length === 0 && themes.length === 0 && arcs.length === 0) return null
+  if (moments.length === 0) return null
   const label = `${fmtDay(fromISO)} – ${fmtDay(window.to!.toISOString())}`
-  return { resolution: 'week', periodLabel: label, arcs, themes, moments }
+  // No cards at the Valley — themes/arcs are empty by design.
+  return { resolution: 'week', periodLabel: label, arcs: [], themes: [], moments }
 }
 
 /** HILLSIDE — the month's themes (grounded), with the kept lines as fallback. */
