@@ -13,6 +13,7 @@ import {
   isFirstOfMonth,
   isFirstOfQuarter,
   isFirstOfYear,
+  currentWeek,
   previousWeek,
   previousMonth,
   previousQuarter,
@@ -88,7 +89,12 @@ async function synthesizeOwner(
     altar.migrated = await migrateLegacyAnswered(owner)
     if (isMonday(now)) altar.sweep = await sweepOpenThreads(owner)
 
+    // Rebuild the CURRENT in-progress week every day so the Valley's synthesis
+    // tracks this week (the model's "what surfaced" highlights), instead of staying
+    // frozen on the last completed week until Monday. Idempotent upsert.
+    results.push(await buildWeekly(owner, currentWeek(now)))
     if (isMonday(now)) {
+      // Monday also seals the just-completed week as the permanent record.
       results.push(await buildWeekly(owner, previousWeek(now)))
     }
     if (isFirstOfMonth(now)) {

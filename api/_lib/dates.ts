@@ -56,6 +56,13 @@ export function previousWeek(now: Date): Period {
   return { start: toDateStr(start), end: toDateStr(end) }
 }
 
+/** The current (in-progress) Mon–Sun week containing `now`. Rebuilt daily so the
+ *  Valley's synthesis tracks this week instead of freezing at last Monday. */
+export function currentWeek(now: Date): Period {
+  const monday = mondayOf(now)
+  return { start: toDateStr(monday), end: toDateStr(addDays(monday, 6)) }
+}
+
 /** The previous calendar month relative to `now`. */
 export function previousMonth(now: Date): Period {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))

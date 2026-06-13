@@ -47,8 +47,11 @@ const EXCERPT_MAX = 200
 
 export function entryExcerpt(bodyMarkdown: string): string {
   const plain = stripSpiritualBlocks(bodyMarkdown)
+    .replace(/<!--[\s\S]*?-->/g, ' ') // ritual/practice markers + any HTML comment
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^>\s?/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '') // bullet list markers
+    .replace(/^\s*\d+[.)]\s+/gm, '') // numbered list markers
     .replace(/[*_`~]/g, '')
     .replace(/!\?\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
@@ -136,15 +139,14 @@ function composeQuarterThemes(monthlies: Rollup[]): Theme[] {
 const MIN_VALLEY_CHARS = 16
 
 /**
- * VALLEY — purely the entries of the TRAILING 7 DAYS, oldest-first: your own words
- * in the order you lived them, plus (separately) the scripture you reached for. No
- * synthesized "what recurred" cards here — that distillation only exists for
- * COMPLETED weeks, so under a live trailing-7 window it would surface stale,
- * date-mismatched content. The themes/arcs live upslope (Month/Quarter), where the
- * window IS the rollup period. The app only ARRANGES: it still leads each line with
- * the verbatim slice the latest synthesis kept (when that entry falls in the
- * window) and skips literal noise — blanks, fragments, exact dupes — but ranks and
- * interprets nothing.
+ * VALLEY — the TRAILING 7 DAYS. Leads with the week's SYNTHESIS (the highlights /
+ * arcs the model surfaced — "what recurred this week") so the view distills rather
+ * than dumps, then tucks the raw lines (your own words, in lived order) behind a
+ * "show all" disclosure. The synthesis is kept CURRENT by a daily rebuild of the
+ * in-progress week's rollup (see api/cron/synthesize.ts), so it reflects this week
+ * — not a frozen, date-mismatched completed week. The app only ARRANGES: it leads
+ * each line with the verbatim slice the synthesis kept and skips noise (blanks,
+ * fragments, exact dupes), but ranks/interprets nothing beyond the model's pass.
  */
 export async function loadWeekWords(
   weekly: Rollup | undefined,
@@ -180,10 +182,11 @@ export async function loadWeekWords(
       isQuote: quote !== undefined,
     })
   }
-  if (moments.length === 0) return null
+  const themes = themesOf(weekly)
+  const arcs = arcsOf(weekly)
+  if (moments.length === 0 && themes.length === 0 && arcs.length === 0) return null
   const label = `${fmtDay(fromISO)} – ${fmtDay(window.to!.toISOString())}`
-  // No cards at the Valley — themes/arcs are empty by design.
-  return { resolution: 'week', periodLabel: label, arcs: [], themes: [], moments }
+  return { resolution: 'week', periodLabel: label, arcs, themes, moments }
 }
 
 /** HILLSIDE — the month's themes (grounded), with the kept lines as fallback. */
