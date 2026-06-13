@@ -8,8 +8,7 @@
  * — this file's composition does not change.
  */
 
-import { listRollups, type Rollup } from '@/lib/insights'
-import type { DateWindow } from '@/lib/scripture/query'
+import { listRollups } from '@/lib/insights'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
 import { loadWeekWords, monthWords, quarterWords, yearWords } from './words'
@@ -29,24 +28,21 @@ function dayEnd(y: number, m: number, d: number): Date {
   return new Date(Date.UTC(y, m, d, 23, 59, 59))
 }
 
-/** Anchor every altitude's window to the latest week the journal actually has
- *  (so Scripture lines up with the entries the Valley shows), else to today. */
-function deriveWindows(weekly: Rollup | undefined): Windows {
-  const anchorISO = weekly?.period_end ?? new Date().toISOString().slice(0, 10)
-  const d = new Date(`${anchorISO}T00:00:00Z`)
-  const y = d.getUTCFullYear()
-  const m = d.getUTCMonth()
+/** Anchor every altitude's window to TODAY (live), not to the latest rollup. The
+ *  Valley is the trailing 7 days — the days you're actually living — so it never
+ *  feels stale waiting on a Monday rebuild, and it stays correct for a user whose
+ *  rollups haven't been synthesized yet. Month/quarter/year are the current
+ *  calendar period to-date. (`Date.UTC` rolls a negative day back across the month
+ *  boundary, so a trailing week that spans two months is handled for free.) */
+function deriveWindows(): Windows {
+  const now = new Date()
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth()
+  const d = now.getUTCDate()
   const q = Math.floor(m / 3)
 
-  const week: DateWindow = weekly
-    ? {
-        from: new Date(`${weekly.period_start}T00:00:00Z`),
-        to: new Date(`${weekly.period_end}T23:59:59Z`),
-      }
-    : { from: dayStart(y, m, d.getUTCDate() - 6), to: dayEnd(y, m, d.getUTCDate()) }
-
   return {
-    week,
+    week: { from: dayStart(y, m, d - 6), to: dayEnd(y, m, d) },
     month: { from: dayStart(y, m, 1), to: dayEnd(y, m + 1, 0) },
     quarter: { from: dayStart(y, q * 3, 1), to: dayEnd(y, q * 3 + 3, 0) },
     year: { from: dayStart(y, 0, 1), to: dayEnd(y, 11, 31) },
@@ -69,11 +65,11 @@ export async function loadAscent(): Promise<LoadedAscent> {
     listRollups('monthly').catch(() => []),
     listRollups('yearly').catch(() => []),
   ])
-  const windows = deriveWindows(weekly[0])
+  const windows = deriveWindows()
   const yearNum = windows.year.from!.getUTCFullYear()
 
   const [weekWords, scrWeek, scrMonth, scrQuarter, scrYear] = await Promise.all([
-    loadWeekWords(weekly[0]),
+    loadWeekWords(weekly[0], windows.week),
     loadScripture('week', windows.week).catch(() => null),
     loadScripture('month', windows.month).catch(() => null),
     loadScripture('quarter', windows.quarter).catch(() => null),

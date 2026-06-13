@@ -36,8 +36,8 @@ loadDotEnv()
 const DRY = process.argv.slice(2).includes('--dry')
 
 const REQUIRED = DRY
-  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
-  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY', 'APP_OWNER_ID']
+  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`Missing required env in .env: ${missing.join(', ')}`)
@@ -45,7 +45,8 @@ if (missing.length) {
 }
 
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 
 async function count(table: string, refine: (q: any) => any): Promise<number> {
   const sb = supabaseAdmin()

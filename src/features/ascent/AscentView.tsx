@@ -165,6 +165,12 @@ export function AscentView({ onOpenEntry }: Props) {
           <span className="ascent-eyebrow">{L.alt}</span>
           <h1 className="ascent-title">{L.title}</h1>
           <p className="ascent-line">{L.line}</p>
+          {altitude?.words?.periodLabel ? (
+            <p className="ascent-period">
+              {altitude.words.periodLabel}
+              {idx === 0 ? ' · refreshed daily' : ''}
+            </p>
+          ) : null}
         </header>
 
         <LensRow />

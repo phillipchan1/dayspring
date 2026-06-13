@@ -35,6 +35,7 @@ import {
   sweepOpenThreads,
   harvestPrayers,
 } from '../_lib/altar.js'
+import { enqueueAltarThread } from '../_lib/processing.js'
 
 export async function GET(req: Request): Promise<Response> {
   if (!isAuthorized(req)) return unauthorized()
@@ -76,7 +77,13 @@ async function synthesizeOwner(
     // reserved for the monthly/yearly rollups.
     altar.harvested = await harvestPrayers(owner, { max: 50 })
     altar.embedded = await embedUnembedded(owner)
-    altar.threaded = await threadItems(owner)
+    // Bounded steady-state top-up. A larger leftover backlog (a pre-engine import,
+    // or a job marked done before threadItems was bounded) is handed to a
+    // self-chaining altar_thread engine job, which drains it in minutes instead of
+    // 300/day here — so the Altar self-heals for every owner without a manual run.
+    const threaded = await threadItems(owner, { max: 300 })
+    altar.threaded = threaded
+    if (threaded.remaining > 0) altar.threadBacklog = await enqueueAltarThread(owner)
     altar.relabeled = await relabelDeclaredThreads(owner, { max: 20 })
     altar.migrated = await migrateLegacyAnswered(owner)
     if (isMonday(now)) altar.sweep = await sweepOpenThreads(owner)

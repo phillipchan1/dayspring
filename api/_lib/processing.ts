@@ -76,6 +76,7 @@ function reflectionsTasks(range: Period): ReflectionsTask[] {
 const REFLECTIONS_PER_TICK = 24 // periods built per tick (concurrently, same-stage)
 const REFLECTIONS_POOL = 6 // concurrent builds within a tick — caps model fan-out
 const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
+const THREAD_PER_TICK = 500 // unthreaded prayers/senses clustered + persisted per tick
 const MAX_ATTEMPTS = 5 // after this many failures, give up (status=failed)
 
 /** Run `fn` over items with bounded concurrency (no extra deps). */
@@ -360,10 +361,35 @@ async function runAltarEmbed(job: Job): Promise<Record<string, unknown>> {
 
 async function runAltarThread(job: Job): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
-  const res = await threadItems(job.owner) // whole-owner pass, fast
+  // Bounded per tick — the clustering loop plus the sequential thread inserts blew
+  // past the function budget on a multi-thousand-prayer archive, got killed
+  // mid-insert, and left the field nearly empty. Thread `THREAD_PER_TICK` at a time
+  // and re-tick (clear lock so the next tick claims it straight away) until drained.
+  const res = await threadItems(job.owner, { max: THREAD_PER_TICK })
+  const completed = job.completed + res.placed
+
+  if (res.remaining > 0) {
+    await sb
+      .from('processing_jobs')
+      .update({ completed, total: completed + res.remaining, locked_at: null })
+      .eq('id', job.id)
+    return { id: job.id, kind: 'altar_thread', status: 'running', completed, remaining: res.remaining }
+  }
+
   await sb
     .from('processing_jobs')
-    .update({ status: 'done', completed: 1, total: 1, locked_at: null })
+    .update({ status: 'done', completed, total: completed, locked_at: null })
     .eq('id', job.id)
   return { id: job.id, kind: 'altar_thread', status: 'done', ...res }
+}
+
+/**
+ * Ensure an `altar_thread` job exists for an owner with an unthreaded backlog —
+ * the fast, self-chaining path to drain it. Used by the daily cron as a safety net
+ * so any backlog (a pre-engine import, or a job that was marked done before
+ * threadItems was bounded) auto-recovers instead of trickling 1 tick/day.
+ */
+export async function enqueueAltarThread(owner: string): Promise<boolean> {
+  const sb = supabaseAdmin()
+  return insertIfInactive(sb, owner, 'altar_thread', 1, {})
 }

@@ -204,6 +204,13 @@
   line-height: 1.6;
   margin: 0;
 }
+.ascent-period {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(236, 231, 223, 0.4);
+  margin: 12px 0 0;
+}
 .ascent-terrain {
   flex: 1;
   margin-top: 28px;

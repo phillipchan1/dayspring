@@ -43,15 +43,16 @@ const maxArg = args.find((a) => a.startsWith('--max='))
 const MAX = maxArg ? Number(maxArg.slice('--max='.length)) : undefined
 
 const REQUIRED = DRY
-  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
-  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY', 'APP_OWNER_ID']
+  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`Missing required env in .env: ${missing.join(', ')}`)
   process.exit(1)
 }
 
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 
 async function main(): Promise<void> {
   const { harvestPlan } = await import('../api/_lib/altar.ts')

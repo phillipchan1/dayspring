@@ -30,12 +30,13 @@ function loadDotEnv(): void {
 }
 loadDotEnv()
 
-const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
+const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) { console.error(`Missing env: ${missing.join(', ')}`); process.exit(1) }
 
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 const sb = supabaseAdmin()
 
 // ── load (service role bypasses RLS → filter by owner explicitly) ──────────────

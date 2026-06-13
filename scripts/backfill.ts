@@ -64,8 +64,8 @@ const REQUIRED =
   RECENT && DRY
     ? [] // pure date math — no DB/OpenAI needed
     : DRY
-      ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
-      : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY', 'APP_OWNER_ID']
+      ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+      : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`Missing required env in .env: ${missing.join(', ')}`)
@@ -78,7 +78,8 @@ const { buildWeekly, buildMonthly } = await import('../api/_lib/synthesize.ts')
 const { mondayOf, addDays, toDateStr, previousWeek, previousMonth, weeksOverlappingMonth } =
   await import('../api/_lib/dates.ts')
 
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 
 interface Period {
   start: string

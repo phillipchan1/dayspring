@@ -18,7 +18,6 @@ export const env = {
   // Crossway ESV API token (api.esv.org). Used to resolve verbatim verse text.
   esvApiKey: () => need('ESV_API_KEY'),
   cronSecret: () => need('CRON_SECRET'),
-  appOwnerId: () => need('APP_OWNER_ID'),
   // Optional — if set, reminder notifications are sent via Resend.
   // If unset, the cron marks reminders fired but sends nothing.
   resendKey: () => process.env.RESEND_API_KEY ?? null,

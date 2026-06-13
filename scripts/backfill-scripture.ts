@@ -40,7 +40,7 @@ const args = process.argv.slice(2)
 const DRY = args.includes('--dry')
 const fromArg = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a))
 
-const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
+const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`Missing required env in .env: ${missing.join(', ')}`)
@@ -51,7 +51,8 @@ if (missing.length) {
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
 const { parseReferences } = await import('../src/lib/scripture/parse.ts')
 
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 
 interface EntryRow {
   id: string

@@ -103,17 +103,38 @@ function seedMember(c: Cluster): Member {
 
 /**
  * Link declared-thread members via the unified thread_members table (spiritual_item_id).
- * Idempotent — already-linked items are silently skipped (ignoreDuplicates).
- * Chunked to stay under the PostgREST URL-length limit.
+ * Idempotent — already-linked items are skipped via a query-first filter (the dedup
+ * index is partial, so it can't be an ON CONFLICT target). Chunked to stay under
+ * the PostgREST URL-length limit.
  */
-async function linkDeclaredMembers(sb: SupabaseClient, threadId: string, itemIds: string[]): Promise<void> {
+async function linkDeclaredMembers(sb: SupabaseClient, threadId: string, rawItemIds: string[]): Promise<void> {
+  // Dedupe within the batch first — the Diarly import stamps every item at noon, so
+  // a cluster can carry the same itemId twice; a single INSERT of two identical rows
+  // fails atomically on the partial unique index and never commits.
+  const itemIds = [...new Set(rawItemIds)]
+  if (itemIds.length === 0) return
+  // Skip items already linked to this thread. The dedup index
+  // (thread_members_item_uniq) is PARTIAL (WHERE spiritual_item_id IS NOT NULL), so
+  // it can't be an ON CONFLICT target — a query-first filter is what keeps this
+  // idempotent across resumable threadItems runs that re-link a grown cluster.
+  const already = new Set<string>()
   for (let i = 0; i < itemIds.length; i += IN_CHUNK) {
-    const rows = itemIds.slice(i, i + IN_CHUNK).map((id) => ({
+    const { data, error } = await sb
+      .from('thread_members')
+      .select('spiritual_item_id')
+      .eq('thread_id', threadId)
+      .in('spiritual_item_id', itemIds.slice(i, i + IN_CHUNK))
+    if (error) throw error
+    for (const r of (data ?? []) as { spiritual_item_id: string }[]) already.add(r.spiritual_item_id)
+  }
+  const toInsert = itemIds.filter((id) => !already.has(id))
+  for (let i = 0; i < toInsert.length; i += IN_CHUNK) {
+    const rows = toInsert.slice(i, i + IN_CHUNK).map((id) => ({
       thread_id: threadId,
       spiritual_item_id: id,
       register: 'neutral',
     }))
-    const { error } = await sb.from('thread_members').upsert(rows, { ignoreDuplicates: true })
+    const { error } = await sb.from('thread_members').insert(rows)
     if (error) throw error
   }
 }
@@ -282,20 +303,26 @@ async function labelThread(contents: string[]): Promise<{ title: string; carries
  */
 export async function threadItems(
   owner: string,
-): Promise<{ placed: number; newThreads: number; updatedThreads: number }> {
+  opts: { max?: number } = {},
+): Promise<{ placed: number; newThreads: number; updatedThreads: number; remaining: number }> {
   const sb = supabaseAdmin()
 
-  const rows = await fetchAll<ItemRow>(
+  const rawRows = await fetchAll<ItemRow>(
     sb,
     'spiritual_items',
     'id, entry_id, type, content, created_at, resolved_at, thread_id, embedding',
     owner,
-    (q) => q.in('type', ['prayer', 'sense']).order('created_at', { ascending: true }),
+    // `id` tiebreak keeps pagination STABLE: the Diarly import stamps every item at
+    // noon, so ordering by created_at alone is non-deterministic across page
+    // boundaries — rows get repeated or skipped, inflating heft and crashing the
+    // member insert on duplicates.
+    (q) => q.in('type', ['prayer', 'sense']).order('created_at', { ascending: true }).order('id', { ascending: true }),
     150, // small page: this read carries the embedding vector
   )
 
-  // Quick lookup by id — used when seeding clusters from thread_members.
-  const rowById = new Map(rows.map((r) => [r.id, r]))
+  // Quick lookup by id (also dedupes any rows a paginated read still repeated).
+  const rowById = new Map(rawRows.map((r) => [r.id, r]))
+  const rows = [...rowById.values()]
 
   // Effective (source) date per item: the entry's date when linked, else the row's.
   const entryIds = [...new Set(rows.map((r) => r.entry_id).filter((x): x is string => !!x))]
@@ -351,9 +378,18 @@ export async function threadItems(
   const live = (): Cluster[] => [...clusters.values(), ...newClusters]
 
   // Place unthreaded items oldest-first so the earliest becomes each thread's seed.
-  const unthreaded = rows
+  const allUnthreaded = rows
     .filter((r) => !linkedItemIds.has(r.id) && parseVector(r.embedding))
     .sort((a, b) => effDate(a).localeCompare(effDate(b)))
+
+  // Bounded per call so a large archive (thousands of prayers) can never exceed the
+  // function budget — the unbounded all-at-once pass timed out mid-insert and left
+  // the field nearly empty. We place the OLDEST `max` first (earliest = each
+  // thread's seed); the caller re-runs until `remaining` hits 0, re-seeding from the
+  // threads this run created. Resumable by construction: already-linked items fall
+  // out of `unthreaded` on the next run, so progress never repeats or regresses.
+  const unthreaded = opts.max ? allUnthreaded.slice(0, opts.max) : allUnthreaded
+  const remaining = allUnthreaded.length - unthreaded.length
 
   let placed = 0
   for (const r of unthreaded) {
@@ -418,7 +454,7 @@ export async function threadItems(
     await linkDeclaredMembers(sb, c.id!, c.members.map((m) => m.itemId))
   }
 
-  return { placed, newThreads: fresh.length, updatedThreads: dirty.length }
+  return { placed, newThreads: fresh.length, updatedThreads: dirty.length, remaining }
 }
 
 /**

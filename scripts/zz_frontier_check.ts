@@ -18,7 +18,8 @@ loadDotEnv()
 
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
 const sb = supabaseAdmin()
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 
 // Load all weekly rollups
 const PAGE = 500

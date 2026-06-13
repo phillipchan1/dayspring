@@ -13,7 +13,8 @@ loadDotEnv()
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
 const { cosine } = await import('../api/_lib/embeddings.ts')
 const sb = supabaseAdmin()
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 
 function parseVec(v: unknown): number[] | null {
   if (!v) return null

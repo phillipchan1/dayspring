@@ -45,8 +45,8 @@ const DEPTH: Depth = (args.find((a) => ['week', 'month', 'quarter', 'year'].incl
 const RANK: Record<Depth, number> = { week: 0, month: 1, quarter: 2, year: 3 }
 
 const REQUIRED = DRY
-  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID']
-  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY', 'APP_OWNER_ID']
+  ? ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+  : ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`Missing required env in .env: ${missing.join(', ')}`)
@@ -61,7 +61,8 @@ interface Period {
   start: string
   end: string
 }
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 const sb = supabaseAdmin()
 
 function errMsg(e: unknown): string {

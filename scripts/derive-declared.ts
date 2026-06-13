@@ -111,7 +111,7 @@ const DRY = args.includes('--dry')
 const sampleIdx = args.indexOf('--sample')
 const SAMPLE = sampleIdx >= 0 ? Number(args[sampleIdx + 1]) || 0 : 0
 
-const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'APP_OWNER_ID', 'OPENAI_API_KEY']
+const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENAI_API_KEY']
 const missing = REQUIRED.filter((k) => !process.env[k])
 if (missing.length) { console.error(`Missing env: ${missing.join(', ')}`); process.exit(1) }
 
@@ -119,7 +119,8 @@ const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
 const { embed, cosine } = await import('../api/_lib/embeddings.ts')
 import OpenAI from 'openai'
 const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY!, maxRetries: 5 })
-const owner = process.env.APP_OWNER_ID as string
+const { requireOwner } = await import('./_owner.ts')
+const owner = await requireOwner()
 const sb = supabaseAdmin()
 
 // ── types ─────────────────────────────────────────────────────────────────────

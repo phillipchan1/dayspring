@@ -10,6 +10,7 @@
  */
 
 import { listEntriesInWindow } from '@/lib/entries'
+import type { DateWindow } from '@/lib/scripture/query'
 import type { Excerpt, Highlight, Quote, Rollup } from '@/lib/insights'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
 import type { AscentArc, Theme, WordMoment, WordsData } from './types'
@@ -31,14 +32,6 @@ export function periodLabel(r: Rollup): string {
   }
   if (r.type === 'yearly') return String(start.getUTCFullYear())
   return `${fmtDay(r.period_start)} – ${fmtDay(r.period_end)}`
-}
-
-/** Inclusive YYYY-MM-DD period → [fromISO, toExclusiveISO) for an entries read. */
-function windowOf(periodStart: string, periodEnd: string): [string, string] {
-  const fromISO = `${periodStart}T00:00:00.000Z`
-  const end = new Date(`${periodEnd}T00:00:00.000Z`)
-  end.setUTCDate(end.getUTCDate() + 1)
-  return [fromISO, end.toISOString()]
 }
 
 function quarterOf(periodStart: string): number {
@@ -143,20 +136,27 @@ function composeQuarterThemes(monthlies: Rollup[]): Theme[] {
 const MIN_VALLEY_CHARS = 16
 
 /**
- * VALLEY — the entries of the latest week, oldest-first. The app only ARRANGES,
- * but arranging ≠ dumping: it leads with the verbatim lines the weekly synthesis
- * kept (the highlights, shown as quotes), and skips literal noise — empty bodies,
- * sub-threshold fragments, and exact duplicates — so the signal isn't buried.
- * Order is preserved; nothing is ranked or interpreted.
+ * VALLEY — the entries of the TRAILING 7 DAYS, oldest-first (the days you're
+ * actually living, not the last completed Mon–Sun rollup — so it never reads stale
+ * mid-week, and it works for a user whose weekly rollup hasn't synthesized yet).
+ * The app only ARRANGES, but arranging ≠ dumping: it leads with the verbatim lines
+ * the latest weekly synthesis kept (highlights, shown as quotes, lit up wherever
+ * that entry falls in the window) and skips literal noise — empty bodies,
+ * sub-threshold fragments, exact dupes. Order is preserved; nothing is ranked.
  */
-export async function loadWeekWords(weekly: Rollup | undefined): Promise<WordsData | null> {
-  if (!weekly) return null
-  const [fromISO, toISO] = windowOf(weekly.period_start, weekly.period_end)
+export async function loadWeekWords(
+  weekly: Rollup | undefined,
+  window: DateWindow,
+): Promise<WordsData | null> {
+  // [from 00:00, from+7d 00:00) — a clean half-open 7-day span ending tonight.
+  const fromISO = window.from!.toISOString()
+  const toISO = new Date(window.from!.getTime() + 7 * 86_400_000).toISOString()
   const entries = await listEntriesInWindow(fromISO, toISO)
-  if (entries.length === 0) return null
 
+  // Highlights/citations come from the most recent weekly rollup (the synthesized
+  // layer); the lines themselves are live from the window above.
   const citations = new Map<string, string>()
-  for (const c of weekly.payload.reflection?.citations ?? []) {
+  for (const c of weekly?.payload.reflection?.citations ?? []) {
     if (!citations.has(c.entry_id)) citations.set(c.entry_id, c.text)
   }
 
@@ -180,7 +180,8 @@ export async function loadWeekWords(weekly: Rollup | undefined): Promise<WordsDa
   const themes = themesOf(weekly)
   const arcs = arcsOf(weekly)
   if (moments.length === 0 && themes.length === 0 && arcs.length === 0) return null
-  return { resolution: 'week', periodLabel: periodLabel(weekly), arcs, themes, moments }
+  const label = `${fmtDay(fromISO)} – ${fmtDay(window.to!.toISOString())}`
+  return { resolution: 'week', periodLabel: label, arcs, themes, moments }
 }
 
 /** HILLSIDE — the month's themes (grounded), with the kept lines as fallback. */
