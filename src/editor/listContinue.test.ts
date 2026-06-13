@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 const mdExtension = markdown({
   base: markdownLanguage,
   codeLanguages: [],
-  extensions: { remove: ['IndentedCode'] },
+  extensions: { remove: ['IndentedCode', 'SetextHeading'] },
 })
 
 /** Run insertNewlineContinueMarkup with the cursor at `at`; report whether it

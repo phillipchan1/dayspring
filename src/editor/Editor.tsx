@@ -274,15 +274,17 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           Prec.highest(formatKeymap((view) => requestLinkRef.current(view))),
           editorTabKeymap,
           indentUnit.of('  '),
-          // `remove: ['IndentedCode']` — this is a prose journal, not a code
-          // editor. CommonMark turns any line indented ≥4 spaces (or a tab) at a
-          // block start into an indented code block, which the highlighter then
-          // renders in the mono face (CodeText → tags.monospace → --font-mono).
-          // So a single stray-indented line silently flips a serif entry to
-          // "mono" regardless of the writing-font setting. Drop the rule so
-          // indented prose stays prose; fenced ``` blocks (scripture/altar
-          // spiritual blocks) are untouched.
-          markdown({ base: markdownLanguage, codeLanguages: [], extensions: { remove: ['IndentedCode'] } }),
+          // Prose-journal grammar: disable rules that fire accidentally during writing.
+          //
+          // IndentedCode — any line indented ≥4 spaces at a block start becomes a
+          // code block, silently flipping the entry to the mono face. Removed so
+          // indented prose stays prose; fenced ``` blocks (spiritual blocks) are untouched.
+          //
+          // SetextHeading — CommonMark turns `text\n-` into an H2 and `text\n=`
+          // into an H1 (underline-style headings). So typing `-` on the line after
+          // any prose line instantly re-styles it as a heading. Removed here; ATX
+          // headings (`## text`) are still supported for intentional formatting.
+          markdown({ base: markdownLanguage, codeLanguages: [], extensions: { remove: ['IndentedCode', 'SetextHeading'] } }),
           syntaxHighlighting(markdownHighlight),
           titleCompartment.current.of(
             titleStyling
