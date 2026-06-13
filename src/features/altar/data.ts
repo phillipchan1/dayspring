@@ -70,30 +70,72 @@ function resolveLabel(t: { label?: string | null; label_ai?: string | null; labe
   return t.label_user ?? t.label_ai ?? t.label ?? ''
 }
 
+/** PostgREST default page cap. Both reads paginate past it — a caught-up owner
+ *  can have thousands of declared threads (and a single 1000-id `.in()` filter
+ *  overflows the request URL → 400, which is what hung the Altar at scale). */
+const PAGE = 1000
+/** Thread ids per member-query `.in(...)` — small enough to keep the URL short. */
+const THREAD_IN_CHUNK = 80
+
 /**
  * All declared strands as abstract warmth bands, all-time. A declared subject is
  * hued by its OWN label (trading, esther, purity…) rather than the uniform
  * prayer/sense lens, so the field reads as a spread of distinct lights. Sorted
  * thickest-first by buildBands; the caller groups by subject kind / filters type.
+ *
+ * Only RETURNED-to subjects surface (heft ≥ 2): a prayer brought once isn't a
+ * strand yet ("strands appear once you've returned to them over time") — and it
+ * keeps the field from drowning in thousands of one-off lines.
  */
 export async function loadAltarStrands(): Promise<AltarStrand[]> {
   const sb = requireSupabase()
 
-  const { data: tdata, error: terr } = await sb
-    .from('threads')
-    .select('id, label, label_ai, label_user, type, subject_kind')
-    .eq('kind', 'declared')
-    .eq('dismissed', false)
-  if (terr) { console.error('[altar] thread query', terr.message); return [] }
-  const threads = (tdata ?? []) as ThreadRow[]
+  // All declared threads, paginated past the 1000-row cap.
+  const threads: ThreadRow[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from('threads')
+      .select('id, label, label_ai, label_user, type, subject_kind')
+      .eq('kind', 'declared')
+      .eq('dismissed', false)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) { console.error('[altar] thread query', error.message); return [] }
+    const batch = (data ?? []) as ThreadRow[]
+    threads.push(...batch)
+    if (batch.length < PAGE) break
+  }
   if (threads.length === 0) return []
 
   const meta = new Map(threads.map((t) => [t.id, t]))
-  const { data: mdata, error: merr } = await sb
-    .from('thread_members')
-    .select('thread_id, spiritual_item_id, register, spiritual_items(content, created_at, entry_id)')
-    .in('thread_id', threads.map((t) => t.id))
-  if (merr) { console.error('[altar] member query', merr.message); return [] }
+
+  // Members — chunk the thread-id `.in(...)` (a 1000-id filter overflows the URL)
+  // and paginate each chunk (a chunk's members can exceed one page).
+  const ids = threads.map((t) => t.id)
+  const rawMembers: RawMember[] = []
+  for (let i = 0; i < ids.length; i += THREAD_IN_CHUNK) {
+    const chunk = ids.slice(i, i + THREAD_IN_CHUNK)
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await sb
+        .from('thread_members')
+        .select('id, thread_id, spiritual_item_id, register, spiritual_items(content, created_at, entry_id)')
+        .in('thread_id', chunk)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) { console.error('[altar] member query', error.message); return [] }
+      const batch = (data ?? []) as unknown as MemberRow[]
+      for (const m of batch) {
+        if (!m.spiritual_item_id || !m.spiritual_items) continue
+        rawMembers.push({
+          thread_id: m.thread_id,
+          entry_id: m.spiritual_item_id, // surrogate: the line itself is the unit
+          created_at: m.spiritual_items.created_at,
+          body: m.spiritual_items.content,
+        })
+      }
+      if (batch.length < PAGE) break
+    }
+  }
 
   // Map the declared model onto the shared band builder: the subject LABEL drives
   // hue; each spiritual_item line stands in for an "entry" (its id is unique, so
@@ -111,26 +153,19 @@ export async function loadAltarStrands(): Promise<AltarStrand[]> {
     dismissed: false,
   }))
 
-  const rawMembers: RawMember[] = ((mdata ?? []) as unknown as MemberRow[])
-    .filter((m) => m.spiritual_item_id && m.spiritual_items)
-    .map((m) => ({
-      thread_id: m.thread_id,
-      entry_id: m.spiritual_item_id!,            // surrogate: the line itself is the unit
-      created_at: m.spiritual_items!.created_at,
-      body: m.spiritual_items!.content,
-    }))
-
   const bands = buildBands(rawThreads, [], rawMembers, 4, Date.now())
 
-  return bands.map((b): AltarStrand => {
-    const t = meta.get(b.id)
-    return {
-      ...b,
-      type: t?.type ?? 'prayer',
-      subjectKind: t?.subject_kind ?? null,
-      strandKind: 'declared',
-    }
-  })
+  return bands
+    .filter((b) => b.heft >= 2)
+    .map((b): AltarStrand => {
+      const t = meta.get(b.id)
+      return {
+        ...b,
+        type: t?.type ?? 'prayer',
+        subjectKind: t?.subject_kind ?? null,
+        strandKind: 'declared',
+      }
+    })
 }
 
 /** A single strand's whole life — every line in time, for the click-in panel. */
