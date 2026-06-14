@@ -526,6 +526,12 @@ const attachmentTheme = EditorView.theme({
     position: 'relative',
     display: 'block',
     width: 'fit-content',
+    // Floor so the frame can't collapse when the image has no width yet — while
+    // loading, unresolved, or broken. Without it, fit-content shrinks to ~0
+    // (the caption is width:0, see below), and the caption's min-width:100%
+    // resolves to ~0 → one glyph per line. Loaded photos exceed this and the
+    // floor never binds; clamped to the column so it can't overflow on mobile.
+    minWidth: 'min(240px, 100%)',
     maxWidth: '100%',
     margin: '0 auto',
   },
