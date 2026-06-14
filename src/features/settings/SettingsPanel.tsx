@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
@@ -51,6 +52,8 @@ export function SettingsPanel({
   userEmail,
   featureFlags,
 }: Props) {
+  const isMobile = useIsMobile()
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -64,7 +67,33 @@ export function SettingsPanel({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [importSourceId, onClose, onImportSourceBack])
 
-  const active = TABS.find((t) => t.id === tab)!
+  // Keyboard shortcuts are irrelevant on a touch phone (no hardware keys); the
+  // tab only earns its place on desktop and keyboard-equipped tablets. The 767px
+  // boundary keeps it for iPad, which behaves like desktop here.
+  const visibleTabs = isMobile ? TABS.filter((t) => t.id !== 'shortcuts') : TABS
+  const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0]!
+
+  // Swipe-down-to-dismiss for the mobile bottom sheet. It slid up to open, so a
+  // pull down is the natural way back out. Drag tracks the finger; release past a
+  // threshold closes, otherwise it snaps home. Bound to the grabber + header only,
+  // so scrolling the tab row or body never starts a dismiss.
+  const [dragY, setDragY] = useState(0)
+  const dragStart = useRef<number | null>(null)
+  const DISMISS_THRESHOLD = 110
+  function onDragStart(e: React.TouchEvent) {
+    dragStart.current = e.touches[0]?.clientY ?? null
+  }
+  function onDragMove(e: React.TouchEvent) {
+    if (dragStart.current == null) return
+    const y = e.touches[0]?.clientY ?? dragStart.current
+    setDragY(Math.max(0, y - dragStart.current))
+  }
+  function onDragEnd() {
+    if (dragStart.current == null) return
+    dragStart.current = null
+    if (dragY > DISMISS_THRESHOLD) onClose()
+    else setDragY(0)
+  }
 
   return (
     <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
@@ -74,11 +103,29 @@ export function SettingsPanel({
         aria-modal="true"
         aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
+        style={
+          dragY
+            ? { transform: `translateY(${dragY}px)`, transition: 'none' }
+            : undefined
+        }
       >
         <div className="glass-surface__glow" aria-hidden />
+        {isMobile && (
+          <button
+            type="button"
+            className="settings-grabber"
+            aria-label="Close settings"
+            onClick={onClose}
+            onTouchStart={onDragStart}
+            onTouchMove={onDragMove}
+            onTouchEnd={onDragEnd}
+          >
+            <span className="settings-grabber__bar" aria-hidden />
+          </button>
+        )}
         <nav className="settings-nav" aria-label="Settings sections">
           <div className="settings-nav__brand">Dayspring</div>
-          {TABS.map((t) => (
+          {visibleTabs.map((t) => (
             <button
               key={t.id}
               type="button"

@@ -2327,6 +2327,41 @@ html[data-focus-mode] .focus-controls {
   font-size: 1.05rem;
 }
 
+/* New entry is the app's primary act — give it weight. A filled accent disc
+   that reads as "the thing to tap" without leaving the thumb-reachable bar
+   (a free-floating FAB would collide with the browser's own bottom chrome on
+   mobile web). It keeps equal bar width but renders its glyph in a raised pill. */
+.mobile-bar .nav-btn--primary {
+  color: var(--accent);
+}
+.mobile-bar .nav-btn--primary::before {
+  content: '+';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: var(--shadow-2);
+}
+/* The glyph lives in ::before; hide the literal text node it wraps. */
+.mobile-bar .nav-btn--primary {
+  font-size: 0;
+}
+@media (hover: hover) {
+  .mobile-bar .nav-btn--primary:hover {
+    background: transparent;
+  }
+  .mobile-bar .nav-btn--primary:hover::before {
+    filter: brightness(1.08);
+  }
+}
+
 /* ── Topic-filter banner (entry list restricted from a rollup topic) ──────── */
 .restrict-banner {
   display: flex;
@@ -2398,6 +2433,32 @@ html[data-focus-mode] .focus-controls {
   }
 }
 
+/* Drag handle for the mobile settings sheet — the affordance that says "pull me
+   down to close" (and a plain tap closes too). Desktop never renders it. */
+.settings-grabber {
+  display: none;
+}
+@media (max-width: 767px) {
+  .settings-grabber {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex: 0 0 auto;
+    padding: max(0.5rem, env(safe-area-inset-top)) 0 0.45rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .settings-grabber__bar {
+    width: 2.25rem;
+    height: 0.3rem;
+    border-radius: var(--radius-full);
+    background: var(--border);
+  }
+}
+
 /* ── Left nav rail ─────────────────────────────────────────────────────── */
 .settings-nav {
   flex: 0 0 13.5rem;
@@ -2414,7 +2475,7 @@ html[data-focus-mode] .focus-controls {
     flex: 0 0 auto;
     flex-direction: row;
     gap: 0;
-    padding: max(0.5rem, env(safe-area-inset-top)) 0.5rem 0;
+    padding: 0.25rem 0.5rem 0;
     background: var(--bg);
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);

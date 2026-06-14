@@ -27,7 +27,7 @@ export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
-    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, mainSlot, userEmail,
+    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
@@ -43,8 +43,12 @@ export function MobileJournal(props: JournalViewProps) {
   function closeDrawer() {
     if (sidebarOpen) onToggleSidebar()
   }
+  // Route through onToggleEntries (not the raw sidebar toggle) so opening Entries
+  // from an alternate surface (Ascent / Lamp / Altar) first returns to the journal
+  // — otherwise the alt-surface guard immediately snaps the sidebar shut and the
+  // tap appears to do nothing.
   function openDrawer() {
-    if (!sidebarOpen) onToggleSidebar()
+    if (!sidebarOpen) onToggleEntries()
   }
 
   function onTouchStart(e: React.TouchEvent) {
@@ -154,14 +158,14 @@ export function MobileJournal(props: JournalViewProps) {
         <>
           <nav className="mobile-bar">
             <button
-              className="nav-btn"
+              className="nav-btn nav-btn--primary"
               onClick={onNew}
               aria-label="New entry"
               title={`New entry (${formatNewEntryShortcut()})`}
             >
               +
             </button>
-            <button className="nav-btn" onClick={openDrawer} aria-label="Entries" title="Entries (⌘1)">
+            <button className="nav-btn" onClick={onToggleEntries} aria-label="Entries" title="Entries (⌘1)">
               ☰
             </button>
             <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">

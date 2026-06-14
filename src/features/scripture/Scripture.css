@@ -219,24 +219,24 @@
 }
 
 /* ── season scrubber ─────────────────────────────────────────────────────── */
+/* One horizontal line — chips never wrap, scroll sideways on narrow screens so
+   the time range stays compact and never costs vertical space. */
 .scripture__seasons {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.5rem;
   margin: 1.85rem 0 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
-
-.scripture__seasons-label {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-right: 0.35rem;
+.scripture__seasons::-webkit-scrollbar {
+  display: none;
 }
 
 .scripture__chip {
+  flex: 0 0 auto;
   font-family: var(--font-serif);
   font-size: 0.86rem;
   color: var(--text-dim);

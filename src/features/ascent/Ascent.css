@@ -1229,6 +1229,18 @@
   .ascent-main {
     padding: 40px 18px 28px;
   }
+  /* Keep ascend/descend reachable: it used to scroll away with the content, so
+     once you read down the page you lost the way up. Stick it to the bottom of
+     the scroll area with a soft fade so terrain glides under it. */
+  .ascent-ctrl {
+    position: sticky;
+    bottom: 0;
+    margin-top: 24px;
+    padding-top: 16px;
+    padding-bottom: 12px;
+    background: linear-gradient(180deg, transparent, var(--a1) 42%);
+    border-top: none;
+  }
   .ascent-title {
     font-size: 26px;
   }

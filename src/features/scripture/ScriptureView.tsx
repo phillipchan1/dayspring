@@ -244,8 +244,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
             </div>
           )}
 
-          <div className="scripture__seasons" role="group" aria-label="Season">
-            <span className="scripture__seasons-label">Season</span>
+          <div className="scripture__seasons" role="group" aria-label="Time range">
             {seasons.map((s) => (
               <button
                 key={s.id}

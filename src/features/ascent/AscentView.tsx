@@ -26,8 +26,6 @@ function clampAltitude(n: number | undefined): number {
   return Math.min(LAST, Math.max(0, Math.round(n)))
 }
 
-const SWIPE_THRESHOLD = 56
-
 /** True when focus is in a text field — so arrow keys don't hijack typing. */
 function inTextField(): boolean {
   const el = document.activeElement
@@ -98,19 +96,9 @@ export function AscentView({ onOpenEntry }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [up, down, drill])
 
-  // Vertical swipe: up = ascend, down = descend.
-  const touchY = useRef<number | null>(null)
-  function onTouchStart(e: React.TouchEvent) {
-    touchY.current = e.touches[0]?.clientY ?? null
-  }
-  function onTouchEnd(e: React.TouchEvent) {
-    const start = touchY.current
-    touchY.current = null
-    if (start == null || drill) return
-    const dy = (e.changedTouches[0]?.clientY ?? start) - start
-    if (dy <= -SWIPE_THRESHOLD) up()
-    else if (dy >= SWIPE_THRESHOLD) down()
-  }
+  // No vertical swipe-to-change-altitude: it fought the content scroll on touch
+  // (a swipe to read further down also jumped altitude, which felt inverted).
+  // The fixed climb rail and the sticky ascend/descend controls own altitude now.
 
   const L = ALTITUDES[idx]!
   const loading = ascent === undefined
@@ -147,8 +135,6 @@ export function AscentView({ onOpenEntry }: Props) {
     <div
       className={`ascent${light ? ' ascent--light' : ''}`}
       style={{ '--a0': air[0], '--a1': air[1] } as React.CSSProperties}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
     >
       <div className="ascent-air" key={L.key} aria-hidden />
       <div className="ascent-stars" style={{ opacity: 1 - idx / LAST }} aria-hidden />
