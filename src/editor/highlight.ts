@@ -31,8 +31,11 @@ export const markdownHighlight = HighlightStyle.define([
   // Quotes.
   { tag: t.quote, fontStyle: 'italic', color: 'var(--md-quote)' },
 
-  // List markers — faded like #, *, >; body text keeps the writing font.
-  { tag: t.list, color: 'var(--text-faint)' },
+  // List markers fade via t.processingInstruction below — the grammar tags
+  // ListMark with it. Deliberately NO t.list rule: the markdown grammar applies
+  // t.list to the entire list subtree (marker AND body), so coloring it would
+  // also fade the body text — which then can't brighten as the active paragraph
+  // in focus/typewriter mode. Body stays the default writing color.
 
   // The markdown markers themselves (#, *, _, >, `, -, link brackets) — faded.
   { tag: t.processingInstruction, color: 'var(--text-faint)' },

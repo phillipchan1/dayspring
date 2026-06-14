@@ -62,10 +62,16 @@ class SpiritualBlockWidget extends WidgetType {
     }
 
     if (this.type === 'sense') {
+      // A quiet cap-label (same motif as PRAYER / the scripture citation) so a
+      // sense reads as a received impression, not just emphasized prose. Tinted
+      // in the sense's own emphasis color rather than the neutral label gray.
+      const label = document.createElement('span')
+      label.className = 'cm-spiritual-block__label cm-spiritual-block__label--sense'
+      label.textContent = 'a sense'
       const body = document.createElement('p')
       body.className = 'cm-spiritual-block__sense'
       body.textContent = this.content || ' '
-      root.append(body)
+      root.append(label, body)
       return root
     }
 
@@ -134,7 +140,9 @@ const spiritualBlockTheme = EditorView.theme({
     userSelect: 'none',
     cursor: 'pointer',
     borderRadius: 'var(--radius-md)',
-    transition: 'background 120ms ease, box-shadow 120ms ease',
+    // opacity is in the list so focus-mode dimming (see dimming.ts) fades the
+    // block in/out smoothly rather than snapping.
+    transition: 'background 120ms ease, box-shadow 120ms ease, opacity 160ms ease',
   },
   '.cm-spiritual-block:hover': {
     background: 'color-mix(in srgb, var(--accent-soft) 30%, transparent)',
@@ -160,6 +168,11 @@ const spiritualBlockTheme = EditorView.theme({
     textTransform: 'uppercase',
     color: 'var(--text-faint)',
     marginBottom: '0.4rem',
+  },
+  // The sense label carries a muted tint of its own emphasis color so it reads
+  // as part of the sense (not the neutral gray of the prayer/scripture labels).
+  '.cm-spiritual-block__label--sense': {
+    color: 'color-mix(in srgb, var(--md-emphasis) 68%, transparent)',
   },
   '.cm-spiritual-block__content': {
     margin: '0',

@@ -624,16 +624,25 @@ const attachmentTheme = EditorView.theme({
     letterSpacing: '0.02em',
     color: 'rgba(255, 255, 255, 0.72)',
   },
-  // Caption/meta are a fixed readable size (not scaled to the photo) — but
-  // trimmed so they don't feel oversized under a small image.
+  // Caption/meta sit below the photo and must track the photo's width, not the
+  // full column. The frame is `fit-content`, so a bare paragraph would widen it
+  // to its single-line max-content (overflowing a narrow portrait). `width: 0`
+  // makes the text contribute nothing to the frame's intrinsic width — the frame
+  // keeps hugging the photo — while `min-width: 100%` forces the text to fill the
+  // photo's width and wrap beneath it. Sizes are kept small so they read as
+  // captions, not body text (the editor font is large and user-scalable).
   '.cm-attachment__caption': {
+    width: '0',
+    minWidth: '100%',
     margin: '0.35rem 0 0',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.82em',
-    lineHeight: '1.4',
+    fontSize: '0.66em',
+    lineHeight: '1.45',
     color: 'var(--text-dim)',
   },
   '.cm-attachment__meta': {
+    width: '0',
+    minWidth: '100%',
     margin: '0.3rem 0 0',
     fontFamily: 'var(--font-editor)',
     fontSize: '0.62em',

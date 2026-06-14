@@ -44,6 +44,13 @@ function buildDecorations(view: EditorView): DecorationSet {
 const dimTheme = EditorView.theme({
   '.cm-line': { transition: 'opacity 160ms ease' },
   '.cm-dim': { opacity: '0.28' },
+  // Spiritual blocks (scripture, prayer, sense) render as block widgets that sit
+  // *between* lines, so the line-level `.cm-dim` decoration can't reach them —
+  // left alone they'd stay at full strength and dominate the dimmed page. Fade
+  // them to the same resting opacity while dimming is active; hovering one
+  // brings it back to full so it stays readable on demand.
+  '.cm-spiritual-block': { opacity: '0.28' },
+  '.cm-spiritual-block:hover': { opacity: '1' },
 })
 
 const dimPlugin = ViewPlugin.fromClass(
