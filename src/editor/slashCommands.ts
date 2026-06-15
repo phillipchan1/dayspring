@@ -43,10 +43,10 @@ export interface SlashItem {
   keywords: string[]
 }
 
-/** The two visible columns, in display order. */
+/** The two visible columns, in display order. Format leads — it's used most. */
 export const SLASH_COLUMNS: { key: SlashColumnKey; title: string }[] = [
-  { key: 'capture', title: 'Capture' },
   { key: 'format', title: 'Format' },
+  { key: 'capture', title: 'Capture' },
 ]
 
 export const SLASH_ITEMS: SlashItem[] = [
@@ -205,6 +205,12 @@ export function filterSlashItems(query: string): { capture: SlashItem[]; format:
     capture: SLASH_ITEMS.filter((i) => i.column === 'capture' && matches(i, q)),
     format: SLASH_ITEMS.filter((i) => i.column === 'format' && matches(i, q)),
   }
+}
+
+/** Filtered items as a column array in {@link SLASH_COLUMNS} display order. */
+export function slashColumns(query: string): SlashItem[][] {
+  const byKey = filterSlashItems(query)
+  return SLASH_COLUMNS.map((c) => byKey[c.key])
 }
 
 // ── Keyboard navigation over the two columns ──────────────────────────────

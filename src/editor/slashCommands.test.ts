@@ -4,8 +4,19 @@ import {
   firstCursor,
   itemAt,
   moveCursor,
+  slashColumns,
   type SlashItem,
 } from './slashCommands'
+
+describe('slashColumns', () => {
+  it('leads with the Format column so the default cursor lands there', () => {
+    const cols = slashColumns('')
+    expect(cols[0]?.every((i) => i.column === 'format')).toBe(true)
+    expect(cols[1]?.every((i) => i.column === 'capture')).toBe(true)
+    expect(firstCursor(cols)).toEqual({ col: 0, row: 0 })
+    expect(itemAt(cols, firstCursor(cols))?.column).toBe('format')
+  })
+})
 
 describe('filterSlashItems', () => {
   it('returns every command split by column when the query is empty', () => {
