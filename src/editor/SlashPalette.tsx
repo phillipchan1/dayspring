@@ -2,13 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { SlashState } from './slashDetect'
 import {
-  filterSlashItems,
   firstCursor,
   itemAt,
   moveCursor,
+  slashColumns,
   SLASH_COLUMNS,
   type SlashCursor,
-  type SlashItem,
   type SlashSelection,
 } from './slashCommands'
 
@@ -19,9 +18,8 @@ interface Props {
 }
 
 export function SlashPalette({ state, onSelect, onDismiss }: Props) {
-  const { capture, format } = filterSlashItems(state.query)
-  const cols: SlashItem[][] = [capture, format]
-  const total = capture.length + format.length
+  const cols = slashColumns(state.query)
+  const total = cols.reduce((n, c) => n + c.length, 0)
 
   const [cursor, setCursor] = useState<SlashCursor | null>(() => firstCursor(cols))
   // The keydown handler resolves Enter against the latest committed cursor
@@ -30,13 +28,25 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
   cursorRef.current = cursor
 
   const paletteRef = useRef<HTMLDivElement>(null)
+  // The active row, so keyboard nav can scroll it into view. Hover updates the
+  // cursor too, but we only follow with a scroll for keyboard moves (below).
+  const activeRef = useRef<HTMLButtonElement>(null)
+  const keyboardNavRef = useRef(false)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   // Re-seat the cursor whenever the query narrows or clears the list.
   useEffect(() => {
-    const next = filterSlashItems(state.query)
-    setCursor(firstCursor([next.capture, next.format]))
+    setCursor(firstCursor(slashColumns(state.query)))
   }, [state.query])
+
+  // Keep the highlighted row visible when arrowing through a list taller than
+  // the palette. `nearest` avoids yanking the page or scrolling sideways.
+  useEffect(() => {
+    if (keyboardNavRef.current) {
+      activeRef.current?.scrollIntoView({ block: 'nearest' })
+      keyboardNavRef.current = false
+    }
+  }, [cursor])
 
   useEffect(() => {
     if (total === 0) onDismiss()
@@ -85,11 +95,11 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const next = filterSlashItems(state.query)
-      const colsNow: SlashItem[][] = [next.capture, next.format]
+      const colsNow = slashColumns(state.query)
       const move = (dir: 'up' | 'down' | 'left' | 'right') => {
         e.preventDefault()
         e.stopPropagation()
+        keyboardNavRef.current = true
         setCursor((c) => (c ? moveCursor(colsNow, c, dir) : firstCursor(colsNow)))
       }
       if (e.key === 'Escape') {
@@ -141,13 +151,18 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
             <div className="slash-palette__heading">{meta.title}</div>
             {items.map((item, rowIdx) => {
               const active = cursor?.col === colIdx && cursor?.row === rowIdx
+              // Capture rows show a description; format rows stay compact (the
+              // badge + name already say it) and surface the hint on hover.
+              const showHint = meta.key === 'capture'
               return (
                 <button
                   key={`${meta.key}-${item.selection.id}`}
+                  ref={active ? activeRef : undefined}
                   role="option"
                   aria-selected={active}
                   className="slash-palette__item"
                   data-active={active ? 'true' : undefined}
+                  title={item.hint}
                   onMouseDown={(e) => {
                     e.preventDefault()
                     onSelect(item.selection)
@@ -171,7 +186,7 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
                   </span>
                   <span className="slash-palette__text">
                     <span className="slash-palette__label">{item.label}</span>
-                    <span className="slash-palette__hint">{item.hint}</span>
+                    {showHint && <span className="slash-palette__hint">{item.hint}</span>}
                   </span>
                 </button>
               )
