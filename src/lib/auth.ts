@@ -2,10 +2,11 @@ import { requireSupabase } from './supabase'
 import { isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
 
-// Custom URL scheme registered in tauri.conf.json (plugins.deep-link.desktop)
-// and, for iOS, in gen/apple/app_iOS/Info.plist (CFBundleURLTypes). Google
-// redirects here after sign-in; the deep-link listener completes it.
-const DEEP_LINK_REDIRECT = 'dayspring://auth-callback'
+// Hosted HTTPS page that forwards the PKCE code to the dayspring:// deep-link
+// and shows a "you can close this tab" message to the user. Using an HTTPS URL
+// instead of the raw custom scheme avoids the browser tab hanging on an
+// unrenderable protocol. Must be in Supabase → Auth → URL Configuration allowlist.
+const DEEP_LINK_REDIRECT = 'https://dayspring-eosin.vercel.app/auth/callback'
 
 /** Where OAuth should return. The native apps use the deep-link scheme; web
  *  uses the page origin. Both must be in Supabase's redirect allow-list. */
