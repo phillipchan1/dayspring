@@ -80,7 +80,7 @@ export async function checkForUpdate(manual = false): Promise<void> {
 async function runCheck(manual: boolean, attempt = 1): Promise<void> {
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
-    const update = await check()
+    let update = await check()
 
     if (!update) {
       if (manual) setTransient({ status: 'up-to-date', version: null, error: null, notes: null })
@@ -88,16 +88,28 @@ async function runCheck(manual: boolean, attempt = 1): Promise<void> {
       return
     }
 
-    // `update.body` is the human-readable note from latest.json (generated in CI
-    // from the commits since the last release). May be empty for older builds.
-    const notes = update.body?.trim() || null
-    set({ status: 'downloading', version: update.version, error: null, notes })
-    await update.downloadAndInstall()
+    // Download the update, then immediately re-check before notifying the user.
+    // If we published a newer version while this download was in flight, grab
+    // that one too — so the user only restarts once for the absolute latest.
+    // Cap at 3 cascades to guard against pathological release loops.
+    const MAX_CASCADE = 3
+    let cascade = 0
+    let lastVersion = update.version
+    let lastNotes = update.body?.trim() || null
+
+    while (update && cascade < MAX_CASCADE) {
+      lastVersion = update.version
+      lastNotes = update.body?.trim() || null
+      set({ status: 'downloading', version: lastVersion, error: null, notes: lastNotes })
+      await update.downloadAndInstall()
+      cascade++
+      update = cascade < MAX_CASCADE ? await check() : null
+    }
 
     const { relaunch } = await import('@tauri-apps/plugin-process')
     relaunchFn = relaunch
     staged = true
-    set({ status: 'ready', version: update.version, error: null, notes })
+    set({ status: 'ready', version: lastVersion, error: null, notes: lastNotes })
   } catch (err) {
     if (attempt < 2) {
       // brief backoff, then one retry
