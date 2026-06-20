@@ -26,6 +26,7 @@ import { applyPlatformClass } from './lib/platform'
 import { installGlobalHandlers } from './lib/crashReport'
 import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
+import { registerServiceWorker } from './lib/registerSW'
 
 async function bootstrap() {
   // Tag <html> as desktop before first paint so native-only layout (e.g. room for
@@ -38,6 +39,10 @@ async function bootstrap() {
   // Desktop: start listening for the dayspring:// OAuth callback before anything
   // else, so a cold launch via the deep link is captured. No-op on web.
   void initDeepLinkAuth()
+
+  // Web only: register the PWA service worker so the app is installable on a
+  // phone and opens offline. No-op inside the Tauri apps and in dev.
+  registerServiceWorker()
 
   // Finish reading persisted session / OAuth callback before we choose Sign-in vs journal.
   if (supabase) {
