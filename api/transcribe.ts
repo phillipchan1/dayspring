@@ -30,6 +30,21 @@ const BASE_PROMPT =
 // transcription `prompt` is token-bounded, so cap it. Fail-open: any error (incl.
 // the table being empty for a cold-start user) → just the base prompt.
 const MAX_VOCAB_TERMS = 60
+// Drop one-off captures: a term seen in a single entry is usually extraction
+// noise ("the world is flat"), while a name worth biasing recurs. As the
+// Concordance fills, the most-used terms dominate the top-60 anyway.
+const MIN_OCCURRENCES = 2
+
+// Title-case all-lowercase words so a name captured mid-sentence ("esther")
+// biases toward its proper rendering ("Esther"). Words that already contain a
+// capital — acronyms (IHOP, KC, HS) and mixed-case names — are left untouched.
+function normalizeTerm(s: string): string {
+  return s
+    .split(' ')
+    .map((w) => (w && !/[A-Z]/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ')
+}
+
 async function concordanceVocab(owner: string): Promise<string[]> {
   try {
     const rows = await getConcordanceForRender(owner) // ordered by occurrence desc
@@ -39,10 +54,11 @@ async function concordanceVocab(owner: string): Promise<string[]> {
     const seen = new Set<string>()
     const terms: string[] = []
     for (const r of rows) {
+      if (r.occurrence_count < MIN_OCCURRENCES) continue
       const key = r.canonical.toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)
-      terms.push(r.canonical)
+      terms.push(normalizeTerm(r.canonical))
       if (terms.length >= MAX_VOCAB_TERMS) break
     }
     return terms
