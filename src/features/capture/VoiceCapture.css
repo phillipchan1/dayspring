@@ -188,6 +188,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The transcript filling in live during transcription. */
+.voice-capture__partial {
+  margin: 0;
+  width: 100%;
+  max-height: 7.5rem;
+  overflow-y: auto;
+  text-align: left;
+  font-family: var(--font-editor);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-bright);
+  animation: voice-card-in 200ms ease;
+}
+
 .voice-capture__actions {
   display: flex;
   gap: 0.6rem;

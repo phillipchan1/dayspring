@@ -28,7 +28,7 @@ function fmt(ms: number): string {
  */
 export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
   const dictation = useDictation()
-  const { status, error, elapsedMs, levelRef, start, finish, cancel } = dictation
+  const { status, error, elapsedMs, partial, levelRef, start, finish, cancel } = dictation
   const isMobile = useIsMobile()
   const keyboardInset = useKeyboardInset()
 
@@ -136,17 +136,23 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
                 </span>
               </div>
 
-              <div className="voice-capture__wave" aria-hidden>
-                {Array.from({ length: BAR_COUNT }).map((_, i) => (
-                  <span
-                    key={i}
-                    className="voice-capture__bar"
-                    ref={(el) => {
-                      if (el) barsRef.current[i] = el
-                    }}
-                  />
-                ))}
-              </div>
+              {status === 'transcribing' && partial ? (
+                // The transcript fills in live, then the cleanup pass arrives as
+                // the final text we insert.
+                <p className="voice-capture__partial">{partial}</p>
+              ) : (
+                <div className="voice-capture__wave" aria-hidden>
+                  {Array.from({ length: BAR_COUNT }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="voice-capture__bar"
+                      ref={(el) => {
+                        if (el) barsRef.current[i] = el
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
 
               <p className="voice-capture__status">
                 {status === 'transcribing' ? 'Finding your words…' : 'Listening'}

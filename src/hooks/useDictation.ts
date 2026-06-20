@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiPostForm } from '@/lib/api'
+import { apiPostFormStream } from '@/lib/api'
 
 export type DictationStatus = 'idle' | 'recording' | 'transcribing' | 'error'
 
@@ -8,6 +8,8 @@ export interface Dictation {
   error: string | null
   /** Elapsed recording time in ms (updates a few times a second). */
   elapsedMs: number
+  /** The transcript so far, filling in live while status is 'transcribing'. */
+  partial: string
   /** Live mic loudness, 0..1. Read in a rAF loop for smooth visuals — it does
    *  not trigger React re-renders. */
   levelRef: React.MutableRefObject<number>
@@ -38,6 +40,7 @@ export function useDictation(): Dictation {
   const [status, setStatus] = useState<DictationStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
+  const [partial, setPartial] = useState('')
 
   const levelRef = useRef(0)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -70,6 +73,7 @@ export function useDictation(): Dictation {
   const start = useCallback(async () => {
     setError(null)
     setElapsedMs(0)
+    setPartial('')
     chunksRef.current = []
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -148,10 +152,31 @@ export function useDictation(): Dictation {
         const ext = (mimeRef.current.includes('mp4') || mimeRef.current.includes('aac')) ? 'mp4' : 'webm'
         const form = new FormData()
         form.append('audio', blob, `dictation.${ext}`)
+        form.append('stream', 'true')
         if (vocab) form.append('vocab', vocab)
-        const { text } = await apiPostForm<{ text: string }>('/api/transcribe', form)
+
+        // Stream the transcript in live; the server's cleanup pass arrives last
+        // as the `final` event, which is the authoritative text we insert.
+        let acc = ''
+        let finalText = ''
+        let streamError: string | null = null
+        setPartial('')
+        await apiPostFormStream('/api/transcribe', form, {
+          onDelta: (delta) => {
+            acc += delta
+            setPartial(acc)
+          },
+          onFinal: (data) => {
+            finalText = typeof data.text === 'string' ? data.text : acc
+          },
+          onError: (msg) => {
+            streamError = msg
+          },
+        })
+        if (streamError) throw new Error(streamError)
         setStatus('idle')
-        return text
+        setPartial('')
+        return finalText
       } catch (e) {
         setStatus('error')
         setError(e instanceof Error ? e.message : 'Transcription failed')
@@ -171,13 +196,15 @@ export function useDictation(): Dictation {
     setStatus('idle')
     setError(null)
     setElapsedMs(0)
+    setPartial('')
   }, [teardown])
 
   const reset = useCallback(() => {
     setStatus('idle')
     setError(null)
     setElapsedMs(0)
+    setPartial('')
   }, [])
 
-  return { status, error, elapsedMs, levelRef, start, finish, cancel, reset }
+  return { status, error, elapsedMs, partial, levelRef, start, finish, cancel, reset }
 }

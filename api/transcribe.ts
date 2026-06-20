@@ -158,6 +158,54 @@ export async function POST(req: Request): Promise<Response> {
   // Caller can opt out of tidying (e.g. a future "raw dictation" setting).
   const tidy = form.get('tidy') !== 'false'
 
+  // Progressive streaming: relay the transcription deltas as Server-Sent Events
+  // so the sheet fills in live, then run the cleanup pass and emit a `final`
+  // event with the tidied text. No websockets — the audio is already recorded;
+  // we just stream the *result*. Falls back to the one-shot JSON path below.
+  if (form.get('stream') === 'true') {
+    const encoder = new TextEncoder()
+    const sse = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: string, data: unknown) =>
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+        try {
+          const events = await openai().audio.transcriptions.create({
+            file: audio,
+            model: env.transcribeModel(),
+            prompt,
+            stream: true,
+          })
+          let full = ''
+          for await (const ev of events) {
+            if (ev.type === 'transcript.text.delta') {
+              full += ev.delta
+              send('delta', { delta: ev.delta })
+            } else if (ev.type === 'transcript.text.done') {
+              full = ev.text // authoritative full transcript
+            }
+          }
+          const rawText = full.trim()
+          const text = tidy ? await tidyDictation(rawText) : rawText
+          send('final', { text, raw: rawText })
+        } catch (e) {
+          console.error('streaming transcription failed:', e)
+          send('error', { error: e instanceof Error ? e.message : 'transcription failed' })
+        } finally {
+          controller.close()
+        }
+      },
+    })
+    return withCors(
+      req,
+      new Response(sse, {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+        },
+      }),
+    )
+  }
+
   try {
     const result = await openai().audio.transcriptions.create({
       file: audio,
