@@ -4,10 +4,9 @@
 // corrections) and reports drift against the live table. Admin-triggered stub
 // for now (same Bearer guard as the cron); nothing user-facing.
 //   Authorization: Bearer ${CRON_SECRET}
-//   { "owner"?: "<uuid>" }   — defaults to APP_OWNER_ID
+//   { "owner": "<uuid>" }   — required (the engine is per-owner; no app default)
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
-import { env } from '../_lib/env.js'
 import { rebuildConcordance } from '../_lib/concordance.js'
 
 export async function POST(req: Request): Promise<Response> {
@@ -19,13 +18,9 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     body = {}
   }
-  let owner = body.owner
+  const owner = body.owner
   if (!owner) {
-    try {
-      owner = env.appOwnerId()
-    } catch {
-      return Response.json({ error: 'owner is required' }, { status: 400 })
-    }
+    return Response.json({ error: 'owner is required' }, { status: 400 })
   }
 
   try {
