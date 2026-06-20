@@ -73,6 +73,7 @@ import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
+import { VoiceCapture } from '@/features/capture/VoiceCapture'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
 import { track } from '@/lib/analytics'
@@ -164,6 +165,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const [newEntryGeneration, setNewEntryGeneration] = useState(0)
   const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
   const [rangeSelectActive, setRangeSelectActive] = useState(false)
+
+  // Voice dictation — caret captured when the mic opens so the text lands there.
+  const [voiceOpen, setVoiceOpen] = useState(false)
+  const voiceCaretRef = useRef(0)
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
@@ -1289,12 +1294,29 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {showCommandBar && !focus.active && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
+          onVoice={() => {
+            voiceCaretRef.current = editorRef.current?.getCursor() ?? 0
+            setVoiceOpen(true)
+          }}
           onDismissKeyboard={() => editorRef.current?.blur()}
           visible={
             !slashPaletteOpen && slashCapture === null && imageEdit === null && imageMenu === null
           }
           docked={!isMobile}
           keyboardInset={keyboardInset}
+        />
+      )}
+      {voiceOpen && (
+        <VoiceCapture
+          onInsert={(text) => {
+            const pos = voiceCaretRef.current
+            const doc = editorRef.current?.getDoc() ?? ''
+            // Pad so dictation reads as prose, not a run-on with the prior word.
+            const before = doc.slice(Math.max(0, pos - 1), pos)
+            const lead = before && !/\s/.test(before) ? ' ' : ''
+            editorRef.current?.insertAt(pos, lead + text)
+          }}
+          onClose={() => setVoiceOpen(false)}
         />
       )}
     </div>

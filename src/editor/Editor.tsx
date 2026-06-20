@@ -52,6 +52,8 @@ export interface EditorHandle {
   replaceRange: (from: number, to: number, text: string) => void
   /** The editor's live document — authoritative when React `content` may lag. */
   getDoc: () => string
+  /** Current caret position (main selection head) — capture before opening an overlay. */
+  getCursor: () => number
   focus: () => void
   /** Return focus to the editor, optionally restoring the caret. */
   focusAt: (pos?: number) => void
@@ -209,6 +211,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       view.focus()
     },
     getDoc: () => viewRef.current?.state.doc.toString() ?? '',
+    getCursor: () => viewRef.current?.state.selection.main.head ?? 0,
     focus: () => viewRef.current?.focus(),
     blur: () => viewRef.current?.contentDOM.blur(),
     focusAt: (pos?: number) => {

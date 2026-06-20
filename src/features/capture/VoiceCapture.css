@@ -1,0 +1,243 @@
+/* Voice dictation surface — a vessel of light that listens. Built on the shared
+   glass-surface + the scripture-gold signature so it feels of a piece with the
+   Altar/Scripture surfaces. */
+
+.voice-capture {
+  border-radius: var(--radius-lg);
+  width: min(380px, calc(100vw - 32px));
+}
+
+/* Desktop: a centered card. Mobile gets the bottom sheet below. */
+.voice-capture:not(.voice-capture--sheet) {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  animation: voice-card-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes voice-card-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 10px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.voice-capture--sheet {
+  width: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.voice-capture__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 2rem 1.5rem 1.6rem;
+}
+
+/* ── The orb ─────────────────────────────────────────────────────────── */
+.voice-orb {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+  /* --level (0..1) is written each frame from mic loudness. */
+  transform: scale(calc(1 + var(--level, 0) * 0.16));
+  transition: transform 90ms ease-out;
+}
+
+.voice-orb__core {
+  position: relative;
+  z-index: 2;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #2a1c08;
+  background: radial-gradient(
+    circle at 38% 34%,
+    rgba(var(--scripture-gold), 1),
+    rgba(var(--scripture-gold), 0.78) 62%,
+    rgba(var(--scripture-gold), 0.5) 100%
+  );
+  box-shadow:
+    0 0 calc(18px + var(--level, 0) * 34px) rgba(var(--scripture-gold), 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Expanding halo ring — the breath of light, brighter as you speak. */
+.voice-orb__halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--scripture-gold), 0.5);
+  opacity: calc(0.25 + var(--level, 0) * 0.55);
+  transform: scale(calc(1.18 + var(--level, 0) * 0.5));
+  transition:
+    transform 120ms ease-out,
+    opacity 120ms ease-out;
+}
+
+/* Resting/recording breath when audio is quiet, so the orb is never lifeless. */
+.voice-orb--recording .voice-orb__core {
+  animation: voice-breathe 3.4s ease-in-out infinite;
+}
+@keyframes voice-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 18px rgba(var(--scripture-gold), 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 26px rgba(var(--scripture-gold), 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+}
+
+/* Transcribing: a calm slow pulse while the words are found. */
+.voice-orb--transcribing {
+  animation: voice-orb-pulse 1.6s ease-in-out infinite;
+}
+@keyframes voice-orb-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Waveform ────────────────────────────────────────────────────────── */
+.voice-capture__wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+}
+.voice-capture__bar {
+  width: 3px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    to top,
+    rgba(var(--scripture-gold), 0.35),
+    rgba(var(--scripture-gold), 0.9)
+  );
+  transform: scaleY(0.16);
+  transform-origin: center;
+  transition: transform 80ms ease-out;
+}
+.voice-orb--transcribing ~ .voice-capture__wave .voice-capture__bar {
+  animation: voice-wave-shimmer 1.1s ease-in-out infinite;
+}
+.voice-capture__bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.voice-capture__bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.voice-capture__bar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.voice-capture__bar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+.voice-capture__bar:nth-child(6) {
+  animation-delay: 0.5s;
+}
+.voice-capture__bar:nth-child(7) {
+  animation-delay: 0.6s;
+}
+@keyframes voice-wave-shimmer {
+  0%,
+  100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(0.7);
+  }
+}
+
+/* ── Status + actions ────────────────────────────────────────────────── */
+.voice-capture__status {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+}
+.voice-capture__timer {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-capture__actions {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.2rem;
+}
+.voice-capture__actions .btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 44px;
+}
+.voice-capture__done {
+  border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 45%, var(--border));
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 16%, var(--bg-input));
+  color: var(--text-bright);
+}
+.voice-capture__done:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 26%, var(--bg-input));
+  border-color: rgb(var(--scripture-gold));
+}
+.voice-capture__done:disabled,
+.voice-capture__actions .btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Error ───────────────────────────────────────────────────────────── */
+.voice-capture__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+.voice-capture__error-msg {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-orb,
+  .voice-orb__core,
+  .voice-orb__halo,
+  .voice-capture__bar,
+  .voice-capture,
+  .voice-capture--sheet {
+    animation: none !important;
+    transition: none !important;
+  }
+}

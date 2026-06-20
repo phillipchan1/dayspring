@@ -3,6 +3,8 @@ import type { SlashCommandId } from './slashDetect'
 
 interface CommandToolbarProps {
   onCommand: (cmd: SlashCommandId) => void
+  /** Open voice dictation — speak your entry instead of typing it. */
+  onVoice?: () => void
   /** Dismiss the keyboard (blur the editor) — brings the nav bar back. */
   onDismissKeyboard?: () => void
   visible?: boolean
@@ -32,6 +34,7 @@ const COMMANDS: Array<{ id: SlashCommandId; icon: string; label: string; hint: s
  */
 export function CommandToolbar({
   onCommand,
+  onVoice,
   onDismissKeyboard,
   visible = true,
   docked = false,
@@ -58,6 +61,20 @@ export function CommandToolbar({
             <span className="command-toolbar__label">{cmd.label}</span>
           </button>
         ))}
+        {onVoice && (
+          <button
+            type="button"
+            className="command-toolbar__btn"
+            // Keep the caret put — the dictation lands where you left off.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onVoice}
+            title="Dictate with your voice"
+            aria-label="Voice"
+          >
+            <span className="command-toolbar__icon">🎙</span>
+            <span className="command-toolbar__label">Voice</span>
+          </button>
+        )}
         {onDismissKeyboard && (
           <button
             type="button"
