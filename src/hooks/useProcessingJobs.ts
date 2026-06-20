@@ -95,6 +95,10 @@ export function useProcessingJobs(): ProcessingState {
         .from('processing_jobs')
         .select(SELECT)
         .eq('owner', owner)
+        // The Concordance is a DARK engine — its backfill must never surface in
+        // the user-facing "still preparing…" banner. Exclude it at the source so
+        // its (large, slow) job can't drag the aggregate or trigger a celebration.
+        .neq('kind', 'concordance')
         .then(({ data }) => {
           if (data) reduce(data as JobRow[])
         })
