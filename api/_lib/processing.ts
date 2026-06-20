@@ -11,6 +11,7 @@ import type { Period } from './dates.js'
 import { weeksInRange, monthsInRange, quartersInRange, yearsInRange } from './dates.js'
 import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from './synthesize.js'
 import { harvestPlan, harvestPrayers, embedUnembedded, threadItems } from './altar.js'
+import { concordancePlan, scanConcordance } from './concordance.js'
 
 export type JobKind =
   | 'reflections'
@@ -18,6 +19,7 @@ export type JobKind =
   | 'altar_harvest'
   | 'altar_embed'
   | 'altar_thread'
+  | 'concordance'
 
 export interface Job {
   id: string
@@ -77,6 +79,7 @@ const REFLECTIONS_PER_TICK = 24 // periods built per tick (concurrently, same-st
 const REFLECTIONS_POOL = 6 // concurrent builds within a tick — caps model fan-out
 const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
 const THREAD_PER_TICK = 500 // unthreaded prayers/senses clustered + persisted per tick
+const CONCORDANCE_PER_TICK = 64 // entries read for concordance candidates per tick
 const MAX_ATTEMPTS = 5 // after this many failures, give up (status=failed)
 
 /** Run `fn` over items with bounded concurrency (no extra deps). */
@@ -141,6 +144,14 @@ export async function enqueueBackfill(
   const { unscanned } = await harvestPlan(owner)
   if (await insertIfInactive(sb, owner, 'altar_harvest', unscanned, {})) {
     enqueued.push('altar_harvest')
+  }
+
+  // Concordance seed (dark — nothing reads it yet): extract names/spellings
+  // across the imported corpus. The Reveal's own month is also seeded
+  // synchronously inside /api/onboarding/backfill before the Reveal builds.
+  const concordance = await concordancePlan(owner)
+  if (await insertIfInactive(sb, owner, 'concordance', concordance.unscanned, {})) {
+    enqueued.push('concordance')
   }
 
   return { enqueued }
@@ -253,6 +264,8 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
         return await runAltarEmbed(job)
       case 'altar_thread':
         return await runAltarThread(job)
+      case 'concordance':
+        return await runConcordance(job)
       case 'scripture':
         // Scripture is scanned client-side post-import; nothing to do server-side.
         await sb.from('processing_jobs').update({ status: 'done', locked_at: null }).eq('id', job.id)
@@ -346,6 +359,30 @@ async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
     .update({ completed, locked_at: null })
     .eq('id', job.id)
   return { id: job.id, kind: 'altar_harvest', status: 'running', completed, remaining: unscanned }
+}
+
+async function runConcordance(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  const { scanned } = await scanConcordance(job.owner, {
+    max: CONCORDANCE_PER_TICK,
+    source: 'import', // archive seed — items land suggested, never confirmed
+  })
+  const completed = job.completed + scanned
+  const { unscanned } = await concordancePlan(job.owner)
+
+  if (unscanned <= 0) {
+    await sb
+      .from('processing_jobs')
+      .update({ status: 'done', completed, locked_at: null })
+      .eq('id', job.id)
+    return { id: job.id, kind: 'concordance', status: 'done', completed }
+  }
+
+  await sb
+    .from('processing_jobs')
+    .update({ completed, locked_at: null })
+    .eq('id', job.id)
+  return { id: job.id, kind: 'concordance', status: 'running', completed, remaining: unscanned }
 }
 
 async function runAltarEmbed(job: Job): Promise<Record<string, unknown>> {

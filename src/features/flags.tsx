@@ -5,6 +5,10 @@ import type { ReactNode } from 'react'
 const FLAG_ENV: Record<string, string> = {
   threadsRopes: 'VITE_FF_THREADS_ROPES',
   altar: 'VITE_FF_ALTAR',
+  // The Concordance drawer (Settings → About). Off by default — the fidelity
+  // engine populates silently; this only exposes the inspect/curate UI. Enable
+  // per-user via profiles.feature_flags or VITE_FF_CONCORDANCE=true.
+  concordance: 'VITE_FF_CONCORDANCE',
 }
 
 /**
