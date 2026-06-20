@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiPostFormStream } from '@/lib/api'
+import { streamTranscribe } from '@/lib/transcribeClient'
+import { dictationCheckpoint, dictationDelete } from '@/lib/db'
+import { useSession } from './useSession'
 
 export type DictationStatus = 'idle' | 'recording' | 'transcribing' | 'error'
 
@@ -10,18 +12,30 @@ export interface Dictation {
   elapsedMs: number
   /** The transcript so far, filling in live while status is 'transcribing'. */
   partial: string
-  /** Live mic loudness, 0..1. Read in a rAF loop for smooth visuals — it does
-   *  not trigger React re-renders. */
+  /** Live mic loudness, 0..1. Read in a rAF loop for smooth visuals. */
   levelRef: React.MutableRefObject<number>
+  /** True once audio has been captured — the error UI then offers retry/save
+   *  instead of forcing a re-record. */
+  hasRecording: boolean
   /** Request the mic and begin recording. */
   start: () => Promise<void>
-  /** Stop recording, transcribe, and resolve the recognized text. */
+  /** Stop recording and transcribe (with automatic retries). Resolves the text. */
   finish: (vocab?: string) => Promise<string>
-  /** Stop and discard without transcribing. */
+  /** Re-transcribe the already-recorded audio after a failure — never re-records. */
+  retry: (vocab?: string) => Promise<string>
+  /** Download the recorded clip — the last-resort guarantee against losing words. */
+  saveAudio: () => void
+  /** Discard the recording and its persisted safety copy. */
+  discard: () => void
+  /** Stop + discard an in-progress recording. */
   cancel: () => void
   /** Return to idle after an error/success. */
   reset: () => void
 }
+
+// How often the growing recording is checkpointed to IndexedDB. MediaRecorder's
+// timeslice drives both chunk capture and persistence.
+const CHECKPOINT_MS = 15_000
 
 function pickMimeType(): string {
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac']
@@ -32,15 +46,20 @@ function pickMimeType(): string {
 }
 
 /**
- * Voice dictation: capture a short audio clip with MediaRecorder, relay it to
- * `/api/transcribe`, and hand back the recognized text. A Web Audio analyser
- * exposes live loudness (`levelRef`) so the UI can breathe with the speaker.
+ * Voice dictation with a hard guarantee: once spoken, never lost. Audio is
+ * checkpointed to IndexedDB as it records (survives a crash/close), transcription
+ * retries on transient failures, and on a hard failure the recording is kept so
+ * the user can retry, salvage the partial, or download the clip.
  */
 export function useDictation(): Dictation {
+  const { session } = useSession()
+  const owner = session?.user?.id ?? null
+
   const [status, setStatus] = useState<DictationStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [partial, setPartial] = useState('')
+  const [hasRecording, setHasRecording] = useState(false)
 
   const levelRef = useRef(0)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -50,9 +69,14 @@ export function useDictation(): Dictation {
   const rafRef = useRef<number | null>(null)
   const timerRef = useRef<number | null>(null)
   const startedAtRef = useRef(0)
+  const createdAtRef = useRef(0)
   const mimeRef = useRef('')
+  const sessionIdRef = useRef<string | null>(null)
+  const recordedBlobRef = useRef<Blob | null>(null)
+  const ownerRef = useRef<string | null>(owner)
+  ownerRef.current = owner
 
-  const teardown = useCallback(() => {
+  const teardownMedia = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
     if (timerRef.current != null) clearInterval(timerRef.current)
@@ -67,14 +91,57 @@ export function useDictation(): Dictation {
     recorderRef.current = null
   }, [])
 
-  // Always release the mic if the component unmounts mid-recording.
-  useEffect(() => teardown, [teardown])
+  // Persist the complete accumulated recording so far (valid file across
+  // containers; iOS mp4 can't be reassembled from partial chunks). Best-effort.
+  const checkpoint = useCallback(async (state: 'recording' | 'recorded') => {
+    const sid = sessionIdRef.current
+    if (!sid || !ownerRef.current || chunksRef.current.length === 0) return
+    const blob = new Blob(chunksRef.current, { type: mimeRef.current || 'audio/webm' })
+    recordedBlobRef.current = blob
+    try {
+      await dictationCheckpoint({
+        sessionId: sid,
+        owner: ownerRef.current,
+        mime: mimeRef.current || 'audio/webm',
+        createdAt: createdAtRef.current,
+        updatedAt: Date.now(),
+        status: state,
+        blob,
+      })
+    } catch {
+      /* quota / idb error — the in-memory blob still covers the live session */
+    }
+  }, [])
+
+  // Release the mic if the component unmounts mid-recording.
+  useEffect(() => teardownMedia, [teardownMedia])
+
+  // While recording, flush a chunk to persistence whenever the page is hidden
+  // (app switch, screen lock) — iOS suspends pages, so capture before it does.
+  useEffect(() => {
+    if (status !== 'recording') return
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') {
+        try {
+          recorderRef.current?.requestData()
+        } catch {
+          /* not recording */
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [status])
 
   const start = useCallback(async () => {
     setError(null)
     setElapsedMs(0)
     setPartial('')
+    setHasRecording(false)
     chunksRef.current = []
+    recordedBlobRef.current = null
+    sessionIdRef.current = crypto.randomUUID()
+    createdAtRef.current = Date.now()
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -85,13 +152,27 @@ export function useDictation(): Dictation {
       mimeRef.current = mime
       const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data)
+          void checkpoint('recording')
+        }
       }
-      recorder.start()
+      recorder.onerror = () => {
+        // Mic interrupted (a call, a hardware hiccup). Salvage what we captured.
+        teardownMedia()
+        void checkpoint('recorded')
+        setHasRecording(chunksRef.current.length > 0)
+        setStatus('error')
+        setError('Recording was interrupted — your audio is saved')
+      }
+      // Timeslice drives periodic ondataavailable → persistence checkpoints.
+      recorder.start(CHECKPOINT_MS)
       recorderRef.current = recorder
 
       // Loudness metering for the live waveform.
-      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const Ctx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       const ctx = new Ctx()
       audioCtxRef.current = ctx
       const source = ctx.createMediaStreamSource(stream)
@@ -107,7 +188,6 @@ export function useDictation(): Dictation {
           sum += v * v
         }
         const rms = Math.sqrt(sum / buf.length)
-        // Ease toward the new level so the visual doesn't jitter.
         levelRef.current = levelRef.current * 0.6 + Math.min(1, rms * 2.2) * 0.4
         rafRef.current = requestAnimationFrame(tick)
       }
@@ -120,7 +200,7 @@ export function useDictation(): Dictation {
 
       setStatus('recording')
     } catch (e) {
-      teardown()
+      teardownMedia()
       setStatus('error')
       const name = e instanceof DOMException ? e.name : ''
       setError(
@@ -131,60 +211,92 @@ export function useDictation(): Dictation {
             : 'Could not start recording',
       )
     }
-  }, [teardown])
+  }, [checkpoint, teardownMedia])
+
+  // Shared transcription path: used by finish() and retry(). Streams the partial
+  // in, retries transient failures, and only deletes the safety copy on success.
+  const transcribe = useCallback(async (vocab?: string): Promise<string> => {
+    const blob = recordedBlobRef.current
+    if (!blob) return ''
+    setStatus('transcribing')
+    setError(null)
+    setPartial('')
+    try {
+      const { text } = await streamTranscribe(blob, {
+        onDelta: setPartial,
+        ...(vocab ? { vocab } : {}),
+      })
+      // The words are about to land in the entry — drop the persisted copy.
+      const sid = sessionIdRef.current
+      if (sid) void dictationDelete(sid)
+      setStatus('idle')
+      setPartial('')
+      setHasRecording(false)
+      return text
+    } catch (e) {
+      // Keep the recording (and its IndexedDB copy) so retry / salvage / save work.
+      setStatus('error')
+      setError(e instanceof Error ? e.message : 'Transcription failed')
+      throw e
+    }
+  }, [])
 
   const finish = useCallback(
     async (vocab?: string): Promise<string> => {
       const recorder = recorderRef.current
-      if (!recorder) return ''
-
-      const blob = await new Promise<Blob>((resolve) => {
-        recorder.onstop = () => {
-          resolve(new Blob(chunksRef.current, { type: mimeRef.current || 'audio/webm' }))
-        }
-        recorder.stop()
-      })
-      // Stop the mic + meters but keep state for the transcribing UI.
-      teardown()
-      setStatus('transcribing')
-
-      try {
-        const ext = (mimeRef.current.includes('mp4') || mimeRef.current.includes('aac')) ? 'mp4' : 'webm'
-        const form = new FormData()
-        form.append('audio', blob, `dictation.${ext}`)
-        form.append('stream', 'true')
-        if (vocab) form.append('vocab', vocab)
-
-        // Stream the transcript in live; the server's cleanup pass arrives last
-        // as the `final` event, which is the authoritative text we insert.
-        let acc = ''
-        let finalText = ''
-        let streamError: string | null = null
-        setPartial('')
-        await apiPostFormStream('/api/transcribe', form, {
-          onDelta: (delta) => {
-            acc += delta
-            setPartial(acc)
-          },
-          onFinal: (data) => {
-            finalText = typeof data.text === 'string' ? data.text : acc
-          },
-          onError: (msg) => {
-            streamError = msg
-          },
-        })
-        if (streamError) throw new Error(streamError)
-        setStatus('idle')
-        setPartial('')
-        return finalText
-      } catch (e) {
-        setStatus('error')
-        setError(e instanceof Error ? e.message : 'Transcription failed')
-        throw e
+      if (!recorder) {
+        // Already stopped (e.g. via an interruption) — transcribe what we have.
+        return recordedBlobRef.current ? transcribe(vocab) : ''
       }
+      const blob = await new Promise<Blob>((resolve) => {
+        const assemble = () => new Blob(chunksRef.current, { type: mimeRef.current || 'audio/webm' })
+        recorder.onstop = () => resolve(assemble())
+        try {
+          recorder.stop()
+        } catch {
+          resolve(assemble())
+        }
+      })
+      recordedBlobRef.current = blob
+      setHasRecording(true)
+      teardownMedia()
+      await checkpoint('recorded') // ensure the full clip is on disk before the network
+      return transcribe(vocab)
     },
-    [teardown],
+    [checkpoint, teardownMedia, transcribe],
   )
+
+  const retry = useCallback((vocab?: string) => transcribe(vocab), [transcribe])
+
+  const saveAudio = useCallback(() => {
+    const blob = recordedBlobRef.current
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const stamp = new Date(createdAtRef.current || Date.now())
+      .toISOString()
+      .slice(0, 19)
+      .replace(/[:T]/g, '-')
+    const ext = mimeRef.current.includes('mp4') || mimeRef.current.includes('aac') ? 'm4a' : 'webm'
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `dictation-${stamp}.${ext}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }, [])
+
+  const discard = useCallback(() => {
+    const sid = sessionIdRef.current
+    if (sid) void dictationDelete(sid)
+    recordedBlobRef.current = null
+    chunksRef.current = []
+    setStatus('idle')
+    setError(null)
+    setElapsedMs(0)
+    setPartial('')
+    setHasRecording(false)
+  }, [])
 
   const cancel = useCallback(() => {
     try {
@@ -192,12 +304,9 @@ export function useDictation(): Dictation {
     } catch {
       /* already stopped */
     }
-    teardown()
-    setStatus('idle')
-    setError(null)
-    setElapsedMs(0)
-    setPartial('')
-  }, [teardown])
+    teardownMedia()
+    discard()
+  }, [teardownMedia, discard])
 
   const reset = useCallback(() => {
     setStatus('idle')
@@ -206,5 +315,19 @@ export function useDictation(): Dictation {
     setPartial('')
   }, [])
 
-  return { status, error, elapsedMs, partial, levelRef, start, finish, cancel, reset }
+  return {
+    status,
+    error,
+    elapsedMs,
+    partial,
+    levelRef,
+    hasRecording,
+    start,
+    finish,
+    retry,
+    saveAudio,
+    discard,
+    cancel,
+    reset,
+  }
 }

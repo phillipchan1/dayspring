@@ -15,7 +15,7 @@ import { isSupabaseConfigured } from '@/lib/env'
 import { isTauri } from '@/lib/platform'
 import { addBreadcrumb } from '@/lib/crashReport'
 import * as repo from '@/lib/repo'
-import { cacheGet, cachePut } from '@/lib/db'
+import { cacheGet, cachePut, dictationList, dictationPrune, type PendingDictationRow } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
 import type { Entry, PrayerType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
@@ -74,6 +74,7 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { VoiceCapture } from '@/features/capture/VoiceCapture'
+import { DictationRecovery } from '@/features/capture/DictationRecovery'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
 import { track } from '@/lib/analytics'
@@ -169,9 +170,44 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Voice dictation — caret captured when the mic opens so the text lands there.
   const [voiceOpen, setVoiceOpen] = useState(false)
   const voiceCaretRef = useRef(0)
+  // An unfinished voice recording recovered from a previous session (crash/close).
+  const [recoverableDictation, setRecoverableDictation] = useState<PendingDictationRow | null>(null)
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
+
+  // Insert dictated/recovered text at `pos`, padding so it reads as prose rather
+  // than running into the previous word.
+  const insertDictatedText = useCallback((text: string, pos: number) => {
+    const doc = editorRef.current?.getDoc() ?? ''
+    const clamped = Math.max(0, Math.min(pos, doc.length))
+    const before = doc.slice(Math.max(0, clamped - 1), clamped)
+    const lead = before && !/\s/.test(before) ? ' ' : ''
+    editorRef.current?.insertAt(clamped, lead + text)
+  }, [])
+
+  // On load, surface any voice recording that was captured but never transcribed
+  // (a crash, a closed tab, an unrecovered failure) so its words aren't lost.
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        await dictationPrune(24 * 60 * 60 * 1000) // forget recordings older than a day
+        const sb = supabase
+        if (!sb) return
+        const { data } = await sb.auth.getSession()
+        const owner = data.session?.user?.id
+        if (!owner) return
+        const pending = await dictationList(owner)
+        if (alive && pending.length > 0) setRecoverableDictation(pending[0] ?? null)
+      } catch {
+        /* best-effort — recovery never blocks the app */
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
   const [slashCapture, setSlashCapture] = useState<{
     cmd: SlashCommandId
     insertAt: number
@@ -1308,15 +1344,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       )}
       {voiceOpen && (
         <VoiceCapture
-          onInsert={(text) => {
-            const pos = voiceCaretRef.current
-            const doc = editorRef.current?.getDoc() ?? ''
-            // Pad so dictation reads as prose, not a run-on with the prior word.
-            const before = doc.slice(Math.max(0, pos - 1), pos)
-            const lead = before && !/\s/.test(before) ? ' ' : ''
-            editorRef.current?.insertAt(pos, lead + text)
-          }}
+          onInsert={(text) => insertDictatedText(text, voiceCaretRef.current)}
           onClose={() => setVoiceOpen(false)}
+        />
+      )}
+      {recoverableDictation && !voiceOpen && !canvasAlternateActive && !settingsOpen && !focus.active && (
+        <DictationRecovery
+          row={recoverableDictation}
+          onInsert={(text) => {
+            const doc = editorRef.current?.getDoc() ?? ''
+            const sep = doc.trim() ? '\n\n' : ''
+            editorRef.current?.insertAt(doc.length, sep + text)
+          }}
+          onDismiss={() => setRecoverableDictation(null)}
         />
       )}
     </div>

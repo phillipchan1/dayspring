@@ -28,7 +28,8 @@ function fmt(ms: number): string {
  */
 export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
   const dictation = useDictation()
-  const { status, error, elapsedMs, partial, levelRef, start, finish, cancel } = dictation
+  const { status, error, elapsedMs, partial, levelRef, hasRecording, start, finish, retry, saveAudio, discard, cancel } =
+    dictation
   const isMobile = useIsMobile()
   const keyboardInset = useKeyboardInset()
 
@@ -83,12 +84,35 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
       if (clean) onInsert(clean)
       onClose()
     } catch {
-      // error state is shown; leave the sheet open for retry.
+      // error state is shown; the recording is preserved for retry/salvage.
     }
+  }
+
+  async function handleRetry() {
+    try {
+      const text = await retry(vocab)
+      const clean = text.trim()
+      if (clean) onInsert(clean)
+      onClose()
+    } catch {
+      // still failing — stay in the error state with salvage options.
+    }
+  }
+
+  function handleInsertPartial() {
+    const clean = partial.trim()
+    if (clean) onInsert(clean)
+    discard()
+    onClose()
   }
 
   function handleCancel() {
     cancel()
+    onClose()
+  }
+
+  function handleDiscard() {
+    discard()
     onClose()
   }
 
@@ -113,14 +137,46 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
           {status === 'error' ? (
             <div className="voice-capture__error">
               <p className="voice-capture__error-msg">{error}</p>
-              <div className="voice-capture__actions">
-                <button type="button" className="btn btn--ghost" onClick={handleCancel}>
-                  Close
-                </button>
-                <button type="button" className="btn" onClick={() => void start()}>
-                  Try again
-                </button>
-              </div>
+              {hasRecording ? (
+                // Transcription failed but the audio is safe — never make the
+                // user re-speak. Offer retry, salvage the partial, or save the clip.
+                <>
+                  {partial && (
+                    <p className="voice-capture__partial voice-capture__partial--salvage">{partial}</p>
+                  )}
+                  <p className="voice-capture__reassure">Your recording is saved — nothing is lost.</p>
+                  <div className="voice-capture__error-actions">
+                    <button
+                      type="button"
+                      className="btn voice-capture__done"
+                      onClick={() => void handleRetry()}
+                    >
+                      Retry
+                    </button>
+                    {partial.trim() && (
+                      <button type="button" className="btn btn--ghost" onClick={handleInsertPartial}>
+                        Insert what we have
+                      </button>
+                    )}
+                    <button type="button" className="btn btn--ghost" onClick={saveAudio}>
+                      Save audio
+                    </button>
+                    <button type="button" className="btn btn--ghost" onClick={handleDiscard}>
+                      Discard
+                    </button>
+                  </div>
+                </>
+              ) : (
+                // No recording captured (e.g. mic permission denied) — re-record.
+                <div className="voice-capture__actions">
+                  <button type="button" className="btn btn--ghost" onClick={handleCancel}>
+                    Close
+                  </button>
+                  <button type="button" className="btn" onClick={() => void start()}>
+                    Try again
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>

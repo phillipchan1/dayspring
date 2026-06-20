@@ -6,7 +6,8 @@
   "outputDirectory": "dist",
   "functions": {
     "api/cron/process-tick.ts": { "maxDuration": 300 },
-    "api/cron/synthesize.ts": { "maxDuration": 300 }
+    "api/cron/synthesize.ts": { "maxDuration": 300 },
+    "api/transcribe.ts": { "maxDuration": 300 }
   },
   "crons": [
     { "path": "/api/cron/synthesize",   "schedule": "0 8 * * *" },

@@ -13,6 +13,20 @@ function isDateStr(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
 }
 
+/** Has this owner ever been processed? True if any processing_jobs row (any
+ *  status) or any derived insight exists. Runs under admin — authoritative and
+ *  immune to the per-device auth/RLS timing that the client-side guard depends on.
+ *  This is what makes the catch-up trigger truly once-per-owner: a fresh-device
+ *  login can't re-backfill an already-built archive. The import flow bypasses this
+ *  by passing an explicit range. */
+async function alreadyProcessed(owner: string): Promise<boolean> {
+  const sb = supabaseAdmin()
+  const jobs = await sb.from('processing_jobs').select('id').eq('owner', owner).limit(1)
+  if ((jobs.data?.length ?? 0) > 0) return true
+  const insights = await sb.from('insights').select('id').eq('owner', owner).limit(1)
+  return (insights.data?.length ?? 0) > 0
+}
+
 /** Derive the backfill window from the owner's own entries (min/max created_at).
  *  Returns null for an empty journal (nothing to build). */
 async function deriveRange(owner: string): Promise<Period | null> {
@@ -55,6 +69,14 @@ export async function POST(req: Request): Promise<Response> {
     if (given && isDateStr(given.start) && isDateStr(given.end)) {
       range = { start: given.start, end: given.end }
     } else {
+      // Catch-up trigger (no explicit range). Authoritative server-side guard:
+      // if this owner has ever been processed, no-op. This is the once-per-owner
+      // backstop — it can't be bypassed by a fresh device whose client-side guard
+      // raced auth/RLS and saw an (apparently) empty account. The import flow is
+      // unaffected: it always passes an explicit range and skips this branch.
+      if (await alreadyProcessed(user.id)) {
+        return withCors(req, Response.json({ ok: true, enqueued: [], skipped: 'already-processed' }))
+      }
       range = await deriveRange(user.id)
     }
     if (!range) {

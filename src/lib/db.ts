@@ -23,18 +23,37 @@ export interface AttMetaRow {
   lastAccessedAt: number
 }
 
+/**
+ * A voice recording that hasn't yet been transcribed-and-inserted. Persisted as
+ * a COMPLETE accumulated blob (not per-chunk) so a recovered file is always
+ * valid across containers — iOS mp4 in particular doesn't reassemble from
+ * arbitrary chunk boundaries. Checkpointed during recording and on stop; deleted
+ * once its text is safely in an entry. The safety net for "never lose a long
+ * dictation" — survives a transcription failure, a closed tab, or a crash.
+ */
+export interface PendingDictationRow {
+  sessionId: string
+  owner: string
+  mime: string
+  createdAt: number
+  updatedAt: number
+  status: 'recording' | 'recorded'
+  blob: Blob
+}
+
 interface DayspringDB extends DBSchema {
   entries: { key: string; value: Entry }
   outbox: { key: string; value: OutboxOp; indexes: { 'by-entry': string } }
   attBlobs: { key: string; value: AttBlobRow }
   attMeta: { key: string; value: AttMetaRow; indexes: { 'by-last-accessed': number } }
+  dictation: { key: string; value: PendingDictationRow }
 }
 
 let dbp: Promise<IDBPDatabase<DayspringDB>> | null = null
 
 function db(): Promise<IDBPDatabase<DayspringDB>> {
   if (!dbp) {
-    dbp = openDB<DayspringDB>('dayspring', 2, {
+    dbp = openDB<DayspringDB>('dayspring', 3, {
       upgrade(d, oldVersion) {
         if (oldVersion < 1) {
           d.createObjectStore('entries', { keyPath: 'id' })
@@ -48,10 +67,32 @@ function db(): Promise<IDBPDatabase<DayspringDB>> {
           const meta = d.createObjectStore('attMeta', { keyPath: 'key' })
           meta.createIndex('by-last-accessed', 'lastAccessedAt')
         }
+        if (oldVersion < 3) {
+          d.createObjectStore('dictation', { keyPath: 'sessionId' })
+        }
       },
     })
   }
   return dbp
+}
+
+// ── pending voice recordings (crash-safe dictation) ──────────────────────────
+export async function dictationCheckpoint(row: PendingDictationRow): Promise<void> {
+  await (await db()).put('dictation', row)
+}
+export async function dictationList(owner: string): Promise<PendingDictationRow[]> {
+  const all = await (await db()).getAll('dictation')
+  return all.filter((r) => r.owner === owner).sort((a, b) => b.createdAt - a.createdAt)
+}
+export async function dictationDelete(sessionId: string): Promise<void> {
+  await (await db()).delete('dictation', sessionId)
+}
+/** Drop recordings older than `ms` — abandoned sessions a user never recovered. */
+export async function dictationPrune(ms: number): Promise<void> {
+  const d = await db()
+  const cutoff = Date.now() - ms
+  const all = await d.getAll('dictation')
+  await Promise.all(all.filter((r) => r.updatedAt < cutoff).map((r) => d.delete('dictation', r.sessionId)))
 }
 
 // ── entries cache ──────────────────────────────────────────────────────────
@@ -80,7 +121,13 @@ export async function cacheClear(): Promise<void> {
  *  another's on a shared browser. */
 export async function cacheClearAll(): Promise<void> {
   const d = await db()
-  await Promise.all([d.clear('entries'), d.clear('outbox'), d.clear('attBlobs'), d.clear('attMeta')])
+  await Promise.all([
+    d.clear('entries'),
+    d.clear('outbox'),
+    d.clear('attBlobs'),
+    d.clear('attMeta'),
+    d.clear('dictation'),
+  ])
 }
 
 // ── image blob cache (bounded LRU) ───────────────────────────────────────────
