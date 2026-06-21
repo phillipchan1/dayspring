@@ -161,6 +161,26 @@
   border-color: rgb(var(--scripture-gold));
 }
 
+/* Books that gained a verse since the last visit — a gentle gold breath that
+   ties the arrival line to the map, then settles to the normal tile. */
+.scripture__book--new {
+  border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 55%, var(--border));
+  animation: scriptureBookNew 2.6s ease-in-out 3;
+}
+@keyframes scriptureBookNew {
+  0%, 100% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 16px -2px rgba(var(--scripture-gold), 0.5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scripture__book--new {
+    animation: none;
+  }
+}
+
 .scripture__bname {
   display: block;
   font-family: var(--font-serif);

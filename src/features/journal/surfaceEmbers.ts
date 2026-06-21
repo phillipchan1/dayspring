@@ -77,6 +77,11 @@ export function hasVisitedSurface(surface: EmberSurface): boolean {
   return read(surface) === 'visited'
 }
 
+/** True while the surface's discovery ember is lit and not yet followed. */
+export function isEmberLit(surface: EmberSurface): boolean {
+  return read(surface) === 'lit'
+}
+
 function subscribe(onChange: () => void) {
   // 'storage' covers a second tab/window flipping state.
   const onStorage = () => {

@@ -5,6 +5,7 @@ import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
 import { RAIL_EXPAND_KEY } from './railHints'
 import { useSurfaceEmbers } from './surfaceEmbers'
+import { useSurfaceUpdates } from './surfaceUpdates'
 import {
   IconAltar,
   IconAscent,
@@ -59,8 +60,15 @@ export function Rail({
   // Wordmark beside the mark when labels are expanded; icon-only when collapsed.
   const showBrandLockup = labelsExpanded
 
-  // One-time discovery embers on the Return destinations (see surfaceEmbers.ts).
+  // Two layers light a Return destination's dot: the one-time discovery ember
+  // (surfaceEmbers) and recurring "new since last visit" items (surfaceUpdates).
   const embers = useSurfaceEmbers()
+  const updates = useSurfaceUpdates()
+  const dot = {
+    reflections: embers.reflections || updates.reflections.length > 0,
+    scripture: embers.scripture || updates.scripture.length > 0,
+    altar: embers.altar || updates.altar.length > 0,
+  }
 
   const drag = NATIVE ? true : undefined
 
@@ -113,7 +121,7 @@ export function Rail({
             shortcut="⌘2"
             onClick={onLookBack}
             active={lookBackActive}
-            ember={embers.reflections}
+            ember={dot.reflections}
             icon={<IconAscent />}
             labelsExpanded={labelsExpanded}
           />
@@ -124,7 +132,7 @@ export function Rail({
             onClick={onScripture}
             active={scriptureActive}
             lamp
-            ember={embers.scripture}
+            ember={dot.scripture}
             icon={<IconScripture />}
             labelsExpanded={labelsExpanded}
           />
@@ -135,7 +143,7 @@ export function Rail({
               shortcut="⌘4"
               onClick={onAltar}
               active={altarActive}
-              ember={embers.altar}
+              ember={dot.altar}
               icon={<IconAltar />}
               labelsExpanded={labelsExpanded}
             />

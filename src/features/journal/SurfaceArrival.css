@@ -1,0 +1,79 @@
+/* The arrival line — a quiet warm strip the surface shows on first open after a
+   rail glow. Rides the same scripture-gold ember palette so the dot here reads
+   as the same light the rail promised. Calm, dismissible, never a toast. */
+.surface-arrival {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0 0 1.25rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, rgb(var(--scripture-gold)) 30%, var(--border));
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, rgb(var(--scripture-gold)) 12%, transparent), transparent 60%),
+    var(--bg-elevated);
+  box-shadow: 0 0 32px -18px rgba(var(--scripture-gold), 0.5);
+  animation: surfaceArrivalIn 0.5s ease both;
+}
+
+@keyframes surfaceArrivalIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.surface-arrival__dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 0.45rem;
+  border-radius: 50%;
+  background: rgb(var(--scripture-gold));
+  box-shadow: 0 0 8px 2px rgba(var(--scripture-gold), 0.55);
+  animation: emberBreathe 2.8s ease-in-out infinite;
+}
+
+.surface-arrival__text {
+  flex: 1;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.surface-arrival__lead {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.surface-arrival__dismiss {
+  flex: none;
+  margin: -0.2rem -0.2rem 0 0;
+  padding: 0.1rem 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.surface-arrival__dismiss:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface-arrival {
+    animation: none;
+  }
+  .surface-arrival__dot {
+    animation: none;
+  }
+}

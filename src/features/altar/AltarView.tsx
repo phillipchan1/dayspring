@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { getCache, setCache } from '@/lib/asyncCache'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
+import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { warmthSvg, hueFor } from '@/features/ascent/warmth'
 import {
@@ -436,6 +437,8 @@ export function AltarView({ onOpenEntry }: Props) {
             <h1 className="altar__title">Altar</h1>
             <p className="altar__subtitle">A place of remembrance</p>
           </header>
+
+          <SurfaceArrival surface="altar" />
 
           <div className="altar-tabs">
             {(
