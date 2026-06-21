@@ -37,8 +37,9 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
   const barsRef = useRef<HTMLSpanElement[]>([])
 
   // Auto-start listening the moment the sheet opens — tap once, you're recording.
+  // Pass vocab so live captions bias toward the writer's words from word one.
   useEffect(() => {
-    void start()
+    void start(vocab)
     // start is stable (useCallback); run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -192,10 +193,17 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
                 </span>
               </div>
 
-              {status === 'transcribing' && partial ? (
-                // The transcript fills in live, then the cleanup pass arrives as
-                // the final text we insert.
-                <p className="voice-capture__partial">{partial}</p>
+              {partial ? (
+                // While recording, this is the live caption streaming in as you
+                // speak — styled as a provisional draft. On Done it stays put while
+                // the authoritative cleanup pass runs, then swaps in as final text.
+                <p
+                  className={`voice-capture__partial${
+                    status === 'recording' ? ' voice-capture__partial--live' : ''
+                  }`}
+                >
+                  {partial}
+                </p>
               ) : (
                 <div className="voice-capture__wave" aria-hidden>
                   {Array.from({ length: BAR_COUNT }).map((_, i) => (

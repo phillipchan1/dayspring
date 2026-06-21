@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { streamTranscribe } from '@/lib/transcribeClient'
+import { startLiveCaptions, type LiveCaptions } from '@/lib/realtimeDictation'
 import { dictationCheckpoint, dictationDelete } from '@/lib/db'
 import { useSession } from './useSession'
 
@@ -17,8 +18,9 @@ export interface Dictation {
   /** True once audio has been captured — the error UI then offers retry/save
    *  instead of forcing a re-record. */
   hasRecording: boolean
-  /** Request the mic and begin recording. */
-  start: () => Promise<void>
+  /** Request the mic and begin recording. Pass vocab so live captions (if
+   *  available) bias toward the writer's proper nouns from the first word. */
+  start: (vocab?: string) => Promise<void>
   /** Stop recording and transcribe (with automatic retries). Resolves the text. */
   finish: (vocab?: string) => Promise<string>
   /** Re-transcribe the already-recorded audio after a failure — never re-records. */
@@ -73,10 +75,26 @@ export function useDictation(): Dictation {
   const mimeRef = useRef('')
   const sessionIdRef = useRef<string | null>(null)
   const recordedBlobRef = useRef<Blob | null>(null)
+  // Live captions (realtime transcription as you speak). Best-effort: the handle
+  // is null whenever live captions are unavailable or have been torn down.
+  const liveRef = useRef<LiveCaptions | null>(null)
+  // The latest live transcript, mirrored in a ref so transcribe() can read it
+  // without a stale-closure dependency.
+  const liveTextRef = useRef('')
   const ownerRef = useRef<string | null>(owner)
   ownerRef.current = owner
 
+  const stopLive = useCallback(() => {
+    try {
+      liveRef.current?.close()
+    } catch {
+      /* already closed */
+    }
+    liveRef.current = null
+  }, [])
+
   const teardownMedia = useCallback(() => {
+    stopLive() // close the realtime socket before the AudioContext it taps
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
     if (timerRef.current != null) clearInterval(timerRef.current)
@@ -89,7 +107,7 @@ export function useDictation(): Dictation {
     }
     audioCtxRef.current = null
     recorderRef.current = null
-  }, [])
+  }, [stopLive])
 
   // Persist the complete accumulated recording so far (valid file across
   // containers; iOS mp4 can't be reassembled from partial chunks). Best-effort.
@@ -133,11 +151,12 @@ export function useDictation(): Dictation {
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [status])
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (vocab?: string) => {
     setError(null)
     setElapsedMs(0)
     setPartial('')
     setHasRecording(false)
+    liveTextRef.current = ''
     chunksRef.current = []
     recordedBlobRef.current = null
     sessionIdRef.current = crypto.randomUUID()
@@ -199,6 +218,28 @@ export function useDictation(): Dictation {
       }, 200)
 
       setStatus('recording')
+
+      // Live captions — additive feel on top of the durable recording. Tap the
+      // same mic stream + AudioContext to stream the transcript as the user
+      // speaks. Fully best-effort: any failure (token, socket, old browser) just
+      // means no live text; the recorded clip is still transcribed on Done.
+      startLiveCaptions({
+        stream,
+        audioContext: ctx,
+        ...(vocab ? { vocab } : {}),
+        onText: (t) => {
+          liveTextRef.current = t
+          setPartial(t)
+        },
+      })
+        .then((handle) => {
+          // Recording may have already stopped while the socket was opening.
+          if (streamRef.current === stream) liveRef.current = handle
+          else handle.close()
+        })
+        .catch(() => {
+          /* no live captions this session — silent, non-fatal */
+        })
     } catch (e) {
       teardownMedia()
       setStatus('error')
@@ -220,10 +261,15 @@ export function useDictation(): Dictation {
     if (!blob) return ''
     setStatus('transcribing')
     setError(null)
-    setPartial('')
+    // If live captions already filled the sheet, leave that text on screen and
+    // let the authoritative pass run silently underneath — swapping in the tidied
+    // result only at the end avoids a jarring shrink-then-regrow. Without live
+    // captions, stream the final pass in as before so the sheet still fills live.
+    const hadLive = liveTextRef.current.trim().length > 0
+    if (!hadLive) setPartial('')
     try {
       const { text } = await streamTranscribe(blob, {
-        onDelta: setPartial,
+        ...(hadLive ? {} : { onDelta: setPartial }),
         ...(vocab ? { vocab } : {}),
       })
       // The words are about to land in the entry — drop the persisted copy.
@@ -287,16 +333,18 @@ export function useDictation(): Dictation {
   }, [])
 
   const discard = useCallback(() => {
+    stopLive()
     const sid = sessionIdRef.current
     if (sid) void dictationDelete(sid)
     recordedBlobRef.current = null
     chunksRef.current = []
+    liveTextRef.current = ''
     setStatus('idle')
     setError(null)
     setElapsedMs(0)
     setPartial('')
     setHasRecording(false)
-  }, [])
+  }, [stopLive])
 
   const cancel = useCallback(() => {
     try {
@@ -309,6 +357,7 @@ export function useDictation(): Dictation {
   }, [teardownMedia, discard])
 
   const reset = useCallback(() => {
+    liveTextRef.current = ''
     setStatus('idle')
     setError(null)
     setElapsedMs(0)

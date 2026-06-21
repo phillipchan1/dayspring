@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 import { getAuthedUser, notAuthenticated } from './_lib/userAuth.js'
 import { preflight, withCors } from './_lib/cors.js'
 import { env } from './_lib/env.js'
-import { getConcordanceForRender } from './_lib/concordance.js'
+import { buildDictationPrompt } from './_lib/dictationPrompt.js'
 import { callModel } from './_lib/openai.js'
 
 // Speech-to-text for voice dictation. The client records a short audio clip
@@ -20,55 +20,6 @@ function openai(): OpenAI {
 // Cap uploads so a runaway recording can't pin a serverless function. ~10 min of
 // Opus audio sits comfortably under this.
 const MAX_BYTES = 25 * 1024 * 1024
-
-// A gentle bias toward the vocabulary this app lives in — proper-cased book names,
-// reverent phrasing — so "habakuk three" lands as "Habakkuk 3".
-const BASE_PROMPT =
-  'A personal spiritual journal entry. Expect scripture references (e.g. Habakkuk 3, ' +
-  'Romans 8:28, Psalm 23), prayer, and reflection. Use sentence case and natural punctuation.'
-
-// The personalization moat: bias transcription toward the writer's own proper
-// nouns and spellings from their Concordance (the dark per-user fidelity record),
-// most-used first, so dictation spells their people/places/terms right. The
-// transcription `prompt` is token-bounded, so cap it. Fail-open: any error (incl.
-// the table being empty for a cold-start user) → just the base prompt.
-const MAX_VOCAB_TERMS = 60
-// Drop one-off captures: a term seen in a single entry is usually extraction
-// noise ("the world is flat"), while a name worth biasing recurs. As the
-// Concordance fills, the most-used terms dominate the top-60 anyway.
-const MIN_OCCURRENCES = 2
-
-// Title-case all-lowercase words so a name captured mid-sentence ("esther")
-// biases toward its proper rendering ("Esther"). Words that already contain a
-// capital — acronyms (IHOP, KC, HS) and mixed-case names — are left untouched.
-function normalizeTerm(s: string): string {
-  return s
-    .split(' ')
-    .map((w) => (w && !/[A-Z]/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w))
-    .join(' ')
-}
-
-async function concordanceVocab(owner: string): Promise<string[]> {
-  try {
-    const rows = await getConcordanceForRender(owner) // ordered by occurrence desc
-    // Dedup canonical case-insensitively: the extractor classifies the same name
-    // under multiple kinds ("God" as person + org + term), so a raw map would
-    // burn the term budget on repeats. Most-used spelling wins (rows are sorted).
-    const seen = new Set<string>()
-    const terms: string[] = []
-    for (const r of rows) {
-      if (r.occurrence_count < MIN_OCCURRENCES) continue
-      const key = r.canonical.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      terms.push(normalizeTerm(r.canonical))
-      if (terms.length >= MAX_VOCAB_TERMS) break
-    }
-    return terms
-  } catch {
-    return []
-  }
-}
 
 // ── Light cleanup pass ───────────────────────────────────────────────────────
 // Spoken prose is full of disfluencies and runs on without paragraphs. A cheap
@@ -146,14 +97,11 @@ export async function POST(req: Request): Promise<Response> {
 
   // Vocabulary biasing: the writer's Concordance (server-side, private), plus any
   // caller-supplied terms as a supplement.
-  const terms = await concordanceVocab(user.id)
   const clientVocab = form.get('vocab')
-  if (typeof clientVocab === 'string' && clientVocab.trim()) {
-    terms.push(...clientVocab.split(',').map((t) => t.trim()).filter(Boolean))
-  }
-  const prompt = terms.length
-    ? `${BASE_PROMPT} Names and terms the writer often uses: ${terms.slice(0, MAX_VOCAB_TERMS).join(', ')}.`
-    : BASE_PROMPT
+  const prompt = await buildDictationPrompt(
+    user.id,
+    typeof clientVocab === 'string' ? clientVocab : null,
+  )
 
   // Caller can opt out of tidying (e.g. a future "raw dictation" setting).
   const tidy = form.get('tidy') !== 'false'

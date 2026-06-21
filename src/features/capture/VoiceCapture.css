@@ -254,6 +254,40 @@
   text-align: center;
 }
 
+/* Live caption while recording: clearly provisional — dimmer, with a soft
+   caret pulse — so the writer reads it as "being heard right now", not as the
+   final text. The cleanup pass replaces it (brightening to full text) on Done. */
+.voice-capture__partial--live {
+  color: var(--text-dim);
+}
+.voice-capture__partial--live::after {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 70%, transparent);
+  border-radius: 1px;
+  animation: voice-caption-caret 1.1s steps(1) infinite;
+}
+@keyframes voice-caption-caret {
+  0%,
+  50% {
+    opacity: 0.8;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-capture__partial--live::after {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 /* The salvageable partial transcript shown in the error state. */
 .voice-capture__partial--salvage {
   border-left: 2px solid color-mix(in srgb, rgb(var(--scripture-gold)) 45%, transparent);
