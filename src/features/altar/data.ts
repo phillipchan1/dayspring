@@ -78,16 +78,48 @@ const PAGE = 1000
 const THREAD_IN_CHUNK = 80
 
 /**
- * All declared strands as abstract warmth bands, all-time. A declared subject is
+ * The raw material for the Altar field: every declared thread plus its member
+ * lines, fetched once. Windowing (season / year / …) then happens client-side in
+ * buildAltarStrands, so changing the time range never re-hits the network — and,
+ * crucially, each range produces strands whose heft / span / representative line
+ * reflect THAT window, not the subject's whole life.
+ */
+export interface AltarSource {
+  rawThreads: RawThread[]
+  rawMembers: RawMember[]
+  /** thread id → row, for type / subject_kind on the built strands. */
+  meta: Map<string, ThreadRow>
+}
+
+/**
+ * Build the field's strands windowed to a trailing range. A declared subject is
  * hued by its OWN label (trading, esther, purity…) rather than the uniform
  * prayer/sense lens, so the field reads as a spread of distinct lights. Sorted
  * thickest-first by buildBands; the caller groups by subject kind / filters type.
  *
- * Only RETURNED-to subjects surface (heft ≥ 2): a prayer brought once isn't a
- * strand yet ("strands appear once you've returned to them over time") — and it
- * keeps the field from drowning in thousands of one-off lines.
+ * Only RETURNED-to subjects surface (heft ≥ 2 WITHIN the window): a subject
+ * brought once in the range isn't a strand there yet ("strands appear once you've
+ * returned to them over time"), and the recurrence/span language assumes ≥2
+ * moments. Pass windowStartMs = -Infinity for the all-time field.
  */
-export async function loadAltarStrands(): Promise<AltarStrand[]> {
+export function buildAltarStrands(src: AltarSource, windowStartMs: number): AltarStrand[] {
+  const bands = buildBands(src.rawThreads, [], src.rawMembers, 4, Date.now(), windowStartMs)
+  return bands
+    .filter((b) => b.heft >= 2)
+    .map((b): AltarStrand => {
+      const t = src.meta.get(b.id)
+      return {
+        ...b,
+        type: t?.type ?? 'prayer',
+        subjectKind: t?.subject_kind ?? null,
+        strandKind: 'declared',
+      }
+    })
+}
+
+/** Fetch all declared threads and their member lines (all-time). Heavy + paginated
+ *  — called once per surface visit; windowing is a pure client-side derivation. */
+export async function loadAltarSource(): Promise<AltarSource> {
   const sb = requireSupabase()
 
   // All declared threads, paginated past the 1000-row cap.
@@ -100,12 +132,12 @@ export async function loadAltarStrands(): Promise<AltarStrand[]> {
       .eq('dismissed', false)
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1)
-    if (error) { console.error('[altar] thread query', error.message); return [] }
+    if (error) { console.error('[altar] thread query', error.message); return EMPTY_SOURCE }
     const batch = (data ?? []) as ThreadRow[]
     threads.push(...batch)
     if (batch.length < PAGE) break
   }
-  if (threads.length === 0) return []
+  if (threads.length === 0) return EMPTY_SOURCE
 
   const meta = new Map(threads.map((t) => [t.id, t]))
 
@@ -122,7 +154,7 @@ export async function loadAltarStrands(): Promise<AltarStrand[]> {
         .in('thread_id', chunk)
         .order('id', { ascending: true })
         .range(from, from + PAGE - 1)
-      if (error) { console.error('[altar] member query', error.message); return [] }
+      if (error) { console.error('[altar] member query', error.message); return EMPTY_SOURCE }
       const batch = (data ?? []) as unknown as MemberRow[]
       for (const m of batch) {
         if (!m.spiritual_item_id || !m.spiritual_items) continue
@@ -153,20 +185,10 @@ export async function loadAltarStrands(): Promise<AltarStrand[]> {
     dismissed: false,
   }))
 
-  const bands = buildBands(rawThreads, [], rawMembers, 4, Date.now())
-
-  return bands
-    .filter((b) => b.heft >= 2)
-    .map((b): AltarStrand => {
-      const t = meta.get(b.id)
-      return {
-        ...b,
-        type: t?.type ?? 'prayer',
-        subjectKind: t?.subject_kind ?? null,
-        strandKind: 'declared',
-      }
-    })
+  return { rawThreads, rawMembers, meta }
 }
+
+const EMPTY_SOURCE: AltarSource = { rawThreads: [], rawMembers: [], meta: new Map() }
 
 /** A single strand's whole life — every line in time, for the click-in panel. */
 export async function loadAltarStrand(id: string): Promise<AltarStrandDetail | null> {

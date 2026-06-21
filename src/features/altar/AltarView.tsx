@@ -5,13 +5,17 @@ import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { warmthSvg, hueFor } from '@/features/ascent/warmth'
 import {
-  loadAltarStrands,
+  loadAltarSource,
+  buildAltarStrands,
   loadAltarStrand,
+  type AltarSource,
   type AltarStrand,
   type AltarStrandDetail,
   type AltarType,
   type SubjectKind,
 } from './data'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import './Altar.css'
 
 interface Props {
@@ -21,7 +25,7 @@ interface Props {
 type Tab = 'field' | 'time'
 type Lens = 'all' | AltarType
 
-const FIELD_CACHE = 'altar:strands:v2'
+const FIELD_CACHE = 'altar:source:v1'
 /** Per subject-kind section, surface the thickest; the long tail rests quietly. */
 const VISIBLE_PER_GROUP = 10
 
@@ -88,6 +92,11 @@ const PERIODS: { key: Period; label: string; ms: number }[] = [
   { key: '10y', label: '10 years', ms: 86_400_000 * 365 * 10 },
   { key: 'all', label: 'all', ms: 0 },
 ]
+/** Trailing-window start (ms) for a range — -Infinity is the all-time field. */
+function windowStartFor(period: Period): number {
+  if (period === 'all') return -Infinity
+  return Date.now() - PERIODS.find((p) => p.key === period)!.ms
+}
 
 function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period: Period; onOpen: (id: string) => void }) {
   const W = 920
@@ -245,6 +254,10 @@ function StrandPanel({
 
   const t = shown
 
+  // Mobile: let a rightward swipe close the panel, tracking the finger.
+  const isMobile = useIsMobile()
+  const { handlers, dragX, dragging } = useSwipeToDismiss({ onDismiss: onClose, enabled: isMobile && open })
+
   // Group moments by year, newest first
   const yearGroups = useMemo(() => {
     if (!t) return []
@@ -264,7 +277,12 @@ function StrandPanel({
   return (
     <>
       <div className={`altar-scrim${open ? ' altar-scrim--open' : ''}`} onClick={onClose} aria-hidden />
-      <aside className={`altar-thread${open ? ' altar-thread--open' : ''}`} aria-hidden={!open}>
+      <aside
+        className={`altar-thread${open ? ' altar-thread--open' : ''}`}
+        aria-hidden={!open}
+        {...handlers}
+        style={dragging ? { transform: `translateX(${dragX}px)`, transition: 'none' } : undefined}
+      >
         <div className="altar-thread__inner">
           {t && (
             <>
@@ -332,8 +350,8 @@ function PanelWarmth({ heft, lenses, pools }: { heft: number; lenses: string[]; 
 }
 
 export function AltarView({ onOpenEntry }: Props) {
-  const cached = getCache<AltarStrand[]>(FIELD_CACHE)
-  const [strands, setStrands] = useState<AltarStrand[] | null>(cached ?? null)
+  const cached = getCache<AltarSource>(FIELD_CACHE)
+  const [source, setSource] = useState<AltarSource | null>(cached ?? null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
@@ -347,10 +365,10 @@ export function AltarView({ onOpenEntry }: Props) {
   useEffect(() => {
     const id = ++reqId.current
     let cancelled = false
-    loadAltarStrands()
+    loadAltarSource()
       .then((data) => {
         if (cancelled || id !== reqId.current) return
-        setStrands(data)
+        setSource(data)
         setCache(FIELD_CACHE, data)
         setLoadError(null)
       })
@@ -379,15 +397,18 @@ export function AltarView({ onOpenEntry }: Props) {
   }
   const closeStrand = () => setOpenId(null)
 
+  // Window the strands to the selected range: heft, span and the representative
+  // line are all computed over THAT window — so "season" shows what you've
+  // actually returned to this season, not a subject's whole 15-year life.
   const visible = useMemo(() => {
-    if (!strands) return []
-    let filtered = lens === 'all' ? strands : strands.filter((s) => s.type === lens)
-    if (period !== 'all') {
-      const cutoff = Date.now() - PERIODS.find((p) => p.key === period)!.ms
-      filtered = filtered.filter((s) => Date.parse(s.spanEnd) >= cutoff)
-    }
-    return filtered
-  }, [strands, lens, period])
+    if (!source) return []
+    const windowed = buildAltarStrands(source, windowStartFor(period))
+    return lens === 'all' ? windowed : windowed.filter((s) => s.type === lens)
+  }, [source, lens, period])
+
+  // Does the altar hold anything all-time? Distinguishes an empty WINDOW (offer a
+  // longer range) from a first-run empty altar (offer /pray · /sense).
+  const hasHistory = useMemo(() => !!source && buildAltarStrands(source, -Infinity).length > 0, [source])
 
   const grouped = useMemo(() => {
     return GROUPS.map((g) => ({
@@ -414,7 +435,7 @@ export function AltarView({ onOpenEntry }: Props) {
   }, [altarBackfilling])
 
   if (loadError) return <p className="altar__error">{loadError}</p>
-  if (strands === null)
+  if (source === null)
     return (
       <div className="altar">
         <div className="altar__bg" aria-hidden />
@@ -493,6 +514,15 @@ export function AltarView({ onOpenEntry }: Props) {
                         : undefined
                     }
                   />
+                ) : hasHistory && period !== 'all' ? (
+                  // The altar has strands — just none you've returned to inside this window.
+                  // Offer the way back rather than the "lay something down" first-run copy.
+                  <p className="altar__quiet">
+                    Nothing you've returned to within this {PERIODS.find((p) => p.key === period)!.label}.{' '}
+                    <button type="button" className="altar-quiet__link" onClick={() => setPeriod('all')}>
+                      See all time →
+                    </button>
+                  </p>
                 ) : (
                   <p className="altar__quiet">
                     Nothing has gathered here yet. Type <code>/pray</code> or <code>/sense</code> in an entry to
