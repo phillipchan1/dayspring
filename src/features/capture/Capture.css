@@ -685,6 +685,12 @@
   line-height: 1;
 }
 
+.command-toolbar__icon .spiritual-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
 .command-toolbar__label {
   font-weight: 500;
   text-align: center;

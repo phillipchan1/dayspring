@@ -3837,6 +3837,15 @@ html[data-focus-mode] .focus-controls {
   font-style: italic;
 }
 
+/* Capture rows carry a line icon rather than a typographic marker. */
+.slash-palette__badge--icon {
+  color: var(--text-bright);
+}
+
+.slash-palette__badge--icon .spiritual-icon {
+  display: block;
+}
+
 .slash-palette__text {
   display: flex;
   flex-direction: column;

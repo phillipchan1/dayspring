@@ -10,6 +10,7 @@ import {
   type SlashCursor,
   type SlashSelection,
 } from './slashCommands'
+import { SpiritualBlockIcon } from './spiritualBlockIcons'
 
 interface Props {
   state: SlashState
@@ -178,11 +179,15 @@ export function SlashPalette({ state, onSelect, onDismiss }: Props) {
                 >
                   <span
                     className={`slash-palette__badge${
-                      item.badgeStyle ? ` slash-palette__badge--${item.badgeStyle}` : ''
-                    }`}
+                      item.selection.kind === 'spiritual' ? ' slash-palette__badge--icon' : ''
+                    }${item.badgeStyle ? ` slash-palette__badge--${item.badgeStyle}` : ''}`}
                     aria-hidden
                   >
-                    {item.badge}
+                    {item.selection.kind === 'spiritual' ? (
+                      <SpiritualBlockIcon id={item.selection.id} />
+                    ) : (
+                      item.badge
+                    )}
                   </span>
                   <span className="slash-palette__text">
                     <span className="slash-palette__label">{item.label}</span>

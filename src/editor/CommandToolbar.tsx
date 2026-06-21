@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import type { SlashCommandId } from './slashDetect'
+import { SpiritualBlockIcon, VoiceIcon } from './spiritualBlockIcons'
 
 interface CommandToolbarProps {
   onCommand: (cmd: SlashCommandId) => void
@@ -17,12 +18,12 @@ interface CommandToolbarProps {
   keyboardInset?: number
 }
 
-const COMMANDS: Array<{ id: SlashCommandId; icon: string; label: string; hint: string }> = [
-  { id: 'scripture', icon: '✦', label: 'Scripture', hint: 'Find passages' },
-  { id: 'pray', icon: '🙏', label: 'Pray', hint: 'Log prayer' },
-  { id: 'sense', icon: '✨', label: 'Sense', hint: 'Record impression' },
-  { id: 'ritual', icon: '✶', label: 'Ritual', hint: 'Rituals for the inner life' },
-  { id: 'image', icon: '🖼', label: 'Image', hint: 'Add photo' },
+const COMMANDS: Array<{ id: SlashCommandId; label: string; hint: string }> = [
+  { id: 'scripture', label: 'Scripture', hint: 'Find passages' },
+  { id: 'pray', label: 'Pray', hint: 'Log prayer' },
+  { id: 'sense', label: 'Sense', hint: 'Record impression' },
+  { id: 'ritual', label: 'Ritual', hint: 'Rituals for the inner life' },
+  { id: 'image', label: 'Image', hint: 'Add photo' },
 ]
 
 /**
@@ -57,7 +58,9 @@ export function CommandToolbar({
             title={cmd.hint}
             aria-label={cmd.label}
           >
-            <span className="command-toolbar__icon">{cmd.icon}</span>
+            <span className="command-toolbar__icon">
+              <SpiritualBlockIcon id={cmd.id} />
+            </span>
             <span className="command-toolbar__label">{cmd.label}</span>
           </button>
         ))}
@@ -71,7 +74,9 @@ export function CommandToolbar({
             title="Dictate with your voice"
             aria-label="Voice"
           >
-            <span className="command-toolbar__icon">🎙</span>
+            <span className="command-toolbar__icon">
+              <VoiceIcon />
+            </span>
             <span className="command-toolbar__label">Voice</span>
           </button>
         )}
