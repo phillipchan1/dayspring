@@ -1,0 +1,115 @@
+import type { ReactNode } from 'react'
+
+/**
+ * Shared line-icons for the journal's navigation surfaces — the desktop Rail
+ * and the mobile bottom bar draw from the same set so a destination reads the
+ * same on every form factor. Sized via the `size` prop (desktop rail: 20,
+ * mobile bar: 22) with a consistent stroke weight.
+ */
+export function NavIcon({
+  children,
+  size = 20,
+  strokeWidth = 1.55,
+}: {
+  children: ReactNode
+  size?: number
+  strokeWidth?: number
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  )
+}
+
+export function IconMenu(props: { size?: number }) {
+  return (
+    <NavIcon {...props}>
+      <path d="M5 7h14" />
+      <path d="M5 12h14" />
+      <path d="M5 17h14" />
+    </NavIcon>
+  )
+}
+
+export function IconNew(props: { size?: number }) {
+  return (
+    <NavIcon {...props}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </NavIcon>
+  )
+}
+
+export function IconEntries(props: { size?: number }) {
+  // A bulleted list — distinct from the menu hamburger (the rail toggle).
+  return (
+    <NavIcon {...props}>
+      <path d="M9 6h11" />
+      <path d="M9 12h11" />
+      <path d="M9 18h11" />
+      <path d="M4.5 6h.01" />
+      <path d="M4.5 12h.01" />
+      <path d="M4.5 18h.01" />
+    </NavIcon>
+  )
+}
+
+export function IconAscent(props: { size?: number }) {
+  // A mountain range — the climb from valley to summit.
+  return (
+    <NavIcon {...props}>
+      <path d="M3 19h18" />
+      <path d="M6 19l4-8.5 3 4.5 2.5-3.5L19 19" />
+    </NavIcon>
+  )
+}
+
+export function IconScripture(props: { size?: number }) {
+  // Open book — two pages spread from a center spine.
+  return (
+    <NavIcon {...props}>
+      <path d="M12 7v13" />
+      <path d="M3 18a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4a4 4 0 0 1 5 3 4 4 0 0 1 5-3h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5a3 3 0 0 0-4 1 3 3 0 0 0-4-1z" />
+    </NavIcon>
+  )
+}
+
+export function IconAltar(props: { size?: number }) {
+  return (
+    <NavIcon {...props}>
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </NavIcon>
+  )
+}
+
+export function IconSettings(props: { size?: number }) {
+  return (
+    <NavIcon {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </NavIcon>
+  )
+}
+
+export function IconFocus(props: { size?: number }) {
+  // Expand-to-corners — entering focus mode opens the canvas to full screen.
+  return (
+    <NavIcon {...props}>
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+      <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </NavIcon>
+  )
+}

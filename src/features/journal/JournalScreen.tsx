@@ -1060,12 +1060,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // Re-selecting the already-open entry: the editor holds the live text and
       // the list row is only a debounced echo of it, so never reload from the
       // list — that could clobber keystrokes the row sync hasn't caught up to.
+      // Still dismiss the mobile drawer so the tap feels like it landed.
+      if (state.sidebar) go({ sidebar: false }, { replace: true })
       return
     }
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
     setContent(body)
-    go({ surface: 'journal', entryId: entry.id }, { replace: true })
+    // Close the mobile drawer in the SAME navigation. Closing it separately via
+    // history.back() would pop this very frame and revert to the previous entry
+    // — the "tapping an entry does nothing" bug.
+    go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
   }
 
   async function handleEditEntry(entry: Entry) {
@@ -1073,13 +1078,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     skipEditorAutofocusRef.current = false
     setIsNewEntryMode(false)
     if (entry.id === entryId && !canvasAlternateActive) {
+      if (state.sidebar) go({ sidebar: false }, { replace: true })
       requestAnimationFrame(() => editorRef.current?.focus())
       return
     }
     await saveNow()
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
-    go({ surface: 'journal', entryId: entry.id }, { replace: true })
+    // Fold the drawer-close into this navigation — see handleBrowse.
+    go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
     setContent(asEntryMarkdown(entry.body_markdown))
   }
 
