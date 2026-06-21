@@ -8,10 +8,19 @@ import { encodePcmChunk } from './pcm'
 // quietly and the user still gets the authoritative transcript from the recorded
 // clip on Done. It must never throw into the recording path.
 
-// Transcription sessions connect with the purpose-built transcription intent; the
-// session itself (model, vocab prompt, VAD) is configured server-side and carried
-// by the ephemeral secret, so nothing sensitive rides on the client.
-const REALTIME_URL = 'wss://api.openai.com/v1/realtime?intent=transcription'
+// Transcription sessions connect to the realtime endpoint; the session itself
+// (model, vocab prompt, VAD) is configured server-side and carried by the
+// ephemeral secret, so the client sends nothing sensitive and — importantly —
+// does NOT re-send session config (that would clobber the private vocab prompt).
+//
+// The exact connect query param has shifted across realtime API revisions, so we
+// try a couple of candidates and keep whichever the server actually accepts
+// (i.e. completes the websocket upgrade). Listed most-specific first.
+const REALTIME_BASE = 'wss://api.openai.com/v1/realtime'
+const CONNECT_URLS = [`${REALTIME_BASE}?intent=transcription`, REALTIME_BASE]
+
+// How long to wait for the upgrade before trying the next candidate URL.
+const HANDSHAKE_TIMEOUT_MS = 5000
 
 // ScriptProcessor buffer size — 4096 frames (~85ms at 48kHz) balances latency
 // against the number of websocket frames we emit.
@@ -38,6 +47,53 @@ interface TokenResponse {
   expiresAt: number
 }
 
+/** Open a websocket to one candidate URL; resolve once the upgrade completes,
+ *  reject on error/close/timeout so the caller can try the next candidate. */
+function tryConnect(url: string, token: string): Promise<WebSocket> {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(url, ['realtime', `openai-insecure-api-key.${token}`])
+    const timer = setTimeout(() => {
+      cleanup()
+      try {
+        ws.close()
+      } catch {
+        /* noop */
+      }
+      reject(new Error('handshake timeout'))
+    }, HANDSHAKE_TIMEOUT_MS)
+    const onOpen = () => {
+      cleanup()
+      resolve(ws)
+    }
+    const onFail = () => {
+      cleanup()
+      reject(new Error('socket closed before upgrade'))
+    }
+    function cleanup() {
+      clearTimeout(timer)
+      ws.removeEventListener('open', onOpen)
+      ws.removeEventListener('error', onFail)
+      ws.removeEventListener('close', onFail)
+    }
+    ws.addEventListener('open', onOpen, { once: true })
+    ws.addEventListener('error', onFail, { once: true })
+    ws.addEventListener('close', onFail, { once: true })
+  })
+}
+
+/** Try each candidate connect URL in order; return the first the server accepts. */
+async function connect(token: string): Promise<WebSocket> {
+  let lastErr: unknown
+  for (const url of CONNECT_URLS) {
+    try {
+      return await tryConnect(url, token)
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('could not open realtime socket')
+}
+
 /**
  * Begin streaming live captions. Resolves once audio is flowing, or rejects if
  * the session couldn't be established — callers should catch and silently fall
@@ -52,8 +108,9 @@ export async function startLiveCaptions(opts: LiveCaptionsOpts): Promise<LiveCap
   if (!token?.value) throw new Error('no realtime token')
 
   // 2. Open the websocket, authenticating with the ephemeral key via subprotocol
-  //    (browsers can't set Authorization headers on a WebSocket).
-  const ws = new WebSocket(REALTIME_URL, ['realtime', `openai-insecure-api-key.${token.value}`])
+  //    (browsers can't set Authorization headers on a WebSocket). Tries each
+  //    candidate connect URL and returns the first the server accepts.
+  const ws = await connect(token.value)
 
   // Transcript accumulation: each VAD segment streams `delta`s then a `completed`
   // with the authoritative segment text. We keep finished segments + the
@@ -115,33 +172,24 @@ export async function startLiveCaptions(opts: LiveCaptionsOpts): Promise<LiveCap
     }
   })
 
-  // Start piping mic audio once the socket is live.
-  await new Promise<void>((resolve, reject) => {
-    const onOpen = () => {
-      try {
-        source = audioContext.createMediaStreamSource(stream)
-        processor = audioContext.createScriptProcessor(BUFFER_SIZE, 1, 1)
-        // A muted gain node lets the processor stay connected to the graph (so
-        // onaudioprocess fires) without routing the mic to the speakers.
-        mute = audioContext.createGain()
-        mute.gain.value = 0
-        processor.onaudioprocess = (e: AudioProcessingEvent) => {
-          if (closed || ws.readyState !== WebSocket.OPEN) return
-          const input = e.inputBuffer.getChannelData(0)
-          const audio = encodePcmChunk(input, audioContext.sampleRate)
-          ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio }))
-        }
-        source.connect(processor)
-        processor.connect(mute)
-        mute.connect(audioContext.destination)
-        resolve()
-      } catch (e) {
-        reject(e instanceof Error ? e : new Error('audio capture failed'))
-      }
-    }
-    ws.addEventListener('open', onOpen, { once: true })
-    ws.addEventListener('error', () => reject(new Error('realtime socket error')), { once: true })
-  })
+  // The socket is already open (connect() resolves on upgrade), so wire mic audio
+  // straight in. Pipe the same stream through a ScriptProcessor to capture raw
+  // PCM, encode it, and append to the realtime input buffer.
+  source = audioContext.createMediaStreamSource(stream)
+  processor = audioContext.createScriptProcessor(BUFFER_SIZE, 1, 1)
+  // A muted gain node lets the processor stay connected to the graph (so
+  // onaudioprocess fires) without routing the mic to the speakers.
+  mute = audioContext.createGain()
+  mute.gain.value = 0
+  processor.onaudioprocess = (e: AudioProcessingEvent) => {
+    if (closed || ws.readyState !== WebSocket.OPEN) return
+    const input = e.inputBuffer.getChannelData(0)
+    const audio = encodePcmChunk(input, audioContext.sampleRate)
+    ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio }))
+  }
+  source.connect(processor)
+  processor.connect(mute)
+  mute.connect(audioContext.destination)
 
   return { close }
 }
