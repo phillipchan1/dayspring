@@ -10,6 +10,7 @@ import { WritingControls } from './WritingControls'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { useSurfaceEmbers } from './surfaceEmbers'
+import { useSurfaceUpdates } from './surfaceUpdates'
 import { deriveTitle } from './deriveTitle'
 import {
   IconAltar,
@@ -41,8 +42,15 @@ export function MobileJournal(props: JournalViewProps) {
   } = props
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
-  // One-time discovery embers on the Return destinations (see surfaceEmbers.ts).
+  // Two layers light a Return destination's dot: the one-time discovery ember
+  // and recurring "new since last visit" items (see surfaceEmbers/surfaceUpdates).
   const embers = useSurfaceEmbers()
+  const updates = useSurfaceUpdates()
+  const dot = {
+    reflections: embers.reflections || updates.reflections.length > 0,
+    scripture: embers.scripture || updates.scripture.length > 0,
+    altar: embers.altar || updates.altar.length > 0,
+  }
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
@@ -186,14 +194,14 @@ export function MobileJournal(props: JournalViewProps) {
               label="Ascent"
               onClick={onLookBack}
               active={reflectionsActive}
-              ember={embers.reflections && !reflectionsActive}
+              ember={dot.reflections && !reflectionsActive}
               icon={<IconAscent size={22} />}
             />
             <MobileTab
               label="Lamp"
               onClick={onScripture}
               active={scriptureActive}
-              ember={embers.scripture && !scriptureActive}
+              ember={dot.scripture && !scriptureActive}
               icon={<IconScripture size={22} />}
             />
             {altarEnabled && (
@@ -201,7 +209,7 @@ export function MobileJournal(props: JournalViewProps) {
                 label="Altar"
                 onClick={onAltar}
                 active={altarActive}
-                ember={embers.altar && !altarActive}
+                ember={dot.altar && !altarActive}
                 icon={<IconAltar size={22} />}
               />
             )}

@@ -29,6 +29,10 @@ interface EventProps {
   ember_lit: { surface: ReturnSurface }
   /** A surface first opened while its ember was burning — the nudge worked. */
   ember_followed: { surface: ReturnSurface }
+  /** A new item (verse, prayer) recorded as unseen on its Return surface. */
+  surface_update_recorded: { surface: ReturnSurface }
+  /** A surface's arrival line shown — either naming new items or introducing itself. */
+  surface_arrival_shown: { surface: ReturnSurface; kind: 'updates' | 'discovery'; count: number }
   /** "See your Ascent →" clicked on the processing-complete banner. */
   processing_cta_clicked: undefined
 }

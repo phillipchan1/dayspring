@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
 import type { AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
+import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { ALTITUDES, CONTROLS } from './ascent.config'
 import { loadAscent, type LoadedAscent } from './data'
@@ -158,6 +159,8 @@ export function AscentView({ onOpenEntry }: Props) {
             </p>
           ) : null}
         </header>
+
+        <SurfaceArrival surface="reflections" />
 
         <LensRow />
 

@@ -12,6 +12,8 @@ import {
   type SeasonSummary,
 } from '@/lib/scripture/query'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
+import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
+import { peekSurfaceUpdates } from '@/features/journal/surfaceUpdates'
 import { ScriptureBookView, type BookTarget } from './ScriptureBookView'
 import { heatColor, intensity } from './heat'
 import { useScriptureScan } from './useScriptureScan'
@@ -29,6 +31,30 @@ function bookDescriptor(total: number, maxBook: number): string {
   if (t >= 0.6) return 'returned to often'
   if (t >= 0.25) return 'returned to'
   return 'visited a few times'
+}
+
+/**
+ * Map the labels of newly-cited verses ("John 3:16") back to the books they
+ * touched, so the canon can pulse those tiles on arrival. The Lamp is a heatmap,
+ * not a list — the book is the finest stable target a citation has. Lenient by
+ * design: an unmatched label simply doesn't pulse (the arrival line still names
+ * it), never a wrong tile.
+ */
+function newlyCitedBooks(labels: string[], books: BibleBook[]): Set<string> {
+  const osis = new Set<string>()
+  for (const label of labels) {
+    const lower = label.toLowerCase()
+    let best: BibleBook | null = null
+    for (const book of books) {
+      const name = book.name.toLowerCase()
+      const singular = name.endsWith('s') ? name.slice(0, -1) : name
+      if (lower.startsWith(name) || lower.startsWith(singular)) {
+        if (!best || book.name.length > best.name.length) best = book
+      }
+    }
+    if (best) osis.add(best.osis)
+  }
+  return osis
 }
 
 // ── seasons ─────────────────────────────────────────────────────────────────
@@ -100,6 +126,15 @@ export function ScriptureView({ onOpenEntry }: Props) {
   const [reloadKey, setReloadKey] = useState(0)
   const reqId = useRef(0)
   const freshLoad = useRef(false)
+
+  // Books that gained a verse since the last visit — pulsed once on arrival.
+  // Captured before SurfaceArrival's effect consumes the pending updates.
+  const [newBooks] = useState<Set<string>>(() =>
+    newlyCitedBooks(
+      peekSurfaceUpdates('scripture').map((i) => i.label),
+      [...OT_BOOKS, ...NT_BOOKS],
+    ),
+  )
 
   // Scan orchestration (also available in Settings → Import & backup).
   const scan = useScriptureScan(() => {
@@ -204,6 +239,8 @@ export function ScriptureView({ onOpenEntry }: Props) {
             )}
           </header>
 
+          <SurfaceArrival surface="scripture" />
+
           {/* Boxed status ONLY while transient (scanning / error). Once it's done,
               the count is a quiet fact in the header above, not a notification. */}
           {(scan.scanning || scan.error) && (
@@ -261,8 +298,8 @@ export function ScriptureView({ onOpenEntry }: Props) {
             {note}
           </p>
 
-          <Testament label="Old Testament" books={OT_BOOKS} heat={heat} maxBook={maxBook} onOpen={openBook} />
-          <Testament label="New Testament" books={NT_BOOKS} heat={heat} maxBook={maxBook} onOpen={openBook} />
+          <Testament label="Old Testament" books={OT_BOOKS} heat={heat} maxBook={maxBook} newBooks={newBooks} onOpen={openBook} />
+          <Testament label="New Testament" books={NT_BOOKS} heat={heat} maxBook={maxBook} newBooks={newBooks} onOpen={openBook} />
 
           <div className="scripture__legend" aria-hidden>
             <span>seldom</span>
@@ -309,12 +346,14 @@ function Testament({
   books,
   heat,
   maxBook,
+  newBooks,
   onOpen,
 }: {
   label: string
   books: BibleBook[]
   heat: CanonHeat
   maxBook: number
+  newBooks: Set<string>
   onOpen: (sel: BookTarget) => void
 }) {
   return (
@@ -322,7 +361,14 @@ function Testament({
       <div className="scripture__testament">{label}</div>
       <div className="scripture__canon">
         {books.map((book) => (
-          <BookTile key={book.osis} book={book} heat={heat} maxBook={maxBook} onOpen={onOpen} />
+          <BookTile
+            key={book.osis}
+            book={book}
+            heat={heat}
+            maxBook={maxBook}
+            isNew={newBooks.has(book.osis)}
+            onOpen={onOpen}
+          />
         ))}
       </div>
     </>
@@ -333,22 +379,24 @@ function BookTile({
   book,
   heat,
   maxBook,
+  isNew,
   onOpen,
 }: {
   book: BibleBook
   heat: CanonHeat
   maxBook: number
+  isNew: boolean
   onOpen: (sel: BookTarget) => void
 }) {
   const total = heat.books.get(book.osis) ?? 0
   const lit = total > 0
   const cols = Math.min(10, Math.max(4, Math.ceil(Math.sqrt(book.chapters))))
-  const label = `${book.name}, ${bookDescriptor(total, maxBook)}`
+  const label = `${book.name}, ${bookDescriptor(total, maxBook)}${isNew ? ', new' : ''}`
 
   return (
     <button
       type="button"
-      className={`scripture__book${lit ? ' scripture__book--lit' : ''}`}
+      className={`scripture__book${lit ? ' scripture__book--lit' : ''}${isNew ? ' scripture__book--new' : ''}`}
       aria-label={label}
       onClick={() => onOpen({ osis: book.osis })}
     >

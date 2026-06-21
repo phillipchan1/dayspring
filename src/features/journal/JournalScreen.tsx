@@ -77,13 +77,26 @@ import { VoiceCapture } from '@/features/capture/VoiceCapture'
 import { DictationRecovery } from '@/features/capture/DictationRecovery'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
+import { recordSurfaceUpdate } from './surfaceUpdates'
 import { track } from '@/lib/analytics'
-import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
 import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
 interface JournalScreenProps {
   userEmail: string
   featureFlags: string[]
+}
+
+/**
+ * A short, human label for a just-committed block, shown in its surface's
+ * arrival line: the reference for scripture ("John 3:16"), the opening words
+ * for a prayer or sense. Returns '' when there's nothing worth naming.
+ */
+function arrivalLabelFor(block: ParsedSpiritualBlock): string {
+  const firstLine = block.content.split('\n')[0]?.trim() ?? ''
+  const raw = block.type === 'scripture' ? block.reference?.trim() || firstLine : firstLine
+  if (!raw) return ''
+  return raw.length > 48 ? `${raw.slice(0, 47).trimEnd()}…` : raw
 }
 
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
@@ -397,6 +410,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // user's — light the one-time discovery ember (no-op once visited).
     if (cap.cmd === 'scripture') lightEmber('scripture')
     else if (cap.cmd === 'pray' || cap.cmd === 'sense') lightEmber('altar')
+    // …and remember it as "new since last visit" so the surface can name it on
+    // arrival. Only fresh blocks (not in-place edits, which re-commit the same id).
+    if (!cap.edit) {
+      const surface = cap.cmd === 'scripture' ? 'scripture' : 'altar'
+      const block = parseSpiritualBlocks(text)[0]
+      if (block) {
+        const label = arrivalLabelFor(block)
+        if (label) recordSurfaceUpdate(surface, { id: block.id, label, ts: Date.now() })
+      }
+    }
     if (cap.edit) {
       // Re-resolve the block's live range by id before replacing. The stored
       // from/to can go stale if the document shifted between opening the editor
