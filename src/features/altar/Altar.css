@@ -473,6 +473,17 @@
   font-family: var(--font-mono);
   font-size: 0.82em;
 }
+.altar-quiet__link {
+  font: inherit;
+  font-style: normal;
+  color: var(--accent, var(--text));
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 /* ── click-in thread panel (mirrors the Scripture book panel) ─────────────── */
 .altar-scrim {

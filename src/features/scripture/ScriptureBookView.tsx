@@ -11,6 +11,8 @@ import {
   type BookSummary,
   type ReturningRef,
 } from '@/lib/scripture/query'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { heatColor, intensity } from './heat'
 
 /** The book the panel is showing — optionally focused on one verse's thread. */
@@ -70,6 +72,10 @@ export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
   const open = target !== null
   const bookOsis = display?.osis ?? null
   const book = bookOsis ? bookByOsis(bookOsis) : undefined
+
+  // Mobile: let a rightward swipe close the book, tracking the finger.
+  const isMobile = useIsMobile()
+  const { handlers, dragX, dragging } = useSwipeToDismiss({ onDismiss: onClose, enabled: isMobile && open })
 
   const [entries, setEntries] = useState<BookEntry[] | null>(null)
   const [chapterHeat, setChapterHeat] = useState<BookChapterHeat | null>(null)
@@ -166,6 +172,8 @@ export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
         className={`scripture-book${open ? ' scripture-book--open' : ''}`}
         aria-hidden={!open}
         aria-label={book ? book.name : undefined}
+        {...handlers}
+        style={dragging ? { transform: `translateX(${dragX}px)`, transition: 'none' } : undefined}
       >
         <div className="scripture-book__inner">
           {book && (

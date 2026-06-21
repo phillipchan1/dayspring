@@ -162,9 +162,14 @@ export function buildBands(
   members: RawMember[],
   horizon: Horizon,
   nowMs: number,
+  /** Arbitrary trailing-window start (ms). Overrides the horizon's window when
+   *  given — lets a caller window to a span the Horizon enum can't name (e.g. the
+   *  Altar's 5-/10-year ranges). The horizon still drives the pool-bucket count. */
+  windowStartMs?: number,
 ): WarmthBand[] {
   const days = HORIZON_DAYS[horizon]
-  const windowStart = days === null ? -Infinity : nowMs - days * 86_400_000
+  const windowStart =
+    windowStartMs !== undefined ? windowStartMs : days === null ? -Infinity : nowMs - days * 86_400_000
 
   // Clean hue signal per thread: domain (taxonomy key) ?? rope label (clean) ??
   // lens (free-text fallback). The raw `lens` column is often a full description
