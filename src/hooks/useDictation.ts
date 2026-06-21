@@ -13,6 +13,10 @@ export interface Dictation {
   elapsedMs: number
   /** The transcript so far, filling in live while status is 'transcribing'. */
   partial: string
+  /** Whether `partial` is the live (provisional, realtime) caption rather than
+   *  the authoritative streamed transcript. The UI blurs the live one — it's a
+   *  "something is happening" signal, not text to read word-for-word. */
+  partialIsLive: boolean
   /** Live mic loudness, 0..1. Read in a rAF loop for smooth visuals. */
   levelRef: React.MutableRefObject<number>
   /** True once audio has been captured — the error UI then offers retry/save
@@ -61,6 +65,7 @@ export function useDictation(): Dictation {
   const [error, setError] = useState<string | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [partial, setPartial] = useState('')
+  const [partialIsLive, setPartialIsLive] = useState(false)
   const [hasRecording, setHasRecording] = useState(false)
 
   const levelRef = useRef(0)
@@ -155,6 +160,7 @@ export function useDictation(): Dictation {
     setError(null)
     setElapsedMs(0)
     setPartial('')
+    setPartialIsLive(false)
     setHasRecording(false)
     liveTextRef.current = ''
     chunksRef.current = []
@@ -230,6 +236,7 @@ export function useDictation(): Dictation {
         onText: (t) => {
           liveTextRef.current = t
           setPartial(t)
+          setPartialIsLive(true)
         },
       })
         .then((handle) => {
@@ -266,7 +273,12 @@ export function useDictation(): Dictation {
     // result only at the end avoids a jarring shrink-then-regrow. Without live
     // captions, stream the final pass in as before so the sheet still fills live.
     const hadLive = liveTextRef.current.trim().length > 0
-    if (!hadLive) setPartial('')
+    // Without live captions the final pass streams in sharp (it's the real text).
+    // With live captions we leave the blurred provisional text frozen on screen.
+    if (!hadLive) {
+      setPartial('')
+      setPartialIsLive(false)
+    }
     try {
       const { text } = await streamTranscribe(blob, {
         ...(hadLive ? {} : { onDelta: setPartial }),
@@ -343,6 +355,7 @@ export function useDictation(): Dictation {
     setError(null)
     setElapsedMs(0)
     setPartial('')
+    setPartialIsLive(false)
     setHasRecording(false)
   }, [stopLive])
 
@@ -362,6 +375,7 @@ export function useDictation(): Dictation {
     setError(null)
     setElapsedMs(0)
     setPartial('')
+    setPartialIsLive(false)
   }, [])
 
   return {
@@ -369,6 +383,7 @@ export function useDictation(): Dictation {
     error,
     elapsedMs,
     partial,
+    partialIsLive,
     levelRef,
     hasRecording,
     start,

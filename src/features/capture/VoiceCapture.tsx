@@ -28,13 +28,20 @@ function fmt(ms: number): string {
  */
 export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
   const dictation = useDictation()
-  const { status, error, elapsedMs, partial, levelRef, hasRecording, start, finish, retry, saveAudio, discard, cancel } =
+  const { status, error, elapsedMs, partial, partialIsLive, levelRef, hasRecording, start, finish, retry, saveAudio, discard, cancel } =
     dictation
   const isMobile = useIsMobile()
   const keyboardInset = useKeyboardInset()
 
   const orbRef = useRef<HTMLDivElement>(null)
   const barsRef = useRef<HTMLSpanElement[]>([])
+  const partialRef = useRef<HTMLParagraphElement>(null)
+
+  // Keep the newest words in view as the live caption grows — the motion is the
+  // whole point of the signal, so it shouldn't scroll off the top and freeze.
+  useEffect(() => {
+    if (partialRef.current) partialRef.current.scrollTop = partialRef.current.scrollHeight
+  }, [partial])
 
   // Auto-start listening the moment the sheet opens — tap once, you're recording.
   // Pass vocab so live captions bias toward the writer's words from word one.
@@ -194,13 +201,17 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
               </div>
 
               {partial ? (
-                // While recording, this is the live caption streaming in as you
-                // speak — styled as a provisional draft. On Done it stays put while
-                // the authoritative cleanup pass runs, then swaps in as final text.
+                // The live caption: blurred while it's the provisional realtime
+                // text (motion = "I'm hearing you", without inviting you to judge
+                // exact words it'll get slightly wrong). The authoritative pass on
+                // Done renders sharp. Hidden from screen readers while blurred —
+                // it's a liveness signal, not content to read.
                 <p
+                  ref={partialRef}
                   className={`voice-capture__partial${
-                    status === 'recording' ? ' voice-capture__partial--live' : ''
+                    partialIsLive ? ' voice-capture__partial--live' : ''
                   }`}
+                  aria-hidden={partialIsLive || undefined}
                 >
                   {partial}
                 </p>
