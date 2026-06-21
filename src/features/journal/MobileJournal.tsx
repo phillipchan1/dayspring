@@ -11,7 +11,15 @@ import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { useSurfaceEmbers } from './surfaceEmbers'
 import { deriveTitle } from './deriveTitle'
-import type { Entry } from '@/lib/types'
+import {
+  IconAltar,
+  IconAscent,
+  IconEntries,
+  IconNew,
+  IconScripture,
+  IconSettings,
+} from './navIcons'
+import type { ReactNode } from 'react'
 import type { JournalViewProps } from './journalViewProps'
 
 const SWIPE_THRESHOLD = 60
@@ -66,11 +74,6 @@ export function MobileJournal(props: JournalViewProps) {
       else if (dx < 0 && sidebarOpen) closeDrawer()
     }
     touchStart.current = null
-  }
-
-  function handleEditEntry(entry: Entry) {
-    onEditEntry(entry)
-    closeDrawer()
   }
 
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -153,43 +156,60 @@ export function MobileJournal(props: JournalViewProps) {
 
       {/* While the keyboard is up, the command-accessory bar (rendered with the
           editor) takes over the bottom; the global nav steps aside so we never
-          stack two bars. It returns the moment the keyboard drops. */}
-      {!focused && !keyboardOpen && (
+          stack two bars. It returns the moment the keyboard drops. The bar and
+          FAB also step aside while the entries drawer is open — the drawer is
+          its own focused context. */}
+      {!focused && !keyboardOpen && !sidebarOpen && (
         <>
-          <nav className="mobile-bar">
-            <button
-              className="nav-btn nav-btn--primary"
-              onClick={onNew}
-              aria-label="New entry"
-              title={`New entry (${formatNewEntryShortcut()})`}
-            >
-              +
-            </button>
-            <button className="nav-btn" onClick={onToggleEntries} aria-label="Entries" title="Entries (⌘1)">
-              ☰
-            </button>
-            <button className="nav-btn" onClick={onLookBack} aria-label="Ascent" title="Ascent (⌘2)">
-              ▲
-              {embers.reflections && !reflectionsActive ? <span className="nav-btn__ember" aria-hidden /> : null}
-            </button>
-            <button className="nav-btn" onClick={onScripture} aria-label="Lamp" title="Lamp (⌘3)">
-              ✦
-              {embers.scripture && !scriptureActive ? <span className="nav-btn__ember" aria-hidden /> : null}
-            </button>
+          {/* Perpetual New-entry button — the app's primary act, floated above
+              the bar so it's always in thumb reach without crowding the labeled
+              destinations below. */}
+          <button
+            className="mobile-fab"
+            onClick={onNew}
+            aria-label="New entry"
+            title={`New entry (${formatNewEntryShortcut()})`}
+          >
+            <IconNew size={26} />
+          </button>
+
+          {/* Permanent navigation — every destination reads as an icon over a
+              word so nothing is a guess. Focus mode lives with the writing
+              controls (it hides this bar, so it doesn't belong on it). */}
+          <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
+            <MobileTab
+              label="Entries"
+              onClick={onToggleEntries}
+              icon={<IconEntries size={22} />}
+            />
+            <MobileTab
+              label="Ascent"
+              onClick={onLookBack}
+              active={reflectionsActive}
+              ember={embers.reflections && !reflectionsActive}
+              icon={<IconAscent size={22} />}
+            />
+            <MobileTab
+              label="Lamp"
+              onClick={onScripture}
+              active={scriptureActive}
+              ember={embers.scripture && !scriptureActive}
+              icon={<IconScripture size={22} />}
+            />
             {altarEnabled && (
-              <button className="nav-btn" onClick={onAltar} aria-label="Altar" title="Altar (⌘4)">
-                ◇
-                {embers.altar && !altarActive ? <span className="nav-btn__ember" aria-hidden /> : null}
-              </button>
+              <MobileTab
+                label="Altar"
+                onClick={onAltar}
+                active={altarActive}
+                ember={embers.altar && !altarActive}
+                icon={<IconAltar size={22} />}
+              />
             )}
-            {journalChrome && (
-              <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
-                focus
-              </button>
-            )}
-            <button className="nav-btn" onClick={onOpenSettings} aria-label="Settings" title="Settings (⌘,)">
-              ⚙
-            </button>
+            <MobileTab
+              label="Settings"
+              onClick={onOpenSettings}
+              icon={<IconSettings size={22} />}
+            />
           </nav>
         </>
       )}
@@ -216,9 +236,8 @@ export function MobileJournal(props: JournalViewProps) {
                 activeId={activeId}
                 isNewEntry={isNewEntry}
                 onSelect={onSelect}
-                onEditEntry={handleEditEntry}
+                onEditEntry={onEditEntry}
                 {...(onSelectionChange ? { onSelectionChange } : {})}
-                onRowActivate={closeDrawer}
                 onMenuAction={onEntryMenuAction}
                 onDeleteEntries={onDeleteEntries}
                 query={query}
@@ -230,7 +249,41 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      <WritingControls settings={settings} update={updateSettings} focus={focus} />
+      <WritingControls
+        settings={settings}
+        update={updateSettings}
+        focus={focus}
+        {...(journalChrome && !keyboardOpen && !sidebarOpen ? { onEnterFocus: focus.enter } : {})}
+      />
     </div>
+  )
+}
+
+interface MobileTabProps {
+  label: string
+  onClick: () => void
+  icon: ReactNode
+  active?: boolean
+  /** One-time discovery ember — the destination holds something not yet seen. */
+  ember?: boolean
+}
+
+/** One labeled destination in the bottom bar: icon stacked over its word. */
+function MobileTab({ label, onClick, icon, active = false, ember = false }: MobileTabProps) {
+  return (
+    <button
+      type="button"
+      className="mobile-tab"
+      data-active={active ? 'true' : undefined}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+    >
+      <span className="mobile-tab__glyph">
+        {icon}
+        {ember ? <span className="mobile-tab__ember" aria-hidden /> : null}
+      </span>
+      <span className="mobile-tab__label">{label}</span>
+    </button>
   )
 }

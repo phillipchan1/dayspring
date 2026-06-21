@@ -1515,12 +1515,10 @@ a {
 .rail-btn__well {
   position: relative;
 }
-.mobile-bar .nav-btn {
-  position: relative;
-}
-.rail-btn__ember,
-.nav-btn__ember {
+.rail-btn__ember {
   position: absolute;
+  top: 5px;
+  right: 5px;
   width: 5px;
   height: 5px;
   border-radius: 50%;
@@ -1529,23 +1527,12 @@ a {
   animation: emberBreathe 2.8s ease-in-out infinite;
   pointer-events: none;
 }
-.rail-btn__ember {
-  top: 5px;
-  right: 5px;
-}
-/* Mobile bar glyphs are centered in a stretchy button — pin the ember to the
-   glyph's shoulder, not the button's far corner. */
-.nav-btn__ember {
-  top: 9px;
-  right: calc(50% - 14px);
-}
 @keyframes emberBreathe {
   0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rail-btn__ember,
-  .nav-btn__ember {
+  .rail-btn__ember {
     animation: none;
   }
 }
@@ -2316,49 +2303,91 @@ html[data-focus-mode] .focus-controls {
   border-top: 1px solid var(--border-subtle);
   background: var(--bg);
 }
-/* The bar only renders on mobile, so this never touches the desktop header nav.
-   Meet the 48px touch-target floor and give each control equal thumb width. */
-.mobile-bar .nav-btn {
+/* Labeled destinations — icon stacked over its word so nothing reads as a
+   cryptic glyph. Equal thumb width, ≥48px tall for the touch-target floor. */
+.mobile-bar--tabs {
+  justify-content: space-between;
+  gap: 0;
+  padding-top: 0.4rem;
+}
+.mobile-tab {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  padding: 0.32rem 0.25rem;
-  font-size: 1.05rem;
+  gap: 0.22rem;
+  min-height: 50px;
+  padding: 0.3rem 0.2rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--transition), transform var(--transition);
 }
-
-/* New entry is the app's primary act — give it weight. A filled accent disc
-   that reads as "the thing to tap" without leaving the thumb-reachable bar
-   (a free-floating FAB would collide with the browser's own bottom chrome on
-   mobile web). It keeps equal bar width but renders its glyph in a raised pill. */
-.mobile-bar .nav-btn--primary {
+.mobile-tab:active {
+  transform: scale(0.94);
+}
+.mobile-tab[data-active='true'] {
   color: var(--accent);
 }
-.mobile-bar .nav-btn--primary::before {
-  content: '+';
+.mobile-tab__glyph {
+  position: relative;
+  display: inline-flex;
+}
+.mobile-tab__label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+.mobile-tab__ember {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(var(--scripture-gold));
+  box-shadow: 0 0 6px 1.5px rgba(var(--scripture-gold), 0.5);
+  animation: emberBreathe 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-tab__ember {
+    animation: none;
+  }
+}
+
+/* New entry is the app's primary act — a perpetual accent disc floating just
+   above the bar. Free-floating (not a bar cell) so the labeled destinations
+   below get full width for their words, and it stays in thumb reach on every
+   surface. Sits above the bar, clear of the writing-controls cluster. */
+.mobile-fab {
+  position: fixed;
+  right: max(1.1rem, env(safe-area-inset-right));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 4.25rem);
+  z-index: 45;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
+  border: none;
   border-radius: var(--radius-full);
   background: var(--accent);
   color: var(--bg);
-  font-size: 1.5rem;
-  font-weight: 500;
-  line-height: 1;
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--shadow-3);
+  transition: transform var(--transition), filter var(--transition);
 }
-/* The glyph lives in ::before; hide the literal text node it wraps. */
-.mobile-bar .nav-btn--primary {
-  font-size: 0;
+.mobile-fab:active {
+  transform: scale(0.93);
 }
 @media (hover: hover) {
-  .mobile-bar .nav-btn--primary:hover {
-    background: transparent;
-  }
-  .mobile-bar .nav-btn--primary:hover::before {
-    filter: brightness(1.08);
+  .mobile-fab:hover {
+    filter: brightness(1.06);
   }
 }
 

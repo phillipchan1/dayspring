@@ -89,13 +89,27 @@
 
 #### 6. **Navigation/Rail** (`src/features/journal/Rail.tsx`)
 - **Desktop state**: Vertical rail on left, expandable labels, icon + text buttons
-- **Mobile state** (already exists): Bottom navigation bar with icon buttons
-- **Mobile treatment needed**:
-  - Ensure 48px+ tap targets
-  - Verify spacing between buttons
-  - Bottom bar respects safe-area bottom inset (check for notches/home indicator)
-  - Current icons are symbols (☰, ▲, ✦, ◇, +) — verify clarity on small screens
-- **Key files**: `MobileJournal.tsx` — `.mobile-bar` CSS looks good, verify safe areas
+- **Mobile state**: Bottom navigation bar — **redesigned** (see below)
+- ✅ **Redesigned (mobile bottom bar)**:
+  - Cryptic glyphs (☰ ▲ ✦ ◇ ⚙) replaced with the same line-icons the desktop
+    rail uses, now **stacked over a word label** (Entries / Ascent / Lamp /
+    Altar / Settings). Shared icon set lives in `navIcons.tsx` (used by both
+    `Rail` and `MobileJournal`), so a destination reads the same everywhere.
+  - **New entry** is a perpetual floating accent FAB (`.mobile-fab`) above the
+    bar — always in thumb reach, and freeing the bar for full-width labels.
+  - **Focus mode** removed from the permanent bar (a "permanent" nav shouldn't
+    hold a control that hides itself). It now lives in the floating writing
+    controls cluster (`WritingControls`, mobile only), beside the appearance
+    toggle. Exit stays on the in-focus pill (`✕ esc`).
+  - Bar + FAB hide while the entries drawer is open, the keyboard is up, or in
+    focus mode. 50px+ tap targets; safe-area insets respected.
+- ✅ **Fixed**: tapping an entry in the mobile drawer did nothing — opening an
+  entry navigated with `replace`, then the drawer closed via `history.back()`,
+  which popped that very frame and reverted to the prior entry. Opening now
+  folds `sidebar: false` into the same navigation (`handleBrowse` /
+  `handleEditEntry` in `JournalScreen`) instead of a separate back().
+- **Key files**: `MobileJournal.tsx`, `navIcons.tsx`, `WritingControls.tsx`,
+  `JournalScreen.tsx`, `.mobile-bar--tabs` / `.mobile-tab` / `.mobile-fab` CSS
 
 ---
 
