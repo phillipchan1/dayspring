@@ -2825,6 +2825,22 @@ html[data-focus-mode] .focus-controls {
   margin: 0.15rem 0 0;
   color: var(--text-bright);
   font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.settings-about__channel-badge {
+  font-size: 0.62rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  opacity: 0.75;
 }
 
 .settings-about__section {
