@@ -6,8 +6,6 @@ name: Release desktop app
 on:
   schedule:
     - cron: "0 6 * * *"   # 2am ET — overnight, fresh build by morning
-    - cron: "0 16 * * *"  # 12pm ET — lunch
-    - cron: "0 22 * * *"  # 6pm ET — dinner
   workflow_dispatch:       # manual trigger anytime from GitHub Actions tab
 
 concurrency:
@@ -68,7 +66,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -187,7 +185,7 @@ jobs:
           fi
           for attempt in 1 2 3; do
             echo "::group::tauri build (attempt $attempt)"
-            if npm run tauri build -- --target aarch64-apple-darwin --verbose; then
+            if npm run tauri build -- --target universal-apple-darwin --verbose; then
               echo "::endgroup::"
               exit 0
             fi
@@ -206,7 +204,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="app-v${APP_VERSION}"
-          BUNDLE="src-tauri/target/aarch64-apple-darwin/release/bundle"
+          BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
 
           DMG=$(ls "$BUNDLE"/dmg/*.dmg | head -1)
           APPTAR=$(ls "$BUNDLE"/macos/*.app.tar.gz | head -1)
@@ -215,20 +213,22 @@ jobs:
           # PUB_DATE is set earlier (Generate release notes step) and shared via env.
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
-          # Stable-named copy of the .dmg so the marketing site can always link to
-          # releases/latest/download/Dayspring-aarch64.dmg (no version in the URL).
-          STABLE_DMG="Dayspring-aarch64.dmg"
+          # Stable-named copies of the .dmg so the marketing site can always link to
+          # a fixed URL. Both names point to the same universal binary.
+          STABLE_DMG="Dayspring.dmg"
+          STABLE_DMG_AARCH64="Dayspring-aarch64.dmg"  # keep for existing links
           cp "$DMG" "$STABLE_DMG"
+          cp "$DMG" "$STABLE_DMG_AARCH64"
 
-          # Updater manifest the app polls. Tauri verifies `signature` against the
-          # embedded public key before installing.
+          # Updater manifest the app polls. Both platform keys point to the same
+          # universal binary so Intel and Apple Silicon users both auto-update.
           jq -n \
             --arg v "$APP_VERSION" \
             --rawfile notes RELEASE_NOTES.md \
             --arg date "$PUB_DATE" \
             --arg sig "$SIG" \
             --arg url "$ASSET_URL" \
-            '{version:$v, notes:$notes, pub_date:$date, platforms:{"darwin-aarch64":{signature:$sig, url:$url}}}' \
+            '{version:$v, notes:$notes, pub_date:$date, platforms:{"darwin-aarch64":{signature:$sig, url:$url},"darwin-x86_64":{signature:$sig, url:$url}}}' \
             > latest.json
 
           echo "Generated latest.json:"; cat latest.json
@@ -238,7 +238,7 @@ jobs:
             --title "Dayspring v${APP_VERSION}" \
             --notes-file RELEASE_NOTES.md \
             --latest \
-            "$DMG" "$STABLE_DMG" "$APPTAR" latest.json
+            "$DMG" "$STABLE_DMG" "$STABLE_DMG_AARCH64" "$APPTAR" latest.json
 
       - name: Record built SHA (skips next scheduled build if no new commits)
         env:
