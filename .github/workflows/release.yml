@@ -279,6 +279,7 @@ jobs:
             echo "package.json already at $APP_VERSION — no write-back needed."
           else
             git commit -m "chore: sync version to $APP_VERSION [skip ci]"
+            git pull --rebase
             git push
             echo "Wrote version $APP_VERSION back to package.json."
           fi
