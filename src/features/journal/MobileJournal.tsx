@@ -96,7 +96,11 @@ export function MobileJournal(props: JournalViewProps) {
   return (
     <div
       className="app-shell"
-      style={{ flexDirection: 'column', height: vh ? `${vh}px` : '100dvh' }}
+      // Fill the full screen with 100dvh (reaches the bottom edge on iOS
+      // standalone). Only pin to the measured visual-viewport height while the
+      // keyboard is up, so the bottom bar lifts above it — visualViewport.height
+      // excludes the home-indicator inset, which otherwise leaves a dead band.
+      style={{ flexDirection: 'column', height: keyboardOpen && vh ? `${vh}px` : '100dvh' }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >

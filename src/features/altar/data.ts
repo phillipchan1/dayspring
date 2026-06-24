@@ -76,6 +76,11 @@ function resolveLabel(t: { label?: string | null; label_ai?: string | null; labe
 const PAGE = 1000
 /** Thread ids per member-query `.in(...)` — small enough to keep the URL short. */
 const THREAD_IN_CHUNK = 80
+/** Member chunks fetched at once. The chunks are independent, so running them in
+ *  parallel turns a dozen+ serial round-trips into a few waves — the bulk of the
+ *  old multi-second Altar load was latency stacking one chunk after another.
+ *  Capped so a caught-up owner's many chunks don't flood the connection pool. */
+const MEMBER_FETCH_CONCURRENCY = 6
 
 /**
  * The raw material for the Altar field: every declared thread plus its member
@@ -142,11 +147,16 @@ export async function loadAltarSource(): Promise<AltarSource> {
   const meta = new Map(threads.map((t) => [t.id, t]))
 
   // Members — chunk the thread-id `.in(...)` (a 1000-id filter overflows the URL)
-  // and paginate each chunk (a chunk's members can exceed one page).
+  // and paginate each chunk (a chunk's members can exceed one page). The chunks
+  // are independent, so fetch them in concurrent waves rather than one at a time.
   const ids = threads.map((t) => t.id)
-  const rawMembers: RawMember[] = []
+  const chunks: string[][] = []
   for (let i = 0; i < ids.length; i += THREAD_IN_CHUNK) {
-    const chunk = ids.slice(i, i + THREAD_IN_CHUNK)
+    chunks.push(ids.slice(i, i + THREAD_IN_CHUNK))
+  }
+
+  const fetchChunk = async (chunk: string[]): Promise<RawMember[] | null> => {
+    const out: RawMember[] = []
     for (let from = 0; ; from += PAGE) {
       const { data, error } = await sb
         .from('thread_members')
@@ -154,11 +164,11 @@ export async function loadAltarSource(): Promise<AltarSource> {
         .in('thread_id', chunk)
         .order('id', { ascending: true })
         .range(from, from + PAGE - 1)
-      if (error) { console.error('[altar] member query', error.message); return EMPTY_SOURCE }
+      if (error) { console.error('[altar] member query', error.message); return null }
       const batch = (data ?? []) as unknown as MemberRow[]
       for (const m of batch) {
         if (!m.spiritual_item_id || !m.spiritual_items) continue
-        rawMembers.push({
+        out.push({
           thread_id: m.thread_id,
           entry_id: m.spiritual_item_id, // surrogate: the line itself is the unit
           created_at: m.spiritual_items.created_at,
@@ -166,6 +176,17 @@ export async function loadAltarSource(): Promise<AltarSource> {
         })
       }
       if (batch.length < PAGE) break
+    }
+    return out
+  }
+
+  const rawMembers: RawMember[] = []
+  for (let i = 0; i < chunks.length; i += MEMBER_FETCH_CONCURRENCY) {
+    const wave = chunks.slice(i, i + MEMBER_FETCH_CONCURRENCY)
+    const results = await Promise.all(wave.map(fetchChunk))
+    for (const r of results) {
+      if (r === null) return EMPTY_SOURCE // a chunk errored — match the old fail-closed behavior
+      rawMembers.push(...r)
     }
   }
 
