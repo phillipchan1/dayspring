@@ -4,7 +4,7 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view'
-import { RangeSetBuilder, StateField, type Extension, type Text } from '@codemirror/state'
+import { RangeSet, RangeSetBuilder, StateField, type Extension, type Text } from '@codemirror/state'
 import { type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { SpiritualItemType } from '@/lib/types'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
@@ -315,7 +315,18 @@ export function spiritualBlockExtension(
     spiritualBlockField,
     // Treat each rendered block as a single atom: arrows skip over it and
     // Backspace/Delete from an edge removes the whole fence in one stroke.
-    EditorView.atomicRanges.of((view) => view.state.field(spiritualBlockField)),
+    // Use block.to (includes the closing fence's trailing \n) rather than the
+    // trimmed decoration end — otherwise the cursor can land on the closing
+    // fence line and corrupt the ``` marker when the user types there.
+    EditorView.atomicRanges.of((view) => {
+      const blocks = view.state.field(spiritualBlocksField)
+      if (blocks.length === 0) return RangeSet.empty
+      const builder = new RangeSetBuilder<Decoration>()
+      for (const block of blocks) {
+        builder.add(block.from, block.to, Decoration.mark({}))
+      }
+      return builder.finish()
+    }),
     blockClickHandler(onEdit),
   ]
 }
