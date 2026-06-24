@@ -80,6 +80,19 @@ jobs:
         # is brittle here. `npm install` resolves them per-runner.
         run: npm install --no-audit --no-fund
 
+      - name: Patch updater endpoint to alpha channel
+        run: |
+          # Phil's reinstalled alpha app polls this raw URL.
+          # Beta users' apps poll releases/latest/download/latest.json (stable channel).
+          ALPHA_ENDPOINT="https://raw.githubusercontent.com/phillipchan1/dayspring-releases/main/alpha-latest.json"
+          node -e "
+            const fs = require('fs');
+            const p = 'src-tauri/tauri.conf.json';
+            const c = JSON.parse(fs.readFileSync(p));
+            c.plugins.updater.endpoints = ['$ALPHA_ENDPOINT'];
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+          "
+
       - name: Compute version (major.minor from package.json + run number as patch)
         run: |
           # major.minor comes from package.json; patch = CI run number so every
@@ -199,30 +212,23 @@ jobs:
           done
           echo "All build attempts failed"; exit 1
 
-      - name: Publish to public releases repo
+      - name: Publish to public releases repo (alpha, pre-release)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           set -euo pipefail
-          TAG="app-v${APP_VERSION}"
+          TAG="alpha-v${APP_VERSION}"
           BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
 
           DMG=$(ls "$BUNDLE"/dmg/*.dmg | head -1)
           APPTAR=$(ls "$BUNDLE"/macos/*.app.tar.gz | head -1)
           SIG=$(cat "$BUNDLE"/macos/*.app.tar.gz.sig)
           APPTAR_NAME=$(basename "$APPTAR")
-          # PUB_DATE is set earlier (Generate release notes step) and shared via env.
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
-          # Stable-named copies of the .dmg so the marketing site can always link to
-          # a fixed URL. Both names point to the same universal binary.
-          STABLE_DMG="Dayspring.dmg"
-          STABLE_DMG_AARCH64="Dayspring-aarch64.dmg"  # keep for existing links
-          cp "$DMG" "$STABLE_DMG"
-          cp "$DMG" "$STABLE_DMG_AARCH64"
+          ALPHA_DMG="Dayspring-alpha.dmg"
+          cp "$DMG" "$ALPHA_DMG"
 
-          # Updater manifest the app polls. Both platform keys point to the same
-          # universal binary so Intel and Apple Silicon users both auto-update.
           jq -n \
             --arg v "$APP_VERSION" \
             --rawfile notes RELEASE_NOTES.md \
@@ -230,16 +236,34 @@ jobs:
             --arg sig "$SIG" \
             --arg url "$ASSET_URL" \
             '{version:$v, notes:$notes, pub_date:$date, platforms:{"darwin-aarch64":{signature:$sig, url:$url},"darwin-x86_64":{signature:$sig, url:$url}}}' \
-            > latest.json
+            > alpha-latest.json
 
-          echo "Generated latest.json:"; cat latest.json
+          echo "Generated alpha-latest.json:"; cat alpha-latest.json
 
+          # --prerelease keeps this out of "latest" so beta users' endpoint is unaffected.
           gh release create "$TAG" \
             --repo "$RELEASES_REPO" \
-            --title "Dayspring v${APP_VERSION}" \
+            --title "Dayspring alpha v${APP_VERSION}" \
             --notes-file RELEASE_NOTES.md \
-            --latest \
-            "$DMG" "$STABLE_DMG" "$STABLE_DMG_AARCH64" "$APPTAR" latest.json
+            --prerelease \
+            "$DMG" "$ALPHA_DMG" "$APPTAR" alpha-latest.json
+
+      - name: Commit alpha-latest.json to releases repo root
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          set -euo pipefail
+          CONTENT=$(base64 < alpha-latest.json)
+          FILE_SHA=$(gh api "repos/${RELEASES_REPO}/contents/alpha-latest.json" \
+            --jq '.sha' 2>/dev/null || echo "")
+          EXTRA_ARGS=()
+          [ -n "$FILE_SHA" ] && EXTRA_ARGS+=(--field "sha=$FILE_SHA")
+          gh api "repos/${RELEASES_REPO}/contents/alpha-latest.json" \
+            --method PUT \
+            --field "message=alpha release v${APP_VERSION}" \
+            --field "content=$CONTENT" \
+            "${EXTRA_ARGS[@]}"
+          echo "Updated alpha-latest.json in releases repo"
 
       - name: Record built SHA (skips next scheduled build if no new commits)
         env:

@@ -80,20 +80,6 @@ jobs:
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Building stable version $VERSION"
 
-      - name: Patch updater endpoint to stable channel
-        run: |
-          # Beta users' installed apps poll this raw URL for updates.
-          # Phil's alpha channel (releases/latest/download/latest.json) is untouched.
-          STABLE_ENDPOINT="https://raw.githubusercontent.com/phillipchan1/dayspring-releases/main/stable-latest.json"
-          node -e "
-            const fs = require('fs');
-            const p = 'src-tauri/tauri.conf.json';
-            const c = JSON.parse(fs.readFileSync(p));
-            c.plugins.updater.endpoints = ['$STABLE_ENDPOINT'];
-            fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
-          "
-          echo "Patched updater endpoint to stable channel"
-
       - name: Enable Apple signing when configured
         env:
           IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -183,9 +169,13 @@ jobs:
           APPTAR_NAME=$(basename "$APPTAR")
           ASSET_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${APPTAR_NAME}"
 
-          cp "$DMG" "Dayspring-beta.dmg"
+          # Stable-named copies so the marketing site / beta invite link always works.
+          STABLE_DMG="Dayspring.dmg"
+          STABLE_DMG_AARCH64="Dayspring-aarch64.dmg"
+          cp "$DMG" "$STABLE_DMG"
+          cp "$DMG" "$STABLE_DMG_AARCH64"
 
-          # stable-latest.json is the endpoint baked into beta users' installed apps.
+          # latest.json is what beta users' installed apps already poll.
           jq -n \
             --arg v "$APP_VERSION" \
             --rawfile notes RELEASE_NOTES.md \
@@ -193,37 +183,18 @@ jobs:
             --arg sig "$SIG" \
             --arg url "$ASSET_URL" \
             '{version:$v, notes:$notes, pub_date:$date, platforms:{"darwin-aarch64":{signature:$sig, url:$url},"darwin-x86_64":{signature:$sig, url:$url}}}' \
-            > stable-latest.json
+            > latest.json
 
-          echo "Generated stable-latest.json:"; cat stable-latest.json
+          echo "Generated latest.json:"; cat latest.json
 
-          # --prerelease keeps this out of "latest" so Phil's alpha endpoint is unaffected.
+          # --latest serves latest.json at releases/latest/download/latest.json —
+          # the exact URL already baked into beta users' installed apps.
           gh release create "$TAG" \
             --repo "$RELEASES_REPO" \
             --title "Dayspring stable v${APP_VERSION}" \
             --notes-file RELEASE_NOTES.md \
-            --prerelease \
-            "$DMG" "Dayspring-beta.dmg" "$APPTAR" stable-latest.json
-
-      - name: Commit stable-latest.json to releases repo root
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: |
-          set -euo pipefail
-          # The raw URL https://raw.githubusercontent.com/.../main/stable-latest.json
-          # is what beta users' Tauri updater polls. Committing the file to main
-          # makes that URL always resolve to the freshest stable release.
-          CONTENT=$(base64 < stable-latest.json)
-          FILE_SHA=$(gh api "repos/${RELEASES_REPO}/contents/stable-latest.json" \
-            --jq '.sha' 2>/dev/null || echo "")
-          EXTRA_ARGS=()
-          [ -n "$FILE_SHA" ] && EXTRA_ARGS+=(--field "sha=$FILE_SHA")
-          gh api "repos/${RELEASES_REPO}/contents/stable-latest.json" \
-            --method PUT \
-            --field "message=stable release v${APP_VERSION}" \
-            --field "content=$CONTENT" \
-            "${EXTRA_ARGS[@]}"
-          echo "Updated stable-latest.json in releases repo"
+            --latest \
+            "$DMG" "$STABLE_DMG" "$STABLE_DMG_AARCH64" "$APPTAR" latest.json
 
       - name: Record stable built SHA
         env:
