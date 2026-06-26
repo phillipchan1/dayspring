@@ -8,6 +8,7 @@ import {
 import { recordScriptureCommandRef } from '@/lib/scripture/capture'
 import { formatScriptureInsert } from '@/lib/spiritualBlocks'
 import { matchOfflinePassages } from '@/lib/scripture/offlinePassages'
+import { parseReferences } from '@/lib/scripture/parse'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import {
   CommandPopover,
@@ -48,6 +49,27 @@ interface Row {
 const RESULTS_HINT = '↑↓ to choose · enter to set'
 const SEARCH_HINT = 'enter to search'
 const MENU_HINT = 'esc to close'
+
+/** If `query` looks like a direct scripture reference ("deut 4:12", "psalm 23"),
+ *  returns the canonical human-readable forms. Returns [] for topic searches. */
+function detectDirectReference(query: string): string[] {
+  const trimmed = query.trim()
+  // Capitalize each word's first letter so "deut 4:12" passes the parser's
+  // capitalization guard (which exists to avoid matching prose words like "is").
+  const normalized = trimmed.replace(/\b([a-z])/g, (c) => c.toUpperCase())
+  const refs = parseReferences(normalized)
+  if (refs.length === 0) return []
+  // Reject partial matches embedded in a longer phrase ("peace romans 8" should
+  // still go to AI search; only queries that are *mostly* a reference go direct).
+  const firstStart = refs[0]!.char_start
+  const lastEnd = refs[refs.length - 1]!.char_end
+  if ((lastEnd - firstStart) / trimmed.length < 0.7) return []
+  return refs.map(({ book_name, chapter, verse_start, verse_end }) => {
+    if (verse_start == null) return `${book_name} ${chapter}`
+    if (verse_end == null) return `${book_name} ${chapter}:${verse_start}`
+    return `${book_name} ${chapter}:${verse_start}-${verse_end}`
+  })
+}
 
 export function InlineScripturePopover({
   entryId,
@@ -123,6 +145,28 @@ export function InlineScripturePopover({
 
     setSearchSource(source)
     try {
+      // Direct reference (e.g. "deut 4:12", "psalm 23") — skip the AI entirely.
+      const directRefs = detectDirectReference(text)
+      if (directRefs.length > 0) {
+        const shells: Row[] = directRefs.map((ref) => ({
+          reference: ref,
+          reason: '',
+          translation: 'ESV',
+          text: null,
+        }))
+        setPassages(shells)
+        setLoading(false)
+        const resolved = await resolveScripturePassages(directRefs)
+        const filled: Row[] = shells
+          .map((s, i): Row | null => {
+            const r = resolved[i]
+            return r ? { ...s, reference: r.reference, text: r.text } : null
+          })
+          .filter((r): r is Row => r !== null)
+        setPassages(filled.length > 0 ? filled : [])
+        return
+      }
+
       // Phase 1 — the model picks references. These render immediately.
       const candidates = await fetchScriptureRefs(text)
       if (candidates.length === 0) {
