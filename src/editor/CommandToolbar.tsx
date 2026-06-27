@@ -7,7 +7,7 @@ interface CommandToolbarProps {
   /** Open voice dictation — speak your entry instead of typing it. */
   onVoice?: () => void
   /** Open page scan — photograph a handwritten entry and transcribe it. */
-  onScan?: (() => void) | undefined
+  onScan?: () => void
   /** Dismiss the keyboard (blur the editor) — brings the nav bar back. */
   onDismissKeyboard?: () => void
   visible?: boolean

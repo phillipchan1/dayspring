@@ -137,8 +137,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
-  // Page scan (handwriting → text) is experimental; off unless flagged on.
-  const pageScanEnabled = resolveFlag(featureFlags, 'pageScan')
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
@@ -1370,14 +1368,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             voiceCaretRef.current = editorRef.current?.getCursor() ?? 0
             setVoiceOpen(true)
           }}
-          onScan={
-            pageScanEnabled
-              ? () => {
-                  scanCaretRef.current = editorRef.current?.getCursor() ?? 0
-                  setScanOpen(true)
-                }
-              : undefined
-          }
+          onScan={() => {
+            scanCaretRef.current = editorRef.current?.getCursor() ?? 0
+            setScanOpen(true)
+          }}
           onDismissKeyboard={() => editorRef.current?.blur()}
           visible={
             !slashPaletteOpen && slashCapture === null && imageEdit === null && imageMenu === null
