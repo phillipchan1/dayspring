@@ -62,6 +62,31 @@ const paths: Record<SlashCommandId, ReactNode> = {
   ),
 }
 
+/** Scan a handwritten page — camera-corner brackets framing ruled lines. */
+export function ScanIcon() {
+  return (
+    <svg
+      className="spiritual-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.65"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 8V6a2 2 0 0 1 2-2h2" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+      <path d="M20 16v2a2 2 0 0 1-2 2h-2" />
+      <path d="M8 20H6a2 2 0 0 1-2-2v-2" />
+      <path d="M8 10h8" />
+      <path d="M8 14h5" />
+    </svg>
+  )
+}
+
 /** Microphone for the toolbar's Voice action — same family as the blocks above. */
 export function VoiceIcon() {
   return (

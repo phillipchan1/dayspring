@@ -31,7 +31,7 @@ function normalizeTerm(s: string): string {
 // nouns and spellings from their Concordance (the dark per-user fidelity record),
 // most-used first. Fail-open: any error (incl. an empty table for a cold-start
 // user) → just the base prompt.
-async function concordanceVocab(owner: string): Promise<string[]> {
+export async function concordanceVocab(owner: string): Promise<string[]> {
   try {
     const rows = await getConcordanceForRender(owner) // ordered by occurrence desc
     // Dedup canonical case-insensitively: the extractor classifies the same name

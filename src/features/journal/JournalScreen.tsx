@@ -74,6 +74,7 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { VoiceCapture } from '@/features/capture/VoiceCapture'
+import { PageScanCapture } from '@/features/capture/PageScanCapture'
 import { DictationRecovery } from '@/features/capture/DictationRecovery'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
@@ -136,6 +137,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
+  // Page scan (handwriting → text) is experimental; off unless flagged on.
+  const pageScanEnabled = resolveFlag(featureFlags, 'pageScan')
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
@@ -183,6 +186,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Voice dictation — caret captured when the mic opens so the text lands there.
   const [voiceOpen, setVoiceOpen] = useState(false)
   const voiceCaretRef = useRef(0)
+  // Page scan — same caret-capture pattern as voice; the draft lands where you were.
+  const [scanOpen, setScanOpen] = useState(false)
+  const scanCaretRef = useRef(0)
   // An unfinished voice recording recovered from a previous session (crash/close).
   const [recoverableDictation, setRecoverableDictation] = useState<PendingDictationRow | null>(null)
 
@@ -1364,6 +1370,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             voiceCaretRef.current = editorRef.current?.getCursor() ?? 0
             setVoiceOpen(true)
           }}
+          onScan={
+            pageScanEnabled
+              ? () => {
+                  scanCaretRef.current = editorRef.current?.getCursor() ?? 0
+                  setScanOpen(true)
+                }
+              : undefined
+          }
           onDismissKeyboard={() => editorRef.current?.blur()}
           visible={
             !slashPaletteOpen && slashCapture === null && imageEdit === null && imageMenu === null
@@ -1376,6 +1390,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         <VoiceCapture
           onInsert={(text) => insertDictatedText(text, voiceCaretRef.current)}
           onClose={() => setVoiceOpen(false)}
+        />
+      )}
+      {scanOpen && (
+        <PageScanCapture
+          onInsert={(text) => insertDictatedText(text, scanCaretRef.current)}
+          onClose={() => setScanOpen(false)}
         />
       )}
       {recoverableDictation && !voiceOpen && !canvasAlternateActive && !settingsOpen && !focus.active && (

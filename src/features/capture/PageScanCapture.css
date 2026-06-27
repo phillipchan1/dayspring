@@ -1,0 +1,200 @@
+/* Page-scan surface — photograph a physical entry and read the handwriting into
+   text. Built on the shared glass-surface + scripture-gold signature so it sits in
+   the same family as Voice dictation and the Altar/Scripture surfaces. */
+
+.page-scan {
+  border-radius: var(--radius-lg);
+  width: min(440px, calc(100vw - 32px));
+}
+
+/* Desktop: a centered card. Mobile gets the bottom sheet below. */
+.page-scan:not(.page-scan--sheet) {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  animation: voice-card-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.page-scan--sheet {
+  width: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.page-scan__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.6rem 1.4rem 1.4rem;
+}
+
+/* ── Page tray ───────────────────────────────────────────────────────── */
+.page-scan__tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-start;
+}
+
+.page-scan__thumb {
+  position: relative;
+  width: 74px;
+  height: 96px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+}
+.page-scan__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.page-scan__thumb-num {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: #2a1c08;
+  background: rgba(var(--scripture-gold), 0.92);
+}
+.page-scan__thumb-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--text-bright);
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+.page-scan__thumb-remove:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.75);
+}
+.page-scan__thumb-remove:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The dashed "add a page" tile — same footprint as a thumbnail. */
+.page-scan__add {
+  width: 74px;
+  height: 96px;
+  border-radius: var(--radius-md);
+  border: 1px dashed color-mix(in srgb, rgb(var(--scripture-gold)) 50%, var(--border));
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 6%, var(--bg-input));
+  color: color-mix(in srgb, rgb(var(--scripture-gold)) 75%, var(--text-dim));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+.page-scan__add:hover {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 12%, var(--bg-input));
+  border-color: rgb(var(--scripture-gold));
+}
+
+/* ── Review draft ────────────────────────────────────────────────────── */
+.page-scan__draft {
+  width: 100%;
+  resize: vertical;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  padding: 0.8rem 0.9rem;
+  font-family: var(--font-editor);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-bright);
+}
+.page-scan__draft:focus {
+  outline: none;
+  border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 55%, var(--border));
+}
+
+/* ── Status + actions ────────────────────────────────────────────────── */
+.page-scan__status {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+}
+
+.page-scan__actions {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.2rem;
+}
+.page-scan__actions .btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 44px;
+}
+.page-scan__primary {
+  border-color: color-mix(in srgb, rgb(var(--scripture-gold)) 45%, var(--border));
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 16%, var(--bg-input));
+  color: var(--text-bright);
+}
+.page-scan__primary:hover:not(:disabled) {
+  background: color-mix(in srgb, rgb(var(--scripture-gold)) 26%, var(--bg-input));
+  border-color: rgb(var(--scripture-gold));
+}
+.page-scan__primary:disabled,
+.page-scan__actions .btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Error ───────────────────────────────────────────────────────────── */
+.page-scan__error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.page-scan__error-msg {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+.page-scan__reassure {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, rgb(var(--scripture-gold)) 70%, var(--text-faint));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-scan,
+  .page-scan--sheet,
+  .page-scan__add {
+    animation: none !important;
+    transition: none !important;
+  }
+}

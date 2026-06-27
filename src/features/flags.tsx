@@ -9,6 +9,9 @@ const FLAG_ENV: Record<string, string> = {
   // engine populates silently; this only exposes the inspect/curate UI. Enable
   // per-user via profiles.feature_flags or VITE_FF_CONCORDANCE=true.
   concordance: 'VITE_FF_CONCORDANCE',
+  // Scan a handwritten entry → vision OCR → markdown draft. Experimental, off by
+  // default. Enable per-user via profiles.feature_flags or VITE_FF_PAGE_SCAN=true.
+  pageScan: 'VITE_FF_PAGE_SCAN',
 }
 
 /**
