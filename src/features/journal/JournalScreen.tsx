@@ -79,6 +79,7 @@ import { DictationRecovery } from '@/features/capture/DictationRecovery'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
 import { recordSurfaceUpdate } from './surfaceUpdates'
+import { shouldAutoOpenLatest } from './arrivalNav'
 import { track } from '@/lib/analytics'
 import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
@@ -174,6 +175,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const skipEditorAutofocusRef = useRef(false)
   const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [isNewEntryMode, setIsNewEntryMode] = useState(false)
+  // Live mirror for sync callbacks (applySyncedList) that must not repoint the
+  // editor away from a deliberate new entry — see arrivalNav.shouldAutoOpenLatest.
+  const isNewEntryModeRef = useRef(isNewEntryMode)
+  isNewEntryModeRef.current = isNewEntryMode
   // Monotonically increasing counter so docKey always changes on handleNew(),
   // even when entryId is already null (go() would be a no-op, keeping docKey
   // at 'new' and preventing the Editor sync effect from clearing the CM view).
@@ -503,10 +508,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       loadedEntryIdRef.current = wantedId
       return
     }
-    if (!wantedId && list[0] && !contentRef.current.trim()) {
+    if (
+      shouldAutoOpenLatest({
+        wantedId,
+        hasEntries: list.length > 0,
+        editorBlank: !contentRef.current.trim(),
+        isNewEntry: isNewEntryModeRef.current,
+      })
+    ) {
       skipEntrySyncRef.current = true
-      go({ entryId: list[0].id }, { replace: true })
-      setContent(asEntryMarkdown(list[0].body_markdown))
+      go({ entryId: list[0]!.id }, { replace: true })
+      setContent(asEntryMarkdown(list[0]!.body_markdown))
       loadedEntryIdRef.current = list[0]!.id
     }
   }
@@ -528,7 +540,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       }
       return
     }
-    if (!wantedId && synced.length && !contentRef.current.trim()) {
+    if (
+      shouldAutoOpenLatest({
+        wantedId,
+        hasEntries: synced.length > 0,
+        editorBlank: !contentRef.current.trim(),
+        isNewEntry: isNewEntryModeRef.current,
+      })
+    ) {
       setEntries(synced)
       skipEntrySyncRef.current = true
       const first = synced[0]!
