@@ -285,7 +285,12 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         <dl className="settings-about__meta">
           <div>
             <dt>Version</dt>
-            <dd>{__APP_VERSION__}</dd>
+            <dd>
+              {__APP_VERSION__}
+              {import.meta.env.VITE_RELEASE_CHANNEL === 'alpha' && (
+                <span className="settings-about__channel-badge">alpha</span>
+              )}
+            </dd>
           </div>
           <div>
             <dt>Storage</dt>

@@ -1,11 +1,13 @@
 import { createPortal } from 'react-dom'
 import type { SlashCommandId } from './slashDetect'
-import { SpiritualBlockIcon, VoiceIcon } from './spiritualBlockIcons'
+import { ScanIcon, SpiritualBlockIcon, VoiceIcon } from './spiritualBlockIcons'
 
 interface CommandToolbarProps {
   onCommand: (cmd: SlashCommandId) => void
   /** Open voice dictation — speak your entry instead of typing it. */
   onVoice?: () => void
+  /** Open page scan — photograph a handwritten entry and transcribe it. */
+  onScan?: () => void
   /** Dismiss the keyboard (blur the editor) — brings the nav bar back. */
   onDismissKeyboard?: () => void
   visible?: boolean
@@ -36,6 +38,7 @@ const COMMANDS: Array<{ id: SlashCommandId; label: string; hint: string }> = [
 export function CommandToolbar({
   onCommand,
   onVoice,
+  onScan,
   onDismissKeyboard,
   visible = true,
   docked = false,
@@ -78,6 +81,22 @@ export function CommandToolbar({
               <VoiceIcon />
             </span>
             <span className="command-toolbar__label">Voice</span>
+          </button>
+        )}
+        {onScan && (
+          <button
+            type="button"
+            className="command-toolbar__btn"
+            // Keep the caret put — the transcription lands where you left off.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onScan}
+            title="Scan a handwritten page"
+            aria-label="Scan"
+          >
+            <span className="command-toolbar__icon">
+              <ScanIcon />
+            </span>
+            <span className="command-toolbar__label">Scan</span>
           </button>
         )}
         {onDismissKeyboard && (

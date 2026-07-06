@@ -74,6 +74,7 @@ import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { VoiceCapture } from '@/features/capture/VoiceCapture'
+import { PageScanCapture } from '@/features/capture/PageScanCapture'
 import { DictationRecovery } from '@/features/capture/DictationRecovery'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
@@ -188,6 +189,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Voice dictation — caret captured when the mic opens so the text lands there.
   const [voiceOpen, setVoiceOpen] = useState(false)
   const voiceCaretRef = useRef(0)
+  // Page scan — same caret-capture pattern as voice; the draft lands where you were.
+  const [scanOpen, setScanOpen] = useState(false)
+  const scanCaretRef = useRef(0)
   // An unfinished voice recording recovered from a previous session (crash/close).
   const [recoverableDictation, setRecoverableDictation] = useState<PendingDictationRow | null>(null)
 
@@ -1383,6 +1387,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             voiceCaretRef.current = editorRef.current?.getCursor() ?? 0
             setVoiceOpen(true)
           }}
+          onScan={() => {
+            scanCaretRef.current = editorRef.current?.getCursor() ?? 0
+            setScanOpen(true)
+          }}
           onDismissKeyboard={() => editorRef.current?.blur()}
           visible={
             !slashPaletteOpen && slashCapture === null && imageEdit === null && imageMenu === null
@@ -1395,6 +1403,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         <VoiceCapture
           onInsert={(text) => insertDictatedText(text, voiceCaretRef.current)}
           onClose={() => setVoiceOpen(false)}
+        />
+      )}
+      {scanOpen && (
+        <PageScanCapture
+          onInsert={(text) => insertDictatedText(text, scanCaretRef.current)}
+          onClose={() => setScanOpen(false)}
         />
       )}
       {recoverableDictation && !voiceOpen && !canvasAlternateActive && !settingsOpen && !focus.active && (

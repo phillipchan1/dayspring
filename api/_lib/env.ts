@@ -16,6 +16,10 @@ export const env = {
   // Speech-to-text model for voice dictation. gpt-4o-mini-transcribe is cheap
   // (~$0.003/min), accurate, and accepts a `prompt` for vocabulary biasing.
   transcribeModel: () => process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe',
+  // Vision model for handwriting transcription (scanned journal pages). gpt-4o
+  // reads cursive well using sentence context; a full model (not -mini) is worth
+  // the cost here because misreads on a personal journal are expensive.
+  visionModel: () => process.env.OPENAI_VISION_MODEL || 'gpt-4o',
   // Embedding model for the Altar threading + open-thread similarity sweep (1536d).
   embedModel: () => process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
   // Crossway ESV API token (api.esv.org). Used to resolve verbatim verse text.
