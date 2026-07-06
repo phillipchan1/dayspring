@@ -1,5 +1,6 @@
 import { cacheClearAll, outboxCount } from './db'
 import { clearAllCache } from './asyncCache'
+import { SUBSCRIPTION_CACHE_KEY } from './subscription'
 
 // Privacy fence for a shared browser. The IndexedDB cache + outbox and the
 // in-memory surface caches hold journal CONTENT; if a second person signs in on
@@ -16,6 +17,7 @@ const OWNER_SCOPED_FLAGS = [
   'dayspring.has_seen_welcome',
   'dayspring.settings.v1',
   'dayspring.scriptureScannedImported',
+  SUBSCRIPTION_CACHE_KEY,
 ]
 
 /** Scrub all cached journal CONTENT (privacy-sensitive). */

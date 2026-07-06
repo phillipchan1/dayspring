@@ -68,25 +68,32 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   useSettingsSync() // pull remote settings on login, push changes on edit
   const { subscription, entitled, featureFlags, loading, refetch } = useSubscription()
 
-  // Initialize the account once on entry: ensures a profile row and, in the
-  // default app-managed model, grants the 14-day reverse trial in Supabase (no
-  // Stripe, no card). Idempotent. We gate routing on this so a brand-new user
-  // never flashes a "no plan" state before the trial lands.
+  // Initialize the account once on entry. initReady only gates on the privacy
+  // fence (fast for a returning user — no network) so the app can paint from
+  // useSubscription's cached value immediately. ensureProfile — which grants
+  // the 14-day reverse trial for a brand-new user and is otherwise an
+  // idempotent no-op — runs in the background and reconciles via refetch();
+  // a brand-new user still has no cached subscription, so useSubscription
+  // stays in `loading` (and this screen stays up) until that reconcile lands.
   const [initReady, setInitReady] = useState(false)
   useEffect(() => {
     let alive = true
     void (async () => {
       // Privacy fence FIRST — scrub any other owner's cached content before the
-      // journal (and its sync) ever reads the cache. Then init the account.
+      // journal (and its sync) ever reads the cache.
       try {
         await fenceCacheToOwner(ownerId)
       } catch { /* idb unavailable — proceed */ }
-      try {
-        await ensureProfile()
-      } catch { /* offline / not-yet-migrated — fall through to refetch */ }
       if (!alive) return
       setInitReady(true)
-      void refetch()
+
+      void (async () => {
+        try {
+          await ensureProfile()
+        } catch { /* offline / not-yet-migrated — fall through to refetch */ }
+        if (alive) void refetch()
+      })()
+
       // Catch-up backfill for accounts with history but no processing yet.
       void maybeBackfillOnLoad()
     })()

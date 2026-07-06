@@ -27,6 +27,29 @@ export function trialDaysRemaining(sub: Subscription | null): number {
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
 }
 
+/** Last-known subscription, used to paint the app instantly on launch while
+ * we reconcile with the server in the background. Owner-fenced: reset by
+ * fenceCacheToOwner (localData.ts) when a different user takes over the
+ * browser, same as the other onboarding/preference flags. */
+export const SUBSCRIPTION_CACHE_KEY = 'dayspring.subscription_cache.v1'
+
+export function readCachedSubscription(): Subscription | null {
+  try {
+    const raw = localStorage.getItem(SUBSCRIPTION_CACHE_KEY)
+    return raw ? (JSON.parse(raw) as Subscription) : null
+  } catch {
+    return null
+  }
+}
+
+export function writeCachedSubscription(sub: Subscription): void {
+  try {
+    localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify(sub))
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Fetch the current user's subscription state from their profile row. */
 export async function fetchSubscription(): Promise<Subscription> {
   const sb = requireSupabase()
