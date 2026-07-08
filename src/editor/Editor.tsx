@@ -277,7 +277,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
           Prec.highest(formatKeymap((view) => requestLinkRef.current(view))),
           editorTabKeymap,
-          indentUnit.of('  '),
+          // 3 spaces (not 2) — CommonMark/GFM requires a nested list item to be indented
+          // at least as wide as the parent marker (e.g. "1. " is 3 columns); 2 spaces
+          // under-indents ordered-list children so renderers (marked) flatten them into
+          // the parent list instead of nesting them.
+          indentUnit.of('   '),
           // Prose-journal grammar: disable rules that fire accidentally during writing.
           //
           // IndentedCode — any line indented ≥4 spaces at a block start becomes a

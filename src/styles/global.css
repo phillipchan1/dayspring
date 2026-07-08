@@ -2195,6 +2195,8 @@ html[data-focus-mode] .focus-controls {
 .markdown-body ol { margin: 0 0 1em; padding-left: 1.4em; }
 .markdown-body li { margin: 0.2em 0; }
 .markdown-body li::marker { color: var(--md-list); }
+.markdown-body ol ol { list-style-type: lower-alpha; }
+.markdown-body ol ol ol { list-style-type: lower-roman; }
 .markdown-body blockquote {
   margin: 0 0 1em;
   padding: 0.1em 1em;
