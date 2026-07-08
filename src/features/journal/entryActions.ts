@@ -59,6 +59,8 @@ export function printEntry(entry: Entry, asTitle = true): void {
 <style>
   body { font-family: Georgia, serif; max-width: 40rem; margin: 2rem auto; line-height: 1.55; color: #222; }
   h1,h2,h3 { font-family: system-ui, sans-serif; }
+  ol ol { list-style-type: lower-alpha; }
+  ol ol ol { list-style-type: lower-roman; }
 </style></head><body>${html}</body></html>`)
   win.document.close()
   win.focus()
