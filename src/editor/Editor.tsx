@@ -24,6 +24,7 @@ import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './Sele
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
 import { taskListExtension } from './taskListExtension'
+import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
@@ -294,6 +295,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // headings (`## text`) are still supported for intentional formatting.
           markdown({ base: markdownLanguage, codeLanguages: [], extensions: { remove: ['IndentedCode', 'SetextHeading'] } }),
           syntaxHighlighting(markdownHighlight),
+          orderedListNumberingExtension(),
           titleCompartment.current.of(
             titleStyling
               ? [firstLineTitleExtension, ...(bodyPlaceholder ? [bodyLinePlaceholder(bodyPlaceholder)] : [])]
