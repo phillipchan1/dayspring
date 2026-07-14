@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Brand } from '@/components/Mark'
 import { startCheckout } from '@/lib/subscription'
+import { openExternal } from '@/lib/openExternal'
 import './Paywall.css'
 
 export function PaywallScreen() {
@@ -12,7 +13,7 @@ export function PaywallScreen() {
     setLoading(plan)
     try {
       const url = await startCheckout(plan)
-      window.location.href = url
+      await openExternal(url, { sameTab: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
       setLoading(null)

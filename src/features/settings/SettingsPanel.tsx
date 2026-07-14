@@ -13,6 +13,7 @@ import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { fetchPortalUrl, trialDaysRemaining } from '@/lib/subscription'
+import { openExternal } from '@/lib/openExternal'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
@@ -604,7 +605,7 @@ function BillingTab() {
     setPortalLoading(true)
     try {
       const url = await fetchPortalUrl()
-      window.open(url, '_blank', 'noopener')
+      await openExternal(url)
     } catch (e) {
       setPortalError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {
