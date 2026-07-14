@@ -8,6 +8,7 @@ import {
   type JournalHolding,
 } from '@/lib/subscription'
 import type { Plan } from '@/lib/subscription'
+import { openExternal } from '@/lib/openExternal'
 import { exportEntriesToZip } from '@/lib/export/exportEntries'
 import { submitFeedback } from '@/lib/feedback'
 import './Paywall.css'
@@ -46,7 +47,7 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
     setError(null)
     setLoading(selectedPlan)
     try {
-      window.location.href = await startCheckout(selectedPlan)
+      await openExternal(await startCheckout(selectedPlan), { sameTab: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
       setLoading(null)
@@ -57,7 +58,7 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
     setError(null)
     setLoading('portal')
     try {
-      window.open(await fetchPortalUrl(), '_blank', 'noopener')
+      await openExternal(await fetchPortalUrl())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {

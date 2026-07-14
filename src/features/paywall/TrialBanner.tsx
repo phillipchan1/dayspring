@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { startCheckout, trialDaysRemaining } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
+import { openExternal } from '@/lib/openExternal'
 import './Paywall.css'
 
 interface Props {
@@ -22,7 +23,7 @@ export function TrialBanner({ subscription, onDismiss }: Props) {
     setLoading(true)
     try {
       const url = await startCheckout('annual')
-      window.location.href = url
+      await openExternal(url, { sameTab: true })
     } catch {
       // Surface nothing intrusive — they can try again from Settings.
       setLoading(false)
