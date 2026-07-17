@@ -1,6 +1,8 @@
 // Settings are localStorage-backed for instant reads, and synced to the cloud
 // via profiles.settings so they follow the user across desktop and web.
 
+import type { ThemeId } from './resolveTheme'
+
 export type Appearance = 'light' | 'dark' | 'auto'
 
 /** The writing/reading surface face. The picker maps each to a CSS var. */
@@ -39,6 +41,10 @@ export interface Settings {
   maxWidth: number // rem — width of the writing column
 
   appearance: Appearance
+  /** Palette used in light mode (and in auto when the system is light). */
+  lightTheme: ThemeId
+  /** Palette used in dark mode (and in auto when the system is dark). */
+  darkTheme: ThemeId
   editorFont: EditorFont // the writing/reading face
 
   /** Entries sidebar: flat list vs month/year section headers. */
@@ -70,6 +76,8 @@ const DEFAULTS: Settings = {
   lineHeight: 1.7,
   maxWidth: 42,
   appearance: 'auto',
+  lightTheme: 'dawn',
+  darkTheme: 'ink',
   editorFont: 'serif',
   entriesGroupBy: 'flat',
   railLabels: false,

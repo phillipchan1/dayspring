@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
+import { isLightTheme } from '@/lib/resolveTheme'
 import { setOnboarded } from '@/lib/profile'
 import { setSeedPrompt } from '@/lib/onboardingSeed'
 import { WelcomeFlow } from '@/features/welcome/WelcomeFlow'
@@ -31,7 +32,7 @@ export function OnboardingFlow({ onFinish }: Props) {
   // Carried from the fresh-start path into the editor as a gentle first prompt.
   const seedRef = useRef<string | undefined>(undefined)
   const { settings, update: updateSettings } = useSettings()
-  const isLight = useResolvedTheme(settings) === 'dawn'
+  const isLight = isLightTheme(useResolvedTheme(settings))
 
   const toggleTheme = useCallback(() => {
     updateSettings({ appearance: isLight ? 'dark' : 'light' })

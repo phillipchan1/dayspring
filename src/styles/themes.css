@@ -92,54 +92,6 @@
   --scripture-cell-rest: rgba(236, 231, 221, 0.06);
 }
 
-/* ── One Dark ───────────────────────────────────────────────────────────── */
-[data-theme='one-dark'] {
-  color-scheme: dark;
-
-  --bg: #21252b;
-  --bg-elevated: #282c34;
-  --bg-input: #2c313a;
-  --bg-hover: #2f343e;
-
-  --border: #3a3f4b;
-  --border-subtle: #31353f;
-
-  --text: #abb2bf;
-  --text-bright: #d7dae0;
-  --text-dim: #5c6370;
-  --text-faint: #4b5263;
-
-  --accent: #61afef;
-  --accent-soft: rgba(97, 175, 239, 0.14);
-  --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
-  --selection-fg: var(--text-bright);
-
-  /* Markdown / syntax accents (used by the editor highlight theme) */
-  --md-heading: #e5c07b;
-  --md-emphasis: #c678dd;
-  --md-strong: #d19a66;
-  --md-link: #61afef;
-  --md-code: #98c379;
-  --md-quote: #7f848e;
-  --md-list: #56b6c2;
-
-  --danger: #e06c75;
-  --success: #c2a86a; /* warm "saved" — not clinical green */
-
-  /* Writing + Looking back — shared horizon glow. */
-  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(229, 192, 123, 0.16), rgba(229, 192, 123, 0.05) 40%, transparent 64%);
-
-  --glass-bg: rgba(40, 44, 52, 0.7);
-  --glass-nav-bg: rgba(33, 37, 43, 0.55);
-  --glass-border: rgba(215, 218, 224, 0.11);
-  --glass-edge: rgba(255, 255, 255, 0.07);
-  --glass-scrim: rgba(10, 12, 18, 0.6);
-  --glass-shadow-glow: 0 0 56px -28px rgba(97, 175, 239, 0.12);
-  --glass-glow-spot: rgba(229, 192, 123, 0.16);
-
-  --entry-list-head-border: rgba(196, 145, 60, 0.15);
-}
-
 /* ── Dawn (light) ───────────────────────────────────────────────────────── */
 [data-theme='dawn'] {
   color-scheme: light;
@@ -187,6 +139,180 @@
   --glass-shadow-glow: 0 0 48px -24px rgba(224, 150, 70, 0.22);
   --glass-glow-spot: rgba(224, 150, 70, 0.24);
 
+  --entry-row-hover-bg: rgba(0, 0, 0, 0.03);
+  --entry-row-active-bg: rgba(0, 0, 0, 0.06);
+  --entry-row-selected-bg: rgba(0, 0, 0, 0.04);
+  --entry-list-bg: #efefef;
+  --entry-list-head-bg: #efefef;
+  --entry-list-head-border: rgba(0, 0, 0, 0.06);
+  --entry-list-search-bg: rgba(0, 0, 0, 0.05);
+  --entry-list-search-icon: rgba(0, 0, 0, 0.28);
+  --entry-list-search-text: var(--text-bright);
+  --entry-list-search-placeholder: rgba(0, 0, 0, 0.35);
+  --entry-list-view-inactive: rgba(0, 0, 0, 0.35);
+  --entry-list-view-hover: rgba(0, 0, 0, 0.55);
+  --dayspring-amber-bg: rgba(196, 145, 60, 0.12);
+  --entry-list-label: rgba(0, 0, 0, 0.3);
+  --entry-list-section: rgba(0, 0, 0, 0.28);
+  --entry-list-section-border: rgba(0, 0, 0, 0.08);
+  --entry-list-title: rgba(0, 0, 0, 0.65);
+  --entry-list-title-active: rgba(0, 0, 0, 0.88);
+  --entry-list-title-untitled: rgba(0, 0, 0, 0.3);
+  --entry-list-month: rgba(0, 0, 0, 0.65);
+  --entry-list-month-active: rgba(0, 0, 0, 0.88);
+  --entry-list-year: rgba(0, 0, 0, 0.72);
+  --entry-list-year-active: rgba(0, 0, 0, 0.88);
+  --entry-list-year-month: rgba(0, 0, 0, 0.42);
+  --entry-list-year-month-hover: rgba(0, 0, 0, 0.65);
+}
+
+/* ── Vellum (light, warm high-contrast) ─────────────────────────────────── */
+[data-theme='vellum'] {
+  color-scheme: light;
+
+  --bg: #f3e9d5;
+  --bg-elevated: #fcf5e6;
+  --bg-input: #ece0c8;
+  --bg-hover: #e8dbbe;
+
+  --border: #d5c3a1;
+  --border-subtle: #e4d7ba;
+
+  --text: #3a3126;
+  --text-bright: #1c160e;
+  --text-dim: #786751;
+  --text-faint: #a6957a;
+
+  --accent: #8a5324;
+  --accent-soft: rgba(138, 83, 36, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 32%, #fcf5e6);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #7a4420;
+  --md-emphasis: #7d4a86;
+  --md-strong: #8a5324;
+  --md-link: #7a4420;
+  --md-code: #5a6d2a;
+  --md-quote: #786751;
+  --md-list: #2f7a72;
+
+  --danger: #b23a2a;
+  --success: #7a6a2a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(206, 158, 86, 0.24), rgba(150, 100, 50, 0.06) 42%, transparent 66%);
+  --journal-horizon: #8a5324;
+  --scripture-cell-rest: rgba(58, 49, 38, 0.12);
+
+  --glass-bg: rgba(252, 245, 230, 0.86);
+  --glass-nav-bg: rgba(243, 233, 213, 0.74);
+  --glass-border: rgba(58, 49, 38, 0.16);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+  --glass-scrim: rgba(40, 30, 18, 0.4);
+  --glass-shadow: 0 36px 64px -32px rgba(58, 49, 38, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(206, 158, 86, 0.24);
+  --glass-glow-spot: rgba(206, 158, 86, 0.26);
+}
+
+/* ── Cloister (light, cool stone) ───────────────────────────────────────── */
+[data-theme='cloister'] {
+  color-scheme: light;
+
+  --bg: #f1f2f4;
+  --bg-elevated: #fafbfc;
+  --bg-input: #e8eaee;
+  --bg-hover: #e2e5ea;
+
+  --border: #d0d5dc;
+  --border-subtle: #e2e5ea;
+
+  --text: #3f454e;
+  --text-bright: #191d24;
+  --text-dim: #737a85;
+  --text-faint: #a2a9b3;
+
+  --accent: #3d6d8f;
+  --accent-soft: rgba(61, 109, 143, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 30%, #fafbfc);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #2f5d7d;
+  --md-emphasis: #6a5a9a;
+  --md-strong: #3d6d8f;
+  --md-link: #2f5d7d;
+  --md-code: #3a7a5a;
+  --md-quote: #737a85;
+  --md-list: #3a7d8a;
+
+  --danger: #b23a3a;
+  --success: #4a7a5a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(140, 175, 210, 0.22), rgba(120, 150, 190, 0.05) 42%, transparent 66%);
+  --journal-horizon: #3d6d8f;
+  --scripture-cell-rest: rgba(63, 69, 78, 0.1);
+
+  --glass-bg: rgba(250, 251, 252, 0.84);
+  --glass-nav-bg: rgba(241, 242, 244, 0.72);
+  --glass-border: rgba(63, 69, 78, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.94);
+  --glass-scrim: rgba(25, 29, 36, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(40, 45, 55, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(140, 175, 210, 0.24);
+  --glass-glow-spot: rgba(140, 175, 210, 0.26);
+}
+
+/* ── Sabbath (light, sage) ──────────────────────────────────────────────── */
+[data-theme='sabbath'] {
+  color-scheme: light;
+
+  --bg: #f1f4ee;
+  --bg-elevated: #fafcf7;
+  --bg-input: #e7ede1;
+  --bg-hover: #e1e8d9;
+
+  --border: #ccd7c1;
+  --border-subtle: #dee6d5;
+
+  --text: #3d4639;
+  --text-bright: #1b2217;
+  --text-dim: #737f69;
+  --text-faint: #a2ad97;
+
+  --accent: #3f7d6a;
+  --accent-soft: rgba(63, 125, 106, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 28%, #fafcf7);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #35705e;
+  --md-emphasis: #7a5a90;
+  --md-strong: #3f7d6a;
+  --md-link: #35705e;
+  --md-code: #5a7d3a;
+  --md-quote: #737f69;
+  --md-list: #3a8080;
+
+  --danger: #b23a2a;
+  --success: #4a7a4a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(168, 205, 155, 0.24), rgba(120, 170, 120, 0.05) 42%, transparent 66%);
+  --journal-horizon: #3f7d6a;
+  --scripture-cell-rest: rgba(61, 70, 57, 0.1);
+
+  --glass-bg: rgba(250, 252, 247, 0.85);
+  --glass-nav-bg: rgba(241, 244, 238, 0.73);
+  --glass-border: rgba(61, 70, 57, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(27, 34, 23, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(45, 54, 40, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(168, 205, 155, 0.24);
+  --glass-glow-spot: rgba(168, 205, 155, 0.26);
+}
+
+/* Light-mode sidebar chrome shared by the newer light themes. Dawn keeps its
+   own copy above; :root defaults are dark-biased so every light theme needs
+   these ink-on-paper values. */
+[data-theme='vellum'],
+[data-theme='cloister'],
+[data-theme='sabbath'] {
   --entry-row-hover-bg: rgba(0, 0, 0, 0.03);
   --entry-row-active-bg: rgba(0, 0, 0, 0.06);
   --entry-row-selected-bg: rgba(0, 0, 0, 0.04);
@@ -302,4 +428,98 @@
   --glass-scrim: rgba(12, 8, 6, 0.56);
   --glass-shadow-glow: 0 0 58px -28px rgba(232, 116, 60, 0.2);
   --glass-glow-spot: rgba(240, 168, 104, 0.22);
+}
+
+/* ── Compline (dark, indigo — the last prayer of the night) ─────────────── */
+[data-theme='compline'] {
+  color-scheme: dark;
+
+  --bg: #13121e;
+  --bg-elevated: #1a1928;
+  --bg-input: #201e30;
+  --bg-hover: #272540;
+
+  --border: #322f4a;
+  --border-subtle: #252236;
+
+  --text: #c5c1d6;
+  --text-bright: #edebf6;
+  --text-dim: #7d7997;
+  --text-faint: #55516e;
+
+  --accent: #9b8ce8;
+  --accent-soft: rgba(155, 140, 232, 0.16);
+  --selection-bg: color-mix(in srgb, var(--accent) 46%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #b9a6f0;
+  --md-emphasis: #e08cc8;
+  --md-strong: #9b8ce8;
+  --md-link: #8ca6f0;
+  --md-code: #8ec0a0;
+  --md-quote: #7d7997;
+  --md-list: #6fb3c2;
+
+  --danger: #e06c75;
+  --success: #b0a86a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(150, 140, 230, 0.18), rgba(120, 110, 200, 0.05) 44%, transparent 66%);
+  --journal-horizon: rgba(155, 140, 232, 0.55);
+
+  --glass-bg: rgba(26, 25, 40, 0.74);
+  --glass-nav-bg: rgba(19, 18, 30, 0.58);
+  --glass-border: rgba(236, 231, 246, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-scrim: rgba(8, 7, 14, 0.58);
+  --glass-shadow-glow: 0 0 60px -30px rgba(155, 140, 232, 0.2);
+  --glass-glow-spot: rgba(155, 140, 232, 0.22);
+
+  --entry-list-head-border: rgba(155, 140, 232, 0.2);
+}
+
+/* ── Nocturne (true black — for OLED / battery) ─────────────────────────── */
+[data-theme='nocturne'] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --bg-elevated: #0a0a0d;
+  --bg-input: #131317;
+  --bg-hover: #1b1b20;
+
+  --border: #26262f;
+  --border-subtle: #16161c;
+
+  --text: #b9b9c3;
+  --text-bright: #f4f4f8;
+  --text-dim: #72727d;
+  --text-faint: #4a4a55;
+
+  --accent: #d9a441;
+  --accent-soft: rgba(217, 164, 65, 0.14);
+  --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #d9a441;
+  --md-emphasis: #b98ce0;
+  --md-strong: #d9a441;
+  --md-link: #76a9e8;
+  --md-code: #8ec07c;
+  --md-quote: #72727d;
+  --md-list: #5fb3c2;
+
+  --danger: #e06c75;
+  --success: #c2a86a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(217, 164, 65, 0.1), rgba(180, 140, 60, 0.03) 42%, transparent 62%);
+  --journal-horizon: rgba(217, 164, 65, 0.45);
+
+  --glass-bg: rgba(10, 10, 13, 0.8);
+  --glass-nav-bg: rgba(0, 0, 0, 0.6);
+  --glass-border: rgba(236, 231, 221, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --glass-scrim: rgba(0, 0, 0, 0.66);
+  --glass-shadow-glow: 0 0 58px -28px rgba(217, 164, 65, 0.18);
+  --glass-glow-spot: rgba(217, 164, 65, 0.18);
+
+  --entry-list-head-border: rgba(196, 145, 60, 0.18);
 }

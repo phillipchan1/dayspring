@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
+import { isLightTheme } from '@/lib/resolveTheme'
 import { useHasSeenWelcome } from './useHasSeenWelcome'
 import { WelcomeFlow } from './WelcomeFlow'
 
@@ -22,7 +23,7 @@ export function WelcomeProvider({ children }: { children: ReactNode }) {
   const { ready, shouldShow, markSeen } = useHasSeenWelcome()
   const { go } = useAppNavigation()
   const { settings, update: updateSettings } = useSettings()
-  const isLight = useResolvedTheme(settings) === 'dawn'
+  const isLight = isLightTheme(useResolvedTheme(settings))
   const [replaying, setReplaying] = useState(false)
 
   // The welcome's theme toggle sets the app's appearance, so the choice the user

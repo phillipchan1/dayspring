@@ -4,6 +4,7 @@ import { useSession } from './hooks/useSession'
 import { useSettings } from './hooks/useSettings'
 import { useSettingsSync } from './hooks/useSettingsSync'
 import { useResolvedTheme } from './hooks/useResolvedTheme'
+import { isLightTheme } from './lib/resolveTheme'
 import { useSubscription } from './hooks/useSubscription'
 import { EDITOR_FONT_VARS } from './lib/settings'
 import { SetupNotice } from './components/SetupNotice'
@@ -37,6 +38,14 @@ export function App() {
   useEffect(() => {
     const root = document.documentElement
     root.setAttribute('data-theme', resolvedTheme)
+    // Family attribute: the single hook light-vs-dark chrome keys off of, so
+    // every light palette gets light treatment (and vice versa) without each
+    // surface needing to know the specific theme id.
+    root.setAttribute('data-appearance', isLightTheme(resolvedTheme) ? 'light' : 'dark')
+    root.style.colorScheme = isLightTheme(resolvedTheme) ? 'light' : 'dark'
+    // Mobile status-bar / PWA chrome tracks the resolved surface color.
+    const themeColor = getComputedStyle(root).getPropertyValue('--bg-elevated').trim()
+    if (themeColor) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor)
     root.style.setProperty('--editor-font-size', `${settings.fontSize}px`)
     root.style.setProperty('--editor-line-height', String(settings.lineHeight))
     root.style.setProperty('--editor-max-width', `${settings.maxWidth}rem`)

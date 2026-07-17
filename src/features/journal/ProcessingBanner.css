@@ -24,7 +24,7 @@
     bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 }
-[data-theme='dawn'] .processing-banner {
+[data-appearance='light'] .processing-banner {
   background: rgba(255, 252, 245, 0.72);
   border-color: rgba(74, 64, 53, 0.14);
   box-shadow: 0 8px 26px -16px rgba(74, 64, 53, 0.35);
