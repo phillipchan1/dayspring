@@ -24,6 +24,7 @@ import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { applyPlatformClass } from './lib/platform'
 import { installGlobalHandlers } from './lib/crashReport'
+import { installDropGuard } from './lib/dropGuard'
 import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
@@ -35,6 +36,10 @@ async function bootstrap() {
 
   // Catch non-React errors (unhandled rejections, stray throws) and report them.
   installGlobalHandlers()
+
+  // Neutralize stray file drops so a photo dropped outside a dropzone can't make
+  // the WebView navigate to the file and blow away the whole app.
+  installDropGuard()
 
   // Desktop: start listening for the dayspring:// OAuth callback before anything
   // else, so a cold launch via the deep link is captured. No-op on web.
