@@ -1,9 +1,31 @@
 <!doctype html>
-<html lang="en" data-theme="one-dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Resolve the theme before first paint so light users don't flash a dark
+         palette (and vice versa). Mirrors resolveTheme() in src/lib. -->
+    <script>
+      (function () {
+        try {
+          var LIGHT = { dawn: 1, vellum: 1, cloister: 1, sabbath: 1 }
+          var DARK = { ink: 1, ember: 1, compline: 1, nocturne: 1 }
+          var s = {}
+          try { s = JSON.parse(localStorage.getItem('dayspring.settings.v1')) || {} } catch (e) {}
+          var mode = s.appearance || 'auto'
+          var light = LIGHT[s.lightTheme] ? s.lightTheme : 'dawn'
+          var dark = DARK[s.darkTheme] ? s.darkTheme : 'ink'
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          var theme = mode === 'light' ? light : mode === 'dark' ? dark : prefersDark ? dark : light
+          var appearance = LIGHT[theme] ? 'light' : 'dark'
+          var root = document.documentElement
+          root.setAttribute('data-theme', theme)
+          root.setAttribute('data-appearance', appearance)
+          root.style.colorScheme = appearance
+        } catch (e) {}
+      })()
+    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#1b1e27" />
     <!-- PWA: installable web app -->

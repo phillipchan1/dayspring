@@ -35,15 +35,15 @@ function inTextField(): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable
 }
 
-/** Light (dawn) vs night palette, reacting live to the <html data-theme> switch. */
+/** Light vs night palette, reacting live to the <html data-appearance> switch. */
 function useIsLightTheme(): boolean {
-  const [light, setLight] = useState(() => document.documentElement.dataset.theme === 'dawn')
+  const [light, setLight] = useState(() => document.documentElement.dataset.appearance === 'light')
   useEffect(() => {
     const el = document.documentElement
-    const update = () => setLight(el.dataset.theme === 'dawn')
+    const update = () => setLight(el.dataset.appearance === 'light')
     update()
     const obs = new MutationObserver(update)
-    obs.observe(el, { attributes: true, attributeFilter: ['data-theme'] })
+    obs.observe(el, { attributes: true, attributeFilter: ['data-appearance'] })
     return () => obs.disconnect()
   }, [])
   return light

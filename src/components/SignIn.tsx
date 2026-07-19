@@ -4,12 +4,13 @@ import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
+import { isLightTheme } from '@/lib/resolveTheme'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
   const [hovered, setHovered] = useState(false)
   const { settings, update } = useSettings()
-  const isLight = useResolvedTheme(settings) === 'dawn'
+  const isLight = isLightTheme(useResolvedTheme(settings))
 
   async function handleSignIn() {
     setError(null)

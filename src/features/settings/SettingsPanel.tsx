@@ -17,6 +17,8 @@ import { openExternal } from '@/lib/openExternal'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
+import { ThemePicker } from './ThemePicker'
+import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 
 interface Props {
   settings: Settings
@@ -170,10 +172,14 @@ export function SettingsPanel({
 }
 
 function AppearanceTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
+  const active = useResolvedTheme(settings)
   return (
     <div className="settings-stack">
-      <Field label="Theme" hint="Match your system, or lock it light or dark.">
+      <Field label="Mode" hint="Match your system, or lock it light or dark.">
         <AppearanceToggle appearance={settings.appearance} onChange={(appearance) => update({ appearance })} />
+      </Field>
+      <Field label="Theme" hint="Your light and dark palettes. Pick one to switch to it now.">
+        <ThemePicker settings={settings} update={update} active={active} />
       </Field>
       <Field label="Writing font" hint="The face you read and write in.">
         <WritingFontPicker value={settings.editorFont} onChange={(editorFont) => update({ editorFont })} />
