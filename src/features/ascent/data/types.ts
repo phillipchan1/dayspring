@@ -138,6 +138,58 @@ export interface LearningData {
   fragments: LearningFragment[]
 }
 
+// ── Growth — DERIVED, BACKWARD-MEASURED (REAL) ────────────────────────────────
+// The passive layer. Nothing here is authored by the user and nothing is a
+// verdict: the synthesis already writes these fields (gain / gapWatch / ebenezer
+// / tensions / throughline), prose always stands on dated verbatim evidence, and
+// the higher altitudes hand back questions rather than answers.
+//
+// Guardrails encoded in the types: there is no score, no delta, no percentage and
+// no completion — only prose, dated excerpts, and pairs. Absent at the VALLEY by
+// construction (`growth` is null there): a week is too close to see change in.
+
+/** A dated verbatim excerpt — the ground under every growth claim. */
+export interface GrowthEvidence {
+  entryId: string
+  /** YYYY-MM-DD, for ordering. */
+  date: string
+  dateLabel: string
+  text: string
+}
+
+/** An earlier line set beside a later one — the THEN/NOW atom, derived. */
+export interface GrowthPair {
+  id: string
+  then: GrowthEvidence
+  now: GrowthEvidence
+}
+
+/** An open thread handed back as a question. The app asks; it never answers. */
+export interface GrowthTension {
+  id: string
+  thread: string
+  question: string
+}
+
+export interface GrowthData {
+  resolution: Resolution
+  /** The span the movement is measured ACROSS ("April", "2026") — never a target
+   *  and never a prior period: every synthesis tier reads only its OWN period's
+   *  children (see api/_lib/synthesize.ts), so the app has no grounds to say
+   *  "vs. March". Movement is start-of-period self vs. end-of-period self. */
+  acrossLabel: string | null
+  /** Backward-measured prose — month: the gain · year: the throughline. */
+  movement: string[]
+  /** Verbatim excerpts standing under the movement prose. */
+  evidence: GrowthEvidence[]
+  /** THEN/NOW pairs — quarter: the ebenezer · year: the stones. */
+  pairs: GrowthPair[]
+  /** Ridge: what you keep circling, as questions. Never resolved. */
+  tensions: GrowthTension[]
+  /** The Gap reflex — the one line closest to a verdict, so it renders collapsed. */
+  gapWatch: string | null
+}
+
 // ── Summit stones (MOCK) ───────────────────────────────────────────────────────
 
 /** A stone the user has set on the Wall — a point of light along the mountainside. */
@@ -158,6 +210,8 @@ export interface AltitudeData {
   prayer: PrayerData | null
   /** null at the Valley (learning begins at the Hillside). */
   learning: LearningData | null
+  /** null at the Valley — change isn't visible from inside the week. */
+  growth: GrowthData | null
 }
 
 /** The Summit adds the climbed-path stones and the year in view. */

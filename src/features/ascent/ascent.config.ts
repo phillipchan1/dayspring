@@ -155,6 +155,25 @@ export const DIMENSION_COPY = {
     open: 'follow the asks →',
     ebenezerArrow: '→',
   },
+  /** GROWTH — the passive, backward-measured block. Absent at the Valley. The
+   *  copy never names a prior period ("vs. March"): the synthesis only ever sees
+   *  its own period's children, so movement is measured ACROSS a span. */
+  growth: {
+    month: 'HOW YOU’VE MOVED',
+    quarter: 'WHAT YOU KEEP CIRCLING',
+    year: 'WHO YOU WERE, WHO YOU ARE',
+    across: (label: string) => `across ${label}`,
+    then: 'THEN',
+    now: 'NOW',
+    /** The Gap reflex sits behind a disclosure — it's the one line nearest a verdict. */
+    gapWatch: 'a reflex worth watching',
+    gapWatchClose: 'set it down',
+    /** Under the month block: names what the measurement is and isn't. */
+    note: 'measured backward, against where you were — never against where you meant to be.',
+    /** Under the ridge block: the app asks, it does not resolve. */
+    askNote: 'these stay open — the app only noticed you circling them.',
+    pairsLabel: 'EARLIER, AND LATER',
+  },
   learning: {
     month: 'YOU STARTED TO SEE…',
     quarter: 'WHAT YOU NOW HOLD',

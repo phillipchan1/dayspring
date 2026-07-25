@@ -1,5 +1,6 @@
 import { DIMENSION_COPY, EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
-import type { ScriptureData, WordsData } from './data/types'
+import type { GrowthData, ScriptureData, WordsData } from './data/types'
+import { GrowthDimension } from './dimensions/GrowthDimension'
 import { ScriptureDimension } from './dimensions/ScriptureDimension'
 
 interface Props {
@@ -7,6 +8,8 @@ interface Props {
   words: WordsData | null
   /** Year-of-the-year verse (real scripture, kept). */
   scripture: ScriptureData | null
+  /** The throughline + the year's stones — who you were, who you are. */
+  growth: GrowthData | null
   onScriptureDrill: (osisRef: string) => void
   onOpenEntry?: ((entryId: string) => void) | undefined
 }
@@ -21,12 +24,12 @@ const GROUND = 280
  * (The earlier "stones" were the rope engine's bands — never wired to real data;
  * the Summit now reads the yearly rollup like every other altitude.)
  */
-export function Summit({ words, scripture, onScriptureDrill, onOpenEntry }: Props) {
+export function Summit({ words, scripture, growth, onScriptureDrill, onOpenEntry }: Props) {
   const year = new Date().getFullYear()
   const oneLine = words?.moments?.[0] ?? null
   const arcs = words?.arcs ?? []
 
-  if (!oneLine && arcs.length === 0 && (!scripture || scripture.refs.length === 0)) {
+  if (!oneLine && arcs.length === 0 && !growth && (!scripture || scripture.refs.length === 0)) {
     return <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
   }
 
@@ -94,6 +97,10 @@ export function Summit({ words, scripture, onScriptureDrill, onOpenEntry }: Prop
         ) : null}
 
         <ScriptureDimension data={scripture} onDrill={onScriptureDrill} />
+
+        {/* The throughline — the app's longest speech, earned by the climb — then
+            the closing question below it. It speaks, then hands the year back. */}
+        <GrowthDimension data={growth} onOpenEntry={onOpenEntry} />
 
         <section className="ascent-dim">
           <span className="ascent-dim__eyebrow">{DIMENSION_COPY.learning.year}</span>

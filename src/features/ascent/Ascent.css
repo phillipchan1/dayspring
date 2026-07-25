@@ -1807,3 +1807,272 @@
 .ascent--light .ascent-dim__showall:hover {
   color: rgba(176, 122, 46, 0.95);
 }
+
+/* ── GROWTH — the derived, backward-measured block ──────────────────────────
+   Visually the quietest dimension on purpose: it is the only content the app
+   inferred rather than the user wrote, so it sits last, in the same serif as
+   the rest, with no chrome that would let it read as a scoreboard. No number,
+   bar, delta or badge appears anywhere in this block. */
+
+.ascent-dim--growth {
+  gap: 14px;
+  border-top: 1px solid rgba(232, 184, 115, 0.1);
+  padding-top: 18px;
+}
+.ascent-growth__across {
+  font-style: normal;
+  margin-left: 10px;
+  color: rgba(236, 231, 223, 0.3);
+  letter-spacing: 0.1em;
+}
+.ascent-growth__prose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 62ch;
+}
+.ascent-growth__para {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.62;
+  color: rgba(243, 236, 223, 0.86);
+}
+.ascent-dim--growth.is-year .ascent-growth__prose {
+  max-width: 58ch;
+  margin: 0 auto;
+}
+.ascent-dim--growth.is-year .ascent-growth__para {
+  font-size: 15.5px;
+  line-height: 1.72;
+  text-align: left;
+}
+
+/* The ground under the claim — dated verbatim lines, each opening its entry. */
+.ascent-growth__evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-left: 1px solid rgba(232, 184, 115, 0.22);
+  padding-left: 14px;
+}
+.ascent-growth__ev {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.ascent-growth__ev:disabled {
+  cursor: default;
+}
+.ascent-growth__ev:hover:not(:disabled) {
+  opacity: 0.78;
+}
+.ascent-growth__ev-date {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 223, 0.38);
+}
+.ascent-growth__ev-text {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(236, 231, 223, 0.7);
+}
+
+/* THEN / NOW — the growth atom, echoing the Altar's bookend. */
+.ascent-growth__pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ascent-bookend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  animation: ascent-rise 0.6s ease both;
+}
+.ascent-bookend__half {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.ascent-bookend__half:disabled {
+  cursor: default;
+}
+.ascent-bookend__half:hover:not(:disabled) {
+  opacity: 0.8;
+}
+.ascent-bookend__half--now {
+  border-left: 1px solid rgba(232, 184, 115, 0.16);
+  padding-left: 18px;
+}
+.ascent-bookend__lbl {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: rgba(236, 231, 223, 0.38);
+}
+.ascent-bookend__lbl--gold {
+  color: rgba(232, 184, 115, 0.72);
+}
+.ascent-bookend__date {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: rgba(236, 231, 223, 0.3);
+}
+.ascent-bookend__text {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(236, 231, 223, 0.74);
+}
+
+/* The Ridge — open threads handed back as questions. Never resolved. */
+.ascent-growth__tensions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ascent-growth__tension {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: ascent-rise 0.6s ease both;
+}
+.ascent-growth__thread {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.3;
+  color: #f3ecdf;
+  letter-spacing: -0.005em;
+}
+.ascent-growth__question {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: rgba(232, 184, 115, 0.72);
+  max-width: 58ch;
+}
+
+/* The Gap reflex — collapsed by default; it is the one line nearest a verdict. */
+.ascent-growth__gap-toggle,
+.ascent-growth__gap-close {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(236, 231, 223, 0.34);
+  transition: color 0.18s ease;
+}
+.ascent-growth__gap-toggle:hover,
+.ascent-growth__gap-close:hover {
+  color: rgba(232, 184, 115, 0.8);
+}
+.ascent-growth__gap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-left: 1px solid rgba(236, 231, 223, 0.14);
+  padding-left: 14px;
+  animation: ascent-rise 0.45s ease both;
+}
+.ascent-growth__gap-text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(236, 231, 223, 0.55);
+  max-width: 58ch;
+}
+
+@media (max-width: 640px) {
+  .ascent-bookend {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .ascent-bookend__half--now {
+    border-left: none;
+    border-top: 1px solid rgba(232, 184, 115, 0.16);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+}
+
+/* Light (dawn) ramp. */
+.ascent--light .ascent-dim--growth {
+  border-top-color: rgba(176, 122, 46, 0.16);
+}
+.ascent--light .ascent-growth__para {
+  color: rgba(46, 38, 29, 0.9);
+}
+.ascent--light .ascent-growth__across,
+.ascent--light .ascent-growth__ev-date,
+.ascent--light .ascent-bookend__date {
+  color: rgba(74, 60, 45, 0.45);
+}
+.ascent--light .ascent-growth__evidence {
+  border-left-color: rgba(176, 122, 46, 0.32);
+}
+.ascent--light .ascent-growth__ev-text,
+.ascent--light .ascent-bookend__text {
+  color: rgba(60, 50, 38, 0.78);
+}
+.ascent--light .ascent-bookend__lbl {
+  color: rgba(74, 60, 45, 0.5);
+}
+.ascent--light .ascent-bookend__lbl--gold,
+.ascent--light .ascent-growth__question {
+  color: rgba(160, 106, 32, 0.92);
+}
+.ascent--light .ascent-bookend__half--now {
+  border-left-color: rgba(176, 122, 46, 0.28);
+}
+.ascent--light .ascent-growth__thread {
+  color: var(--text-bright);
+}
+.ascent--light .ascent-growth__gap {
+  border-left-color: rgba(74, 60, 45, 0.2);
+}
+.ascent--light .ascent-growth__gap-text {
+  color: rgba(74, 60, 45, 0.68);
+}
+.ascent--light .ascent-growth__gap-toggle,
+.ascent--light .ascent-growth__gap-close {
+  color: rgba(74, 60, 45, 0.5);
+}
+.ascent--light .ascent-growth__gap-toggle:hover,
+.ascent--light .ascent-growth__gap-close:hover {
+  color: rgba(176, 122, 46, 0.95);
+}
+
+@media (max-width: 640px) {
+  .ascent--light .ascent-bookend__half--now {
+    border-top-color: rgba(176, 122, 46, 0.28);
+  }
+}

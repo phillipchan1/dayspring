@@ -9,6 +9,7 @@
  */
 
 import { listRollups } from '@/lib/insights'
+import { monthGrowth, quarterGrowth, yearGrowth } from './growth'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
 import { loadWeekWords, monthWords, quarterWords, yearWords } from './words'
@@ -60,9 +61,12 @@ export async function loadAscent(): Promise<LoadedAscent> {
   // Degrade per-tier: if a rollup read fails (offline / not yet synthesized), the
   // real Words/Scripture dimensions fall to empty while the rest of the climb —
   // and the other dimensions — still render.
-  const [weekly, monthly, yearly] = await Promise.all([
+  const [weekly, monthly, quarterly, yearly] = await Promise.all([
     listRollups('weekly').catch(() => []),
     listRollups('monthly').catch(() => []),
+    // The quarterly tier is written by the cron on the 1st of each quarter and
+    // was never read by the client — it carries the Ridge's tensions + ebenezer.
+    listRollups('quarterly').catch(() => []),
     listRollups('yearly').catch(() => []),
   ])
   const windows = deriveWindows()
@@ -81,13 +85,16 @@ export async function loadAscent(): Promise<LoadedAscent> {
   const yeaWords = yearWords(yearly[0])
 
   // Prayer/learning/stones are retired (the converged Ascent reads the rope engine
-  // for its content); only the real Words + Scripture dimensions feed the seam now.
+  // for its content); the real Words + Scripture + Growth dimensions feed the seam.
+  // Growth is null at the Valley by construction — a week is too close to see
+  // change in, the same reason the Valley interprets nothing.
   const week: AltitudeData = {
     resolution: 'week',
     words: weekWords,
     scripture: withLabel(scrWeek, weekWords?.periodLabel),
     prayer: null,
     learning: null,
+    growth: null,
   }
   const month: AltitudeData = {
     resolution: 'month',
@@ -95,6 +102,7 @@ export async function loadAscent(): Promise<LoadedAscent> {
     scripture: withLabel(scrMonth, monWords?.periodLabel),
     prayer: null,
     learning: null,
+    growth: monthGrowth(monthly[0]),
   }
   const quarter: AltitudeData = {
     resolution: 'quarter',
@@ -102,6 +110,7 @@ export async function loadAscent(): Promise<LoadedAscent> {
     scripture: withLabel(scrQuarter, quaWords?.periodLabel),
     prayer: null,
     learning: null,
+    growth: quarterGrowth(quarterly[0]),
   }
   const year: SummitView = {
     resolution: 'year',
@@ -109,6 +118,7 @@ export async function loadAscent(): Promise<LoadedAscent> {
     scripture: withLabel(scrYear, yeaWords?.periodLabel ?? String(yearNum)),
     prayer: null,
     learning: null,
+    growth: yearGrowth(yearly[0]),
     year: yearNum,
     stones: [],
   }

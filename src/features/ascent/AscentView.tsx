@@ -176,6 +176,7 @@ export function AscentView({ onOpenEntry }: Props) {
             <AltitudeBands
               words={altitude?.words ?? null}
               scripture={altitude?.scripture ?? null}
+              growth={altitude?.growth ?? null}
               onScriptureDrill={openScripture}
               onOpenEntry={onOpenEntry}
             />
@@ -183,6 +184,7 @@ export function AscentView({ onOpenEntry }: Props) {
             <Summit
               words={ascent?.year?.words ?? null}
               scripture={ascent?.year?.scripture ?? null}
+              growth={ascent?.year?.growth ?? null}
               onScriptureDrill={openScripture}
               onOpenEntry={onOpenEntry}
             />
