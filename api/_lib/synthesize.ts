@@ -352,6 +352,7 @@ async function upsertInsight(sb: SupabaseClient, row: InsightRow): Promise<void>
 interface RawEntry {
   id: string
   created_at: string
+  updated_at: string
   body_markdown: string
   word_count: number
 }
@@ -360,7 +361,7 @@ async function fetchEntries(sb: SupabaseClient, ownerId: string, period: Period)
   const { fromISO, toExclusiveISO } = periodWindow(period)
   const { data, error } = await sb
     .from('entries')
-    .select('id, created_at, body_markdown, word_count')
+    .select('id, created_at, updated_at, body_markdown, word_count')
     .eq('owner', ownerId)
     .gte('created_at', fromISO)
     .lt('created_at', toExclusiveISO)
@@ -415,12 +416,59 @@ function sourcesFromRollups(rows: { structured_payload: RollupPayload }[]): {
 
 // ── builders ──────────────────────────────────────────────────────────────
 
+/**
+ * True when a weekly rollup already exists that is NEWER than every entry in the
+ * period — i.e. nothing has been written or edited since we last built it, so a
+ * rebuild would spend a model call to produce the same payload.
+ *
+ * This matters because the daily cron rebuilds the CURRENT week every morning for
+ * every owner. On a week where the writer journals twice, that was 7 builds for 2
+ * changes. `entries.updated_at` is trigger-maintained (see supabase/schema.sql),
+ * and inserts set it too, so a new entry mid-week correctly invalidates.
+ *
+ * Fail-open: any error here returns false, and we build as before.
+ */
+async function weeklyIsFresh(
+  sb: SupabaseClient,
+  ownerId: string,
+  period: Period,
+  entries: RawEntry[],
+): Promise<boolean> {
+  try {
+    const { data, error } = await sb
+      .from('insights')
+      .select('updated_at')
+      .eq('owner', ownerId)
+      .eq('type', 'weekly')
+      .eq('period_start', period.start)
+      .eq('period_end', period.end)
+      .maybeSingle()
+    if (error || !data) return false
+    const builtAt = (data as { updated_at?: string }).updated_at
+    if (!builtAt) return false
+    const newest = entries.reduce((max, e) => (e.updated_at > max ? e.updated_at : max), '')
+    return newest !== '' && newest < builtAt
+  } catch {
+    return false
+  }
+}
+
 /** Weekly: read raw entries → quotes/topics/observation + synthesis/wins/questions. */
-export async function buildWeekly(ownerId: string, period: Period): Promise<BuildResult> {
+export async function buildWeekly(
+  ownerId: string,
+  period: Period,
+  opts: { force?: boolean } = {},
+): Promise<BuildResult> {
   const sb = supabaseAdmin()
   const entries = await fetchEntries(sb, ownerId, period)
   if (entries.length === 0) {
     return { type: 'weekly', period, status: 'skipped', reason: 'no entries' }
+  }
+
+  // Nothing written or edited since the last build — the model would re-read the
+  // same week and re-derive the same payload. Skip the call, keep the rollup.
+  if (!opts.force && (await weeklyIsFresh(sb, ownerId, period, entries))) {
+    return { type: 'weekly', period, status: 'skipped', reason: 'unchanged since last build' }
   }
 
   const facts = computeFacts(entries as FactEntry[], period.start, period.end, null)

@@ -119,6 +119,13 @@ export async function POST(req: Request): Promise<Response> {
         },
       ],
     })
+    // The vision model is the most expensive call in the app (a full model, high
+    // detail, up to 8 page images). Log the token cost per scan so a page-scan
+    // habit is visible in the bill rather than buried in the dashboard total.
+    console.log(
+      `[tokens] name=scan_pages model=${env.visionModel()} pages=${pages.length} ` +
+        `in=${completion.usage?.prompt_tokens ?? 0} out=${completion.usage?.completion_tokens ?? 0}`,
+    )
     const text = (completion.choices[0]?.message?.content ?? '').trim()
     if (!text) {
       return withCors(req, Response.json({ error: 'no text found' }, { status: 422 }))

@@ -23,6 +23,33 @@ type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
  * `schema` + `name` are per-horizon (see prompts.ts). The reflective prose needs
  * a little more room to reason than the old quote-picker, so effort is "medium".
  */
+/**
+ * One line per model call so spend is attributable to a FEATURE, not just to the
+ * OpenAI dashboard's daily total. `reasoning` is the hidden thinking budget —
+ * billed at the (much pricier) output rate, so it is the first thing to look at
+ * when a nano bill is bigger than it should be. Counts only, never text (§8).
+ *
+ *   [tokens] name=weekly model=gpt-5.4-nano in=2431 cached=0 out=812 reasoning=640 attempt=0
+ *
+ * Grep Vercel logs for `[tokens]` to total a day by name.
+ */
+function logUsage(name: string, model: string, attempt: number, usage: unknown): void {
+  const u = usage as
+    | {
+        prompt_tokens?: number
+        completion_tokens?: number
+        prompt_tokens_details?: { cached_tokens?: number }
+        completion_tokens_details?: { reasoning_tokens?: number }
+      }
+    | undefined
+  if (!u) return
+  console.log(
+    `[tokens] name=${name} model=${model} in=${u.prompt_tokens ?? 0} ` +
+      `cached=${u.prompt_tokens_details?.cached_tokens ?? 0} out=${u.completion_tokens ?? 0} ` +
+      `reasoning=${u.completion_tokens_details?.reasoning_tokens ?? 0} attempt=${attempt}`,
+  )
+}
+
 export async function callModel<T>(
   systemPrompt: string,
   input: unknown,
@@ -61,6 +88,7 @@ export async function callModel<T>(
       max_completion_tokens: attempt === 0 ? cap : cap * 2,
     }
     const completion = await openai().chat.completions.create(params)
+    logUsage(name, params.model, attempt, completion.usage)
     const choice = completion.choices[0]
     const msg = choice?.message
     const finish = choice?.finish_reason

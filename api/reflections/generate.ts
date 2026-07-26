@@ -44,7 +44,13 @@ export async function POST(req: Request): Promise<Response> {
   const period = { start, end }
 
   try {
-    const result = await BUILDERS[type as RollupType](owner, period)
+    // Manual trigger = an explicit "rebuild this now", so it bypasses the
+    // unchanged-since-last-build skip that keeps the daily cron from paying for
+    // a week that nobody touched.
+    const result =
+      type === 'weekly'
+        ? await buildWeekly(owner, period, { force: true })
+        : await BUILDERS[type as RollupType](owner, period)
     return Response.json(result)
   } catch (e) {
     return Response.json(

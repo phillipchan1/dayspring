@@ -61,6 +61,11 @@ export async function POST(req: Request): Promise<Response> {
         },
       },
     })
+    // Every minted secret is a live-caption session that will stream the WHOLE
+    // recording to OpenAI — on top of the clip pass in api/transcribe.ts, which
+    // transcribes the same audio again. One dictation therefore bills twice.
+    // Count the sessions here so that duplication is visible, not assumed.
+    console.log(`[realtime] name=live_captions model=${env.transcribeModel()} session=minted`)
     return withCors(req, Response.json({ value: secret.value, expiresAt: secret.expires_at }))
   } catch (e) {
     // Fail soft: the client treats any failure here as "no live captions" and
