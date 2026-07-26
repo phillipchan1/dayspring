@@ -88,8 +88,9 @@ block in `project.yml` — which is why the purpose strings live in **both** fil
 
 ## Things Apple will hold the build for
 
-These are policy, not code, and none of them are fixed yet. See the notes in
-the PR/issue that introduced this workflow for detail.
+These are policy, not code, and none of them are fixed yet. `docs/IOS_LAUNCH.md`
+tracks them along with payments, analytics, and store collateral — it is a
+temporary file and gets deleted once we are live.
 
 - **Guideline 3.1.1 — in-app purchase.** The paywall sends users to Stripe
   Checkout in the system browser. For a subscription unlocking app functionality
