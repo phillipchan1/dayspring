@@ -31,6 +31,12 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dayspring uses the microphone only while you are recording a spoken journal entry, so it can be transcribed into your journal.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Dayspring uses the camera only when you scan a handwritten page, so the photo can be turned into a journal entry.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dayspring reads your photo library only when you pick an image to add to a journal entry.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

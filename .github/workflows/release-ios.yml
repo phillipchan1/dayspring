@@ -1,0 +1,209 @@
+name: Release iOS (TestFlight)
+
+# The single iOS pipeline: build the app, sign it for the App Store, and upload
+# it to App Store Connect. Every upload lands in TestFlight — App Review and
+# "release to the App Store" stay manual buttons in App Store Connect, which is
+# what you want: CI ships builds, a human ships releases.
+#
+# Runs on every push to `stable` (same channel as the desktop beta build) and
+# on demand. Pushes to `master` deliberately do NOT trigger it — Apple's review
+# queue is not an alpha channel.
+#
+# Before the first green run, do the one-time Apple setup in docs/IOS.md.
+# Until the signing secrets exist, this workflow still runs the compile check
+# and then stops cleanly instead of failing, so it is safe to merge today.
+on:
+  push:
+    branches: [stable]
+  workflow_dispatch:
+    inputs:
+      skip_upload:
+        description: "Build and sign the IPA but do not upload to TestFlight"
+        type: boolean
+        default: false
+
+concurrency:
+  # Never cancel in progress: a cancelled run can leave a half-finished upload
+  # that burns the build number in App Store Connect.
+  group: release-ios
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+          # Distinct key so the iOS artifacts never evict the macOS ones.
+          shared-key: ios
+
+      - name: Install dependencies
+        # Matches release.yml: not `npm ci`, because vite 8 / rolldown pulls
+        # platform-specific optional deps that differ across npm versions.
+        run: npm install --no-audit --no-fund
+
+      # Fails fast with readable Rust errors before we spend time on xcodebuild,
+      # archiving, and signing. Needs no Apple secrets, so this step is the part
+      # that is useful even on a run with nothing configured yet.
+      - name: Compile-check the Rust side for iOS
+        run: cargo check --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios
+
+      # CFBundleShortVersionString (what users see) mirrors the desktop scheme:
+      # major.minor from package.json + run number. CFBundleVersion (the build
+      # number) is the run number alone — App Store Connect only requires that
+      # it strictly increase, and it must be unique for every single upload.
+      - name: Compute version
+        run: |
+          set -euo pipefail
+          MAJOR_MINOR=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Marketing version $VERSION, build ${{ github.run_number }}"
+
+      - name: Stamp version into tauri.conf.json and Info.plist
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.version='$APP_VERSION';fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
+          PLIST=src-tauri/gen/apple/app_iOS/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Print" "$PLIST" | head -20
+
+      # Same as the desktop builds: bakes the cumulative changelog into the
+      # bundle so the in-app "what's new" matches. Best-effort — never blocks.
+      - name: Assemble bundled changelog
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: node scripts/assemble-changelog.mjs
+
+      # Secrets cannot be referenced in `if:`, so we resolve them into an output
+      # here and gate the remaining steps on that. Missing secrets are a notice,
+      # not a failure — the compile check above already ran and is the signal
+      # that matters before Apple enrollment is finished.
+      - name: Check Apple signing configuration
+        id: signing
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: |
+          set -uo pipefail
+          MISSING=""
+          [ -z "${IOS_CERTIFICATE:-}" ] && MISSING="$MISSING IOS_CERTIFICATE"
+          [ -z "${IOS_CERTIFICATE_PASSWORD:-}" ] && MISSING="$MISSING IOS_CERTIFICATE_PASSWORD"
+          [ -z "${IOS_MOBILE_PROVISION:-}" ] && MISSING="$MISSING IOS_MOBILE_PROVISION"
+          if [ -n "$MISSING" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=iOS signing not configured::Compile check passed. Add these repo secrets to start shipping to TestFlight:$MISSING (see docs/IOS.md)"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Signing secrets present — will archive and sign for the App Store."
+          fi
+
+      # The Tauri CLI reads IOS_CERTIFICATE / IOS_CERTIFICATE_PASSWORD /
+      # IOS_MOBILE_PROVISION itself: it creates a throwaway keychain, imports the
+      # distribution cert, installs the provisioning profile, and wires the
+      # signing settings into the archive. The team id comes from
+      # bundle.iOS.developmentTeam in tauri.conf.json.
+      - name: Build and sign the IPA
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
+          VITE_RELEASE_CHANNEL: ios
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: npm run tauri ios build -- --export-method app-store-connect --verbose
+
+      - name: Locate the IPA
+        if: steps.signing.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -print -quit)
+          if [ -z "$IPA" ]; then
+            echo "No .ipa produced — check the build log above."
+            find src-tauri/gen/apple/build -maxdepth 3 -print || true
+            exit 1
+          fi
+          echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
+          echo "Built $IPA"
+
+      - name: Upload artifact
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dayspring-ios-${{ env.APP_VERSION }}
+          path: ${{ env.IPA_PATH }}
+          retention-days: 14
+
+      # App Store Connect API key auth (a .p8 file), not an Apple ID password —
+      # it is not tied to a person and never hits 2FA. altool looks the key up
+      # by id under ~/private_keys, so the filename must match exactly.
+      - name: Upload to TestFlight
+        if: steps.signing.outputs.configured == 'true' && inputs.skip_upload != true
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          KEY_P8_BASE64: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          set -uo pipefail
+          if [ -z "${KEY_ID:-}" ] || [ -z "${ISSUER_ID:-}" ] || [ -z "${KEY_P8_BASE64:-}" ]; then
+            echo "::error title=App Store Connect API key missing::Set APPSTORE_API_KEY_ID, APPSTORE_API_ISSUER_ID and APPSTORE_API_PRIVATE_KEY (see docs/IOS.md). The signed IPA is attached to this run as an artifact and can be uploaded by hand with Transporter."
+            exit 1
+          fi
+          mkdir -p ~/private_keys
+          printf '%s' "$KEY_P8_BASE64" | base64 --decode > ~/private_keys/AuthKey_${KEY_ID}.p8
+
+          # Validate first: catches a bad build number, a missing purpose
+          # string, or an icon problem in seconds instead of via a rejection
+          # email an hour later.
+          xcrun altool --validate-app --type ios --file "$IPA_PATH" \
+            --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+
+          # The upload endpoint is genuinely flaky; retry before giving up.
+          for attempt in 1 2 3; do
+            echo "::group::altool upload (attempt $attempt)"
+            if xcrun altool --upload-app --type ios --file "$IPA_PATH" \
+                 --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"; then
+              echo "::endgroup::"
+              echo "Uploaded build $BUILD_NUMBER (v$APP_VERSION) to TestFlight."
+              exit 0
+            fi
+            echo "::endgroup::"
+            sleep $((attempt * 15))
+          done
+          echo "All upload attempts failed"; exit 1
+
+      - name: Scrub the API key
+        if: always()
+        run: rm -rf ~/private_keys

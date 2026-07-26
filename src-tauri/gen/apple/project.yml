@@ -2,7 +2,12 @@ name: app
 options:
   bundleIdPrefix: com.phillipchan.dayspring
   deploymentTarget:
-    iOS: 14.0
+    # 16.0, not Tauri's default 14.0: the frontend calls crypto.randomUUID()
+    # (WebKit 15.4+) and getUserMedia() in WKWebView (14.3+). On an iOS 14
+    # device those are undefined and the app breaks on first use, so we simply
+    # don't offer it there. Keep in sync with Podfile + IPHONEOS_DEPLOYMENT_TARGET
+    # in app.xcodeproj/project.pbxproj.
+    iOS: 16.0
 fileGroups: [../../src]
 configs:
   debug: debug
@@ -53,6 +58,15 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 0.1.0
         CFBundleVersion: "0.1.0"
+        # Purpose strings. Without these iOS kills the app the moment the
+        # WebView asks for the mic (dictation), the camera (page scan), or the
+        # photo library (inline images) — and App Review rejects the build.
+        # Duplicated in app_iOS/Info.plist because that is the file Xcode
+        # actually reads; this block is what `tauri ios init` regenerates it
+        # from, so both must stay in sync.
+        NSMicrophoneUsageDescription: Dayspring uses the microphone only while you are recording a spoken journal entry, so it can be transcribed into your journal.
+        NSCameraUsageDescription: Dayspring uses the camera only when you scan a handwritten page, so the photo can be turned into a journal entry.
+        NSPhotoLibraryUsageDescription: Dayspring reads your photo library only when you pick an image to add to a journal entry.
     entitlements:
       path: app_iOS/app_iOS.entitlements
     scheme:

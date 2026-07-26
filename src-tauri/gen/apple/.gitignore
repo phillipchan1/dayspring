@@ -1,3 +1,5 @@
 xcuserdata/
 build/
 Externals/
+# Frontend dist/ that the Tauri CLI copies in at build time.
+assets/
