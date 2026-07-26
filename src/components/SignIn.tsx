@@ -1,21 +1,24 @@
 import { useState } from 'react'
-import { signInWithGoogle } from '@/lib/auth'
+import { signInWithApple, signInWithGoogle, type OAuthProvider } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
+import { apiUrl } from '@/lib/api'
+import { openExternal } from '@/lib/openExternal'
+import { isTauri } from '@/lib/platform'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
-  const [hovered, setHovered] = useState(false)
+  const [hovered, setHovered] = useState<OAuthProvider | null>(null)
   const { settings, update } = useSettings()
   const isLight = isLightTheme(useResolvedTheme(settings))
 
-  async function handleSignIn() {
+  async function handleSignIn(provider: OAuthProvider) {
     setError(null)
     try {
-      await signInWithGoogle()
+      await (provider === 'apple' ? signInWithApple() : signInWithGoogle())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign-in failed')
     }
@@ -97,32 +100,24 @@ export function SignIn() {
           A journal built for spiritual growth.
         </p>
 
+        {/* Apple sits first. Guideline 4.8 requires Sign in with Apple to be no
+            less prominent than the other options, and leading with it is the
+            simplest way to never have that argument. */}
         <button
-          onClick={handleSignIn}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            width: '100%',
-            maxWidth: 260,
-            padding: '11px 20px',
-            borderRadius: 7,
-            background: hovered
-              ? 'color-mix(in srgb, var(--accent) 20%, transparent)'
-              : 'color-mix(in srgb, var(--accent) 12%, transparent)',
-            border: `0.5px solid color-mix(in srgb, var(--accent) ${hovered ? 55 : 38}%, transparent)`,
-            cursor: 'pointer',
-            fontFamily: "'Inter', -apple-system, sans-serif",
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: 'var(--accent)',
-            letterSpacing: '-0.01em',
-            marginBottom: 16,
-            transition: 'background 0.15s, border-color 0.15s',
-          }}
+          onClick={() => void handleSignIn('apple')}
+          onMouseEnter={() => setHovered('apple')}
+          onMouseLeave={() => setHovered(null)}
+          style={providerButtonStyle(hovered === 'apple')}
+        >
+          <AppleIcon />
+          Continue with Apple
+        </button>
+
+        <button
+          onClick={() => void handleSignIn('google')}
+          onMouseEnter={() => setHovered('google')}
+          onMouseLeave={() => setHovered(null)}
+          style={providerButtonStyle(hovered === 'google')}
         >
           <GoogleIcon />
           Continue with Google
@@ -145,10 +140,19 @@ export function SignIn() {
         }}>
           Your words stay private.
           {' · '}
+          {/* apiUrl() resolves to a relative path on web and the deployed origin
+              inside the native apps, so this always points at a page that exists.
+              openExternal keeps Tauri from navigating its own webview away — the
+              same trap documented in openExternal.ts. */}
           <a
-            href="https://dayspring.app/privacy"
+            href={apiUrl('/privacy')}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              if (!isTauri()) return
+              e.preventDefault()
+              void openExternal(apiUrl('/privacy'))
+            }}
             style={{
               color: 'inherit',
               textDecoration: 'underline',
@@ -161,6 +165,44 @@ export function SignIn() {
         </p>
       </div>
     </div>
+  )
+}
+
+/** Shared look for the provider buttons — identical weight for both, since
+ *  Apple requires its button be no less prominent than the alternatives. */
+function providerButtonStyle(hovered: boolean): React.CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+    maxWidth: 260,
+    padding: '11px 20px',
+    borderRadius: 7,
+    background: hovered
+      ? 'color-mix(in srgb, var(--accent) 20%, transparent)'
+      : 'color-mix(in srgb, var(--accent) 12%, transparent)',
+    border: `0.5px solid color-mix(in srgb, var(--accent) ${hovered ? 55 : 38}%, transparent)`,
+    cursor: 'pointer',
+    fontFamily: "'Inter', -apple-system, sans-serif",
+    fontSize: 13.5,
+    fontWeight: 500,
+    color: 'var(--accent)',
+    letterSpacing: '-0.01em',
+    marginBottom: 10,
+    transition: 'background 0.15s, border-color 0.15s',
+  }
+}
+
+function AppleIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path
+        d="M17.05 12.54c-.03-2.62 2.14-3.88 2.24-3.94-1.22-1.79-3.12-2.03-3.8-2.06-1.62-.16-3.16.95-3.98.95-.82 0-2.09-.93-3.43-.9-1.77.02-3.4 1.03-4.31 2.61-1.84 3.19-.47 7.9 1.32 10.49.87 1.27 1.91 2.69 3.28 2.64 1.32-.05 1.81-.85 3.4-.85 1.59 0 2.03.85 3.42.82 1.41-.02 2.31-1.29 3.17-2.56.99-1.47 1.4-2.89 1.43-2.96-.03-.01-2.74-1.05-2.77-4.18M14.6 4.7c.72-.88 1.21-2.1 1.08-3.31-1.04.04-2.3.69-3.05 1.57-.67.77-1.25 2.01-1.09 3.2 1.16.09 2.34-.59 3.06-1.46"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
 

@@ -14,24 +14,30 @@ export function authRedirectUrl(): string {
   return isTauri() ? DEEP_LINK_REDIRECT : window.location.origin
 }
 
+export type OAuthProvider = 'google' | 'apple'
+
 /**
- * Start Google OAuth.
+ * Start OAuth with a provider.
  *
  * Web: normal in-page redirect.
  *
- * Desktop: Google blocks OAuth inside embedded webviews (the "flicker" — it
- * detects WKWebView and refuses). So we ask Supabase for the provider URL
- * WITHOUT navigating the webview (skipBrowserRedirect), then open it in the
- * user's real browser via the opener plugin. Google trusts that, and on
- * success redirects to dayspring://auth-callback, which the deep-link listener
- * (see initDeepLinkAuth) hands back to the app.
+ * Native (desktop + iOS): Google blocks OAuth inside embedded webviews (the
+ * "flicker" — it detects WKWebView and refuses). So we ask Supabase for the
+ * provider URL WITHOUT navigating the webview (skipBrowserRedirect), then open
+ * it in the user's real browser via the opener plugin. Google trusts that, and
+ * on success redirects to dayspring://auth-callback, which the deep-link
+ * listener (see initDeepLinkAuth) hands back to the app.
+ *
+ * Apple goes through the same path. Apple does not block webviews the way
+ * Google does, but routing both providers identically means one flow to reason
+ * about and one set of redirect URLs to keep allow-listed.
  */
-export async function signInWithGoogle(): Promise<void> {
+async function startOAuth(provider: OAuthProvider): Promise<void> {
   const sb = requireSupabase()
 
   if (!isTauri()) {
     const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: { redirectTo: authRedirectUrl() },
     })
     if (error) throw error
@@ -39,7 +45,7 @@ export async function signInWithGoogle(): Promise<void> {
   }
 
   const { data, error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: {
       redirectTo: DEEP_LINK_REDIRECT,
       skipBrowserRedirect: true, // don't navigate the embedded webview
@@ -50,6 +56,24 @@ export async function signInWithGoogle(): Promise<void> {
 
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(data.url) // hand off to the system browser
+}
+
+export function signInWithGoogle(): Promise<void> {
+  return startOAuth('google')
+}
+
+/**
+ * Sign in with Apple. Required by App Store guideline 4.8 wherever a
+ * third-party sign-in (our Google button) is offered.
+ *
+ * Apple only sends the user's name on the FIRST authorization, and only when
+ * the Services ID requests the name scope — so never depend on it being there.
+ * Users can also elect to hide their real address, in which case the email is a
+ * privaterelay.appleid.com forwarder. Both are fine here: we key everything off
+ * the Supabase user id and never treat email as an identity.
+ */
+export function signInWithApple(): Promise<void> {
+  return startOAuth('apple')
 }
 
 export async function signOut(): Promise<void> {

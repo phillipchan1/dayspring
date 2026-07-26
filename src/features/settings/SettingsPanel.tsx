@@ -6,6 +6,7 @@ import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
 import { signOut } from '@/lib/auth'
+import { deleteAccount } from '@/lib/account'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
@@ -283,6 +284,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
   const { replay } = useWelcome()
   const { settings, update } = useSettings()
   const [showConcordance, setShowConcordance] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   return (
     <div className="settings-about">
       {/* App identity: title + tagline + metadata */}
@@ -389,6 +391,98 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         </button>
         <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
           Reset all settings to defaults
+        </button>
+        <button className="btn btn--ghost btn--danger" onClick={() => setDeleting(true)}>
+          Delete account
+        </button>
+      </div>
+
+      {deleting && <DeleteAccountDialog onClose={() => setDeleting(false)} />}
+    </div>
+  )
+}
+
+/**
+ * Permanent account deletion, required in-app by App Store guideline 5.1.1(v).
+ *
+ * Deliberately high-friction: it names what is about to be lost, and requires
+ * the word DELETE typed out rather than a second "are you sure". There is no
+ * undo and no grace period on the server, so the confirmation is the only thing
+ * standing between a misclick and someone's entire journal.
+ */
+function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [appleWarning, setAppleWarning] = useState(false)
+
+  async function handleDelete() {
+    setBusy(true)
+    setError(null)
+    try {
+      const { appleSubscriptionActive } = await deleteAccount()
+      // The account is gone either way. If Apple is still billing them we hold
+      // the screen to say so — we cannot cancel an App Store subscription on
+      // their behalf, and letting them walk away assuming we did would mean
+      // silent charges against an account that no longer exists.
+      if (appleSubscriptionActive) {
+        setAppleWarning(true)
+        setBusy(false)
+        return
+      }
+      window.location.reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete your account')
+      setBusy(false)
+    }
+  }
+
+  if (appleWarning) {
+    return (
+      <div className="settings-delete">
+        <div className="settings-delete__title">Your account is deleted</div>
+        <p className="settings-delete__body">
+          Your App Store subscription is still active and only you can cancel it — open
+          Settings → Apple Account → Subscriptions on your iPhone. Apple will keep billing
+          until you do.
+        </p>
+        <button className="btn btn--ghost" onClick={() => window.location.reload()}>
+          Done
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="settings-delete">
+      <div className="settings-delete__title">Delete your account</div>
+      <p className="settings-delete__body">
+        This erases every entry, prayer, scripture reference, and image — on this device and
+        on our servers. Any subscription is cancelled. It cannot be undone, and we cannot
+        recover it for you afterwards.
+      </p>
+      <p className="settings-delete__body">
+        Type <strong>DELETE</strong> to confirm.
+      </p>
+      <input
+        className="settings-delete__input"
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+        placeholder="DELETE"
+        autoFocus
+        aria-label="Type DELETE to confirm"
+      />
+      {error && <p className="settings-delete__error">{error}</p>}
+      <div className="settings-delete__actions">
+        <button className="btn btn--ghost" onClick={onClose} disabled={busy}>
+          Cancel
+        </button>
+        <button
+          className="btn btn--ghost btn--danger"
+          disabled={confirm !== 'DELETE' || busy}
+          onClick={() => void handleDelete()}
+        >
+          {busy ? 'Deleting…' : 'Delete everything'}
         </button>
       </div>
     </div>

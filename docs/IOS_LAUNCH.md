@@ -7,8 +7,9 @@
 Pipeline is done — see `docs/IOS.md`. What remains is policy, payments,
 measurement, and store collateral.
 
-**Status:** pipeline built, nothing submitted.
-**Blocking submission:** payments, Sign in with Apple, account deletion, privacy policy.
+**Status:** pipeline built. Sign in with Apple, account deletion, and the privacy
+policy are in — each still needs its console-side configuration (see §2).
+**Blocking submission:** payments (§1), plus the config steps in §2.
 
 ---
 
@@ -134,18 +135,36 @@ create table public.subscriptions (
 
 Three separate, unrelated blockers. All required for submission.
 
-- [ ] **Sign in with Apple** (4.8). Sign-in is Google-only, which obligates an
-      equivalent privacy-preserving option. Supabase supports Apple as a provider,
-      so it is provider config in Supabase + Apple, a Services ID, a key, and a
-      second button in `SignIn.tsx`. The existing deep-link PKCE flow is reused
-      unchanged. Cheapest item on this page.
-- [ ] **In-app account deletion** (5.1.1(v)). Settings currently offers sign-out
-      and settings-reset only. Needs a real delete: `auth.users` row plus every
-      owned table, behind a typed confirmation. Most tables already cascade on
-      `owner`; audit for the ones that don't.
-- [ ] **Privacy policy.** Required as a URL on the listing and there is no page.
-      Must cover what leaves the device — journal text, audio, and images go to
-      OpenAI — and the retention story. Host at `/privacy` on the Vercel app.
+- [x] **Sign in with Apple** (4.8) — code done. `signInWithApple()` in
+      `src/lib/auth.ts` reuses the existing deep-link PKCE flow; the button sits
+      above Google in `SignIn.tsx`, since Apple must be no less prominent.
+  - [ ] Apple Developer: create a Services ID and a Sign in with Apple key
+  - [ ] Supabase → Authentication → Providers → Apple: enable, paste the
+        Services ID, Team ID, Key ID, and the `.p8`
+  - [ ] Confirm `https://dayspring-eosin.vercel.app/auth/callback` is in
+        Supabase's redirect allow-list (it already is, for Google)
+  - [ ] Test the native path end to end — Apple sends the user's name only on
+        the very first authorization, and only when the Services ID asks for it
+- [x] **In-app account deletion** (5.1.1(v)) — done. `POST /api/account/delete`
+      cancels Stripe, purges the `attachments` bucket, then deletes the
+      `auth.users` row. Every `owner` column in the schema cascades from
+      `auth.users` (verified across all migrations), so that one delete clears
+      all 24 owned tables. Storage does not cascade, which is why it goes first.
+      UI is a typed-DELETE confirmation in Settings → About.
+  - [ ] Test against a throwaway account before it ships — this path is
+        irreversible and has no staging equivalent
+  - [ ] Keep the cascade on any new table with an `owner` column, or deletion
+        silently starts leaving rows behind
+- [x] **Privacy policy** — `public/privacy.html`, served at `/privacy` via a
+      vercel.json rewrite. Written from the actual data flows: OpenAI is the only
+      third party that receives journal content; Crossway's ESV API gets bare
+      references like "John 3:16" and never user text.
+  - [ ] **Read it before publishing.** It is accurate about the code but it is
+        still a legal document with your name on it.
+  - [ ] Decide the canonical URL. The sign-in link used to point at
+        `dayspring.app/privacy`, which nothing serves; it now resolves against
+        the app's own origin. If `dayspring.app` becomes the marketing site,
+        point both there.
 - [ ] **Terms of use.** Apple requires an EULA link for auto-renewable
       subscriptions, alongside price/period/renewal disclosure *on the paywall
       itself*. Default Apple EULA is fine; the paywall text is not optional.

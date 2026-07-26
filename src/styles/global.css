@@ -2951,6 +2951,65 @@ html[data-focus-mode] .focus-controls {
   margin-bottom: 0;
 }
 
+/* Account deletion confirmation (App Store 5.1.1(v)). Sits inline under the
+   danger zone rather than in a modal — nothing should be able to cover the
+   copy explaining what is about to be destroyed. */
+.settings-delete {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+
+.settings-delete__title {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--danger);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.5rem;
+}
+
+.settings-delete__body {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin: 0 0 0.6rem;
+}
+
+.settings-delete__input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.6rem;
+}
+
+.settings-delete__error {
+  font-size: 0.8rem;
+  color: var(--danger);
+  margin: 0 0 0.6rem;
+}
+
+.settings-delete__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Override the danger-zone rule above: these two sit side by side, not stacked. */
+.settings-delete__actions .btn {
+  display: inline-block;
+  width: auto;
+  text-align: center;
+}
+
 .settings-actions {
   display: flex;
   flex-direction: column;
