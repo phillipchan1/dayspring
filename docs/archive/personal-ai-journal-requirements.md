@@ -1,5 +1,27 @@
 # Personal AI Journal — Build Requirements
 
+> ## ⚠️ ARCHIVED — HISTORICAL RECORD ONLY. DO NOT BUILD FROM THIS DOCUMENT.
+>
+> Archived 2026-07-26. Superseded by [`docs/product/VISION.md`](../product/VISION.md).
+>
+> This was the original spec for a **single-user personal tool**. Dayspring is now a
+> **multi-tenant subscription product with paying beta users**. Several of its founding
+> constraints are no longer true:
+>
+> | This doc says | Reality |
+> |---|---|
+> | "No other users. No multi-tenancy, sharing, or collaboration." | Multi-tenant with paying users; entry sharing is planned. |
+> | "No onboarding flows, payments, ads, or analytics." | Onboarding flow + Stripe paywall ($7/mo, $64/yr, 14-day trial) shipped. |
+> | "Exactly one user: me. This is the load-bearing simplifying constraint." | No longer holds. Per-tenant isolation is now a correctness requirement. |
+> | "No scaling concerns. Build for exactly one user." | No longer holds. |
+>
+> Still accurate and worth reading: §3 (stack), §4 (editor requirements — the editor
+> philosophy remains the product's soul), §5 (data model, since extended), and §6
+> (temporal synthesis as the hero feature).
+>
+> It is kept because it records *why* the architecture looks the way it does. It is not
+> a statement of current intent.
+
 A spec for Claude Code. Single-user, private journaling app with a beautiful writing experience and an AI insight layer that surfaces patterns and highlights from free-form entries, and makes those insights consumable by external tools.
 
 ---
