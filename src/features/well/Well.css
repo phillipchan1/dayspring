@@ -1,0 +1,401 @@
+/*
+ * The Well — Return's fourth destination.
+ *
+ * Quiet on purpose. The Ascent owns atmosphere (air, stars, altitude); this
+ * surface is a reading surface, so the only things allowed to carry weight are
+ * the shape strip and the writer's own sentences.
+ */
+
+.well {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.well__inner {
+  max-width: 70ch;
+  margin: 0 auto;
+  padding: clamp(2rem, 5vw, 3.25rem) clamp(1.25rem, 4vw, 2.5rem) 5rem;
+}
+
+.well__eyebrow {
+  font-size: 0.59rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 0.5rem;
+}
+
+.well__head {
+  margin-bottom: 2rem;
+}
+
+.well__title {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 500;
+  margin: 0 0 0.35rem;
+  color: var(--text-bright);
+}
+
+.well__sub {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.well__open {
+  margin-top: 0.5rem;
+}
+
+/* ── the question ── */
+
+.well__q {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1.3rem;
+}
+
+.well__q-l {
+  min-width: 0;
+}
+
+.well__question {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--text-bright);
+  text-wrap: pretty;
+}
+
+.well__again {
+  flex: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.73rem;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.well__again:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── the wait ── */
+
+.well__draw {
+  padding: 3rem 0;
+}
+
+.well__draw-l {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0 0 1rem;
+}
+
+.well__draw-bar {
+  height: 2px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.well__draw-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+
+/* ── the shape ── */
+
+.well__answer {
+  padding-top: 2.2rem;
+  animation: well-rise 560ms cubic-bezier(0.16, 0.84, 0.36, 1);
+}
+
+@keyframes well-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.well__sect {
+  margin-bottom: 2.6rem;
+}
+
+.well__label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-size: 0.59rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 0.9rem;
+}
+
+.well__shape {
+  height: 74px;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.well__tick {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--border-subtle);
+  border-radius: 1px;
+}
+
+.well__tick[data-hit='true'] {
+  background: var(--accent);
+}
+
+.well__years {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.55rem;
+}
+
+.well__read {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 0.8rem 0 0;
+}
+
+/* ── facts (computed in code, never by the model) ── */
+
+.well__facts {
+  display: flex;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.well__fact {
+  padding: 0.85rem 1.4rem 0.85rem 0;
+  border-right: 1px solid var(--border-subtle);
+  margin-right: 1.4rem;
+}
+
+.well__fact:last-child {
+  border-right: 0;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.well__fact-n {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  color: var(--text-bright);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.well__fact-k {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+  margin-top: 0.2rem;
+}
+
+/* ── the beats — verbatim, oldest first ── */
+
+.well__beat {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 0 1.4rem;
+  width: 100%;
+  padding: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.well__beat:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.well__beat:hover .well__beat-q {
+  color: var(--text-bright);
+}
+
+.well__beat-w {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+  padding-top: 0.45rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.well__beat-w b {
+  display: block;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  font-size: 0.57rem;
+  margin-bottom: 0.25rem;
+}
+
+.well__beat-q {
+  font-family: var(--font-serif);
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: var(--text);
+  text-wrap: pretty;
+  transition: color 160ms ease;
+}
+
+.well__beat-q::before {
+  content: '\201C';
+}
+
+.well__beat-q::after {
+  content: '\201D';
+}
+
+/* ── how it found this ── */
+
+.well__how {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 1.1rem;
+}
+
+.well__how summary {
+  cursor: pointer;
+  font-size: 0.69rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  list-style: none;
+}
+
+.well__how summary::-webkit-details-marker {
+  display: none;
+}
+
+.well__how summary::before {
+  content: '+ ';
+  color: var(--accent);
+}
+
+.well__how[open] summary::before {
+  content: '\2212 ';
+}
+
+.well__how-b {
+  padding-top: 1.1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.well__leg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.well__leg-n {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--accent);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 0.2rem 0.45rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.well__leg-t {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.well__leg-t b {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.well__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.well__chip {
+  font-size: 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  color: var(--text-dim);
+}
+
+/* ── empty / error ── */
+
+.well__empty {
+  padding: 3rem 0;
+}
+
+.well__empty-h {
+  font-size: 1rem;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+}
+
+.well__empty-s {
+  font-size: 0.85rem;
+  color: var(--text-faint);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 52ch;
+}
+
+@media (max-width: 640px) {
+  .well__beat {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .well__beat-w b {
+    display: inline;
+    margin-right: 0.5rem;
+  }
+  .well__q {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .well__answer {
+    animation: none;
+  }
+}

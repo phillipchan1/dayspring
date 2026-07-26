@@ -26,7 +26,7 @@ import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
-import { focusEntrySearch, isInEditor, shouldIgnoreTarget } from './keyboard'
+import { isInEditor, shouldIgnoreTarget } from './keyboard'
 import { filterEntries } from './search'
 import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
 import { entryReturnFromState } from '@/lib/appHistory'
@@ -44,6 +44,8 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
+import { WellView } from '@/features/well/WellView'
+import { FindPalette } from '@/features/find/FindPalette'
 import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
@@ -134,11 +136,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
+  const wellActive = state.surface === 'well'
   // Altar is unfinished — hidden behind the `altar` flag (per-profile or
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
+  /** ⌘K — Find (instant, local) or Ask (the Well). Seeded when reopened from the Well. */
+  const [findOpen, setFindOpen] = useState(false)
+  const [findSeed, setFindSeed] = useState('')
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
 
@@ -881,6 +887,41 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }
 
+  /** Open ⌘K. Find is instant and local; Ask leaves for the server on Return. */
+  function openFindOrAsk(seed = '') {
+    setFindSeed(seed)
+    setFindOpen(true)
+  }
+
+  /** Return pressed on a question — leave the palette and land in the Well. */
+  async function askQuestion(question: string) {
+    setFindOpen(false)
+    await saveNow() // see toggleLookBack — must complete before entryId nulls
+    setEntriesOpen(false)
+    go({
+      surface: 'well',
+      wellQuestion: question,
+      entryId: null,
+      entryReturn: null,
+      ascentDrill: null,
+      settings: null,
+      help: false,
+      sidebar: false,
+    })
+  }
+
+  /** Find is transit — jump straight to the entry and close behind you. */
+  async function openEntryById(id: string) {
+    setFindOpen(false)
+    const entry = entries.find((e) => e.id === id)
+    if (!entry) return
+    if (state.surface !== 'journal') {
+      go({ surface: 'journal', entryId: id, entryReturn: null, wellQuestion: null })
+      return
+    }
+    await handleBrowse(entry)
+  }
+
   /** Leave an entry opened from Lamp / Altar / Ascent — pop the pushed preview frame. */
   function returnFromEntryOrigin() {
     if (!state.entryReturn) {
@@ -963,13 +1004,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       if (settingsOpen) closeSettings()
       else openSettings()
     },
-    onFocusSearch: () => {
-      // Reveal the list before focusing search: desktop opens its panel, mobile
-      // its drawer. The input mounts immediately, so one frame is enough.
-      if (isMobile) go({ sidebar: true })
-      else setEntriesOpen(true)
-      requestAnimationFrame(() => focusEntrySearch())
-    },
+    onFindOrAsk: () => openFindOrAsk(''),
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     onFontSizeUp: () =>
       updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
@@ -1431,6 +1466,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
+  ) : wellActive ? (
+    <WellView
+      question={state.wellQuestion}
+      onOpenEntry={handleOpenReflectionEntry}
+      onAskAgain={(seed) => openFindOrAsk(seed)}
+    />
   ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="restrict-banner">
@@ -1494,6 +1535,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     reflectionsActive,
     altarActive,
     scriptureActive,
+    wellActive,
+    onFindOrAsk: () => openFindOrAsk(''),
     entryReturn: state.entryReturn,
     onReturnFromEntry: returnFromEntryOrigin,
   }
@@ -1619,6 +1662,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             editorRef.current?.removePendingAttachment(pendingId)
           }}
           onClose={closeSlashCapture}
+        />
+      )}
+
+      {findOpen && (
+        <FindPalette
+          initialQuery={findSeed}
+          onClose={() => setFindOpen(false)}
+          onOpenEntry={(id) => void openEntryById(id)}
+          onAsk={(q) => void askQuestion(q)}
         />
       )}
 

@@ -18,6 +18,7 @@ import {
   IconEntries,
   IconNew,
   IconScripture,
+  IconWell,
   IconSettings,
 } from './navIcons'
 import type { ReactNode } from 'react'
@@ -35,9 +36,9 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync, onFindOrAsk,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
-    reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, wellActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -53,7 +54,7 @@ export function MobileJournal(props: JournalViewProps) {
   }
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
   const journalChrome = !canvasAlternateActive
 
   function closeDrawer() {
@@ -217,6 +218,12 @@ export function MobileJournal(props: JournalViewProps) {
                 icon={<IconAltar size={22} />}
               />
             )}
+            <MobileTab
+              label="Well"
+              onClick={onFindOrAsk}
+              active={wellActive}
+              icon={<IconWell size={22} />}
+            />
             <MobileTab
               label="Settings"
               onClick={onOpenSettings}

@@ -26,9 +26,9 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync, onFindOrAsk,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, wellActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
@@ -43,7 +43,7 @@ export function DesktopJournal(props: JournalViewProps) {
           ? formatBreadcrumb(new Date().toISOString())
           : ''
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
   const journalChrome = !canvasAlternateActive
 
   return (
@@ -57,6 +57,8 @@ export function DesktopJournal(props: JournalViewProps) {
           onLookBack={onLookBack}
           scriptureActive={scriptureActive}
           onScripture={onScripture}
+          wellActive={wellActive}
+          onWell={onFindOrAsk}
           altarActive={altarActive}
           onAltar={onAltar}
           altarEnabled={altarEnabled}

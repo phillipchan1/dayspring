@@ -1,5 +1,11 @@
 import { useEffect } from 'react'
-import { hasMod, isInEditor, isTypingContext, shouldIgnoreTarget } from './keyboard'
+import {
+  hasEditorSelection,
+  hasMod,
+  isInEditor,
+  isTypingContext,
+  shouldIgnoreTarget,
+} from './keyboard'
 import { RAIL_EXPAND_KEY } from './railHints'
 import { isTauri } from '@/lib/platform'
 
@@ -11,8 +17,8 @@ export interface JournalShortcutActions {
   onScripture: () => void
   onAltar: () => void
   onOpenSettings: () => void
-  /** Open the entries panel (if collapsed) and focus its search field. */
-  onFocusSearch: () => void
+  /** ⌘K — Find (instant, local) or Ask (the Well). */
+  onFindOrAsk: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
   /** Increase editor font size (⌘= or ⌘+). */
@@ -42,7 +48,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onScripture,
     onAltar,
     onOpenSettings,
-    onFocusSearch,
+    onFindOrAsk,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,
@@ -85,6 +91,18 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
 
       if (!hasMod(e) || e.altKey) return
 
+      // ⌘K works INSIDE the editor on purpose — "wait, have I been here before?"
+      // is a mid-sentence thought, and making you leave the entry to ask it is
+      // what killed the question. Everything else below stays out of the editor.
+      //
+      // The one exception is the editor's own ⌘K (insert link), which only means
+      // anything with text selected — so a live selection yields to CodeMirror.
+      if (key === 'k' && !hasEditorSelection()) {
+        e.preventDefault()
+        onFindOrAsk()
+        return
+      }
+
       if (key === '=' || key === '+') {
         e.preventDefault()
         onFontSizeUp()
@@ -125,10 +143,6 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       if (key === 's') {
         e.preventDefault()
         void onSave()
-      } else if (key === 'k') {
-        if (isInEditor(e.target)) return
-        e.preventDefault()
-        onFocusSearch()
       }
     }
 
@@ -142,7 +156,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onScripture,
     onAltar,
     onOpenSettings,
-    onFocusSearch,
+    onFindOrAsk,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,
