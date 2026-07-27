@@ -3,8 +3,9 @@
 // thread them into cairns. Mirrors scripts/altar-backfill.ts.
 //
 //   npx tsx scripts/altar-harvest.ts --dry        # PLAN: unscanned + cue matches + est calls, $0
-//   npx tsx scripts/altar-harvest.ts              # harvest → embed → thread
+//   npx tsx scripts/altar-harvest.ts              # harvest → embed → tag subjects → group
 //   npx tsx scripts/altar-harvest.ts --max=200    # only touch the first 200 unscanned (test run)
+//   npx tsx scripts/altar-harvest.ts --regroup    # rebuild threads from existing tags ($0)
 //
 // Runs LOCALLY (no Vercel timeout): service-role Supabase + OpenAI (Nano).
 // Idempotent + cost-bounded: each entry is read by the model at most once
@@ -37,8 +38,9 @@ loadDotEnv()
 const args = process.argv.slice(2)
 const DRY = args.includes('--dry')
 const RESET = args.includes('--reset')
-const RETHREAD = args.includes('--rethread') // re-cluster only (reset threads → embed stragglers → thread)
-const SUBJECTS = args.includes('--subjects') // Altar v2: regroup prayers by subject (assumes harvested + embedded)
+// Regroup only: rebuild threads from the subject tags already on disk. Free (no
+// model calls), so it's the loop for tuning the gates in api/_lib/declared.ts.
+const REGROUP = args.includes('--regroup')
 const maxArg = args.find((a) => a.startsWith('--max='))
 const MAX = maxArg ? Number(maxArg.slice('--max='.length)) : undefined
 
@@ -68,30 +70,30 @@ async function main(): Promise<void> {
     return
   }
 
-  const { harvestPrayers, embedUnembedded, threadItems, resetHarvest, resetThreads, regroupSubjects } =
-    await import('../api/_lib/altar.ts')
+  const { harvestPrayers, embedUnembedded, resetHarvest } = await import('../api/_lib/altar.ts')
+  const { tagPlan, tagSubjects, regroupDeclared } = await import('../api/_lib/declared.ts')
 
-  if (SUBJECTS) {
-    console.log('Regrouping prayers by subject (Altar v2)…')
-    const e = await embedUnembedded(owner)
-    if (e.items) console.log(`  embedded ${e.items} stragglers first.`)
-    const r = await regroupSubjects(owner)
+  /** Tag any untagged lines, then rebuild the declared field from all tags. */
+  async function buildDeclared(): Promise<void> {
+    let { untagged } = await tagPlan(owner)
+    while (untagged > 0) {
+      const r = await tagSubjects(owner, { max: 500 })
+      untagged = r.remaining
+      console.log(`  tagged ${r.read} (kept ${r.kept}) · ${untagged} remaining`)
+      if (r.read === 0) break
+    }
+    const g = await regroupDeclared(owner)
     console.log(
-      `  tagged ${r.tagged} · kept ${r.kept} substantive · ${r.subjects} subjects · ${r.memberships} memberships.`,
+      `  ${g.subjects} subjects · +${g.created} new · ${g.updated} updated · ` +
+      `members +${g.membersAdded}/-${g.membersRemoved} · ${g.pruned} pruned · ${g.preserved} preserved.`,
     )
-    console.log('\nDone regrouping by subject.')
-    return
   }
 
-  if (RETHREAD) {
-    console.log('Re-clustering (keeping harvested prayers + embeddings)…')
-    const r = await resetThreads(owner)
-    console.log(`  cleared ${r.deletedThreads} threads.`)
-    const e = await embedUnembedded(owner)
-    console.log(`  embedded ${e.entries} entries, ${e.items} stragglers.`)
-    const t = await threadItems(owner)
-    console.log(`  placed ${t.placed} items · ${t.newThreads} new threads · ${t.updatedThreads} grown.`)
-    console.log('\nDone re-clustering.')
+  if (REGROUP) {
+    // Grouping only — free, no model calls. For tuning the gates in declared.ts.
+    console.log('Regrouping declared threads from existing subject tags…')
+    await buildDeclared()
+    console.log('\nDone regrouping.')
     return
   }
 
@@ -109,9 +111,8 @@ async function main(): Promise<void> {
   const e = await embedUnembedded(owner)
   console.log(`  embedded ${e.entries} entries, ${e.items} prayers/senses.`)
 
-  console.log('\nStep 3/3 — clustering into cairns…')
-  const t = await threadItems(owner)
-  console.log(`  placed ${t.placed} items · ${t.newThreads} new threads · ${t.updatedThreads} grown.`)
+  console.log('\nStep 3/3 — tagging subjects, then grouping into cairns…')
+  await buildDeclared()
 
   console.log('\nDone. Open the Altar — the field should be fuller now.')
 }

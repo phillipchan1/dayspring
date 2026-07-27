@@ -30,12 +30,11 @@ import {
 } from '../_lib/synthesize.js'
 import {
   embedUnembedded,
-  threadItems,
-  relabelDeclaredThreads,
   migrateLegacyAnswered,
   sweepOpenThreads,
   harvestPrayers,
 } from '../_lib/altar.js'
+import { tagSubjects, regroupDeclared } from '../_lib/declared.js'
 import { enqueueAltarThread } from '../_lib/processing.js'
 import { scanConcordance, consolidateConcordance } from '../_lib/concordance.js'
 
@@ -103,14 +102,27 @@ async function synthesizeOwner(
     // reserved for the monthly/yearly rollups.
     altar.harvested = await harvestPrayers(owner, { max: 50 })
     altar.embedded = await embedUnembedded(owner)
-    // Bounded steady-state top-up. A larger leftover backlog (a pre-engine import,
-    // or a job marked done before threadItems was bounded) is handed to a
-    // self-chaining altar_thread engine job, which drains it in minutes instead of
-    // 300/day here — so the Altar self-heals for every owner without a manual run.
-    const threaded = await threadItems(owner, { max: 300 })
-    altar.threaded = threaded
-    if (threaded.remaining > 0) altar.threadBacklog = await enqueueAltarThread(owner)
-    altar.relabeled = await relabelDeclaredThreads(owner, { max: 20 })
+    // Declared threads, by SUBJECT (api/_lib/declared.ts). Tagging is the only
+    // priced step and reads each line once ever, so it's bounded here; a larger
+    // leftover backlog is handed to the self-chaining altar_thread engine job,
+    // which drains it in minutes instead of 120/day. Regrouping costs no model
+    // calls, so the whole field is re-derived daily — which is what keeps a
+    // thread's label describing all of its members rather than its first few.
+    const tagged = await tagSubjects(owner, { max: 120 })
+    altar.tagged = tagged
+    if (tagged.remaining > 0) {
+      // Still reading this owner's archive. Hand the rest to the self-chaining
+      // engine job (300/tick, every minute) and DON'T regroup yet — a field built
+      // from a half-read archive would replace someone's Altar with the fraction of
+      // it we've seen. The existing field stays put until the new one is whole.
+      altar.tagBacklog = await enqueueAltarThread(owner)
+    } else if (tagged.read > 0) {
+      // Fully tagged and something new came in. Regrouping reads every tagged line
+      // and embeds the label vocabulary, so it's skipped on a quiet day — with no
+      // new lines the plan is yesterday's and the sync would write nothing. Keeps
+      // this cron well inside its 300s budget.
+      altar.declared = await regroupDeclared(owner)
+    }
     altar.migrated = await migrateLegacyAnswered(owner)
     if (isMonday(now)) altar.sweep = await sweepOpenThreads(owner)
 
