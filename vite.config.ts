@@ -75,6 +75,8 @@ export default defineConfig({
   test: {
     // Pure logic (markdown parsing, formatting, slash detection) needs no DOM.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // api/ too: the server-side grouping logic (declared threads) is pure and worth
+    // pinning down — a silent regression there is what made the Altar unreadable.
+    include: ['src/**/*.test.ts', 'api/**/*.test.ts'],
   },
 })

@@ -79,15 +79,23 @@ async function main(): Promise<void> {
     return
   }
 
-  const { embedUnembedded, threadItems, migrateLegacyAnswered } = await import('../api/_lib/altar.ts')
+  const { embedUnembedded, migrateLegacyAnswered } = await import('../api/_lib/altar.ts')
+  const { tagPlan, tagSubjects, regroupDeclared } = await import('../api/_lib/declared.ts')
 
   console.log('Step 1/3 — embedding entries + prayers/senses…')
   const e = await embedUnembedded(owner)
   console.log(`  embedded ${e.entries} entries, ${e.items} prayers/senses.`)
 
-  console.log('\nStep 2/3 — clustering recurring prayers into threads…')
-  const t = await threadItems(owner)
-  console.log(`  placed ${t.placed} items · ${t.newThreads} new threads · ${t.updatedThreads} grown.`)
+  console.log('\nStep 2/3 — tagging subjects, then grouping into threads…')
+  let { untagged } = await tagPlan(owner)
+  while (untagged > 0) {
+    const r = await tagSubjects(owner, { max: 500 })
+    untagged = r.remaining
+    console.log(`  tagged ${r.read} (kept ${r.kept}) · ${untagged} remaining`)
+    if (r.read === 0) break
+  }
+  const g = await regroupDeclared(owner)
+  console.log(`  ${g.subjects} subjects · +${g.created} new · ${g.updated} updated · ${g.pruned} pruned.`)
 
   console.log('\nStep 3/3 — migrating legacy answered prayers → encounters…')
   const m = await migrateLegacyAnswered(owner)
