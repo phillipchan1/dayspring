@@ -1,7 +1,14 @@
-// The Altar engine: embeds prayers/senses + entries, clusters recurring prayer
-// lines into threads, migrates the legacy binary into encounters, and (weekly)
-// lays EVIDENCE beside open threads. Runs server-side only (backfill + cron) —
-// the client never embeds or calls OpenAI.
+// The Altar engine: embeds prayers/senses + entries, harvests the prayers written
+// in entry prose, migrates the legacy binary into encounters, and (weekly) lays
+// EVIDENCE beside open threads. Runs server-side only (backfill + cron) — the
+// client never embeds or calls OpenAI.
+//
+// GROUPING LIVES IN ./declared.ts, not here. This module used to cluster prayer
+// lines by embedding similarity (threadItems, MERGE_THRESHOLD 0.64); that measured
+// devotional REGISTER rather than subject, and re-averaging each cluster's centroid
+// turned the biggest heap into a magnet that swallowed years of unrelated praying.
+// It was retired 2026-07-27 in favour of subject tagging. See declared.ts for the
+// full autopsy — and do not reintroduce a similarity threshold over raw prayer text.
 //
 // Governing principle: light = ENCOUNTER, not transaction. Nothing here ever
 // writes an `encounters` row from inference, and the weekly sweep NEVER returns a
@@ -11,16 +18,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
-import { centroid, cosine, embed, toVectorLiteral } from './embeddings.js'
+import { embed, toVectorLiteral } from './embeddings.js'
 
-// ── clustering knob (cosine similarity of text-embedding-3-small) ────────────
-// A prayer attaches to its nearest existing cairn when similarity ≥ this; else it
-// starts a new one. PURE THRESHOLD — no per-pair model call (doesn't scale, and
-// biased toward over-splitting). This is the recurring-CONCERN bar, not exact-line
-// identity: tuned so years of "draw near to God" cries collapse into one tall
-// heap rather than a thousand near-singletons. THE key tuning knob — raise it for
-// more, smaller cairns; lower it for fewer, taller (riskier) merges.
-const MERGE_THRESHOLD = 0.64
 // Open-thread sweep: cosine DISTANCE (1 - sim); only entries this close are
 // even shown to the Nano evidence pass.
 const SWEEP_MAX_DISTANCE = 0.45
@@ -52,32 +51,6 @@ async function mapPool<T, R>(
   return out
 }
 
-// ── shapes ───────────────────────────────────────────────────────────────────
-interface ItemRow {
-  id: string
-  entry_id: string | null
-  type: 'prayer' | 'sense'
-  content: string
-  created_at: string
-  resolved_at: string | null
-  thread_id: string | null
-  embedding: number[] | null
-}
-
-interface Member {
-  itemId: string
-  emb: number[]
-  date: string // effective (entry) date
-  content: string
-}
-
-interface Cluster {
-  id: string | null // existing thread id, or null until inserted
-  members: Member[]
-  centroid: number[]
-  dirty: boolean // gained a member this run (existing) — needs an UPDATE
-}
-
 // ── small helpers ────────────────────────────────────────────────────────────
 function parseVector(v: unknown): number[] | null {
   if (v == null) return null
@@ -90,53 +63,6 @@ function parseVector(v: unknown): number[] | null {
     }
   }
   return null
-}
-
-function recomputeCentroid(c: Cluster): void {
-  c.centroid = centroid(c.members.map((m) => m.emb))
-}
-
-function seedMember(c: Cluster): Member {
-  // Earliest member is the seed (the planted prayer).
-  return c.members.reduce((a, b) => (a.date <= b.date ? a : b))
-}
-
-/**
- * Link declared-thread members via the unified thread_members table (spiritual_item_id).
- * Idempotent — already-linked items are skipped via a query-first filter (the dedup
- * index is partial, so it can't be an ON CONFLICT target). Chunked to stay under
- * the PostgREST URL-length limit.
- */
-async function linkDeclaredMembers(sb: SupabaseClient, threadId: string, rawItemIds: string[]): Promise<void> {
-  // Dedupe within the batch first — the Diarly import stamps every item at noon, so
-  // a cluster can carry the same itemId twice; a single INSERT of two identical rows
-  // fails atomically on the partial unique index and never commits.
-  const itemIds = [...new Set(rawItemIds)]
-  if (itemIds.length === 0) return
-  // Skip items already linked to this thread. The dedup index
-  // (thread_members_item_uniq) is PARTIAL (WHERE spiritual_item_id IS NOT NULL), so
-  // it can't be an ON CONFLICT target — a query-first filter is what keeps this
-  // idempotent across resumable threadItems runs that re-link a grown cluster.
-  const already = new Set<string>()
-  for (let i = 0; i < itemIds.length; i += IN_CHUNK) {
-    const { data, error } = await sb
-      .from('thread_members')
-      .select('spiritual_item_id')
-      .eq('thread_id', threadId)
-      .in('spiritual_item_id', itemIds.slice(i, i + IN_CHUNK))
-    if (error) throw error
-    for (const r of (data ?? []) as { spiritual_item_id: string }[]) already.add(r.spiritual_item_id)
-  }
-  const toInsert = itemIds.filter((id) => !already.has(id))
-  for (let i = 0; i < toInsert.length; i += IN_CHUNK) {
-    const rows = toInsert.slice(i, i + IN_CHUNK).map((id) => ({
-      thread_id: threadId,
-      spiritual_item_id: id,
-      register: 'neutral',
-    }))
-    const { error } = await sb.from('thread_members').insert(rows)
-    if (error) throw error
-  }
 }
 
 /**
@@ -253,278 +179,6 @@ export async function embedUnembedded(
   return { entries: entries.length, items: items.length }
 }
 
-// ── 2. clustering into threads ─────────────────────────────────────────────────
-const LABEL_PROMPT = `You are labeling a thread of recurring prayer-journal notes (the same prayer carried over time).
-Given the member notes, return JSON {"title": string, "carries": string[]}:
-- title: a short, plain, reverent label for what is being prayed (max 6 words). No quotes, no punctuation flourish.
-- carries: the specific people or groups being interceded FOR, as they are named in the notes (e.g. "Esther",
-  "the kids", "Daniel"). Proper names or concrete groups only. Empty array if the prayer is about the writer
-  themselves or names no one. Never invent a name that isn't in the text.`
-
-const LABEL_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['title', 'carries'],
-  properties: {
-    title: { type: 'string' },
-    carries: { type: 'array', items: { type: 'string' } },
-  },
-} as const
-
-async function labelThread(contents: string[]): Promise<{ title: string; carries: string[] }> {
-  const seedFallback = (contents[0] ?? 'A prayer').split('\n')[0]!.slice(0, 60).trim()
-  try {
-    const out = await callModel<{ title: string; carries: string[] }>(
-      LABEL_PROMPT,
-      { notes: contents.slice(0, 6).map((c) => c.slice(0, 600)) },
-      LABEL_SCHEMA as Record<string, unknown>,
-      'altar_label',
-      'low',
-      400,
-    )
-    const title = (out.title || '').trim() || seedFallback
-    const carries = Array.isArray(out.carries)
-      ? out.carries.map((s) => s.trim()).filter(Boolean).slice(0, 8)
-      : []
-    return { title, carries }
-  } catch {
-    return { title: seedFallback, carries: [] }
-  }
-}
-
-/**
- * Place every unthreaded prayer/sense into a thread (existing or new), grow the
- * cairns, (re)label touched threads, and prune any thread left empty. Idempotent:
- * already-threaded items are never re-clustered, so thread ids — and the
- * encounters that reference them — are stable across runs.
- *
- * Writes to the UNIFIED threads table (kind='declared') + thread_members
- * (spiritual_item_id). The old prayer_threads table is no longer written.
- */
-export async function threadItems(
-  owner: string,
-  opts: { max?: number } = {},
-): Promise<{ placed: number; newThreads: number; updatedThreads: number; remaining: number }> {
-  const sb = supabaseAdmin()
-
-  const rawRows = await fetchAll<ItemRow>(
-    sb,
-    'spiritual_items',
-    'id, entry_id, type, content, created_at, resolved_at, thread_id, embedding',
-    owner,
-    // `id` tiebreak keeps pagination STABLE: the Diarly import stamps every item at
-    // noon, so ordering by created_at alone is non-deterministic across page
-    // boundaries — rows get repeated or skipped, inflating heft and crashing the
-    // member insert on duplicates.
-    (q) => q.in('type', ['prayer', 'sense']).order('created_at', { ascending: true }).order('id', { ascending: true }),
-    150, // small page: this read carries the embedding vector
-  )
-
-  // Quick lookup by id (also dedupes any rows a paginated read still repeated).
-  const rowById = new Map(rawRows.map((r) => [r.id, r]))
-  const rows = [...rowById.values()]
-
-  // Effective (source) date per item: the entry's date when linked, else the row's.
-  const entryIds = [...new Set(rows.map((r) => r.entry_id).filter((x): x is string => !!x))]
-  const entryDate = new Map<string, string>()
-  for (let i = 0; i < entryIds.length; i += IN_CHUNK) {
-    const slice = entryIds.slice(i, i + IN_CHUNK)
-    const { data, error } = await sb.from('entries').select('id, created_at').in('id', slice)
-    if (error) throw error
-    for (const e of (data ?? []) as { id: string; created_at: string }[]) entryDate.set(e.id, e.created_at)
-  }
-  const effDate = (r: ItemRow) => (r.entry_id && entryDate.get(r.entry_id)) || r.created_at
-
-  const toMember = (r: ItemRow): Member => ({
-    itemId: r.id,
-    emb: parseVector(r.embedding)!,
-    date: effDate(r),
-    content: r.content,
-  })
-
-  // Seed in-memory clusters from EXISTING declared threads in the unified threads table.
-  // An item is already-threaded if it appears in thread_members.spiritual_item_id.
-  // BOTH reads paginate (ordered for stability): a caught-up owner can have
-  // thousands of declared threads, and one large cluster alone can exceed
-  // PostgREST's 1000-row default — a truncated seed read would drop members from
-  // linkedItemIds and re-thread them into DUPLICATE threads on the next resumable
-  // tick (the bug that put items into 2+ threads).
-  const declaredThreadIds = (
-    await fetchAll<{ id: string }>(sb, 'threads', 'id', owner, (q) =>
-      q.eq('kind', 'declared').eq('dismissed', false).order('id', { ascending: true }),
-    )
-  ).map((t) => t.id)
-  const clusters = new Map<string, Cluster>()
-  const linkedItemIds = new Set<string>() // spiritual_item_ids already in a declared thread_member
-
-  for (let i = 0; i < declaredThreadIds.length; i += IN_CHUNK) {
-    const ids = declaredThreadIds.slice(i, i + IN_CHUNK)
-    for (let from = 0; ; from += PAGE) {
-      const { data: mdata, error: merr } = await sb
-        .from('thread_members')
-        .select('id, thread_id, spiritual_item_id')
-        .in('thread_id', ids)
-        .not('spiritual_item_id', 'is', null)
-        .order('id', { ascending: true })
-        .range(from, from + PAGE - 1)
-      if (merr) throw merr
-      const batch = (mdata ?? []) as { thread_id: string; spiritual_item_id: string }[]
-      for (const m of batch) {
-        linkedItemIds.add(m.spiritual_item_id)
-        const row = rowById.get(m.spiritual_item_id)
-        if (!row || !parseVector(row.embedding)) continue
-        const c = clusters.get(m.thread_id) ?? { id: m.thread_id, members: [], centroid: [], dirty: false }
-        c.members.push(toMember(row))
-        clusters.set(m.thread_id, c)
-      }
-      if (batch.length < PAGE) break
-    }
-  }
-  for (const c of clusters.values()) recomputeCentroid(c)
-
-  const newClusters: Cluster[] = []
-  const live = (): Cluster[] => [...clusters.values(), ...newClusters]
-
-  // Place unthreaded items oldest-first so the earliest becomes each thread's seed.
-  const allUnthreaded = rows
-    .filter((r) => !linkedItemIds.has(r.id) && parseVector(r.embedding))
-    .sort((a, b) => effDate(a).localeCompare(effDate(b)))
-
-  // Bounded per call so a large archive (thousands of prayers) can never exceed the
-  // function budget — the unbounded all-at-once pass timed out mid-insert and left
-  // the field nearly empty. We place the OLDEST `max` first (earliest = each
-  // thread's seed); the caller re-runs until `remaining` hits 0, re-seeding from the
-  // threads this run created. Resumable by construction: already-linked items fall
-  // out of `unthreaded` on the next run, so progress never repeats or regresses.
-  const unthreaded = opts.max ? allUnthreaded.slice(0, opts.max) : allUnthreaded
-  const remaining = allUnthreaded.length - unthreaded.length
-
-  let placed = 0
-  for (const r of unthreaded) {
-    const m = toMember(r)
-    let best: Cluster | null = null
-    let bestSim = -1
-    for (const c of live()) {
-      const sim = cosine(m.emb, c.centroid)
-      if (sim > bestSim) {
-        bestSim = sim
-        best = c
-      }
-    }
-
-    const target: Cluster | null = best && bestSim >= MERGE_THRESHOLD ? best : null
-
-    if (target) {
-      target.members.push(m)
-      recomputeCentroid(target)
-      if (target.id) target.dirty = true
-    } else {
-      const fresh: Cluster = { id: null, members: [m], centroid: m.emb.slice(), dirty: true }
-      newClusters.push(fresh)
-    }
-    placed++
-  }
-
-  // ── Phase 1: insert threads + members with seed titles — NO LLM calls.
-  // This is fast (pure DB) and handles any archive size without timing out.
-  // LLM relabeling of multi-member threads happens in relabelDeclaredThreads(),
-  // called separately with a bounded per-run cap so it can never time out.
-  const fresh = newClusters.filter((c) => c.members.length > 0)
-  // Sequential to avoid overwhelming Postgres with hundreds of concurrent inserts.
-  for (const c of fresh) {
-    const seed = seedMember(c)
-    const seedRow = rowById.get(seed.itemId)
-    const title = seedTitle(seed.content)
-    const { data, error } = await sb
-      .from('threads')
-      .insert({
-        owner,
-        label: title,
-        label_ai: null,   // null = needs LLM relabeling; relabelDeclaredThreads() fills this
-        kind: 'declared',
-        type: seedRow?.type ?? 'prayer',
-        seed_item_id: seed.itemId,
-        dismissed: false,
-        private: false,
-      })
-      .select('id')
-      .single()
-    if (error) throw error
-    const id = (data as { id: string }).id
-    await linkDeclaredMembers(sb, id, c.members.map((m) => m.itemId))
-  }
-
-  // Persist EXISTING threads that gained new members — just link, don't relabel here.
-  // relabelDeclaredThreads() will update the label if the cluster has grown.
-  const dirty = [...clusters.values()].filter((c) => c.dirty && c.id)
-  for (const c of dirty) {
-    // linkDeclaredMembers is idempotent — already-linked items are silently skipped.
-    await linkDeclaredMembers(sb, c.id!, c.members.map((m) => m.itemId))
-  }
-
-  return { placed, newThreads: fresh.length, updatedThreads: dirty.length, remaining }
-}
-
-/**
- * LLM relabeling pass — give each multi-member declared thread a proper AI
- * label. Bounded by `max` so this can never time out. Threads with label_ai
- * already set are skipped; threads that grow (more members since last label)
- * are eligible again once label_ai is cleared by clearing it to null.
- *
- * Called daily from synthesize.ts after threadItems.
- */
-export async function relabelDeclaredThreads(
-  owner: string,
-  opts: { max?: number } = {},
-): Promise<{ relabeled: number }> {
-  const sb = supabaseAdmin()
-
-  // Threads that need labeling: label_ai is null AND they have ≥ LABEL_MIN_MEMBERS members.
-  const { data: threadData } = await sb
-    .from('threads')
-    .select('id, seed_item_id')
-    .eq('owner', owner)
-    .eq('kind', 'declared')
-    .eq('dismissed', false)
-    .is('label_ai', null)
-  if (!threadData || threadData.length === 0) return { relabeled: 0 }
-
-  // Load member content for each candidate thread.
-  type ThreadMeta = { id: string; seed_item_id: string | null }
-  const candidates = (threadData as ThreadMeta[])
-  const pool = opts.max ? candidates.slice(0, opts.max) : candidates
-
-  let relabeled = 0
-  await mapPool(pool, POOL, async (t) => {
-    const { data: mdata } = await sb
-      .from('thread_members')
-      .select('spiritual_items(content, created_at)')
-      .eq('thread_id', t.id)
-      .not('spiritual_item_id', 'is', null)
-    type MRow = { spiritual_items: { content: string; created_at: string } | null }
-    const members = ((mdata ?? []) as unknown as MRow[])
-      .map((m) => m.spiritual_items)
-      .filter((x): x is { content: string; created_at: string } => !!x)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at))
-
-    if (members.length < LABEL_MIN_MEMBERS) {
-      // Not enough members — use seed title and mark as done (set label_ai = label).
-      const { data: seedRow } = await sb.from('spiritual_items').select('content').eq('id', t.seed_item_id ?? '').maybeSingle()
-      const title = seedRow ? seedTitle((seedRow as { content: string }).content) : 'A prayer'
-      await sb.from('threads').update({ label: title, label_ai: title }).eq('id', t.id).eq('owner', owner)
-      relabeled++
-      return
-    }
-
-    const memberObjs: Member[] = members.map((m) => ({ itemId: '', emb: [], date: m.created_at, content: m.content }))
-    const { title } = await labelFor(memberObjs)
-    await sb.from('threads').update({ label: title, label_ai: title }).eq('id', t.id).eq('owner', owner)
-    relabeled++
-  })
-
-  return { relabeled }
-}
-
 // ── 3. migrate the legacy binary → encounters ──────────────────────────────────
 /**
  * One-time: every prayer marked answered the OLD way (spiritual_items.resolved_at)
@@ -639,26 +293,7 @@ const HARVEST_SCHEMA = {
   },
 } as const
 
-// Only recurring cairns (≥ this many touches) earn an LLM-generated title; a lone
-// prayer IS its own label, so we derive its title from the seed text — no model
-// call. Keeps labeling cost proportional to the (few) heaps, not every singleton.
-const LABEL_MIN_MEMBERS = 2
-
 const normalizeWs = (s: string) => s.replace(/\s+/g, ' ').trim()
-
-/** A title for a single-prayer cairn: the seed's first line, trimmed. No model call. */
-function seedTitle(content: string): string {
-  const first = content.split('\n').find((l) => l.trim()) ?? content
-  const t = normalizeWs(first)
-  return t.length > 60 ? `${t.slice(0, 57).trimEnd()}…` : t || 'A prayer'
-}
-
-/** Label a cluster — LLM only for recurring heaps; seed-derived for singletons. */
-async function labelFor(members: Member[]): Promise<{ title: string; carries: string[] }> {
-  const seed = members.reduce((a, b) => (a.date <= b.date ? a : b))
-  if (members.length < LABEL_MIN_MEMBERS) return { title: seedTitle(seed.content), carries: [] }
-  return labelThread([seed.content, ...members.map((m) => m.content)])
-}
 
 /** The extracted passage must be the writer's actual words — a (whitespace-tolerant) substring. */
 function isVerbatim(body: string, text: string): boolean {
@@ -718,25 +353,22 @@ export async function resetHarvest(owner: string): Promise<{ deleted: number }> 
 }
 
 /**
- * Clear all thread assignments + delete threads (except any the user has named an
- * encounter on) so the next threadItems re-clusters from scratch — cheap, since
- * embeddings are kept (no re-harvest, no re-embed). For tuning MERGE_THRESHOLD.
+ * Clear the subject tags on every prayer/sense line so the next tagging pass reads
+ * the archive fresh. For tuning the tag prompt — expensive (the model re-reads
+ * every line), so it is never called from the cron. Threads themselves are left
+ * alone; the following regroup rebuilds them.
  */
-export async function resetThreads(owner: string): Promise<{ deletedThreads: number }> {
+export async function resetSubjectTags(owner: string): Promise<{ cleared: number }> {
   const sb = supabaseAdmin()
-  const enc = await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)
-  const keep = [...new Set(enc.map((e) => e.thread_id))]
-
-  let unlink = sb.from('spiritual_items').update({ thread_id: null }).eq('owner', owner).not('thread_id', 'is', null)
-  if (keep.length) unlink = unlink.not('thread_id', 'in', `(${keep.join(',')})`)
-  const { error } = await unlink
+  const { data, error } = await sb
+    .from('spiritual_items')
+    .update({ subject_tags: null, subject_tagged_at: null })
+    .eq('owner', owner)
+    .in('type', ['prayer', 'sense'])
+    .not('subject_tagged_at', 'is', null)
+    .select('id')
   if (error) throw error
-
-  let del = sb.from('prayer_threads').delete().eq('owner', owner).select('id')
-  if (keep.length) del = del.not('id', 'in', `(${keep.join(',')})`)
-  const { data, error: delErr } = await del
-  if (delErr) throw delErr
-  return { deletedThreads: (data ?? []).length }
+  return { cleared: (data ?? []).length }
 }
 
 /** Dry-run plan: how many entries are unscanned, and how many clear the cue prefilter. */
@@ -832,255 +464,6 @@ export async function harvestPrayers(
   ).reduce((a, b) => a + b, 0)
 
   return { scanned: pool.length, candidates: candidates.length, planted }
-}
-
-// ── 3c. subjects — group prayers by what they're ABOUT (Altar v2) ──────────────
-// A cairn is a SUBJECT (a person/place/theme you bring to God), not a text
-// cluster. Each prayer is tagged with up to 3 subjects; subjects are canonicalized
-// (so "trading discipline" + "playbook" become one) and become prayer_threads
-// rows. Membership is many-to-many via item_subjects. A cairn's height in any
-// season window = how many of its prayers fall in that window (computed by the
-// altar_field RPC), so the same subject rises across all-time and settles in a
-// season.
-
-const SUBJECT_TAG_BATCH = 6
-// Cosine bar for merging two subject LABELS into one canonical cairn. Labels are
-// short, so they cluster much tighter than full prayers — a higher bar is safe.
-const SUBJECT_MERGE = 0.62
-const MAX_SUBJECTS_PER_PRAYER = 3
-
-const TAG_PROMPT = `You read short prayers/notes from one person's private faith journal and identify what each is ABOUT — the
-person(s), place(s), or recurring theme(s) it concerns — so prayers about the same thing gather into one cairn.
-
-For each note return up to 3 subjects as {label, kind}:
- - kind "person": a specific person or group prayed for — use their NAME if the note names them ("Esther",
-   "Daniel"); otherwise the relationship ("my wife", "the kids").
- - kind "place": a place / community / work context ("Frontier", "trading", "our home").
- - kind "theme": a recurring spiritual theme ("drawing near to God", "surrender", "patience", "anxiety").
-Use SHORT canonical labels (1–4 words), lowercase except proper names, and REUSE the same label across notes
-for the same thing.
-
-Set keep=false with empty subjects when the note is NOT a substantive, specific prayer or sense — generic
-devotional filler with no real subject ("make a way Lord"), or ordinary narration ("wearing new headphones,
-feels good"). A "sense" only counts if it is a genuine sense of GOD speaking / leading / showing something
-(never merely because the word "feel" appears).
-
-Return JSON {"notes":[{"id":string,"keep":boolean,"subjects":[{"label":string,"kind":"person"|"place"|"theme"}]}]}.`
-
-const TAG_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['notes'],
-  properties: {
-    notes: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['id', 'keep', 'subjects'],
-        properties: {
-          id: { type: 'string' },
-          keep: { type: 'boolean' },
-          subjects: {
-            type: 'array',
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['label', 'kind'],
-              properties: {
-                label: { type: 'string' },
-                kind: { type: 'string', enum: ['person', 'place', 'theme'] },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-} as const
-
-interface RawTag {
-  label: string
-  kind: string
-}
-
-/**
- * Regroup every harvested prayer/sense by SUBJECT. Tags each prayer (filtering
- * filler + fixing "sense"), canonicalizes the subject vocabulary by embedding the
- * labels and merging near-duplicates, then rebuilds prayer_threads (subjects) +
- * item_subjects (membership). Idempotent: wipes prior subjects (those without an
- * encounter) and rebuilds. Assumes prayers are already embedded.
- */
-export async function regroupSubjects(
-  owner: string,
-): Promise<{ tagged: number; kept: number; subjects: number; memberships: number }> {
-  const sb = supabaseAdmin()
-
-  const items = await fetchAll<ItemRow>(
-    sb,
-    'spiritual_items',
-    'id, entry_id, type, content, created_at, resolved_at, thread_id, embedding',
-    owner,
-    (q) => q.in('type', ['prayer', 'sense']),
-    150,
-  )
-  // Effective (source) date + embedding per item.
-  const entryIds = [...new Set(items.map((r) => r.entry_id).filter((x): x is string => !!x))]
-  const entryDate = new Map<string, string>()
-  for (let i = 0; i < entryIds.length; i += IN_CHUNK) {
-    const { data } = await sb.from('entries').select('id, created_at').in('id', entryIds.slice(i, i + IN_CHUNK))
-    for (const e of (data ?? []) as { id: string; created_at: string }[]) entryDate.set(e.id, e.created_at)
-  }
-  const dateOf = (r: ItemRow) => (r.entry_id && entryDate.get(r.entry_id)) || r.created_at
-  const embOf = new Map<string, number[]>()
-  for (const r of items) {
-    const e = parseVector(r.embedding)
-    if (e) embOf.set(r.id, e)
-  }
-
-  // 1. Tag each prayer with its subjects (filter filler; fix sense).
-  const batches: ItemRow[][] = []
-  for (let i = 0; i < items.length; i += SUBJECT_TAG_BATCH) batches.push(items.slice(i, i + SUBJECT_TAG_BATCH))
-  const itemTags = new Map<string, RawTag[]>() // itemId → raw subject tags
-  await mapPool(batches, POOL, async (batch) => {
-    let out: { notes?: { id: string; keep: boolean; subjects?: RawTag[] }[] }
-    try {
-      out = await callModel(
-        TAG_PROMPT,
-        { notes: batch.map((r) => ({ id: r.id, text: r.content.slice(0, 600) })) },
-        TAG_SCHEMA as Record<string, unknown>,
-        'altar_tag',
-        'low',
-        1200,
-      )
-    } catch {
-      return
-    }
-    for (const n of out.notes ?? []) {
-      if (!n.keep) continue
-      const tags = (n.subjects ?? [])
-        .map((s) => ({ label: (s.label || '').trim(), kind: s.kind }))
-        .filter((s) => s.label)
-        .slice(0, MAX_SUBJECTS_PER_PRAYER)
-      if (tags.length) itemTags.set(n.id, tags)
-    }
-  })
-
-  // 2. Canonicalize the subject vocabulary: embed distinct labels, greedily merge
-  // near-duplicates into canonical subjects.
-  const labelInfo = new Map<string, { orig: string; kind: Record<string, number>; count: number }>()
-  for (const tags of itemTags.values()) {
-    for (const t of tags) {
-      const key = t.label.toLowerCase()
-      const info = labelInfo.get(key) ?? { orig: t.label, kind: {}, count: 0 }
-      info.count++
-      info.kind[t.kind] = (info.kind[t.kind] ?? 0) + 1
-      labelInfo.set(key, info)
-    }
-  }
-  const labels = [...labelInfo.keys()].sort((a, b) => labelInfo.get(b)!.count - labelInfo.get(a)!.count)
-  const labelVecs = new Map<string, number[]>()
-  {
-    const vecs = await embed(labels.map((l) => labelInfo.get(l)!.orig))
-    labels.forEach((l, i) => labelVecs.set(l, vecs[i]!))
-  }
-  interface Canon {
-    name: string
-    kind: string
-    centroid: number[]
-    n: number
-    members: string[] // lowercased labels in this canonical group
-  }
-  const canons: Canon[] = []
-  const labelToCanon = new Map<string, number>()
-  for (const l of labels) {
-    const v = labelVecs.get(l)!
-    let best = -1
-    let bestSim = -1
-    for (let i = 0; i < canons.length; i++) {
-      const sim = cosine(v, canons[i]!.centroid)
-      if (sim > bestSim) {
-        bestSim = sim
-        best = i
-      }
-    }
-    const info = labelInfo.get(l)!
-    if (best >= 0 && bestSim >= SUBJECT_MERGE) {
-      const c = canons[best]!
-      for (let d = 0; d < v.length; d++) c.centroid[d] = (c.centroid[d]! * c.n + v[d]!) / (c.n + 1)
-      c.n++
-      c.members.push(l)
-      labelToCanon.set(l, best)
-    } else {
-      const kind = Object.entries(info.kind).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'theme'
-      canons.push({ name: info.orig, kind, centroid: v.slice(), n: 1, members: [l] })
-      labelToCanon.set(l, canons.length - 1)
-    }
-  }
-
-  // 3. Assign each item to its canonical subjects (deduped).
-  const itemCanons = new Map<string, Set<number>>()
-  const canonItems = new Map<number, Set<string>>()
-  for (const [itemId, tags] of itemTags) {
-    const set = new Set<number>()
-    for (const t of tags) {
-      const ci = labelToCanon.get(t.label.toLowerCase())
-      if (ci != null) set.add(ci)
-    }
-    if (!set.size) continue
-    itemCanons.set(itemId, set)
-    for (const ci of set) (canonItems.get(ci) ?? canonItems.set(ci, new Set()).get(ci)!).add(itemId)
-  }
-
-  // 4. Wipe prior subjects (those without an encounter) + their memberships, then rebuild.
-  const enc = await fetchAll<{ thread_id: string }>(sb, 'encounters', 'thread_id', owner)
-  const keepEnc = new Set(enc.map((e) => e.thread_id))
-  await sb.from('item_subjects').delete().eq('owner', owner)
-  {
-    let del = sb.from('prayer_threads').delete().eq('owner', owner)
-    if (keepEnc.size) del = del.not('id', 'in', `(${[...keepEnc].join(',')})`)
-    const { error } = await del
-    if (error) throw error
-  }
-
-  // 5. Insert subjects, then memberships.
-  let memberships = 0
-  const subjectIds = await mapPool([...canonItems.keys()], POOL, async (ci) => {
-    const memberIds = [...canonItems.get(ci)!]
-    const dates = memberIds.map((id) => dateOf(items.find((r) => r.id === id)!))
-    const member_embs = memberIds.map((id) => embOf.get(id)).filter((x): x is number[] => !!x)
-    const c = canons[ci]!
-    const { data, error } = await sb
-      .from('prayer_threads')
-      .insert({
-        owner,
-        title: c.name,
-        kind: c.kind,
-        carries: c.kind === 'person' ? [c.name] : [],
-        planted_at: dates.reduce((a, b) => (a <= b ? a : b)),
-        last_touch_at: dates.reduce((a, b) => (a >= b ? a : b)),
-        seed_item_id: null,
-        embedding: member_embs.length ? toVectorLiteral(centroid(member_embs)) : null,
-      })
-      .select('id')
-      .single()
-    if (error) throw error
-    const subjectId = (data as { id: string }).id
-    const rows = memberIds.map((item_id) => ({ owner, item_id, subject_id: subjectId }))
-    for (let i = 0; i < rows.length; i += 500) {
-      const { error: e2 } = await sb.from('item_subjects').insert(rows.slice(i, i + 500))
-      if (e2) throw e2
-    }
-    memberships += rows.length
-    return subjectId
-  })
-
-  return {
-    tagged: items.length,
-    kept: itemTags.size,
-    subjects: subjectIds.length,
-    memberships,
-  }
 }
 
 // ── 4. weekly open-thread evidence sweep (P2) ──────────────────────────────────
