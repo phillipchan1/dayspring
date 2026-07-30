@@ -1,9 +1,9 @@
 {
   "name": "dayspring",
   "private": true,
-  "version": "1.0.212",
+  "version": "1.0.213",
   "type": "module",
-  "description": "Personal AI Journal \u2014 single-user, private journaling app",
+  "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "dev": "node scripts/assemble-changelog.mjs; ulimit -n 65536; vite",
@@ -59,7 +59,7 @@
     "react-dom": "^19.2.6",
     "stripe": "^22.2.0"
   },
-  "comment:overrides": "Pin @codemirror/view to 6.38.8 \u2014 the last release before the 6.39 'tile'/block-wrapper rendering rewrite, which crashes (No tile at position \u2026) on mouse selection / scroll / update when block-replace widgets (our spiritual blocks) are present. Revisit once the upstream tile bug is fixed.",
+  "comment:overrides": "Pin @codemirror/view to 6.38.8 — the last release before the 6.39 'tile'/block-wrapper rendering rewrite, which crashes (No tile at position …) on mouse selection / scroll / update when block-replace widgets (our spiritual blocks) are present. Revisit once the upstream tile bug is fixed.",
   "overrides": {
     "@codemirror/view": "6.38.8"
   },
