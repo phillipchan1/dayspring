@@ -3,13 +3,27 @@ import { apiUrl } from './api'
 
 export type Plan = 'none' | 'trialing' | 'active' | 'cancelled' | 'past_due'
 
+/** Who bills this subscription. Entitlement never depends on it — a Stripe
+ *  subscriber is entitled on iPhone and an App Store subscriber is entitled on
+ *  the web — but the *management* and *purchase* UI does, because each store
+ *  can only cancel and charge its own. */
+export type PlanSource = 'stripe' | 'apple'
+
 export interface Subscription {
   plan: Plan
+  plan_source: PlanSource | null
   trial_ends_at: string | null
   plan_expires_at: string | null
   /** Null until the user finishes (or skips) the first-run onboarding flow. */
   onboarded_at: string | null
   featureFlags: string[]
+}
+
+/** True when this account's money is with Apple, so Stripe checkout and the
+ *  Stripe billing portal must both stay hidden — on every platform. */
+export function isAppleManaged(sub: Subscription | null): boolean {
+  if (!sub || sub.plan_source !== 'apple') return false
+  return sub.plan !== 'none'
 }
 
 export function isEntitled(sub: Subscription | null): boolean {
@@ -36,7 +50,11 @@ export const SUBSCRIPTION_CACHE_KEY = 'dayspring.subscription_cache.v1'
 export function readCachedSubscription(): Subscription | null {
   try {
     const raw = localStorage.getItem(SUBSCRIPTION_CACHE_KEY)
-    return raw ? (JSON.parse(raw) as Subscription) : null
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Subscription
+    // Caches written before plan_source existed have no such key. Normalise to
+    // null so `plan_source !== 'apple'` reads true instead of undefined-y.
+    return { ...parsed, plan_source: parsed.plan_source ?? null }
   } catch {
     return null
   }
@@ -55,13 +73,14 @@ export async function fetchSubscription(): Promise<Subscription> {
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('profiles')
-    .select('plan, trial_ends_at, plan_expires_at, onboarded_at, feature_flags')
+    .select('plan, plan_source, trial_ends_at, plan_expires_at, onboarded_at, feature_flags')
     .maybeSingle()
 
   if (error) throw error
 
   return {
     plan: (data?.plan as Plan | null) ?? 'none',
+    plan_source: (data?.plan_source as PlanSource | null) ?? null,
     trial_ends_at: data?.trial_ends_at ?? null,
     plan_expires_at: data?.plan_expires_at ?? null,
     onboarded_at: data?.onboarded_at ?? null,

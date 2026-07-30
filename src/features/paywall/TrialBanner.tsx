@@ -2,26 +2,35 @@ import { useState } from 'react'
 import { startCheckout, trialDaysRemaining } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
+import { isAppleIapAvailable, purchaseApple } from '@/lib/appleIap'
 import './Paywall.css'
 
 interface Props {
   subscription: Subscription
   /** Dismiss for the rest of this session. */
   onDismiss: () => void
+  /** Called after a successful Apple IAP so the parent can refetch entitlement. */
+  onPurchased?: () => void
 }
 
 /**
  * Persistent, light-touch trial banner. Shown only inside the app (never during
- * onboarding) while plan === 'trialing'. The quiet "Subscribe" link goes to the
- * existing subscription surface (Stripe Checkout) — no payment UI lives here.
+ * onboarding) while plan === 'trialing'. Subscribe goes to StoreKit on iOS and
+ * Stripe Checkout elsewhere — no payment form lives in the banner itself.
  */
-export function TrialBanner({ subscription, onDismiss }: Props) {
+export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   const [loading, setLoading] = useState(false)
   const days = trialDaysRemaining(subscription)
 
   async function handleSubscribe() {
     setLoading(true)
     try {
+      if (isAppleIapAvailable()) {
+        const outcome = await purchaseApple('annual')
+        if (outcome === 'purchased') onPurchased?.()
+        setLoading(false)
+        return
+      }
       const url = await startCheckout('annual')
       await openExternal(url, { sameTab: true })
     } catch {

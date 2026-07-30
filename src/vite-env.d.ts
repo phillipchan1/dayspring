@@ -8,6 +8,10 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY: string
   readonly VITE_API_BASE_URL?: string
   readonly VITE_RELEASE_CHANNEL?: string
+  readonly VITE_APPLE_IAP_MONTHLY_PRODUCT_ID?: string
+  readonly VITE_APPLE_IAP_ANNUAL_PRODUCT_ID?: string
+  readonly VITE_ONBOARDING_REQUIRE_CARD?: string
+  readonly VITE_BETA_FEEDBACK_ENABLED?: string
 }
 
 interface ImportMeta {

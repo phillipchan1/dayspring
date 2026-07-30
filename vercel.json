@@ -24,6 +24,14 @@
   ],
   "rewrites": [
     {
+      "source": "/terms",
+      "destination": "/legal/terms.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/legal/privacy.html"
+    },
+    {
       "source": "/((?!api/)(?!@)(?!.*\\..*).*)",
       "destination": "/index.html"
     }

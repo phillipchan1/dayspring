@@ -4,7 +4,7 @@
 
 A multi-tenant subscription journal for practicing Christians ($7/mo, $64/yr, 14-day
 trial) that shows users, over time, what God has been making of them. Web + macOS
-(Tauri); iOS planned.
+(Tauri); iOS via Tauri (TestFlight — see `docs/IOS.md`).
 
 ## Product docs — read before product work
 

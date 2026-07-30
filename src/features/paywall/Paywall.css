@@ -896,3 +896,37 @@
 .locked-screen__refresh:hover:not(:disabled) { color: rgba(236, 231, 223, 0.7); }
 [data-appearance='light'] .locked-screen__refresh { color: rgba(74, 64, 53, 0.45); }
 [data-appearance='light'] .locked-screen__refresh:hover:not(:disabled) { color: rgba(74, 64, 53, 0.72); }
+
+/* ── Apple subscription disclosure (App Store Guideline 3.1.2) ─────────────
+   Required on every screen that sells a subscription. Quiet by design: it is
+   legally necessary, not persuasive, so it sits below the decision rather
+   than competing with it. */
+.apple-terms {
+  max-width: 30rem;
+  margin: 1rem auto 0;
+  text-align: center;
+}
+.apple-terms__body {
+  font-size: 0.7rem;
+  line-height: 1.6;
+  color: rgba(236, 231, 223, 0.38);
+  margin: 0 0 0.4rem;
+}
+.apple-terms__links {
+  font-size: 0.7rem;
+  color: rgba(236, 231, 223, 0.38);
+  margin: 0;
+}
+.apple-terms__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(236, 231, 223, 0.22);
+  cursor: pointer;
+}
+.apple-terms__link:hover { color: rgba(236, 231, 223, 0.7); }
+
+[data-appearance='light'] .apple-terms__body,
+[data-appearance='light'] .apple-terms__links { color: rgba(74, 64, 53, 0.42); }
+[data-appearance='light'] .apple-terms__link { text-decoration-color: rgba(74, 64, 53, 0.24); }
+[data-appearance='light'] .apple-terms__link:hover { color: rgba(74, 64, 53, 0.75); }

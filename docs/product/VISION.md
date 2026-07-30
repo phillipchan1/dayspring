@@ -53,7 +53,7 @@ row to `DECISIONS.md` — do not let it rot silently the way the founding doc di
 - **Model:** subscription SaaS, multi-tenant.
 - **Price:** $7/month or $64/year (~$5.33/mo), 14-day free trial.
 - **Platforms:** web (Vercel), macOS desktop (Tauri, alpha + stable channels), iOS
-  (Capacitor, planned).
+  (Tauri — see `docs/IOS.md`).
 - **Stage:** beta users on the `stable` channel. Feedback so far is generic — see
   `PERSONAS.md` § *How to falsify these* for the interview script that fixes that.
 

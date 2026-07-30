@@ -21,6 +21,12 @@ pub fn run() {
     builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
   }
 
+  // StoreKit / Play Billing — mobile only.
+  #[cfg(mobile)]
+  {
+    builder = builder.plugin(tauri_plugin_purchases::init());
+  }
+
   builder
     .setup(|app| {
       if cfg!(debug_assertions) {

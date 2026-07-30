@@ -41,8 +41,33 @@ export const env = {
   stripeWebhookSecret: () => need('STRIPE_WEBHOOK_SECRET'),
   stripeAnnualPriceId: () => need('STRIPE_ANNUAL_PRICE_ID'),
   stripeMonthlyPriceId: () => need('STRIPE_MONTHLY_PRICE_ID'),
-  // RevenueCat (iOS IAP — add when Capacitor/App Store launch)
+  // RevenueCat (Apple IAP lifecycle → profiles). Optional until the iOS build ships;
+  // webhook rejects all requests when the secret is unset.
   revenuecatWebhookSecret: () => process.env.REVENUECAT_WEBHOOK_SECRET ?? null,
+  revenuecatSecretApiKey: () => process.env.REVENUECAT_SECRET_API_KEY ?? null,
+  // ── Apple In-App Purchase (iOS) ────────────────────────────────────────────
+  // Credentials come from App Store Connect → Users and Access → Integrations →
+  // In-App Purchase key. Nullable so importing this module never throws; the
+  // Apple endpoints check and fail loudly with a named variable instead.
+  // See docs/IOS.md for the full setup.
+  appleBundleId: () => process.env.APPLE_BUNDLE_ID ?? 'com.phillipchan.dayspring',
+  appleIssuerId: () => process.env.APPLE_ISSUER_ID ?? null,
+  appleKeyId: () => process.env.APPLE_KEY_ID ?? null,
+  // The .p8 file's contents. Vercel's UI preserves real newlines, but a value
+  // pasted through a shell or CI often arrives with literal \n — accept both so
+  // a subtly-wrong paste doesn't silently break signature generation.
+  applePrivateKey: () => {
+    const raw = process.env.APPLE_PRIVATE_KEY
+    return raw ? raw.replace(/\\n/g, '\n') : null
+  },
+  // Numeric App Store app id (App Store Connect → App Information → Apple ID).
+  // Required to verify PRODUCTION signatures; unused in sandbox.
+  appleAppAppleId: () => {
+    const raw = process.env.APPLE_APP_APPLE_ID
+    if (!raw) return undefined
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : undefined
+  },
   // GitHub PAT (repo scope) for posting beta feedback as issues.
   githubToken: () => need('GITHUB_TOKEN'),
 }

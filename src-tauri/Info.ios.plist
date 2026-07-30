@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dayspring uses the microphone to transcribe voice journal entries.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Dayspring uses the camera to scan handwritten journal pages.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dayspring lets you attach photos from your library to journal entries.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.phillipchan.dayspring</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dayspring</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

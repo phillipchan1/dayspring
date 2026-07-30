@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Dayspring",
-  "version": "1.0.0",
+  "version": "1.0.206",
   "identifier": "com.phillipchan.dayspring",
   "build": {
     "frontendDist": "../dist",
@@ -33,7 +33,8 @@
     "targets": ["app", "dmg"],
     "createUpdaterArtifacts": true,
     "iOS": {
-      "developmentTeam": "4629AQ24Z2"
+      "developmentTeam": "4629AQ24Z2",
+      "minimumSystemVersion": "15.0"
     },
     "macOS": {
       "signingIdentity": "-"
@@ -56,7 +57,12 @@
     "deep-link": {
       "desktop": {
         "schemes": ["dayspring"]
-      }
+      },
+      "mobile": [
+        {
+          "scheme": ["dayspring"]
+        }
+      ]
     }
   }
 }

@@ -2,7 +2,7 @@ name: app
 options:
   bundleIdPrefix: com.phillipchan.dayspring
   deploymentTarget:
-    iOS: 14.0
+    iOS: 15.0
 fileGroups: [../../src]
 configs:
   debug: debug
@@ -12,6 +12,7 @@ settingGroups:
     base:
       PRODUCT_NAME: Dayspring
       PRODUCT_BUNDLE_IDENTIFIER: com.phillipchan.dayspring
+      DEVELOPMENT_TEAM: 4629AQ24Z2
 targetTemplates:
   app:
     type: application
@@ -51,8 +52,12 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.1.0
-        CFBundleVersion: "0.1.0"
+        CFBundleShortVersionString: 1.0.206
+        CFBundleVersion: "1.0.206"
+        NSMicrophoneUsageDescription: Dayspring uses the microphone to transcribe voice journal entries.
+        NSCameraUsageDescription: Dayspring uses the camera to scan handwritten journal pages.
+        NSPhotoLibraryUsageDescription: Dayspring lets you attach photos from your library to journal entries.
+        ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: app_iOS/app_iOS.entitlements
     scheme:
@@ -80,7 +85,7 @@ targets:
       - sdk: UIKit.framework
       - sdk: WebKit.framework
     preBuildScripts:
-      - script: npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      - script: npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${ARCHS:?}
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:

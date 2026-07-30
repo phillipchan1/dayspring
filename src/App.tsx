@@ -25,6 +25,8 @@ import { ensureProfile } from './lib/onboarding'
 import { fenceCacheToOwner } from './lib/localData'
 import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
+import { initApplePurchases, isAppleIapAvailable } from './lib/appleIap'
+import { isMobileTauri } from './lib/platform'
 
 // localStorage key used by useHasSeenWelcome — set before WelcomeProvider
 // mounts so the first-run flow is suppressed for users coming through checkout.
@@ -105,6 +107,13 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
 
       // Catch-up backfill for accounts with history but no processing yet.
       void maybeBackfillOnLoad()
+
+      // StoreKit out-of-band updates (Ask to Buy, renewals) → re-verify + refetch.
+      if (isAppleIapAvailable()) {
+        void initApplePurchases(() => {
+          if (alive) void refetch()
+        })
+      }
     })()
     return () => { alive = false }
   }, [refetch, ownerId])
@@ -170,8 +179,13 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   // ONBOARDING_REQUIRE_CARD (card-first) only: a brand-new account with no plan
   // sees the trial/Checkout step BEFORE Welcome. In the default app-managed model
   // ensureProfile() has already granted the trial, so plan is never 'none' here.
-  if (ONBOARDING_REQUIRE_CARD && (!subscription || subscription.plan === 'none')) {
-    return <PaywallScreen />
+  // Never enable card-first on iOS — App Store requires StoreKit IAP.
+  if (
+    ONBOARDING_REQUIRE_CARD &&
+    !isMobileTauri() &&
+    (!subscription || subscription.plan === 'none')
+  ) {
+    return <PaywallScreen onPurchased={refetch} />
   }
 
   // First-run: route into the welcome / import flow ahead of the editor,
@@ -190,6 +204,7 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
     return (
       <LockedScreen
         plan={subscription?.plan ?? 'none'}
+        subscription={subscription}
         canExtend={
           subscription?.plan === 'trialing' && !subscription.featureFlags.includes('trial_extended')
         }
@@ -210,7 +225,11 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   return (
     <WelcomeProvider>
       {showTrialBanner && (
-        <TrialBanner subscription={subscription} onDismiss={() => setBannerDismissed(true)} />
+        <TrialBanner
+          subscription={subscription}
+          onDismiss={() => setBannerDismissed(true)}
+          onPurchased={refetch}
+        />
       )}
       <SurfaceErrorBoundary>
         <JournalScreen userEmail={userEmail} featureFlags={featureFlags} />

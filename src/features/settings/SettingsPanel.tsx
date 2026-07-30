@@ -12,8 +12,14 @@ import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
-import { fetchPortalUrl, trialDaysRemaining } from '@/lib/subscription'
+import { fetchPortalUrl, isAppleManaged, trialDaysRemaining } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
+import {
+  isAppleIapAvailable,
+  manageAppleSubscriptions,
+  purchaseApple,
+  restoreApplePurchases,
+} from '@/lib/appleIap'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
@@ -596,6 +602,10 @@ function BillingTab() {
   const [syncing, setSyncing] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
+  const [iapLoading, setIapLoading] = useState<'annual' | 'monthly' | 'restore' | null>(null)
+
+  const appleManaged = isAppleManaged(subscription)
+  const onIos = isAppleIapAvailable()
 
   async function handleSync() {
     setSyncing(true)
@@ -610,12 +620,50 @@ function BillingTab() {
     setPortalError(null)
     setPortalLoading(true)
     try {
+      if (onIos) {
+        await manageAppleSubscriptions()
+        return
+      }
+      if (appleManaged) {
+        await openExternal('https://apps.apple.com/account/subscriptions')
+        return
+      }
       const url = await fetchPortalUrl()
       await openExternal(url)
     } catch (e) {
       setPortalError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {
       setPortalLoading(false)
+    }
+  }
+
+  async function handleApplePurchase(plan: 'annual' | 'monthly') {
+    setPortalError(null)
+    setIapLoading(plan)
+    try {
+      const outcome = await purchaseApple(plan)
+      if (outcome === 'purchased') await refetch()
+      else if (outcome === 'pending') {
+        setPortalError('Purchase is pending approval.')
+      }
+    } catch (e) {
+      setPortalError(e instanceof Error ? e.message : 'Purchase failed.')
+    } finally {
+      setIapLoading(null)
+    }
+  }
+
+  async function handleAppleRestore() {
+    setPortalError(null)
+    setIapLoading('restore')
+    try {
+      const n = await restoreApplePurchases()
+      if (n === 0) setPortalError('No purchases found for this Apple ID.')
+      else await refetch()
+    } catch (e) {
+      setPortalError(e instanceof Error ? e.message : 'Could not restore purchases.')
+    } finally {
+      setIapLoading(null)
     }
   }
 
@@ -639,13 +687,21 @@ function BillingTab() {
       color:  'var(--accent)',
       detail: trialEnd ? `Ends ${trialEnd} · No charge until then.` : null,
     },
-    active:   { label: 'Active',           color: 'var(--success)',    detail: 'Your subscription is current.' },
+    active:   {
+      label:  'Active',
+      color:  'var(--success)',
+      detail: appleManaged
+        ? 'Billed through the App Store.'
+        : 'Your subscription is current.',
+    },
     cancelled:{ label: 'Cancelled',        color: 'var(--text-faint)', detail: 'Your subscription has ended.' },
     past_due: { label: 'Payment issue',    color: 'var(--danger)',     detail: 'Update your payment method to restore access.' },
   }[plan] ?? { label: plan, color: 'var(--text-faint)', detail: null }
 
   const hasPortal = plan !== 'none'
   const showPlans = plan === 'none' || plan === 'cancelled'
+  // Never offer Stripe purchase UI on iOS, or for Apple-managed accounts.
+  const canStripePurchase = !onIos && !appleManaged
 
   return (
     <div className="settings-stack">
@@ -663,7 +719,7 @@ function BillingTab() {
               style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', lineHeight: 1 }}
               onClick={() => void handleSync()}
               disabled={syncing}
-              title="Sync with Stripe"
+              title="Refresh subscription status"
             >
               {syncing ? '…' : '↻'}
             </button>
@@ -676,7 +732,7 @@ function BillingTab() {
         )}
       </div>
 
-      {/* Manage billing portal */}
+      {/* Manage billing */}
       {hasPortal && (
         <>
           <div className="settings-divider" />
@@ -684,12 +740,18 @@ function BillingTab() {
             <div className="settings-field__head">
               <span className="settings-field__label">Manage billing</span>
               <span className="settings-field__hint">
-                Update your payment method, switch plans, or cancel via Stripe.
+                {appleManaged || onIos
+                  ? 'Update your payment method, switch plans, or cancel in the App Store.'
+                  : 'Update your payment method, switch plans, or cancel via Stripe.'}
               </span>
             </div>
             <div className="settings-actions">
               <button className="btn" onClick={() => void openPortal()} disabled={portalLoading}>
-                {portalLoading ? 'Opening…' : 'Open billing portal →'}
+                {portalLoading
+                  ? 'Opening…'
+                  : appleManaged || onIos
+                    ? 'Manage in App Store →'
+                    : 'Open billing portal →'}
               </button>
               {portalError && (
                 <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: 0 }}>{portalError}</p>
@@ -699,7 +761,7 @@ function BillingTab() {
         </>
       )}
 
-      {/* Pricing — only when user needs to make a purchasing decision */}
+      {/* Pricing / purchase */}
       {showPlans && (
         <>
           <div className="settings-divider" />
@@ -709,8 +771,8 @@ function BillingTab() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
               {[
-                { label: 'Annual', price: '$64 / yr', note: '~$5.33 / mo' },
-                { label: 'Monthly', price: '$7 / mo', note: 'Cancel anytime' },
+                { label: 'Annual', price: '$64 / yr', note: '~$5.33 / mo', plan: 'annual' as const },
+                { label: 'Monthly', price: '$7 / mo', note: 'Cancel anytime', plan: 'monthly' as const },
               ].map((p) => (
                 <div key={p.label} style={{
                   padding: '0.7rem 0.8rem',
@@ -721,9 +783,37 @@ function BillingTab() {
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>{p.label}</div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>{p.price}</div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>{p.note}</div>
+                  {onIos && (
+                    <button
+                      className="btn"
+                      style={{ marginTop: '0.55rem', width: '100%', fontSize: '0.78rem' }}
+                      disabled={iapLoading !== null}
+                      onClick={() => void handleApplePurchase(p.plan)}
+                    >
+                      {iapLoading === p.plan ? 'Confirming…' : 'Subscribe'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
+            {onIos && (
+              <button
+                className="btn btn--ghost"
+                style={{ marginTop: '0.75rem' }}
+                disabled={iapLoading !== null}
+                onClick={() => void handleAppleRestore()}
+              >
+                {iapLoading === 'restore' ? 'Restoring…' : 'Restore purchases'}
+              </button>
+            )}
+            {!canStripePurchase && !onIos && appleManaged && (
+              <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>
+                This subscription is billed through Apple. Open Dayspring on your iPhone to renew.
+              </p>
+            )}
+            {portalError && showPlans && (
+              <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: '0.5rem 0 0' }}>{portalError}</p>
+            )}
           </div>
         </>
       )}

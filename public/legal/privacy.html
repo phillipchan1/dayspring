@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy · Dayspring</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1.25rem 5rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+    line-height: 1.7; font-size: 16px;
+    background: #14110e; color: #ece7df;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  h1 { font-family: 'Iowan Old Style', Georgia, serif; font-size: 2rem; font-weight: 500; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin: 2.25rem 0 .6rem; }
+  p, li { color: rgba(236,231,223,.82); }
+  .meta { color: rgba(236,231,223,.45); font-size: .85rem; margin: 0 0 2.5rem; }
+  a { color: inherit; text-underline-offset: 2px; }
+  ul { padding-left: 1.15rem; }
+  li { margin: .3rem 0; }
+  code { font-size: .9em; background: rgba(236,231,223,.08); padding: .1em .35em; border-radius: 3px; }
+  footer { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(236,231,223,.12); font-size: .85rem; color: rgba(236,231,223,.5); }
+  @media (prefers-color-scheme: light) {
+    body { background: #faf7f2; color: #4a4035; }
+    p, li { color: rgba(74,64,53,.85); }
+    .meta { color: rgba(74,64,53,.5); }
+    code { background: rgba(74,64,53,.08); }
+    footer { border-top-color: rgba(74,64,53,.15); color: rgba(74,64,53,.55); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Dayspring · Last updated 30 July 2026</p>
+
+  <p>Dayspring is a private journal. What you write in it belongs to you. This policy
+  describes exactly what we store, what leaves our systems, and what you can take back.</p>
+
+  <h2>What we store</h2>
+  <ul>
+    <li><strong>Account</strong> — your email address and the identity provider you signed in
+      with (Google or Apple). We never receive or store your password for those providers.</li>
+    <li><strong>Your journal</strong> — entries, photographs you attach, voice recordings you
+      make, and the material Dayspring derives from them (reflections, prayer threads,
+      scripture references).</li>
+    <li><strong>Settings and usage state</strong> — theme, editor preferences, onboarding
+      progress, and subscription status.</li>
+  </ul>
+  <p>Journal data is stored in Postgres on Supabase infrastructure in the United States, and
+  is protected by row-level security so that each account can read only its own rows.</p>
+
+  <h2>Who else processes your data</h2>
+  <p>Dayspring uses a small number of service providers. They act on our instructions and
+  only receive what the feature requires:</p>
+  <ul>
+    <li><strong>Supabase</strong> — database, authentication and file storage.</li>
+    <li><strong>Vercel</strong> — application hosting and serverless functions.</li>
+    <li><strong>OpenAI</strong> — when you dictate a voice note, photograph a handwritten
+      page, or Dayspring builds a reflection, the relevant text, audio or image is sent to
+      the OpenAI API for processing. OpenAI's API terms state that data submitted through
+      the API is not used to train their models.</li>
+    <li><strong>Crossway (ESV API)</strong> — scripture references you write are sent to
+      resolve verse text. Only the reference is sent, never your entry.</li>
+    <li><strong>Stripe</strong> — subscriptions purchased on the web. Stripe handles the card
+      directly; we never see or store card numbers.</li>
+    <li><strong>Apple</strong> — subscriptions purchased in the iOS app. Apple handles the
+      payment; we receive only a transaction identifier and subscription status.</li>
+    <li><strong>Resend</strong> — used to send reminder emails, if you enable them.</li>
+  </ul>
+  <p>If you send feedback through the in-app feedback form, the message you type is recorded
+  as an issue in our private development tracker so it can be acted on. Please do not paste
+  journal content into that form.</p>
+
+  <h2>What we do not do</h2>
+  <ul>
+    <li>We do not sell your data, and we do not share it with advertisers.</li>
+    <li>We do not use your journal to train machine-learning models.</li>
+    <li>We do not read your entries except where you explicitly ask for support and give
+      permission, or where we are legally compelled to.</li>
+  </ul>
+
+  <h2>Your data is portable</h2>
+  <p>You can export your entire journal as a ZIP archive at any time from within the app —
+  including while your subscription is lapsed or cancelled. Your journal is always yours.</p>
+
+  <h2>Deletion</h2>
+  <p>You may request deletion of your account and all associated journal data by contacting
+  us at the address below. We will delete it from the live database promptly. Encrypted
+  backups may retain copies for a short period before rotating out.</p>
+
+  <h2>Retention</h2>
+  <p>We keep your journal for as long as your account exists, because the value of the
+  product is precisely that history. We do not delete entries when a subscription lapses.</p>
+
+  <h2>Security</h2>
+  <p>Data is encrypted in transit with TLS and at rest by our infrastructure providers.
+  Access to production systems is restricted. No system is perfectly secure, and we do not
+  claim otherwise.</p>
+
+  <h2>Children</h2>
+  <p>Dayspring is not directed at children under 13, and we do not knowingly collect data
+  from them.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes materially, we will update the date at the top and, where the
+  change affects how your journal is handled, notify you in the app.</p>
+
+  <h2>Contact</h2>
+  <p>Questions, or a deletion request:
+    <a href="mailto:hello@usedayspring.app">hello@usedayspring.app</a></p>
+
+  <footer>
+    <a href="/terms">Terms of Use</a> · <a href="/">Dayspring</a>
+  </footer>
+</main>
+</body>
+</html>
