@@ -15,11 +15,13 @@ import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { fetchPortalUrl, isAppleManaged, trialDaysRemaining } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
+  fetchAppleProducts,
   isAppleIapAvailable,
   manageAppleSubscriptions,
   purchaseApple,
   restoreApplePurchases,
 } from '@/lib/appleIap'
+import { displayPrice } from '@/features/paywall/prices'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
@@ -607,6 +609,24 @@ function BillingTab() {
   const appleManaged = isAppleManaged(subscription)
   const onIos = isAppleIapAvailable()
 
+  // StoreKit-supplied, storefront-correct prices. Empty until Apple answers;
+  // the plan cards render the cadence rather than a wrong figure until then.
+  const [applePrices, setApplePrices] = useState<{ annual: string | null; monthly: string | null }>(
+    { annual: null, monthly: null },
+  )
+  useEffect(() => {
+    if (!onIos) return
+    let alive = true
+    fetchAppleProducts().then((products) => {
+      if (!alive) return
+      setApplePrices({
+        annual: displayPrice('annual', { useApple: true, products }),
+        monthly: displayPrice('monthly', { useApple: true, products }),
+      })
+    }, () => {})
+    return () => { alive = false }
+  }, [onIos])
+
   async function handleSync() {
     setSyncing(true)
     try {
@@ -771,8 +791,21 @@ function BillingTab() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
               {[
-                { label: 'Annual', price: '$64 / yr', note: '~$5.33 / mo', plan: 'annual' as const },
-                { label: 'Monthly', price: '$7 / mo', note: 'Cancel anytime', plan: 'monthly' as const },
+                {
+                  label: 'Annual',
+                  // On iOS the App Store is the only truthful source: its tiers
+                  // are .99-based and localised, so the Stripe figure would be
+                  // wrong. Fall back to the plan cadence, never a stale price.
+                  price: onIos ? (applePrices.annual ?? 'Yearly') : '$64 / yr',
+                  note: onIos ? 'Billed yearly' : '~$5.33 / mo',
+                  plan: 'annual' as const,
+                },
+                {
+                  label: 'Monthly',
+                  price: onIos ? (applePrices.monthly ?? 'Monthly') : '$7 / mo',
+                  note: 'Cancel anytime',
+                  plan: 'monthly' as const,
+                },
               ].map((p) => (
                 <div key={p.label} style={{
                   padding: '0.7rem 0.8rem',

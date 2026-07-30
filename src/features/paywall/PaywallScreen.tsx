@@ -11,6 +11,7 @@ import {
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
+import { displayPrice } from './prices'
 import './Paywall.css'
 
 export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
@@ -75,8 +76,10 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
   }
 
   const busy = loading !== null
-  const annual = products.find((p) => p.id.includes('annual'))
-  const monthly = products.find((p) => p.id.includes('monthly'))
+  // Never fall back to a hardcoded USD figure on the Apple path — App Store
+  // pricing is .99-tiered ($7.99, not $7) and localised per storefront.
+  const annualPrice = displayPrice('annual', { useApple, products })
+  const monthlyPrice = displayPrice('monthly', { useApple, products })
 
   return (
     <div className="paywall">
@@ -107,17 +110,17 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             data-recommended="true"
             disabled={busy}
             onClick={() => void handleSelect('annual')}
-            aria-label={`Start annual plan — ${annual?.displayPrice ?? '$64'} per year`}
+            aria-label={`Start annual plan${annualPrice ? ` — ${annualPrice} per year` : ''}`}
           >
             <span className="paywall__plan-badge">Best value</span>
-            <span className="paywall__plan-price">{annual?.displayPrice ?? '$64'}</span>
+            <span className="paywall__plan-price">{annualPrice ?? 'Yearly'}</span>
             <span className="paywall__plan-cadence">per year</span>
             {/* The "~$5.33 / month" breakdown is derived from the US price. When
                 StoreKit supplies the price it may be in any storefront currency,
                 and a hardcoded dollar figure beside it would be simply wrong —
                 which Apple treats as inaccurate pricing, not a rounding quibble. */}
             <span className="paywall__plan-note">
-              {useApple && annual?.displayPrice
+              {useApple
                 ? 'Value compounds over time'
                 : '~$5.33 / month · value compounds over time'}
             </span>
@@ -127,9 +130,9 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             className="paywall__plan"
             disabled={busy}
             onClick={() => void handleSelect('monthly')}
-            aria-label={`Start monthly plan — ${monthly?.displayPrice ?? '$7'} per month`}
+            aria-label={`Start monthly plan${monthlyPrice ? ` — ${monthlyPrice} per month` : ''}`}
           >
-            <span className="paywall__plan-price">{monthly?.displayPrice ?? '$7'}</span>
+            <span className="paywall__plan-price">{monthlyPrice ?? 'Monthly'}</span>
             <span className="paywall__plan-cadence">per month</span>
             <span className="paywall__plan-note">Cancel anytime</span>
           </button>

@@ -5,10 +5,17 @@ Bundle ID: `com.phillipchan.dayspring` · Team: `4629AQ24Z2`
 
 Product IDs (must match App Store Connect + code):
 
-| Plan | Product ID | Price |
-|---|---|---|
-| Monthly | `dayspring_monthly` | $7/mo |
-| Annual | `dayspring_annual` | $64/yr |
+| Plan | Product ID | App Store price | Web (Stripe) price |
+|---|---|---|---|
+| Monthly | `dayspring_monthly` | **$7.99/mo** | $7/mo |
+| Annual | `dayspring_annual` | **$69.99/yr** | $64/yr |
+
+The two columns differ on purpose — Apple's price tiers are .99-based, so there is no
+$7.00 tier. Nothing in the app renders the web figure on iOS: `displayPrice()`
+(`src/features/paywall/prices.ts`) returns StoreKit's localised `displayPrice`, or null
+while it loads, and the buttons drop the price rather than print one Apple won't honour.
+If you change pricing, update App Store Connect **and** `PREVIEW_PRODUCTS` in
+`src/lib/appleIap.ts`, then re-run `npm run screenshots:appstore`.
 
 In-app, the first-run trial is the **app-managed reverse trial** (`ONBOARDING_REQUIRE_CARD=false`)
 — never enable card-first on iOS builds.
@@ -46,8 +53,8 @@ In-app, the first-run trial is the **app-managed reverse trial** (`ONBOARDING_RE
    - Bundle ID: `com.phillipchan.dayspring`
    - SKU: `dayspring-ios`
 3. **Subscriptions** → create group **Dayspring Premium**:
-   - `dayspring_monthly` — $7.00 / month, **no introductory offer** (see the warning above)
-   - `dayspring_annual` — $64.00 / year, **no introductory offer**
+   - `dayspring_monthly` — $7.99 / month, **no introductory offer** (see the warning above)
+   - `dayspring_annual` — $69.99 / year, **no introductory offer**
 4. **Users and Access → Integrations → In-App Purchase** — create an API key (.p8). Note Key ID + Issuer ID.
 5. **App Information** — note the numeric **Apple ID** (for production JWS verification).
 6. **App Store Server Notifications V2** → Production + Sandbox URL:
