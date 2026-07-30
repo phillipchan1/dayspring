@@ -15,9 +15,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.0.206</string>
 	<key>CFBundleVersion</key>
-	<string>1.0.0</string>
+	<string>1.0.206.208</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Dayspring uses the camera to scan handwritten journal pages.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -29,10 +35,10 @@
 			</array>
 		</dict>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dayspring uses the microphone to transcribe voice journal entries.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dayspring lets you attach photos from your library to journal entries.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

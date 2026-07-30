@@ -1,5 +1,30 @@
 # Dayspring — Project Guide for Claude
 
+## What Dayspring is
+
+A multi-tenant subscription journal for practicing Christians ($7/mo, $64/yr, 14-day
+trial) that shows users, over time, what God has been making of them. Web + macOS
+(Tauri); iOS via Tauri (TestFlight — see `docs/IOS.md`).
+
+## Product docs — read before product work
+
+Before proposing features, writing user-facing copy, or scoping product work, read
+[`docs/product/`](docs/product/README.md):
+
+- **[VISION.md](docs/product/VISION.md)** — the promise, live non-goals, the bets we're making
+- **[PRINCIPLES.md](docs/product/PRINCIPLES.md)** — 7 tie-breakers that settle feature arguments
+- **[PERSONAS.md](docs/product/PERSONAS.md)** — who it's for (currently **hypotheses**, not findings)
+- **[BRANDSCRIPT.md](docs/product/BRANDSCRIPT.md)** — how we talk; the words we never use
+
+Non-negotiables that come up constantly: **light, not verdict** (never score someone's
+spiritual life) · **never sermonize, never gamify** (no streaks, no badges, no guilt) ·
+**grounded, or silent** (every claim traces to something the user actually wrote —
+facts in code, model only selects, quotes verbatim) · **the editor is sacred** (nothing
+adds latency or chrome to the writing surface).
+
+`docs/archive/personal-ai-journal-requirements.md` is the superseded single-user
+founding spec. **Do not build from it** — it predates multi-tenancy and payments.
+
 ## Release channels
 
 | Channel | Branch | Who | Desktop build | Web |

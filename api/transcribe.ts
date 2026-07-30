@@ -106,6 +106,13 @@ export async function POST(req: Request): Promise<Response> {
   // Caller can opt out of tidying (e.g. a future "raw dictation" setting).
   const tidy = form.get('tidy') !== 'false'
 
+  // Audio is billed by DURATION, not tokens, so it never shows up in the
+  // [tokens] lines. Log the clip size — paired with the [realtime] session lines,
+  // this is what tells you how much of the bill is dictation vs synthesis.
+  console.log(
+    `[audio] name=transcribe_clip model=${env.transcribeModel()} bytes=${audio.size} tidy=${tidy}`,
+  )
+
   // Progressive streaming: relay the transcription deltas as Server-Sent Events
   // so the sheet fills in live, then run the cleanup pass and emit a `final`
   // event with the tidied text. No websockets — the audio is already recorded;

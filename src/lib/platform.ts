@@ -20,6 +20,22 @@ export function isDesktopTauri(): boolean {
   return isTauri() && !isMobileTauri()
 }
 
+/**
+ * True inside the native iOS/iPadOS app — the one place where App Store rules
+ * apply, so billing must go through StoreKit and Stripe must be invisible.
+ *
+ * Deliberately narrower than isMobileTauri(): Android would also be "mobile",
+ * but it is Google Play's rules that govern there, not Apple's. iPadOS reports
+ * "Macintosh" in its UA, hence the maxTouchPoints tell — the same trick
+ * isMobileTauri uses, restricted to Apple UAs.
+ */
+export function isIOSTauri(): boolean {
+  if (!isTauri()) return false
+  const ua = navigator.userAgent
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1
+}
+
 // Tags <html data-platform="desktop"|"mobile"> inside the native app so CSS can
 // adapt. No-ops in a plain browser. The iOS app must NOT get "desktop" — that
 // would reserve room for macOS traffic lights and mark drag regions.

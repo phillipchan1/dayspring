@@ -14,24 +14,25 @@ export function authRedirectUrl(): string {
   return isTauri() ? DEEP_LINK_REDIRECT : window.location.origin
 }
 
+type OAuthProvider = 'google' | 'apple'
+
 /**
- * Start Google OAuth.
+ * Start OAuth for Google or Apple.
  *
  * Web: normal in-page redirect.
  *
- * Desktop: Google blocks OAuth inside embedded webviews (the "flicker" — it
- * detects WKWebView and refuses). So we ask Supabase for the provider URL
- * WITHOUT navigating the webview (skipBrowserRedirect), then open it in the
- * user's real browser via the opener plugin. Google trusts that, and on
- * success redirects to dayspring://auth-callback, which the deep-link listener
- * (see initDeepLinkAuth) hands back to the app.
+ * Native (desktop + iOS): providers block OAuth inside embedded webviews, so we
+ * ask Supabase for the provider URL WITHOUT navigating the webview
+ * (skipBrowserRedirect), then open it in the system browser. On success the
+ * HTTPS bridge page forwards to dayspring://auth-callback, which
+ * initDeepLinkAuth exchanges for a session.
  */
-export async function signInWithGoogle(): Promise<void> {
+async function signInWithProvider(provider: OAuthProvider): Promise<void> {
   const sb = requireSupabase()
 
   if (!isTauri()) {
     const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: { redirectTo: authRedirectUrl() },
     })
     if (error) throw error
@@ -39,17 +40,26 @@ export async function signInWithGoogle(): Promise<void> {
   }
 
   const { data, error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: {
       redirectTo: DEEP_LINK_REDIRECT,
-      skipBrowserRedirect: true, // don't navigate the embedded webview
+      skipBrowserRedirect: true,
     },
   })
   if (error) throw error
   if (!data?.url) throw new Error('No OAuth URL returned')
 
   const { openUrl } = await import('@tauri-apps/plugin-opener')
-  await openUrl(data.url) // hand off to the system browser
+  await openUrl(data.url)
+}
+
+export async function signInWithGoogle(): Promise<void> {
+  return signInWithProvider('google')
+}
+
+/** Sign in with Apple — required on iOS when Google is also offered (App Store 4.8). */
+export async function signInWithApple(): Promise<void> {
+  return signInWithProvider('apple')
 }
 
 export async function signOut(): Promise<void> {

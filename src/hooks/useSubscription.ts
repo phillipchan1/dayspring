@@ -27,7 +27,7 @@ export function useSubscription(): SubscriptionState {
       // clobbering a real cached entitlement with "no plan" just because a
       // single fetch failed (e.g. offline).
       if (mountedRef.current) {
-        setSubscription((prev) => prev ?? { plan: 'none', trial_ends_at: null, plan_expires_at: null, onboarded_at: null, featureFlags: [] })
+        setSubscription((prev) => prev ?? { plan: 'none', plan_source: null, trial_ends_at: null, plan_expires_at: null, onboarded_at: null, featureFlags: [] })
       }
     } finally {
       if (mountedRef.current) setLoading(false)

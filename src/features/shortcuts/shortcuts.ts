@@ -54,7 +54,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Mod', '3'], label: 'Lamp' },
       { keys: ['Mod', '4'], label: 'Altar' },
       { keys: ['Mod', ','], label: 'Settings' },
-      { keys: ['Mod', 'K'], label: 'Search your entries', when: 'outside the editor' },
+      { keys: ['Mod', 'K'], label: 'Find a word, or ask a question', when: 'anywhere' },
       { keys: ['['], label: 'Toggle sidebar labels' },
       { keys: ['↑', '↓'], label: 'Browse entries', when: 'while focus is in the entry list' },
       { keys: ['Shift', '↑', '↓'], label: 'Extend selection', when: 'while focus is in the entry list' },

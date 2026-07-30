@@ -467,7 +467,10 @@ export async function harvestPrayers(
 }
 
 // ── 4. weekly open-thread evidence sweep (P2) ──────────────────────────────────
-const CANDIDATE_PROMPT = `You help someone remember, with care. You are given one ongoing, still-open prayer (its title + the
+// Exported (not module-private) purely so the disabled evidence pass in
+// sweepOpenThreads keeps its prompt under version control until the
+// altar_candidates FK migration lets it write again. Nothing calls it today.
+export const CANDIDATE_PROMPT = `You help someone remember, with care. You are given one ongoing, still-open prayer (its title + the
 original words) and ONE later journal entry that a similarity search flagged as possibly related.
 Your ONLY job: decide if something in the later entry seems to STIR in relation to the prayer — worth the
 writer pausing to look at — and pull the single most resonant VERBATIM sentence from the entry.
@@ -479,7 +482,7 @@ Hard rules:
 - gentle_question: an invitation to look ("Want to sit with this one?"), never "Was this answered?".
 Return JSON {"is_movement": boolean, "quote": string, "one_line_reason": string, "gentle_question": string}.`
 
-const CANDIDATE_SCHEMA = {
+export const CANDIDATE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['is_movement', 'quote', 'one_line_reason', 'gentle_question'],
@@ -581,16 +584,8 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     ).map((d) => `${d.thread_id}:${d.entry_id}`),
   )
 
-  // Seed text per thread, for the Nano context.
-  const seedIds = threads.map((t) => t.seed_item_id).filter((x): x is string => !!x)
-  const seedText = new Map<string, string>()
-  for (let i = 0; i < seedIds.length; i += IN_CHUNK) {
-    const { data } = await sb
-      .from('spiritual_items')
-      .select('id, content')
-      .in('id', seedIds.slice(i, i + IN_CHUNK))
-    for (const s of (data ?? []) as { id: string; content: string }[]) seedText.set(s.id, s.content)
-  }
+  // NOTE: the per-thread seed-text read that used to live here fed the disabled
+  // evidence pass only. Restore it alongside the CANDIDATE_PROMPT call.
 
   let surfaced = 0
   for (const t of threads) {
@@ -598,7 +593,6 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     const emb = threadCentroid.get(t.id)
     if (!emb) continue // no embedded members yet — skip until threadItems has run
     const lastTouch = threadLastTouch.get(t.id) ?? t.span_end ?? new Date(0).toISOString()
-    const label = t.label_user ?? t.label_ai ?? t.label ?? ''
 
     const { data: matches, error } = await sb.rpc('match_entries_for_thread', {
       query_embedding: toVectorLiteral(emb),
@@ -614,36 +608,15 @@ export async function sweepOpenThreads(owner: string): Promise<{ surfaced: numbe
     )
     if (!candidate) continue
 
-    const { data: entryRow } = await sb
-      .from('entries')
-      .select('body_markdown, created_at')
-      .eq('id', candidate.entry_id)
-      .maybeSingle()
-    const body = (entryRow as { body_markdown: string; created_at: string } | null)?.body_markdown
-    const createdAt = (entryRow as { created_at: string } | null)?.created_at
-    if (!body || !createdAt) continue
-
-    let out: { is_movement: boolean; quote: string; one_line_reason: string; gentle_question: string }
-    try {
-      out = await callModel(
-        CANDIDATE_PROMPT,
-        { prayer: { title: label, words: (seedText.get(t.seed_item_id ?? '') ?? '').slice(0, 600) }, later_entry: body.slice(0, 2400) },
-        CANDIDATE_SCHEMA as Record<string, unknown>,
-        'altar_candidate',
-        'low',
-        512,
-      )
-    } catch {
-      continue
-    }
-    if (!out.is_movement || !out.quote) continue
-    const at = body.indexOf(out.quote) // verbatim gate — drop fabricated quotes.
-    if (at < 0) continue
-
-    // altar_candidates.thread_id references prayer_threads.id (legacy FK).
-    // New declared threads live in threads.id — skip writing the candidate for
-    // now; the altar_candidates table FK needs migrating before this can land.
-    // TODO: migrate altar_candidates.thread_id FK → threads.id and re-enable.
+    // The evidence pass is DISABLED, not just its write. altar_candidates.thread_id
+    // still references prayer_threads.id (legacy FK), while declared threads now
+    // live in threads.id — so nothing here can be persisted yet. Running the Nano
+    // pass anyway billed one model call (plus one entry read) per open thread every
+    // Monday and discarded every result: pure cost, zero product. The similarity
+    // search above is free (a pgvector RPC), so the sweep still reports honestly
+    // how many threads WOULD have evidence laid beside them.
+    // TODO: migrate altar_candidates.thread_id FK → threads.id, then restore the
+    // entry read + CANDIDATE_PROMPT pass here and write the row.
     surfaced++
   }
 

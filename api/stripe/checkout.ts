@@ -37,9 +37,30 @@ export async function POST(req: Request): Promise<Response> {
   const sb = supabaseAdmin()
   const { data: profile } = await sb
     .from('profiles')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, plan, plan_source')
     .eq('owner', user.id)
     .maybeSingle()
+
+  // Never let someone end up paying twice for the same journal. If this account
+  // is already carried by an App Store subscription, Stripe checkout is closed
+  // — they manage (and cancel) it in iOS Settings, and only then can they
+  // subscribe here. The client hides this path too; this is the backstop.
+  if (
+    profile?.plan_source === 'apple' &&
+    (profile.plan === 'active' || profile.plan === 'trialing')
+  ) {
+    return withCors(
+      req,
+      Response.json(
+        {
+          error:
+            'Your subscription is billed through the App Store. Manage it in Settings on your iPhone or iPad.',
+          code: 'managed_by_apple',
+        },
+        { status: 409 },
+      ),
+    )
+  }
 
   const existingCustomerId = profile?.stripe_customer_id ?? undefined
 

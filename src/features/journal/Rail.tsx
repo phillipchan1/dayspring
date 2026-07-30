@@ -14,6 +14,7 @@ import {
   IconNew,
   IconScripture,
   IconSettings,
+  IconWell,
 } from './navIcons'
 
 const NATIVE = isTauri()
@@ -30,6 +31,9 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
+  wellActive: boolean
+  /** Opens ⌘K rather than routing — the Well needs a question before it has anything to show. */
+  onWell: () => void
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -52,6 +56,8 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
+  wellActive,
+  onWell,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -106,7 +112,7 @@ export function Rail({
             label="Entries"
             shortcut="⌘1"
             onClick={onToggleEntries}
-            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive}
+            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive && !wellActive}
             icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
@@ -148,6 +154,15 @@ export function Rail({
               labelsExpanded={labelsExpanded}
             />
           )}
+          <RailButton
+            label="Well"
+            subline="Ask what you've written"
+            shortcut="⌘K"
+            onClick={onWell}
+            active={wellActive}
+            icon={<IconWell />}
+            labelsExpanded={labelsExpanded}
+          />
         </div>
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>

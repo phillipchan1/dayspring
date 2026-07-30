@@ -1,7 +1,7 @@
 {
   "name": "dayspring",
   "private": true,
-  "version": "1.0.206",
+  "version": "1.0.210",
   "type": "module",
   "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
@@ -20,9 +20,12 @@
     "regen": "tsx scripts/regen.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:ios:dev": "tauri ios dev",
+    "tauri:ios:build": "tauri ios build -- --export-method app-store-connect --ci"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/language": "^6.12.3",
@@ -36,6 +39,7 @@
     "@fontsource/lora": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
     "@lezer/highlight": "^1.2.3",
+    "@spicavi/tauri-plugin-purchases": "^0.2.1",
     "@supabase/supabase-js": "^2.106.2",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-deep-link": "^2.4.9",

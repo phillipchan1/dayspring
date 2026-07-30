@@ -113,3 +113,14 @@ export function IconFocus(props: { size?: number }) {
     </NavIcon>
   )
 }
+
+export function IconWell(props: { size?: number }) {
+  // A bucket on the rim — you return to a well daily, and lower something into it.
+  return (
+    <NavIcon {...props}>
+      <path d="M3 7h18" />
+      <path d="M5.5 7 7 19a1 1 0 0 0 1 .8h8a1 1 0 0 0 1-.8L18.5 7" />
+      <path d="M12 2.5V7" />
+    </NavIcon>
+  )
+}

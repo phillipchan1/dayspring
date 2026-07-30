@@ -5,22 +5,35 @@ import {
   fetchPortalUrl,
   extendTrial,
   fetchJournalHolding,
+  isAppleManaged,
   type JournalHolding,
+  type Subscription,
 } from '@/lib/subscription'
 import type { Plan } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import { exportEntriesToZip } from '@/lib/export/exportEntries'
 import { submitFeedback } from '@/lib/feedback'
+import {
+  fetchAppleProducts,
+  isAppleIapAvailable,
+  manageAppleSubscriptions,
+  purchaseApple,
+  restoreApplePurchases,
+} from '@/lib/appleIap'
+import type { Product } from '@spicavi/tauri-plugin-purchases'
+import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import './Paywall.css'
 
 interface Props {
   plan: Plan
+  /** Full subscription when available — used to pick Apple vs Stripe management. */
+  subscription?: Subscription | null
   /** True only while a one-time extension is still available (trialing, unused). */
   canExtend?: boolean
   onRefetch: () => void
 }
 
-export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
+export function LockedScreen({ plan, subscription = null, canExtend = false, onRefetch }: Props) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [holding, setHolding] = useState<JournalHolding | null>(null)
@@ -28,6 +41,7 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
   const [exportPct, setExportPct] = useState(0)
   const [askOpen, setAskOpen] = useState(false)
 
+  const useApple = isAppleIapAvailable() || isAppleManaged(subscription)
   const isPastDue = plan === 'past_due'
   const isCancelled = plan === 'cancelled'
 
@@ -43,10 +57,51 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
     }
   }, [isPastDue])
 
+  // On iOS the price shown MUST be the price StoreKit will actually charge —
+  // it varies by storefront, currency and Apple's own price-tier adjustments,
+  // so the hardcoded "$64 / year" is only correct for the US. Fall back to the
+  // hardcoded copy if StoreKit is slow or unreachable; that is better than a
+  // button with no price on it.
+  const [products, setProducts] = useState<Product[]>([])
+  useEffect(() => {
+    if (!isAppleIapAvailable()) return
+    let alive = true
+    fetchAppleProducts().then(
+      (list) => alive && setProducts(list),
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const annualPrice = products.find((p) => p.id.includes('annual'))?.displayPrice ?? '$64'
+  const monthlyPrice = products.find((p) => p.id.includes('monthly'))?.displayPrice ?? '$7'
+
   async function handleResubscribe(selectedPlan: 'annual' | 'monthly') {
     setError(null)
     setLoading(selectedPlan)
     try {
+      if (isAppleIapAvailable()) {
+        const outcome = await purchaseApple(selectedPlan)
+        if (outcome === 'cancelled') {
+          setLoading(null)
+          return
+        }
+        if (outcome === 'pending') {
+          setError('Purchase is pending approval. You’ll get access once it’s approved.')
+          setLoading(null)
+          return
+        }
+        onRefetch()
+        return
+      }
+      if (isAppleManaged(subscription)) {
+        // Apple subscriber on web/desktop — they must manage on an Apple device.
+        setError('This subscription is billed through Apple. Open Dayspring on your iPhone to renew.')
+        setLoading(null)
+        return
+      }
       await openExternal(await startCheckout(selectedPlan), { sameTab: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
@@ -58,10 +113,35 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
     setError(null)
     setLoading('portal')
     try {
+      if (isAppleIapAvailable()) {
+        await manageAppleSubscriptions()
+        return
+      }
+      if (isAppleManaged(subscription)) {
+        await openExternal('https://apps.apple.com/account/subscriptions')
+        return
+      }
       await openExternal(await fetchPortalUrl())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {
+      setLoading(null)
+    }
+  }
+
+  async function handleRestore() {
+    setError(null)
+    setLoading('restore')
+    try {
+      const n = await restoreApplePurchases()
+      if (n === 0) {
+        setError('No purchases found for this Apple ID.')
+        setLoading(null)
+        return
+      }
+      onRefetch()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not restore purchases.')
       setLoading(null)
     }
   }
@@ -118,7 +198,11 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
           </p>
           <div className="locked-screen__actions">
             <button className="btn" disabled={busy} onClick={() => void handleManage()}>
-              {loading === 'portal' ? 'Opening…' : 'Update payment method'}
+              {loading === 'portal'
+                ? 'Opening…'
+                : useApple
+                  ? 'Manage in App Store'
+                  : 'Update payment method'}
             </button>
             <button className="btn btn--ghost" onClick={onRefetch} disabled={busy}>
               Already fixed? Refresh
@@ -165,20 +249,39 @@ export function LockedScreen({ plan, canExtend = false, onRefetch }: Props) {
 
         <div className="locked-screen__actions">
           <button className="btn" disabled={busy} onClick={() => void handleResubscribe('annual')}>
-            {loading === 'annual' ? 'Redirecting…' : 'Continue — $64 / year'}
+            {loading === 'annual'
+              ? isAppleIapAvailable()
+                ? 'Confirming…'
+                : 'Redirecting…'
+              : `Continue — ${annualPrice} / year`}
           </button>
           <button
             className="btn btn--ghost"
             disabled={busy}
             onClick={() => void handleResubscribe('monthly')}
           >
-            {loading === 'monthly' ? 'Redirecting…' : 'Monthly — $7 / month'}
+            {loading === 'monthly'
+              ? isAppleIapAvailable()
+                ? 'Confirming…'
+                : 'Redirecting…'
+              : `Monthly — ${monthlyPrice} / month`}
           </button>
+          {isAppleIapAvailable() && (
+            <button
+              className="btn btn--ghost"
+              disabled={busy}
+              onClick={() => void handleRestore()}
+            >
+              {loading === 'restore' ? 'Restoring…' : 'Restore purchases'}
+            </button>
+          )}
         </div>
 
         <p className="locked-screen__reassure">
           Your journal is always yours — export everything, anytime, subscribed or not.
         </p>
+
+        {useApple && <AppleSubscriptionTerms />}
 
         <div className="locked-soft">
           {canExtend && (
