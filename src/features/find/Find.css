@@ -1,0 +1,269 @@
+/*
+ * ⌘K — Find & Ask.
+ *
+ * Sits above every surface (scrim z-index 40, so the palette clears the drawer
+ * at 41). Deliberately quiet: this is transit, not a destination, and anything
+ * decorative here would slow down the two seconds it's meant to take.
+ */
+
+.find-scrim {
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: max(12vh, 3rem) 1rem 2rem;
+  overflow-y: auto;
+}
+
+.find {
+  width: min(640px, 100%);
+  border-radius: 14px;
+  animation: find-in 200ms cubic-bezier(0.16, 0.84, 0.36, 1);
+}
+
+@keyframes find-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.99);
+  }
+}
+
+/* ── the one line ── */
+
+.find__q {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.3rem 1.05rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.find__q-icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  flex: none;
+}
+
+/* The writing face, at reading size — asking is the same act as journaling. */
+.find__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-bright);
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  line-height: 1.5;
+  padding: 0.95rem 0;
+}
+
+.find__input::placeholder {
+  color: var(--text-faint);
+}
+
+.find__input:focus {
+  outline: none;
+}
+
+/* Flips with what was typed. Amber only when it's about to cost something. */
+.find__verb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 7px;
+  padding: 0.28rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+  transition:
+    color 200ms ease,
+    border-color 200ms ease,
+    background 200ms ease;
+}
+
+.find__verb[data-verb='ask'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.find__verb-key {
+  opacity: 0.7;
+}
+
+/* ── results ── */
+
+.find__results {
+  max-height: min(46vh, 400px);
+  overflow-y: auto;
+  padding: 0.35rem 0;
+}
+
+.find__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: baseline;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.6rem 1.05rem;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+}
+
+.find__row[data-sel='true'] {
+  background: var(--bg-hover);
+}
+
+.find__row-t {
+  font-size: 0.87rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  min-width: 0;
+}
+
+.find__row-t mark {
+  background: var(--accent-soft);
+  color: var(--text-bright);
+  border-radius: 2px;
+  padding: 0 0.12em;
+}
+
+.find__row-d {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── the bridge: Find's one door into Ask ──
+   Dashed so it reads as an offer rather than a result. It is never the default
+   selection when real matches exist — see FindPalette. */
+
+.find__bridge {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  width: calc(100% - 1.2rem);
+  margin: 0.3rem 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+}
+
+.find__bridge[data-sel='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  border-style: solid;
+}
+
+.find__bridge-main {
+  min-width: 0;
+}
+
+.find__bridge-h {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--text-bright);
+}
+
+.find__bridge-h b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.find__bridge-s {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  margin-top: 0.25rem;
+  line-height: 1.5;
+}
+
+.find__bridge-n {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── hint / empty ── */
+
+.find__hint {
+  padding: 1.4rem 1.05rem;
+}
+
+.find__hint-h {
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 0 0 0.45rem;
+}
+
+.find__hint-s {
+  font-size: 0.82rem;
+  color: var(--text-faint);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.find__hint-s b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── foot ── */
+
+.find__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.55rem 1.05rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+}
+
+.find__foot .kbd {
+  margin-right: 0.3rem;
+}
+
+.find__foot-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .find-scrim {
+    padding: 4vh 0.75rem 1rem;
+  }
+  .find__row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+  .find__foot-count {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .find {
+    animation: none;
+  }
+}

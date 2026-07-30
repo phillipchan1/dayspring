@@ -68,6 +68,10 @@ export interface JournalViewProps {
   altarActive: boolean
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
+  /** True when the Well fills the main canvas. */
+  wellActive: boolean
+  /** Open ⌘K — Find (instant, local) or Ask (the Well). */
+  onFindOrAsk: () => void
   /** Set when reading an entry opened from Lamp / Altar / Ascent. */
   entryReturn: EntryReturnContext | null
   onReturnFromEntry: () => void

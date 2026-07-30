@@ -48,7 +48,8 @@ users; **jobs = one-time catch-up** for an archive.
 | Piece | Where | Reuse as |
 |---|---|---|
 | Idempotent rollup builders | `api/_lib/synthesize.ts` → `buildWeekly/Monthly/Quarterly/Yearly` | reflections unit of work |
-| Altar engine (all owner-scoped) | `api/_lib/altar.ts` → `embedUnembedded`, `harvestPrayers`, `threadItems`, `migrateLegacyAnswered`, `sweepOpenThreads` | altar units of work |
+| Altar engine (all owner-scoped) | `api/_lib/altar.ts` → `embedUnembedded`, `harvestPrayers`, `migrateLegacyAnswered`, `sweepOpenThreads` | altar units of work |
+| Declared-thread grouping | `api/_lib/declared.ts` → `tagSubjects` (priced, once per line), `regroupDeclared` (free, deterministic) | altar units of work |
 | Ref scanner (regex, free) | `src/lib/scripture/scan.ts` → `scanAllForRefs` | scripture unit of work (move server-side, §5) |
 | Import date range | `src/lib/diarlyImport.ts` (`dateRange`), `upsertImportedEntries` | the backfill trigger + window |
 | Breathing loader | `src/components/SurfaceLoader.tsx` | the PROCESSING state UI |
@@ -120,10 +121,26 @@ for each claimed job:  do ONE bounded chunk by kind (below); advance cursor + co
 | `scripture` | ~500 entries, parse + upsert refs | `scanAllForRefs` logic, **moved server-side** | pure regex, no model — cheap/fast |
 | `altar_harvest` | ~60 entries (Nano extract) | `harvestPrayers(owner,{max})` (already chunk-capable) | the expensive one |
 | `altar_embed` | ~500 rows (bulk RPC) | `embedUnembedded` | bulk-write already in place |
-| `altar_thread` | whole-owner pass (fast) | `threadItems` | runs once after embed completes |
+| `altar_thread` | ~300 lines (Nano subject tag) | `tagSubjects(owner,{max})`, then `regroupDeclared` once drained | tagging is priced and per-line; grouping is free |
 
 **Chaining:** `altar_harvest` → on done enqueue `altar_embed` → on done enqueue
 `altar_thread`. Reflections cascades internally (its cursor walks the levels).
+
+**Never rebuild a field from a half-read archive.** `regroupDeclared` refuses to run
+while any of an owner's prayer lines are still untagged (override with
+`{force:true}` only for a local one-shot rebuild). A plan built mid-drain has never
+seen most of the writer's praying, so it would prune the existing field and swap in
+the fraction we've read — emptying a live user's Altar for as long as the backlog
+takes. The old field stays untouched until the new one is whole, then swaps in one
+pass. The every-minute engine job is what makes that wait short.
+
+**Why `altar_thread` tags instead of clusters (2026-07-27):** it used to call
+`threadItems`, which clustered prayer TEXT by embedding similarity. That measures
+devotional register, not subject, so heaps drifted into generic devotional space and
+swallowed unrelated praying — one real thread held 299 members of which 289 were
+below the merge bar against its own seed. Grouping now runs off per-line subject
+tags, and the label is recomputed on every regroup instead of being frozen at
+creation. See the autopsy at the top of `api/_lib/declared.ts`.
 
 **Scripture decision:** today the scan runs *client-side* (free regex, no timeout)
 and only when the user opens the app. To honor "close the laptop, come back when

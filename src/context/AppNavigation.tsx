@@ -121,6 +121,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         entryReturn: null,
         ascentAltitude: 0,
         ascentDrill: null,
+        wellQuestion: null,
       })
     } else if (pathSurface) {
       current = mergeAppHistory(current ?? DEFAULT_APP_HISTORY, {
@@ -134,6 +135,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         entryReturn: null,
         ascentAltitude: 0,
         ascentDrill: null,
+        wellQuestion: null,
       })
     }
 
