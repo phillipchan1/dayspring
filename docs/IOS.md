@@ -127,6 +127,25 @@ Upload with **Transporter**, then App Store Connect → TestFlight → Internal 
 
 Sandbox IAP: iPhone Settings → App Store → Sandbox Account.
 
+## App icons
+
+The mark is a sunrise (amber `#e0a64e`) — `src-tauri/icon-appstore.svg`, rasterised to
+`src-tauri/icon-1024.png`, which is the committed source of truth for every generated size.
+Full-bleed square on purpose: Apple applies its own corner mask, so a rounded source leaves
+transparent corners.
+
+```bash
+npx tauri icon src-tauri/icon-1024.png
+python3 scripts/flatten-ios-icons.py
+```
+
+⚠️ **The second command is not optional.** `tauri icon` writes every PNG as RGBA even from an
+opaque source, and Apple rejects an App Store icon that merely *has* an alpha channel —
+upload fails with "Invalid Image Path ... can't be transparent nor contain an alpha channel",
+and smaller slots render a black box behind the icon on device. The script is iOS-only:
+Android adaptive icons need their transparency, and macOS ships as a DMG rather than through
+the Mac App Store.
+
 After `tauri ios init`, re-check `gen/apple/app_iOS/Info.plist` for the privacy keys and `dayspring://` URL scheme (Tauri merges `Info.ios.plist` inconsistently; the committed file is the source of truth — patch the generated plist if keys are missing before shipping).
 
 ### Pre-upload checklist
