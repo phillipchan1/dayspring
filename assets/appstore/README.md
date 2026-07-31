@@ -12,6 +12,7 @@ npm run screenshots:appstore
 | `paywall.png` | Spare — first-run paywall variant | Not currently required |
 | `listing.json` | Paste into ASC App Store version metadata | Description, keywords, review notes |
 | `external-status.json` | Ops checklist — not uploaded | Live verification of env / auth / IPA |
+| `../../docs/IOS-DEPLOY-STATUS.md` | **Deployment checklist** — update as you go | |
 | `../../src-tauri/icon-1024.png` | Subscription → **Image (Optional)** | 1024×1024, no alpha |
 
 Helpers:
@@ -39,12 +40,18 @@ from `src/lib/appleIap.ts`. **Those values must match App Store Connect** — cu
 is a 3.1.2 rejection. Note these differ from the web/Stripe prices ($7 and $64):
 Apple's tiers are .99-based, so the two platforms genuinely don't match.
 
+## Dimensions
+
+IAP **Review Information** screenshots must match [Apple's screenshot
+specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)
+for a device your app supports — not an arbitrary size. We generate **1284×2778**
+(iPhone 6.5" portrait). PNG must be RGB with no alpha channel.
+
 ## Gotchas if you touch the capture script
 
-- **Don't lower the viewport to a real phone width.** macOS enforces a ~500px minimum
-  window width; Chrome lays out at that minimum but still crops to `--window-size`,
-  which slices the right-hand side off the auto-renew disclosure. 640 CSS px at 2×
-  (= 1280×2000) clears both that and Apple's 640×920 minimum.
+- **Don't lower the viewport width below ~640 CSS px.** macOS enforces a ~500px minimum
+  window width, and Chrome lays out at that minimum but still crops to `--window-size`,
+  which slices the right-hand side off the auto-renew disclosure.
 - **Keep `--virtual-time-budget`.** The app boots asynchronously; without it Chrome
   photographs a blank page.
 - **Old `--headless` won't do.** It lays out at its own default width regardless of

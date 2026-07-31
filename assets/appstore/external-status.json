@@ -17,8 +17,8 @@
   },
   "supabaseAuth": {
     "google": true,
-    "apple": false,
-    "blocker": "Guideline 4.8 — enable Sign in with Apple in Supabase Auth → Providers after Apple Developer Services ID + .p8 JWT secret."
+    "apple": true,
+    "note": "Sign in with Apple enabled in Supabase (Services ID + JWT secret)"
   },
   "endpoints": {
     "terms": "200",
@@ -29,8 +29,8 @@
   "asc": {
     "appAppleId": "6776925077",
     "bundleId": "com.phillipchan.dayspring",
-    "subscriptions": "partial — run: export APPLE_ISSUER_ID KEY_ID PRIVATE_KEY; npm run asc:setup-iap",
-    "reviewScreenshot": "assets/appstore/iap-review-screenshot.png",
+    "subscriptions": "done (dayspring_monthly + dayspring_annual, Prepare for Submission — submit with app version)",
+    "reviewScreenshot": "assets/appstore/iap-review-screenshot.png (1284x2778)",
     "listingCopy": "assets/appstore/listing.json (description also on clipboard)",
     "serverNotificationsV2": "set Production + Sandbox to https://dayspring-eosin.vercel.app/api/webhooks/apple",
     "staleTransporterBuild": "1.0.206 (208) — DO NOT DELIVER"
