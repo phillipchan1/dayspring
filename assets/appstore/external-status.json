@@ -1,17 +1,24 @@
 {
-  "checkedAt": "2026-07-31T02:45:00Z",
+  "checkedAt": "2026-07-31T03:05:00Z",
+  "ipa": {
+    "path": "src-tauri/gen/apple/build/arm64/Dayspring.ipa",
+    "desktopCopy": "~/Desktop/Dayspring-1.0.213.213.ipa",
+    "version": "1.0.213",
+    "build": "1.0.213.213",
+    "icon": "sunrise on cream (verified) — deliver THIS, not 1.0.206.208",
+    "note": "Xcode warned phil.chan@sce.com session expired during export; IPA still produced. Re-sign in under Xcode → Settings → Accounts if Transporter rejects the upload."
+  },
   "vercel": {
     "APPLE_APP_APPLE_ID": "set (production) = 6776925077",
     "APPLE_BUNDLE_ID": "set (production) = com.phillipchan.dayspring",
-    "APPLE_ISSUER_ID": "MISSING",
+    "APPLE_ISSUER_ID": "MISSING — blocks /api/apple/verify entitlement unlock",
     "APPLE_KEY_ID": "MISSING",
-    "APPLE_PRIVATE_KEY": "MISSING",
-    "note": "Purchases will not unlock entitlement until the three MISSING vars are set from an ASC In-App Purchase API key."
+    "APPLE_PRIVATE_KEY": "MISSING"
   },
   "supabaseAuth": {
     "google": true,
     "apple": false,
-    "blocker": "App Store Guideline 4.8 — Sign in with Apple must be enabled when Google is offered. Enable in Supabase Auth → Providers → Apple after creating the Services ID + .p8 secret in Apple Developer."
+    "blocker": "Guideline 4.8 — enable Sign in with Apple in Supabase Auth → Providers after Apple Developer Services ID + .p8 JWT secret."
   },
   "endpoints": {
     "terms": "200",
@@ -22,8 +29,14 @@
   "asc": {
     "appAppleId": "6776925077",
     "bundleId": "com.phillipchan.dayspring",
-    "subscriptions": "partial — finish with npm run asc:setup-iap once APPLE_ISSUER_ID/KEY_ID/PRIVATE_KEY are available, or complete in ASC UI",
-    "serverNotificationsV2": "must set Production + Sandbox to https://dayspring-eosin.vercel.app/api/webhooks/apple",
-    "staleTransporterBuild": "1.0.206 (208) — DO NOT DELIVER (wrong icon)"
+    "subscriptions": "partial — run: export APPLE_ISSUER_ID KEY_ID PRIVATE_KEY; npm run asc:setup-iap",
+    "reviewScreenshot": "assets/appstore/iap-review-screenshot.png",
+    "listingCopy": "assets/appstore/listing.json (description also on clipboard)",
+    "serverNotificationsV2": "set Production + Sandbox to https://dayspring-eosin.vercel.app/api/webhooks/apple",
+    "staleTransporterBuild": "1.0.206 (208) — DO NOT DELIVER"
+  },
+  "git": {
+    "master": "pushed (includes icon fix, StoreKit prices, prep scripts, build-script fix)",
+    "stable": "pushed (merged from master for production Vercel)"
   }
 }
