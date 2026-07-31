@@ -30,10 +30,12 @@ import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 
 async function bootstrap() {
-  // Dev-only paywall preview: renders a purchase surface standalone, with no
-  // auth and no lapsed-subscription setup, so the App Store review screenshot
-  // can be captured from a browser instead of a provisioned device. Driven by
-  // scripts/capture-appstore-screenshots.mjs.
+  // Dev-only App Store previews: render a surface standalone, with no auth and
+  // no subscription setup, so screenshots can be captured from a browser instead
+  // of a provisioned device.
+  //
+  //   ?__preview=locked | paywall   → IAP review shot (capture-appstore-screenshots.mjs)
+  //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -41,6 +43,11 @@ async function bootstrap() {
   // Vite dead-code-eliminates this entire block; it can never ship.
   if (import.meta.env.DEV) {
     const preview = new URLSearchParams(window.location.search).get('__preview')
+    if (preview?.startsWith('listing-')) {
+      const { renderListingPreview } = await import('./features/appstore/preview')
+      renderListingPreview(preview)
+      return
+    }
     if (preview) {
       const { renderPaywallPreview } = await import('./features/paywall/preview')
       renderPaywallPreview(preview)

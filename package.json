@@ -24,6 +24,7 @@
     "tauri:ios:dev": "tauri ios dev",
     "tauri:ios:build": "tauri ios build --export-method app-store-connect --ci",
     "screenshots:appstore": "node scripts/capture-appstore-screenshots.mjs",
+    "screenshots:appstore-listing": "node scripts/capture-listing-screenshots.mjs",
     "ios:preflight": "node scripts/ios-preflight.mjs",
     "asc:setup-iap": "node scripts/asc-setup-iap.mjs"
   },

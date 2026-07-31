@@ -1,0 +1,229 @@
+/*
+ * Listing-shot chrome — the marketing site's "First Light" tokens, hardcoded.
+ *
+ * Deliberately NOT wired to the app's theme variables: the frame is the
+ * dayspring-site palette (`--ink` #0c0d11, warm dawn) while the screen inside it
+ * runs the app's shipped `ink` theme (#14161d, silver-blue moonlight glow). That
+ * contrast — amber dawn around a cool page — is the site's actual look, and it
+ * makes the screen read as an object sitting on a page.
+ */
+
+.shot {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #0c0d11;
+  isolation: isolate;
+}
+
+/* The dawn bloom — DawnGlow.astro's "bloom" variant. Rises behind the caption
+   and spills over the top of the screen. */
+.shot__glow {
+  position: absolute;
+  top: -22%;
+  left: 50%;
+  width: 150%;
+  height: 62%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(243, 189, 118, 0.2) 0%,
+    rgba(232, 145, 124, 0.1) 38%,
+    rgba(197, 106, 110, 0.04) 56%,
+    rgba(197, 106, 110, 0) 70%
+  );
+  filter: blur(28px);
+  z-index: 0;
+}
+
+/* Film grain, so the gradient never bands on a 1284px-wide export. */
+.shot__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── caption ─────────────────────────────────────────────────────────────── */
+
+.shot__caption {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  padding: 74px 56px 0;
+}
+
+.shot__eyebrow {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 2.8px;
+  text-transform: uppercase;
+  color: #f3bd76;
+}
+
+.shot__headline {
+  margin: 15px 0 0;
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  font-size: 46px;
+  line-height: 1.06;
+  letter-spacing: -0.9px;
+  color: #ece7dd;
+  text-wrap: balance;
+}
+
+/* The signature: italic, gradient-filled, on the phrase that carries the promise. */
+.shot__headline em {
+  font-style: italic;
+  font-weight: 300;
+  background: linear-gradient(100deg, #f3bd76, #e8917c 60%, #c56a6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.shot__sub {
+  margin: 17px 0 0;
+  max-width: 30rem;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 1.5;
+  color: #b7b3ab;
+  text-wrap: pretty;
+}
+
+/* Horizon rule — echoes the OG card's 1px dawn line. */
+.shot__rule {
+  margin-top: 22px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(243, 189, 118, 0) 0%,
+    rgba(243, 189, 118, 0.28) 22%,
+    rgba(243, 189, 118, 0.28) 78%,
+    rgba(243, 189, 118, 0) 100%
+  );
+}
+
+/* ── the screen ──────────────────────────────────────────────────────────── */
+
+.shot__well {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px 0 34px;
+}
+
+.shot__card {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  /* `background` is set inline from the shot's palette, so there is no seam
+     while the iframe boots. */
+  border: 1px solid rgba(236, 231, 221, 0.15);
+  /* LetterCard's shadow language: a deep lift plus a faint dawn halo. */
+  box-shadow:
+    0 50px 90px -45px rgba(0, 0, 0, 0.9),
+    0 0 70px -35px rgba(243, 189, 118, 0.16);
+}
+
+/* A snippet is a window onto a longer surface, so the bottom edge will often cut
+   mid-content. Fading it says "there is more below" instead of "this is broken". */
+.shot__card[data-fade]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 88px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(12, 13, 17, 0) 0%, rgba(12, 13, 17, 0.92) 100%);
+}
+
+/* A light card fades to its own paper, not to the frame's ink — fading warm
+   paper into near-black reads as a shadow falling on the page. */
+.shot__card[data-light][data-fade]::after {
+  background: linear-gradient(180deg, rgba(251, 246, 238, 0) 0%, rgba(251, 246, 238, 0.96) 100%);
+}
+
+/* The pale card needs a warmer, tighter edge than a dark one — a cool hairline
+   on cream reads as a rendering seam. */
+.shot__card[data-light] {
+  border-color: rgba(74, 64, 53, 0.16);
+}
+
+.shot__inner {
+  display: block;
+  border: 0;
+  transform-origin: top left;
+}
+
+/* ── cross-device composite ─────────────────────────────────────────────── */
+
+.shot__stack {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  /* Centred. Top-aligning was right while the composite was small and the
+     leftover collected into one hole at the foot; now that it nearly fills the
+     well, splitting the remainder reads as margin rather than as a gap. */
+  align-self: center;
+}
+
+.shot__devices {
+  position: relative;
+  flex: none;
+}
+
+/* Three facts under the devices — the practical close. Sized to read at a
+   glance, not to be studied. */
+.shot__specs {
+  position: absolute;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 15.5px;
+  line-height: 1.42;
+  color: #8f8b84;
+}
+
+.shot__specs li {
+  padding: 9px 2px;
+  border-top: 1px solid rgba(236, 231, 221, 0.09);
+}
+
+.shot__specs li:last-child {
+  border-bottom: 1px solid rgba(236, 231, 221, 0.09);
+}
+
+.shot__specs b {
+  font-weight: 400;
+  color: #ece7dd;
+}
+
+.shot__card--desktop {
+  border-radius: 14px;
+}
+
+.shot__card--phone {
+  position: absolute;
+  border-radius: 26px;
+  /* Lifted off the desktop pane so the overlap reads as depth, not as a seam. */
+  box-shadow:
+    0 30px 60px -24px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(12, 13, 17, 0.9),
+    0 0 50px -28px rgba(243, 189, 118, 0.2);
+}

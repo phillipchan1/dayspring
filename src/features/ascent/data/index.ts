@@ -9,6 +9,7 @@
  */
 
 import { listRollups } from '@/lib/insights'
+import { isListingPreview } from '@/lib/previewMode'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
 import { loadWeekWords, monthWords, quarterWords, yearWords } from './words'
@@ -57,6 +58,15 @@ function withLabel(scripture: ScriptureData | null, label: string | undefined): 
 }
 
 export async function loadAscent(): Promise<LoadedAscent> {
+  // App Store listing preview: serve fixtures rather than Supabase. Kept inline
+  // under a literal `import.meta.env.DEV` (not hoisted to a module const) so Vite
+  // drops the branch AND the dynamic import — the fixtures never reach the bundle.
+  // Needed because AscentView's load rejection sets loadError, which wins the
+  // render and would photograph an error state.
+  if (import.meta.env.DEV && isListingPreview()) {
+    return (await import('@/features/appstore/mock')).MOCK_ASCENT
+  }
+
   // Degrade per-tier: if a rollup read fails (offline / not yet synthesized), the
   // real Words/Scripture dimensions fall to empty while the rest of the climb —
   // and the other dimensions — still render.
