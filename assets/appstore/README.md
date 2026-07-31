@@ -10,7 +10,16 @@ npm run screenshots:appstore
 |---|---|---|
 | `iap-review-screenshot.png` | Subscription → **Review Information → Screenshot** | Review-only, never shown publicly |
 | `paywall.png` | Spare — first-run paywall variant | Not currently required |
+| `listing.json` | Paste into ASC App Store version metadata | Description, keywords, review notes |
+| `external-status.json` | Ops checklist — not uploaded | Live verification of env / auth / IPA |
 | `../../src-tauri/icon-1024.png` | Subscription → **Image (Optional)** | 1024×1024, no alpha |
+
+Helpers:
+
+```bash
+npm run ios:preflight   # automated half of docs/IOS.md checklist
+npm run asc:setup-iap   # create Dayspring Premium products via ASC API (needs APPLE_* key)
+```
 
 ## Why these are generated, not screenshotted by hand
 
