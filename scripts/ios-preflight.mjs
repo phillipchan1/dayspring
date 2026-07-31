@@ -11,9 +11,7 @@ import { createRequire } from 'node:module'
 import { readFile, access } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
 
-const require = createRequire(import.meta.url)
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const ORIGIN = 'https://dayspring-eosin.vercel.app'
 
@@ -82,8 +80,13 @@ async function main() {
 
   if (await exists(appIcon)) {
     try {
-      const out = execSync(
-        `python3 -c "from PIL import Image; im=Image.open(${JSON.stringify(appIcon)}); print(im.mode, im.size[0], 'transparency' in im.info)"`,
+      const { execFileSync } = await import('node:child_process')
+      const out = execFileSync(
+        'python3',
+        [
+          '-c',
+          `from PIL import Image; im=Image.open(${JSON.stringify(appIcon)}); print(im.mode, im.size[0], 'transparency' in im.info)`,
+        ],
         { encoding: 'utf8' },
       ).trim()
       if (out.startsWith('RGB 1024 False')) ok('AppIcon-512@2x.png opaque RGB', out)
