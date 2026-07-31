@@ -28,6 +28,7 @@ import { isLightTheme, type ThemeId } from '@/lib/resolveTheme'
 import { ShotFrame } from './ShotFrame'
 import { renderSurface } from './surfaces'
 import { renderDevicePane, type DevicePane } from './devices'
+import { renderIpadShot } from './ipad'
 import { shotById, type Shot } from './shots'
 
 /** The marketing frame's ground — dayspring-site's `--ink`. Matches ShotFrame.css. */
@@ -58,11 +59,19 @@ function applyTheme(theme: ThemeId): void {
  * seeding — shot 01 renders `Summit` directly rather than driving AscentView to
  * its top altitude.
  */
-function RawShot({ shot, pane }: { shot: Shot; pane: DevicePane | null }) {
+function RawShot({
+  shot,
+  pane,
+  ipad,
+}: {
+  shot: Shot
+  pane: DevicePane | null
+  ipad: boolean
+}) {
   return (
     <FeatureFlagProvider flags={[]}>
       <AppNavigationProvider>
-        {pane ? renderDevicePane(pane) : renderSurface(shot)}
+        {pane ? renderDevicePane(pane) : ipad ? renderIpadShot(shot) : renderSurface(shot)}
       </AppNavigationProvider>
     </FeatureFlagProvider>
   )
@@ -76,6 +85,7 @@ export function renderListingPreview(variant: string): void {
   const raw = params.get('raw') === '1'
   // The cross-device shot renders one of two layouts per iframe; which one is
   // decided by the iframe's width, so the pane only picks the component.
+  const ipad = params.get('platform') === 'ipad'
   const paneParam = params.get('pane')
   const pane: DevicePane | null =
     paneParam === 'desktop' || paneParam === 'phone' ? paneParam : null
@@ -109,9 +119,13 @@ export function renderListingPreview(variant: string): void {
 
   createRoot(el).render(
     raw ? (
-      <RawShot shot={shot} pane={pane} />
+      <RawShot shot={shot} pane={pane} ipad={ipad} />
     ) : (
-      <ShotFrame shot={shot} frame={{ width: window.innerWidth, height: window.innerHeight }} />
+      <ShotFrame
+        shot={shot}
+        platform={ipad ? 'ipad' : 'iphone'}
+        frame={{ width: window.innerWidth, height: window.innerHeight }}
+      />
     ),
   )
 }

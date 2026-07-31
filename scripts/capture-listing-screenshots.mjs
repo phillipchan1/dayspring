@@ -45,8 +45,11 @@ const CHROME_CANDIDATES = [
  * @see https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/
  */
 const SIZES = [
-  { dir: '6.9', width: 1320, height: 2868 }, // iPhone 16 Pro Max
-  { dir: '6.5', width: 1284, height: 2778 }, // iPhone 11 Pro Max / XS Max
+  { dir: '6.9', width: 1320, height: 2868, platform: 'iphone' }, // iPhone 16 Pro Max
+  { dir: '6.5', width: 1284, height: 2778, platform: 'iphone' }, // iPhone 11 Pro Max / XS Max
+  // The build declares TARGETED_DEVICE_FAMILY = "1,2", so ASC will not accept a
+  // submission with an empty iPad slot. 2064x2752 is the iPad 13" portrait spec.
+  { dir: 'ipad-13', width: 2064, height: 2752, platform: 'ipad' },
 ]
 
 /** Frame background — dayspring-site's --ink. Must match ShotFrame.css. */
@@ -170,9 +173,13 @@ async function main() {
       const dir = path.join(OUT_DIR, size.dir)
       await mkdir(dir, { recursive: true })
       console.log(`\n${size.dir}" — ${size.width}x${size.height}`)
-      for (const shot of shots) {
+      // 07 is a phone-and-Mac composite; on an iPad sheet it argues the wrong
+      // thing, so the iPad set closes on the year list instead.
+      const forSize = size.platform === 'ipad' ? shots.filter((s) => s.preview !== 'listing-devices') : shots
+      for (const shot of forSize) {
         const out = path.join(dir, `${shot.file}.png`)
-        await capture(chrome, `http://localhost:${PORT}/?__preview=${shot.preview}`, out, size)
+        const q = size.platform === 'ipad' ? '&platform=ipad' : ''
+        await capture(chrome, `http://localhost:${PORT}/?__preview=${shot.preview}${q}`, out, size)
         console.log(`  ${path.relative(ROOT, out)}`)
         finalizePng(out, size)
       }

@@ -227,3 +227,31 @@
     0 0 0 1px rgba(12, 13, 17, 0.9),
     0 0 50px -28px rgba(243, 189, 118, 0.2);
 }
+
+/* ── iPad ────────────────────────────────────────────────────────────────── */
+
+/* The frame is 1032pt wide against the phone's 642, so the caption has to grow
+   with it or the type reads as an undersized phone layout on a big canvas. */
+.shot[data-platform='ipad'] .shot__caption {
+  padding: 96px 78px 0;
+}
+.shot[data-platform='ipad'] .shot__eyebrow {
+  font-size: 14px;
+  letter-spacing: 3.2px;
+}
+.shot[data-platform='ipad'] .shot__headline {
+  margin-top: 20px;
+  font-size: 62px;
+  letter-spacing: -1.4px;
+}
+.shot[data-platform='ipad'] .shot__sub {
+  margin-top: 22px;
+  max-width: 40rem;
+  font-size: 21px;
+}
+.shot[data-platform='ipad'] .shot__rule {
+  margin-top: 30px;
+}
+.shot[data-platform='ipad'] .shot__well {
+  padding: 34px 0 46px;
+}

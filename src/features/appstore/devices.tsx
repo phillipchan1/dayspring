@@ -30,7 +30,11 @@ export const PANE_VIEWPORT: Record<DevicePane, { width: number; height: number }
 
 const noop = () => {}
 
-function props(mainSlot: React.ReactNode): JournalViewProps {
+/** Shared with the iPad shots, which render the same shell around a surface. */
+export function journalProps(
+  mainSlot: React.ReactNode,
+  active?: Partial<Pick<JournalViewProps, 'reflectionsActive' | 'altarActive' | 'scriptureActive'>>,
+): JournalViewProps {
   return {
     userEmail: 'you@example.com',
     entries: MOCK_ENTRIES,
@@ -70,13 +74,14 @@ function props(mainSlot: React.ReactNode): JournalViewProps {
     altarActive: false,
     scriptureActive: false,
     wellActive: false,
+    ...active,
     onFindOrAsk: noop,
     entryReturn: null,
     onReturnFromEntry: noop,
   }
 }
 
-function editorSlot() {
+export function editorSlot() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -95,7 +100,7 @@ function editorSlot() {
 }
 
 export function renderDevicePane(pane: DevicePane) {
-  if (pane === 'desktop') return <DesktopJournal {...props(editorSlot())} />
+  if (pane === 'desktop') return <DesktopJournal {...journalProps(editorSlot())} />
 
   // The phone pane carries the dictation claim, so it shows the voice sheet
   // rather than a second copy of the editor. VoiceCapture auto-starts on mount
@@ -103,7 +108,7 @@ export function renderDevicePane(pane: DevicePane) {
   // flags so it reaches its recording state instead of an error.
   return (
     <>
-      <MobileJournal {...props(editorSlot())} />
+      <MobileJournal {...journalProps(editorSlot())} />
       <VoiceCapture onInsert={noop} onClose={noop} />
     </>
   )

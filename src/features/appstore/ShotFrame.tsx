@@ -15,6 +15,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { THEMES } from '@/lib/resolveTheme'
 import { PANE_VIEWPORT } from './devices'
+import { IPAD_VIEWPORT } from './ipad'
 import type { Shot } from './shots'
 import './ShotFrame.css'
 
@@ -22,6 +23,10 @@ interface Props {
   shot: Shot
   /** The capture window, in CSS px — the frame's own canvas. */
   frame: { width: number; height: number }
+  /** iPad frames are ~0.75 aspect against the phone's ~0.46, so the caption and
+   *  the card have to re-proportion; the card also holds the whole app rather
+   *  than a chrome-less snippet. */
+  platform: 'iphone' | 'ipad'
 }
 
 /**
@@ -37,26 +42,29 @@ const CARD = { width: 420, height: 700 }
 /** Minimum gutter either side of the card. */
 const GUTTER = 52
 
-export function ShotFrame({ shot, frame }: Props) {
+export function ShotFrame({ shot, frame, platform }: Props) {
   const wellRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0)
 
   // Fit to whatever the caption left behind rather than trusting a hand-tuned
   // constant — the caption is a fixed pixel height but the two export sizes are
   // not, so one number cannot be right for both.
+  const card = platform === 'ipad' ? IPAD_VIEWPORT : CARD
+  const gutter = platform === 'ipad' ? 56 : GUTTER
+
   useLayoutEffect(() => {
     const well = wellRef.current
     if (!well) return
-    const byHeight = well.clientHeight / CARD.height
-    const byWidth = (frame.width - GUTTER * 2) / CARD.width
+    const byHeight = well.clientHeight / card.height
+    const byWidth = (frame.width - gutter * 2) / card.width
     setScale(Math.min(byHeight, byWidth))
-  }, [frame.width])
+  }, [frame.width, card.height, card.width, gutter])
 
-  const crop = shot.cropTop ?? 0
+  const crop = platform === 'ipad' ? 0 : (shot.cropTop ?? 0)
   // Real blank space, not "crop less" — cropping less just reveals whatever sits
   // above (on the Lamp, the descenders of its own title). The iframe is pushed
   // down inside the card and the card's own background fills the gap.
-  const pad = shot.padTop ?? 0
+  const pad = platform === 'ipad' ? 0 : (shot.padTop ?? 0)
   // Match the card to the palette inside it, so there's no wrong-coloured flash
   // behind a booting iframe and the fade blends instead of banding.
   const themeId = shot.theme ?? 'ink'
@@ -64,7 +72,7 @@ export function ShotFrame({ shot, frame }: Props) {
   const light = themeId !== 'ink' && THEMES.find((t) => t.id === themeId)?.family === 'light'
 
   return (
-    <div className="shot" style={{ width: frame.width, height: frame.height }}>
+    <div className="shot" data-platform={platform} style={{ width: frame.width, height: frame.height }}>
       <div className="shot__glow" aria-hidden />
       <div className="shot__grain" aria-hidden />
 
@@ -87,9 +95,9 @@ export function ShotFrame({ shot, frame }: Props) {
           data-light={light ? 'true' : undefined}
           style={{
             background: paper,
-            width: CARD.width * scale,
-            height: CARD.height * scale,
-            borderRadius: 30 * scale,
+            width: card.width * scale,
+            height: card.height * scale,
+            borderRadius: (platform === 'ipad' ? 22 : 30) * scale,
             paddingTop: pad * scale,
             // Nothing to show until the fit is measured; without this the card
             // paints once at full size and a fast capture can catch it.
@@ -99,11 +107,11 @@ export function ShotFrame({ shot, frame }: Props) {
           <iframe
             className="shot__inner"
             title={shot.eyebrow}
-            src={`/?__preview=${shot.id}&raw=1`}
-            width={CARD.width}
+            src={`/?__preview=${shot.id}&raw=1${platform === 'ipad' ? '&platform=ipad' : ''}`}
+            width={card.width}
             // Taller than the card by the crop and the pad, so after shifting up
             // and being pushed down it still reaches the bottom edge.
-            height={CARD.height + crop + pad}
+            height={card.height + crop + pad}
             style={{ transform: `scale(${scale}) translateY(${-crop}px)` }}
             scrolling="no"
           />

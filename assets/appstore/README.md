@@ -11,9 +11,11 @@ npm run screenshots:appstore-listing  # the marketing gallery
 |---|---|---|
 | `listing/6.9/*.png` | App Store version → **Previews and Screenshots → iPhone 6.9"** | The marketing gallery |
 | `listing/6.5/*.png` | Same, **iPhone 6.5"** | Same seven shots at the legacy size |
+| `listing/ipad-13/*.png` | Same, **iPad 13"** | Six shots — required, see below |
 | `iap-review-screenshot.png` | Subscription → **Review Information → Screenshot** | Review-only, never shown publicly |
 | `paywall.png` | Spare — first-run paywall variant | Not currently required |
-| `listing.json` | Paste into ASC App Store version metadata | Description, keywords, review notes |
+| `listing.json` | **Source of truth** for listing copy | Edit here; regenerate paste sheet below |
+| `listing-paste.md` | Open beside ASC and copy field-by-field | `npm run listing:paste` |
 | `external-status.json` | Ops checklist — not uploaded | Live verification of env / auth / IPA |
 | `../../docs/IOS-DEPLOY-STATUS.md` | **Deployment checklist** — update as you go | |
 | `../../src-tauri/icon-1024.png` | Subscription → **Image (Optional)** | 1024×1024, no alpha |
@@ -160,9 +162,33 @@ channel** (ASC rejects transparency; the capture scripts flatten onto the frame
 background).
 
 - **IAP review shot** — 1284×2778 (iPhone 6.5" portrait).
-- **Listing gallery** — both 1320×2868 (6.9", ASC's current default slot for new
-  submissions) and 1284×2778 (6.5"). Filling both avoids a missing-required-size
-  block at submission and any upscaling.
+- **Listing gallery, iPhone** — both 1320×2868 (6.9", ASC's current default slot
+  for new submissions) and 1284×2778 (6.5"). Filling both avoids a
+  missing-required-size block at submission and any upscaling.
+- **Listing gallery, iPad** — 2064×2752 (iPad 13" portrait).
+
+## The iPad set is not optional
+
+`src-tauri/gen/apple/app.xcodeproj` sets `TARGETED_DEVICE_FAMILY = "1,2"`, so the
+build declares iPad support and App Store Connect will not accept a submission
+with an empty iPad slot. The only way to skip it is dropping iPad — family `"1"`
+— which costs a rebuild and a re-upload.
+
+**iPad shots are shaped differently from iPhone shots, on purpose.** On a phone a
+whole screen is unreadable at thumbnail size, so each frame is one component with
+its chrome stripped. On iPad the chrome *is* the story: `useIsMobile()` is
+`(max-width: 767px)` and the boundary is deliberately 767 rather than 768 so iPad
+portrait gets the three-column shell. So an iPad shot shows the real shell with
+the surface live in the canvas (`src/features/appstore/ipad.tsx`), and `cropTop` /
+`padTop` are ignored — those target snippet headers that aren't there.
+
+Two things fall out of this for free: the entry list sits open beside the canvas,
+so shot 06's decade of years needs no special arrangement; and the ritual library
+renders its real 3x3 grid, because `.practice-library__grid` is only forced to a
+single column under 480px. All nine forms, with their authors, in one frame.
+
+Shot 07 is dropped from the iPad set — a phone-and-Mac composite argues the wrong
+thing on an iPad sheet.
 
 ## Known: the paywall preview renders unthemed
 
