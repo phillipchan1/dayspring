@@ -23,7 +23,9 @@
     "tauri:build": "tauri build",
     "tauri:ios:dev": "tauri ios dev",
     "tauri:ios:build": "tauri ios build -- --export-method app-store-connect --ci",
-    "screenshots:appstore": "node scripts/capture-appstore-screenshots.mjs"
+    "screenshots:appstore": "node scripts/capture-appstore-screenshots.mjs",
+    "ios:preflight": "node scripts/ios-preflight.mjs",
+    "asc:setup-iap": "node scripts/asc-setup-iap.mjs"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",

@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-07-31T02:45:00Z",
+  "vercel": {
+    "APPLE_APP_APPLE_ID": "set (production) = 6776925077",
+    "APPLE_BUNDLE_ID": "set (production) = com.phillipchan.dayspring",
+    "APPLE_ISSUER_ID": "MISSING",
+    "APPLE_KEY_ID": "MISSING",
+    "APPLE_PRIVATE_KEY": "MISSING",
+    "note": "Purchases will not unlock entitlement until the three MISSING vars are set from an ASC In-App Purchase API key."
+  },
+  "supabaseAuth": {
+    "google": true,
+    "apple": false,
+    "blocker": "App Store Guideline 4.8 — Sign in with Apple must be enabled when Google is offered. Enable in Supabase Auth → Providers → Apple after creating the Services ID + .p8 secret in Apple Developer."
+  },
+  "endpoints": {
+    "terms": "200",
+    "privacy": "200",
+    "appleVerify": "401 unauthenticated (live)",
+    "appleWebhook": "400 empty body (live)"
+  },
+  "asc": {
+    "appAppleId": "6776925077",
+    "bundleId": "com.phillipchan.dayspring",
+    "subscriptions": "partial — finish with npm run asc:setup-iap once APPLE_ISSUER_ID/KEY_ID/PRIVATE_KEY are available, or complete in ASC UI",
+    "serverNotificationsV2": "must set Production + Sandbox to https://dayspring-eosin.vercel.app/api/webhooks/apple",
+    "staleTransporterBuild": "1.0.206 (208) — DO NOT DELIVER (wrong icon)"
+  }
+}

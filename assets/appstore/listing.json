@@ -1,0 +1,30 @@
+{
+  "appName": "Dayspring",
+  "subtitle": "See what God has been making of you",
+  "promotionalText": "",
+  "description": "Dayspring is a journal for practicing Christians that shows you, over time, what God has been making of you.\n\nWrite freely. Dayspring turns what you wrote into what you can see — weekly, monthly, and yearly reflections grounded in your own words, never invented. Over time it surfaces the shape of a life with God: the threads you keep carrying, the Scripture that has actually met you, the vocabulary of your own walk.\n\nWhat Dayspring is not: a streak tracker, a spiritual scorecard, or a sermon generator. It never grades your faith. It reads your life back to you.\n\nSUBSCRIPTION\nDayspring is offered as an auto-renewing subscription.\n• Monthly: $7.99 per month\n• Annual: $69.99 per year\nPayment is charged to your Apple Account at confirmation. The subscription renews automatically unless you turn off auto-renew at least 24 hours before the period ends. Manage or cancel anytime in your Apple Account settings.\n\nPrivacy Policy: https://dayspring-eosin.vercel.app/privacy\nTerms of Use: https://dayspring-eosin.vercel.app/terms",
+  "keywords": "christian,journal,faith,prayer,bible,reflection,spiritual,devotional,quiet time",
+  "supportUrl": "https://dayspring-eosin.vercel.app",
+  "marketingUrl": "",
+  "privacyPolicyUrl": "https://dayspring-eosin.vercel.app/privacy",
+  "copyright": "2026 Phillip Chan",
+  "categoryPrimary": "Lifestyle",
+  "categorySecondary": "Reference",
+  "reviewNotes": "Sandbox testing:\n1. Sign in with Apple or Google.\n2. New accounts receive a 14-day app-managed trial (no card, no StoreKit trial).\n3. To reach the paywall: use an account whose trial has ended, or wait out the trial on a fresh sandbox account after shortening trial_ends_at in Supabase.\n4. Subscribe via StoreKit (dayspring_monthly / dayspring_annual). No introductory offer is attached — charging starts immediately at subscribe, matching our web Stripe products.\n5. Restore Purchases is on the paywall and in Settings.\n\nContact: phillipchan1@gmail.com",
+  "ageRating": "4+",
+  "exportCompliance": "ITSAppUsesNonExemptEncryption=false (uses only HTTPS / standard encryption)",
+  "subscriptionProducts": [
+    {
+      "id": "dayspring_monthly",
+      "price": "$7.99/mo",
+      "introOffer": "none"
+    },
+    {
+      "id": "dayspring_annual",
+      "price": "$69.99/yr",
+      "introOffer": "none"
+    }
+  ],
+  "reviewScreenshot": "assets/appstore/iap-review-screenshot.png",
+  "appIcon": "src-tauri/icon-1024.png"
+}

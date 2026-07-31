@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Dayspring",
-  "version": "1.0.206",
+  "version": "1.0.213",
   "identifier": "com.phillipchan.dayspring",
   "build": {
     "frontendDist": "../dist",
