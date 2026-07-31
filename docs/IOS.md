@@ -77,6 +77,21 @@ Dashboard → Authentication → Providers → **Apple**:
 - Secret: JWT from the Sign in with Apple `.p8`
 - Redirect allowlist: `https://dayspring-eosin.vercel.app/auth/callback` + web origin
 
+Dashboard → Authentication → Sign In / Up → **Allow manual linking: on**.
+
+Offering both Google and Apple means the same person can end up with two
+accounts. Supabase links identities automatically when both providers report the
+same *verified* email, which covers most of it — but Apple's "Hide My Email"
+issues a per-app relay address that can never match the Google one, so that sign-in
+silently starts a second, empty account instead. Manual linking powers Settings →
+Account → **Add Apple / Add Google**, which attaches the second provider to the
+session that is already signed in, so it works through the relay. Without the
+switch the button is there but Supabase rejects the call.
+
+It prevents the split; it cannot merge two accounts that already hold entries.
+Ownership is spread across ~20 tables plus Stripe and a unique
+`apple_original_txn`, so there is deliberately no merge path — prevention only.
+
 ### A4. Vercel environment variables
 
 | Variable | Purpose |

@@ -1,6 +1,7 @@
 import { requireSupabase } from './supabase'
 import { isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
+import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
 
 // Hosted HTTPS page that forwards the PKCE code to the dayspring:// deep-link
 // and shows a "you can close this tab" message to the user. Using an HTTPS URL
@@ -14,10 +15,21 @@ export function authRedirectUrl(): string {
   return isTauri() ? DEEP_LINK_REDIRECT : window.location.origin
 }
 
-type OAuthProvider = 'google' | 'apple'
+type OAuthProvider = AuthProvider
+
+interface OAuthOptions {
+  redirectTo: string
+  skipBrowserRedirect?: boolean
+}
+
+interface OAuthUrlResult {
+  data: { url?: string | null } | null
+  error: Error | null
+}
 
 /**
- * Start OAuth for Google or Apple.
+ * Drive an OAuth round-trip, whichever end it is for (a new sign-in or linking
+ * a second provider onto the account that is already signed in).
  *
  * Web: normal in-page redirect.
  *
@@ -25,32 +37,29 @@ type OAuthProvider = 'google' | 'apple'
  * ask Supabase for the provider URL WITHOUT navigating the webview
  * (skipBrowserRedirect), then open it in the system browser. On success the
  * HTTPS bridge page forwards to dayspring://auth-callback, which
- * initDeepLinkAuth exchanges for a session.
+ * initDeepLinkAuth exchanges — completing the sign-in or the link.
  */
-async function signInWithProvider(provider: OAuthProvider): Promise<void> {
-  const sb = requireSupabase()
-
+async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult>): Promise<void> {
   if (!isTauri()) {
-    const { error } = await sb.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: authRedirectUrl() },
-    })
+    const { error } = await start({ redirectTo: authRedirectUrl() })
     if (error) throw error
     return
   }
 
-  const { data, error } = await sb.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: DEEP_LINK_REDIRECT,
-      skipBrowserRedirect: true,
-    },
+  const { data, error } = await start({
+    redirectTo: DEEP_LINK_REDIRECT,
+    skipBrowserRedirect: true,
   })
   if (error) throw error
   if (!data?.url) throw new Error('No OAuth URL returned')
 
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(data.url)
+}
+
+async function signInWithProvider(provider: OAuthProvider): Promise<void> {
+  const sb = requireSupabase()
+  return runOAuth((options) => sb.auth.signInWithOAuth({ provider, options }))
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -60,6 +69,41 @@ export async function signInWithGoogle(): Promise<void> {
 /** Sign in with Apple — required on iOS when Google is also offered (App Store 4.8). */
 export async function signInWithApple(): Promise<void> {
   return signInWithProvider('apple')
+}
+
+/**
+ * Attach a second provider to the account that is ALREADY signed in.
+ *
+ * This is the answer to the Google/Apple duplicate-account problem. Supabase
+ * links identities automatically when both providers report the same verified
+ * email, but Apple's "Hide My Email" hands out a per-app relay address that can
+ * never match the Google one — so the second sign-in silently starts an empty
+ * account instead. Linking keys off the current *session*, not the email, so it
+ * works through the relay.
+ *
+ * It only prevents the split; it cannot merge two accounts that already hold
+ * entries. Offer it before they diverge.
+ *
+ * Requires manual linking to be enabled on the Supabase project (Dashboard →
+ * Authentication → Sign In / Up → Allow manual linking). Without it Supabase
+ * rejects the call, which surfaces as an error on the button.
+ */
+export async function linkProvider(provider: OAuthProvider): Promise<void> {
+  const sb = requireSupabase()
+  return runOAuth((options) => sb.auth.linkIdentity({ provider, options }))
+}
+
+/**
+ * Which of the sign-in buttons currently reach this account. Narrowed to the
+ * providers we actually offer, so an identity we no longer show can't render a
+ * row nobody can act on.
+ */
+export async function listSignInMethods(): Promise<OAuthProvider[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb.auth.getUserIdentities()
+  if (error) throw error
+  const linked = (data?.identities ?? []).map((i) => i.provider)
+  return SIGN_IN_PROVIDERS.filter((p) => linked.includes(p))
 }
 
 export async function signOut(): Promise<void> {

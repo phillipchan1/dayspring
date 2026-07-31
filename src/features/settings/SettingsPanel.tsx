@@ -5,7 +5,8 @@ import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
-import { signOut } from '@/lib/auth'
+import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
+import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
@@ -336,6 +337,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <span className="settings-field__label">Email</span>
             {userEmail && <span className="settings-field__value">{userEmail}</span>}
           </div>
+          <SignInMethods />
           <div className="settings-about__row">
             <span className="settings-field__label">Welcome</span>
             <button
@@ -400,6 +402,98 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Which sign-in buttons reach this account, and a way to attach the other one.
+ *
+ * Without this, a user who signed up with Google and later taps "Continue with
+ * Apple" gets a second, empty account. Supabase merges the two automatically
+ * only when both providers report the same verified email — and Apple's "Hide
+ * My Email" hands out a relay address that never matches, so the common case is
+ * the one that silently splits. Linking goes through the current session rather
+ * than the email, so it works either way.
+ *
+ * Stays silent when it can't help: no session, or a project without manual
+ * linking enabled, renders nothing rather than a dead button.
+ */
+function SignInMethods() {
+  const [linked, setLinked] = useState<AuthProvider[] | null>(null)
+  const [busy, setBusy] = useState<AuthProvider | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      void listSignInMethods()
+        .then((providers) => alive && setLinked(providers))
+        .catch(() => alive && setLinked(null))
+    }
+    load()
+    // Native opens the provider in the system browser, so we come back to an
+    // already-mounted panel — re-read on return instead of showing stale state.
+    // Clearing busy here is what un-sticks the button when they backed out.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (alive) setBusy(null)
+      load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      alive = false
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
+  if (!linked?.length) return null
+
+  const missing = SIGN_IN_PROVIDERS.filter((p) => !linked.includes(p))
+
+  async function connect(provider: AuthProvider) {
+    setError(null)
+    setBusy(provider)
+    try {
+      await linkProvider(provider)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect that account.')
+      setBusy(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="settings-about__row">
+        <span className="settings-field__label">Sign-in</span>
+        <span className="settings-field__value">
+          {linked.map((p) => PROVIDER_LABEL[p]).join(' · ')}
+        </span>
+      </div>
+      {missing.map((provider) => (
+        <div className="settings-about__row" key={provider}>
+          <span className="settings-field__label">Add {PROVIDER_LABEL[provider]}</span>
+          <button
+            className="btn btn--ghost"
+            onClick={() => void connect(provider)}
+            disabled={busy !== null}
+          >
+            {busy === provider ? 'Opening…' : 'Connect'}
+          </button>
+        </div>
+      ))}
+      {missing.length > 0 && (
+        <div className="settings-about__row">
+          <span className="settings-field__hint">
+            Connect both and either button opens this same journal.
+          </span>
+        </div>
+      )}
+      {error && (
+        <div className="settings-about__row">
+          <span className="settings-field__hint">{error}</span>
+        </div>
+      )}
+    </>
   )
 }
 

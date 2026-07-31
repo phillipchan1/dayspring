@@ -17,6 +17,20 @@ import { preflight, withCors } from '../_lib/cors.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { resolveAppleSubscription, verifySignedTransaction } from '../_lib/apple.js'
 import { updateSubscriptionByUserId } from '../_lib/updateSubscription.js'
+import { crossAccountMessage, signInProvidersFor } from '../_lib/signInMethods.js'
+
+/**
+ * 409 for a subscription that is already another account's. We look up how that
+ * account signs in so the message can say which button to use — almost always
+ * the same person who started a second account by tapping the other provider.
+ */
+async function crossAccountResponse(ownerId: string): Promise<Response> {
+  const providers = await signInProvidersFor(ownerId)
+  return Response.json(
+    { error: crossAccountMessage(providers), code: 'subscription_owned_by_other_account' },
+    { status: 409 },
+  )
+}
 
 export async function OPTIONS(req: Request): Promise<Response> {
   return preflight(req) ?? new Response(null, { status: 204 })
@@ -73,13 +87,7 @@ export async function POST(req: Request): Promise<Response> {
   //    account's — or a Family Sharing member is restoring the organiser's
   //    purchase. Either way we do not silently re-point it.
   if (state.appAccountToken && state.appAccountToken !== user.id.toLowerCase()) {
-    return withCors(
-      req,
-      Response.json(
-        { error: 'This App Store subscription belongs to a different Dayspring account.' },
-        { status: 409 },
-      ),
-    )
+    return withCors(req, await crossAccountResponse(state.appAccountToken))
   }
 
   const sb = supabaseAdmin()
@@ -90,13 +98,7 @@ export async function POST(req: Request): Promise<Response> {
     .maybeSingle()
 
   if (claimant && claimant.owner !== user.id) {
-    return withCors(
-      req,
-      Response.json(
-        { error: 'This App Store subscription belongs to a different Dayspring account.' },
-        { status: 409 },
-      ),
-    )
+    return withCors(req, await crossAccountResponse(claimant.owner as string))
   }
 
   // 4. Write entitlement. plan_source flips to 'apple', which is what makes the

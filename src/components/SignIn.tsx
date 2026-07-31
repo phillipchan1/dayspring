@@ -8,6 +8,7 @@ import { isLightTheme } from '@/lib/resolveTheme'
 import { isMobileTauri } from '@/lib/platform'
 import { legalUrl } from '@/lib/legal'
 import { openExternal } from '@/lib/openExternal'
+import { PROVIDER_LABEL, readLastAuthProvider } from '@/lib/lastAuthProvider'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
@@ -15,6 +16,9 @@ export function SignIn() {
   const [hovered, setHovered] = useState<'apple' | 'google' | null>(null)
   const { settings, update } = useSettings()
   const isLight = isLightTheme(useResolvedTheme(settings))
+  // Read once on mount: the value only changes on a successful sign-in, by
+  // which point this screen is gone.
+  const [lastProvider] = useState(readLastAuthProvider)
   // App Store guideline 4.8: when offering a third-party login (Google), Apple
   // must also be offered. On iOS we put Apple first per HIG.
   const showApple = true
@@ -146,6 +150,22 @@ export function SignIn() {
         }}>
           {appleFirst ? <>{appleBtn}{googleBtn}</> : <>{googleBtn}{appleBtn}</>}
         </div>
+
+        {/* Signing in with the other button makes a second, empty account — and
+            with Apple's "Hide My Email" the two addresses never match, so
+            nothing links them. A quiet reminder is the cheapest prevention. */}
+        {lastProvider && (
+          <p style={{
+            fontFamily: "'Inter', -apple-system, sans-serif",
+            fontSize: 11.5,
+            color: 'var(--text-faint)',
+            textAlign: 'center',
+            letterSpacing: '0.01em',
+            margin: '0 0 16px',
+          }}>
+            You continued with {PROVIDER_LABEL[lastProvider]} last time.
+          </p>
+        )}
 
         {error && (
           <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
