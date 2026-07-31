@@ -22,6 +22,7 @@ import {
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
+import { displayPrice } from './prices'
 import './Paywall.css'
 
 interface Props {
@@ -57,11 +58,11 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
     }
   }, [isPastDue])
 
-  // On iOS the price shown MUST be the price StoreKit will actually charge —
-  // it varies by storefront, currency and Apple's own price-tier adjustments,
-  // so the hardcoded "$64 / year" is only correct for the US. Fall back to the
-  // hardcoded copy if StoreKit is slow or unreachable; that is better than a
-  // button with no price on it.
+  // On iOS the price shown MUST be the one StoreKit will actually charge. It
+  // differs from the web price ($7.99 vs $7 — Apple's tiers are .99 based) and
+  // is localised per storefront and currency, so there is no correct hardcoded
+  // fallback. displayPrice() returns null until StoreKit answers and the labels
+  // below drop the figure rather than print one we'd have to break.
   const [products, setProducts] = useState<Product[]>([])
   useEffect(() => {
     if (!isAppleIapAvailable()) return
@@ -75,8 +76,8 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
     }
   }, [])
 
-  const annualPrice = products.find((p) => p.id.includes('annual'))?.displayPrice ?? '$64'
-  const monthlyPrice = products.find((p) => p.id.includes('monthly'))?.displayPrice ?? '$7'
+  const annualPrice = displayPrice('annual', { useApple, products })
+  const monthlyPrice = displayPrice('monthly', { useApple, products })
 
   async function handleResubscribe(selectedPlan: 'annual' | 'monthly') {
     setError(null)
@@ -253,7 +254,9 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
               ? isAppleIapAvailable()
                 ? 'Confirming…'
                 : 'Redirecting…'
-              : `Continue — ${annualPrice} / year`}
+              : annualPrice
+                ? `Continue — ${annualPrice} / year`
+                : 'Continue yearly'}
           </button>
           <button
             className="btn btn--ghost"
@@ -264,7 +267,9 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
               ? isAppleIapAvailable()
                 ? 'Confirming…'
                 : 'Redirecting…'
-              : `Monthly — ${monthlyPrice} / month`}
+              : monthlyPrice
+                ? `Monthly — ${monthlyPrice} / month`
+                : 'Monthly'}
           </button>
           {isAppleIapAvailable() && (
             <button

@@ -22,6 +22,11 @@ export function appleProductId(plan: ApplePlan): string {
 }
 
 export function isAppleIapAvailable(): boolean {
+  // Dev-only: the standalone paywall preview (?__preview=…) renders the iOS
+  // purchase surface in a desktop browser so the App Store review screenshot
+  // can be captured without a provisioned device. `import.meta.env.DEV` is
+  // statically false in production, so Vite strips this branch entirely.
+  if (isPaywallPreview()) return true
   return isMobileTauri()
 }
 
@@ -46,7 +51,32 @@ export async function initApplePurchases(
   }
 }
 
+function isPaywallPreview(): boolean {
+  return (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    window.location.search.includes('__preview=')
+  )
+}
+
 export async function fetchAppleProducts(): Promise<Product[]> {
+  // Stand-in products for the dev-only paywall preview, where StoreKit does not
+  // exist and real prices cannot be fetched.
+  //
+  // ⚠️ These MUST match App Store Connect. They exist so the App Store review
+  // screenshot shows the prices a reviewer will actually be charged — a shot
+  // with no price, or the wrong one, is a guideline 3.1.2 rejection. Update
+  // here and in docs/IOS.md together, then re-run the screenshot script.
+  //
+  // Written inline under a literal `import.meta.env.DEV` rather than hoisted to
+  // a module const: as a const the minifier kept the array as dead data in the
+  // production bundle even though the branch was already `return false`.
+  if (import.meta.env.DEV && isPaywallPreview()) {
+    return [
+      { id: APPLE_PRODUCT_IDS.annual, displayPrice: '$69.99' },
+      { id: APPLE_PRODUCT_IDS.monthly, displayPrice: '$7.99' },
+    ] as unknown as Product[]
+  }
   if (!isMobileTauri()) return []
   const { getProducts, isSupported } = await import('@spicavi/tauri-plugin-purchases')
   const support = await isSupported()

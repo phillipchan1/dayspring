@@ -30,6 +30,24 @@ import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 
 async function bootstrap() {
+  // Dev-only paywall preview: renders a purchase surface standalone, with no
+  // auth and no lapsed-subscription setup, so the App Store review screenshot
+  // can be captured from a browser instead of a provisioned device. Driven by
+  // scripts/capture-appstore-screenshots.mjs.
+  //
+  // Must run BEFORE the awaits below — a headless capture otherwise fires while
+  // bootstrap is still waiting on the Supabase session and photographs a blank
+  // page. `import.meta.env.DEV` is statically false in a production build, so
+  // Vite dead-code-eliminates this entire block; it can never ship.
+  if (import.meta.env.DEV) {
+    const preview = new URLSearchParams(window.location.search).get('__preview')
+    if (preview) {
+      const { renderPaywallPreview } = await import('./features/paywall/preview')
+      renderPaywallPreview(preview)
+      return
+    }
+  }
+
   // Tag <html> as desktop before first paint so native-only layout (e.g. room for
   // the macOS traffic lights under the overlay title bar) applies immediately.
   applyPlatformClass()

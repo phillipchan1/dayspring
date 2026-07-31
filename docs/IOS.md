@@ -5,10 +5,17 @@ Bundle ID: `com.phillipchan.dayspring` · Team: `4629AQ24Z2`
 
 Product IDs (must match App Store Connect + code):
 
-| Plan | Product ID | Price |
-|---|---|---|
-| Monthly | `dayspring_monthly` | $7/mo |
-| Annual | `dayspring_annual` | $64/yr |
+| Plan | Product ID | App Store price | Web (Stripe) price |
+|---|---|---|---|
+| Monthly | `dayspring_monthly` | **$7.99/mo** | $7/mo |
+| Annual | `dayspring_annual` | **$69.99/yr** | $64/yr |
+
+The two columns differ on purpose — Apple's price tiers are .99-based, so there is no
+$7.00 tier. Nothing in the app renders the web figure on iOS: `displayPrice()`
+(`src/features/paywall/prices.ts`) returns StoreKit's localised `displayPrice`, or null
+while it loads, and the buttons drop the price rather than print one Apple won't honour.
+If you change pricing, update App Store Connect **and** `PREVIEW_PRODUCTS` in
+`src/lib/appleIap.ts`, then re-run `npm run screenshots:appstore`.
 
 In-app, the first-run trial is the **app-managed reverse trial** (`ONBOARDING_REQUIRE_CARD=false`)
 — never enable card-first on iOS builds.
@@ -46,8 +53,8 @@ In-app, the first-run trial is the **app-managed reverse trial** (`ONBOARDING_RE
    - Bundle ID: `com.phillipchan.dayspring`
    - SKU: `dayspring-ios`
 3. **Subscriptions** → create group **Dayspring Premium**:
-   - `dayspring_monthly` — $7.00 / month, **no introductory offer** (see the warning above)
-   - `dayspring_annual` — $64.00 / year, **no introductory offer**
+   - `dayspring_monthly` — $7.99 / month, **no introductory offer** (see the warning above)
+   - `dayspring_annual` — $69.99 / year, **no introductory offer**
 4. **Users and Access → Integrations → In-App Purchase** — create an API key (.p8). Note Key ID + Issuer ID.
 5. **App Information** — note the numeric **Apple ID** (for production JWS verification).
 6. **App Store Server Notifications V2** → Production + Sandbox URL:
@@ -126,6 +133,25 @@ Upload with **Transporter**, then App Store Connect → TestFlight → Internal 
 > **Note:** If Xcode/Transporter says your Apple ID session expired, open Xcode → Settings → Accounts and re-sign in before uploading.
 
 Sandbox IAP: iPhone Settings → App Store → Sandbox Account.
+
+## App icons
+
+The mark is a sunrise (amber `#e0a64e`) — `src-tauri/icon-appstore.svg`, rasterised to
+`src-tauri/icon-1024.png`, which is the committed source of truth for every generated size.
+Full-bleed square on purpose: Apple applies its own corner mask, so a rounded source leaves
+transparent corners.
+
+```bash
+npx tauri icon src-tauri/icon-1024.png
+python3 scripts/flatten-ios-icons.py
+```
+
+⚠️ **The second command is not optional.** `tauri icon` writes every PNG as RGBA even from an
+opaque source, and Apple rejects an App Store icon that merely *has* an alpha channel —
+upload fails with "Invalid Image Path ... can't be transparent nor contain an alpha channel",
+and smaller slots render a black box behind the icon on device. The script is iOS-only:
+Android adaptive icons need their transparency, and macOS ships as a DMG rather than through
+the Mac App Store.
 
 After `tauri ios init`, re-check `gen/apple/app_iOS/Info.plist` for the privacy keys and `dayspring://` URL scheme (Tauri merges `Info.ios.plist` inconsistently; the committed file is the source of truth — patch the generated plist if keys are missing before shipping).
 

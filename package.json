@@ -1,7 +1,7 @@
 {
   "name": "dayspring",
   "private": true,
-  "version": "1.0.210",
+  "version": "1.0.213",
   "type": "module",
   "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
@@ -22,7 +22,10 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:ios:dev": "tauri ios dev",
-    "tauri:ios:build": "tauri ios build -- --export-method app-store-connect --ci"
+    "tauri:ios:build": "tauri ios build -- --export-method app-store-connect --ci",
+    "screenshots:appstore": "node scripts/capture-appstore-screenshots.mjs",
+    "ios:preflight": "node scripts/ios-preflight.mjs",
+    "asc:setup-iap": "node scripts/asc-setup-iap.mjs"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
