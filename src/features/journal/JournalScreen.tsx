@@ -8,6 +8,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { FONT_SIZE_MIN, FONT_SIZE_DEFAULT, FONT_SIZE_MAX } from '@/lib/settings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
+import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount, byCreatedDesc } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
@@ -68,7 +69,7 @@ import type { AttachmentEditTarget, ImageMenuPoint } from '@/editor/attachmentIm
 import {
   formatAttachmentMarkdown,
   formatPendingAttachmentMarkdown,
-  uploadImageAttachment,
+  extFromImageFile,
   type ImageSize,
 } from '@/lib/attachments'
 import { IMAGE_MAX_BYTES, isImageFile } from '@/editor/attachmentInsert'
@@ -361,21 +362,38 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       const pendingId = crypto.randomUUID()
       const alt = altFromFile(file) || target.alt
       const takenAt = takenAtFromFile(file)
+      const ownerId = (await supabase.auth.getUser()).data.user?.id
+      if (!ownerId) return
       editorRef.current?.replaceRange(
         target.from,
         target.to,
         formatPendingAttachmentMarkdown(pendingId, alt),
       )
       try {
-        const { hash, ext } = await uploadImageAttachment(
-          supabase,
+        const ref = await uploadOrQueue(
+          pendingId,
+          ownerId,
           file,
+          extFromImageFile(file),
+          alt,
           takenAt ? { takenAt } : undefined,
         )
-        editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt, target.size)
+        // null → queued offline; the placeholder stays and resolves on reconnect.
+        if (ref) {
+          editorRef.current?.replacePendingAttachment(pendingId, ref.hash, ref.ext, alt, target.size)
+        }
       } catch (e) {
-        console.warn('[images] replace upload failed', e)
-        editorRef.current?.removePendingAttachment(pendingId)
+        // The replacement will never upload. Put the ORIGINAL photo back — this
+        // used to remove the placeholder outright, which destroyed a photo that
+        // was already safely in storage just because its replacement failed.
+        console.warn('[images] replace upload rejected', e)
+        editorRef.current?.replacePendingAttachment(
+          pendingId,
+          target.hash,
+          target.ext,
+          target.alt,
+          target.size,
+        )
       }
     },
     [],
@@ -786,6 +804,23 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stable subscription; refs hold live ids
   }, [resyncFull])
+
+  // A photo queued while offline finally uploaded and its placeholder resolved
+  // in the cache. Reflect it in the list, and in the editor if that entry is
+  // still open — otherwise it keeps showing a pending photo that has arrived.
+  useEffect(() => {
+    return repo.onLocalEntryChange((changedIds) => {
+      void (async () => {
+        const cached = await repo.listEntries()
+        setEntries(cached)
+        const openId = entryIdRef.current
+        if (!openId || !changedIds.includes(openId) || isDirtyRef.current()) return
+        const entry = cached.find((e) => e.id === openId)
+        if (entry) applyRemoteBody(entry.id, asEntryMarkdown(entry.body_markdown))
+      })()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs hold the live ids
+  }, [])
 
   // Heartbeat: every 2 minutes, pull any entries changed since the last sync.
   // syncChanged() is cursor-based — when nothing changed it's a single cheap

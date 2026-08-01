@@ -109,6 +109,47 @@ export async function updateEntryDate(id: string, newCreatedAt: string): Promise
   return entry
 }
 
+/**
+ * Notified when the repo changes cached bodies on its own initiative rather than
+ * in response to the user — today, a photo queued offline finally uploading and
+ * its placeholder resolving. Without this the open editor keeps showing a
+ * pending photo that has actually arrived.
+ */
+const localChangeListeners = new Set<(entryIds: string[]) => void>()
+export function onLocalEntryChange(cb: (entryIds: string[]) => void): () => void {
+  localChangeListeners.add(cb)
+  return () => localChangeListeners.delete(cb)
+}
+
+/**
+ * Rewrite the body of whichever cached entry `match` selects, and queue the
+ * result. Used to resolve a photo placeholder once its upload finally lands —
+ * which may be long after the entry was closed, so this deliberately works on
+ * the cache rather than the editor. Returns the ids it touched.
+ *
+ * `transform` must return the body unchanged when it has nothing to do; an
+ * identical body is skipped so this can never queue a no-op write.
+ */
+export async function rewriteEntryBodies(
+  match: (entry: Entry) => boolean,
+  transform: (body: string) => string,
+): Promise<string[]> {
+  const touched: string[] = []
+  for (const entry of await cache.cacheGetAll()) {
+    if (!match(entry)) continue
+    const body = transform(entry.body_markdown)
+    if (body === entry.body_markdown) continue
+    await cache.cachePut(locallyEdited(entry, { body_markdown: body, word_count: wordCount(body) }))
+    await queueUpsert(entry.id)
+    touched.push(entry.id)
+  }
+  if (touched.length) {
+    scheduleFlush()
+    for (const listener of localChangeListeners) listener(touched)
+  }
+  return touched
+}
+
 /** Queue a delete locally; returns once IndexedDB/outbox are updated (no network wait). */
 async function queueRemoveEntry(id: string): Promise<void> {
   await cache.cacheDelete(id)
@@ -156,6 +197,16 @@ let deriveHook: EntryDeriveHook | null = null
  */
 export function setEntryDeriveHook(hook: EntryDeriveHook | null): void {
   deriveHook = hook
+}
+
+/**
+ * Extra queued work drained alongside the outbox — currently photo uploads that
+ * failed offline. Injected for the same reason as the derive hook: the repo
+ * knows when the network is worth trying, but not what else is waiting on it.
+ */
+let sideQueueHook: (() => Promise<void>) | null = null
+export function setSideQueueHook(hook: (() => Promise<void>) | null): void {
+  sideQueueHook = hook
 }
 
 /** Queue a rebuild of an entry's derived rows (deduped per entry). */
@@ -279,6 +330,10 @@ async function flushOnce(): Promise<void> {
   }
   syncStore.setOnline(reachedServer && navigator.onLine)
   await refreshPending()
+  if (reachedServer && sideQueueHook) {
+    // Never let a stuck photo upload fail the entry flush.
+    await sideQueueHook().catch(() => {})
+  }
   // Derives queued by the pushes above landed after this drain's snapshot was
   // taken; pick them up promptly rather than waiting on the heartbeat.
   if (reachedServer && (await cache.outboxHasKind('derive'))) scheduleFlush()

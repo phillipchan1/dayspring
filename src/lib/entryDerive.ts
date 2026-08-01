@@ -11,12 +11,16 @@
 // Routing it through the outbox instead makes it durable, and takes two network
 // round trips out of the typing path.
 
-import { setEntryDeriveHook } from './repo'
+import { setEntryDeriveHook, setSideQueueHook } from './repo'
 import { syncSpiritualBlocksFromMarkdown } from './spiritual'
 import { syncScriptureRefsFromMarkdown } from './scripture/capture'
+import { drainPendingUploads } from './attachmentQueue'
 
-/** Install the derive hook. Idempotent; call once at boot. */
+/** Install the repo's background hooks. Idempotent; call once at boot. */
 export function registerEntryDerive(): void {
+  // Photos queued while offline retry on the same triggers as everything else.
+  setSideQueueHook(drainPendingUploads)
+
   setEntryDeriveHook(async (entry) => {
     // Sequential on purpose: both rewrite rows keyed on entry_id, and a failure
     // in the first should leave the op queued rather than half-applying the
