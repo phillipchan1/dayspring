@@ -27,6 +27,7 @@ import { taskListExtension } from './taskListExtension'
 import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
+import { minimalDocChange } from './minimalDocChange'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
 import { applyFormatCommand, type SlashSelection } from './slashCommands'
@@ -74,6 +75,16 @@ export interface EditorHandle {
     size?: ImageSize,
   ) => void
   removePendingAttachment: (pendingId: string) => void
+  /**
+   * Replace the document with a version that arrived from another device.
+   *
+   * The `initialDoc` effect deliberately refuses to re-seed an entry that is
+   * already loaded, so it never fights live typing. This is the narrow, explicit
+   * exception to that rule, and callers must only use it when the editor has no
+   * unsaved local edits. The change is narrowed to the range that actually
+   * differs so the caret, selection and scroll position survive.
+   */
+  applyRemoteDoc: (next: string) => void
 }
 
 interface EditorProps {
@@ -250,6 +261,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const view = viewRef.current
       if (!view) return
       removePendingAttachmentInView(view, pendingId)
+    },
+    applyRemoteDoc: (next) => {
+      const view = viewRef.current
+      if (!view) return
+      const change = minimalDocChange(view.state.doc.toString(), ensureBlockSeparation(next))
+      if (!change) return
+      // No `selection` and no `scrollIntoView`: CodeMirror maps the existing
+      // caret and viewport through the change, so an edit from another device
+      // lands without moving anything under the reader.
+      view.dispatch({ changes: change })
     },
   }))
 

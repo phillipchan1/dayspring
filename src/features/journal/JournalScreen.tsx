@@ -177,6 +177,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const skipAdoptOnCreateRef = useRef(false)
   /** Last entry id whose body we loaded into the editor — avoids reloading on list sync. */
   const loadedEntryIdRef = useRef<string | null>(null)
+  // Autosave is constructed further down, but the sync effects mount before it
+  // and need to ask it questions. Refs bridge the gap; both are assigned below.
+  const isDirtyRef = useRef<() => boolean>(() => false)
+  const adoptExternalTextRef = useRef<(forEntryId: string | null, text: string) => void>(() => {})
   const skipEditorAutofocusRef = useRef(false)
   const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [isNewEntryMode, setIsNewEntryMode] = useState(false)
@@ -504,13 +508,26 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     })
   }, [])
 
+  /**
+   * Put a body that came from storage — the cache, the server, another device —
+   * into the editor, and tell autosave it is the saved baseline.
+   *
+   * Without that second half the loaded text reads as an unsaved local edit: it
+   * gets pushed straight back on the next debounce, and `getIsDirty` reports true
+   * for an entry nobody has touched, which would keep sync frozen off it.
+   */
+  function seedEditor(id: string, body: string) {
+    setContent(body)
+    adoptExternalTextRef.current(id, body)
+    loadedEntryIdRef.current = id
+  }
+
   function hydrateActiveEntry(list: Entry[]) {
     const wantedId = entryIdRef.current
     const match = wantedId ? list.find((e) => e.id === wantedId) : null
     if (match) {
       skipEntrySyncRef.current = true
-      setContent(asEntryMarkdown(match.body_markdown))
-      loadedEntryIdRef.current = wantedId
+      seedEditor(match.id, asEntryMarkdown(match.body_markdown))
       return
     }
     if (
@@ -523,9 +540,33 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     ) {
       skipEntrySyncRef.current = true
       go({ entryId: list[0]!.id }, { replace: true })
-      setContent(asEntryMarkdown(list[0]!.body_markdown))
-      loadedEntryIdRef.current = list[0]!.id
+      seedEditor(list[0]!.id, asEntryMarkdown(list[0]!.body_markdown))
     }
+  }
+
+  /**
+   * The entry a sync must not overwrite: the one on screen, and only while it
+   * holds unsaved edits. Passing the open entry unconditionally (as this used to)
+   * froze it against every remote update — so writing on the phone left the
+   * desktop showing a stale body, and the first keystroke there overwrote what
+   * the phone had written. A clean editor is safe to refresh.
+   */
+  const preserveEditingId = useCallback(
+    () => (isDirtyRef.current() ? entryIdRef.current : null),
+    [],
+  )
+
+  /**
+   * Land a body that arrived from another device in the open editor. Only call
+   * this once the editor is known to be clean — it replaces what is on screen.
+   * The change is narrowed to what differs, so the caret and scroll hold still.
+   */
+  function applyRemoteBody(id: string, body: string) {
+    editorRef.current?.applyRemoteDoc(body)
+    // Read back rather than trusting `body`: the editor normalises block
+    // separation, and the autosave baseline has to match the doc exactly or the
+    // difference reads as a local edit and gets pushed straight back.
+    seedEditor(id, editorRef.current?.getDoc() ?? body)
   }
 
   function applySyncedList(synced: Entry[]) {
@@ -535,14 +576,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // Current entry is in the synced list — straightforward update.
       setEntries(synced)
       const body = asEntryMarkdown(match.body_markdown)
-      const shouldSeed =
-        loadedEntryIdRef.current !== wantedId ||
-        (!contentRef.current.trim() && body.trim() !== '')
-      if (shouldSeed && body !== contentRef.current) {
+      if (body === contentRef.current) return
+      const firstLoad = loadedEntryIdRef.current !== wantedId
+      const fillingBlank = !contentRef.current.trim() && body.trim() !== ''
+      if (firstLoad || fillingBlank) {
         skipEntrySyncRef.current = true
-        setContent(body)
-        loadedEntryIdRef.current = wantedId
+        seedEditor(match.id, body)
+        return
       }
+      // Already loaded, and the server's copy differs. With nothing unsaved
+      // locally that difference came from another device — show it.
+      if (!isDirtyRef.current()) applyRemoteBody(match.id, body)
       return
     }
     if (
@@ -557,8 +601,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       skipEntrySyncRef.current = true
       const first = synced[0]!
       go({ entryId: first.id }, { replace: true })
-      setContent(asEntryMarkdown(first.body_markdown))
-      loadedEntryIdRef.current = first.id
+      seedEditor(first.id, asEntryMarkdown(first.body_markdown))
       setIsNewEntryMode(false)
       return
     }
@@ -609,7 +652,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
     void (async () => {
       try {
-        const synced = await repo.sync(entryIdRef.current)
+        const synced = await repo.sync(preserveEditingId())
         if (cancelled || !synced) return
         applySyncedList(synced)
       } catch (e) {
@@ -634,12 +677,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // reconcile, since realtime was down while offline and may have missed deletes.
   useEffect(() => {
     const resyncFull = () => {
-      void repo.sync(entryIdRef.current).then((list) => {
+      void repo.sync(preserveEditingId()).then((list) => {
         if (list) applySyncedList(list)
       })
     }
     const resyncChanged = () => {
-      void repo.syncChanged(entryIdRef.current).then((list) => {
+      void repo.syncChanged(preserveEditingId()).then((list) => {
         if (list) applySyncedList(list)
       })
     }
@@ -680,7 +723,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Live updates from other tabs / devices via Supabase Realtime.
   // Shared full-reconcile helper used by realtime reconnect and the heartbeat.
   const resyncFull = useCallback(() => {
-    void repo.sync(entryIdRef.current).then((list) => {
+    void repo.sync(preserveEditingId()).then((list) => {
       if (list) applySyncedList(list)
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps -- applySyncedList is stable; refs hold live ids
@@ -695,21 +738,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     return subscribeEntryChanges({
       onBatch: (events) => {
         void (async () => {
-          const preserveId = entryIdRef.current
+          // Two different questions: which entry is on screen (navigation), and
+          // which one a remote copy must not overwrite (only a dirty one).
+          const openId = entryIdRef.current
           const changes = events.map((event) =>
             event.eventType === 'DELETE'
               ? ({ kind: 'delete' as const, entryId: event.entryId })
               : ({ kind: 'upsert' as const, entry: event.entry }),
           )
 
-          const result = await repo.applyRemoteChanges(changes, preserveId)
+          const result = await repo.applyRemoteChanges(changes, preserveEditingId())
           if (result === 'resync') {
-            const synced = await repo.sync(preserveId)
-            if (!synced) return
-            setEntries(synced)
-            if (preserveId && !synced.some((e) => e.id === preserveId)) {
-              navigateAwayFromDeletedEntry(synced, [preserveId])
-            }
+            const synced = await repo.sync(preserveEditingId())
+            if (synced) applySyncedList(synced)
             return
           }
 
@@ -727,9 +768,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             return next.sort(byCreatedDesc)
           })
 
-          if (preserveId && deletedSet.has(preserveId)) {
+          // The open entry just changed on another device and nothing is unsaved
+          // here — update the editor too, or the list and the text disagree.
+          const openUpsert = openId ? upserted.find((e) => e.id === openId) : null
+          if (openUpsert && !isDirtyRef.current()) {
+            const body = asEntryMarkdown(openUpsert.body_markdown)
+            if (body !== contentRef.current) applyRemoteBody(openUpsert.id, body)
+          }
+
+          if (openId && deletedSet.has(openId)) {
             const remaining = (await repo.listEntries()).filter((e) => !deletedSet.has(e.id))
-            navigateAwayFromDeletedEntry(remaining, [preserveId])
+            navigateAwayFromDeletedEntry(remaining, [openId])
           }
         })()
       },
@@ -747,7 +796,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useEffect(() => {
     if (!isSupabaseConfigured) return
     const id = setInterval(() => {
-      void repo.syncChanged(entryIdRef.current).then((list) => {
+      void repo.syncChanged(preserveEditingId()).then((list) => {
         if (list) applySyncedList(list)
       })
     }, 2 * 60_000)
@@ -764,7 +813,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // flush() off-surface; returning to journal re-baselines via the wasEnabled
   // effect so no spurious save fires. This is the actual source of the recurring
   // "duplicate entry" bug — do not loosen this gate without reading that flow.
-  const { status, lastSavedAt, error: saveError, saveNow, resetEntry } = useAutosave({
+  const { status, lastSavedAt, error: saveError, saveNow, resetEntry, getIsDirty, adoptExternalText } = useAutosave({
     entryId,
     content,
     enabled: entriesReady && state.surface === 'journal',
@@ -785,6 +834,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       })
     },
   })
+  // Close the loop for the sync effects, which mounted before autosave existed.
+  isDirtyRef.current = getIsDirty
+  adoptExternalTextRef.current = adoptExternalText
 
   // Flush the entry we're leaving when back/forward changes `entryId`.
   useEffect(() => {
@@ -830,8 +882,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // Same entry — list sync / autosave echoes must not overwrite live typing.
     if (loadedEntryIdRef.current === entryId) return
 
-    loadedEntryIdRef.current = entryId
-    setContent(asEntryMarkdown(entry.body_markdown))
+    // seedEditor, not a bare setContent: this runs in an effect, after autosave
+    // has already baselined the new entry against the PREVIOUS entry's text, so
+    // the body landing here would otherwise read as an unsaved edit — a spurious
+    // push on every navigation, and a dirty flag that keeps sync frozen off an
+    // entry nobody has touched.
+    seedEditor(entryId, asEntryMarkdown(entry.body_markdown))
   }, [entryId, entries, entriesReady, state.surface])
 
   async function toggleLookBack() {
@@ -1517,7 +1573,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // the server objected to may have been fixed since.
       void repo
         .retryBlocked()
-        .then(() => repo.sync(entryIdRef.current))
+        .then(() => repo.sync(preserveEditingId()))
         .then((list) => {
           if (list) applySyncedList(list)
         })
