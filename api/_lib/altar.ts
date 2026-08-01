@@ -230,8 +230,21 @@ export async function migrateLegacyAnswered(owner: string): Promise<{ migrated: 
 
 // Wide net: a journal entry with NONE of these almost never contains a prayer, so
 // it skips the model entirely (marked scanned). Generous on purpose.
-const HARVEST_CUE =
-  /\b(lord|god|jesus|christ|holy spirit|pray(?:ing|ed|er|ers)?|amen|faith|bless(?:ed|ing|ings)?|forgive|forgiveness|grace|mercy|worship|hallelujah|hosanna|intercede|interceding|intercession|scripture|i feel like (?:god|the lord|he|you)|i sense|impression|he(?:'s| is) (?:saying|leading|showing|telling)|on my heart|cry out|petition|guide me|help me)\b/i
+// 'father' and friends were missing until 2026-08-01: the list had 'holy spirit'
+// but no term for one of the commonest ways there is to address God, so a prayer
+// opening "Father," was marked scanned and never read. Measured on the
+// recognition corpus, adding them took cue recall 0.774 → 0.839 at zero extra
+// model calls.
+//
+// The remaining misses are a CEILING, not a gap in this list: a prayer like
+// "Please just let her be okay tonight" names God nowhere, and any regex broad
+// enough to catch it would fire on most of a journal. Widening this further by
+// pattern-matching the corpus's own sentences would be tuning the filter to its
+// own test. The real answer, if the Altar should see everything, is to skip the
+// prefilter on the one-time IMPORT path and keep it for the cron — a decision
+// about money, which scripts/recognition-eval.ts --dry can price exactly.
+export const HARVEST_CUE =
+  /\b(lord|god|jesus|christ|holy spirit|father|abba|almighty|savio(?:u)?r|pray(?:ing|ed|er|ers)?|amen|faith|bless(?:ed|ing|ings)?|forgive|forgiveness|grace|mercy|worship|hallelujah|hosanna|intercede|interceding|intercession|scripture|i feel like (?:god|the lord|he|you)|i sense|impression|he(?:'s| is) (?:saying|leading|showing|telling)|on my heart|cry out|petition|guide me|help me)\b/i
 
 const HARVEST_LLM_BATCH = 6
 const HARVEST_MAX_CHARS = 4000
@@ -296,7 +309,7 @@ const HARVEST_SCHEMA = {
 const normalizeWs = (s: string) => s.replace(/\s+/g, ' ').trim()
 
 /** The extracted passage must be the writer's actual words — a (whitespace-tolerant) substring. */
-function isVerbatim(body: string, text: string): boolean {
+export function isVerbatim(body: string, text: string): boolean {
   if (!text) return false
   if (body.includes(text)) return true
   return normalizeWs(body).includes(normalizeWs(text))
@@ -392,6 +405,82 @@ export async function harvestPlan(owner: string): Promise<{ unscanned: number; c
  * the model at most once (prayer_scanned_at watermark); a failed batch is left
  * unmarked to retry. `opts.max` caps how many entries this run touches.
  */
+export interface HarvestedPassage {
+  type: 'prayer' | 'sense'
+  text: string
+}
+
+/**
+ * The model half of the harvest: one batch of entries in, verbatim passages out.
+ *
+ * PURE — reads and writes nothing, so harvest quality can be evaluated on real
+ * text without touching the database (mirrors tagTexts in declared.ts, which
+ * exists for the same reason). scripts/recognition-eval.ts scores this against
+ * the hand-labeled corpus in src/lib/recognition/.
+ *
+ * Returns null when the model call fails, so the caller can leave the batch
+ * unmarked and retry it next run rather than silently watermarking a batch that
+ * was never actually read.
+ */
+export async function harvestBatch(
+  entries: { id: string; body: string }[],
+): Promise<Map<string, HarvestedPassage[]> | null> {
+  let out: { entries?: { id: string; prayers?: { type: string; text: string }[] }[] }
+  try {
+    out = await callModel(
+      HARVEST_PROMPT,
+      { entries: entries.map((e) => ({ id: e.id, text: e.body.slice(0, HARVEST_MAX_CHARS) })) },
+      HARVEST_SCHEMA as Record<string, unknown>,
+      'altar_harvest',
+      'low',
+      2000,
+    )
+  } catch {
+    return null
+  }
+
+  const byId = new Map(entries.map((e) => [e.id, e]))
+  const result = new Map<string, HarvestedPassage[]>()
+  for (const r of out.entries ?? []) {
+    const e = byId.get(r.id)
+    if (!e) continue
+    const kept: HarvestedPassage[] = []
+    for (const p of (r.prayers ?? []).slice(0, HARVEST_PER_ENTRY_CAP)) {
+      const text = (p.text || '').trim()
+      if (!isVerbatim(e.body, text)) continue // honesty gate: the writer's own words only
+      kept.push({ type: p.type === 'sense' ? 'sense' : 'prayer', text })
+    }
+    if (kept.length > 0) result.set(e.id, kept)
+  }
+  return result
+}
+
+/**
+ * harvestBatch over an arbitrary number of entries, batched and pooled exactly
+ * as harvestPrayers does it. Also DB-free. Entries whose batch failed are
+ * reported separately so a caller can tell "no prayers here" apart from "never
+ * read" — the distinction harvestPrayers encodes as an unset watermark.
+ */
+export async function harvestTexts(
+  entries: { id: string; body: string }[],
+): Promise<{ byEntry: Map<string, HarvestedPassage[]>; failed: string[] }> {
+  const batches: { id: string; body: string }[][] = []
+  for (let i = 0; i < entries.length; i += HARVEST_LLM_BATCH) {
+    batches.push(entries.slice(i, i + HARVEST_LLM_BATCH))
+  }
+  const byEntry = new Map<string, HarvestedPassage[]>()
+  const failed: string[] = []
+  await mapPool(batches, POOL, async (batch) => {
+    const res = await harvestBatch(batch)
+    if (res === null) {
+      failed.push(...batch.map((e) => e.id))
+      return
+    }
+    for (const [id, passages] of res) byEntry.set(id, passages)
+  })
+  return { byEntry, failed }
+}
+
 export async function harvestPrayers(
   owner: string,
   opts: { max?: number } = {},
@@ -422,33 +511,26 @@ export async function harvestPrayers(
 
   const planted = (
     await mapPool(batches, POOL, async (batch) => {
-      let out: { entries?: { id: string; prayers?: { type: string; text: string }[] }[] }
-      try {
-        out = await callModel(
-          HARVEST_PROMPT,
-          { entries: batch.map((e) => ({ id: e.id, text: e.body_markdown.slice(0, HARVEST_MAX_CHARS) })) },
-          HARVEST_SCHEMA as Record<string, unknown>,
-          'altar_harvest',
-          'low',
-          2000,
-        )
-      } catch {
-        return 0 // leave this batch unmarked so it retries next run
-      }
+      const harvested = await harvestBatch(
+        batch.map((e) => ({ id: e.id, body: e.body_markdown })),
+      )
+      if (harvested === null) return 0 // leave this batch unmarked so it retries next run
 
+      // Iterate the harvest map, not the batch: Map preserves insertion order,
+      // so this keeps the model's ordering exactly as the inline version had it.
+      // Row order survives into spiritual_items ids, which declared.ts's
+      // same-day dedupe resolves by lowest id.
       const byId = new Map(batch.map((e) => [e.id, e]))
       const rows: Record<string, unknown>[] = []
-      for (const r of out.entries ?? []) {
-        const e = byId.get(r.id)
+      for (const [entryId, passages] of harvested) {
+        const e = byId.get(entryId)
         if (!e) continue
-        for (const p of (r.prayers ?? []).slice(0, HARVEST_PER_ENTRY_CAP)) {
-          const text = (p.text || '').trim()
-          if (!isVerbatim(e.body_markdown, text)) continue // honesty gate: the writer's own words only
+        for (const p of passages) {
           rows.push({
             owner,
             entry_id: e.id,
-            type: p.type === 'sense' ? 'sense' : 'prayer',
-            content: text,
+            type: p.type,
+            content: p.text,
             source: 'scanned',
             created_at: e.created_at, // date the cairn to when it was prayed, not now
           })

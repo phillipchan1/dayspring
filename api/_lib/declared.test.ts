@@ -213,3 +213,108 @@ describe('groupTagged', () => {
     expect(s.itemIds).toEqual(['first', 'mid', 'late'])
   })
 })
+
+// ── stop-lists ───────────────────────────────────────────────────────────────
+// groupTagged's behavior above depends on isSubjectLabel, which is where the
+// three stop-lists actually bite. Testing it directly means a change to the
+// lists fails here, at the rule, rather than three tests away at a symptom.
+
+const { isSubjectLabel } = await import('./declared.js')
+
+describe('isSubjectLabel', () => {
+  it('never lets the One being prayed TO become a subject prayed FOR', () => {
+    for (const label of ['God', 'Jesus', 'the Lord', 'Holy Spirit', 'Abba', 'the Father']) {
+      for (const kind of ['person', 'place', 'theme'] as const) {
+        expect(isSubjectLabel(label, kind), `${label} as ${kind}`).toBe(false)
+      }
+    }
+  })
+
+  it('rejects labels so vague they would swallow every other thread', () => {
+    for (const label of ['me', 'this situation', 'everything', 'today', 'them']) {
+      for (const kind of ['person', 'place', 'theme'] as const) {
+        expect(isSubjectLabel(label, kind), `${label} as ${kind}`).toBe(false)
+      }
+    }
+  })
+
+  it('rejects what is being ASKED FOR as a theme or a place', () => {
+    for (const label of ['wisdom', 'peace', 'breakthrough', 'protection']) {
+      expect(isSubjectLabel(label, 'theme'), label).toBe(false)
+      expect(isSubjectLabel(label, 'place'), label).toBe(false)
+    }
+  })
+
+  it('allows those same words as a PERSON, because they are also given names', () => {
+    // This asymmetry is the whole reason ASK_LABELS is split out from the other
+    // two lists: praying for grace is not a subject, praying for Grace is.
+    for (const label of ['Grace', 'Faith', 'Joy', 'Hope', 'Mercy', 'Patience']) {
+      expect(isSubjectLabel(label, 'person'), label).toBe(true)
+      expect(isSubjectLabel(label, 'theme'), label).toBe(false)
+    }
+  })
+
+  it('admits an ordinary recurring subject', () => {
+    expect(isSubjectLabel('Naomi', 'person')).toBe(true)
+    expect(isSubjectLabel('Frontier', 'place')).toBe(true)
+    expect(isSubjectLabel('anxiety', 'theme')).toBe(true)
+  })
+
+  it('normalizes case and surrounding whitespace before deciding', () => {
+    expect(isSubjectLabel('  THE LORD  ', 'person')).toBe(false)
+    expect(isSubjectLabel('  Wisdom  ', 'theme')).toBe(false)
+    expect(isSubjectLabel('', 'theme')).toBe(false)
+    expect(isSubjectLabel('   ', 'theme')).toBe(false)
+  })
+})
+
+// ── the same rules, riding on real prose ─────────────────────────────────────
+// Everything above uses synthetic tags, which is right for isolating the
+// grouping logic. This one runs the hand-labeled subjects from the shared
+// recognition corpus (src/lib/recognition/) through the same gates, so the
+// designed threads and the designed near-misses are asserted against prose a
+// person would actually write — the shape an import really arrives in.
+
+const { CORPUS, DESIGNED_THREADS } = await import('../../src/lib/recognition/corpus/index.js')
+
+describe('groupTagged over the recognition corpus', () => {
+  const items = CORPUS.filter((e) => (e.subjects ?? []).length > 0).map((e) => ({
+    id: e.id,
+    type: 'prayer' as const,
+    date: e.created_at,
+    tags: (e.subjects ?? []).map((s) => ({ label: s.label, kind: s.kind })),
+    content: e.body,
+  }))
+
+  it('forms a thread for every subject genuinely returned to', async () => {
+    const plan = await groupTagged(items)
+    const labels = plan.subjects.map((s) => s.label.toLowerCase())
+    for (const designed of DESIGNED_THREADS.forms) {
+      expect(labels, `${designed} should have formed a thread`).toContain(designed.toLowerCase())
+    }
+  })
+
+  it('forms no thread for a subject that only looks recurring', async () => {
+    // A pipeline that forms every thread it sees is as broken as one that forms
+    // none: the Altar is meant to show what someone keeps coming back to, not
+    // everything they once mentioned twice.
+    const plan = await groupTagged(items)
+    const labels = plan.subjects.map((s) => s.label.toLowerCase())
+    for (const { label, fails } of DESIGNED_THREADS.nearMisses) {
+      expect(labels, `${label} should have been held back — ${fails}`).not.toContain(
+        label.toLowerCase(),
+      )
+    }
+  })
+
+  it('holds back the stop-listed subjects even with real prayers behind them', async () => {
+    const plan = await groupTagged(items)
+    const labels = plan.subjects.map((s) => s.label.toLowerCase())
+    // Prayed for a girl named Grace once; asked for grace-the-virtue once.
+    // Neither recurs enough to be a thread, and the virtue could not be one
+    // at any count.
+    expect(labels).not.toContain('wisdom')
+    expect(labels).not.toContain('jesus')
+    expect(labels).not.toContain('this situation')
+  })
+})
