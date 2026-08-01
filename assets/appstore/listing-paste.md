@@ -76,12 +76,12 @@ Every new account begins with a 14-day free trial. No card required to start. Af
 • Annual: $69.99
 Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless auto-renew is turned off at least 24 hours before the end of the current period. Manage or cancel anytime in your Apple Account settings.
 
-Privacy Policy: https://dayspring-eosin.vercel.app/privacy
-Terms of Use: https://dayspring-eosin.vercel.app/terms
+Privacy Policy: https://usedayspring.app/privacy
+Terms of Use: https://usedayspring.app/terms
 
 ### Keywords _(100 chars, comma-separated, no spaces after commas)_
 
-christian,faith,prayer,bible,scripture,devotional,diary,examen,lectio,quiet time,gratitude
+journal,faith,prayer,bible,scripture,devotional,diary,examen,lectio,quiet time,gratitude
 
 ### Support URL
 
