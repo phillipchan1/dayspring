@@ -3,7 +3,13 @@ import type { Entry } from './types'
 
 export interface OutboxOp {
   opId: string
-  kind: 'upsert' | 'delete'
+  /**
+   * `derive` rebuilds the rows read off an entry's body — prayers, scripture
+   * refs. It is queued after that entry's push succeeds rather than run inline
+   * on save, so writing a prayer offline still reaches the Altar once the device
+   * reconnects. See repo.setEntryDeriveHook.
+   */
+  kind: 'upsert' | 'delete' | 'derive'
   entryId: string
   ts: number
   /** Pushes that reached the server and were refused. Absent until the first failure. */
@@ -219,6 +225,10 @@ export async function outboxAllOrdered(): Promise<OutboxOp[]> {
 }
 export async function outboxCount(): Promise<number> {
   return (await db()).count('outbox')
+}
+/** True when at least one live (non-quarantined) op of `kind` is queued. */
+export async function outboxHasKind(kind: OutboxOp['kind']): Promise<boolean> {
+  return (await outboxAll()).some((o) => o.kind === kind && !o.quarantined)
 }
 /** Ops the flush has given up on — surfaced so the UI can stop claiming "Synced". */
 export async function outboxBlockedCount(): Promise<number> {

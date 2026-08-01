@@ -27,8 +27,11 @@ function nowISO(): string {
 
 async function refreshPending(): Promise<void> {
   const ops = await cache.outboxAll()
-  const blocked = ops.filter((o) => o.quarantined).length
-  syncStore.setQueue({ pending: ops.length - blocked, blocked })
+  // `pending` counts the user's writing still in flight. A queued `derive` is
+  // bookkeeping that follows a push already landed, so counting it would double
+  // the number the badge shows for every single save.
+  const pending = ops.filter((o) => !o.quarantined && o.kind !== 'derive').length
+  syncStore.setQueue({ pending, blocked: ops.filter((o) => o.quarantined).length })
 }
 
 async function queueUpsert(entryId: string): Promise<void> {
@@ -95,6 +98,8 @@ export async function updateEntryDate(id: string, newCreatedAt: string): Promise
 async function queueRemoveEntry(id: string): Promise<void> {
   await cache.cacheDelete(id)
   await cache.outboxRemoveForEntry(id, 'upsert')
+  // Nothing left to derive from; the delete op supersedes it.
+  await cache.outboxRemoveForEntry(id, 'derive')
   await cache.outboxAdd({ opId: crypto.randomUUID(), kind: 'delete', entryId: id, ts: Date.now() })
 }
 
@@ -116,6 +121,33 @@ export async function removeEntries(ids: string[]): Promise<void> {
 // ── sync ────────────────────────────────────────────────────────────────
 /** Serializes outbox pushes so concurrent callers (autosave + sync + realtime) await the same run. */
 let flushChain: Promise<void> = Promise.resolve()
+
+/**
+ * Rebuilds the rows derived from an entry's body (prayers, scripture refs).
+ * Injected rather than imported so the repo stays free of feature modules.
+ */
+type EntryDeriveHook = (entry: Entry) => Promise<void>
+let deriveHook: EntryDeriveHook | null = null
+
+/**
+ * Register how derived rows are rebuilt. Set once at boot; without it, `derive`
+ * ops drain harmlessly as no-ops.
+ *
+ * Derivation used to run inline on every autosave, straight to Supabase, with
+ * its rejection swallowed. Offline that meant the entry body synced later but
+ * the prayer or scripture reference in it never existed anywhere — the Altar,
+ * Scripture and Concordance quietly omitted something the user had written, on
+ * every device, permanently. Routing it through the outbox makes it durable.
+ */
+export function setEntryDeriveHook(hook: EntryDeriveHook | null): void {
+  deriveHook = hook
+}
+
+/** Queue a rebuild of an entry's derived rows (deduped per entry). */
+async function queueDerive(entryId: string): Promise<void> {
+  await cache.outboxRemoveForEntry(entryId, 'derive')
+  await cache.outboxAdd({ opId: crypto.randomUUID(), kind: 'derive', entryId, ts: Date.now() })
+}
 
 /**
  * Push one row to the server and adopt the copy it hands back.
@@ -143,7 +175,15 @@ async function flushOnce(): Promise<void> {
     try {
       if (op.kind === 'upsert') {
         const row = await cache.cacheGet(op.entryId)
-        if (row) await pushEntry(row)
+        if (row) {
+          await pushEntry(row)
+          // Derive only once the body is safely on the server, so the derived
+          // rows can never describe an entry the server doesn't have yet.
+          await queueDerive(op.entryId)
+        }
+      } else if (op.kind === 'derive') {
+        const row = await cache.cacheGet(op.entryId)
+        if (row && deriveHook) await deriveHook(row)
       } else {
         await serverDelete(op.entryId)
       }
@@ -174,6 +214,9 @@ async function flushOnce(): Promise<void> {
   }
   syncStore.setOnline(reachedServer && navigator.onLine)
   await refreshPending()
+  // Derives queued by the pushes above landed after this drain's snapshot was
+  // taken; pick them up promptly rather than waiting on the heartbeat.
+  if (reachedServer && (await cache.outboxHasKind('derive'))) scheduleFlush()
 }
 
 export function flush(): Promise<void> {

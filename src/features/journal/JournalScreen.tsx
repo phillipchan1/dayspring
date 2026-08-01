@@ -84,8 +84,7 @@ import { recordSurfaceUpdate } from './surfaceUpdates'
 import { shouldAutoOpenLatest } from './arrivalNav'
 import { track } from '@/lib/analytics'
 import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
-import { deleteSpiritualItem, syncSpiritualBlocksFromMarkdown } from '@/lib/spiritual'
-import { syncScriptureRefsFromMarkdown } from '@/lib/scripture/capture'
+import { deleteSpiritualItem } from '@/lib/spiritual'
 interface JournalScreenProps {
   userEmail: string
   featureFlags: string[]
@@ -769,14 +768,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     entryId,
     content,
     enabled: entriesReady && state.surface === 'journal',
-    onAfterSave: (saved) => {
-      void syncSpiritualBlocksFromMarkdown(entryIdRef.current, saved).catch(() => {
-        // Non-fatal — entry body is already persisted
-      })
-      void syncScriptureRefsFromMarkdown(entryIdRef.current, saved).catch(() => {
-        // Non-fatal — refs just won't update until the next save
-      })
-    },
+    // Prayers and scripture refs are NOT derived here any more. They ran inline
+    // on every save, straight to the network, with the failure swallowed — so
+    // anything written offline never reached the Altar or Scripture at all. The
+    // repo now queues a `derive` op once the entry's push lands, which is both
+    // offline-durable and two fewer round trips while typing. See lib/entryDerive.ts.
     onCreated: (created) => {
       if (!skipAdoptOnCreateRef.current) {
         go({ entryId: created.id }, { replace: true })
