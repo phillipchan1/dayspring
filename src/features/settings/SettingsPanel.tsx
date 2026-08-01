@@ -292,6 +292,10 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
   const { replay } = useWelcome()
   const { settings, update } = useSettings()
   const [showConcordance, setShowConcordance] = useState(false)
+  // Two-step sign-out. Signing out is one tap from being locked out of your own
+  // journal until you can get back to an email inbox — too easy to hit by
+  // accident in a danger zone whose other button only resets preferences.
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
   return (
     <div className="settings-about">
       {/* App identity: title + tagline + metadata */}
@@ -394,9 +398,23 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
       {/* Danger zone: account actions */}
       <div className="settings-about__danger">
         <div className="settings-about__danger-title">Account Actions</div>
-        <button className="btn btn--ghost" onClick={() => void signOut()}>
-          Sign out
-        </button>
+        {confirmSignOut ? (
+          <div className="settings-about__confirm">
+            <span className="settings-about__confirm-text">Sign out of {userEmail}?</span>
+            <div className="settings-about__confirm-actions">
+              <button className="btn btn--danger" onClick={() => void signOut()}>
+                Sign out
+              </button>
+              <button className="btn btn--ghost" onClick={() => setConfirmSignOut(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn--ghost" onClick={() => setConfirmSignOut(true)}>
+            Sign out
+          </button>
+        )}
         <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
           Reset all settings to defaults
         </button>

@@ -520,7 +520,9 @@
 .altar-thread__inner {
   box-sizing: border-box;
   width: 100%;
-  padding: 2.6rem 2.8rem 4rem;
+  /* Fixed at top:0 — on iOS the panel opens under the Dynamic Island, so the
+     inset goes here and the panel background still reaches the edge. */
+  padding: calc(2.6rem + var(--safe-top)) 2.8rem 4rem;
 }
 .altar-thread__back {
   display: block;
@@ -842,9 +844,11 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
+  /* The mobile shell hides its safe-area-padded header on this surface
+     (MobileJournal: canvasAlternateActive) — this is the only status-bar gap. */
   .altar__column {
-    padding: 2rem 1.25rem 3.5rem;
+    padding: calc(2rem + var(--safe-top)) 1.25rem 3.5rem;
   }
   .altar-controls {
     gap: 0.75rem;
@@ -855,7 +859,7 @@
     width: 94vw;
   }
   .altar-thread__inner {
-    padding: 1.9rem 1.3rem 3.5rem;
+    padding: calc(1.9rem + var(--safe-top)) 1.3rem 3.5rem;
   }
   .altar-bookend {
     grid-template-columns: 1fr;

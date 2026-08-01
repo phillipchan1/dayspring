@@ -48,6 +48,11 @@ export interface JournalViewProps {
   onAltar: () => void
   /** Altar is gated behind the `altar` feature flag until it's ready to ship. */
   altarEnabled: boolean
+  /**
+   * The Well is gated behind the `well` feature flag. False hides its nav
+   * destinations only — the `well` route and the ⌘K Find palette still work.
+   */
+  wellEnabled: boolean
   onOpenSettings: () => void
   /** Force a full re-sync from the server (pull latest + flush outbox). */
   onSync: () => void

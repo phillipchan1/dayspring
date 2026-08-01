@@ -1,5 +1,4 @@
 import { useRef } from 'react'
-import { signOut } from '@/lib/auth'
 import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { useKeyboardOpen } from '@/hooks/useKeyboard'
@@ -36,7 +35,7 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync, onFindOrAsk,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, wellEnabled, onOpenSettings, onSync, onFindOrAsk,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, wellActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
@@ -218,12 +217,14 @@ export function MobileJournal(props: JournalViewProps) {
                 icon={<IconAltar size={22} />}
               />
             )}
-            <MobileTab
-              label="Well"
-              onClick={onFindOrAsk}
-              active={wellActive}
-              icon={<IconWell size={22} />}
-            />
+            {wellEnabled && (
+              <MobileTab
+                label="Well"
+                onClick={onFindOrAsk}
+                active={wellActive}
+                icon={<IconWell size={22} />}
+              />
+            )}
             <MobileTab
               label="Settings"
               onClick={onOpenSettings}
@@ -247,9 +248,14 @@ export function MobileJournal(props: JournalViewProps) {
               }}
             >
               <Brand size={20} wordmarkRem={1.05} />
-              <button className="btn btn--ghost" onClick={() => void signOut()} title={userEmail}>⎋</button>
+              {/* Who you're signed in as — nothing more. This spot used to hold a
+                  bare ⎋ that signed you out on a single tap, with no label and no
+                  confirm; sign-out lives in Settings → About, where it's named. */}
+              <span className="drawer__account" title={userEmail}>{userEmail}</span>
             </div>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            {/* .entry-list is itself the scroller — a second one here nests two
+                momentum-scrolling regions, which stalls on iOS. */}
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <EntryList
                 entries={entries}
                 activeId={activeId}

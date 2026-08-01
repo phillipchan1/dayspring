@@ -472,7 +472,6 @@ export function EntryList({
                   onOpenMenu={openMenu}
                   onOpenBulkMenu={openBulkMenu}
                   selectedEntries={selectedEntries}
-                  touchTapEdits={!fullWidth}
                 />
               ),
             )}
@@ -613,7 +612,6 @@ interface EntryRowProps {
   onOpenMenu: (entry: Entry, x: number, y: number) => void
   onOpenBulkMenu: (entries: Entry[], x: number, y: number) => void
   selectedEntries: Entry[]
-  touchTapEdits: boolean
 }
 
 const LONG_PRESS_MS = 500
@@ -634,7 +632,6 @@ const EntryRow = memo(function EntryRow({
   onOpenMenu,
   onOpenBulkMenu,
   selectedEntries,
-  touchTapEdits,
 }: EntryRowProps) {
   const active = entry.id === activeId
   const context = entry.id === menuTargetId
@@ -707,12 +704,11 @@ const EntryRow = memo(function EntryRow({
             e.preventDefault()
             return
           }
-          // Touch tap in the desktop list: open straight into the editor.
-          if (touchTapEdits && pointerTypeRef.current !== 'mouse') {
-            onEditEntry(entry)
-            onRowActivate?.()
-            return
-          }
+          // NOTE: a touch tap in the desktop list used to route straight to
+          // onEditEntry. On iPad — and on a landscape iPhone, which is also >767px
+          // and so takes the desktop layout — that meant every tap threw the
+          // software keyboard up just to read an entry. A tap now browses on every
+          // device; double-tap and the editor surface itself still open for writing.
           const result = onRowClick(entry.id, e)
           if (result === 'open') {
             onSelect(entry)

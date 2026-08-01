@@ -34,6 +34,8 @@ interface RailProps {
   wellActive: boolean
   /** Opens ⌘K rather than routing — the Well needs a question before it has anything to show. */
   onWell: () => void
+  /** The Well is feature-flagged off until ready — hide its rail destination when false. */
+  wellEnabled: boolean
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -58,6 +60,7 @@ export function Rail({
   onScripture,
   wellActive,
   onWell,
+  wellEnabled,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -154,15 +157,17 @@ export function Rail({
               labelsExpanded={labelsExpanded}
             />
           )}
-          <RailButton
-            label="Well"
-            subline="Ask what you've written"
-            shortcut="⌘K"
-            onClick={onWell}
-            active={wellActive}
-            icon={<IconWell />}
-            labelsExpanded={labelsExpanded}
-          />
+          {wellEnabled && (
+            <RailButton
+              label="Well"
+              subline="Ask what you've written"
+              shortcut="⌘K"
+              onClick={onWell}
+              active={wellActive}
+              icon={<IconWell />}
+              labelsExpanded={labelsExpanded}
+            />
+          )}
         </div>
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>

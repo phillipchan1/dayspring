@@ -1,6 +1,17 @@
 @import './themes.css';
 @import './glass.css';
 
+/* Device insets, named once. The iOS shell draws under the Dynamic Island and
+   the home indicator (viewport-fit=cover + black-translucent status bar in
+   index.html), so anything that touches a screen edge has to add these back.
+   They resolve to 0px everywhere else, so they're safe to use unconditionally. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
 *,
 *::before,
 *::after {
@@ -109,12 +120,6 @@ a {
   cursor: pointer;
 }
 
-@media (max-width: 767px) {
-  .entry-row {
-    padding: 10px 8px;
-    min-height: 44px;
-  }
-}
 @media (hover: hover) {
   .entry-row:hover:not([data-active='true']):not([data-context='true']) {
     background: var(--entry-row-hover-bg);
@@ -187,6 +192,27 @@ a {
 }
 .entry-row[data-has-preview='true'] {
   padding: 7px 8px;
+}
+
+/* Must come *after* [data-has-preview] above: same specificity (0,2,0), so
+   source order decides — and on a phone essentially every row has a preview. */
+@media (max-width: 767px) {
+  .entry-row,
+  .entry-row[data-has-preview='true'] {
+    padding: 10px;
+    min-height: 48px;
+  }
+  /* The list is a sidebar on desktop and a full-width drawer on a phone — at
+     drawer width the sidebar's 13.5px/11.5px reads as a compressed index
+     rather than a list of entries. */
+  .entry-row__title {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  .entry-row__preview {
+    font-size: 13px;
+    margin-top: 3px;
+  }
 }
 
 /* ── New Entry placeholder row ──────────────────────────────────────────── */
@@ -306,6 +332,47 @@ a {
   flex: 1;
   min-height: 0;
   padding: 6px 6px 12px;
+}
+
+/* Phone drawer: everything here is sized for a mouse in the desktop sidebar.
+   Give each control a thumb-sized target and lift the type off the floor. */
+@media (max-width: 767px) {
+  .entry-list__head {
+    padding: 12px 10px 10px;
+  }
+  .entry-list__search-bar {
+    padding: 9px 10px;
+  }
+  /* 16px exactly: anything smaller and iOS zooms the whole page on focus, which
+     leaves the drawer scaled up and half off-screen. */
+  .entry-list__search-input {
+    font-size: 16px;
+  }
+  .entry-list__view-switcher {
+    gap: 4px;
+  }
+  .entry-list__view-btn {
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
+  }
+  .entry-list__date-header,
+  .entry-list__section-label {
+    padding: 14px 10px 5px;
+    font-size: 11px;
+  }
+  .entry-list__month-row,
+  .entry-list__year-row,
+  .entry-list__year-month-row {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .entry-list__month-label {
+    font-size: 15px;
+  }
+  .entry-list__year-month-label {
+    font-size: 14px;
+  }
 }
 .entry-list__journal-header {
   display: flex;
@@ -2283,7 +2350,19 @@ html[data-focus-mode] .focus-controls {
   display: flex;
   flex-direction: column;
   animation: slide-in 180ms ease;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--safe-top);
+}
+
+/* Quiet identity line in the drawer header. Not a control — the only reason
+   it's here is so you can tell which account you're in without hunting. */
+.drawer__account {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  letter-spacing: -0.005em;
 }
 @keyframes fade-in {
   from { opacity: 0; }
@@ -2505,8 +2584,9 @@ html[data-focus-mode] .focus-controls {
   .settings-nav {
     flex: 0 0 auto;
     flex-direction: row;
-    gap: 0;
-    padding: 0.25rem 0.5rem 0;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.35rem 0.5rem;
     background: var(--bg);
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
@@ -2566,23 +2646,24 @@ html[data-focus-mode] .focus-controls {
 }
 
 @media (max-width: 767px) {
+  /* Icon stacked over its word, so all five tabs fit a phone without scrolling.
+     The active state is carried by the pill background, not the rail's sliding
+     accent bar — which is why ::before is hidden rather than re-pointed. */
   .settings-nav__item {
     width: auto;
-    gap: 0.35rem;
-    padding: 0.5rem 0.6rem;
-    border-radius: 0;
-    font-size: 0.8rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 44px;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius);
+    font-size: 0.7rem;
+    text-align: center;
     white-space: nowrap;
     flex-shrink: 0;
   }
   .settings-nav__item[data-active='true']::before {
-    left: 0;
-    top: auto;
-    bottom: -0.5rem;
-    transform: none;
-    width: 100%;
-    height: 2px;
-    border-radius: 1px 1px 0 0;
+    display: none;
   }
 }
 .settings-nav__icon {
@@ -2597,6 +2678,11 @@ html[data-focus-mode] .focus-controls {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Mobile stacks the modal into a column, where a flex item's automatic
+     minimum size is its content height — without this, .settings-main grows
+     past the sheet, .settings-main__body's overflow-y never engages, and
+     .glass-surface's overflow:hidden clips the rest with no way to scroll. */
+  min-height: 0;
 }
 .settings-main__head {
   display: flex;
@@ -2629,7 +2715,9 @@ html[data-focus-mode] .focus-controls {
 
 .settings-main__body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 1.4rem;
   animation: tab-fade var(--transition-slow) both;
 }
@@ -2637,7 +2725,7 @@ html[data-focus-mode] .focus-controls {
 @media (max-width: 767px) {
   .settings-main__body {
     padding: 1rem;
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-bottom: max(1rem, var(--safe-bottom));
   }
 }
 @keyframes tab-fade {
@@ -2949,6 +3037,30 @@ html[data-focus-mode] .focus-controls {
 
 .settings-about__danger .btn:last-child {
   margin-bottom: 0;
+}
+
+/* Sign-out confirm, inline where the button was — no modal for a two-tap
+   answer. The buttons sit side by side so "Cancel" is the easier target. */
+.settings-about__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.settings-about__confirm-text {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.settings-about__confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.settings-about__danger .settings-about__confirm-actions .btn {
+  display: inline-block;
+  width: auto;
+  min-height: 40px;
+  padding: 0.3rem 0.9rem;
+  text-align: center;
 }
 
 .settings-actions {
@@ -3435,36 +3547,13 @@ html[data-focus-mode] .focus-controls {
   text-align: center;
 }
 
-/* ── Responsive: stack the settings rail on top on narrow screens ──────── */
-@media (max-width: 720px) {
-  .settings-modal {
-    flex-direction: column;
-    height: min(90vh, 46rem);
-  }
-  .settings-nav {
-    flex: 0 0 auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.15rem;
-    overflow-x: auto;
-    padding: 0.5rem 0.6rem;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .settings-nav__brand {
-    display: none;
-  }
-  .settings-nav__item {
-    flex: 0 0 auto;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.7rem;
-  }
-  .settings-nav__item[data-active='true']::before {
-    display: none;
-  }
-}
+/* NOTE: the old `@media (max-width: 720px)` block that used to live here has
+   been folded into the `max-width: 767px` rules above. It sat *after* them at
+   equal specificity, so its `.settings-modal { height: min(90vh, 46rem) }`
+   silently beat the intended `height: 100dvh` — on any iPhone that pinned the
+   sheet to 736px inside a bottom-anchored full-screen scrim, leaving a dead
+   band of blurred scrim above it. Keep settings breakpoints at 767px so they
+   fire exactly when useIsMobile() does. */
 
 /* ── Desktop update prompt (Tauri) ─────────────────────────────────────────
    Bottom-left toast shown when a new version has been downloaded and staged.

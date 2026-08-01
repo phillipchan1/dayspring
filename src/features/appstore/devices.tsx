@@ -58,6 +58,8 @@ export function journalProps(
     onScripture: noop,
     onAltar: noop,
     altarEnabled: true,
+    // The listing captures show the shipped navigation — the Well is hidden.
+    wellEnabled: false,
     onOpenSettings: noop,
     onSync: noop,
     settings: settingsStore.get(),

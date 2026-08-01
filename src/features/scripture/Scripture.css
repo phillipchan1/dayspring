@@ -488,7 +488,10 @@
 .scripture-book__inner {
   box-sizing: border-box;
   width: 100%;
-  padding: 2.4rem 2.75rem 5rem;
+  /* The panel is fixed at top:0, so on iOS it opens under the Dynamic Island —
+     add the inset back here rather than on the panel, so its background still
+     paints edge to edge. */
+  padding: calc(2.4rem + var(--safe-top)) 2.75rem 5rem;
 }
 
 .scripture-book__back {
@@ -802,12 +805,15 @@
   opacity: 1;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
+  /* The mobile shell hides its safe-area-padded header on this surface
+     (MobileJournal: canvasAlternateActive), so this padding is the only thing
+     between Lamp and the status bar. */
   .scripture__column {
-    padding: 2rem 1.25rem 3.5rem;
+    padding: calc(2rem + var(--safe-top)) 1.25rem 3.5rem;
   }
   .scripture-book__inner {
-    padding: 2rem 1.4rem 3.5rem;
+    padding: calc(2rem + var(--safe-top)) 1.4rem 3.5rem;
   }
   /* Chapter heat-map: ChapterStrip sets up to 30 inline columns, which squeezes
      cells to ~10px on a phone. Wrap into as many rows as needed instead —

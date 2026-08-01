@@ -9,6 +9,11 @@ const FLAG_ENV: Record<string, string> = {
   // engine populates silently; this only exposes the inspect/curate UI. Enable
   // per-user via profiles.feature_flags or VITE_FF_CONCORDANCE=true.
   concordance: 'VITE_FF_CONCORDANCE',
+  // The Well (ask-your-own-writing). Off by default — the surface itself works,
+  // but it isn't ready to be a shipped destination, so its nav affordances (the
+  // mobile tab and the desktop rail button) stay hidden. The ⌘K Find palette and
+  // the 'well' route are untouched.
+  well: 'VITE_FF_WELL',
 }
 
 /**

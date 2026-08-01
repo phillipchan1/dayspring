@@ -130,6 +130,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // device — phone or iPad. It rides in-flow on phones, docked above the keyboard
   // on tablets. Hardware-keyboard users get no on-screen keyboard, so they use `/`.
   const showCommandBar = (isMobile || coarsePointer) && keyboardOpen
+  // Read first, tap to write. On a touch device the editor never autofocuses —
+  // opening an entry to read it shouldn't throw the software keyboard over half
+  // the screen. The two handlers that mean "I came here to write" (handleNew,
+  // handleEditEntry) focus explicitly instead. Desktop keeps autofocus, where a
+  // focused caret costs nothing.
+  const touchFirst = isMobile || coarsePointer
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
   const sidebarOpen = state.sidebar
@@ -141,6 +147,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
+  // The Well isn't ready to be a shipped destination — the `well` flag hides its
+  // rail button and mobile tab. Unlike Altar this does NOT redirect the surface:
+  // ⌘K → Ask still routes there, it just isn't advertised in the navigation.
+  const wellEnabled = resolveFlag(featureFlags, 'well')
   const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
   /** ⌘K — Find (instant, local) or Ask (the Well). Seeded when reopened from the Well. */
   const [findOpen, setFindOpen] = useState(false)
@@ -1220,6 +1230,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setNewEntryGeneration((g) => g + 1)
     go({ surface: 'journal', entryId: null })
     setContent('')
+    // On touch the Editor gets autofocus={false}, so a new entry — the one place
+    // you unambiguously arrived to write — has to ask for the caret itself.
+    if (touchFirst) requestAnimationFrame(() => editorRef.current?.focus())
   }
 
   async function handleBrowse(entry: Entry) {
@@ -1234,6 +1247,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // list — that could clobber keystrokes the row sync hasn't caught up to.
       // Still dismiss the mobile drawer so the tap feels like it landed.
       if (state.sidebar) go({ sidebar: false }, { replace: true })
+      // Nothing will consume the flag on this path — leaving it set would make
+      // it swallow the *next* legitimate autofocus instead.
+      skipEditorAutofocusRef.current = false
       return
     }
     skipEntrySyncRef.current = true
@@ -1260,6 +1276,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // Fold the drawer-close into this navigation — see handleBrowse.
     go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
     setContent(asEntryMarkdown(entry.body_markdown))
+    // Explicit edit intent, and on touch autofocus is off — ask for the caret.
+    if (touchFirst) requestAnimationFrame(() => editorRef.current?.focus())
   }
 
   async function handleOpenReflectionEntry(id: string) {
@@ -1481,15 +1499,25 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
+            // The `/` hint is desktop copy: CommandToolbar already puts
+            // Scripture / Pray / Sense / Ritual / Image above the keyboard on
+            // touch, where reaching for a slash is a two-tap detour. The palette
+            // itself stays enabled everywhere.
             placeholder={
               entryId === null && seedPrompt
                 ? seedPrompt
                 : settings.firstLineTitle
                   ? 'Title'
-                  : 'Write — or type / for scripture, prayer & rituals'
+                  : touchFirst
+                    ? 'Write…'
+                    : 'Write — or type / for scripture, prayer & rituals'
             }
-            {...(settings.firstLineTitle && { bodyPlaceholder: 'Keep going — or type / for scripture, prayer & rituals' })}
-            autofocus
+            {...(settings.firstLineTitle && {
+              bodyPlaceholder: touchFirst
+                ? 'Keep going…'
+                : 'Keep going — or type / for scripture, prayer & rituals',
+            })}
+            autofocus={!touchFirst}
             skipAutofocusRef={skipEditorAutofocusRef}
             typewriter={focus.active && focusEditorReady && settings.typewriter}
             dimming={focus.active && focusEditorReady && settings.dimming}
@@ -1606,6 +1634,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     altarEnabled,
+    wellEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       // An explicit tap also un-retires anything the flush gave up on — whatever

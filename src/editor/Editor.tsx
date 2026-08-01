@@ -395,7 +395,17 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       }),
     })
     viewRef.current = view
-    if (autofocus) view.focus()
+    // Honour the skip flag here too, not just on docKey swaps. This effect runs
+    // on every *mount*, and the editor unmounts whenever an alternate surface
+    // takes the canvas — so without this, returning to an entry from Lamp/Altar/
+    // Ascent stole focus (and popped the iOS keyboard) even though the caller
+    // had asked us not to. The docKey effect can't cover it: on a fresh mount it
+    // sees entryChanged === false and only clears the flag.
+    if (skipAutofocusRef?.current) {
+      skipAutofocusRef.current = false
+    } else if (autofocus) {
+      view.focus()
+    }
 
     const onScroll = () => syncFormatBar(view)
     view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })

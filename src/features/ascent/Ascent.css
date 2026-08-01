@@ -1212,11 +1212,13 @@
 }
 
 /* ── responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
+/* 767px, not 640 — this has to fire exactly when useIsMobile() swaps in
+   MobileJournal, which is what hides the shell's safe-area-padded header. */
+@media (max-width: 767px) {
   .ascent-rail {
     width: 30px;
     flex: 0 0 30px;
-    padding: 40px 0;
+    padding: calc(40px + var(--safe-top)) 0 40px;
   }
   /* Dots only on narrow screens — the labels would overflow into the content,
    * and the active altitude is already announced in the header. */
@@ -1226,8 +1228,10 @@
   .ascent-station {
     gap: 0;
   }
+  /* The mobile shell hides its safe-area-padded header here
+     (MobileJournal: canvasAlternateActive) — this is the only status-bar gap. */
   .ascent-main {
-    padding: 40px 18px 28px;
+    padding: calc(40px + var(--safe-top)) 18px 28px;
   }
   /* Keep ascend/descend reachable: it used to scroll away with the content, so
      once you read down the page you lost the way up. Stick it to the bottom of
@@ -1238,8 +1242,17 @@
     margin-top: 24px;
     padding-top: 16px;
     padding-bottom: 12px;
+    /* The 52px .mobile-fab is fixed over this row's right edge, and wins on
+       z-index — reserve its width so "ascend" stays tappable. */
+    padding-right: calc(52px + 1.6rem);
     background: linear-gradient(180deg, transparent, var(--a1) 42%);
     border-top: none;
+  }
+  /* With the FAB's width reserved, three items no longer fit: the hint wrapped
+     to three lines and crowded "descend". The buttons already name the action,
+     so drop the explanatory middle on phones and let them breathe. */
+  .ascent-ctrl-alt {
+    display: none;
   }
   .ascent-title {
     font-size: 26px;
