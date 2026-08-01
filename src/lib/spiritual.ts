@@ -67,12 +67,6 @@ export async function markPrayerAnswered(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function updateSpiritualItemContent(id: string, content: string): Promise<void> {
-  const sb = requireSupabase()
-  const { error } = await sb.from('spiritual_items').update({ content }).eq('id', id)
-  if (error) throw error
-}
-
 /** Update content and/or metadata when a block is edited in place. */
 export async function updateSpiritualItem(
   id: string,
@@ -94,9 +88,20 @@ export async function deleteSpiritualItem(id: string): Promise<void> {
 }
 
 /**
- * Reconcile spiritual_items with the fenced blocks in an entry after save:
- * update content for blocks still present, and delete rows for blocks the user
- * removed from the text so the Altar never shows orphaned prayers/senses.
+ * Reconcile spiritual_items with the fenced blocks in an entry's body: the block
+ * is the source of truth, so write a row for every block present and delete rows
+ * for blocks the user removed, keeping the Altar free of orphaned prayers.
+ *
+ * Upsert, not update. The row is normally created by the popover that inserts the
+ * block, over the network — so a prayer written offline has no row at all, and
+ * reconciling with an UPDATE would leave the Altar permanently missing it even
+ * after the entry itself synced. Recreating from the block closes that.
+ *
+ * `metadata` is deliberately absent from the payload: PostgREST only assigns the
+ * columns it is given, so a conflict leaves whatever the popover stored intact,
+ * while an insert gets the column default. `created_at` is likewise omitted —
+ * the Altar dates a linked item by its entry (lib/altar/query.ts), so a row
+ * recreated on reconnect still reads as the day it was written.
  */
 export async function syncSpiritualBlocksFromMarkdown(
   entryId: string | null,
@@ -107,7 +112,23 @@ export async function syncSpiritualBlocksFromMarkdown(
   const ids = blocks.map((b) => b.id)
   const sb = requireSupabase()
 
-  await Promise.all(blocks.map((b) => updateSpiritualItemContent(b.id, b.content)))
+  if (blocks.length > 0) {
+    const {
+      data: { session },
+    } = await sb.auth.getSession()
+    if (!session) throw new Error('not authenticated')
+    const { error } = await sb.from('spiritual_items').upsert(
+      blocks.map((b) => ({
+        id: b.id,
+        owner: session.user.id,
+        entry_id: entryId,
+        type: b.type,
+        content: b.content,
+      })),
+      { onConflict: 'id' },
+    )
+    if (error) throw error
+  }
 
   let del = sb.from('spiritual_items').delete().eq('entry_id', entryId)
   if (ids.length > 0) del = del.not('id', 'in', `(${ids.join(',')})`)

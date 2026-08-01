@@ -158,10 +158,13 @@ export const settingsStore = {
     settingsStore.update(DEFAULTS)
   },
   /**
-   * Apply remote settings fetched from the cloud without triggering a
-   * remote write-back (avoids a pointless round-trip on login).
-   * Remote wins over whatever is currently in localStorage so the user's
-   * intentional choices on other devices take effect immediately.
+   * Apply settings fetched from the cloud. Remote wins over whatever is in
+   * localStorage, so intentional choices made on another device take effect
+   * immediately.
+   *
+   * Note this DOES notify subscribers (it has to — the UI must repaint), so it
+   * is not in itself a defence against an echo write-back. useSettingsSync
+   * suppresses that by remembering what it last pushed.
    */
   applyRemote(remote: Partial<Settings>): void {
     state = { ...state, ...remote }

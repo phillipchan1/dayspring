@@ -23,6 +23,7 @@ import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { ensureProfile } from './lib/onboarding'
 import { fenceCacheToOwner } from './lib/localData'
+import { registerEntryDerive } from './lib/entryDerive'
 import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
 import { initApplePurchases, isAppleIapAvailable } from './lib/appleIap'
@@ -89,6 +90,8 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   const [initReady, setInitReady] = useState(false)
   useEffect(() => {
     let alive = true
+    // Before anything can flush: `derive` ops drain as no-ops without this.
+    registerEntryDerive()
     void (async () => {
       // Privacy fence FIRST — scrub any other owner's cached content before the
       // journal (and its sync) ever reads the cache.

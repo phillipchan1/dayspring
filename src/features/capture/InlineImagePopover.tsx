@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
-import { uploadImageAttachment } from '@/lib/attachments'
+import { extFromImageFile } from '@/lib/attachments'
+import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandPopover, CommandPopoverHint } from './CommandPopover'
@@ -60,17 +61,24 @@ export function InlineImagePopover({
     onClose()
 
     try {
-      const { hash, ext } = await uploadImageAttachment(
-        supabase,
+      const ownerId = (await supabase.auth.getUser()).data.user?.id
+      if (!ownerId) throw new Error('Sign in to add photos')
+      const ref = await uploadOrQueue(
+        pendingId,
+        ownerId,
         file,
+        extFromImageFile(file),
+        alt,
         takenAt ? { takenAt } : undefined,
       )
-      onUploadComplete(pendingId, hash, ext, alt)
+      // null → no network; the photo is parked in IndexedDB and the pending
+      // block stays put until it uploads. Removing it here is what used to make
+      // a photo added on a bad connection silently disappear.
+      if (ref) onUploadComplete(pendingId, ref.hash, ref.ext, alt)
     } catch (e) {
+      // Only for a file storage will never accept.
       onUploadFailed(pendingId)
-      // Popover may already be closed — error surfaces on next open only if we
-      // kept it open; for now the pending block is simply removed.
-      console.warn('[image upload]', e)
+      console.warn('[image upload] rejected', e)
     } finally {
       busyRef.current = false
     }

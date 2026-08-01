@@ -44,31 +44,45 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
   return data as Entry
 }
 
-/**
- * Push a full entry row to the server (insert or update). Used by the sync
- * layer to replay local writes. `owner` is intentionally omitted so the DB
- * default (auth.uid()) fills it on insert and RLS keeps it private.
- */
-export async function upsertEntryRow(entry: Entry): Promise<Entry> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('entries')
-    .upsert({
-      id: entry.id,
-      created_at: entry.created_at,
-      body_markdown: entry.body_markdown,
-      title: entry.title,
-      mood: entry.mood,
-      tags: entry.tags,
-      word_count: entry.word_count,
-      source: entry.source,
-      external_id: entry.external_id,
-    })
-    .select(ENTRY_COLUMNS)
-    .single()
+export interface CheckedUpsertResult {
+  /** True when the server's copy had moved on: NOTHING was written. */
+  conflicted: boolean
+  /** The server's current row — the one it wrote, or the one it kept. */
+  entry: Entry
+}
 
+/**
+ * Push a row only if the server's `updated_at` still matches `baseUpdatedAt` —
+ * the version this edit was made from. On a mismatch the server writes nothing
+ * and returns its current row, so the caller can keep both versions instead of
+ * destroying one.
+ *
+ * This replaced a blind upsert. Deliberately no unchecked variant is exported:
+ * an entry push that can silently overwrite whatever it lands on is the bug this
+ * exists to prevent. (Imports are separate — see upsertImportedEntries, which
+ * dedups on external_id and never touches a hand-written row by id.)
+ */
+export async function upsertEntryChecked(
+  entry: Entry,
+  baseUpdatedAt: string | null,
+): Promise<CheckedUpsertResult> {
+  const sb = requireSupabase()
+  const { data, error } = await sb.rpc('upsert_entry_checked', {
+    p_id: entry.id,
+    p_created_at: entry.created_at,
+    p_body_markdown: entry.body_markdown,
+    p_title: entry.title,
+    p_mood: entry.mood,
+    p_tags: entry.tags,
+    p_word_count: entry.word_count,
+    p_source: entry.source,
+    p_external_id: entry.external_id,
+    p_base_updated_at: baseUpdatedAt,
+  })
   if (error) throw error
-  return data as Entry
+  const result = data as { conflicted: boolean; entry: Entry } | null
+  if (!result?.entry) throw new Error('upsert_entry_checked returned no row')
+  return { conflicted: result.conflicted, entry: result.entry }
 }
 
 /** A row ready to import from an external source (e.g. a Diarly export). */

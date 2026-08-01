@@ -1,4 +1,4 @@
-import { cacheClearAll, outboxCount } from './db'
+import { cacheClearAll, dictationCount, outboxCount, pendingUploadCount } from './db'
 import { clearAllCache } from './asyncCache'
 import { SUBSCRIPTION_CACHE_KEY } from './subscription'
 
@@ -72,11 +72,19 @@ export async function fenceCacheToOwner(ownerId: string): Promise<void> {
     purgeFlags()
   } else {
     // Unknown prior owner (first load, or pre-fence rollout). Scrub the read
-    // cache only when there are no pending writes to lose — never drop a real
-    // user's unsynced edits during the upgrade. Sign-out already scrubs content,
-    // so a non-empty outbox here is almost always the current user's own.
-    const pending = await outboxCount().catch(() => 0)
-    if (pending === 0) await purgeContent()
+    // cache only when there is no unsynced work to lose — never drop a real
+    // user's own data during the upgrade. Sign-out already scrubs content, so
+    // anything queued here is almost always the current user's.
+    //
+    // Counts all three queues, not just the outbox: purgeContent() clears the
+    // dictation and pending-upload stores too, and those hold the ONLY copy of
+    // an un-transcribed recording or a photo added offline.
+    const pending = await Promise.all([
+      outboxCount().catch(() => 0),
+      dictationCount().catch(() => 0),
+      pendingUploadCount().catch(() => 0),
+    ])
+    if (pending.every((n) => n === 0)) await purgeContent()
   }
   writeCacheOwner(ownerId)
 }

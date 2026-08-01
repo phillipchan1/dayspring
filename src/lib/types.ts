@@ -5,6 +5,12 @@ export type EntrySource = 'native' | 'day_one' | 'diarly' | 'other'
 export interface Entry {
   id: string
   created_at: string // original entry date (ISO); for native entries = creation time
+  /**
+   * The SERVER's clock, and nothing else. Local edits deliberately leave it
+   * alone so it keeps meaning "the version the server last gave us" — which is
+   * both the only timestamp comparable across devices and the base an
+   * optimistic-concurrency push checks against. See lib/entryVersion.ts.
+   */
   updated_at: string
   body_markdown: string
   title: string | null
@@ -13,6 +19,13 @@ export interface Entry {
   word_count: number
   source: EntrySource
   external_id: string | null
+  /**
+   * Local-only (never sent, never returned): when THIS device last edited the
+   * row, epoch ms. Orders local edits against each other — which `updated_at`
+   * can no longer do — so a push can tell whether the row changed underneath it
+   * while it was in flight.
+   */
+  local_edited_at?: number
 }
 
 /** Fields the client sets when creating a native entry. */
