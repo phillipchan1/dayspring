@@ -15,26 +15,37 @@ export function SyncBadge({ bare = false, onSync }: Props = {}) {
 
   let label: string
   let color = 'var(--text-faint)'
+  let title: string
   if (!state.online) {
     label = state.pending > 0 ? `Offline · ${state.pending}` : 'Offline'
     color = 'var(--md-strong)' // amber-ish
+    title = 'Changes are saved locally and will sync when you reconnect'
+  } else if (state.blocked > 0) {
+    // The server refused these and the flush stopped retrying. They are still on
+    // this device, so say that rather than the reassuring lie of "Synced".
+    label = `${state.blocked} didn't sync`
+    color = 'var(--md-strong)'
+    title = onSync
+      ? "Some changes couldn't be saved to the cloud. They're safe on this device — click to try again."
+      : "Some changes couldn't be saved to the cloud. They're safe on this device."
   } else if (state.pulling) {
     label = 'Updating library'
     color = 'var(--text-dim)'
+    title = 'Connected'
   } else if (state.pending > 0) {
     label = `Syncing ${state.pending}`
     color = 'var(--text-dim)'
+    title = onSync ? 'Click to sync now' : 'Connected'
   } else {
     label = 'Synced'
+    title = onSync ? 'Click to sync now' : 'Connected'
   }
 
-  const title = state.online
-    ? (onSync ? 'Click to sync now' : 'Connected')
-    : 'Changes are saved locally and will sync when you reconnect'
+  const quiet = state.online && state.blocked === 0
 
   if (bare) {
-    // Offline stays amber (it matters); everything else inherits the cluster's
-    // quiet tone. The cluster supplies the dot.
+    // Offline and unsynced changes stay amber (they matter); everything else
+    // inherits the cluster's quiet tone. The cluster supplies the dot.
     return onSync ? (
       <button
         type="button"
@@ -45,14 +56,14 @@ export function SyncBadge({ bare = false, onSync }: Props = {}) {
           border: 'none',
           padding: 0,
           cursor: 'pointer',
-          color: state.online ? 'inherit' : color,
+          color: quiet ? 'inherit' : color,
           font: 'inherit',
         }}
       >
         {label}
       </button>
     ) : (
-      <span title={title} style={{ color: state.online ? 'inherit' : color }}>
+      <span title={title} style={{ color: quiet ? 'inherit' : color }}>
         {label}
       </span>
     )

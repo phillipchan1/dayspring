@@ -6,6 +6,15 @@ export interface OutboxOp {
   kind: 'upsert' | 'delete'
   entryId: string
   ts: number
+  /** Pushes that reached the server and were refused. Absent until the first failure. */
+  attempts?: number
+  /** Last refusal, kept for support triage — never shown verbatim in the UI. */
+  lastError?: string
+  /**
+   * Given up on: the server will never accept this op, or it has burned through
+   * MAX_SYNC_ATTEMPTS. Skipped by the flush so it can't block the ops behind it.
+   */
+  quarantined?: boolean
 }
 
 /** One cached display-sized image blob, keyed by `<hash>.<ext>`. */
@@ -199,8 +208,21 @@ export async function attachmentCacheTotalBytes(): Promise<number> {
 export async function outboxAll(): Promise<OutboxOp[]> {
   return (await db()).getAll('outbox')
 }
+/**
+ * Ops in the order they were queued. `getAll` returns them keyed by `opId` — a
+ * random UUID — so the unordered version flushes writes in arbitrary order and
+ * which op blocks the queue is pure chance. Anything that drains the outbox
+ * should use this.
+ */
+export async function outboxAllOrdered(): Promise<OutboxOp[]> {
+  return (await outboxAll()).sort((a, b) => a.ts - b.ts)
+}
 export async function outboxCount(): Promise<number> {
   return (await db()).count('outbox')
+}
+/** Ops the flush has given up on — surfaced so the UI can stop claiming "Synced". */
+export async function outboxBlockedCount(): Promise<number> {
+  return (await outboxAll()).filter((o) => o.quarantined).length
 }
 export async function outboxAdd(op: OutboxOp): Promise<void> {
   await (await db()).put('outbox', op)
@@ -208,6 +230,38 @@ export async function outboxAdd(op: OutboxOp): Promise<void> {
 export async function outboxRemove(opId: string): Promise<void> {
   await (await db()).delete('outbox', opId)
 }
+/**
+ * Record a refused push. `quarantine` retires the op so it stops being retried
+ * and — crucially — stops blocking every op queued behind it. The row is kept
+ * rather than deleted: it still holds a write the user made, and keeping it lets
+ * a later fix (a corrected RLS policy, a released constraint) replay it.
+ */
+export async function outboxMarkFailure(
+  opId: string,
+  { quarantine, error }: { quarantine: boolean; error: string },
+): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('outbox', 'readwrite')
+  const op = await tx.store.get(opId)
+  if (op) {
+    const attempts = (op.attempts ?? 0) + 1
+    await tx.store.put({ ...op, attempts, lastError: error, quarantined: quarantine })
+  }
+  await tx.done
+}
+/** Un-retire every quarantined op so the next flush tries them again. */
+export async function outboxClearQuarantine(): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('outbox', 'readwrite')
+  const ops = await tx.store.getAll()
+  await Promise.all([
+    ...ops
+      .filter((o) => o.quarantined)
+      .map((o) => tx.store.put({ ...o, quarantined: false, attempts: 0 })),
+    tx.done,
+  ])
+}
+
 /** Collapse duplicate ops for one entry: drop existing ops of the same kind. */
 export async function outboxRemoveForEntry(entryId: string, kind: OutboxOp['kind']): Promise<void> {
   const d = await db()

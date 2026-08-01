@@ -18,6 +18,7 @@ import * as cache from './db'
 import { syncStore } from './sync'
 import { isAuthInvalidation, forceReauth } from './authError'
 import { maxUpdatedAt, shouldAdoptServerRow } from './entryVersion'
+import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
 import type { Entry, NewEntry } from './types'
 
 function nowISO(): string {
@@ -25,7 +26,9 @@ function nowISO(): string {
 }
 
 async function refreshPending(): Promise<void> {
-  syncStore.setPending(await cache.outboxCount())
+  const ops = await cache.outboxAll()
+  const blocked = ops.filter((o) => o.quarantined).length
+  syncStore.setQueue({ pending: ops.length - blocked, blocked })
 }
 
 async function queueUpsert(entryId: string): Promise<void> {
@@ -133,7 +136,10 @@ async function flushOnce(): Promise<void> {
     syncStore.setOnline(false)
     return
   }
-  for (const op of await cache.outboxAll()) {
+  let reachedServer = true
+  // Queue order, not `getAll`'s random-UUID order — see cache.outboxAllOrdered.
+  for (const op of await cache.outboxAllOrdered()) {
+    if (op.quarantined) continue
     try {
       if (op.kind === 'upsert') {
         const row = await cache.cacheGet(op.entryId)
@@ -142,19 +148,47 @@ async function flushOnce(): Promise<void> {
         await serverDelete(op.entryId)
       }
       await cache.outboxRemove(op.opId)
-    } catch {
-      // Most likely offline / transient — stop and retry later.
-      syncStore.setOnline(false)
+    } catch (e) {
+      const failure = classifySyncError(e)
+      if (failure === 'permanent') {
+        // The server will never accept this one. Retire it and keep draining —
+        // letting it sit at the head of the queue used to block every write
+        // behind it indefinitely, with the UI reporting "Offline" on a device
+        // that was online.
+        await cache.outboxMarkFailure(op.opId, { quarantine: true, error: describeSyncError(e) })
+        continue
+      }
+      // 'offline' costs nothing to retry and must not burn an attempt, or a long
+      // flight would quarantine perfectly good writes.
+      if (failure === 'offline') {
+        reachedServer = false
+      } else {
+        const attempts = (op.attempts ?? 0) + 1
+        await cache.outboxMarkFailure(op.opId, {
+          quarantine: attempts >= MAX_SYNC_ATTEMPTS,
+          error: describeSyncError(e),
+        })
+      }
       break
     }
   }
-  syncStore.setOnline(navigator.onLine)
+  syncStore.setOnline(reachedServer && navigator.onLine)
   await refreshPending()
 }
 
 export function flush(): Promise<void> {
   flushChain = flushChain.then(flushOnce, flushOnce)
   return flushChain
+}
+
+/**
+ * Un-retire quarantined ops and drain again. An explicit "sync now" from the user
+ * is the one signal worth acting on: whatever the server objected to may well
+ * have been fixed since, and each of those ops still holds a write they made.
+ */
+export async function retryBlocked(): Promise<void> {
+  await cache.outboxClearQuarantine()
+  await flush()
 }
 
 // Background push. Writes return after the local cache + outbox update — instant

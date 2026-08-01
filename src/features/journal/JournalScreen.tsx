@@ -1517,9 +1517,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     altarEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
-      void repo.sync(entryIdRef.current).then((list) => {
-        if (list) applySyncedList(list)
-      })
+      // An explicit tap also un-retires anything the flush gave up on — whatever
+      // the server objected to may have been fixed since.
+      void repo
+        .retryBlocked()
+        .then(() => repo.sync(entryIdRef.current))
+        .then((list) => {
+          if (list) applySyncedList(list)
+        })
     },
     settings,
     updateSettings,
