@@ -17,6 +17,7 @@ import {
 import * as cache from './db'
 import { syncStore } from './sync'
 import { isAuthInvalidation, forceReauth } from './authError'
+import { maxUpdatedAt, shouldAdoptServerRow } from './entryVersion'
 import type { Entry, NewEntry } from './types'
 
 function nowISO(): string {
@@ -113,6 +114,20 @@ export async function removeEntries(ids: string[]): Promise<void> {
 /** Serializes outbox pushes so concurrent callers (autosave + sync + realtime) await the same run. */
 let flushChain: Promise<void> = Promise.resolve()
 
+/**
+ * Push one row to the server and adopt the copy it hands back.
+ *
+ * The server owns `updated_at` (the `entries_set_updated_at` trigger), so until
+ * its answer is written back the cache holds a timestamp from THIS device's clock
+ * while every other device holds one from the server's. Weighing those two
+ * against each other in last-write-wins is how a device with a fast clock ends up
+ * permanently ignoring another device's newer edits. See lib/entryVersion.ts.
+ */
+async function pushEntry(row: Entry): Promise<void> {
+  const saved = await upsertEntryRow(row)
+  if (shouldAdoptServerRow(row, await cache.cacheGet(row.id))) await cache.cachePut(saved)
+}
+
 async function flushOnce(): Promise<void> {
   if (!navigator.onLine) {
     syncStore.setOnline(false)
@@ -122,7 +137,7 @@ async function flushOnce(): Promise<void> {
     try {
       if (op.kind === 'upsert') {
         const row = await cache.cacheGet(op.entryId)
-        if (row) await upsertEntryRow(row)
+        if (row) await pushEntry(row)
       } else {
         await serverDelete(op.entryId)
       }
@@ -250,12 +265,6 @@ let syncCursor: string | null = null
 let lastFullSyncAt = 0
 const FULL_RECONCILE_INTERVAL_MS = 5 * 60_000
 
-function maxUpdatedAt(rows: Entry[]): string | null {
-  let max: string | null = null
-  for (const r of rows) if (max === null || r.updated_at > max) max = r.updated_at
-  return max
-}
-
 /**
  * Flush queued writes, then pull the WHOLE server library into the cache
  * (last-write-wins). This is the full reconcile — it's the only path that drops
@@ -298,7 +307,11 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
     }
 
     await cache.cachePutMany(merged)
-    syncCursor = maxUpdatedAt(merged)
+    // From the SERVER rows, never `merged`: a local row still carries this
+    // device's clock until its push adopts the server's timestamp, so a fast
+    // clock would push the cursor into the future and blind `listEntriesSince`
+    // until the next full reconcile.
+    syncCursor = maxUpdatedAt(server)
     lastFullSyncAt = Date.now()
     syncStore.setSynced(Date.now())
     return merged.sort(byCreatedDesc)
