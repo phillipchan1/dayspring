@@ -24,7 +24,29 @@ import type { Entry } from './types'
  */
 export function shouldAdoptServerRow(pushed: Entry, current: Entry | undefined): boolean {
   if (!current) return false
-  return current.updated_at === pushed.updated_at
+  return (
+    current.updated_at === pushed.updated_at &&
+    current.local_edited_at === pushed.local_edited_at
+  )
+}
+
+/**
+ * Does `winner` already contain everything in `loser`?
+ *
+ * Asked before preserving the losing side of a conflict. The overwhelmingly
+ * common "conflict" is not two people disagreeing — it is one device simply
+ * further along: the same text plus another paragraph, or a push whose response
+ * was lost and is being retried against a row it already wrote. Copying the
+ * loser aside in those cases would manufacture exactly the duplicate entries
+ * this codebase has fixed four times.
+ *
+ * Whitespace-insensitive at the edges, because block separation gets normalised
+ * on the way through the editor.
+ */
+export function subsumes(winner: string, loser: string): boolean {
+  const l = loser.trim()
+  if (l === '') return true
+  return winner.trim().includes(l)
 }
 
 /** Newest `updated_at` across rows, or null for an empty list. */

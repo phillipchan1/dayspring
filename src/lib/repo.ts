@@ -3,13 +3,19 @@
 // Writes go to the IndexedDB cache immediately (optimistic) and enqueue an
 // outbox op; a background flush pushes them to Supabase. Reads come from the
 // cache so the app opens instantly. sync() flushes pending writes then pulls
-// the server, merging last-write-wins. Single user → conflicts are rare and
-// "newest updated_at wins" is sufficient.
+// the server.
+//
+// Reconciling is last-write-wins with one hard rule: a write is never destroyed.
+// `updated_at` is the server's clock and only the server's, so the comparison is
+// meaningful across devices; a push declares the version it was based on, and
+// the server refuses to overwrite anything newer. When two devices really have
+// edited the same entry, the device being typed on keeps it and the other
+// version is preserved as its own entry rather than discarded.
 
 import {
   listAllEntries as serverListAll,
   listEntriesSince as serverListSince,
-  upsertEntryRow,
+  upsertEntryChecked,
   deleteEntry as serverDelete,
   wordCount,
   byCreatedDesc,
@@ -17,7 +23,7 @@ import {
 import * as cache from './db'
 import { syncStore } from './sync'
 import { isAuthInvalidation, forceReauth } from './authError'
-import { maxUpdatedAt, shouldAdoptServerRow } from './entryVersion'
+import { maxUpdatedAt, shouldAdoptServerRow, subsumes } from './entryVersion'
 import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
 import type { Entry, NewEntry } from './types'
 
@@ -73,11 +79,20 @@ export async function createEntry(input: NewEntry, id?: string): Promise<Entry> 
   return entry
 }
 
+/**
+ * A local edit bumps `local_edited_at` and deliberately leaves `updated_at`
+ * alone. That column stays exactly what the server last told us, which is what
+ * makes it both safely comparable against other devices and usable as the base
+ * an optimistic-concurrency push checks against. See lib/entryVersion.ts.
+ */
+function locallyEdited(base: Entry, patch: Partial<Entry>): Entry {
+  return { ...base, ...patch, local_edited_at: Date.now() }
+}
+
 export async function updateEntryBody(id: string, body: string): Promise<Entry> {
   const base = await cache.cacheGet(id)
   if (!base) throw new Error(`Entry ${id} not found in local cache — cannot update`)
-  const ts = nowISO()
-  const entry: Entry = { ...base, body_markdown: body, word_count: wordCount(body), updated_at: ts }
+  const entry = locallyEdited(base, { body_markdown: body, word_count: wordCount(body) })
   await cache.cachePut(entry)
   await queueUpsert(id)
   scheduleFlush()
@@ -87,7 +102,7 @@ export async function updateEntryBody(id: string, body: string): Promise<Entry> 
 export async function updateEntryDate(id: string, newCreatedAt: string): Promise<Entry> {
   const base = await cache.cacheGet(id)
   if (!base) throw new Error('Entry not found')
-  const entry: Entry = { ...base, created_at: newCreatedAt, updated_at: nowISO() }
+  const entry = locallyEdited(base, { created_at: newCreatedAt })
   await cache.cachePut(entry)
   await queueUpsert(id)
   scheduleFlush()
@@ -150,17 +165,67 @@ async function queueDerive(entryId: string): Promise<void> {
 }
 
 /**
+ * Copy the losing side of a conflict into its own entry, so a simultaneous edit
+ * on two devices costs the user nothing.
+ *
+ * The device being typed on keeps the entry — interrupting someone mid-sentence
+ * to adjudicate a merge would be worse than the problem. The version that loses
+ * is written to a new row carrying the SAME `created_at`, so it lands on the
+ * right day in the journal and can be read, compared and merged by hand later.
+ * The text is copied verbatim; nothing is annotated into the user's words.
+ */
+async function preserveLosingVersion(local: Entry, server: Entry): Promise<void> {
+  if (subsumes(local.body_markdown, server.body_markdown)) return
+  const shadow: Entry = {
+    ...server,
+    id: crypto.randomUUID(),
+    // A fresh row of our own: never inherit the import-dedup identity.
+    source: 'native',
+    external_id: null,
+  }
+  // Server rows never carry it, but the shadow must not start life looking like
+  // it holds unpushed local edits.
+  delete shadow.local_edited_at
+  await cache.cachePut(shadow)
+  await queueUpsert(shadow.id)
+}
+
+// A conflict is resolved by rebasing and pushing again. Bounded because each
+// retry is a fresh race; in practice it settles on the first.
+const MAX_CONFLICT_REBASES = 3
+
+/**
  * Push one row to the server and adopt the copy it hands back.
  *
- * The server owns `updated_at` (the `entries_set_updated_at` trigger), so until
- * its answer is written back the cache holds a timestamp from THIS device's clock
- * while every other device holds one from the server's. Weighing those two
- * against each other in last-write-wins is how a device with a fast clock ends up
- * permanently ignoring another device's newer edits. See lib/entryVersion.ts.
+ * Two things happen here that the old blind upsert did not.
+ *
+ * Adopting the returned row: the server owns `updated_at`, so until its answer
+ * is written back the cache holds a timestamp from THIS device's clock while
+ * every other device holds one from the server's. Weighing those two against
+ * each other in last-write-wins is how a device with a fast clock ends up
+ * permanently ignoring another device's newer edits.
+ *
+ * Checking the base: the push declares which version it was made from, and the
+ * server refuses to overwrite anything newer. Without that, two devices editing
+ * one entry meant the later push silently destroyed the earlier one's writing.
  */
 async function pushEntry(row: Entry): Promise<void> {
-  const saved = await upsertEntryRow(row)
-  if (shouldAdoptServerRow(row, await cache.cacheGet(row.id))) await cache.cachePut(saved)
+  let attempt = row
+  for (let i = 0; i < MAX_CONFLICT_REBASES; i++) {
+    const { conflicted, entry: server } = await upsertEntryChecked(attempt, attempt.updated_at)
+    if (!conflicted) {
+      // Skip if the row changed while the push was in flight — that edit queued
+      // its own op and adopts the server's answer on its own push.
+      if (shouldAdoptServerRow(row, await cache.cacheGet(row.id))) await cache.cachePut(server)
+      return
+    }
+    await preserveLosingVersion(attempt, server)
+    // Retry from their version as the base, now that theirs is safe.
+    attempt = { ...attempt, updated_at: server.updated_at }
+  }
+  // Still racing after several rounds. Leave the op queued rather than force the
+  // write: the next flush retries, and nothing has been lost either way.
+  throw new Error('entry push kept conflicting — will retry')
 }
 
 async function flushOnce(): Promise<void> {
