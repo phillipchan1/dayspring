@@ -49,6 +49,30 @@ export function subsumes(winner: string, loser: string): boolean {
   return winner.trim().includes(l)
 }
 
+/**
+ * Would applying this incoming remote row actually change anything locally?
+ *
+ * Pure, and the single source of truth for that decision, so the cheap pre-filter
+ * over a realtime burst and the merge that follows it can never disagree.
+ *
+ * Answering "no" cheaply matters: a server-side backfill touching every row emits
+ * an event per entry, and treating that flood as real change used to force every
+ * connected device into a full library download.
+ */
+export function shouldApplyRemote(
+  remote: Entry,
+  local: Entry | undefined,
+  { pending, preserved }: { pending: boolean; preserved: boolean },
+): boolean {
+  // A queued local write is newer by definition; an entry being edited on screen
+  // is the user's to keep until they stop.
+  if (pending || preserved) return false
+  if (!local) return true
+  if (local.updated_at > remote.updated_at) return false
+  // Byte-identical: our own echo coming back.
+  return !(local.updated_at === remote.updated_at && local.body_markdown === remote.body_markdown)
+}
+
 /** Newest `updated_at` across rows, or null for an empty list. */
 export function maxUpdatedAt(rows: Entry[]): string | null {
   let max: string | null = null

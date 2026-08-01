@@ -13,9 +13,17 @@
  *   - Everything else (API, auth, cross-origin, non-GET) is left untouched —
  *     the request goes straight to the network as if no SW existed.
  *
- * Bump CACHE_VERSION to force old caches to be discarded on the next activate.
+ * The cache version comes from the `?v=` on the registration URL, which
+ * registerSW.ts fills in from the build's app version.
+ *
+ * It used to be a hardcoded 'v1' that no build step ever touched. Because this
+ * file was then byte-identical on every deploy, the browser saw no update,
+ * `install`/`activate` never re-ran, and the old cache was never purged — so the
+ * assets that aren't content-hashed (icons, fonts) were pinned forever, and the
+ * SKIP_WAITING handler below was unreachable code. A changing query string makes
+ * each deploy a genuinely different script, which is what triggers the update.
  */
-const CACHE_VERSION = 'v1'
+const CACHE_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1'
 const CACHE_NAME = `dayspring-${CACHE_VERSION}`
 const APP_SHELL = '/index.html'
 

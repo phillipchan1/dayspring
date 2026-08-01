@@ -23,7 +23,7 @@ import {
 import * as cache from './db'
 import { syncStore } from './sync'
 import { isAuthInvalidation, forceReauth } from './authError'
-import { maxUpdatedAt, shouldAdoptServerRow, subsumes } from './entryVersion'
+import { maxUpdatedAt, shouldAdoptServerRow, shouldApplyRemote, subsumes } from './entryVersion'
 import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
 import type { Entry, NewEntry } from './types'
 
@@ -370,10 +370,6 @@ function scheduleFlush(delay = 1500): void {
   }, delay)
 }
 
-function entryMatchesRemote(local: Entry, remote: Entry): boolean {
-  return local.updated_at === remote.updated_at && local.body_markdown === remote.body_markdown
-}
-
 /** Apply a remote row using the same last-write-wins rules as sync(). */
 export async function mergeRemoteEntry(
   remote: Entry,
@@ -381,13 +377,12 @@ export async function mergeRemoteEntry(
   pendingIds?: Set<string>,
 ): Promise<'applied' | 'skipped'> {
   const pending = pendingIds ?? new Set((await cache.outboxAll()).map((o) => o.entryId))
-  if (pending.has(remote.id) || remote.id === preserveId) return 'skipped'
-
   const local = await cache.cacheGet(remote.id)
-  if (local) {
-    if (local.updated_at > remote.updated_at) return 'skipped'
-    if (entryMatchesRemote(local, remote)) return 'skipped'
-  }
+  const apply = shouldApplyRemote(remote, local, {
+    pending: pending.has(remote.id),
+    preserved: remote.id === preserveId,
+  })
+  if (!apply) return 'skipped'
 
   await cache.cachePut(remote)
   syncStore.setSynced(Date.now())
@@ -419,21 +414,43 @@ export interface RemoteChangeResult {
   upserted: Entry[]
 }
 
-/** Merge a burst of realtime events (bulk delete, import). Falls back to full sync when huge. */
+/** Effective changes at or above this count are cheaper to reconcile in one pull. */
+const RESYNC_BURST_THRESHOLD = 20
+
+/**
+ * Merge a burst of realtime events (bulk delete, import), falling back to a full
+ * sync when there are genuinely many.
+ *
+ * The count that decides is of *effective* changes, not raw events. A server-side
+ * backfill emits an event per entry while changing nothing the client can see, and
+ * counting those raw meant one backfill sent every connected device — phones on
+ * cell data included — into a full library download for no reason.
+ *
+ * One `cacheGetAll` and one outbox read serve the whole burst; this used to do a
+ * `cacheGet` and a full `getAll('outbox')` per event, awaited serially.
+ */
 export async function applyRemoteChanges(
   changes: RemoteEntryChange[],
   preserveId?: string | null,
 ): Promise<RemoteChangeResult | 'resync'> {
-  if (changes.length >= 20) return 'resync'
-
-  // Read the outbox once for the whole burst instead of per-event (was an N+1
-  // of full `getAll('outbox')` reads, all awaited serially). The merge helpers
-  // never touch the outbox, so a single snapshot is equivalent.
+  const localMap = new Map((await cache.cacheGetAll()).map((e) => [e.id, e]))
   const pendingIds = new Set((await cache.outboxAll()).map((o) => o.entryId))
+
+  const effective = changes.filter((change) =>
+    change.kind === 'delete'
+      ? localMap.has(change.entryId) && !pendingIds.has(change.entryId)
+      : shouldApplyRemote(change.entry, localMap.get(change.entry.id), {
+          pending: pendingIds.has(change.entry.id),
+          preserved: change.entry.id === preserveId,
+        }),
+  )
+  if (effective.length === 0) return { deletedIds: [], upserted: [] }
+  if (effective.length >= RESYNC_BURST_THRESHOLD) return 'resync'
+
   const deletedIds: string[] = []
   const upserted: Entry[] = []
 
-  for (const change of changes) {
+  for (const change of effective) {
     if (change.kind === 'delete') {
       if ((await mergeRemoteDelete(change.entryId, pendingIds)) === 'applied') {
         deletedIds.push(change.entryId)
@@ -494,10 +511,22 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
       if (!seen.has(id) && pending.has(id)) merged.push(local)
     }
 
-    // Purge any local cache entries that are no longer in the merged set —
-    // cachePutMany only writes, so without this explicit delete, server-side
-    // deletes from other clients/apps are never reflected locally.
+    // `pending` was sampled before the (slow) server fetch. An entry created
+    // since — or one whose outbox op the 1.5s flush timer drained in between —
+    // is in neither the server snapshot nor that stale set, so the purge below
+    // would delete it from under the user. Re-read the outbox and rescue those,
+    // plus the entry on screen, which is never purged here.
     const mergedIds = new Set(merged.map((e) => e.id))
+    const stillPending = new Set((await cache.outboxAll()).map((o) => o.entryId))
+    for (const [id, local] of localMap) {
+      if (mergedIds.has(id)) continue
+      if (!stillPending.has(id) && id !== preserveId) continue
+      merged.push(local)
+      mergedIds.add(id)
+    }
+
+    // Purge whatever is left — cachePutMany only writes, so without this explicit
+    // delete, deletes made on another device are never reflected locally.
     const toDelete = [...localMap.keys()].filter((id) => !mergedIds.has(id))
     if (toDelete.length) {
       await Promise.all(toDelete.map((id) => cache.cacheDelete(id)))

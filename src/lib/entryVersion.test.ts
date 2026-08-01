@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { maxUpdatedAt, shouldAdoptServerRow, subsumes } from './entryVersion'
+import { maxUpdatedAt, shouldAdoptServerRow, shouldApplyRemote, subsumes } from './entryVersion'
 import type { Entry } from './types'
 
 function entry(over: Partial<Entry> = {}): Entry {
@@ -73,6 +73,47 @@ describe('subsumes — the guard against manufacturing duplicate entries', () =>
     const ours = 'first paragraph'
     const theirs = 'first paragraph\n\nsecond paragraph they added'
     expect(subsumes(ours, theirs)).toBe(false)
+  })
+})
+
+describe('shouldApplyRemote', () => {
+  const clean = { pending: false, preserved: false }
+
+  it('applies a row we have never seen', () => {
+    expect(shouldApplyRemote(entry(), undefined, clean)).toBe(true)
+  })
+
+  it('applies a genuinely newer remote row', () => {
+    const remote = entry({ updated_at: '2026-07-02T00:00:00.000Z', body_markdown: 'newer' })
+    expect(shouldApplyRemote(remote, entry(), clean)).toBe(true)
+  })
+
+  it('skips our own echo — same timestamp, same body', () => {
+    // This is the case that matters at scale: a server-side backfill emits an
+    // event per entry while changing nothing, and counting those as real change
+    // used to send every device into a full library download.
+    expect(shouldApplyRemote(entry(), entry(), clean)).toBe(false)
+  })
+
+  it('skips a remote row older than what we hold', () => {
+    const remote = entry({ updated_at: '2026-06-30T00:00:00.000Z' })
+    expect(shouldApplyRemote(remote, entry(), clean)).toBe(false)
+  })
+
+  it('skips a row with a queued local write — ours is newer by definition', () => {
+    const remote = entry({ updated_at: '2026-07-09T00:00:00.000Z', body_markdown: 'theirs' })
+    expect(shouldApplyRemote(remote, entry(), { pending: true, preserved: false })).toBe(false)
+  })
+
+  it('skips the entry being edited on screen', () => {
+    const remote = entry({ updated_at: '2026-07-09T00:00:00.000Z', body_markdown: 'theirs' })
+    expect(shouldApplyRemote(remote, entry(), { pending: false, preserved: true })).toBe(false)
+  })
+
+  it('applies a same-timestamp row whose body differs', () => {
+    // Not an echo — something really changed, so take it.
+    const remote = entry({ body_markdown: 'different' })
+    expect(shouldApplyRemote(remote, entry(), clean)).toBe(true)
   })
 })
 

@@ -12,7 +12,12 @@ export function registerServiceWorker(): void {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    // The version in the URL is what makes a deploy visible to the browser.
+    // sw.js is otherwise byte-identical every time, so without it the browser
+    // sees no update, never re-runs activate, and never purges the old cache —
+    // pinning the assets that aren't content-hashed (icons, fonts) forever.
+    // It also becomes the cache name inside the worker.
+    navigator.serviceWorker.register(`/sw.js?v=${__APP_VERSION__}`).catch((err) => {
       // Non-fatal — the app works fine without the SW, just without offline.
       console.warn('[pwa] service worker registration failed:', err)
     })

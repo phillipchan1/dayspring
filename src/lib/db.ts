@@ -126,6 +126,10 @@ export async function dictationList(owner: string): Promise<PendingDictationRow[
   const all = await (await db()).getAll('dictation')
   return all.filter((r) => r.owner === owner).sort((a, b) => b.createdAt - a.createdAt)
 }
+/** Recordings still awaiting transcription — the only copy of those words. */
+export async function dictationCount(): Promise<number> {
+  return (await db()).count('dictation')
+}
 export async function dictationDelete(sessionId: string): Promise<void> {
   await (await db()).delete('dictation', sessionId)
 }

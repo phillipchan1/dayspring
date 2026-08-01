@@ -214,9 +214,15 @@ export function useAutosave({
     }
     document.addEventListener('visibilitychange', onHide)
     window.addEventListener('beforeunload', onBeforeUnload)
+    // `pagehide` is the one that actually fires in iOS WKWebView, and on a
+    // bfcache navigation where `beforeunload` is skipped entirely. Both are
+    // registered because neither covers every case on its own; flush() is
+    // idempotent, so a double-fire costs nothing.
+    window.addEventListener('pagehide', onBeforeUnload)
     return () => {
       document.removeEventListener('visibilitychange', onHide)
       window.removeEventListener('beforeunload', onBeforeUnload)
+      window.removeEventListener('pagehide', onBeforeUnload)
     }
   }, [enabled, flush])
 

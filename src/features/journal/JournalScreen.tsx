@@ -224,14 +224,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     let alive = true
     void (async () => {
       try {
-        await dictationPrune(24 * 60 * 60 * 1000) // forget recordings older than a day
         const sb = supabase
         if (!sb) return
         const { data } = await sb.auth.getSession()
         const owner = data.session?.user?.id
         if (!owner) return
+        // Offer BEFORE pruning. Pruning first meant a recording made just over a
+        // day ago — a weekend away, a phone left in a drawer — was deleted rather
+        // than offered, which is the one thing this recovery path exists to
+        // prevent. A week is long enough to get back to it.
         const pending = await dictationList(owner)
         if (alive && pending.length > 0) setRecoverableDictation(pending[0] ?? null)
+        await dictationPrune(7 * 24 * 60 * 60 * 1000)
       } catch {
         /* best-effort — recovery never blocks the app */
       }
