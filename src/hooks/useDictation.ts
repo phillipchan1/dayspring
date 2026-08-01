@@ -52,10 +52,16 @@ function pickMimeType(): string {
 }
 
 /**
- * Voice dictation with a hard guarantee: once spoken, never lost. Audio is
- * checkpointed to IndexedDB as it records (survives a crash/close), transcription
- * retries on transient failures, and on a hard failure the recording is kept so
- * the user can retry, salvage the partial, or download the clip.
+ * Voice dictation with a hard guarantee — on this device. Audio is checkpointed
+ * to IndexedDB as it records (survives a crash/close), transcription retries on
+ * transient failures, and on a hard failure the recording is kept so the user can
+ * retry, salvage the partial, or download the clip.
+ *
+ * "On this device" is the whole caveat, and it is deliberate: the audio is never
+ * uploaded, only its transcript. So a recording interrupted on the phone cannot
+ * be recovered from the Mac — it is waiting on the phone. Keeping raw voice out
+ * of the cloud is worth that, but the guarantee should not be read as broader
+ * than it is.
  */
 export function useDictation(): Dictation {
   const { session } = useSession()
