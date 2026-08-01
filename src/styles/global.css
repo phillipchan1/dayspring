@@ -2530,6 +2530,12 @@ html[data-focus-mode] .focus-controls {
     border-radius: 12px 12px 0 0;
     animation: glass-modal-mobile-in var(--transition-slow) both;
     flex-direction: column;
+    /* Snap-back when a drag is released short of the dismiss threshold. The
+       drag itself sets `transition: none` inline so it tracks the finger. */
+    transition: transform var(--transition) ease-out;
+    /* The sheet owns vertical gestures; the body opts back in via its own
+       overflow-y. Without this iOS scrolls the page behind the drag. */
+    touch-action: pan-y;
   }
   @keyframes glass-modal-mobile-in {
     from {
@@ -2718,6 +2724,9 @@ html[data-focus-mode] .focus-controls {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* At scrollTop 0 a downward drag belongs to the sheet (useSheetDismiss) —
+     without this the scroller rubber-bands underneath it at the same time. */
+  overscroll-behavior: contain;
   padding: 1.4rem;
   animation: tab-fade var(--transition-slow) both;
 }

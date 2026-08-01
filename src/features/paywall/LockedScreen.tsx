@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Brand } from '@/components/Mark'
 import {
   startCheckout,
+  billingDestination,
   fetchPortalUrl,
   extendTrial,
   fetchJournalHolding,
@@ -114,15 +115,18 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
     setError(null)
     setLoading('portal')
     try {
-      if (isAppleIapAvailable()) {
-        await manageAppleSubscriptions()
-        return
+      // Billing source decides, not the device — same rule as the Billing tab.
+      switch (billingDestination(subscription, { onAppleDevice: isAppleIapAvailable() })) {
+        case 'apple-native':
+          await manageAppleSubscriptions()
+          return
+        case 'apple-web':
+          await openExternal('https://apps.apple.com/account/subscriptions')
+          return
+        case 'stripe':
+          await openExternal(await fetchPortalUrl())
+          return
       }
-      if (isAppleManaged(subscription)) {
-        await openExternal('https://apps.apple.com/account/subscriptions')
-        return
-      }
-      await openExternal(await fetchPortalUrl())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {

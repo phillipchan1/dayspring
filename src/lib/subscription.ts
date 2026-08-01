@@ -26,6 +26,49 @@ export function isAppleManaged(sub: Subscription | null): boolean {
   return sub.plan !== 'none'
 }
 
+/** Where "Manage billing" has to send this account. */
+export type BillingDestination =
+  /** StoreKit's native manage-subscriptions sheet (Apple-billed, on an Apple device). */
+  | 'apple-native'
+  /** apps.apple.com/account/subscriptions (Apple-billed, but not on an Apple device). */
+  | 'apple-web'
+  /** The Stripe billing portal. */
+  | 'stripe'
+
+/**
+ * Route "Manage billing" by **who takes the money**, never by which device is
+ * in your hand. Each store can only cancel and refund its own subscriptions, so
+ * sending a Stripe subscriber to the App Store shows them an empty list and
+ * reads as "my subscription vanished".
+ *
+ * This used to be decided device-first in two places, which meant every Stripe
+ * subscriber on an iPhone was told "Manage in App Store". One helper now, so
+ * SettingsPanel and LockedScreen cannot drift apart again.
+ */
+export function billingDestination(
+  sub: Subscription | null,
+  { onAppleDevice }: { onAppleDevice: boolean },
+): BillingDestination {
+  if (isAppleManaged(sub)) return onAppleDevice ? 'apple-native' : 'apple-web'
+  return 'stripe'
+}
+
+/**
+ * True when there is a billing relationship worth opening a portal for.
+ *
+ * The first-run trial is app-managed — no card, no customer at either store —
+ * so `plan_source` stays null until money actually changes hands, and a portal
+ * link would 404. Note the converse is NOT safe: rows predating the
+ * `plan_source` column can be genuinely subscribed with a null source, so only
+ * the trial case is excluded here.
+ */
+export function hasBillingRelationship(sub: Subscription | null): boolean {
+  const plan = sub?.plan ?? 'none'
+  if (plan === 'none') return false
+  if (plan === 'trialing' && !sub?.plan_source) return false
+  return true
+}
+
 export function isEntitled(sub: Subscription | null): boolean {
   if (!sub) return false
   if (sub.plan === 'active') return true

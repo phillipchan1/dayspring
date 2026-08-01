@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
@@ -13,7 +14,13 @@ import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
-import { fetchPortalUrl, isAppleManaged, trialDaysRemaining } from '@/lib/subscription'
+import {
+  billingDestination,
+  fetchPortalUrl,
+  hasBillingRelationship,
+  isAppleManaged,
+  trialDaysRemaining,
+} from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
   fetchAppleProducts,
@@ -86,27 +93,15 @@ export function SettingsPanel({
   const visibleTabs = isMobile ? TABS.filter((t) => t.id !== 'shortcuts') : TABS
   const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0]!
 
-  // Swipe-down-to-dismiss for the mobile bottom sheet. It slid up to open, so a
-  // pull down is the natural way back out. Drag tracks the finger; release past a
-  // threshold closes, otherwise it snaps home. Bound to the grabber + header only,
-  // so scrolling the tab row or body never starts a dismiss.
-  const [dragY, setDragY] = useState(0)
-  const dragStart = useRef<number | null>(null)
-  const DISMISS_THRESHOLD = 110
-  function onDragStart(e: React.TouchEvent) {
-    dragStart.current = e.touches[0]?.clientY ?? null
-  }
-  function onDragMove(e: React.TouchEvent) {
-    if (dragStart.current == null) return
-    const y = e.touches[0]?.clientY ?? dragStart.current
-    setDragY(Math.max(0, y - dragStart.current))
-  }
-  function onDragEnd() {
-    if (dragStart.current == null) return
-    dragStart.current = null
-    if (dragY > DISMISS_THRESHOLD) onClose()
-    else setDragY(0)
-  }
+  // Drag-to-dismiss for the mobile bottom sheet. It slid up to open, so a pull
+  // down is the way back out — and the whole sheet is the handle, not just the
+  // grabber, which was a target most thumbs never found. useSheetDismiss yields
+  // the gesture back to the body whenever that body still has somewhere to
+  // scroll, so the two never fight.
+  const { handlers: sheetDrag, dragY, dragging } = useSheetDismiss({
+    onDismiss: onClose,
+    enabled: isMobile,
+  })
 
   return (
     <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
@@ -116,9 +111,15 @@ export function SettingsPanel({
         aria-modal="true"
         aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
+        {...sheetDrag}
         style={
-          dragY
-            ? { transform: `translateY(${dragY}px)`, transition: 'none' }
+          dragging || dragY
+            ? {
+                transform: `translateY(${dragY}px)`,
+                // Suppressed only while the finger is down; on release the
+                // class's transition returns and snaps the sheet home.
+                ...(dragging ? { transition: 'none' } : {}),
+              }
             : undefined
         }
       >
@@ -129,9 +130,6 @@ export function SettingsPanel({
             className="settings-grabber"
             aria-label="Close settings"
             onClick={onClose}
-            onTouchStart={onDragStart}
-            onTouchMove={onDragMove}
-            onTouchEnd={onDragEnd}
           >
             <span className="settings-grabber__bar" aria-hidden />
           </button>
@@ -160,7 +158,10 @@ export function SettingsPanel({
             </button>
           </header>
 
-          <div key={tab} className="settings-main__body">
+          {/* data-sheet-scroll: useSheetDismiss checks this element's scrollTop
+              to decide whether a downward drag belongs to the scroll or to the
+              sheet. */}
+          <div key={tab} className="settings-main__body" data-sheet-scroll>
             {tab === 'appearance' && <AppearanceTab settings={settings} update={update} />}
             {tab === 'writing' && <WritingTab settings={settings} update={update} />}
             {tab === 'import' && (
@@ -752,16 +753,19 @@ function BillingTab() {
     setPortalError(null)
     setPortalLoading(true)
     try {
-      if (onIos) {
-        await manageAppleSubscriptions()
-        return
+      // Routed by who bills the account, not by the device — a Stripe
+      // subscriber on an iPhone still manages in Stripe. See billingDestination.
+      switch (billingDestination(subscription, { onAppleDevice: onIos })) {
+        case 'apple-native':
+          await manageAppleSubscriptions()
+          return
+        case 'apple-web':
+          await openExternal('https://apps.apple.com/account/subscriptions')
+          return
+        case 'stripe':
+          await openExternal(await fetchPortalUrl())
+          return
       }
-      if (appleManaged) {
-        await openExternal('https://apps.apple.com/account/subscriptions')
-        return
-      }
-      const url = await fetchPortalUrl()
-      await openExternal(url)
     } catch (e) {
       setPortalError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {
@@ -822,15 +826,22 @@ function BillingTab() {
     active:   {
       label:  'Active',
       color:  'var(--success)',
+      // Always name who takes the money. It's the one fact that tells you where
+      // to go to cancel, and getting it wrong is what sent Stripe subscribers
+      // hunting through an empty App Store subscription list.
       detail: appleManaged
         ? 'Billed through the App Store.'
-        : 'Your subscription is current.',
+        : subscription?.plan_source === 'stripe'
+          ? 'Billed on the web through Stripe.'
+          : 'Your subscription is current.',
     },
     cancelled:{ label: 'Cancelled',        color: 'var(--text-faint)', detail: 'Your subscription has ended.' },
     past_due: { label: 'Payment issue',    color: 'var(--danger)',     detail: 'Update your payment method to restore access.' },
   }[plan] ?? { label: plan, color: 'var(--text-faint)', detail: null }
 
-  const hasPortal = plan !== 'none'
+  // Not just `plan !== 'none'`: the app-managed first-run trial has no card and
+  // no customer at either store, so a portal link would 404 on both paths.
+  const hasPortal = hasBillingRelationship(subscription)
   const showPlans = plan === 'none' || plan === 'cancelled'
   // Never offer Stripe purchase UI on iOS, or for Apple-managed accounts.
   const canStripePurchase = !onIos && !appleManaged
@@ -872,7 +883,7 @@ function BillingTab() {
             <div className="settings-field__head">
               <span className="settings-field__label">Manage billing</span>
               <span className="settings-field__hint">
-                {appleManaged || onIos
+                {appleManaged
                   ? 'Update your payment method, switch plans, or cancel in the App Store.'
                   : 'Update your payment method, switch plans, or cancel via Stripe.'}
               </span>
@@ -881,7 +892,7 @@ function BillingTab() {
               <button className="btn" onClick={() => void openPortal()} disabled={portalLoading}>
                 {portalLoading
                   ? 'Opening…'
-                  : appleManaged || onIos
+                  : appleManaged
                     ? 'Manage in App Store →'
                     : 'Open billing portal →'}
               </button>

@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   isEntitled,
   isAppleManaged,
+  billingDestination,
+  hasBillingRelationship,
   readCachedSubscription,
   writeCachedSubscription,
   SUBSCRIPTION_CACHE_KEY,
@@ -99,5 +101,60 @@ describe('readCachedSubscription', () => {
     expect(readCachedSubscription()).toBeNull()
     localStorage.setItem(SUBSCRIPTION_CACHE_KEY, '{not json')
     expect(readCachedSubscription()).toBeNull()
+  })
+})
+
+describe('billingDestination', () => {
+  // The bug this suite exists for: routing was decided device-first, so every
+  // Stripe subscriber on an iPhone was sent to the App Store's subscription
+  // list — where their subscription does not exist.
+  it('keeps a Stripe subscriber on Stripe even on an Apple device', () => {
+    const s = sub({ plan: 'active', plan_source: 'stripe' })
+    expect(billingDestination(s, { onAppleDevice: true })).toBe('stripe')
+    expect(billingDestination(s, { onAppleDevice: false })).toBe('stripe')
+  })
+
+  it('sends an Apple subscriber to the native sheet on an Apple device', () => {
+    const s = sub({ plan: 'active', plan_source: 'apple' })
+    expect(billingDestination(s, { onAppleDevice: true })).toBe('apple-native')
+  })
+
+  it('sends an Apple subscriber to the web page when off an Apple device', () => {
+    const s = sub({ plan: 'active', plan_source: 'apple' })
+    expect(billingDestination(s, { onAppleDevice: false })).toBe('apple-web')
+  })
+
+  it('treats an unknown source as Stripe rather than guessing Apple', () => {
+    // Rows predating the plan_source column: Stripe is the safe assumption,
+    // since Apple billing only ever existed after the column did.
+    const s = sub({ plan: 'active', plan_source: null })
+    expect(billingDestination(s, { onAppleDevice: true })).toBe('stripe')
+  })
+
+  it('does not route a plan-less account to Apple just because it is on iOS', () => {
+    expect(billingDestination(sub({ plan: 'none', plan_source: 'apple' }), { onAppleDevice: true }))
+      .toBe('stripe')
+  })
+})
+
+describe('hasBillingRelationship', () => {
+  it('is false during the app-managed trial, which has no card at either store', () => {
+    expect(hasBillingRelationship(sub({ plan: 'trialing', plan_source: null }))).toBe(false)
+  })
+
+  it('is true for a trial that already has a payment source attached', () => {
+    expect(hasBillingRelationship(sub({ plan: 'trialing', plan_source: 'stripe' }))).toBe(true)
+  })
+
+  it('is true for a legacy subscription with no recorded source', () => {
+    // Must not hide the portal from a real subscriber whose row predates the
+    // plan_source column — that would strip their only way to cancel.
+    expect(hasBillingRelationship(sub({ plan: 'active', plan_source: null }))).toBe(true)
+    expect(hasBillingRelationship(sub({ plan: 'past_due', plan_source: null }))).toBe(true)
+  })
+
+  it('is false with no subscription at all', () => {
+    expect(hasBillingRelationship(null)).toBe(false)
+    expect(hasBillingRelationship(sub({ plan: 'none' }))).toBe(false)
   })
 })
