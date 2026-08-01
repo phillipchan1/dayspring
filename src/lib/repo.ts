@@ -265,9 +265,23 @@ async function pushEntry(row: Entry): Promise<void> {
   for (let i = 0; i < MAX_CONFLICT_REBASES; i++) {
     const { conflicted, entry: server } = await upsertEntryChecked(attempt, attempt.updated_at)
     if (!conflicted) {
-      // Skip if the row changed while the push was in flight — that edit queued
-      // its own op and adopts the server's answer on its own push.
-      if (shouldAdoptServerRow(row, await cache.cacheGet(row.id))) await cache.cachePut(server)
+      const current = await cache.cacheGet(row.id)
+      if (!current) return // deleted while in flight; the delete op handles it
+      if (shouldAdoptServerRow(row, current)) {
+        await cache.cachePut(server)
+      } else {
+        // The row changed while the push was in flight. Keep that newer local
+        // body — it queued its own op — but still take the server's timestamp:
+        // the write DID land, so this is the version the next push is based on.
+        //
+        // Skipping this entirely was subtly wrong. The next push would declare a
+        // base the server had already moved past and get back a false conflict,
+        // and a mid-flight edit that DELETED text doesn't subsume the server's
+        // copy — so it would have been preserved as a shadow entry. A stray
+        // duplicate of your own paragraph, from nothing but backspacing at the
+        // wrong moment.
+        await cache.cachePut({ ...current, updated_at: server.updated_at })
+      }
       return
     }
     await preserveLosingVersion(attempt, server)
