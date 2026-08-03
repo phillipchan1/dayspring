@@ -137,9 +137,14 @@ Per the memory note on this project: apply these in the Supabase **SQL editor**,
 npm run tauri:ios:dev
 
 # Release IPA for App Store Connect / TestFlight
-# Build number must exceed the last uploaded CFBundleVersion (last known: 0.1.0)
-npm run tauri:ios:build -- --build-number 207 --verbose
+# Build number must exceed the last uploaded CFBundleVersion.
+# Last built: 1.0.224.207 (2026-08-02) — so use 208 or higher next.
+npm run tauri:ios:build -- --build-number 208 --verbose
 ```
+
+`CFBundleShortVersionString` comes from `src-tauri/tauri.conf.json`, and nothing
+rewrites it for iOS the way the desktop workflows do — check it matches
+`package.json` before building, or `scripts/ios-preflight.mjs` will say so.
 
 IPA path: `src-tauri/gen/apple/build/arm64/Dayspring.ipa`
 
