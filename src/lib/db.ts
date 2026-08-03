@@ -23,6 +23,25 @@ export interface OutboxOp {
   quarantined?: boolean
 }
 
+/**
+ * A marked passage, cached locally so Remember opens offline like Find does.
+ *
+ * `pending` carries its own sync state rather than riding the entry outbox:
+ * that queue is keyed on entryId and reads its payload from the entries cache,
+ * and marks are small, independent, and idempotent server-side. They drain
+ * through repo's sideQueueHook, the same route photo uploads take, so a stuck
+ * mark can never block an entry from syncing.
+ */
+export interface MarkRow {
+  id: string
+  entryId: string
+  quote: string
+  charStart: number | null
+  noticedAt: string
+  /** Unsynced intent. Absent once the server has it. */
+  pending?: 'add' | 'remove'
+}
+
 /** One cached display-sized image blob, keyed by `<hash>.<ext>`. */
 export interface AttBlobRow {
   key: string
@@ -84,13 +103,14 @@ interface DayspringDB extends DBSchema {
   attMeta: { key: string; value: AttMetaRow; indexes: { 'by-last-accessed': number } }
   dictation: { key: string; value: PendingDictationRow }
   attUploads: { key: string; value: PendingUploadRow }
+  marks: { key: string; value: MarkRow; indexes: { 'by-entry': string } }
 }
 
 let dbp: Promise<IDBPDatabase<DayspringDB>> | null = null
 
 function db(): Promise<IDBPDatabase<DayspringDB>> {
   if (!dbp) {
-    dbp = openDB<DayspringDB>('dayspring', 4, {
+    dbp = openDB<DayspringDB>('dayspring', 5, {
       upgrade(d, oldVersion) {
         if (oldVersion < 1) {
           d.createObjectStore('entries', { keyPath: 'id' })
@@ -111,6 +131,12 @@ function db(): Promise<IDBPDatabase<DayspringDB>> {
           // Photos added while offline. Holds the only copy of those bytes —
           // unlike attBlobs, nothing here may be evicted.
           d.createObjectStore('attUploads', { keyPath: 'id' })
+        }
+        if (oldVersion < 5) {
+          // Marked passages. A mirror of the server table plus a `pending` flag,
+          // so Remember reads instantly and marking works on a plane.
+          const marks = d.createObjectStore('marks', { keyPath: 'id' })
+          marks.createIndex('by-entry', 'entryId')
         }
       },
     })
@@ -174,7 +200,34 @@ export async function cacheClearAll(): Promise<void> {
     d.clear('attMeta'),
     d.clear('dictation'),
     d.clear('attUploads'),
+    // Marks are verbatim entry text. Leaving them behind on an owner switch
+    // would leak one tenant's sentences into another's Remember.
+    d.clear('marks'),
   ])
+}
+
+// ── marks (local mirror + offline intent) ───────────────────────────────────
+export async function marksAll(): Promise<MarkRow[]> {
+  return (await db()).getAll('marks')
+}
+export async function markPut(row: MarkRow): Promise<void> {
+  await (await db()).put('marks', row)
+}
+export async function markDelete(id: string): Promise<void> {
+  await (await db()).delete('marks', id)
+}
+export async function marksPutMany(rows: MarkRow[]): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('marks', 'readwrite')
+  await Promise.all([...rows.map((r) => tx.store.put(r)), tx.done])
+}
+/** Replace the synced mirror, preserving anything still waiting to go out. */
+export async function marksReplaceSynced(rows: MarkRow[]): Promise<void> {
+  const d = await db()
+  const keep = (await d.getAll('marks')).filter((r) => r.pending)
+  const tx = d.transaction('marks', 'readwrite')
+  await tx.store.clear()
+  await Promise.all([...[...rows, ...keep].map((r) => tx.store.put(r)), tx.done])
 }
 
 // ── pending photo uploads (offline-durable) ─────────────────────────────────

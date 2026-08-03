@@ -14,7 +14,7 @@ import {
   IconNew,
   IconScripture,
   IconSettings,
-  IconWell,
+  IconRemember,
 } from './navIcons'
 
 const NATIVE = isTauri()
@@ -31,11 +31,12 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
-  wellActive: boolean
-  /** Opens ⌘K rather than routing — the Well needs a question before it has anything to show. */
-  onWell: () => void
-  /** The Well is feature-flagged off until ready — hide its rail destination when false. */
-  wellEnabled: boolean
+  rememberActive: boolean
+  /** Routes to the surface. It opens with the passages already set apart, so —
+   *  unlike the old Well — it has something to show before a question is asked. */
+  onRemember: () => void
+  /** Remember is feature-flagged off until ready — hide its rail destination when false. */
+  rememberEnabled: boolean
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -58,9 +59,9 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
-  wellActive,
-  onWell,
-  wellEnabled,
+  rememberActive,
+  onRemember,
+  rememberEnabled,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -115,7 +116,7 @@ export function Rail({
             label="Entries"
             shortcut="⌘1"
             onClick={onToggleEntries}
-            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive && !wellActive}
+            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive && !rememberActive}
             icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
@@ -157,14 +158,14 @@ export function Rail({
               labelsExpanded={labelsExpanded}
             />
           )}
-          {wellEnabled && (
+          {rememberEnabled && (
             <RailButton
-              label="Well"
-              subline="Ask what you've written"
-              shortcut="⌘K"
-              onClick={onWell}
-              active={wellActive}
-              icon={<IconWell />}
+              label="Remember"
+              subline="What you've set apart"
+              shortcut="⌘5"
+              onClick={onRemember}
+              active={rememberActive}
+              icon={<IconRemember />}
               labelsExpanded={labelsExpanded}
             />
           )}

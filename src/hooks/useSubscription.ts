@@ -7,7 +7,28 @@ export interface SubscriptionState {
   entitled: boolean
   featureFlags: string[]
   loading: boolean
+  /**
+   * True when we have never successfully read this account's subscription and
+   * the last attempt failed — offline, or the API is down.
+   *
+   * This is NOT the same as "no plan", and the difference matters: showing
+   * someone the "your trial has ended" screen because their wifi dropped is a
+   * lie about their account, and the buttons on it cannot work either. Callers
+   * should offer a retry instead. Once a value has been read (or restored from
+   * cache) this stays false and the cached plan governs, so a paying user who
+   * goes offline keeps writing.
+   */
+  unreachable: boolean
   refetch: () => Promise<void>
+}
+
+const NO_PLAN: Subscription = {
+  plan: 'none',
+  plan_source: null,
+  trial_ends_at: null,
+  plan_expires_at: null,
+  onboarded_at: null,
+  featureFlags: [],
 }
 
 export function useSubscription(): SubscriptionState {
@@ -15,24 +36,34 @@ export function useSubscription(): SubscriptionState {
   // the fetch below still runs immediately to reconcile in the background.
   const [subscription, setSubscription] = useState<Subscription | null>(readCachedSubscription)
   const [loading, setLoading] = useState(() => readCachedSubscription() === null)
+  const [unreachable, setUnreachable] = useState(false)
   const mountedRef = useRef(true)
 
   const load = useCallback(async () => {
     try {
       const sub = await fetchSubscription()
-      if (mountedRef.current) setSubscription(sub)
+      if (mountedRef.current) {
+        setSubscription(sub)
+        setUnreachable(false)
+      }
       writeCachedSubscription(sub)
     } catch {
-      // On error, keep whatever we already have (cached or null) rather than
-      // clobbering a real cached entitlement with "no plan" just because a
-      // single fetch failed (e.g. offline).
+      // Keep whatever we already have (cached or null) rather than clobbering a
+      // real cached entitlement with "no plan" just because one fetch failed.
       if (mountedRef.current) {
-        setSubscription((prev) => prev ?? { plan: 'none', plan_source: null, trial_ends_at: null, plan_expires_at: null, onboarded_at: null, featureFlags: [] })
+        setUnreachable((prev) => prev || subscriptionUnknown())
+        setSubscription((prev) => prev ?? NO_PLAN)
       }
     } finally {
       if (mountedRef.current) setLoading(false)
     }
   }, [])
+
+  /** Only flag unreachable when we genuinely have nothing to go on — a cached
+   *  subscription means the app can carry on and reconcile later. */
+  function subscriptionUnknown(): boolean {
+    return readCachedSubscription() === null
+  }
 
   useEffect(() => {
     mountedRef.current = true
@@ -55,6 +86,7 @@ export function useSubscription(): SubscriptionState {
     entitled: isEntitled(subscription),
     featureFlags: subscription?.featureFlags ?? [],
     loading,
+    unreachable,
     refetch: load,
   }
 }

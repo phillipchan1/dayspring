@@ -255,6 +255,22 @@
   display: none;
 }
 
+/* Touch has no scrollbar, so "Last year" was simply sliced flat by the right
+   edge with nothing to say there was more. Fade the overflow out and snap to
+   chips, so a half-visible chip reads as "keep going" rather than a rendering
+   bug. */
+@media (pointer: coarse) {
+  .scripture__seasons {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 2.5rem), transparent);
+    scroll-snap-type: x proximity;
+    padding-right: 2rem;
+  }
+  .scripture__chip {
+    scroll-snap-align: start;
+  }
+}
+
 .scripture__chip {
   flex: 0 0 auto;
   font-family: var(--font-serif);
@@ -809,11 +825,15 @@
   /* The mobile shell hides its safe-area-padded header on this surface
      (MobileJournal: canvasAlternateActive), so this padding is the only thing
      between Lamp and the status bar. */
+  /* The bottom padding reserves what the mobile chrome covers — the tab bar
+     plus the fixed .mobile-fab, which was landing on top of the last row of the
+     book grid ("2 Kings"). Without it the grid's final row is flush against the
+     bar and reads as sliced. */
   .scripture__column {
-    padding: calc(2rem + var(--safe-top)) 1.25rem 3.5rem;
+    padding: calc(2rem + var(--safe-top)) 1.25rem var(--mobile-chrome-h);
   }
   .scripture-book__inner {
-    padding: calc(2rem + var(--safe-top)) 1.4rem 3.5rem;
+    padding: calc(2rem + var(--safe-top)) 1.4rem var(--mobile-chrome-h);
   }
   /* Chapter heat-map: ChapterStrip sets up to 30 inline columns, which squeezes
      cells to ~10px on a phone. Wrap into as many rows as needed instead —

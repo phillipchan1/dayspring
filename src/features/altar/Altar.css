@@ -847,8 +847,10 @@
 @media (max-width: 767px) {
   /* The mobile shell hides its safe-area-padded header on this surface
      (MobileJournal: canvasAlternateActive) — this is the only status-bar gap. */
+  /* Reserve what the mobile chrome covers — the tab bar plus the fixed
+     .mobile-fab, which was sitting on top of the last card ("Esther"). */
   .altar__column {
-    padding: calc(2rem + var(--safe-top)) 1.25rem 3.5rem;
+    padding: calc(2rem + var(--safe-top)) 1.25rem var(--mobile-chrome-h);
   }
   .altar-controls {
     gap: 0.75rem;

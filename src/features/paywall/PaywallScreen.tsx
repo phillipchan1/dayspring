@@ -3,6 +3,7 @@ import { Brand } from '@/components/Mark'
 import { startCheckout } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
+  describeRestore,
   fetchAppleProducts,
   isAppleIapAvailable,
   purchaseApple,
@@ -18,6 +19,8 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
   const useApple = isAppleIapAvailable()
   const [loading, setLoading] = useState<'annual' | 'monthly' | 'restore' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Non-failure feedback — e.g. "we found your old subscription, it expired". */
+  const [notice, setNotice] = useState<string | null>(null)
   const [products, setProducts] = useState<Product[]>([])
 
   useEffect(() => {
@@ -37,7 +40,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
     setLoading(plan)
     try {
       if (useApple) {
-        const outcome = await purchaseApple(plan)
+        const { outcome, warning } = await purchaseApple(plan)
         if (outcome === 'cancelled') {
           setLoading(null)
           return
@@ -47,6 +50,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           setLoading(null)
           return
         }
+        if (warning) setNotice(warning)
         onPurchased?.()
         return
       }
@@ -60,17 +64,19 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
 
   async function handleRestore() {
     setError(null)
+    setNotice(null)
     setLoading('restore')
     try {
-      const n = await restoreApplePurchases()
-      if (n === 0) {
-        setError('No purchases found for this Apple ID.')
-        setLoading(null)
-        return
-      }
+      const outcome = await restoreApplePurchases()
+      // Always reconcile: even a non-entitling restore may have corrected the
+      // recorded plan, and the server decides what happens next.
       onPurchased?.()
+      const message = describeRestore(outcome)
+      if (message?.kind === 'error') setError(message.text)
+      else if (message) setNotice(message.text)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not restore purchases.')
+    } finally {
       setLoading(null)
     }
   }
@@ -171,6 +177,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           </p>
         )}
 
+        {notice && <p className="paywall__trial-note">{notice}</p>}
         {error && <p className="paywall__error">{error}</p>}
 
         {useApple && <AppleSubscriptionTerms />}

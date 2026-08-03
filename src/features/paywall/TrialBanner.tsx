@@ -26,7 +26,11 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
     setLoading(true)
     try {
       if (isAppleIapAvailable()) {
-        const outcome = await purchaseApple('annual')
+        const { outcome } = await purchaseApple('annual')
+        // A double-billing warning is deliberately not surfaced here: the banner
+        // has no room for it, and this path is unreachable for a Stripe
+        // subscriber anyway (the banner only shows during the app-managed
+        // trial, which has no payment source at either store).
         if (outcome === 'purchased') onPurchased?.()
         setLoading(false)
         return

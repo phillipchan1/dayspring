@@ -49,6 +49,49 @@ bonds/constellations idea (matters that rise together around a shared root) was 
 built and is the only piece worth revisiting.
 **Cost accepted:** ~425 lines of working, tested code discarded.
 
+## D-016 — Remember: the writer supplies the signal, never the app
+**2026-08-02** · **Status:** Decided (built, flag OFF pending the migration)
+**Decision:** A fourth Return surface, **Remember** (⌘5), holding what the writer set
+apart: passages they marked, blockquotes, markdown emphasis, and `/pray` blocks they
+declared. Marking is **one gesture with no decision attached** — no colours, tags,
+categories, notes-on-notes, folders, or saved searches. The ⌘K palette keeps saying FIND
+and ASK; the destination gets the true word.
+**Why "Remember":** `BRANDSCRIPT.md`'s approved word list opens with *remember* and the
+villain it names is *forgetting*, so the surface is named after the counterattack. It also
+closes the hole "Search" would have opened — nobody adds folders to Remember.
+**Why marking at all:** it is the only signal of significance that cannot violate
+Principle 1. The app never says which passage mattered; the writer already did.
+
+**Three sub-decisions, all driven by measurement** (`scripts/emphasis-audit.ts` against
+the real 3,540-entry archive):
+
+1. **Marks needed a table after all.** The first plan derived everything from existing
+   markdown, on the reasoning that formatting already carries significance. The archive
+   says it mostly doesn't: emphasis appears in 16% of entries, blockquotes in 4%, and 54%
+   of bold spans are a single word. **The absence of marks isn't evidence marking is
+   unwanted — it's evidence the affordance never existed.** Nobody bolds a sentence for
+   significance when nothing reads it back. Derived sources still seed the surface with
+   404 passages on day one; the table adds `noticed_at`, which no derived source can.
+2. **Scripture refs excluded.** 284 of 563 passages. Including them would make Remember
+   half a second Lamp.
+3. **Altar-harvested rows excluded.** `spiritual_items` looked like 6,276 free passages;
+   6,257 of them are `source = 'scanned'` — model-harvested — and **zero** were
+   writer-declared. Showing an inference as something the writer set apart is precisely
+   the verdict this product doesn't render.
+
+**Rejected: model-inferred significance.** *Recurrence is a count; significance is a
+verdict.* A sentence written near-verbatim across nine years is a fact computed in code.
+Which of your sentences mattered is not.
+**Emphasis is filtered structurally, not semantically.** A span must end as a sentence or
+run to seven words. An earlier version filtered by whether it sounded like the writer's
+own voice — which drops *"Did your life ever benefit from the five fold ministry?"* while
+keeping a bolded psalm. Deciding whose voice a sentence is in is a judgment we don't get
+to make; whether it ends is a fact.
+**What would change our mind:** users ask for colours or tags and the request survives a
+Principle 2 review; or Remember goes unvisited after 60 days, meaning re-reading isn't
+happening and Ask alone was the product.
+**Cost accepted:** one table, and a surface that is honestly thin for a fresh-start user.
+
 ---
 
 # OPEN — the live agenda

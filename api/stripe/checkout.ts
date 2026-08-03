@@ -8,6 +8,7 @@ import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
 import { stripe } from '../_lib/stripe.js'
 import { env } from '../_lib/env.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { appleMayStillCharge, type PlanState } from '../_lib/entitlement.js'
 import { preflight, withCors } from '../_lib/cors.js'
 
 export async function OPTIONS(req: Request): Promise<Response> {
@@ -37,24 +38,29 @@ export async function POST(req: Request): Promise<Response> {
   const sb = supabaseAdmin()
   const { data: profile } = await sb
     .from('profiles')
-    .select('stripe_customer_id, plan, plan_source')
+    .select('stripe_customer_id, plan, plan_source, trial_ends_at, plan_expires_at')
     .eq('owner', user.id)
-    .maybeSingle()
+    .maybeSingle<
+      { stripe_customer_id: string | null } & PlanState
+    >()
 
-  // Never let someone end up paying twice for the same journal. If this account
-  // is already carried by an App Store subscription, Stripe checkout is closed
-  // — they manage (and cancel) it in iOS Settings, and only then can they
-  // subscribe here. The client hides this path too; this is the backstop.
-  if (
-    profile?.plan_source === 'apple' &&
-    (profile.plan === 'active' || profile.plan === 'trialing')
-  ) {
+  // Never let someone end up paying twice for the same journal. While Apple may
+  // still charge this account, Stripe checkout is closed — they settle it with
+  // Apple first, and only then can they subscribe here.
+  //
+  // Not `plan_source === 'apple'` alone, and it must stay that way: someone
+  // whose App Store subscription has genuinely expired owes Apple nothing, and
+  // blocking them here strands anyone who cancelled on iOS and no longer has the
+  // device. This is the server half of the client's purchaseRoute() — if the two
+  // drift, the paywall offers a button the server rejects.
+  if (appleMayStillCharge(profile)) {
     return withCors(
       req,
       Response.json(
         {
           error:
-            'Your subscription is billed through the App Store. Manage it in Settings on your iPhone or iPad.',
+            'Your subscription is billed through the App Store. Manage it in Settings on your ' +
+            'iPhone or iPad, or at apps.apple.com/account/subscriptions in any browser.',
           code: 'managed_by_apple',
         },
         { status: 409 },

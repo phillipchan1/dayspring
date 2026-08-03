@@ -1,7 +1,8 @@
-// POST /api/ask — the Well's retrieval pass.
+// POST /api/ask — Remember's retrieval pass.
 //
 //   Authorization: Bearer <supabase access token>
-//   { "q": "tell me every time I talked about trading" }
+//   { "q": "tell me every time I talked about trading",
+//     "from": "2019-01-01", "to": "2021-12-31" }   // both optional
 //
 // Three legs, unioned, then arranged:
 //   1. LEXICAL   — the Concordance expands the question into the writer's OWN
@@ -10,8 +11,8 @@
 //                  table read, no model call.
 //   2. VECTOR    — cosine over entries.embedding, catching the entries that
 //                  circle the thing without ever naming it.
-//   3. ARRANGE   — ONE small nano pass that picks 3–4 beats from a trimmed
-//                  candidate set and writes a single line about the density.
+//   3. ARRANGE   — ONE small nano pass that picks 3–4 verbatim beats from a
+//                  trimmed candidate set. It selects; it does not narrate.
 //
 // Cost discipline (same rule as api/cron/echoes.ts): the model never sees the
 // corpus. It sees ~12 truncated candidates — roughly 2k tokens per question,
@@ -33,8 +34,6 @@ const LEXICAL_COUNT = 60
 const ARRANGE_SAMPLE = 12
 /** Per-candidate characters sent to the model. */
 const ARRANGE_CHARS = 700
-/** Buckets in the density strip the Well draws. */
-const BUCKETS = 92
 /** A vector hit further than this isn't about the question — it's just the nearest thing. */
 const MAX_DISTANCE = 0.62
 
@@ -43,7 +42,6 @@ const MAX_DISTANCE = 0.62
 const ARRANGE_SCHEMA = {
   type: 'object',
   properties: {
-    shape_line: { type: 'string' },
     beats: {
       type: 'array',
       items: {
@@ -58,19 +56,21 @@ const ARRANGE_SCHEMA = {
       },
     },
   },
-  required: ['shape_line', 'beats'],
+  required: ['beats'],
   additionalProperties: false,
 }
 
+// `shape_line` was removed deliberately. It was the only place a model wrote
+// prose about a user's life, and the weather grid says the same thing in counts
+// the reader can check. Selecting verbatim beats is what the model is actually
+// good at; describing a distribution is arithmetic.
 const ARRANGE_PROMPT = `You are arranging someone's own journal entries into the shape of a question they asked about their life.
 
 You are given their question and a set of candidate entries (id, date, an excerpt of what they wrote).
 
 Return:
 
-1. "shape_line" — ONE plain sentence about the DISTRIBUTION over time. Describe when they wrote about this and when they didn't. Say nothing about what it means, what they should do, or what kind of person they are. Good: "Constant through 2021 and 2022, then almost nothing until this spring." Bad: "This was clearly a difficult season of growth for you."
-
-2. "beats" — 3 or 4 moments, EARLIEST FIRST. For each:
+"beats" — 3 or 4 moments, EARLIEST FIRST. For each:
    - "entry_id": the id of the entry it came from, exactly as given
    - "tag": two or three words marking its place in the sequence — e.g. "First", "The turn", "Most recent", "Densest stretch"
    - "text": ONE OR TWO SENTENCES COPIED VERBATIM from that entry's excerpt
@@ -82,7 +82,6 @@ Rules:
 - If the candidates don't genuinely answer the question, return an empty beats array. Returning nothing is correct and expected.`
 
 interface ArrangeOut {
-  shape_line: string
   beats: { entry_id: string; tag: string; text: string }[]
 }
 
@@ -111,6 +110,11 @@ function iso(d: Date): string {
 
 function monthYear(ts: string): string {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+}
+
+/** Whole calendar months from `a` to `b`, UTC. Negative when b precedes a. */
+function monthsBetween(a: Date, b: Date): number {
+  return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth())
 }
 
 /** Longest run of consecutive months with no matching entry. */
@@ -187,7 +191,7 @@ export async function POST(req: Request): Promise<Response> {
   const user = await getAuthedUser(req)
   if (!user) return notAuthenticated()
 
-  let body: { q?: string }
+  let body: { q?: string; from?: string; to?: string }
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -196,6 +200,18 @@ export async function POST(req: Request): Promise<Response> {
   const q = (body.q ?? '').trim()
   if (!q) return Response.json({ error: 'q is required' }, { status: 400 })
   if (q.length > 400) return Response.json({ error: 'question too long' }, { status: 400 })
+
+  // Optional bounds for a date-anchored question ("when Dad was sick"). Both
+  // RPCs have accepted these since the original migration; nothing passed them
+  // until now. An unparseable value is ignored rather than rejected — a bad
+  // bound should widen the search, never fail it.
+  const bound = (v: string | undefined): string | null => {
+    if (!v) return null
+    const t = Date.parse(v)
+    return Number.isNaN(t) ? null : new Date(t).toISOString()
+  }
+  const fromTs = bound(body.from)
+  const toTs = bound(body.to)
 
   const sb = supabaseAdmin()
   const owner = user.id
@@ -209,7 +225,7 @@ export async function POST(req: Request): Promise<Response> {
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
     if (!oldest || !newest) {
-      return Response.json({ question: q, total: 0, beats: [], buckets: [], facts: [] })
+      return Response.json({ question: q, total: 0, beats: [], months: [], facts: [] })
     }
     const spanFrom = new Date(oldest.created_at as string)
     const spanTo = new Date(newest.created_at as string)
@@ -229,12 +245,16 @@ export async function POST(req: Request): Promise<Response> {
         query_embedding: toVectorLiteral(vec!),
         owner_id: owner,
         match_count: VECTOR_COUNT,
+        from_ts: fromTs,
+        to_ts: toTs,
       }),
       expansion
         ? sb.rpc('match_entries_lexical', {
             owner_id: owner,
             terms: expansion.terms,
             match_count: LEXICAL_COUNT,
+            from_ts: fromTs,
+            to_ts: toTs,
           })
         : Promise.resolve({ data: [], error: null }),
     ])
@@ -250,7 +270,7 @@ export async function POST(req: Request): Promise<Response> {
     ])
     if (ids.size === 0) {
       return Response.json({
-        question: q, total: 0, beats: [], buckets: [], facts: [],
+        question: q, total: 0, beats: [], months: [], facts: [],
         span: { from: iso(spanFrom), to: iso(spanTo) },
         expansion: expansion ? { canonical: expansion.canonical, forms: expansion.terms } : null,
         legs: { vector: 0, lexical: 0 },
@@ -276,17 +296,14 @@ export async function POST(req: Request): Promise<Response> {
     ]
     if (gap >= 2) facts.push({ value: `${gap} mo`, label: 'longest silence' })
 
-    // ── density buckets across the corpus span ──────────────────────────────
-    const t0 = spanFrom.getTime()
-    const t1 = spanTo.getTime()
-    const width = Math.max(1, t1 - t0)
-    const buckets = new Array<number>(BUCKETS).fill(0)
+    // ── month buckets across the corpus span ────────────────────────────────
+    // One slot per calendar month from the first entry, so the client can fold
+    // the span into a year × month grid. The old fixed-width strip couldn't be
+    // folded: its buckets didn't line up with months.
+    const months = new Array<number>(monthsBetween(spanFrom, spanTo) + 1).fill(0)
     for (const r of rows) {
-      const idx = Math.min(
-        BUCKETS - 1,
-        Math.max(0, Math.floor(((new Date(r.created_at).getTime() - t0) / width) * BUCKETS)),
-      )
-      buckets[idx] = (buckets[idx] ?? 0) + 1
+      const idx = monthsBetween(spanFrom, new Date(r.created_at))
+      if (idx >= 0 && idx < months.length) months[idx] = (months[idx] ?? 0) + 1
     }
 
     // ── leg 3: arrange (the only model call) ────────────────────────────────
@@ -312,7 +329,7 @@ export async function POST(req: Request): Promise<Response> {
         1024,
       )
     } catch {
-      arranged = null // the shape and the facts still stand without it
+      arranged = null // the facts and the grid still stand without it
     }
 
     // ── verbatim gate — a quote that isn't in its entry is dropped, not fixed ──
@@ -337,10 +354,9 @@ export async function POST(req: Request): Promise<Response> {
       question: q,
       total: rows.length,
       span: { from: iso(spanFrom), to: iso(spanTo) },
-      buckets,
+      months,
       facts,
       beats,
-      shapeLine: arranged?.shape_line?.trim() ?? null,
       expansion: expansion ? { canonical: expansion.canonical, forms: expansion.terms } : null,
       legs: { vector: vectorHits.length, lexical: lexicalHits.length },
       entryIds: rows.map((r) => r.id),

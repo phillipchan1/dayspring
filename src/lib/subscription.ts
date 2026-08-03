@@ -19,11 +19,87 @@ export interface Subscription {
   featureFlags: string[]
 }
 
-/** True when this account's money is with Apple, so Stripe checkout and the
- *  Stripe billing portal must both stay hidden — on every platform. */
-export function isAppleManaged(sub: Subscription | null): boolean {
-  if (!sub || sub.plan_source !== 'apple') return false
-  return sub.plan !== 'none'
+/**
+ * How long access outlives the moment billing says it should stop — a dropped
+ * renewal webhook or a card in dunning. Mirrors api/_lib/entitlement.ts, which
+ * carries the full reasoning; api/_lib/entitlementParity.test.ts fails if the
+ * two ever disagree.
+ */
+export const GRACE_DAYS = 3
+const GRACE_MS = GRACE_DAYS * 86_400_000
+
+/** True when `iso` is a real timestamp that fell more than `graceMs` ago.
+ *  Absent and unparseable both mean "no evidence of a lapse" — a null expiry is
+ *  the normal healthy state for Stripe, and neither is a reason to take
+ *  someone's journal away. */
+function lapsed(iso: string | null | undefined, now: number, graceMs: number): boolean {
+  if (!iso) return false
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return false
+  return t + graceMs <= now
+}
+
+/**
+ * True when the App Store might still take money from this account.
+ *
+ * The guard for **purchase** surfaces: selling a Stripe subscription to someone
+ * Apple is also charging is how one person pays twice for one journal, and
+ * neither store refunds the other's charge.
+ *
+ * The line is at `cancelled`, not at entitlement. `past_due` is on the "still
+ * charging" side because Apple's BILLING_RETRY keeps retrying the card for up
+ * to 60 days — and that user's fix (update the payment method at Apple) works
+ * from any browser, so it strands nobody.
+ *
+ * But once Apple reports EXPIRED or REVOKED, the relationship is over and they
+ * must be free to subscribe on the web. The old source-only rule left anyone who
+ * cancelled on iOS permanently unable to pay us again from a browser — told to
+ * open an iPhone they may no longer own, while the server would gladly have
+ * taken the payment. Mirrors appleMayStillCharge() in api/_lib/entitlement.ts.
+ */
+export function appleMayStillCharge(sub: Subscription | null): boolean {
+  if (sub?.plan_source !== 'apple') return false
+  return sub.plan === 'active' || sub.plan === 'trialing' || sub.plan === 'past_due'
+}
+
+/**
+ * True when this account's billing relationship lives at Apple, live or lapsed.
+ *
+ * The guard for **management** surfaces. A cancelled App Store subscription is
+ * still only visible — and only refundable — in the App Store, so "Manage
+ * billing" keeps pointing there after it lapses. A Stripe portal would 404.
+ */
+export function isAppleRelationship(sub: Subscription | null): boolean {
+  return sub?.plan_source === 'apple' && sub.plan !== 'none'
+}
+
+/** Where a *new* purchase has to go. */
+export type PurchaseRoute =
+  /** StoreKit in-app purchase. */
+  | 'apple-iap'
+  /** Stripe Checkout. */
+  | 'stripe'
+  /** Apple already bills them, but they aren't on an Apple device — there is no
+   *  purchase to make here, only a subscription to manage over there. */
+  | 'apple-elsewhere'
+
+/**
+ * Route a purchase by device first, then by who already bills them.
+ *
+ * Device first because the App Store requires digital goods on iOS to go through
+ * StoreKit — a Stripe checkout on an iPhone is a rejection, regardless of how
+ * the account was billed before.
+ *
+ * Off an Apple device, the only reason to withhold Stripe is that Apple may
+ * still charge them. A cancelled or expired App Store subscriber gets Stripe —
+ * the path that used to dead-end.
+ */
+export function purchaseRoute(
+  sub: Subscription | null,
+  { onAppleDevice }: { onAppleDevice: boolean },
+): PurchaseRoute {
+  if (onAppleDevice) return 'apple-iap'
+  return appleMayStillCharge(sub) ? 'apple-elsewhere' : 'stripe'
 }
 
 /** Where "Manage billing" has to send this account. */
@@ -49,7 +125,9 @@ export function billingDestination(
   sub: Subscription | null,
   { onAppleDevice }: { onAppleDevice: boolean },
 ): BillingDestination {
-  if (isAppleManaged(sub)) return onAppleDevice ? 'apple-native' : 'apple-web'
+  // Relationship, not entitlement: someone whose App Store subscription already
+  // lapsed still manages (and disputes) it at Apple.
+  if (isAppleRelationship(sub)) return onAppleDevice ? 'apple-native' : 'apple-web'
   return 'stripe'
 }
 
@@ -69,13 +147,38 @@ export function hasBillingRelationship(sub: Subscription | null): boolean {
   return true
 }
 
-export function isEntitled(sub: Subscription | null): boolean {
+/**
+ * The single entitlement question: can this account open the journal right now?
+ *
+ * Must stay behaviourally identical to api/_lib/entitlement.ts — the server
+ * enforces it, this paints the UI, and a disagreement means either a lockout or
+ * a free ride. `now` is injectable so tests pin time instead of sleeping.
+ */
+export function isEntitled(sub: Subscription | null, now: number = Date.now()): boolean {
   if (!sub) return false
-  if (sub.plan === 'active') return true
-  if (sub.plan === 'trialing' && sub.trial_ends_at) {
-    return new Date(sub.trial_ends_at) > new Date()
+
+  switch (sub.plan) {
+    case 'active':
+      // Healthy Stripe rows carry no expiry, so this is a no-op for them and a
+      // backstop for Apple: an 'active' row long past its renewal date means we
+      // never heard the renewal, not that someone is entitled forever.
+      return !lapsed(sub.plan_expires_at, now, GRACE_MS)
+
+    case 'trialing':
+      // The only branch with no grace — a trial's whole contract is its end date.
+      return sub.trial_ends_at != null && !lapsed(sub.trial_ends_at, now, 0)
+
+    case 'past_due':
+      // Dunning grace, measured from when billing actually failed.
+      return sub.plan_expires_at != null && !lapsed(sub.plan_expires_at, now, GRACE_MS)
+
+    case 'cancelled':
+    case 'none':
+      return false
+
+    default:
+      return false
   }
-  return false
 }
 
 export function trialDaysRemaining(sub: Subscription | null): number {

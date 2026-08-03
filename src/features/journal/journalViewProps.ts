@@ -52,7 +52,7 @@ export interface JournalViewProps {
    * The Well is gated behind the `well` feature flag. False hides its nav
    * destinations only — the `well` route and the ⌘K Find palette still work.
    */
-  wellEnabled: boolean
+  rememberEnabled: boolean
   onOpenSettings: () => void
   /** Force a full re-sync from the server (pull latest + flush outbox). */
   onSync: () => void
@@ -74,9 +74,11 @@ export interface JournalViewProps {
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
   /** True when the Well fills the main canvas. */
-  wellActive: boolean
+  rememberActive: boolean
   /** Open ⌘K — Find (instant, local) or Ask (the Well). */
   onFindOrAsk: () => void
+  /** Open the Remember surface (rail ⌘5 / mobile tab). */
+  onRemember: () => void
   /** Set when reading an entry opened from Lamp / Altar / Ascent. */
   entryReturn: EntryReturnContext | null
   onReturnFromEntry: () => void

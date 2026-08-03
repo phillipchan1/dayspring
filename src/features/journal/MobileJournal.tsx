@@ -17,7 +17,7 @@ import {
   IconEntries,
   IconNew,
   IconScripture,
-  IconWell,
+  IconRemember,
   IconSettings,
 } from './navIcons'
 import type { ReactNode } from 'react'
@@ -35,9 +35,9 @@ const EDGE_ZONE = 28
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, wellEnabled, onOpenSettings, onSync, onFindOrAsk,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
-    reflectionsActive, altarActive, scriptureActive, wellActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, rememberActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -53,7 +53,7 @@ export function MobileJournal(props: JournalViewProps) {
   }
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || rememberActive
   const journalChrome = !canvasAlternateActive
 
   function closeDrawer() {
@@ -217,12 +217,12 @@ export function MobileJournal(props: JournalViewProps) {
                 icon={<IconAltar size={22} />}
               />
             )}
-            {wellEnabled && (
+            {rememberEnabled && (
               <MobileTab
-                label="Well"
-                onClick={onFindOrAsk}
-                active={wellActive}
-                icon={<IconWell size={22} />}
+                label="Remember"
+                onClick={onRemember}
+                active={rememberActive}
+                icon={<IconRemember size={22} />}
               />
             )}
             <MobileTab

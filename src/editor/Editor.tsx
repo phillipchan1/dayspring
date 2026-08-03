@@ -23,6 +23,8 @@ import { LinkPopover, type LinkPopoverTarget } from './LinkPopover'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
+import { applyMarks, marksField } from './markDecoration'
+import { anchorOf, normalizeQuote, type Mark } from '@/lib/marks'
 import { taskListExtension } from './taskListExtension'
 import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
@@ -125,6 +127,18 @@ interface EditorProps {
   ) => void
   /** Called when the user opens a practice's "about" sheet (by practice name). */
   onAboutPractice?: (name: string) => void
+  /**
+   * Passages already marked in this entry. Drawn as a quiet ground.
+   */
+  marks?: Mark[]
+  /**
+   * Set the selected text aside, or clear it if it is already marked.
+   *
+   * Absent while composing. Marking is a READING act: the caller passes this
+   * only for an entry written on a previous day, so today's page keeps exactly
+   * the bar it has always had and the writing surface gains nothing.
+   */
+  onToggleMark?: (quote: string, charStart: number, alreadyMarked: Mark | null) => void
 }
 
 /**
@@ -154,6 +168,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onAboutPractice,
     onSlashPaletteChange,
     skipAutofocusRef,
+    marks,
+    onToggleMark,
   },
   ref,
 ) {
@@ -367,6 +383,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           spiritualBlocksField,
           spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
           scriptureRefDecoration(),
+          // Marked passages. Reads spiritualBlocksField above, same as the
+          // scripture underline, so it must stay below it.
+          marksField,
           taskListExtension(),
           // Renders /practice prompts as display-only decorations over hidden tokens.
           practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
@@ -477,6 +496,54 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onSlashPaletteChange?.(slashState !== null)
   }, [slashState, onSlashPaletteChange])
 
+  // Push marks into the view when they load or change. Between pushes the field
+  // maps its ranges through edits itself, so typing never re-runs this.
+  useEffect(() => {
+    const view = viewRef.current
+    if (view) applyMarks(view, marks ?? [])
+  }, [marks, docKey])
+
+  // Touch: the palette is a bottom sheet, so it covers the lower half of the
+  // editor. Docking it there is what keeps it off the caret — but only if the
+  // caret then moves above it, so scroll the line being written clear of the
+  // sheet. Measured rather than assumed: the sheet's height depends on how many
+  // commands survived the query.
+  const slashOpen = slashState !== null
+  useEffect(() => {
+    if (!slashOpen) return
+    if (!window.matchMedia('(pointer: coarse)').matches) return
+    const host = hostRef.current
+    if (!host || !viewRef.current) return
+    // The scroll only has somewhere to go if the document is taller than the
+    // scrollport, and most entries aren't — so open up room below the last line
+    // first (CSS: `.editor-host[data-slash-sheet]`). Removing it again on close
+    // lets CodeMirror clamp the scroll back.
+    host.dataset.slashSheet = 'true'
+    // A frame, so the sheet has laid out and the padding has taken effect.
+    const raf = requestAnimationFrame(() => {
+      const sheet = document.querySelector('.slash-palette--sheet')
+      const view = viewRef.current
+      if (!sheet || !view) return
+      // How much of the *scroller* the sheet actually hides — not the sheet's
+      // own height, which overshoots (the sheet extends past the editor, over
+      // the command bar) and scrolls the line clean off the top.
+      const hidden = Math.max(
+        0,
+        view.scrollDOM.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top,
+      )
+      view.dispatch({
+        effects: EditorView.scrollIntoView(view.state.selection.main.head, {
+          y: 'end',
+          yMargin: hidden + 12,
+        }),
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf)
+      delete host.dataset.slashSheet
+    }
+  }, [slashOpen, slashState?.query])
+
   function handleSlashSelect(sel: SlashSelection) {
     const view = viewRef.current
     const s = slashState
@@ -497,12 +564,54 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     setSlashState(null)
   }
 
+  /**
+   * Backing out on purpose — the scrim, the grab handle, or Cancel. Unlike
+   * `handleSlashDismiss` (which also fires when the query stops matching
+   * anything, mid-typing), this takes the `/command` text with it: on touch the
+   * only way to close the old popover was to tap elsewhere, which left a literal
+   * `/` sitting in the entry.
+   */
+  function handleSlashCancel() {
+    const view = viewRef.current
+    const s = slashState
+    setSlashState(null)
+    if (!view || !s) return
+    view.dispatch({ changes: { from: s.from, to: s.to, insert: '' }, selection: { anchor: s.from } })
+    view.focus()
+  }
+
+  /** The mark covering the current selection, if the writer already set it aside. */
+  const selectionMark = (() => {
+    if (!formatBar || !marks?.length) return null
+    const { from, to } = formatBar.view.state.selection.main
+    if (from === to) return null
+    const body = formatBar.view.state.doc.toString()
+    return (
+      marks.find((m) => {
+        const at = anchorOf(body, m)
+        // Overlap, not equality: re-selecting "roughly that sentence" should
+        // offer to unmark rather than silently mark a near-duplicate.
+        return at != null && at < to && at + m.quote.length > from
+      }) ?? null
+    )
+  })()
+
+  const handleToggleMark = (view: EditorView) => {
+    const { from, to } = view.state.selection.main
+    if (from === to) return
+    onToggleMark?.(normalizeQuote(view.state.sliceDoc(from, to)), from, selectionMark)
+    // The bar is transient; dismissing it makes the mark feel committed.
+    setFormatBar(null)
+  }
+
   return (
     <>
       <div ref={hostRef} className="editor-host" style={{ height: '100%' }} />
       <SelectionFormatBar
         anchor={linkTarget ? null : formatBar}
         onRequestLink={(view) => requestLinkRef.current(view)}
+        onMark={onToggleMark ? handleToggleMark : undefined}
+        marked={!!selectionMark}
       />
       {linkTarget && (
         <LinkPopover
@@ -528,6 +637,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           state={slashState}
           onSelect={handleSlashSelect}
           onDismiss={handleSlashDismiss}
+          onCancel={handleSlashCancel}
         />
       )}
     </>

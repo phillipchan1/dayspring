@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import './Capture.css'
 
 export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture' | 'image'
@@ -106,6 +107,15 @@ export function CommandPopover({
   // (e.g. scripture results) can never spill behind an on-screen keyboard.
   const keyboardInset = useKeyboardInset()
 
+  // The grab handle was decorative — the pill said "swipe me away" and nothing
+  // happened. At full height the scrim above the sheet is an ~82pt strip sitting
+  // under the Dynamic Island, which is not a dismiss target, so the handle has
+  // to actually work.
+  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({
+    onDismiss,
+    enabled: isMobile,
+  })
+
   const panelWidth = Math.min(440, anchor.width, window.innerWidth - 32)
   const style: React.CSSProperties = isMobile
     ? {
@@ -118,6 +128,8 @@ export function CommandPopover({
         // scrim — so you stay anchored in "still editing my entry".
         maxHeight: `calc(100dvh - ${keyboardInset}px - 56px)`,
         zIndex: 8500,
+        transform: dragY ? `translateY(${dragY}px)` : undefined,
+        transition: dragging ? 'none' : undefined,
       }
     : {
         position: 'fixed',
@@ -143,10 +155,28 @@ export function CommandPopover({
       role={role}
       aria-label={ariaLabel}
       onMouseDown={(e) => e.stopPropagation()}
+      {...(isMobile ? dragHandlers : {})}
     >
-      {isMobile && <div className="command-popover__grab" aria-hidden />}
+      {isMobile && (
+        <div className="command-popover__handle">
+          <div className="command-popover__grab" aria-hidden />
+          {/* Named exit. The scrim and the handle both dismiss, but a sheet at
+              90% height leaves neither obvious. */}
+          <button
+            type="button"
+            className="command-popover__close"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onDismiss}
+            aria-label={`Close ${ariaLabel}`}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {header}
-      <div className="command-popover__body">{children}</div>
+      <div className="command-popover__body" data-sheet-scroll={isMobile ? '' : undefined}>
+        {children}
+      </div>
       {footer != null && <footer className="command-popover__footer">{footer}</footer>}
     </div>
   )

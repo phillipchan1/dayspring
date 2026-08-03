@@ -114,13 +114,14 @@ export function IconFocus(props: { size?: number }) {
   )
 }
 
-export function IconWell(props: { size?: number }) {
-  // A bucket on the rim — you return to a well daily, and lower something into it.
+export function IconRemember(props: { size?: number }) {
+  // A page with one line set apart. Reads as a passage kept, not as a bookmark
+  // (which would say "unread") and not as a star (which would say "rated") —
+  // the rail must not imply the app has an opinion about which lines are best.
   return (
     <NavIcon {...props}>
-      <path d="M3 7h18" />
-      <path d="M5.5 7 7 19a1 1 0 0 0 1 .8h8a1 1 0 0 0 1-.8L18.5 7" />
-      <path d="M12 2.5V7" />
+      <path d="M5 3.5h14v17l-7-4-7 4v-17z" />
+      <path d="M9 9h6" />
     </NavIcon>
   )
 }

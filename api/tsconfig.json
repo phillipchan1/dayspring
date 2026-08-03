@@ -4,7 +4,11 @@
     "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node"],
+    // `vite/client` is here only for the parity/journey tests, which import the
+    // client's copy of the entitlement rule from src/ on purpose — that shared
+    // check is what stops the two copies drifting. It pulls src/lib/env.ts into
+    // this program, and that file reads import.meta.env. No api/ source uses it.
+    "types": ["node", "vite/client"],
     "skipLibCheck": true,
     "noEmit": true,
     "strict": true,

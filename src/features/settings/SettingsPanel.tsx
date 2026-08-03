@@ -18,11 +18,14 @@ import {
   billingDestination,
   fetchPortalUrl,
   hasBillingRelationship,
-  isAppleManaged,
+  isAppleRelationship,
+  purchaseRoute,
+  startCheckout,
   trialDaysRemaining,
 } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
+  describeRestore,
   fetchAppleProducts,
   isAppleIapAvailable,
   manageAppleSubscriptions,
@@ -718,9 +721,15 @@ function BillingTab() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
   const [iapLoading, setIapLoading] = useState<'annual' | 'monthly' | 'restore' | null>(null)
+  /** Non-failure feedback, e.g. a restore that found only expired purchases. */
+  const [notice, setNotice] = useState<string | null>(null)
 
-  const appleManaged = isAppleManaged(subscription)
   const onIos = isAppleIapAvailable()
+  // Two different questions, and conflating them is what stranded lapsed Apple
+  // subscribers on the web: where the relationship is *managed* (survives
+  // cancellation) vs. where a new purchase has to *go*.
+  const appleRelationship = isAppleRelationship(subscription)
+  const route = purchaseRoute(subscription, { onAppleDevice: onIos })
 
   // StoreKit-supplied, storefront-correct prices. Empty until Apple answers;
   // the plan cards render the cadence rather than a wrong figure until then.
@@ -777,9 +786,11 @@ function BillingTab() {
     setPortalError(null)
     setIapLoading(plan)
     try {
-      const outcome = await purchaseApple(plan)
-      if (outcome === 'purchased') await refetch()
-      else if (outcome === 'pending') {
+      const { outcome, warning } = await purchaseApple(plan)
+      if (outcome === 'purchased') {
+        if (warning) setNotice(warning)
+        await refetch()
+      } else if (outcome === 'pending') {
         setPortalError('Purchase is pending approval.')
       }
     } catch (e) {
@@ -791,14 +802,32 @@ function BillingTab() {
 
   async function handleAppleRestore() {
     setPortalError(null)
+    setNotice(null)
     setIapLoading('restore')
     try {
-      const n = await restoreApplePurchases()
-      if (n === 0) setPortalError('No purchases found for this Apple ID.')
-      else await refetch()
+      const outcome = await restoreApplePurchases()
+      // Reconcile regardless: a non-entitling restore can still correct the
+      // recorded plan, and the server is the authority on what happens next.
+      await refetch()
+      const message = describeRestore(outcome)
+      if (message?.kind === 'error') setPortalError(message.text)
+      else if (message) setNotice(message.text)
     } catch (e) {
       setPortalError(e instanceof Error ? e.message : 'Could not restore purchases.')
     } finally {
+      setIapLoading(null)
+    }
+  }
+
+  /** Web/desktop purchase. Only reachable when Apple isn't still charging them
+   *  — see purchaseRoute; the server enforces the same rule. */
+  async function handleStripePurchase(plan: 'annual' | 'monthly') {
+    setPortalError(null)
+    setIapLoading(plan)
+    try {
+      await openExternal(await startCheckout(plan), { sameTab: true })
+    } catch (e) {
+      setPortalError(e instanceof Error ? e.message : 'Could not open checkout.')
       setIapLoading(null)
     }
   }
@@ -829,7 +858,7 @@ function BillingTab() {
       // Always name who takes the money. It's the one fact that tells you where
       // to go to cancel, and getting it wrong is what sent Stripe subscribers
       // hunting through an empty App Store subscription list.
-      detail: appleManaged
+      detail: appleRelationship
         ? 'Billed through the App Store.'
         : subscription?.plan_source === 'stripe'
           ? 'Billed on the web through Stripe.'
@@ -843,8 +872,9 @@ function BillingTab() {
   // no customer at either store, so a portal link would 404 on both paths.
   const hasPortal = hasBillingRelationship(subscription)
   const showPlans = plan === 'none' || plan === 'cancelled'
-  // Never offer Stripe purchase UI on iOS, or for Apple-managed accounts.
-  const canStripePurchase = !onIos && !appleManaged
+  // Never offer Stripe purchase UI on iOS (App Store rules), nor while Apple may
+  // still charge this account (double billing).
+  const canStripePurchase = route === 'stripe'
 
   return (
     <div className="settings-stack">
@@ -883,7 +913,7 @@ function BillingTab() {
             <div className="settings-field__head">
               <span className="settings-field__label">Manage billing</span>
               <span className="settings-field__hint">
-                {appleManaged
+                {appleRelationship
                   ? 'Update your payment method, switch plans, or cancel in the App Store.'
                   : 'Update your payment method, switch plans, or cancel via Stripe.'}
               </span>
@@ -892,7 +922,7 @@ function BillingTab() {
               <button className="btn" onClick={() => void openPortal()} disabled={portalLoading}>
                 {portalLoading
                   ? 'Opening…'
-                  : appleManaged
+                  : appleRelationship
                     ? 'Manage in App Store →'
                     : 'Open billing portal →'}
               </button>
@@ -939,14 +969,24 @@ function BillingTab() {
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>{p.label}</div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>{p.price}</div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>{p.note}</div>
-                  {onIos && (
+                  {/* Web used to render these cards with no button at all, so a
+                      cancelled subscriber opening Settings saw two prices and no
+                      way to pay. Both routes get a Subscribe button now; which
+                      one is decided by purchaseRoute, not by the device alone. */}
+                  {(onIos || canStripePurchase) && (
                     <button
                       className="btn"
                       style={{ marginTop: '0.55rem', width: '100%', fontSize: '0.78rem' }}
                       disabled={iapLoading !== null}
-                      onClick={() => void handleApplePurchase(p.plan)}
+                      onClick={() =>
+                        void (onIos ? handleApplePurchase(p.plan) : handleStripePurchase(p.plan))
+                      }
                     >
-                      {iapLoading === p.plan ? 'Confirming…' : 'Subscribe'}
+                      {iapLoading === p.plan
+                        ? onIos
+                          ? 'Confirming…'
+                          : 'Redirecting…'
+                        : 'Subscribe'}
                     </button>
                   )}
                 </div>
@@ -962,9 +1002,15 @@ function BillingTab() {
                 {iapLoading === 'restore' ? 'Restoring…' : 'Restore purchases'}
               </button>
             )}
-            {!canStripePurchase && !onIos && appleManaged && (
+            {route === 'apple-elsewhere' && (
               <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>
-                This subscription is billed through Apple. Open Dayspring on your iPhone to renew.
+                The App Store still bills this account. Settle it there first — on your iPhone or
+                iPad, or at apps.apple.com/account/subscriptions in any browser.
+              </p>
+            )}
+            {notice && (
+              <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>
+                {notice}
               </p>
             )}
             {portalError && showPlans && (

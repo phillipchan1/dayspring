@@ -9,11 +9,11 @@ const FLAG_ENV: Record<string, string> = {
   // engine populates silently; this only exposes the inspect/curate UI. Enable
   // per-user via profiles.feature_flags or VITE_FF_CONCORDANCE=true.
   concordance: 'VITE_FF_CONCORDANCE',
-  // The Well (ask-your-own-writing). Off by default — the surface itself works,
-  // but it isn't ready to be a shipped destination, so its nav affordances (the
-  // mobile tab and the desktop rail button) stay hidden. The ⌘K Find palette and
-  // the 'well' route are untouched.
-  well: 'VITE_FF_WELL',
+  // Remember (what you've set apart, and ask the rest). Off by default while it
+  // proves out. Hiding the flag hides only the nav affordances — the mobile tab
+  // and the desktop rail button. The ⌘K Find palette and the route itself are
+  // untouched, so ⌘K → Ask still lands somewhere real.
+  remember: 'VITE_FF_REMEMBER',
 }
 
 /**

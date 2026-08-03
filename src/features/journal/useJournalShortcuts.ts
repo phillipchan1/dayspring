@@ -17,8 +17,10 @@ export interface JournalShortcutActions {
   onScripture: () => void
   onAltar: () => void
   onOpenSettings: () => void
-  /** ⌘K — Find (instant, local) or Ask (the Well). */
+  /** ⌘K — Find (instant, local) or Ask (Remember). */
   onFindOrAsk: () => void
+  /** ⌘5 — the Remember surface. */
+  onRemember: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
   /** Increase editor font size (⌘= or ⌘+). */
@@ -36,7 +38,7 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–4 rail · ⌘, settings
+ * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–5 rail · ⌘, settings
  * ⌘S save · ⌘K search · ⌘⏎ focus
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
@@ -49,6 +51,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onAltar,
     onOpenSettings,
     onFindOrAsk,
+    onRemember,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,
@@ -127,12 +130,13 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      if (key >= '1' && key <= '4' && !e.shiftKey) {
+      if (key >= '1' && key <= '5' && !e.shiftKey) {
         e.preventDefault()
         if (key === '1') onToggleEntries()
         else if (key === '2') onLookBack()
         else if (key === '3') onScripture()
         else if (key === '4') onAltar()
+        else if (key === '5') onRemember()
         return
       }
 
@@ -157,6 +161,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onAltar,
     onOpenSettings,
     onFindOrAsk,
+    onRemember,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,

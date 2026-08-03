@@ -43,10 +43,13 @@ targets:
         LSRequiresIPhoneOS: true
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [arm64, metal]
+        # iPhone is portrait-only. Landscape on a phone is 874pt wide, which is
+        # over useIsMobile()'s 767px breakpoint, so the app renders the desktop
+        # rail-plus-two-panes layout on a 874×402 screen. Matches
+        # public/manifest.webmanifest. iPad keeps all four — it is wide enough
+        # for the desktop layout by design.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown

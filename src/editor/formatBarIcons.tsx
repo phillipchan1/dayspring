@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react'
 import type { FormatAction } from './formatSelection'
 
-export function FormatBarIcon({ action }: { action: FormatAction }) {
+/**
+ * `mark` is not a FormatAction: it writes no markdown and changes no character
+ * of the entry. It rides this bar because the bar is the affordance that already
+ * appears on a selection — adding it here costs the writing surface nothing,
+ * which is the whole constraint (Principle 3).
+ */
+export type BarAction = FormatAction | 'mark'
+
+export function FormatBarIcon({ action }: { action: BarAction }) {
   return (
     <svg
       className="format-bar__icon"
@@ -20,7 +28,10 @@ export function FormatBarIcon({ action }: { action: FormatAction }) {
   )
 }
 
-const paths: Record<FormatAction, ReactNode> = {
+const paths: Record<BarAction, ReactNode> = {
+  // A bookmark, not a highlighter pen: marking sets a passage aside, it doesn't
+  // colour it. Filled so it reads as a state, not another formatting toggle.
+  mark: <path d="M7 4h10v16l-5-4-5 4V4z" />,
   bold: <path d="M7 5h7a4 4 0 0 1 0 8H7V5zm0 8h8a4 4 0 0 1 0 8H7v-8z" />,
   italic: <path d="M11 5h10M7 19h10M14 5l-4 14" />,
   strike: (
@@ -64,13 +75,30 @@ const paths: Record<FormatAction, ReactNode> = {
   ),
 }
 
-export const FORMAT_BAR_ACTIONS: { action: FormatAction; label: string; title: string }[] = [
+/**
+ * `sep` draws the divider before an item. It used to be a hard-coded `i === 4`
+ * in the bar, which silently pointed at the wrong button the moment this list
+ * changed — as it did when `mark` was added at the front.
+ */
+export const FORMAT_BAR_ACTIONS: {
+  action: BarAction
+  label: string
+  title: string
+  sep?: true
+}[] = [
   { action: 'bold', label: 'Bold', title: 'Bold (⌘B)' },
   { action: 'italic', label: 'Italic', title: 'Italic (⌘I)' },
   { action: 'strike', label: 'Strikethrough', title: 'Strikethrough' },
   { action: 'code', label: 'Code', title: 'Inline code (⌘E)' },
-  { action: 'link', label: 'Link', title: 'Link (⌘K)' },
+  { action: 'link', label: 'Link', title: 'Link (⌘K)', sep: true },
   { action: 'list', label: 'List', title: 'Bullet list' },
   { action: 'quote', label: 'Quote', title: 'Blockquote' },
   { action: 'heading', label: 'Heading', title: 'Heading' },
 ]
+
+/** Prepended when the open entry is old enough to be re-read rather than written. */
+export const MARK_BAR_ACTION = {
+  action: 'mark' as const,
+  label: 'Mark',
+  title: 'Mark this passage',
+}

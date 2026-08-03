@@ -10,6 +10,16 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+
+  /* What the mobile chrome covers, so scrolling surfaces can reserve it instead
+     of letting the tab bar slice their last row in half.
+     `--mobile-bar-h` is `.mobile-bar--tabs` measured: 0.4rem padding-top + a
+     50px tab + a 1px border, over the home-indicator inset.
+     `--mobile-chrome-h` adds the `.mobile-fab` floating above it (52px disc,
+     ~10px clear of the bar) — the FAB was covering tappable Lamp and Altar
+     cards, so content stops above it too. */
+  --mobile-bar-h: calc(var(--safe-bottom) + 3.6rem);
+  --mobile-chrome-h: calc(var(--mobile-bar-h) + 4rem);
 }
 
 *,
@@ -18,10 +28,26 @@
   box-sizing: border-box;
 }
 
+/* The document itself never scrolls — this is an app shell, not a page, and
+   `.app-shell` owns every scroller inside it. Pinning html/body is what stops
+   WKWebView scrolling the document to reveal the caret on editor focus, which
+   used to slide the header up behind the status bar (keyboard up) or leave a
+   band under the Dynamic Island (accessory bar only), and — because a scrolled
+   document offsets everything `position: fixed` — dropped the docked
+   CommandToolbar 59pt above the keyboard with dead background between them.
+   `useKeyboardInset`'s arithmetic was always right; the scroll defeated it. */
 html,
-body,
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 #root {
   height: 100%;
+  min-height: 0;
 }
 
 html {
@@ -1620,10 +1646,67 @@ a {
   .restrict-banner .btn {
     min-height: 44px;
   }
-  /* Let our long-press own the gesture — no iOS text-selection callout. */
-  .entry-row {
+  /* iOS treats everything as selectable text, so a long press anywhere in the
+     app's chrome raises the system `Copy | Look Up | Translate` callout — on
+     top of whatever the app meant the gesture to do. Long-pressing an entry row
+     fired the app's own context menu *and* turned the whole drawer blue;
+     long-pressing an Altar filter chip (a plain `<button>`) produced selection
+     handles. The unprefixed `user-select` alone was not holding — WebKit needs
+     `-webkit-touch-callout` to suppress the callout and the prefixed
+     `-webkit-user-select` to suppress the selection.
+
+     Chrome opts out; prose stays selectable below, because people copy their
+     own words. */
+  button,
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  nav,
+  header,
+  label,
+  .mobile-tab,
+  .mobile-bar,
+  .mobile-fab,
+  .entry-row,
+  .drawer,
+  .rail,
+  .segmented,
+  .toggle-pill,
+  .status-cluster {
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
     user-select: none;
+  }
+
+  /* ...but never the words themselves. The editor, scripture text, and the
+     verbatim quotes the Ascent / Altar / Lamp surfaces are built out of are all
+     things people copy — including out of a card that is itself a button, which
+     is why these have to win back what the rule above took. */
+  .cm-editor,
+  .cm-content,
+  .markdown-body,
+  .ascent-hl__quote,
+  .ascent-word__text,
+  .altar-ev__quote,
+  .practice-card__quote,
+  .practice-sheet__quote,
+  [data-selectable] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* No 300ms tap delay and no stray double-tap zoom on the controls a thumb
+     hits most. Only three `touch-action` declarations existed app-wide. */
+  .mobile-bar,
+  .mobile-tab,
+  .mobile-fab,
+  .altar-pill,
+  .scripture__chip,
+  .practice-filter,
+  .command-toolbar__btn,
+  .slash-palette__item {
+    touch-action: manipulation;
   }
 }
 /* Phones already size entry rows at ≤767px; this lifts the iPad/desktop list
@@ -2311,6 +2394,13 @@ html[data-focus-mode] .focus-controls {
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-soft) 20%, transparent);
 }
+/* While the touch slash sheet is docked over the lower half of the editor, give
+   the document somewhere to scroll to — otherwise an entry shorter than the
+   scrollport can't move its caret out from behind the sheet (see Editor.tsx). */
+.editor-host[data-slash-sheet] .cm-content {
+  padding-bottom: 55dvh;
+}
+
 /* A photo is a draggable object; show it, and dim it while it's in flight. */
 .cm-attachment--interactive { cursor: grab; }
 .cm-attachment--interactive:active { cursor: grabbing; }
@@ -3919,6 +4009,93 @@ html[data-focus-mode] .focus-controls {
   max-width: min(440px, calc(100vw - 16px));
   max-height: min(58vh, 360px);
   overflow-y: auto;
+}
+
+/* Touch: a bottom sheet docked on the keyboard, mirroring CommandPopover. The
+   caret-anchored popover swallowed the writing surface — 366×372pt from just
+   under the header to the top of the keyboard, with the caret itself hidden
+   behind it — so on a phone the palette rises from the bottom instead and the
+   line you're writing stays visible above it. */
+.slash-palette--sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 8500;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  max-width: none;
+  padding: 0 0 env(safe-area-inset-bottom);
+  overflow: hidden;
+  border: 0.5px solid var(--border);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--bg-elevated);
+  box-shadow: 0 -10px 36px -14px rgba(40, 24, 8, 0.5);
+  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.slash-palette__sheet-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.1rem 0.4rem 0.35rem 0.9rem;
+  border-bottom: 0.5px solid var(--border-subtle);
+}
+
+.slash-palette__sheet-title {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.slash-palette__cancel {
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+/* Pair with useSheetDismiss's `data-sheet-scroll`: contain the overscroll so
+   the list doesn't rubber-band underneath a pull-to-dismiss drag. */
+.slash-palette__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0.3rem 0.4rem;
+}
+
+.slash-palette--sheet .slash-palette__col {
+  min-width: 0;
+}
+
+/* One column, full descriptions, and rows at the 48px floor from
+   MOBILE_DESIGN.md — the two-column desktop grid was truncating hints
+   mid-word ("Find relevant passag…") into ~42pt rows. */
+.slash-palette--sheet .slash-palette__item {
+  min-height: 48px;
+  padding: 0.5rem 0.7rem;
+  gap: 0.75rem;
+}
+
+.slash-palette--sheet .slash-palette__hint {
+  white-space: normal;
+  overflow: visible;
+}
+
+.slash-palette--sheet .slash-palette__heading {
+  padding: 0.5rem 0.7rem 0.3rem;
 }
 
 .slash-palette__col {

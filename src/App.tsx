@@ -74,11 +74,13 @@ export function App() {
 // 'idle'    → normal app
 // 'waiting' → just returned from Stripe, polling for webhook to fire
 // 'ready'   → webhook confirmed, show "You're in!" screen
-type CheckoutState = 'idle' | 'waiting' | 'ready'
+// 'stalled' → paid, but the webhook hasn't landed within ~30s. Never leave this
+//             one as a silent spinner: the user's card has been charged.
+type CheckoutState = 'idle' | 'waiting' | 'ready' | 'stalled'
 
 function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: string }) {
   useSettingsSync() // pull remote settings on login, push changes on edit
-  const { subscription, entitled, featureFlags, loading, refetch } = useSubscription()
+  const { subscription, entitled, featureFlags, loading, unreachable, refetch } = useSubscription()
 
   // Initialize the account once on entry. initReady only gates on the privacy
   // fence (fast for a returning user — no network) so the app can paint from
@@ -143,12 +145,16 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
       return
     }
 
-    // Webhook not yet fired — poll every 2s (give up after ~30s).
+    // Webhook not yet fired — poll every 2s, then stop and SAY SO. Silently
+    // clearing the interval left "Setting up your account…" on screen forever
+    // for anyone whose webhook was slow or failed: they had paid, and the app
+    // gave them a spinner with no way out.
     let attempts = 0
     const id = setInterval(() => {
       attempts++
       if (attempts > 15) {
         clearInterval(id)
+        setCheckoutState('stalled')
         return
       }
       void refetch()
@@ -168,6 +174,23 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
     return <div className="app-shell"><SurfaceLoader /></div>
   }
 
+  // We have never managed to read this account's plan. Do not fall through to
+  // the paywall — telling a paying subscriber their trial ended because their
+  // wifi dropped is a lie, and every button on that screen would fail too.
+  if (unreachable && !subscription?.onboarded_at) {
+    return (
+      <div className="center-screen" style={{ flexDirection: 'column', gap: '1rem' }}>
+        <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '1rem', textAlign: 'center', maxWidth: '26rem' }}>
+          We couldn’t reach your account. Your journal is safe — this is just the
+          connection.
+        </p>
+        <button className="btn" onClick={() => void refetch()}>
+          Try again
+        </button>
+      </div>
+    )
+  }
+
   // Waiting for the Stripe webhook — subscription hasn't updated yet.
   if (checkoutState === 'waiting') {
     return (
@@ -175,6 +198,26 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
         <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '1rem' }}>
           Setting up your account…
         </p>
+      </div>
+    )
+  }
+
+  // Paid, but the webhook is late. They have been charged, so this must offer a
+  // way forward rather than spinning: Stripe replays failed webhooks, and the
+  // refresh below picks it up the moment it lands.
+  if (checkoutState === 'stalled' && !entitled) {
+    return (
+      <div className="center-screen" style={{ flexDirection: 'column', gap: '1rem', padding: '1.5rem' }}>
+        <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '1rem', textAlign: 'center', maxWidth: '28rem' }}>
+          Your payment went through, but we’re still hearing back from Stripe. This
+          usually clears within a minute or two — nothing was lost.
+        </p>
+        <button className="btn" onClick={() => void refetch()}>
+          Check again
+        </button>
+        <button className="btn btn--ghost" onClick={() => setCheckoutState('idle')}>
+          Continue anyway
+        </button>
       </div>
     )
   }

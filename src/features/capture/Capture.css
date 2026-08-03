@@ -34,6 +34,12 @@
   padding: 0.5rem 0.55rem 0.35rem;
 }
 
+/* Pairs with useSheetDismiss: the scroller keeps a downward drag only while it
+   still has somewhere to scroll, and doesn't rubber-band under the sheet drag. */
+.command-popover__body[data-sheet-scroll] {
+  overscroll-behavior: contain;
+}
+
 /* Mobile: dock as a full-width sheet above the keyboard (see CommandPopover).
    The sheet sizes to its content but can grow toward full-screen for heavy
    actions (scripture results, prayer); the inline max-height caps it just below
@@ -63,6 +69,36 @@
   margin: 8px auto 4px;
   border-radius: 2px;
   background: var(--border);
+}
+
+/* The handle row centres the grab pill and parks the ✕ at the trailing edge,
+   so the pill stays optically centred rather than shoved left by the button. */
+.command-popover__handle {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+}
+
+.command-popover__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.command-popover__close:active {
+  color: var(--text-bright);
 }
 @keyframes command-scrim-in {
   from { opacity: 0; }

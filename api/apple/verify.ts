@@ -17,6 +17,7 @@ import { preflight, withCors } from '../_lib/cors.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { resolveAppleSubscription, verifySignedTransaction } from '../_lib/apple.js'
 import { updateSubscriptionByUserId } from '../_lib/updateSubscription.js'
+import { isEntitled, type PlanState } from '../_lib/entitlement.js'
 import { crossAccountMessage, signInProvidersFor } from '../_lib/signInMethods.js'
 
 /**
@@ -101,9 +102,28 @@ export async function POST(req: Request): Promise<Response> {
     return withCors(req, await crossAccountResponse(claimant.owner as string))
   }
 
-  // 4. Write entitlement. plan_source flips to 'apple', which is what makes the
+  // 4. Notice the one case where the user is about to pay twice: a Stripe
+  //    subscription that is still live. We do not block the Apple purchase —
+  //    StoreKit has already taken the money by the time this call happens, so
+  //    refusing would leave them charged and locked out. Instead we report it,
+  //    and the client tells them to cancel the web subscription.
+  const { data: existing } = await sb
+    .from('profiles')
+    .select('plan, plan_source, trial_ends_at, plan_expires_at')
+    .eq('owner', user.id)
+    .maybeSingle<PlanState>()
+
+  const alsoBilledByStripe = existing?.plan_source === 'stripe' && isEntitled(existing)
+  if (alsoBilledByStripe) {
+    console.warn(
+      `[apple verify] owner ${user.id} bought on the App Store while a live Stripe ` +
+        `subscription (plan=${existing?.plan}) is still running — user is double-billed`,
+    )
+  }
+
+  // 5. Write entitlement. plan_source flips to 'apple', which is what makes the
   //    web/desktop UI stop offering Stripe checkout to this user.
-  await updateSubscriptionByUserId(user.id, {
+  const outcome = await updateSubscriptionByUserId(user.id, {
     plan: state.plan,
     source: 'apple',
     trial_ends_at: state.trialEndsAt,
@@ -118,8 +138,21 @@ export async function POST(req: Request): Promise<Response> {
     req,
     Response.json({
       plan: state.plan,
+      // The client cannot re-derive this reliably: `plan` alone doesn't say
+      // whether an expiry has passed, and "restored something" is not the same
+      // question as "are you unlocked". Restore UX depends on the difference.
+      entitled: isEntitled({
+        plan: state.plan,
+        trial_ends_at: state.trialEndsAt,
+        plan_expires_at: state.expiresAt,
+      }),
       expiresAt: state.expiresAt,
       productId: state.productId,
+      alsoBilledByStripe,
+      // 'stale-cross-store' here would mean we refused to downgrade a live
+      // Stripe plan with a dead Apple one — surfaced so the client doesn't
+      // report a successful restore that changed nothing.
+      applied: outcome === 'applied',
     }),
   )
 }

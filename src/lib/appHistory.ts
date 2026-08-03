@@ -51,7 +51,7 @@ export interface AppHistoryState {
   ascentDrill: AscentDrill | null
   /** The question the Well is answering. Null means the Well has nothing to show
    *  (arriving from the rail with no question yet just opens ⌘K). */
-  wellQuestion: string | null
+  rememberQuestion: string | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -67,7 +67,7 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   entryReturn: null,
   ascentAltitude: 0,
   ascentDrill: null,
-  wellQuestion: null,
+  rememberQuestion: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -134,7 +134,7 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     entryReturn: normalizeEntryReturn(state.entryReturn),
     ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
-    wellQuestion: typeof state.wellQuestion === 'string' ? state.wellQuestion : null,
+    rememberQuestion: typeof state.rememberQuestion === 'string' ? state.rememberQuestion : null,
   }
 }
 
@@ -162,7 +162,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
-    a.wellQuestion === b.wellQuestion &&
+    a.rememberQuestion === b.rememberQuestion &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)

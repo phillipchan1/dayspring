@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { useDictation } from '@/hooks/useDictation'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import './VoiceCapture.css'
 
 interface VoiceCaptureProps {
@@ -124,8 +125,23 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
     onClose()
   }
 
+  // The grab pill rendered but did nothing. Same contract as the scrim: pulling
+  // the sheet down cancels the take.
+  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({
+    onDismiss: handleCancel,
+    enabled: isMobile,
+  })
+
   const style: React.CSSProperties = isMobile
-    ? { position: 'fixed', left: 0, right: 0, bottom: keyboardInset, zIndex: 8500 }
+    ? {
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: keyboardInset,
+        zIndex: 8500,
+        ...(dragY ? { transform: `translateY(${dragY}px)` } : {}),
+        ...(dragging ? { transition: 'none' } : {}),
+      }
     : { position: 'fixed', zIndex: 8500 }
 
   return createPortal(
@@ -137,8 +153,10 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
         role="dialog"
         aria-label="Voice dictation"
         onMouseDown={(e) => e.stopPropagation()}
+        {...(isMobile ? dragHandlers : {})}
       >
         <div className="glass-surface__glow" aria-hidden />
+        {/* Pulling the handle down cancels the take — same as the scrim. */}
         {isMobile && <div className="command-popover__grab" aria-hidden />}
 
         <div className="voice-capture__body">

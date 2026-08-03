@@ -15,11 +15,16 @@ import { setEntryDeriveHook, setSideQueueHook } from './repo'
 import { syncSpiritualBlocksFromMarkdown } from './spiritual'
 import { syncScriptureRefsFromMarkdown } from './scripture/capture'
 import { drainPendingUploads } from './attachmentQueue'
+import { drainPendingMarks } from './marks'
 
 /** Install the repo's background hooks. Idempotent; call once at boot. */
 export function registerEntryDerive(): void {
-  // Photos queued while offline retry on the same triggers as everything else.
-  setSideQueueHook(drainPendingUploads)
+  // Side queues retry on the same triggers as everything else. Settled, not
+  // sequential: a stuck photo upload must not strand a queued mark, and repo
+  // already swallows this hook's rejection so neither can fail the entry flush.
+  setSideQueueHook(async () => {
+    await Promise.allSettled([drainPendingUploads(), drainPendingMarks()])
+  })
 
   setEntryDeriveHook(async (entry) => {
     // Sequential on purpose: both rewrite rows keyed on entry_id, and a failure

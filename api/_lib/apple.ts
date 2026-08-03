@@ -140,7 +140,10 @@ export interface AppleSubscriptionState {
   plan: Plan
   /** Stable across renewals — our durable handle on this subscription. */
   originalTransactionId: string
-  /** Newest transaction id; used to drop out-of-order webhook deliveries. */
+  /** Newest transaction id, stored as `apple_last_txn_id` for support and
+   *  debugging. Deliberately NOT used to sequence notifications: every Apple
+   *  path re-reads authoritative state from getAllSubscriptionStatuses, so
+   *  out-of-order and duplicate deliveries already converge on the truth. */
   transactionId: string | null
   productId: string | null
   /** Supabase user id, when the purchase carried one. */

@@ -33,18 +33,25 @@ export async function POST(req: Request): Promise<Response> {
   // Read whatever exists today (service role bypasses RLS; scope by owner).
   const { data: existing } = await sb
     .from('profiles')
-    .select('plan, trial_ends_at, plan_expires_at, stripe_customer_id, onboarded_at')
+    .select(
+      'plan, plan_source, trial_ends_at, plan_expires_at, stripe_customer_id, apple_original_txn, onboarded_at',
+    )
     .eq('owner', user.id)
     .maybeSingle()
 
   // Eligible for the in-app reverse trial: a genuinely new account that has
-  // never had a plan or touched Stripe. Never re-grants, never overrides a paid,
-  // cancelled, or past-due plan.
+  // never had a plan and has never transacted at either store. Never re-grants,
+  // never overrides a paid, cancelled, or past-due plan.
+  //
+  // apple_original_txn is checked alongside stripe_customer_id for the same
+  // reason: a returning App Store customer must not be handed a fresh 14 days
+  // just because their subscription lapsed back to a plan-less state.
   const grantTrial =
     !env.onboardingRequireCard() &&
     (!existing || existing.plan === 'none') &&
     !existing?.trial_ends_at &&
-    !existing?.stripe_customer_id
+    !existing?.stripe_customer_id &&
+    !existing?.apple_original_txn
 
   const trialEndsAt = grantTrial
     ? new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString()

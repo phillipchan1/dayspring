@@ -21,7 +21,7 @@ export async function POST(req: Request): Promise<Response> {
   const sb = supabaseAdmin()
   const { data: profile, error } = await sb
     .from('profiles')
-    .select('trial_ends_at, feature_flags')
+    .select('plan, plan_source, trial_ends_at, feature_flags')
     .eq('owner', user.id)
     .maybeSingle()
   if (error) return withCors(req, Response.json({ error: error.message }, { status: 500 }))
@@ -29,6 +29,23 @@ export async function POST(req: Request): Promise<Response> {
   const flags: string[] = Array.isArray(profile?.feature_flags) ? (profile!.feature_flags as string[]) : []
   if (flags.includes(MARKER)) {
     return withCors(req, Response.json({ error: 'Trial already extended once.' }, { status: 409 }))
+  }
+
+  // Only the app-managed trial can be extended. Without this the endpoint
+  // happily writes plan='trialing' over a paying subscriber — downgrading a live
+  // `active` plan and stranding plan_source pointing at a store that is still
+  // charging them. The client only offers the button while trialing; this is the
+  // backstop, since nothing else stops a stale tab or a curl from calling it.
+  const plan = profile?.plan ?? 'none'
+  const extendable = plan === 'none' || (plan === 'trialing' && !profile?.plan_source)
+  if (!extendable) {
+    return withCors(
+      req,
+      Response.json(
+        { error: 'This account has a subscription — there is no trial to extend.' },
+        { status: 409 },
+      ),
+    )
   }
 
   // Extend from whichever is later — now or the (possibly future) current end —

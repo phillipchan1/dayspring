@@ -127,8 +127,11 @@ async function handleNotification(
   }
 
   // Fallback: a row already claims this subscription by original transaction id.
-  const matched = await updateSubscriptionByAppleOriginalTxn(state.originalTransactionId, update)
-  if (matched) return
+  // 'stale-cross-store' counts as handled — the row deliberately stayed put
+  // because this account has since moved to Stripe, and re-running the fallback
+  // would only find the same row again.
+  const outcome = await updateSubscriptionByAppleOriginalTxn(state.originalTransactionId, update)
+  if (outcome !== 'no-match') return
 
   // No owner yet. This is normal and benign: the notification beat the device's
   // /api/apple/verify call. That call re-reads the same state from Apple, so

@@ -6,7 +6,8 @@ import {
   fetchPortalUrl,
   extendTrial,
   fetchJournalHolding,
-  isAppleManaged,
+  isAppleRelationship,
+  purchaseRoute,
   type JournalHolding,
   type Subscription,
 } from '@/lib/subscription'
@@ -15,6 +16,7 @@ import { openExternal } from '@/lib/openExternal'
 import { exportEntriesToZip } from '@/lib/export/exportEntries'
 import { submitFeedback } from '@/lib/feedback'
 import {
+  describeRestore,
   fetchAppleProducts,
   isAppleIapAvailable,
   manageAppleSubscriptions,
@@ -38,14 +40,28 @@ interface Props {
 export function LockedScreen({ plan, subscription = null, canExtend = false, onRefetch }: Props) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Non-failure feedback — e.g. "we found your old subscription, it expired". */
+  const [notice, setNotice] = useState<string | null>(null)
   const [holding, setHolding] = useState<JournalHolding | null>(null)
   const [exportPhase, setExportPhase] = useState<'idle' | 'working' | 'done'>('idle')
   const [exportPct, setExportPct] = useState(0)
   const [askOpen, setAskOpen] = useState(false)
 
-  const useApple = isAppleIapAvailable() || isAppleManaged(subscription)
+  // Apple terms + App Store wording apply when we're on an Apple device OR the
+  // relationship lives at Apple (a lapsed App Store subscriber on the web still
+  // manages it there).
+  const useApple = isAppleIapAvailable() || isAppleRelationship(subscription)
   const isPastDue = plan === 'past_due'
   const isCancelled = plan === 'cancelled'
+
+  // Where a NEW purchase goes. 'apple-elsewhere' is the only blocked case, and
+  // it is far narrower than it used to be: only someone Apple is *currently*
+  // billing. A cancelled App Store subscriber on the web now gets Stripe rather
+  // than being told to open an iPhone they may no longer own.
+  const route = purchaseRoute(subscription, { onAppleDevice: isAppleIapAvailable() })
+  const manageDestination = billingDestination(subscription, {
+    onAppleDevice: isAppleIapAvailable(),
+  })
 
   useEffect(() => {
     if (isPastDue) return
@@ -84,27 +100,34 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
     setError(null)
     setLoading(selectedPlan)
     try {
-      if (isAppleIapAvailable()) {
-        const outcome = await purchaseApple(selectedPlan)
-        if (outcome === 'cancelled') {
-          setLoading(null)
+      switch (route) {
+        case 'apple-iap': {
+          const { outcome, warning } = await purchaseApple(selectedPlan)
+          if (outcome === 'cancelled') {
+            setLoading(null)
+            return
+          }
+          if (outcome === 'pending') {
+            setError('Purchase is pending approval. You’ll get access once it’s approved.')
+            setLoading(null)
+            return
+          }
+          if (warning) setNotice(warning)
+          onRefetch()
           return
         }
-        if (outcome === 'pending') {
-          setError('Purchase is pending approval. You’ll get access once it’s approved.')
+        case 'apple-elsewhere':
+          // Apple is still charging them — a second subscription here would be a
+          // second charge nobody can refund.
+          setError(
+            'You already have an active App Store subscription. Manage it on your iPhone or iPad — there’s nothing to pay here.',
+          )
           setLoading(null)
           return
-        }
-        onRefetch()
-        return
+        case 'stripe':
+          await openExternal(await startCheckout(selectedPlan), { sameTab: true })
+          return
       }
-      if (isAppleManaged(subscription)) {
-        // Apple subscriber on web/desktop — they must manage on an Apple device.
-        setError('This subscription is billed through Apple. Open Dayspring on your iPhone to renew.')
-        setLoading(null)
-        return
-      }
-      await openExternal(await startCheckout(selectedPlan), { sameTab: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
       setLoading(null)
@@ -116,7 +139,7 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
     setLoading('portal')
     try {
       // Billing source decides, not the device — same rule as the Billing tab.
-      switch (billingDestination(subscription, { onAppleDevice: isAppleIapAvailable() })) {
+      switch (manageDestination) {
         case 'apple-native':
           await manageAppleSubscriptions()
           return
@@ -136,17 +159,19 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
 
   async function handleRestore() {
     setError(null)
+    setNotice(null)
     setLoading('restore')
     try {
-      const n = await restoreApplePurchases()
-      if (n === 0) {
-        setError('No purchases found for this Apple ID.')
-        setLoading(null)
-        return
-      }
+      const outcome = await restoreApplePurchases()
+      // Always refetch: even a non-entitling restore may have corrected the
+      // recorded plan, and the server is the authority on what happens next.
       onRefetch()
+      const message = describeRestore(outcome)
+      if (message?.kind === 'error') setError(message.text)
+      else if (message) setNotice(message.text)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not restore purchases.')
+    } finally {
       setLoading(null)
     }
   }
@@ -205,14 +230,18 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
             <button className="btn" disabled={busy} onClick={() => void handleManage()}>
               {loading === 'portal'
                 ? 'Opening…'
-                : useApple
-                  ? 'Manage in App Store'
-                  : 'Update payment method'}
+                : // Follow where the money actually is, not the device in hand —
+                  // labelling a Stripe subscriber's button "Manage in App Store"
+                  // sends them hunting for a subscription that isn't there.
+                  manageDestination === 'stripe'
+                  ? 'Update payment method'
+                  : 'Manage in App Store'}
             </button>
             <button className="btn btn--ghost" onClick={onRefetch} disabled={busy}>
               Already fixed? Refresh
             </button>
           </div>
+          {notice && <p className="locked-screen__reassure">{notice}</p>}
           {error && <p className="paywall__error">{error}</p>}
         </div>
       </div>
@@ -326,6 +355,7 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
           {isCancelled ? 'Just resubscribed? Refresh' : 'Already subscribed? Refresh'}
         </button>
 
+        {notice && <p className="locked-screen__reassure">{notice}</p>}
         {error && <p className="paywall__error">{error}</p>}
       </div>
     </div>

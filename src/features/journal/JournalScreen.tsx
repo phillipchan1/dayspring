@@ -45,8 +45,10 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
-import { WellView } from '@/features/well/WellView'
-import { FindPalette } from '@/features/find/FindPalette'
+import { RememberView } from '@/features/remember/RememberView'
+import { useRemember } from '@/features/remember/useRemember'
+import type { Mark } from '@/lib/marks'
+import { FindPalette } from '@/features/remember/FindPalette'
 import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import {
@@ -142,17 +144,41 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
-  const wellActive = state.surface === 'well'
+  const rememberActive = state.surface === 'well'
   // Altar is unfinished — hidden behind the `altar` flag (per-profile or
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
-  // The Well isn't ready to be a shipped destination — the `well` flag hides its
-  // rail button and mobile tab. Unlike Altar this does NOT redirect the surface:
-  // ⌘K → Ask still routes there, it just isn't advertised in the navigation.
-  const wellEnabled = resolveFlag(featureFlags, 'well')
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
-  /** ⌘K — Find (instant, local) or Ask (the Well). Seeded when reopened from the Well. */
+  // Remember hides its rail button and mobile tab behind the `remember` flag.
+  // Unlike Altar this does NOT redirect the surface: ⌘K → Ask still routes
+  // there, it just isn't advertised in the navigation until it's turned on.
+  const rememberEnabled = resolveFlag(featureFlags, 'remember')
+  const canvasAlternateActive =
+    reflectionsActive || altarActive || scriptureActive || rememberActive
+  // Passages + marks. The corpus read is gated on the surface being open; marks
+  // load always, because the editor draws them.
+  const remember = useRemember(rememberActive)
+  /**
+   * Was the open entry written on an earlier calendar day?
+   *
+   * The line between composing and re-reading. Today's page is a draft you are
+   * still in; anything older is something you are coming back to, which is when
+   * marking makes sense. A local-day comparison, not a 24-hour window — an entry
+   * from 11pm last night is yesterday's.
+   */
+  const isPastEntry = useMemo(() => {
+    if (!entryId) return false
+    const created = entries.find((e) => e.id === entryId)?.created_at
+    if (!created) return false
+    const d = new Date(created)
+    const now = new Date()
+    return (
+      d.getFullYear() !== now.getFullYear() ||
+      d.getMonth() !== now.getMonth() ||
+      d.getDate() !== now.getDate()
+    )
+  }, [entryId, entries])
+  /** ⌘K — Find (instant, local) or Ask (Remember). Seeded when reopened from Remember. */
   const [findOpen, setFindOpen] = useState(false)
   const [findSeed, setFindSeed] = useState('')
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
@@ -1001,7 +1027,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setEntriesOpen(false)
     go({
       surface: 'well',
-      wellQuestion: question,
+      rememberQuestion: question,
       entryId: null,
       entryReturn: null,
       ascentDrill: null,
@@ -1017,7 +1043,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
     if (state.surface !== 'journal') {
-      go({ surface: 'journal', entryId: id, entryReturn: null, wellQuestion: null })
+      go({ surface: 'journal', entryId: id, entryReturn: null, rememberQuestion: null })
       return
     }
     await handleBrowse(entry)
@@ -1049,6 +1075,33 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         entryId: null,
         entryReturn: null,
         ascentDrill: null,
+        settings: null,
+        help: false,
+        sidebar: false,
+      })
+    }
+  }
+
+  /**
+   * Open Remember. Unlike the old Well this routes rather than opening ⌘K —
+   * the surface has the passages already set apart to show on arrival, which is
+   * the whole reason it can be a destination now.
+   */
+  async function toggleRemember() {
+    if (state.entryReturn?.surface === 'well') {
+      returnFromEntryOrigin()
+      return
+    }
+    if (rememberActive) back()
+    else {
+      await saveNow() // see toggleLookBack — must complete before entryId nulls
+      setEntriesOpen(false)
+      go({
+        surface: 'well',
+        entryId: null,
+        entryReturn: null,
+        ascentDrill: null,
+        rememberQuestion: null,
         settings: null,
         help: false,
         sidebar: false,
@@ -1106,6 +1159,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       else openSettings()
     },
     onFindOrAsk: () => openFindOrAsk(''),
+    onRemember: toggleRemember,
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     onFontSizeUp: () =>
       updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
@@ -1499,6 +1553,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
+            marks={entryId ? remember.marksFor(entryId) : []}
+            // Marking is a READING act. The button only exists on an entry
+            // written on a previous day — today's page keeps exactly the
+            // formatting bar it has always had, and the writing surface gains
+            // nothing (Principle 3).
+            {...(entryId && isPastEntry
+              ? {
+                  onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
+                    remember.toggleMark(entryId, quote, charStart, existing),
+                }
+              : {})}
             // The `/` hint is desktop copy: CommandToolbar already puts
             // Scripture / Pray / Sense / Ritual / Image above the keyboard on
             // touch, where reaching for a slash is a two-tap detour. The palette
@@ -1546,9 +1611,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             setScanOpen(true)
           }}
           onDismissKeyboard={() => editorRef.current?.blur()}
-          visible={
-            !slashPaletteOpen && slashCapture === null && imageEdit === null && imageMenu === null
-          }
+          // The slash palette used to suppress this bar, which took the
+          // thumb-reachable row away exactly when a caret-anchored popover had
+          // covered the writing surface. On touch the palette is now a sheet
+          // docked on the keyboard, so it sits *over* this bar rather than
+          // competing with it, and the bar comes straight back on cancel.
+          visible={slashCapture === null && imageEdit === null && imageMenu === null}
           docked={!isMobile}
           keyboardInset={keyboardInset}
         />
@@ -1585,11 +1653,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
-  ) : wellActive ? (
-    <WellView
-      question={state.wellQuestion}
+  ) : rememberActive ? (
+    <RememberView
+      question={state.rememberQuestion}
+      passages={remember.passages}
+      ready={remember.ready}
       onOpenEntry={handleOpenReflectionEntry}
-      onAskAgain={(seed) => openFindOrAsk(seed)}
+      onAskAgain={(seed: string) => openFindOrAsk(seed)}
     />
   ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -1634,7 +1704,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     altarEnabled,
-    wellEnabled,
+    rememberEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       // An explicit tap also un-retires anything the flush gave up on — whatever
@@ -1660,8 +1730,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     reflectionsActive,
     altarActive,
     scriptureActive,
-    wellActive,
+    rememberActive: rememberActive,
     onFindOrAsk: () => openFindOrAsk(''),
+    onRemember: toggleRemember,
     entryReturn: state.entryReturn,
     onReturnFromEntry: returnFromEntryOrigin,
   }

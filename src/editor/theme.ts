@@ -75,4 +75,16 @@ export const editorTheme = EditorView.theme({
     textDecorationThickness: '1px',
     textUnderlineOffset: '3px',
   },
+  // A marked passage. Derived from the theme's own accent rather than a fixed
+  // highlighter yellow, so it belongs in all six palettes and in both light and
+  // dark — and kept low enough that the prose stays the brightest thing on the
+  // line. It must read as ground, not as ink.
+  '.cm-mark': {
+    backgroundColor: 'color-mix(in srgb, var(--accent) 13%, transparent)',
+    boxShadow: '0 1px 0 color-mix(in srgb, var(--accent) 30%, transparent)',
+    borderRadius: '2px',
+  },
+  // Focus mode needs no rule here: `.cm-dim` is a LINE decoration carrying
+  // `opacity: 0.28`, which already fades the mark along with its text. An
+  // explicit override would dim it twice and lose it entirely.
 })

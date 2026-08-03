@@ -1219,6 +1219,13 @@
     width: 30px;
     flex: 0 0 30px;
     padding: calc(40px + var(--safe-top)) 0 40px;
+    /* The dots land ~15px from the left edge, inside the 28px EDGE_ZONE that
+       MobileJournal claims for the entries drawer's edge-swipe — so aiming at a
+       station could open the drawer instead. On a phone the rail is a progress
+       indicator, not a control: the labels are hidden and ascend/descend
+       (.ascent-ctrl, sticky at the bottom) is the real way to move between
+       altitudes. Let the gesture through. */
+    pointer-events: none;
   }
   /* Dots only on narrow screens — the labels would overflow into the content,
    * and the active altitude is already announced in the header. */
@@ -1231,7 +1238,7 @@
   /* The mobile shell hides its safe-area-padded header here
      (MobileJournal: canvasAlternateActive) — this is the only status-bar gap. */
   .ascent-main {
-    padding: calc(40px + var(--safe-top)) 18px 28px;
+    padding: calc(40px + var(--safe-top)) 18px var(--mobile-chrome-h);
   }
   /* Keep ascend/descend reachable: it used to scroll away with the content, so
      once you read down the page you lost the way up. Stick it to the bottom of

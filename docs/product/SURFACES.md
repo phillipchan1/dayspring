@@ -23,7 +23,7 @@ thesis, not a nav convenience.
 | | Surfaces | Job |
 |---|---|---|
 | **Write** | New entry, Entries | Capture. Must be frictionless and sacred (Principle 3). |
-| **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4 | **Reflective, never operational.** Reveal what a paper journal can't. |
+| **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4, Remember ⌘5 | **Reflective, never operational.** Reveal what a paper journal can't. |
 
 **The rule for every Return surface: you go there to *see*, never to *do*.** No tasks,
 no maintenance, no inbox. The moment a Return surface asks the user to *work*, it has
@@ -103,6 +103,34 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   re-propose the sky.
 - **Audit:** *Does any encoding here let a user rank their prayers, or rank themselves?*
 
+### Remember — `features/remember/` · ⌘5 · *"What you've set apart"*
+- **Promise:** "Get back to what you set apart, and ask the rest."
+- **Answers:** P1 *"I have eleven years in here. What's in it? I genuinely don't know."* ·
+  the notebook journaler's *"can it help me find the things I highlighted?"*
+- **Serves:** P1 (**the writer supplies the signal, never the app** — this is the only
+  surface where significance is asserted, and it's asserted by the user), P4 (a passage
+  *is* a verbatim quote by construction), P5 (compounds without AI; keeps paying out in
+  a month with four entries).
+- **Risks:** **PKM drift.** "Search" invites tags, folders, colours, saved queries. The
+  rule that holds the line: *marking is one gesture with no decision attached.* Also the
+  weather grid — see below.
+- **State:** 🚧 Built, flag OFF (`VITE_FF_REMEMBER`). Four sources: marks (`marks` table),
+  blockquotes, markdown emphasis, and writer-declared `/pray` blocks. Migration
+  `20260802120000_marks.sql` pending — apply via the SQL editor.
+- **What it deliberately excludes:**
+  - **Scripture refs.** The Lamp owns verses. On the real archive they were 284 of 563
+    passages, which would have made this half a second Lamp.
+  - **Altar-harvested `spiritual_items`** (`source = 'scanned'`, ~6.2k rows). Those are
+    model *inferences*. Showing an inference as something the writer set apart is the app
+    asserting significance it decided on. The filter `.is('source', null)` in
+    `useRemember.ts` is load-bearing.
+- **Audit:** ⚠ **The weather grid is one decision away from a contributions graph**,
+  which is a streak grid, which is a Principle 2 violation. It is only ever drawn over
+  passages or over the matches for a question — **never over writing activity** — and
+  carries no totals, no goal, no current-streak. *Show it to someone in a dry season: does
+  it read as weather, or as a record of how often they failed to show up?* Second test,
+  per the Return rule: *open it in a month with four entries. A way back, or an inbox?*
+
 ---
 
 ## Flagged / incomplete
@@ -138,6 +166,7 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 | "Is my archive safe / portable?" | Settings export | ⚠️ Works; never *said*. Agreement-plan copy is missing from marketing. |
 | "Will this fit how I journal?" | Capture | ✅ |
 | **"Is this normal? Do others go through this?"** | — | ❌ **Uncovered.** P2's loneliest question. Answering it well probably requires aggregate/comparative data, which collides with Principle 7 and H2. Possibly correct to leave permanently uncovered — but decide deliberately. → D-006 |
+| "Can it help me find the things I highlighted?" | Remember | 🚧 Built, flagged off |
 | **"Is journaling one more thing I'll fail at?"** | — | ❌ **Uncovered by design.** The obvious answers are streaks and reminders (Principle 2 violations). The unsolved question is whether there's an *invitational* answer. → D-004 |
 
 ---
