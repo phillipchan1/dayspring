@@ -128,6 +128,19 @@ export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPre
 
   return createPortal(
     <div className="practice-modal" role="dialog" aria-modal="true" aria-label="Rituals">
+      {/* The only way out of this full-screen overlay used to be Escape, and a
+          phone has no Escape key — opening Rituals on touch was a dead end. The
+          overlay is opaque edge to edge, so there is no scrim to tap either;
+          it needs a real control. */}
+      <button
+        type="button"
+        className="practice-modal__close"
+        onClick={onClose}
+        aria-label="Close rituals"
+        title="Close"
+      >
+        ✕
+      </button>
       <div className="practice-library">
         <header className="practice-library__header">
           <div className="practice-library__eyebrow">The Rituals</div>
