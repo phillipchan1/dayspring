@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { isLightTheme, resolveTheme, THEMES, type ThemeId } from './resolveTheme'
 import type { Settings } from './settings'
@@ -33,8 +34,26 @@ describe('theme registry', () => {
     for (const t of THEMES) expect(isLightTheme(t.id)).toBe(t.family === 'light')
   })
 
-  it('ships four light and four dark palettes', () => {
+  it('ships four light and five dark palettes', () => {
     expect(THEMES.filter((t) => t.family === 'light')).toHaveLength(4)
-    expect(THEMES.filter((t) => t.family === 'dark')).toHaveLength(4)
+    expect(THEMES.filter((t) => t.family === 'dark')).toHaveLength(5)
+  })
+
+  it('gives every registered theme a matching [data-theme] block', () => {
+    const css = readFileSync(new URL('../styles/themes.css', import.meta.url), 'utf8')
+    for (const t of THEMES) expect(css).toContain(`[data-theme='${t.id}']`)
+  })
+
+  it('lists every theme in the pre-paint boot script, on the right side', () => {
+    // index.html resolves the theme before React mounts; a palette missing from
+    // its LIGHT/DARK maps silently falls back and flashes the wrong family.
+    const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
+    const map = (name: string) => new RegExp(`var ${name} = \\{([^}]*)\\}`).exec(html)?.[1] ?? ''
+    const light = map('LIGHT')
+    const dark = map('DARK')
+    for (const t of THEMES) {
+      expect(t.family === 'light' ? light : dark).toContain(`${t.id}: 1`)
+      expect(t.family === 'light' ? dark : light).not.toContain(`${t.id}: 1`)
+    }
   })
 })

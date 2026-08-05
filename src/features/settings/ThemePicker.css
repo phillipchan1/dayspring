@@ -20,7 +20,9 @@
 
 .theme-picker__swatches {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Sized for the longest row (dark, five palettes) so chips stay identical
+     across both rows; the light row simply leaves its last cell empty. */
+  grid-template-columns: repeat(5, 1fr);
   gap: 9px;
 }
 

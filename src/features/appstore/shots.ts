@@ -44,7 +44,7 @@ export interface Shot {
    * The set is deliberately mixed. Ascent and Lamp are built on glow — a lit
    * chapter cell only reads as lit against darkness — while the writing surfaces
    * go to `dawn`, which is what `appearance: 'auto'` actually gives anyone on a
-   * light-mode phone. It also makes shot 02's "eight themes — light or dark"
+   * light-mode phone. It also makes shot 02's "themes — light or dark"
    * something the gallery shows rather than merely claims.
    */
   theme?: ThemeId

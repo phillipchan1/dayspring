@@ -9,6 +9,7 @@ export type ThemeId =
   | 'ember'
   | 'compline'
   | 'nocturne'
+  | 'vigil'
 
 export type ThemeFamily = 'light' | 'dark'
 
@@ -36,6 +37,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'ember', label: 'Ember', family: 'dark', blurb: 'Hearth-warm dark.', swatch: { bg: '#1a1411', accent: '#e8743c' } },
   { id: 'compline', label: 'Compline', family: 'dark', blurb: 'Indigo night prayer.', swatch: { bg: '#13121e', accent: '#9b8ce8' } },
   { id: 'nocturne', label: 'Nocturne', family: 'dark', blurb: 'True black, for OLED.', swatch: { bg: '#000000', accent: '#d9a441' } },
+  { id: 'vigil', label: 'Vigil', family: 'dark', blurb: 'Amber monochrome — no blue light.', swatch: { bg: '#12100c', accent: '#d99a3f' } },
 ]
 
 const BY_ID = Object.fromEntries(THEMES.map((t) => [t.id, t])) as Record<ThemeId, ThemeMeta>

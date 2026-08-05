@@ -150,7 +150,7 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 | **Welcome** (`features/welcome/`) | "Here's what this becomes." | ✅ Carousel, the onboarding front door | Slides carry the strongest positioning copy in the product. Should match `BRANDSCRIPT.md`. **The altar slide's copy was reverted with the Sky work — re-verify it reads correctly.** |
 | **Onboarding** (`features/onboarding/`) | "Get your history in, or start today." | ✅ Shipped; veteran/fresh fork | **The fork is a live persona experiment we aren't reading.** Instrumenting split rates + conversion is the cheapest validation available. → D-003 |
 | **Paywall** (`features/paywall/`) | "$7/mo, 14 days free." | ✅ Stripe; system browser on desktop | Trial can't demonstrate core value for fresh starts. → D-002 |
-| **Settings** (`features/settings/`) | Control the writing surface. | ✅ Themes (6 palettes + light/dark), fonts, focus prefs | Serves P3. Healthy. |
+| **Settings** (`features/settings/`) | Control the writing surface. | ✅ Themes (9 palettes + light/dark), fonts, focus prefs | Serves P3. Healthy. |
 | **Shortcuts** (`features/shortcuts/`) | Keyboard-first. | ✅ | An **A-persona artifact**. Its prominence is a signal in the A/B question. |
 
 ---
