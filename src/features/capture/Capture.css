@@ -602,6 +602,34 @@
   background: var(--accent-soft);
 }
 
+/* ── Emoji grid (slash /emoji) ───────────────────────────────────────────── */
+
+.command-popover__emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.35rem, 1fr));
+  gap: 0.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.command-popover__emoji-btn {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.command-popover__emoji-btn:hover,
+.command-popover__emoji-btn[data-active='true'] {
+  background: var(--accent-soft);
+}
+
 /* ── Remind horizon pills ────────────────────────────────────────────────── */
 
 .command-popover__pills {

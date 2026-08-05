@@ -66,6 +66,7 @@ import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
 import { PRACTICE_BY_NAME, type Practice } from '@/editor/practices/practicesData'
 import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
 import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
+import { InlineEmojiPopover } from '@/features/capture/InlineEmojiPopover'
 import { ImageContextMenu, type ImageMenuPhase } from './ImageContextMenu'
 import type { AttachmentEditTarget, ImageMenuPoint } from '@/editor/attachmentImageExtension'
 import {
@@ -522,6 +523,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const withTrailingLine = text.endsWith('\n') ? text : `${text}\n`
     editorRef.current?.insertAt(cap.insertAt, withTrailingLine)
     const after = cap.insertAt + withTrailingLine.length
+    setSlashCapture(null)
+    requestAnimationFrame(() => editorRef.current?.focusAt(after))
+  }, [])
+
+  /**
+   * Insert a picked emoji glyph inline at the slash position. Unlike
+   * {@link completeSlashInsert}, this never appends a trailing line — an emoji
+   * is inline prose, not an atomic block, so writing should continue right
+   * after it on the same line.
+   */
+  const completeEmojiInsert = useCallback((char: string) => {
+    const cap = slashCaptureRef.current
+    if (!cap) return
+    slashCaptureRef.current = null
+    editorRef.current?.insertAt(cap.insertAt, char)
+    const after = cap.insertAt + char.length
     setSlashCapture(null)
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])
@@ -1857,6 +1874,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onUploadFailed={(pendingId) => {
             editorRef.current?.removePendingAttachment(pendingId)
           }}
+          onClose={closeSlashCapture}
+        />
+      )}
+
+      {slashCapture?.cmd === 'emoji' && (
+        <InlineEmojiPopover
+          anchor={slashCapture.anchor}
+          onInsert={completeEmojiInsert}
           onClose={closeSlashCapture}
         />
       )}

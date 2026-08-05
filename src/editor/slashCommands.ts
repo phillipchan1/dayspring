@@ -91,6 +91,14 @@ export const SLASH_ITEMS: SlashItem[] = [
     badge: '🖼',
     keywords: ['image', 'photo', 'picture', 'img'],
   },
+  {
+    selection: { kind: 'spiritual', id: 'emoji' },
+    column: 'capture',
+    label: 'Emoji',
+    hint: 'Search and insert an emoji',
+    badge: '🙂',
+    keywords: ['emoji', 'emote', 'smiley', 'icon'],
+  },
 
   // ── Format: markdown (applied inline) ───────────────────────────────────
   {

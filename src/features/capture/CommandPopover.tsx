@@ -6,7 +6,7 @@ import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import './Capture.css'
 
-export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture' | 'image'
+export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture' | 'image' | 'emoji'
 
 interface CommandPopoverProps {
   anchor: InlinePanelAnchor

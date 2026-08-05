@@ -21,7 +21,7 @@ describe('slashColumns', () => {
 describe('filterSlashItems', () => {
   it('returns every command split by column when the query is empty', () => {
     const { capture, format } = filterSlashItems('')
-    expect(capture.length).toBe(5)
+    expect(capture.length).toBe(6)
     expect(format.length).toBeGreaterThan(0)
     expect(capture.every((i) => i.column === 'capture')).toBe(true)
     expect(format.every((i) => i.column === 'format')).toBe(true)

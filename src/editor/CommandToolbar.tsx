@@ -26,6 +26,7 @@ const COMMANDS: Array<{ id: SlashCommandId; label: string; hint: string }> = [
   { id: 'sense', label: 'Sense', hint: 'Record impression' },
   { id: 'ritual', label: 'Ritual', hint: 'Rituals for the inner life' },
   { id: 'image', label: 'Image', hint: 'Add photo' },
+  { id: 'emoji', label: 'Emoji', hint: 'Insert emoji' },
 ]
 
 /**

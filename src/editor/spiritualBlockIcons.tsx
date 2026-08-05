@@ -60,6 +60,15 @@ const paths: Record<SlashCommandId, ReactNode> = {
       <path d="M5 17l4.2-4.2a2 2 0 0 1 2.8 0L19 19.5" />
     </>
   ),
+  // Smiling face — a light expression, same stroke idiom as the other blocks.
+  emoji: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 14c.9 1.2 2 1.8 3.5 1.8s2.6-.6 3.5-1.8" />
+      <path d="M9 9.5h.01" />
+      <path d="M15 9.5h.01" />
+    </>
+  ),
 }
 
 /** Scan a handwritten page — camera-corner brackets framing ruled lines. */
