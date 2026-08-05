@@ -11,8 +11,9 @@ import { EditorView, keymap } from '@codemirror/view'
  * and an empty item ends the list), then falls back to a plain newline with no
  * auto-indent — prose paragraphs still start at column zero.
  * insertNewlineContinueMarkup returns false outside a list/quote, so prose hits
- * the fallback. Task-list Enter handling sits at Prec.highest and still fires
- * first for checklist lines.
+ * the fallback. Task-list Enter handling (taskListExtension) sits at
+ * Prec.highest, above this Prec.high, so it still fires first for checklist
+ * lines.
  */
 function continueListOrNewline(view: EditorView): boolean {
   return insertNewlineContinueMarkup(view) || insertNewline(view)
