@@ -524,78 +524,103 @@
   --entry-list-head-border: rgba(196, 145, 60, 0.18);
 }
 
-/* ── Vigil (dark, amber monochrome — the low-blue night watch) ──────────────
-   Every surface, every ink, every syntax color sits on one warm hue (~38°).
-   Hierarchy is carried by lightness alone, never by hue, so nothing on screen
-   needs a blue, violet, or green channel to be legible late at night. The
-   chrome overlays that other dark themes tint with white are tinted amber here
-   — a white veil is the largest remaining blue source once the palette is warm. */
+/* ── Vigil (dark, monochrome — the low-blue night watch) ────────────────────
+   A single achromatic ramp: every ink is the same warm gray at a different
+   lightness, so hierarchy is carried by brightness alone and no surface needs
+   a hue to be read. The warmth is deliberate and kept just under the neutral
+   line — a true #c9c9c9 gray emits as much short-wavelength light as any
+   other dark theme, which is the thing this palette exists to avoid. Body ink
+   holds ~11% less blue than Ink's while still reading as gray, not sepia. The
+   chrome overlays that other dark themes tint with white are tinted with the
+   same gray here; a white veil is the largest blue source left once the ramp
+   itself is neutral. */
 [data-theme='vigil'] {
   color-scheme: dark;
 
-  --bg: #12100c;
-  --bg-elevated: #1a1611;
-  --bg-input: #221d15;
-  --bg-hover: #2a241a;
+  --bg: #111010;
+  --bg-elevated: #191817;
+  --bg-input: #211f1d;
+  --bg-hover: #292725;
 
-  --border: #3a3123;
-  --border-subtle: #262019;
+  --border: #3a3733;
+  --border-subtle: #262421;
 
-  --text: #e0bd72;
-  --text-bright: #f7dd97;
-  --text-dim: #9e8556;
-  --text-faint: #6c5c3c;
+  --text: #cdc6b9;
+  --text-bright: #f0eae0;
+  --text-dim: #8d867a;
+  --text-faint: #5f5a51;
 
-  --accent: #d99a3f;
-  --accent-soft: rgba(217, 154, 63, 0.15);
+  /* The one element allowed a trace of color — caret, selection, active pills.
+     Sand rather than gold: present enough to find, quiet enough to stay in the
+     monochrome. */
+  --accent: #c2b091;
+  --accent-soft: rgba(194, 176, 145, 0.14);
   --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
   --selection-fg: var(--text-bright);
 
-  /* One hue, five stops. Headings brightest, quotes darkest — no hue coding. */
-  --md-heading: #f2cd78;
-  --md-emphasis: #ccaa6e;
-  --md-strong: #e9be68;
-  --md-link: #ddaf5e;
-  --md-code: #b39763;
-  --md-quote: #907a50;
-  --md-list: #a88d5e;
+  /* One ramp, seven stops. Headings brightest, quotes darkest — no hue coding
+     anywhere, which is what makes this readable as monochrome at a glance. */
+  --md-heading: #e8e0d1;
+  --md-strong: #ded6c8;
+  --md-link: #cfc5b4;
+  --md-emphasis: #b3aca0;
+  --md-code: #a09889;
+  --md-list: #968e81;
+  --md-quote: #847d72;
 
-  --danger: #cf6f45; /* rust, not red — the one place hue still has a job */
-  --success: #c2a86a;
+  --danger: #c08a72; /* terracotta — the one place hue still has a job */
+  --success: #b0a68e;
 
-  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(217, 154, 63, 0.16), rgba(180, 120, 48, 0.04) 42%, transparent 64%);
-  --journal-horizon: rgba(217, 154, 63, 0.5);
-  --scripture-cell-rest: rgba(240, 208, 140, 0.06);
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(210, 198, 176, 0.13), rgba(170, 158, 138, 0.03) 42%, transparent 64%);
+  --journal-horizon: rgba(194, 176, 145, 0.45);
 
-  --glass-bg: rgba(26, 22, 17, 0.76);
-  --glass-nav-bg: rgba(18, 16, 12, 0.58);
-  --glass-border: rgba(240, 208, 140, 0.1);
-  --glass-edge: rgba(255, 230, 175, 0.07);
-  --glass-scrim: rgba(8, 6, 3, 0.6);
-  --glass-shadow-glow: 0 0 58px -28px rgba(217, 154, 63, 0.18);
-  --glass-glow-spot: rgba(217, 154, 63, 0.2);
+  /* Brand amber — sidebar badges, count pills, the active view switcher. The
+     :root gold is the loudest color left once the ramp is neutral, so it takes
+     the accent's sand instead. */
+  --dayspring-amber: #c2b091;
+  --dayspring-amber-bg: rgba(194, 176, 145, 0.15);
+  --dayspring-amber-bg-subtle: rgba(194, 176, 145, 0.08);
 
-  /* Sidebar chrome: the :root defaults are white veils, which read blue-cool on
-     a warm ground. Same opacities, amber tint. */
-  --entry-list-search-bg: rgba(240, 208, 140, 0.06);
-  --entry-list-search-icon: rgba(240, 208, 140, 0.24);
-  --entry-list-search-placeholder: rgba(240, 208, 140, 0.27);
-  --entry-list-view-inactive: rgba(240, 208, 140, 0.32);
-  --entry-list-view-hover: rgba(240, 208, 140, 0.58);
-  --entry-list-label: rgba(240, 208, 140, 0.27);
-  --entry-list-section: rgba(240, 208, 140, 0.22);
-  --entry-list-section-border: rgba(240, 208, 140, 0.07);
-  --entry-row-hover-bg: rgba(240, 208, 140, 0.04);
-  --entry-row-active-bg: rgba(240, 208, 140, 0.07);
-  --entry-row-selected-bg: rgba(240, 208, 140, 0.05);
-  --entry-list-title: rgba(240, 208, 140, 0.64);
-  --entry-list-title-active: rgba(247, 221, 151, 0.92);
-  --entry-list-title-untitled: rgba(240, 208, 140, 0.3);
-  --entry-list-month: rgba(240, 208, 140, 0.64);
-  --entry-list-month-active: rgba(247, 221, 151, 0.92);
-  --entry-list-year: rgba(240, 208, 140, 0.74);
-  --entry-list-year-active: rgba(247, 221, 151, 0.92);
-  --entry-list-year-month: rgba(240, 208, 140, 0.44);
-  --entry-list-year-month-hover: rgba(240, 208, 140, 0.67);
-  --entry-list-head-border: rgba(217, 154, 63, 0.2);
+  /* Scripture's ember→gold heat ramp is deliberately constant across every
+     other theme — it's the surface's signature. Vigil is the one exception:
+     a gold-on-black chapter grid is by far the most saturated thing in the
+     app, and leaving it would mean the theme is monochrome everywhere except
+     the screen with the most lit pixels. The ramp keeps its meaning by running
+     dim gray → bright warm white, which is the same lightness-only hierarchy
+     the rest of the palette uses. */
+  --scripture-ember: 150, 142, 128; /* low engagement */
+  --scripture-gold: 240, 233, 219; /* high engagement */
+  --scripture-cell-rest: rgba(232, 224, 208, 0.06);
+
+  --glass-bg: rgba(25, 24, 23, 0.76);
+  --glass-nav-bg: rgba(17, 16, 16, 0.58);
+  --glass-border: rgba(232, 224, 208, 0.1);
+  --glass-edge: rgba(255, 250, 240, 0.07);
+  --glass-scrim: rgba(6, 5, 4, 0.6);
+  --glass-shadow-glow: 0 0 58px -28px rgba(194, 176, 145, 0.16);
+  --glass-glow-spot: rgba(194, 176, 145, 0.18);
+
+  /* Sidebar chrome: the :root defaults are pure-white veils, the coolest thing
+     that would be left on screen. Same opacities, same gray as the ramp. */
+  --entry-list-search-bg: rgba(232, 224, 208, 0.06);
+  --entry-list-search-icon: rgba(232, 224, 208, 0.24);
+  --entry-list-search-placeholder: rgba(232, 224, 208, 0.27);
+  --entry-list-view-inactive: rgba(232, 224, 208, 0.32);
+  --entry-list-view-hover: rgba(232, 224, 208, 0.58);
+  --entry-list-label: rgba(232, 224, 208, 0.27);
+  --entry-list-section: rgba(232, 224, 208, 0.22);
+  --entry-list-section-border: rgba(232, 224, 208, 0.07);
+  --entry-row-hover-bg: rgba(232, 224, 208, 0.04);
+  --entry-row-active-bg: rgba(232, 224, 208, 0.07);
+  --entry-row-selected-bg: rgba(232, 224, 208, 0.05);
+  --entry-list-title: rgba(232, 224, 208, 0.64);
+  --entry-list-title-active: rgba(240, 234, 224, 0.92);
+  --entry-list-title-untitled: rgba(232, 224, 208, 0.3);
+  --entry-list-month: rgba(232, 224, 208, 0.64);
+  --entry-list-month-active: rgba(240, 234, 224, 0.92);
+  --entry-list-year: rgba(232, 224, 208, 0.74);
+  --entry-list-year-active: rgba(240, 234, 224, 0.92);
+  --entry-list-year-month: rgba(232, 224, 208, 0.44);
+  --entry-list-year-month-hover: rgba(232, 224, 208, 0.67);
+  --entry-list-head-border: rgba(194, 176, 145, 0.2);
 }

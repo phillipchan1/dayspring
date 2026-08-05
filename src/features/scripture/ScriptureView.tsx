@@ -15,7 +15,7 @@ import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { peekSurfaceUpdates } from '@/features/journal/surfaceUpdates'
 import { ScriptureBookView, type BookTarget } from './ScriptureBookView'
-import { heatColor, intensity } from './heat'
+import { heatColor, intensity, useHeatRamp } from './heat'
 import { useScriptureScan } from './useScriptureScan'
 import './Scripture.css'
 
@@ -110,6 +110,7 @@ function seasonNote(season: Season, s: SeasonSummary): string {
 }
 
 export function ScriptureView({ onOpenEntry }: Props) {
+  useHeatRamp()
   const { state, go, back } = useAppNavigation()
   const seasons = useMemo(() => buildSeasons(), [])
   const initialCanon = useMemo(() => {
