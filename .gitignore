@@ -41,6 +41,9 @@ pnpm-debug.log*
 # Vite / TS
 *.tsbuildinfo
 .vercel
+
+# Local script caches (SSA names dataset for scripts/demographics.ts)
+.cache
 .env*.local
 
 # Generated in CI and bundled into the desktop build (not committed)

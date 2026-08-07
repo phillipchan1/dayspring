@@ -17,6 +17,7 @@ import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { env } from '../_lib/env.js'
 import { preflight, withCors } from '../_lib/cors.js'
+import { demographicsStamp, readBody } from '../_lib/demographics.js'
 
 const TRIAL_DAYS = 14
 
@@ -29,12 +30,13 @@ export async function POST(req: Request): Promise<Response> {
   if (!user) return withCors(req, notAuthenticated())
 
   const sb = supabaseAdmin()
+  const body = await readBody(req)
 
   // Read whatever exists today (service role bypasses RLS; scope by owner).
   const { data: existing } = await sb
     .from('profiles')
     .select(
-      'plan, plan_source, trial_ends_at, plan_expires_at, stripe_customer_id, apple_original_txn, onboarded_at',
+      'plan, plan_source, trial_ends_at, plan_expires_at, stripe_customer_id, apple_original_txn, onboarded_at, platforms, signup_provider',
     )
     .eq('owner', user.id)
     .maybeSingle()
@@ -57,6 +59,17 @@ export async function POST(req: Request): Promise<Response> {
     ? new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString()
     : (existing?.trial_ends_at ?? null)
 
+  // Passive demographics — platform/timezone/locale from the body, country from
+  // the request. Rides along on a call that already happens on every app open,
+  // so it costs no extra round trip and nothing is asked of the user.
+  const demographics = demographicsStamp(
+    req,
+    body,
+    existing,
+    user.provider,
+    new Date(),
+  )
+
   const { data: row, error } = await sb
     .from('profiles')
     .upsert(
@@ -65,6 +78,7 @@ export async function POST(req: Request): Promise<Response> {
         ...(grantTrial
           ? { plan: 'trialing', trial_ends_at: trialEndsAt }
           : {}),
+        ...demographics,
       },
       { onConflict: 'owner' },
     )

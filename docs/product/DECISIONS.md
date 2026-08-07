@@ -118,11 +118,20 @@ acquisition path and that everyone arrives via import.
 currently measuring this and should be.** → depends on D-003.
 
 ## D-003 — Instrument the onboarding fork
-**Status: OPEN — cheapest high-value action available.**
-The veteran/fresh fork in `OnboardingFlow.tsx` is a live persona experiment we aren't
-reading. Split rate and per-branch trial conversion would directly test `VISION.md`
-Bet 3 and settle D-002.
+**Status: INSTRUMENTED, awaiting data.**
+The veteran/fresh fork in `OnboardingFlow.tsx` was a live persona experiment we weren't
+reading. Split rate and per-branch trial conversion directly test `VISION.md` Bet 3 and
+settle D-002.
+`profiles.onboarding_path` now records which side each account took, alongside a set of
+passive columns (platform, device shape, country, timezone, locale, signup provider)
+stamped by `/api/profile/ensure` on every app open. `npx tsx scripts/demographics.ts`
+prints the split and the per-branch plan breakdown. Nothing is asked of the user.
+**Reopen D-002 once there are enough post-instrumentation signups to read.**
 **Constraint:** Principle 7 — no analytics on entry *text*. Funnel events only.
+**Guardrail:** these columns inform roadmap decisions and never render back to a user —
+"users like you write 3× a week" is a verdict with extra steps (Principle 1, D-006).
+Age and gender are deliberately NOT stored; the script estimates those distributions
+from first names at population level, offline, and writes nothing back.
 
 ## D-004 — Is there an invitational answer to consistency?
 **Status: OPEN.** P2's question *"is journaling one more thing I'll fail at?"* is

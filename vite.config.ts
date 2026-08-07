@@ -77,6 +77,8 @@ export default defineConfig({
     environment: 'node',
     // api/ too: the server-side grouping logic (declared threads) is pure and worth
     // pinning down — a silent regression there is what made the Altar unreadable.
-    include: ['src/**/*.test.ts', 'api/**/*.test.ts'],
+    // scripts/ for the same reason: the demographics estimator is arithmetic Phil
+    // makes roadmap calls on, and a wrong answer there looks exactly like a right one.
+    include: ['src/**/*.test.ts', 'api/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
 })

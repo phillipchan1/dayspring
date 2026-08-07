@@ -3,7 +3,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
-import { setOnboarded } from '@/lib/profile'
+import { setOnboarded, type OnboardingPath } from '@/lib/profile'
 import { setSeedPrompt } from '@/lib/onboardingSeed'
 import { WelcomeFlow } from '@/features/welcome/WelcomeFlow'
 import { onboardingCopy as copy, pickOpeningPrompt } from './onboardingCopy'
@@ -40,23 +40,27 @@ export function OnboardingFlow({ onFinish }: Props) {
     updateSettings({ appearance: isLight ? 'dark' : 'light' })
   }, [isLight, updateSettings])
 
-  // Persist onboarded_at, then hand back to the parent. Best-effort: even if the
-  // write fails we still enter the app (localStorage guards a re-show).
-  const finish = useCallback(async () => {
-    if (finishing) return
-    setFinishing(true)
-    if (seedRef.current) setSeedPrompt(seedRef.current)
-    try {
-      await setOnboarded()
-    } catch {
-      /* non-fatal */
-    }
-    onFinish()
-  }, [finishing, onFinish])
+  // Persist onboarded_at + which fork was taken, then hand back to the parent.
+  // Best-effort: even if the write fails we still enter the app (localStorage
+  // guards a re-show).
+  const finish = useCallback(
+    async (path: OnboardingPath) => {
+      if (finishing) return
+      setFinishing(true)
+      if (seedRef.current) setSeedPrompt(seedRef.current)
+      try {
+        await setOnboarded(path)
+      } catch {
+        /* non-fatal */
+      }
+      onFinish()
+    },
+    [finishing, onFinish],
+  )
 
   const startFresh = useCallback(() => {
     seedRef.current = pickOpeningPrompt()
-    void finish()
+    void finish('fresh')
   }, [finish])
 
   return (
@@ -137,7 +141,7 @@ export function OnboardingFlow({ onFinish }: Props) {
               <button
                 type="button"
                 className="ob-primary"
-                onClick={() => void finish()}
+                onClick={() => void finish('import_deferred')}
                 disabled={finishing}
               >
                 {copy.importMobile.cta}
@@ -147,7 +151,7 @@ export function OnboardingFlow({ onFinish }: Props) {
               </button>
             </div>
           ) : (
-            <ImportFlow onComplete={() => void finish()} onBack={() => setStep('fork')} />
+            <ImportFlow onComplete={() => void finish('import')} onBack={() => setStep('fork')} />
           ))}
 
         {step === 'fresh' && (

@@ -30,11 +30,25 @@ export async function setWelcomeSeen(): Promise<void> {
 }
 
 /**
+ * Which side of the onboarding fork the user took.
+ *   import          — brought an archive in
+ *   fresh           — started from an empty editor
+ *   import_deferred — wanted to import but was on a phone, where the archive
+ *                     parse is refused; they entered the app without one
+ */
+export type OnboardingPath = 'import' | 'fresh' | 'import_deferred'
+
+/**
  * Stamp the account as having completed (or skipped) the first-run onboarding
  * flow. Idempotent upsert; once set, the flow never reappears. Also marks the
  * legacy Welcome carousel as seen so it can't auto-fire after onboarding.
+ *
+ * Records which fork was taken. That split is a live persona experiment we were
+ * running without reading the result (DECISIONS.md D-003), and it is what
+ * settles D-002 — whether fresh-start is a viable acquisition path at all, or
+ * whether everyone worth having arrives with history to import.
  */
-export async function setOnboarded(): Promise<void> {
+export async function setOnboarded(path: OnboardingPath): Promise<void> {
   const sb = requireSupabase()
   const {
     data: { session },
@@ -48,7 +62,12 @@ export async function setOnboarded(): Promise<void> {
   await sb
     .from('profiles')
     .upsert(
-      { owner: session.user.id, onboarded_at: new Date().toISOString(), has_seen_welcome: true },
+      {
+        owner: session.user.id,
+        onboarded_at: new Date().toISOString(),
+        has_seen_welcome: true,
+        onboarding_path: path,
+      },
       { onConflict: 'owner' },
     )
     .throwOnError()

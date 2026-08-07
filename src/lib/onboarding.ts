@@ -5,6 +5,7 @@
 
 import { requireSupabase } from './supabase'
 import { apiUrl } from './api'
+import { clientContext } from './clientContext'
 import type { Plan } from './subscription'
 
 async function authedPost<T>(path: string, body: unknown): Promise<T> {
@@ -42,9 +43,14 @@ export interface EnsureProfileResult {
  * Initialize the account right after auth. Idempotent. In the default
  * (app-managed) model this grants the 14-day reverse trial in Supabase on first
  * sign-in — no Stripe, no card. Returns the resulting plan/trial/onboarded state.
+ *
+ * Also carries this device's platform/form-factor/timezone/locale, which the
+ * server stamps onto the profile alongside the country it reads off the request
+ * (see the demographics migration). This call already runs on every app open,
+ * so it doubles as the last-seen heartbeat — no extra round trip.
  */
 export function ensureProfile(): Promise<EnsureProfileResult> {
-  return authedPost<EnsureProfileResult>('/api/profile/ensure', {})
+  return authedPost<EnsureProfileResult>('/api/profile/ensure', clientContext())
 }
 
 export interface RecentBackfillResult {

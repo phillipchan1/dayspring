@@ -3,6 +3,10 @@ import { supabaseAdmin } from './supabaseAdmin.js'
 export interface AuthedUser {
   id: string
   email: string | undefined
+  /** Provider of the identity this token was issued for ('google' | 'apple').
+   *  On an account with both linked this reflects the most recent sign-in, so
+   *  treat it as "how they got in just now", not "how they signed up". */
+  provider: string | undefined
 }
 
 /**
@@ -20,7 +24,12 @@ export async function getAuthedUser(req: Request): Promise<AuthedUser | null> {
   } = await supabaseAdmin().auth.getUser(token)
 
   if (error || !user) return null
-  return { id: user.id, email: user.email }
+  const provider = user.app_metadata?.provider
+  return {
+    id: user.id,
+    email: user.email,
+    provider: typeof provider === 'string' ? provider : undefined,
+  }
 }
 
 export function notAuthenticated(): Response {
