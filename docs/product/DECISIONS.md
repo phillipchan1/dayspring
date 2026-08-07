@@ -92,6 +92,71 @@ Principle 2 review; or Remember goes unvisited after 60 days, meaning re-reading
 happening and Ask alone was the product.
 **Cost accepted:** one table, and a surface that is honestly thin for a fresh-start user.
 
+## D-017 — Pages: a read surface, and a deliberate Principle 2 override
+**2026-08-07** · **Status:** Decided (built, flag OFF — `VITE_FF_PAGES`)
+
+**Decision:** **Pages** — the writer's own entries laid out as pages, side by side. A
+canvas surface reached from the Entries panel's view switcher (`List · Month · Year ·
+Pages`, plus ⇧⌘1), **not** a fifth rail destination.
+
+**Why it exists:** `POSITIONING.md` says *"Every other journal is a write surface. We're a
+read surface."* The rail did not deliver that. Write had two mature surfaces; Return had
+four — and every one of them **interprets**. Ascent arranges seasons, Lamp gathers verses,
+Altar follows prayers, Remember answers questions. None of them let you simply *read*. The
+only route to your own pages was a 30px row rendering `deriveTitle()` in 13px sans, with
+the preview defaulting off: eleven years as a filing cabinet, inherited from Day One and
+never designed. The gap was not "the sidebar is boring" — it was **you can navigate, or you
+can be told; you cannot browse.**
+
+**What it restores** (all four are things paper gives free and a list destroys): peripheral
+vision · length as shape · accidental landing · your own marks catching your eye from a
+distance. None requires AI, and the corpus is already resident client-side, so Pages costs
+no endpoint, no migration, and no schema change — and it keeps paying out in a month with
+four entries (Principle 5's "design for the dip").
+
+**Why it belongs to Entries, not the Return group:** it is a way of looking at your
+entries, not a fifth thing to return to. It still obeys the Return rule — *you go there to
+see, never to do.*
+
+### ⚠️ The override: the weather grid may be drawn over writing activity
+
+`SURFACES.md` and `weather.ts` both stated absolutely that the grid is *"only ever drawn
+over passages or over the matches for a question — never over writing activity."* On Pages,
+with no subject chosen, it **is** drawn over writing activity. Per `PRINCIPLES.md`,
+overriding a principle requires saying so out loud; this is that row.
+
+**Why:** the surface's one rule is that the grid always describes exactly what the wall is
+showing. With a subject lit it covers the matches (the sanctioned case); with none it
+covers the whole archive — which is writing activity. Special-casing it to blankness would
+break the only rule that makes the reading legible.
+
+**What the override does NOT license** — these remain prohibited at every call site:
+totals · a goal · a current-streak · a "days since" · any copy about not having written.
+Empty cells keep `--border-subtle`: never a red, never a gap, never a dashed outline. The
+grid is held to a narrow column beside the facts, never leading the surface — stretched
+wide, the same grid stops reading as weather and starts reading as a scoreboard.
+
+**The sharpest element, flagged rather than hidden:** `buildFacts` returns
+`longestSilence`. Over passages it's a fact; over writing activity it edges toward telling
+someone how long they failed to show up. It ships, marked in `PagesView.tsx` as three lines
+to delete. **This is the first thing to cut if the audit test fails.**
+
+**Audit test (run it before graduating the flag):** show the wall to someone in a dry
+season. Weather, or a record of how often they failed to show up? Also: open Pages in a
+month with four entries — a way back, or an inbox?
+
+**Also decided:** echoes interleave as pages rather than popping up as cards, and the
+`resurface_dismissals` loop in `lib/echoes.ts` stays unwired — a card with a dismiss button
+is a chore about your prayer life, and an interleaved page needs no dismissal. Subject
+lighting **dims, never filters**: the pages that don't carry a word are what give the ones
+that do their shape.
+
+**What would change our mind:** the dry-season test fails (cut `longestSilence`, then the
+activity grid itself, leaving subject lighting); or Pages goes unvisited, meaning the
+Entries list was adequate and the gap was imagined.
+**Cost accepted:** a Principle 2 exception that a future reader will find surprising, which
+is why it is written here and cross-referenced from `weather.ts`.
+
 ---
 
 # OPEN — the live agenda

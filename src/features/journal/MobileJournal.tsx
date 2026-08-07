@@ -37,7 +37,7 @@ export function MobileJournal(props: JournalViewProps) {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
     settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, onPages, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -53,7 +53,8 @@ export function MobileJournal(props: JournalViewProps) {
   }
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || rememberActive
+  const canvasAlternateActive =
+    reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
   const journalChrome = !canvasAlternateActive
 
   function closeDrawer() {
@@ -268,6 +269,9 @@ export function MobileJournal(props: JournalViewProps) {
                 query={query}
                 onQueryChange={onQueryChange}
                 fullWidth
+                // The drawer has to close behind it, or the wall opens under a
+                // sheet that's still covering it.
+                {...(onPages ? { onPages: () => { closeDrawer(); onPages() } } : {})}
               />
             </div>
           </div>

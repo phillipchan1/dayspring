@@ -46,6 +46,7 @@ import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { RememberView } from '@/features/remember/RememberView'
+import { PagesView } from '@/features/pages/PagesView'
 import { useRemember } from '@/features/remember/useRemember'
 import type { Mark } from '@/lib/marks'
 import { FindPalette } from '@/features/remember/FindPalette'
@@ -146,6 +147,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
   const rememberActive = state.surface === 'well'
+  const pagesActive = state.surface === 'pages'
   // Altar is unfinished — hidden behind the `altar` flag (per-profile or
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
@@ -154,8 +156,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Unlike Altar this does NOT redirect the surface: ⌘K → Ask still routes
   // there, it just isn't advertised in the navigation until it's turned on.
   const rememberEnabled = resolveFlag(featureFlags, 'remember')
+  // Pages hides its way in behind the `pages` flag. Like Remember — and unlike
+  // Altar — this does NOT redirect the surface, so a saved history frame still
+  // lands somewhere real.
+  const pagesEnabled = resolveFlag(featureFlags, 'pages')
   const canvasAlternateActive =
-    reflectionsActive || altarActive || scriptureActive || rememberActive
+    reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
   // Passages + marks. The corpus read is gated on the surface being open; marks
   // load always, because the editor draws them.
   const remember = useRemember(rememberActive)
@@ -1126,6 +1132,30 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }
 
+  /**
+   * Open the wall.
+   *
+   * Reached from the Entries panel's view switcher rather than the rail: Pages is
+   * a way of looking at your entries, not a fifth thing to return to. The panel
+   * closes behind it because the wall IS the list — two indexes of the same
+   * archive side by side is just clutter.
+   */
+  async function openPages() {
+    if (pagesActive) return
+    await saveNow() // see toggleLookBack — must complete before entryId nulls
+    setEntriesOpen(false)
+    go({
+      surface: 'pages',
+      entryId: null,
+      entryReturn: null,
+      ascentDrill: null,
+      rememberQuestion: null,
+      settings: null,
+      help: false,
+      sidebar: false,
+    })
+  }
+
   function toggleEntries() {
     if (canvasAlternateActive) {
       go({ surface: 'journal', sidebar: isMobile })
@@ -1177,6 +1207,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
+    ...(pagesEnabled ? { onPages: () => void openPages() } : {}),
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     onFontSizeUp: () =>
       updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
@@ -1678,6 +1709,30 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       onOpenEntry={handleOpenReflectionEntry}
       onAskAgain={(seed: string) => openFindOrAsk(seed)}
     />
+  ) : pagesActive ? (
+    <PagesView
+      // The whole archive, not `visibleEntries` — the sidebar's search box has
+      // nothing to do with the wall, and a wall silently filtered by a query
+      // someone left in a panel they can't see would be a lie about their years.
+      entries={entries}
+      marks={remember.marks}
+      ready={entriesReady}
+      activeId={entryId}
+      subjectKey={state.pagesSubject}
+      // Replace, not push: a subject is a filter you try on, and pushing a frame
+      // per chip would make Back walk every word you looked at.
+      onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
+      spreadId={state.pagesSpreadId}
+      onSpread={(id) => {
+        if (id === null) back()
+        else if (state.pagesSpreadId) go({ pagesSpreadId: id }, { replace: true })
+        else go({ pagesSpreadId: id })
+      }}
+      onOpenEntry={handleOpenReflectionEntry}
+      single={isMobile}
+      settings={settings}
+      updateSettings={updateSettings}
+    />
   ) : restrictIds ? (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="restrict-banner">
@@ -1748,6 +1803,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     altarActive,
     scriptureActive,
     rememberActive: rememberActive,
+    pagesActive,
+    ...(pagesEnabled ? { onPages: () => void openPages() } : {}),
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
     entryReturn: state.entryReturn,

@@ -1,4 +1,4 @@
-import { requireSupabase } from './supabase'
+import { requireSupabase, supabase } from './supabase'
 
 export interface EchoCandidate {
   id: string
@@ -196,6 +196,70 @@ async function fetchAnniversarySense(
   }
 
   return null
+}
+
+/** A sense the writer declared on this calendar day in an earlier year. */
+export interface AnniversarySense {
+  id: string
+  content: string
+  yearsAgo: number
+  entryId: string | null
+}
+
+/**
+ * On-this-day senses, for the Pages wall.
+ *
+ * Two deliberate differences from `fetchAnniversarySense` above, which serves the
+ * single-card resurface flow:
+ *
+ *  1. **`source` is null.** Writer-DECLARED senses only. `spiritual_items` also
+ *     holds thousands of rows the Altar's model harvested (`source = 'scanned'`),
+ *     and handing one of those back as something you sensed years ago would be the
+ *     app presenting its own inference as the writer's memory — Principle 1 and 4.
+ *     The same filter is load-bearing in features/remember/useRemember.ts.
+ *  2. **No dismissals.** Nothing here is a card with a close button. It's a line
+ *     that's present on the days there's something for, and absent otherwise, so
+ *     there is nothing to clear and no chore to fall behind on.
+ */
+export async function fetchAnniversarySenses(limit = 3): Promise<AnniversarySense[]> {
+  const sb = supabase
+  if (!sb) return []
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) return []
+
+  const now = new Date()
+  const month = now.getUTCMonth() + 1
+  const day = now.getUTCDate()
+
+  const { data, error } = await sb
+    .from('spiritual_items')
+    .select('id, content, created_at, entry_id, source')
+    .eq('owner', session.user.id)
+    .eq('type', 'sense')
+    .is('source', null)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (error) return []
+
+  const out: AnniversarySense[] = []
+  for (const row of data ?? []) {
+    const created = new Date(row.created_at as string)
+    if (created.getUTCMonth() + 1 !== month || created.getUTCDate() !== day) continue
+    const yearsAgo = now.getUTCFullYear() - created.getUTCFullYear()
+    if (yearsAgo < 1) continue
+    const content = String(row.content ?? '').trim()
+    if (!content) continue
+    out.push({
+      id: String(row.id),
+      content,
+      yearsAgo,
+      entryId: (row.entry_id as string | null) ?? null,
+    })
+    if (out.length >= limit) break
+  }
+  return out
 }
 
 /** Pick one resurfacing card by priority: reminder → prayer → echo → anniversary sense. */

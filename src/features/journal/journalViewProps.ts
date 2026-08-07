@@ -75,6 +75,10 @@ export interface JournalViewProps {
   scriptureActive: boolean
   /** True when the Well fills the main canvas. */
   rememberActive: boolean
+  /** True when the Pages wall fills the main canvas. */
+  pagesActive: boolean
+  /** Leave the Entries panel for the Pages wall. Undefined when the flag is off. */
+  onPages?: (() => void) | undefined
   /** Open ⌘K — Find (instant, local) or Ask (the Well). */
   onFindOrAsk: () => void
   /** Open the Remember surface (rail ⌘5 / mobile tab). */

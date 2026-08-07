@@ -182,9 +182,18 @@ export function extractQuotes(markdown: string): string[] {
 }
 
 /** Normalized for dedupe — a line emphasised inside a quote is one passage, not two. */
-function key(text: string): string {
+/**
+ * Comparison key for a passage: letters and digits only, lowercased.
+ *
+ * Exported because anything that wants to ask "is this line one the writer set
+ * apart?" — Remember's dedupe, the Pages wall's mark glow — has to normalize the
+ * same way. A second copy of this function is a second answer to that question.
+ */
+export function passageKey(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
+
+const key = passageKey
 
 /**
  * Drop the markup, keep the words. A passage is shown to the writer verbatim,

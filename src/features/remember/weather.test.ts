@@ -79,6 +79,13 @@ describe('foldCopy', () => {
   it('takes a caller-supplied noun for the Ask view', () => {
     expect(foldCopy(foldMonth(w, 2), 'entry')).toContain('1 entry')
   })
+
+  it('uses the supplied plural rather than bolting an s on', () => {
+    // Regression: both callers pass "entry", and the derived plural read "3 entrys".
+    expect(foldCopy(foldMonth(w, 10), 'entry', 'entries')).toBe(
+      'November: 3 entries, across 3 of 4 years.',
+    )
+  })
 })
 
 describe('buildFacts', () => {

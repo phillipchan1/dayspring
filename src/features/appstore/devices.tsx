@@ -78,6 +78,7 @@ export function journalProps(
     altarActive: false,
     scriptureActive: false,
     rememberActive: false,
+    pagesActive: false,
     ...active,
     onFindOrAsk: noop,
     entryReturn: null,

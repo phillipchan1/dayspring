@@ -14,6 +14,11 @@ const FLAG_ENV: Record<string, string> = {
   // and the desktop rail button. The ⌘K Find palette and the route itself are
   // untouched, so ⌘K → Ask still lands somewhere real.
   remember: 'VITE_FF_REMEMBER',
+  // Pages — the read surface (the wall, the Spread). Off by default while it
+  // proves out. Hiding the flag hides only the "Pages" segment in the Entries
+  // view switcher; the route itself stays reachable so a saved history frame
+  // never dead-ends.
+  pages: 'VITE_FF_PAGES',
 }
 
 /**

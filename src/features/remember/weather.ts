@@ -11,9 +11,17 @@
 //
 // ⚠ This shape is one decision away from a contributions graph, which is a
 // streak grid, which is Principle 2. The countermeasure is structural and lives
-// at the call site: it is only ever drawn over PASSAGES or over the matches for
-// a QUESTION — never over writing activity. It must never be able to answer
-// "how faithfully do I journal." No totals, no goal, no current-streak.
+// at the CALL SITE, so read this before adding one:
+//
+//   • Remember draws it over PASSAGES, or over the matches for a QUESTION.
+//   • Pages draws it over WRITING ACTIVITY when no subject is chosen. That is a
+//     deliberate override of the rule this comment used to state absolutely —
+//     see D-017 in docs/product/DECISIONS.md. It is held to a narrow column and
+//     sits beside the facts rather than leading the surface.
+//
+// What NO call site may do, override or not: totals, a goal, a current-streak,
+// a "days since", or any copy about not having written. Empty cells read as
+// quiet, never as failure — never a red, never a gap, never a dashed outline.
 
 export interface Weather {
   /** Ascending. One row per calendar year in the span, gaps included. */
@@ -90,7 +98,12 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * One sentence about a fold. States the count and the spread; says nothing
  * about what it means, and never congratulates or laments.
  */
-export function foldCopy(fold: Fold, noun = 'passage'): string {
+/**
+ * @param nounPlural  Supply it whenever the plural isn't noun + "s". It used to
+ *   be derived, which read "48 entrys" the moment a caller passed "entry" — and
+ *   two of them did.
+ */
+export function foldCopy(fold: Fold, noun = 'passage', nounPlural = `${noun}s`): string {
   const name = MONTHS[fold.month]
   if (fold.total === 0) {
     return fold.ofYears <= 1
@@ -98,9 +111,9 @@ export function foldCopy(fold: Fold, noun = 'passage'): string {
       : `Nothing in any ${name}, in ${fold.ofYears} years.`
   }
   if (fold.ofYears <= 1) {
-    return `${name}: ${plural(fold.total, noun, `${noun}s`)}.`
+    return `${name}: ${plural(fold.total, noun, nounPlural)}.`
   }
-  return `${name}: ${plural(fold.total, noun, `${noun}s`)}, across ${fold.years} of ${fold.ofYears} years.`
+  return `${name}: ${plural(fold.total, noun, nounPlural)}, across ${fold.years} of ${fold.ofYears} years.`
 }
 
 export interface Facts {

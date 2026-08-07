@@ -1,4 +1,5 @@
 import { MONTH_INITIALS, MONTHS, foldCopy, foldMonth, type Weather } from './weather'
+import './WeatherGrid.css'
 
 interface Props {
   weather: Weather
@@ -7,6 +8,8 @@ interface Props {
   onMonth: (month: number | null) => void
   /** Word used in the fold sentence — "passage" at rest, "entry" in an answer. */
   noun?: string
+  /** Pass whenever the plural isn't noun + "s" (e.g. entry → entries). */
+  nounPlural?: string
 }
 
 /**
@@ -19,7 +22,13 @@ interface Props {
  * no legend, no numbers on the cells. You read your own weather; the app does
  * not tell you what the weather means.
  */
-export function WeatherGrid({ weather, month, onMonth, noun = 'passage' }: Props) {
+export function WeatherGrid({
+  weather,
+  month,
+  onMonth,
+  noun = 'passage',
+  nounPlural = `${noun}s`,
+}: Props) {
   if (weather.years.length === 0) return null
 
   const fold = month == null ? null : foldMonth(weather, month)
@@ -53,14 +62,14 @@ export function WeatherGrid({ weather, month, onMonth, noun = 'passage' }: Props
               data-dim={month != null && month !== col ? 'true' : undefined}
               // Five steps, capped: one busy month must not flatten a decade.
               data-level={n === 0 ? 0 : Math.min(4, Math.ceil((n / weather.peak) * 4))}
-              title={`${MONTHS[col]} ${year} — ${n} ${n === 1 ? noun : `${noun}s`}`}
+              title={`${MONTHS[col]} ${year} — ${n} ${n === 1 ? noun : nounPlural}`}
             />
           ))}
         </div>
       ))}
 
       <p className="wx__read" aria-live="polite">
-        {fold ? foldCopy(fold, noun) : ''}
+        {fold ? foldCopy(fold, noun, nounPlural) : ''}
       </p>
     </div>
   )

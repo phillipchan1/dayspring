@@ -22,7 +22,7 @@ thesis, not a nav convenience.
 
 | | Surfaces | Job |
 |---|---|---|
-| **Write** | New entry, Entries | Capture. Must be frictionless and sacred (Principle 3). |
+| **Write** | New entry, Entries (+ Pages) | Capture. Must be frictionless and sacred (Principle 3). |
 | **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4, Remember ⌘5 | **Reflective, never operational.** Reveal what a paper journal can't. |
 
 **The rule for every Return surface: you go there to *see*, never to *do*.** No tasks,
@@ -55,6 +55,26 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   Handwriting scan is an **A-persona feature aimed at a B-persona behavior** (paper
   journalers) — if the A/B question in `POSITIONING.md` resolves toward B, this becomes
   much more strategically important than it looks today.
+
+### Pages — `features/pages/` · Entries → Pages, or ⇧⌘1 · *"Your own, side by side"*
+- **Promise:** "Read your own pages the way you could read a notebook — many at once."
+- **Answers:** P1 *"I have eleven years in here. What's in it?"* — but by showing it rather
+  than summarising it.
+- **Serves:** P4 (every line on a page is verbatim; nothing is generated), P5 (needs no AI
+  and no threshold, so it pays out in a thin month), P1 (subject lighting is a filter the
+  writer chose, never a significance the app assigned).
+- **Risks:** **P2, knowingly.** With no subject chosen its weather grid covers writing
+  activity — a deliberate override, D-017. Also PKM drift: the subject bar must stay a
+  handful of ways in, never a tag manager.
+- **State:** 🚧 Built, flag OFF (`VITE_FF_PAGES`). Wall (3 densities) · marks glow ·
+  subject lighting via the Concordance · interleaved anniversary pages · the Spread
+  (two-up, marginalia, page turns) · Open somewhere · month fold.
+- **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
+  to return to — so the rail still shows four ways back. It obeys the Return rule anyway:
+  you go there to see, never to do.
+- **Audit:** *Does any page carry something the writer didn't write?* (No title we invented,
+  no summary, no tag — a page in a notebook carries no metadata.) And the D-017 test: *show
+  the activity grid to someone in a dry season.* `longestSilence` is the first thing to cut.
 
 ---
 
@@ -125,9 +145,11 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
     asserting significance it decided on. The filter `.is('source', null)` in
     `useRemember.ts` is load-bearing.
 - **Audit:** ⚠ **The weather grid is one decision away from a contributions graph**,
-  which is a streak grid, which is a Principle 2 violation. It is only ever drawn over
-  passages or over the matches for a question — **never over writing activity** — and
-  carries no totals, no goal, no current-streak. *Show it to someone in a dry season: does
+  which is a streak grid, which is a Principle 2 violation. **On this surface** it is only
+  ever drawn over passages or over the matches for a question — never over writing
+  activity. *(Pages draws the same grid over writing activity by deliberate override —
+  D-017. That exception is scoped to Pages and does not travel back here.)* No call site
+  may carry totals, a goal, or a current-streak. *Show it to someone in a dry season: does
   it read as weather, or as a record of how often they failed to show up?* Second test,
   per the Return rule: *open it in a month with four entries. A way back, or an inbox?*
 
@@ -167,6 +189,7 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 | "Will this fit how I journal?" | Capture | ✅ |
 | **"Is this normal? Do others go through this?"** | — | ❌ **Uncovered.** P2's loneliest question. Answering it well probably requires aggregate/comparative data, which collides with Principle 7 and H2. Possibly correct to leave permanently uncovered — but decide deliberately. → D-006 |
 | "Can it help me find the things I highlighted?" | Remember | 🚧 Built, flagged off |
+| **"I have eleven years in here — can I just READ it?"** | Pages | 🚧 Built, flagged off. Was **uncovered**: every Return surface interpreted the archive; none handed it back. |
 | **"Is journaling one more thing I'll fail at?"** | — | ❌ **Uncovered by design.** The obvious answers are streaks and reminders (Principle 2 violations). The unsolved question is whether there's an *invitational* answer. → D-004 |
 
 ---

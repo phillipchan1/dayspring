@@ -3,8 +3,8 @@ export const APP_HISTORY_TAG = 'dayspring' as const
 
 export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
-/** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
-export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'well'
+/** Where the user was before opening an entry from Lamp, Altar, Ascent, or Pages. */
+export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'well' | 'pages'
 
 /** Drill-in overlay on the Ascent canvas (a verse's rise, or a rope's tended life). */
 export type AscentDrill =
@@ -25,9 +25,18 @@ export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
   altar: 'Altar',
   reflections: 'Ascent',
   well: 'the Well',
+  pages: 'Pages',
 }
 
-export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'well'
+/**
+ * A canvas surface.
+ *
+ * `pages` is a surface but NOT a rail destination — it's reached from the Entries
+ * panel's view switcher. Architecturally it takes the canvas like the Return
+ * surfaces do; in the product it belongs to Entries, which is why the rail still
+ * shows four ways to return.
+ */
+export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'well' | 'pages'
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
@@ -52,6 +61,11 @@ export interface AppHistoryState {
   /** The question the Well is answering. Null means the Well has nothing to show
    *  (arriving from the rail with no question yet just opens ⌘K). */
   rememberQuestion: string | null
+  /** Subject lighting the Pages wall (`word:<text>` or `c:<concordance id>`). */
+  pagesSubject: string | null
+  /** Entry open in the Pages Spread. Its own frame, so Esc/Back close the reader
+   *  and leave you on the wall rather than the editor. */
+  pagesSpreadId: string | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -68,6 +82,8 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   ascentAltitude: 0,
   ascentDrill: null,
   rememberQuestion: null,
+  pagesSubject: null,
+  pagesSpreadId: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -101,7 +117,8 @@ function normalizeSurface(value: unknown): Surface {
     value === 'altar' ||
     value === 'scripture' ||
     value === 'journal' ||
-    value === 'well'
+    value === 'well' ||
+    value === 'pages'
   )
     return value
   if (value === 'threads') return 'reflections' // Threads folded into Ascent
@@ -113,7 +130,7 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
   const r = value as EntryReturnContext
   // A stale entryReturn pointing at the retired 'threads' surface → reflections.
   if ((r.surface as string) === 'threads') r.surface = 'reflections'
-  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'well']
+  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'well', 'pages']
   if (!validSurface.includes(r.surface)) return null
   return {
     surface: r.surface,
@@ -135,6 +152,8 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
     rememberQuestion: typeof state.rememberQuestion === 'string' ? state.rememberQuestion : null,
+    pagesSubject: typeof state.pagesSubject === 'string' ? state.pagesSubject : null,
+    pagesSpreadId: typeof state.pagesSpreadId === 'string' ? state.pagesSpreadId : null,
   }
 }
 
@@ -163,6 +182,8 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
     a.rememberQuestion === b.rememberQuestion &&
+    a.pagesSubject === b.pagesSubject &&
+    a.pagesSpreadId === b.pagesSpreadId &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
@@ -247,6 +268,15 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: state.ascentAltitude,
       ascentDrill: state.ascentDrill,
+    }
+  }
+  if (state.surface === 'pages') {
+    return {
+      surface: 'pages',
+      scriptureBook: null,
+      scriptureVerse: null,
+      ascentAltitude: 0,
+      ascentDrill: null,
     }
   }
   return null

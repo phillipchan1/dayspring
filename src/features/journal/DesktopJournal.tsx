@@ -28,7 +28,7 @@ export function DesktopJournal(props: JournalViewProps) {
     entries, activeId, words, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
     settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, onPages, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
@@ -43,7 +43,8 @@ export function DesktopJournal(props: JournalViewProps) {
           ? formatBreadcrumb(new Date().toISOString())
           : ''
   const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || rememberActive
+  const canvasAlternateActive =
+    reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
   const journalChrome = !canvasAlternateActive
 
   return (
@@ -89,6 +90,7 @@ export function DesktopJournal(props: JournalViewProps) {
             query={query}
             onQueryChange={onQueryChange}
             onCollapse={onToggleEntries}
+            onPages={onPages}
           />
           {entriesOpen && (
             <div

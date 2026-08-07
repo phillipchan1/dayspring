@@ -251,6 +251,7 @@ export function RememberView({ question, passages, ready, onOpenEntry, onAskAgai
                 month={month}
                 onMonth={setMonth}
                 noun="entry"
+                nounPlural="entries"
               />
             )}
 

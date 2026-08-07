@@ -61,6 +61,8 @@ interface Props {
   onSelectionChange?: EntrySelectionChange
   /** Hide the list panel (desktop) — the discoverable handle for ⌘1. */
   onCollapse?: (() => void) | undefined
+  /** Leave the panel for the Pages wall. Absent when the `pages` flag is off. */
+  onPages?: (() => void) | undefined
 }
 
 export function EntryList({
@@ -77,6 +79,7 @@ export function EntryList({
   fullWidth = false,
   onSelectionChange,
   onCollapse,
+  onPages,
 }: Props) {
   const { settings, update: updateSettings } = useSettings()
   const [phase, setPhase] = useState<EntryMenuPhase>({ kind: 'closed' })
@@ -350,6 +353,7 @@ export function EntryList({
           <EntriesGroupToggle
             value={settings.entriesGroupBy}
             onChange={(entriesGroupBy) => updateSettings({ entriesGroupBy })}
+            onPages={onPages}
           />
         )}
       </div>

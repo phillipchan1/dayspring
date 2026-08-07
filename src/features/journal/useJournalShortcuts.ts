@@ -21,6 +21,8 @@ export interface JournalShortcutActions {
   onFindOrAsk: () => void
   /** ⌘5 — the Remember surface. */
   onRemember: () => void
+  /** Undefined while the `pages` flag is off — ⇧⌘1 then does nothing. */
+  onPages?: (() => void) | undefined
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
   /** Increase editor font size (⌘= or ⌘+). */
@@ -52,6 +54,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFindOrAsk,
     onRemember,
+    onPages,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,
@@ -130,6 +133,18 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
+      // ⇧⌘1 — Pages, the reading half of Entries.
+      //
+      // Matched on `e.code`, not `e.key`: with Shift held, `e.key` for the 1 key
+      // is "!" on a US layout and something else again elsewhere, so the digit is
+      // simply not there to compare against.
+      if (e.shiftKey && e.code === 'Digit1') {
+        if (!onPages) return
+        e.preventDefault()
+        onPages()
+        return
+      }
+
       if (key >= '1' && key <= '5' && !e.shiftKey) {
         e.preventDefault()
         if (key === '1') onToggleEntries()
@@ -162,6 +177,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFindOrAsk,
     onRemember,
+    onPages,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,

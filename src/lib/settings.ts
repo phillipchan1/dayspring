@@ -30,6 +30,9 @@ const SETTINGS_FORMAT_VERSION = 3
 
 export type EntriesGroupBy = 'flat' | 'month' | 'year'
 
+/** Mirrors features/pages/density.ts — declared here so settings owns no feature import. */
+export type PagesDensity = 'wall' | 'shelf' | 'open'
+
 export interface Settings {
   // Focus-mode behaviour
   typewriter: boolean // keep the active line vertically centered
@@ -49,6 +52,9 @@ export interface Settings {
 
   /** Entries sidebar: flat list vs month/year section headers. */
   entriesGroupBy: EntriesGroupBy
+
+  /** Pages: how close you're standing to the wall. See features/pages/density.ts. */
+  pagesDensity: PagesDensity
 
   /** Desktop rail: show text labels beside icons. */
   railLabels: boolean
@@ -80,6 +86,7 @@ const DEFAULTS: Settings = {
   darkTheme: 'ink',
   editorFont: 'serif',
   entriesGroupBy: 'flat',
+  pagesDensity: 'shelf',
   railLabels: false,
   firstLineTitle: true,
   devMode: false,

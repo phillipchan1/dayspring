@@ -343,7 +343,25 @@ a {
   background: rgba(196, 145, 60, 0.12);
   color: #9a6e24;
 }
+/*
+ * "Pages" sits in the same control but is an ACTION, not a fourth grouping —
+ * it leaves the panel for the wall. Separated by a rule and never given the
+ * active pill, so it can't read as a mode the panel is currently in.
+ */
+.entry-list__view-btn--go {
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border-subtle);
+  border-radius: 0 4px 4px 0;
+}
+.entry-list__view-btn--go::after {
+  content: ' ›';
+  opacity: 0.6;
+}
 @media (hover: hover) {
+  .entry-list__view-btn--go:hover {
+    color: var(--accent);
+  }
   .entry-list__view-btn:hover:not([data-active='true']) {
     color: var(--entry-list-view-hover);
   }
