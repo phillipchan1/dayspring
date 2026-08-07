@@ -93,7 +93,13 @@ happening and Ask alone was the product.
 **Cost accepted:** one table, and a surface that is honestly thin for a fresh-start user.
 
 ## D-017 — Pages: a read surface, and a deliberate Principle 2 override
-**2026-08-07** · **Status:** Decided (built, flag OFF — `VITE_FF_PAGES`)
+**2026-08-07** · **Status:** Decided · shipped to **alpha only, unflagged**
+
+**No feature flag.** It shipped behind `VITE_FF_PAGES` for about an hour, then the flag
+came out: the alpha channel is already the gate, and a second gate inside it is redundant
+(the same call already made for handwriting scan). The practical consequence is that the
+gate is now *when `master` gets merged into `stable`*, not a variable — so the audit tests
+below have to be run before that merge, not before flipping anything.
 
 **Decision:** **Pages** — the writer's own entries laid out as pages, side by side. A
 canvas surface reached from the Entries panel's view switcher (`List · Month · Year ·
@@ -141,7 +147,7 @@ wide, the same grid stops reading as weather and starts reading as a scoreboard.
 someone how long they failed to show up. It ships, marked in `PagesView.tsx` as three lines
 to delete. **This is the first thing to cut if the audit test fails.**
 
-**Audit test (run it before graduating the flag):** show the wall to someone in a dry
+**Audit test (run it before merging `master` into `stable`):** show the wall to someone in a dry
 season. Weather, or a record of how often they failed to show up? Also: open Pages in a
 month with four entries — a way back, or an inbox?
 

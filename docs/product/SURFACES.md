@@ -66,7 +66,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 - **Risks:** **P2, knowingly.** With no subject chosen its weather grid covers writing
   activity — a deliberate override, D-017. Also PKM drift: the subject bar must stay a
   handful of ways in, never a tag manager.
-- **State:** 🚧 Built, flag OFF (`VITE_FF_PAGES`). Wall (3 densities) · marks glow ·
+- **State:** ✅ Shipped to alpha only (unflagged; the alpha channel is the gate — same
+  call as handwriting scan). Wall (3 densities) · marks glow ·
   subject lighting via the Concordance · interleaved anniversary pages · the Spread
   (two-up, marginalia, page turns) · Open somewhere · month fold.
 - **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
@@ -189,7 +190,7 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 | "Will this fit how I journal?" | Capture | ✅ |
 | **"Is this normal? Do others go through this?"** | — | ❌ **Uncovered.** P2's loneliest question. Answering it well probably requires aggregate/comparative data, which collides with Principle 7 and H2. Possibly correct to leave permanently uncovered — but decide deliberately. → D-006 |
 | "Can it help me find the things I highlighted?" | Remember | 🚧 Built, flagged off |
-| **"I have eleven years in here — can I just READ it?"** | Pages | 🚧 Built, flagged off. Was **uncovered**: every Return surface interpreted the archive; none handed it back. |
+| **"I have eleven years in here — can I just READ it?"** | Pages | ✅ Alpha. Was **uncovered**: every Return surface interpreted the archive; none handed it back. |
 | **"Is journaling one more thing I'll fail at?"** | — | ❌ **Uncovered by design.** The obvious answers are streaks and reminders (Principle 2 violations). The unsolved question is whether there's an *invitational* answer. → D-004 |
 
 ---

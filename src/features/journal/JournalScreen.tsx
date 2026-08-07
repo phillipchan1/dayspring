@@ -156,10 +156,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Unlike Altar this does NOT redirect the surface: ⌘K → Ask still routes
   // there, it just isn't advertised in the navigation until it's turned on.
   const rememberEnabled = resolveFlag(featureFlags, 'remember')
-  // Pages hides its way in behind the `pages` flag. Like Remember — and unlike
-  // Altar — this does NOT redirect the surface, so a saved history frame still
-  // lands somewhere real.
-  const pagesEnabled = resolveFlag(featureFlags, 'pages')
+  // Pages carries no flag of its own: the alpha channel is the gate. See D-017.
   const canvasAlternateActive =
     reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
   // Passages + marks. The corpus read is gated on the surface being open; marks
@@ -1207,7 +1204,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
-    ...(pagesEnabled ? { onPages: () => void openPages() } : {}),
+    onPages: () => void openPages(),
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     onFontSizeUp: () =>
       updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
@@ -1804,7 +1801,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     scriptureActive,
     rememberActive: rememberActive,
     pagesActive,
-    ...(pagesEnabled ? { onPages: () => void openPages() } : {}),
+    onPages: () => void openPages(),
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
     entryReturn: state.entryReturn,
