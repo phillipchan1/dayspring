@@ -92,8 +92,91 @@ Principle 2 review; or Remember goes unvisited after 60 days, meaning re-reading
 happening and Ask alone was the product.
 **Cost accepted:** one table, and a surface that is honestly thin for a fresh-start user.
 
+## D-019 — The model may configure the filters; it may never decide what matches
+**2026-08-08** · **Status:** Decided · alpha only
+
+**Decision:** A sentence typed into Pages ("times I talked about Chicago every year") goes
+to `/api/pages/interpret`, which returns a **filter configuration** — words to light,
+markings, months, dates — and nothing else. The wall applies it in code.
+
+**Why this shape and not "AI search":** the alternative everyone builds is a model that
+takes a question and hands back entries. That model is deciding which of someone's own
+pages are relevant, and there is no way for them to see why or to disagree with it. Five
+rules keep it on the right side of Principle 4 and D-016:
+
+1. **Code decides what matches.** The model returns words; `subjects.ts` does literal,
+   whole-word matching against the corpus already in the browser. The model cannot make a
+   page light up.
+2. **Everything it configured arrives as a chip you can pull off.** Nothing is applied
+   invisibly. This is also the answer to the hotel-search filter panel: you say it, then
+   you adjust what it heard.
+3. **`sanitize` on the server drops anything unrecognised** — an unknown facet, a month
+   that isn't a month, a field of the wrong type. A filter the writer can't see and can't
+   remove is worse than one that never appeared.
+4. **Date order is the fallback for everything**: offline, a failed call, an
+   interpretation that found nothing.
+5. **Offline degrades to searching the phrase they typed.** The wall never needs the
+   network.
+
+The model never sees the corpus — it sees the question and the writer's own Concordance
+vocabulary, which is what lets "Chi-town" and "Chicago" be one subject to them and to us.
+Same cost discipline as `api/ask.ts`: a few hundred tokens whether the archive is 40
+entries or 4,000.
+
+**Deliberately NOT built: per-entry ranking.** Having the model order the specific pages
+code matched would mean sending entry content to it. That is a real trade — cost, and more
+importantly what leaves the device — and it is a product call rather than something to
+settle inside a refactor. Recurrence questions instead switch on "only these", which is a
+visible, reversible, code-applied arrangement.
+
+**What would change our mind:** the interpretations are wrong often enough that the chips
+feel like a correction chore rather than a starting point — in which case the sentence box
+goes back to being a word box, and ⌘K keeps the semantic half. Or the opposite: people ask
+questions the filter vocabulary genuinely can't express, which is the argument for
+revisiting ranking with the privacy trade made explicitly.
+**Cost accepted:** a network round trip on a surface whose whole claim is that it works on
+a plane — mitigated by the fact that failure is silent and lands on a literal search.
+
+## D-018 — Pages becomes Entries; the list is deleted
+**2026-08-08** · **Status:** Decided · alpha only · **supersedes the routing half of D-017**
+
+**Decision:** ⌘1 and the rail's "Entries" open the Pages wall. The desktop entries panel
+and the mobile drawer are deleted, along with `EntryList` and twelve supporting modules.
+While you are writing there is no sidebar, on either platform.
+
+**Why:** D-017 put Pages in the Entries panel's view switcher on the reasoning that it is
+"a way of looking at your entries, not a fifth thing to return to." That reasoning was
+right and the placement was wrong: Pages is better than the 30px-row list at every job the
+list did, so it should *be* Entries rather than hide inside it. Keeping both left two
+indexes of the same archive, which is the clutter D-017's own note about the panel closing
+behind Pages was already trying to avoid.
+
+The rail still shows four ways to return. Entries is still under **Write**.
+
+**What went with the list, and why none of it was a loss:** most of `EntryList`'s
+machinery existed only because a list and an editor shared a screen —
+`useEntryListKeyboard` was largely editor-vs-list arbitration, `EntryBulkCanvas` existed so
+the editor could get out of the way when a 260px sidebar had a selection, and
+`entrySelectionApi` existed to lift that selection somewhere it could be rendered. They
+never share a screen again. Everything the list could *do* — multi-select, range-select,
+rename, duplicate, print, export, delete — the wall does.
+
+**Real losses, named rather than buried:** the left-edge swipe that opened the mobile
+drawer, and the signed-in address that sat in the drawer header (still in Settings →
+About). Also: a 30px row shows ~25 entries per screen and the wall at its densest shows
+fewer. For "I know it was around March 2019", the list was faster; the year scrubber, the
+month rules and ⌘K Find are what have to cover that.
+
+**What would change our mind:** someone reaches for the sidebar and can't find a way to do
+something they used to do — in which case the wall gains it rather than the panel coming
+back. Or the density trade bites: browsing for a half-remembered entry becomes reliably
+slower than it was, which is an argument for a list-tight end of the zoom rather than for a
+second surface.
+**Cost accepted:** ~2,800 lines deleted in one pass, and a navigation muscle memory
+(⌘1 = "toggle a panel") that has to be relearned as "⌘1 = go to your pages."
+
 ## D-017 — Pages: a read surface, and a deliberate Principle 2 override
-**2026-08-07** · **Status:** Decided · shipped to **alpha only, unflagged**
+**2026-08-07** · **Status:** Decided · **routing superseded by D-018** · shipped to **alpha only, unflagged**
 
 **No feature flag.** It shipped behind `VITE_FF_PAGES` for about an hour, then the flag
 came out: the alpha channel is already the gate, and a second gate inside it is redundant
@@ -104,6 +187,11 @@ below have to be run before that merge, not before flipping anything.
 **Decision:** **Pages** — the writer's own entries laid out as pages, side by side. A
 canvas surface reached from the Entries panel's view switcher (`List · Month · Year ·
 Pages`, plus ⇧⌘1), **not** a fifth rail destination.
+
+> **Superseded by D-018 (2026-08-08).** Pages *is* Entries now: ⌘1 opens it and the panel
+> it used to hide inside is deleted. The reasoning below — that it belongs to Entries
+> rather than to the Return group — is what D-018 followed to its conclusion. Everything
+> else in this row, including the Principle 2 override, still stands.
 
 **Why it exists:** `POSITIONING.md` says *"Every other journal is a write surface. We're a
 read surface."* The rail did not deliver that. Write had two mature surfaces; Return had
@@ -141,6 +229,12 @@ totals · a goal · a current-streak · a "days since" · any copy about not hav
 Empty cells keep `--border-subtle`: never a red, never a gap, never a dashed outline. The
 grid is held to a narrow column beside the facts, never leading the surface — stretched
 wide, the same grid stops reading as weather and starts reading as a scoreboard.
+
+> **Amended by D-018:** the grid is no longer *on* the wall at all. It moved to its own
+> frame, reached from one quiet line, because a picture *about* the reading was standing in
+> front of the reading — on a phone it took the screen and left one page peeking in
+> underneath. It is still held to a narrow column there: having its own page is not
+> permission to stretch.
 
 **The sharpest element, flagged rather than hidden:** `buildFacts` returns
 `longestSilence`. Over passages it's a fact; over writing activity it edges toward telling

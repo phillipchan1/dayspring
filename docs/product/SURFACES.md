@@ -22,7 +22,7 @@ thesis, not a nav convenience.
 
 | | Surfaces | Job |
 |---|---|---|
-| **Write** | New entry, Entries (+ Pages) | Capture. Must be frictionless and sacred (Principle 3). |
+| **Write** | New entry, Entries (= the Pages wall) | Capture. Must be frictionless and sacred (Principle 3). |
 | **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4, Remember ⌘5 | **Reflective, never operational.** Reveal what a paper journal can't. |
 
 **The rule for every Return surface: you go there to *see*, never to *do*.** No tasks,
@@ -56,26 +56,33 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   journalers) — if the A/B question in `POSITIONING.md` resolves toward B, this becomes
   much more strategically important than it looks today.
 
-### Pages — `features/pages/` · Entries → Pages, or ⇧⌘1 · *"Your own, side by side"*
+### Pages — `features/pages/` · **Entries, ⌘1** · *"Your own, side by side"*
 - **Promise:** "Read your own pages the way you could read a notebook — many at once."
 - **Answers:** P1 *"I have eleven years in here. What's in it?"* — but by showing it rather
   than summarising it.
 - **Serves:** P4 (every line on a page is verbatim; nothing is generated), P5 (needs no AI
   and no threshold, so it pays out in a thin month), P1 (subject lighting is a filter the
   writer chose, never a significance the app assigned).
-- **Risks:** **P2, knowingly.** With no subject chosen its weather grid covers writing
-  activity — a deliberate override, D-017. Also PKM drift: the subject bar must stay a
-  handful of ways in, never a tag manager.
+- **Risks:** **P2, knowingly.** With nothing lit its weather grid covers writing activity —
+  a deliberate override, D-017 (the grid now lives on its own frame, not on the wall). Also
+  PKM drift: the lighting bar must stay a handful of ways in, never a tag manager.
 - **State:** ✅ Shipped to alpha only (unflagged; the alpha channel is the gate — same
-  call as handwriting scan). Wall (3 densities) · marks glow ·
-  subject lighting via the Concordance · interleaved anniversary pages · the Spread
-  (two-up, marginalia, page turns) · Open somewhere · month fold.
+  call as handwriting scan). **This IS the Entries surface** (D-018): the list, the desktop
+  panel and the mobile drawer are gone, and the wall carries select / rename / duplicate /
+  print / export / delete. Continuous zoom (pinch, ⌘-scroll, ⌘= / ⌘−) · marks glow ·
+  multi-subject lighting via the Concordance · markings facets (highlight by colour,
+  underline, emphasis, quote, marks) · scripture facet parsed client-side · previews that
+  show the line that made the page light up · "only these" · interleaved anniversary
+  pages · month rules down the scroll · the Spread (two-up, marginalia, shared-element
+  zoom) · Open somewhere · month fold · natural-language filter configuration (D-019).
 - **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
   to return to — so the rail still shows four ways back. It obeys the Return rule anyway:
   you go there to see, never to do.
 - **Audit:** *Does any page carry something the writer didn't write?* (No title we invented,
-  no summary, no tag — a page in a notebook carries no metadata.) And the D-017 test: *show
+  no summary, no tag — a page in a notebook carries no metadata.) The D-017 test: *show
   the activity grid to someone in a dry season.* `longestSilence` is the first thing to cut.
+  And the D-019 test: *ask it something, then look at the chips.* If the chips regularly
+  need correcting, the sentence box goes back to being a word box.
 
 ---
 

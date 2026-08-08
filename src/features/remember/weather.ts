@@ -14,10 +14,12 @@
 // at the CALL SITE, so read this before adding one:
 //
 //   • Remember draws it over PASSAGES, or over the matches for a QUESTION.
-//   • Pages draws it over WRITING ACTIVITY when no subject is chosen. That is a
+//   • Pages draws it over WRITING ACTIVITY when nothing is lit. That is a
 //     deliberate override of the rule this comment used to state absolutely —
-//     see D-017 in docs/product/DECISIONS.md. It is held to a narrow column and
-//     sits beside the facts rather than leading the surface.
+//     see D-017 in docs/product/DECISIONS.md. It is held to a narrow column, and
+//     it is no longer ON the wall: it lives on its own frame, reached from one
+//     quiet line, because a picture ABOUT the reading standing in front of the
+//     reading was the shape that made it feel like a scoreboard (D-018).
 //
 // What NO call site may do, override or not: totals, a goal, a current-streak,
 // a "days since", or any copy about not having written. Empty cells read as
