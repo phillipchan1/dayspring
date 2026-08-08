@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Entry } from '@/lib/types'
-import { buildWallItems, selectionOrder, yearRows } from './wallItems'
+import { buildWallItems, monthAtRow, monthMarks, selectionOrder, yearRows } from './wallItems'
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
 
 let n = 0
 function entry(dateLocal: string): Entry {
@@ -115,5 +120,56 @@ describe('yearRows', () => {
       expect(firstOfYear).toBeDefined()
       expect(Math.floor(items.indexOf(firstOfYear!) / cols)).toBe(row)
     }
+  })
+})
+
+describe('monthMarks', () => {
+  const cols = 4
+
+  it('marks each month once, at its first page', () => {
+    const entries = [
+      entry('2024-03-20'),
+      entry('2024-03-04'),
+      entry('2024-02-28'),
+      entry('2024-02-01'),
+      entry('2024-01-15'),
+    ]
+    const marks = monthMarks(buildWallItems(entries, false, cols), cols)
+    expect(marks.map((m) => m.label)).toEqual(['March 2024', 'February 2024', 'January 2024'])
+    expect(marks[0]!.row).toBe(0)
+    expect(marks[1]!.row).toBe(0) // same row — the rule sits beside the row, not on a page
+    expect(marks[2]!.row).toBe(1)
+  })
+
+  it('separates the same month in different years', () => {
+    const marks = monthMarks(
+      buildWallItems([entry('2024-06-02'), entry('2023-06-02')], false, cols),
+      cols,
+    )
+    expect(marks.map((m) => m.label)).toEqual(['June 2024', 'June 2023'])
+  })
+
+  // An echo is a page out of its own order; letting one open a month would draw
+  // "August 2016" beside a row of 2026 pages.
+  it('never lets an echo open a month', () => {
+    const items = buildWallItems(corpus(), true, cols)
+    expect(items.some((i) => i.echo)).toBe(true)
+    for (const m of monthMarks(items, cols)) {
+      const inRow = items.slice(m.row * cols, m.row * cols + cols)
+      expect(inRow.some((i) => !i.echo && `${MONTHS[new Date(i.entry.created_at).getMonth()]} ${new Date(i.entry.created_at).getFullYear()}` === m.label)).toBe(true)
+    }
+  })
+})
+
+describe('monthAtRow', () => {
+  it('reads the month of whatever is at the top of the viewport', () => {
+    const entries = [entry('2024-03-20'), entry('2024-03-04'), entry('2024-01-15')]
+    const items = buildWallItems(entries, false, 2)
+    expect(monthAtRow(items, 2, 0)).toBe('March 2024')
+    expect(monthAtRow(items, 2, 1)).toBe('January 2024')
+  })
+
+  it('is silent past the end rather than throwing', () => {
+    expect(monthAtRow(buildWallItems([entry('2024-03-20')], false, 4), 4, 99)).toBeNull()
   })
 })

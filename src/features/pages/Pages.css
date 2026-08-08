@@ -255,50 +255,88 @@ button.pg__sense-q:hover {
   border-color: var(--accent);
 }
 
-/* ── the reading: weather strip + facts ── */
+/* ── the way to the density picture ── */
 
-.pg__reading {
+.pg__meta {
   display: flex;
-  align-items: flex-start;
-  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 /*
- * The grid is held to a narrow column on purpose.
+ * A line, not a panel.
  *
- * Stretched across this canvas it stops reading as weather and starts reading as
- * a scoreboard — which, drawn over writing activity, is the contributions-graph
- * failure Principle 2 names. Small, beside the facts, never the first thing you
- * see. See D-017.
+ * This is the whole footprint the weather grid and the facts row now have on
+ * the reading path. They used to sit here in full, which on a phone left one
+ * page peeking in under a screenful of numbers.
  */
-.pg__wx {
-  flex: 0 1 30rem;
-  min-width: 0;
+.pg__meta-b {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--transition);
 }
 
-.pg__wx .wx {
-  margin-bottom: 0;
+.pg__meta-b:hover {
+  color: var(--text-dim);
 }
 
-.pg__wx .wx__row {
-  grid-template-columns: 2rem repeat(12, minmax(0, 1fr));
-  gap: 2px;
-  margin-bottom: 2px;
+/* ── the density picture, on its own frame ── */
+
+.pg-weather {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: clamp(1.5rem, 4vw, 2.75rem);
+  padding-bottom: clamp(2rem, 6vw, 4rem);
 }
 
-.pg__wx .wx__cell {
-  height: 10px;
+.pg-weather__bar {
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
 }
 
-.pg__wx .wx__year,
-.pg__wx .wx__mon {
-  font-size: 0.55rem;
-}
-
-.pg__wx .wx__read {
+.pg-weather__x {
+  font-family: var(--font-sans);
   font-size: 0.78rem;
-  margin-top: 0.6rem;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-weather__x:hover {
+  color: var(--accent);
+}
+
+.pg-weather__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 1.75rem);
+  font-weight: 500;
+  color: var(--text-bright);
+  margin: 0 0 clamp(1.5rem, 4vw, 2.25rem);
+}
+
+/*
+ * Still held to a narrow column.
+ *
+ * On its own frame there is room to stretch it, and stretching is exactly what
+ * turns weather into a scoreboard — the contributions-graph failure Principle 2
+ * names. Having its own page is not permission to grow. See D-017.
+ */
+.pg-weather__grid {
+  max-inline-size: 34rem;
+  margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.pg-weather__facts {
+  max-inline-size: 34rem;
 }
 
 .pg__facts {
@@ -372,19 +410,76 @@ button.pg__sense-q:hover {
  * top of someone's sentences. It now rides up into the header's empty right side
  * — still tracking the scroll, no longer competing with the writing.
  */
-.pg__year {
+.pg__where {
   position: absolute;
-  top: -3.4rem;
+  top: -3.6rem;
   right: clamp(2.6rem, 5vw, 4.6rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pg__year {
   font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3.25rem);
   font-weight: 600;
   line-height: 1;
   color: var(--text);
   opacity: 0.16;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The month, under the year.
+ *
+ * Small, mono, quiet: it changes constantly as you scroll, and anything louder
+ * would flicker in the corner of your eye the whole way down.
+ */
+.pg__month-now {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/*
+ * A month, marked where it begins.
+ *
+ * An overlay, never a row. Months as flow headers would make rows uneven, and
+ * uniform rows are the whole reason a 3,500-page wall can be windowed at all.
+ * So the rule is absolutely positioned against the grid: it takes no space and
+ * moves nothing, and it lives in the gap that is already between the rows.
+ */
+.pg__month-rule {
+  position: absolute;
+  /* Matched to .pg__grid's own padding so the rule starts where the pages do —
+     an absolutely positioned child lays out against the padding box, which
+     otherwise puts the label outside the column it belongs to. */
+  inset-inline: clamp(1rem, 3vw, 2rem) clamp(2.5rem, 5vw, 4.5rem);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateY(-0.78rem);
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
   pointer-events: none;
   user-select: none;
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The hairline that makes it read as a division rather than a stray word. */
+.pg__month-rule::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--border-subtle);
 }
 
 .pg__scrub {

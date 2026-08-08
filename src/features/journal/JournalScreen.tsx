@@ -1607,6 +1607,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // Replace, not push: a subject is a filter you try on, and pushing a frame
       // per chip would make Back walk every word you looked at.
       onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
+      panel={state.pagesPanel}
+      // Pushed, so Back and Esc close the panel and leave you on the wall —
+      // the same contract the Spread has.
+      onPanel={(panel) => (panel === null ? back() : go({ pagesPanel: panel }))}
       spreadId={state.pagesSpreadId}
       onSpread={(id) => {
         if (id === null) back()

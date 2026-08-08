@@ -71,3 +71,52 @@ export function yearRows(items: WallItem[], cols: number): Map<string, number> {
   })
   return map
 }
+
+export interface MonthMark {
+  /** Row this month's first page falls in. */
+  row: number
+  /** "March 2019" — the label the gutter rule carries. */
+  label: string
+  month: number
+  year: number
+}
+
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/**
+ * Where each month starts, as rows.
+ *
+ * Months cannot be rows in the flow — the windowing math needs every row the
+ * same height, which is what lets a 3,500-page wall scroll cleanly. So they are
+ * an overlay: a rule drawn in the gutter beside the row a month begins on,
+ * taking no space and shifting nothing.
+ *
+ * One mark per month, at its FIRST page in wall order. Echoes are skipped for
+ * the same reason they don't claim years.
+ */
+export function monthMarks(items: WallItem[], cols: number): MonthMark[] {
+  const seen = new Set<string>()
+  const out: MonthMark[] = []
+  items.forEach((item, i) => {
+    if (item.echo) return
+    const d = new Date(item.entry.created_at)
+    const year = d.getFullYear()
+    const month = d.getMonth()
+    const key = `${year}-${month}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ row: Math.floor(i / cols), label: `${MONTH_LABELS[month]} ${year}`, month, year })
+  })
+  return out
+}
+
+/** The month label for whatever is at the top of the viewport. */
+export function monthAtRow(items: WallItem[], cols: number, row: number): string | null {
+  const item = items[row * cols]
+  if (!item) return null
+  const d = new Date(item.entry.created_at)
+  return `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`
+}

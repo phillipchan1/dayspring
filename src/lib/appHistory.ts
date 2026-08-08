@@ -61,6 +61,8 @@ export interface AppHistoryState {
   rememberQuestion: string | null
   /** Subject lighting the Pages wall (`word:<text>` or `c:<concordance id>`). */
   pagesSubject: string | null
+  /** The Pages weather panel, on its own frame so Back closes it. */
+  pagesPanel: 'weather' | null
   /** Entry open in the Pages Spread. Its own frame, so Esc/Back close the reader
    *  and leave you on the wall rather than the editor. */
   pagesSpreadId: string | null
@@ -79,6 +81,7 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   ascentDrill: null,
   rememberQuestion: null,
   pagesSubject: null,
+  pagesPanel: null,
   pagesSpreadId: null,
 }
 
@@ -154,6 +157,7 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
     rememberQuestion: typeof state.rememberQuestion === 'string' ? state.rememberQuestion : null,
     pagesSubject: typeof state.pagesSubject === 'string' ? state.pagesSubject : null,
+    pagesPanel: state.pagesPanel === 'weather' ? 'weather' : null,
     pagesSpreadId: typeof state.pagesSpreadId === 'string' ? state.pagesSpreadId : null,
   }
 }
@@ -183,6 +187,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.ascentAltitude === b.ascentAltitude &&
     a.rememberQuestion === b.rememberQuestion &&
     a.pagesSubject === b.pagesSubject &&
+    a.pagesPanel === b.pagesPanel &&
     a.pagesSpreadId === b.pagesSpreadId &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings)

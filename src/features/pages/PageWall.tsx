@@ -21,7 +21,14 @@ import {
 import { nextEntryIdAfterDelete } from '@/features/journal/orderedEntryIds'
 import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
-import { buildWallItems, selectionOrder, yearRows, type WallItem } from './wallItems'
+import {
+  buildWallItems,
+  monthAtRow,
+  monthMarks,
+  selectionOrder,
+  yearRows,
+  type WallItem,
+} from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
 import { clampZoom, specForZoom, wheelZoomDelta } from './zoom'
 
@@ -84,6 +91,7 @@ export function PageWall({
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
+  const [topMonth, setTopMonth] = useState<string | null>(null)
   const [phase, setPhase] = useState<EntryMenuPhase>({ kind: 'closed' })
   const [bulkPhase, setBulkPhase] = useState<EntryBulkMenuPhase>({ kind: 'closed' })
 
@@ -168,6 +176,22 @@ export function PageWall({
 
   const yearRow = useMemo(() => yearRows(items, cols), [items, cols])
 
+  /**
+   * Where the months begin.
+   *
+   * Drawn as an overlay in the gutter, never as rows: the windowing math needs
+   * every row the same height. Only the marks inside the rendered window are
+   * laid out, so a decade of months costs nothing to scroll past.
+   */
+  const months = useMemo(() => monthMarks(items, cols), [items, cols])
+  const visibleMonths = useMemo(
+    // Row 0 is deliberately skipped: its rule would be drawn in the gap ABOVE
+    // the first row, which doesn't exist. The sticky label already says which
+    // month you're at when you're at the top.
+    () => months.filter((m) => m.row > virtual.start && m.row < virtual.end),
+    [months, virtual.start, virtual.end],
+  )
+
   // The year of whatever is at the top of the viewport.
   useEffect(() => {
     const el = scrollRef.current
@@ -176,6 +200,7 @@ export function PageWall({
       const row = Math.floor(el.scrollTop / rowHeight)
       const item = items[row * cols]
       setTopYear(item ? String(new Date(item.entry.created_at).getFullYear()) : null)
+      setTopMonth(monthAtRow(items, cols, row))
     }
     read()
     el.addEventListener('scroll', read, { passive: true })
@@ -469,11 +494,29 @@ export function PageWall({
             gap: `${spec.gap}px`,
             paddingTop: virtual.topSpacer,
             paddingBottom: virtual.bottomSpacer,
+            position: 'relative',
             // CSS reads the card height from here so the windowing math above
             // stays the only definition of it.
             ['--pg-card-h' as string]: `${spec.cardHeight}px`,
           }}
         >
+          {/*
+            Month rules, in the gutter.
+            Absolutely positioned against the grid so they take no row and shift
+            nothing — the alternative, a header in the flow, is exactly what
+            makes rows uneven and windowing impossible.
+          */}
+          {visibleMonths.map((m) => (
+            <span
+              key={`${m.year}-${m.month}`}
+              className="pg__month-rule"
+              style={{ top: `${(m.row - virtual.start) * rowHeight}px` }}
+              aria-hidden
+            >
+              {m.label}
+            </span>
+          ))}
+
           {slice.map((item, i) => {
             const idx = firstIdx + i
             return (
@@ -502,10 +545,16 @@ export function PageWall({
         </div>
       </div>
 
+      {/*
+        Where you are — the year like a thumb in the book, the month like a
+        finger on the page. One stacked block so the two can't collide as the
+        numeral resizes with the viewport.
+      */}
       {topYear ? (
-        <span className="pg__year" aria-hidden>
-          {topYear}
-        </span>
+        <div className="pg__where" aria-hidden>
+          <span className="pg__year">{topYear}</span>
+          {topMonth ? <span className="pg__month-now">{topMonth}</span> : null}
+        </div>
       ) : null}
 
       {years.length > 1 ? (

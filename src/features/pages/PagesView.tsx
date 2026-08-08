@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
-import { WeatherGrid } from '@/features/remember/WeatherGrid'
-import { buildFacts, buildWeather } from '@/features/remember/weather'
+import { buildFacts, buildWeather, MONTHS as MONTH_NAMES } from '@/features/remember/weather'
 import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
 import { Spread } from './Spread'
+import { WeatherPanel } from './WeatherPanel'
 import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
 import {
   buildSubjectIndex,
@@ -28,6 +28,9 @@ interface Props {
   /** Subject key from history, or null at rest. */
   subjectKey: string | null
   onSubject: (key: string | null) => void
+  /** The weather panel, on its own history frame. */
+  panel: 'weather' | null
+  onPanel: (panel: 'weather' | null) => void
   /** Entry id open in the Spread, or null on the wall. */
   spreadId: string | null
   onSpread: (entryId: string | null) => void
@@ -59,6 +62,8 @@ export function PagesView({
   activeId,
   subjectKey,
   onSubject,
+  panel,
+  onPanel,
   spreadId,
   onSpread,
   onOpenEntry,
@@ -211,6 +216,21 @@ export function PagesView({
     )
   }
 
+  if (panel === 'weather') {
+    return (
+      <div className="pg">
+        <WeatherPanel
+          weather={weather}
+          facts={facts}
+          month={month}
+          onMonth={setMonth}
+          onClose={() => onPanel(null)}
+          subjectLabel={subject?.label ?? null}
+        />
+      </div>
+    )
+  }
+
   if (spreadIndex >= 0) {
     return (
       <div className="pg">
@@ -341,41 +361,20 @@ export function PagesView({
           </div>
 
           {/*
-            The density picture. With no subject this is writing activity, which
-            Principle 2 would normally forbid — see D-017 in docs/product. What the
-            override does NOT license: totals, goals, a current streak, or any copy
-            about not having written. Empty cells stay quiet.
-
-            Held to a narrow column deliberately. Stretched across a wide canvas
-            the same grid stops reading as weather and starts reading as a
-            scoreboard — the contributions-graph failure the guardrail names. It
-            is a small strip beside the facts, never the thing you see first.
+            The way to the density picture — a line, not the picture itself.
+            It used to sit here in full, which on a phone meant the grid and four
+            numbers took the screen and one page peeked in underneath.
           */}
-          <div className="pg__reading">
-            <div className="pg__wx">
-              <WeatherGrid
-                weather={weather}
-                month={month}
-                onMonth={setMonth}
-                noun="entry"
-                nounPlural="entries"
-              />
-            </div>
-
-            <div className="pg__facts">
-              <Fact value={String(facts.count)} label={facts.count === 1 ? 'page' : 'pages'} />
-              {facts.first ? <Fact value={facts.first} label="first" /> : null}
-              {facts.latest ? <Fact value={facts.latest} label="most recent" /> : null}
-              {/*
-                The sharpest element on this surface. Over passages "longest silence"
-                is a fact; over writing activity it edges toward telling someone how
-                long they failed to show up. Kept because the override was deliberate —
-                delete these three lines if the dry-season test ever fails.
-              */}
-              {facts.longestSilence >= 2 ? (
-                <Fact value={`${facts.longestSilence} mo`} label="longest silence" />
-              ) : null}
-            </div>
+          <div className="pg__meta">
+            <button type="button" className="pg__meta-b" onClick={() => onPanel('weather')}>
+              {facts.count} {facts.count === 1 ? 'page' : 'pages'}
+              {subject ? ` carrying “${subject.label}”` : ''} · the years
+            </button>
+            {month !== null ? (
+              <button type="button" className="pg__clear" onClick={() => setMonth(null)}>
+                every {MONTH_NAMES[month]} ✕
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -418,11 +417,3 @@ function Head() {
   )
 }
 
-function Fact({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="pg__fact">
-      <div className="pg__fact-n">{value}</div>
-      <div className="pg__fact-k">{label}</div>
-    </div>
-  )
-}

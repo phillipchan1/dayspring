@@ -134,6 +134,8 @@ describe('PagesView', () => {
     activeId: null,
     subjectKey: null,
     onSubject: noop,
+    panel: null,
+    onPanel: noop,
     spreadId: null,
     onSpread: noop,
     onOpenEntry: noop,
