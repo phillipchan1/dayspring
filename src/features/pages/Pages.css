@@ -1238,3 +1238,69 @@ button.pg__sense-q:hover {
     animation: none !important;
   }
 }
+
+
+/*
+ * A seam — the pages the filter passed over.
+ *
+ * On a real archive, a filter that matches thirty pages across eleven years
+ * leaves hundreds of dimmed ones between the hits, and four screens of "shape"
+ * stops being shape and becomes scrolling. This keeps the FACT of them — how
+ * many, across what span — and gives back the room.
+ *
+ * Drawn as a squeezed stack of page edges, because that is what it is.
+ */
+.pgc,
+.pg__seam {
+  block-size: var(--pg-card-h);
+}
+
+.pg__seam {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-inline-size: 0;
+  padding: 1rem 0.6rem;
+  background: none;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: zoom-in;
+  outline: none;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.pg__seam:hover,
+.pg__seam:focus-visible {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
+}
+
+.pg__seam:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* The stack itself: a few hairlines, tight together, like page edges seen side-on. */
+.pg__seam-edges {
+  inline-size: 60%;
+  max-inline-size: 5rem;
+  block-size: 1.4rem;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0 1px,
+    transparent 1px 4px
+  );
+  opacity: 0.7;
+}
+
+.pg__seam-n {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.5;
+}

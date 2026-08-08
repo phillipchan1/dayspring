@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Entry } from '@/lib/types'
-import { buildWallItems, monthAtRow, monthMarks, selectionOrder, yearRows } from './wallItems'
+import {
+  buildWallItems,
+  collapseUnlit,
+  monthAtRow,
+  monthMarks,
+  seamLabel,
+  selectionOrder,
+  yearRows,
+} from './wallItems'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -171,5 +179,80 @@ describe('monthAtRow', () => {
 
   it('is silent past the end rather than throwing', () => {
     expect(monthAtRow(buildWallItems([entry('2024-03-20')], false, 4), 4, 99)).toBeNull()
+  })
+})
+
+describe('collapseUnlit', () => {
+  const wall = (n: number) =>
+    buildWallItems(
+      Array.from({ length: n }, (_, i) => entry(`2024-06-${String((i % 28) + 1).padStart(2, '0')}`)),
+      false,
+      4,
+    )
+
+  it('leaves the wall alone when nothing is lit', () => {
+    const items = wall(20)
+    expect(collapseUnlit(items, null)).toBe(items)
+  })
+
+  it('folds a long run of unlit pages into one cell', () => {
+    const items = wall(20)
+    const lit = new Set([items[0]!.entry.id, items[19]!.entry.id])
+    const out = collapseUnlit(items, lit)
+    expect(out).toHaveLength(3) // hit · seam · hit
+    expect(out[1]!.seam?.count).toBe(18)
+  })
+
+  // Collapsing two dimmed cards saves nothing and costs the rhythm of the archive.
+  it('leaves a short run as pages', () => {
+    const items = wall(6)
+    const lit = new Set([items[0]!.entry.id, items[3]!.entry.id])
+    const out = collapseUnlit(items, lit)
+    expect(out.every((i) => !i.seam)).toBe(true)
+  })
+
+  it('puts a run back when its seam is expanded', () => {
+    const items = wall(20)
+    const lit = new Set([items[0]!.entry.id])
+    const folded = collapseUnlit(items, lit)
+    const seam = folded.find((i) => i.seam)!
+    expect(collapseUnlit(items, lit, new Set([seam.key]))).toHaveLength(items.length)
+  })
+
+  // A seam is not a page, and range selection is indexOf-based over ids — one
+  // standing in for 200 entries must never be selectable as if it were one.
+  it('never lets a seam into the selection order', () => {
+    const items = wall(30)
+    const lit = new Set([items[0]!.entry.id])
+    const out = collapseUnlit(items, lit)
+    expect(out.some((i) => i.seam)).toBe(true)
+    expect(selectionOrder(out)).toEqual([items[0]!.entry.id])
+  })
+
+  it('reports the span it is holding, oldest first', () => {
+    const entries = [entry('2024-06-10'), entry('2020-03-04'), entry('2019-01-02'), entry('2018-05-05')]
+    const items = buildWallItems(entries, false, 4)
+    const out = collapseUnlit(items, new Set([entries[0]!.id]), new Set(), 3)
+    const seam = out.find((i) => i.seam)!.seam!
+    expect(new Date(seam.fromIso).getFullYear()).toBe(2018)
+    expect(new Date(seam.toIso).getFullYear()).toBe(2020)
+  })
+})
+
+describe('seamLabel', () => {
+  const iso = (y: number, m: number) => new Date(y, m, 10, 12).toISOString()
+
+  it('reads as a span when the run crosses months', () => {
+    expect(seamLabel(47, iso(2019, 2), iso(2019, 10))).toMatch(/47 pages · \w+ 2019 – \w+ 2019/)
+  })
+
+  it('collapses to one month when that is all it covers', () => {
+    const label = seamLabel(5, iso(2019, 2), iso(2019, 2))
+    expect(label).not.toContain('–')
+    expect(label).toContain('5 pages')
+  })
+
+  it('says page, not pages, for one', () => {
+    expect(seamLabel(1, iso(2019, 2), iso(2019, 2))).toContain('1 page ')
   })
 })

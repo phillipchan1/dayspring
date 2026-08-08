@@ -9,9 +9,12 @@ import { anniversaryLabel, findAnniversaries } from './anniversaries'
 export interface WallItem {
   /** React key. Carries the anchor for echoes, because an id can repeat. */
   key: string
+  /** For a seam, the first page of the run it stands for. */
   entry: Entry
   /** Set when this page has risen out of an earlier year. */
   echo?: string
+  /** Set when this cell stands in for a run of pages the filter passed over. */
+  seam?: { count: number; fromIso: string; toIso: string }
 }
 
 /**
@@ -53,7 +56,83 @@ export function buildWallItems(entries: Entry[], echoes: boolean, cols: number):
  * standing between the user and that.
  */
 export function selectionOrder(items: WallItem[]): string[] {
-  return items.filter((it) => !it.echo).map((it) => it.entry.id)
+  return items.filter((it) => !it.echo && !it.seam).map((it) => it.entry.id)
+}
+
+/**
+ * Fold runs of unlit pages into a seam.
+ *
+ * The problem this solves is the one you only meet on a real archive: a filter
+ * that matches thirty pages across eleven years leaves you scrolling through
+ * hundreds of dimmed ones to get from one hit to the next. Dimming was right —
+ * the pages that don't carry a word are what give the ones that do their shape —
+ * but "shape" stops being legible at four screens of it.
+ *
+ * A seam keeps the fact of them (how many, and across what span) while giving
+ * back the space. Clicking one puts its pages back, in place.
+ *
+ * Deliberately one CELL, not a full-width rule between rows. A rule reads
+ * better, and costs a whole row of height per seam — which on a sparse filter
+ * is exactly the scrolling this exists to remove. The seam sits inline among
+ * the pages, so a run of 200 collapses to the width of one.
+ *
+ * @param minRun  Runs shorter than this stay as pages. Collapsing two dimmed
+ *                cards saves nothing and costs you the rhythm of the archive.
+ */
+export function collapseUnlit(
+  items: WallItem[],
+  lit: Set<string> | null,
+  expanded: ReadonlySet<string> = new Set(),
+  minRun = 4,
+): WallItem[] {
+  if (!lit) return items
+
+  const out: WallItem[] = []
+  let run: WallItem[] = []
+
+  const flush = () => {
+    if (run.length === 0) return
+    const first = run[0]!
+    const last = run[run.length - 1]!
+    const key = `seam:${first.key}:${run.length}`
+    if (run.length < minRun || expanded.has(key)) out.push(...run)
+    else {
+      out.push({
+        key,
+        entry: first.entry,
+        seam: {
+          count: run.length,
+          // Wall order is newest first, so the run's LAST page is its earliest.
+          fromIso: last.entry.created_at,
+          toIso: first.entry.created_at,
+        },
+      })
+    }
+    run = []
+  }
+
+  for (const item of items) {
+    // An echo is a page from elsewhere in the wall; it rode in beside a page
+    // that may itself be hidden, so it folds with the run rather than breaking it.
+    if (lit.has(item.entry.id) && !item.echo) {
+      flush()
+      out.push(item)
+    } else {
+      run.push(item)
+    }
+  }
+  flush()
+  return out
+}
+
+/** How a seam says what it is holding. */
+export function seamLabel(count: number, fromIso: string, toIso: string): string {
+  const span = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+  const from = span(fromIso)
+  const to = span(toIso)
+  const pages = `${count} ${count === 1 ? 'page' : 'pages'}`
+  return from === to ? `${pages} · ${from}` : `${pages} · ${from} – ${to}`
 }
 
 /**

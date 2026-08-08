@@ -23,8 +23,10 @@ import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
 import {
   buildWallItems,
+  collapseUnlit,
   monthAtRow,
   monthMarks,
+  seamLabel,
   selectionOrder,
   yearRows,
   type WallItem,
@@ -104,6 +106,10 @@ export function PageWall({
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
   const [topMonth, setTopMonth] = useState<string | null>(null)
+  // Seams the reader has opened back up. Cleared whenever the filter changes —
+  // an expansion belongs to the question you asked, not to the wall.
+  const [expandedSeams, setExpandedSeams] = useState<ReadonlySet<string>>(() => new Set())
+  useEffect(() => setExpandedSeams(new Set()), [lit])
   const [phase, setPhase] = useState<EntryMenuPhase>({ kind: 'closed' })
   const [bulkPhase, setBulkPhase] = useState<EntryBulkMenuPhase>({ kind: 'closed' })
 
@@ -134,8 +140,8 @@ export function PageWall({
   }, [spec])
 
   const items: WallItem[] = useMemo(
-    () => buildWallItems(entries, echoes, cols),
-    [entries, echoes, cols],
+    () => collapseUnlit(buildWallItems(entries, echoes, cols), lit, expandedSeams),
+    [entries, echoes, cols, lit, expandedSeams],
   )
 
   /** Echo cards take focus and open, but are never selection targets — see wallItems. */
@@ -162,7 +168,7 @@ export function PageWall({
   const excerpts = useMemo(() => {
     const cache = new Map<string, PageExcerpt>()
     for (const item of items) {
-      if (cache.has(item.entry.id)) continue
+      if (item.seam || cache.has(item.entry.id)) continue
       cache.set(
         item.entry.id,
         pageExcerpt(item.entry, markQuotes.get(item.entry.id) ?? [], undefined, match),
@@ -490,10 +496,15 @@ export function PageWall({
         case 'End':
           return step(list.length - 1 - base)
         case 'Enter':
-        case ' ':
+        case ' ': {
           e.preventDefault()
-          openWithTransition(list[base]!.entry.id)
+          const item = list[base]!
+          // Enter on a seam opens the run back up rather than opening the one
+          // page that happens to sit at its head.
+          if (item.seam) setExpandedSeams((prev) => new Set(prev).add(item.key))
+          else openWithTransition(item.entry.id)
           return
+        }
         case 'Escape':
           if (selectedIds.size === 0) return
           e.preventDefault()
@@ -503,11 +514,15 @@ export function PageWall({
         case 'Delete': {
           e.preventDefault()
           const bulk = selectedRef.current
-          if (bulk.length > 1) setBulkPhase({ kind: 'confirm', entries: bulk })
-          else {
-            const entry = list[base]!.entry
-            setPhase({ kind: 'confirm', entry })
+          if (bulk.length > 1) {
+            setBulkPhase({ kind: 'confirm', entries: bulk })
+            return
           }
+          // A seam is not a page. Deleting "47 pages" from a keystroke aimed at
+          // a placeholder is not a thing anyone should be able to do by accident.
+          const item = list[base]!
+          if (item.seam) return
+          setPhase({ kind: 'confirm', entry: item.entry })
           return
         }
         default:
@@ -571,6 +586,27 @@ export function PageWall({
 
           {slice.map((item, i) => {
             const idx = firstIdx + i
+            if (item.seam) {
+              const { count, fromIso, toIso } = item.seam
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="pg__seam"
+                  data-wall-key={item.key}
+                  tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
+                  onFocus={() => onCardFocus(item.key)}
+                  onKeyDown={(e) => onCardKeyDown(item.key, e)}
+                  onClick={() =>
+                    setExpandedSeams((prev) => new Set(prev).add(item.key))
+                  }
+                  title="Show these pages"
+                >
+                  <span className="pg__seam-edges" aria-hidden />
+                  <span className="pg__seam-n">{seamLabel(count, fromIso, toIso)}</span>
+                </button>
+              )
+            }
             return (
               <PageCard
                 key={item.key}
