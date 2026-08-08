@@ -22,8 +22,6 @@ export interface JournalShortcutActions {
   onFindOrAsk: () => void
   /** ⌘5 — the Remember surface. */
   onRemember: () => void
-  /** ⇧⌘1 — the old entries panel. Temporary; goes when the panel does. */
-  onEntriesPanel: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
   /** Increase editor font size (⌘= or ⌘+). */
@@ -55,7 +53,6 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFindOrAsk,
     onRemember,
-    onEntriesPanel,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,
@@ -134,17 +131,6 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      // ⇧⌘1 — the entries panel, while it still exists.
-      //
-      // Matched on `e.code`, not `e.key`: with Shift held, `e.key` for the 1 key
-      // is "!" on a US layout and something else again elsewhere, so the digit is
-      // simply not there to compare against.
-      if (e.shiftKey && e.code === 'Digit1') {
-        e.preventDefault()
-        onEntriesPanel()
-        return
-      }
-
       if (key >= '1' && key <= '5' && !e.shiftKey) {
         e.preventDefault()
         if (key === '1') onToggleEntries()
@@ -177,7 +163,6 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFindOrAsk,
     onRemember,
-    onEntriesPanel,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,

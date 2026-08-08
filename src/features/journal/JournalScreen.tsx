@@ -22,14 +22,12 @@ import type { Entry, PrayerType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
-import { useEntryEditorFocusToggle } from './useEntryEditorFocusToggle'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
-import { filterEntries } from './search'
-import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
+import { nextEntryIdAfterDelete } from './orderedEntryIds'
 import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
 import { consumeSeedPrompt } from '@/lib/onboardingSeed'
 import {
@@ -51,13 +49,6 @@ import { useRemember } from '@/features/remember/useRemember'
 import type { Mark } from '@/lib/marks'
 import { FindPalette } from '@/features/remember/FindPalette'
 import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
-import { EntryBulkCanvas } from './EntryBulkCanvas'
-import {
-  copyEntriesMarkdown,
-  copyEntriesText,
-  exportEntriesZip,
-} from './entryBulkActions'
-import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi'
 import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
@@ -109,7 +100,7 @@ function arrivalLabelFor(block: ParsedSpiritualBlock): string {
 
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const { state, go, back, closeSettings } = useAppNavigation()
-  const { entryId, restrictIds } = state
+  const { entryId } = state
 
   const [entries, setEntries] = useState<Entry[]>([])
   const [content, setContent] = useState('')
@@ -119,9 +110,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editDateEntry, setEditDateEntry] = useState<Entry | null>(null)
-  const [query, setQuery] = useState('')
-  // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
-  const [entriesOpen, setEntriesOpen] = useState(true)
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
@@ -142,7 +130,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const touchFirst = isMobile || coarsePointer
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
-  const sidebarOpen = state.sidebar
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
@@ -223,7 +210,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const isDirtyRef = useRef<() => boolean>(() => false)
   const adoptExternalTextRef = useRef<(forEntryId: string | null, text: string) => void>(() => {})
   const skipEditorAutofocusRef = useRef(false)
-  const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [isNewEntryMode, setIsNewEntryMode] = useState(false)
   // Live mirror for sync callbacks (applySyncedList) that must not repoint the
   // editor away from a deliberate new entry — see arrivalNav.shouldAutoOpenLatest.
@@ -233,8 +219,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // even when entryId is already null (go() would be a no-op, keeping docKey
   // at 'new' and preventing the Editor sync effect from clearing the CM view).
   const [newEntryGeneration, setNewEntryGeneration] = useState(0)
-  const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
-  const [rangeSelectActive, setRangeSelectActive] = useState(false)
 
   // Voice dictation — caret captured when the mic opens so the text lands there.
   const [voiceOpen, setVoiceOpen] = useState(false)
@@ -782,7 +766,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   function navigateAwayFromDeletedEntry(remaining: Entry[], deletedIds: string[]) {
     skipEntrySyncRef.current = true
-    const orderBefore = orderedEntryIds(entries, null)
+    const orderBefore = entries.map((e) => e.id)
     const nextId = nextEntryIdAfterDelete(orderBefore, deletedIds)
     if (nextId) {
       const next = remaining.find((e) => e.id === nextId) ?? remaining[0]
@@ -996,20 +980,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    *    it — losing the tail of an entry.
    *  - Leave focus mode. In focus mode the rail is unmounted (DesktopJournal),
    *    so a surface opened from inside it was a canvas with no visible way out.
-   *  - Tuck the entries panel away.
    *  - Clear the overlays that must not survive a surface change.
    */
   async function leaveForSurface(next: Partial<AppHistoryState>) {
     await saveNow()
     focus.exit()
-    setEntriesOpen(false)
     go({
       entryId: null,
       entryReturn: null,
       ascentDrill: null,
       settings: null,
       help: false,
-      sidebar: false,
       ...next,
     })
   }
@@ -1122,33 +1103,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     else await leaveForSurface({ surface: 'pages', rememberQuestion: null })
   }
 
-  /**
-   * ⇧⌘1 — the old entries panel.
-   *
-   * Temporary. The panel is deleted once the wall carries selection, the
-   * context menu and bulk actions; until then this is the only way back to it,
-   * because ⌘1 now belongs to Pages.
-   */
-  function toggleEntriesPanel() {
-    if (canvasAlternateActive) {
-      go({ surface: 'journal', sidebar: isMobile })
-      setEntriesOpen(true)
-      return
-    }
-    if (isMobile) {
-      if (state.sidebar) back()
-      else go({ sidebar: true })
-    } else {
-      setEntriesOpen((open) => !open)
-    }
-  }
-
-  // Alternate surfaces own the canvas — keep the journal list tucked away.
-  useEffect(() => {
-    if (!canvasAlternateActive) return
-    setEntriesOpen(false)
-    if (state.sidebar) go({ sidebar: false }, { replace: true })
-  }, [canvasAlternateActive, state.sidebar, go])
 
   // Altar is flag-gated: never strand a user on it (e.g. a stale history frame
   // from before the flag, or a profile that lost the flag) — send them home.
@@ -1180,7 +1134,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
-    onEntriesPanel: toggleEntriesPanel,
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     onFontSizeUp: () =>
       updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
@@ -1313,15 +1266,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   async function handleBrowse(entry: Entry) {
     skipEditorAutofocusRef.current = true
     setIsNewEntryMode(false)
-    if (bulkSelection.length >= 2 || rangeSelectActive) return
-
     const body = asEntryMarkdown(entry.body_markdown)
     if (entry.id === entryId && !canvasAlternateActive) {
       // Re-selecting the already-open entry: the editor holds the live text and
       // the list row is only a debounced echo of it, so never reload from the
       // list — that could clobber keystrokes the row sync hasn't caught up to.
-      // Still dismiss the mobile drawer so the tap feels like it landed.
-      if (state.sidebar) go({ sidebar: false }, { replace: true })
       // Nothing will consume the flag on this path — leaving it set would make
       // it swallow the *next* legitimate autofocus instead.
       skipEditorAutofocusRef.current = false
@@ -1330,26 +1279,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
     setContent(body)
-    // Close the mobile drawer in the SAME navigation. Closing it separately via
-    // history.back() would pop this very frame and revert to the previous entry
-    // — the "tapping an entry does nothing" bug.
-    go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
+    // Replace, not push: entry-to-entry browsing must not stack a frame each
+    // time, or Back walks every page you glanced at instead of leaving Pages.
+    go({ surface: 'journal', entryId: entry.id }, { replace: true })
   }
 
   async function handleEditEntry(entry: Entry) {
-    selectionApiRef.current?.clear()
     skipEditorAutofocusRef.current = false
     setIsNewEntryMode(false)
     if (entry.id === entryId && !canvasAlternateActive) {
-      if (state.sidebar) go({ sidebar: false }, { replace: true })
       requestAnimationFrame(() => editorRef.current?.focus())
       return
     }
     await saveNow()
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
-    // Fold the drawer-close into this navigation — see handleBrowse.
-    go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
+    go({ surface: 'journal', entryId: entry.id }, { replace: true })
     setContent(asEntryMarkdown(entry.body_markdown))
     // Explicit edit intent, and on touch autofocus is off — ask for the caret.
     if (touchFirst) requestAnimationFrame(() => editorRef.current?.focus())
@@ -1386,18 +1331,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     loadedEntryIdRef.current = entry.id
   }
 
-  const handleSelectionChange = useCallback((state: EntrySelectionState, api: EntrySelectionApi) => {
-    selectionApiRef.current = api
-    setRangeSelectActive((prev) => (prev === state.rangeActive ? prev : state.rangeActive))
-    setBulkSelection((prev) => {
-      const next = state.entries
-      if (prev.length === next.length && prev.every((e, i) => e.id === next[i]?.id)) return prev
-      return next
-    })
-    if (state.rangeActive || state.entries.length >= 2) {
-      skipEditorAutofocusRef.current = true
-    }
-  }, [])
 
   async function handleDuplicate(entry: Entry) {
     await saveNow()
@@ -1511,35 +1444,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   const words = useMemo(() => wordCount(content), [content])
+  /**
+   * Defensive dedup. Should never be needed, but a duplicated row is the visible
+   * symptom of the entry-duplication class of bug, and this is cheap insurance
+   * against concurrent state updates racing.
+   */
   const visibleEntries = useMemo(() => {
-    let list: Entry[]
-    if (restrictIds) {
-      const set = new Set(restrictIds)
-      list = entries.filter((e) => set.has(e.id))
-    } else {
-      list = filterEntries(entries, query)
-    }
-    // Defensive dedup — should never be needed but prevents duplicate rows from
-    // appearing in the list if concurrent state updates race in unexpected ways.
     const seen = new Set<string>()
-    return list.filter((e) => {
+    return entries.filter((e) => {
       if (seen.has(e.id)) return false
       seen.add(e.id)
       return true
     })
-  }, [entries, query, restrictIds])
-
-  useEntryEditorFocusToggle({
-    activeIdRef: entryIdRef,
-    entries: visibleEntries,
-    onEditEntry: (entry) => void handleEditEntry(entry),
-    blocked:
-      settingsOpen ||
-      helpOpen ||
-      focus.active ||
-      canvasAlternateActive ||
-      slashCapture !== null,
-  })
+  }, [entries])
 
   const docKey = entryId ?? `new-${newEntryGeneration}`
 
@@ -1547,24 +1464,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Shown as a gentle placeholder on the first new, empty entry only.
   const [seedPrompt] = useState(() => consumeSeedPrompt())
 
-  const bulkActive = bulkSelection.length >= 2
-
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
-  ) : bulkActive ? (
-    <EntryBulkCanvas
-      count={bulkSelection.length}
-      onCopyText={() => void copyEntriesText(bulkSelection)}
-      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection, settings.firstLineTitle)}
-      onExportZip={() => void exportEntriesZip(bulkSelection, settings.firstLineTitle)}
-      onDelete={() => selectionApiRef.current?.requestDelete()}
-      onClear={() => selectionApiRef.current?.clear()}
-    />
-  ) : rangeSelectActive ? (
-    <div className="entry-range-canvas">
-      <p className="entry-range-canvas__eyebrow">Selecting</p>
-      <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
-    </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -1687,9 +1588,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     />
   ) : pagesActive ? (
     <PagesView
-      // The whole archive, not `visibleEntries` — the sidebar's search box has
-      // nothing to do with the wall, and a wall silently filtered by a query
-      // someone left in a panel they can't see would be a lie about their years.
       entries={entries}
       marks={remember.marks}
       ready={entriesReady}
@@ -1711,21 +1609,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       settings={settings}
       updateSettings={updateSettings}
     />
-  ) : restrictIds ? (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div className="restrict-banner">
-        <span>
-          Showing {visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'} from a topic
-        </span>
-        <button
-          className="btn btn--ghost"
-          onClick={() => go({ restrictIds: null }, { replace: true })}
-        >
-          Clear
-        </button>
-      </div>
-      <div style={{ flex: 1, minHeight: 0 }}>{surface}</div>
-    </div>
   ) : (
     surface
   )
@@ -1740,16 +1623,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     saveError,
     onSelect: (e) => void handleBrowse(e),
     onEditEntry: (e) => void handleEditEntry(e),
-    onSelectionChange: handleSelectionChange,
-    bulkActive,
-    bulkCount: bulkSelection.length,
-    rangeSelectActive,
     onEntryMenuAction: handleEntryMenuAction,
     onDeleteEntries: handleDeleteEntries,
     onNew: () => void handleNew(),
     isNewEntry: isNewEntryMode,
-    query,
-    onQueryChange: setQuery,
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
@@ -1769,14 +1646,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     settings,
     updateSettings,
     focus,
-    sidebarOpen,
-    onToggleSidebar: () => {
-      if (sidebarOpen) back()
-      else go({ sidebar: true })
-    },
-    entriesOpen,
     onToggleEntries: () => void toggleEntries(),
-    onEntriesPanel: toggleEntriesPanel,
     mainSlot,
     reflectionsActive,
     altarActive,

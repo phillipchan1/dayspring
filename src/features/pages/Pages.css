@@ -729,6 +729,37 @@ button.pg__sense-q:hover {
     padding-right: clamp(2rem, 8vw, 3rem);
   }
 
+  /*
+   * Reserve what the mobile chrome covers.
+   *
+   * The tab bar and the FAB float over this scroller, so without it the last
+   * row is sliced in half — survivable while Pages was somewhere you rarely
+   * went, and not now that it IS Entries.
+   *
+   * On the SCROLLER, not the grid: the grid's `padding-bottom` is the
+   * windowing spacer, written inline from `virtual.bottomSpacer`, so anything
+   * declared here would simply lose to it.
+   */
+  .pg__scroll {
+    padding-bottom: var(--mobile-chrome-h);
+  }
+
+  /*
+   * The header carries its own top inset here.
+   *
+   * On a surface the mobile layout skips its <header>, and that header was the
+   * only element applying `env(safe-area-inset-top)` — so "Your own, side by
+   * side" sat under the notch.
+   */
+  .pg__inner--head {
+    padding-top: calc(clamp(1rem, 4vw, 1.75rem) + var(--safe-top));
+  }
+
+  /* Clear of the tab bar, not tucked behind it. */
+  .pg__selection {
+    bottom: calc(var(--mobile-chrome-h) + 0.5rem);
+  }
+
   .pg__facts {
     gap: 1.25rem;
   }

@@ -48,7 +48,7 @@ Romans 8:28
 For Dad, and for Thursday. That I'd stop rehearsing the worst version of it.
 \`\`\``
 
-// ── the entry list ───────────────────────────────────────────────────────────
+// ── the archive ──────────────────────────────────────────────────────────────
 
 /** `[monthsAgo, title line, body tail]` — turned into Entries below. */
 const ENTRY_SEED: [number, string, string][] = [

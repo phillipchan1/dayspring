@@ -71,7 +71,7 @@ export function deriveTitle(markdown: string | null | undefined): string {
   return spiritualBlockLabel(markdown)?.title ?? ''
 }
 
-/** One-line body preview for the entry list — verbatim prose, scaffolding-free. */
+/** One-line body preview — verbatim prose, scaffolding-free. */
 export function deriveEntryPreview(
   markdown: string | null | undefined,
   maxLength = 80,

@@ -1,13 +1,12 @@
 import { useEffect, useState, type RefObject } from 'react'
 
-/** Approximate row height for list virtual scroll (entry row + date header average). */
-export const ENTRY_LIST_ROW_HEIGHT_PX = 30
+/** Rows kept mounted beyond the viewport, so a fast scroll never shows a gap. */
 const OVERSCAN = 10
 
 /**
  * Window a long list of uniform-height rows — only mount what's near the viewport.
  *
- * @param rowHeight  Height of one row in px. Defaults to the entry list's row.
+ * @param rowHeight  Height of one row in px.
  *                   The Pages wall passes its own, which changes with density —
  *                   the caller owns the number so CSS and this math can't drift.
  */
@@ -15,7 +14,7 @@ export function useVirtualRange(
   scrollRef: RefObject<HTMLElement | null>,
   itemCount: number,
   enabled: boolean,
-  rowHeight: number = ENTRY_LIST_ROW_HEIGHT_PX,
+  rowHeight: number,
 ) {
   const ROW_HEIGHT_PX = rowHeight
   const [range, setRange] = useState({ start: 0, end: Math.min(itemCount, 48) })

@@ -28,8 +28,6 @@ export const FONT_SIZE_MAX = 36
 
 const SETTINGS_FORMAT_VERSION = 3
 
-export type EntriesGroupBy = 'flat' | 'month' | 'year'
-
 /** Mirrors features/pages/density.ts — declared here so settings owns no feature import. */
 export type PagesDensity = 'wall' | 'shelf' | 'open'
 
@@ -49,9 +47,6 @@ export interface Settings {
   /** Palette used in dark mode (and in auto when the system is dark). */
   darkTheme: ThemeId
   editorFont: EditorFont // the writing/reading face
-
-  /** Entries sidebar: flat list vs month/year section headers. */
-  entriesGroupBy: EntriesGroupBy
 
   /** Pages: how close you're standing to the wall. See features/pages/density.ts. */
   pagesDensity: PagesDensity
@@ -73,9 +68,6 @@ export interface Settings {
   /** Desktop only: enable developer tools shortcut (⌘⌥I). */
   devMode: boolean
 
-  /** Sidebar: show a one-line body excerpt below each entry title. */
-  showEntryPreview: boolean
-
   /** Skip a ritual's preview/threshold and begin writing on selection. */
   skipRitualPreview: boolean
 
@@ -93,13 +85,11 @@ const DEFAULTS: Settings = {
   lightTheme: 'dawn',
   darkTheme: 'ink',
   editorFont: 'serif',
-  entriesGroupBy: 'flat',
   pagesDensity: 'shelf',
   railLabels: false,
   firstLineTitle: true,
   showMarkdownSyntax: false,
   devMode: false,
-  showEntryPreview: false,
   skipRitualPreview: false,
   shareUsage: true,
 }

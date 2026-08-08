@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useVirtualRange } from '@/features/journal/useVirtualRange'
+import { useVirtualRange } from '@/hooks/useVirtualRange'
 import { useEntryMultiSelect } from '@/features/journal/useEntryMultiSelect'
 import {
   EntryContextMenu,

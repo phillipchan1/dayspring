@@ -1,8 +1,5 @@
-import { useRef } from 'react'
-import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { useKeyboardOpen } from '@/hooks/useKeyboard'
-import { EntryList } from './EntryList'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
@@ -23,21 +20,22 @@ import {
 import type { ReactNode } from 'react'
 import type { JournalViewProps } from './journalViewProps'
 
-const SWIPE_THRESHOLD = 60
-const EDGE_ZONE = 28
-
 /**
- * Mobile: a single, full-width column. No persistent sidebar — the entry list
- * is a swipe/tap drawer. Controls live in a thumb-reachable bottom bar that
- * respects the home-indicator inset, and the shell tracks the visual viewport
- * so the keyboard never covers the bar.
+ * Mobile: a single, full-width column. Controls live in a thumb-reachable
+ * bottom bar that respects the home-indicator inset, and the shell tracks the
+ * visual viewport so the keyboard never covers the bar.
+ *
+ * The entries drawer is gone with the list it held: the Entries tab goes to the
+ * Pages wall, which takes the canvas like every other surface. That also retires
+ * the left-edge swipe — worth naming in a release note, because it was muscle
+ * memory for anyone who had it.
  */
 export function MobileJournal(props: JournalViewProps) {
   const {
-    entries, activeId, isNewEntry, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
-    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, onEntriesPanel, mainSlot, userEmail,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
+    entries, activeId, status, lastSavedAt, saveError,
+    onNew, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
+    settings, updateSettings, focus, onToggleEntries, mainSlot,
+    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -51,49 +49,16 @@ export function MobileJournal(props: JournalViewProps) {
     scripture: embers.scripture || updates.scripture.length > 0,
     altar: embers.altar || updates.altar.length > 0,
   }
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive =
+  // A surface owns the canvas, so the journal's own chrome steps aside.
+  const surfaceActive =
     reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
-  const journalChrome = !canvasAlternateActive
-
-  function closeDrawer() {
-    if (sidebarOpen) onToggleSidebar()
-  }
-  // Route through onEntriesPanel (not the raw sidebar toggle) so opening the
-  // drawer from an alternate surface (Ascent / Lamp / Altar) first returns to
-  // the journal — otherwise the alt-surface guard immediately snaps it shut and
-  // the swipe appears to do nothing. The Entries TAB no longer comes here; it
-  // goes to the wall.
-  function openDrawer() {
-    if (!sidebarOpen) onEntriesPanel()
-  }
-
-  function onTouchStart(e: React.TouchEvent) {
-    const t = e.touches[0]
-    if (t) touchStart.current = { x: t.clientX, y: t.clientY }
-  }
-  function onTouchEnd(e: React.TouchEvent) {
-    const start = touchStart.current
-    const t = e.changedTouches[0]
-    if (!start || !t) return
-    const dx = t.clientX - start.x
-    const dy = t.clientY - start.y
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0 && start.x < EDGE_ZONE && !sidebarOpen) openDrawer()
-      else if (dx < 0 && sidebarOpen) closeDrawer()
-    }
-    touchStart.current = null
-  }
+  const journalChrome = !surfaceActive
 
   const activeEntry = entries.find((e) => e.id === activeId)
-  const heading = bulkActive
-    ? `${bulkCount} entries selected`
-    : rangeSelectActive
-      ? 'Selecting entries'
-      : activeEntry
-        ? deriveTitle(activeEntry.body_markdown) || 'Untitled'
-        : 'New entry'
+  const heading = activeEntry
+    ? deriveTitle(activeEntry.body_markdown) || 'Untitled'
+    : 'New entry'
 
   return (
     <div
@@ -103,8 +68,6 @@ export function MobileJournal(props: JournalViewProps) {
       // keyboard is up, so the bottom bar lifts above it — visualViewport.height
       // excludes the home-indicator inset, which otherwise leaves a dead band.
       style={{ flexDirection: 'column', height: keyboardOpen && vh ? `${vh}px` : '100dvh' }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
     >
       {!focused && journalChrome && (
         <header
@@ -148,7 +111,7 @@ export function MobileJournal(props: JournalViewProps) {
       )}
 
       <div
-        className={`journal-canvas${canvasAlternateActive ? ' journal-canvas--reflections' : ''}`}
+        className={`journal-canvas${surfaceActive ? ' journal-canvas--reflections' : ''}`}
         style={{ flex: 1, minHeight: 0 }}
       >
         {!focused && journalChrome && (
@@ -160,7 +123,7 @@ export function MobileJournal(props: JournalViewProps) {
         <div
           className="journal-canvas__content"
           style={{
-            padding: focused ? '0 1rem' : canvasAlternateActive ? '0' : '2.5rem 1rem 1.25rem',
+            padding: focused ? '0 1rem' : surfaceActive ? '0' : '2.5rem 1rem 1.25rem',
             overflow: 'hidden',
           }}
         >
@@ -170,10 +133,8 @@ export function MobileJournal(props: JournalViewProps) {
 
       {/* While the keyboard is up, the command-accessory bar (rendered with the
           editor) takes over the bottom; the global nav steps aside so we never
-          stack two bars. It returns the moment the keyboard drops. The bar and
-          FAB also step aside while the entries drawer is open — the drawer is
-          its own focused context. */}
-      {!focused && !keyboardOpen && !sidebarOpen && (
+          stack two bars. It returns the moment the keyboard drops. */}
+      {!focused && !keyboardOpen && (
         <>
           {/* Perpetual New-entry button — the app's primary act, floated above
               the bar so it's always in thumb reach without crowding the labeled
@@ -237,51 +198,12 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      {sidebarOpen && !focused && (
-        <>
-          <div className="scrim" onClick={closeDrawer} />
-          <div className="drawer">
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.6rem 0.75rem',
-                borderBottom: '1px solid var(--border-subtle)',
-              }}
-            >
-              <Brand size={20} wordmarkRem={1.05} />
-              {/* Who you're signed in as — nothing more. This spot used to hold a
-                  bare ⎋ that signed you out on a single tap, with no label and no
-                  confirm; sign-out lives in Settings → About, where it's named. */}
-              <span className="drawer__account" title={userEmail}>{userEmail}</span>
-            </div>
-            {/* .entry-list is itself the scroller — a second one here nests two
-                momentum-scrolling regions, which stalls on iOS. */}
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <EntryList
-                entries={entries}
-                activeId={activeId}
-                isNewEntry={isNewEntry}
-                onSelect={onSelect}
-                onEditEntry={onEditEntry}
-                {...(onSelectionChange ? { onSelectionChange } : {})}
-                onMenuAction={onEntryMenuAction}
-                onDeleteEntries={onDeleteEntries}
-                query={query}
-                onQueryChange={onQueryChange}
-                fullWidth
-              />
-            </div>
-          </div>
-        </>
-      )}
 
       <WritingControls
         settings={settings}
         update={updateSettings}
         focus={focus}
-        {...(journalChrome && !keyboardOpen && !sidebarOpen ? { onEnterFocus: focus.enter } : {})}
+        {...(journalChrome && !keyboardOpen ? { onEnterFocus: focus.enter } : {})}
       />
     </div>
   )

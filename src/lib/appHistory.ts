@@ -45,8 +45,6 @@ export interface AppHistoryState {
   /** Open settings modal; `importSource` set on a pushed frame when viewing a source. */
   settings: { tab: SettingsTab; importSource: string | null } | null
   help: boolean
-  sidebar: boolean
-  restrictIds: string[] | null
   /** OSIS of the open Scripture book panel (null = canon map). Its own history
    *  frame so Back / Esc / the rail all close the panel predictably. */
   scriptureBook: string | null
@@ -74,8 +72,6 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   entryId: null,
   settings: null,
   help: false,
-  sidebar: false,
-  restrictIds: null,
   scriptureBook: null,
   scriptureVerse: null,
   entryReturn: null,
@@ -142,6 +138,11 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
 }
 
 /** Fill defaults for frames saved before ascent navigation fields existed. */
+/**
+ * A stale frame keeps whatever extra keys it was saved with — `sidebar` and
+ * `restrictIds` were removed with the entries panel, and the spread below leaves
+ * them sitting inert on old frames rather than throwing. Nothing reads them.
+ */
 export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
   return {
     ...DEFAULT_APP_HISTORY,
@@ -176,7 +177,6 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.surface === b.surface &&
     a.entryId === b.entryId &&
     a.help === b.help &&
-    a.sidebar === b.sidebar &&
     a.scriptureBook === b.scriptureBook &&
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
@@ -185,8 +185,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.pagesSubject === b.pagesSubject &&
     a.pagesSpreadId === b.pagesSpreadId &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
-    JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
-    JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
+    JSON.stringify(a.settings) === JSON.stringify(b.settings)
   )
 }
 

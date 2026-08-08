@@ -6,9 +6,9 @@ interface Props {
   onDelete: () => void
   onClear: () => void
   /**
-   * Compact strip in the sidebar · centered panel in the main canvas ·
-   * a bar floating over the Pages wall, where there is room for the count and
-   * the actions to sit on one line.
+   * A bar floating over the Pages wall (`wall`), or a centered panel in the
+   * main canvas (`canvas`). `compact` is the narrow-strip variant the entries
+   * sidebar used; kept because the geometry may be wanted again.
    */
   layout?: 'compact' | 'canvas' | 'wall'
 }

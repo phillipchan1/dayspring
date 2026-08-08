@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Entry } from '@/lib/types'
 import type { EntryMenuAction } from './EntryContextMenu'
-import type { EntrySelectionChange } from './entrySelectionApi'
 import type { EntryReturnContext } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
@@ -25,21 +24,12 @@ export interface JournalViewProps {
   onSelect: (entry: Entry) => void
   /** Load entry and focus the editor for typing (Enter / double-click). */
   onEditEntry: (entry: Entry) => void
-  /** Sidebar reports multi-select state for the main canvas. */
-  onSelectionChange?: EntrySelectionChange
-  /** True when two or more entries are selected. */
-  bulkActive: boolean
-  bulkCount: number
-  /** Shift+arrow range in progress — editor stays hidden. */
-  rangeSelectActive: boolean
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
-  /** `focusAfterId` — next row to browse after delete; `null` — blank new doc. */
+  /** `focusAfterId` — next page to browse after delete; `null` — blank new doc. */
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   onNew: () => void
   /** True while a new entry is being composed but not yet persisted. */
   isNewEntry: boolean
-  query: string
-  onQueryChange: (q: string) => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
   /** Route to the Lamp (scripture canon) surface. */
@@ -59,18 +49,11 @@ export interface JournalViewProps {
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
   focus: FocusApi
-  sidebarOpen: boolean
-  onToggleSidebar: () => void
-  /** Desktop entries-panel open state — lifted to JournalScreen so ⌘K can open
-   *  it (mobile uses `sidebarOpen` for its drawer and ignores these). */
-  entriesOpen: boolean
-  /** ⌘1 / rail "Entries" — goes to the Pages wall. */
+  /** ⌘1 / rail "Entries" / mobile tab — goes to the Pages wall. */
   onToggleEntries: () => void
-  /** ⇧⌘1 — the old entries panel. Temporary; goes when the panel does. */
-  onEntriesPanel: () => void
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
-  /** True when Looking back fills the main canvas (rail + entries stay visible). */
+  /** True when Looking back fills the main canvas. */
   reflectionsActive: boolean
   /** True when the Altar fills the main canvas. */
   altarActive: boolean

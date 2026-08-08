@@ -90,17 +90,16 @@ export function renderListingPreview(variant: string): void {
   const pane: DevicePane | null =
     paneParam === 'desktop' || paneParam === 'phone' ? paneParam : null
 
-  // Per-shot palette (default `ink`), and the entries list grouped by year —
-  // the one view that puts a decade on screen at once, which is shot 06's whole
-  // claim. Applied before render so nothing re-lays-out mid-capture.
+  // Per-shot palette (default `ink`). Applied before render so nothing
+  // re-lays-out mid-capture. Shot 06's "a decade on screen at once" used to need
+  // the entries list forced to year grouping; the wall puts a decade on screen
+  // by default, so there is nothing left to arrange.
   const theme: ThemeId = shot.theme ?? 'ink'
 
   if (raw) {
     settingsStore.update({
       appearance: isLightTheme(theme) ? 'light' : 'dark',
       ...(isLightTheme(theme) ? { lightTheme: theme } : { darkTheme: theme }),
-      entriesGroupBy: 'year',
-      showEntryPreview: true,
     })
     applyTheme(theme)
   } else {
