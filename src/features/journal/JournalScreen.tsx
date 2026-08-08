@@ -30,7 +30,7 @@ import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
 import { filterEntries } from './search'
 import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
-import { entryReturnFromState } from '@/lib/appHistory'
+import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
 import { consumeSeedPrompt } from '@/lib/onboardingSeed'
 import {
   copyEntryMarkdown,
@@ -985,29 +985,42 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     seedEditor(entryId, asEntryMarkdown(entry.body_markdown))
   }, [entryId, entries, entriesReady, state.surface])
 
+  /**
+   * Leave the editor for a canvas surface.
+   *
+   * Every surface toggle needs the same four things, and each was somewhere to
+   * get it wrong independently:
+   *
+   *  - Flush outstanding keystrokes BEFORE the entryId→null transition. Left
+   *    unawaited, the flush raced the autosave session reset and landed after
+   *    it — losing the tail of an entry.
+   *  - Leave focus mode. In focus mode the rail is unmounted (DesktopJournal),
+   *    so a surface opened from inside it was a canvas with no visible way out.
+   *  - Tuck the entries panel away.
+   *  - Clear the overlays that must not survive a surface change.
+   */
+  async function leaveForSurface(next: Partial<AppHistoryState>) {
+    await saveNow()
+    focus.exit()
+    setEntriesOpen(false)
+    go({
+      entryId: null,
+      entryReturn: null,
+      ascentDrill: null,
+      settings: null,
+      help: false,
+      sidebar: false,
+      ...next,
+    })
+  }
+
   async function toggleLookBack() {
     if (state.entryReturn?.surface === 'reflections') {
       returnFromEntryOrigin()
       return
     }
     if (reflectionsActive) back()
-    else {
-      // Persist outstanding keystrokes BEFORE navigating (local-only, ~ms).
-      // Unawaited, the flush raced the entryId→null transition and could land
-      // after the autosave session reset — losing the tail of the entry.
-      await saveNow()
-      setEntriesOpen(false)
-      go({
-        surface: 'reflections',
-        entryId: null,
-        entryReturn: null,
-        ascentAltitude: 0,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
+    else await leaveForSurface({ surface: 'reflections', ascentAltitude: 0 })
   }
 
   async function toggleScripture() {
@@ -1016,22 +1029,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (scriptureActive) back()
-    else {
-      await saveNow() // see toggleLookBack — must complete before entryId nulls
-      setEntriesOpen(false)
-      // Always land on the canon map, never a stale book panel.
-      go({
-        surface: 'scripture',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-        scriptureBook: null,
-        scriptureVerse: null,
-      })
-    }
+    // Always land on the canon map, never a stale book panel.
+    else await leaveForSurface({ surface: 'scripture', scriptureBook: null, scriptureVerse: null })
   }
 
   /** Open ⌘K. Find is instant and local; Ask leaves for the server on Return. */
@@ -1043,18 +1042,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   /** Return pressed on a question — leave the palette and land in the Well. */
   async function askQuestion(question: string) {
     setFindOpen(false)
-    await saveNow() // see toggleLookBack — must complete before entryId nulls
-    setEntriesOpen(false)
-    go({
-      surface: 'well',
-      rememberQuestion: question,
-      entryId: null,
-      entryReturn: null,
-      ascentDrill: null,
-      settings: null,
-      help: false,
-      sidebar: false,
-    })
+    await leaveForSurface({ surface: 'well', rememberQuestion: question })
   }
 
   /** Find is transit — jump straight to the entry and close behind you. */
@@ -1063,7 +1051,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
     if (state.surface !== 'journal') {
-      go({ surface: 'journal', entryId: id, entryReturn: null, rememberQuestion: null })
+      // Carry the breadcrumb. This used to hard-code `entryReturn: null`, so
+      // ⌘K from a surface dropped you in the editor with no way back to where
+      // you were reading — most visible from Pages, which is now ⌘1.
+      go({
+        surface: 'journal',
+        entryId: id,
+        entryReturn: entryReturnFromState(state),
+        rememberQuestion: null,
+      })
       return
     }
     await handleBrowse(entry)
@@ -1087,19 +1083,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (altarActive) back()
-    else {
-      await saveNow() // see toggleLookBack — must complete before entryId nulls
-      setEntriesOpen(false)
-      go({
-        surface: 'altar',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
+    else await leaveForSurface({ surface: 'altar' })
   }
 
   /**
@@ -1113,47 +1097,39 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (rememberActive) back()
-    else {
-      await saveNow() // see toggleLookBack — must complete before entryId nulls
-      setEntriesOpen(false)
-      go({
-        surface: 'well',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        rememberQuestion: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
+    else await leaveForSurface({ surface: 'well', rememberQuestion: null })
   }
 
   /**
-   * Open the wall.
+   * ⌘1 — your entries.
    *
-   * Reached from the Entries panel's view switcher rather than the rail: Pages is
-   * a way of looking at your entries, not a fifth thing to return to. The panel
-   * closes behind it because the wall IS the list — two indexes of the same
-   * archive side by side is just clutter.
+   * This is the wall now, not a panel. Pages was reached from the entries
+   * panel's own view switcher when it shipped, which made it a second index of
+   * the same archive sitting inside the first; it is better than the list at
+   * every job the list did, so it takes the destination rather than hiding
+   * behind it.
+   *
+   * Shaped like the other four surface toggles, and the entryReturn branch is
+   * the load-bearing one: an entry opened FROM the wall pops its pushed frame
+   * instead of pushing a second, so Back doesn't walk every page you peeked at.
    */
-  async function openPages() {
-    if (pagesActive) return
-    await saveNow() // see toggleLookBack — must complete before entryId nulls
-    setEntriesOpen(false)
-    go({
-      surface: 'pages',
-      entryId: null,
-      entryReturn: null,
-      ascentDrill: null,
-      rememberQuestion: null,
-      settings: null,
-      help: false,
-      sidebar: false,
-    })
+  async function toggleEntries() {
+    if (state.entryReturn?.surface === 'pages') {
+      returnFromEntryOrigin()
+      return
+    }
+    if (pagesActive) back()
+    else await leaveForSurface({ surface: 'pages', rememberQuestion: null })
   }
 
-  function toggleEntries() {
+  /**
+   * ⇧⌘1 — the old entries panel.
+   *
+   * Temporary. The panel is deleted once the wall carries selection, the
+   * context menu and bulk actions; until then this is the only way back to it,
+   * because ⌘1 now belongs to Pages.
+   */
+  function toggleEntriesPanel() {
     if (canvasAlternateActive) {
       go({ surface: 'journal', sidebar: isMobile })
       setEntriesOpen(true)
@@ -1194,7 +1170,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onToggleEntries: toggleEntries,
+    onToggleEntries: () => void toggleEntries(),
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
@@ -1204,7 +1180,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
-    onPages: () => void openPages(),
+    onEntriesPanel: toggleEntriesPanel,
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     onFontSizeUp: () =>
       updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
@@ -1797,14 +1773,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       else go({ sidebar: true })
     },
     entriesOpen,
-    onToggleEntries: toggleEntries,
+    onToggleEntries: () => void toggleEntries(),
+    onEntriesPanel: toggleEntriesPanel,
     mainSlot,
     reflectionsActive,
     altarActive,
     scriptureActive,
     rememberActive: rememberActive,
     pagesActive,
-    onPages: () => void openPages(),
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
     entryReturn: state.entryReturn,

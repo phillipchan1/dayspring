@@ -21,8 +21,9 @@ const NATIVE = isTauri()
 
 interface RailProps {
   onNew: () => void
-  onToggleEntries: () => void
-  entriesOpen: boolean
+  onEntries: () => void
+  /** Entries IS the Pages wall — a surface, not a panel toggle. */
+  pagesActive: boolean
   lookBackActive: boolean
   onLookBack: () => void
   altarActive: boolean
@@ -50,8 +51,8 @@ interface RailProps {
  */
 export function Rail({
   onNew,
-  onToggleEntries,
-  entriesOpen,
+  onEntries,
+  pagesActive,
   lookBackActive,
   onLookBack,
   altarActive,
@@ -114,9 +115,10 @@ export function Rail({
           />
           <RailButton
             label="Entries"
+            subline="Your own, side by side"
             shortcut="⌘1"
-            onClick={onToggleEntries}
-            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive && !rememberActive}
+            onClick={onEntries}
+            active={pagesActive}
             icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />

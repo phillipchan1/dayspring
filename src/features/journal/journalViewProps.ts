@@ -64,7 +64,10 @@ export interface JournalViewProps {
   /** Desktop entries-panel open state — lifted to JournalScreen so ⌘K can open
    *  it (mobile uses `sidebarOpen` for its drawer and ignores these). */
   entriesOpen: boolean
+  /** ⌘1 / rail "Entries" — goes to the Pages wall. */
   onToggleEntries: () => void
+  /** ⇧⌘1 — the old entries panel. Temporary; goes when the panel does. */
+  onEntriesPanel: () => void
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
   /** True when Looking back fills the main canvas (rail + entries stay visible). */
@@ -75,10 +78,8 @@ export interface JournalViewProps {
   scriptureActive: boolean
   /** True when the Well fills the main canvas. */
   rememberActive: boolean
-  /** True when the Pages wall fills the main canvas. */
+  /** True when the Pages wall fills the main canvas — i.e. you are in Entries. */
   pagesActive: boolean
-  /** Leave the Entries panel for the Pages wall. Undefined when the flag is off. */
-  onPages?: (() => void) | undefined
   /** Open ⌘K — Find (instant, local) or Ask (the Well). */
   onFindOrAsk: () => void
   /** Open the Remember surface (rail ⌘5 / mobile tab). */

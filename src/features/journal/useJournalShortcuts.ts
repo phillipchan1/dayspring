@@ -12,6 +12,7 @@ import { isTauri } from '@/lib/platform'
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
+  /** ⌘1 — Pages, your entries. */
   onToggleEntries: () => void
   onLookBack: () => void
   onScripture: () => void
@@ -21,8 +22,8 @@ export interface JournalShortcutActions {
   onFindOrAsk: () => void
   /** ⌘5 — the Remember surface. */
   onRemember: () => void
-  /** Undefined while the `pages` flag is off — ⇧⌘1 then does nothing. */
-  onPages?: (() => void) | undefined
+  /** ⇧⌘1 — the old entries panel. Temporary; goes when the panel does. */
+  onEntriesPanel: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
   /** Increase editor font size (⌘= or ⌘+). */
@@ -54,7 +55,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFindOrAsk,
     onRemember,
-    onPages,
+    onEntriesPanel,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,
@@ -133,15 +134,14 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      // ⇧⌘1 — Pages, the reading half of Entries.
+      // ⇧⌘1 — the entries panel, while it still exists.
       //
       // Matched on `e.code`, not `e.key`: with Shift held, `e.key` for the 1 key
       // is "!" on a US layout and something else again elsewhere, so the digit is
       // simply not there to compare against.
       if (e.shiftKey && e.code === 'Digit1') {
-        if (!onPages) return
         e.preventDefault()
-        onPages()
+        onEntriesPanel()
         return
       }
 
@@ -177,7 +177,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onOpenSettings,
     onFindOrAsk,
     onRemember,
-    onPages,
+    onEntriesPanel,
     onToggleRailLabels,
     onFontSizeUp,
     onFontSizeDown,

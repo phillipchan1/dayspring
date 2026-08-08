@@ -27,8 +27,8 @@ export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
-    settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, onPages, bulkActive, bulkCount, rangeSelectActive,
+    settings, updateSettings, focus, entriesOpen, onToggleEntries, onEntriesPanel, mainSlot,
+    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
@@ -52,8 +52,8 @@ export function DesktopJournal(props: JournalViewProps) {
       {!focused && (
         <Rail
           onNew={onNew}
-          onToggleEntries={onToggleEntries}
-          entriesOpen={entriesOpen}
+          onEntries={onToggleEntries}
+          pagesActive={pagesActive}
           lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
           scriptureActive={scriptureActive}
@@ -89,8 +89,7 @@ export function DesktopJournal(props: JournalViewProps) {
             onDeleteEntries={onDeleteEntries}
             query={query}
             onQueryChange={onQueryChange}
-            onCollapse={onToggleEntries}
-            onPages={onPages}
+            onCollapse={onEntriesPanel}
           />
           {entriesOpen && (
             <div

@@ -36,8 +36,8 @@ export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
-    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, onPages, bulkActive, bulkCount, rangeSelectActive,
+    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, onEntriesPanel, mainSlot, userEmail,
+    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -60,12 +60,13 @@ export function MobileJournal(props: JournalViewProps) {
   function closeDrawer() {
     if (sidebarOpen) onToggleSidebar()
   }
-  // Route through onToggleEntries (not the raw sidebar toggle) so opening Entries
-  // from an alternate surface (Ascent / Lamp / Altar) first returns to the journal
-  // — otherwise the alt-surface guard immediately snaps the sidebar shut and the
-  // tap appears to do nothing.
+  // Route through onEntriesPanel (not the raw sidebar toggle) so opening the
+  // drawer from an alternate surface (Ascent / Lamp / Altar) first returns to
+  // the journal — otherwise the alt-surface guard immediately snaps it shut and
+  // the swipe appears to do nothing. The Entries TAB no longer comes here; it
+  // goes to the wall.
   function openDrawer() {
-    if (!sidebarOpen) onToggleEntries()
+    if (!sidebarOpen) onEntriesPanel()
   }
 
   function onTouchStart(e: React.TouchEvent) {
@@ -193,6 +194,7 @@ export function MobileJournal(props: JournalViewProps) {
             <MobileTab
               label="Entries"
               onClick={onToggleEntries}
+              active={pagesActive}
               icon={<IconEntries size={22} />}
             />
             <MobileTab
@@ -269,9 +271,6 @@ export function MobileJournal(props: JournalViewProps) {
                 query={query}
                 onQueryChange={onQueryChange}
                 fullWidth
-                // The drawer has to close behind it, or the wall opens under a
-                // sheet that's still covering it.
-                {...(onPages ? { onPages: () => { closeDrawer(); onPages() } } : {})}
               />
             </div>
           </div>

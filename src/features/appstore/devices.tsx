@@ -73,6 +73,7 @@ export function journalProps(
     // stays open; the phone has no equivalent and ignores this.
     entriesOpen: true,
     onToggleEntries: noop,
+    onEntriesPanel: noop,
     mainSlot,
     reflectionsActive: false,
     altarActive: false,
