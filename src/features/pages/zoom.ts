@@ -34,6 +34,16 @@ export const READING_ZOOM = 0.82
 export const isReading = (zoom: number): boolean => clampZoom(zoom) >= READING_ZOOM
 
 /**
+ * How many pages are open at reading zoom.
+ *
+ * A hard two, not the interpolated `maxCols` — that lands on three at the
+ * threshold and only reaches two at the very end of the range, so "close enough
+ * to read" would mean three pages at first and two later, which is not a thing
+ * an open book does. One on a phone, which cannot hold two.
+ */
+export const readingCols = (single: boolean): number => (single ? 1 : 2)
+
+/**
  * The most lines any card can want.
  *
  * Excerpts are built once at this budget and sliced per card, because the

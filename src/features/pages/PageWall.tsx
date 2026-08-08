@@ -32,7 +32,7 @@ import {
   type WallItem,
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
-import { clampZoom, isReading, specForZoom, wheelZoomDelta } from './zoom'
+import { clampZoom, isReading, readingCols, specForZoom, wheelZoomDelta } from './zoom'
 import { Leaf } from './Leaf'
 import { claimTransitionName, withPageTransition } from './viewTransition'
 
@@ -139,7 +139,7 @@ export function PageWall({
       const w = el.clientWidth
       if (w <= 0) return
       const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
-      const cap = reading && single ? 1 : spec.maxCols
+      const cap = reading ? readingCols(single) : spec.maxCols
       const next = Math.max(1, Math.min(cap, fits))
       setCols((prev) => (prev === next ? prev : next))
     }
@@ -584,6 +584,8 @@ export function PageWall({
           className="pg__grid"
           role="grid"
           aria-label="Your pages"
+          data-cols={cols}
+          data-reading={reading ? 'true' : undefined}
           aria-multiselectable
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
@@ -594,6 +596,8 @@ export function PageWall({
             // CSS reads the card height from here so the windowing math above
             // stays the only definition of it.
             ['--pg-card-h' as string]: `${spec.cardHeight}px`,
+            // The spine between two open pages is drawn from the gutter.
+            ['--pg-gutter' as string]: `${spec.gap}px`,
           }}
         >
           {/*

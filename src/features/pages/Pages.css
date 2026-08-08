@@ -39,10 +39,17 @@
   padding-top: clamp(0.9rem, 2.5vw, 1.4rem);
 }
 
+/*
+ * The header, and the line under it.
+ *
+ * The rule used to sit hard against the controls with nothing between them, so
+ * it read as a line cutting through the header rather than the floor of it.
+ * It needs room on both sides to be a floor.
+ */
 .pg__head-wrap {
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 1rem;
+  padding-bottom: clamp(0.85rem, 2vw, 1.15rem);
 }
 
 .pg__eyebrow {
@@ -102,7 +109,7 @@ button.pg__sense-q:hover {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.75rem;
 }
 
 .pg__zoom {
@@ -181,10 +188,33 @@ button.pg__sense-q:hover {
     border-color var(--transition);
 }
 
+/*
+ * Open a page at random.
+ *
+ * It said "Open somewhere", which nobody could be expected to parse, and it is
+ * exactly the kind of copy that reads as a phrase rather than a control. An
+ * icon and a tooltip say the same thing without asking anyone to interpret it.
+ */
 .pg__somewhere {
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
-  padding: 0.34rem 0.95rem;
+  color: var(--text-faint);
+}
+
+.pg__somewhere svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .pg__somewhere:hover {
@@ -193,39 +223,6 @@ button.pg__sense-q:hover {
 }
 
 /* ── subjects ── */
-
-.pg__subjects {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-.pg__word {
-  display: contents;
-}
-
-.pg__word-in {
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  color: var(--text);
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  padding: 0.34rem 0.85rem;
-  width: 11rem;
-  outline: none;
-  transition: border-color var(--transition);
-}
-
-.pg__word-in::placeholder {
-  color: var(--text-faint);
-}
-
-.pg__word-in:focus {
-  border-color: var(--accent);
-}
 
 .pg__chip,
 .pg__clear {
@@ -251,148 +248,7 @@ button.pg__sense-q:hover {
 }
 
 /* A concordance suggestion is an offer, not a state — quieter than a facet. */
-.pg__chip--subject {
-  color: var(--text-faint);
-  border-style: dashed;
-}
-
-/*
- * "you write about — Naomi · Chicago · the shop"
- *
- * An unlabelled row of words invites "why these?", and the honest answer — they
- * are the names you return to most, learned from what you actually wrote — is
- * short enough to just print.
- */
-.pg__offer {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.pg__offer-k {
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
-/* ── a group of facets, behind a word ── */
-
-.pg__facet {
-  position: relative;
-  display: inline-flex;
-}
-
-.pg__facet-b {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  background: var(--bg);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  padding: 0.3rem 0.7rem 0.3rem 0.75rem;
-  cursor: pointer;
-  transition: color var(--transition), border-color var(--transition);
-}
-
-.pg__facet-b:hover {
-  color: var(--text-bright);
-  border-color: var(--border);
-}
-
-.pg__facet-b[data-on='true'] {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
 /* How many of this group's own filters are on — not a badge, just the count. */
-.pg__facet-n {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.pg__facet-caret {
-  font-size: 0.7rem;
-  line-height: 1;
-  opacity: 0.6;
-}
-
-.pg__facet-menu {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  z-index: 6;
-  min-inline-size: 12rem;
-  padding: 0.3rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-2);
-  display: flex;
-  flex-direction: column;
-}
-
-.pg__facet-opt {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  inline-size: 100%;
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-  color: var(--text);
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.55rem;
-  cursor: pointer;
-  text-align: left;
-  transition: background-color var(--transition), color var(--transition);
-}
-
-.pg__facet-opt:hover {
-  background: var(--bg-input);
-}
-
-.pg__facet-opt[data-on='true'] {
-  color: var(--accent);
-}
-
-.pg__facet-label {
-  flex: 1;
-  text-transform: capitalize;
-}
-
-/*
- * The count. Choosing a filter should never be a shot in the dark — "Prayer
- * 214" tells you what you are about to get before you get it.
- */
-.pg__facet-count {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-faint);
-}
-
-.pg__facet-swatch {
-  inline-size: 0.7rem;
-  block-size: 0.7rem;
-  border-radius: 50%;
-  background: rgba(var(--swatch-hue), 0.9);
-  flex: 0 0 auto;
-}
-
-.pg__facet-swatch[data-color='amber'] { --swatch-hue: var(--hl-amber); }
-.pg__facet-swatch[data-color='rose'] { --swatch-hue: var(--hl-rose); }
-.pg__facet-swatch[data-color='sage'] { --swatch-hue: var(--hl-sage); }
-.pg__facet-swatch[data-color='sky'] { --swatch-hue: var(--hl-sky); }
-.pg__facet-swatch[data-color='lilac'] { --swatch-hue: var(--hl-lilac); }
-
 /*
  * Highlight colours as swatches, not words.
  *
@@ -429,38 +285,6 @@ button.pg__sense-q:hover {
 .pg__swatch:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 3px;
-}
-
-/*
- * Dim, or only.
- *
- * Off by default and it stays that way: the unlit pages are what give the lit
- * ones their shape, and throwing them away turns the wall into a search result.
- * This exists because sometimes the question really is "only those".
- */
-.pg__only {
-  font-family: var(--font-sans);
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-  background: none;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  padding: 0.28rem 0.7rem;
-  cursor: pointer;
-  transition: color var(--transition), border-color var(--transition),
-    background-color var(--transition);
-}
-
-.pg__only:hover {
-  color: var(--text-dim);
-  border-color: var(--border);
-}
-
-.pg__only[data-on='true'] {
-  color: var(--bg);
-  background: var(--accent);
-  border-color: var(--accent);
 }
 
 /* ── the way to the density picture ── */
@@ -1000,8 +824,7 @@ button.pg__sense-q:hover {
 }
 
 .pg-spread__x,
-.pg-spread__arrow,
-.pg-leaf__edit {
+.pg-spread__arrow {
   font-family: var(--font-sans);
   font-size: 0.76rem;
   color: var(--text-faint);
@@ -1012,8 +835,7 @@ button.pg__sense-q:hover {
 }
 
 .pg-spread__x:hover,
-.pg-spread__arrow:hover:not(:disabled),
-.pg-leaf__edit:hover {
+.pg-spread__arrow:hover:not(:disabled) {
   color: var(--text-bright);
 }
 
@@ -1049,6 +871,16 @@ button.pg__sense-q:hover {
 
 .pg-leaf {
   min-width: 0;
+  cursor: text;
+}
+
+/*
+ * The page comes up in the light when you lean toward it — the same gesture the
+ * cards have, because at this zoom the page IS the card. Colour only; a page
+ * that shifts under the cursor is unreadable.
+ */
+.pg-leaf:hover .pg-leaf__date {
+  color: var(--accent);
 }
 
 .pg-leaf__head {
@@ -1056,12 +888,12 @@ button.pg__sense-q:hover {
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 0.5rem;
   margin-bottom: 1.4rem;
 }
 
 .pg-leaf__date {
+  transition: color var(--transition);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 0.62rem;
@@ -1316,24 +1148,233 @@ button.pg__sense-q:hover {
  * standing far enough away to see the shape of a decade, or close enough to
  * read. Same wall, same scroll, one gesture between them.
  */
+/*
+ * At reading zoom the cell is a leaf of paper, not a card.
+ *
+ * No border, no fill, no shadow — a card outline around something you are
+ * reading is chrome between you and the writing, and two of them side by side
+ * read as two cards rather than as an open book. What separates the pages is
+ * the gutter between them and a hairline at the spine, the way a book does it.
+ */
 .pg__leaf-cell {
+  position: relative;
   block-size: var(--pg-card-h);
   min-inline-size: 0;
   overflow: hidden;
   outline: none;
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  transition: border-color var(--transition);
 }
 
-.pg__leaf-cell:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+/* The spine — on the left-hand page of each pair, so it falls between them. */
+.pg__leaf-cell:nth-child(odd)::after {
+  content: '';
+  position: absolute;
+  inset-block: 12%;
+  inset-inline-end: calc(var(--pg-gutter, 28px) / -2);
+  inline-size: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--border-subtle) 18%,
+    var(--border-subtle) 82%,
+    transparent
+  );
+}
+
+.pg__leaf-cell:focus-visible .pg-leaf__date {
+  color: var(--accent);
 }
 
 .pg__leaf-cell .pg-leaf {
   block-size: 100%;
   overflow-y: auto;
-  padding: clamp(1.25rem, 3vw, 2rem);
+  padding: clamp(0.5rem, 2vw, 1.5rem) clamp(0.75rem, 2.5vw, 2rem);
+}
+
+/* One page on a phone: no spine to draw. */
+.pg__grid[data-cols='1'] .pg__leaf-cell::after {
+  display: none;
+}
+
+
+/* ── the filter: one field, everything behind it ── */
+
+.pg-filter {
+  position: relative;
+}
+
+.pg-filter__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  inline-size: min(26rem, 100%);
+  padding: 0.42rem 0.85rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  transition: border-color var(--transition);
+}
+
+.pg-filter__field:focus-within {
+  border-color: var(--accent);
+}
+
+/* Square off the bottom while the menu is under it, so the two read as one. */
+.pg-filter__field[data-open='true'] {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.pg-filter__icon {
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.pg-filter__in {
+  flex: 1;
+  min-inline-size: 0;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.pg-filter__in::placeholder {
+  color: var(--text-faint);
+}
+
+/*
+ * What the field is offering.
+ *
+ * One list, not a set of panels — words, markings, what you wrote, and asking,
+ * each labelled by kind so the list explains itself without a header per
+ * section. Scrolls, because a vocabulary is as long as it is.
+ */
+.pg-filter__menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 8;
+  inline-size: min(26rem, 100%);
+  max-block-size: 19rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+
+.pg-filter__opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  inline-size: 100%;
+  padding: 0.42rem 0.55rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pg-filter__opt[data-sel='true'] {
+  background: var(--bg-input);
+}
+
+/* What kind of thing this is — "word", "marked", "wrote", "ask". */
+.pg-filter__opt-kind {
+  flex: 0 0 3.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.pg-filter__opt-label {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+/* Choosing should never be a shot in the dark. */
+.pg-filter__opt-n {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+/* ── what's on ── */
+
+.pg-filter__chips {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+}
+
+.pg-filter__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius-full);
+  padding: 0.24rem 0.6rem;
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pg-filter__chip:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.pg-filter__x {
+  font-size: 0.66rem;
+  opacity: 0.7;
+}
+
+.pg-filter__only,
+.pg-filter__reset {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.24rem 0.62rem;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg-filter__only:hover,
+.pg-filter__reset:hover {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.pg-filter__only[data-on='true'] {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
 }

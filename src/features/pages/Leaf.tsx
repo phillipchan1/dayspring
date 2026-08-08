@@ -41,6 +41,19 @@ export function Leaf({
   firstLineTitle: boolean
   onEdit: (entryId: string) => void
 }) {
+  /**
+   * The whole page opens the editor.
+   *
+   * It used to carry an "Open to write" link, which is a label explaining what
+   * the page already is. A click anywhere writes on it — except when you were
+   * selecting text, because reading and copying out of a page is the other
+   * thing you come here to do and it must not be hijacked.
+   */
+  const write = () => {
+    const sel = window.getSelection()
+    if (sel && !sel.isCollapsed) return
+    onEdit(entry.id)
+  }
   // Spiritual blocks are their own rendering elsewhere; on a reading page they'd
   // arrive as raw fenced code, which is markup, not writing.
   const html = useMemo(
@@ -72,14 +85,18 @@ export function Leaf({
     <article
       className="pg-leaf"
       style={shared ? { viewTransitionName: SPREAD_TRANSITION_NAME } : undefined}
+      onClick={write}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') write()
+      }}
+      role="button"
+      tabIndex={-1}
+      aria-label={`${formatDate(entry.created_at)} — open to write`}
     >
       <header className="pg-leaf__head">
         <time className="pg-leaf__date" dateTime={entry.created_at}>
           {formatDate(entry.created_at)}
         </time>
-        <button type="button" className="pg-leaf__edit" onClick={() => onEdit(entry.id)}>
-          Open to write
-        </button>
       </header>
       <div className="pg-leaf__cols">
         <div className="pg-leaf__body markdown-body" dangerouslySetInnerHTML={{ __html: html }} />

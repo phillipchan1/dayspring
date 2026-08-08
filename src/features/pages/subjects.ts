@@ -21,6 +21,8 @@ export interface Subject {
   /** Every spelling that counts as a hit. */
   terms: string[]
   kind: ConcordanceKind | 'word'
+  /** How often the writer returns to it. Absent for a word they just typed. */
+  count?: number
 }
 
 /** One entry, flattened and lowercased once so re-lighting costs nothing. */
@@ -163,7 +165,46 @@ export function subjectFromItem(item: ConcordanceItem): Subject {
     label: item.canonical,
     terms: terms.length > 0 ? terms : [item.canonical],
     kind: item.kind,
+    count: item.occurrence_count,
   }
+}
+
+/**
+ * Everything the writer returns to, most-returned-to first.
+ *
+ * All of it, not a handful. Five chips read as "here are your five subjects",
+ * which is both wrong and constraining — this is a vocabulary, and the filter
+ * field searches it. The Concordance is still a record of spelling rather than a
+ * filing system: nothing here is a tag anyone has to maintain.
+ */
+export async function allSubjects(): Promise<Subject[]> {
+  const items = await listConcordance()
+  return items
+    .slice()
+    .sort((a, b) => b.occurrence_count - a.occurrence_count)
+    .map(subjectFromItem)
+}
+
+/** Rank a vocabulary against what has been typed so far. */
+export function searchSubjects(all: Subject[], query: string, limit = 8): Subject[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return all.slice(0, limit)
+  const scored: { s: Subject; rank: number }[] = []
+  for (const s of all) {
+    // A prefix match on any spelling the writer uses beats a match buried
+    // mid-word — "ela" should offer Elena before "Michaela".
+    let rank = -1
+    for (const t of [s.label, ...s.terms]) {
+      const at = t.toLowerCase().indexOf(q)
+      if (at === 0) rank = Math.max(rank, 2)
+      else if (at > 0) rank = Math.max(rank, 1)
+    }
+    if (rank > 0) scored.push({ s, rank })
+  }
+  return scored
+    .sort((a, b) => b.rank - a.rank || (b.s.count ?? 0) - (a.s.count ?? 0))
+    .slice(0, limit)
+    .map((x) => x.s)
 }
 
 /**

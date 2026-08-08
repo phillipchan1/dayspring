@@ -10,18 +10,21 @@ import { PageWall } from './PageWall'
 import { WeatherPanel } from './WeatherPanel'
 import { clampZoom, READING_ZOOM, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
 import {
+  allSubjects,
   buildSubjectIndex,
   keysFromSubjects,
   matchSubjects,
   subjectMatcher,
-  suggestedSubjects,
   wordSubject,
   type Subject,
 } from './subjects'
 import { buildFacetIndex, facetGroups, matchFacets } from './facets'
-import { FacetMenu } from './FacetMenu'
+import { FilterBar } from './FilterBar'
 import { interpret, literalFallback, type Interpretation } from './interpret'
 import './Pages.css'
+
+/** The chip that stands for a question, since a question has no key of its own. */
+const ASK_CHIP_KEY = 'asked'
 
 interface Props {
   /** The whole archive, newest first. */
@@ -103,9 +106,8 @@ export function PagesView({
   settings,
   updateSettings,
 }: Props) {
-  const [suggested, setSuggested] = useState<Subject[]>([])
+  const [vocabulary, setVocabulary] = useState<Subject[]>([])
   const [senses, setSenses] = useState<AnniversarySense[]>([])
-  const [draft, setDraft] = useState('')
   const [month, setMonth] = useState<number | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
   const [askingLocal, setAskingLocal] = useState(false)
@@ -113,7 +115,6 @@ export function PagesView({
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
   if (spreadId) lastSpreadRef.current = spreadId
-  const inputRef = useRef<HTMLInputElement>(null)
   const zoom = settings.pagesZoom
   const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
 
@@ -121,9 +122,9 @@ export function PagesView({
   // usable offline with typed words, so a failed read is silence, not an error.
   useEffect(() => {
     let alive = true
-    void suggestedSubjects()
+    void allSubjects()
       .then((s) => {
-        if (alive) setSuggested(s)
+        if (alive) setVocabulary(s)
       })
       .catch(() => {})
     return () => {
@@ -172,12 +173,12 @@ export function PagesView({
         const w = wordSubject(key.slice(5))
         if (w) out.push(w)
       } else if (key.startsWith('c:')) {
-        const found = suggested.find((sub) => sub.key === key)
+        const found = vocabulary.find((sub) => sub.key === key)
         if (found) out.push(found)
       }
     }
     return out
-  }, [keys, suggested])
+  }, [keys, vocabulary])
 
   const index = useMemo(() => buildSubjectIndex(entries), [entries])
   const facetIndex = useMemo(
@@ -213,6 +214,29 @@ export function PagesView({
     }
     return hit
   }, [index, subjects, facetIndex, facetKeys, asked])
+
+  /**
+   * Everything on, in one list — the only place filter state is shown.
+   *
+   * A question, the words, then the markings. The bar renders these and nothing
+   * else: what is on is visible, and every one of them comes off the same way.
+   */
+  const chips = useMemo(() => {
+    const out: { key: string; label: string; color?: string; kind: 'ask' | 'word' | 'facet' }[] = []
+    if (asked) out.push({ key: ASK_CHIP_KEY, label: asked.question, kind: 'ask' })
+    for (const sub of subjects) out.push({ key: sub.key, label: sub.label, kind: 'word' })
+    for (const g of groups) {
+      for (const chip of g.chips) {
+        if (!keys.includes(chip.key)) continue
+        out.push(
+          chip.color
+            ? { key: chip.key, label: chip.label, color: chip.color, kind: 'facet' }
+            : { key: chip.key, label: chip.label, kind: 'facet' },
+        )
+      }
+    }
+    return out
+  }, [asked, subjects, groups, keys])
 
   const anyLit = keys.length > 0 || asked !== null
   const litLabel =
@@ -421,128 +445,42 @@ export function PagesView({
               />
               <span className="pg__zoom-icon pg__zoom-icon--near" aria-hidden>▬</span>
             </label>
-            <button type="button" className="pg__somewhere" onClick={openSomewhere}>
-              Open somewhere
+            <button
+              type="button"
+              className="pg__somewhere"
+              onClick={openSomewhere}
+              title="Open a page at random"
+              aria-label="Open a page at random"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <path d="M4 7h4l8 10h4" />
+                <path d="M4 17h4l3-4" />
+                <path d="M14 9l2-2h4" />
+                <path d="M18 4l2 3-2 3" />
+                <path d="M18 14l2 3-2 3" />
+              </svg>
             </button>
           </div>
 
-          <div className="pg__subjects">
-            <form
-              className="pg__word"
-              onSubmit={(e) => {
-                e.preventDefault()
-                const text = draft
-                setDraft('')
-                inputRef.current?.blur()
-                void ask(text)
-              }}
-            >
-              <input
-                ref={inputRef}
-                className="pg__word-in"
-                value={draft}
-                placeholder={
-                  asking ?? askingLocal ? 'reading that…' : 'light up a word, or ask'
-                }
-                aria-label="Light up a word, or ask a question about your pages"
-                disabled={Boolean(asking) || askingLocal}
-                onChange={(e) => setDraft(e.target.value)}
-              />
-            </form>
-
-            {/*
-              Everything lit, as chips you can pull off one at a time.
-              This is the answer to "we don't want people clicking a huge filter
-              like a hotel search": what's on is always visible and always one
-              click from off, and there is no panel of switches to hunt through.
-            */}
-            {asked ? (
-              <button
-                type="button"
-                className="pg__clear"
-                onClick={onClearAsked}
-                aria-label={`Stop showing what you asked: ${asked.question}`}
-              >
-                “{asked.question}” ✕
-              </button>
-            ) : null}
-
-            {subjects.map((sub) => (
-              <button
-                key={sub.key}
-                type="button"
-                className="pg__clear"
-                onClick={() => toggleKey(sub.key)}
-                aria-label={`Stop lighting ${sub.label}`}
-              >
-                {sub.label} ✕
-              </button>
-            ))}
-
-            {/* Two words instead of eleven chips — see FacetMenu. */}
-            {groups.map((g) => (
-              <FacetMenu key={g.group} group={g} active={keys} onToggle={toggleKey} />
-            ))}
-
-            {/*
-              Ways in, not a taxonomy.
-              These are the names this writer returns to most, learned from what
-              they actually wrote — which is why the group says so. An unlabelled
-              row of words invites "why these?", and the honest answer is short
-              enough to just print.
-            */}
-            {suggested.filter((sub) => !keys.includes(sub.key)).length > 0 ? (
-              <span className="pg__offer">
-                <span className="pg__offer-k">you write about</span>
-                {suggested
-                  .filter((sub) => !keys.includes(sub.key))
-                  .slice(0, 5)
-                  .map((sub) => (
-                    <button
-                      key={sub.key}
-                      type="button"
-                      className="pg__chip pg__chip--subject"
-                      onClick={() => addSubject(sub)}
-                    >
-                      {sub.label}
-                    </button>
-                  ))}
-              </span>
-            ) : null}
-
-            {anyLit ? (
-              <>
-                {/*
-                  Dim or filter.
-
-                  Dimming stays the default, because the pages that DON'T carry
-                  a word are what give the ones that do their shape. But
-                  sometimes the question really is "show me only those" — and a
-                  visible toggle sitting next to the lit chips is not the
-                  invisible-query problem, it is the cure for it.
-                */}
-                <button
-                  type="button"
-                  className="pg__only"
-                  data-on={onlyLit ? 'true' : undefined}
-                  aria-pressed={onlyLit}
-                  onClick={() => setOnlyLit((v) => !v)}
-                >
-                  only these
-                </button>
-                <button
-                  type="button"
-                  className="pg__chip"
-                  onClick={() => {
-                    clearAll()
-                    onClearAsked()
-                  }}
-                >
-                  clear
-                </button>
-              </>
-            ) : null}
-          </div>
+          <FilterBar
+            vocabulary={vocabulary}
+            groups={groups}
+            chips={chips}
+            onAddSubject={addSubject}
+            onToggleFacet={toggleKey}
+            onRemove={(key) => {
+              if (key === ASK_CHIP_KEY) onClearAsked()
+              else toggleKey(key)
+            }}
+            onAsk={(q) => void ask(q)}
+            onClear={() => {
+              clearAll()
+              onClearAsked()
+            }}
+            asking={Boolean(asking) || askingLocal}
+            onlyLit={onlyLit}
+            onOnlyLit={setOnlyLit}
+          />
 
           {/*
             The way to the density picture — a line, not the picture itself.
