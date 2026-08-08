@@ -4,7 +4,7 @@ export const APP_HISTORY_TAG = 'dayspring' as const
 export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
 /** Where the user was before opening an entry from Lamp, Altar, Ascent, or Pages. */
-export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'well' | 'pages'
+export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'pages'
 
 /** Drill-in overlay on the Ascent canvas (a verse's rise, or a rope's tended life). */
 export type AscentDrill =
@@ -24,7 +24,6 @@ export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
   scripture: 'Lamp',
   altar: 'Altar',
   reflections: 'Ascent',
-  well: 'the Well',
   pages: 'Pages',
 }
 
@@ -36,7 +35,7 @@ export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
  * surfaces do; in the product it belongs to Entries, which is why the rail still
  * shows four ways to return.
  */
-export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'well' | 'pages'
+export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'pages'
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
@@ -56,9 +55,6 @@ export interface AppHistoryState {
   ascentAltitude: number
   /** Open Ascent drill-in; its own history frame for mouse / browser Back. */
   ascentDrill: AscentDrill | null
-  /** The question the Well is answering. Null means the Well has nothing to show
-   *  (arriving from the rail with no question yet just opens ⌘K). */
-  rememberQuestion: string | null
   /** Subject lighting the Pages wall (`word:<text>` or `c:<concordance id>`). */
   pagesSubject: string | null
   /** The Pages weather panel, on its own frame so Back closes it. */
@@ -79,7 +75,6 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   entryReturn: null,
   ascentAltitude: 0,
   ascentDrill: null,
-  rememberQuestion: null,
   pagesSubject: null,
   pagesPanel: null,
   pagesSpreadId: null,
@@ -116,11 +111,13 @@ function normalizeSurface(value: unknown): Surface {
     value === 'altar' ||
     value === 'scripture' ||
     value === 'journal' ||
-    value === 'well' ||
     value === 'pages'
   )
     return value
-  if (value === 'threads') return 'reflections' // Threads folded into Ascent
+  // Retired surfaces fold home rather than stranding a saved frame:
+  // 'threads' became Ascent, and 'well' was deleted outright (D-020).
+  if (value === 'threads') return 'reflections'
+  if (value === 'well') return 'pages'
   return 'journal'
 }
 
@@ -129,7 +126,7 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
   const r = value as EntryReturnContext
   // A stale entryReturn pointing at the retired 'threads' surface → reflections.
   if ((r.surface as string) === 'threads') r.surface = 'reflections'
-  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'well', 'pages']
+  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'pages']
   if (!validSurface.includes(r.surface)) return null
   return {
     surface: r.surface,
@@ -155,7 +152,6 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     entryReturn: normalizeEntryReturn(state.entryReturn),
     ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
-    rememberQuestion: typeof state.rememberQuestion === 'string' ? state.rememberQuestion : null,
     pagesSubject: typeof state.pagesSubject === 'string' ? state.pagesSubject : null,
     pagesPanel: state.pagesPanel === 'weather' ? 'weather' : null,
     pagesSpreadId: typeof state.pagesSpreadId === 'string' ? state.pagesSpreadId : null,
@@ -185,7 +181,6 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
-    a.rememberQuestion === b.rememberQuestion &&
     a.pagesSubject === b.pagesSubject &&
     a.pagesPanel === b.pagesPanel &&
     a.pagesSpreadId === b.pagesSpreadId &&
@@ -250,15 +245,6 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
   if (state.surface === 'altar') {
     return {
       surface: 'altar',
-      scriptureBook: null,
-      scriptureVerse: null,
-      ascentAltitude: 0,
-      ascentDrill: null,
-    }
-  }
-  if (state.surface === 'well') {
-    return {
-      surface: 'well',
       scriptureBook: null,
       scriptureVerse: null,
       ascentAltitude: 0,

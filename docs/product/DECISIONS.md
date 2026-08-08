@@ -92,6 +92,40 @@ Principle 2 review; or Remember goes unvisited after 60 days, meaning re-reading
 happening and Ask alone was the product.
 **Cost accepted:** one table, and a surface that is honestly thin for a fresh-start user.
 
+## D-020 — Remember is deleted; Ask lights the wall
+**2026-08-08** · **Status:** Decided · alpha only · **supersedes D-016's surface**
+
+**Decision:** The Remember surface is gone — the rail entry, the mobile tab, ⌘5, the
+`well` route, and `VITE_FF_REMEMBER`. What it did is now done by Pages and ⌘K.
+
+**Why:** D-016 built Remember to answer two things: *get back to what you set apart*, and
+*ask the rest*. Once Pages could filter on Marked, Highlighted, Underlined and Quoted, the
+first half was a worse version of a filter — a separate list of passages instead of the
+pages they came from. And the second half never needed a surface: what Ask produces is a
+**set of entries**, and the wall is where a set of entries is shown. So a question asked
+from ⌘K now lights the wall, and arrives as a chip you can pull off like any other filter.
+
+Ask itself is untouched and still earns its place: its lexical and vector legs catch pages
+that circle a thing without ever naming it, which the wall's literal matching cannot.
+
+**What survived:** `marks` — now a Pages filter and still the editor's decoration, in
+`features/pages/useMarks.ts` · ⌘K Find, instant and local, moved to `features/find/` ·
+`api/ask.ts` · the weather grid, moved to `features/pages/`.
+
+**One thing worth watching.** `useRemember` carried a load-bearing `.is('source', null)`
+filter, keeping the Altar's ~6.2k model-harvested `spiritual_items` out of a surface that
+claimed everything on it was writer-supplied. Nothing on Pages reads that table, so the
+trap is gone rather than relocated — but **if a future surface reads `spiritual_items`,
+that filter has to come back.** Recorded here because the code that enforced it no longer
+exists to be read.
+
+**What would change our mind:** people ask questions and then can't tell WHY a page came
+back — literal matching shows its work by lighting the word, and a vector hit has no word
+to light. If that opacity bites, Ask results need their own way of explaining themselves,
+which is an argument for a surface again.
+**Cost accepted:** D-016's surface, ~1,100 lines, four months after building it. The
+passage list in particular was a real idea; it lost to being a filter instead.
+
 ## D-019 — The model may configure the filters; it may never decide what matches
 **2026-08-08** · **Status:** Decided · alpha only
 

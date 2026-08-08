@@ -216,7 +216,7 @@ export interface AnniversarySense {
  *     holds thousands of rows the Altar's model harvested (`source = 'scanned'`),
  *     and handing one of those back as something you sensed years ago would be the
  *     app presenting its own inference as the writer's memory — Principle 1 and 4.
- *     The same filter is load-bearing in features/remember/useRemember.ts.
+ *     The same filter is load-bearing in features/pages/useMarks.ts.
  *  2. **No dismissals.** Nothing here is a card with a close button. It's a line
  *     that's present on the days there's something for, and absent otherwise, so
  *     there is nothing to clear and no chore to fall behind on.

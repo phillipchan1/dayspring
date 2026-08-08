@@ -23,7 +23,7 @@ thesis, not a nav convenience.
 | | Surfaces | Job |
 |---|---|---|
 | **Write** | New entry, Entries (= the Pages wall) | Capture. Must be frictionless and sacred (Principle 3). |
-| **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4, Remember ⌘5 | **Reflective, never operational.** Reveal what a paper journal can't. |
+| **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4 | **Reflective, never operational.** Reveal what a paper journal can't. |
 
 **The rule for every Return surface: you go there to *see*, never to *do*.** No tasks,
 no maintenance, no inbox. The moment a Return surface asks the user to *work*, it has
@@ -131,35 +131,22 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   re-propose the sky.
 - **Audit:** *Does any encoding here let a user rank their prayers, or rank themselves?*
 
-### Remember — `features/remember/` · ⌘5 · *"What you've set apart"*
-- **Promise:** "Get back to what you set apart, and ask the rest."
-- **Answers:** P1 *"I have eleven years in here. What's in it? I genuinely don't know."* ·
-  the notebook journaler's *"can it help me find the things I highlighted?"*
-- **Serves:** P1 (**the writer supplies the signal, never the app** — this is the only
-  surface where significance is asserted, and it's asserted by the user), P4 (a passage
-  *is* a verbatim quote by construction), P5 (compounds without AI; keeps paying out in
-  a month with four entries).
-- **Risks:** **PKM drift.** "Search" invites tags, folders, colours, saved queries. The
-  rule that holds the line: *marking is one gesture with no decision attached.* Also the
-  weather grid — see below.
-- **State:** 🚧 Built, flag OFF (`VITE_FF_REMEMBER`). Four sources: marks (`marks` table),
-  blockquotes, markdown emphasis, and writer-declared `/pray` blocks. Migration
-  `20260802120000_marks.sql` pending — apply via the SQL editor.
-- **What it deliberately excludes:**
-  - **Scripture refs.** The Lamp owns verses. On the real archive they were 284 of 563
-    passages, which would have made this half a second Lamp.
-  - **Altar-harvested `spiritual_items`** (`source = 'scanned'`, ~6.2k rows). Those are
-    model *inferences*. Showing an inference as something the writer set apart is the app
-    asserting significance it decided on. The filter `.is('source', null)` in
-    `useRemember.ts` is load-bearing.
-- **Audit:** ⚠ **The weather grid is one decision away from a contributions graph**,
-  which is a streak grid, which is a Principle 2 violation. **On this surface** it is only
-  ever drawn over passages or over the matches for a question — never over writing
-  activity. *(Pages draws the same grid over writing activity by deliberate override —
-  D-017. That exception is scoped to Pages and does not travel back here.)* No call site
-  may carry totals, a goal, or a current-streak. *Show it to someone in a dry season: does
-  it read as weather, or as a record of how often they failed to show up?* Second test,
-  per the Return rule: *open it in a month with four entries. A way back, or an inbox?*
+### ~~Remember~~ — deleted 2026-08-08 (D-020)
+It answered "get back to what you set apart, and ask the rest" — and by the time Pages
+could filter on Marked, Highlighted, Underlined and Quoted, the first half was a worse
+version of a filter, and the second half never needed a surface of its own: what Ask
+produces is a set of entries, and the wall is where a set of entries is shown.
+
+**What survived it:** `marks` (a Pages filter, and still the editor's decoration —
+`features/pages/useMarks.ts`) · ⌘K Find, instant and local (`features/find/`) ·
+`api/ask.ts`, whose semantic legs still catch pages that circle a thing without naming it,
+which literal matching can't · the weather grid, now `features/pages/`.
+
+**What went with it:** the passage list, the source chips, ⌘5, and `VITE_FF_REMEMBER`.
+The load-bearing `.is('source', null)` filter went too — it existed to keep the Altar's
+~6.2k model-harvested `spiritual_items` out of a surface that claimed everything on it was
+writer-supplied. Nothing on Pages reads that table, so the trap is gone rather than
+relocated. **If a future surface reads `spiritual_items`, that filter has to come back.**
 
 ---
 
@@ -196,7 +183,7 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 | "Is my archive safe / portable?" | Settings export | ⚠️ Works; never *said*. Agreement-plan copy is missing from marketing. |
 | "Will this fit how I journal?" | Capture | ✅ |
 | **"Is this normal? Do others go through this?"** | — | ❌ **Uncovered.** P2's loneliest question. Answering it well probably requires aggregate/comparative data, which collides with Principle 7 and H2. Possibly correct to leave permanently uncovered — but decide deliberately. → D-006 |
-| "Can it help me find the things I highlighted?" | Remember | 🚧 Built, flagged off |
+| "Can it help me find the things I highlighted?" | Pages → Marked | ✅ Alpha |
 | **"I have eleven years in here — can I just READ it?"** | Pages | ✅ Alpha. Was **uncovered**: every Return surface interpreted the archive; none handed it back. |
 | **"Is journaling one more thing I'll fail at?"** | — | ❌ **Uncovered by design.** The obvious answers are streaks and reminders (Principle 2 violations). The unsolved question is whether there's an *invitational* answer. → D-004 |
 

@@ -14,7 +14,6 @@ import {
   IconNew,
   IconScripture,
   IconSettings,
-  IconRemember,
 } from './navIcons'
 
 const NATIVE = isTauri()
@@ -32,12 +31,6 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
-  rememberActive: boolean
-  /** Routes to the surface. It opens with the passages already set apart, so —
-   *  unlike the old Well — it has something to show before a question is asked. */
-  onRemember: () => void
-  /** Remember is feature-flagged off until ready — hide its rail destination when false. */
-  rememberEnabled: boolean
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -60,9 +53,6 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
-  rememberActive,
-  onRemember,
-  rememberEnabled,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -157,17 +147,6 @@ export function Rail({
               active={altarActive}
               ember={dot.altar}
               icon={<IconAltar />}
-              labelsExpanded={labelsExpanded}
-            />
-          )}
-          {rememberEnabled && (
-            <RailButton
-              label="Remember"
-              subline="What you've set apart"
-              shortcut="⌘5"
-              onClick={onRemember}
-              active={rememberActive}
-              icon={<IconRemember />}
               labelsExpanded={labelsExpanded}
             />
           )}

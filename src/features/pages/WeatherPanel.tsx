@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { WeatherGrid } from '@/features/remember/WeatherGrid'
-import type { Facts, Weather } from '@/features/remember/weather'
+import { WeatherGrid } from './WeatherGrid'
+import type { Facts, Weather } from './weather'
 
 interface Props {
   weather: Weather

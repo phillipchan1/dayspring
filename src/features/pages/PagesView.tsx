@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
-import { buildFacts, buildWeather, MONTHS as MONTH_NAMES } from '@/features/remember/weather'
+import { buildFacts, buildWeather, MONTHS as MONTH_NAMES } from './weather'
 import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
@@ -37,6 +37,18 @@ interface Props {
    */
   subjectKey: string | null
   onSubject: (key: string | null) => void
+  /**
+   * A question asked from ⌘K, and the pages it found.
+   *
+   * Ask's semantic legs catch pages that circle a thing without ever naming it,
+   * which literal matching can't — so its result arrives as its own lit set
+   * rather than as words. It reads as a chip like everything else, and comes off
+   * the same way.
+   */
+  asked: { question: string; entryIds: string[] } | null
+  onClearAsked: () => void
+  /** A question is in flight. */
+  asking: string | null
   /** The weather panel, on its own history frame. */
   panel: 'weather' | null
   onPanel: (panel: 'weather' | null) => void
@@ -57,8 +69,8 @@ interface Props {
  * PAGES — the read surface.
  *
  * Dayspring's other Return surfaces all interpret: Ascent arranges seasons, Lamp
- * gathers verses, Altar follows prayers, Remember answers questions. Every one of
- * them hands back a reading of the archive. None of them hands back the archive.
+ * gathers verses, Altar follows prayers. Every one of them hands back a reading
+ * of the archive. None of them hands back the archive.
  *
  * This does. It is the only surface where the app says nothing at all — it lays
  * the pages out, lights the ones you ask for, and gets out of the way. Everything
@@ -71,6 +83,9 @@ export function PagesView({
   activeId,
   subjectKey,
   onSubject,
+  asked,
+  onClearAsked,
+  asking,
   panel,
   onPanel,
   spreadId,
@@ -87,7 +102,7 @@ export function PagesView({
   const [draft, setDraft] = useState('')
   const [month, setMonth] = useState<number | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
-  const [asking, setAsking] = useState(false)
+  const [askingLocal, setAskingLocal] = useState(false)
   // The last page opened in the Spread, kept so the wall knows which card the
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
@@ -174,17 +189,28 @@ export function PagesView({
    * you started with.
    */
   const lit = useMemo(() => {
-    const bySubject = matchSubjects(index, subjects)
-    const byFacet = matchFacets(facetIndex, facetKeys)
-    if (bySubject === null) return byFacet
-    if (byFacet === null) return bySubject
-    const both = new Set<string>()
-    for (const id of bySubject) if (byFacet.has(id)) both.add(id)
-    return both
-  }, [index, subjects, facetIndex, facetKeys])
+    const legs: (Set<string> | null)[] = [
+      matchSubjects(index, subjects),
+      matchFacets(facetIndex, facetKeys),
+      asked ? new Set(asked.entryIds) : null,
+    ]
+    let hit: Set<string> | null = null
+    for (const leg of legs) {
+      if (leg === null) continue
+      if (hit === null) {
+        hit = leg
+        continue
+      }
+      const narrowed = new Set<string>()
+      for (const id of hit) if (leg.has(id)) narrowed.add(id)
+      hit = narrowed
+    }
+    return hit
+  }, [index, subjects, facetIndex, facetKeys, asked])
 
-  const anyLit = keys.length > 0
-  const litLabel = subjects.map((sub) => sub.label).join(' + ') || null
+  const anyLit = keys.length > 0 || asked !== null
+  const litLabel =
+    asked?.question ?? (subjects.map((sub) => sub.label).join(' + ') || null)
 
   /**
    * Every page on the wall.
@@ -255,12 +281,12 @@ export function PagesView({
     const text = raw.trim()
     if (!text) return
     const looksLikeASentence = /\s/.test(text)
-    setAsking(true)
+    setAskingLocal(true)
     let read: Interpretation
     try {
       read = looksLikeASentence ? await interpret(text) : literalFallback(text)
     } finally {
-      setAsking(false)
+      setAskingLocal(false)
     }
 
     const next: string[] = []
@@ -436,9 +462,11 @@ export function PagesView({
                 ref={inputRef}
                 className="pg__word-in"
                 value={draft}
-                placeholder={asking ? 'reading that…' : 'light up a word, or ask'}
+                placeholder={
+                  asking ?? askingLocal ? 'reading that…' : 'light up a word, or ask'
+                }
                 aria-label="Light up a word, or ask a question about your pages"
-                disabled={asking}
+                disabled={Boolean(asking) || askingLocal}
                 onChange={(e) => setDraft(e.target.value)}
               />
             </form>
@@ -449,6 +477,17 @@ export function PagesView({
               like a hotel search": what's on is always visible and always one
               click from off, and there is no panel of switches to hunt through.
             */}
+            {asked ? (
+              <button
+                type="button"
+                className="pg__clear"
+                onClick={onClearAsked}
+                aria-label={`Stop showing what you asked: ${asked.question}`}
+              >
+                “{asked.question}” ✕
+              </button>
+            ) : null}
+
             {subjects.map((sub) => (
               <button
                 key={sub.key}
@@ -517,7 +556,14 @@ export function PagesView({
                 >
                   only these
                 </button>
-                <button type="button" className="pg__chip" onClick={clearAll}>
+                <button
+                  type="button"
+                  className="pg__chip"
+                  onClick={() => {
+                    clearAll()
+                    onClearAsked()
+                  }}
+                >
                   clear
                 </button>
               </>

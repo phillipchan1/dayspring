@@ -27,9 +27,9 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
+    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     settings, updateSettings, focus, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive,
+    reflectionsActive, altarActive, scriptureActive, pagesActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
@@ -41,7 +41,7 @@ export function DesktopJournal(props: JournalViewProps) {
       : ''
   // A surface owns the canvas, so the journal's own chrome steps aside.
   const surfaceActive =
-    reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
+    reflectionsActive || altarActive || scriptureActive || pagesActive
   const journalChrome = !surfaceActive
 
   return (
@@ -55,9 +55,6 @@ export function DesktopJournal(props: JournalViewProps) {
           onLookBack={onLookBack}
           scriptureActive={scriptureActive}
           onScripture={onScripture}
-          rememberActive={rememberActive}
-          onRemember={onRemember}
-          rememberEnabled={rememberEnabled}
           altarActive={altarActive}
           onAltar={onAltar}
           altarEnabled={altarEnabled}

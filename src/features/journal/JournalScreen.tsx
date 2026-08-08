@@ -43,12 +43,12 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
-import { RememberView } from '@/features/remember/RememberView'
 import { PagesView } from '@/features/pages/PagesView'
 import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
-import { useRemember } from '@/features/remember/useRemember'
+import { useMarks } from '@/features/pages/useMarks'
+import { ask } from '@/lib/ask'
 import type { Mark } from '@/lib/marks'
-import { FindPalette } from '@/features/remember/FindPalette'
+import { FindPalette } from '@/features/find/FindPalette'
 import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
 import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
@@ -134,22 +134,26 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
-  const rememberActive = state.surface === 'well'
   const pagesActive = state.surface === 'pages'
   // Altar is unfinished — hidden behind the `altar` flag (per-profile or
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
-  // Remember hides its rail button and mobile tab behind the `remember` flag.
-  // Unlike Altar this does NOT redirect the surface: ⌘K → Ask still routes
-  // there, it just isn't advertised in the navigation until it's turned on.
-  const rememberEnabled = resolveFlag(featureFlags, 'remember')
   // Pages carries no flag of its own: the alpha channel is the gate. See D-017.
   const canvasAlternateActive =
-    reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
-  // Passages + marks. The corpus read is gated on the surface being open; marks
-  // load always, because the editor draws them.
-  const remember = useRemember(rememberActive)
+    reflectionsActive || altarActive || scriptureActive || pagesActive
+  // Marks are drawn by the editor and filtered on by the wall, so they load
+  // always — and cheaply: this reads a small store, never the corpus.
+  const marks = useMarks()
+  /**
+   * The last question asked, and the pages it found.
+   *
+   * Ephemeral on purpose — it is not in history. A question is something you
+   * just asked, not a place you can navigate back into a week later, and 40 ids
+   * in a history frame would be state pretending to be a location.
+   */
+  const [asked, setAsked] = useState<{ question: string; entryIds: string[] } | null>(null)
+  const [asking, setAsking] = useState<string | null>(null)
   /**
    * Was the open entry written on an earlier calendar day?
    *
@@ -170,7 +174,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       d.getDate() !== now.getDate()
     )
   }, [entryId, entries])
-  /** ⌘K — Find (instant, local) or Ask (Remember). Seeded when reopened from Remember. */
+  /** ⌘K — Find (instant, local), or Ask, which lights the wall with what it found. */
   const [findOpen, setFindOpen] = useState(false)
   const [findSeed, setFindSeed] = useState('')
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
@@ -1021,10 +1025,30 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setFindOpen(true)
   }
 
-  /** Return pressed on a question — leave the palette and land in the Well. */
+  /**
+   * Return pressed on a question — the answer is a lit wall.
+   *
+   * Ask used to render its own surface. It doesn't need one: what it produces
+   * is a set of entries, and the wall is where a set of entries is shown. The
+   * semantic legs still earn their keep — they catch pages that circle a thing
+   * without ever naming it, which literal matching can't — and the question
+   * arrives as a chip you can pull off like any other filter.
+   */
   async function askQuestion(question: string) {
     setFindOpen(false)
-    await leaveForSurface({ surface: 'well', rememberQuestion: question })
+    setAsking(question)
+    await leaveForSurface({ surface: 'pages' })
+    try {
+      const result = await ask(question)
+      setAsked({ question, entryIds: result.entryIds })
+    } catch {
+      // Offline, or the call failed. The wall falls back to lighting the words
+      // in the question, which is what it would have done without Ask at all.
+      setAsked(null)
+      go({ pagesSubject: `word:${question}` }, { replace: true })
+    } finally {
+      setAsking(null)
+    }
   }
 
   /** Find is transit — jump straight to the entry and close behind you. */
@@ -1040,8 +1064,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         surface: 'journal',
         entryId: id,
         entryReturn: entryReturnFromState(state),
-        rememberQuestion: null,
-      })
+          })
       return
     }
     await handleBrowse(entry)
@@ -1069,20 +1092,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   /**
-   * Open Remember. Unlike the old Well this routes rather than opening ⌘K —
-   * the surface has the passages already set apart to show on arrival, which is
-   * the whole reason it can be a destination now.
-   */
-  async function toggleRemember() {
-    if (state.entryReturn?.surface === 'well') {
-      returnFromEntryOrigin()
-      return
-    }
-    if (rememberActive) back()
-    else await leaveForSurface({ surface: 'well', rememberQuestion: null })
-  }
-
-  /**
    * ⌘1 — your entries.
    *
    * This is the wall now, not a panel. Pages was reached from the entries
@@ -1101,7 +1110,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (pagesActive) back()
-    else await leaveForSurface({ surface: 'pages', rememberQuestion: null })
+    else await leaveForSurface({ surface: 'pages' })
   }
 
 
@@ -1134,7 +1143,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       else openSettings()
     },
     onFindOrAsk: () => openFindOrAsk(''),
-    onRemember: toggleRemember,
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     // ⌘= / ⌘− / ⌘0 mean "bigger / smaller / normal", and what that acts on is
     // whatever owns the screen: the writing size while writing, how close
@@ -1486,7 +1494,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            marks={entryId ? remember.marksFor(entryId) : []}
+            marks={entryId ? marks.marksFor(entryId) : []}
             // Marking is a READING act. The button only exists on an entry
             // written on a previous day — today's page keeps exactly the
             // formatting bar it has always had, and the writing surface gains
@@ -1494,7 +1502,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             {...(entryId && isPastEntry
               ? {
                   onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
-                    remember.toggleMark(entryId, quote, charStart, existing),
+                    marks.toggleMark(entryId, quote, charStart, existing),
                 }
               : {})}
             // The `/` hint is desktop copy: CommandToolbar already puts
@@ -1589,21 +1597,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
-  ) : rememberActive ? (
-    <RememberView
-      question={state.rememberQuestion}
-      passages={remember.passages}
-      ready={remember.ready}
-      onOpenEntry={handleOpenReflectionEntry}
-      onAskAgain={(seed: string) => openFindOrAsk(seed)}
-    />
   ) : pagesActive ? (
     <PagesView
       entries={entries}
-      marks={remember.marks}
+      marks={marks.marks}
       ready={entriesReady}
       activeId={entryId}
       subjectKey={state.pagesSubject}
+      asked={asked}
+      onClearAsked={() => setAsked(null)}
+      asking={asking}
       // Replace, not push: a subject is a filter you try on, and pushing a frame
       // per chip would make Back walk every word you looked at.
       onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
@@ -1646,7 +1649,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     altarEnabled,
-    rememberEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       // An explicit tap also un-retires anything the flush gave up on — whatever
@@ -1666,10 +1668,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     reflectionsActive,
     altarActive,
     scriptureActive,
-    rememberActive: rememberActive,
     pagesActive,
     onFindOrAsk: () => openFindOrAsk(''),
-    onRemember: toggleRemember,
     entryReturn: state.entryReturn,
     onReturnFromEntry: returnFromEntryOrigin,
   }

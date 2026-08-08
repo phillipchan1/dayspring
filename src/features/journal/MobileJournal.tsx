@@ -14,7 +14,6 @@ import {
   IconEntries,
   IconNew,
   IconScripture,
-  IconRemember,
   IconSettings,
 } from './navIcons'
 import type { ReactNode } from 'react'
@@ -33,9 +32,9 @@ import type { JournalViewProps } from './journalViewProps'
 export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, status, lastSavedAt, saveError,
-    onNew, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
+    onNew, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     settings, updateSettings, focus, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, pagesActive,
+    reflectionsActive, altarActive, scriptureActive, pagesActive,
     entryReturn, onReturnFromEntry,
   } = props
   const vh = useViewportHeight()
@@ -52,7 +51,7 @@ export function MobileJournal(props: JournalViewProps) {
   const focused = focus.active
   // A surface owns the canvas, so the journal's own chrome steps aside.
   const surfaceActive =
-    reflectionsActive || altarActive || scriptureActive || rememberActive || pagesActive
+    reflectionsActive || altarActive || scriptureActive || pagesActive
   const journalChrome = !surfaceActive
 
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -179,14 +178,6 @@ export function MobileJournal(props: JournalViewProps) {
                 active={altarActive}
                 ember={dot.altar && !altarActive}
                 icon={<IconAltar size={22} />}
-              />
-            )}
-            {rememberEnabled && (
-              <MobileTab
-                label="Remember"
-                onClick={onRemember}
-                active={rememberActive}
-                icon={<IconRemember size={22} />}
               />
             )}
             <MobileTab

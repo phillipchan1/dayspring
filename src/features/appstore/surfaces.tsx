@@ -199,6 +199,9 @@ function PagesShot() {
       activeId={null}
       subjectKey={subjectKey}
       onSubject={setSubjectKey}
+      asked={null}
+      onClearAsked={noop}
+      asking={null}
       panel={panel}
       onPanel={setPanel}
       spreadId={spreadId}

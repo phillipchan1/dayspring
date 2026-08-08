@@ -38,11 +38,6 @@ export interface JournalViewProps {
   onAltar: () => void
   /** Altar is gated behind the `altar` feature flag until it's ready to ship. */
   altarEnabled: boolean
-  /**
-   * The Well is gated behind the `well` feature flag. False hides its nav
-   * destinations only — the `well` route and the ⌘K Find palette still work.
-   */
-  rememberEnabled: boolean
   onOpenSettings: () => void
   /** Force a full re-sync from the server (pull latest + flush outbox). */
   onSync: () => void
@@ -59,14 +54,10 @@ export interface JournalViewProps {
   altarActive: boolean
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
-  /** True when the Well fills the main canvas. */
-  rememberActive: boolean
   /** True when the Pages wall fills the main canvas — i.e. you are in Entries. */
   pagesActive: boolean
   /** Open ⌘K — Find (instant, local) or Ask (the Well). */
   onFindOrAsk: () => void
-  /** Open the Remember surface (rail ⌘5 / mobile tab). */
-  onRemember: () => void
   /** Set when reading an entry opened from Lamp / Altar / Ascent. */
   entryReturn: EntryReturnContext | null
   onReturnFromEntry: () => void

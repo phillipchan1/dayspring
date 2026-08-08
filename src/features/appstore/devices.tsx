@@ -53,10 +53,6 @@ export function journalProps(
     onScripture: noop,
     onAltar: noop,
     altarEnabled: true,
-    // The listing captures show the SHIPPED navigation — Remember is flagged
-    // off, so it must stay out of the marketing screenshots.
-    rememberEnabled: false,
-    onRemember: () => {},
     onOpenSettings: noop,
     onSync: noop,
     settings: settingsStore.get(),
@@ -67,7 +63,6 @@ export function journalProps(
     reflectionsActive: false,
     altarActive: false,
     scriptureActive: false,
-    rememberActive: false,
     pagesActive: false,
     ...active,
     onFindOrAsk: noop,

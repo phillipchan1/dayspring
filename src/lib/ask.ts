@@ -2,7 +2,7 @@
 //
 // Ask is the slow half of Find/Ask: it needs the network (the question has to be
 // embedded server-side, where the key lives) and it costs a model call. Find
-// stays local and instant — see features/remember/findLocal.ts. Nothing here runs
+// stays local and instant — see features/find/findLocal.ts. Nothing here runs
 // on a keystroke; it fires only when the writer presses Return on a question.
 
 import { apiPost } from './api'
