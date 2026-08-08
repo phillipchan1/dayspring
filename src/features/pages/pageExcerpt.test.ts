@@ -22,6 +22,27 @@ describe('pageExcerpt', () => {
     expect(x.lines[0]!.text).toBe('I was completely undone by it')
   })
 
+  // Highlight and underline shipped after this module did, and its own local
+  // stripper had never heard of them — a highlighted sentence rendered on a card
+  // as literal `==like this==`.
+  it('unwraps highlight and underline too', () => {
+    expect(pageExcerpt(entry('the ==thing he said== to me')).lines[0]!.text).toBe(
+      'the thing he said to me',
+    )
+    expect(pageExcerpt(entry('the =={rose}thing he said== to me')).lines[0]!.text).toBe(
+      'the thing he said to me',
+    )
+    expect(pageExcerpt(entry('I ++underlined++ that')).lines[0]!.text).toBe('I underlined that')
+  })
+
+  // The reason the shared stripper is pair-aware rather than a character class.
+  it('leaves unpaired punctuation in prose alone', () => {
+    expect(pageExcerpt(entry('I still write C++ sometimes')).lines[0]!.text).toBe(
+      'I still write C++ sometimes',
+    )
+    expect(pageExcerpt(entry('2+2=4 is still true')).lines[0]!.text).toBe('2+2=4 is still true')
+  })
+
   it('marks a blockquote as set apart', () => {
     const x = pageExcerpt(entry('> He has been faithful in every one of these years'))
     expect(x.lines[0]!.set).toBe(true)

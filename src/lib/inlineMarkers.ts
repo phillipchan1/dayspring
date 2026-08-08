@@ -17,7 +17,9 @@ const UNDERLINE_RE = /\+\+(?!\s)([^+]+?)(?<!\s)\+\+/g
 const EMPHASIS_RE = /(\*\*\*|\*\*|\*|___|__|_)(?!\s)([\s\S]+?)(?<!\s)\1/g
 const STRIKE_RE = /~~(?!\s)([\s\S]+?)(?<!\s)~~/g
 const CODE_RE = /`([^`]+)`/g
-const LINK_RE = /\[([^\]]*)\]\([^)]*\)/g
+// The leading `!` is part of an image, not prose — without it an image collapses
+// to "!alt text" and the bang reads as punctuation the writer never typed.
+const LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g
 
 export function stripInlineMarkers(text: string): string {
   return text

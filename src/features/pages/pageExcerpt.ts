@@ -7,6 +7,7 @@
 // has stopped being a read surface (Principle 4).
 
 import { entryContentLines } from '@/lib/entryLabels'
+import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import { passageKey, passagesForEntry } from '@/lib/remember'
 import type { Entry } from '@/lib/types'
 
@@ -27,34 +28,20 @@ export interface PageExcerpt {
 
 type ExcerptEntry = Pick<Entry, 'id' | 'created_at' | 'body_markdown'>
 
-/** Line-level markdown scaffolding: headings, quote carets, list bullets. */
-function stripLeaders(line: string): string {
-  return line
-    .replace(/^#{1,6}\s+/, '')
-    .replace(/^>\s?/, '')
-    .replace(/^[-*+]\s+/, '')
-    .replace(/^\d+\.\s+/, '')
-    .trim()
-}
-
 /**
- * Inline emphasis markers, unwrapped rather than deleted.
+ * Markers unwrapped rather than deleted.
  *
- * `**like this**` is how it was stored, not how it was meant — the same
- * reasoning as `stripInlineMarks` in lib/remember.ts. Bold still shows on the
- * page, but as a glow on the line, not as visible asterisks.
+ * `**like this**` is how it was stored, not how it was meant. Emphasis still
+ * shows on the page, but as a glow on the line, not as visible asterisks.
+ *
+ * This used to strip with its own local regexes, which predated `==highlight==`
+ * and `++underline++` becoming real marks — a highlighted sentence rendered on a
+ * card as literal `==like this==`. `stripMarkdownMarkers` is the pair-aware
+ * version the rest of the app already shares, so a page card, a title, and a
+ * search snippet now unwrap identically, and `C++` survives all three.
  */
-function stripInline(s: string): string {
-  return s
-    .replace(/(\*\*|__)(\S(?:[\s\S]*?\S)?)\1/g, '$2')
-    .replace(/(^|[^\w*_])([*_])(\S(?:[^*_]*?\S)?)\2(?![\w*_])/g, '$1$3')
-    .replace(/`([^`\n]+)`/g, '$1')
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/^[*_\s]+/, '')
-    .replace(/[*_\s]+$/, '')
-}
-
-const display = (line: string): string => stripInline(stripLeaders(line)).replace(/\s+/g, ' ').trim()
+const display = (line: string): string =>
+  stripMarkdownMarkers(line).replace(/\s+/g, ' ').trim()
 
 /**
  * Every key the writer set apart on this entry.

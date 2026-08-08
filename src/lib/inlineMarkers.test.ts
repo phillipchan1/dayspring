@@ -27,6 +27,13 @@ describe('stripInlineMarkers', () => {
     expect(stripInlineMarkers('see [the docs](https://x.com) now')).toBe('see the docs now')
   })
 
+  // An image is not prose. Leaving the bang behind puts a character on the page
+  // that the writer never typed.
+  it('drops an image whole, bang included', () => {
+    expect(stripInlineMarkers('before ![the lake](a.png) after')).toBe('before the lake after')
+    expect(stripInlineMarkers('![](a.png)')).toBe('')
+  })
+
   it('handles several spans on one line', () => {
     expect(stripInlineMarkers('==a== and ==b==')).toBe('a and b')
     expect(stripInlineMarkers('**a** and **b**')).toBe('a and b')
