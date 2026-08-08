@@ -3,6 +3,7 @@ import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
 import { WeatherGrid } from '@/features/remember/WeatherGrid'
 import { buildFacts, buildWeather } from '@/features/remember/weather'
+import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
@@ -32,6 +33,9 @@ interface Props {
   onSpread: (entryId: string | null) => void
   /** Leave Pages for the editor. */
   onOpenEntry: (entryId: string) => void
+  /** Per-entry context-menu actions — rename the date, duplicate, print, export. */
+  onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
+  onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   single: boolean
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
@@ -58,6 +62,8 @@ export function PagesView({
   spreadId,
   onSpread,
   onOpenEntry,
+  onEntryMenuAction,
+  onDeleteEntries,
   single,
   settings,
   updateSettings,
@@ -375,6 +381,9 @@ export function PagesView({
           // single month — would make the arrangement impossible to read.
           echoes={!subject && month == null}
           onOpen={(id) => onSpread(id)}
+          onEdit={onOpenEntry}
+          onMenuAction={onEntryMenuAction}
+          onDeleteEntries={onDeleteEntries}
         />
       )}
     </div>

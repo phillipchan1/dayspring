@@ -1,6 +1,9 @@
 import { memo } from 'react'
 import type { PageExcerpt } from './pageExcerpt'
 import { pageFill } from './pageExcerpt'
+import { useWallPointer } from './useWallPointer'
+
+export type PageClickResult = 'open' | 'toggle' | 'range'
 
 interface Props {
   entryId: string
@@ -10,9 +13,31 @@ interface Props {
   dim: boolean
   /** The page currently open in the editor. */
   active: boolean
+  /** Part of the current multi-selection. */
+  selected: boolean
+  /** The card a context menu is currently pointing at. */
+  context: boolean
   /** Set when this page has risen out of another year. */
   echo?: string | undefined
+  /**
+   * Roving-focus wiring from the wall.
+   *
+   * The callbacks take the key rather than closing over it so the wall can keep
+   * them referentially stable — a per-card arrow function would either defeat
+   * the memo on every scroll frame or, if left out of `propsEqual`, leave a card
+   * holding a closure over a stale `items` array.
+   */
+  wallKey: string
+  tabIndex: number
+  onFocus: (wallKey: string) => void
+  onKeyDown: (wallKey: string, e: React.KeyboardEvent) => void
   onOpen: (entryId: string) => void
+  onEdit: (entryId: string) => void
+  onClick: (
+    entryId: string,
+    e: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean },
+  ) => PageClickResult
+  onOpenMenu: (entryId: string, x: number, y: number) => void
 }
 
 function formatDate(iso: string): string {
@@ -35,6 +60,11 @@ function formatDate(iso: string): string {
  * day. It deliberately has no track behind it, so there is nothing to be "full"
  * against and no number to score: it's the look of a thick day versus a thin one,
  * which is the thing paper gives you for free.
+ *
+ * This is also the wall's interaction target. It used to be wrapped in a
+ * focusable `pg__cell` span, which made every card two tab stops with the focus
+ * ring drawn on the child — survivable while a click was the only gesture, and
+ * not once the card had to carry selection, a context menu and a long-press.
  */
 export const PageCard = memo(function PageCard({
   entryId,
@@ -42,21 +72,54 @@ export const PageCard = memo(function PageCard({
   excerpt,
   dim,
   active,
+  selected,
+  context,
   echo,
+  wallKey,
+  tabIndex,
+  onFocus,
+  onKeyDown,
   onOpen,
+  onEdit,
+  onClick,
+  onOpenMenu,
 }: Props) {
   const fill = pageFill(excerpt.chars)
   const empty = excerpt.lines.length === 0
+  const pointer = useWallPointer((x, y) => onOpenMenu(entryId, x, y))
 
   return (
     <button
       type="button"
       className="pgc"
       data-page-id={entryId}
+      data-wall-key={wallKey}
+      data-entry-row
+      data-entry-id={entryId}
       data-dim={dim ? 'true' : undefined}
       data-active={active ? 'true' : undefined}
+      data-selected={selected ? 'true' : undefined}
+      data-context={context ? 'true' : undefined}
       data-echo={echo ? 'true' : undefined}
-      onClick={() => onOpen(entryId)}
+      aria-selected={selected || undefined}
+      tabIndex={tabIndex}
+      onFocus={() => onFocus(wallKey)}
+      onKeyDown={(e) => onKeyDown(wallKey, e)}
+      {...pointer.handlers}
+      onClick={(e) => {
+        // A long-press already opened the menu — swallow the trailing click.
+        if (pointer.consumeLongPress()) {
+          e.preventDefault()
+          return
+        }
+        const result = onClick(entryId, e)
+        if (result === 'open') onOpen(entryId)
+        else e.currentTarget.focus()
+      }}
+      onDoubleClick={(e) => {
+        e.preventDefault()
+        onEdit(entryId)
+      }}
     >
       {echo ? <span className="pgc__echo">{echo}</span> : null}
       <time className="pgc__date" dateTime={dateIso}>
@@ -88,6 +151,19 @@ function propsEqual(prev: Props, next: Props): boolean {
     prev.excerpt === next.excerpt &&
     prev.dim === next.dim &&
     prev.active === next.active &&
-    prev.echo === next.echo
+    prev.selected === next.selected &&
+    prev.context === next.context &&
+    prev.echo === next.echo &&
+    prev.wallKey === next.wallKey &&
+    prev.tabIndex === next.tabIndex &&
+    // Compared, not assumed stable. The wall keeps them stable with useCallback,
+    // so this costs five reference checks; if one ever stops being stable the
+    // memo quietly stops helping rather than quietly going wrong.
+    prev.onFocus === next.onFocus &&
+    prev.onKeyDown === next.onKeyDown &&
+    prev.onOpen === next.onOpen &&
+    prev.onEdit === next.onEdit &&
+    prev.onClick === next.onClick &&
+    prev.onOpenMenu === next.onOpenMenu
   )
 }

@@ -1705,6 +1705,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         else go({ pagesSpreadId: id })
       }}
       onOpenEntry={handleOpenReflectionEntry}
+      onEntryMenuAction={handleEntryMenuAction}
+      onDeleteEntries={handleDeleteEntries}
       single={isMobile}
       settings={settings}
       updateSettings={updateSettings}

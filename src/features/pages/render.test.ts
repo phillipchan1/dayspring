@@ -41,6 +41,14 @@ function entry(body: string, dateLocal = '2021-06-10'): Entry {
 }
 
 const noop = () => {}
+
+/** What the wall needs from the shell to browse, edit, rename and delete. */
+const wallActions = {
+  onOpen: noop,
+  onEdit: noop,
+  onMenuAction: noop,
+  onDeleteEntries: noop,
+}
 const settings = settingsStore.get()
 
 describe('PageWall', () => {
@@ -54,7 +62,7 @@ describe('PageWall', () => {
         lit: null,
         activeId: null,
         echoes: true,
-        onOpen: noop,
+        ...wallActions,
       }),
     )
     expect(html).toContain('Something I wrote down')
@@ -72,7 +80,7 @@ describe('PageWall', () => {
         lit: new Set([hit.id]),
         activeId: null,
         echoes: false,
-        onOpen: noop,
+        ...wallActions,
       }),
     )
     // Both pages are on the wall — the unlit one is faded, never dropped.
@@ -89,7 +97,7 @@ describe('PageWall', () => {
         lit: null,
         activeId: null,
         echoes: true,
-        onOpen: noop,
+        ...wallActions,
       }),
     )
     expect(html).toContain('Blank page')
@@ -128,6 +136,8 @@ describe('PagesView', () => {
     spreadId: null,
     onSpread: noop,
     onOpenEntry: noop,
+    onEntryMenuAction: noop,
+    onDeleteEntries: noop,
     single: false,
     settings,
     updateSettings: noop,

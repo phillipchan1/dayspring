@@ -296,6 +296,22 @@ button.pg__sense-q:hover {
   overflow-x: hidden;
 }
 
+/*
+ * The bulk bar, over the pages rather than beside them.
+ *
+ * In the sidebar this needed a whole separate canvas component to be legible in
+ * 260px. Here it can simply be where the pages are — which also means it never
+ * takes a row away from the wall.
+ */
+.pg__selection {
+  position: absolute;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 4;
+  max-inline-size: min(44rem, calc(100% - 2rem));
+}
+
 .pg__grid {
   display: grid;
   max-width: 96rem;
@@ -305,17 +321,6 @@ button.pg__sense-q:hover {
   align-content: start;
 }
 
-.pg__cell {
-  display: block;
-  min-width: 0;
-  block-size: var(--pg-card-h);
-  outline: none;
-}
-
-.pg__cell:focus-visible .pgc {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
-}
 
 /*
  * The year, held like a thumb in the book.
@@ -388,8 +393,11 @@ button.pg__sense-q:hover {
   position: relative;
   display: flex;
   flex-direction: column;
+  min-inline-size: 0;
   inline-size: 100%;
-  block-size: 100%;
+  /* The wall's windowing math is the only definition of this — see density.ts. */
+  block-size: var(--pg-card-h);
+  outline: none;
   text-align: left;
   overflow: hidden;
   padding: 0.85rem 0.9rem 0.7rem;
@@ -407,8 +415,35 @@ button.pg__sense-q:hover {
   border-color: var(--border);
 }
 
+.pgc:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
 .pgc[data-active='true'] {
   border-color: var(--accent);
+}
+
+/*
+ * Selected, and the card a menu is pointing at.
+ *
+ * Border and wash only. A selected page must not grow, lift, or gain a
+ * checkbox: the wall's second rule is that nothing moves under the cursor, and
+ * on a grid of a thousand cards a reflow on selection is unusable.
+ */
+.pgc[data-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pgc[data-context='true'] {
+  border-color: var(--accent);
+}
+
+/* Selection wins over subject dimming — you can only select what you can see,
+   so a selected page has to stay legible even when the wall is dimmed. */
+.pgc[data-dim='true'][data-selected='true'] {
+  opacity: 1;
 }
 
 /*

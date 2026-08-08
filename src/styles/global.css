@@ -711,6 +711,23 @@ a {
   max-width: 32rem;
   width: 100%;
 }
+/* Floating over the wall: count and actions on one line, and a shadow, because
+   this one sits above the pages rather than in a panel with them. */
+.entry-selection-bar--wall {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.7rem 0.5rem 0.9rem;
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(12px);
+}
+.entry-selection-bar--wall .entry-selection-bar__count {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.entry-selection-bar--wall .entry-selection-bar__actions {
+  flex-wrap: nowrap;
+}
 .entry-selection-bar__count {
   display: block;
   font-family: var(--font-sans);

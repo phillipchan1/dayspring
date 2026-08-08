@@ -16,7 +16,8 @@ import { ALTITUDES } from '@/features/ascent/ascent.config'
 import '@/features/ascent/Ascent.css'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { AltarView } from '@/features/altar/AltarView'
-import { EntryList } from '@/features/journal/EntryList'
+import { PagesView } from '@/features/pages/PagesView'
+import { settingsStore } from '@/lib/settings'
 import { Editor } from '@/editor/Editor'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
@@ -156,19 +157,27 @@ export function renderSurface(shot: Shot) {
       )
 
     case 'history':
+      // The wall, not the old list. This shot's claim is "a decade came with
+      // you" — a decade of pages says that; a decade of 30px rows says you
+      // acquired a filing cabinet.
       return (
         <Canvas>
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <EntryList
+            <PagesView
               entries={MOCK_ENTRIES}
+              marks={[]}
+              ready
               activeId={null}
-              onSelect={noop}
-              onEditEntry={noop}
-              onMenuAction={noop}
+              subjectKey={null}
+              onSubject={noop}
+              spreadId={null}
+              onSpread={noop}
+              onOpenEntry={noop}
+              onEntryMenuAction={noop}
               onDeleteEntries={noop}
-              query=""
-              onQueryChange={noop}
-              fullWidth
+              single={false}
+              settings={settingsStore.get()}
+              updateSettings={noop}
             />
           </div>
         </Canvas>
