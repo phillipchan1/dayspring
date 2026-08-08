@@ -34,6 +34,20 @@ const paths: Record<BarAction, ReactNode> = {
   mark: <path d="M7 4h10v16l-5-4-5 4V4z" />,
   bold: <path d="M7 5h7a4 4 0 0 1 0 8H7V5zm0 8h8a4 4 0 0 1 0 8H7v-8z" />,
   italic: <path d="M11 5h10M7 19h10M14 5l-4 14" />,
+  underline: (
+    <>
+      <path d="M7 4v6a5 5 0 0 0 10 0V4" />
+      <path d="M6 20h12" />
+    </>
+  ),
+  // A marker nib laid over the line it has just drawn — a highlighter, not the
+  // bookmark that `mark` uses. The two must never read as the same gesture.
+  highlight: (
+    <>
+      <path d="M13 4l7 7-7 7H7l-3-3 9-11z" />
+      <path d="M4 21h16" />
+    </>
+  ),
   strike: (
     <>
       <path d="M5 12h14" />
@@ -88,7 +102,9 @@ export const FORMAT_BAR_ACTIONS: {
 }[] = [
   { action: 'bold', label: 'Bold', title: 'Bold (⌘B)' },
   { action: 'italic', label: 'Italic', title: 'Italic (⌘I)' },
+  { action: 'underline', label: 'Underline', title: 'Underline (⌘U)' },
   { action: 'strike', label: 'Strikethrough', title: 'Strikethrough' },
+  { action: 'highlight', label: 'Highlight', title: 'Highlight (⌘⇧H)' },
   { action: 'code', label: 'Code', title: 'Inline code (⌘E)' },
   { action: 'link', label: 'Link', title: 'Link (⌘K)', sep: true },
   { action: 'list', label: 'List', title: 'Bullet list' },

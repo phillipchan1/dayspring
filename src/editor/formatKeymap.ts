@@ -19,6 +19,23 @@ export function formatKeymap(onRequestLink: (view: EditorView) => void) {
       run: (view) => applyFormat(view, 'italic'),
     },
     {
+      // Deliberate shadow: historyKeymap binds Mod-u to `undoSelection`, and this
+      // keymap is registered at Prec.highest, so underline wins inside the
+      // editor. undoSelection is obscure and isn't in the shortcuts guide;
+      // underline is a formatting control people expect on ⌘U. (⌘U is not
+      // view-source on macOS — Safari and Chrome both use ⌥⌘U — and
+      // preventDefault covers the browsers where Ctrl+U is.)
+      key: 'Mod-u',
+      preventDefault: true,
+      run: (view) => applyFormat(view, 'underline'),
+    },
+    {
+      // ⌘H is unavailable: macOS takes it for Hide Application above the page.
+      key: 'Mod-Shift-h',
+      preventDefault: true,
+      run: (view) => applyFormat(view, 'highlight'),
+    },
+    {
       key: 'Mod-e',
       preventDefault: true,
       run: (view) => applyFormat(view, 'code'),

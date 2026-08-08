@@ -38,6 +38,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Mod', 'S'], label: 'Save now' },
       { keys: ['Mod', 'B'], label: 'Bold', when: 'with text selected in the editor' },
       { keys: ['Mod', 'I'], label: 'Italic', when: 'with text selected in the editor' },
+      { keys: ['Mod', 'U'], label: 'Underline', when: 'with text selected in the editor' },
+      { keys: ['Mod', 'Shift', 'H'], label: 'Highlight', when: 'with text selected in the editor' },
       { keys: ['Mod', 'E'], label: 'Inline code', when: 'with text selected in the editor' },
       { keys: ['Mod', 'K'], label: 'Link', when: 'with text selected in the editor' },
       { keys: ['Mod', 'Enter'], label: 'Toggle focus mode' },

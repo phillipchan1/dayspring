@@ -1632,6 +1632,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             typewriter={focus.active && focusEditorReady && settings.typewriter}
             dimming={focus.active && focusEditorReady && settings.dimming}
             titleStyling={settings.firstLineTitle}
+            showMarkdownSyntax={settings.showMarkdownSyntax}
             slashEnabled
             // Only band the line for a fresh /command; editing a block targets an
             // atomic widget line, where a line decoration collides with the block.
@@ -1647,6 +1648,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {showCommandBar && !focus.active && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
+          onFormat={(id) => editorRef.current?.applyFormatCommand(id)}
+          onHighlight={(color) => editorRef.current?.applyHighlight(color)}
           onVoice={() => {
             voiceCaretRef.current = editorRef.current?.getCursor() ?? 0
             setVoiceOpen(true)
