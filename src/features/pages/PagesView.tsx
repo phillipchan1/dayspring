@@ -20,6 +20,7 @@ import {
   type Subject,
 } from './subjects'
 import { buildFacetIndex, facetChips, matchFacets } from './facets'
+import { interpret, literalFallback, type Interpretation } from './interpret'
 import './Pages.css'
 
 interface Props {
@@ -86,6 +87,7 @@ export function PagesView({
   const [draft, setDraft] = useState('')
   const [month, setMonth] = useState<number | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
+  const [asking, setAsking] = useState(false)
   // The last page opened in the Spread, kept so the wall knows which card the
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
@@ -240,6 +242,44 @@ export function PagesView({
     onSubject(next.length > 0 ? next.join('\u0000') : null)
   }
 
+  /**
+   * A sentence, read as filters.
+   *
+   * One word is a word — no round trip, no waiting, and no model involved in
+   * "Naomi". A sentence is a question, and the server reads it into terms and
+   * markings which land here as ordinary chips: whatever it decided is visible
+   * and one click from gone. That is the answer to not wanting a hotel-search
+   * filter panel — you say it, and then you adjust what it heard.
+   */
+  async function ask(raw: string) {
+    const text = raw.trim()
+    if (!text) return
+    const looksLikeASentence = /\s/.test(text)
+    setAsking(true)
+    let read: Interpretation
+    try {
+      read = looksLikeASentence ? await interpret(text) : literalFallback(text)
+    } finally {
+      setAsking(false)
+    }
+
+    const next: string[] = []
+    for (const term of read.terms) {
+      const sub = wordSubject(term)
+      if (sub) next.push(sub.key)
+    }
+    for (const facet of read.facets) next.push(facet)
+    if (next.length === 0) return
+
+    setMonth(read.months.length === 1 ? read.months[0]! : null)
+    // A question about recurrence ("every year") is asking to SEE the set, not
+    // to find it among the pages that don't carry it — so it filters rather
+    // than dims. The toggle stays visible and one click from off, which is the
+    // whole reason filtering is allowed here at all.
+    if (read.arrange !== 'date') setOnlyLit(true)
+    onSubject([...new Set(next)].join('\u0000'))
+  }
+
   function addSubject(next: Subject) {
     setMonth(null)
     if (keys.includes(next.key)) return
@@ -388,20 +428,19 @@ export function PagesView({
               className="pg__word"
               onSubmit={(e) => {
                 e.preventDefault()
-                const next = wordSubject(draft)
-                if (next) {
-                  addSubject(next)
-                  setDraft('')
-                  inputRef.current?.blur()
-                }
+                const text = draft
+                setDraft('')
+                inputRef.current?.blur()
+                void ask(text)
               }}
             >
               <input
                 ref={inputRef}
                 className="pg__word-in"
                 value={draft}
-                placeholder="light up a word"
-                aria-label="Light up the pages that carry a word"
+                placeholder={asking ? 'reading that…' : 'light up a word, or ask'}
+                aria-label="Light up a word, or ask a question about your pages"
+                disabled={asking}
                 onChange={(e) => setDraft(e.target.value)}
               />
             </form>
