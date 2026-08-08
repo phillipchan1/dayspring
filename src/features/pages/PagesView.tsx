@@ -86,6 +86,10 @@ export function PagesView({
   const [draft, setDraft] = useState('')
   const [month, setMonth] = useState<number | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
+  // The last page opened in the Spread, kept so the wall knows which card the
+  // reader should shrink back into when it closes.
+  const lastSpreadRef = useRef<string | null>(null)
+  if (spreadId) lastSpreadRef.current = spreadId
   const inputRef = useRef<HTMLInputElement>(null)
   const zoom = settings.pagesZoom
   const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
@@ -523,6 +527,7 @@ export function PagesView({
           // single month — would make the arrangement impossible to read.
           echoes={!anyLit && month == null}
           onOpen={(id) => onSpread(id)}
+          returningId={lastSpreadRef.current}
           onEdit={onOpenEntry}
           onMenuAction={onEntryMenuAction}
           onDeleteEntries={onDeleteEntries}

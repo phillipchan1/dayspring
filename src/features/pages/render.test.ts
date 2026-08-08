@@ -45,6 +45,7 @@ const noop = () => {}
 /** What the wall needs from the shell to browse, edit, rename and delete. */
 const wallActions = {
   match: null,
+  returningId: null,
   onZoom: noop,
   onOpen: noop,
   onEdit: noop,

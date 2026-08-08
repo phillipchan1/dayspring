@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { renderMarkdown } from '@/lib/markdown'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { passagesForEntry } from '@/lib/remember'
+import { SPREAD_TRANSITION_NAME, withPageTransition } from './viewTransition'
 import type { Entry } from '@/lib/types'
 
 interface Props {
@@ -70,7 +71,7 @@ export function Spread({
         if (index - step >= 0) onIndex(index - step)
       } else if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        withPageTransition(onClose)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -87,7 +88,7 @@ export function Spread({
           ref={closeRef}
           type="button"
           className="pg-spread__x"
-          onClick={onClose}
+          onClick={() => withPageTransition(onClose)}
           aria-label="Back to the wall"
         >
           Back to the wall
@@ -115,10 +116,13 @@ export function Spread({
       </div>
 
       <div className="pg-spread__leaves" data-single={single ? 'true' : undefined}>
-        {shown.map((entry) => (
+        {shown.map((entry, i) => (
           <Leaf
             key={entry.id}
             entry={entry}
+            // Only the first leaf claims the shared name — it is the page you
+            // clicked, and exactly one element may hold a name at a time.
+            shared={i === 0}
             markQuotes={markQuotes.get(entry.id) ?? []}
             firstLineTitle={firstLineTitle}
             onEdit={onEdit}
@@ -131,11 +135,13 @@ export function Spread({
 
 function Leaf({
   entry,
+  shared,
   markQuotes,
   firstLineTitle,
   onEdit,
 }: {
   entry: Entry
+  shared: boolean
   markQuotes: string[]
   firstLineTitle: boolean
   onEdit: (entryId: string) => void
@@ -168,7 +174,10 @@ function Leaf({
   }, [entry, markQuotes])
 
   return (
-    <article className="pg-leaf">
+    <article
+      className="pg-leaf"
+      style={shared ? { viewTransitionName: SPREAD_TRANSITION_NAME } : undefined}
+    >
       <header className="pg-leaf__head">
         <time className="pg-leaf__date" dateTime={entry.created_at}>
           {formatDate(entry.created_at)}

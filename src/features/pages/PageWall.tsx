@@ -31,6 +31,7 @@ import {
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
 import { clampZoom, specForZoom, wheelZoomDelta } from './zoom'
+import { claimTransitionName, withPageTransition } from './viewTransition'
 
 interface Props {
   /** Wall order — newest first. */
@@ -49,6 +50,13 @@ interface Props {
   echoes: boolean
   /** Click — read the page in the Spread. */
   onOpen: (entryId: string) => void
+  /**
+   * The page just closed in the Spread, if any.
+   *
+   * It claims the shared transition name for one beat so the reader shrinks
+   * back into the card it grew out of rather than cutting away from it.
+   */
+  returningId: string | null
   /** Double-click, or "Open to write" — leave for the editor. */
   onEdit: (entryId: string) => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
@@ -81,6 +89,7 @@ export function PageWall({
   activeId,
   echoes,
   onOpen,
+  returningId,
   onEdit,
   onMenuAction,
   onDeleteEntries,
@@ -274,6 +283,43 @@ export function PageWall({
     return () => el.removeEventListener('wheel', onWheel)
   }, [zoomBy])
 
+  /**
+   * Open a page as a movement.
+   *
+   * The card claims the shared name synchronously, BEFORE the state change, so
+   * it is carrying it when the browser snapshots the outgoing state. Exactly one
+   * element may hold a given name at a time, which is why it is stamped on the
+   * one card being opened rather than declared in CSS for all of them.
+   */
+  const openWithTransition = useCallback(
+    (entryId: string) => {
+      const node = gridRef.current?.querySelector<HTMLElement>(
+        `[data-wall-key="${CSS.escape(entryId)}"]`,
+      )
+      const release = claimTransitionName(node)
+      withPageTransition(() => onOpen(entryId))
+      // The wall unmounts behind the transition, so this is belt-and-braces for
+      // the case where it doesn't (a cancelled navigation, a stale frame).
+      window.setTimeout(release, 600)
+    },
+    [onOpen],
+  )
+
+  // Coming back: the card the reader shrinks into has to be carrying the name
+  // by the time the browser snapshots the incoming state.
+  useLayoutEffect(() => {
+    if (!returningId) return
+    const node = gridRef.current?.querySelector<HTMLElement>(
+      `[data-wall-key="${CSS.escape(returningId)}"]`,
+    )
+    const release = claimTransitionName(node)
+    const t = window.setTimeout(release, 600)
+    return () => {
+      window.clearTimeout(t)
+      release()
+    }
+  }, [returningId])
+
   const focusCard = useCallback((key: string): boolean => {
     const node = gridRef.current?.querySelector<HTMLElement>(
       `[data-wall-key="${CSS.escape(key)}"]`,
@@ -446,7 +492,7 @@ export function PageWall({
         case 'Enter':
         case ' ':
           e.preventDefault()
-          onOpen(list[base]!.entry.id)
+          openWithTransition(list[base]!.entry.id)
           return
         case 'Escape':
           if (selectedIds.size === 0) return
@@ -480,7 +526,7 @@ export function PageWall({
       selectRangeTo,
       clearSelection,
       selectedIds.size,
-      onOpen,
+      openWithTransition,
       orderIds,
       multi,
     ],
@@ -542,7 +588,7 @@ export function PageWall({
                 tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                 onFocus={onCardFocus}
                 onKeyDown={onCardKeyDown}
-                onOpen={onOpen}
+                onOpen={openWithTransition}
                 onEdit={onEdit}
                 onClick={multi.handleRowClick}
                 onOpenMenu={openMenuAt}

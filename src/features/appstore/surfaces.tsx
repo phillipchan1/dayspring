@@ -190,6 +190,7 @@ function PagesShot() {
   const { settings, update } = useSettings()
   const [subjectKey, setSubjectKey] = useState<string | null>(null)
   const [panel, setPanel] = useState<'weather' | null>(null)
+  const [spreadId, setSpreadId] = useState<string | null>(null)
   return (
     <PagesView
       entries={MOCK_ENTRIES}
@@ -200,8 +201,8 @@ function PagesShot() {
       onSubject={setSubjectKey}
       panel={panel}
       onPanel={setPanel}
-      spreadId={null}
-      onSpread={noop}
+      spreadId={spreadId}
+      onSpread={setSpreadId}
       onOpenEntry={noop}
       onEntryMenuAction={noop}
       onDeleteEntries={noop}
