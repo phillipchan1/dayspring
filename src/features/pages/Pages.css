@@ -255,6 +255,82 @@ button.pg__sense-q:hover {
   border-color: var(--accent);
 }
 
+/* A concordance suggestion is an offer, not a state — quieter than a facet. */
+.pg__chip--subject {
+  color: var(--text-faint);
+  border-style: dashed;
+}
+
+/*
+ * Highlight colours as swatches, not words.
+ *
+ * You reached for a colour; you should be able to reach for it again the same
+ * way. A row of five discs is also the only chip here that doesn't need
+ * reading — which matters, because this bar sits above the writing.
+ */
+.pg__swatch {
+  inline-size: 1.05rem;
+  block-size: 1.05rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: rgba(var(--swatch-hue), 0.55);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.pg__swatch[data-color='amber'] { --swatch-hue: var(--hl-amber); }
+.pg__swatch[data-color='rose'] { --swatch-hue: var(--hl-rose); }
+.pg__swatch[data-color='sage'] { --swatch-hue: var(--hl-sage); }
+.pg__swatch[data-color='sky'] { --swatch-hue: var(--hl-sky); }
+.pg__swatch[data-color='lilac'] { --swatch-hue: var(--hl-lilac); }
+
+.pg__swatch:hover {
+  background: rgba(var(--swatch-hue), 0.8);
+}
+
+.pg__swatch[data-on='true'] {
+  background: rgba(var(--swatch-hue), 1);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px rgba(var(--swatch-hue), 0.9);
+}
+
+.pg__swatch:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/*
+ * Dim, or only.
+ *
+ * Off by default and it stays that way: the unlit pages are what give the lit
+ * ones their shape, and throwing them away turns the wall into a search result.
+ * This exists because sometimes the question really is "only those".
+ */
+.pg__only {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.28rem 0.7rem;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg__only:hover {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.pg__only[data-on='true'] {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 /* ── the way to the density picture ── */
 
 .pg__meta {
@@ -629,6 +705,26 @@ button.pg__sense-q:hover {
  * your eye from a distance, the way a highlighter does across an open book. Gold
  * because that is already this product's word for "the writer marked this."
  */
+/*
+ * The word that made this page light up.
+ *
+ * Painted in the text rather than only implied by the card lighting up, so a
+ * page can say why it is here without being opened. Underline-weight rather
+ * than a block of colour — the writer's OWN highlighter has to stay louder than
+ * ours, or their emphasis and our search result compete.
+ */
+.pgc__lit {
+  background: none;
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 rgba(var(--hl-amber), 0.55);
+}
+
+/* A line that carries the lit word sits at full strength even when the page is
+   long enough that the rest has faded back. */
+.pgc__line[data-hit='true'] {
+  color: var(--text-bright);
+}
+
 .pgc__line[data-set='true'] {
   color: var(--text-bright);
   box-shadow: inset 2px 0 0 rgba(var(--scripture-gold), 0.85);

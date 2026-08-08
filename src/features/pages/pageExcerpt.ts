@@ -17,6 +17,8 @@ export interface ExcerptLine {
   text: string
   /** Marked, quoted, or emphasised by the writer. Never inferred. */
   set: boolean
+  /** Carries a lit subject — this is why the page lit up. */
+  hit?: boolean
 }
 
 export interface PageExcerpt {
@@ -92,6 +94,15 @@ export function pageExcerpt(
   entry: ExcerptEntry,
   markQuotes: string[] = [],
   maxLines = EXCERPT_MAX_LINES,
+  /**
+   * The lit subjects, if any.
+   *
+   * When a page lights up, the lines it shows should be the lines that MADE it
+   * light up — otherwise you are told a page is about Chicago and handed its
+   * opening sentence about the weather, and have to open it to find out why.
+   * Passed as a matcher rather than terms so the wall builds it once.
+   */
+  match: RegExp | null = null,
 ): PageExcerpt {
   const raw = entryContentLines(entry.body_markdown)
   const prose: string[] = []
@@ -103,12 +114,48 @@ export function pageExcerpt(
   const chars = prose.reduce((n, l) => n + l.length, 0)
   const keys = setApartKeys(entry, markQuotes)
 
-  const lines: ExcerptLine[] = prose.slice(0, maxLines).map((text) => ({
-    text,
-    set: isSetApart(passageKey(text), keys),
-  }))
+  // Matching lines first, in their original order, then the rest. Stable on
+  // both halves, so a page's excerpt never shuffles as you scroll past it.
+  let ordered = prose
+  if (match) {
+    const hits: string[] = []
+    const rest: string[] = []
+    for (const text of prose) {
+      match.lastIndex = 0
+      ;(match.test(text) ? hits : rest).push(text)
+    }
+    if (hits.length > 0) ordered = [...hits, ...rest]
+  }
+
+  const lines: ExcerptLine[] = ordered.slice(0, maxLines).map((text) => {
+    if (match) match.lastIndex = 0
+    const hit = match ? match.test(text) : false
+    const line: ExcerptLine = { text, set: isSetApart(passageKey(text), keys) }
+    return hit ? { ...line, hit: true } : line
+  })
 
   return { lines, chars, total: prose.length }
+}
+
+/**
+ * Split a line into plain and matched runs, for painting the words themselves.
+ *
+ * Returns a flat alternating list rather than objects: the card renders it
+ * directly, and a matched run is simply every odd index.
+ */
+export function splitOnMatch(text: string, match: RegExp | null): string[] {
+  if (!match) return [text]
+  match.lastIndex = 0
+  const out: string[] = []
+  let at = 0
+  let m: RegExpExecArray | null
+  while ((m = match.exec(text))) {
+    out.push(text.slice(at, m.index), m[0])
+    at = m.index + m[0].length
+    if (m[0].length === 0) match.lastIndex++ // never spin on a zero-width match
+  }
+  out.push(text.slice(at))
+  return out
 }
 
 /**

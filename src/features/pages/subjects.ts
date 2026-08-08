@@ -75,6 +75,75 @@ export function matchSubject(index: SubjectIndex, subject: Subject): Set<string>
 }
 
 /**
+ * Ids carrying EVERY chosen subject.
+ *
+ * AND, not OR, and the same reasoning as the facets: "Naomi and Chicago" is a
+ * question someone means, while "Naomi or Chicago" hands back a bigger pile
+ * than they started with. Lighting a second word must narrow.
+ */
+export function matchSubjects(index: SubjectIndex, subjects: Subject[]): Set<string> | null {
+  if (subjects.length === 0) return null
+  let hit: Set<string> | null = null
+  for (const subject of subjects) {
+    const next = matchSubject(index, subject)
+    if (hit === null) hit = next
+    else {
+      const narrowed = new Set<string>()
+      for (const id of hit) if (next.has(id)) narrowed.add(id)
+      hit = narrowed
+    }
+  }
+  return hit
+}
+
+/**
+ * A matcher for painting the words themselves, not just the pages.
+ *
+ * Global and case-insensitive, with the same whole-word boundaries the page
+ * matching uses — so what lights up inside a card is exactly what made the card
+ * light up.
+ */
+export function subjectMatcher(subjects: Subject[]): RegExp | null {
+  const terms = subjects.flatMap((s) => s.terms)
+  if (terms.length === 0) return null
+  const parts = terms
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length >= 2)
+    .map(escape)
+  if (parts.length === 0) return null
+  return new RegExp(`(?<![a-z0-9])(${parts.join('|')})(?![a-z0-9])`, 'gi')
+}
+
+/** Parse the history key list back into subjects. */
+export function subjectsFromKeys(keys: string, suggested: Subject[]): Subject[] {
+  if (!keys) return []
+  const out: Subject[] = []
+  for (const key of keys.split('\u0000')) {
+    if (!key) continue
+    if (key.startsWith('word:')) {
+      const w = wordSubject(key.slice(5))
+      if (w) out.push(w)
+    } else {
+      const found = suggested.find((s) => s.key === key)
+      if (found) out.push(found)
+    }
+  }
+  return out
+}
+
+/**
+ * Serialise for history.
+ *
+ * NUL-joined rather than comma- or plus-joined: a typed word can contain any
+ * punctuation a person can type, and a separator that appears inside a subject
+ * silently splits it in two on reload.
+ */
+export function keysFromSubjects(subjects: Subject[]): string | null {
+  if (subjects.length === 0) return null
+  return subjects.map((s) => s.key).join('\u0000')
+}
+
+/**
  * A typed word becomes a subject with exactly one spelling — its own.
  *
  * The key keeps the writer's capitalisation. Matching is case-insensitive

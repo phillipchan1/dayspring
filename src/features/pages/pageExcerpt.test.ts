@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pageExcerpt, pageFill } from './pageExcerpt'
+import { pageExcerpt, pageFill, splitOnMatch } from './pageExcerpt'
 import { EXCERPT_MAX_LINES } from './zoom'
 
 const entry = (body: string) => ({
@@ -121,5 +121,64 @@ describe('pageFill', () => {
 
   it('separates a short day from a long one well before saturating', () => {
     expect(pageFill(400) - pageFill(40)).toBeGreaterThan(0.2)
+  })
+})
+
+describe('pageExcerpt with a lit subject', () => {
+  const body = [
+    'A quiet opening sentence about the weather',
+    'Another line that is not about anything in particular',
+    'The line where Chicago actually comes up',
+  ].join('\n\n')
+
+  /**
+   * The point of the whole thing: a page that lights up should show you WHY.
+   * Without this you are told a page is about Chicago and handed its opening
+   * sentence about the weather, and have to open it to find out.
+   */
+  it('shows the line that made the page light up, not the opening line', () => {
+    const x = pageExcerpt(entry(body), [], 1, /(?<![a-z0-9])(chicago)(?![a-z0-9])/gi)
+    expect(x.lines[0]!.text).toContain('Chicago')
+    expect(x.lines[0]!.hit).toBe(true)
+  })
+
+  it('keeps the rest of the page after the matches, in its own order', () => {
+    const x = pageExcerpt(entry(body), [], 9, /(?<![a-z0-9])(chicago)(?![a-z0-9])/gi)
+    expect(x.lines.map((l) => l.text)).toEqual([
+      'The line where Chicago actually comes up',
+      'A quiet opening sentence about the weather',
+      'Another line that is not about anything in particular',
+    ])
+  })
+
+  it('leaves the page in its own order when nothing matches', () => {
+    const x = pageExcerpt(entry(body), [], 9, /(?<![a-z0-9])(reykjavik)(?![a-z0-9])/gi)
+    expect(x.lines[0]!.text).toContain('quiet opening')
+    expect(x.lines.every((l) => !l.hit)).toBe(true)
+  })
+})
+
+describe('splitOnMatch', () => {
+  it('alternates plain and matched runs', () => {
+    expect(splitOnMatch('a Chicago b', /chicago/gi)).toEqual(['a ', 'Chicago', ' b'])
+  })
+
+  it('handles a line that is nothing but the match', () => {
+    expect(splitOnMatch('Chicago', /chicago/gi)).toEqual(['', 'Chicago', ''])
+  })
+
+  it('handles several matches on one line', () => {
+    expect(splitOnMatch('Chicago then Chicago', /chicago/gi)).toEqual([
+      '', 'Chicago', ' then ', 'Chicago', '',
+    ])
+  })
+
+  it('is the whole line when nothing is lit', () => {
+    expect(splitOnMatch('anything', null)).toEqual(['anything'])
+  })
+
+  // A zero-width pattern would otherwise spin forever on one index.
+  it('terminates on a pattern that can match nothing', () => {
+    expect(splitOnMatch('abc', /x*/g).join('')).toBe('abc')
   })
 })

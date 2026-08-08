@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import type { PageExcerpt } from './pageExcerpt'
-import { pageFill } from './pageExcerpt'
+import { pageFill, splitOnMatch } from './pageExcerpt'
 import { useWallPointer } from './useWallPointer'
 
 export type PageClickResult = 'open' | 'toggle' | 'range'
@@ -11,6 +11,8 @@ interface Props {
   excerpt: PageExcerpt
   /** Lines this zoom level has room for. The excerpt itself is built once, big. */
   maxLines: number
+  /** Lit subjects, for painting the matched words. Null when nothing is lit. */
+  match: RegExp | null
   /** Subject lighting is on and this page doesn't carry it. */
   dim: boolean
   /** The page currently open in the editor. */
@@ -73,6 +75,7 @@ export const PageCard = memo(function PageCard({
   dateIso,
   excerpt,
   maxLines,
+  match,
   dim,
   active,
   selected,
@@ -136,8 +139,24 @@ export const PageCard = memo(function PageCard({
           <p className="pgc__blank">Blank page</p>
         ) : (
           shown.map((line, i) => (
-            <p key={i} className="pgc__line" data-set={line.set ? 'true' : undefined}>
-              {line.text}
+            <p
+              key={i}
+              className="pgc__line"
+              data-set={line.set ? 'true' : undefined}
+              data-hit={line.hit ? 'true' : undefined}
+            >
+              {/* Odd indices are the matched runs — see splitOnMatch. */}
+              {line.hit
+                ? splitOnMatch(line.text, match).map((run, j) =>
+                    j % 2 === 1 ? (
+                      <mark key={j} className="pgc__lit">
+                        {run}
+                      </mark>
+                    ) : (
+                      run
+                    ),
+                  )
+                : line.text}
             </p>
           ))
         )}
@@ -155,6 +174,7 @@ function propsEqual(prev: Props, next: Props): boolean {
     prev.dateIso === next.dateIso &&
     prev.excerpt === next.excerpt &&
     prev.maxLines === next.maxLines &&
+    prev.match === next.match &&
     prev.dim === next.dim &&
     prev.active === next.active &&
     prev.selected === next.selected &&

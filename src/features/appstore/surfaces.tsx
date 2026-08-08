@@ -16,6 +16,7 @@ import { ALTITUDES } from '@/features/ascent/ascent.config'
 import '@/features/ascent/Ascent.css'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { AltarView } from '@/features/altar/AltarView'
+import { useState } from 'react'
 import { PagesView } from '@/features/pages/PagesView'
 import { useSettings } from '@/hooks/useSettings'
 import { Editor } from '@/editor/Editor'
@@ -178,24 +179,27 @@ export function renderSurface(shot: Shot) {
 }
 
 /**
- * The wall, wired to the real settings store.
+ * The wall, with its controls actually wired.
  *
- * Live rather than a frozen snapshot so the zoom actually moves here — a
- * controlled slider handed `updateSettings: noop` renders but cannot be used,
- * which makes the shot a worse test of the surface than it looks.
+ * Every control on this surface is a controlled input; handed `noop` they all
+ * render and none of them work, which makes the shot a worse test of the
+ * surface than it looks. Settings come from the real store (so the zoom moves),
+ * and lighting is held locally (so chips light and clear).
  */
 function PagesShot() {
   const { settings, update } = useSettings()
+  const [subjectKey, setSubjectKey] = useState<string | null>(null)
+  const [panel, setPanel] = useState<'weather' | null>(null)
   return (
     <PagesView
       entries={MOCK_ENTRIES}
       marks={[]}
       ready
       activeId={null}
-      subjectKey={null}
-      onSubject={noop}
-      panel={null}
-      onPanel={noop}
+      subjectKey={subjectKey}
+      onSubject={setSubjectKey}
+      panel={panel}
+      onPanel={setPanel}
       spreadId={null}
       onSpread={noop}
       onOpenEntry={noop}

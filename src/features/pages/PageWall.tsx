@@ -40,8 +40,10 @@ interface Props {
   onZoom: (next: number) => void
   /** Quotes the writer marked, by entry id. */
   markQuotes: Map<string, string[]>
-  /** Null when no subject is chosen; otherwise the ids that carry it. */
+  /** Null when nothing is lit; otherwise the ids that carry every chosen filter. */
   lit: Set<string> | null
+  /** Matcher for the lit words themselves. Null when nothing is lit. */
+  match: RegExp | null
   activeId: string | null
   /** Interleave pages from earlier years. */
   echoes: boolean
@@ -75,6 +77,7 @@ export function PageWall({
   onZoom,
   markQuotes,
   lit,
+  match,
   activeId,
   echoes,
   onOpen,
@@ -151,10 +154,13 @@ export function PageWall({
     const cache = new Map<string, PageExcerpt>()
     for (const item of items) {
       if (cache.has(item.entry.id)) continue
-      cache.set(item.entry.id, pageExcerpt(item.entry, markQuotes.get(item.entry.id) ?? []))
+      cache.set(
+        item.entry.id,
+        pageExcerpt(item.entry, markQuotes.get(item.entry.id) ?? [], undefined, match),
+      )
     }
     return cache
-  }, [items, markQuotes])
+  }, [items, markQuotes, match])
 
   const rowCount = Math.ceil(items.length / cols)
   const rowHeight = spec.cardHeight + spec.gap
@@ -527,6 +533,7 @@ export function PageWall({
                 dateIso={item.entry.created_at}
                 excerpt={excerpts.get(item.entry.id)!}
                 maxLines={spec.lines}
+                match={match}
                 dim={lit !== null && !lit.has(item.entry.id)}
                 active={item.entry.id === activeId && !item.echo}
                 selected={!item.echo && selectedIds.has(item.entry.id)}

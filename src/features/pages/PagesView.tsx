@@ -12,11 +12,14 @@ import { WeatherPanel } from './WeatherPanel'
 import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
 import {
   buildSubjectIndex,
-  matchSubject,
+  keysFromSubjects,
+  matchSubjects,
+  subjectMatcher,
   suggestedSubjects,
   wordSubject,
   type Subject,
 } from './subjects'
+import { buildFacetIndex, facetChips, matchFacets } from './facets'
 import './Pages.css'
 
 interface Props {
@@ -25,7 +28,12 @@ interface Props {
   marks: Mark[]
   ready: boolean
   activeId: string | null
-  /** Subject key from history, or null at rest. */
+  /**
+   * Everything lit, from history: subject keys and facet keys in one
+   * NUL-joined string. One field because they are one control — you don't think
+   * "a word filter and a markings filter", you think "pages that say Naomi and
+   * that I highlighted".
+   */
   subjectKey: string | null
   onSubject: (key: string | null) => void
   /** The weather panel, on its own history frame. */
@@ -77,6 +85,7 @@ export function PagesView({
   const [senses, setSenses] = useState<AnniversarySense[]>([])
   const [draft, setDraft] = useState('')
   const [month, setMonth] = useState<number | null>(null)
+  const [onlyLit, setOnlyLit] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const zoom = settings.pagesZoom
   const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
@@ -121,21 +130,55 @@ export function PagesView({
   }, [marks])
 
   /**
-   * The chosen subject. A typed word rebuilds from its own key, so lighting
-   * survives a reload with no round trip; a concordance subject waits for the
-   * list, which is why the key alone isn't enough to light the wall.
+   * Everything currently lit, split back out of the one history field.
+   *
+   * A typed word rebuilds from its own key, so lighting survives a reload with
+   * no round trip; a concordance subject waits for the list, which is why the
+   * key alone isn't enough to light the wall.
    */
-  const subject: Subject | null = useMemo(() => {
-    if (!subjectKey) return null
-    if (subjectKey.startsWith('word:')) return wordSubject(subjectKey.slice(5))
-    return suggested.find((s) => s.key === subjectKey) ?? null
-  }, [subjectKey, suggested])
+  const keys = useMemo(() => (subjectKey ? subjectKey.split('\u0000').filter(Boolean) : []), [subjectKey])
+  const facetKeys = useMemo(() => keys.filter((k) => !k.startsWith('word:') && !k.startsWith('c:')), [keys])
+  const subjects: Subject[] = useMemo(() => {
+    const out: Subject[] = []
+    for (const key of keys) {
+      if (key.startsWith('word:')) {
+        const w = wordSubject(key.slice(5))
+        if (w) out.push(w)
+      } else if (key.startsWith('c:')) {
+        const found = suggested.find((sub) => sub.key === key)
+        if (found) out.push(found)
+      }
+    }
+    return out
+  }, [keys, suggested])
 
   const index = useMemo(() => buildSubjectIndex(entries), [entries])
-  const lit = useMemo(
-    () => (subject ? matchSubject(index, subject) : null),
-    [index, subject],
+  const facetIndex = useMemo(
+    () => buildFacetIndex(entries, marks.map((m) => m.entryId)),
+    [entries, marks],
   )
+  const chips = useMemo(() => facetChips(facetIndex), [facetIndex])
+  const match = useMemo(() => subjectMatcher(subjects), [subjects])
+
+  /**
+   * The lit set — every filter narrowing the last.
+   *
+   * Words and markings intersect rather than union. Lighting a second thing has
+   * to mean "and also", or every filter you add hands back a bigger pile than
+   * you started with.
+   */
+  const lit = useMemo(() => {
+    const bySubject = matchSubjects(index, subjects)
+    const byFacet = matchFacets(facetIndex, facetKeys)
+    if (bySubject === null) return byFacet
+    if (byFacet === null) return bySubject
+    const both = new Set<string>()
+    for (const id of bySubject) if (byFacet.has(id)) both.add(id)
+    return both
+  }, [index, subjects, facetIndex, facetKeys])
+
+  const anyLit = keys.length > 0
+  const litLabel = subjects.map((sub) => sub.label).join(' + ') || null
 
   /**
    * Every page on the wall.
@@ -148,10 +191,15 @@ export function PagesView({
    * Folding a month is different, and does filter: it's the one arrangement a
    * notebook can't give you — every November you've written, in one place.
    */
-  const wallEntries = useMemo(
-    () => (month == null ? entries : entries.filter((e) => new Date(e.created_at).getMonth() === month)),
-    [entries, month],
-  )
+  const wallEntries = useMemo(() => {
+    let list = entries
+    if (month != null) list = list.filter((e) => new Date(e.created_at).getMonth() === month)
+    // "only these" is the one thing that turns lighting into filtering, and it
+    // is a visible toggle sitting beside the lit chips — which is what makes it
+    // different from a query left behind in a panel you can't see.
+    if (onlyLit && lit) list = list.filter((e) => lit.has(e.id))
+    return list
+  }, [entries, month, onlyLit, lit])
 
   /**
    * The set the numbers describe — and therefore what the grid draws over.
@@ -181,9 +229,22 @@ export function PagesView({
     return wallEntries.findIndex((e) => e.id === spreadId)
   }, [wallEntries, spreadId])
 
-  function pickSubject(next: Subject | null) {
+  /** Add or remove one key. The wall never has a "clear all" it can't undo. */
+  function toggleKey(key: string) {
     setMonth(null)
-    onSubject(next ? next.key : null)
+    const next = keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]
+    onSubject(next.length > 0 ? next.join('\u0000') : null)
+  }
+
+  function addSubject(next: Subject) {
+    setMonth(null)
+    if (keys.includes(next.key)) return
+    onSubject(keysFromSubjects([...subjects, next]) === null ? null : [...keys, next.key].join('\u0000'))
+  }
+
+  function clearAll() {
+    setMonth(null)
+    onSubject(null)
   }
 
   /** Flip the notebook open. Uniformly random — no algorithm, nothing recommended. */
@@ -225,7 +286,7 @@ export function PagesView({
           month={month}
           onMonth={setMonth}
           onClose={() => onPanel(null)}
-          subjectLabel={subject?.label ?? null}
+          subjectLabel={litLabel}
         />
       </div>
     )
@@ -325,7 +386,7 @@ export function PagesView({
                 e.preventDefault()
                 const next = wordSubject(draft)
                 if (next) {
-                  pickSubject(next)
+                  addSubject(next)
                   setDraft('')
                   inputRef.current?.blur()
                 }
@@ -340,23 +401,85 @@ export function PagesView({
                 onChange={(e) => setDraft(e.target.value)}
               />
             </form>
-            {suggested.slice(0, 10).map((s) => (
+
+            {/*
+              Everything lit, as chips you can pull off one at a time.
+              This is the answer to "we don't want people clicking a huge filter
+              like a hotel search": what's on is always visible and always one
+              click from off, and there is no panel of switches to hunt through.
+            */}
+            {subjects.map((sub) => (
               <button
-                key={s.key}
+                key={sub.key}
                 type="button"
-                className="pg__chip"
-                data-on={subjectKey === s.key ? 'true' : undefined}
-                aria-pressed={subjectKey === s.key}
-                onClick={() => pickSubject(subjectKey === s.key ? null : s)}
+                className="pg__clear"
+                onClick={() => toggleKey(sub.key)}
+                aria-label={`Stop lighting ${sub.label}`}
               >
-                {s.label}
+                {sub.label} ✕
               </button>
             ))}
-            {/* A typed word has no chip of its own, so it needs somewhere to be shown and let go of. */}
-            {subject && !suggested.some((s) => s.key === subject.key) ? (
-              <button type="button" className="pg__clear" onClick={() => pickSubject(null)}>
-                {subject.label} ✕
-              </button>
+
+            {chips.map((chip) => {
+              const on = keys.includes(chip.key)
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  className={chip.color ? 'pg__swatch' : 'pg__chip'}
+                  data-on={on ? 'true' : undefined}
+                  data-color={chip.color}
+                  aria-pressed={on}
+                  title={chip.color ? `Highlighted in ${chip.label}` : chip.label}
+                  aria-label={chip.color ? `Highlighted in ${chip.label}` : chip.label}
+                  onClick={() => toggleKey(chip.key)}
+                >
+                  {chip.color ? '' : chip.label}
+                </button>
+              )
+            })}
+
+            {/* Concordance suggestions come last: they are a handful of ways in,
+                not a taxonomy, and they must never outrank the writer's own
+                markings in the eye. */}
+            {suggested
+              .filter((sub) => !keys.includes(sub.key))
+              .slice(0, 6)
+              .map((sub) => (
+                <button
+                  key={sub.key}
+                  type="button"
+                  className="pg__chip pg__chip--subject"
+                  onClick={() => addSubject(sub)}
+                >
+                  {sub.label}
+                </button>
+              ))}
+
+            {anyLit ? (
+              <>
+                {/*
+                  Dim or filter.
+
+                  Dimming stays the default, because the pages that DON'T carry
+                  a word are what give the ones that do their shape. But
+                  sometimes the question really is "show me only those" — and a
+                  visible toggle sitting next to the lit chips is not the
+                  invisible-query problem, it is the cure for it.
+                */}
+                <button
+                  type="button"
+                  className="pg__only"
+                  data-on={onlyLit ? 'true' : undefined}
+                  aria-pressed={onlyLit}
+                  onClick={() => setOnlyLit((v) => !v)}
+                >
+                  only these
+                </button>
+                <button type="button" className="pg__chip" onClick={clearAll}>
+                  clear
+                </button>
+              </>
             ) : null}
           </div>
 
@@ -368,7 +491,7 @@ export function PagesView({
           <div className="pg__meta">
             <button type="button" className="pg__meta-b" onClick={() => onPanel('weather')}>
               {facts.count} {facts.count === 1 ? 'page' : 'pages'}
-              {subject ? ` carrying “${subject.label}”` : ''} · the years
+              {litLabel ? ` carrying “${litLabel}”` : ''} · the years
             </button>
             {month !== null ? (
               <button type="button" className="pg__clear" onClick={() => setMonth(null)}>
@@ -379,7 +502,7 @@ export function PagesView({
         </div>
       </div>
 
-      {subject && shown.length === 0 ? (
+      {anyLit && shown.length === 0 ? (
         <div className="pg__inner">
           <div className="pg__empty">
             <p className="pg__empty-h">Nothing in your pages says that.</p>
@@ -392,12 +515,13 @@ export function PagesView({
           zoom={zoom}
           onZoom={setZoom}
           markQuotes={markQuotes}
-          lit={lit}
+          lit={onlyLit ? null : lit}
+          match={match}
           activeId={activeId}
           // An echo is a page out of its own order. Interleaving one while the
           // wall is already rearranged — dimmed by a subject, or folded to a
           // single month — would make the arrangement impossible to read.
-          echoes={!subject && month == null}
+          echoes={!anyLit && month == null}
           onOpen={(id) => onSpread(id)}
           onEdit={onOpenEntry}
           onMenuAction={onEntryMenuAction}
