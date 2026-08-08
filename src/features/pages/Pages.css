@@ -28,18 +28,21 @@
   padding: 0 clamp(1rem, 3vw, 2rem);
 }
 
+/*
+ * No title, no eyebrow.
+ *
+ * The surface used to introduce itself — "PAGES / Your own, side by side" — to
+ * someone who had just pressed the button labelled Entries. A read surface
+ * should open on the reading; the controls are enough to say where you are.
+ */
 .pg__inner--head {
-  padding-top: clamp(1.5rem, 4vw, 2.75rem);
+  padding-top: clamp(0.9rem, 2.5vw, 1.4rem);
 }
 
 .pg__head-wrap {
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 1rem;
-}
-
-.pg__head {
-  margin-bottom: 1.25rem;
 }
 
 .pg__eyebrow {
@@ -49,14 +52,6 @@
   text-transform: uppercase;
   color: var(--text-faint);
   margin: 0 0 0.4rem;
-}
-
-.pg__title {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 3vw, 1.9rem);
-  font-weight: 500;
-  color: var(--text-bright);
-  margin: 0;
 }
 
 /* ── on this day ── */
@@ -622,8 +617,38 @@ button.pg__sense-q:hover {
     opacity var(--transition-slow);
 }
 
+/*
+ * Hover: the page comes up in the light.
+ *
+ * Colour and elevation only — a wall of pages that shifts under the cursor is
+ * unusable, and this is a surface people scroll for minutes (rule 2 up top).
+ * The good part is the fade: it recedes, so leaning toward a page shows you a
+ * little more of it. Nothing moves; you just see further in.
+ */
 .pgc:hover {
-  border-color: var(--border);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg-elevated));
+  box-shadow: var(--shadow-2);
+}
+
+.pgc:hover .pgc__fade {
+  opacity: 0.25;
+}
+
+.pgc:hover .pgc__date {
+  color: var(--accent);
+}
+
+.pgc:hover .pgc__thickness {
+  opacity: 0.3;
+}
+
+.pgc__fade {
+  transition: opacity var(--transition-slow);
+}
+
+.pgc__date {
+  transition: color var(--transition);
 }
 
 .pgc:focus-visible {
@@ -756,15 +781,24 @@ button.pg__sense-q:hover {
  * Deliberately has NO track behind it. A bar in a groove is a progress meter and
  * invites a reading of "full" and "not full"; a mark with nothing to be measured
  * against is just the look of a thick day next to a thin one.
+ *
+ * Horizontal, at the foot of the page, inset from both edges. It ran down the
+ * RIGHT edge at first, flush to the border and a different height on every card
+ * — which is not what it looked like. It looked like a border that stopped
+ * short, i.e. like a rendering bug, on every card at once. A rule that is
+ * clearly inside the page cannot be mistaken for the edge of it.
  */
 .pgc__thickness {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 2px;
+  left: 0.9rem;
+  bottom: 0.55rem;
+  block-size: 2px;
+  max-inline-size: calc(100% - 1.8rem);
+  border-radius: 1px;
   background: var(--text);
-  opacity: 0.14;
+  opacity: 0.16;
   pointer-events: none;
+  transition: opacity var(--transition);
 }
 
 /* An echo — a page that rose out of another year. */

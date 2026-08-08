@@ -311,7 +311,6 @@ export function PagesView({
     return (
       <div className="pg">
         <div className="pg__inner">
-          <Head />
           <div className="pg__empty">
             <p className="pg__empty-h">Nothing to read back yet.</p>
             <p className="pg__empty-s">Pages fills as you write.</p>
@@ -360,7 +359,6 @@ export function PagesView({
     <div className="pg">
       <div className="pg__head-wrap">
         <div className="pg__inner pg__inner--head">
-          <Head />
 
           {senses.length > 0 ? (
             <div className="pg__senses">
@@ -576,12 +574,4 @@ export function PagesView({
   )
 }
 
-function Head() {
-  return (
-    <div className="pg__head">
-      <p className="pg__eyebrow">Pages</p>
-      <h1 className="pg__title">Your own, side by side</h1>
-    </div>
-  )
-}
 

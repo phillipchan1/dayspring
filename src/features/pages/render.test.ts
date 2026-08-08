@@ -160,15 +160,17 @@ describe('PagesView', () => {
     expect(html).toContain('Opening your pages')
   })
 
-  it('renders the wall, the grid, and the facts', () => {
+  it('opens on the pages themselves, with no title in front of them', () => {
     const entries = [
       entry('First thing I wrote', '2021-06-10'),
       entry('Second thing I wrote', '2019-03-02'),
     ]
     const html = renderToString(createElement(PagesView, { ...base, entries }))
     expect(html).toContain('First thing I wrote')
-    expect(html).toContain('Your own, side by side')
-    expect(html).toContain('pages') // the facts row counts them
+    expect(html).toContain('pages') // the count, on the way to the density picture
+    // The surface used to introduce itself to someone who had just pressed the
+    // button labelled Entries. A read surface opens on the reading.
+    expect(html).not.toContain('Your own, side by side')
   })
 
   it('carries no streak, goal, or total — the D-017 override licenses none of those', () => {

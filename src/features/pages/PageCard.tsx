@@ -163,7 +163,7 @@ export const PageCard = memo(function PageCard({
       </div>
 
       {truncated ? <span className="pgc__fade" aria-hidden /> : null}
-      <span className="pgc__thickness" aria-hidden style={{ blockSize: `${fill * 100}%` }} />
+      <span className="pgc__thickness" aria-hidden style={{ inlineSize: `${fill * 100}%` }} />
     </button>
   )
 }, propsEqual)
