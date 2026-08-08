@@ -11,8 +11,27 @@
 
 /** Far end: many pages at once. You read shape, dates, and where your marks fall. */
 const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, lines: 6 }
-/** Near end: few pages, nearly readable. One step short of the Spread. */
-const NEAR = { minWidth: 340, cardHeight: 404, gap: 20, maxCols: 3, lines: 18 }
+/**
+ * Near end: two pages side by side, read rather than glanced at.
+ *
+ * Not "one step short of reading" — this IS the reading view. The wall and the
+ * open book were two separate things at first, and they were never two things:
+ * you are standing further away, or you are standing close enough to read. So
+ * the top of the range renders whole pages, two up, and you scroll through them.
+ */
+const NEAR = { minWidth: 460, cardHeight: 620, gap: 28, maxCols: 2, lines: 18 }
+
+/**
+ * Where a card stops being a card and becomes a page you can read.
+ *
+ * A threshold rather than a smooth blend because the two renderings are
+ * genuinely different — an excerpt of flattened lines versus the writer's
+ * markdown with their highlights and blockquotes intact. Crossfading those
+ * would be mush.
+ */
+export const READING_ZOOM = 0.82
+
+export const isReading = (zoom: number): boolean => clampZoom(zoom) >= READING_ZOOM
 
 /**
  * The most lines any card can want.

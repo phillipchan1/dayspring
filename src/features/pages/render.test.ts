@@ -19,7 +19,6 @@ import { describe, expect, it } from 'vitest'
 import type { Entry } from '@/lib/types'
 import { PagesView } from './PagesView'
 import { PageWall } from './PageWall'
-import { Spread } from './Spread'
 import { settingsStore } from '@/lib/settings'
 
 let n = 0
@@ -45,6 +44,8 @@ const noop = () => {}
 /** What the wall needs from the shell to browse, edit, rename and delete. */
 const wallActions = {
   match: null,
+  single: false,
+  firstLineTitle: true,
   returningId: null,
   onZoom: noop,
   onOpen: noop,
@@ -104,28 +105,6 @@ describe('PageWall', () => {
       }),
     )
     expect(html).toContain('Blank page')
-  })
-})
-
-describe('Spread', () => {
-  it('renders two leaves with their marginalia', () => {
-    const a = entry('Left page body text')
-    const b = entry('Right page body text')
-    const html = renderToString(
-      createElement(Spread, {
-        entries: [a, b],
-        index: 0,
-        onIndex: noop,
-        onClose: noop,
-        single: false,
-        markQuotes: new Map([[a.id, ['a note I set apart on this page']]]),
-        firstLineTitle: true,
-        onEdit: noop,
-      }),
-    )
-    expect(html).toContain('Left page body text')
-    expect(html).toContain('Right page body text')
-    expect(html).toContain('a note I set apart on this page')
   })
 })
 

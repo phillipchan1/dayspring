@@ -7,9 +7,8 @@ import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
-import { Spread } from './Spread'
 import { WeatherPanel } from './WeatherPanel'
-import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
+import { clampZoom, READING_ZOOM, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
 import {
   buildSubjectIndex,
   keysFromSubjects,
@@ -53,7 +52,13 @@ interface Props {
   /** The weather panel, on its own history frame. */
   panel: 'weather' | null
   onPanel: (panel: 'weather' | null) => void
-  /** Entry id open in the Spread, or null on the wall. */
+  /**
+   * The page you zoomed to, or null.
+   *
+   * Opening a page is not a modal any more — it is the wall at reading zoom,
+   * scrolled to that page. This is what it scrolls to, and what the
+   * shared-element transition lands on.
+   */
   spreadId: string | null
   onSpread: (entryId: string | null) => void
   /** Leave Pages for the editor. */
@@ -255,13 +260,6 @@ export function PagesView({
   const weather = useMemo(() => buildWeather(gridSet.map((e) => e.created_at)), [gridSet])
   const facts = useMemo(() => buildFacts(shown.map((e) => e.created_at)), [shown])
 
-  // The Spread turns through everything on the wall, lit or not — a dimmed page
-  // is still a page, and reaching it shouldn't require clearing the subject.
-  const spreadIndex = useMemo(() => {
-    if (!spreadId) return -1
-    return wallEntries.findIndex((e) => e.id === spreadId)
-  }, [wallEntries, spreadId])
-
   /** Add or remove one key. The wall never has a "clear all" it can't undo. */
   function toggleKey(key: string) {
     setMonth(null)
@@ -357,26 +355,6 @@ export function PagesView({
           onMonth={setMonth}
           onClose={() => onPanel(null)}
           subjectLabel={litLabel}
-        />
-      </div>
-    )
-  }
-
-  if (spreadIndex >= 0) {
-    return (
-      <div className="pg">
-        <Spread
-          entries={wallEntries}
-          index={spreadIndex}
-          onIndex={(next) => {
-            const entry = wallEntries[next]
-            if (entry) onSpread(entry.id)
-          }}
-          onClose={() => onSpread(null)}
-          single={single}
-          markQuotes={markQuotes}
-          firstLineTitle={settings.firstLineTitle}
-          onEdit={onOpenEntry}
         />
       </div>
     )
@@ -605,8 +583,16 @@ export function PagesView({
           // wall is already rearranged — dimmed by a subject, or folded to a
           // single month — would make the arrangement impossible to read.
           echoes={!anyLit && month == null}
-          onOpen={(id) => onSpread(id)}
-          returningId={lastSpreadRef.current}
+          // Opening a page is zooming to it — see READING_ZOOM. `spreadId` is
+          // now "the page you zoomed to", which is what scrolls into view and
+          // what the shared-element transition lands on.
+          onOpen={(id) => {
+            setZoom(READING_ZOOM)
+            onSpread(id)
+          }}
+          returningId={spreadId ?? lastSpreadRef.current}
+          single={single}
+          firstLineTitle={settings.firstLineTitle}
           onEdit={onOpenEntry}
           onMenuAction={onEntryMenuAction}
           onDeleteEntries={onDeleteEntries}

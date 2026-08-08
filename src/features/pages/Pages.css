@@ -1304,3 +1304,36 @@ button.pg__sense-q:hover {
   text-align: center;
   line-height: 1.5;
 }
+
+
+/* ── reading zoom: the wall IS the open book ── */
+
+/*
+ * At the top of the zoom range a cell stops being a card and becomes a page.
+ *
+ * Two of them side by side, scrolled through continuously — which is what the
+ * Spread used to be behind a modal. They were never two features: you are
+ * standing far enough away to see the shape of a decade, or close enough to
+ * read. Same wall, same scroll, one gesture between them.
+ */
+.pg__leaf-cell {
+  block-size: var(--pg-card-h);
+  min-inline-size: 0;
+  overflow: hidden;
+  outline: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  transition: border-color var(--transition);
+}
+
+.pg__leaf-cell:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.pg__leaf-cell .pg-leaf {
+  block-size: 100%;
+  overflow-y: auto;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}

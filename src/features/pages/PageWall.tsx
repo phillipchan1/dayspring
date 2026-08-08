@@ -32,7 +32,8 @@ import {
   type WallItem,
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
-import { clampZoom, specForZoom, wheelZoomDelta } from './zoom'
+import { clampZoom, isReading, specForZoom, wheelZoomDelta } from './zoom'
+import { Leaf } from './Leaf'
 import { claimTransitionName, withPageTransition } from './viewTransition'
 
 interface Props {
@@ -63,6 +64,9 @@ interface Props {
   onEdit: (entryId: string) => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
+  /** One page at a time — a phone can't hold two open. */
+  single: boolean
+  firstLineTitle: boolean
 }
 
 const EMPTY_SELECTED: Entry[] = []
@@ -95,6 +99,8 @@ export function PageWall({
   onEdit,
   onMenuAction,
   onDeleteEntries,
+  single,
+  firstLineTitle,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -102,6 +108,8 @@ export function PageWall({
   // fresh object every render would tear down and rebuild the ResizeObserver on
   // every scroll frame.
   const spec = useMemo(() => specForZoom(zoom), [zoom])
+  // Close enough to read: cells stop being cards and become whole pages.
+  const reading = isReading(zoom)
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
@@ -130,14 +138,16 @@ export function PageWall({
     const measure = () => {
       const w = el.clientWidth
       if (w <= 0) return
-      const next = Math.max(1, Math.min(spec.maxCols, Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))))
+      const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
+      const cap = reading && single ? 1 : spec.maxCols
+      const next = Math.max(1, Math.min(cap, fits))
       setCols((prev) => (prev === next ? prev : next))
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [spec])
+  }, [spec, reading, single])
 
   const items: WallItem[] = useMemo(
     () => collapseUnlit(buildWallItems(entries, echoes, cols), lit, expandedSeams),
@@ -299,17 +309,36 @@ export function PageWall({
    */
   const openWithTransition = useCallback(
     (entryId: string) => {
+      // Already reading — a click is just a click, not a second way in.
+      if (reading) return
       const node = gridRef.current?.querySelector<HTMLElement>(
         `[data-wall-key="${CSS.escape(entryId)}"]`,
       )
       const release = claimTransitionName(node)
+      // Opening a page IS zooming to it. The card claims the shared name first
+      // so it is carrying it when the outgoing state is captured, and the leaf
+      // it becomes claims it on the way in (`returningId`).
       withPageTransition(() => onOpen(entryId))
-      // The wall unmounts behind the transition, so this is belt-and-braces for
-      // the case where it doesn't (a cancelled navigation, a stale frame).
       window.setTimeout(release, 600)
     },
-    [onOpen],
+    [onOpen, reading],
   )
+
+  /**
+   * Bring the page you zoomed to into view.
+   *
+   * Opening a page is a zoom, so the wall has to land on it rather than wherever
+   * it happened to be scrolled. Runs on the id, not on every geometry change, so
+   * it doesn't fight ordinary scrolling once you are there.
+   */
+  const landedRef = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (!returningId || landedRef.current === returningId) return
+    const idx = itemsRef.current.findIndex((it) => !it.seam && it.entry.id === returningId)
+    if (idx < 0) return
+    landedRef.current = returningId
+    scrollRef.current?.scrollTo({ top: Math.floor(idx / cols) * rowHeight, behavior: 'auto' })
+  }, [returningId, cols, rowHeight])
 
   // Coming back: the card the reader shrinks into has to be carrying the name
   // by the time the browser snapshots the incoming state.
@@ -605,6 +634,26 @@ export function PageWall({
                   <span className="pg__seam-edges" aria-hidden />
                   <span className="pg__seam-n">{seamLabel(count, fromIso, toIso)}</span>
                 </button>
+              )
+            }
+            if (reading) {
+              return (
+                <div
+                  key={item.key}
+                  className="pg__leaf-cell"
+                  data-wall-key={item.key}
+                  tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
+                  onFocus={() => onCardFocus(item.key)}
+                  onKeyDown={(e) => onCardKeyDown(item.key, e)}
+                >
+                  <Leaf
+                    entry={item.entry}
+                    shared={item.entry.id === returningId}
+                    markQuotes={markQuotes.get(item.entry.id) ?? []}
+                    firstLineTitle={firstLineTitle}
+                    onEdit={onEdit}
+                  />
+                </div>
               )
             }
             return (
