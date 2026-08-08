@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest'
 import type { Entry } from '@/lib/types'
 import {
   buildFacetIndex,
-  facetChips,
+  facetGroups,
+  FACET_PRAYER,
+  FACET_RITUAL,
+  FACET_SENSE,
   FACET_BOLD,
   FACET_HIGHLIGHT,
   FACET_MARK,
   FACET_QUOTE,
   FACET_SCRIPTURE,
   FACET_UNDERLINE,
+  bookFacet,
   highlightFacet,
   matchFacets,
 } from './facets'
@@ -60,16 +64,24 @@ describe('buildFacetIndex', () => {
     expect(set.has(FACET_UNDERLINE)).toBe(false)
   })
 
-  // A pasted psalm is the Bible's words, not a citation the writer made.
-  it('reads scripture from the writer’s prose, not from a /scripture block', () => {
+  /**
+   * The distinction that matters, now that a /scripture block counts as a
+   * citation: the block itself is something the writer did, but the VERSE TEXT
+   * inside it is the Bible's words. A psalm that happens to name another book
+   * must not make this page a page about that book.
+   */
+  it('does not read book references out of a pasted verse', () => {
     const body = [
-      'nothing cited here',
+      'nothing else cited here',
       '```dayspring-scripture 3f2504e0-4f89-11d3-9a0c-0305e82c3301',
-      'He will keep your going out and your coming in',
-      'Psalm 121:8',
+      'as it is written in Isaiah 40:3 and in Malachi 3:1',
+      'Mark 1:2',
       '```',
     ].join('\n')
-    expect(facetsOf(body).set.has(FACET_SCRIPTURE)).toBe(false)
+    const set = facetsOf(body).set
+    expect(set.has(FACET_SCRIPTURE)).toBe(true) // they ran the command
+    expect(set.has(bookFacet('Isa'))).toBe(false) // the psalm's words, not theirs
+    expect(set.has(bookFacet('Mal'))).toBe(false)
   })
 
   it('counts each facet once per page, however many times it appears', () => {
@@ -96,18 +108,61 @@ describe('matchFacets', () => {
   })
 })
 
-describe('facetChips', () => {
+describe('the slash blocks — what the writer put on the page', () => {
+  const block = (type: string, body: string) =>
+    ['```dayspring-' + type + ' 3f2504e0-4f89-11d3-9a0c-0305e82c3301', body, '```'].join('\n')
+
+  it('finds a prayer, a sense and a ritual', () => {
+    expect(facetsOf(block('pray', 'for Dad on Thursday')).set.has(FACET_PRAYER)).toBe(true)
+    expect(facetsOf(block('sense', 'that it would hold')).set.has(FACET_SENSE)).toBe(true)
+    expect(facetsOf('<!-- ritual:name:Morning -->\nsomething').set.has(FACET_RITUAL)).toBe(true)
+  })
+
+  // Citing a verse by typing it and citing it with the command are the same act
+  // to the person who did it, whatever the storage says.
+  it('counts a /scripture block as scripture', () => {
+    const set = facetsOf(block('scripture', 'He will keep your going out\nPsalm 121:8')).set
+    expect(set.has(FACET_SCRIPTURE)).toBe(true)
+  })
+
+  it('does not see a prayer where there is only prose about praying', () => {
+    expect(facetsOf('I prayed about it for a while').set.has(FACET_PRAYER)).toBe(false)
+  })
+})
+
+describe('facetGroups', () => {
   it('offers nothing for an archive with no markings in it', () => {
-    expect(facetChips(buildFacetIndex([entry('just plain prose')]))).toEqual([])
+    expect(facetGroups(buildFacetIndex([entry('just plain prose')]))).toEqual([])
   })
 
   // A control that reports zero is a worse answer than no control.
   it('offers only the facets some page actually carries', () => {
-    const chips = facetChips(buildFacetIndex([entry('a =={sky}blue== line')]))
-    const keys = chips.map((c) => c.key)
+    const groups = facetGroups(buildFacetIndex([entry('a =={sky}blue== line')]))
+    const keys = groups.flatMap((g) => g.chips.map((c) => c.key))
     expect(keys).toContain(FACET_HIGHLIGHT)
     expect(keys).toContain(highlightFacet('sky'))
     expect(keys).not.toContain(highlightFacet('rose'))
     expect(keys).not.toContain(FACET_SCRIPTURE)
+    // Nothing was written with a slash command, so there is no "Wrote" group.
+    expect(groups.map((g) => g.group)).toEqual(['marked'])
+  })
+
+  it('separates what you did to a page from what you put on it', () => {
+    const marked = entry('a ==bright== line')
+    const wrote = entry(
+      ['```dayspring-pray 3f2504e0-4f89-11d3-9a0c-0305e82c3301', 'for Thursday', '```'].join('\n'),
+    )
+    const groups = facetGroups(buildFacetIndex([marked, wrote]))
+    expect(groups.map((g) => g.group)).toEqual(['marked', 'wrote'])
+    expect(groups[1]!.chips.map((c) => c.key)).toContain(FACET_PRAYER)
+  })
+
+  // Choosing a filter should never be a shot in the dark.
+  it('says how many pages each one would give you', () => {
+    const groups = facetGroups(
+      buildFacetIndex([entry('a ==one== line'), entry('a ==two== line'), entry('plain')]),
+    )
+    const hl = groups[0]!.chips.find((c) => c.key === FACET_HIGHLIGHT)!
+    expect(hl.count).toBe(2)
   })
 })

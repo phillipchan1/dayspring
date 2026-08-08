@@ -19,7 +19,8 @@ import {
   wordSubject,
   type Subject,
 } from './subjects'
-import { buildFacetIndex, facetChips, matchFacets } from './facets'
+import { buildFacetIndex, facetGroups, matchFacets } from './facets'
+import { FacetMenu } from './FacetMenu'
 import { interpret, literalFallback, type Interpretation } from './interpret'
 import './Pages.css'
 
@@ -178,7 +179,7 @@ export function PagesView({
     () => buildFacetIndex(entries, marks.map((m) => m.entryId)),
     [entries, marks],
   )
-  const chips = useMemo(() => facetChips(facetIndex), [facetIndex])
+  const groups = useMemo(() => facetGroups(facetIndex), [facetIndex])
   const match = useMemo(() => subjectMatcher(subjects), [subjects])
 
   /**
@@ -500,41 +501,36 @@ export function PagesView({
               </button>
             ))}
 
-            {chips.map((chip) => {
-              const on = keys.includes(chip.key)
-              return (
-                <button
-                  key={chip.key}
-                  type="button"
-                  className={chip.color ? 'pg__swatch' : 'pg__chip'}
-                  data-on={on ? 'true' : undefined}
-                  data-color={chip.color}
-                  aria-pressed={on}
-                  title={chip.color ? `Highlighted in ${chip.label}` : chip.label}
-                  aria-label={chip.color ? `Highlighted in ${chip.label}` : chip.label}
-                  onClick={() => toggleKey(chip.key)}
-                >
-                  {chip.color ? '' : chip.label}
-                </button>
-              )
-            })}
+            {/* Two words instead of eleven chips — see FacetMenu. */}
+            {groups.map((g) => (
+              <FacetMenu key={g.group} group={g} active={keys} onToggle={toggleKey} />
+            ))}
 
-            {/* Concordance suggestions come last: they are a handful of ways in,
-                not a taxonomy, and they must never outrank the writer's own
-                markings in the eye. */}
-            {suggested
-              .filter((sub) => !keys.includes(sub.key))
-              .slice(0, 6)
-              .map((sub) => (
-                <button
-                  key={sub.key}
-                  type="button"
-                  className="pg__chip pg__chip--subject"
-                  onClick={() => addSubject(sub)}
-                >
-                  {sub.label}
-                </button>
-              ))}
+            {/*
+              Ways in, not a taxonomy.
+              These are the names this writer returns to most, learned from what
+              they actually wrote — which is why the group says so. An unlabelled
+              row of words invites "why these?", and the honest answer is short
+              enough to just print.
+            */}
+            {suggested.filter((sub) => !keys.includes(sub.key)).length > 0 ? (
+              <span className="pg__offer">
+                <span className="pg__offer-k">you write about</span>
+                {suggested
+                  .filter((sub) => !keys.includes(sub.key))
+                  .slice(0, 5)
+                  .map((sub) => (
+                    <button
+                      key={sub.key}
+                      type="button"
+                      className="pg__chip pg__chip--subject"
+                      onClick={() => addSubject(sub)}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+              </span>
+            ) : null}
 
             {anyLit ? (
               <>

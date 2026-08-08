@@ -257,6 +257,143 @@ button.pg__sense-q:hover {
 }
 
 /*
+ * "you write about — Naomi · Chicago · the shop"
+ *
+ * An unlabelled row of words invites "why these?", and the honest answer — they
+ * are the names you return to most, learned from what you actually wrote — is
+ * short enough to just print.
+ */
+.pg__offer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pg__offer-k {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* ── a group of facets, behind a word ── */
+
+.pg__facet {
+  position: relative;
+  display: inline-flex;
+}
+
+.pg__facet-b {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.7rem 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg__facet-b:hover {
+  color: var(--text-bright);
+  border-color: var(--border);
+}
+
+.pg__facet-b[data-on='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* How many of this group's own filters are on — not a badge, just the count. */
+.pg__facet-n {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pg__facet-caret {
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.pg__facet-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 6;
+  min-inline-size: 12rem;
+  padding: 0.3rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+}
+
+.pg__facet-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  inline-size: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.pg__facet-opt:hover {
+  background: var(--bg-input);
+}
+
+.pg__facet-opt[data-on='true'] {
+  color: var(--accent);
+}
+
+.pg__facet-label {
+  flex: 1;
+  text-transform: capitalize;
+}
+
+/*
+ * The count. Choosing a filter should never be a shot in the dark — "Prayer
+ * 214" tells you what you are about to get before you get it.
+ */
+.pg__facet-count {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.pg__facet-swatch {
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
+  border-radius: 50%;
+  background: rgba(var(--swatch-hue), 0.9);
+  flex: 0 0 auto;
+}
+
+.pg__facet-swatch[data-color='amber'] { --swatch-hue: var(--hl-amber); }
+.pg__facet-swatch[data-color='rose'] { --swatch-hue: var(--hl-rose); }
+.pg__facet-swatch[data-color='sage'] { --swatch-hue: var(--hl-sage); }
+.pg__facet-swatch[data-color='sky'] { --swatch-hue: var(--hl-sky); }
+.pg__facet-swatch[data-color='lilac'] { --swatch-hue: var(--hl-lilac); }
+
+/*
  * Highlight colours as swatches, not words.
  *
  * You reached for a colour; you should be able to reach for it again the same
