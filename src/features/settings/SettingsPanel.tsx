@@ -259,6 +259,12 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         onChange={(v) => update({ firstLineTitle: v })}
       />
       <Toggle
+        label="Show markdown syntax"
+        hint="Show the raw *, **, and == characters. Off hides them until your cursor is inside — the text itself never changes."
+        checked={settings.showMarkdownSyntax}
+        onChange={(v) => update({ showMarkdownSyntax: v })}
+      />
+      <Toggle
         label="Ritual previews"
         hint="Preview a ritual’s questions before you begin. Off jumps straight into writing."
         checked={!settings.skipRitualPreview}

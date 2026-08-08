@@ -90,6 +90,23 @@
   --scripture-ember: 197, 106, 110; /* low engagement (dawn-3) */
   --scripture-gold: 243, 189, 118; /* high engagement (dawn-1) */
   --scripture-cell-rest: rgba(236, 231, 221, 0.06);
+
+  /* Highlighter washes. Hues are shared by every palette — a highlighter is a
+     physical object, not a theme accent — and only the alpha shifts between
+     light and dark (grouped override below). Kept as `r, g, b` so one alpha
+     token can drive all five. Mirrored in src/lib/highlightColors.ts, which the
+     print stylesheet reads (print gets no theme variables). */
+  /* The default highlighter is Dayspring's own amber (#c4913c). A lighter,
+     brighter amber measured badly at both ends — too faint to see on cream
+     paper (1.18 contrast against vellum, where every other colour sat at 1.3+)
+     and too loud over ink (1.60, well above its siblings). This one lands
+     inside the other four colours' band in all eight palettes. */
+  --hl-amber: 196, 145, 60;
+  --hl-rose: 214, 100, 122;
+  --hl-sage: 108, 160, 110;
+  --hl-sky: 86, 148, 208;
+  --hl-lilac: 155, 132, 224;
+  --hl-alpha: 0.3;
 }
 
 /* ── Dawn (light) ───────────────────────────────────────────────────────── */
@@ -522,4 +539,14 @@
   --glass-glow-spot: rgba(217, 164, 65, 0.18);
 
   --entry-list-head-border: rgba(196, 145, 60, 0.18);
+}
+
+/* Highlighter alpha for the dark palettes. A wash that reads as "marker on
+   paper" at 0.30 over cream reads as a glowing block over ink, so the dark
+   themes take it down. One grouped rule — the hues themselves never change. */
+[data-theme='ink'],
+[data-theme='ember'],
+[data-theme='compline'],
+[data-theme='nocturne'] {
+  --hl-alpha: 0.24;
 }

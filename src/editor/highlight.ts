@@ -20,6 +20,18 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: t.strong, fontWeight: '700', color: 'var(--text-bright)' },
   { tag: t.emphasis, fontStyle: 'italic', color: 'var(--md-emphasis)' },
   { tag: t.strikethrough, textDecoration: 'line-through', color: 'var(--text-dim)' },
+  // Underline (`++text++`, our own grammar extension — see markdownMarks.ts).
+  // Two other things in this editor are already underlined: links, which carry
+  // --md-link, and scripture references, a 1px gold hairline at 3px offset. A
+  // formatting underline must read as neither, so it's thicker than the hairline
+  // and drawn in a softened currentColor rather than any hue.
+  {
+    tag: t.special(t.emphasis),
+    textDecoration: 'underline',
+    textDecorationThickness: '0.075em',
+    textUnderlineOffset: '0.18em',
+    textDecorationColor: 'color-mix(in srgb, currentColor 55%, transparent)',
+  },
 
   // Code.
   { tag: t.monospace, fontFamily: 'var(--font-mono)', color: 'var(--md-code)' },

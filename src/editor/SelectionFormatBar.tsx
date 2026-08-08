@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
 import {
   applyFormat,
+  applyHighlight,
   getFormatState,
   isFormatActive,
   selectionAnchorRect,
@@ -10,6 +11,7 @@ import {
   type FormatState,
 } from './formatSelection'
 import { FORMAT_BAR_ACTIONS, FormatBarIcon } from './formatBarIcons'
+import { HIGHLIGHT_LABELS, HIGHLIGHT_ORDER } from '@/lib/highlightColors'
 
 export interface FormatBarAnchor {
   view: EditorView
@@ -46,13 +48,24 @@ function clampPosition(rect: DOMRect, bar: DOMRect) {
 export function SelectionFormatBar({ anchor, onRequestLink }: Props) {
   const barRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
+  /**
+   * The colour row replaces the bar's own contents rather than opening a second
+   * floating layer. This bar is already a portaled fixed element with bespoke
+   * viewport clamping (including visualViewport, for the iOS keyboard); a nested
+   * popover would need all of that again and would fall off-screen on touch.
+   */
+  const [swatches, setSwatches] = useState(false)
+
+  // A fresh selection always returns to the formatting row.
+  useEffect(() => setSwatches(false), [anchor])
 
   useLayoutEffect(() => {
     const el = barRef.current
     if (!anchor || !el) return
     const barRect = el.getBoundingClientRect()
     setPos(clampPosition(anchor.rect, barRect))
-  }, [anchor])
+    // Width changes with the colour row, so re-measure whenever it appears.
+  }, [anchor, swatches])
 
   if (!anchor) return null
 
@@ -64,38 +77,105 @@ export function SelectionFormatBar({ anchor, onRequestLink }: Props) {
     applyFormat(anchor.view, action)
   }
 
-  return createPortal(
-    <div
-      ref={barRef}
-      className="format-bar"
-      role="toolbar"
-      aria-label="Formatting"
-      style={{ left: pos.left, top: pos.top }}
-      onMouseDown={(e) => e.preventDefault()}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      {FORMAT_BAR_ACTIONS.map(({ action, label, title }, i) => {
-        const active = isFormatActive(anchor.state, action)
-        return (
-          <span key={action} className="format-bar__group">
-            {i === 4 ? <span className="format-bar__sep" aria-hidden /> : null}
+  const shell = (children: React.ReactNode) =>
+    createPortal(
+      <div
+        ref={barRef}
+        className={`format-bar${swatches ? ' format-bar--swatches' : ''}`}
+        role="toolbar"
+        aria-label={swatches ? 'Highlight colour' : 'Formatting'}
+        style={{ left: pos.left, top: pos.top }}
+        onMouseDown={(e) => e.preventDefault()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && swatches) {
+            e.stopPropagation()
+            setSwatches(false)
+          }
+        }}
+      >
+        {children}
+      </div>,
+      document.body,
+    )
+
+  if (swatches) {
+    const current = anchor.state.inline.highlight
+    return shell(
+      <>
+        <button
+          type="button"
+          className="format-bar__btn format-bar__btn--back"
+          title="Back to formatting"
+          aria-label="Back to formatting"
+          onClick={() => setSwatches(false)}
+        >
+          ‹
+        </button>
+        <span className="format-bar__sep" aria-hidden />
+        {HIGHLIGHT_ORDER.map((color, i) => (
+          <button
+            key={color}
+            type="button"
+            className="format-bar__swatch"
+            data-color={color}
+            data-active={current === color ? 'true' : undefined}
+            style={{ animationDelay: `${0.02 + i * 0.018}s` }}
+            title={HIGHLIGHT_LABELS[color]}
+            aria-label={HIGHLIGHT_LABELS[color]}
+            aria-pressed={current === color}
+            onClick={() => {
+              applyHighlight(anchor.view, color)
+              setSwatches(false)
+            }}
+          />
+        ))}
+      </>,
+    )
+  }
+
+  return shell(
+    FORMAT_BAR_ACTIONS.map(({ action, label, title }, i) => {
+      const active = isFormatActive(anchor.state, action)
+      const color = action === 'highlight' ? anchor.state.inline.highlight : null
+      return (
+        <span key={action} className="format-bar__group">
+          {i === 6 ? <span className="format-bar__sep" aria-hidden /> : null}
+          <button
+            type="button"
+            className="format-bar__btn"
+            data-action={action}
+            data-active={active ? 'true' : undefined}
+            // An active highlight shows WHICH colour, so the button doubles as
+            // the readout the swatch row would otherwise have to provide.
+            style={
+              {
+                animationDelay: `${0.02 + i * 0.018}s`,
+                ...(color ? { '--hl-hue': `var(--hl-${color})` } : null),
+              } as React.CSSProperties
+            }
+            title={title}
+            aria-label={label}
+            aria-pressed={active}
+            onClick={() => run(action)}
+          >
+            <FormatBarIcon action={action} />
+          </button>
+          {action === 'highlight' ? (
             <button
               type="button"
-              className="format-bar__btn"
-              data-active={active ? 'true' : undefined}
-              style={{ animationDelay: `${0.02 + i * 0.018}s` }}
-              title={title}
-              aria-label={label}
-              aria-pressed={active}
-              onClick={() => run(action)}
+              className="format-bar__chevron"
+              title="Highlight colour"
+              aria-label="Choose highlight colour"
+              aria-expanded={false}
+              onClick={() => setSwatches(true)}
             >
-              <FormatBarIcon action={action} />
+              <span aria-hidden>⌄</span>
             </button>
-          </span>
-        )
-      })}
-    </div>,
-    document.body,
+          ) : null}
+        </span>
+      )
+    }),
   )
 }
 

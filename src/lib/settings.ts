@@ -56,6 +56,14 @@ export interface Settings {
   /** Style the first line as the entry title (editor + rendered/exported markdown). */
   firstLineTitle: boolean
 
+  /**
+   * Show markdown's raw syntax characters (`*`, `**`, `#`, `==`) in the editor.
+   * Off — the default — hides them until the cursor is inside the span, so the
+   * page reads as formatted prose. The characters are always in the document
+   * either way; this only changes what's painted.
+   */
+  showMarkdownSyntax: boolean
+
   /** Desktop only: enable developer tools shortcut (⌘⌥I). */
   devMode: boolean
 
@@ -82,6 +90,7 @@ const DEFAULTS: Settings = {
   entriesGroupBy: 'flat',
   railLabels: false,
   firstLineTitle: true,
+  showMarkdownSyntax: false,
   devMode: false,
   showEntryPreview: false,
   skipRitualPreview: false,

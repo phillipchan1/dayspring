@@ -658,6 +658,83 @@
   font-size: 0.7rem;
 }
 
+/* Formatting mode. The capture row splits its width evenly between six labelled
+   verbs; the formatting row holds twice as many glyphs, so they size to content
+   and the row scrolls — the same shape as the keyboard accessories in Bear and
+   iA Writer. "Done" stays pinned at the end in every mode. */
+.command-toolbar__row--scroll {
+  justify-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.command-toolbar__row--scroll::-webkit-scrollbar {
+  display: none;
+}
+/* `overflow-x: auto` forces overflow-y to compute as auto too, so the row
+   becomes a clipping box. Every child must therefore be the same height as the
+   short glyph buttons — otherwise "Done", which stacks an icon over a label,
+   has its label sliced off. It drops to a bare chevron here, which also reads
+   better beside a row of glyphs. */
+.command-toolbar__row--scroll .command-toolbar__btn--dismiss {
+  padding: 0.45rem 0.5rem;
+}
+.command-toolbar__row--scroll .command-toolbar__btn--dismiss .command-toolbar__label {
+  display: none;
+}
+.command-toolbar__row--scroll .command-toolbar__btn--dismiss .command-toolbar__icon {
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+.command-toolbar__btn--format,
+.command-toolbar__btn--mode {
+  flex: 0 0 auto;
+  min-width: 2.4rem;
+  padding: 0.45rem 0.35rem;
+}
+/* A quiet gap where inline marks end and line styles begin. */
+.command-toolbar__btn--sep {
+  margin-left: 0.5rem;
+  box-shadow: -0.45rem 0 0 -0.4rem var(--border-subtle);
+}
+.command-toolbar__btn--mode {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.command-toolbar__btn--format .command-toolbar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.command-toolbar__btn--format .format-bar__icon {
+  width: 18px;
+  height: 18px;
+}
+.command-toolbar__swatch {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: rgba(var(--hl-hue), 0.85);
+  cursor: pointer;
+}
+.command-toolbar__swatch[data-color='amber'] { --hl-hue: var(--hl-amber); }
+.command-toolbar__swatch[data-color='rose'] { --hl-hue: var(--hl-rose); }
+.command-toolbar__swatch[data-color='sage'] { --hl-hue: var(--hl-sage); }
+.command-toolbar__swatch[data-color='sky'] { --hl-hue: var(--hl-sky); }
+.command-toolbar__swatch[data-color='lilac'] { --hl-hue: var(--hl-lilac); }
+.command-toolbar__swatch:active {
+  transform: scale(0.92);
+}
+
 /* "Done" reads as a quiet trailing affordance, not another insert action. */
 .command-toolbar__btn--dismiss {
   flex: 0 0 auto;

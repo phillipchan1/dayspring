@@ -998,6 +998,91 @@ a {
   transform: scale(1.06);
 }
 
+/* Highlight button: when a highlight is on, the button wears its colour so the
+   writer can see WHICH one without opening the swatch row. --hl-hue is set
+   inline from the parsed selection. */
+.format-bar__btn[data-action='highlight'][data-active='true'] {
+  background: rgba(var(--hl-hue), 0.3);
+  color: rgb(var(--hl-hue));
+  box-shadow: inset 0 0 0 1px rgba(var(--hl-hue), 0.5);
+}
+.format-bar__btn[data-action='highlight'][data-active='true']:hover,
+.format-bar__btn[data-action='highlight'][data-active='true']:focus-visible {
+  background: rgba(var(--hl-hue), 0.4);
+  color: rgb(var(--hl-hue));
+}
+/* The disclosure that swaps the bar over to the colour row. Deliberately
+   narrower and quieter than a real button — it is a hint, not a peer. */
+.format-bar__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.85rem;
+  height: 1.85rem;
+  margin-left: -0.22rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.format-bar__chevron:hover,
+.format-bar__chevron:focus-visible {
+  color: var(--text-bright);
+  outline: none;
+}
+.format-bar__btn--back {
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--text-dim);
+}
+.format-bar__swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(var(--hl-hue), 0.85);
+  cursor: pointer;
+  animation: format-bar-btn-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+  transition:
+    box-shadow var(--transition),
+    transform 0.12s ease;
+}
+.format-bar__swatch[data-color='amber'] {
+  --hl-hue: var(--hl-amber);
+}
+.format-bar__swatch[data-color='rose'] {
+  --hl-hue: var(--hl-rose);
+}
+.format-bar__swatch[data-color='sage'] {
+  --hl-hue: var(--hl-sage);
+}
+.format-bar__swatch[data-color='sky'] {
+  --hl-hue: var(--hl-sky);
+}
+.format-bar__swatch[data-color='lilac'] {
+  --hl-hue: var(--hl-lilac);
+}
+.format-bar__swatch:hover,
+.format-bar__swatch:focus-visible {
+  outline: none;
+  transform: scale(1.1);
+}
+/* The lit swatch reuses the bar's existing active language: a ring, not a fill. */
+.format-bar__swatch[data-active='true'] {
+  box-shadow:
+    0 0 0 2px var(--glass-bg),
+    0 0 0 3.5px rgba(var(--hl-hue), 0.95);
+}
+.format-bar__swatch:active {
+  transform: scale(0.9);
+}
+
 /* ── Link popover (⌘K / link button) ─────────────────────────────────────── */
 .link-popover {
   position: fixed;
@@ -2165,6 +2250,28 @@ html[data-focus-mode] .focus-controls {
   color: var(--text);
   overflow-wrap: break-word;
 }
+/* Highlighter + underline in rendered markdown. Only print uses renderMarkdown
+   today (which ships its own copy of these, since it gets no theme variables) —
+   these are here for the in-app reading view when it lands. */
+.markdown-body mark.hl {
+  background: rgba(var(--hl-hue, var(--hl-amber)), var(--hl-alpha));
+  color: inherit;
+  padding: 0.06em 0.1em;
+  border-radius: 0.18em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.markdown-body mark.hl--amber { --hl-hue: var(--hl-amber); }
+.markdown-body mark.hl--rose { --hl-hue: var(--hl-rose); }
+.markdown-body mark.hl--sage { --hl-hue: var(--hl-sage); }
+.markdown-body mark.hl--sky { --hl-hue: var(--hl-sky); }
+.markdown-body mark.hl--lilac { --hl-hue: var(--hl-lilac); }
+.markdown-body u.ul {
+  text-decoration-thickness: 0.075em;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
+}
+
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,

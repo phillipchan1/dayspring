@@ -1,6 +1,7 @@
 import { isSpiritualFenceLine, parseSpiritualBlocks, stripSpiritualBlocks } from './spiritualBlocks'
 import { isPracticeTokenLine, practiceNameFromLine } from './practiceTokens'
 import { ATTACHMENT_REF_RE } from './attachments'
+import { stripMarkdownMarkers } from './inlineMarkers'
 
 /**
  * Label fallback for an entry with no prose — just a spiritual block (e.g. a
@@ -57,13 +58,7 @@ export function entryContentLines(markdown: string | null | undefined): string[]
 export function deriveTitle(markdown: string | null | undefined): string {
   const [first] = entryContentLines(markdown)
   if (first) {
-    return first
-      .replace(/^#{1,6}\s+/, '')
-      .replace(/^>\s+/, '')
-      .replace(/^[-*+]\s+/, '')
-      .replace(/^\d+\.\s+/, '')
-      .replace(/[*_`~]/g, '')
-      .trim()
+    return stripMarkdownMarkers(first).trim()
   }
   // No written content yet — a freshly-begun practice should show its name
   // rather than nothing.
@@ -84,11 +79,10 @@ export function deriveEntryPreview(
   for (const line of entryContentLines(markdown)) {
     if (line.startsWith('/')) continue
     if (line.length < 4) continue
-    const cleaned = line
-      .replace(/^#{1,6}\s+/, '')
-      .replace(/[*_~`>]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
+    // `>` used to be stripped by a character class here, which also deleted any
+    // mid-sentence ">" from a preview. It's a line prefix, so it belongs with
+    // the other line markers.
+    const cleaned = stripMarkdownMarkers(line).replace(/\s+/g, ' ').trim()
     if (!cleaned) continue
     return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trimEnd() + '…' : cleaned
   }

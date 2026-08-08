@@ -6,6 +6,9 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit, syntaxHighlighting } from '@codemirror/language'
 import { editorTheme } from './theme'
 import { markdownHighlight } from './highlight'
+import { HighlightExtension, UnderlineExtension } from './markdownMarks'
+import { highlightDecoration } from './highlightDecoration'
+import { concealMarkersExtension } from './concealMarkers'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { firstLineTitleExtension } from './firstLineTitle'
@@ -18,7 +21,14 @@ import { spiritualBlocksField } from './spiritualBlocksField'
 import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
-import { clearLink, linkUrlInRange, selectionAnchorRect, setLink } from './formatSelection'
+import {
+  applyHighlight as applyHighlightToSelection,
+  clearLink,
+  expandToInlineSpans,
+  linkUrlInRange,
+  selectionAnchorRect,
+  setLink,
+} from './formatSelection'
 import { LinkPopover, type LinkPopoverTarget } from './LinkPopover'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
@@ -29,7 +39,8 @@ import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
-import { applyFormatCommand, type SlashSelection } from './slashCommands'
+import { applyFormatCommand, type FormatCommandId, type SlashSelection } from './slashCommands'
+import type { HighlightColor } from '@/lib/highlightColors'
 import {
   attachmentImageExtension,
   type AttachmentEditTarget,
@@ -62,6 +73,10 @@ export interface EditorHandle {
   blur: () => void
   /** Trigger a slash command at the current cursor position (for mobile UI). */
   triggerCommand: (cmd: SlashCommandId) => void
+  /** Apply a markdown format at the caret/selection (for the mobile toolbar). */
+  applyFormatCommand: (id: FormatCommandId) => void
+  /** Apply a highlighter colour at the caret/selection (for the mobile toolbar). */
+  applyHighlight: (color: HighlightColor) => void
   /** Insert a block-isolated attachment image at the given position. Returns caret after. */
   insertBlockAttachment: (pos: number, hash: string, ext: string, alt?: string) => number
   /** Show an uploading placeholder, then resolve via replace/remove helpers. */
@@ -90,6 +105,11 @@ interface EditorProps {
   dimming?: boolean
   /** Style the first content line as the entry title. Defaults to true. */
   titleStyling?: boolean
+  /**
+   * Leave markdown's syntax characters visible. Defaults to false — they're
+   * concealed until the cursor is inside the span they belong to.
+   */
+  showMarkdownSyntax?: boolean
   /** Placeholder shown on the first body line (line 2) when a title exists but no body has been written. */
   bodyPlaceholder?: string
   slashEnabled?: boolean
@@ -135,6 +155,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     typewriter = false,
     dimming = false,
     titleStyling = true,
+    showMarkdownSyntax = false,
     slashEnabled = false,
     commandLinePos = null,
     onSlashCommand,
@@ -151,6 +172,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const typewriterCompartment = useRef(new Compartment())
   const dimCompartment = useRef(new Compartment())
   const titleCompartment = useRef(new Compartment())
+  const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
@@ -178,10 +200,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     if (sel.empty) return
     const rect = selectionAnchorRect(view)
     if (!rect) return
+    // Widen to the whole `[label](url)`: with the brackets concealed, selecting
+    // an existing link's visible label would otherwise nest a second link.
+    const { from, to } = expandToInlineSpans(view.state, sel.from, sel.to)
     setLinkTarget({
-      from: sel.from,
-      to: sel.to,
-      url: linkUrlInRange(view, sel.from, sel.to) ?? '',
+      from,
+      to,
+      url: linkUrlInRange(view, from, to) ?? '',
       rect,
     })
   }, [])
@@ -230,6 +255,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const insertAt = view.state.selection.main.head
       const anchor = computeInlinePanelAnchor(view, insertAt)
       onSlashCommand(cmd, insertAt, anchor)
+    },
+    applyFormatCommand: (id: FormatCommandId) => {
+      const view = viewRef.current
+      if (!view) return
+      applyFormatCommand(view, id)
+    },
+    applyHighlight: (color: HighlightColor) => {
+      const view = viewRef.current
+      if (!view) return
+      applyHighlightToSelection(view, color)
     },
     insertBlockAttachment: (pos, hash, ext, alt) => {
       const view = viewRef.current
@@ -293,8 +328,21 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // into an H1 (underline-style headings). So typing `-` on the line after
           // any prose line instantly re-styles it as a heading. Removed here; ATX
           // headings (`## text`) are still supported for intentional formatting.
-          markdown({ base: markdownLanguage, codeLanguages: [], extensions: { remove: ['IndentedCode', 'SetextHeading'] } }),
+          //
+          // Highlight/Underline — `==text==` and `++text++`, which CommonMark
+          // has no syntax for. Always parsed, regardless of the conceal setting.
+          markdown({
+            base: markdownLanguage,
+            codeLanguages: [],
+            extensions: [
+              { remove: ['IndentedCode', 'SetextHeading'] },
+              HighlightExtension,
+              UnderlineExtension,
+            ],
+          }),
           syntaxHighlighting(markdownHighlight),
+          highlightDecoration(),
+          concealCompartment.current.of(showMarkdownSyntax ? [] : concealMarkersExtension()),
           orderedListNumberingExtension(),
           titleCompartment.current.of(
             titleStyling
@@ -433,6 +481,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       ? [firstLineTitleExtension, ...(bodyPlaceholder ? [bodyLinePlaceholder(bodyPlaceholder)] : [])]
       : [])
   }, [titleStyling, bodyPlaceholder])
+
+  useEffect(() => {
+    reconfigure(
+      viewRef.current,
+      concealCompartment.current,
+      showMarkdownSyntax ? [] : concealMarkersExtension(),
+    )
+  }, [showMarkdownSyntax])
 
   useEffect(() => {
     reconfigure(
