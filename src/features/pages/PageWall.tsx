@@ -23,12 +23,14 @@ import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
 import { buildWallItems, selectionOrder, yearRows, type WallItem } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
-import { DENSITY, type PagesDensity } from './density'
+import { clampZoom, specForZoom, wheelZoomDelta } from './zoom'
 
 interface Props {
   /** Wall order — newest first. */
   entries: Entry[]
-  density: PagesDensity
+  /** How close you're standing, 0 (far) → 1 (near). */
+  zoom: number
+  onZoom: (next: number) => void
   /** Quotes the writer marked, by entry id. */
   markQuotes: Map<string, string[]>
   /** Null when no subject is chosen; otherwise the ids that carry it. */
@@ -62,7 +64,8 @@ const EMPTY_SELECTED: Entry[] = []
  */
 export function PageWall({
   entries,
-  density,
+  zoom,
+  onZoom,
   markQuotes,
   lit,
   activeId,
@@ -74,7 +77,10 @@ export function PageWall({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
-  const spec = DENSITY[density]
+  // Memoized: it's a dependency of the column-measuring layout effect, and a
+  // fresh object every render would tear down and rebuild the ResizeObserver on
+  // every scroll frame.
+  const spec = useMemo(() => specForZoom(zoom), [zoom])
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
@@ -126,19 +132,21 @@ export function PageWall({
   selectedRef.current = selectedEntries
 
   /**
-   * Excerpts are memoized against the entry object and the density's line budget.
-   * Recomputing 3,500 of these on a scroll frame is the one thing that would make
-   * this surface feel slow, and Principle 3's latency rule is not only about the
-   * editor.
+   * Excerpts are memoized against the entries alone — NOT against the zoom.
+   *
+   * They are built once at the largest budget any card can want and sliced per
+   * card. Keying this on the line budget instead would rebuild 3,500 excerpts on
+   * every frame of a pinch, which is the one thing that would make this surface
+   * feel slow. Principle 3's latency rule is not only about the editor.
    */
   const excerpts = useMemo(() => {
     const cache = new Map<string, PageExcerpt>()
     for (const item of items) {
       if (cache.has(item.entry.id)) continue
-      cache.set(item.entry.id, pageExcerpt(item.entry, markQuotes.get(item.entry.id) ?? [], spec.lines))
+      cache.set(item.entry.id, pageExcerpt(item.entry, markQuotes.get(item.entry.id) ?? []))
     }
     return cache
-  }, [items, markQuotes, spec.lines])
+  }, [items, markQuotes])
 
   const rowCount = Math.ceil(items.length / cols)
   const rowHeight = spec.cardHeight + spec.gap
@@ -183,6 +191,57 @@ export function PageWall({
 
   const itemsRef = useRef(items)
   itemsRef.current = items
+
+  /**
+   * Zoom, anchored.
+   *
+   * The page you were looking at has to stay under your cursor the whole way in
+   * and out — without this the wall slides out from under you and the gesture
+   * reads as broken rather than as moving closer. We remember which ITEM was at
+   * the top of the viewport, then put it back after the new geometry lands.
+   */
+  const anchorRef = useRef<number | null>(null)
+
+  const zoomBy = useCallback(
+    (delta: number) => {
+      const el = scrollRef.current
+      if (el) anchorRef.current = Math.floor(el.scrollTop / rowHeight) * cols
+      onZoom(clampZoom(zoom + delta))
+    },
+    [zoom, onZoom, rowHeight, cols],
+  )
+
+  // Layout effect, not an effect: restore the scroll position in the same frame
+  // the new geometry paints, or the wall visibly jumps and then corrects itself.
+  useLayoutEffect(() => {
+    const idx = anchorRef.current
+    if (idx === null) return
+    anchorRef.current = null
+    const el = scrollRef.current
+    if (el) el.scrollTop = Math.floor(idx / cols) * rowHeight
+  }, [cols, rowHeight])
+
+  /**
+   * Pinch and ⌘-scroll.
+   *
+   * A native non-passive listener because the handler must `preventDefault` —
+   * React's onWheel is registered passively, so the browser would zoom the whole
+   * page out from under the app instead.
+   */
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      // A trackpad pinch arrives as ctrlKey+wheel; ⌘-scroll is the deliberate
+      // keyboard-modified version of the same intent.
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const delta = wheelZoomDelta(e.deltaY, e.deltaMode)
+      if (delta !== 0) zoomBy(delta)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [zoomBy])
 
   const focusCard = useCallback((key: string): boolean => {
     const node = gridRef.current?.querySelector<HTMLElement>(
@@ -424,6 +483,7 @@ export function PageWall({
                 entryId={item.entry.id}
                 dateIso={item.entry.created_at}
                 excerpt={excerpts.get(item.entry.id)!}
+                maxLines={spec.lines}
                 dim={lit !== null && !lit.has(item.entry.id)}
                 active={item.entry.id === activeId && !item.echo}
                 selected={!item.echo && selectedIds.has(item.entry.id)}

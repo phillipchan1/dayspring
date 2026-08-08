@@ -9,6 +9,8 @@ interface Props {
   entryId: string
   dateIso: string
   excerpt: PageExcerpt
+  /** Lines this zoom level has room for. The excerpt itself is built once, big. */
+  maxLines: number
   /** Subject lighting is on and this page doesn't carry it. */
   dim: boolean
   /** The page currently open in the editor. */
@@ -70,6 +72,7 @@ export const PageCard = memo(function PageCard({
   entryId,
   dateIso,
   excerpt,
+  maxLines,
   dim,
   active,
   selected,
@@ -85,7 +88,9 @@ export const PageCard = memo(function PageCard({
   onOpenMenu,
 }: Props) {
   const fill = pageFill(excerpt.chars)
-  const empty = excerpt.lines.length === 0
+  const shown = excerpt.lines.length > maxLines ? excerpt.lines.slice(0, maxLines) : excerpt.lines
+  const truncated = excerpt.total > shown.length
+  const empty = shown.length === 0
   const pointer = useWallPointer((x, y) => onOpenMenu(entryId, x, y))
 
   return (
@@ -130,7 +135,7 @@ export const PageCard = memo(function PageCard({
         {empty ? (
           <p className="pgc__blank">Blank page</p>
         ) : (
-          excerpt.lines.map((line, i) => (
+          shown.map((line, i) => (
             <p key={i} className="pgc__line" data-set={line.set ? 'true' : undefined}>
               {line.text}
             </p>
@@ -138,7 +143,7 @@ export const PageCard = memo(function PageCard({
         )}
       </div>
 
-      {excerpt.truncated ? <span className="pgc__fade" aria-hidden /> : null}
+      {truncated ? <span className="pgc__fade" aria-hidden /> : null}
       <span className="pgc__thickness" aria-hidden style={{ blockSize: `${fill * 100}%` }} />
     </button>
   )
@@ -149,6 +154,7 @@ function propsEqual(prev: Props, next: Props): boolean {
     prev.entryId === next.entryId &&
     prev.dateIso === next.dateIso &&
     prev.excerpt === next.excerpt &&
+    prev.maxLines === next.maxLines &&
     prev.dim === next.dim &&
     prev.active === next.active &&
     prev.selected === next.selected &&

@@ -45,6 +45,7 @@ import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { RememberView } from '@/features/remember/RememberView'
 import { PagesView } from '@/features/pages/PagesView'
+import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
 import { useRemember } from '@/features/remember/useRemember'
 import type { Mark } from '@/lib/marks'
 import { FindPalette } from '@/features/remember/FindPalette'
@@ -1135,11 +1136,21 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onFindOrAsk: () => openFindOrAsk(''),
     onRemember: toggleRemember,
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
-    onFontSizeUp: () =>
-      updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
-    onFontSizeDown: () =>
-      updateSettings({ fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1) }),
-    onFontSizeReset: () => updateSettings({ fontSize: FONT_SIZE_DEFAULT }),
+    // ⌘= / ⌘− / ⌘0 mean "bigger / smaller / normal", and what that acts on is
+    // whatever owns the screen: the writing size while writing, how close
+    // you're standing while on the wall.
+    onZoomIn: () =>
+      pagesActive
+        ? updateSettings({ pagesZoom: clampZoom(settings.pagesZoom + ZOOM_STEP) })
+        : updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
+    onZoomOut: () =>
+      pagesActive
+        ? updateSettings({ pagesZoom: clampZoom(settings.pagesZoom - ZOOM_STEP) })
+        : updateSettings({ fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1) }),
+    onZoomReset: () =>
+      pagesActive
+        ? updateSettings({ pagesZoom: PAGES_ZOOM_DEFAULT })
+        : updateSettings({ fontSize: FONT_SIZE_DEFAULT }),
     focusActive: focus.active,
     settingsOpen,
   })

@@ -110,16 +110,69 @@ button.pg__sense-q:hover {
   margin-bottom: 0.9rem;
 }
 
-.pg__density {
+.pg__zoom {
   display: inline-flex;
-  gap: 1px;
-  background: var(--border-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-faint);
 }
 
-.pg__density-b,
+.pg__zoom-icon {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.pg__zoom-icon--near {
+  font-size: 0.85rem;
+}
+
+/*
+ * The discoverable form of a gesture.
+ *
+ * Deliberately quiet and deliberately narrow: pinch and ⌘-scroll on the wall
+ * are the real controls, and a wide prominent slider would read as the primary
+ * way to do this rather than the reminder that it can be done.
+ */
+.pg__zoom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 6.5rem;
+  block-size: 2px;
+  border-radius: 1px;
+  background: var(--border);
+  cursor: ew-resize;
+}
+
+.pg__zoom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 11px;
+  block-size: 11px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: ew-resize;
+  transition: background-color var(--transition);
+}
+
+.pg__zoom-range::-moz-range-thumb {
+  inline-size: 11px;
+  block-size: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: ew-resize;
+}
+
+.pg__zoom-range:hover::-webkit-slider-thumb,
+.pg__zoom-range:focus-visible::-webkit-slider-thumb {
+  background: var(--accent);
+}
+
+.pg__zoom-range:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 6px;
+}
+
 .pg__somewhere,
 .pg__chip,
 .pg__clear {
@@ -131,19 +184,6 @@ button.pg__sense-q:hover {
   cursor: pointer;
   transition: color var(--transition), background-color var(--transition),
     border-color var(--transition);
-}
-
-.pg__density-b {
-  padding: 0.34rem 0.7rem;
-}
-
-.pg__density-b:hover {
-  color: var(--text-bright);
-}
-
-.pg__density-b[data-on='true'] {
-  background: var(--bg-elevated);
-  color: var(--text-bright);
 }
 
 .pg__somewhere {

@@ -9,7 +9,7 @@ import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
 import { Spread } from './Spread'
-import { DENSITY, DENSITY_ORDER } from './density'
+import { clampZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
 import {
   buildSubjectIndex,
   matchSubject,
@@ -73,7 +73,8 @@ export function PagesView({
   const [draft, setDraft] = useState('')
   const [month, setMonth] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const density = settings.pagesDensity
+  const zoom = settings.pagesZoom
+  const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
 
   // Concordance chips are a convenience, not a requirement: the surface is fully
   // usable offline with typed words, so a failed read is silence, not an error.
@@ -260,21 +261,38 @@ export function PagesView({
           ) : null}
 
           <div className="pg__controls">
-            <div className="pg__density" role="group" aria-label="How close you're standing">
-              {DENSITY_ORDER.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className="pg__density-b"
-                  data-on={density === d ? 'true' : undefined}
-                  aria-pressed={density === d}
-                  title={DENSITY[d].hint}
-                  onClick={() => updateSettings({ pagesDensity: d })}
-                >
-                  {DENSITY[d].label}
-                </button>
-              ))}
-            </div>
+            {/*
+              One continuous move, not three named stops.
+              Wall / Shelf / Open were three samples of the same act, and naming
+              them made you pick a mode instead of simply standing closer. The
+              slider is the discoverable form of the gesture — pinch and
+              ⌘-scroll on the wall itself do the same thing.
+            */}
+            <label className="pg__zoom">
+              <span className="pg__zoom-icon" aria-hidden>▪</span>
+              <input
+                type="range"
+                className="pg__zoom-range"
+                min={ZOOM_MIN}
+                max={ZOOM_MAX}
+                step={0.01}
+                value={zoom}
+                aria-label="How close you're standing to the wall"
+                onChange={(e) => setZoom(Number(e.target.value))}
+                onKeyDown={(e) => {
+                  // The native range step is 0.01 — a hundred presses end to
+                  // end. Arrow keys take the same notch the ⌘= shortcut does.
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    setZoom(zoom + ZOOM_STEP)
+                  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    setZoom(zoom - ZOOM_STEP)
+                  }
+                }}
+              />
+              <span className="pg__zoom-icon pg__zoom-icon--near" aria-hidden>▬</span>
+            </label>
             <button type="button" className="pg__somewhere" onClick={openSomewhere}>
               Open somewhere
             </button>
@@ -372,7 +390,8 @@ export function PagesView({
       ) : (
         <PageWall
           entries={wallEntries}
-          density={density}
+          zoom={zoom}
+          onZoom={setZoom}
           markQuotes={markQuotes}
           lit={lit}
           activeId={activeId}

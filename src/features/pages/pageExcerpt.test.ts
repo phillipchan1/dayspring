@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pageExcerpt, pageFill } from './pageExcerpt'
+import { EXCERPT_MAX_LINES } from './zoom'
 
 const entry = (body: string) => ({
   id: 'e1',
@@ -81,19 +82,29 @@ describe('pageExcerpt', () => {
     expect(x.lines.map((l) => l.text)).toEqual(['Real writing here'])
   })
 
-  it('reports truncation and counts the whole entry, not the excerpt', () => {
+  // `total` and `chars` describe the ENTRY; `lines` is only what was kept. That
+  // separation is what lets a card slice the excerpt for its own zoom level and
+  // still know whether it stopped short.
+  it('counts the whole entry, not the excerpt it kept', () => {
     const body = Array.from({ length: 20 }, (_, i) => `line number ${i} of the entry`).join('\n\n')
     const x = pageExcerpt(entry(body), [], 3)
     expect(x.lines).toHaveLength(3)
-    expect(x.truncated).toBe(true)
+    expect(x.total).toBe(20)
     expect(x.chars).toBeGreaterThan(x.lines.reduce((n, l) => n + l.text.length, 0))
+  })
+
+  it('builds to the shared ceiling by default, so any zoom level can slice it', () => {
+    const body = Array.from({ length: 40 }, (_, i) => `line number ${i} of the entry`).join('\n\n')
+    const x = pageExcerpt(entry(body))
+    expect(x.lines).toHaveLength(EXCERPT_MAX_LINES)
+    expect(x.total).toBe(40)
   })
 
   it('is empty for an empty body', () => {
     const x = pageExcerpt(entry(''))
     expect(x.lines).toEqual([])
     expect(x.chars).toBe(0)
-    expect(x.truncated).toBe(false)
+    expect(x.total).toBe(0)
   })
 })
 

@@ -44,6 +44,7 @@ const noop = () => {}
 
 /** What the wall needs from the shell to browse, edit, rename and delete. */
 const wallActions = {
+  onZoom: noop,
   onOpen: noop,
   onEdit: noop,
   onMenuAction: noop,
@@ -57,7 +58,7 @@ describe('PageWall', () => {
     const html = renderToString(
       createElement(PageWall, {
         entries,
-        density: 'shelf' as const,
+        zoom: 0.45,
         markQuotes: new Map(),
         lit: null,
         activeId: null,
@@ -75,7 +76,7 @@ describe('PageWall', () => {
     const html = renderToString(
       createElement(PageWall, {
         entries: [hit, miss],
-        density: 'wall' as const,
+        zoom: 0,
         markQuotes: new Map(),
         lit: new Set([hit.id]),
         activeId: null,
@@ -92,7 +93,7 @@ describe('PageWall', () => {
     const html = renderToString(
       createElement(PageWall, {
         entries: [entry('')],
-        density: 'shelf' as const,
+        zoom: 0.45,
         markQuotes: new Map(),
         lit: null,
         activeId: null,

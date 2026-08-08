@@ -17,7 +17,7 @@ import '@/features/ascent/Ascent.css'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { AltarView } from '@/features/altar/AltarView'
 import { PagesView } from '@/features/pages/PagesView'
-import { settingsStore } from '@/lib/settings'
+import { useSettings } from '@/hooks/useSettings'
 import { Editor } from '@/editor/Editor'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
@@ -163,22 +163,7 @@ export function renderSurface(shot: Shot) {
       return (
         <Canvas>
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <PagesView
-              entries={MOCK_ENTRIES}
-              marks={[]}
-              ready
-              activeId={null}
-              subjectKey={null}
-              onSubject={noop}
-              spreadId={null}
-              onSpread={noop}
-              onOpenEntry={noop}
-              onEntryMenuAction={noop}
-              onDeleteEntries={noop}
-              single={false}
-              settings={settingsStore.get()}
-              updateSettings={noop}
-            />
+            <PagesShot />
           </div>
         </Canvas>
       )
@@ -190,4 +175,33 @@ export function renderSurface(shot: Shot) {
       // inserts them.
       return <EditorSnippet doc={MOCK_DOC} toolbar />
   }
+}
+
+/**
+ * The wall, wired to the real settings store.
+ *
+ * Live rather than a frozen snapshot so the zoom actually moves here — a
+ * controlled slider handed `updateSettings: noop` renders but cannot be used,
+ * which makes the shot a worse test of the surface than it looks.
+ */
+function PagesShot() {
+  const { settings, update } = useSettings()
+  return (
+    <PagesView
+      entries={MOCK_ENTRIES}
+      marks={[]}
+      ready
+      activeId={null}
+      subjectKey={null}
+      onSubject={noop}
+      spreadId={null}
+      onSpread={noop}
+      onOpenEntry={noop}
+      onEntryMenuAction={noop}
+      onDeleteEntries={noop}
+      single={false}
+      settings={settings}
+      updateSettings={update}
+    />
+  )
 }

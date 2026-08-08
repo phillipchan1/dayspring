@@ -8,6 +8,7 @@
 
 import { entryContentLines } from '@/lib/entryLabels'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
+import { EXCERPT_MAX_LINES } from './zoom'
 import { passageKey, passagesForEntry } from '@/lib/remember'
 import type { Entry } from '@/lib/types'
 
@@ -19,11 +20,12 @@ export interface ExcerptLine {
 }
 
 export interface PageExcerpt {
+  /** At most `EXCERPT_MAX_LINES`. The card slices this to what it can show. */
   lines: ExcerptLine[]
   /** Prose characters in the WHOLE entry — drives how full the page reads. */
   chars: number
-  /** The excerpt stops short of the end, so the page fades out. */
-  truncated: boolean
+  /** Prose lines in the whole entry, so a card can tell whether it stopped short. */
+  total: number
 }
 
 type ExcerptEntry = Pick<Entry, 'id' | 'created_at' | 'body_markdown'>
@@ -80,14 +82,16 @@ function isSetApart(lineKey: string, keys: string[]): boolean {
 /**
  * Build a page's excerpt.
  *
- * @param maxLines  How many lines this density step can show. The entry's real
- *                  length is still reported in `chars`, so a page that shows
- *                  three lines of a long entry still reads as full.
+ * Built once at the largest budget any card can want, NOT at the current zoom
+ * level. The zoom is continuous, so a budget-keyed cache would rebuild every
+ * excerpt on every frame of a pinch; the card slices instead. The entry's real
+ * length is still reported in `chars`, so a page showing three lines of a long
+ * entry still reads as full.
  */
 export function pageExcerpt(
   entry: ExcerptEntry,
   markQuotes: string[] = [],
-  maxLines = 12,
+  maxLines = EXCERPT_MAX_LINES,
 ): PageExcerpt {
   const raw = entryContentLines(entry.body_markdown)
   const prose: string[] = []
@@ -104,7 +108,7 @@ export function pageExcerpt(
     set: isSetApart(passageKey(text), keys),
   }))
 
-  return { lines, chars, truncated: prose.length > maxLines }
+  return { lines, chars, total: prose.length }
 }
 
 /**
