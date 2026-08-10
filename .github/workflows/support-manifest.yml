@@ -73,7 +73,24 @@ jobs:
       - name: Generate the manifest
         run: npm run support:manifest -- --channel ${{ github.ref_name }} --out support-manifest.json
 
+      # Publishing needs a token with contents:write on dayspring-site. Without
+      # it, generate and test but skip the push, rather than failing every build
+      # on master until someone adds a secret. The drift guard above still runs,
+      # which is the part that catches real problems.
+      - name: Can we publish?
+        id: gate
+        env:
+          TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::notice title=Manifest not published::SITE_REPO_TOKEN is not set, so the help site was not updated. The manifest generated and passed its tests. Add the secret to enable publishing."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out the help site
+        if: steps.gate.outputs.publish == 'true'
         uses: actions/checkout@v4
         with:
           repository: phillipchan1/dayspring-site
@@ -81,6 +98,7 @@ jobs:
           path: site
 
       - name: Copy it into place
+        if: steps.gate.outputs.publish == 'true'
         run: |
           set -euo pipefail
           if [ "${{ github.ref_name }}" = "stable" ]; then
@@ -93,6 +111,7 @@ jobs:
           echo "target=$target" >> "$GITHUB_ENV"
 
       - name: Commit and push if it changed
+        if: steps.gate.outputs.publish == 'true'
         working-directory: site
         run: |
           set -euo pipefail
