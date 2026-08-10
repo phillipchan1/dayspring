@@ -9,6 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription'
 import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
 import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
+import { HELP_URL, HELP_CONTACT_URL } from '@/lib/support'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
@@ -321,6 +322,36 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <dd>Private to you · synced</dd>
           </div>
         </dl>
+      </div>
+
+      {/* Help — opens the support site. Deliberately above Updates: someone in
+          Settings looking for an answer should meet this before a changelog. */}
+      <div className="settings-about__section">
+        <div className="settings-about__section-title">Help</div>
+        <div className="settings-about__group">
+          <div className="settings-about__row">
+            <span className="settings-field__label">Guides</span>
+            <a
+              className="btn btn--ghost"
+              href={HELP_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              How to use Dayspring
+            </a>
+          </div>
+          <div className="settings-about__row">
+            <span className="settings-field__label">Questions</span>
+            <a
+              className="btn btn--ghost"
+              href={HELP_CONTACT_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Get in touch
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Updates — desktop: update checker + history; web/iOS: history only

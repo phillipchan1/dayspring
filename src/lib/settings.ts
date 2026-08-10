@@ -109,6 +109,16 @@ const DEFAULTS: Settings = {
   shareUsage: true,
 }
 
+/**
+ * The defaults a fresh install gets, exported under a name that reads clearly
+ * at a call site.
+ *
+ * Note this is NOT the same as `migrateSettings({})` — a blob with no `v` is
+ * treated as version 1, so the v3 font bump applies and fontSize comes back
+ * 28 rather than 24. Anything that wants "what a new user sees" wants this.
+ */
+export const DEFAULT_SETTINGS: Settings = DEFAULTS
+
 const STORAGE_KEY = 'dayspring.settings.v1'
 
 type StoredSettings = Partial<Settings> & {

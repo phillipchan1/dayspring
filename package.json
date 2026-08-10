@@ -18,6 +18,7 @@
     "backfill:altar": "tsx scripts/altar-backfill.ts",
     "harvest:altar": "tsx scripts/altar-harvest.ts",
     "regen": "tsx scripts/regen.ts",
+    "support:manifest": "tsx scripts/export-support-manifest.ts",
     "eval:recognition": "tsx scripts/recognition-eval.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
