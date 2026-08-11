@@ -1831,12 +1831,13 @@ a {
   border-bottom: 1.5px solid var(--text-dim);
   transform: rotate(45deg) translateY(-2px);
 }
+/* Portaled to <body> and positioned via inline style (position/left/width/
+   top-or-bottom/max-height) from the trigger's rect — see WritingFontPicker.
+   That's what lets it escape .settings-main__body's overflow-y:auto and
+   .settings-modal's overflow:hidden instead of getting clipped by either. */
 .font-picker__menu {
-  position: absolute;
-  z-index: 10;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  z-index: 9010;
+  box-sizing: border-box;
   margin: 0;
   padding: 0.25rem;
   list-style: none;
@@ -1844,7 +1845,6 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
-  max-height: min(18rem, 50vh);
   overflow-y: auto;
 }
 .font-picker__option {
