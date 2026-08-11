@@ -28,6 +28,7 @@ import { installDropGuard } from './lib/dropGuard'
 import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
+import { initPostHog } from './lib/posthog'
 
 async function bootstrap() {
   // Dev-only App Store previews: render a surface standalone, with no auth and
@@ -61,6 +62,10 @@ async function bootstrap() {
 
   // Catch non-React errors (unhandled rejections, stray throws) and report them.
   installGlobalHandlers()
+
+  // Vendor for the anonymous usage events in lib/analytics.ts. No-ops without
+  // VITE_POSTHOG_KEY. Gated on Settings → About → "Share anonymous usage".
+  initPostHog()
 
   // Neutralize stray file drops so a photo dropped outside a dropzone can't make
   // the WebView navigate to the file and blow away the whole app.
