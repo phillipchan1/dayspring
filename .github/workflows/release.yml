@@ -168,6 +168,11 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
           VITE_RELEASE_CHANNEL: alpha
+          # Baked in at BUILD time. Desktop binaries are built here, not on
+          # Vercel, so a key set only in the Vercel dashboard leaves every
+          # shipped .dmg reporting nothing at all — silently, and for the whole
+          # life of that release. Must stay in release-stable.yml too.
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           # Updater signing (minisign) — unrelated to Apple code signing below.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

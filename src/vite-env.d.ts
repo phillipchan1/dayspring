@@ -12,6 +12,8 @@ interface ImportMetaEnv {
   readonly VITE_APPLE_IAP_ANNUAL_PRODUCT_ID?: string
   readonly VITE_ONBOARDING_REQUIRE_CARD?: string
   readonly VITE_BETA_FEEDBACK_ENABLED?: string
+  /** PostHog project API key. Absent → the usage transport never loads. */
+  readonly VITE_POSTHOG_KEY?: string
 }
 
 interface ImportMeta {

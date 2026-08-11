@@ -124,6 +124,10 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
+          # Baked in at BUILD time — see the note in release.yml. Beta users get
+          # this binary; if the key is missing here, the channel that actually
+          # has users is the one reporting nothing.
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

@@ -23,6 +23,7 @@ import {
   updateSubscriptionByAppleOriginalTxn,
   updateSubscriptionByUserId,
 } from '../_lib/updateSubscription.js'
+import { trackServerEvent, type ServerEvent, type SubjectRef } from '../_lib/posthog.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 
 /**
@@ -123,6 +124,7 @@ async function handleNotification(
   const token = state.appAccountToken ?? transaction.appAccountToken?.toLowerCase() ?? null
   if (token && (await profileExists(token))) {
     await updateSubscriptionByUserId(token, update)
+    reportUsage(type, state.productId, { by: 'owner', id: token })
     return
   }
 
@@ -131,7 +133,13 @@ async function handleNotification(
   // because this account has since moved to Stripe, and re-running the fallback
   // would only find the same row again.
   const outcome = await updateSubscriptionByAppleOriginalTxn(state.originalTransactionId, update)
-  if (outcome !== 'no-match') return
+  if (outcome !== 'no-match') {
+    reportUsage(type, state.productId, {
+      by: 'appleOriginalTxn',
+      id: state.originalTransactionId,
+    })
+    return
+  }
 
   // No owner yet. This is normal and benign: the notification beat the device's
   // /api/apple/verify call. That call re-reads the same state from Apple, so
@@ -140,6 +148,42 @@ async function handleNotification(
     `[apple webhook] ${type} for unclaimed subscription ${state.originalTransactionId} — ` +
       'awaiting device verification',
   )
+}
+
+/**
+ * Mirror the four lifecycle events Stripe reports, so the funnel reads the same
+ * on both stores. Only fired once a write has actually landed — an unclaimed
+ * subscription has no owner to attribute to, and guessing one would invent a
+ * person. Never throws; see api/_lib/posthog.ts.
+ *
+ * `interval` comes from the product id because Apple's notification carries no
+ * period. Our two ids are the monthly and annual subscriptions, so matching on
+ * "annual"/"year" is exact today and degrades to `unknown` — never to a wrong
+ * answer — if a third product is ever added.
+ */
+function reportUsage(
+  type: string,
+  productId: string | null | undefined,
+  ref: SubjectRef,
+): void {
+  const event = APPLE_USAGE_EVENT[type]
+  if (!event) return
+  const interval = productId
+    ? /annual|year/i.test(productId)
+      ? ('annual' as const)
+      : ('monthly' as const)
+    : ('unknown' as const)
+  trackServerEvent(ref, event, { store: 'apple', interval })
+}
+
+/** App Store Server Notification type → our vocabulary. Unlisted types are ignored. */
+const APPLE_USAGE_EVENT: Record<string, ServerEvent | undefined> = {
+  SUBSCRIBED: 'subscription_activated',
+  DID_RENEW: 'subscription_renewed',
+  EXPIRED: 'subscription_cancelled',
+  // Apple's billing retry: the equivalent of a Stripe failed invoice, not a
+  // cancellation. Rolling it into churn would blame the user for a card.
+  DID_FAIL_TO_RENEW: 'payment_failed',
 }
 
 /** Guard against writing a profile row for a token that isn't one of our users

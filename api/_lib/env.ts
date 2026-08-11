@@ -25,6 +25,12 @@ export const env = {
   // Crossway ESV API token (api.esv.org). Used to resolve verbatim verse text.
   esvApiKey: () => need('ESV_API_KEY'),
   cronSecret: () => need('CRON_SECRET'),
+  // Usage measurement, server side. Optional on purpose: a missing key skips
+  // the event, never fails the request that triggered it. Same project API key
+  // as VITE_POSTHOG_KEY, under a non-VITE name so it is never bundled into the
+  // client. See api/_lib/posthog.ts and docs/product/MEASUREMENT.md.
+  posthogKey: () => process.env.POSTHOG_KEY ?? null,
+  posthogHost: () => process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
   // Optional — if set, reminder notifications are sent via Resend.
   // If unset, the cron marks reminders fired but sends nothing.
   resendKey: () => process.env.RESEND_API_KEY ?? null,

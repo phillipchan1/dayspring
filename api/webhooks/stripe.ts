@@ -14,6 +14,7 @@ import {
   type WriteOutcome,
 } from '../_lib/updateSubscription.js'
 import type { Plan } from '../_lib/entitlement.js'
+import { trackServerEvent } from '../_lib/posthog.js'
 
 export async function POST(req: Request): Promise<Response> {
   const sig = req.headers.get('stripe-signature')
@@ -85,6 +86,28 @@ export function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
   return typeof sub === 'string' ? sub : sub.id
 }
 
+/**
+ * Billing cadence, inferred from how long a billed period lasts.
+ *
+ * Deliberately derived from the period rather than read off the price object.
+ * Stripe has moved `interval` twice in two API versions (onto items, then into
+ * `pricing`), and this file already carries scars from both; a span of days is
+ * a fact no API revision can relocate. 300 days is a wide moat — nothing bills
+ * on a cadence between "monthly" and "annual".
+ */
+function intervalFromPeriod(startSec?: number | null, endSec?: number | null) {
+  if (typeof startSec !== 'number' || typeof endSec !== 'number') return 'unknown' as const
+  const days = (endSec - startSec) / 86_400
+  if (days > 300) return 'annual' as const
+  if (days > 0) return 'monthly' as const
+  return 'unknown' as const
+}
+
+function subscriptionInterval(sub: Stripe.Subscription) {
+  const item = sub.items?.data?.[0]
+  return intervalFromPeriod(item?.current_period_start, item?.current_period_end)
+}
+
 function report(eventType: string, key: string, outcome: WriteOutcome): void {
   if (outcome === 'no-match') {
     // Usually a lifecycle event that overtook its own checkout.session.completed
@@ -125,6 +148,38 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         source: 'stripe',
       })
       report(event.type, `owner ${userId}`, outcome)
+
+      // Money moved. Under the default reverse-trial model the in-app 14-day
+      // trial has already run by the time Checkout completes, so an `active`
+      // subscription here IS a trial conversion — which is the number D-002 is
+      // waiting on, and the one PERSONAS P1 predicts differs by import branch.
+      // A `trialing` result means card-first Checkout started the trial instead;
+      // that isn't an activation yet, so it's left for the lifecycle event.
+      if (plan !== 'trialing') {
+        trackServerEvent({ by: 'owner', id: userId }, 'subscription_activated', {
+          store: 'stripe',
+          interval: sub ? subscriptionInterval(sub) : 'unknown',
+          from_trial: true,
+        })
+      }
+      break
+    }
+
+    case 'invoice.payment_succeeded': {
+      // Analytics only — no subscription write. `subscription_cycle` is the
+      // renewal reason; `subscription_create` is the first invoice, which
+      // checkout.session.completed has already reported as an activation.
+      // Counting both would double every new subscriber.
+      const invoice = event.data.object as Stripe.Invoice
+      if (invoice.billing_reason !== 'subscription_cycle') break
+      const customerId =
+        typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
+      if (!customerId) break
+      const line = invoice.lines?.data?.[0]
+      trackServerEvent({ by: 'stripeCustomer', id: customerId }, 'subscription_renewed', {
+        store: 'stripe',
+        interval: intervalFromPeriod(line?.period?.start, line?.period?.end),
+      })
       break
     }
 
@@ -173,6 +228,10 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         source: 'stripe',
       })
       report(event.type, `stripe customer ${customerId}`, outcome)
+      trackServerEvent({ by: 'stripeCustomer', id: customerId }, 'subscription_cancelled', {
+        store: 'stripe',
+        interval: subscriptionInterval(sub),
+      })
       break
     }
 
@@ -196,6 +255,14 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
         source: 'stripe',
       })
       report(event.type, `stripe customer ${customerId}`, outcome)
+      // Involuntary churn, which reads nothing like the deliberate kind and
+      // should never be totalled with it: this is a card that expired, not a
+      // person who left.
+      const line = invoice.lines?.data?.[0]
+      trackServerEvent({ by: 'stripeCustomer', id: customerId }, 'payment_failed', {
+        store: 'stripe',
+        interval: intervalFromPeriod(line?.period?.start, line?.period?.end),
+      })
       break
     }
 
