@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useProcessingJobs } from '@/hooks/useProcessingJobs'
 import { lightEmber } from './surfaceEmbers'
 import { track } from '@/lib/analytics'
+import { getAckedCompletion, setAckedCompletion } from '@/lib/profile'
 import './ProcessingBanner.css'
 
 /**
@@ -12,8 +13,10 @@ import './ProcessingBanner.css'
  *               signal is never lost while work runs; click the pill to re-expand).
  *  - COMPLETE → "All set 🎉" — a celebration that PERSISTS until dismissed, so a
  *               user who closed the app while it ran still learns it finished. The
- *               dismissal is remembered (localStorage, keyed to this completion)
- *               across restarts; a fresh import re-celebrates.
+ *               dismissal is remembered account-wide (profiles.acked_processing_completion),
+ *               so it stays dismissed on every device, not just this one; localStorage
+ *               is only a fast-path cache for instant paint. A fresh import (newer key)
+ *               re-celebrates.
  *  - IDLE     → nothing.
  *
  * See docs/PROCESSING_AND_ONBOARDING.md §7.
@@ -30,6 +33,28 @@ export function ProcessingBanner({ onSeeAscent }: { onSeeAscent?: () => void }) 
       return null
     }
   })
+
+  // Reconcile the local fast-path cache with the account's server-side record on
+  // mount, so a completion acked on one device stays acked everywhere else too.
+  useEffect(() => {
+    let alive = true
+    getAckedCompletion()
+      .then((remote) => {
+        if (!alive || !remote) return
+        setAcked((cur) => (cur === remote ? cur : remote))
+        try {
+          localStorage.setItem(ACK_KEY, remote)
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {
+        /* offline/unreachable — fall back to whatever the local cache had */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   // A finished backfill is the moment every Return surface first holds the
   // user's own material — light the one-time discovery embers (each is a no-op
@@ -96,6 +121,9 @@ export function ProcessingBanner({ onSeeAscent }: { onSeeAscent?: () => void }) 
         /* private mode — at worst it re-shows next load */
       }
       setAcked(completionKey)
+      void setAckedCompletion(completionKey).catch(() => {
+        /* best-effort — worst case it re-shows once on another device */
+      })
     }
     return (
       <div className="processing-banner processing-banner--done" role="status" aria-live="polite">
