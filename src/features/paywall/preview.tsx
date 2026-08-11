@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import { LockedScreen } from './LockedScreen'
 import { PaywallScreen } from './PaywallScreen'
+import { DEFAULT_DARK_THEME } from '@/lib/resolveTheme'
 import type { Subscription } from '@/lib/subscription'
 
 /**
@@ -34,8 +35,11 @@ export function renderPaywallPreview(variant: string): void {
   // The preview bypasses <App/>, which is what normally stamps the theme onto
   // <html> from the user's settings. Without this the surface renders on the
   // default light palette and looks nothing like the product.
+  // DEFAULT_DARK_THEME rather than a literal: this used to say 'dusk', which is
+  // not a theme the registry has ever had, so every variable defined in a
+  // [data-theme] block — --bg, --bg-input, --danger — resolved to nothing.
   const root = document.documentElement
-  root.setAttribute('data-theme', 'dusk')
+  root.setAttribute('data-theme', DEFAULT_DARK_THEME)
   root.setAttribute('data-appearance', 'dark')
   root.style.colorScheme = 'dark'
 
@@ -46,7 +50,12 @@ export function renderPaywallPreview(variant: string): void {
     variant === 'paywall' ? (
       <PaywallScreen />
     ) : (
-      <LockedScreen plan="cancelled" subscription={LAPSED_APPLE} onRefetch={() => {}} />
+      <LockedScreen
+        plan="cancelled"
+        subscription={LAPSED_APPLE}
+        userEmail="you@example.com"
+        onRefetch={() => {}}
+      />
     ),
   )
 }

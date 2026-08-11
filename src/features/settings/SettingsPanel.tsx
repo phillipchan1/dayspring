@@ -23,6 +23,7 @@ import {
 } from '@/lib/appleIap'
 import { displayPrice } from '@/features/paywall/prices'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
+import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
 import { ThemePicker } from './ThemePicker'
@@ -290,6 +291,10 @@ function ShortcutsTab() {
 function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onClose: () => void; featureFlags: string[] }) {
   const { replay } = useWelcome()
   const { settings, update } = useSettings()
+  // Only for the delete flow, which has to warn an App Store subscriber before
+  // they get as far as typing. Safe to read here: the Billing tab holds the
+  // other instance and the two tabs are never mounted at once.
+  const { subscription } = useSubscription()
   const [showConcordance, setShowConcordance] = useState(false)
   return (
     <div className="settings-about">
@@ -398,6 +403,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
           Reset all settings to defaults
         </button>
+        <DeleteAccountFlow userEmail={userEmail} subscription={subscription} />
       </div>
     </div>
   )

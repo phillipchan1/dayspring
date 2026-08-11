@@ -208,6 +208,7 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
         canExtend={
           subscription?.plan === 'trialing' && !subscription.featureFlags.includes('trial_extended')
         }
+        userEmail={userEmail}
         onRefetch={refetch}
       />
     )

@@ -26,6 +26,24 @@ export function isAppleManaged(sub: Subscription | null): boolean {
   return sub.plan !== 'none'
 }
 
+/**
+ * True when the App Store might still take money from this account.
+ *
+ * The guard account deletion needs: Apple has no server-side cancel, so if we
+ * delete the profile row while a subscription is still set to renew, the charge
+ * that lands next month is one nobody here can stop or even see.
+ *
+ * The line is at `cancelled`, not at entitlement, and the difference is
+ * `past_due` — Apple's BILLING_RETRY means the card failed and Apple is *still
+ * retrying it*, for up to 60 days. Not entitled, but very much still Apple's
+ * customer. Mirrors appleMayStillCharge() in api/_lib/entitlement.ts; the server
+ * is the real authority, and this is the same fact in time to act on it.
+ */
+export function appleMayStillCharge(sub: Subscription | null): boolean {
+  if (sub?.plan_source !== 'apple') return false
+  return sub.plan === 'active' || sub.plan === 'trialing' || sub.plan === 'past_due'
+}
+
 export function isEntitled(sub: Subscription | null): boolean {
   if (!sub) return false
   if (sub.plan === 'active') return true
