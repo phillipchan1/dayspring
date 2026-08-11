@@ -51,6 +51,25 @@ const dimTheme = EditorView.theme({
   // brings it back to full so it stays readable on demand.
   '.cm-spiritual-block': { opacity: '0.28' },
   '.cm-spiritual-block:hover': { opacity: '1' },
+
+  // Ritual scaffolding is block widgets too, and left alone it produced the
+  // exact inversion focus mode exists to prevent: the writer's own answers faded
+  // to 0.28 while every question the app had asked stayed at full strength.
+  //
+  // A ritual's prompts sit between line boxes, so they can only be reached
+  // through their neighbours. The blank stub CodeMirror renders for the replaced
+  // token line carries `.cm-dim` for that line, and two siblings on from the
+  // prompt is the answer it introduces — so "dim, unless the section I'm writing
+  // in is the live one" is expressible without any extra state. If `:has` is
+  // ever unavailable the whole selector is dropped and prompts simply stay lit,
+  // which is where this started.
+  '.cm-practice-prompt, .cm-practice-header': { transition: 'opacity 160ms ease' },
+  '.cm-line.cm-dim + .cm-practice-header': { opacity: '0.28' },
+  '.cm-line.cm-dim + .cm-practice-prompt:not(:has(+ .cm-line + .cm-line:not(.cm-dim)))': {
+    opacity: '0.28',
+  },
+  // Readable on demand, the same bargain the spiritual blocks strike.
+  '.cm-practice-prompt:hover, .cm-practice-header:hover': { opacity: '1' },
 })
 
 const dimPlugin = ViewPlugin.fromClass(
