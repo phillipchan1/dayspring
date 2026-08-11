@@ -2590,6 +2590,111 @@ html[data-focus-mode] .focus-controls {
   margin-top: 0.6rem;
 }
 
+/* Deleting the account. Lives inline like the sign-out confirm rather than in a
+   modal, but earns more room: there is a backup to take and, for an App Store
+   subscriber, something they have to go and do elsewhere first. Rendered both
+   in the danger zone and on the locked screen, so it carries its own frame. */
+.delete-account {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  text-align: left;
+}
+.delete-account__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+.delete-account__body,
+.delete-account__notice p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.settings-about__danger .delete-account__backup {
+  width: auto;
+  text-align: center;
+  align-self: flex-start;
+  padding: 0.3rem 0.9rem;
+  min-height: 40px;
+  border-color: var(--border-subtle);
+}
+/* The one thing on this panel that isn't about us: a subscription we cannot
+   cancel on their behalf. Bordered so it reads as a precondition, not prose. */
+.delete-account__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--danger);
+  border-radius: var(--radius);
+}
+.settings-about__danger .delete-account__notice .btn {
+  width: auto;
+  min-height: 40px;
+  padding: 0.3rem 0.9rem;
+  text-align: center;
+}
+.delete-account__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.delete-account__label {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+.delete-account__input {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  color: var(--text-bright);
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+.delete-account__input:focus {
+  outline: none;
+  border-color: var(--danger);
+}
+.delete-account__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.settings-about__danger .delete-account__actions .btn {
+  display: inline-block;
+  width: auto;
+  min-height: 40px;
+  padding: 0.3rem 0.9rem;
+  text-align: center;
+}
+.delete-account__error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--danger);
+}
+/* `.locked-screen .btn` paints every button on that screen with the subscribe
+   gradient, and outranks `.btn--danger`. Left alone, "Delete my account" would
+   look exactly like "Continue — $69.99 / year". */
+.locked-screen .delete-account .btn--danger,
+.paywall .delete-account .btn--danger {
+  background-image: none;
+  background-color: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
 /* ════════════════════════════════════════════════════════════════════════ */
 /* Import                                                                    */
 /* ════════════════════════════════════════════════════════════════════════ */

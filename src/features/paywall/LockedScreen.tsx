@@ -24,6 +24,7 @@ import {
   restoreApplePurchases,
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
+import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
 import './Paywall.css'
@@ -34,10 +35,18 @@ interface Props {
   subscription?: Subscription | null
   /** True only while a one-time extension is still available (trialing, unused). */
   canExtend?: boolean
+  /** Signed-in account, named back to the user in the delete confirmation. */
+  userEmail?: string
   onRefetch: () => void
 }
 
-export function LockedScreen({ plan, subscription = null, canExtend = false, onRefetch }: Props) {
+export function LockedScreen({
+  plan,
+  subscription = null,
+  canExtend = false,
+  userEmail = '',
+  onRefetch,
+}: Props) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** Non-failure feedback — e.g. "we found your old subscription, it expired". */
@@ -347,6 +356,10 @@ export function LockedScreen({ plan, subscription = null, canExtend = false, onR
           <button type="button" className="locked-soft__link" onClick={() => setAskOpen((o) => !o)}>
             Questions?
           </button>
+          {/* This screen replaces the whole app while a subscription is lapsed,
+              Settings included — so without this the one person most likely to
+              want out would be the one who couldn't reach the button. */}
+          <DeleteAccountFlow userEmail={userEmail} subscription={subscription} variant="link" />
         </div>
 
         {askOpen && <AskPhil onClose={() => setAskOpen(false)} />}

@@ -36,6 +36,7 @@ on:
       - "src/features/flags.tsx"
       - "src/features/paywall/prices.ts"
       - "src/features/capture/PageScanCapture.tsx"
+      - "api/account/delete.ts"
       - "api/profile/ensure.ts"
       - "api/trial/extend.ts"
       - "scripts/export-support-manifest.ts"

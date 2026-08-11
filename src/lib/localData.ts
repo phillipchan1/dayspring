@@ -98,3 +98,16 @@ export async function purgeOnSignOut(): Promise<void> {
     /* ignore */
   }
 }
+
+/**
+ * After the account itself has been deleted: scrub everything, flags included.
+ *
+ * Sign-out deliberately keeps the owner-scoped flags — same person, same
+ * browser, no reason to make them sit through the welcome again. Account
+ * deletion has no same person to come back, and "your journal is gone" has to
+ * be true of this device too, down to the cached plan and the settings.
+ */
+export async function purgeAfterAccountDeletion(): Promise<void> {
+  await purgeOnSignOut()
+  purgeFlags()
+}

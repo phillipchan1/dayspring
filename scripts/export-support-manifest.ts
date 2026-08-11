@@ -341,6 +341,7 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
       { id: 'capability.import', label: 'Importing another journal', impl: 'src/lib/import/sources.ts' },
       { id: 'capability.sign-in', label: 'Sign in with Apple or Google', impl: 'src/lib/auth.ts' },
       { id: 'capability.billing', label: 'Subscription and billing', impl: 'src/lib/subscription.ts' },
+      { id: 'capability.account-deletion', label: 'Deleting your account', impl: 'api/account/delete.ts' },
       { id: 'capability.apple-iap', label: 'Buying through the App Store', impl: 'src/lib/appleIap.ts' },
       { id: 'capability.find-ask', label: 'Find and Ask', impl: 'src/lib/ask.ts' },
       { id: 'capability.ascent', label: 'The Ascent', impl: 'src/features/ascent/AscentView.tsx' },

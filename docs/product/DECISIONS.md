@@ -23,6 +23,24 @@ agenda.
 
 ---
 
+## D-021 — Account deletion refuses rather than leave someone billed
+**2026-08-10** · **Status:** Decided
+**Decision:** deleting an account cancels any Stripe subscription first, and is
+**refused** while the App Store is still set to renew — with the App Store pointed at,
+and the reason said plainly. The gate reads Apple's live `autoRenewStatus`, not our
+`plan`, so someone who cancelled an annual plan yesterday can delete today rather than
+in eleven months.
+**Why:** Guideline 5.1.1(v) forced the feature; the shape of it is ours. Once the
+profile row is gone we hold no handle on either store, so a charge after deletion is
+one nobody at Dayspring can stop or even see. Refusing is worse product for ten
+seconds; the alternative is worse for a year, silently, and costs the user money.
+**What would change our mind:** Apple shipping a server-side cancel. Then the refusal
+has no excuse and both stores get cancelled on the way out.
+**Cost accepted:** an App Store subscriber makes two trips, and we carry a live Apple
+API call on a path that would otherwise be pure database work — which means deletion
+can fail for a reason that isn't the user's fault. We block on "we don't know" anyway:
+uncertainty about somebody's money resolves in their favour, not ours.
+
 ## D-008 — Product docs live in the repo, not Notion
 **2026-07-26** · **Status:** Decided
 **Decision:** `docs/product/` is the product source of truth. Notion holds anything a

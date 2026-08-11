@@ -148,11 +148,37 @@ handler may trust the sequence it sees.
   guard cannot help there because the source matches. Falls back to the event
   body if the re-read fails.
 
+## Deleting an account
+
+Full write-up in `docs/ACCOUNT_DELETION.md`; the part that belongs here is the
+rule it turns on. **An account is never destroyed while a store can still bill
+it** — once `profiles` is gone, so are `stripe_customer_id` and
+`apple_original_txn`, and nobody can stop the next charge or even see it happen.
+
+So `DELETE /api/account/delete` cancels Stripe itself, and refuses outright for
+Apple. That asymmetry is Apple's: the App Store Server API has no cancellation
+call, only the subscriber can cancel.
+
+The Apple gate is the one piece of routing that is genuinely new here, and it is
+**auto-renew, not `plan`**. `appleMayStillCharge()` stays true for an `active`
+row until the paid period ends, so gating on it would refuse an annual subscriber
+deletion for up to a year — which Guideline 5.1.1(v) would read as no deletion at
+all. `appleWillRenew()` in `api/_lib/apple.ts` reads `autoRenewStatus` live from
+`getAllSubscriptionStatuses`; `true` blocks, `false` passes, `null` blocks with a
+retry. This is also the practical answer to known gap 2 below for the one case
+where being wrong costs money rather than clarity.
+
+One thing to hold onto when touching either store's code: the Stripe sweep is
+keyed to `stripe_customer_id` existing, **not** to `plan_source === 'stripe'`.
+The cross-store guard is exactly what makes a row read `apple` while an older
+Stripe subscription is still live.
+
 ## Tests
 
 | File | Covers |
 |---|---|
 | `src/lib/subscription.test.ts` | Entitlement, grace boundaries, routing, cache |
+| `api/account/delete.test.ts` | Who may be deleted, and whose card must be stopped first |
 | `api/_lib/updateSubscription.test.ts` | The cross-store guard, both directions |
 | `api/_lib/entitlementParity.test.ts` | Client and server agree across all 2,835 states |
 | `api/_lib/subscriptionJourneys.test.ts` | Event sequences end-to-end + the no-dead-end sweep |

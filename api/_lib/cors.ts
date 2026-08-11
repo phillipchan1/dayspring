@@ -15,7 +15,7 @@ export function corsHeaders(req: Request): HeadersInit {
   if (!origin || !isAllowedOrigin(origin)) return {}
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   }
 }

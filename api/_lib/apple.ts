@@ -17,6 +17,7 @@
 
 import {
   AppStoreServerAPIClient,
+  AutoRenewStatus,
   Environment,
   OfferDiscountType,
   SignedDataVerifier,
@@ -152,6 +153,15 @@ export interface AppleSubscriptionState {
   expiresAt: string | null
   /** Only set when Apple is running a free introductory offer. */
   trialEndsAt: string | null
+  /**
+   * Will Apple charge this subscription again? `null` when Apple didn't say.
+   *
+   * This is a different question from `plan`, and account deletion is where the
+   * difference bites: auto-renew goes off the moment the user cancels, but the
+   * subscription stays ACTIVE until the paid period ends — up to a year for an
+   * annual plan. See docs/ACCOUNT_DELETION.md.
+   */
+  willRenew: boolean | null
   environment: Environment
 }
 
@@ -202,8 +212,61 @@ export async function resolveAppleSubscription(
     appAccountToken: normaliseAccountToken(txn, best?.renewal),
     expiresAt: msToIso(txn?.expiresDate),
     trialEndsAt: isFreeTrial(txn) ? msToIso(txn?.expiresDate) : null,
+    willRenew: willRenew(best?.status, best?.renewal),
     environment,
   }
+}
+
+/**
+ * Will Apple take money for this subscription again?
+ *
+ * `null` means we could not tell, and callers must treat that as "assume it
+ * might" — never as "no". A missing renewal record on a subscription Apple has
+ * already ended is the one safe inference: EXPIRED and REVOKED are terminal.
+ */
+function willRenew(
+  status: Status | undefined,
+  renewal: JWSRenewalInfoDecodedPayload | null | undefined,
+): boolean | null {
+  if (renewal?.autoRenewStatus != null) return renewal.autoRenewStatus === AutoRenewStatus.ON
+  if (status === Status.EXPIRED || status === Status.REVOKED) return false
+  return null
+}
+
+/**
+ * Ask Apple whether this subscription is still set to renew.
+ *
+ * Used by account deletion, which must not destroy an account while the App
+ * Store is still billing it — Apple has no server-side cancel, so the only
+ * honest gate is the user's own auto-renew setting, read live.
+ *
+ * `recorded` is what we think the environment is (`profiles.apple_environment`);
+ * we try it first and then the other one, because a row written before the
+ * column existed carries nothing. Returns `null` on any failure to find out —
+ * "we don't know" and "it won't renew" must never collapse into one answer.
+ */
+export async function appleWillRenew(
+  originalTransactionId: string,
+  recorded: Environment | null,
+): Promise<boolean | null> {
+  const order = recorded ? [recorded, ...ENVIRONMENTS.filter((e) => e !== recorded)] : ENVIRONMENTS
+  for (const environment of order) {
+    try {
+      const state = await resolveAppleSubscription(originalTransactionId, environment)
+      if (state) return state.willRenew
+    } catch {
+      // Wrong environment, or Apple is unreachable. Try the next one; if none
+      // answers we fall through to null and the caller blocks.
+    }
+  }
+  return null
+}
+
+/** `profiles.apple_environment` → the library's enum, or null if unrecorded. */
+export function appleEnvironmentFrom(value: string | null | undefined): Environment | null {
+  if (value === 'Production') return Environment.PRODUCTION
+  if (value === 'Sandbox') return Environment.SANDBOX
+  return null
 }
 
 /**
