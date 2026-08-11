@@ -34,7 +34,7 @@ did. Every altar and pile of stones in the Old Testament is a countermeasure aga
 this exact enemy.
 
 Naming forgetting as the villain also explains the product's own vocabulary: the
-Covenant sky, cairns, remembrance. The features *are* the counterattack.
+Altar, cairns, remembrance. The features *are* the counterattack.
 
 **External problem** *(what's tangibly wrong)*
 My journal entries disappear into a pile I never read again. Years of writing, and I

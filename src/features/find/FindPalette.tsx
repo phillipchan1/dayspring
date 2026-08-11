@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void
   /** Jump to an entry — Find is transit; the palette closes behind you. */
   onOpenEntry: (entryId: string) => void
-  /** Escalate to the Well. Slow, costs a call, only ever on Return. */
+  /** Escalate to Ask. Slow, costs a call, only ever on Return. */
   onAsk: (question: string) => void
   /** Seeds the field (e.g. the word under the cursor). */
   initialQuery?: string
@@ -38,7 +38,8 @@ function formatDate(iso: string): string {
  *
  * Typing runs Find: local substring search over the whole cached corpus, on every
  * keystroke, no network. Pressing Return on a question runs Ask, which leaves for
- * the server and lands in the Well. Nothing here is a mode the writer sets — the
+ * the server and comes back as a lit wall on Entries — the answer is the set of
+ * pages it found, shown as a removable chip. Nothing here is a mode the writer sets — the
  * verb is guessed from what was typed and can always be overridden (Tab, or the
  * button), and an empty result set offers Ask by itself.
  */

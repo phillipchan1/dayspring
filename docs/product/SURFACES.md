@@ -15,6 +15,27 @@ A surface that can't answer 1 and 2 is either unfinished or shouldn't exist.
 
 ---
 
+## Notion mirrors
+
+Per **D-008** this file is the source of truth, but a handful of Notion pages restate
+parts of it for people reading without a checkout. They rot the moment a surface
+changes, so **when you edit this file, check them**:
+
+| This doc's section | Notion page |
+|---|---|
+| The whole surface list | 📖 Product Overview |
+| Altar | 🔥 Altar — Seeds Planted in Time |
+| Lamp | 📖 Scripture — Where Your Heart Leans |
+| Threads & Ropes (flagged) | 🪢 Threads & Ropes + 🛠️ Build Prompt Log |
+| Paywall / trial | 💸 Going Public: Pricing & Privacy |
+| Promises, in customer words | 📄 Website Copy · 📣 Marketing Methodology & Brand |
+
+Reconciled **2026-08-11** against `support-manifest.json` (v1.0.232). Anything
+countable — shortcuts, practices, themes, importers, prices, limits — belongs to
+that generated file, never to a hand-typed list here or there.
+
+---
+
 ## The organizing structure
 
 The rail splits into **Write** and **Return** — and that split is the product's whole
@@ -156,7 +177,9 @@ relocated. **If a future surface reads `spiritual_items`, that filter has to com
 |---|---|---|
 | **Concordance** (`features/concordance/`) | Engine on and populating silently; drawer flag OFF (`VITE_FF_CONCORDANCE`) | **Correctly invisible.** It's infrastructure for P6 — learns names and spellings, never moods. It's what lets the app speak the user's vocabulary instead of a generic evangelical register. Also powers voice-dictation biasing. Keep the UI off unless users ask to curate. |
 | **Threads & Ropes** (`features/threads/`) | Flag OFF (`VITE_FF_THREADS_ROPES`), `data/` fixtures only, no shipped UI | **Needs a decision.** Built to P0–P1 on mocks, then parked. Either wire it to real data or delete it — a half-built flagged surface is carrying cost with no user. → D-005. |
-| **Reflect** (`features/reflect/`) | Single dir, superseded by Ascent | **Probable dead code.** Ascent replaced the old reflections UI. Verify and remove. |
+| **Reflect** (`features/reflect/`) | Single dir, superseded by Ascent | **Probable dead code.** Ascent replaced the old reflections UI. Verify and remove. `Reflect.css` already has no importer anywhere in `src/`. |
+| **Reminders** (`lib/reminders.ts`, `api/cron/remind.ts`) | **Built end-to-end, unreachable.** Table, client lib with all four 1w/1m/3m/1y horizons, daily 09:00 UTC cron and the notification path all exist — but `src/lib/reminders.ts` has **zero importers**, so nothing in the UI can create one. The cron runs against a table no user can write to. | **Finish it or delete it — don't leave it running.** The missing piece is small: the specced `/remind` command, which never made the slash palette. Worth checking against Principle 2 first: a reminder that returns your *own words* ("you wrote this on X — does it still feel true?") is invitational and fine; anything that nags about *writing* is a streak in disguise. Note this is the surface D-004 ("is there an invitational answer to consistency?") would most likely land on. |
+| **Echoes** (`api/cron/echoes.ts`, `lib/echoes.ts`) | ✅ Live — Mondays 10:00 UTC, reads rollup summaries only, verbatim-gated, returns nothing on a weak match | Healthy, and a good model for the above: system-initiated, silent by default, never asks the user to do anything. |
 
 ---
 

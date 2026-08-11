@@ -45,9 +45,10 @@ the wedge. The wedge is that we're the only one that gives your archive back to 
 | **ChatGPT as journal** | Free, conversational, already open. | No persistence you trust, no dated spine, no grounding, and it *will* make things up about your life. | Grounding as the differentiator — **we structurally cannot invent your past** (H3). |
 | **Not journaling at all** | Costs nothing. **The real default and our largest competitor.** | Nothing accumulates. | This is a P2 problem, and it's the hardest one. |
 
-**Where we lose today, honestly:** no iOS app shipped (Day One's biggest moat is being
-in your pocket at 11pm), single-developer trust profile for the most sensitive data a
-person owns, and a value proposition that takes months to prove.
+**Where we lose today, honestly:** single-developer trust profile for the most
+sensitive data a person owns, and a value proposition that takes months to prove.
+*(iOS shipped — Tauri 2, App Store name "Dayspring Journal" — so Day One's
+in-your-pocket-at-11pm moat is no longer uncontested. Updated 2026-08-11.)*
 
 ---
 

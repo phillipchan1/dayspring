@@ -13,10 +13,12 @@ Overriding one is allowed, but it requires a row in `DECISIONS.md` saying so out
 
 Dayspring illuminates what happened. It never grades how you're doing.
 
-The Covenant sky already encodes this: a star's brightness is **recency**, its halo is
-**span**. There is deliberately no vertical axis, because a vertical axis would imply
-*better* and *worse*, and the app has no business making that call about a person's
-walk with God.
+The Altar already encodes this: a cairn's **heft** is how often a matter has been
+brought, its **span** is how long it's been carried, and light means *God met you
+here* — never *you did well here*. There is deliberately no vertical axis, because a
+vertical axis would imply *better* and *worse*, and the app has no business making
+that call about a person's walk with God. *(That no-vertical-valence rule is the one
+thing that survived the abandoned Covenant/Sky redesign — see D-009.)*
 
 **Forbids:** scores, grades, "spiritual health" metrics, progress bars against a
 notion of maturity, any ranking of entries or seasons by quality, sentiment badges.

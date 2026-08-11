@@ -19,7 +19,7 @@ Dayspring does that none of them do is **read your life back to you**.
 
 ## What Dayspring is
 
-A journal for practicing Christians, on Mac and the web, that:
+A journal for practicing Christians, on Mac, iPhone and the web, that:
 
 1. **Is genuinely good to write in.** Markdown-first, near-zero input latency, focus
    mode with typewriter scrolling and paragraph dimming, themeable down to the font.
@@ -28,9 +28,11 @@ A journal for practicing Christians, on Mac and the web, that:
    synthesis — grounded in your own words, never invented. The value compounds as the
    window widens; the year-in-review is the payoff.
 3. **Surfaces the shape of a life with God** through purpose-built views: the Ascent
-   (elevation over time), the Covenant sky (matters carried, and the light on them),
-   Scripture (the canon as it has actually intersected your life), the Concordance
+   (elevation over time), the Altar (matters carried, and the light on them), the Lamp
+   (the canon as it has actually intersected your life), the Concordance
    (your own vocabulary, learned).
+4. **Hands the archive back unread.** Entries — the Pages wall — is the one surface
+   that interprets nothing: your own pages, side by side, filtered by what *you* marked.
 
 ## What Dayspring is not
 
@@ -116,9 +118,9 @@ So there are two coherent products here:
   much larger ceiling, needs a far simpler front door and competes for attention
   with YouVersion.
 
-The reflection surfaces you have already built — the Ascent, the Covenant sky — are
-**B features**. The editor and the theming are **A features**. Today the product is A
-in its surface area and B in its soul.
+The reflection surfaces you have already built — the Ascent, the Altar, the Lamp —
+are **B features**. The editor and the theming are **A features**. Today the product
+is A in its surface area and B in its soul.
 
 This does not need to be resolved today, but it must be resolved before any
 significant acquisition spend, because A and B want different front doors. Carried as
