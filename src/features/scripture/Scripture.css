@@ -539,6 +539,20 @@
   margin-top: 1.1rem;
 }
 
+/* Which window the book is being read through — the canon's range, and the way out. */
+.scripture-book__scope {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
 .scripture-book__loading {
   color: var(--text-dim);
   font-size: 0.95rem;

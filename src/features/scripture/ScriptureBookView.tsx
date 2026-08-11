@@ -9,8 +9,10 @@ import {
   type BookChapterHeat,
   type BookEntry,
   type BookSummary,
+  type DateWindow,
   type ReturningRef,
 } from '@/lib/scripture/query'
+import { windowCacheKey } from '@/lib/asyncCache'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { heatColor, intensity } from './heat'
@@ -24,6 +26,10 @@ export interface BookTarget {
 interface Props {
   /** Non-null opens the panel; null slides it closed (last book stays during the slide-out). */
   target: BookTarget | null
+  /** The canon's active time range — the book reads through the same window. */
+  seasonWindow: DateWindow
+  /** Human label for that range ("This year"), for the scope line. */
+  seasonLabel: string
   onClose: () => void
   onOpenEntry: (entryId: string) => void
 }
@@ -62,7 +68,13 @@ function relationshipLine(book: string, s: BookSummary): string {
   return `${lead}${span}.`
 }
 
-export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
+export function ScriptureBookView({
+  target,
+  seasonWindow,
+  seasonLabel,
+  onClose,
+  onOpenEntry,
+}: Props) {
   // Latch the displayed book so the panel can slide out showing its last content.
   const [display, setDisplay] = useState<BookTarget | null>(target)
   useEffect(() => {
@@ -85,7 +97,16 @@ export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
   const entryRefs = useRef(new Map<string, HTMLButtonElement>())
   const reqId = useRef(0)
 
-  // Load (and reset the filter) whenever a different book / verse is opened.
+  // The book reads through the canon's window, so "This year" on the map means
+  // this year inside the book too. Widening to all time is per-book and resets
+  // itself when another book is opened (no effect, no stale flag).
+  const [widenedFor, setWidenedFor] = useState<string | null>(null)
+  const widened = widenedFor !== null && widenedFor === bookOsis
+  const scoped = Boolean(seasonWindow.from || seasonWindow.to)
+  const activeWindow: DateWindow = widened ? {} : seasonWindow
+  const windowKey = windowCacheKey(activeWindow)
+
+  // Load (and reset the filter) whenever a different book / verse / window opens.
   useEffect(() => {
     if (!bookOsis) return
     const id = ++reqId.current
@@ -95,10 +116,10 @@ export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
     setReturning([])
     setFilter(display?.focusVerse ? { kind: 'verse', osisRef: display.focusVerse } : null)
     Promise.all([
-      getBookEntries(bookOsis, {}),
-      getBookChapterHeat(bookOsis, {}),
-      getBookSummary(bookOsis, {}),
-      getReturning(8, {}, bookOsis),
+      getBookEntries(bookOsis, activeWindow),
+      getBookChapterHeat(bookOsis, activeWindow),
+      getBookSummary(bookOsis, activeWindow),
+      getReturning(8, activeWindow, bookOsis),
     ]).then(([e, h, s, r]) => {
       if (id !== reqId.current) return
       setEntries(e)
@@ -107,7 +128,7 @@ export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
       setReturning(r)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookOsis, display?.focusVerse])
+  }, [bookOsis, display?.focusVerse, windowKey])
 
   // Esc closes the panel when open.
   useEffect(() => {
@@ -196,17 +217,32 @@ export function ScriptureBookView({ target, onClose, onOpenEntry }: Props) {
                 </div>
               )}
 
+              {scoped && (
+                <div className="scripture-book__scope">
+                  <span>{widened ? 'All time' : `Showing ${seasonLabel.toLowerCase()}`}</span>
+                  <button
+                    type="button"
+                    className="scripture-book__clear"
+                    onClick={() => setWidenedFor(widened ? null : bookOsis)}
+                  >
+                    {widened ? `back to ${seasonLabel.toLowerCase()}` : 'see all time'}
+                  </button>
+                </div>
+              )}
+
               {loading ? (
                 <p className="scripture-book__loading">Reading…</p>
               ) : summary!.distinctEntries === 0 ? (
                 <p className="scripture-book__loading">
-                  When you write near {book.name}, it will begin to light here.
+                  {scoped && !widened
+                    ? `Nothing from ${book.name} in ${seasonLabel.toLowerCase()} — it may still be lit further back.`
+                    : `When you write near ${book.name}, it will begin to light here.`}
                 </p>
               ) : (
                 <>
                   <ChapterStrip book={book} heat={chapterHeat!} filter={filter} onToggle={toggleChapter} />
 
-                  <Timeline entries={decorated} onDot={scrollToEntry} />
+                  <Timeline entries={decorated} bounds={activeWindow} onDot={scrollToEntry} />
 
                   {returning.length > 0 && (
                     <section className="scripture-book__section">
@@ -328,11 +364,20 @@ interface DecoratedEntry extends BookEntry {
   warmth: number
 }
 
-function Timeline({ entries, onDot }: { entries: DecoratedEntry[]; onDot: (entryId: string) => void }) {
+function Timeline({
+  entries,
+  bounds,
+  onDot,
+}: {
+  entries: DecoratedEntry[]
+  /** The window the entries were read through — the axis spans it, not all history. */
+  bounds: DateWindow
+  onDot: (entryId: string) => void
+}) {
   const times = entries.map((e) => new Date(e.entry_created_at).getTime())
-  const t0 = Math.min(...times)
   const now = Date.now()
-  const t1 = Math.max(now, ...times)
+  const t0 = bounds.from ? bounds.from.getTime() : Math.min(...times)
+  const t1 = bounds.to ? bounds.to.getTime() : Math.max(now, ...times)
   const span = Math.max(1, t1 - t0)
   const xf = (t: number) => ((t - t0) / span) * 100
 

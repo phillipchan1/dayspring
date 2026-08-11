@@ -336,7 +336,13 @@ export function ScriptureView({ onOpenEntry }: Props) {
         </div>
       </div>
 
-      <ScriptureBookView target={bookTarget} onClose={back} onOpenEntry={onOpenEntry} />
+      <ScriptureBookView
+        target={bookTarget}
+        seasonWindow={season.window}
+        seasonLabel={season.label}
+        onClose={back}
+        onOpenEntry={onOpenEntry}
+      />
     </div>
   )
 }
