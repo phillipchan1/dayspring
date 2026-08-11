@@ -8,6 +8,38 @@
  * usePracticeInsertion.ts).
  */
 
+/**
+ * Stable, permanent identity for each practice.
+ *
+ * Why this exists: `name` is a *display* string. It gets reworded, re-capitalized,
+ * and re-punctuated (note the curly apostrophe in "Wesley’s Questions") the moment
+ * someone edits copy — and the moment it does, every historical analytics row keyed
+ * on it silently splits into two practices that never reconcile. GLOSSARY's rule is
+ * the whole reason this type is here: *display names are cheap to change; internal
+ * keys are not.*
+ *
+ * So: these slugs are FOREVER. Reword any `name` freely; never touch an `id`.
+ * Retiring a practice means deleting its entry and leaving its slug burned — do not
+ * reuse a slug for a different practice, because the analytics history under it
+ * belongs to the old one.
+ *
+ * These are also the only part of a practice that may cross the analytics boundary
+ * (see lib/analytics.ts): a slug is an enum member, whereas `name` is free text and
+ * would be a privacy regression the type system is built to forbid.
+ */
+export type PracticeId =
+  | 'daily-examen'
+  | 'lectio-divina'
+  | 'wesley-questions'
+  | 'soap'
+  | 'psalmic-lament'
+  | 'prayer-of-recollection'
+  | 'emotionally-healthy-examen'
+  | 'examen-of-consolation'
+  | 'ignatian-discernment'
+  | 'then-vs-now'
+  | 'threshold'
+
 /** The contemplative "function" a practice serves — also the filter taxonomy. */
 export type PracticeFunction =
   | 'examine'
@@ -30,6 +62,8 @@ export interface PracticePrompt {
 }
 
 export interface Practice {
+  /** Permanent slug — safe to log, never renamed. See PracticeId above. */
+  id: PracticeId
   name: string
   function: PracticeFunction
   /** When in the day this practice is best suited. Multiple values allowed. */
@@ -53,6 +87,7 @@ export interface Practice {
 
 export const PRACTICES: Practice[] = [
   {
+    id: 'daily-examen',
     name: 'The Daily Examen',
     function: 'examine',
     rhythm: ['evening'],
@@ -95,6 +130,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'lectio-divina',
     name: 'Lectio Divina',
     function: 'encounter',
     rhythm: ['morning'],
@@ -138,6 +174,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'wesley-questions',
     name: 'Wesley’s Questions',
     function: 'form',
     rhythm: ['evening'],
@@ -175,6 +212,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'soap',
     name: 'SOAP',
     function: 'encounter',
     rhythm: ['morning'],
@@ -216,6 +254,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'psalmic-lament',
     name: 'Psalmic Lament',
     function: 'lament',
     rhythm: ['anytime'],
@@ -258,6 +297,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'prayer-of-recollection',
     name: 'Prayer of Recollection',
     function: 'listen',
     rhythm: ['morning', 'midday'],
@@ -296,6 +336,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'emotionally-healthy-examen',
     name: 'Emotionally Healthy Examen',
     function: 'examine',
     rhythm: ['evening'],
@@ -335,6 +376,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'examen-of-consolation',
     name: 'The Examen of Consolation',
     function: 'gratitude',
     rhythm: ['midday', 'evening'],
@@ -373,6 +415,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'ignatian-discernment',
     name: 'Ignatian Discernment',
     function: 'listen',
     rhythm: ['anytime'],
@@ -416,6 +459,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'then-vs-now',
     name: 'Then vs. Now',
     function: 'examine',
     rhythm: ['anytime'],
@@ -459,6 +503,7 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    id: 'threshold',
     name: 'Threshold',
     function: 'examine',
     rhythm: ['anytime'],
@@ -506,6 +551,15 @@ export const PRACTICES: Practice[] = [
 /** Fast lookup by practice name (used by the editor decoration layer). */
 export const PRACTICE_BY_NAME: ReadonlyMap<string, Practice> = new Map(
   PRACTICES.map((p) => [p.name, p]),
+)
+
+/**
+ * Fast lookup by permanent slug. Prefer this anywhere an identity outlives a
+ * render — analytics, persisted state, anything compared across releases —
+ * since `name` is display copy and may be reworded at any time.
+ */
+export const PRACTICE_BY_ID: ReadonlyMap<PracticeId, Practice> = new Map(
+  PRACTICES.map((p) => [p.id, p]),
 )
 
 /** The rhythm filter, in day order, with human-facing labels. */
