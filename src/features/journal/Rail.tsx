@@ -14,15 +14,15 @@ import {
   IconNew,
   IconScripture,
   IconSettings,
-  IconRemember,
 } from './navIcons'
 
 const NATIVE = isTauri()
 
 interface RailProps {
   onNew: () => void
-  onToggleEntries: () => void
-  entriesOpen: boolean
+  onEntries: () => void
+  /** Entries IS the Pages wall — a surface, not a panel toggle. */
+  pagesActive: boolean
   lookBackActive: boolean
   onLookBack: () => void
   altarActive: boolean
@@ -31,12 +31,6 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
-  rememberActive: boolean
-  /** Routes to the surface. It opens with the passages already set apart, so —
-   *  unlike the old Well — it has something to show before a question is asked. */
-  onRemember: () => void
-  /** Remember is feature-flagged off until ready — hide its rail destination when false. */
-  rememberEnabled: boolean
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -50,8 +44,8 @@ interface RailProps {
  */
 export function Rail({
   onNew,
-  onToggleEntries,
-  entriesOpen,
+  onEntries,
+  pagesActive,
   lookBackActive,
   onLookBack,
   altarActive,
@@ -59,9 +53,6 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
-  rememberActive,
-  onRemember,
-  rememberEnabled,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -114,9 +105,10 @@ export function Rail({
           />
           <RailButton
             label="Entries"
+            subline="Your own, side by side"
             shortcut="⌘1"
-            onClick={onToggleEntries}
-            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive && !rememberActive}
+            onClick={onEntries}
+            active={pagesActive}
             icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
@@ -155,17 +147,6 @@ export function Rail({
               active={altarActive}
               ember={dot.altar}
               icon={<IconAltar />}
-              labelsExpanded={labelsExpanded}
-            />
-          )}
-          {rememberEnabled && (
-            <RailButton
-              label="Remember"
-              subline="What you've set apart"
-              shortcut="⌘5"
-              onClick={onRemember}
-              active={rememberActive}
-              icon={<IconRemember />}
               labelsExpanded={labelsExpanded}
             />
           )}

@@ -52,15 +52,16 @@ export function IconNew(props: { size?: number }) {
 }
 
 export function IconEntries(props: { size?: number }) {
-  // A bulleted list — distinct from the menu hamburger (the rail toggle).
+  // An open book — two pages spread from a centre spine.
+  //
+  // This was a bulleted list, which described the old entries panel exactly and
+  // describes the Pages wall not at all. The glyph belonged to Lamp; Pages is
+  // the surface that literally shows you two pages side by side, so it has the
+  // better claim, and Lamp took the oil lamp it is named after.
   return (
     <NavIcon {...props}>
-      <path d="M9 6h11" />
-      <path d="M9 12h11" />
-      <path d="M9 18h11" />
-      <path d="M4.5 6h.01" />
-      <path d="M4.5 12h.01" />
-      <path d="M4.5 18h.01" />
+      <path d="M12 7v13" />
+      <path d="M3 18a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4a4 4 0 0 1 5 3 4 4 0 0 1 5-3h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5a3 3 0 0 0-4 1 3 3 0 0 0-4-1z" />
     </NavIcon>
   )
 }
@@ -76,11 +77,18 @@ export function IconAscent(props: { size?: number }) {
 }
 
 export function IconScripture(props: { size?: number }) {
-  // Open book — two pages spread from a center spine.
+  // An oil lamp — the thing the surface is named after ("thy word is a lamp
+  // unto my feet"). The bowl carries the silhouette, not the flame: Altar is
+  // already a flame, and two flames in one rail is two of the same icon.
   return (
     <NavIcon {...props}>
-      <path d="M12 7v13" />
-      <path d="M3 18a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4a4 4 0 0 1 5 3 4 4 0 0 1 5-3h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-5a3 3 0 0 0-4 1 3 3 0 0 0-4-1z" />
+      {/* the bowl — a half-disc, unmistakably a vessel even at 20px */}
+      <path d="M4 12.5a5.5 5.5 0 0 0 11 0z" />
+      {/* spout, and the foot it stands on */}
+      <path d="M15 12.5h4" />
+      <path d="M9.5 18h3M9.5 18a2 2 0 0 1 1-2" />
+      {/* the wick's flame, clear of the bowl so it reads as its own shape */}
+      <path d="M19 12.5c1.4-1 1.4-2.6 0-3.8-1.4 1.2-1.4 2.8 0 3.8z" />
     </NavIcon>
   )
 }
@@ -114,14 +122,3 @@ export function IconFocus(props: { size?: number }) {
   )
 }
 
-export function IconRemember(props: { size?: number }) {
-  // A page with one line set apart. Reads as a passage kept, not as a bookmark
-  // (which would say "unread") and not as a star (which would say "rated") —
-  // the rail must not imply the app has an opinion about which lines are best.
-  return (
-    <NavIcon {...props}>
-      <path d="M5 3.5h14v17l-7-4-7 4v-17z" />
-      <path d="M9 9h6" />
-    </NavIcon>
-  )
-}

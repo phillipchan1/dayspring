@@ -48,7 +48,7 @@ Romans 8:28
 For Dad, and for Thursday. That I'd stop rehearsing the worst version of it.
 \`\`\``
 
-// ── the entry list ───────────────────────────────────────────────────────────
+// ── the archive ──────────────────────────────────────────────────────────────
 
 /** `[monthsAgo, title line, body tail]` — turned into Entries below. */
 const ENTRY_SEED: [number, string, string][] = [
@@ -97,6 +97,46 @@ function isoMonthsAgo(months: number, day: number): string {
   return isoAt(now.getFullYear(), now.getMonth() - months, day)
 }
 
+/**
+ * A real archive is marked up; a fixture of clean prose exercises none of the
+ * reading surface. Every seventh page or so carries something the writer did to
+ * it — a highlight in one of the five colours, an underline, a quoted line, a
+ * cited verse, a prayer — so the wall's filters have something to filter and the
+ * capture shows a journal rather than a corpus.
+ *
+ * Deterministic by index, so a shot is the same shot every time.
+ */
+function marked(body: string, n: number): string {
+  const [head, ...rest] = body.split('\n\n')
+  const tail = rest.join('\n\n')
+  switch (n % 14) {
+    case 0:
+      return `${head}\n\n${tail.replace(/^(\w[^.]{6,40}\.)/, '==$1==')}`
+    case 3:
+      return `${head}\n\n${tail.replace(/^(\w[^.]{6,40}\.)/, '=={rose}$1==')}`
+    case 5:
+      return `${head}\n\n${tail.replace(/^(\w[^.]{6,40}\.)/, '=={sage}$1==')}`
+    case 7:
+      return `${head}\n\n${tail.replace(/^(\w[^.]{6,40}\.)/, '++$1++')}`
+    case 9:
+      return `${head}\n\n> ${tail}`
+    case 11:
+      return `${head}\n\n${tail}\n\nReading Psalm 121 again this morning.`
+    case 13:
+      return [
+        head,
+        '',
+        tail,
+        '',
+        '```dayspring-pray 3f2504e0-4f89-11d3-9a0c-0305e82c33' + String(n % 100).padStart(2, '0'),
+        'For Thursday, and for the waiting part.',
+        '```',
+      ].join('\n')
+    default:
+      return body
+  }
+}
+
 function entry(id: string, iso: string, body: string, source: Entry['source']): Entry {
   return {
     id,
@@ -119,7 +159,7 @@ const RECENT: Entry[] = ENTRY_SEED.filter(([monthsAgo]) => monthsAgo <= 13).map(
     entry(
       `mock-entry-${String(i).padStart(2, '0')}`,
       isoMonthsAgo(monthsAgo, 27 - ((i * 7) % 26)),
-      `${title}\n\n${tail}`,
+      marked(`${title}\n\n${tail}`, i),
       'native',
     ),
 )
@@ -150,7 +190,7 @@ const HISTORY: Entry[] = YEARS_BACK.flatMap(([back, count]) => {
     return entry(
       `mock-hist-${year}-${n}`,
       isoAt(year, n % span, 1 + ((n * 7) % 27)),
-      `${seed[1]}\n\n${seed[2]}`,
+      marked(`${seed[1]}\n\n${seed[2]}`, n),
       back === 0 ? 'native' : 'diarly',
     )
   })

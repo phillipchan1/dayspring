@@ -13,7 +13,9 @@ export type FormatCommandId =
   | 'h3'
   | 'bold'
   | 'italic'
+  | 'underline'
   | 'strike'
+  | 'highlight'
   | 'code'
   | 'bullet'
   | 'numbered'
@@ -144,12 +146,30 @@ export const SLASH_ITEMS: SlashItem[] = [
     keywords: ['italic', 'emphasis', 'em'],
   },
   {
+    selection: { kind: 'format', id: 'underline' },
+    column: 'format',
+    label: 'Underline',
+    hint: 'A quiet line beneath',
+    badge: 'U',
+    keywords: ['underline', 'under'],
+  },
+  {
     selection: { kind: 'format', id: 'strike' },
     column: 'format',
     label: 'Strikethrough',
     hint: 'Crossed-out text',
     badge: 'S',
     keywords: ['strike', 'strikethrough', 'cross'],
+  },
+  {
+    // Only the default colour lives here. The other four are a bar/toolbar
+    // affordance — five more rows would make this column scroll.
+    selection: { kind: 'format', id: 'highlight' },
+    column: 'format',
+    label: 'Highlight',
+    hint: 'Wash a phrase in colour',
+    badge: '▮',
+    keywords: ['highlight', 'marker', 'hl'],
   },
   {
     selection: { kind: 'format', id: 'code' },
@@ -311,7 +331,9 @@ export function applyFormatCommand(view: EditorView, id: FormatCommandId): void 
   switch (id) {
     case 'bold':
     case 'italic':
+    case 'underline':
     case 'strike':
+    case 'highlight':
     case 'code':
       // With an empty selection these insert paired markers and place the
       // caret between them — type-then-formatted, just like the format bar.

@@ -22,8 +22,8 @@ thesis, not a nav convenience.
 
 | | Surfaces | Job |
 |---|---|---|
-| **Write** | New entry, Entries | Capture. Must be frictionless and sacred (Principle 3). |
-| **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4, Remember ⌘5 | **Reflective, never operational.** Reveal what a paper journal can't. |
+| **Write** | New entry, Entries (= the Pages wall) | Capture. Must be frictionless and sacred (Principle 3). |
+| **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4 | **Reflective, never operational.** Reveal what a paper journal can't. |
 
 **The rule for every Return surface: you go there to *see*, never to *do*.** No tasks,
 no maintenance, no inbox. The moment a Return surface asks the user to *work*, it has
@@ -55,6 +55,34 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   Handwriting scan is an **A-persona feature aimed at a B-persona behavior** (paper
   journalers) — if the A/B question in `POSITIONING.md` resolves toward B, this becomes
   much more strategically important than it looks today.
+
+### Pages — `features/pages/` · **Entries, ⌘1** · *"Your own, side by side"*
+- **Promise:** "Read your own pages the way you could read a notebook — many at once."
+- **Answers:** P1 *"I have eleven years in here. What's in it?"* — but by showing it rather
+  than summarising it.
+- **Serves:** P4 (every line on a page is verbatim; nothing is generated), P5 (needs no AI
+  and no threshold, so it pays out in a thin month), P1 (subject lighting is a filter the
+  writer chose, never a significance the app assigned).
+- **Risks:** **P2, knowingly.** With nothing lit its weather grid covers writing activity —
+  a deliberate override, D-017 (the grid now lives on its own frame, not on the wall). Also
+  PKM drift: the lighting bar must stay a handful of ways in, never a tag manager.
+- **State:** ✅ Shipped to alpha only (unflagged; the alpha channel is the gate — same
+  call as handwriting scan). **This IS the Entries surface** (D-018): the list, the desktop
+  panel and the mobile drawer are gone, and the wall carries select / rename / duplicate /
+  print / export / delete. Continuous zoom (pinch, ⌘-scroll, ⌘= / ⌘−) · marks glow ·
+  multi-subject lighting via the Concordance · markings facets (highlight by colour,
+  underline, emphasis, quote, marks) · scripture facet parsed client-side · previews that
+  show the line that made the page light up · "only these" · interleaved anniversary
+  pages · month rules down the scroll · the Spread (two-up, marginalia, shared-element
+  zoom) · Open somewhere · month fold · natural-language filter configuration (D-019).
+- **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
+  to return to — so the rail still shows four ways back. It obeys the Return rule anyway:
+  you go there to see, never to do.
+- **Audit:** *Does any page carry something the writer didn't write?* (No title we invented,
+  no summary, no tag — a page in a notebook carries no metadata.) The D-017 test: *show
+  the activity grid to someone in a dry season.* `longestSilence` is the first thing to cut.
+  And the D-019 test: *ask it something, then look at the chips.* If the chips regularly
+  need correcting, the sentence box goes back to being a word box.
 
 ---
 
@@ -103,33 +131,22 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   re-propose the sky.
 - **Audit:** *Does any encoding here let a user rank their prayers, or rank themselves?*
 
-### Remember — `features/remember/` · ⌘5 · *"What you've set apart"*
-- **Promise:** "Get back to what you set apart, and ask the rest."
-- **Answers:** P1 *"I have eleven years in here. What's in it? I genuinely don't know."* ·
-  the notebook journaler's *"can it help me find the things I highlighted?"*
-- **Serves:** P1 (**the writer supplies the signal, never the app** — this is the only
-  surface where significance is asserted, and it's asserted by the user), P4 (a passage
-  *is* a verbatim quote by construction), P5 (compounds without AI; keeps paying out in
-  a month with four entries).
-- **Risks:** **PKM drift.** "Search" invites tags, folders, colours, saved queries. The
-  rule that holds the line: *marking is one gesture with no decision attached.* Also the
-  weather grid — see below.
-- **State:** 🚧 Built, flag OFF (`VITE_FF_REMEMBER`). Four sources: marks (`marks` table),
-  blockquotes, markdown emphasis, and writer-declared `/pray` blocks. Migration
-  `20260802120000_marks.sql` pending — apply via the SQL editor.
-- **What it deliberately excludes:**
-  - **Scripture refs.** The Lamp owns verses. On the real archive they were 284 of 563
-    passages, which would have made this half a second Lamp.
-  - **Altar-harvested `spiritual_items`** (`source = 'scanned'`, ~6.2k rows). Those are
-    model *inferences*. Showing an inference as something the writer set apart is the app
-    asserting significance it decided on. The filter `.is('source', null)` in
-    `useRemember.ts` is load-bearing.
-- **Audit:** ⚠ **The weather grid is one decision away from a contributions graph**,
-  which is a streak grid, which is a Principle 2 violation. It is only ever drawn over
-  passages or over the matches for a question — **never over writing activity** — and
-  carries no totals, no goal, no current-streak. *Show it to someone in a dry season: does
-  it read as weather, or as a record of how often they failed to show up?* Second test,
-  per the Return rule: *open it in a month with four entries. A way back, or an inbox?*
+### ~~Remember~~ — deleted 2026-08-08 (D-020)
+It answered "get back to what you set apart, and ask the rest" — and by the time Pages
+could filter on Marked, Highlighted, Underlined and Quoted, the first half was a worse
+version of a filter, and the second half never needed a surface of its own: what Ask
+produces is a set of entries, and the wall is where a set of entries is shown.
+
+**What survived it:** `marks` (a Pages filter, and still the editor's decoration —
+`features/pages/useMarks.ts`) · ⌘K Find, instant and local (`features/find/`) ·
+`api/ask.ts`, whose semantic legs still catch pages that circle a thing without naming it,
+which literal matching can't · the weather grid, now `features/pages/`.
+
+**What went with it:** the passage list, the source chips, ⌘5, and `VITE_FF_REMEMBER`.
+The load-bearing `.is('source', null)` filter went too — it existed to keep the Altar's
+~6.2k model-harvested `spiritual_items` out of a surface that claimed everything on it was
+writer-supplied. Nothing on Pages reads that table, so the trap is gone rather than
+relocated. **If a future surface reads `spiritual_items`, that filter has to come back.**
 
 ---
 
@@ -166,7 +183,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 | "Is my archive safe / portable?" | Settings export | ⚠️ Works; never *said*. Agreement-plan copy is missing from marketing. |
 | "Will this fit how I journal?" | Capture | ✅ |
 | **"Is this normal? Do others go through this?"** | — | ❌ **Uncovered.** P2's loneliest question. Answering it well probably requires aggregate/comparative data, which collides with Principle 7 and H2. Possibly correct to leave permanently uncovered — but decide deliberately. → D-006 |
-| "Can it help me find the things I highlighted?" | Remember | 🚧 Built, flagged off |
+| "Can it help me find the things I highlighted?" | Pages → Marked | ✅ Alpha |
+| **"I have eleven years in here — can I just READ it?"** | Pages | ✅ Alpha. Was **uncovered**: every Return surface interpreted the archive; none handed it back. |
 | **"Is journaling one more thing I'll fail at?"** | — | ❌ **Uncovered by design.** The obvious answers are streaks and reminders (Principle 2 violations). The unsolved question is whether there's an *invitational* answer. → D-004 |
 
 ---

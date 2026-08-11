@@ -1,15 +1,11 @@
-import type { Entry } from '@/lib/types'
-import type { EntryGroup } from './groupEntries'
-
-/** Chronological list order for shift-range selection (newest first). */
-export function orderedEntryIds(entries: Entry[], groups: EntryGroup[] | null): string[] {
-  if (groups) return groups.flatMap((g) => g.entries.map((e) => e.id))
-  return entries.map((e) => e.id)
-}
-
 /**
- * After deleting one or more rows, pick the next list focus: the row that was
- * directly below the first deleted item, or the row above if none (Finder-style).
+ * After deleting one or more pages, pick where the focus lands: the page
+ * directly after the first deleted one, or the page before if there is none
+ * (Finder-style). On the wall that means the card which has just slid into the
+ * gap — i.e. where the eye already is.
+ *
+ * The grouping-aware `orderedEntryIds` that used to live here went with the
+ * entries list: the wall's order is its own (see pages/wallItems.ts).
  */
 export function nextEntryIdAfterDelete(
   orderIds: readonly string[],

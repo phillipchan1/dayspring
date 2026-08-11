@@ -1,0 +1,1380 @@
+/*
+ * Pages — the read surface.
+ *
+ * The Ascent owns atmosphere; Remember owns quiet. This one owns PAPER. Every
+ * decision here is trying to give back something a scrolling list took away:
+ * peripheral vision, the thickness of a day, your own marks catching your eye
+ * from across the room.
+ *
+ * Two rules hold the surface together:
+ *   1. Nothing on a page except the writer's words, their date, and their marks.
+ *      No badge, no count, no chip. A page in a notebook carries no metadata.
+ *   2. Hover changes COLOUR, never position. A wall of pages that shifts under
+ *      the cursor is unusable, and this is a surface people scroll for minutes.
+ */
+
+.pg {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.pg__inner {
+  max-width: 96rem;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 clamp(1rem, 3vw, 2rem);
+}
+
+/*
+ * No title, no eyebrow.
+ *
+ * The surface used to introduce itself — "PAGES / Your own, side by side" — to
+ * someone who had just pressed the button labelled Entries. A read surface
+ * should open on the reading; the controls are enough to say where you are.
+ */
+.pg__inner--head {
+  padding-top: clamp(0.9rem, 2.5vw, 1.4rem);
+}
+
+/*
+ * The header, and the line under it.
+ *
+ * The rule used to sit hard against the controls with nothing between them, so
+ * it read as a line cutting through the header rather than the floor of it.
+ * It needs room on both sides to be a floor.
+ */
+.pg__head-wrap {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: clamp(0.85rem, 2vw, 1.15rem);
+}
+
+.pg__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 0.4rem;
+}
+
+/* ── on this day ── */
+
+.pg__senses {
+  margin-bottom: 1rem;
+  border-left: 2px solid rgba(var(--scripture-gold), 0.5);
+  padding-left: 0.85rem;
+}
+
+.pg__sense {
+  margin: 0 0 0.55rem;
+}
+
+.pg__sense-w {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.2rem;
+}
+
+.pg__sense-q {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-bright);
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+button.pg__sense-q:hover {
+  color: var(--accent);
+}
+
+/* ── controls ── */
+
+.pg__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.pg__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-faint);
+}
+
+.pg__zoom-icon {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.pg__zoom-icon--near {
+  font-size: 0.85rem;
+}
+
+/*
+ * The discoverable form of a gesture.
+ *
+ * Deliberately quiet and deliberately narrow: pinch and ⌘-scroll on the wall
+ * are the real controls, and a wide prominent slider would read as the primary
+ * way to do this rather than the reminder that it can be done.
+ */
+.pg__zoom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 6.5rem;
+  block-size: 2px;
+  border-radius: 1px;
+  background: var(--border);
+  cursor: ew-resize;
+}
+
+.pg__zoom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 11px;
+  block-size: 11px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: ew-resize;
+  transition: background-color var(--transition);
+}
+
+.pg__zoom-range::-moz-range-thumb {
+  inline-size: 11px;
+  block-size: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: ew-resize;
+}
+
+.pg__zoom-range:hover::-webkit-slider-thumb,
+.pg__zoom-range:focus-visible::-webkit-slider-thumb {
+  background: var(--accent);
+}
+
+.pg__zoom-range:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 6px;
+}
+
+.pg__somewhere,
+.pg__chip,
+.pg__clear {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition),
+    border-color var(--transition);
+}
+
+/*
+ * Open a page at random.
+ *
+ * It said "Open somewhere", which nobody could be expected to parse, and it is
+ * exactly the kind of copy that reads as a phrase rather than a control. An
+ * icon and a tooltip say the same thing without asking anyone to interpret it.
+ */
+.pg__somewhere {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-faint);
+}
+
+.pg__somewhere svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pg__somewhere:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── subjects ── */
+
+.pg__chip,
+.pg__clear {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.75rem;
+}
+
+.pg__chip:hover,
+.pg__clear:hover {
+  color: var(--text-bright);
+  border-color: var(--border);
+}
+
+.pg__chip[data-on='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.pg__clear {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* A concordance suggestion is an offer, not a state — quieter than a facet. */
+/* How many of this group's own filters are on — not a badge, just the count. */
+/*
+ * Highlight colours as swatches, not words.
+ *
+ * You reached for a colour; you should be able to reach for it again the same
+ * way. A row of five discs is also the only chip here that doesn't need
+ * reading — which matters, because this bar sits above the writing.
+ */
+.pg__swatch {
+  inline-size: 1.05rem;
+  block-size: 1.05rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: rgba(var(--swatch-hue), 0.55);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.pg__swatch[data-color='amber'] { --swatch-hue: var(--hl-amber); }
+.pg__swatch[data-color='rose'] { --swatch-hue: var(--hl-rose); }
+.pg__swatch[data-color='sage'] { --swatch-hue: var(--hl-sage); }
+.pg__swatch[data-color='sky'] { --swatch-hue: var(--hl-sky); }
+.pg__swatch[data-color='lilac'] { --swatch-hue: var(--hl-lilac); }
+
+.pg__swatch:hover {
+  background: rgba(var(--swatch-hue), 0.8);
+}
+
+.pg__swatch[data-on='true'] {
+  background: rgba(var(--swatch-hue), 1);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px rgba(var(--swatch-hue), 0.9);
+}
+
+.pg__swatch:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── the way to the density picture ── */
+
+.pg__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/*
+ * A line, not a panel.
+ *
+ * This is the whole footprint the weather grid and the facts row now have on
+ * the reading path. They used to sit here in full, which on a phone left one
+ * page peeking in under a screenful of numbers.
+ */
+.pg__meta-b {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--transition);
+}
+
+.pg__meta-b:hover {
+  color: var(--text-dim);
+}
+
+/* ── the density picture, on its own frame ── */
+
+.pg-weather {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: clamp(1.5rem, 4vw, 2.75rem);
+  padding-bottom: clamp(2rem, 6vw, 4rem);
+}
+
+.pg-weather__bar {
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.pg-weather__x {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-weather__x:hover {
+  color: var(--accent);
+}
+
+.pg-weather__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 1.75rem);
+  font-weight: 500;
+  color: var(--text-bright);
+  margin: 0 0 clamp(1.5rem, 4vw, 2.25rem);
+}
+
+/*
+ * Still held to a narrow column.
+ *
+ * On its own frame there is room to stretch it, and stretching is exactly what
+ * turns weather into a scoreboard — the contributions-graph failure Principle 2
+ * names. Having its own page is not permission to grow. See D-017.
+ */
+.pg-weather__grid {
+  max-inline-size: 34rem;
+  margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.pg-weather__facts {
+  max-inline-size: 34rem;
+}
+
+.pg__facts {
+  display: flex;
+  gap: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.pg__fact-n {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+
+.pg__fact-k {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-top: 0.15rem;
+}
+
+/* ── the wall ── */
+
+.pg__wall-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pg__scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/*
+ * The bulk bar, over the pages rather than beside them.
+ *
+ * In the sidebar this needed a whole separate canvas component to be legible in
+ * 260px. Here it can simply be where the pages are — which also means it never
+ * takes a row away from the wall.
+ */
+.pg__selection {
+  position: absolute;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 4;
+  max-inline-size: min(44rem, calc(100% - 2rem));
+}
+
+.pg__grid {
+  display: grid;
+  max-width: 96rem;
+  margin: 0 auto;
+  padding-left: clamp(1rem, 3vw, 2rem);
+  padding-right: clamp(2.5rem, 5vw, 4.5rem); /* room for the scrubber */
+  align-content: start;
+}
+
+
+/*
+ * The year, held like a thumb in the book.
+ *
+ * A marker, not a header: it never takes a row in the grid, which is what keeps
+ * every row the same height and the windowing honest.
+ *
+ * Sat OVER the first row of pages at first, and even at 7% it put a numeral on
+ * top of someone's sentences. It now rides up into the header's empty right side
+ * — still tracking the scroll, no longer competing with the writing.
+ */
+.pg__where {
+  position: absolute;
+  top: -3.6rem;
+  right: clamp(2.6rem, 5vw, 4.6rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pg__year {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  opacity: 0.16;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The month, under the year.
+ *
+ * Small, mono, quiet: it changes constantly as you scroll, and anything louder
+ * would flicker in the corner of your eye the whole way down.
+ */
+.pg__month-now {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/*
+ * A month, marked where it begins.
+ *
+ * An overlay, never a row. Months as flow headers would make rows uneven, and
+ * uniform rows are the whole reason a 3,500-page wall can be windowed at all.
+ * So the rule is absolutely positioned against the grid: it takes no space and
+ * moves nothing, and it lives in the gap that is already between the rows.
+ */
+.pg__month-rule {
+  position: absolute;
+  /* Matched to .pg__grid's own padding so the rule starts where the pages do —
+     an absolutely positioned child lays out against the padding box, which
+     otherwise puts the label outside the column it belongs to. */
+  inset-inline: clamp(1rem, 3vw, 2rem) clamp(2.5rem, 5vw, 4.5rem);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateY(-0.78rem);
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* The hairline that makes it read as a division rather than a stray word. */
+.pg__month-rule::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--border-subtle);
+}
+
+.pg__scrub {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: clamp(2.2rem, 4vw, 3.4rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 1rem 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.pg__scrub::-webkit-scrollbar {
+  display: none;
+}
+
+.pg__scrub-y {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0.16rem 0;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg__scrub-y:hover {
+  color: var(--text-bright);
+}
+
+.pg__scrub-y[data-on='true'] {
+  color: var(--accent);
+}
+
+/* ── one page ── */
+
+.pgc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  inline-size: 100%;
+  /* The wall's windowing math is the only definition of this — see density.ts. */
+  block-size: var(--pg-card-h);
+  outline: none;
+  text-align: left;
+  overflow: hidden;
+  padding: 0.85rem 0.9rem 0.7rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  /* Colour and opacity only — a page must never move under the cursor. */
+  transition: border-color var(--transition), background-color var(--transition),
+    opacity var(--transition-slow);
+}
+
+/*
+ * Hover: the page comes up in the light.
+ *
+ * Colour and elevation only — a wall of pages that shifts under the cursor is
+ * unusable, and this is a surface people scroll for minutes (rule 2 up top).
+ * The good part is the fade: it recedes, so leaning toward a page shows you a
+ * little more of it. Nothing moves; you just see further in.
+ */
+.pgc:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg-elevated));
+  box-shadow: var(--shadow-2);
+}
+
+.pgc:hover .pgc__fade {
+  opacity: 0.25;
+}
+
+.pgc:hover .pgc__date {
+  color: var(--accent);
+}
+
+.pgc:hover .pgc__thickness {
+  opacity: 0.3;
+}
+
+.pgc__fade {
+  transition: opacity var(--transition-slow);
+}
+
+.pgc__date {
+  transition: color var(--transition);
+}
+
+.pgc:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.pgc[data-active='true'] {
+  border-color: var(--accent);
+}
+
+/*
+ * Selected, and the card a menu is pointing at.
+ *
+ * Border and wash only. A selected page must not grow, lift, or gain a
+ * checkbox: the wall's second rule is that nothing moves under the cursor, and
+ * on a grid of a thousand cards a reflow on selection is unusable.
+ */
+.pgc[data-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pgc[data-context='true'] {
+  border-color: var(--accent);
+}
+
+/* Selection wins over subject dimming — you can only select what you can see,
+   so a selected page has to stay legible even when the wall is dimmed. */
+.pgc[data-dim='true'][data-selected='true'] {
+  opacity: 1;
+}
+
+/*
+ * Unlit by a subject.
+ *
+ * Faded, never hidden: the pages that DON'T carry a word are what give the ones
+ * that do their shape. Text goes translucent rather than disappearing, so the
+ * wall still reads as a decade of writing rather than a filtered result.
+ */
+.pgc[data-dim='true'] {
+  opacity: 0.16;
+}
+
+.pgc[data-dim='true']:hover,
+.pgc[data-dim='true']:focus-visible {
+  opacity: 0.5;
+}
+
+.pgc__date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.pgc__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pgc__line {
+  font-family: var(--font-serif);
+  font-size: 0.79rem;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A line the writer set apart.
+ *
+ * The whole reason to look at a wall instead of a list: your own emphases catch
+ * your eye from a distance, the way a highlighter does across an open book. Gold
+ * because that is already this product's word for "the writer marked this."
+ */
+/*
+ * The word that made this page light up.
+ *
+ * Painted in the text rather than only implied by the card lighting up, so a
+ * page can say why it is here without being opened. Underline-weight rather
+ * than a block of colour — the writer's OWN highlighter has to stay louder than
+ * ours, or their emphasis and our search result compete.
+ */
+.pgc__lit {
+  background: none;
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 rgba(var(--hl-amber), 0.55);
+}
+
+/* A line that carries the lit word sits at full strength even when the page is
+   long enough that the rest has faded back. */
+.pgc__line[data-hit='true'] {
+  color: var(--text-bright);
+}
+
+.pgc__line[data-set='true'] {
+  color: var(--text-bright);
+  box-shadow: inset 2px 0 0 rgba(var(--scripture-gold), 0.85);
+  padding-left: 0.5rem;
+}
+
+.pgc__blank {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* The page ends mid-sentence, the way a glance at one does. */
+.pgc__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.2rem;
+  background: linear-gradient(to bottom, transparent, var(--bg-elevated) 82%);
+  pointer-events: none;
+}
+
+/*
+ * Page thickness — how much was written that day.
+ *
+ * Deliberately has NO track behind it. A bar in a groove is a progress meter and
+ * invites a reading of "full" and "not full"; a mark with nothing to be measured
+ * against is just the look of a thick day next to a thin one.
+ *
+ * Horizontal, at the foot of the page, inset from both edges. It ran down the
+ * RIGHT edge at first, flush to the border and a different height on every card
+ * — which is not what it looked like. It looked like a border that stopped
+ * short, i.e. like a rendering bug, on every card at once. A rule that is
+ * clearly inside the page cannot be mistaken for the edge of it.
+ */
+.pgc__thickness {
+  position: absolute;
+  left: 0.9rem;
+  bottom: 0.55rem;
+  block-size: 2px;
+  max-inline-size: calc(100% - 1.8rem);
+  border-radius: 1px;
+  background: var(--text);
+  opacity: 0.16;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+/* An echo — a page that rose out of another year. */
+.pgc[data-echo='true'] {
+  background: transparent;
+  border-style: dashed;
+  border-color: rgba(var(--scripture-gold), 0.4);
+}
+
+.pgc[data-echo='true'] .pgc__fade {
+  background: linear-gradient(to bottom, transparent, var(--bg) 82%);
+}
+
+.pgc__echo {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--scripture-gold), 0.9);
+  margin-bottom: 0.35rem;
+  flex: 0 0 auto;
+}
+
+/* ── empty ── */
+
+.pg__empty {
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.pg__empty-h {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--text-bright);
+  margin: 0 0 0.4rem;
+}
+
+.pg__empty-s {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* ── the Spread ── */
+
+.pg-spread {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  animation: pg-rise 420ms cubic-bezier(0.16, 0.84, 0.36, 1);
+}
+
+.pg-spread__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem clamp(1rem, 3vw, 2rem);
+}
+
+.pg-spread__x,
+.pg-spread__arrow {
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-spread__x:hover,
+.pg-spread__arrow:hover:not(:disabled) {
+  color: var(--text-bright);
+}
+
+.pg-spread__turn {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.pg-spread__arrow {
+  font-size: 1rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: var(--radius-sm);
+}
+
+.pg-spread__arrow:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.pg-spread__leaves {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  padding: 0 clamp(1.25rem, 4vw, 3.5rem) 2.5rem;
+  overflow-y: auto;
+}
+
+.pg-spread__leaves[data-single='true'] {
+  grid-template-columns: 1fr;
+}
+
+.pg-leaf {
+  min-width: 0;
+  cursor: text;
+}
+
+/*
+ * The page comes up in the light when you lean toward it — the same gesture the
+ * cards have, because at this zoom the page IS the card. Colour only; a page
+ * that shifts under the cursor is unreadable.
+ */
+.pg-leaf:hover .pg-leaf__date {
+  color: var(--accent);
+}
+
+.pg-leaf__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.4rem;
+}
+
+.pg-leaf__date {
+  transition: color var(--transition);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/*
+ * The margin column is reserved on every leaf, even one with no marginalia.
+ *
+ * That leaves empty space on an unmarked page, which looks like a bug until you
+ * see the alternative: without it, the two text columns of a spread come out
+ * different widths whenever only one page carries notes. In a spread, symmetry
+ * wins.
+ */
+.pg-leaf__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  gap: 1.75rem;
+}
+
+.pg-leaf__body {
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.72;
+  color: var(--text);
+}
+
+/*
+ * Marginalia.
+ *
+ * What the writer set apart, pulled into the margin instead of highlighted in
+ * the text — that's where a note goes in a book, and a page of highlighter is
+ * harder to read, not easier.
+ */
+.pg-leaf__margin {
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 0.9rem;
+}
+
+.pg-leaf__note {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin: 0 0 0.85rem;
+}
+
+@keyframes pg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── narrow ── */
+
+@media (max-width: 767px) {
+  .pg__grid {
+    padding-right: clamp(2rem, 8vw, 3rem);
+  }
+
+  /*
+   * Reserve what the mobile chrome covers.
+   *
+   * The tab bar and the FAB float over this scroller, so without it the last
+   * row is sliced in half — survivable while Pages was somewhere you rarely
+   * went, and not now that it IS Entries.
+   *
+   * On the SCROLLER, not the grid: the grid's `padding-bottom` is the
+   * windowing spacer, written inline from `virtual.bottomSpacer`, so anything
+   * declared here would simply lose to it.
+   */
+  .pg__scroll {
+    padding-bottom: var(--mobile-chrome-h);
+  }
+
+  /*
+   * The header carries its own top inset here.
+   *
+   * On a surface the mobile layout skips its <header>, and that header was the
+   * only element applying `env(safe-area-inset-top)` — so "Your own, side by
+   * side" sat under the notch.
+   */
+  .pg__inner--head {
+    padding-top: calc(clamp(1rem, 4vw, 1.75rem) + var(--safe-top));
+  }
+
+  /* Clear of the tab bar, not tucked behind it. */
+  .pg__selection {
+    bottom: calc(var(--mobile-chrome-h) + 0.5rem);
+  }
+
+  .pg__facts {
+    gap: 1.25rem;
+  }
+
+  .pg-leaf__cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pg-leaf__margin {
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+    padding-left: 0;
+    padding-top: 0.9rem;
+  }
+}
+
+/* Re-declared locally, per house convention — the global kill switch is not the
+   only thing a surface with a rise animation should be relying on. */
+@media (prefers-reduced-motion: reduce) {
+  .pg-spread {
+    animation: none;
+  }
+
+  .pgc {
+    transition: none;
+  }
+}
+
+/* ── opening a page ── */
+
+/*
+ * The wall and the Spread as two ends of one movement.
+ *
+ * The card you click and the leaf it becomes claim the same
+ * `view-transition-name`, so the browser tweens between them instead of cutting.
+ * The pair is stamped imperatively (see viewTransition.ts) because exactly one
+ * element may carry a given name at a time, and a wall of 3,500 cards declaring
+ * it in CSS would silently disable the whole thing.
+ */
+::view-transition-old(pg-page),
+::view-transition-new(pg-page) {
+  /* Both halves fill their box rather than letterboxing: a card and a leaf have
+     very different aspect ratios, and the default `contain` makes the page
+     visibly squash on the way in. */
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+
+::view-transition-old(pg-page) {
+  animation-duration: 220ms;
+}
+
+::view-transition-new(pg-page) {
+  animation-duration: 260ms;
+}
+
+/*
+ * The rest of the screen crossfades a little faster than the page moves, so
+ * attention stays on the page rather than on the chrome leaving.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Belt and braces — `withPageTransition` already declines to start one, but a
+     transition begun before the preference changed should stop moving. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+
+/*
+ * A seam — the pages the filter passed over.
+ *
+ * On a real archive, a filter that matches thirty pages across eleven years
+ * leaves hundreds of dimmed ones between the hits, and four screens of "shape"
+ * stops being shape and becomes scrolling. This keeps the FACT of them — how
+ * many, across what span — and gives back the room.
+ *
+ * Drawn as a squeezed stack of page edges, because that is what it is.
+ */
+.pgc,
+.pg__seam {
+  block-size: var(--pg-card-h);
+}
+
+.pg__seam {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-inline-size: 0;
+  padding: 1rem 0.6rem;
+  background: none;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: zoom-in;
+  outline: none;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.pg__seam:hover,
+.pg__seam:focus-visible {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
+}
+
+.pg__seam:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* The stack itself: a few hairlines, tight together, like page edges seen side-on. */
+.pg__seam-edges {
+  inline-size: 60%;
+  max-inline-size: 5rem;
+  block-size: 1.4rem;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0 1px,
+    transparent 1px 4px
+  );
+  opacity: 0.7;
+}
+
+.pg__seam-n {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.5;
+}
+
+
+/* ── reading zoom: the wall IS the open book ── */
+
+/*
+ * At the top of the zoom range a cell stops being a card and becomes a page.
+ *
+ * Two of them side by side, scrolled through continuously — which is what the
+ * Spread used to be behind a modal. They were never two features: you are
+ * standing far enough away to see the shape of a decade, or close enough to
+ * read. Same wall, same scroll, one gesture between them.
+ */
+/*
+ * At reading zoom the cell is a leaf of paper, not a card.
+ *
+ * No border, no fill, no shadow — a card outline around something you are
+ * reading is chrome between you and the writing, and two of them side by side
+ * read as two cards rather than as an open book. What separates the pages is
+ * the gutter between them and a hairline at the spine, the way a book does it.
+ */
+.pg__leaf-cell {
+  position: relative;
+  block-size: var(--pg-card-h);
+  min-inline-size: 0;
+  overflow: hidden;
+  outline: none;
+}
+
+/* The spine — on the left-hand page of each pair, so it falls between them. */
+.pg__leaf-cell:nth-child(odd)::after {
+  content: '';
+  position: absolute;
+  inset-block: 12%;
+  inset-inline-end: calc(var(--pg-gutter, 28px) / -2);
+  inline-size: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--border-subtle) 18%,
+    var(--border-subtle) 82%,
+    transparent
+  );
+}
+
+.pg__leaf-cell:focus-visible .pg-leaf__date {
+  color: var(--accent);
+}
+
+.pg__leaf-cell .pg-leaf {
+  block-size: 100%;
+  overflow-y: auto;
+  padding: clamp(0.5rem, 2vw, 1.5rem) clamp(0.75rem, 2.5vw, 2rem);
+}
+
+/* One page on a phone: no spine to draw. */
+.pg__grid[data-cols='1'] .pg__leaf-cell::after {
+  display: none;
+}
+
+
+/* ── the filter: one field, everything behind it ── */
+
+.pg-filter {
+  position: relative;
+}
+
+.pg-filter__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  inline-size: min(26rem, 100%);
+  padding: 0.42rem 0.85rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  transition: border-color var(--transition);
+}
+
+.pg-filter__field:focus-within {
+  border-color: var(--accent);
+}
+
+/* Square off the bottom while the menu is under it, so the two read as one. */
+.pg-filter__field[data-open='true'] {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.pg-filter__icon {
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--text-faint);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.pg-filter__in {
+  flex: 1;
+  min-inline-size: 0;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.pg-filter__in::placeholder {
+  color: var(--text-faint);
+}
+
+/*
+ * What the field is offering.
+ *
+ * One list, not a set of panels — words, markings, what you wrote, and asking,
+ * each labelled by kind so the list explains itself without a header per
+ * section. Scrolls, because a vocabulary is as long as it is.
+ */
+.pg-filter__menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 8;
+  inline-size: min(26rem, 100%);
+  max-block-size: 19rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+
+.pg-filter__opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  inline-size: 100%;
+  padding: 0.42rem 0.55rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pg-filter__opt[data-sel='true'] {
+  background: var(--bg-input);
+}
+
+/* What kind of thing this is — "word", "marked", "wrote", "ask". */
+.pg-filter__opt-kind {
+  flex: 0 0 3.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.pg-filter__opt-label {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+/* Choosing should never be a shot in the dark. */
+.pg-filter__opt-n {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+/* ── what's on ── */
+
+.pg-filter__chips {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+}
+
+.pg-filter__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius-full);
+  padding: 0.24rem 0.6rem;
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pg-filter__chip:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.pg-filter__x {
+  font-size: 0.66rem;
+  opacity: 0.7;
+}
+
+.pg-filter__only,
+.pg-filter__reset {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.24rem 0.62rem;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg-filter__only:hover,
+.pg-filter__reset:hover {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.pg-filter__only[data-on='true'] {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}

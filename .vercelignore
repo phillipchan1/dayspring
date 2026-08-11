@@ -7,3 +7,10 @@ src-tauri
 
 # Desktop release notes / changelog inputs that aren't needed by the web build
 RELEASE_NOTES.md
+
+# Vercel turns EVERY file under api/ into a deployed serverless function, so a
+# colocated test would ship as a live public endpoint — api/pages/interpret.test.ts
+# becomes /api/pages/interpret.test. (Tests under api/_lib/ are already excluded:
+# Vercel skips underscore-prefixed directories.) Verified by inspecting
+# .vercel/output/functions after `vercel build`.
+api/**/*.test.ts

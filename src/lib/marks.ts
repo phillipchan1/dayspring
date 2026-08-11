@@ -190,6 +190,13 @@ export async function drainPendingMarks(): Promise<void> {
  * for the text. A null return means the sentence is gone: the mark is orphaned,
  * which is a display state, not an error. It still belongs in Remember, because
  * it is still verbatim what the writer wrote.
+ *
+ * Known and accepted: formatting a marked sentence orphans its mark, because
+ * the quote is matched against the RAW markdown and bolding or highlighting
+ * inserts markers into it. Any edit already does this — and marking is a
+ * reading act, so it is rare to then reformat the same words — but if that ever
+ * feels like data loss, the fix is to match against stripInlineMarkers(body)
+ * and map the index back through the strip. Not free; not obviously worth it.
  */
 export function anchorOf(body: string, mark: Pick<Mark, 'quote' | 'charStart'>): number | null {
   const { quote, charStart } = mark

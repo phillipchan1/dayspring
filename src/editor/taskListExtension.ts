@@ -204,6 +204,6 @@ export function taskListExtension(): Extension {
   return [
     taskListTheme,
     taskListPlugin,
-    Prec.high(keymap.of([{ key: 'Enter', run: continueTaskOnEnter }])),
+    Prec.highest(keymap.of([{ key: 'Enter', run: continueTaskOnEnter }])),
   ]
 }

@@ -1,8 +1,5 @@
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
-import { EntryList } from './EntryList'
 import { Rail } from './Rail'
-import { ENTRIES_PANEL_WIDTH_MAX, ENTRIES_PANEL_WIDTH_MIN } from './entriesPanelWidth'
-import { useEntriesPanelResize } from './useEntriesPanelResize'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
@@ -19,47 +16,45 @@ function formatBreadcrumb(iso: string): string {
 }
 
 /**
- * Desktop: three columns — a slim navigation rail, a toggleable Entries panel,
- * and the centered writing canvas. Entering focus mode hides the rail, panel,
- * and top bar so the canvas takes the whole screen.
+ * Desktop: a slim navigation rail and the canvas. Entering focus mode hides the
+ * rail and top bar so the canvas takes the whole screen.
+ *
+ * Two columns, not three. The middle one was the entries panel; Entries is the
+ * Pages wall now, which takes the canvas like every other surface — so the
+ * editor is never sharing a screen with an index of itself, and writing is
+ * always full width.
  */
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, rememberEnabled, onOpenSettings, onSync, onRemember,
-    settings, updateSettings, focus, entriesOpen, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, rememberActive, bulkActive, bulkCount, rangeSelectActive,
+    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    settings, updateSettings, focus, onToggleEntries, mainSlot,
+    reflectionsActive, altarActive, scriptureActive, pagesActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
-  const topbarLabel = bulkActive
-    ? `${bulkCount} entries selected`
-    : rangeSelectActive
-      ? 'Selecting entries'
-      : activeEntry
-        ? formatBreadcrumb(activeEntry.created_at)
-        : isNewEntry
-          ? formatBreadcrumb(new Date().toISOString())
-          : ''
-  const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || rememberActive
-  const journalChrome = !canvasAlternateActive
+  const topbarLabel = activeEntry
+    ? formatBreadcrumb(activeEntry.created_at)
+    : isNewEntry
+      ? formatBreadcrumb(new Date().toISOString())
+      : ''
+  // A surface owns the canvas, so the journal's own chrome steps aside.
+  const surfaceActive =
+    reflectionsActive || altarActive || scriptureActive || pagesActive
+  const journalChrome = !surfaceActive
 
   return (
     <div className="app-shell">
       {!focused && (
         <Rail
           onNew={onNew}
-          onToggleEntries={onToggleEntries}
-          entriesOpen={entriesOpen}
+          onEntries={onToggleEntries}
+          pagesActive={pagesActive}
           lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
           scriptureActive={scriptureActive}
           onScripture={onScripture}
-          rememberActive={rememberActive}
-          onRemember={onRemember}
-          rememberEnabled={rememberEnabled}
           altarActive={altarActive}
           onAltar={onAltar}
           altarEnabled={altarEnabled}
@@ -70,40 +65,6 @@ export function DesktopJournal(props: JournalViewProps) {
         />
       )}
 
-      {!focused && !canvasAlternateActive && (
-        <div
-          className="entries-panel"
-          data-open={entriesOpen ? 'true' : 'false'}
-          data-resizing={resizing ? 'true' : undefined}
-          style={{ '--entries-panel-width': `${entriesPanelWidth}px` } as React.CSSProperties}
-        >
-          <EntryList
-            entries={entries}
-            activeId={activeId}
-            isNewEntry={isNewEntry}
-            onSelect={onSelect}
-            onEditEntry={onEditEntry}
-            {...(onSelectionChange ? { onSelectionChange } : {})}
-            onMenuAction={onEntryMenuAction}
-            onDeleteEntries={onDeleteEntries}
-            query={query}
-            onQueryChange={onQueryChange}
-            onCollapse={onToggleEntries}
-          />
-          {entriesOpen && (
-            <div
-              className="entries-panel__resize"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize entries panel"
-              aria-valuemin={ENTRIES_PANEL_WIDTH_MIN}
-              aria-valuemax={ENTRIES_PANEL_WIDTH_MAX}
-              aria-valuenow={entriesPanelWidth}
-              onPointerDown={onResizePointerDown}
-            />
-          )}
-        </div>
-      )}
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {!focused && journalChrome && (
@@ -129,20 +90,12 @@ export function DesktopJournal(props: JournalViewProps) {
             </div>
             <div className="journal-topbar__actions">
               <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>
-                {!bulkActive && !rangeSelectActive && (
-                  <>
-                    <span className="status-cluster__dot" data-status={status} aria-hidden />
-                    <span>{words} {words === 1 ? 'word' : 'words'}</span>
-                    <span className="status-cluster__sep" aria-hidden>·</span>
-                  </>
-                )}
+                <span className="status-cluster__dot" data-status={status} aria-hidden />
+                <span>{words} {words === 1 ? 'word' : 'words'}</span>
+                <span className="status-cluster__sep" aria-hidden>·</span>
                 <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
-                {!bulkActive && !rangeSelectActive && (
-                  <>
-                    <span className="status-cluster__sep" aria-hidden>·</span>
-                    <SyncBadge bare onSync={onSync} />
-                  </>
-                )}
+                <span className="status-cluster__sep" aria-hidden>·</span>
+                <SyncBadge bare onSync={onSync} />
               </div>
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 focus
@@ -152,7 +105,7 @@ export function DesktopJournal(props: JournalViewProps) {
         )}
 
         <div
-          className={`journal-canvas${canvasAlternateActive ? ' journal-canvas--reflections' : ''}`}
+          className={`journal-canvas${surfaceActive ? ' journal-canvas--reflections' : ''}`}
           style={{ flex: 1, minHeight: 0 }}
         >
           {!focused && journalChrome && (
@@ -166,7 +119,7 @@ export function DesktopJournal(props: JournalViewProps) {
             style={{
               padding: focused
                 ? '0 1.5rem'
-                : canvasAlternateActive
+                : surfaceActive
                   ? '0'
                   : '4rem 1.5rem 2.5rem',
               overflow: 'hidden',

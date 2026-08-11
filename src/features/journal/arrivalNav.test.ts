@@ -15,6 +15,16 @@ describe('shouldAutoOpenLatest', () => {
     expect(shouldAutoOpenLatest({ ...base, isNewEntry: true })).toBe(false)
   })
 
+  // Leaving the editor for a surface nulls entryId but deliberately does NOT
+  // clear isNewEntryMode. That combination used to be rare; now that ⌘1 is the
+  // Pages wall, "start a new entry, step out to look something up, a sync lands
+  // while you're away" is an ordinary Tuesday. The guard is what makes coming
+  // back land on your own draft rather than on whatever synced most recently.
+  it('holds while you are away from the editor on a surface', () => {
+    expect(shouldAutoOpenLatest({ ...base, isNewEntry: true, editorBlank: true })).toBe(false)
+    expect(shouldAutoOpenLatest({ ...base, isNewEntry: true, editorBlank: false })).toBe(false)
+  })
+
   it('never overrides an entry that is already open', () => {
     expect(shouldAutoOpenLatest({ ...base, wantedId: 'abc' })).toBe(false)
   })

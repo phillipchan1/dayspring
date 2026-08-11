@@ -16,7 +16,9 @@ import { ALTITUDES } from '@/features/ascent/ascent.config'
 import '@/features/ascent/Ascent.css'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { AltarView } from '@/features/altar/AltarView'
-import { EntryList } from '@/features/journal/EntryList'
+import { useState } from 'react'
+import { PagesView } from '@/features/pages/PagesView'
+import { useSettings } from '@/hooks/useSettings'
 import { Editor } from '@/editor/Editor'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
@@ -156,20 +158,13 @@ export function renderSurface(shot: Shot) {
       )
 
     case 'history':
+      // The wall, not the old list. This shot's claim is "a decade came with
+      // you" — a decade of pages says that; a decade of 30px rows says you
+      // acquired a filing cabinet.
       return (
         <Canvas>
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <EntryList
-              entries={MOCK_ENTRIES}
-              activeId={null}
-              onSelect={noop}
-              onEditEntry={noop}
-              onMenuAction={noop}
-              onDeleteEntries={noop}
-              query=""
-              onQueryChange={noop}
-              fullWidth
-            />
+            <PagesShot />
           </div>
         </Canvas>
       )
@@ -181,4 +176,42 @@ export function renderSurface(shot: Shot) {
       // inserts them.
       return <EditorSnippet doc={MOCK_DOC} toolbar />
   }
+}
+
+/**
+ * The wall, with its controls actually wired.
+ *
+ * Every control on this surface is a controlled input; handed `noop` they all
+ * render and none of them work, which makes the shot a worse test of the
+ * surface than it looks. Settings come from the real store (so the zoom moves),
+ * and lighting is held locally (so chips light and clear).
+ */
+function PagesShot() {
+  const { settings, update } = useSettings()
+  const [subjectKey, setSubjectKey] = useState<string | null>(null)
+  const [panel, setPanel] = useState<'weather' | null>(null)
+  const [spreadId, setSpreadId] = useState<string | null>(null)
+  return (
+    <PagesView
+      entries={MOCK_ENTRIES}
+      marks={[]}
+      ready
+      activeId={null}
+      subjectKey={subjectKey}
+      onSubject={setSubjectKey}
+      asked={null}
+      onClearAsked={noop}
+      asking={null}
+      panel={panel}
+      onPanel={setPanel}
+      spreadId={spreadId}
+      onSpread={setSpreadId}
+      onOpenEntry={noop}
+      onEntryMenuAction={noop}
+      onDeleteEntries={noop}
+      single={false}
+      settings={settings}
+      updateSettings={update}
+    />
+  )
 }

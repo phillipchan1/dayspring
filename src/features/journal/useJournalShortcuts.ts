@@ -12,23 +12,26 @@ import { isTauri } from '@/lib/platform'
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
+  /** ⌘1 — Pages, your entries. */
   onToggleEntries: () => void
   onLookBack: () => void
   onScripture: () => void
   onAltar: () => void
   onOpenSettings: () => void
-  /** ⌘K — Find (instant, local) or Ask (Remember). */
+  /** ⌘K — Find (instant, local), or Ask (which lights the wall). */
   onFindOrAsk: () => void
-  /** ⌘5 — the Remember surface. */
-  onRemember: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
-  /** Increase editor font size (⌘= or ⌘+). */
-  onFontSizeUp: () => void
-  /** Decrease editor font size (⌘-). */
-  onFontSizeDown: () => void
-  /** Reset editor font size to default (⌘0). */
-  onFontSizeReset: () => void
+  /**
+   * ⌘= / ⌘− / ⌘0 — "bigger", "smaller", "back to normal".
+   *
+   * What that means depends on what's on screen: editor font size while
+   * writing, how close you're standing while on the Pages wall. The shortcut
+   * layer doesn't need to know which; JournalScreen resolves it.
+   */
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onZoomReset: () => void
   /** Focus mode consumes Esc first (handled in useFocusMode). */
   focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
@@ -51,11 +54,10 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onAltar,
     onOpenSettings,
     onFindOrAsk,
-    onRemember,
     onToggleRailLabels,
-    onFontSizeUp,
-    onFontSizeDown,
-    onFontSizeReset,
+    onZoomIn,
+    onZoomOut,
+    onZoomReset,
     focusActive,
     settingsOpen,
   } = actions
@@ -108,19 +110,19 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
 
       if (key === '=' || key === '+') {
         e.preventDefault()
-        onFontSizeUp()
+        onZoomIn()
         return
       }
 
       if (key === '-') {
         e.preventDefault()
-        onFontSizeDown()
+        onZoomOut()
         return
       }
 
       if (key === '0') {
         e.preventDefault()
-        onFontSizeReset()
+        onZoomReset()
         return
       }
 
@@ -130,13 +132,12 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      if (key >= '1' && key <= '5' && !e.shiftKey) {
+      if (key >= '1' && key <= '4' && !e.shiftKey) {
         e.preventDefault()
         if (key === '1') onToggleEntries()
         else if (key === '2') onLookBack()
         else if (key === '3') onScripture()
         else if (key === '4') onAltar()
-        else if (key === '5') onRemember()
         return
       }
 
@@ -161,11 +162,10 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onAltar,
     onOpenSettings,
     onFindOrAsk,
-    onRemember,
     onToggleRailLabels,
-    onFontSizeUp,
-    onFontSizeDown,
-    onFontSizeReset,
+    onZoomIn,
+    onZoomOut,
+    onZoomReset,
     focusActive,
     settingsOpen,
   ])

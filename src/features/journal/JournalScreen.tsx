@@ -22,15 +22,13 @@ import type { Entry, PrayerType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
-import { useEntryEditorFocusToggle } from './useEntryEditorFocusToggle'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
-import { filterEntries } from './search'
-import { nextEntryIdAfterDelete, orderedEntryIds } from './orderedEntryIds'
-import { entryReturnFromState } from '@/lib/appHistory'
+import { nextEntryIdAfterDelete } from './orderedEntryIds'
+import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
 import { consumeSeedPrompt } from '@/lib/onboardingSeed'
 import {
   copyEntryMarkdown,
@@ -45,18 +43,13 @@ import type { JournalViewProps } from './journalViewProps'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
-import { RememberView } from '@/features/remember/RememberView'
-import { useRemember } from '@/features/remember/useRemember'
+import { PagesView } from '@/features/pages/PagesView'
+import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
+import { useMarks } from '@/features/pages/useMarks'
+import { ask } from '@/lib/ask'
 import type { Mark } from '@/lib/marks'
-import { FindPalette } from '@/features/remember/FindPalette'
+import { FindPalette } from '@/features/find/FindPalette'
 import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
-import { EntryBulkCanvas } from './EntryBulkCanvas'
-import {
-  copyEntriesMarkdown,
-  copyEntriesText,
-  exportEntriesZip,
-} from './entryBulkActions'
-import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi'
 import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
@@ -108,7 +101,7 @@ function arrivalLabelFor(block: ParsedSpiritualBlock): string {
 
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const { state, go, back, closeSettings } = useAppNavigation()
-  const { entryId, restrictIds } = state
+  const { entryId } = state
 
   const [entries, setEntries] = useState<Entry[]>([])
   const [content, setContent] = useState('')
@@ -118,9 +111,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editDateEntry, setEditDateEntry] = useState<Entry | null>(null)
-  const [query, setQuery] = useState('')
-  // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
-  const [entriesOpen, setEntriesOpen] = useState(true)
 
   const { settings, update: updateSettings } = useSettings()
   const isMobile = useIsMobile()
@@ -141,24 +131,29 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const touchFirst = isMobile || coarsePointer
   const settingsOpen = state.settings !== null
   const helpOpen = state.help
-  const sidebarOpen = state.sidebar
   const reflectionsActive = state.surface === 'reflections'
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
-  const rememberActive = state.surface === 'well'
+  const pagesActive = state.surface === 'pages'
   // Altar is unfinished — hidden behind the `altar` flag (per-profile or
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
-  // Remember hides its rail button and mobile tab behind the `remember` flag.
-  // Unlike Altar this does NOT redirect the surface: ⌘K → Ask still routes
-  // there, it just isn't advertised in the navigation until it's turned on.
-  const rememberEnabled = resolveFlag(featureFlags, 'remember')
+  // Pages carries no flag of its own: the alpha channel is the gate. See D-017.
   const canvasAlternateActive =
-    reflectionsActive || altarActive || scriptureActive || rememberActive
-  // Passages + marks. The corpus read is gated on the surface being open; marks
-  // load always, because the editor draws them.
-  const remember = useRemember(rememberActive)
+    reflectionsActive || altarActive || scriptureActive || pagesActive
+  // Marks are drawn by the editor and filtered on by the wall, so they load
+  // always — and cheaply: this reads a small store, never the corpus.
+  const marks = useMarks()
+  /**
+   * The last question asked, and the pages it found.
+   *
+   * Ephemeral on purpose — it is not in history. A question is something you
+   * just asked, not a place you can navigate back into a week later, and 40 ids
+   * in a history frame would be state pretending to be a location.
+   */
+  const [asked, setAsked] = useState<{ question: string; entryIds: string[] } | null>(null)
+  const [asking, setAsking] = useState<string | null>(null)
   /**
    * Was the open entry written on an earlier calendar day?
    *
@@ -179,7 +174,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       d.getDate() !== now.getDate()
     )
   }, [entryId, entries])
-  /** ⌘K — Find (instant, local) or Ask (Remember). Seeded when reopened from Remember. */
+  /** ⌘K — Find (instant, local), or Ask, which lights the wall with what it found. */
   const [findOpen, setFindOpen] = useState(false)
   const [findSeed, setFindSeed] = useState('')
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
@@ -220,7 +215,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const isDirtyRef = useRef<() => boolean>(() => false)
   const adoptExternalTextRef = useRef<(forEntryId: string | null, text: string) => void>(() => {})
   const skipEditorAutofocusRef = useRef(false)
-  const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [isNewEntryMode, setIsNewEntryMode] = useState(false)
   // Live mirror for sync callbacks (applySyncedList) that must not repoint the
   // editor away from a deliberate new entry — see arrivalNav.shouldAutoOpenLatest.
@@ -230,8 +224,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // even when entryId is already null (go() would be a no-op, keeping docKey
   // at 'new' and preventing the Editor sync effect from clearing the CM view).
   const [newEntryGeneration, setNewEntryGeneration] = useState(0)
-  const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
-  const [rangeSelectActive, setRangeSelectActive] = useState(false)
 
   // Voice dictation — caret captured when the mic opens so the text lands there.
   const [voiceOpen, setVoiceOpen] = useState(false)
@@ -779,7 +771,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   function navigateAwayFromDeletedEntry(remaining: Entry[], deletedIds: string[]) {
     skipEntrySyncRef.current = true
-    const orderBefore = orderedEntryIds(entries, null)
+    const orderBefore = entries.map((e) => e.id)
     const nextId = nextEntryIdAfterDelete(orderBefore, deletedIds)
     if (nextId) {
       const next = remaining.find((e) => e.id === nextId) ?? remaining[0]
@@ -982,29 +974,39 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     seedEditor(entryId, asEntryMarkdown(entry.body_markdown))
   }, [entryId, entries, entriesReady, state.surface])
 
+  /**
+   * Leave the editor for a canvas surface.
+   *
+   * Every surface toggle needs the same four things, and each was somewhere to
+   * get it wrong independently:
+   *
+   *  - Flush outstanding keystrokes BEFORE the entryId→null transition. Left
+   *    unawaited, the flush raced the autosave session reset and landed after
+   *    it — losing the tail of an entry.
+   *  - Leave focus mode. In focus mode the rail is unmounted (DesktopJournal),
+   *    so a surface opened from inside it was a canvas with no visible way out.
+   *  - Clear the overlays that must not survive a surface change.
+   */
+  async function leaveForSurface(next: Partial<AppHistoryState>) {
+    await saveNow()
+    focus.exit()
+    go({
+      entryId: null,
+      entryReturn: null,
+      ascentDrill: null,
+      settings: null,
+      help: false,
+      ...next,
+    })
+  }
+
   async function toggleLookBack() {
     if (state.entryReturn?.surface === 'reflections') {
       returnFromEntryOrigin()
       return
     }
     if (reflectionsActive) back()
-    else {
-      // Persist outstanding keystrokes BEFORE navigating (local-only, ~ms).
-      // Unawaited, the flush raced the entryId→null transition and could land
-      // after the autosave session reset — losing the tail of the entry.
-      await saveNow()
-      setEntriesOpen(false)
-      go({
-        surface: 'reflections',
-        entryId: null,
-        entryReturn: null,
-        ascentAltitude: 0,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
+    else await leaveForSurface({ surface: 'reflections', ascentAltitude: 0 })
   }
 
   async function toggleScripture() {
@@ -1013,22 +1015,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (scriptureActive) back()
-    else {
-      await saveNow() // see toggleLookBack — must complete before entryId nulls
-      setEntriesOpen(false)
-      // Always land on the canon map, never a stale book panel.
-      go({
-        surface: 'scripture',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-        scriptureBook: null,
-        scriptureVerse: null,
-      })
-    }
+    // Always land on the canon map, never a stale book panel.
+    else await leaveForSurface({ surface: 'scripture', scriptureBook: null, scriptureVerse: null })
   }
 
   /** Open ⌘K. Find is instant and local; Ask leaves for the server on Return. */
@@ -1037,21 +1025,30 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setFindOpen(true)
   }
 
-  /** Return pressed on a question — leave the palette and land in the Well. */
+  /**
+   * Return pressed on a question — the answer is a lit wall.
+   *
+   * Ask used to render its own surface. It doesn't need one: what it produces
+   * is a set of entries, and the wall is where a set of entries is shown. The
+   * semantic legs still earn their keep — they catch pages that circle a thing
+   * without ever naming it, which literal matching can't — and the question
+   * arrives as a chip you can pull off like any other filter.
+   */
   async function askQuestion(question: string) {
     setFindOpen(false)
-    await saveNow() // see toggleLookBack — must complete before entryId nulls
-    setEntriesOpen(false)
-    go({
-      surface: 'well',
-      rememberQuestion: question,
-      entryId: null,
-      entryReturn: null,
-      ascentDrill: null,
-      settings: null,
-      help: false,
-      sidebar: false,
-    })
+    setAsking(question)
+    await leaveForSurface({ surface: 'pages' })
+    try {
+      const result = await ask(question)
+      setAsked({ question, entryIds: result.entryIds })
+    } catch {
+      // Offline, or the call failed. The wall falls back to lighting the words
+      // in the question, which is what it would have done without Ask at all.
+      setAsked(null)
+      go({ pagesSubject: `word:${question}` }, { replace: true })
+    } finally {
+      setAsking(null)
+    }
   }
 
   /** Find is transit — jump straight to the entry and close behind you. */
@@ -1060,7 +1057,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
     if (state.surface !== 'journal') {
-      go({ surface: 'journal', entryId: id, entryReturn: null, rememberQuestion: null })
+      // Carry the breadcrumb. This used to hard-code `entryReturn: null`, so
+      // ⌘K from a surface dropped you in the editor with no way back to where
+      // you were reading — most visible from Pages, which is now ⌘1.
+      go({
+        surface: 'journal',
+        entryId: id,
+        entryReturn: entryReturnFromState(state),
+          })
       return
     }
     await handleBrowse(entry)
@@ -1084,68 +1088,31 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (altarActive) back()
-    else {
-      await saveNow() // see toggleLookBack — must complete before entryId nulls
-      setEntriesOpen(false)
-      go({
-        surface: 'altar',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
+    else await leaveForSurface({ surface: 'altar' })
   }
 
   /**
-   * Open Remember. Unlike the old Well this routes rather than opening ⌘K —
-   * the surface has the passages already set apart to show on arrival, which is
-   * the whole reason it can be a destination now.
+   * ⌘1 — your entries.
+   *
+   * This is the wall now, not a panel. Pages was reached from the entries
+   * panel's own view switcher when it shipped, which made it a second index of
+   * the same archive sitting inside the first; it is better than the list at
+   * every job the list did, so it takes the destination rather than hiding
+   * behind it.
+   *
+   * Shaped like the other four surface toggles, and the entryReturn branch is
+   * the load-bearing one: an entry opened FROM the wall pops its pushed frame
+   * instead of pushing a second, so Back doesn't walk every page you peeked at.
    */
-  async function toggleRemember() {
-    if (state.entryReturn?.surface === 'well') {
+  async function toggleEntries() {
+    if (state.entryReturn?.surface === 'pages') {
       returnFromEntryOrigin()
       return
     }
-    if (rememberActive) back()
-    else {
-      await saveNow() // see toggleLookBack — must complete before entryId nulls
-      setEntriesOpen(false)
-      go({
-        surface: 'well',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        rememberQuestion: null,
-        settings: null,
-        help: false,
-        sidebar: false,
-      })
-    }
+    if (pagesActive) back()
+    else await leaveForSurface({ surface: 'pages' })
   }
 
-  function toggleEntries() {
-    if (canvasAlternateActive) {
-      go({ surface: 'journal', sidebar: isMobile })
-      setEntriesOpen(true)
-      return
-    }
-    if (isMobile) {
-      if (state.sidebar) back()
-      else go({ sidebar: true })
-    } else {
-      setEntriesOpen((open) => !open)
-    }
-  }
-
-  // Alternate surfaces own the canvas — keep the journal list tucked away.
-  useEffect(() => {
-    if (!canvasAlternateActive) return
-    setEntriesOpen(false)
-    if (state.sidebar) go({ sidebar: false }, { replace: true })
-  }, [canvasAlternateActive, state.sidebar, go])
 
   // Altar is flag-gated: never strand a user on it (e.g. a stale history frame
   // from before the flag, or a profile that lost the flag) — send them home.
@@ -1167,7 +1134,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onToggleEntries: toggleEntries,
+    onToggleEntries: () => void toggleEntries(),
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
@@ -1176,13 +1143,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       else openSettings()
     },
     onFindOrAsk: () => openFindOrAsk(''),
-    onRemember: toggleRemember,
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
-    onFontSizeUp: () =>
-      updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
-    onFontSizeDown: () =>
-      updateSettings({ fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1) }),
-    onFontSizeReset: () => updateSettings({ fontSize: FONT_SIZE_DEFAULT }),
+    // ⌘= / ⌘− / ⌘0 mean "bigger / smaller / normal", and what that acts on is
+    // whatever owns the screen: the writing size while writing, how close
+    // you're standing while on the wall.
+    onZoomIn: () =>
+      pagesActive
+        ? updateSettings({ pagesZoom: clampZoom(settings.pagesZoom + ZOOM_STEP) })
+        : updateSettings({ fontSize: Math.min(FONT_SIZE_MAX, settings.fontSize + 1) }),
+    onZoomOut: () =>
+      pagesActive
+        ? updateSettings({ pagesZoom: clampZoom(settings.pagesZoom - ZOOM_STEP) })
+        : updateSettings({ fontSize: Math.max(FONT_SIZE_MIN, settings.fontSize - 1) }),
+    onZoomReset: () =>
+      pagesActive
+        ? updateSettings({ pagesZoom: PAGES_ZOOM_DEFAULT })
+        : updateSettings({ fontSize: FONT_SIZE_DEFAULT }),
     focusActive: focus.active,
     settingsOpen,
   })
@@ -1309,15 +1285,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   async function handleBrowse(entry: Entry) {
     skipEditorAutofocusRef.current = true
     setIsNewEntryMode(false)
-    if (bulkSelection.length >= 2 || rangeSelectActive) return
-
     const body = asEntryMarkdown(entry.body_markdown)
     if (entry.id === entryId && !canvasAlternateActive) {
       // Re-selecting the already-open entry: the editor holds the live text and
       // the list row is only a debounced echo of it, so never reload from the
       // list — that could clobber keystrokes the row sync hasn't caught up to.
-      // Still dismiss the mobile drawer so the tap feels like it landed.
-      if (state.sidebar) go({ sidebar: false }, { replace: true })
       // Nothing will consume the flag on this path — leaving it set would make
       // it swallow the *next* legitimate autofocus instead.
       skipEditorAutofocusRef.current = false
@@ -1326,26 +1298,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
     setContent(body)
-    // Close the mobile drawer in the SAME navigation. Closing it separately via
-    // history.back() would pop this very frame and revert to the previous entry
-    // — the "tapping an entry does nothing" bug.
-    go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
+    // Replace, not push: entry-to-entry browsing must not stack a frame each
+    // time, or Back walks every page you glanced at instead of leaving Pages.
+    go({ surface: 'journal', entryId: entry.id }, { replace: true })
   }
 
   async function handleEditEntry(entry: Entry) {
-    selectionApiRef.current?.clear()
     skipEditorAutofocusRef.current = false
     setIsNewEntryMode(false)
     if (entry.id === entryId && !canvasAlternateActive) {
-      if (state.sidebar) go({ sidebar: false }, { replace: true })
       requestAnimationFrame(() => editorRef.current?.focus())
       return
     }
     await saveNow()
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
-    // Fold the drawer-close into this navigation — see handleBrowse.
-    go({ surface: 'journal', entryId: entry.id, sidebar: false }, { replace: true })
+    go({ surface: 'journal', entryId: entry.id }, { replace: true })
     setContent(asEntryMarkdown(entry.body_markdown))
     // Explicit edit intent, and on touch autofocus is off — ask for the caret.
     if (touchFirst) requestAnimationFrame(() => editorRef.current?.focus())
@@ -1382,18 +1350,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     loadedEntryIdRef.current = entry.id
   }
 
-  const handleSelectionChange = useCallback((state: EntrySelectionState, api: EntrySelectionApi) => {
-    selectionApiRef.current = api
-    setRangeSelectActive((prev) => (prev === state.rangeActive ? prev : state.rangeActive))
-    setBulkSelection((prev) => {
-      const next = state.entries
-      if (prev.length === next.length && prev.every((e, i) => e.id === next[i]?.id)) return prev
-      return next
-    })
-    if (state.rangeActive || state.entries.length >= 2) {
-      skipEditorAutofocusRef.current = true
-    }
-  }, [])
 
   async function handleDuplicate(entry: Entry) {
     await saveNow()
@@ -1507,35 +1463,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   const words = useMemo(() => wordCount(content), [content])
+  /**
+   * Defensive dedup. Should never be needed, but a duplicated row is the visible
+   * symptom of the entry-duplication class of bug, and this is cheap insurance
+   * against concurrent state updates racing.
+   */
   const visibleEntries = useMemo(() => {
-    let list: Entry[]
-    if (restrictIds) {
-      const set = new Set(restrictIds)
-      list = entries.filter((e) => set.has(e.id))
-    } else {
-      list = filterEntries(entries, query)
-    }
-    // Defensive dedup — should never be needed but prevents duplicate rows from
-    // appearing in the list if concurrent state updates race in unexpected ways.
     const seen = new Set<string>()
-    return list.filter((e) => {
+    return entries.filter((e) => {
       if (seen.has(e.id)) return false
       seen.add(e.id)
       return true
     })
-  }, [entries, query, restrictIds])
-
-  useEntryEditorFocusToggle({
-    activeIdRef: entryIdRef,
-    entries: visibleEntries,
-    onEditEntry: (entry) => void handleEditEntry(entry),
-    blocked:
-      settingsOpen ||
-      helpOpen ||
-      focus.active ||
-      canvasAlternateActive ||
-      slashCapture !== null,
-  })
+  }, [entries])
 
   const docKey = entryId ?? `new-${newEntryGeneration}`
 
@@ -1543,24 +1483,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Shown as a gentle placeholder on the first new, empty entry only.
   const [seedPrompt] = useState(() => consumeSeedPrompt())
 
-  const bulkActive = bulkSelection.length >= 2
-
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
-  ) : bulkActive ? (
-    <EntryBulkCanvas
-      count={bulkSelection.length}
-      onCopyText={() => void copyEntriesText(bulkSelection)}
-      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection, settings.firstLineTitle)}
-      onExportZip={() => void exportEntriesZip(bulkSelection, settings.firstLineTitle)}
-      onDelete={() => selectionApiRef.current?.requestDelete()}
-      onClear={() => selectionApiRef.current?.clear()}
-    />
-  ) : rangeSelectActive ? (
-    <div className="entry-range-canvas">
-      <p className="entry-range-canvas__eyebrow">Selecting</p>
-      <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
-    </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -1570,7 +1494,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             docKey={docKey}
             initialDoc={content}
             onChange={handleContentChange}
-            marks={entryId ? remember.marksFor(entryId) : []}
+            marks={entryId ? marks.marksFor(entryId) : []}
             // Marking is a READING act. The button only exists on an entry
             // written on a previous day — today's page keeps exactly the
             // formatting bar it has always had, and the writing surface gains
@@ -1578,7 +1502,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             {...(entryId && isPastEntry
               ? {
                   onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
-                    remember.toggleMark(entryId, quote, charStart, existing),
+                    marks.toggleMark(entryId, quote, charStart, existing),
                 }
               : {})}
             // The `/` hint is desktop copy: CommandToolbar already puts
@@ -1604,6 +1528,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             typewriter={focus.active && focusEditorReady && settings.typewriter}
             dimming={focus.active && focusEditorReady && settings.dimming}
             titleStyling={settings.firstLineTitle}
+            showMarkdownSyntax={settings.showMarkdownSyntax}
             slashEnabled
             // Only band the line for a fresh /command; editing a block targets an
             // atomic widget line, where a line decoration collides with the block.
@@ -1619,6 +1544,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {showCommandBar && !focus.active && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
+          onFormat={(id) => editorRef.current?.applyFormatCommand(id)}
+          onHighlight={(color) => editorRef.current?.applyHighlight(color)}
           onVoice={() => {
             voiceCaretRef.current = editorRef.current?.getCursor() ?? 0
             setVoiceOpen(true)
@@ -1670,29 +1597,36 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
   ) : reflectionsActive ? (
     <AscentView onOpenEntry={handleOpenReflectionEntry} />
-  ) : rememberActive ? (
-    <RememberView
-      question={state.rememberQuestion}
-      passages={remember.passages}
-      ready={remember.ready}
+  ) : pagesActive ? (
+    <PagesView
+      entries={entries}
+      marks={marks.marks}
+      ready={entriesReady}
+      activeId={entryId}
+      subjectKey={state.pagesSubject}
+      asked={asked}
+      onClearAsked={() => setAsked(null)}
+      asking={asking}
+      // Replace, not push: a subject is a filter you try on, and pushing a frame
+      // per chip would make Back walk every word you looked at.
+      onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
+      panel={state.pagesPanel}
+      // Pushed, so Back and Esc close the panel and leave you on the wall —
+      // the same contract the Spread has.
+      onPanel={(panel) => (panel === null ? back() : go({ pagesPanel: panel }))}
+      spreadId={state.pagesSpreadId}
+      onSpread={(id) => {
+        if (id === null) back()
+        else if (state.pagesSpreadId) go({ pagesSpreadId: id }, { replace: true })
+        else go({ pagesSpreadId: id })
+      }}
       onOpenEntry={handleOpenReflectionEntry}
-      onAskAgain={(seed: string) => openFindOrAsk(seed)}
+      onEntryMenuAction={handleEntryMenuAction}
+      onDeleteEntries={handleDeleteEntries}
+      single={isMobile}
+      settings={settings}
+      updateSettings={updateSettings}
     />
-  ) : restrictIds ? (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div className="restrict-banner">
-        <span>
-          Showing {visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'} from a topic
-        </span>
-        <button
-          className="btn btn--ghost"
-          onClick={() => go({ restrictIds: null }, { replace: true })}
-        >
-          Clear
-        </button>
-      </div>
-      <div style={{ flex: 1, minHeight: 0 }}>{surface}</div>
-    </div>
   ) : (
     surface
   )
@@ -1707,21 +1641,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     saveError,
     onSelect: (e) => void handleBrowse(e),
     onEditEntry: (e) => void handleEditEntry(e),
-    onSelectionChange: handleSelectionChange,
-    bulkActive,
-    bulkCount: bulkSelection.length,
-    rangeSelectActive,
     onEntryMenuAction: handleEntryMenuAction,
     onDeleteEntries: handleDeleteEntries,
     onNew: () => void handleNew(),
     isNewEntry: isNewEntryMode,
-    query,
-    onQueryChange: setQuery,
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     altarEnabled,
-    rememberEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       // An explicit tap also un-retires anything the flush gave up on — whatever
@@ -1736,20 +1663,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     settings,
     updateSettings,
     focus,
-    sidebarOpen,
-    onToggleSidebar: () => {
-      if (sidebarOpen) back()
-      else go({ sidebar: true })
-    },
-    entriesOpen,
-    onToggleEntries: toggleEntries,
+    onToggleEntries: () => void toggleEntries(),
     mainSlot,
     reflectionsActive,
     altarActive,
     scriptureActive,
-    rememberActive: rememberActive,
+    pagesActive,
     onFindOrAsk: () => openFindOrAsk(''),
-    onRemember: toggleRemember,
     entryReturn: state.entryReturn,
     onReturnFromEntry: returnFromEntryOrigin,
   }

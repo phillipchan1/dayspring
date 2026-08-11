@@ -9,6 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription'
 import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
 import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
+import { HELP_URL, HELP_CONTACT_URL } from '@/lib/support'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
@@ -203,12 +204,6 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
         checked={settings.railLabels}
         onChange={(railLabels) => update({ railLabels })}
       />
-      <Toggle
-        label="Show entry preview"
-        hint="Display a short excerpt below each entry title in the list."
-        checked={settings.showEntryPreview}
-        onChange={(showEntryPreview) => update({ showEntryPreview })}
-      />
     </div>
   )
 }
@@ -248,6 +243,12 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         hint="Style each entry's first line as its title. Off keeps it as plain text."
         checked={settings.firstLineTitle}
         onChange={(v) => update({ firstLineTitle: v })}
+      />
+      <Toggle
+        label="Show markdown syntax"
+        hint="Show the raw *, **, and == characters. Off hides them until your cursor is inside — the text itself never changes."
+        checked={settings.showMarkdownSyntax}
+        onChange={(v) => update({ showMarkdownSyntax: v })}
       />
       <Toggle
         label="Ritual previews"
@@ -321,6 +322,36 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <dd>Private to you · synced</dd>
           </div>
         </dl>
+      </div>
+
+      {/* Help — opens the support site. Deliberately above Updates: someone in
+          Settings looking for an answer should meet this before a changelog. */}
+      <div className="settings-about__section">
+        <div className="settings-about__section-title">Help</div>
+        <div className="settings-about__group">
+          <div className="settings-about__row">
+            <span className="settings-field__label">Guides</span>
+            <a
+              className="btn btn--ghost"
+              href={HELP_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              How to use Dayspring
+            </a>
+          </div>
+          <div className="settings-about__row">
+            <span className="settings-field__label">Questions</span>
+            <a
+              className="btn btn--ghost"
+              href={HELP_CONTACT_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Get in touch
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Updates — desktop: update checker + history; web/iOS: history only

@@ -1,7 +1,29 @@
 import { renderMarkdown } from '@/lib/markdown'
 import { markdownForDisplay } from '@/lib/entryMarkdown'
+import { HIGHLIGHT_HUES, HIGHLIGHT_ORDER } from '@/lib/highlightColors'
 import type { Entry } from '@/lib/types'
 import { deriveTitle } from './deriveTitle'
+
+/**
+ * Highlighter styles for the print window, which is a bare document with none
+ * of the app's theme variables — so the hues are interpolated from their one
+ * source of truth rather than restated.
+ *
+ * `print-color-adjust: exact` is not optional: browsers drop element
+ * backgrounds when actually printing, and without it the highlight vanishes
+ * from the one output where a highlight matters most.
+ */
+function highlightPrintCss(): string {
+  const rules = HIGHLIGHT_ORDER.map(
+    (c) => `  mark.hl--${c} { background: rgba(${HIGHLIGHT_HUES[c]}, 0.32); }`,
+  ).join('\n')
+  return `  mark.hl { padding: 0 .12em; border-radius: .18em; color: inherit; }
+${rules}
+  u.ul { text-decoration-thickness: .08em; text-underline-offset: .16em; }
+  @media print {
+    mark.hl { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }`
+}
 
 function entryTitle(entry: Entry): string {
   return deriveTitle(entry.body_markdown) || entry.title || 'Untitled'
@@ -61,6 +83,7 @@ export function printEntry(entry: Entry, asTitle = true): void {
   h1,h2,h3 { font-family: system-ui, sans-serif; }
   ol ol { list-style-type: lower-alpha; }
   ol ol ol { list-style-type: lower-roman; }
+${highlightPrintCss()}
 </style></head><body>${html}</body></html>`)
   win.document.close()
   win.focus()

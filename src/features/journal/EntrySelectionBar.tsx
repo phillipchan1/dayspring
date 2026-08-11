@@ -5,8 +5,12 @@ interface Props {
   onExportZip: () => void
   onDelete: () => void
   onClear: () => void
-  /** Compact strip in the sidebar vs centered panel in the main canvas. */
-  layout?: 'compact' | 'canvas'
+  /**
+   * A bar floating over the Pages wall (`wall`), or a centered panel in the
+   * main canvas (`canvas`). `compact` is the narrow-strip variant the entries
+   * sidebar used; kept because the geometry may be wanted again.
+   */
+  layout?: 'compact' | 'canvas' | 'wall'
 }
 
 export function EntrySelectionBar({
@@ -24,7 +28,7 @@ export function EntrySelectionBar({
       role="toolbar"
       aria-label="Selected entries"
     >
-      {layout === 'compact' && (
+      {layout !== 'canvas' && (
         <span className="entry-selection-bar__count">{count} selected</span>
       )}
       <div className="entry-selection-bar__actions">
