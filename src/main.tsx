@@ -28,7 +28,7 @@ import { installDropGuard } from './lib/dropGuard'
 import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
-import { initPostHog } from './lib/posthog'
+import { installAnalytics } from './lib/analytics/posthog'
 
 async function bootstrap() {
   // Dev-only App Store previews: render a surface standalone, with no auth and
@@ -63,10 +63,6 @@ async function bootstrap() {
   // Catch non-React errors (unhandled rejections, stray throws) and report them.
   installGlobalHandlers()
 
-  // Vendor for the anonymous usage events in lib/analytics.ts. No-ops without
-  // VITE_POSTHOG_KEY. Gated on Settings → About → "Share anonymous usage".
-  initPostHog()
-
   // Neutralize stray file drops so a photo dropped outside a dropzone can't make
   // the WebView navigate to the file and blow away the whole app.
   installDropGuard()
@@ -94,6 +90,13 @@ async function bootstrap() {
       </ErrorBoundary>
     </StrictMode>,
   )
+
+  // Install the usage-event transport LAST, and after render is queued, so the
+  // vendor bundle can never compete with first paint. This call is cheap and
+  // synchronous: it registers the seam and a settings subscription, then boots
+  // posthog-js at idle — and only if the user has opted in. See
+  // lib/analytics/posthog.ts for why initialisation itself is gated.
+  installAnalytics()
 }
 
 void bootstrap()

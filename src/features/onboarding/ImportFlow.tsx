@@ -9,6 +9,8 @@ import type { EntrySource } from '@/lib/types'
 import { getRollup, type Rollup } from '@/lib/insights'
 import { backfillRecentMonth } from '@/lib/onboarding'
 import { apiPost } from '@/lib/api'
+import { track } from '@/lib/analytics'
+import { countBucket, yearsBucket, yearsBetween } from '@/lib/analytics/buckets'
 import { onboardingCopy as copy } from './onboardingCopy'
 import { MonthReveal } from './MonthReveal'
 
@@ -73,6 +75,11 @@ export function ImportFlow({ onComplete, onBack }: Props) {
     }
     setError(null)
     setPhase('parsing')
+    // The source is not known until a parser claims the archive, so this event
+    // reports `other` and the completion event reports what was detected. D-014
+    // wants the drop-off between the two: an archive we could not read is the
+    // single worst first impression in the product (PERSONAS P1, objection 1).
+    track('onboarding_import_started', { source: 'other' })
     try {
       // Auto-detect: try each available parser, keep the first that finds entries.
       let parsed: ImportParseResult | null = null
@@ -90,6 +97,7 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         }
       }
       if (!parsed || (parsed.dated.length === 0 && parsed.skipped.length === 0)) {
+        track('onboarding_import_failed', { source: 'other', reason: 'unsupported' })
         setError('We couldn’t read that. Is it a Dayspring backup, Day One, or Diarly export (.zip or folder)?')
         setPhase('upload')
         return
@@ -98,6 +106,9 @@ export function ImportFlow({ onComplete, onBack }: Props) {
       setSourceId(detected)
       setPhase('preview')
     } catch (e) {
+      // `reason` is an enum on purpose — the caught message can contain a
+      // filename, and a filename is the user's own words.
+      track('onboarding_import_failed', { source: 'other', reason: 'unreadable' })
       setError(e instanceof Error ? e.message : 'Could not read the export.')
       setPhase('upload')
     }
@@ -120,10 +131,24 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         setProgress({ done, total }),
       )
     } catch (e) {
+      track('onboarding_import_failed', { source: sourceId, reason: 'error' })
       setError(e instanceof Error ? e.message : 'Import failed while saving.')
       setPhase('preview')
       return
     }
+
+    // The entries are on the account — this is the moment the D-014 wedge
+    // either happened or didn't. Both counts are bucketed: a precise "3,460
+    // entries over 11 years" identifies one person in a beta cohort.
+    track('onboarding_import_completed', {
+      source: sourceId,
+      entries: countBucket(result.dated.length),
+      years: yearsBucket(
+        result.dateRange
+          ? yearsBetween(result.dateRange.earliest, result.dateRange.latest)
+          : 0,
+      ),
+    })
 
     // Entries are in. Now build the reflection.
     setPhase('building')

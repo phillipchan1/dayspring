@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
 import { setOnboarded } from '@/lib/profile'
 import { setSeedPrompt } from '@/lib/onboardingSeed'
+import { track, setPersonProperties, type OnboardingPath } from '@/lib/analytics'
 import { WelcomeFlow } from '@/features/welcome/WelcomeFlow'
 import { onboardingCopy as copy, pickOpeningPrompt } from './onboardingCopy'
 import { ImportFlow } from './ImportFlow'
@@ -36,6 +37,31 @@ export function OnboardingFlow({ onFinish }: Props) {
   const isMobile = useIsMobile()
   const isLight = isLightTheme(useResolvedTheme(settings))
 
+  // Which side of the fork this run took. Held in a ref because `finish` is
+  // reached from four different places and the completion event has to name the
+  // same path the choice event did, or the funnel cannot be joined.
+  const pathRef = useRef<OnboardingPath | null>(null)
+
+  // D-003: the fork in this component is a live persona experiment that has
+  // never been read. These four events are the whole instrument — a denominator
+  // (fork shown), the split (path chosen), and a numerator (completed) — plus
+  // the fork written onto the person, which is what lets trial conversion be
+  // grouped by branch weeks later. See docs/product/MEASUREMENT.md.
+  useEffect(() => {
+    track('onboarding_started')
+  }, [])
+
+  useEffect(() => {
+    if (step === 'fork') track('onboarding_fork_shown')
+  }, [step])
+
+  const choosePath = useCallback((path: OnboardingPath) => {
+    pathRef.current = path
+    track('onboarding_path_chosen', { path })
+    setPersonProperties({ onboarding_path: path })
+    setStep(path === 'fresh' ? 'fresh' : 'import')
+  }, [])
+
   const toggleTheme = useCallback(() => {
     updateSettings({ appearance: isLight ? 'dark' : 'light' })
   }, [isLight, updateSettings])
@@ -46,6 +72,10 @@ export function OnboardingFlow({ onFinish }: Props) {
     if (finishing) return
     setFinishing(true)
     if (seedRef.current) setSeedPrompt(seedRef.current)
+    // Fires before the awaited write, not after: setOnboarded() can fail
+    // offline and we still enter the app, so hanging the funnel's numerator off
+    // its success would under-count completions by exactly the flaky cases.
+    track('onboarding_completed', { path: pathRef.current ?? 'fresh' })
     try {
       await setOnboarded()
     } catch {
@@ -108,12 +138,21 @@ export function OnboardingFlow({ onFinish }: Props) {
           <div className="ob-screen ob-fade-in">
             <h1 className="ob-title">{copy.fork.title}</h1>
             <div className="ob-fork">
-              <button type="button" className="ob-card" onClick={() => setStep('import')}>
+              {/* The mobile veteran is recorded as its own path at the moment
+                  of choosing, not later: they picked the import branch and the
+                  product refused them. Reporting that as `veteran` would claim
+                  an import that never happened; reporting it as `fresh` would
+                  hide that we turn away the exact persona D-014 calls the wedge. */}
+              <button
+                type="button"
+                className="ob-card"
+                onClick={() => choosePath(isMobile ? 'veteran_mobile' : 'veteran')}
+              >
                 <span className="ob-card__icon" aria-hidden>❧</span>
                 <span className="ob-card__label">{copy.fork.veteran.label}</span>
                 <span className="ob-card__sub">{copy.fork.veteran.sub}</span>
               </button>
-              <button type="button" className="ob-card" onClick={() => setStep('fresh')}>
+              <button type="button" className="ob-card" onClick={() => choosePath('fresh')}>
                 <span className="ob-card__icon" aria-hidden>✦</span>
                 <span className="ob-card__label">{copy.fork.fresh.label}</span>
                 <span className="ob-card__sub">{copy.fork.fresh.sub}</span>

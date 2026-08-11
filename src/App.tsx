@@ -23,6 +23,7 @@ import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { ensureProfile } from './lib/onboarding'
 import { fenceCacheToOwner } from './lib/localData'
+import { identify, resetIdentity } from './lib/analytics'
 import { registerEntryDerive } from './lib/entryDerive'
 import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
@@ -54,6 +55,15 @@ export function App() {
     root.style.setProperty('--editor-max-width', `${settings.maxWidth}rem`)
     root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
   }, [resolvedTheme, settings.fontSize, settings.lineHeight, settings.maxWidth, settings.editorFont])
+
+  // Sign-out unbinds the identity, so the next person to use this device is a
+  // stranger to the vendor rather than a continuation of the last one. The
+  // sign-IN side lives beside the privacy fence in AuthenticatedApp, which must
+  // run first.
+  const signedIn = Boolean(session)
+  useEffect(() => {
+    if (!signedIn) resetIdentity()
+  }, [signedIn])
 
   if (!isSupabaseConfigured) return <SetupNotice />
 
@@ -101,6 +111,14 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
         await fenceCacheToOwner(ownerId)
       } catch { /* idb unavailable — proceed */ }
       if (!alive) return
+
+      // Bind usage events to this account, immediately after the privacy fence
+      // and never before it. The distinct id is the Supabase auth UUID because
+      // the subscription webhooks use the same value server-side — that shared
+      // key is what lets an onboarding choice on day 0 join to a conversion on
+      // day 14 (D-003). No-ops entirely while usage sharing is off.
+      identify(ownerId)
+
       setInitReady(true)
 
       void (async () => {
