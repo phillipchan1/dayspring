@@ -1,5 +1,6 @@
 import { requireSupabase } from './supabase'
 import { apiUrl } from './api'
+import { track } from './analytics'
 
 export type Plan = 'none' | 'trialing' | 'active' | 'cancelled' | 'past_due'
 
@@ -236,6 +237,10 @@ export async function fetchSubscription(): Promise<Subscription> {
 
 /** POST to /api/stripe/checkout and return the Stripe-hosted checkout URL. */
 export async function startCheckout(plan: 'annual' | 'monthly'): Promise<string> {
+  // Tracked here rather than at each button so the paywall, the locked screen
+  // and the trial banner are all covered by one line — and so a fourth entry
+  // point added later is counted without anyone remembering to.
+  track('checkout_started', { plan: plan === 'annual' ? 'annual' : 'monthly', store: 'stripe' })
   const sb = requireSupabase()
   const {
     data: { session },

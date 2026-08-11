@@ -4,6 +4,7 @@
 import { isMobileTauri } from './platform'
 import { apiUrl } from './api'
 import { requireSupabase } from './supabase'
+import { track } from './analytics'
 import type { Product, Purchase } from '@spicavi/tauri-plugin-purchases'
 
 export const APPLE_PRODUCT_IDS = {
@@ -99,6 +100,9 @@ export interface ApplePurchaseResult {
  */
 export async function purchaseApple(plan: ApplePlan): Promise<ApplePurchaseResult> {
   if (!isMobileTauri()) throw new Error('Apple IAP is only available on iOS')
+  // The Stripe twin of this lives in subscription.ts startCheckout. Both report
+  // an *intent*: the store confirms the actual purchase later, via webhook.
+  track('checkout_started', { plan: plan === 'annual' ? 'annual' : 'monthly', store: 'apple' })
 
   const sb = requireSupabase()
   const {

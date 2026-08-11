@@ -53,6 +53,7 @@
 
 import { settingsStore } from './settings'
 import type { EntrySource } from './types'
+import type { PracticeId } from '../editor/practices/practicesData'
 import type { CountBucket, YearsBucket } from './analytics/buckets'
 
 /** Every value that may cross the boundary. Deliberately excludes bare `string`. */
@@ -98,6 +99,21 @@ export type ImportSource = EntrySource
 /** Why an import ended without entries. Never carries the underlying error text. */
 export type ImportFailure = 'unreadable' | 'empty' | 'unsupported' | 'aborted' | 'error'
 
+/**
+ * An Ascent altitude, by INTERNAL key.
+ *
+ * `week | month | quarter | year` — never `valley | hillside | ridge | summit`,
+ * which are the display names in ascent.config.ts and are exactly the sort of
+ * thing that gets reworded. GLOSSARY's rule; the same one that keeps the Ascent
+ * itself filed under `reflections`. Kept structurally identical to AltitudeKey
+ * by a type assertion in analytics.test.ts rather than by an import, because
+ * lib/ must not depend on features/.
+ */
+export type Altitude = 'week' | 'month' | 'quarter' | 'year'
+
+/** Why the paywall is on screen. Never a price, never a copy variant. */
+export type PaywallReason = 'trial_expired' | 'cancelled' | 'locked'
+
 /** The complete vocabulary. Props must stay enum/number/boolean — see above. */
 interface EventProps {
   // ── Group A · the onboarding funnel (D-003) ───────────────────────────────
@@ -142,6 +158,54 @@ interface EventProps {
   surface_arrival_shown: { surface: ReturnSurface; kind: 'updates' | 'discovery'; count: number }
   /** "See your Ascent →" clicked on the processing-complete banner. */
   processing_cta_clicked: undefined
+  /**
+   * The Ascent moved between altitudes.
+   *
+   * Climbing is the strongest available signal for VISION Bet 1 — that people
+   * pay for retrospection rather than capture. Someone who goes to the Summit
+   * is doing the thing the product exists for.
+   */
+  ascent_altitude_changed: { altitude: Altitude }
+  /** The Pages wall took the canvas. */
+  pages_opened: undefined
+
+  // ── Group C · what gets written with ──────────────────────────────────────
+  // Volume and form only. Nothing here may describe what an entry says.
+
+  /** A practice was inserted into the entry. Slug, never the display name. */
+  practice_begun: { practice: PracticeId }
+
+  // ── Group D · retrieval ───────────────────────────────────────────────────
+
+  /**
+   * An Ask query ran and the wall lit.
+   *
+   * The question itself is the single most sensitive string in the app — it is
+   * what someone wants to know about their own prayer life — and it does not
+   * appear here in any form, hashed or otherwise. Only whether asking worked.
+   */
+  ask_run: { results: CountBucket; ok: boolean }
+
+  // ── Group E · the paywall ─────────────────────────────────────────────────
+  // The client half of the subscription funnel. The other half arrives from
+  // the webhooks (api/_lib/posthog.ts) under the same distinct id.
+
+  /** The paywall or locked screen was shown. */
+  paywall_shown: { reason: PaywallReason }
+  /** Checkout was launched. Not a purchase — the store confirms that, later. */
+  checkout_started: { plan: 'monthly' | 'annual'; store: 'stripe' | 'apple' }
+
+  // ── Group F · consent ─────────────────────────────────────────────────────
+
+  /**
+   * The usage toggle moved.
+   *
+   * The `false` case is the interesting one and the reason this is ordered
+   * carefully at its call site: it has to be sent while consent still stands,
+   * because a heartbeat after it the transport is torn down. A measurement
+   * system that cannot see people leaving it is measuring the wrong cohort.
+   */
+  usage_sharing_changed: { enabled: boolean }
 }
 
 export type AnalyticsEvent = keyof EventProps
@@ -173,8 +237,18 @@ type FreeTextEvents<M> = {
  * If you are here to silence this: the answer is an enum, a boolean, or a
  * bucket from ./analytics/buckets. Never a cast. Principle 7 is the reason.
  */
-declare function noEventMayCarryFreeText<_Offenders extends never>(): void
-noEventMayCarryFreeText<FreeTextEvents<EventProps>>()
+type NoEventMayCarryFreeText<Offenders extends never> = Offenders
+
+/**
+ * Instantiating this is the check. It resolves to `never` while the vocabulary
+ * is clean, and fails to compile — naming the event — the moment one isn't.
+ *
+ * A type alias, deliberately, and an EXPORTED one. Not a `declare function`
+ * plus a call: TypeScript erases the declaration but Vite still emits the call,
+ * which throws ReferenceError at import and takes the whole app down with it.
+ * Aliases emit nothing. Exported because `noUnusedLocals` rejects a private one.
+ */
+export type VocabularyIsClosed = NoEventMayCarryFreeText<FreeTextEvents<EventProps>>
 
 /**
  * The vendor seam.

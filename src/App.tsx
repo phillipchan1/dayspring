@@ -249,7 +249,7 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
     !isMobileTauri() &&
     (!subscription || subscription.plan === 'none')
   ) {
-    return <PaywallScreen onPurchased={refetch} />
+    return <PaywallScreen reason="locked" onPurchased={refetch} />
   }
 
   // First-run: route into the welcome / import flow ahead of the editor,
@@ -267,6 +267,7 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   if (!entitled || !subscription) {
     return (
       <LockedScreen
+        reason={subscription?.plan === 'cancelled' ? 'cancelled' : 'trial_expired'}
         plan={subscription?.plan ?? 'none'}
         subscription={subscription}
         canExtend={

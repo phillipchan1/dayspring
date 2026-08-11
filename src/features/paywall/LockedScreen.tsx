@@ -26,10 +26,13 @@ import {
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
+import { track, type PaywallReason } from '@/lib/analytics'
 import { displayPrice } from './prices'
 import './Paywall.css'
 
 interface Props {
+  /** Why the user is here — reported once as a funnel step, never shown. */
+  reason?: PaywallReason
   plan: Plan
   /** Full subscription when available — used to pick Apple vs Stripe management. */
   subscription?: Subscription | null
@@ -41,12 +44,18 @@ interface Props {
 }
 
 export function LockedScreen({
+  reason,
   plan,
   subscription = null,
   canExtend = false,
   userEmail = '',
   onRefetch,
 }: Props) {
+  // Once per mount — see PaywallScreen for why.
+  useEffect(() => {
+    track('paywall_shown', { reason: reason ?? 'trial_expired' })
+  }, [reason])
+
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** Non-failure feedback — e.g. "we found your old subscription, it expired". */

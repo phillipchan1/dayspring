@@ -83,6 +83,7 @@ import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbe
 import { recordSurfaceUpdate } from './surfaceUpdates'
 import { shouldAutoOpenLatest } from './arrivalNav'
 import { track } from '@/lib/analytics'
+import { countBucket } from '@/lib/analytics/buckets'
 import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem } from '@/lib/spiritual'
 interface JournalScreenProps {
@@ -559,6 +560,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       if (!cap) return
       setSlashCapture(null)
       track('ritual_begun')
+      // The slug, never `practice.name` — the name is display copy and would
+      // split its own history the first time somebody re-punctuates it.
+      track('practice_begun', { practice: practice.id })
       // Use the editor's live document, not React `content`, which can still
       // hold the just-removed "/ritual" trigger text — stale positions would
       // insert the ritual in the wrong place and orphan the slash.
@@ -1056,10 +1060,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     await leaveForSurface({ surface: 'pages' })
     try {
       const result = await ask(question)
+      // The question is the most sensitive string in the app — it is what
+      // somebody wants to know about their own prayer life. It does not appear
+      // here in any form. Only that asking happened, and whether it landed.
+      track('ask_run', { results: countBucket(result.entryIds.length), ok: true })
       setAsked({ question, entryIds: result.entryIds })
     } catch {
       // Offline, or the call failed. The wall falls back to lighting the words
       // in the question, which is what it would have done without Ask at all.
+      track('ask_run', { results: '0', ok: false })
       setAsked(null)
       go({ pagesSubject: `word:${question}` }, { replace: true })
     } finally {
@@ -1145,6 +1154,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
     if (pagesActive) return
     await saveNow()
+    // Pages is not in `surface_opened`'s ReturnSurface set — it belongs to
+    // Entries, not the Return group (D-017/D-022) — so it gets its own event
+    // rather than a widened enum that would blur the two.
+    track('pages_opened')
     go({ surface: 'pages', entryId: null, entryReturn: null, settings: null, help: false })
   }
 

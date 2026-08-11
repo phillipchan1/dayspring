@@ -10,6 +10,7 @@ import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
 import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
 import { HELP_URL, HELP_CONTACT_URL } from '@/lib/support'
+import { track } from '@/lib/analytics'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
@@ -426,10 +427,17 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         <div className="settings-about__group">
           <div className="settings-about__row-toggle">
             <Toggle
-              label="Share anonymous usage"
-              hint="Counts which features are used — never your entries, prayers, or any words you write."
+              label="Share usage data"
+              hint="Counts which features you open — never your entries, prayers, or any words you write. Tied to your account so a returning reader isn't counted as a new one."
               checked={settings.shareUsage}
-              onChange={(shareUsage) => update({ shareUsage })}
+              onChange={(shareUsage) => {
+                // Order matters. Turning it OFF has to be reported while
+                // consent still stands — a heartbeat later the transport is
+                // torn down and the event is dropped, which would leave us
+                // blind to exactly the people opting out.
+                track('usage_sharing_changed', { enabled: shareUsage })
+                update({ shareUsage })
+              }}
             />
           </div>
         </div>

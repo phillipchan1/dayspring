@@ -12,10 +12,21 @@ import {
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
+import { track, type PaywallReason } from '@/lib/analytics'
 import { displayPrice } from './prices'
 import './Paywall.css'
 
-export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
+export function PaywallScreen({
+  reason,
+  onPurchased,
+}: { reason?: PaywallReason; onPurchased?: () => void } = {}) {
+  // Once per mount, not per render — the screen re-renders on every product
+  // fetch and loading transition, and a funnel step that fires five times has
+  // no denominator worth reading.
+  useEffect(() => {
+    track('paywall_shown', { reason: reason ?? 'locked' })
+  }, [reason])
+
   const useApple = isAppleIapAvailable()
   const [loading, setLoading] = useState<'annual' | 'monthly' | 'restore' | null>(null)
   const [error, setError] = useState<string | null>(null)

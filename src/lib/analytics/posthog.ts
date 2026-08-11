@@ -51,6 +51,7 @@ import { apiUrl } from '../api'
 import { env } from '../env'
 import { settingsStore } from '../settings'
 import { setAnalyticsTransport, type AnalyticsEvent, type PropValue } from '../analytics'
+import { pathOnly, scrubProperties } from './scrubUrl'
 
 type PostHog = typeof import('posthog-js').default
 
@@ -62,40 +63,6 @@ let pendingIdentity: {
   distinctId: string
   props?: Record<string, PropValue> | undefined
 } | null = null
-
-/**
- * Strip everything but the path from a URL-shaped value.
- *
- * The address bar is not as harmless as it looks. Supabase OAuth returns with
- * `#access_token=...` in the hash, and `stripAuthUrlNoise()` only clears it from
- * an effect inside AppNavigation — which runs after this SDK can already have
- * captured. Checkout returns with `?checkout=success`. Neither belongs in an
- * analytics payload, and an access token in a third party's logs is a genuine
- * incident rather than an untidiness.
- *
- * Entry ids are not currently in the path (appHistoryUrl only ever writes `/`
- * or `/lamp`) — but that is a property of today's router, not a guarantee, and
- * this is the line that keeps it true if the router changes.
- */
-function pathOnly(value: unknown): unknown {
-  if (typeof value !== 'string' || !value) return value
-  try {
-    return new URL(value, 'https://dayspring.invalid').pathname
-  } catch {
-    return '/'
-  }
-}
-
-/** Property names whose values are URLs, in every variant posthog-js emits. */
-const URL_PROP = /(^\$?(initial_)?(current_url|pathname|host|referrer|referring_domain)$)|url$/i
-
-function scrubProperties(props: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(props)) {
-    out[key] = URL_PROP.test(key) ? pathOnly(value) : value
-  }
-  return out
-}
 
 async function boot(): Promise<void> {
   if (instance || booting) return

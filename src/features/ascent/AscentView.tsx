@@ -5,6 +5,7 @@ import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { ALTITUDES, CONTROLS } from './ascent.config'
+import { track } from '@/lib/analytics'
 import { loadAscent, type LoadedAscent } from './data'
 import { AltitudeBands } from './AltitudeBands'
 import { LensRow } from './LensRow'
@@ -75,7 +76,15 @@ export function AscentView({ onOpenEntry }: Props) {
   }, [reloadKey])
 
   const setAltitude = useCallback(
-    (next: number) => go({ ascentAltitude: clampAltitude(next) }, { replace: true }),
+    (next: number) => {
+      const clamped = clampAltitude(next)
+      // Reported by internal key (week/month/quarter/year), never by the
+      // terrain names in ascent.config — those are display copy. Climbing is
+      // the best signal we have for VISION Bet 1: that people pay for
+      // retrospection rather than for capture.
+      track('ascent_altitude_changed', { altitude: ALTITUDES[clamped]!.key })
+      go({ ascentAltitude: clamped }, { replace: true })
+    },
     [go],
   )
   const up = useCallback(() => setAltitude(idx + 1), [idx, setAltitude])
