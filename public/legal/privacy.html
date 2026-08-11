@@ -35,7 +35,7 @@
 <body>
 <main>
   <h1>Privacy Policy</h1>
-  <p class="meta">Dayspring · Last updated 30 July 2026</p>
+  <p class="meta">Dayspring · Last updated 11 August 2026</p>
 
   <p>Dayspring is a private journal. What you write in it belongs to you. This policy
   describes exactly what we store, what leaves our systems, and what you can take back.</p>
@@ -70,14 +70,46 @@
     <li><strong>Apple</strong> — subscriptions purchased in the iOS app. Apple handles the
       payment; we receive only a transaction identifier and subscription status.</li>
     <li><strong>Resend</strong> — used to send reminder emails, if you enable them.</li>
+    <li><strong>PostHog</strong> — product usage measurement, if you leave "Share usage data"
+      switched on (Settings &rarr; About). Receives a fixed list of feature-usage events —
+      which screens you open, which commands you use, whether an import or a purchase
+      succeeded — identified by your account's internal ID. It never receives your entries,
+      your prayers, anything you searched for, or any text you wrote. See below.</li>
   </ul>
   <p>If you send feedback through the in-app feedback form, the message you type is recorded
   as an issue in our private development tracker so it can be acted on. Please do not paste
   journal content into that form.</p>
 
+  <h2>Usage measurement</h2>
+  <p>Dayspring records a small, fixed list of feature-usage events so we can tell which parts
+  of the product are actually useful — for example that a Return surface was opened, that an
+  import finished, or that a search was run. This is controlled by <strong>Settings &rarr;
+  About &rarr; "Share usage data"</strong>, which is on by default and which you can switch
+  off at any time. Switching it off stops collection immediately and clears the identifiers
+  stored on your device.</p>
+  <p>We want to be precise rather than reassuring here:</p>
+  <ul>
+    <li><strong>No text you wrote is ever included</strong> — not entries, not prayers, not
+      scripture references you typed, not search or Ask questions, not file names. Every
+      property of every event is a fixed value from a predefined list, a number, or a
+      true/false flag. There is no free-text field in the system, so your words cannot travel
+      through it even by mistake.</li>
+    <li><strong>Counts are rounded into ranges.</strong> An import is recorded as "1,000&ndash;5,000
+      entries", never the exact number, because an exact number can identify a person.</li>
+    <li><strong>This data is pseudonymous, not anonymous.</strong> Events are linked to your
+      account's internal ID so that a returning reader isn't counted as a new one. They are
+      never linked to anything you wrote.</li>
+    <li><strong>We do not record your screen</strong> — no session replay, no heatmaps, no
+      automatic capture of clicks or typing. Nothing observes the writing surface.</li>
+    <li><strong>Web addresses are reduced to the page name</strong> before being sent, so
+      nothing that may appear in a link — such as a sign-in token — is transmitted.</li>
+  </ul>
+
   <h2>What we do not do</h2>
   <ul>
     <li>We do not sell your data, and we do not share it with advertisers.</li>
+    <li>We do not send your journal, or anything derived from its text, to any analytics or
+      advertising service.</li>
     <li>We do not use your journal to train machine-learning models.</li>
     <li>We do not read your entries except where you explicitly ask for support and give
       permission, or where we are legally compelled to.</li>

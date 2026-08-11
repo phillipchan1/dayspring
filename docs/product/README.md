@@ -23,6 +23,7 @@ pass instead of a vibe check.
 | **Operating** | [SURFACES.md](./SURFACES.md) | Auditing; adding a surface | ✅ Draft 1 |
 | | [DECISIONS.md](./DECISIONS.md) | Making or revisiting a call | ✅ Seeded — **7 open** |
 | | [GLOSSARY.md](./GLOSSARY.md) | Naming anything | ✅ Draft 1 |
+| | [MEASUREMENT.md](./MEASUREMENT.md) | Adding any event; asking "how would we know?" | ✅ Live 2026-08-11 |
 
 ## Commands
 
@@ -61,9 +62,13 @@ wrote a year ago?"* and **Q11** *"what would you tell a friend this is?"*
 
 ## Open decisions
 
-`DECISIONS.md` carries **7 open items**. The ones that block other work:
+`DECISIONS.md` carries **6 open items**. The ones that block other work:
 
 - **D-001** — craft product or remembrance product? *Blocks all acquisition spend.*
 - **D-002** — the 14-day trial can't demonstrate the core value to fresh-start users
-- **D-003** — instrument the onboarding fork *(cheapest high-value action; unblocks D-002)*
+  *(now measurable — the funnel is instrumented; needs a trial cohort to read)*
 - **D-007** — crisis content has no handling *(most serious safety gap)*
+
+**D-003 is resolved** (2026-08-11) — the onboarding fork is instrumented. See
+[MEASUREMENT.md](./MEASUREMENT.md). It unblocked D-002, which now waits on data
+rather than on engineering.

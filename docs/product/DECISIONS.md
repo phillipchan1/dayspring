@@ -18,10 +18,62 @@ with no kill condition isn't a decision, it's a preference.
 ```
 
 Seeded 2026-07-26 with decisions already implicit in the product, plus the open
-questions the doc set surfaced. **D-001 through D-007 are OPEN** — they're the live
-agenda.
+questions the doc set surfaced. **D-001, D-002 and D-004 through D-007 are OPEN** —
+they're the live agenda. D-003 was resolved 2026-08-11.
 
 ---
+
+## D-023 — The onboarding fork is instrumented; measurement is pseudonymous and says so
+**2026-08-11** · **Status:** Decided · **resolves D-003, unblocks D-002**
+
+**Decision:** PostHog, self-proxied through `/cairn` on our own domain, behind the
+existing `shareUsage` toggle. A closed event vocabulary covering the onboarding
+funnel, the Return surfaces, retrieval, and the paywall — plus four subscription
+lifecycle events from the Stripe/Apple webhooks. Full taxonomy and rationale in
+`MEASUREMENT.md`.
+
+**Why now:** D-003 called this "the cheapest high-value action available" and it had
+been open since the doc set was seeded. The veteran/fresh fork has been shipping to
+every new user as a live persona experiment that nobody was reading, and D-002 was
+explicitly blocked on it.
+
+**Three sub-decisions worth recording, because each could reasonably have gone the
+other way:**
+
+1. **Consent gates SDK *initialisation*, not just event sending.** An initialised
+   posthog-js writes storage, mints a device id and fetches remote config on its own
+   schedule — none of it through our code. `opt_out_capturing_by_default` suppresses
+   sending *after* the SDK has decided who someone is, which is not the promise the
+   toggle makes. So: no consent, no SDK, no network. The cost is that boot is late
+   and conditional, and has to survive `useSettingsSync` changing the answer a
+   second after startup.
+2. **Identity is the Supabase auth UUID, and the copy changed to match.** The join
+   between a fork chosen in a browser on day 0 and a conversion reported by a webhook
+   on day 14 is the entire reason this is worth building, and it requires a shared
+   key. That makes the data **pseudonymous, not anonymous** — so the settings toggle
+   no longer says "Share anonymous usage", and `privacy.html` names PostHog and
+   describes what it receives. Principle 7's test is whether someone could read our
+   copy, read our architecture, and feel misled. They could have.
+3. **Free text is a compile error, not a code-review convention.** `Closed<V>`
+   collapses a bare `string` to `never`, so an event declared with a text property
+   cannot be called and fails `tsc` naming itself. This is the only defence that
+   survives a tired future contributor, and it is what makes the "we never send your
+   words" claim in the privacy policy structurally true rather than aspirational.
+
+**What this deliberately does NOT license.** Nothing measured here may ever become a
+user-facing number — no streak, no total, no comparison, no "engagement". Principles 1
+and 2 forbid it and D-006 leans permanently against it. The North Star (Weekly
+Returning Readers) is an internal instrument, not a feature.
+
+**What would change our mind:** if the funnel reads clean for a full quarter and still
+doesn't discriminate between the branches, the fork isn't the variable and D-002 needs
+a different experiment (a longer trial, or a guided first week) rather than more
+instrumentation. Or the opposite failure: if `veteran_mobile` turns out to be a large
+share, the finding is a product bug — we are turning away the D-014 wedge at the door —
+and it should be fixed before the conversion numbers are read at all.
+**Cost accepted:** a third-party subprocessor on a product whose core claim is
+privacy, disclosed rather than hidden; and a permanent maintenance obligation, since
+event names and bucket boundaries can never be changed without orphaning their history.
 
 ## D-021 — Account deletion refuses rather than leave someone billed
 **2026-08-10** · **Status:** Decided
@@ -373,15 +425,10 @@ Import users are fine; the backfill produces something immediately.
 **Options:** longer trial for fresh starts · start the trial at first reflection rather
 than signup · a guided first-week arc · accept that fresh-start is not a viable
 acquisition path and that everyone arrives via import.
-**What would settle it:** fresh-start vs import trial-conversion rates. **We are not
-currently measuring this and should be.** → depends on D-003.
-
-## D-003 — Instrument the onboarding fork
-**Status: OPEN — cheapest high-value action available.**
-The veteran/fresh fork in `OnboardingFlow.tsx` is a live persona experiment we aren't
-reading. Split rate and per-branch trial conversion would directly test `VISION.md`
-Bet 3 and settle D-002.
-**Constraint:** Principle 7 — no analytics on entry *text*. Funnel events only.
+**What would settle it:** fresh-start vs import trial-conversion rates. **We are now
+measuring this** — D-003 shipped 2026-08-11, so this is waiting on a trial cohort to
+pass through the funnel rather than on engineering. First read once ~30 signups have
+completed a 14-day window; sooner than that is noise, not a finding.
 
 ## D-004 — Is there an invitational answer to consistency?
 **Status: OPEN.** P2's question *"is journaling one more thing I'll fail at?"* is
@@ -453,7 +500,8 @@ protect a number, we've made their prayer life worse.
 **Why:** people with existing archives have both the need and the switching trigger.
 **What would change our mind:** import path stays cold, or importers churn faster than
 fresh starts (which would mean we're setting expectations synthesis can't meet).
-**Measurement:** D-003.
+**Measurement:** D-023 — instrumented 2026-08-11; import share and per-branch
+conversion are now readable.
 
 ## D-015 — Alpha/stable channel split
 **Status:** Decided. `master` → alpha (Phil only), `stable` → beta users.

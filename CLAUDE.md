@@ -15,6 +15,8 @@ Before proposing features, writing user-facing copy, or scoping product work, re
 - **[PRINCIPLES.md](docs/product/PRINCIPLES.md)** — 7 tie-breakers that settle feature arguments
 - **[PERSONAS.md](docs/product/PERSONAS.md)** — who it's for (currently **hypotheses**, not findings)
 - **[BRANDSCRIPT.md](docs/product/BRANDSCRIPT.md)** — how we talk; the words we never use
+- **[MEASUREMENT.md](docs/product/MEASUREMENT.md)** — what we measure, what we never
+  track, and why no number here may become a user-facing one
 
 Non-negotiables that come up constantly: **light, not verdict** (never score someone's
 spiritual life) · **never sermonize, never gamify** (no streaks, no badges, no guilt) ·
