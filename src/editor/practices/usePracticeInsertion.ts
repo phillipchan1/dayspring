@@ -57,6 +57,11 @@ export function buildPracticeBlock(
 // newline survives, so the answer line below stays its own editable line, and
 // each prompt renders directly above the answer it introduces.
 //
+// The trailing newline must stay OUT of the range. Pulling it in looks tempting
+// (it removes one of the blank stubs below) but it makes CodeMirror render the
+// widget twice — one token, two DOM blocks — the same artifact that once made
+// scripture blocks appear to duplicate on Enter.
+//
 // We do NOT hide the token lines with `display:none`: CodeMirror can't measure a
 // `display:none` `.cm-line`, so it keeps a stale height estimate (a hidden 1-line
 // token measures as ~16px instead of 0) and its coordinate→position map drifts
@@ -68,22 +73,48 @@ export function buildPracticeBlock(
 const answerLineDeco = Decoration.line({ class: 'cm-practice-answer' })
 /** Zero-styling mark used only to keep token lines atomic for cursor motion. */
 const atomicMark = Decoration.mark({})
+/**
+ * Collapses the blank stubs CodeMirror renders around a replaced token line.
+ *
+ * A block widget sits *between* line boxes, so the line it replaces still emits
+ * its own (now empty) `.cm-line` on either side of the widget: two blank boxes
+ * of a full line-height each, per prompt. That was a line of nothing above every
+ * label and another between every question and the answer it asks for — which
+ * flattened the spacing until nothing in a ritual looked grouped with anything
+ * else. Both stubs belong to the token line, so a line decoration reaches them
+ * and nothing else; the answer below is a different line and keeps its height.
+ *
+ * `height: 0`, not `display: none`. A display:none line has no box for
+ * CodeMirror to measure, so its height map keeps a stale estimate and the
+ * coordinate→position map drifts — the old "can't click the last line of a
+ * response" bug. A zero-height box measures as zero, honestly.
+ */
+const tokenLineDeco = Decoration.line({ class: 'cm-ritual-tokenline' })
 
 
-/** A `practice:section` line — rendered as the amber label + italic question. */
+/** A `practice:section` line — rendered as a quiet cap label + italic question. */
 class PracticePromptWidget extends WidgetType {
   constructor(
     readonly label: string,
     readonly question: string,
+    /** True for the prompt directly under the ritual header — it needs less air
+     *  above it, since the header's own rule already opens the block. */
+    readonly first: boolean,
   ) {
     super()
   }
   eq(other: PracticePromptWidget): boolean {
-    return other.label === this.label && other.question === this.question
+    return (
+      other.label === this.label &&
+      other.question === this.question &&
+      other.first === this.first
+    )
   }
   toDOM(): HTMLElement {
     const root = document.createElement('div')
-    root.className = 'cm-practice-prompt'
+    root.className = this.first
+      ? 'cm-practice-prompt cm-practice-prompt--first'
+      : 'cm-practice-prompt'
     root.setAttribute('contenteditable', 'false')
     root.setAttribute('aria-hidden', 'true')
 
@@ -210,15 +241,16 @@ function buildDecorations(state: EditorState): PracticeDecorations {
   tokens.forEach((token, idx) => {
     const line = doc.line(token.line)
     // Keep the token line atomic so the caret skips the (now replaced) markup
-    // when arrowing through the entry.
+    // when arrowing through the entry. Same span as the block widget below.
     const atomicTo = Math.min(line.to + 1, doc.length)
     if (atomicTo > line.from) atomicRanges.push(atomicMark.range(line.from, atomicTo))
+    // Collapse the blank stubs CodeMirror renders on either side of the widget.
+    ranges.push(tokenLineDeco.range(line.from))
 
     if (token.kind === 'name') {
       currentPractice = PRACTICE_BY_NAME.get(token.value)
-      // Replace the raw name token with a faint header block (orientation + the
-      // "about" / "free write" actions). Range stops at line.to so the newline
-      // stays and the section below keeps its own line.
+      // Replace the raw name token with the ritual's header block (the name, the
+      // hairline that opens the block, and the "about" / "free write" actions).
       ranges.push(
         Decoration.replace({
           widget: new PracticeNameWidget(token.value),
@@ -236,7 +268,11 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
     ranges.push(
       Decoration.replace({
-        widget: new PracticePromptWidget(token.value, prompt?.question ?? ''),
+        widget: new PracticePromptWidget(
+          token.value,
+          prompt?.question ?? '',
+          tokens[idx - 1]?.kind === 'name',
+        ),
         block: true,
         inclusive: false,
       }).range(line.from, line.to),
@@ -285,10 +321,41 @@ const practiceField = StateField.define<PracticeDecorations>({
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
 })
 
+// ── The ritual's type hierarchy ──────────────────────────────────────────────
+//
+// Four ranks, and they must never be confusable, because a ritual puts the app's
+// voice and the writer's voice on the same page:
+//
+//   1. the writer's answer — roman, full size, --text        (loudest, always)
+//   2. the question        — italic, 0.95em, --text-dim      (the given voice)
+//   3. the section label   — 0.6em tracked caps, --text-faint (a tab, not a headline)
+//   4. the ritual name     — the block's masthead; the ONE accent, over a hairline
+//
+// What made this read as noise before: the name and the section labels were the
+// same treatment (tracked amber caps, and the label was the LARGER of the two),
+// so the container and its parts sat at the same rank and the accent repeated
+// five times a screen. And the question was set BIGGER than the answer, so the
+// largest thing on a page of someone's prayers was the app talking. Rank here is
+// carried by size and colour together; the accent marks exactly one thing.
+//
+// Spacing is in `em` (not rem) throughout so the whole block scales with the
+// reader's own font-size setting rather than drifting from it.
 const practiceTheme = EditorView.theme({
   // Writing line beneath a prompt — a generous, obvious target to click into.
   '.cm-practice-answer': {
-    minHeight: '2.6em',
+    minHeight: '2.1em',
+  },
+  // The replaced token line's leftover stubs — see tokenLineDeco. The line
+  // decoration reaches only the stub *before* the widget; the one after it is a
+  // separate block and can only be addressed by adjacency. Both selectors are
+  // safe: a block widget always renders its own line's remainder next to it, so
+  // the element immediately after one of these widgets is never a writing line.
+  // Padding is zeroed too — the first line of an entry carries the title's
+  // bottom padding, which `height: 0` alone would leave behind.
+  '.cm-line.cm-ritual-tokenline, .cm-practice-header + .cm-line, .cm-practice-prompt + .cm-line': {
+    height: '0',
+    padding: '0',
+    overflow: 'hidden',
   },
   '.cm-practice-prompt': {
     display: 'block',
@@ -296,61 +363,78 @@ const practiceTheme = EditorView.theme({
     // height from its bounding rect, which excludes margins — an outer margin
     // would push the DOM down without being counted, drifting the
     // coordinate→position map and again making answer lines below unclickable.
-    padding: '1.6rem 0 0.65rem',
+    //
+    // The asymmetry is the grouping: a wide gap above separates one section from
+    // the last, a tight one below binds the question to the answer it asks for.
+    padding: '1.9em 0 0.3em',
     userSelect: 'none',
   },
-  // Small letter-spaced cap label — the elegance motif shared with scripture
-  // citations, so the whole surface reads as one type system in any font.
+  // The header's hairline already opens the block, so the first prompt would
+  // read as adrift with a full section gap above it.
+  '.cm-practice-prompt--first': {
+    paddingTop: '0.7em',
+  },
+  // Small letter-spaced cap label — the same motif, and now the same colour, as
+  // the scripture/prayer block labels, so the whole surface reads as one type
+  // system. It names the movement; it is not the movement.
   '.cm-practice-prompt__label': {
     display: 'block',
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.66em',
+    fontSize: '0.6em',
     fontWeight: '500',
-    letterSpacing: '0.22em',
+    letterSpacing: '0.18em',
     textTransform: 'uppercase',
-    color: 'var(--accent, #c8853a)',
-    opacity: '0.8',
-    marginBottom: '0.5rem',
+    color: 'var(--text-faint, #c4b5a8)',
+    marginBottom: '0.3em',
   },
-  // The "given voice" — italic, airy, dimmed a tier below the writer's words.
-  // Optical sizing lets variable serifs render this at a display weight.
+  // The "given voice" — italic, airy, and deliberately set BELOW the writer's
+  // own words. Optical sizing lets variable serifs render this at a display
+  // weight. Italic is the tell: everything the app says is italic, everything
+  // the writer will put on the page is roman.
   '.cm-practice-prompt__question': {
     margin: '0',
     fontFamily: 'var(--font-editor)',
     fontStyle: 'italic',
     fontWeight: '300',
-    fontSize: '1.06em',
-    lineHeight: '1.55',
+    fontSize: '0.95em',
+    lineHeight: '1.5',
     letterSpacing: '0.005em',
     color: 'var(--text-dim, #4a3f35)',
     fontOpticalSizing: 'auto',
   },
+  // Roman, not italic: this one sits on the writer's own line, so it takes the
+  // writer's typography and only ghosts it. Italic here made an unanswered
+  // section read as a second question stacked under the first.
   '.cm-practice-placeholder': {
     color: 'var(--text-faint, #c4b5a8)',
-    fontStyle: 'italic',
     pointerEvents: 'none',
   },
-  // Faint block header: practice name + the (hover-revealed) "free write" action.
-  // Padding (not margin) so CodeMirror counts the spacing in the block's measured
-  // height — see the note on .cm-practice-prompt.
+  // The block's masthead: the ritual's name over a hairline that spans the
+  // writing column, so everything below plainly belongs to it. Padding (not
+  // margin) so CodeMirror counts the spacing in the block's measured height —
+  // see the note on .cm-practice-prompt.
   '.cm-practice-header': {
     display: 'flex',
     alignItems: 'baseline',
-    gap: '0.7rem',
-    padding: '0.3rem 0 1.1rem',
+    gap: '0.55em',
+    // The top gap is the block's own: a ritual begun partway down an entry has
+    // prose directly above it, and the masthead has to read as the start of
+    // something rather than as the next line of what came before.
+    padding: '1.2em 0 0.5em',
+    borderBottom: '1px solid color-mix(in srgb, var(--text-faint) 38%, transparent)',
     userSelect: 'none',
   },
   '.cm-practice-header__name': {
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.62em',
-    fontWeight: '400',
-    letterSpacing: '0.22em',
+    fontSize: '0.7em',
+    fontWeight: '500',
+    letterSpacing: '0.2em',
     textTransform: 'uppercase',
     color: 'var(--accent, #c8853a)',
   },
   '.cm-practice-action': {
     fontFamily: 'var(--font-editor)',
-    fontSize: '0.62em',
+    fontSize: '0.55em',
     letterSpacing: '0.08em',
     color: 'var(--text-faint, #c4b5a8)',
     background: 'none',
