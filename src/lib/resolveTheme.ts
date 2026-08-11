@@ -37,7 +37,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'ember', label: 'Ember', family: 'dark', blurb: 'Hearth-warm dark.', swatch: { bg: '#1a1411', accent: '#e8743c' } },
   { id: 'compline', label: 'Compline', family: 'dark', blurb: 'Indigo night prayer.', swatch: { bg: '#13121e', accent: '#9b8ce8' } },
   { id: 'nocturne', label: 'Nocturne', family: 'dark', blurb: 'True black, for OLED.', swatch: { bg: '#000000', accent: '#d9a441' } },
-  { id: 'vigil', label: 'Vigil', family: 'dark', blurb: 'Monochrome, low blue — the night watch.', swatch: { bg: '#111010', accent: '#c2b091' } },
+  { id: 'vigil', label: 'Vigil', family: 'dark', blurb: 'Dimmed all the way down, for dark rooms.', swatch: { bg: '#080807', accent: '#8a7f6a' } },
 ]
 
 const BY_ID = Object.fromEntries(THEMES.map((t) => [t.id, t])) as Record<ThemeId, ThemeMeta>

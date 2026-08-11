@@ -336,12 +336,13 @@ a {
     background 0.1s ease;
 }
 .entry-list__view-btn[data-active='true'] {
-  background: rgba(196, 145, 60, 0.15);
-  color: #c4913c;
+  background: var(--dayspring-amber-bg);
+  color: var(--dayspring-amber);
 }
+/* Light palettes already bank --dayspring-amber-bg; only the ink needs to go
+   darker to hold against paper. */
 [data-appearance='light'] .entry-list__view-btn[data-active='true'] {
-  background: rgba(196, 145, 60, 0.12);
-  color: #9a6e24;
+  color: var(--dayspring-amber-text-light);
 }
 @media (hover: hover) {
   .entry-list__view-btn:hover:not([data-active='true']) {
@@ -510,7 +511,7 @@ a {
   flex-shrink: 0;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(196, 145, 60, 0.1);
+  background: var(--dayspring-amber-bg-subtle);
   color: var(--dayspring-amber);
   font-size: 10px;
   font-weight: 500;

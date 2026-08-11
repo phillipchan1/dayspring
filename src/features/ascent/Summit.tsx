@@ -44,8 +44,8 @@ export function Summit({ words, scripture, onScriptureDrill, onOpenEntry }: Prop
             <stop offset="100%" stopColor="var(--ascent-rock-bottom)" />
           </linearGradient>
           <radialGradient id="ascent-peakglow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f0c587" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#f0c587" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--ascent-gold-soft)" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="var(--ascent-gold-soft)" stopOpacity="0" />
           </radialGradient>
         </defs>
 
@@ -53,13 +53,13 @@ export function Summit({ words, scripture, onScriptureDrill, onOpenEntry }: Prop
         <path
           d={`M120,${GROUND} C200,235 180,196 260,172 C330,150 285,112 300,52`}
           fill="none"
-          stroke="rgba(232,184,115,.28)"
+          stroke="var(--ascent-trail)"
           strokeWidth="1.5"
           strokeDasharray="2 5"
           className="ascent-trail"
         />
         <circle cx="300" cy="48" r="34" fill="url(#ascent-peakglow)" className="ascent-peak-glow" />
-        <circle cx="300" cy="48" r="5" fill="#f7ecd6" className="ascent-peak-lit" />
+        <circle cx="300" cy="48" r="5" fill="var(--ascent-peak)" className="ascent-peak-lit" />
       </svg>
 
       <p className="ascent-summit__look">{SUMMIT_COPY.lookingBack}</p>

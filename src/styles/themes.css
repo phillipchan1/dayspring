@@ -524,103 +524,108 @@
   --entry-list-head-border: rgba(196, 145, 60, 0.18);
 }
 
-/* ── Vigil (dark, monochrome — the low-blue night watch) ────────────────────
-   A single achromatic ramp: every ink is the same warm gray at a different
-   lightness, so hierarchy is carried by brightness alone and no surface needs
-   a hue to be read. The warmth is deliberate and kept just under the neutral
-   line — a true #c9c9c9 gray emits as much short-wavelength light as any
-   other dark theme, which is the thing this palette exists to avoid. Body ink
-   holds ~11% less blue than Ink's while still reading as gray, not sepia. The
-   chrome overlays that other dark themes tint with white are tinted with the
-   same gray here; a white veil is the largest blue source left once the ramp
-   itself is neutral. */
+/* ── Vigil (dark, monochrome — the night watch) ─────────────────────────────
+   Built for a dark-adapted eye: a phone at 3am, no other light in the room.
+   Two things separate it from the other dark palettes.
+
+   One ramp, no hue. Every ink is the same warm gray at a different lightness,
+   so hierarchy is carried by brightness alone and nothing needs a color to be
+   read. The warmth sits just under neutral — a true gray emits as much
+   short-wavelength light as any other dark theme, which is the thing this
+   palette exists to avoid.
+
+   And a low ceiling. The brightest pixel here is #9a9285, not white: peak
+   output matters more to an adapted eye than any contrast ratio, and a white
+   heading in a dark room is what actually hurts. Body ink lands at 4.9:1 —
+   still AA, less than half the contrast of the other dark themes — and every
+   role below it steps down from there. It reads dim on a lit desk. That is
+   the intent; Ink and Nocturne are the palettes for a lit room. */
 [data-theme='vigil'] {
   color-scheme: dark;
 
-  --bg: #111010;
-  --bg-elevated: #191817;
-  --bg-input: #211f1d;
-  --bg-hover: #292725;
+  --bg: #080807;
+  --bg-elevated: #0d0d0c;
+  --bg-input: #121110;
+  --bg-hover: #171614;
 
-  --border: #3a3733;
-  --border-subtle: #262421;
+  --border: #232220;
+  --border-subtle: #151413;
 
-  --text: #cdc6b9;
-  --text-bright: #f0eae0;
-  --text-dim: #8d867a;
-  --text-faint: #5f5a51;
+  --text: #847c6f;
+  --text-bright: #9a9285;
+  --text-dim: #635d53;
+  --text-faint: #443f39;
 
   /* The one element allowed a trace of color — caret, selection, active pills.
-     Sand rather than gold: present enough to find, quiet enough to stay in the
-     monochrome. */
-  --accent: #c2b091;
-  --accent-soft: rgba(194, 176, 145, 0.14);
+     Dim sand: findable without being the brightest thing on screen. */
+  --accent: #8a7f6a;
+  --accent-soft: rgba(138, 127, 106, 0.12);
   --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
   --selection-fg: var(--text-bright);
 
-  /* One ramp, seven stops. Headings brightest, quotes darkest — no hue coding
-     anywhere, which is what makes this readable as monochrome at a glance. */
-  --md-heading: #e8e0d1;
-  --md-strong: #ded6c8;
-  --md-link: #cfc5b4;
-  --md-emphasis: #b3aca0;
-  --md-code: #a09889;
-  --md-list: #968e81;
-  --md-quote: #847d72;
+  /* One ramp, seven stops, all at or below the ceiling. Headings are the top
+     of it rather than an escape from it — no hue coding anywhere, which is
+     what makes this read as monochrome at a glance. */
+  --md-heading: #9a9285;
+  --md-strong: #918a7d;
+  --md-link: #8a8275;
+  --md-emphasis: #7a7266;
+  --md-code: #6e675c;
+  --md-list: #676056;
+  --md-quote: #5c564d;
 
-  --danger: #c08a72; /* terracotta — the one place hue still has a job */
-  --success: #b0a68e;
+  --danger: #8f6a58; /* banked terracotta — the one place hue still has a job */
+  --success: #6f6a5c;
 
-  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(210, 198, 176, 0.13), rgba(170, 158, 138, 0.03) 42%, transparent 64%);
-  --journal-horizon: rgba(194, 176, 145, 0.45);
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(154, 146, 133, 0.07), rgba(120, 113, 100, 0.02) 42%, transparent 62%);
+  --journal-horizon: rgba(138, 127, 106, 0.28);
 
   /* Brand amber — sidebar badges, count pills, the active view switcher. The
-     :root gold is the loudest color left once the ramp is neutral, so it takes
-     the accent's sand instead. */
-  --dayspring-amber: #c2b091;
-  --dayspring-amber-bg: rgba(194, 176, 145, 0.15);
-  --dayspring-amber-bg-subtle: rgba(194, 176, 145, 0.08);
+     :root gold would be the brightest and most saturated thing left, so it
+     takes the accent's banked sand. */
+  --dayspring-amber: #8a7f6a;
+  --dayspring-amber-bg: rgba(138, 127, 106, 0.12);
+  --dayspring-amber-bg-subtle: rgba(138, 127, 106, 0.06);
 
   /* Scripture's ember→gold heat ramp is deliberately constant across every
      other theme — it's the surface's signature. Vigil is the one exception:
-     a gold-on-black chapter grid is by far the most saturated thing in the
-     app, and leaving it would mean the theme is monochrome everywhere except
-     the screen with the most lit pixels. The ramp keeps its meaning by running
-     dim gray → bright warm white, which is the same lightness-only hierarchy
-     the rest of the palette uses. */
-  --scripture-ember: 150, 142, 128; /* low engagement */
-  --scripture-gold: 240, 233, 219; /* high engagement */
-  --scripture-cell-rest: rgba(232, 224, 208, 0.06);
+     a grid of glowing gold cells is both the most saturated and the brightest
+     thing in the app, so leaving it would mean the theme is dimmed everywhere
+     except the screen with the most lit pixels. The ramp keeps its meaning by
+     running near-dark → the same ceiling as a heading. */
+  --scripture-ember: 74, 70, 64; /* low engagement */
+  --scripture-gold: 154, 146, 133; /* high engagement */
+  --scripture-cell-rest: rgba(154, 146, 133, 0.05);
 
-  --glass-bg: rgba(25, 24, 23, 0.76);
-  --glass-nav-bg: rgba(17, 16, 16, 0.58);
-  --glass-border: rgba(232, 224, 208, 0.1);
-  --glass-edge: rgba(255, 250, 240, 0.07);
-  --glass-scrim: rgba(6, 5, 4, 0.6);
-  --glass-shadow-glow: 0 0 58px -28px rgba(194, 176, 145, 0.16);
-  --glass-glow-spot: rgba(194, 176, 145, 0.18);
+  --glass-bg: rgba(13, 13, 12, 0.84);
+  --glass-nav-bg: rgba(8, 8, 7, 0.66);
+  --glass-border: rgba(154, 146, 133, 0.09);
+  --glass-edge: rgba(154, 146, 133, 0.05);
+  --glass-scrim: rgba(0, 0, 0, 0.72);
+  --glass-shadow-glow: 0 0 58px -30px rgba(138, 127, 106, 0.1);
+  --glass-glow-spot: rgba(138, 127, 106, 0.1);
 
-  /* Sidebar chrome: the :root defaults are pure-white veils, the coolest thing
-     that would be left on screen. Same opacities, same gray as the ramp. */
-  --entry-list-search-bg: rgba(232, 224, 208, 0.06);
-  --entry-list-search-icon: rgba(232, 224, 208, 0.24);
-  --entry-list-search-placeholder: rgba(232, 224, 208, 0.27);
-  --entry-list-view-inactive: rgba(232, 224, 208, 0.32);
-  --entry-list-view-hover: rgba(232, 224, 208, 0.58);
-  --entry-list-label: rgba(232, 224, 208, 0.27);
-  --entry-list-section: rgba(232, 224, 208, 0.22);
-  --entry-list-section-border: rgba(232, 224, 208, 0.07);
-  --entry-row-hover-bg: rgba(232, 224, 208, 0.04);
-  --entry-row-active-bg: rgba(232, 224, 208, 0.07);
-  --entry-row-selected-bg: rgba(232, 224, 208, 0.05);
-  --entry-list-title: rgba(232, 224, 208, 0.64);
-  --entry-list-title-active: rgba(240, 234, 224, 0.92);
-  --entry-list-title-untitled: rgba(232, 224, 208, 0.3);
-  --entry-list-month: rgba(232, 224, 208, 0.64);
-  --entry-list-month-active: rgba(240, 234, 224, 0.92);
-  --entry-list-year: rgba(232, 224, 208, 0.74);
-  --entry-list-year-active: rgba(240, 234, 224, 0.92);
-  --entry-list-year-month: rgba(232, 224, 208, 0.44);
-  --entry-list-year-month-hover: rgba(232, 224, 208, 0.67);
-  --entry-list-head-border: rgba(194, 176, 145, 0.2);
+  /* Sidebar chrome: the :root defaults are pure-white veils — the brightest
+     and coolest thing that would be left. Same structure, banked to the ramp. */
+  --entry-list-search-bg: rgba(154, 146, 133, 0.05);
+  --entry-list-search-icon: rgba(154, 146, 133, 0.2);
+  --entry-list-search-placeholder: rgba(154, 146, 133, 0.22);
+  --entry-list-view-inactive: rgba(154, 146, 133, 0.26);
+  --entry-list-view-hover: rgba(154, 146, 133, 0.46);
+  --entry-list-label: rgba(154, 146, 133, 0.22);
+  --entry-list-section: rgba(154, 146, 133, 0.18);
+  --entry-list-section-border: rgba(154, 146, 133, 0.06);
+  --entry-row-hover-bg: rgba(154, 146, 133, 0.03);
+  --entry-row-active-bg: rgba(154, 146, 133, 0.05);
+  --entry-row-selected-bg: rgba(154, 146, 133, 0.04);
+  --entry-list-title: rgba(154, 146, 133, 0.52);
+  --entry-list-title-active: rgba(154, 146, 133, 0.78);
+  --entry-list-title-untitled: rgba(154, 146, 133, 0.24);
+  --entry-list-month: rgba(154, 146, 133, 0.52);
+  --entry-list-month-active: rgba(154, 146, 133, 0.78);
+  --entry-list-year: rgba(154, 146, 133, 0.6);
+  --entry-list-year-active: rgba(154, 146, 133, 0.78);
+  --entry-list-year-month: rgba(154, 146, 133, 0.36);
+  --entry-list-year-month-hover: rgba(154, 146, 133, 0.54);
+  --entry-list-head-border: rgba(138, 127, 106, 0.16);
 }
