@@ -1873,10 +1873,23 @@ html[data-focus-mode] .focus-controls {
   50%       { opacity: 0.35; }
 }
 
-/* ── Mobile entry drawer ────────────────────────────────────────────────── */
+/* ── Overlay scrim ──────────────────────────────────────────────────────── */
 
-/* Quiet identity line in the drawer header. Not a control — the only reason
-   it's here is so you can tell which account you're in without hunting. */
+/* The base every full-screen overlay composes on: settings, shortcuts, Find,
+   the concordance drawer. Each of those sets its own z-index and layout; all
+   any of them supply is the anchor. This rule lived with the mobile entry
+   drawer and went out with it — without the fixed anchor the overlays become
+   static blocks that land wherever the document happens to end, which reads as
+   "settings opens at the bottom of the screen". Don't fold it back into a
+   single component: four of them depend on it. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  animation: fade-in 140ms ease;
+}
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
