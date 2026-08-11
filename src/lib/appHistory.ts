@@ -44,6 +44,8 @@ export interface AppHistoryState {
   /** Open settings modal; `importSource` set on a pushed frame when viewing a source. */
   settings: { tab: SettingsTab; importSource: string | null } | null
   help: boolean
+  /** Mobile entries drawer. Its own history frame so Back closes it. */
+  sidebar: boolean
   /** OSIS of the open Scripture book panel (null = canon map). Its own history
    *  frame so Back / Esc / the rail all close the panel predictably. */
   scriptureBook: string | null
@@ -70,6 +72,7 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   entryId: null,
   settings: null,
   help: false,
+  sidebar: false,
   scriptureBook: null,
   scriptureVerse: null,
   entryReturn: null,
@@ -177,6 +180,7 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.surface === b.surface &&
     a.entryId === b.entryId &&
     a.help === b.help &&
+    a.sidebar === b.sidebar &&
     a.scriptureBook === b.scriptureBook &&
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&

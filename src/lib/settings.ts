@@ -41,6 +41,8 @@ const LEGACY_DENSITY_ZOOM: Record<LegacyPagesDensity, number> = {
   open: 0.85,
 }
 
+export type EntriesGroupBy = 'flat' | 'month' | 'year'
+
 export interface Settings {
   // Focus-mode behaviour
   typewriter: boolean // keep the active line vertically centered
@@ -57,6 +59,12 @@ export interface Settings {
   /** Palette used in dark mode (and in auto when the system is dark). */
   darkTheme: ThemeId
   editorFont: EditorFont // the writing/reading face
+
+  /** Entries sidebar: flat list vs month/year section headers. */
+  entriesGroupBy: EntriesGroupBy
+
+  /** Sidebar: show a one-line body excerpt below each entry title. */
+  showEntryPreview: boolean
 
   /**
    * Pages: how close you're standing to the wall, 0 (far) → 1 (near).
@@ -100,6 +108,8 @@ const DEFAULTS: Settings = {
   lightTheme: 'dawn',
   darkTheme: 'ink',
   editorFont: 'serif',
+  entriesGroupBy: 'flat',
+  showEntryPreview: false,
   pagesZoom: 0.45,
   railLabels: false,
   firstLineTitle: true,

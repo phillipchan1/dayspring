@@ -1,5 +1,8 @@
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
+import { EntryList } from './EntryList'
 import { Rail } from './Rail'
+import { ENTRIES_PANEL_WIDTH_MAX, ENTRIES_PANEL_WIDTH_MIN } from './entriesPanelWidth'
+import { useEntriesPanelResize } from './useEntriesPanelResize'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
@@ -16,33 +19,42 @@ function formatBreadcrumb(iso: string): string {
 }
 
 /**
- * Desktop: a slim navigation rail and the canvas. Entering focus mode hides the
- * rail and top bar so the canvas takes the whole screen.
+ * Desktop: three columns — a slim navigation rail, a toggleable Entries panel,
+ * and the canvas. Entering focus mode hides the rail, panel and top bar so the
+ * canvas takes the whole screen.
  *
- * Two columns, not three. The middle one was the entries panel; Entries is the
- * Pages wall now, which takes the canvas like every other surface — so the
- * editor is never sharing a screen with an index of itself, and writing is
- * always full width.
+ * The panel survives Pages. It is unmounted for Ascent / Lamp / Altar, which
+ * replace the journal wholesale, but List and Pages are two reading modes of
+ * the SAME panel — the control that switches between them lives in it, so
+ * hiding it on the way to Pages would strand you there.
  */
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
-    settings, updateSettings, focus, onToggleEntries, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, pagesActive,
+    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries,
+    onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    settings, updateSettings, focus, entriesOpen, onToggleEntries, onPagesMode, mainSlot,
+    reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
-  const topbarLabel = activeEntry
-    ? formatBreadcrumb(activeEntry.created_at)
-    : isNewEntry
-      ? formatBreadcrumb(new Date().toISOString())
-      : ''
+  const topbarLabel = bulkActive
+    ? `${bulkCount} entries selected`
+    : rangeSelectActive
+      ? 'Selecting entries'
+      : activeEntry
+        ? formatBreadcrumb(activeEntry.created_at)
+        : isNewEntry
+          ? formatBreadcrumb(new Date().toISOString())
+          : ''
+  const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
   // A surface owns the canvas, so the journal's own chrome steps aside.
-  const surfaceActive =
-    reflectionsActive || altarActive || scriptureActive || pagesActive
-  const journalChrome = !surfaceActive
+  // Ascent / Lamp / Altar replace the journal outright; Pages only takes the
+  // canvas, so the panel beside it stays.
+  const surfaceActive = reflectionsActive || altarActive || scriptureActive
+  const canvasTaken = surfaceActive || pagesActive
+  const journalChrome = !canvasTaken
 
   return (
     <div className="app-shell">
@@ -50,7 +62,7 @@ export function DesktopJournal(props: JournalViewProps) {
         <Rail
           onNew={onNew}
           onEntries={onToggleEntries}
-          pagesActive={pagesActive}
+          entriesOpen={entriesOpen && !surfaceActive}
           lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
           scriptureActive={scriptureActive}
@@ -63,6 +75,43 @@ export function DesktopJournal(props: JournalViewProps) {
           onToggleLabels={() => updateSettings({ railLabels: !settings.railLabels })}
           nativeTopInset={NATIVE ? MAC_TRAFFIC_INSET.railTop : undefined}
         />
+      )}
+
+      {!focused && !surfaceActive && (
+        <div
+          className="entries-panel"
+          data-open={entriesOpen ? 'true' : 'false'}
+          data-resizing={resizing ? 'true' : undefined}
+          style={{ '--entries-panel-width': `${entriesPanelWidth}px` } as React.CSSProperties}
+        >
+          <EntryList
+            entries={entries}
+            activeId={activeId}
+            isNewEntry={isNewEntry}
+            onSelect={onSelect}
+            onEditEntry={onEditEntry}
+            {...(onSelectionChange ? { onSelectionChange } : {})}
+            onMenuAction={onEntryMenuAction}
+            onDeleteEntries={onDeleteEntries}
+            query={query}
+            onQueryChange={onQueryChange}
+            onCollapse={onToggleEntries}
+            pagesMode={pagesActive}
+            onPagesMode={onPagesMode}
+          />
+          {entriesOpen && (
+            <div
+              className="entries-panel__resize"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize entries panel"
+              aria-valuemin={ENTRIES_PANEL_WIDTH_MIN}
+              aria-valuemax={ENTRIES_PANEL_WIDTH_MAX}
+              aria-valuenow={entriesPanelWidth}
+              onPointerDown={onResizePointerDown}
+            />
+          )}
+        </div>
       )}
 
 
@@ -105,7 +154,7 @@ export function DesktopJournal(props: JournalViewProps) {
         )}
 
         <div
-          className={`journal-canvas${surfaceActive ? ' journal-canvas--reflections' : ''}`}
+          className={`journal-canvas${canvasTaken ? ' journal-canvas--reflections' : ''}`}
           style={{ flex: 1, minHeight: 0 }}
         >
           {!focused && journalChrome && (
@@ -119,7 +168,7 @@ export function DesktopJournal(props: JournalViewProps) {
             style={{
               padding: focused
                 ? '0 1.5rem'
-                : surfaceActive
+                : canvasTaken
                   ? '0'
                   : '4rem 1.5rem 2.5rem',
               overflow: 'hidden',

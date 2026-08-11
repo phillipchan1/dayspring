@@ -12,8 +12,10 @@ import { isTauri } from '@/lib/platform'
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
-  /** ⌘1 — Pages, your entries. */
+  /** ⌘1 — the entries panel. */
   onToggleEntries: () => void
+  /** ⇧⌘1 — flip the panel between its two reading modes, List and Pages. */
+  onPagesMode: () => void
   onLookBack: () => void
   onScripture: () => void
   onAltar: () => void
@@ -49,6 +51,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onNew,
     onSave,
     onToggleEntries,
+    onPagesMode,
     onLookBack,
     onScripture,
     onAltar,
@@ -132,6 +135,14 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
+      // ⇧⌘1 — matched on `e.code`, not `e.key`: with Shift held the 1 key
+      // reports "!" on a US layout, so the digit isn't there to compare against.
+      if (e.shiftKey && e.code === 'Digit1') {
+        e.preventDefault()
+        onPagesMode()
+        return
+      }
+
       if (key >= '1' && key <= '4' && !e.shiftKey) {
         e.preventDefault()
         if (key === '1') onToggleEntries()
@@ -157,6 +168,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onNew,
     onSave,
     onToggleEntries,
+    onPagesMode,
     onLookBack,
     onScripture,
     onAltar,

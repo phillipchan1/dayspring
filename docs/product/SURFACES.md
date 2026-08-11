@@ -22,7 +22,7 @@ thesis, not a nav convenience.
 
 | | Surfaces | Job |
 |---|---|---|
-| **Write** | New entry, Entries (= the Pages wall) | Capture. Must be frictionless and sacred (Principle 3). |
+| **Write** | New entry, Entries (List or Pages) | Capture. Must be frictionless and sacred (Principle 3). |
 | **Return** | Ascent ⌘2, Lamp ⌘3, Altar ⌘4 | **Reflective, never operational.** Reveal what a paper journal can't. |
 
 **The rule for every Return surface: you go there to *see*, never to *do*.** No tasks,
@@ -56,7 +56,7 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   journalers) — if the A/B question in `POSITIONING.md` resolves toward B, this becomes
   much more strategically important than it looks today.
 
-### Pages — `features/pages/` · **Entries, ⌘1** · *"Your own, side by side"*
+### Pages — `features/pages/` · **Entries → Pages, or ⇧⌘1**
 - **Promise:** "Read your own pages the way you could read a notebook — many at once."
 - **Answers:** P1 *"I have eleven years in here. What's in it?"* — but by showing it rather
   than summarising it.
@@ -67,8 +67,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   a deliberate override, D-017 (the grid now lives on its own frame, not on the wall). Also
   PKM drift: the lighting bar must stay a handful of ways in, never a tag manager.
 - **State:** ✅ Shipped to alpha only (unflagged; the alpha channel is the gate — same
-  call as handwriting scan). **This IS the Entries surface** (D-018): the list, the desktop
-  panel and the mobile drawer are gone, and the wall carries select / rename / duplicate /
+  call as handwriting scan). **One of the entries panel's two reading modes**, beside the
+  list (D-022, reversing D-018). The wall carries select / rename / duplicate /
   print / export / delete. Continuous zoom (pinch, ⌘-scroll, ⌘= / ⌘−) · marks glow ·
   multi-subject lighting via the Concordance · markings facets (highlight by colour,
   underline, emphasis, quote, marks) · scripture facet parsed client-side · previews that

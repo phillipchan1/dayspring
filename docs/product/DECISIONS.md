@@ -110,6 +110,44 @@ Principle 2 review; or Remember goes unvisited after 60 days, meaning re-reading
 happening and Ask alone was the product.
 **Cost accepted:** one table, and a surface that is honestly thin for a fresh-start user.
 
+## D-022 — List and Pages are two reading modes of one panel
+**2026-08-11** · **Status:** Decided · alpha only · **reverses D-018**
+
+**Decision:** The entries panel is back, and Pages is one of its two reading
+modes. `List | Pages` sit as siblings at the top of the panel; the grouping
+control (`All · Month · Year`) is a property of the list and shows only when the
+list does. ⌘1 shows the panel, ⇧⌘1 flips the mode. Choosing Pages puts the wall
+on the canvas and **leaves the panel open** — which is what makes them read as
+siblings rather than as a mode and an escape hatch.
+
+**Why D-018 was wrong.** Its argument still looks sound on paper: the wall beats
+a 30px row at every job the row does, so it should *be* Entries rather than hide
+inside it. What that missed is that they are not the same job. A list of titles
+and dates is for **finding something you already have in mind**; a wall of pages
+is for **coming across something you don't**. Deleting the list didn't promote
+Pages, it removed a way of reading — and the thing D-018 named as the cost
+("browsing for a half-remembered entry becomes reliably slower") turned out to
+be the whole objection, not a footnote.
+
+**What that means for the D-018 kill condition:** it fired. It said "someone
+reaches for the sidebar and can't find a way to do something they used to do —
+in which case the wall gains it rather than the panel coming back." That was the
+wrong remedy: the sidebar wasn't missing a capability, it was the capability.
+
+**What survived from D-018 anyway** — the wall kept everything it gained while
+it was Entries: selection, range select, the context menu, bulk export, delete,
+keyboard navigation. None of that is thrown away by having the list back, and
+none of it is duplicated: the panel's list and the wall each supply their own
+order to the same `indexOf`-based range selection.
+
+**What would change our mind:** the panel goes unused once Pages is a click
+away, which would mean the list really was only a habit. Or the reverse — two
+indexes of the same archive on screen at once turns out to be the clutter D-017
+warned about, in which case the answer is a better way to switch, not deleting
+one of them again.
+**Cost accepted:** the ~2,800 lines D-018 deleted are back, and with them the
+maintenance of two ways to read the same entries.
+
 ## D-020 — Remember is deleted; Ask lights the wall
 **2026-08-08** · **Status:** Decided · alpha only · **supersedes D-016's surface**
 
@@ -190,7 +228,11 @@ revisiting ranking with the privacy trade made explicitly.
 a plane — mitigated by the fact that failure is silent and lands on a literal search.
 
 ## D-018 — Pages becomes Entries; the list is deleted
-**2026-08-08** · **Status:** Decided · alpha only · **supersedes the routing half of D-017**
+**2026-08-08** · **Status:** REVERSED by D-022 (2026-08-11) · alpha only
+
+> **Reversed.** The list is back and Pages is one of two reading modes in it.
+> The reasoning below is kept because its kill condition is what fired, and
+> because the capabilities the wall gained here all survived the reversal.
 
 **Decision:** ⌘1 and the rail's "Entries" open the Pages wall. The desktop entries panel
 and the mobile drawer are deleted, along with `EntryList` and twelve supporting modules.

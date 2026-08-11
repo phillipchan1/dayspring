@@ -28,6 +28,8 @@ import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
 import { nextEntryIdAfterDelete } from './orderedEntryIds'
+import { EntryBulkCanvas } from './EntryBulkCanvas'
+import { copyEntriesMarkdown, copyEntriesText, exportEntriesZip } from './entryBulkActions'
 import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
 import { consumeSeedPrompt } from '@/lib/onboardingSeed'
 import {
@@ -47,6 +49,7 @@ import { PagesView } from '@/features/pages/PagesView'
 import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
 import { useMarks } from '@/features/pages/useMarks'
 import { ask } from '@/lib/ask'
+import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi'
 import type { Mark } from '@/lib/marks'
 import { FindPalette } from '@/features/find/FindPalette'
 import { FeatureFlagProvider, resolveFlag } from '@/features/flags'
@@ -140,8 +143,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
   // Pages carries no flag of its own: the alpha channel is the gate. See D-017.
-  const canvasAlternateActive =
-    reflectionsActive || altarActive || scriptureActive || pagesActive
+  /**
+   * A Return surface owns the canvas AND replaces the journal's chrome.
+   *
+   * Pages is deliberately NOT one of these. It takes the canvas, but the
+   * entries panel stays open beside it — List and Pages are two ways of reading
+   * the same archive, and the control that switches between them lives in the
+   * panel, so the panel has to survive the switch.
+   */
+  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
   // Marks are drawn by the editor and filtered on by the wall, so they load
   // always — and cheaply: this reads a small store, never the corpus.
   const marks = useMarks()
@@ -152,6 +162,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * just asked, not a place you can navigate back into a week later, and 40 ids
    * in a history frame would be state pretending to be a location.
    */
+  // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
+  const [entriesOpen, setEntriesOpen] = useState(true)
+  const [query, setQuery] = useState('')
+  const selectionApiRef = useRef<EntrySelectionApi | null>(null)
+  const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
+  const [rangeSelectActive, setRangeSelectActive] = useState(false)
   const [asked, setAsked] = useState<{ question: string; entryIds: string[] } | null>(null)
   const [asking, setAsking] = useState<string | null>(null)
   /**
@@ -1092,25 +1108,44 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   /**
-   * ⌘1 — your entries.
+   * ⌘1 — show the entries panel.
    *
-   * This is the wall now, not a panel. Pages was reached from the entries
-   * panel's own view switcher when it shipped, which made it a second index of
-   * the same archive sitting inside the first; it is better than the list at
-   * every job the list did, so it takes the destination rather than hiding
-   * behind it.
-   *
-   * Shaped like the other four surface toggles, and the entryReturn branch is
-   * the load-bearing one: an entry opened FROM the wall pops its pushed frame
-   * instead of pushing a second, so Back doesn't walk every page you peeked at.
+   * The panel, not the wall. Pages briefly replaced the list outright; it is now
+   * one of the panel's two reading modes, so ⌘1 means the same thing it always
+   * did and `onPagesMode` is what chooses between them.
    */
-  async function toggleEntries() {
-    if (state.entryReturn?.surface === 'pages') {
-      returnFromEntryOrigin()
+  function toggleEntries() {
+    if (canvasAlternateActive) {
+      go({ surface: 'journal', sidebar: isMobile })
+      setEntriesOpen(true)
       return
     }
-    if (pagesActive) back()
-    else await leaveForSurface({ surface: 'pages' })
+    if (isMobile) {
+      if (state.sidebar) back()
+      else go({ sidebar: true })
+    } else {
+      setEntriesOpen((open) => !open)
+    }
+  }
+
+  /**
+   * List, or Pages — the panel's two reading modes.
+   *
+   * Switching to Pages puts the wall on the canvas and LEAVES THE PANEL OPEN,
+   * which is what makes them read as siblings: the control that got you here is
+   * still there to get you back. An entry opened from the wall pops its pushed
+   * frame rather than pushing a second, so Back doesn't walk every page you
+   * peeked at.
+   */
+  async function setPagesMode(on: boolean) {
+    if (!on) {
+      if (state.entryReturn?.surface === 'pages') returnFromEntryOrigin()
+      else if (pagesActive) back()
+      return
+    }
+    if (pagesActive) return
+    await saveNow()
+    go({ surface: 'pages', entryId: null, entryReturn: null, settings: null, help: false })
   }
 
 
@@ -1134,7 +1169,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onToggleEntries: () => void toggleEntries(),
+    onToggleEntries: toggleEntries,
+    // ⇧⌘1 flips between the panel's two reading modes.
+    onPagesMode: () => void setPagesMode(!pagesActive),
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
@@ -1483,8 +1520,35 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // Shown as a gentle placeholder on the first new, empty entry only.
   const [seedPrompt] = useState(() => consumeSeedPrompt())
 
+  const handleSelectionChange = useCallback((sel: EntrySelectionState, api: EntrySelectionApi) => {
+    selectionApiRef.current = api
+    setRangeSelectActive((prev) => (prev === sel.rangeActive ? prev : sel.rangeActive))
+    setBulkSelection((prev) => {
+      const next = sel.entries
+      if (prev.length === next.length && prev.every((e, i) => e.id === next[i]?.id)) return prev
+      return next
+    })
+    if (sel.rangeActive || sel.entries.length >= 2) skipEditorAutofocusRef.current = true
+  }, [])
+
+  const bulkActive = bulkSelection.length >= 2
+
   const surface = loadError ? (
     <p style={{ color: 'var(--danger)' }}>{loadError}</p>
+  ) : bulkActive ? (
+    <EntryBulkCanvas
+      count={bulkSelection.length}
+      onCopyText={() => void copyEntriesText(bulkSelection)}
+      onCopyMarkdown={() => void copyEntriesMarkdown(bulkSelection, settings.firstLineTitle)}
+      onExportZip={() => void exportEntriesZip(bulkSelection, settings.firstLineTitle)}
+      onDelete={() => selectionApiRef.current?.requestDelete()}
+      onClear={() => selectionApiRef.current?.clear()}
+    />
+  ) : rangeSelectActive ? (
+    <div className="entry-range-canvas">
+      <p className="entry-range-canvas__eyebrow">Selecting</p>
+      <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
+    </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -1663,7 +1727,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     settings,
     updateSettings,
     focus,
-    onToggleEntries: () => void toggleEntries(),
+    entriesOpen,
+    onToggleEntries: toggleEntries,
+    onPagesMode: (on: boolean) => void setPagesMode(on),
+    sidebarOpen: state.sidebar,
+    onToggleSidebar: () => (state.sidebar ? back() : go({ sidebar: true })),
+    query,
+    onQueryChange: setQuery,
+    onSelectionChange: handleSelectionChange,
+    bulkActive,
+    bulkCount: bulkSelection.length,
+    rangeSelectActive,
     mainSlot,
     reflectionsActive,
     altarActive,

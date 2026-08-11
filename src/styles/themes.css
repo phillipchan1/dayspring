@@ -15,13 +15,39 @@
   /* Self-hosted writing faces — the picker maps to these (see EDITOR_FONT_VARS). */
   --font-iawriter: 'iA Writer Duo', 'JetBrains Mono', ui-monospace, monospace;
   --font-atkinson: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+  --font-entry-list: 'Inter', -apple-system, sans-serif;
 
-  /* Dayspring brand amber — rail chrome, badges, lit pages. */
+  /* Dayspring brand amber — sidebar chrome, badges, active view switcher. */
   --dayspring-amber: #c4913c;
   --dayspring-amber-bg: rgba(196, 145, 60, 0.15);
   --dayspring-amber-bg-subtle: rgba(196, 145, 60, 0.08);
   --dayspring-amber-text-light: #9a6e24;
 
+  /* Entry list sidebar — native macOS row fills (overridden in dawn). */
+  --entry-list-bg: var(--bg-elevated);
+  --entry-list-head-bg: var(--bg-elevated);
+  --entry-list-head-border: transparent;
+  --entry-list-search-bg: rgba(255, 255, 255, 0.06);
+  --entry-list-search-icon: rgba(255, 255, 255, 0.22);
+  --entry-list-search-text: var(--text-bright);
+  --entry-list-search-placeholder: rgba(255, 255, 255, 0.25);
+  --entry-list-view-inactive: rgba(255, 255, 255, 0.3);
+  --entry-list-view-hover: rgba(255, 255, 255, 0.55);
+  --entry-list-label: rgba(255, 255, 255, 0.25);
+  --entry-list-section: rgba(255, 255, 255, 0.2);
+  --entry-list-section-border: rgba(255, 255, 255, 0.07);
+  --entry-row-hover-bg: rgba(255, 255, 255, 0.04);
+  --entry-row-active-bg: rgba(255, 255, 255, 0.06);
+  --entry-row-selected-bg: rgba(255, 255, 255, 0.05);
+  --entry-list-title: rgba(255, 255, 255, 0.62);
+  --entry-list-title-active: rgba(255, 255, 255, 0.9);
+  --entry-list-title-untitled: rgba(255, 255, 255, 0.28);
+  --entry-list-month: rgba(255, 255, 255, 0.62);
+  --entry-list-month-active: rgba(255, 255, 255, 0.9);
+  --entry-list-year: rgba(255, 255, 255, 0.72);
+  --entry-list-year-active: rgba(255, 255, 255, 0.9);
+  --entry-list-year-month: rgba(255, 255, 255, 0.42);
+  --entry-list-year-month-hover: rgba(255, 255, 255, 0.65);
   /* The writing/reading surface. Settings overrides this from EDITOR_FONT_VARS;
      serif (Newsreader) is the default so a fresh load opens in serif. */
   --font-editor: var(--font-serif);
@@ -130,7 +156,31 @@
   --glass-shadow-glow: 0 0 48px -24px rgba(224, 150, 70, 0.22);
   --glass-glow-spot: rgba(224, 150, 70, 0.24);
 
+  --entry-row-hover-bg: rgba(0, 0, 0, 0.03);
+  --entry-row-active-bg: rgba(0, 0, 0, 0.06);
+  --entry-row-selected-bg: rgba(0, 0, 0, 0.04);
+  --entry-list-bg: #efefef;
+  --entry-list-head-bg: #efefef;
+  --entry-list-head-border: rgba(0, 0, 0, 0.06);
+  --entry-list-search-bg: rgba(0, 0, 0, 0.05);
+  --entry-list-search-icon: rgba(0, 0, 0, 0.28);
+  --entry-list-search-text: var(--text-bright);
+  --entry-list-search-placeholder: rgba(0, 0, 0, 0.35);
+  --entry-list-view-inactive: rgba(0, 0, 0, 0.35);
+  --entry-list-view-hover: rgba(0, 0, 0, 0.55);
   --dayspring-amber-bg: rgba(196, 145, 60, 0.12);
+  --entry-list-label: rgba(0, 0, 0, 0.3);
+  --entry-list-section: rgba(0, 0, 0, 0.28);
+  --entry-list-section-border: rgba(0, 0, 0, 0.08);
+  --entry-list-title: rgba(0, 0, 0, 0.65);
+  --entry-list-title-active: rgba(0, 0, 0, 0.88);
+  --entry-list-title-untitled: rgba(0, 0, 0, 0.3);
+  --entry-list-month: rgba(0, 0, 0, 0.65);
+  --entry-list-month-active: rgba(0, 0, 0, 0.88);
+  --entry-list-year: rgba(0, 0, 0, 0.72);
+  --entry-list-year-active: rgba(0, 0, 0, 0.88);
+  --entry-list-year-month: rgba(0, 0, 0, 0.42);
+  --entry-list-year-month-hover: rgba(0, 0, 0, 0.65);
 }
 
 /* ── Vellum (light, warm high-contrast) ─────────────────────────────────── */
@@ -274,13 +324,37 @@
   --glass-glow-spot: rgba(168, 205, 155, 0.26);
 }
 
-/* Light-mode rail chrome shared by the newer light themes. Dawn keeps its
+/* Light-mode sidebar chrome shared by the newer light themes. Dawn keeps its
    own copy above; :root defaults are dark-biased so every light theme needs
    these ink-on-paper values. */
 [data-theme='vellum'],
 [data-theme='cloister'],
 [data-theme='sabbath'] {
+  --entry-row-hover-bg: rgba(0, 0, 0, 0.03);
+  --entry-row-active-bg: rgba(0, 0, 0, 0.06);
+  --entry-row-selected-bg: rgba(0, 0, 0, 0.04);
+  --entry-list-bg: #efefef;
+  --entry-list-head-bg: #efefef;
+  --entry-list-head-border: rgba(0, 0, 0, 0.06);
+  --entry-list-search-bg: rgba(0, 0, 0, 0.05);
+  --entry-list-search-icon: rgba(0, 0, 0, 0.28);
+  --entry-list-search-text: var(--text-bright);
+  --entry-list-search-placeholder: rgba(0, 0, 0, 0.35);
+  --entry-list-view-inactive: rgba(0, 0, 0, 0.35);
+  --entry-list-view-hover: rgba(0, 0, 0, 0.55);
   --dayspring-amber-bg: rgba(196, 145, 60, 0.12);
+  --entry-list-label: rgba(0, 0, 0, 0.3);
+  --entry-list-section: rgba(0, 0, 0, 0.28);
+  --entry-list-section-border: rgba(0, 0, 0, 0.08);
+  --entry-list-title: rgba(0, 0, 0, 0.65);
+  --entry-list-title-active: rgba(0, 0, 0, 0.88);
+  --entry-list-title-untitled: rgba(0, 0, 0, 0.3);
+  --entry-list-month: rgba(0, 0, 0, 0.65);
+  --entry-list-month-active: rgba(0, 0, 0, 0.88);
+  --entry-list-year: rgba(0, 0, 0, 0.72);
+  --entry-list-year-active: rgba(0, 0, 0, 0.88);
+  --entry-list-year-month: rgba(0, 0, 0, 0.42);
+  --entry-list-year-month-hover: rgba(0, 0, 0, 0.65);
 }
 
 /* ── Ink (dark, cool — default dark) ────────────────────────────────────── */
@@ -328,6 +402,7 @@
   --glass-shadow-glow: 0 0 60px -30px rgba(224, 166, 78, 0.18);
   --glass-glow-spot: rgba(224, 166, 78, 0.2);
 
+  --entry-list-head-border: rgba(196, 145, 60, 0.2);
 }
 [data-theme='ember'] {
   color-scheme: dark;
@@ -416,6 +491,7 @@
   --glass-shadow-glow: 0 0 60px -30px rgba(155, 140, 232, 0.2);
   --glass-glow-spot: rgba(155, 140, 232, 0.22);
 
+  --entry-list-head-border: rgba(155, 140, 232, 0.2);
 }
 
 /* ── Nocturne (true black — for OLED / battery) ─────────────────────────── */
@@ -462,6 +538,7 @@
   --glass-shadow-glow: 0 0 58px -28px rgba(217, 164, 65, 0.18);
   --glass-glow-spot: rgba(217, 164, 65, 0.18);
 
+  --entry-list-head-border: rgba(196, 145, 60, 0.18);
 }
 
 /* Highlighter alpha for the dark palettes. A wash that reads as "marker on
