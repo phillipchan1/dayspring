@@ -78,14 +78,19 @@ export function AscentView({ onOpenEntry }: Props) {
   const setAltitude = useCallback(
     (next: number) => {
       const clamped = clampAltitude(next)
+      // Only on an actual move. ↑ at the Summit clamps back to the Summit, and
+      // the rail's current station is still a button — both would otherwise
+      // report a climb that never happened, inflating the one signal VISION
+      // Bet 1 rests on.
+      //
       // Reported by internal key (week/month/quarter/year), never by the
-      // terrain names in ascent.config — those are display copy. Climbing is
-      // the best signal we have for VISION Bet 1: that people pay for
-      // retrospection rather than for capture.
-      track('ascent_altitude_changed', { altitude: ALTITUDES[clamped]!.key })
+      // terrain names in ascent.config — those are display copy.
+      if (clamped !== idx) {
+        track('ascent_altitude_changed', { altitude: ALTITUDES[clamped]!.key })
+      }
       go({ ascentAltitude: clamped }, { replace: true })
     },
-    [go],
+    [go, idx],
   )
   const up = useCallback(() => setAltitude(idx + 1), [idx, setAltitude])
   const down = useCallback(() => setAltitude(idx - 1), [idx, setAltitude])
