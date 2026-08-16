@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Signing in… — Dayspring</title>
+  <title>Opening Dayspring… — Dayspring</title>
   <link rel="icon" href="/favicon.svg" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -42,20 +42,32 @@
 </head>
 <body>
   <div class="card" id="card">
-    <span class="icon">✓</span>
-    <h1>Signed in</h1>
-    <p>You can close this tab and return to Dayspring.</p>
+    <span class="icon">→</span>
+    <h1>Opening Dayspring…</h1>
+    <p>Redirecting you back to the app.</p>
   </div>
 
   <script>
     // Forward all query params (code, state, etc.) to the Tauri deep-link scheme.
-    // The desktop app's initDeepLinkAuth() listener picks this up and exchanges
-    // the PKCE code for a session.
+    // The app's initDeepLinkAuth() listener picks this up and exchanges the PKCE
+    // code for a session — this page never holds a session itself, so it must
+    // never claim "Signed in": anyone who opens a shared/leftover copy of this
+    // URL (no app installed, or a different device) would see a false success
+    // message for a redirect that silently did nothing.
     var search = window.location.search;
+    var card = document.getElementById('card');
     if (search && search.includes('code=')) {
       window.location.href = 'dayspring://auth-callback' + search;
-    } else if (!search || !search.includes('code=')) {
-      var card = document.getElementById('card');
+      // If the OS doesn't switch away — app not installed, or this isn't the
+      // device/browser that started the sign-in — say so instead of leaving
+      // the "Opening…" text looking like a completed action.
+      setTimeout(function () {
+        if (document.hidden) return;
+        card.querySelector('.icon').textContent = '';
+        card.querySelector('h1').textContent = "Couldn't open Dayspring on this device";
+        card.querySelector('p').textContent = 'This link only finishes signing in on the device where you started. If that’s this one, make sure Dayspring is installed and try signing in again from the app.';
+      }, 1800);
+    } else {
       card.classList.add('error');
       card.querySelector('.icon').textContent = '✕';
       card.querySelector('h1').textContent = 'Sign-in failed';

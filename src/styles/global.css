@@ -3016,6 +3016,16 @@ html[data-focus-mode] .focus-controls {
     gap: 1.2rem;
   }
 }
+.settings-preview {
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.6rem;
+  padding: 1rem 1.1rem;
+  max-height: 8rem;
+  overflow: hidden;
+  word-break: break-word;
+}
 .settings-field__head {
   display: flex;
   flex-direction: column;
