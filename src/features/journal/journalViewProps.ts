@@ -57,7 +57,15 @@ export interface JournalViewProps {
   focus: FocusApi
   /** Mobile entries drawer. */
   sidebarOpen: boolean
+  /** Open / dismiss the drawer as a history frame — Back and the scrim pop it. */
   onToggleSidebar: () => void
+  /**
+   * Close the drawer after a navigation made INSIDE it (opening an entry).
+   *
+   * Not `onToggleSidebar`: that pops the drawer's frame, and the navigation was
+   * just committed onto that same frame — see `consumeDrawerFrame`.
+   */
+  onDrawerNavigated: () => void
   /** Desktop entries-panel visibility — lifted so ⌘K can open it. */
   entriesOpen: boolean
   /** ⌘1 / rail "Entries" / mobile tab — shows the entries panel. */

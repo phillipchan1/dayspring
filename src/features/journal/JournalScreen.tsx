@@ -28,6 +28,7 @@ import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
 import { nextEntryIdAfterDelete } from './orderedEntryIds'
+import { pagesModeAction } from './drawerNav'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import { copyEntriesMarkdown, copyEntriesText, exportEntriesZip } from './entryBulkActions'
 import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
@@ -1129,23 +1130,48 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   /**
+   * Close the mobile entries drawer by CONSUMING its frame, not popping it.
+   *
+   * The drawer gets its own pushed frame so system Back closes it — the scrim
+   * and the left-swipe still pop it, and that is right. But opening an entry
+   * from the drawer commits the selection with replaceState onto that very
+   * frame, so popping afterwards threw the selection away and returned you to
+   * whatever the drawer had opened over: from Ascent → Entries → tap an entry,
+   * you landed back on Ascent, every time. Replacing keeps the entry and leaves
+   * exactly one frame behind, so Back still returns to Ascent.
+   */
+  function consumeDrawerFrame() {
+    go({ sidebar: false }, { replace: true })
+  }
+
+  /**
    * List, or Pages — the panel's two reading modes.
    *
    * Switching to Pages puts the wall on the canvas and LEAVES THE PANEL OPEN,
    * which is what makes them read as siblings: the control that got you here is
    * still there to get you back. An entry opened from the wall pops its pushed
    * frame rather than pushing a second, so Back doesn't walk every page you
-   * peeked at.
+   * peeked at. The decision itself — and what changes when the switch is tapped
+   * inside the mobile drawer — lives in `pagesModeAction`.
    */
   async function setPagesMode(on: boolean) {
-    if (!on) {
-      if (state.entryReturn?.surface === 'pages') returnFromEntryOrigin()
-      else if (pagesActive) back()
+    const action = pagesModeAction({
+      on,
+      pagesActive,
+      drawerOpen: state.sidebar,
+      surfaceEntryOpenedFrom: state.entryReturn?.surface ?? null,
+    })
+    if (action.kind === 'none') return
+    if (action.kind === 'return-to-origin') {
+      returnFromEntryOrigin()
       return
     }
-    if (pagesActive) return
+    if (action.kind === 'pop') {
+      back()
+      return
+    }
     await saveNow()
-    go({ surface: 'pages', entryId: null, entryReturn: null, settings: null, help: false })
+    go(action.patch, { replace: action.replace })
   }
 
 
@@ -1730,6 +1756,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     entriesOpen,
     onToggleEntries: toggleEntries,
     onPagesMode: (on: boolean) => void setPagesMode(on),
+    onDrawerNavigated: consumeDrawerFrame,
     sidebarOpen: state.sidebar,
     onToggleSidebar: () => (state.sidebar ? back() : go({ sidebar: true })),
     query,

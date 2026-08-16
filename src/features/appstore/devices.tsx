@@ -65,6 +65,7 @@ export function journalProps(
     focus: { active: false, enter: noop, exit: noop, toggle: noop },
     sidebarOpen: false,
     onToggleSidebar: noop,
+    onDrawerNavigated: noop,
     // The entries panel is the clearest "this is the desktop app" signal, so it
     // stays open; the phone has no equivalent and ignores this.
     entriesOpen: true,

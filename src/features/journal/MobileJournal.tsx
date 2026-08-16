@@ -40,7 +40,8 @@ export function MobileJournal(props: JournalViewProps) {
     entries, activeId, isNewEntry, status, lastSavedAt, saveError,
     onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries,
     onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
-    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, onPagesMode, mainSlot, userEmail,
+    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onDrawerNavigated,
+    onToggleEntries, onPagesMode, mainSlot, userEmail,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
@@ -258,7 +259,12 @@ export function MobileJournal(props: JournalViewProps) {
                 isNewEntry={isNewEntry}
                 onSelect={onSelect}
                 onEditEntry={onEditEntry}
-                onRowActivate={closeDrawer}
+                // NOT closeDrawer: that pops the drawer's history frame, and the
+                // entry you just tapped was replaced onto that very frame — the
+                // pop threw the selection away and put you back on the surface
+                // the drawer opened over (Ascent, most often). Opening an entry
+                // consumes the frame instead.
+                onRowActivate={onDrawerNavigated}
                 {...(onSelectionChange ? { onSelectionChange } : {})}
                 onMenuAction={onEntryMenuAction}
                 onDeleteEntries={onDeleteEntries}
@@ -267,11 +273,11 @@ export function MobileJournal(props: JournalViewProps) {
                 fullWidth
                 pagesMode={pagesActive}
                 // The drawer has to close behind it, or the wall opens under a
-                // sheet that is still covering it.
-                onPagesMode={(on) => {
-                  closeDrawer()
-                  onPagesMode(on)
-                }}
+                // sheet that is still covering it — and it closes as part of the
+                // switch's own navigation rather than a pop before it, which
+                // raced the push and, from a drawer sitting on top of the wall,
+                // popped straight back onto the wall you asked to leave.
+                onPagesMode={onPagesMode}
               />
             </div>
           </div>
