@@ -154,14 +154,18 @@ function toRollup(row: InsightRow): Rollup {
   }
 }
 
-/** Rollups of a given type, newest period first. */
-export async function listRollups(type: RollupType): Promise<Rollup[]> {
+/** Rollups of a given type, newest period first. `limit` matters: `structured_payload` is a
+ *  fat JSON blob, and a reader that only needs the latest period should not pull
+ *  the journal's entire rollup history down the wire to find it. */
+export async function listRollups(type: RollupType, limit?: number): Promise<Rollup[]> {
   const sb = requireSupabase()
-  const { data, error } = await sb
+  let q = sb
     .from('insights')
     .select('id, type, period_start, period_end, source_ids, structured_payload')
     .eq('type', type)
     .order('period_start', { ascending: false })
+  if (limit !== undefined) q = q.limit(limit)
+  const { data, error } = await q
   if (error) throw error
   return ((data ?? []) as InsightRow[]).map(toRollup)
 }

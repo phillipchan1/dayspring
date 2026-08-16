@@ -67,11 +67,15 @@ interface Season {
   window: DateWindow
 }
 
+/** The season the Lamp opens on. */
+const DEFAULT_SEASON = 'year'
+
 function buildSeasons(): Season[] {
   const now = new Date()
   const y = now.getFullYear()
-  const season = new Date(now)
-  season.setDate(season.getDate() - 90)
+  // Floored to midnight, not "90 days back from this instant": the window is the
+  // cache key, and a key carrying the time of day misses on every single visit.
+  const season = new Date(y, now.getMonth(), now.getDate() - 90)
   return [
     { id: 'all', label: 'All time', window: {} },
     { id: 'season', label: 'This season', window: { from: season } },
@@ -113,13 +117,15 @@ export function ScriptureView({ onOpenEntry }: Props) {
   useHeatRamp()
   const { state, go, back } = useAppNavigation()
   const seasons = useMemo(() => buildSeasons(), [])
+  // Seed from the season the Lamp actually opens on — seeding from all-time
+  // painted a different season's numbers for a frame, then threw them away.
   const initialCanon = useMemo(() => {
-    const all = seasons.find((s) => s.id === 'all')!
+    const first = seasons.find((s) => s.id === DEFAULT_SEASON) ?? seasons[0]!
     return getCache<Awaited<ReturnType<typeof loadScriptureCanonPage>>>(
-      `scripture:canon:${windowCacheKey(all.window)}`,
+      `scripture:canon:${windowCacheKey(first.window)}`,
     )
   }, [seasons])
-  const [seasonId, setSeasonId] = useState('year')
+  const [seasonId, setSeasonId] = useState(DEFAULT_SEASON)
   const [heat, setHeat] = useState<CanonHeat | null>(initialCanon?.heat ?? null)
   const [summary, setSummary] = useState<SeasonSummary | null>(initialCanon?.summary ?? null)
   const [returning, setReturning] = useState<ReturningRef[]>(initialCanon?.returning ?? [])

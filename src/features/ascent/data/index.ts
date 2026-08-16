@@ -8,8 +8,10 @@
  * — this file's composition does not change.
  */
 
+import { assertSameOwner, cacheGeneration, getCache, onCacheCleared, setCache } from '@/lib/asyncCache'
 import { listRollups } from '@/lib/insights'
 import { isListingPreview } from '@/lib/previewMode'
+import { prewarmScripture } from '@/lib/scripture/query'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
 import { loadWeekWords, monthWords, quarterWords, yearWords } from './words'
@@ -57,7 +59,50 @@ function withLabel(scripture: ScriptureData | null, label: string | undefined): 
   return { ...scripture, periodLabel: label ?? scripture.periodLabel }
 }
 
-export async function loadAscent(): Promise<LoadedAscent> {
+/** The composed climb, cached across unmounts so returning to the Ascent paints
+ *  from memory instead of re-reading. Stamped with the UTC day the windows were
+ *  derived from — a climb built yesterday must not paint today's Valley. */
+const ASCENT_CACHE = 'ascent:climb:v1'
+
+interface CachedAscent {
+  day: string
+  data: LoadedAscent
+}
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/** The last composed climb, if it was built today. Lets the view paint instantly
+ *  and revalidate behind — the surface should never make you wait twice. */
+export function readCachedAscent(): LoadedAscent | undefined {
+  const hit = getCache<CachedAscent>(ASCENT_CACHE)
+  return hit && hit.day === todayKey() ? hit.data : undefined
+}
+
+let inflight: Promise<LoadedAscent> | null = null
+
+// A scrub (sign-out / owner change) drops the in-flight climb with the cache, so
+// the next caller can't join a read started by the previous owner.
+onCacheCleared(() => {
+  inflight = null
+})
+
+export async function loadAscent(opts?: { fresh?: boolean }): Promise<LoadedAscent> {
+  if (!opts?.fresh) {
+    const cached = readCachedAscent()
+    if (cached) return cached
+  }
+  // Two mounts racing (StrictMode, a fast re-nav) should cost one set of reads.
+  if (inflight) return inflight
+  inflight = loadAscentOnce(opts).finally(() => {
+    inflight = null
+  })
+  return inflight
+}
+
+async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent> {
+  const gen = cacheGeneration()
   // App Store listing preview: serve fixtures rather than Supabase. Kept inline
   // under a literal `import.meta.env.DEV` (not hoisted to a module const) so Vite
   // drops the branch AND the dynamic import — the fixtures never reach the bundle.
@@ -67,15 +112,23 @@ export async function loadAscent(): Promise<LoadedAscent> {
     return (await import('@/features/appstore/mock')).MOCK_ASCENT
   }
 
+  const windows = deriveWindows()
+
   // Degrade per-tier: if a rollup read fails (offline / not yet synthesized), the
   // real Words/Scripture dimensions fall to empty while the rest of the climb —
   // and the other dimensions — still render.
+  //
+  // Only the newest rollup of each tier is read (the quarter is composed from the
+  // months spanning it, and a quarter holds three), so the fat `structured_payload`
+  // of every rollup ever written stays on the server. The scripture prewarm runs
+  // alongside: one pass over the union of the four altitude windows, after which
+  // each `loadScripture` below is an in-memory filter rather than its own scan.
   const [weekly, monthly, yearly] = await Promise.all([
-    listRollups('weekly').catch(() => []),
-    listRollups('monthly').catch(() => []),
-    listRollups('yearly').catch(() => []),
+    listRollups('weekly', 1).catch(() => []),
+    listRollups('monthly', 3).catch(() => []),
+    listRollups('yearly', 1).catch(() => []),
+    prewarmScripture(Object.values(windows), opts),
   ])
-  const windows = deriveWindows()
   const yearNum = windows.year.from!.getUTCFullYear()
 
   const [weekWords, scrWeek, scrMonth, scrQuarter, scrYear] = await Promise.all([
@@ -123,7 +176,10 @@ export async function loadAscent(): Promise<LoadedAscent> {
     stones: [],
   }
 
-  return { week, month, quarter, year, windows }
+  const climb: LoadedAscent = { week, month, quarter, year, windows }
+  assertSameOwner(gen)
+  setCache<CachedAscent>(ASCENT_CACHE, { day: todayKey(), data: climb })
+  return climb
 }
 
 export type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView }

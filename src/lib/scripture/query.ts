@@ -7,7 +7,16 @@
 // deriving refs from the locally-cached entries with the same isomorphic parser
 // — so the map still lights up offline. RLS scopes every read to the owner.
 
-import { getCache, invalidateCachePrefix, setCache, windowCacheKey } from '../asyncCache'
+import {
+  assertSameOwner,
+  cacheGeneration,
+  getCache,
+  invalidateCachePrefix,
+  onCacheCleared,
+  setCache,
+  windowCacheKey,
+} from '../asyncCache'
+import { inWindow, readWindowCache, unionWindows, writeWindowCache } from '../windowCache'
 import { bookByOsis } from '../bible/canon'
 import * as cache from '../db'
 import { fetchEntriesByIds } from '../entries'
@@ -70,30 +79,45 @@ export interface VerseMoment {
 
 // ── loading ───────────────────────────────────────────────────────────────
 
-function inWindow(iso: string, w?: DateWindow): boolean {
-  if (!w) return true
-  const t = Date.parse(iso)
-  if (w.from && t < w.from.getTime()) return false
-  if (w.to && t > w.to.getTime()) return false
-  return true
-}
-
 const REF_PAGE = 1000
 
+/** Cache namespaces. Both are window-keyed, so a wider cached read answers a
+ *  narrower one for free (see `readWindowCache`). */
+const REFS_PREFIX = 'scripture:refs:'
+const SUGGESTED_PREFIX = 'scripture:suggested:'
+
 const refsInflight = new Map<string, Promise<RefLike[]>>()
+const suggestedInflight = new Map<string, Promise<string[]>>()
 
 /** Drop cached canon/book reads (after scan completes, etc.). */
 export function invalidateScriptureCache(): void {
   invalidateCachePrefix('scripture:')
   refsInflight.clear()
+  suggestedInflight.clear()
 }
+
+// A scrub (sign-out / owner change) has to take the in-flight reads with it, or
+// a caller arriving just after could join a read started by the previous owner.
+onCacheCleared(() => {
+  refsInflight.clear()
+  suggestedInflight.clear()
+})
 
 /**
  * Confirmed refs for the owner across the WHOLE journal (paginated past
  * PostgREST's default ~1000-row cap, so the map never silently truncates).
  * Falls back to local parse when offline.
+ *
+ * Cached by window, and satisfied by any cached WIDER window — the Lamp's
+ * all-time read serves every Ascent altitude without touching the network, and
+ * the Ascent's four altitudes cost one union read between them rather than four
+ * overlapping scans.
  */
-async function loadRefs(window?: DateWindow): Promise<RefLike[]> {
+async function loadRefs(window?: DateWindow, opts?: { fresh?: boolean }): Promise<RefLike[]> {
+  if (!opts?.fresh) {
+    const hit = readWindowCache<RefLike>(REFS_PREFIX, window, (r) => r.entry_created_at)
+    if (hit) return hit
+  }
   const key = windowCacheKey(window)
   const inflight = refsInflight.get(key)
   if (inflight) return inflight
@@ -103,30 +127,42 @@ async function loadRefs(window?: DateWindow): Promise<RefLike[]> {
 }
 
 async function loadRefsOnce(window?: DateWindow): Promise<RefLike[]> {
+  const gen = cacheGeneration()
+  let refs: RefLike[]
   try {
-    const sb = requireSupabase()
-    const out: RefLike[] = []
-    for (let from = 0; ; from += REF_PAGE) {
-      let q = sb
-        .from('scripture_refs')
-        .select('entry_id, book_osis, book_order, chapter, osis_ref, entry_created_at, char_start')
-        .eq('status', 'confirmed')
-        .order('entry_created_at', { ascending: true })
-        .order('osis_ref', { ascending: true })
-        .range(from, from + REF_PAGE - 1)
-      if (window?.from) q = q.gte('entry_created_at', window.from.toISOString())
-      if (window?.to) q = q.lte('entry_created_at', window.to.toISOString())
-      const { data, error } = await q
-      if (error) throw error
-      const rows = (data ?? []) as RefLike[]
-      out.push(...rows)
-      if (rows.length < REF_PAGE) break
-    }
-    return out
+    refs = await fetchRefs(window)
   } catch {
-    // Offline / table missing — derive from cached entries so the map still reads.
+    // Offline / table missing — derive from cached entries so the map still
+    // reads. Deliberately NOT cached: it's a degraded answer, and parking it
+    // under a wide window would starve every narrower read of the real rows
+    // once the network comes back.
     return deriveRefsFromCache(window)
   }
+  assertSameOwner(gen)
+  writeWindowCache(REFS_PREFIX, window, refs)
+  return refs
+}
+
+async function fetchRefs(window?: DateWindow): Promise<RefLike[]> {
+  const sb = requireSupabase()
+  const out: RefLike[] = []
+  for (let from = 0; ; from += REF_PAGE) {
+    let q = sb
+      .from('scripture_refs')
+      .select('entry_id, book_osis, book_order, chapter, osis_ref, entry_created_at, char_start')
+      .eq('status', 'confirmed')
+      .order('entry_created_at', { ascending: true })
+      .order('osis_ref', { ascending: true })
+      .range(from, from + REF_PAGE - 1)
+    if (window?.from) q = q.gte('entry_created_at', window.from.toISOString())
+    if (window?.to) q = q.lte('entry_created_at', window.to.toISOString())
+    const { data, error } = await q
+    if (error) throw error
+    const rows = (data ?? []) as RefLike[]
+    out.push(...rows)
+    if (rows.length < REF_PAGE) break
+  }
+  return out
 }
 
 async function deriveRefsFromCache(window?: DateWindow): Promise<RefLike[]> {
@@ -229,7 +265,9 @@ export async function loadScriptureCanonPage(
     const hit = getCache<ScriptureCanonPage>(key)
     if (hit) return hit
   }
-  const refs = await loadRefs(window)
+  // `fresh` has to reach the ref read too, or a forced reload would re-aggregate
+  // the very rows it was asked to go past.
+  const refs = await loadRefs(window, opts)
   const payload: ScriptureCanonPage = {
     heat: canonHeatFromRefs(refs),
     summary: seasonSummaryFromRefs(refs),
@@ -257,19 +295,79 @@ export async function getReturning(
   return returningFromRefs(await loadRefs(window), limit, bookOsis)
 }
 
-/** How many faint, AI-inferred allusions await the user's nod in a window — the
- *  size of the confirm funnel. A head/count query (no rows shipped). */
-export async function getSuggestedCount(window?: DateWindow): Promise<number> {
+/**
+ * The dates of every faint, AI-inferred allusion awaiting the user's nod. One
+ * narrow column, cached and superset-derivable like the confirmed refs — so the
+ * Ascent's four altitudes size their confirm funnels from a single read instead
+ * of firing four count queries.
+ */
+async function loadSuggestedDates(window?: DateWindow, opts?: { fresh?: boolean }): Promise<string[]> {
+  if (!opts?.fresh) {
+    const hit = readWindowCache<string>(SUGGESTED_PREFIX, window, (d) => d)
+    if (hit) return hit
+  }
+  const key = windowCacheKey(window)
+  const inflight = suggestedInflight.get(key)
+  if (inflight) return inflight
+  const p = loadSuggestedDatesOnce(window).finally(() => suggestedInflight.delete(key))
+  suggestedInflight.set(key, p)
+  return p
+}
+
+async function loadSuggestedDatesOnce(window?: DateWindow): Promise<string[]> {
+  const gen = cacheGeneration()
+  const dates = await fetchSuggestedDates(window)
+  assertSameOwner(gen)
+  writeWindowCache(SUGGESTED_PREFIX, window, dates)
+  return dates
+}
+
+async function fetchSuggestedDates(window?: DateWindow): Promise<string[]> {
   const sb = requireSupabase()
-  let q = sb
-    .from('scripture_refs')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'suggested')
-  if (window?.from) q = q.gte('entry_created_at', window.from.toISOString())
-  if (window?.to) q = q.lte('entry_created_at', window.to.toISOString())
-  const { count, error } = await q
-  if (error) return 0
-  return count ?? 0
+  const out: string[] = []
+  for (let from = 0; ; from += REF_PAGE) {
+    let q = sb
+      .from('scripture_refs')
+      .select('entry_created_at')
+      .eq('status', 'suggested')
+      .order('entry_created_at', { ascending: true })
+      .range(from, from + REF_PAGE - 1)
+    if (window?.from) q = q.gte('entry_created_at', window.from.toISOString())
+    if (window?.to) q = q.lte('entry_created_at', window.to.toISOString())
+    const { data, error } = await q
+    if (error) throw error
+    const rows = (data ?? []) as { entry_created_at: string }[]
+    for (const r of rows) out.push(r.entry_created_at)
+    if (rows.length < REF_PAGE) break
+  }
+  return out
+}
+
+/** How many faint, AI-inferred allusions await the user's nod in a window — the
+ *  size of the confirm funnel. Unreachable table / offline reads as none. */
+export async function getSuggestedCount(window?: DateWindow): Promise<number> {
+  try {
+    return (await loadSuggestedDates(window)).length
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Warm the confirmed-ref and suggested-allusion caches for a window that COVERS
+ * several narrower reads about to happen. One pass over the union beats one pass
+ * per window, and every later read inside it is then an in-memory filter.
+ * Best-effort: a failure here just means the narrower reads go to the network.
+ */
+export async function prewarmScripture(
+  windows: DateWindow[],
+  opts?: { fresh?: boolean },
+): Promise<void> {
+  const union = unionWindows(windows)
+  await Promise.all([
+    loadRefs(union, opts).catch(() => []),
+    loadSuggestedDates(union, opts).catch(() => []),
+  ])
 }
 
 /** Entries touching a book, chronological, with the matched refs + an excerpt. */

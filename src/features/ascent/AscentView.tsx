@@ -5,7 +5,7 @@ import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { ALTITUDES, CONTROLS } from './ascent.config'
-import { loadAscent, type LoadedAscent } from './data'
+import { loadAscent, readCachedAscent, type LoadedAscent } from './data'
 import { AltitudeBands } from './AltitudeBands'
 import { LensRow } from './LensRow'
 import { Summit } from './Summit'
@@ -60,14 +60,27 @@ export function AscentView({ onOpenEntry }: Props) {
   const idx = clampAltitude(state.ascentAltitude)
   const drill = state.ascentDrill
   const light = useIsLightTheme()
-  const [ascent, setAscent] = useState<Loaded<LoadedAscent>>(undefined)
+  // Paint the last climb the moment the surface mounts — the Ascent is a place
+  // you step in and out of, and it shouldn't make you wait for the same reads
+  // twice. Whatever is on screen is then revalidated behind (below), so a return
+  // visit is instant AND current.
+  const [ascent, setAscent] = useState<Loaded<LoadedAscent>>(() => readCachedAscent())
   const [reloadKey, setReloadKey] = useState(0)
+
+  // Mirror of `ascent` for the load effect, which must not re-run when it lands.
+  const shownRef = useRef(ascent)
+  shownRef.current = ascent
 
   useEffect(() => {
     let alive = true
-    loadAscent().then(
+    // Content already on screen → go to the network for the fresh copy. Nothing on
+    // screen → take the cache if there is one, since the wait is what's visible.
+    const warm = !!shownRef.current
+    loadAscent({ fresh: warm }).then(
       (d) => alive && setAscent(d),
-      () => alive && setAscent(null),
+      // A failed revalidate must not blank a climb the user is reading; only a
+      // cold load has an error state to show.
+      () => alive && !warm && setAscent(null),
     )
     return () => {
       alive = false
