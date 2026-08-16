@@ -11,7 +11,7 @@ import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
-import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
+import { EDITOR_FONT_VARS, FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import { fetchPortalUrl, isAppleManaged, trialDaysRemaining } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
@@ -212,6 +212,19 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
 function WritingTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
   return (
     <div className="settings-stack">
+      {/* On mobile the settings panel covers the journal full-screen, so a
+          slider drag here has nothing to show its effect against — this
+          mirrors the actual writing surface's font, size, and line height. */}
+      <div
+        className="settings-preview"
+        style={{
+          fontFamily: EDITOR_FONT_VARS[settings.editorFont],
+          fontSize: settings.fontSize,
+          lineHeight: settings.lineHeight,
+        }}
+      >
+        Grace and peace to you this morning.
+      </div>
       <Slider
         label="Font size"
         value={settings.fontSize}

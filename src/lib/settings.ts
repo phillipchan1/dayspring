@@ -22,7 +22,7 @@ export const EDITOR_FONT_VARS: Record<EditorFont, string> = {
   readable: 'var(--font-atkinson)', // Atkinson Hyperlegible
 }
 
-export const FONT_SIZE_MIN = 18
+export const FONT_SIZE_MIN = 14
 export const FONT_SIZE_DEFAULT = 24
 export const FONT_SIZE_MAX = 36
 
