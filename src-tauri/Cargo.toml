@@ -36,3 +36,32 @@ tauri-plugin-updater = "2"
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 tauri-plugin-purchases = "0.2"
+# Face ID / Touch ID for the optional app lock. Mobile-only by design — the
+# plugin has no desktop implementation, and macOS Touch ID would need a
+# hand-written LocalAuthentication command. Mac and web use the PIN.
+tauri-plugin-biometric = "2"
+
+# Raw UIKit/ObjC access so the iOS webview can be told to stop insetting itself
+# (see `reclaim_ios_viewport` in src/lib.rs). Versions match what wry 0.55.1
+# already resolves, so this adds no second crate graph.
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+objc2-ui-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "UIApplication",
+  "UIColor",
+  "UIResponder",
+  "UIScrollView",
+  "UIView",
+  "UIWindow",
+] }
+# NSNotificationCenter, to hear `applicationWillResignActive` — the moment iOS
+# takes the app-switcher snapshot. See `install_privacy_screen` in src/lib.rs.
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "NSNotification",
+  "NSOperation",
+  "NSString",
+] }
+block2 = "0.6"

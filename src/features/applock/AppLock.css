@@ -1,0 +1,116 @@
+/* App lock dialog — set, change, or turn off the lock. Opened from Settings, so
+   it has to sit above the settings modal (same reason .concordance-scrim does). */
+
+.applock-scrim {
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.applock-dialog {
+  width: min(24rem, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 1.5rem 1.5rem 1.25rem;
+  border-radius: 12px;
+  text-align: center;
+  /* The keyboard on a phone takes most of the screen; let the dialog scroll
+     rather than clip the actions off the bottom. */
+  max-height: calc(100dvh - 3rem);
+  overflow-y: auto;
+}
+
+.applock-dialog__title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text-bright);
+  letter-spacing: -0.01em;
+}
+
+.applock-dialog__body {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  max-width: 19rem;
+}
+
+.applock-dialog__switch {
+  margin-top: 0.9rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--border);
+}
+
+.applock-dialog__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.applock-dialog__opt input {
+  margin-top: 0.15rem;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.applock-dialog__opt span {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.applock-dialog__opt em {
+  display: block;
+  margin-top: 0.2rem;
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  line-height: 1.55;
+}
+
+/* Always occupies its line, so a wrong entry doesn't shove the buttons down. */
+.applock-dialog__error {
+  min-height: 1.1em;
+  margin: 0.8rem 0 0.6rem;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.75rem;
+  color: var(--danger);
+  visibility: hidden;
+}
+
+.applock-dialog__error[data-visible='true'] {
+  visibility: visible;
+}
+
+.applock-dialog__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.applock-dialog__note {
+  margin: 1rem 0 0;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.68rem;
+  line-height: 1.65;
+  color: var(--text-faint);
+  max-width: 19rem;
+}

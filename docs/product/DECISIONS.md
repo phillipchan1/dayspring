@@ -23,6 +23,36 @@ agenda.
 
 ---
 
+## D-023 — The app lock is one account-level PIN, and it is not encryption
+**2026-08-17** · **Status:** Decided
+**Decision:** an optional lock, off by default, set once and valid on every device the
+account signs into. The verifier — a PBKDF2-SHA256 salt and hash, never the secret —
+lives in its own `profiles.app_lock` column, mirrored to `localStorage` so the gate is
+up before first paint and still works offline. Face ID on iPhone is a shortcut past
+typing it, never a replacement. Forgetting the PIN is answered by signing in again with
+Google or Apple, which is the only proof of the account we have.
+**Why:** Kristi Wollbrink (OPP-K4) writes raw and won't while anyone who opens her
+laptop can read it. The interview asked for a lock; what makes it usable is that it is
+*one* lock — a device-local secret would mean setting a separate PIN on the Mac, the
+iPhone and the web, which is the version people turn off after a week. Account-level
+costs nothing against the real threat model: whoever can read that row already holds
+the session that reads the entries.
+**Not a softening of D-011.** This is an access gate on the UI. Entries are stored
+exactly as they were, the model still sees plaintext at inference time, and every string
+in the feature says so — "keeps someone who picks up your Mac or your phone out of your
+journal. It isn't encryption." Principle 7 is satisfied by being unambiguous, not by
+claiming more.
+**What would change our mind:** if the lock is switched on and then off again by the
+same people, it was friction rather than reassurance and should be deleted rather than
+tuned. Measure activation and retention among users who enable it (the assumption test
+already drafted on the backlog item).
+**Cost accepted:** two honest weaknesses, both stated in the copy rather than papered
+over. Recovery is only as strong as the provider session — on a Mac whose browser is
+already signed into the owner's Google account, resetting the lock is a few clicks. And
+a device that has never seen the account and cannot reach the network opens, because
+there is no verifier on it to check a PIN against. Both are the price of refusing to
+lock someone out of their own journal.
+
 ## D-021 — Account deletion refuses rather than leave someone billed
 **2026-08-10** · **Status:** Decided
 **Decision:** deleting an account cancels any Stripe subscription first, and is

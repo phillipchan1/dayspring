@@ -24,6 +24,7 @@ import {
 import { displayPrice } from '@/features/paywall/prices'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
+import { AppLockSettings } from '@/features/applock/AppLockSettings'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
 import { ThemePicker } from './ThemePicker'
@@ -402,6 +403,10 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
       <div className="settings-about__section">
         <div className="settings-about__section-title">Privacy</div>
         <div className="settings-about__group">
+          {/* Optional app lock. Owns its own state (profiles.app_lock, not
+              settings — a whole-object settings push from a stale device would
+              turn the lock back off), so it takes no props from here. */}
+          <AppLockSettings />
           <div className="settings-about__row-toggle">
             <Toggle
               label="Share anonymous usage"
