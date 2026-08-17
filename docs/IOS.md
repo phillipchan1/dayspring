@@ -181,13 +181,22 @@ through 1.0.224.207), so this is just secrets.
 | `IOS_CERTIFICATE_PASSWORD` | optional | that `.p12`'s export password |
 | `IOS_MOBILE_PROVISION` | optional | base64 of an App Store `.mobileprovision` |
 
-The three `APPSTORE_*` values are the **same key already used by the nuvo repo** —
-an App Store Connect API team key is scoped to the Apple Developer *account*
-(both apps are under Phillip Chan / `4629AQ24Z2`), not to one app. Copy them
-across rather than minting a second key:
+The three `APPSTORE_*` values come from the **Team Keys** tab (key `JY2WZLDR95`,
+"Github Actions", role Admin). An App Store Connect API team key is scoped to the
+Apple Developer *account* (everything is under Phillip Chan / `4629AQ24Z2`), not
+to one app, so the same key serves nuvo and Dayspring — mint a second only if you
+want to revoke them independently.
+
+**Set them by pipe, never by paste.** A trailing newline on the Key ID or Issuer
+ID goes straight into the JWT and Apple answers 401 — the same 401 a completely
+wrong key gives:
 
 ```bash
-gh secret set APPSTORE_KEY_ID --repo phillipchan1/dayspring
+printf '%s' 'JY2WZLDR95' | gh secret set APPSTORE_KEY_ID --repo phillipchan1/dayspring
+```
+
+```bash
+base64 -i ~/Downloads/AuthKey_JY2WZLDR95.p8 | tr -d '\n' | gh secret set APPSTORE_PRIVATE_KEY --repo phillipchan1/dayspring
 ```
 
 ⚠️ **These are not the `APPLE_KEY_ID` / `APPLE_ISSUER_ID` / `APPLE_PRIVATE_KEY`
@@ -250,7 +259,7 @@ Sandbox IAP: iPhone Settings → App Store → Sandbox Account.
 | Symptom | Fix |
 |---|---|
 | Fails at "Configure App Store Connect API key" | One of the three `APPSTORE_*` secrets is missing or empty |
-| Fails at "Verify App Store Connect credentials" with 401 | The wrong *kind* of Apple key — see below. `scripts/asc-auth-check.mjs` prints the three causes |
+| Fails at "Verify App Store Connect credentials" with 401 | Wrong key *kind*, mismatched key/issuer, **or a trailing newline** in `APPSTORE_KEY_ID` / `APPSTORE_ISSUER_ID` — all four look identical to Apple. The workflow now trims; set secrets by pipe, not paste. `scripts/asc-auth-check.mjs` prints the causes |
 | `No profiles for 'com.phillipchan.dayspring' were found` | Same 401, caught late (pre-2026-08-17 runs had no preflight). Not a provisioning problem |
 | Upload rejected: build number already used | Shouldn't happen (step 2 resolves it); check the fallback warning in the log — the ASC lookup failed |
 | Upload rejected: icon alpha channel (90717) | `ios-postinit.sh` should catch this first; regenerate icons and recommit `src-tauri/gen/apple/Assets.xcassets/` |

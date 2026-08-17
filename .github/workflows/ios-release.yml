@@ -86,11 +86,34 @@ jobs:
             echo "::error::Missing App Store Connect API secrets. See docs/IOS.md § Automated TestFlight builds."
             exit 1
           fi
+          # Trim whitespace. A secret pasted into the GitHub web UI can carry a
+          # trailing newline, and one in the Key ID or Issuer ID lands verbatim
+          # in the JWT's `kid`/`iss` — Apple then answers 401 NOT_AUTHORIZED,
+          # which is indistinguishable from using the wrong key entirely.
+          APPSTORE_KEY_ID=$(printf '%s' "$APPSTORE_KEY_ID" | tr -d '[:space:]')
+          APPSTORE_ISSUER_ID=$(printf '%s' "$APPSTORE_ISSUER_ID" | tr -d '[:space:]')
+
           KEY_DIR="${HOME}/.appstoreconnect/private_keys"
           mkdir -p "$KEY_DIR"
           KEY_PATH="${KEY_DIR}/AuthKey_${APPSTORE_KEY_ID}.p8"
-          echo "$APPSTORE_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
+
+          # Accept the secret either way. Documented as base64 of the .p8, but a
+          # raw PEM paste is the obvious mistake to make and there's no reason to
+          # punish it — a PEM body is itself valid base64, so a blind decode
+          # turns it into DER and fails much later, at the signing step.
+          if printf '%s' "$APPSTORE_PRIVATE_KEY" | grep -q 'BEGIN PRIVATE KEY'; then
+            printf '%s\n' "$APPSTORE_PRIVATE_KEY" > "$KEY_PATH"
+            echo "APPSTORE_PRIVATE_KEY held a raw PEM — used as-is."
+          else
+            printf '%s' "$APPSTORE_PRIVATE_KEY" | tr -d '[:space:]' | base64 --decode > "$KEY_PATH"
+          fi
+          if ! grep -q 'BEGIN PRIVATE KEY' "$KEY_PATH"; then
+            echo "::error::APPSTORE_PRIVATE_KEY did not decode to a PEM private key. Store the base64 of AuthKey_<KEY_ID>.p8 — see docs/IOS.md."
+            exit 1
+          fi
           chmod 600 "$KEY_PATH"
+
+          echo "Using App Store Connect key ${APPSTORE_KEY_ID}"
           echo "APPLE_API_KEY=${APPSTORE_KEY_ID}" >> "$GITHUB_ENV"
           echo "APPLE_API_ISSUER=${APPSTORE_ISSUER_ID}" >> "$GITHUB_ENV"
           echo "APPLE_API_KEY_PATH=${KEY_PATH}" >> "$GITHUB_ENV"
