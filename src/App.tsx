@@ -20,6 +20,7 @@ import { LockedScreen } from './features/paywall/LockedScreen'
 import { TrialWelcome } from './features/paywall/TrialWelcome'
 import { TrialBanner } from './features/paywall/TrialBanner'
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
+import { AppLockGate } from './features/applock/AppLockGate'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { ensureProfile } from './lib/onboarding'
 import { fenceCacheToOwner } from './lib/localData'
@@ -63,10 +64,18 @@ export function App() {
 
   if (!session) return <SignIn />
 
+  // The optional app lock. Above AuthenticatedApp on purpose: it needs the owner
+  // id to know whose PIN to ask for, the theme effect above has already run so it
+  // paints in the user's palette, and sitting here means onboarding, the paywall
+  // and billing are behind it too — not just the editor. It renders the lock
+  // screen INSTEAD of its children, so JournalScreen never mounts and never
+  // reads the cache while the lock is up.
   return (
-    <AppNavigationProvider>
-      <AuthenticatedApp userEmail={session.user.email ?? ''} ownerId={session.user.id} />
-    </AppNavigationProvider>
+    <AppLockGate ownerId={session.user.id}>
+      <AppNavigationProvider>
+        <AuthenticatedApp userEmail={session.user.email ?? ''} ownerId={session.user.id} />
+      </AppNavigationProvider>
+    </AppLockGate>
   )
 }
 

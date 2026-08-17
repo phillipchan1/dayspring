@@ -8,6 +8,15 @@
 	<string>Dayspring uses the camera to scan handwritten journal pages.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Dayspring lets you attach photos from your library to journal entries.</string>
+	<!-- Only reached when the user has turned on the optional app lock AND opted
+	     into biometrics; the PIN always remains a way in. Required whenever the
+	     app links LocalAuthentication, even if it never calls it. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID opens your journal without typing your PIN.</string>
+	<!-- Still false with the app lock shipped. The lock derives a PBKDF2
+	     verifier through the OS-provided WebCrypto implementation and uses it
+	     solely to authenticate the person holding the device, which is within
+	     Apple's exemption. Re-confirm at submission rather than assuming. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- iPhone is portrait-only: landscape is 874pt wide, over useIsMobile()'s

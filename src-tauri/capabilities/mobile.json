@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
-  "description": "iOS/Android permissions (StoreKit IAP + shared defaults)",
+  "description": "iOS/Android permissions (StoreKit IAP + biometrics + shared defaults)",
   "platforms": ["iOS", "android"],
   "windows": ["main"],
   "permissions": [
@@ -17,6 +17,7 @@
     "deep-link:allow-get-current",
     "opener:default",
     "opener:allow-open-url",
-    "purchases:default"
+    "purchases:default",
+    "biometric:default"
   ]
 }

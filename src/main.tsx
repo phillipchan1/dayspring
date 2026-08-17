@@ -37,6 +37,7 @@ async function bootstrap() {
   //
   //   ?__preview=locked | paywall   → IAP review shot (capture-appstore-screenshots.mjs)
   //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
+  //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -47,6 +48,11 @@ async function bootstrap() {
     if (preview?.startsWith('listing-')) {
       const { renderListingPreview } = await import('./features/appstore/preview')
       renderListingPreview(preview)
+      return
+    }
+    if (preview?.startsWith('applock')) {
+      const { renderAppLockPreview } = await import('./features/applock/preview')
+      await renderAppLockPreview(preview)
       return
     }
     if (preview) {

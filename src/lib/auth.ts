@@ -1,6 +1,7 @@
 import { requireSupabase } from './supabase'
 import { isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
+import { beginExternalTrip } from './appLockSuppress'
 import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
 
 // Hosted HTTPS page that forwards the PKCE code to the dayspring:// deep-link
@@ -53,6 +54,10 @@ async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult
   if (error) throw error
   if (!data?.url) throw new Error('No OAuth URL returned')
 
+  // Linking a second provider happens from inside the app, so this hand-off has
+  // to be marked or the app lock closes behind it and the user returns from
+  // Google to a PIN prompt. See lib/appLockSuppress.ts.
+  beginExternalTrip()
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(data.url)
 }

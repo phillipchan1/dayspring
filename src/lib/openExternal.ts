@@ -1,4 +1,5 @@
 import { isTauri } from './platform'
+import { beginExternalTrip } from './appLockSuppress'
 
 /**
  * Open an external web flow (Stripe Checkout, billing portal) correctly on
@@ -20,6 +21,9 @@ import { isTauri } from './platform'
  * otherwise open a new tab.
  */
 export async function openExternal(url: string, opts?: { sameTab?: boolean }): Promise<void> {
+  // Tell the app lock this backgrounding is ours, so the user doesn't come back
+  // from Stripe or a Google sign-in to a PIN prompt. See lib/appLockSuppress.ts.
+  beginExternalTrip()
   if (isTauri()) {
     const { openUrl } = await import('@tauri-apps/plugin-opener')
     await openUrl(url) // system browser — never the app's own webview

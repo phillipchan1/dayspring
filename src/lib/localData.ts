@@ -17,6 +17,11 @@ const OWNER_SCOPED_FLAGS = [
   'dayspring.has_seen_welcome',
   'dayspring.settings.v1',
   'dayspring.scriptureScannedImported',
+  // The app lock's cached verifier. It is already stamped with its owner (the
+  // gate runs above this fence and checks for itself), so this is belt and
+  // braces — but leaving another account's lock on disk is exactly the kind of
+  // thing that should not outlive them on a shared browser.
+  'dayspring.applock',
   SUBSCRIPTION_CACHE_KEY,
 ]
 
