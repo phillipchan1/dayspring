@@ -1,4 +1,10 @@
-# Dayspring — Project Guide for Claude
+---
+description: Dayspring project guide — what the product is, product docs, release channels, shipping process
+globs:
+alwaysApply: true
+---
+
+# Dayspring — Project Guide
 
 ## What Dayspring is
 
@@ -19,7 +25,7 @@ Before proposing features, writing user-facing copy, or scoping product work, re
 The team's Notion teamspace holds the Customer Feedback Backlog and Customer Discovery
 Interviews databases — check both before proposing a feature or citing a persona as
 validated. See [`docs/product/README.md` § External references (Notion)](docs/product/README.md)
-for links; read via the Notion MCP connector when attached.
+for links.
 
 Non-negotiables that come up constantly: **light, not verdict** (never score someone's
 spiritual life) · **never sermonize, never gamify** (no streaks, no badges, no guilt) ·
