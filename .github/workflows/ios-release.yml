@@ -1,0 +1,175 @@
+name: iOS TestFlight
+
+# Builds a signed iOS IPA and uploads it to TestFlight on every push to master.
+# Same alpha channel as release.yml (macOS) — master is Phil only; beta users
+# stay on the `stable` desktop build until an external TestFlight group exists.
+#
+# One-time Apple + GitHub secrets setup: docs/IOS.md § Automated TestFlight builds.
+#
+# Version stamp: <major>.<minor> from package.json + the commit count on this
+# ref (git rev-list --count HEAD) as the patch, used for both
+# CFBundleShortVersionString and CFBundleVersion. Deliberately NOT
+# github.run_number (what release.yml uses for desktop): this workflow has its
+# own run counter starting at 1, which would collide with versions already
+# uploaded by hand. Commit count is strictly increasing and already well past
+# the last manual upload (1.0.224 build 207).
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'api/**'
+      - 'supabase/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    concurrency:
+      group: ios-testflight
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install dependencies
+        # Not `npm ci` — same reason as release.yml: vite 8 / rolldown pulls
+        # platform-specific optional deps that make a strict lockfile check brittle.
+        run: npm install --no-audit --no-fund
+
+      - name: Compute version
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          MAJOR_MINOR=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          VERSION="${MAJOR_MINOR}.${BUILD_NUMBER}"
+          # Patch tauri.conf.json in place (CI-only, never committed back).
+          # Tauri stamps CFBundleShortVersionString from it at archive time.
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const c=JSON.parse(fs.readFileSync(p));c.version='$VERSION';fs.writeFileSync(p,JSON.stringify(c,null,2)+'\n')"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "Building iOS version $VERSION (build $BUILD_NUMBER)"
+
+      - name: Configure App Store Connect API key
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPSTORE_KEY_ID:-}" ] || [ -z "${APPSTORE_ISSUER_ID:-}" ] || [ -z "${APPSTORE_PRIVATE_KEY:-}" ]; then
+            echo "::error::Missing App Store Connect API secrets. See docs/IOS.md § Automated TestFlight builds."
+            exit 1
+          fi
+          KEY_DIR="${HOME}/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          KEY_PATH="${KEY_DIR}/AuthKey_${APPSTORE_KEY_ID}.p8"
+          echo "$APPSTORE_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "APPLE_API_KEY=${APPSTORE_KEY_ID}" >> "$GITHUB_ENV"
+          echo "APPLE_API_ISSUER=${APPSTORE_ISSUER_ID}" >> "$GITHUB_ENV"
+          echo "APPLE_API_KEY_PATH=${KEY_PATH}" >> "$GITHUB_ENV"
+
+      - name: Resolve build number against App Store Connect
+        # The commit count is unique per commit but not per upload attempt — a
+        # manual re-run on an already-uploaded commit would reuse the same
+        # CFBundleVersion, which App Store Connect rejects. This bumps past the
+        # highest build already on file for $APP_VERSION; it's a no-op for the
+        # normal case, and best-effort (any API problem falls back rather than
+        # failing the build).
+        run: |
+          set -euo pipefail
+          BUNDLE_ID=$(node -p "require('./src-tauri/tauri.conf.json').identifier")
+          RESOLVED=$(node scripts/appstore-next-build-number.mjs \
+            --bundle-id "$BUNDLE_ID" \
+            --version "$APP_VERSION" \
+            --proposed "$BUILD_NUMBER" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer-id "$APPLE_API_ISSUER" \
+            --key-path "$APPLE_API_KEY_PATH")
+          echo "BUILD_NUMBER=$RESOLVED" >> "$GITHUB_ENV"
+          echo "Resolved iOS build number: $RESOLVED"
+
+      - name: Initialize iOS project
+        # src-tauri/gen/apple/ is committed, but a fresh checkout has no Pods,
+        # no Externals/ and no .xcworkspace — init produces those. It also
+        # overwrites the committed icons and can drop Info.plist keys, which is
+        # what ios-postinit.sh puts back.
+        env:
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_DEVELOPMENT_TEAM:-}" ]; then
+            echo "::error::Missing APPLE_TEAM_ID secret. See docs/IOS.md."
+            exit 1
+          fi
+          npm run tauri ios init -- --ci
+          bash scripts/ios-postinit.sh
+
+      - name: Build signed IPA
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
+          VITE_RELEASE_CHANNEL: alpha
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: |
+          set -euo pipefail
+          # Empty IOS_* secrets arrive as "" and Tauri still attempts
+          # `security import`, which fails. Unset unless all three are real.
+          # NOTE: never point these at APPLE_CERTIFICATE (release.yml's
+          # Developer ID cert) — TestFlight requires Apple Distribution.
+          if [ -z "${IOS_CERTIFICATE:-}" ] || [ -z "${IOS_CERTIFICATE_PASSWORD:-}" ] || [ -z "${IOS_MOBILE_PROVISION:-}" ]; then
+            unset IOS_CERTIFICATE IOS_CERTIFICATE_PASSWORD IOS_MOBILE_PROVISION
+            echo "Using automatic signing (App Store Connect API key)."
+          else
+            echo "Using manual signing (IOS_CERTIFICATE + provisioning profile)."
+          fi
+          npm run tauri:ios:build -- --build-number "$BUILD_NUMBER" --verbose
+
+      - name: Upload to TestFlight
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -print | head -1)
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA found under src-tauri/gen/apple/build"
+            find src-tauri/gen/apple -name '*.ipa' -o -name '*.xcarchive' 2>/dev/null || true
+            exit 1
+          fi
+          echo "Uploading $IPA (v${APP_VERSION}, build ${BUILD_NUMBER})"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"

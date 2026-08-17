@@ -130,21 +130,100 @@ Per the memory note on this project: apply these in the Supabase **SQL editor**,
 
 ---
 
+## Automated TestFlight builds
+
+`.github/workflows/ios-release.yml` builds a signed IPA and uploads it to
+TestFlight on **every push to `master`** (and on manual **Run workflow**), in
+parallel with the macOS alpha build and the Vercel deploy. ~20–30 min on
+`macos-latest`; concurrency group `ios-testflight`, so a newer push cancels an
+in-flight build. Pushes that only touch `docs/`, `api/`, `supabase/` or Markdown
+don't trigger it — none of that reaches the IPA.
+
+What it does:
+
+1. Stamps the version as `<major>.<minor>` from `package.json` + the **commit
+   count** on the ref (`git rev-list --count HEAD`) as the patch, used for both
+   `CFBundleShortVersionString` and `CFBundleVersion`. Not `github.run_number`
+   (what `release.yml` uses for desktop) — this workflow's counter starts at 1
+   and would collide with the builds already uploaded by hand.
+2. Asks App Store Connect whether that build number is already taken for this
+   marketing version and bumps past it if so
+   (`scripts/appstore-next-build-number.mjs`). No-op in the normal case; it only
+   matters when re-running the workflow on an already-uploaded commit.
+3. `tauri ios init --ci` → `scripts/ios-postinit.sh`.
+4. `tauri ios build --export-method app-store-connect` — signed IPA, automatic
+   signing via the App Store Connect API key.
+5. `xcrun altool --upload-app` → App Store Connect → TestFlight.
+
+**Why there's a postinit step.** Unlike most Tauri projects, `src-tauri/gen/apple/`
+is committed here — icons, `Info.plist`, `project.yml` and all. `tauri ios init`
+regenerates that tree (Tauri's placeholder icon catalog; a plist merged from
+`Info.ios.plist` that has historically dropped keys), so `scripts/ios-postinit.sh`
+restores the committed icon catalog, re-asserts the plist keys that matter
+(export compliance, the three usage strings, the `dayspring://` scheme, the
+orientation lock) and fails the build if any icon still carries an alpha channel.
+Init is still needed for what *isn't* committed: Pods, `Externals/`, the workspace.
+
+### One-time setup
+
+The App Store Connect app record already exists (builds were uploaded by hand
+through 1.0.224.207), so this is just secrets.
+
+| Secret | Status | Value |
+|---|---|---|
+| `VITE_SUPABASE_URL` | ✅ already set | same as the desktop build |
+| `VITE_SUPABASE_ANON_KEY` | ✅ already set | same as the desktop build |
+| `APPLE_TEAM_ID` | ✅ already set | `4629AQ24Z2` |
+| `APPSTORE_KEY_ID` | **add** | App Store Connect API **Key ID** |
+| `APPSTORE_ISSUER_ID` | **add** | App Store Connect API **Issuer ID** |
+| `APPSTORE_PRIVATE_KEY` | **add** | **base64** of the `AuthKey_XXXX.p8` |
+| `IOS_CERTIFICATE` | optional | base64 of an Apple **Distribution** `.p12` |
+| `IOS_CERTIFICATE_PASSWORD` | optional | that `.p12`'s export password |
+| `IOS_MOBILE_PROVISION` | optional | base64 of an App Store `.mobileprovision` |
+
+The three `APPSTORE_*` values are the **same key already used by the nuvo repo** —
+an App Store Connect API team key is scoped to the Apple Developer *account*
+(both apps are under Phillip Chan / `4629AQ24Z2`), not to one app. Copy them
+across rather than minting a second key:
+
+```bash
+gh secret set APPSTORE_KEY_ID --repo phillipchan1/dayspring
+```
+
+⚠️ **These are not the `APPLE_KEY_ID` / `APPLE_ISSUER_ID` / `APPLE_PRIVATE_KEY`
+already in Vercel.** Those are an **In-App Purchase** key (Users and Access →
+Integrations → *In-App Purchase* tab) used by `/api/apple/verify`; it has its own
+issuer and cannot upload builds or read `/v1/apps`. The upload key is the
+**App Store Connect API** tab, role **Admin** or **App Manager**. If you ever
+need to mint a fresh one, download the `.p8` (once only) and
+`base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`.
+
+The `IOS_*` trio is a fallback for when automatic signing fails; leave them unset
+and the API key handles signing. **Never point them at `APPLE_CERTIFICATE`** —
+that's the Developer ID cert `release.yml` uses for the DMG, and TestFlight
+requires an Apple Distribution cert instead.
+
+After the first green run: App Store Connect → TestFlight → Internal Testing →
+add yourself; then enable **Automatic Updates** in the TestFlight app.
+
 ## Local / TestFlight commands
+
+Building by hand is still supported (and is what to fall back on if CI is
+broken), but merging to `master` is now the normal path.
 
 ```bash
 # Dev on simulator or plugged-in device
 npm run tauri:ios:dev
 
 # Release IPA for App Store Connect / TestFlight
-# Build number must exceed the last uploaded CFBundleVersion.
-# Last built: 1.0.224.207 (2026-08-02) — so use 208 or higher next.
-npm run tauri:ios:build -- --build-number 208 --verbose
+# Build number must exceed the last uploaded CFBundleVersion — CI now uses the
+# commit count (488 and climbing), so a manual build must clear that too.
+npm run tauri:ios:build -- --build-number "$(git rev-list --count HEAD)" --verbose
 ```
 
-`CFBundleShortVersionString` comes from `src-tauri/tauri.conf.json`, and nothing
-rewrites it for iOS the way the desktop workflows do — check it matches
-`package.json` before building, or `scripts/ios-preflight.mjs` will say so.
+`CFBundleShortVersionString` comes from `src-tauri/tauri.conf.json`. CI rewrites
+it in place (never committed); a local build uses whatever is committed, so check
+it matches `package.json` first, or `scripts/ios-preflight.mjs` will say so.
 
 IPA path: `src-tauri/gen/apple/build/arm64/Dayspring.ipa`
 
@@ -153,6 +232,17 @@ Upload with **Transporter**, then App Store Connect → TestFlight → Internal 
 > **Note:** If Xcode/Transporter says your Apple ID session expired, open Xcode → Settings → Accounts and re-sign in before uploading.
 
 Sandbox IAP: iPhone Settings → App Store → Sandbox Account.
+
+### Troubleshooting CI
+
+| Symptom | Fix |
+|---|---|
+| Fails at "Configure App Store Connect API key" | One of the three `APPSTORE_*` secrets is missing or empty |
+| `No profiles for 'com.phillipchan.dayspring' were found` | The API key's role is below App Manager, or the App ID hasn't propagated — re-run |
+| Upload rejected: build number already used | Shouldn't happen (step 2 resolves it); check the fallback warning in the log — the ASC lookup failed |
+| Upload rejected: icon alpha channel (90717) | `ios-postinit.sh` should catch this first; regenerate icons and recommit `src-tauri/gen/apple/Assets.xcassets/` |
+| Build not in TestFlight | App Store Connect → Activity; check email for compliance questions |
+| Upload rejected (SDK too old) | Bump `runs-on:` to `macos-26` in `ios-release.yml` |
 
 ## App icons
 
