@@ -95,6 +95,15 @@ jobs:
           echo "APPLE_API_ISSUER=${APPSTORE_ISSUER_ID}" >> "$GITHUB_ENV"
           echo "APPLE_API_KEY_PATH=${KEY_PATH}" >> "$GITHUB_ENV"
 
+      - name: Verify App Store Connect credentials
+        # Fail here, in one HTTPS call, rather than at `xcodebuild exportArchive`
+        # — the last step of the build, eight minutes later, where a bad key
+        # surfaces as "No profiles for com.phillipchan.dayspring were found" and
+        # reads like a provisioning problem instead of an auth one.
+        run: |
+          node scripts/asc-auth-check.mjs \
+            --bundle-id "$(node -p "require('./src-tauri/tauri.conf.json').identifier")"
+
       - name: Resolve build number against App Store Connect
         # The commit count is unique per commit but not per upload attempt — a
         # manual re-run on an already-uploaded commit would reuse the same

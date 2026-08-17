@@ -192,11 +192,23 @@ gh secret set APPSTORE_KEY_ID --repo phillipchan1/dayspring
 
 ⚠️ **These are not the `APPLE_KEY_ID` / `APPLE_ISSUER_ID` / `APPLE_PRIVATE_KEY`
 already in Vercel.** Those are an **In-App Purchase** key (Users and Access →
-Integrations → *In-App Purchase* tab) used by `/api/apple/verify`; it has its own
-issuer and cannot upload builds or read `/v1/apps`. The upload key is the
-**App Store Connect API** tab, role **Admin** or **App Manager**. If you ever
-need to mint a fresh one, download the `.p8` (once only) and
-`base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`.
+Integrations → *In-App Purchase* tab) used by `/api/apple/verify` and
+`scripts/asc-setup-iap.mjs`; it has its own issuer and cannot upload builds or
+read `/v1/apps`. The upload key is the **App Store Connect API** tab, role
+**Admin** or **App Manager**. If you ever need to mint a fresh one, download the
+`.p8` (once only) and `base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy`.
+
+This is the one mistake that actually happened (run 32039640943, 2026-08-17), and
+it is nasty because both key types sign a valid JWT — only Apple's 401 tells them
+apart, and it used to surface eight minutes in, at `exportArchive`, disguised as a
+missing provisioning profile. Check a key before trusting it:
+
+```bash
+node scripts/asc-auth-check.mjs --key-id XXXXXXXXXX --issuer-id YYYY-YYYY --key-path ~/Downloads/AuthKey_XXXXXXXXXX.p8
+```
+
+CI now runs the same check right after decoding the key, so a bad credential fails
+in about a minute with the reason spelled out.
 
 The `IOS_*` trio is a fallback for when automatic signing fails; leave them unset
 and the API key handles signing. **Never point them at `APPLE_CERTIFICATE`** —
@@ -238,7 +250,8 @@ Sandbox IAP: iPhone Settings → App Store → Sandbox Account.
 | Symptom | Fix |
 |---|---|
 | Fails at "Configure App Store Connect API key" | One of the three `APPSTORE_*` secrets is missing or empty |
-| `No profiles for 'com.phillipchan.dayspring' were found` | The API key's role is below App Manager, or the App ID hasn't propagated — re-run |
+| Fails at "Verify App Store Connect credentials" with 401 | The wrong *kind* of Apple key — see below. `scripts/asc-auth-check.mjs` prints the three causes |
+| `No profiles for 'com.phillipchan.dayspring' were found` | Same 401, caught late (pre-2026-08-17 runs had no preflight). Not a provisioning problem |
 | Upload rejected: build number already used | Shouldn't happen (step 2 resolves it); check the fallback warning in the log — the ASC lookup failed |
 | Upload rejected: icon alpha channel (90717) | `ios-postinit.sh` should catch this first; regenerate icons and recommit `src-tauri/gen/apple/Assets.xcassets/` |
 | Build not in TestFlight | App Store Connect → Activity; check email for compliance questions |
