@@ -1,0 +1,143 @@
+:root {
+  --paper: #fffcf7;
+  --text: #2a2118;
+  --muted: #8a7c69;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Newsreader', Georgia, serif;
+  background: #f6f1e8;
+  color: var(--text);
+}
+
+.paper {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 6rem;
+}
+
+.intro__eyebrow {
+  font-family: Inter, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.intro__title {
+  font-family: Fraunces, serif;
+  font-weight: 500;
+  font-size: 1.75rem;
+}
+
+.intro__cta {
+  font-family: Inter, sans-serif;
+  margin-top: 1rem;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #d4c9b8;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.guide-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #f0e9dc;
+  border-top: 1px solid #e0d5c4;
+  padding: 0.75rem 1rem 1rem;
+  font-family: Inter, sans-serif;
+  font-size: 0.85rem;
+}
+
+.guide-footer__note {
+  max-width: 36rem;
+  margin: 0 auto 0.65rem;
+  color: #6b5f4f;
+  line-height: 1.45;
+}
+
+.guide-footer__nav {
+  max-width: 36rem;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.guide-footer__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.guide-footer__btn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #d4c9b8;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.guide-footer__btn--primary {
+  background: #3d3428;
+  color: #fff;
+  border-color: #3d3428;
+}
+
+.prefer__title {
+  font-family: Fraunces, serif;
+  font-weight: 500;
+}
+
+.prefer__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.prefer__option {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.prefer__notes,
+.prefer__submit {
+  width: 100%;
+  font-family: inherit;
+  margin-bottom: 0.75rem;
+}
+
+.prefer__submit {
+  padding: 0.55rem;
+  background: #3d3428;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.prefer__fine {
+  font-family: Inter, sans-serif;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.prefer__error {
+  color: #9a3b2e;
+}
+
+.prefer__thanks {
+  font-size: 1.25rem;
+  text-align: center;
+  padding: 3rem 0;
+}

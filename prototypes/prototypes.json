@@ -1,0 +1,23 @@
+{
+  "domain": "prototypes.usedayspring.app",
+  "prototypes": [
+    {
+      "slug": "scripture",
+      "title": "Scripture while you journal",
+      "description": "Read around a verse and auto-land pasted verses — three directions to react to.",
+      "status": "live",
+      "listed": true,
+      "hasFeedback": true,
+      "startHash": "intro"
+    },
+    {
+      "slug": "recall",
+      "title": "Recall — strand view",
+      "description": "See threads across journal entries. Screen-share walkthrough — not self-guided feedback.",
+      "status": "live",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "strand"
+    }
+  ]
+}

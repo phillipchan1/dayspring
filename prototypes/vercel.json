@@ -1,0 +1,30 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "scripture.prototypes.usedayspring.app" }],
+      "destination": "/scripture/index.html"
+    },
+    {
+      "source": "/scripture/:path*",
+      "has": [{ "type": "host", "value": "scripture.prototypes.usedayspring.app" }],
+      "destination": "/scripture/:path*"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "recall.prototypes.usedayspring.app" }],
+      "destination": "/recall/index.html"
+    },
+    {
+      "source": "/recall/:path*",
+      "has": [{ "type": "host", "value": "recall.prototypes.usedayspring.app" }],
+      "destination": "/recall/:path*"
+    },
+    { "source": "/scripture", "destination": "/scripture/index.html" },
+    { "source": "/scripture/", "destination": "/scripture/index.html" },
+    { "source": "/recall", "destination": "/recall/index.html" },
+    { "source": "/recall/", "destination": "/recall/index.html" }
+  ]
+}
