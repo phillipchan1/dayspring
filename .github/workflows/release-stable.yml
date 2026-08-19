@@ -7,6 +7,8 @@ name: Release stable (beta users)
 on:
   push:
     branches: [stable]
+    paths-ignore:
+      - 'prototypes/**'
   workflow_dispatch:
 
 concurrency:

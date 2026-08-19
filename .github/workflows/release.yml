@@ -5,6 +5,8 @@ name: Release alpha (Phil)
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - 'prototypes/**'
   workflow_dispatch:
 
 concurrency:

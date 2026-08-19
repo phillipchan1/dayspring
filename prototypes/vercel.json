@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "bash scripts/vercel-build-prototypes-only.sh",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [

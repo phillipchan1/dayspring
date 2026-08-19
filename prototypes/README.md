@@ -33,6 +33,8 @@ Output: `prototypes/dist/` — one folder per slug plus a hub `index.html`.
 
 Single Vercel project **`dayspring-prototypes`**, root directory **`prototypes`**.
 
+Pushes that **only** touch `prototypes/` skip the main app builds (GitHub Actions `paths-ignore` + Vercel `ignoreCommand` on both projects).
+
 Env vars (production): `RESEND_API_KEY`, optional `FEEDBACK_TO` / `FEEDBACK_FROM`. See [`.env.example`](./.env.example).
 
 DNS on `usedayspring.app` (Porkbun — add these **A** records pointing to `76.76.21.21`):

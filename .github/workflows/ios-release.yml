@@ -17,6 +17,7 @@ on:
   push:
     branches: [master]
     paths-ignore:
+      - 'prototypes/**'
       - 'docs/**'
       - '**/*.md'
       - 'api/**'
@@ -188,9 +189,8 @@ jobs:
           npm run tauri:ios:build -- --build-number "$BUILD_NUMBER" --verbose
 
       - name: Upload to TestFlight
-        env:
-          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        # Reuse APPLE_API_KEY / APPLE_API_ISSUER from the configure step (trimmed).
+        # Raw secrets can carry trailing newlines that make altool answer 401.
         run: |
           set -euo pipefail
           IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -print | head -1)
@@ -203,5 +203,5 @@ jobs:
           xcrun altool --upload-app \
             --type ios \
             --file "$IPA" \
-            --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
+            --apiKey "$APPLE_API_KEY" \
+            --apiIssuer "$APPLE_API_ISSUER"
