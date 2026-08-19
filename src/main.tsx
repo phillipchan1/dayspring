@@ -30,12 +30,11 @@ import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 
 async function bootstrap() {
-  // Dev-only App Store previews: render a surface standalone, with no auth and
-  // no subscription setup, so screenshots can be captured from a browser instead
+  // Dev-only previews: render a surface standalone, with no auth and no
+  // subscription setup, so screenshots can be captured from a browser instead
   // of a provisioned device.
   //
   //   ?__preview=locked | paywall   → IAP review shot (capture-appstore-screenshots.mjs)
-  //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
@@ -44,11 +43,6 @@ async function bootstrap() {
   // Vite dead-code-eliminates this entire block; it can never ship.
   if (import.meta.env.DEV) {
     const preview = new URLSearchParams(window.location.search).get('__preview')
-    if (preview?.startsWith('listing-')) {
-      const { renderListingPreview } = await import('./features/appstore/preview')
-      renderListingPreview(preview)
-      return
-    }
     if (preview?.startsWith('applock')) {
       const { renderAppLockPreview } = await import('./features/applock/preview')
       await renderAppLockPreview(preview)
