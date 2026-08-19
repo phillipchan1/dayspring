@@ -33,6 +33,7 @@ import { appleMayStillCharge, type PlanState } from '../_lib/entitlement.js'
 import { stripe } from '../_lib/stripe.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
+import { scheduleAccountContactRemoval } from '../_lib/resendAudience.js'
 
 /** Private bucket holding entry photos, keyed `<owner-uuid>/<sha256>.<ext>`. */
 const BUCKET = 'attachments'
@@ -210,6 +211,9 @@ export async function DELETE(req: Request): Promise<Response> {
   // why it went first.
   const { error: delErr } = await sb.auth.admin.deleteUser(user.id)
   if (delErr) return withCors(req, Response.json({ error: delErr.message }, { status: 500 }))
+
+  // Best-effort: the daily reconcile drops leftovers if Resend is down here.
+  scheduleAccountContactRemoval(user.email)
 
   return withCors(req, Response.json({ deleted: true }))
 }

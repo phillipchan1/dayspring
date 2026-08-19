@@ -17,6 +17,7 @@ import { getAuthedUser, notAuthenticated } from '../_lib/userAuth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { env } from '../_lib/env.js'
 import { preflight, withCors } from '../_lib/cors.js'
+import { nameFromAuthMetadata, scheduleAccountContactUpsert } from '../_lib/resendAudience.js'
 
 const TRIAL_DAYS = 14
 
@@ -76,6 +77,13 @@ export async function POST(req: Request): Promise<Response> {
       req,
       Response.json({ error: error.message }, { status: 500 }),
     )
+  }
+
+  if (user.email) {
+    scheduleAccountContactUpsert({
+      email: user.email,
+      ...nameFromAuthMetadata(user.user_metadata),
+    })
   }
 
   return withCors(

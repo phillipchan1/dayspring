@@ -25,9 +25,15 @@ export const env = {
   // Crossway ESV API token (api.esv.org). Used to resolve verbatim verse text.
   esvApiKey: () => need('ESV_API_KEY'),
   cronSecret: () => need('CRON_SECRET'),
-  // Optional — if set, reminder notifications are sent via Resend.
-  // If unset, the cron marks reminders fired but sends nothing.
+  // Optional — if set, reminder notifications are sent via Resend and
+  // account emails are synced into the Broadcast audience. If unset, the
+  // remind cron marks reminders fired but sends nothing, and the audience
+  // sync is a no-op.
   resendKey: () => process.env.RESEND_API_KEY ?? null,
+  // Optional pin for the Broadcast segment that holds every account. When
+  // unset, the sync finds or creates a segment named resendSegmentName().
+  resendSegmentId: () => process.env.RESEND_SEGMENT_ID ?? null,
+  resendSegmentName: () => process.env.RESEND_SEGMENT_NAME || 'Dayspring accounts',
   appUrl: () => process.env.APP_URL ?? 'https://dayspring-eosin.vercel.app',
   // Onboarding trial model. Default (false): app-managed reverse trial — the
   // trial is granted in-app at first sign-in (no Stripe object, no card), and

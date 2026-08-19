@@ -1,5 +1,7 @@
-// Notification delivery for reminders.
+// Notification delivery for reminders (transactional, one recipient).
 // Uses Resend (https://resend.com) when RESEND_API_KEY is set.
+// Feature-announcement mail is a Broadcast to the synced audience — see
+// api/_lib/resendAudience.ts — not this module.
 // Falls back to a console log — wire up a real transport when ready.
 //
 // For native/web push: add a push_subscriptions table, store the endpoint +

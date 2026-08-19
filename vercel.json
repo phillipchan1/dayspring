@@ -8,6 +8,7 @@
   "functions": {
     "api/cron/process-tick.ts": { "maxDuration": 300 },
     "api/cron/synthesize.ts": { "maxDuration": 300 },
+    "api/cron/sync-resend.ts": { "maxDuration": 60 },
     "api/transcribe.ts": { "maxDuration": 300 },
     "api/ask.ts": { "maxDuration": 60 }
   },
@@ -15,6 +16,7 @@
     { "path": "/api/cron/synthesize",   "schedule": "0 8 * * *" },
     { "path": "/api/cron/process-tick", "schedule": "* * * * *" },
     { "path": "/api/cron/remind",       "schedule": "0 9 * * *" },
+    { "path": "/api/cron/sync-resend",  "schedule": "15 9 * * *" },
     { "path": "/api/cron/echoes",       "schedule": "0 10 * * 1" }
   ],
   "redirects": [
