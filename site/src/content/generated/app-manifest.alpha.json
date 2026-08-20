@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.233",
+  "appVersion": "1.0.250",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -618,6 +618,18 @@
         "type": "string"
       },
       {
+        "id": "setting.entries-group-by",
+        "key": "entriesGroupBy",
+        "default": "flat",
+        "type": "string"
+      },
+      {
+        "id": "setting.show-entry-preview",
+        "key": "showEntryPreview",
+        "default": false,
+        "type": "boolean"
+      },
+      {
         "id": "setting.pages-zoom",
         "key": "pagesZoom",
         "default": 0.45,
@@ -1207,7 +1219,7 @@
     "limits.image-max-mb": 20,
     "limits.scan-max-pages": 8,
     "editor.font-size-default": 24,
-    "editor.font-size-min": 18,
+    "editor.font-size-min": 14,
     "editor.font-size-max": 36,
     "counts.practices": 11,
     "counts.themes": 9,
