@@ -1,0 +1,48 @@
+---
+// SectionReveal — fade-up scroll reveal. Wraps content in a `.reveal`
+// element; a single shared IntersectionObserver (bundled once by Astro)
+// adds `.in` when it scrolls into view. Honors prefers-reduced-motion
+// via global.css (which forces .reveal visible).
+interface Props {
+  /** Element tag to render. Defaults to <div>. */
+  as?: keyof HTMLElementTagNameMap;
+  /** Stagger delay in ms (applied as transition-delay). */
+  delay?: number;
+  class?: string;
+  /** Any other attribute (id, data-*, aria-*) lands on the rendered element. */
+  [key: string]: unknown;
+}
+const { as: Tag = "div", delay = 0, class: className = "", ...rest } = Astro.props;
+const style = delay ? `transition-delay:${delay}ms` : undefined;
+---
+
+<Tag class:list={["reveal", className]} style={style} {...rest}>
+  <slot />
+</Tag>
+
+<script>
+  // One observer for every .reveal on the page. Reveals once, then unobserves.
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const els = document.querySelectorAll<HTMLElement>(".reveal");
+
+  if (reduce || !("IntersectionObserver" in window)) {
+    els.forEach((el) => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in");
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      // threshold 0 + a bottom margin, NOT a ratio. A ratio threshold is
+      // unreachable for any element taller than (1 / threshold) viewports —
+      // it would sit at opacity 0 forever on a short window. The margin is what
+      // keeps it from firing while the element is still below the fold.
+      { threshold: 0, rootMargin: "0px 0px -8% 0px" },
+    );
+    els.forEach((el) => io.observe(el));
+  }
+</script>

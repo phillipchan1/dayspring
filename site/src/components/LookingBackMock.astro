@@ -1,0 +1,380 @@
+---
+// LookingBackMock — the Ascent. Not four reports: elevation over one terrain.
+// Pick an altitude (Valley → Summit); the same dimensions re-resolve, and the
+// higher you climb the less the app says. Mirrors the in-app altitude config.
+interface Dimension {
+  eyebrow: string;
+  body?: string;
+  ref?: string;
+  meta?: string;
+  before?: string;
+  after?: string;
+  when?: string;
+  emphasis?: boolean;
+}
+interface Horizon {
+  id: string;
+  label: string;
+  alt: string;
+  title: string;
+  line: string;
+  dimensions: Dimension[];
+  voice?: string;
+  closing?: string;
+}
+interface Props {
+  horizons: Horizon[];
+  lenses?: string[];
+  class?: string;
+}
+const { horizons, lenses = [], class: className = "" } = Astro.props;
+const defaultId = horizons[0]?.id ?? "week";
+---
+
+<div class:list={["lb", className]} data-looking-back>
+  <nav class="pills" aria-label="Altitudes">
+    {
+      horizons.map((h) => (
+        <button
+          type="button"
+          class="pill"
+          data-pill={h.id}
+          aria-pressed={h.id === defaultId ? "true" : "false"}
+        >
+          {h.label}
+        </button>
+      ))
+    }
+  </nav>
+
+  {
+    lenses.length > 0 && (
+      <div class="lens-row">
+        <span class="lens-label mono">Watching this season</span>
+        <div class="lenses">
+          {lenses.map((l) => (
+            <span class="lens mono">{l}</span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  <div class="panels">
+    {
+      horizons.map((h) => (
+        <div
+          class="panel"
+          data-panel={h.id}
+          hidden={h.id !== defaultId}
+          aria-labelledby={`lb-kicker-${h.id}`}
+        >
+          <p class="kicker mono" id={`lb-kicker-${h.id}`}>
+            {h.alt} · {h.label}
+          </p>
+          <h3>{h.title}</h3>
+          <p class="alt-line">{h.line}</p>
+
+          <div class="dims">
+            {h.dimensions.map((d) => (
+              <div class:list={["dim", { emphasis: d.emphasis }]}>
+                <p class="dim-eyebrow mono">{d.eyebrow}</p>
+                {d.before ? (
+                  <div class="stone">
+                    <p class="stone-before">&ldquo;{d.before}&rdquo;</p>
+                    <p class="stone-after">&ldquo;{d.after}&rdquo;</p>
+                    {d.when && <p class="stone-when mono">{d.when}</p>}
+                  </div>
+                ) : d.ref ? (
+                  <div class="verse">
+                    <p class="verse-ref">{d.ref}</p>
+                    {d.body && <p class="verse-text">&ldquo;{d.body}&rdquo;</p>}
+                    {d.meta && <p class="verse-meta mono">{d.meta}</p>}
+                  </div>
+                ) : (
+                  <p class="dim-body" set:html={d.body} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {h.voice && <p class="voice">{h.voice}</p>}
+          {h.closing && <p class="closing">{h.closing}</p>}
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .lb {
+    position: relative;
+    min-height: 460px;
+    padding: 32px 30px 36px;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+      radial-gradient(
+        ellipse 85% 55% at 50% 4%,
+        rgba(243, 189, 118, 0.12),
+        transparent 70%
+      ),
+      linear-gradient(180deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pills {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 100px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
+  }
+  .pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    padding: 7px 14px;
+    border-radius: 100px;
+    white-space: nowrap;
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+  }
+  .pill:hover {
+    color: var(--paper-dim);
+  }
+  .pill[aria-pressed="true"] {
+    color: var(--paper);
+    background: var(--surface);
+    border-color: var(--border-strong);
+  }
+
+  /* persistent attention row */
+  .lens-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+    z-index: 1;
+  }
+  .lens-label {
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .lenses {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .lens {
+    font-size: 10.5px;
+    letter-spacing: 0.3px;
+    color: var(--paper-dim);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 10px;
+  }
+
+  .panels {
+    width: 100%;
+    max-width: 40ch;
+    position: relative;
+    z-index: 1;
+  }
+  .panel {
+    text-align: center;
+    animation: lb-in 0.35s ease;
+  }
+  .panel[hidden] {
+    display: none;
+  }
+  @keyframes lb-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .kicker {
+    font-size: 10.5px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 12px;
+  }
+  .panel h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 23px;
+    line-height: 1.2;
+    color: var(--paper);
+    margin-bottom: 10px;
+  }
+  .alt-line {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--muted);
+    font-weight: 300;
+    margin-bottom: 26px;
+  }
+
+  .dims {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    text-align: left;
+  }
+  .dim-eyebrow {
+    font-size: 9.5px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 7px;
+  }
+  .dim-body {
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+  .dim-body :global(em) {
+    color: var(--gold);
+    font-style: italic;
+  }
+  .dim.emphasis .dim-body {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 21px;
+    line-height: 1.35;
+    letter-spacing: -0.3px;
+    color: var(--gold);
+  }
+
+  .verse-ref {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    color: var(--paper);
+    margin-bottom: 4px;
+  }
+  .verse-text {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+  }
+  .verse-meta {
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+
+  .stone {
+    border-left: 2px solid rgba(243, 189, 118, 0.35);
+    padding-left: 14px;
+  }
+  .stone-before,
+  .stone-after {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14.5px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    margin-bottom: 4px;
+  }
+  .stone-after {
+    color: var(--gold);
+  }
+  .stone-when {
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .voice {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--muted);
+    font-weight: 300;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    text-align: left;
+  }
+  .closing {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--paper-dim);
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  @media (max-width: 520px) {
+    .lb {
+      padding: 26px 18px 30px;
+    }
+    .pills {
+      flex-wrap: wrap;
+      justify-content: center;
+      border-radius: 16px;
+    }
+    .pill {
+      font-size: 10px;
+      padding: 6px 11px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll("[data-looking-back]").forEach((root) => {
+    const pills = root.querySelectorAll<HTMLButtonElement>("[data-pill]");
+    const panels = root.querySelectorAll<HTMLElement>("[data-panel]");
+
+    pills.forEach((pill) => {
+      pill.addEventListener("click", () => {
+        const id = pill.dataset.pill;
+        if (!id) return;
+
+        pills.forEach((p) =>
+          p.setAttribute("aria-pressed", p === pill ? "true" : "false"),
+        );
+        panels.forEach((panel) => {
+          panel.hidden = panel.dataset.panel !== id;
+        });
+      });
+    });
+  });
+</script>

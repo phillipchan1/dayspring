@@ -76,3 +76,13 @@ The endpoint URL is baked into each binary at build time — that's what separat
 ## Vercel
 
 Change production branch from `master` → `stable` in the Vercel dashboard (Settings → Git → Production Branch) so the web app matches the desktop channels.
+
+## Marketing / help site
+
+Lives in `site/` (Astro). Separate Vercel project (`dayspring-site`), Root
+Directory `site`, domain `www.usedayspring.app`. Do not fold it into the app
+SPA or the root `vercel.json`.
+
+```bash
+npm run dev:site    # http://localhost:4321
+```

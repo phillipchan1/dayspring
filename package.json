@@ -29,7 +29,10 @@
     "screenshots:appstore-listing": "node scripts/capture-listing-screenshots.mjs",
     "listing:paste": "node scripts/print-listing.mjs",
     "ios:preflight": "node scripts/ios-preflight.mjs",
-    "asc:setup-iap": "node scripts/asc-setup-iap.mjs"
+    "asc:setup-iap": "node scripts/asc-setup-iap.mjs",
+    "dev:site": "npm run dev --prefix site",
+    "build:site": "npm run build --prefix site",
+    "test:site": "npm test --prefix site"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",

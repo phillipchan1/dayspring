@@ -31,7 +31,7 @@ import { renderDevicePane, type DevicePane } from './devices'
 import { renderIpadShot } from './ipad'
 import { shotById, type Shot } from './shots'
 
-/** The marketing frame's ground — dayspring-site's `--ink`. Matches ShotFrame.css. */
+/** The marketing frame's ground — site/'s `--ink`. Matches ShotFrame.css. */
 const FRAME_BG = '#0c0d11'
 
 /**

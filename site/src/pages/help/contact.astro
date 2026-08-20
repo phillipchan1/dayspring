@@ -1,0 +1,370 @@
+---
+import Base from "../../layouts/Base.astro";
+import SectionReveal from "../../components/SectionReveal.astro";
+import DawnGlow from "../../components/DawnGlow.astro";
+import { value } from "../../lib/manifest";
+
+const SUPPORT_EMAIL = "hello@usedayspring.app";
+const trialDays = value("billing.trial-days");
+
+// Turnstile only renders when a site key is configured, so local development
+// and a not-yet-configured deploy both work without a Cloudflare account.
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
+---
+
+<Base
+  title="Get in touch"
+  description="Ask a question, report something broken, or tell us what's missing. A person reads every message."
+  path="/help/contact"
+  footer="minimal"
+>
+  <article class="contact">
+    <header class="c-head">
+      <div class="glow-host"><DawnGlow variant="bloom" intensity={0.4} /></div>
+      <SectionReveal>
+        <nav class="crumbs mono" aria-label="Breadcrumb">
+          <a href="/help">Help</a>
+          <span aria-hidden="true">/</span>
+          <span>Get in touch</span>
+        </nav>
+        <h1>Ask us <em>anything.</em></h1>
+        <p class="lead">
+          A person reads every message — there's no queue and no bot. If you're
+          in your {trialDays}-day trial and something's in the way, say so and
+          we'll sort it out.
+        </p>
+      </SectionReveal>
+    </header>
+
+    <SectionReveal>
+      <form id="contact-form" method="post" action="/api/contact" novalidate>
+        <div class="row">
+          <label class="field">
+            <span class="lbl">Your name</span>
+            <input type="text" name="name" required autocomplete="name" maxlength="120" />
+          </label>
+          <label class="field">
+            <span class="lbl">Email</span>
+            <input type="email" name="email" required autocomplete="email" maxlength="254" />
+            <span class="hint">So we can write back.</span>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="lbl">What's it about?</span>
+          <input
+            type="text"
+            name="subject"
+            maxlength="200"
+            placeholder="Optional — a few words"
+          />
+        </label>
+
+        <label class="field">
+          <span class="lbl">Your message</span>
+          <textarea name="message" required rows={8} maxlength="5000"></textarea>
+          <span class="hint">
+            If something's broken, telling us what you did just before it happened
+            saves us both a round-trip.
+          </span>
+        </label>
+
+        {/* Hidden from people, irresistible to bots. Not display:none — some
+            bots skip those; this is off-screen but still in the layout. */}
+        <div class="hp" aria-hidden="true">
+          <label>
+            Company
+            <input type="text" name="company" tabindex="-1" autocomplete="off" />
+          </label>
+        </div>
+
+        {
+          turnstileSiteKey && (
+            <div
+              class="cf-turnstile"
+              data-sitekey={turnstileSiteKey}
+              data-theme="auto"
+              data-callback="onTurnstileSuccess"
+            />
+          )
+        }
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="contact-submit">
+            Send message
+          </button>
+          <span class="status" id="contact-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+
+      <noscript>
+        <p class="fallback">
+          This form needs JavaScript to send. Email us directly at
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and we'll get it
+          either way.
+        </p>
+      </noscript>
+
+      <p class="direct">
+        Prefer your own mail app? <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+      </p>
+    </SectionReveal>
+  </article>
+</Base>
+
+{turnstileSiteKey && (
+  <script
+    is:inline
+    async
+    defer
+    src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+  ></script>
+)}
+
+<script>
+  // Progressive enhancement: the form is a real POST target, and this only
+  // upgrades it to an inline result so nobody loses what they typed.
+  const form = document.getElementById("contact-form") as HTMLFormElement | null;
+  const status = document.getElementById("contact-status");
+  const submit = document.getElementById("contact-submit") as HTMLButtonElement | null;
+
+  // How long the form has been on screen. A submission faster than a person
+  // could plausibly type is treated as automated, server-side.
+  const renderedAt = Date.now();
+
+  if (form && status && submit) {
+    const say = (text: string, kind: "ok" | "err" | "") => {
+      status.textContent = text;
+      status.className = kind ? `status ${kind}` : "status";
+    };
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = new FormData(form);
+
+      const payload = {
+        name: data.get("name"),
+        email: data.get("email"),
+        subject: data.get("subject"),
+        message: data.get("message"),
+        company: data.get("company"),
+        turnstileToken: data.get("cf-turnstile-response"),
+        elapsedMs: Date.now() - renderedAt,
+        platform: navigator.userAgent.slice(0, 120),
+      };
+
+      submit.disabled = true;
+      say("Sending…", "");
+
+      try {
+        const res = await fetch("/api/contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+        };
+
+        if (res.ok && body.ok) {
+          form.hidden = true;
+          say("Thank you — your message is with us. We usually reply within a day or two.", "ok");
+          return;
+        }
+
+        say(body.error ?? "That didn't send. Please try again in a moment.", "err");
+      } catch {
+        say(
+          "We couldn't reach the server. Check your connection, or email hello@usedayspring.app directly.",
+          "err",
+        );
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .contact {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 28px 100px;
+  }
+  .c-head {
+    position: relative;
+    padding: 170px 0 40px;
+  }
+  .glow-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .crumbs {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    font-size: 11.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 22px;
+  }
+  .crumbs a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .crumbs a:hover {
+    color: var(--dawn-1);
+  }
+  .c-head h1 {
+    position: relative;
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(34px, 5.4vw, 54px);
+    line-height: 1.06;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+  .c-head h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .c-head .lead {
+    position: relative;
+    font-size: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 54ch;
+  }
+
+  /* ---- form ---- */
+  form {
+    display: grid;
+    gap: 22px;
+  }
+  /* `display: grid` beats the UA stylesheet's `[hidden] { display: none }`, so
+     without this the form stays on screen after a successful send — under the
+     thank-you message, still submittable a second time. */
+  form[hidden] {
+    display: none;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  .field {
+    display: grid;
+    gap: 7px;
+    /* Side-by-side fields are equal height, but only one carries a hint line.
+       Without this the shorter field's rows stretch to fill, and its input
+       comes out visibly taller than its neighbour. */
+    align-content: start;
+  }
+  .lbl {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  input,
+  textarea {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 16.5px;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--paper);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 13px 16px;
+    outline: none;
+    transition: border-color 0.25s, background 0.25s;
+  }
+  textarea {
+    resize: vertical;
+    min-height: 160px;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted);
+  }
+  input:focus,
+  textarea:focus {
+    border-color: rgba(243, 189, 118, 0.45);
+    background: var(--surface-strong);
+  }
+  .hint {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 300;
+    line-height: 1.5;
+  }
+
+  /* honeypot — off-screen, never announced, never focusable */
+  .hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  button[type="submit"] {
+    border: 0;
+    font-family: var(--font-body);
+  }
+  button[disabled] {
+    opacity: 0.55;
+    cursor: default;
+  }
+  .status {
+    font-size: 15.5px;
+    font-weight: 300;
+    color: var(--paper-dim);
+    flex: 1 1 240px;
+    line-height: 1.5;
+  }
+  .status.ok {
+    color: var(--dawn-1);
+  }
+  .status.err {
+    color: var(--dawn-3);
+  }
+
+  .fallback,
+  .direct {
+    margin-top: 26px;
+    font-size: 16px;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+  .fallback a,
+  .direct a {
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(243, 189, 118, 0.35);
+  }
+
+  @media (max-width: 600px) {
+    .c-head {
+      padding: 130px 0 32px;
+    }
+    .row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

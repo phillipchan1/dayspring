@@ -2,10 +2,9 @@
  * The support site.
  *
  * Unlike the legal pages (see legal.ts), help lives on the marketing domain —
- * it's a static Astro site in the `dayspring-site` repo, and it's the same URL
- * from the web app, the Mac app and iOS. So this is always absolute: inside
- * Tauri a relative path would resolve against the app's own bundled asset
- * origin and go nowhere.
+ * it's the Astro site in `site/`, and it's the same URL from the web app, the
+ * Mac app and iOS. So this is always absolute: inside Tauri a relative path
+ * would resolve against the app's own bundled asset origin and go nowhere.
  *
  * Override with VITE_HELP_URL rather than editing call sites.
  */

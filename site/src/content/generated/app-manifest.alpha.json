@@ -1,0 +1,1218 @@
+{
+  "schema": 1,
+  "appVersion": "1.0.233",
+  "channel": "master",
+  "categories": {
+    "shortcuts": [
+      {
+        "id": "shortcut.new-entry",
+        "group": "Writing",
+        "label": "New entry",
+        "when": null,
+        "keys": [
+          "Mod",
+          "N"
+        ],
+        "mac": "⌘N",
+        "pc": "Ctrl + N"
+      },
+      {
+        "id": "shortcut.save-now",
+        "group": "Writing",
+        "label": "Save now",
+        "when": null,
+        "keys": [
+          "Mod",
+          "S"
+        ],
+        "mac": "⌘S",
+        "pc": "Ctrl + S"
+      },
+      {
+        "id": "shortcut.bold",
+        "group": "Writing",
+        "label": "Bold",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "B"
+        ],
+        "mac": "⌘B",
+        "pc": "Ctrl + B"
+      },
+      {
+        "id": "shortcut.italic",
+        "group": "Writing",
+        "label": "Italic",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "I"
+        ],
+        "mac": "⌘I",
+        "pc": "Ctrl + I"
+      },
+      {
+        "id": "shortcut.underline",
+        "group": "Writing",
+        "label": "Underline",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "U"
+        ],
+        "mac": "⌘U",
+        "pc": "Ctrl + U"
+      },
+      {
+        "id": "shortcut.highlight",
+        "group": "Writing",
+        "label": "Highlight",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "Shift",
+          "H"
+        ],
+        "mac": "⌘⇧H",
+        "pc": "Ctrl + Shift + H"
+      },
+      {
+        "id": "shortcut.inline-code",
+        "group": "Writing",
+        "label": "Inline code",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "E"
+        ],
+        "mac": "⌘E",
+        "pc": "Ctrl + E"
+      },
+      {
+        "id": "shortcut.link",
+        "group": "Writing",
+        "label": "Link",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "K"
+        ],
+        "mac": "⌘K",
+        "pc": "Ctrl + K"
+      },
+      {
+        "id": "shortcut.toggle-focus-mode",
+        "group": "Writing",
+        "label": "Toggle focus mode",
+        "when": null,
+        "keys": [
+          "Mod",
+          "Enter"
+        ],
+        "mac": "⌘⏎",
+        "pc": "Ctrl + Enter"
+      },
+      {
+        "id": "shortcut.indent-line",
+        "group": "Writing",
+        "label": "Indent line",
+        "when": "while writing in the editor",
+        "keys": [
+          "Tab"
+        ],
+        "mac": "Tab",
+        "pc": "Tab"
+      },
+      {
+        "id": "shortcut.outdent-line",
+        "group": "Writing",
+        "label": "Outdent line",
+        "when": "while writing in the editor",
+        "keys": [
+          "Shift",
+          "Tab"
+        ],
+        "mac": "⇧Tab",
+        "pc": "Shift + Tab"
+      },
+      {
+        "id": "shortcut.exit-focus-mode",
+        "group": "Writing",
+        "label": "Exit focus mode",
+        "when": "while in focus mode",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
+      },
+      {
+        "id": "shortcut.entries-your-pages",
+        "group": "Navigation",
+        "label": "Entries — your pages",
+        "when": null,
+        "keys": [
+          "Mod",
+          "1"
+        ],
+        "mac": "⌘1",
+        "pc": "Ctrl + 1"
+      },
+      {
+        "id": "shortcut.ascent",
+        "group": "Navigation",
+        "label": "Ascent",
+        "when": null,
+        "keys": [
+          "Mod",
+          "2"
+        ],
+        "mac": "⌘2",
+        "pc": "Ctrl + 2"
+      },
+      {
+        "id": "shortcut.lamp",
+        "group": "Navigation",
+        "label": "Lamp",
+        "when": null,
+        "keys": [
+          "Mod",
+          "3"
+        ],
+        "mac": "⌘3",
+        "pc": "Ctrl + 3"
+      },
+      {
+        "id": "shortcut.altar",
+        "group": "Navigation",
+        "label": "Altar",
+        "when": null,
+        "keys": [
+          "Mod",
+          "4"
+        ],
+        "mac": "⌘4",
+        "pc": "Ctrl + 4"
+      },
+      {
+        "id": "shortcut.settings",
+        "group": "Navigation",
+        "label": "Settings",
+        "when": null,
+        "keys": [
+          "Mod",
+          ","
+        ],
+        "mac": "⌘,",
+        "pc": "Ctrl + ,"
+      },
+      {
+        "id": "shortcut.find-a-word-or-ask-a-question",
+        "group": "Navigation",
+        "label": "Find a word, or ask a question",
+        "when": "anywhere",
+        "keys": [
+          "Mod",
+          "K"
+        ],
+        "mac": "⌘K",
+        "pc": "Ctrl + K"
+      },
+      {
+        "id": "shortcut.toggle-sidebar-labels",
+        "group": "Navigation",
+        "label": "Toggle sidebar labels",
+        "when": null,
+        "keys": [
+          "["
+        ],
+        "mac": "[",
+        "pc": "["
+      },
+      {
+        "id": "shortcut.move-between-pages",
+        "group": "Navigation",
+        "label": "Move between pages",
+        "when": "on the Pages wall",
+        "keys": [
+          "↑",
+          "↓",
+          "←",
+          "→"
+        ],
+        "mac": "↑↓←→",
+        "pc": "↑ + ↓ + ← + →"
+      },
+      {
+        "id": "shortcut.extend-selection",
+        "group": "Navigation",
+        "label": "Extend selection",
+        "when": "on the Pages wall",
+        "keys": [
+          "Shift",
+          "↑",
+          "↓"
+        ],
+        "mac": "⇧↑↓",
+        "pc": "Shift + ↑ + ↓"
+      },
+      {
+        "id": "shortcut.select-every-page",
+        "group": "Navigation",
+        "label": "Select every page",
+        "when": "on the Pages wall",
+        "keys": [
+          "Mod",
+          "A"
+        ],
+        "mac": "⌘A",
+        "pc": "Ctrl + A"
+      },
+      {
+        "id": "shortcut.read-the-page",
+        "group": "Navigation",
+        "label": "Read the page",
+        "when": "on the Pages wall",
+        "keys": [
+          "Enter"
+        ],
+        "mac": "⏎",
+        "pc": "Enter"
+      },
+      {
+        "id": "shortcut.clear-the-selection",
+        "group": "Navigation",
+        "label": "Clear the selection",
+        "when": "on the Pages wall",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
+      },
+      {
+        "id": "shortcut.show-this-shortcut-guide",
+        "group": "Help",
+        "label": "Show this shortcut guide",
+        "when": null,
+        "keys": [
+          "?"
+        ],
+        "mac": "?",
+        "pc": "?"
+      },
+      {
+        "id": "shortcut.close-any-dialog",
+        "group": "Help",
+        "label": "Close any dialog",
+        "when": null,
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
+      }
+    ],
+    "slashCommands": [
+      {
+        "id": "slash.scripture",
+        "label": "Scripture",
+        "hint": "Find relevant passages",
+        "badge": "✦",
+        "column": "capture",
+        "keywords": [
+          "scripture",
+          "verse",
+          "passage",
+          "bible",
+          "scr"
+        ]
+      },
+      {
+        "id": "slash.pray",
+        "label": "Prayer",
+        "hint": "Log a prayer",
+        "badge": "🙏",
+        "column": "capture",
+        "keywords": [
+          "pray",
+          "prayer"
+        ]
+      },
+      {
+        "id": "slash.sense",
+        "label": "Sense",
+        "hint": "A word or impression",
+        "badge": "✨",
+        "column": "capture",
+        "keywords": [
+          "sense",
+          "impression",
+          "word"
+        ]
+      },
+      {
+        "id": "slash.ritual",
+        "label": "Ritual",
+        "hint": "Practices for the inner life",
+        "badge": "✶",
+        "column": "capture",
+        "keywords": [
+          "ritual",
+          "practice",
+          "examen",
+          "lectio"
+        ]
+      },
+      {
+        "id": "slash.image",
+        "label": "Image",
+        "hint": "Add a photo",
+        "badge": "🖼",
+        "column": "capture",
+        "keywords": [
+          "image",
+          "photo",
+          "picture",
+          "img"
+        ]
+      },
+      {
+        "id": "slash.emoji",
+        "label": "Emoji",
+        "hint": "Search and insert an emoji",
+        "badge": "🙂",
+        "column": "capture",
+        "keywords": [
+          "emoji",
+          "emote",
+          "smiley",
+          "icon"
+        ]
+      },
+      {
+        "id": "slash.h1",
+        "label": "Heading",
+        "hint": "Large section title",
+        "badge": "#",
+        "column": "format",
+        "keywords": [
+          "heading",
+          "title",
+          "head",
+          "big"
+        ]
+      },
+      {
+        "id": "slash.h2",
+        "label": "Subheading",
+        "hint": "Medium section title",
+        "badge": "##",
+        "column": "format",
+        "keywords": [
+          "subheading",
+          "subtitle",
+          "sub"
+        ]
+      },
+      {
+        "id": "slash.h3",
+        "label": "Small heading",
+        "hint": "Minor section title",
+        "badge": "###",
+        "column": "format",
+        "keywords": [
+          "heading",
+          "minor",
+          "small"
+        ]
+      },
+      {
+        "id": "slash.bold",
+        "label": "Bold",
+        "hint": "Strong emphasis",
+        "badge": "B",
+        "column": "format",
+        "keywords": [
+          "bold",
+          "strong"
+        ]
+      },
+      {
+        "id": "slash.italic",
+        "label": "Italic",
+        "hint": "Light emphasis",
+        "badge": "I",
+        "column": "format",
+        "keywords": [
+          "italic",
+          "emphasis",
+          "em"
+        ]
+      },
+      {
+        "id": "slash.underline",
+        "label": "Underline",
+        "hint": "A quiet line beneath",
+        "badge": "U",
+        "column": "format",
+        "keywords": [
+          "underline",
+          "under"
+        ]
+      },
+      {
+        "id": "slash.strike",
+        "label": "Strikethrough",
+        "hint": "Crossed-out text",
+        "badge": "S",
+        "column": "format",
+        "keywords": [
+          "strike",
+          "strikethrough",
+          "cross"
+        ]
+      },
+      {
+        "id": "slash.highlight",
+        "label": "Highlight",
+        "hint": "Wash a phrase in colour",
+        "badge": "▮",
+        "column": "format",
+        "keywords": [
+          "highlight",
+          "marker",
+          "hl"
+        ]
+      },
+      {
+        "id": "slash.code",
+        "label": "Code",
+        "hint": "Inline monospace",
+        "badge": "</>",
+        "column": "format",
+        "keywords": [
+          "code",
+          "mono",
+          "inline"
+        ]
+      },
+      {
+        "id": "slash.bullet",
+        "label": "Bullet list",
+        "hint": "Unordered list",
+        "badge": "•",
+        "column": "format",
+        "keywords": [
+          "bullet",
+          "list",
+          "unordered"
+        ]
+      },
+      {
+        "id": "slash.numbered",
+        "label": "Numbered list",
+        "hint": "Ordered list",
+        "badge": "1.",
+        "column": "format",
+        "keywords": [
+          "numbered",
+          "ordered",
+          "list",
+          "number"
+        ]
+      },
+      {
+        "id": "slash.todo",
+        "label": "To-do",
+        "hint": "Checklist item",
+        "badge": "☐",
+        "column": "format",
+        "keywords": [
+          "todo",
+          "task",
+          "checkbox",
+          "check"
+        ]
+      },
+      {
+        "id": "slash.quote",
+        "label": "Quote",
+        "hint": "Block quotation",
+        "badge": "❝",
+        "column": "format",
+        "keywords": [
+          "quote",
+          "blockquote",
+          "citation"
+        ]
+      },
+      {
+        "id": "slash.divider",
+        "label": "Divider",
+        "hint": "Horizontal rule",
+        "badge": "—",
+        "column": "format",
+        "keywords": [
+          "divider",
+          "rule",
+          "separator",
+          "line"
+        ]
+      }
+    ],
+    "settings": [
+      {
+        "id": "setting.typewriter",
+        "key": "typewriter",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.dimming",
+        "key": "dimming",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.font-size",
+        "key": "fontSize",
+        "default": 24,
+        "type": "number"
+      },
+      {
+        "id": "setting.line-height",
+        "key": "lineHeight",
+        "default": 1.7,
+        "type": "number"
+      },
+      {
+        "id": "setting.max-width",
+        "key": "maxWidth",
+        "default": 42,
+        "type": "number"
+      },
+      {
+        "id": "setting.appearance",
+        "key": "appearance",
+        "default": "auto",
+        "type": "string"
+      },
+      {
+        "id": "setting.light-theme",
+        "key": "lightTheme",
+        "default": "dawn",
+        "type": "string"
+      },
+      {
+        "id": "setting.dark-theme",
+        "key": "darkTheme",
+        "default": "ink",
+        "type": "string"
+      },
+      {
+        "id": "setting.editor-font",
+        "key": "editorFont",
+        "default": "serif",
+        "type": "string"
+      },
+      {
+        "id": "setting.pages-zoom",
+        "key": "pagesZoom",
+        "default": 0.45,
+        "type": "number"
+      },
+      {
+        "id": "setting.rail-labels",
+        "key": "railLabels",
+        "default": false,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.first-line-title",
+        "key": "firstLineTitle",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.show-markdown-syntax",
+        "key": "showMarkdownSyntax",
+        "default": false,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.dev-mode",
+        "key": "devMode",
+        "default": false,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.skip-ritual-preview",
+        "key": "skipRitualPreview",
+        "default": false,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.share-usage",
+        "key": "shareUsage",
+        "default": true,
+        "type": "boolean"
+      }
+    ],
+    "themes": [
+      {
+        "id": "theme.dawn",
+        "label": "Dawn",
+        "family": "light",
+        "blurb": "Sunrise on paper.",
+        "isDefault": true
+      },
+      {
+        "id": "theme.vellum",
+        "label": "Vellum",
+        "family": "light",
+        "blurb": "Aged paper, ink that bites.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.cloister",
+        "label": "Cloister",
+        "family": "light",
+        "blurb": "Cool stone, north light.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.sabbath",
+        "label": "Sabbath",
+        "family": "light",
+        "blurb": "Sage and pine — the quiet one.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.ink",
+        "label": "Ink",
+        "family": "dark",
+        "blurb": "Moonlight, not sunrise.",
+        "isDefault": true
+      },
+      {
+        "id": "theme.ember",
+        "label": "Ember",
+        "family": "dark",
+        "blurb": "Hearth-warm dark.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.compline",
+        "label": "Compline",
+        "family": "dark",
+        "blurb": "Indigo night prayer.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.nocturne",
+        "label": "Nocturne",
+        "family": "dark",
+        "blurb": "True black, for OLED.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.vigil",
+        "label": "Vigil",
+        "family": "dark",
+        "blurb": "Dimmed all the way down, for dark rooms.",
+        "isDefault": false
+      }
+    ],
+    "fonts": [
+      {
+        "id": "font.serif",
+        "key": "serif",
+        "isDefault": true
+      },
+      {
+        "id": "font.literary",
+        "key": "literary",
+        "isDefault": false
+      },
+      {
+        "id": "font.typewriter",
+        "key": "typewriter",
+        "isDefault": false
+      },
+      {
+        "id": "font.mono",
+        "key": "mono",
+        "isDefault": false
+      },
+      {
+        "id": "font.sans",
+        "key": "sans",
+        "isDefault": false
+      },
+      {
+        "id": "font.readable",
+        "key": "readable",
+        "isDefault": false
+      }
+    ],
+    "highlightColors": [
+      {
+        "id": "highlight.amber",
+        "key": "amber",
+        "label": "Amber",
+        "markdown": "==text=="
+      },
+      {
+        "id": "highlight.rose",
+        "key": "rose",
+        "label": "Rose",
+        "markdown": "=={rose}text=="
+      },
+      {
+        "id": "highlight.sage",
+        "key": "sage",
+        "label": "Sage",
+        "markdown": "=={sage}text=="
+      },
+      {
+        "id": "highlight.sky",
+        "key": "sky",
+        "label": "Sky",
+        "markdown": "=={sky}text=="
+      },
+      {
+        "id": "highlight.lilac",
+        "key": "lilac",
+        "label": "Lilac",
+        "markdown": "=={lilac}text=="
+      }
+    ],
+    "practices": [
+      {
+        "id": "practice.the-daily-examen",
+        "name": "The Daily Examen",
+        "function": "examine",
+        "rhythm": [
+          "evening"
+        ],
+        "origin": "Ignatius of Loyola, 16th century",
+        "tradition": "Ignatian",
+        "intention": "A review of the day in God’s presence — not to audit yourself, but to notice where you were carried and where you resisted.",
+        "quote": "Where was I consoled today? Where did I resist grace?",
+        "steps": [
+          "Gratitude",
+          "Awareness",
+          "Examination",
+          "Prayer"
+        ]
+      },
+      {
+        "id": "practice.lectio-divina",
+        "name": "Lectio Divina",
+        "function": "encounter",
+        "rhythm": [
+          "morning"
+        ],
+        "origin": "Benedict of Nursia, 6th century",
+        "tradition": "Benedictine",
+        "intention": "Not reading Scripture to extract truth, but receiving it — letting a word or phrase find you, and sitting with what it stirs.",
+        "quote": "Read. Meditate. Pray. Contemplate. Let the Word find you.",
+        "steps": [
+          "Lectio — Read",
+          "Meditatio — Meditate",
+          "Oratio — Pray",
+          "Contemplatio — Rest"
+        ]
+      },
+      {
+        "id": "practice.wesleys-questions",
+        "name": "Wesley’s Questions",
+        "function": "form",
+        "rhythm": [
+          "evening"
+        ],
+        "origin": "John Wesley, 18th century",
+        "tradition": "Wesleyan",
+        "intention": "The questions Wesley’s band meetings held each other to. Hard. Honest. Meant to be asked among people who want to grow in holiness.",
+        "quote": "Am I consciously or unconsciously creating the impression I desire?",
+        "steps": [
+          "Honesty",
+          "Purity",
+          "Confession"
+        ]
+      },
+      {
+        "id": "practice.soap",
+        "name": "SOAP",
+        "function": "encounter",
+        "rhythm": [
+          "morning"
+        ],
+        "origin": "Wayne Cordeiro, contemporary",
+        "tradition": "Evangelical",
+        "intention": "A structured encounter with Scripture that moves from observation to personal application — simple enough to sustain daily.",
+        "quote": "Scripture. Observation. Application. Prayer.",
+        "steps": [
+          "Scripture",
+          "Observation",
+          "Application",
+          "Prayer"
+        ]
+      },
+      {
+        "id": "practice.psalmic-lament",
+        "name": "Psalmic Lament",
+        "function": "lament",
+        "rhythm": [
+          "anytime"
+        ],
+        "origin": "Ancient — the Hebrew Psalter",
+        "tradition": "Hebrew",
+        "intention": "The psalms of lament are not a failure of faith. They are faith’s most honest posture. You are invited to complain to God, boldly.",
+        "quote": "Address God. Complain honestly. Ask boldly. Trust anyway.",
+        "steps": [
+          "Address",
+          "Complaint",
+          "Petition",
+          "Trust"
+        ]
+      },
+      {
+        "id": "practice.prayer-of-recollection",
+        "name": "Prayer of Recollection",
+        "function": "listen",
+        "rhythm": [
+          "morning",
+          "midday"
+        ],
+        "origin": "Teresa of Ávila, 16th century",
+        "tradition": "Carmelite",
+        "intention": "Teresa taught that God is already present within you — not waiting outside. This practice turns you inward to find Him there.",
+        "quote": "Turn inward. The castle of the soul has many rooms. Begin at the gate.",
+        "steps": [
+          "Stillness",
+          "Descent",
+          "Presence"
+        ]
+      },
+      {
+        "id": "practice.emotionally-healthy-examen",
+        "name": "Emotionally Healthy Examen",
+        "function": "examine",
+        "rhythm": [
+          "evening"
+        ],
+        "origin": "Peter Scazzero, contemporary",
+        "tradition": "Contemplative",
+        "intention": "An adaptation of the Examen that takes emotional honesty seriously — because you can’t be spiritually mature while emotionally immature.",
+        "quote": "What did I feel today? What did those feelings reveal about what I believe?",
+        "steps": [
+          "Feel",
+          "Reveal",
+          "Encounter"
+        ]
+      },
+      {
+        "id": "practice.the-examen-of-consolation",
+        "name": "The Examen of Consolation",
+        "function": "gratitude",
+        "rhythm": [
+          "midday",
+          "evening"
+        ],
+        "origin": "Ignatius of Loyola, 16th century",
+        "tradition": "Ignatian",
+        "intention": "A shorter, lighter form of the Examen focused entirely on noticing where love moved — in you and around you — today.",
+        "quote": "Where did love move in me today? Name it. Receive it. Return it.",
+        "steps": [
+          "Notice",
+          "Receive",
+          "Return"
+        ]
+      },
+      {
+        "id": "practice.ignatian-discernment",
+        "name": "Ignatian Discernment",
+        "function": "listen",
+        "rhythm": [
+          "anytime"
+        ],
+        "origin": "Ignatius of Loyola, 16th century",
+        "tradition": "Ignatian",
+        "intention": "For a decision you are holding. Ignatius taught that the Spirit’s movement can be felt — not just reasoned toward. You’re learning to read your own interior.",
+        "quote": "Which choice brings deeper peace? Not comfort — peace.",
+        "steps": [
+          "Name the question",
+          "Consolation",
+          "Desolation",
+          "Hold"
+        ]
+      },
+      {
+        "id": "practice.then-vs-now",
+        "name": "Then vs. Now",
+        "function": "examine",
+        "rhythm": [
+          "anytime"
+        ],
+        "origin": "Adapted from narrative-therapy practice, contemporary",
+        "tradition": "Secular",
+        "intention": "A direct comparison of who you were to who you are — not vague sentiment, but concrete evidence that something has actually changed.",
+        "quote": "What do I believe now that I didn’t a year ago? What’s the proof?",
+        "steps": [
+          "Then",
+          "Now",
+          "Evidence",
+          "Presence"
+        ]
+      },
+      {
+        "id": "practice.threshold",
+        "name": "Threshold",
+        "function": "examine",
+        "rhythm": [
+          "anytime"
+        ],
+        "origin": "Adapted from rite-of-passage practice, contemporary",
+        "tradition": "Secular",
+        "intention": "For a transition you’re in the middle of — a job, a move, a relationship, a season ending. Growth at a threshold often stays invisible until you name it.",
+        "quote": "What am I leaving? What am I carrying forward? What am I letting go of?",
+        "steps": [
+          "Leaving",
+          "Carrying",
+          "Letting go",
+          "Presence"
+        ]
+      }
+    ],
+    "importers": [
+      {
+        "id": "import.other",
+        "name": "Dayspring Backup",
+        "tagline": "Restore from a Dayspring export",
+        "status": "available",
+        "fileLabel": "Dayspring backup (.zip or folder)",
+        "instructions": [
+          "Go to Settings → Import & backup and click Download backup.",
+          "Drop the resulting dayspring-backup-YYYY-MM-DD.zip here to restore — or the unzipped folder.",
+          "Entries are matched by their original ID, so reimporting never creates duplicates."
+        ],
+        "note": "All entry text, dates, tags, and titles are restored. Entries reimported this way appear as source \"other.\""
+      },
+      {
+        "id": "import.diarly",
+        "name": "Diarly",
+        "tagline": "Markdown export (.zip)",
+        "status": "available",
+        "fileLabel": "Diarly Markdown export (.zip or folder)",
+        "instructions": [
+          "Open Diarly on your Mac and choose Diarly → Preferences → Sync & Backup.",
+          "Click \"Export\" and pick Markdown as the format.",
+          "Choose \"All journals\" (or a single journal) and save the .zip file.",
+          "Drop the .zip (or the unzipped folder) below — entries are read in your browser and added to your journal."
+        ],
+        "note": "Entry dates come from each file path. Photos are imported and stored in Supabase Storage."
+      },
+      {
+        "id": "import.day_one",
+        "name": "Day One",
+        "tagline": "JSON export (.zip)",
+        "status": "available",
+        "fileLabel": "Day One JSON export (.zip or folder)",
+        "instructions": [
+          "Open Day One and choose File → Export → Day One (or All Entries).",
+          "Pick JSON as the export format (not PDF or plain text).",
+          "Save the resulting .zip — it contains a JSON file per journal.",
+          "Drop that .zip below, or just drag in the unzipped folder. Every journal in the export is brought in at once."
+        ],
+        "note": "Full timestamps, tags, and starred entries carry over. Photos are imported; audio and PDFs are not."
+      },
+      {
+        "id": "import.journey",
+        "name": "Journey",
+        "tagline": "Coming soon",
+        "status": "coming-soon",
+        "fileLabel": null,
+        "instructions": [
+          "In Journey, open Settings → Export and choose the JSON/ZIP export.",
+          "Hang on to that file — Dayspring will read it directly once support ships."
+        ],
+        "note": "Want this sooner? Let us know which export format you have."
+      },
+      {
+        "id": "import.apple",
+        "name": "Apple Journal",
+        "tagline": "Coming soon",
+        "status": "coming-soon",
+        "fileLabel": null,
+        "instructions": [
+          "On iOS, open Journal → Settings and use \"Export Journal\".",
+          "Apple's archive format is on our roadmap — keep your export handy."
+        ],
+        "note": null
+      },
+      {
+        "id": "import.obsidian",
+        "name": "Obsidian & Markdown",
+        "tagline": "Coming soon",
+        "status": "coming-soon",
+        "fileLabel": null,
+        "instructions": [
+          "Zip a folder of dated Markdown notes (one daily note per day).",
+          "Generic Markdown import with date-from-filename is on the way."
+        ],
+        "note": "Already using Diarly-style YYYY/MM-DD.md files? The Diarly importer may work today."
+      }
+    ],
+    "flags": [
+      {
+        "id": "flag.altar",
+        "key": "altar",
+        "defaultOn": true
+      },
+      {
+        "id": "flag.threads-ropes",
+        "key": "threadsRopes",
+        "defaultOn": false
+      },
+      {
+        "id": "flag.concordance",
+        "key": "concordance",
+        "defaultOn": false
+      }
+    ],
+    "surfaces": [
+      {
+        "id": "surface.entries",
+        "label": "Entries",
+        "shortcut": "shortcut.entries-your-pages"
+      },
+      {
+        "id": "surface.ascent",
+        "label": "Ascent",
+        "shortcut": "shortcut.ascent"
+      },
+      {
+        "id": "surface.lamp",
+        "label": "Lamp",
+        "shortcut": "shortcut.lamp"
+      },
+      {
+        "id": "surface.altar",
+        "label": "Altar",
+        "shortcut": "shortcut.altar"
+      },
+      {
+        "id": "surface.find",
+        "label": "Find and Ask",
+        "shortcut": "shortcut.find-a-word-or-ask-a-question"
+      },
+      {
+        "id": "surface.settings",
+        "label": "Settings",
+        "shortcut": "shortcut.settings"
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "capability.editor",
+        "label": "The editor"
+      },
+      {
+        "id": "capability.focus-mode",
+        "label": "Focus mode"
+      },
+      {
+        "id": "capability.photos",
+        "label": "Photos in entries"
+      },
+      {
+        "id": "capability.scripture-blocks",
+        "label": "Scripture, prayer and sense blocks"
+      },
+      {
+        "id": "capability.practices",
+        "label": "Rituals and practices"
+      },
+      {
+        "id": "capability.marking",
+        "label": "Marking a passage"
+      },
+      {
+        "id": "capability.backup",
+        "label": "Download a backup"
+      },
+      {
+        "id": "capability.import",
+        "label": "Importing another journal"
+      },
+      {
+        "id": "capability.sign-in",
+        "label": "Sign in with Apple or Google"
+      },
+      {
+        "id": "capability.billing",
+        "label": "Subscription and billing"
+      },
+      {
+        "id": "capability.account-deletion",
+        "label": "Deleting your account"
+      },
+      {
+        "id": "capability.apple-iap",
+        "label": "Buying through the App Store"
+      },
+      {
+        "id": "capability.find-ask",
+        "label": "Find and Ask"
+      },
+      {
+        "id": "capability.ascent",
+        "label": "The Ascent"
+      },
+      {
+        "id": "capability.lamp",
+        "label": "The Lamp"
+      },
+      {
+        "id": "capability.altar",
+        "label": "The Altar"
+      },
+      {
+        "id": "capability.voice-dictation",
+        "label": "Voice dictation",
+        "touchOnly": true
+      },
+      {
+        "id": "capability.page-scan",
+        "label": "Handwriting page scan",
+        "touchOnly": true
+      },
+      {
+        "id": "capability.pages-wall",
+        "label": "The Pages wall"
+      }
+    ]
+  },
+  "values": {
+    "billing.trial-days": 14,
+    "billing.extension-days": 7,
+    "billing.grace-days": 3,
+    "billing.web.monthly": "$7",
+    "billing.web.annual": "$64",
+    "billing.apple.monthly-product": "dayspring_monthly",
+    "billing.apple.annual-product": "dayspring_annual",
+    "limits.image-max-mb": 20,
+    "limits.scan-max-pages": 8,
+    "editor.font-size-default": 24,
+    "editor.font-size-min": 18,
+    "editor.font-size-max": 36,
+    "counts.practices": 11,
+    "counts.themes": 9,
+    "counts.slash-commands": 20,
+    "counts.highlight-colors": 5,
+    "counts.importers": 3
+  }
+}

@@ -1,0 +1,225 @@
+---
+// AscentGlimpse — the climb at a glance. One summit line, not four full panels.
+interface Altitude {
+  label: string;
+  alt: string;
+}
+interface Props {
+  altitudes: Altitude[];
+  activeAlt: string;
+  activeLabel: string;
+  oneLine: string;
+  verseRef: string;
+  lenses?: string[];
+  hint?: string;
+  class?: string;
+}
+const {
+  altitudes,
+  activeAlt,
+  activeLabel,
+  oneLine,
+  verseRef,
+  lenses = [],
+  hint = "In the app — climb week to year",
+  class: className = "",
+} = Astro.props;
+---
+
+<div class:list={["ascent-glimpse", className]} aria-hidden="true">
+  <nav class="climb" aria-label="Altitudes">
+    {
+      altitudes.map((a, i) => (
+        <span
+          class:list={[
+            "step",
+            { on: a.alt === activeAlt },
+            { past: i < altitudes.findIndex((x) => x.alt === activeAlt) },
+          ]}
+        >
+          <span class="step-alt mono">{a.alt}</span>
+          <span class="step-label">{a.label}</span>
+        </span>
+      ))
+    }
+  </nav>
+
+  {
+    lenses.length > 0 && (
+      <div class="lenses">
+        <span class="lens-label mono">Watching</span>
+        {lenses.slice(0, 4).map((l) => (
+          <span class="lens mono">{l}</span>
+        ))}
+      </div>
+    )
+  }
+
+  <div class="summit">
+    <p class="summit-kicker mono">{activeAlt} · {activeLabel}</p>
+    <p class="summit-eyebrow mono">The one line of the year</p>
+    <p class="summit-line">&ldquo;{oneLine}&rdquo;</p>
+    <p class="summit-verse mono">{verseRef}</p>
+  </div>
+
+  <p class="hint mono">{hint}</p>
+  <div class="glimpse-fade" aria-hidden="true" />
+</div>
+
+<style>
+  .ascent-glimpse {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(
+        ellipse 80% 50% at 50% 0%,
+        rgba(243, 189, 118, 0.1),
+        transparent 65%
+      ),
+      linear-gradient(180deg, var(--ink-3), var(--ink-2));
+    padding: 26px 28px 22px;
+    text-align: center;
+    max-height: 340px;
+  }
+
+  .climb {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 100px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 12px;
+    border-radius: 100px;
+    opacity: 0.45;
+  }
+  .step.past {
+    opacity: 0.65;
+  }
+  .step.on {
+    opacity: 1;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+  }
+  .step-alt {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .step.on .step-alt {
+    color: var(--dawn-1);
+  }
+  .step-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--paper-dim);
+  }
+  .step.on .step-label {
+    color: var(--paper);
+  }
+
+  .lenses {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
+  }
+  .lens-label {
+    font-size: 9px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 2px;
+  }
+  .lens {
+    font-size: 10px;
+    color: var(--paper-dim);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 9px;
+  }
+
+  .summit {
+    position: relative;
+    z-index: 1;
+    max-width: 34ch;
+    margin: 0 auto;
+  }
+  .summit-kicker {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 12px;
+  }
+  .summit-eyebrow {
+    font-size: 9px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .summit-line {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(18px, 2.4vw, 24px);
+    line-height: 1.32;
+    letter-spacing: -0.3px;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+  .summit-verse {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+  }
+
+  .hint {
+    font-size: 9.5px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-top: 18px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .glimpse-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--ink-2));
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  @media (max-width: 520px) {
+    .climb {
+      flex-wrap: wrap;
+      border-radius: 14px;
+    }
+    .step {
+      padding: 5px 10px;
+    }
+  }
+</style>

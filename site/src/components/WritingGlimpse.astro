@@ -1,0 +1,181 @@
+---
+// WritingGlimpse — a preview, not the app. One fuzzy scripture moment +
+// a strip of verses you've returned to. Enough to get the gist at a glance.
+interface Props {
+  line: string;
+  fuzzy: string;
+  match: { ref: string; text: string };
+  canon: string[];
+  commands?: string[];
+  class?: string;
+}
+const {
+  line,
+  fuzzy,
+  match,
+  canon,
+  commands = ["/scripture", "/pray", "/sense", "/ritual", "/image"],
+  class: className = "",
+} = Astro.props;
+---
+
+<div class:list={["writing-glimpse", className]} aria-hidden="true">
+  <div class="glimpse-editor">
+    <p class="ed-line">{line}</p>
+    <p class="ed-slash">
+      <span class="cmd">/scripture</span>
+      <span class="query">{fuzzy}</span>
+      <span class="caret" />
+    </p>
+    <div class="match">
+      <span class="match-ref mono">{match.ref}</span>
+      <span class="match-text">&ldquo;{match.text}&rdquo;</span>
+    </div>
+  </div>
+
+  <div class="glimpse-foot">
+    <p class="foot-label mono">On the Lamp — scripture you've used</p>
+    <div class="canon">
+      {canon.map((ref) => <span class="chip mono">{ref}</span>)}
+    </div>
+    <div class="cmds">
+      {commands.map((c) => <span class="cmd-chip mono">{c}</span>)}
+    </div>
+  </div>
+
+  <div class="glimpse-fade" aria-hidden="true" />
+</div>
+
+<style>
+  .writing-glimpse {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    padding: 22px 24px 20px;
+    max-height: 280px;
+  }
+
+  .glimpse-editor {
+    position: relative;
+    z-index: 1;
+  }
+  .ed-line {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--paper-dim);
+    font-weight: 300;
+    margin-bottom: 12px;
+  }
+  .ed-slash {
+    font-size: 14.5px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  .cmd {
+    font-family: var(--font-mono);
+    color: var(--dawn-1);
+    margin-right: 6px;
+  }
+  .query {
+    font-family: var(--font-mono);
+    color: var(--paper);
+    font-style: italic;
+  }
+  .caret {
+    display: inline-block;
+    width: 6px;
+    height: 14px;
+    vertical-align: -2px;
+    background: var(--dawn-1);
+    margin-left: 2px;
+    animation: wg-blink 1.1s steps(1) infinite;
+  }
+  @keyframes wg-blink {
+    50% { opacity: 0; }
+  }
+
+  .match {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(243, 189, 118, 0.22);
+    background: rgba(243, 189, 118, 0.06);
+    max-width: 28rem;
+  }
+  .match-ref {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+  }
+  .match-text {
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    font-style: italic;
+  }
+
+  .glimpse-foot {
+    position: relative;
+    z-index: 1;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .foot-label {
+    font-size: 9.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .canon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .chip {
+    font-size: 10.5px;
+    color: var(--gold);
+    border: 1px solid rgba(228, 186, 124, 0.28);
+    border-radius: 6px;
+    padding: 5px 10px;
+  }
+  .cmds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    opacity: 0.55;
+  }
+  .cmd-chip {
+    font-size: 10px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 9px;
+  }
+
+  /* soft crop — preview, not the whole module */
+  .glimpse-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, var(--ink-2));
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .caret {
+      animation: none;
+      opacity: 1;
+    }
+  }
+</style>

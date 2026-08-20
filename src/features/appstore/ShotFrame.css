@@ -2,7 +2,7 @@
  * Listing-shot chrome — the marketing site's "First Light" tokens, hardcoded.
  *
  * Deliberately NOT wired to the app's theme variables: the frame is the
- * dayspring-site palette (`--ink` #0c0d11, warm dawn) while the screen inside it
+ * site/ palette (`--ink` #0c0d11, warm dawn) while the screen inside it
  * runs the app's shipped `ink` theme (#14161d, silver-blue moonlight glow). That
  * contrast — amber dawn around a cool page — is the site's actual look, and it
  * makes the screen read as an object sitting on a page.

@@ -1,0 +1,108 @@
+---
+// RitualsGlimpse — three ancient forms at a glance. No library UI, no editor pane.
+interface Ritual {
+  name: string;
+  era: string;
+  note: string;
+}
+interface Props {
+  rituals: Ritual[];
+  foot?: string;
+  class?: string;
+}
+const { rituals, foot, class: className = "" } = Astro.props;
+---
+
+<div class:list={["rituals-glimpse", className]} aria-hidden="true">
+  <div class="ritual-row">
+    {
+      rituals.map((r, i) => (
+        <article class:list={["ritual", { featured: i === 0 }]}>
+          <p class="era mono">{r.era}</p>
+          <h3 class="name">{r.name}</h3>
+          <p class="note">{r.note}</p>
+        </article>
+      ))
+    }
+  </div>
+  {foot && <p class="foot mono">{foot}</p>}
+  <div class="glimpse-fade" aria-hidden="true" />
+</div>
+
+<style>
+  .rituals-glimpse {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    padding: 24px 22px 20px;
+  }
+
+  .ritual-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .ritual {
+    padding: 16px 14px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .ritual.featured {
+    border-color: rgba(243, 189, 118, 0.3);
+    background: rgba(243, 189, 118, 0.05);
+  }
+  .era {
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 8px;
+  }
+  .name {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.2;
+    color: var(--paper);
+    margin-bottom: 8px;
+  }
+  .note {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  .foot {
+    position: relative;
+    z-index: 1;
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 16px;
+  }
+
+  .glimpse-fade {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 36px;
+    background: linear-gradient(to bottom, transparent, var(--ink-2));
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  @media (max-width: 720px) {
+    .ritual-row {
+      grid-template-columns: 1fr;
+      max-width: 320px;
+      margin: 0 auto;
+    }
+  }
+</style>

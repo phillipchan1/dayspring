@@ -1,0 +1,4 @@
+# Vercel turns EVERY file under api/ into a deployed serverless function, so a
+# colocated test file would ship as a live public endpoint (/api/contact.test).
+# Keep the tests next to the code they test, and keep them out of production.
+api/**/*.test.ts

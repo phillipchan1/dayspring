@@ -1,0 +1,159 @@
+---
+import { render } from "astro:content";
+import HelpArticle from "../../layouts/HelpArticle.astro";
+import ReferenceTable from "../../components/help/ReferenceTable.astro";
+import {
+  loadHelp,
+  helpNeighbours,
+  platformNote,
+  resolveTokens,
+  publishedReferencePages,
+} from "../../lib/help";
+import { HELP_SECTION_META } from "../../content.config";
+import { site } from "../../content/site";
+
+// Written articles and generated reference pages share this one route, so they
+// also share one gate: anything waiting on a feature that hasn't reached the
+// published channel is simply absent here, and therefore has no page, no
+// sitemap entry and no search hit.
+export async function getStaticPaths() {
+  const { articles } = await loadHelp();
+  return [
+    ...articles.map((entry) => ({
+      params: { slug: entry.id },
+      props: { entry, reference: null },
+    })),
+    ...publishedReferencePages().map((page) => ({
+      params: { slug: page.slug },
+      props: { entry: null, reference: page },
+    })),
+  ];
+}
+
+const { entry, reference } = Astro.props;
+
+const Content = entry ? (await render(entry)).Content : null;
+const { prev, next } = entry ? await helpNeighbours(entry) : { prev: null, next: null };
+
+const data = entry
+  ? {
+      title: resolveTokens(entry.data.title, `${entry.id}.md (title)`),
+      summary: resolveTokens(entry.data.summary, `${entry.id}.md (summary)`),
+      section: entry.data.section,
+      updated: entry.data.updated,
+      slug: entry.id,
+      platforms: entry.data.platforms,
+    }
+  : {
+      title: reference!.title,
+      summary: reference!.summary,
+      section: reference!.section,
+      updated: reference!.updated,
+      slug: reference!.slug,
+      platforms: ["web", "macos", "ios"] as const,
+    };
+
+const { title, summary } = data;
+const path = `/help/${data.slug}`;
+const section = HELP_SECTION_META[data.section];
+
+const articleSchema = {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  headline: title,
+  description: summary,
+  dateModified: data.updated.toISOString().slice(0, 10),
+  inLanguage: "en",
+  publisher: { "@type": "Organization", name: site.name, url: site.url },
+  mainEntityOfPage: new URL(path, site.url).href,
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Help", item: new URL("/help", site.url).href },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: section.title,
+      item: new URL("/help", site.url).href + `#${data.section}`,
+    },
+    { "@type": "ListItem", position: 3, name: title, item: new URL(path, site.url).href },
+  ],
+};
+---
+
+<HelpArticle
+  title={title}
+  summary={summary}
+  section={data.section}
+  path={path}
+  updated={data.updated}
+  platformNote={platformNote(data.platforms)}
+  eyebrow={reference ? "Reference" : undefined}
+>
+  {Content ? <Content /> : <ReferenceTable kind={reference!.kind} />}
+
+  <div slot="neighbours" class="neighbours">
+    {
+      prev && (
+        <a href={`/help/${prev.id}`} class="nb">
+          <span class="dir mono">Previous</span>
+          <span class="nb-title">{prev.data.title}</span>
+        </a>
+      )
+    }
+    {
+      next && (
+        <a href={`/help/${next.id}`} class="nb nb-next">
+          <span class="dir mono">Next</span>
+          <span class="nb-title">{next.data.title}</span>
+        </a>
+      )
+    }
+  </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+</HelpArticle>
+
+<style>
+  .neighbours {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 34px;
+  }
+  .nb {
+    flex: 1 1 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 15px 18px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-decoration: none;
+    background: var(--surface);
+    transition: border-color 0.25s, background 0.25s;
+  }
+  .nb:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-2);
+  }
+  .nb-next {
+    text-align: right;
+  }
+  .dir {
+    font-size: 10.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .nb-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    color: var(--paper);
+    line-height: 1.25;
+  }
+</style>

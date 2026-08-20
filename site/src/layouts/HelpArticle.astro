@@ -1,0 +1,288 @@
+---
+// The prose wrapper for a single help article.
+//
+// Follows the /privacy + /maker convention — a centred <article> with a
+// DawnGlow header — rather than inventing a look. Every colour and face comes
+// from the First Light tokens in global.css.
+import Base from "./Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import DawnGlow from "../components/DawnGlow.astro";
+import { HELP_SECTION_META, type HelpSection } from "../content.config";
+
+interface Props {
+  title: string;
+  summary: string;
+  section: HelpSection;
+  path: string;
+  updated: Date;
+  platformNote?: string | null;
+  /** Rendered as a quiet caption under the title (e.g. "Reference"). */
+  eyebrow?: string;
+}
+
+const { title, summary, section, path, updated, platformNote, eyebrow } = Astro.props;
+const meta = HELP_SECTION_META[section];
+const updatedLabel = updated.toLocaleDateString("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+---
+
+<Base title={title} description={summary} path={path} footer="minimal">
+  <article class="help-article">
+    <header class="h-head">
+      <div class="glow-host"><DawnGlow variant="bloom" intensity={0.4} /></div>
+      <SectionReveal>
+        <nav class="crumbs mono" aria-label="Breadcrumb">
+          <a href="/help">Help</a>
+          <span aria-hidden="true">/</span>
+          <a href={`/help#${section}`}>{eyebrow ?? meta.title}</a>
+        </nav>
+        <h1>{title}</h1>
+        <p class="lead">{summary}</p>
+      </SectionReveal>
+    </header>
+
+    {
+      platformNote && (
+        <p class="platform-note">
+          <span class="dot" aria-hidden="true" />
+          {platformNote}
+        </p>
+      )
+    }
+
+    <div class="prose">
+      <slot />
+    </div>
+
+    <footer class="h-foot">
+      <slot name="neighbours" />
+      <p class="updated mono">Last updated {updatedLabel}</p>
+      <p class="ask">
+        Didn't find it? <a href="/help/contact">Ask us directly</a> — a person reads
+        every message.
+      </p>
+    </footer>
+  </article>
+</Base>
+
+<style>
+  .help-article {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  .h-head {
+    position: relative;
+    padding: 170px 0 40px;
+  }
+  .glow-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .crumbs {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    font-size: 11.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 22px;
+  }
+  .crumbs a {
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.25s;
+  }
+  .crumbs a:hover {
+    color: var(--dawn-1);
+  }
+  .h-head h1 {
+    position: relative;
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(32px, 5vw, 50px);
+    line-height: 1.08;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+  .h-head .lead {
+    position: relative;
+    font-size: 18.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 56ch;
+  }
+
+  /* platform scope — a quiet fact, not a warning banner */
+  .platform-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14.5px;
+    color: var(--paper-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 34px;
+  }
+  .platform-note .dot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dawn-1);
+  }
+
+  /* ---- prose: markdown output ---- */
+  .prose {
+    font-size: 17.5px;
+    line-height: 1.72;
+    color: var(--paper-dim);
+    font-weight: 300;
+    padding-bottom: 20px;
+  }
+  .prose :global(h2) {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(22px, 3vw, 27px);
+    letter-spacing: -0.4px;
+    color: var(--paper);
+    margin: 52px 0 14px;
+  }
+  .prose :global(h3) {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 19.5px;
+    color: var(--paper);
+    margin: 34px 0 10px;
+  }
+  .prose :global(p) {
+    margin-bottom: 20px;
+  }
+  .prose :global(strong) {
+    color: var(--paper);
+    font-weight: 500;
+  }
+  .prose :global(em) {
+    font-style: italic;
+    color: var(--paper);
+  }
+  .prose :global(a) {
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(243, 189, 118, 0.35);
+    transition: border-color 0.25s;
+  }
+  .prose :global(a:hover) {
+    border-bottom-color: var(--dawn-1);
+  }
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 0 0 22px 22px;
+  }
+  .prose :global(li) {
+    margin-bottom: 9px;
+    padding-left: 4px;
+  }
+  .prose :global(li::marker) {
+    color: var(--dawn-1);
+  }
+  .prose :global(blockquote) {
+    border-left: 2px solid rgba(243, 189, 118, 0.4);
+    padding: 4px 0 4px 22px;
+    margin: 28px 0;
+    color: var(--paper-dim);
+    font-style: italic;
+  }
+  .prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 6px;
+    color: var(--paper);
+  }
+  .prose :global(kbd) {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 2px 7px;
+    color: var(--paper);
+    white-space: nowrap;
+  }
+  .prose :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 44px 0;
+  }
+  /* wide tables scroll inside themselves — the page never scrolls sideways */
+  .prose :global(.table-scroll) {
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+  .prose :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 16px;
+  }
+  .prose :global(th) {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 400;
+    padding: 0 18px 10px 0;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .prose :global(td) {
+    padding: 11px 18px 11px 0;
+    border-bottom: 1px solid var(--border-dim);
+    vertical-align: top;
+  }
+
+  /* ---- foot ---- */
+  .h-foot {
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+    padding: 30px 0 90px;
+  }
+  .updated {
+    font-size: 11.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .ask {
+    font-size: 16px;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+  .ask a {
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(243, 189, 118, 0.35);
+  }
+
+  @media (max-width: 600px) {
+    .h-head {
+      padding: 130px 0 32px;
+    }
+  }
+</style>

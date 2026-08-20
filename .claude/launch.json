@@ -27,7 +27,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "--prefix",
-        "../dayspring-site",
+        "site",
         "run",
         "dev"
       ],

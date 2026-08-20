@@ -1,0 +1,90 @@
+---
+// LetterCard — the monthly-reflection "letter to yourself". Dayspring reads
+// back what you wrote and tells you what changed, in your own story. Warm
+// ink gradient with a corner dawn-glow bleed.
+import DawnGlow from "./DawnGlow.astro";
+
+interface Props {
+  /** Left meta label, e.g. "Monthly reflection". */
+  kind: string;
+  /** Right meta label, e.g. "March". */
+  period: string;
+  /** Card heading. */
+  title: string;
+  /** Body paragraphs. May contain <em>…</em> for accented phrases. */
+  paragraphs: string[];
+  /** Signature line. */
+  signature?: string;
+  class?: string;
+}
+const {
+  kind,
+  period,
+  title,
+  paragraphs,
+  signature = "— Dayspring, looking back with you",
+  class: className = "",
+} = Astro.props;
+---
+
+<article class:list={["letter", className]}>
+  <DawnGlow variant="corner" corner="top-right" />
+  <div class="meta"><span>{kind}</span><span>{period}</span></div>
+  <h3>{title}</h3>
+  {paragraphs.map((p) => <p set:html={p} />)}
+  {signature && <p class="sig">{signature}</p>}
+</article>
+
+<style>
+  .letter {
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 34px 34px 30px;
+    box-shadow:
+      0 40px 80px -40px rgba(0, 0, 0, 0.8),
+      0 0 60px -30px rgba(243, 189, 118, 0.18);
+    position: relative;
+    overflow: hidden;
+  }
+  .letter .meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+  }
+  .letter h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 23px;
+    margin-bottom: 16px;
+    color: var(--paper);
+    position: relative;
+    z-index: 1;
+  }
+  .letter p {
+    font-size: 16.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.62;
+    margin-bottom: 13px;
+    position: relative;
+    z-index: 1;
+  }
+  .letter p :global(em) {
+    color: var(--gold);
+    font-style: italic;
+  }
+  .letter .sig {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 15px;
+    margin-top: 6px;
+  }
+</style>

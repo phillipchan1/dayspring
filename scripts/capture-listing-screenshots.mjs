@@ -52,7 +52,7 @@ const SIZES = [
   { dir: 'ipad-13', width: 2064, height: 2752, platform: 'ipad' },
 ]
 
-/** Frame background — dayspring-site's --ink. Must match ShotFrame.css. */
+/** Frame background — site/'s --ink. Must match ShotFrame.css. */
 const BG = [12, 13, 17]
 
 /** Mirrors SHOTS in src/features/appstore/shots.ts. */

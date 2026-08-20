@@ -1,0 +1,401 @@
+---
+// ScriptureTeaser — curated canon slice at readable size (not a shrunk full Bible).
+import {
+  scriptureOT,
+  scriptureNT,
+  scriptureSeasons,
+  scriptureReturning,
+  scriptureMarketingOT,
+  scriptureMarketingNT,
+  buildBookCells,
+  type ScriptureSeasonId,
+} from "../content/scriptureCanon";
+
+interface Props {
+  class?: string;
+  defaultSeason?: ScriptureSeasonId;
+  /** Cropped, non-interactive marketing glimpse — not the full Lamp UI. */
+  preview?: boolean;
+}
+const {
+  class: className = "",
+  defaultSeason = "all",
+  preview = false,
+} = Astro.props;
+
+function renderSlice(seasonId: ScriptureSeasonId) {
+  const ot = scriptureOT
+    .filter((book) => scriptureMarketingOT.has(book[0]))
+    .map((book, i) => ({
+      book,
+      ...buildBookCells(book, seasonId, 0, scriptureOT.indexOf(book)),
+    }));
+  const nt = scriptureNT
+    .filter((book) => scriptureMarketingNT.has(book[0]))
+    .map((book, i) => ({
+      book,
+      ...buildBookCells(book, seasonId, 1000, scriptureNT.indexOf(book)),
+    }));
+  return { ot, nt };
+}
+
+const layers = scriptureSeasons.map((s) => ({
+  id: s.id,
+  ...renderSlice(s.id),
+}));
+---
+
+<div
+  class:list={["scripture-teaser", className, { preview }]}
+  data-scripture-teaser={!preview ? true : undefined}
+  data-default-season={defaultSeason}
+>
+  {!preview && (
+  <div class="st-toolbar">
+    <div class="seasons">
+      <span class="seasons-lbl mono">Season</span>
+      {
+        scriptureSeasons.map((s) => (
+          <button
+            type="button"
+            class:list={["chip", { on: s.id === defaultSeason }]}
+            data-season={s.id}
+          >
+            {s.label}
+          </button>
+        ))
+      }
+    </div>
+    <p class="season-note" data-season-note hidden={defaultSeason === "all"}>
+      {scriptureSeasons.find((s) => s.id === defaultSeason)?.note ?? ""}
+    </p>
+  </div>
+  )}
+
+  <div class="st-canon-pane">
+    {
+      layers.map((layer) => (
+        <div
+          class="st-layer"
+          data-canon-layer={layer.id}
+          hidden={layer.id !== defaultSeason}
+        >
+          <p class="testament-label mono">
+            <span>Old Testament</span>
+          </p>
+          <div class="canon">
+            {
+              layer.ot.map(({ book, cols, cells, lit }) => (
+                <div
+                  class:list={[
+                    "book",
+                    { lit, hero: book[0] === "Psalms" },
+                  ]}
+                >
+                  <div class="bname">{book[0]}</div>
+                  <div
+                    class="cells"
+                    style={`grid-template-columns: repeat(${cols}, 6px)`}
+                  >
+                    {
+                      cells.map((cell) => (
+                        <span
+                          class="cell"
+                          style={`background:${cell.bg};box-shadow:${cell.shadow}`}
+                        />
+                      ))
+                    }
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+
+          <p class="testament-label mono">
+            <span>New Testament</span>
+          </p>
+          <div class="canon">
+            {
+              layer.nt.map(({ book, cols, cells, lit }) => (
+                <div class:list={["book", { lit }]}>
+                  <div class="bname">{book[0]}</div>
+                  <div
+                    class="cells"
+                    style={`grid-template-columns: repeat(${cols}, 6px)`}
+                  >
+                    {
+                      cells.map((cell) => (
+                        <span
+                          class="cell"
+                          style={`background:${cell.bg};box-shadow:${cell.shadow}`}
+                        />
+                      ))
+                    }
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <div class="st-foot">
+    <span class="foot-label">You keep returning to…</span>
+    <div class="verses">
+      {
+        scriptureReturning.slice(0, 3).map((v) => (
+          <span class="verse-chip mono">
+            {v.ref}
+            <span class="vc">{v.count}</span>
+          </span>
+        ))
+      }
+    </div>
+  </div>
+</div>
+
+<style>
+  .scripture-teaser {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    max-height: 75vh;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 18px 20px 16px;
+  }
+
+  .st-toolbar {
+    flex-shrink: 0;
+    margin-bottom: 14px;
+  }
+
+  .seasons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .seasons-lbl {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+  .chip {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--paper-dim);
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    background: transparent;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s;
+  }
+  .chip:hover {
+    color: var(--paper);
+    border-color: var(--border-strong);
+  }
+  .chip.on {
+    color: var(--ink);
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+
+  .season-note {
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--dawn-1);
+    margin: 10px 0 0;
+    line-height: 1.45;
+  }
+  .season-note[hidden] {
+    display: none;
+  }
+
+  .st-canon-pane {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  .st-layer[hidden] {
+    display: none;
+  }
+
+  .testament-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .testament-label:not(:first-child) {
+    margin-top: 14px;
+  }
+  .testament-label span {
+    flex: none;
+  }
+  .testament-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .canon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .book {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 8px 8px;
+    background: var(--surface);
+  }
+  .book.lit {
+    border-color: var(--border-strong);
+  }
+  .book.lit .bname {
+    color: var(--paper);
+  }
+  .book.hero {
+    border-color: rgba(243, 189, 118, 0.25);
+    box-shadow: 0 0 32px -8px rgba(243, 189, 118, 0.35);
+  }
+
+  .bname {
+    font-family: var(--font-body);
+    font-size: 11px;
+    color: var(--paper-dim);
+    margin-bottom: 5px;
+    white-space: nowrap;
+  }
+
+  .cells {
+    display: grid;
+    gap: 2px;
+  }
+  .cell {
+    width: 6px;
+    height: 6px;
+    border-radius: 1.5px;
+  }
+
+  .st-foot {
+    flex-shrink: 0;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .foot-label {
+    display: block;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 14px;
+    color: var(--paper-dim);
+    margin-bottom: 10px;
+  }
+  .verses {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .verse-chip {
+    font-size: 11px;
+    color: var(--gold);
+    border: 1px solid rgba(228, 186, 124, 0.28);
+    border-radius: 6px;
+    padding: 6px 11px;
+  }
+  .vc {
+    color: var(--muted);
+    margin-left: 7px;
+  }
+
+  /* marketing preview — cropped glimpse, not the full module */
+  .scripture-teaser.preview {
+    max-height: 260px;
+    overflow: hidden;
+    padding: 16px 18px 14px;
+  }
+  .scripture-teaser.preview .st-canon-pane {
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  }
+  .scripture-teaser.preview .st-foot {
+    margin-top: 10px;
+    padding-top: 12px;
+  }
+
+  @media (max-width: 720px) {
+    .scripture-teaser {
+      max-height: 60vh;
+      padding: 14px 14px 12px;
+    }
+    .scripture-teaser.preview {
+      max-height: 240px;
+    }
+    .canon {
+      gap: 5px;
+    }
+    .cell {
+      width: 5px;
+      height: 5px;
+    }
+  }
+</style>
+
+<script>
+  import { scriptureSeasons } from "../content/scriptureCanon";
+
+  document.querySelectorAll("[data-scripture-teaser]").forEach((root) => {
+    const layers = root.querySelectorAll<HTMLElement>("[data-canon-layer]");
+    const chips = root.querySelectorAll<HTMLButtonElement>("[data-season]");
+    const noteEl = root.querySelector<HTMLElement>("[data-season-note]");
+
+    const notes = Object.fromEntries(
+      scriptureSeasons.map((s) => [s.id, s.note]),
+    ) as Record<string, string>;
+
+    const select = (id: string) => {
+      chips.forEach((c) => {
+        c.classList.toggle("on", c.dataset.season === id);
+      });
+      layers.forEach((layer) => {
+        layer.hidden = layer.dataset.canonLayer !== id;
+      });
+      if (noteEl) {
+        const txt = notes[id] ?? "";
+        noteEl.textContent = txt;
+        noteEl.hidden = !txt;
+      }
+    };
+
+    chips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const id = chip.dataset.season;
+        if (id) select(id);
+      });
+    });
+  });
+</script>

@@ -1,0 +1,357 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import SlashCommandsMock from "../components/SlashCommandsMock.astro";
+import AltarMock from "../components/AltarMock.astro";
+import ScriptureTeaser from "../components/ScriptureTeaser.astro";
+import PracticeMock from "../components/PracticeMock.astro";
+import LookingBackMock from "../components/LookingBackMock.astro";
+import { featuresIntro, deepDives, everythingIntro, everything } from "../content/features";
+import { slashCommands, lookingBack, altar, practices } from "../content/home";
+---
+
+<Base
+  title="Features"
+  description="Plant scripture inline, draw near through contemplative practice forms, see where your heart has been leaning across the whole Bible, gather prayers on the Altar, and look back across week, month, quarter, and year."
+  path="/features"
+>
+  <section class="f-intro">
+    <SectionReveal class="wrap">
+      <p class="eyebrow mono">{featuresIntro.eyebrow}</p>
+      <h1 set:html={featuresIntro.heading} />
+      <p class="lead">{featuresIntro.lead}</p>
+    </SectionReveal>
+  </section>
+
+  {
+    deepDives.map((dive, i) => (
+      <section class:list={["deepdive", { alt: i % 2 === 1 }]} id={dive.id}>
+        <div class="wrap">
+          <div class="grid">
+            <SectionReveal class="copy">
+              <p class="tag mono">{dive.tag}</p>
+              <h2 set:html={dive.heading} />
+              <p class="lead">{dive.lead}</p>
+              <ul class="points">
+                {dive.points.map((p) => (
+                  <li>
+                    <span class="p-title">{p.title}</span>
+                    <span class="p-body">{p.body}</span>
+                  </li>
+                ))}
+              </ul>
+            </SectionReveal>
+
+            <SectionReveal class="visual">
+              {dive.mock === "slash" && (
+                <SlashCommandsMock
+                  commands={slashCommands.commands}
+                  editorLines={slashCommands.editorLines}
+                />
+              )}
+              {dive.mock === "practices" && (
+                <PracticeMock
+                  filters={practices.filters}
+                  cards={practices.cards}
+                  active={practices.active}
+                  note={practices.note}
+                />
+              )}
+              {dive.mock === "letter" && (
+                <LookingBackMock
+                  horizons={lookingBack.horizons}
+                  lenses={lookingBack.lenses}
+                />
+              )}
+              {dive.mock === "altar" && (
+                <AltarMock
+                  subtitle={altar.mock.subtitle}
+                  intro={altar.mock.intro}
+                  groups={altar.mock.groups}
+                  note={altar.mock.note}
+                />
+              )}
+              {dive.mock === "scripture" && <ScriptureTeaser />}
+            </SectionReveal>
+          </div>
+        </div>
+      </section>
+    ))
+  }
+
+  {/* the exhaustive list — show how much is actually here */}
+  <section class="everything" id="everything">
+    <SectionReveal class="wrap ev-head">
+      <p class="tag mono">{everythingIntro.tag}</p>
+      <h2 set:html={everythingIntro.heading} />
+      <p class="lead">{everythingIntro.lead}</p>
+      <p class="ev-value" set:html={everythingIntro.valueLine} />
+    </SectionReveal>
+    <SectionReveal class="wrap">
+      <div class="ev-grid">
+        {
+          everything.map((col) => (
+            <section class="ev-col">
+              <h3 class="ev-group">{col.group}</h3>
+              <ul class="ev-list">
+                {col.items.map((it) => (
+                  <li>
+                    <span class="ev-check" aria-hidden="true">
+                      <svg viewBox="0 0 16 16" width="11" height="11">
+                        <path
+                          d="M2.5 8.5l3.5 3.5 7-8"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span class="ev-item" set:html={it} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        }
+      </div>
+    </SectionReveal>
+  </section>
+</Base>
+
+<style>
+  /* ---- intro ---- */
+  .f-intro {
+    padding: 200px 0 60px;
+    text-align: center;
+  }
+  .f-intro .eyebrow {
+    font-size: 12.5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 26px;
+  }
+  .f-intro h1 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(40px, 7vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -1.5px;
+    margin: 0 auto 24px;
+    max-width: 14ch;
+  }
+  .f-intro h1 :global(em) {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .f-intro .lead {
+    font-size: 19px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 52ch;
+    margin: 0 auto;
+  }
+
+  /* ---- deep dives ---- */
+  .deepdive {
+    padding: 70px 0;
+  }
+  .deepdive .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  /* alternate the visual to the left on odd dives.
+     .copy/.visual sit on child-component roots (no parent scope id),
+     so target them with :global through the scoped .grid parent. */
+  .deepdive.alt .grid > :global(.copy) {
+    order: 2;
+  }
+
+  .deepdive .tag {
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 18px;
+  }
+  .deepdive h2 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(30px, 4.4vw, 52px);
+    letter-spacing: -1px;
+    line-height: 1.05;
+    max-width: 16ch;
+    margin-bottom: 20px;
+  }
+  .deepdive h2 :global(em) {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .deepdive .lead {
+    font-size: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 46ch;
+    margin-bottom: 30px;
+  }
+
+  .points {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .points li {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 18px;
+    border-left: 1px solid var(--border);
+  }
+  .p-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 17px;
+    color: var(--paper);
+  }
+  .p-body {
+    font-size: 15.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  /* ---- everything (the exhaustive list) ---- */
+  .everything {
+    padding: 80px 0 120px;
+  }
+  .everything :global(.ev-head) {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .everything .tag {
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 18px;
+  }
+  .everything h2 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(30px, 4.4vw, 52px);
+    letter-spacing: -1px;
+    line-height: 1.05;
+    margin: 0 auto 18px;
+    max-width: 18ch;
+  }
+  .everything h2 :global(em) {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .everything .lead {
+    font-size: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 54ch;
+    margin: 0 auto;
+  }
+  .ev-value {
+    display: inline-block;
+    margin: 24px auto 0;
+    padding: 9px 18px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: var(--surface);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.2px;
+    color: var(--paper-dim);
+  }
+  .ev-value :global(strong) {
+    color: var(--dawn-1);
+    font-weight: 500;
+  }
+
+  .ev-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px 36px;
+  }
+  .ev-col {
+    break-inside: avoid;
+  }
+  .ev-group {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ev-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+  .ev-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .ev-check {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    margin-top: 1px;
+    border-radius: 50%;
+    color: var(--dawn-1);
+    background: var(--accent-glow);
+  }
+  .ev-item {
+    font-size: 14.5px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+
+  @media (max-width: 1040px) {
+    .ev-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 820px) {
+    .f-intro {
+      padding: 150px 0 40px;
+    }
+    .deepdive .grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    /* on mobile, always lead with the copy, then the visual */
+    .deepdive.alt .grid > :global(.copy) {
+      order: 0;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .ev-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+</style>

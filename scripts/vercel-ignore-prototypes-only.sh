@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Used by the main Dayspring Vercel project (repo root).
 # Exit 0 → skip build. Exit 1 → build.
-# Prototypes deploy separately (dayspring-prototypes); skip when only they changed.
+# Prototypes (dayspring-prototypes) and the marketing/help site (dayspring-site)
+# deploy as other Vercel projects; skip when only they changed.
 
 set -euo pipefail
 
@@ -15,7 +16,7 @@ fi
 while IFS= read -r file; do
   [ -z "$file" ] && continue
   case "$file" in
-    prototypes/*) ;;
+    prototypes/*|site/*|site) ;;
     *) exit 1 ;;
   esac
 done < <(git diff --name-only "$PREV" "$CURRENT")

@@ -1,0 +1,248 @@
+/* ============================================================
+   First Light — Dayspring design tokens & base
+   A warm dawn that can rise over a dark page or a parchment one.
+   Two faces, one brand — mirroring the app's Light / Dark / Auto.
+   Theme-dependent values live under :root (dark default) and
+   [data-theme="light"]; components consume the tokens, never raw hex.
+   ============================================================ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ink — the dark, quiet page */
+  --ink: #0c0d11;
+  --ink-2: #121319;
+  --ink-3: #171922;
+
+  /* paper — warm off-white type, never stark */
+  --paper: #ece7dd;
+  --paper-dim: #b7b3ab;
+  --muted: #7a7986;
+
+  /* dawn — the warm light rising */
+  --dawn-1: #f3bd76; /* amber */
+  --dawn-2: #e8917c; /* rose */
+  --dawn-3: #c56a6e; /* deep rose */
+  --gold: #e4ba7c;
+
+  /* hairlines & surfaces (semantic — flip per theme) */
+  --border: rgba(236, 231, 221, 0.09);
+  --border-strong: rgba(236, 231, 221, 0.18);
+  --border-dim: rgba(236, 231, 221, 0.06);
+  --surface: rgba(18, 19, 25, 0.35);
+  --surface-2: rgba(18, 19, 25, 0.5);
+  --surface-strong: rgba(18, 19, 25, 0.72);
+  --card-grad: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+  --shadow: rgba(0, 0, 0, 0.8);
+  --shadow-soft: rgba(0, 0, 0, 0.45);
+  --accent-glow: rgba(243, 189, 118, 0.18);
+
+  /* nav backdrop + film grain */
+  --nav-bg: rgba(12, 13, 17, 0.72);
+  --grain-opacity: 0.04;
+
+  /* hero veil — darken behind copy as the mock bleeds on wide screens.
+     --veil-fade is a TRANSPARENT version of the page color (not `transparent`,
+     which is transparent-black and would smudge dark mid-gradient). */
+  --veil-strong: rgba(12, 13, 17, 0.92);
+  --veil-soft: rgba(12, 13, 17, 0.35);
+  --veil-fade: rgba(12, 13, 17, 0);
+
+  /* canon heatmap (the Lamp) — quiet/unlit cell */
+  --cell-unlit: rgba(236, 231, 221, 0.055);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* parchment — a warm, lit page (sampled from the app's light mode) */
+  --ink: #f1ebdf; /* page background */
+  --ink-2: #f6f1e7; /* recessed surface */
+  --ink-3: #fdfbf5; /* raised card (lightest) */
+
+  /* warm ink type on parchment */
+  --paper: #2c2820;
+  --paper-dim: #6a6254;
+  --muted: #98917f;
+
+  /* dawn — deepened so it carries on a light ground */
+  --dawn-1: #c17d35; /* amber */
+  --dawn-2: #c0695a; /* rose */
+  --dawn-3: #a94f54; /* deep rose */
+  --gold: #b27d31;
+
+  --border: rgba(60, 50, 30, 0.13);
+  --border-strong: rgba(60, 50, 30, 0.22);
+  --border-dim: rgba(60, 50, 30, 0.07);
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-2: rgba(255, 255, 255, 0.72);
+  --surface-strong: rgba(255, 255, 255, 0.82);
+  --card-grad: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+  --shadow: rgba(92, 70, 38, 0.16);
+  --shadow-soft: rgba(92, 70, 38, 0.1);
+  --accent-glow: rgba(193, 125, 53, 0.16);
+
+  --nav-bg: rgba(246, 241, 231, 0.78);
+  --grain-opacity: 0.025;
+
+  --veil-strong: rgba(241, 235, 223, 0.92);
+  --veil-soft: rgba(241, 235, 223, 0.4);
+  --veil-fade: rgba(241, 235, 223, 0);
+
+  --cell-unlit: rgba(60, 50, 30, 0.08);
+}
+
+:root {
+  /* type — shared across themes */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Newsreader", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* layout */
+  --maxw: 1120px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+/* film grain — fixed overlay, never intercepts pointer events */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- shared utilities ---- */
+.mono {
+  font-family: var(--font-mono);
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* skip link — keyboard accessibility */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10000;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px 18px;
+  border-radius: 0 0 8px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* visible focus ring for keyboard users across all interactive elements */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--dawn-1);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ---- buttons (shared) ---- */
+.btn {
+  font-family: var(--font-body);
+  font-size: 16px;
+  text-decoration: none;
+  border-radius: 100px;
+  padding: 14px 28px;
+  transition: transform 0.25s, box-shadow 0.35s;
+  display: inline-block;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: 0 0 0 0 rgba(243, 189, 118, 0.5);
+  animation: breathe 4.5s ease-in-out 2s infinite;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+}
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 26px -2px rgba(243, 189, 118, 0);
+  }
+  50% {
+    box-shadow: 0 0 34px 1px rgba(243, 189, 118, 0.45);
+  }
+}
+.btn-ghost {
+  color: var(--paper-dim);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  color: var(--paper);
+  border-color: rgba(236, 231, 221, 0.25);
+}
+
+/* ---- scroll reveal (driven by SectionReveal.astro) ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(34px);
+  transition: opacity 1s ease, transform 1s cubic-bezier(0.16, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ============================================================
+   prefers-reduced-motion — disable the dawn rise, drift, breathe,
+   blink, and all scroll reveals. Content is shown immediately.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
