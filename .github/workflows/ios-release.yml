@@ -18,6 +18,7 @@ on:
     branches: [master]
     paths-ignore:
       - 'prototypes/**'
+      - 'site/**'
       - 'docs/**'
       - '**/*.md'
       - 'api/**'

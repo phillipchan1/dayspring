@@ -9,6 +9,7 @@ on:
     branches: [stable]
     paths-ignore:
       - 'prototypes/**'
+      - 'site/**'
   workflow_dispatch:
 
 concurrency:
