@@ -36,7 +36,7 @@ const applePath =
     </button>
     <a
       href={downloads.macos.href}
-      class="dl"
+      class="dl dl-macos"
       data-dl-macos
       data-repo={releasesRepo}
       aria-label="Download for macOS"
@@ -186,9 +186,13 @@ const applePath =
     margin-left: 2px;
   }
 
-  /* mobile: collapse the text nav, keep the download pills */
+  /* mobile: collapse the text nav; hide the Mac .dmg so phone traffic
+     (FB/IG) is not sent at a desktop download. iOS Soon stays. */
   @media (max-width: 680px) {
     .navlinks a.txt {
+      display: none;
+    }
+    .navlinks a.dl-macos {
       display: none;
     }
     .navlinks {

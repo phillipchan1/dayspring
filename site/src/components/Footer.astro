@@ -1,7 +1,7 @@
 ---
 // Footer — closing line, a single soft CTA, and the link row.
 import SectionReveal from "./SectionReveal.astro";
-import { footerLinks } from "../content/site";
+import { footerLinks, trialCta } from "../content/site";
 
 interface Props {
   /** "full" = closing headline + CTA + links. "minimal" = just the link row
@@ -20,8 +20,8 @@ const {
   variant = "full",
   big = "Start today. Read the year later.",
   sub = "The page is free to try. The mirror comes with time.",
-  ctaLabel = "Start your 14-day trial",
-  ctaHref = "#",
+  ctaLabel = trialCta.label,
+  ctaHref = trialCta.href,
 } = Astro.props;
 ---
 
