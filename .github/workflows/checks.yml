@@ -1,0 +1,39 @@
+# The cheap gate Vera asked for: typecheck + the unit tests that already exist.
+# Without this file, PRs cannot be certified (past PRs failed as "no gate").
+#
+# Root package: `typecheck` (tsc -b --noEmit) and `test` (vitest run).
+# site/ is a separate package with `test` only — no typecheck script.
+# Deliberately not e2e, desktop, or iOS. Those stay on their own workflows.
+name: checks
+
+on:
+  push:
+    branches-ignore: []
+  pull_request:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          # 22, matching Nuvo: @supabase/supabase-js declares node >= 22.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      - run: npm ci
+      - name: Typecheck (app)
+        run: npm run typecheck
+      - name: Unit tests (app)
+        run: npm test
+      - name: Install site
+        run: npm ci --prefix site
+      - name: Unit tests (site)
+        run: npm test --prefix site
