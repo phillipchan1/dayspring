@@ -1,5 +1,9 @@
+// @vitest-environment jsdom
+import { EditorState } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 import { describe, expect, it } from 'vitest'
 import {
+  applyFormatCommand,
   filterSlashItems,
   firstCursor,
   itemAt,
@@ -7,6 +11,18 @@ import {
   slashColumns,
   type SlashItem,
 } from './slashCommands'
+
+function applyNumbered(doc: string, at?: number): string {
+  const state = EditorState.create({
+    doc,
+    selection: { anchor: at ?? doc.length },
+  })
+  const view = new EditorView({ state, parent: document.body })
+  applyFormatCommand(view, 'numbered')
+  const next = view.state.doc.toString()
+  view.destroy()
+  return next
+}
 
 describe('slashColumns', () => {
   it('leads with the Format column so the default cursor lands there', () => {
@@ -81,5 +97,25 @@ describe('cursor navigation', () => {
   it('resolves the item under the cursor', () => {
     expect(itemAt(cols, { col: 0, row: 0 })?.selection.id).toBe('scripture')
     expect(itemAt(cols, null)).toBeNull()
+  })
+})
+
+describe('Numbered list command continues the sequence', () => {
+  it('inserts 2. after an existing 1. at the same indent', () => {
+    expect(applyNumbered('1. first\n')).toBe('1. first\n2. ')
+  })
+
+  it('continues past interrupting bullets (the sermon-notes shape)', () => {
+    const doc = ['1. favor', '- nested', '- also nested', ''].join('\n')
+    expect(applyNumbered(doc)).toBe(['1. favor', '- nested', '- also nested', '2. '].join('\n'))
+  })
+
+  it('starts a nested list at 1. when indented under an ordered item', () => {
+    const doc = ['1. first', '   '].join('\n')
+    expect(applyNumbered(doc)).toBe(['1. first', '   1. '].join('\n'))
+  })
+
+  it('starts at 1. when nothing precedes the line', () => {
+    expect(applyNumbered('hello', 0)).toBe('1. hello')
   })
 })
