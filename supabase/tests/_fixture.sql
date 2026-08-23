@@ -18,7 +18,15 @@ create table if not exists public.entries (
   source        text not null default 'native' check (source in ('native', 'day_one', 'diarly', 'other')),
   external_id   text
 );
-alter table public.entries add column if not exists embedding real[];
+-- Server-derived columns, added by later migrations. They belong here because
+-- the whole point of the updated_at trigger is that writing one of these is not
+-- a user edit — a fixture without them can't tell whether that holds.
+alter table public.entries add column if not exists embedding real[];              -- 20260602000000_altar
+alter table public.entries add column if not exists prayer_scanned_at timestamptz; -- 20260602020000_altar_harvest
+alter table public.entries add column if not exists superseded boolean not null default false; -- 20260604130000_threads_v2
+alter table public.entries add column if not exists entry_lens text;               -- 20260604130000_threads_v2
+alter table public.entries add column if not exists entry_domain text;             -- 20260604130000_threads_v2
+alter table public.entries add column if not exists concordance_scanned_at timestamptz; -- 20260611120000_concordance
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
