@@ -130,7 +130,6 @@ fn suppress_ios_accessory_bar() {
 fn suppress_ios_edit_menu() {
   use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
   use objc2::sel;
-  use std::ffi::CStr;
   use std::sync::atomic::{AtomicBool, Ordering};
 
   static DONE: AtomicBool = AtomicBool::new(false);
