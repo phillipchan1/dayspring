@@ -11,6 +11,12 @@ import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, typ
  * in; i, ii, iii two levels in — matching the `ol ol` / `ol ol ol` CSS used
  * for rendered/printed entries), without touching the underlying text.
  *
+ * The first item's typed number is honored as a start at the top level
+ * (CommonMark / `<ol start>`), so a new list that begins at `2.` after an
+ * interrupting bullet list displays 2, not 1. Nested lists still count from
+ * 1 — Tab-indented continuation leaves a leftover `2.` that should read as
+ * `a.`, not `b.`.
+ *
  * A marker is left as raw digits while the selection overlaps it, so hand-
  * editing the number still works normally.
  */
@@ -65,6 +71,14 @@ function labelFor(depth: number, index: number): string {
   }
 }
 
+/** Digits from a `ListMark` (`1.`, `12)`). CommonMark allows a 0 start. */
+function typedStart(mark: string): number {
+  const m = /^(\d+)[.)]/.exec(mark)
+  if (!m) return 1
+  const n = Number.parseInt(m[1] ?? '', 10)
+  return Number.isFinite(n) && n >= 0 ? n : 1
+}
+
 class ListLabelWidget extends WidgetType {
   constructor(readonly label: string) {
     super()
@@ -100,7 +114,11 @@ function buildDecorations(view: EditorView): DecorationSet {
         const grandparent = parent?.parent
         if (grandparent?.name === 'OrderedList' && counters.length > 0) {
           const depth = counters.length
-          const index = (counters[depth - 1] ?? 0) + 1
+          const prev = counters[depth - 1] ?? 0
+          const index =
+            prev === 0 && depth === 1
+              ? typedStart(view.state.doc.sliceString(node.from, node.to))
+              : prev + 1
           counters[depth - 1] = index
           if (!selectionOverlaps(view, node.from, node.to)) {
             builder.add(node.from, node.to, Decoration.replace({ widget: new ListLabelWidget(labelFor(depth, index)) }))
