@@ -153,13 +153,13 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
     if (!el) return
     const onScroll = () => measureFade()
     el.addEventListener('scroll', onScroll, { passive: true })
-    const ro = new ResizeObserver(measureFade)
-    ro.observe(el)
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureFade)
+    ro?.observe(el)
     const vv = window.visualViewport
     vv?.addEventListener('resize', measureFade)
     return () => {
       el.removeEventListener('scroll', onScroll)
-      ro.disconnect()
+      ro?.disconnect()
       vv?.removeEventListener('resize', measureFade)
     }
   }, [anchor, page, measureFade])
