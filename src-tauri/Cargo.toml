@@ -62,6 +62,15 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "block2",
   "NSNotification",
   "NSOperation",
+  "NSRange",
   "NSString",
+] }
+# CGRect / CGPoint / CGSize already implement objc2::Encode. Local
+# lookalikes do not, and `msg_send!` will not compile without it
+# (TestFlight aarch64-apple-ios, three E0277s).
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "objc2",
+  "CFCGTypes",
 ] }
 block2 = "0.6"

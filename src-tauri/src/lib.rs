@@ -414,6 +414,7 @@ fn present_lookup(term: &str) {
 fn present_share(text: &str) {
   use objc2::msg_send;
   use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_core_foundation::{CGRect, CGSize};
   use objc2_foundation::NSString;
 
   let Some(cls) = AnyClass::get(c"UIActivityViewController") else {
@@ -438,32 +439,10 @@ fn present_share(text: &str) {
       let window = key_window();
       if !window.is_null() {
         let _: () = msg_send![pop, setSourceView: window];
-        #[repr(C)]
-        struct CGPoint {
-          x: f64,
-          y: f64,
-        }
-        #[repr(C)]
-        struct CGSize {
-          width: f64,
-          height: f64,
-        }
-        #[repr(C)]
-        struct CGRect {
-          origin: CGPoint,
-          size: CGSize,
-        }
+        // Official CGRect implements Encode; a local lookalike does not, and
+        // `msg_send!` rejects it (E0277) when compiling aarch64-apple-ios.
         let bounds: CGRect = msg_send![window, bounds];
-        let rect = CGRect {
-          origin: CGPoint {
-            x: bounds.origin.x + bounds.size.width * 0.5,
-            y: bounds.origin.y + bounds.size.height * 0.5,
-          },
-          size: CGSize {
-            width: 1.0,
-            height: 1.0,
-          },
-        };
+        let rect = CGRect::new(bounds.mid(), CGSize::new(1.0, 1.0));
         let _: () = msg_send![pop, setSourceRect: rect];
       }
     }
@@ -535,7 +514,7 @@ fn preferred_language() -> objc2::rc::Retained<objc2_foundation::NSString> {
 fn text_guesses(word: &str) -> Vec<String> {
   use objc2::msg_send;
   use objc2::runtime::{AnyClass, AnyObject};
-  use objc2_foundation::NSString;
+  use objc2_foundation::{NSRange, NSString};
   use std::ffi::CStr;
 
   let Some(cls) = AnyClass::get(c"UITextChecker") else {
@@ -549,16 +528,10 @@ fn text_guesses(word: &str) -> Vec<String> {
     if checker.is_null() {
       return Vec::new();
     }
-    #[repr(C)]
-    struct NSRange {
-      location: usize,
-      length: usize,
-    }
     let length: usize = msg_send![&*ns, length];
-    let range = NSRange {
-      location: 0,
-      length,
-    };
+    // Official NSRange implements Encode (`_NSRange`); a local lookalike does
+    // not, and `guessesForWordRange:` will not compile without it.
+    let range = NSRange::new(0, length);
     let guesses: *mut AnyObject =
       msg_send![checker, guessesForWordRange: range, inString: &*ns, language: &*lang];
     if guesses.is_null() {
