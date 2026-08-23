@@ -47,6 +47,8 @@ fn reclaim_ios_viewport(webview: tauri::webview::PlatformWebview) {
   }
 
   suppress_ios_accessory_bar();
+  suppress_ios_edit_menu();
+  IOS_WK.store(wk as usize, std::sync::atomic::Ordering::SeqCst);
 }
 
 /// Hide iOS's own form accessory bar — the grey `^ ⌄ … Done` strip that WebKit
@@ -104,6 +106,478 @@ fn suppress_ios_accessory_bar() {
       no_accessory_view,
     );
     method.set_implementation(imp);
+  }
+}
+
+/// Hide iOS's text-selection edit menu (Copy / Look Up / Translate / Share).
+///
+/// The web layer already mounts `SelectionFormatBar` on every non-empty
+/// selection. On iOS that pill loses to `UIEditMenuInteraction`, which lives in
+/// a UIKit window above the WKWebView — CSS z-index cannot cover it. So the
+/// system bubble is suppressed here, and the format bar re-hosts every item
+/// the native menu used to offer.
+///
+/// iOS 16+: no-op `-[UIEditMenuInteraction presentEditMenuWithConfiguration:]`
+/// and return an empty menu from WKContentView's delegate builder. iOS 15:
+/// swallow `-[UIMenuController setMenuVisible:animated:]` when showing.
+///
+/// `canPerformAction:withSender:` is left alone so Cut / Copy / Paste still
+/// work as first-responder actions if anything else asks.
+///
+/// Same fallible-once pattern as the accessory bar. If a selector disappears
+/// the stock menu comes back and nothing downstream depends on this.
+#[cfg(target_os = "ios")]
+fn suppress_ios_edit_menu() {
+  use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+  use objc2::sel;
+  use std::sync::atomic::{AtomicBool, Ordering};
+
+  static DONE: AtomicBool = AtomicBool::new(false);
+  if DONE.swap(true, Ordering::SeqCst) {
+    return;
+  }
+
+  // --- iOS 16+ present-time backstop ---------------------------------------
+  if let Some(cls) = AnyClass::get(c"UIEditMenuInteraction") {
+    if let Some(method) = cls.instance_method(sel!(presentEditMenuWithConfiguration:)) {
+      extern "C" fn no_present(_this: &AnyObject, _cmd: Sel, _config: *mut AnyObject) {}
+      unsafe {
+        let imp: Imp = std::mem::transmute::<extern "C" fn(&AnyObject, Sel, *mut AnyObject), Imp>(
+          no_present,
+        );
+        method.set_implementation(imp);
+      }
+    } else {
+      log::warn!("edit menu: UIEditMenuInteraction has no -presentEditMenuWithConfiguration:");
+    }
+  }
+
+  // --- iOS 16+ menu builder on the content view ----------------------------
+  if let Some(cls) = AnyClass::get(c"WKContentView") {
+    let sel = sel!(editMenuInteraction:menuForConfiguration:suggestedActions:);
+    if let Some(method) = cls.instance_method(sel) {
+      extern "C" fn empty_menu(
+        _this: &AnyObject,
+        _cmd: Sel,
+        _interaction: *mut AnyObject,
+        _config: *mut AnyObject,
+        _suggested: *mut AnyObject,
+      ) -> *mut AnyObject {
+        empty_uimenu()
+      }
+      unsafe {
+        let imp: Imp = std::mem::transmute::<
+          extern "C" fn(&AnyObject, Sel, *mut AnyObject, *mut AnyObject, *mut AnyObject) -> *mut AnyObject,
+          Imp,
+        >(empty_menu);
+        method.set_implementation(imp);
+      }
+    }
+  }
+
+  // --- iOS 15 UIMenuController ---------------------------------------------
+  if let Some(cls) = AnyClass::get(c"UIMenuController") {
+    if let Some(method) = cls.instance_method(sel!(setMenuVisible:animated:)) {
+      extern "C" fn no_show(this: &AnyObject, cmd: Sel, visible: bool, animated: bool) {
+        if visible {
+          return;
+        }
+        // Still allow hides so a leftover menu can dismiss.
+        let _ = (this, cmd, animated);
+      }
+      unsafe {
+        let imp: Imp =
+          std::mem::transmute::<extern "C" fn(&AnyObject, Sel, bool, bool), Imp>(no_show);
+        method.set_implementation(imp);
+      }
+    }
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn empty_uimenu() -> *mut objc2::runtime::AnyObject {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_foundation::NSString;
+
+  let Some(cls) = AnyClass::get(c"UIMenu") else {
+    return std::ptr::null_mut();
+  };
+  let title = NSString::from_str("");
+  let Some(arr_cls) = AnyClass::get(c"NSArray") else {
+    return std::ptr::null_mut();
+  };
+  unsafe {
+    let children: *mut AnyObject = msg_send![arr_cls, array];
+    msg_send![cls, menuWithTitle: &*title, children: children]
+  }
+}
+
+/// WKWebView pointer, stored so selection-menu commands can find a window.
+#[cfg(target_os = "ios")]
+static IOS_WK: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// Look Up / Share / Search Web / Translate / Replace guesses — the system
+/// edit-menu items the format bar now owns. No-op on every other platform so
+/// the front end can invoke without a platform check.
+#[tauri::command]
+fn ios_selection_action(action: String, text: String) -> Result<Option<Vec<String>>, String> {
+  #[cfg(not(target_os = "ios"))]
+  {
+    let _ = (action, text);
+    return Ok(None);
+  }
+  #[cfg(target_os = "ios")]
+  {
+    ios_selection_action_impl(&action, &text)
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn ios_selection_action_impl(action: &str, text: &str) -> Result<Option<Vec<String>>, String> {
+  let trimmed = text.trim();
+  if trimmed.is_empty() {
+    return Ok(None);
+  }
+  match action {
+    "guesses" => Ok(Some(text_guesses(trimmed))),
+    "lookup" => {
+      run_on_main({
+        let t = trimmed.to_string();
+        move || present_lookup(&t)
+      });
+      Ok(None)
+    }
+    "share" => {
+      run_on_main({
+        let t = trimmed.to_string();
+        move || present_share(&t)
+      });
+      Ok(None)
+    }
+    "search" => {
+      run_on_main({
+        let t = trimmed.to_string();
+        move || open_url(&format!("x-web-search://?{}", encode_query(&t)))
+      });
+      Ok(None)
+    }
+    "translate" => {
+      run_on_main({
+        let t = trimmed.to_string();
+        move || {
+          open_url(&format!(
+            "https://translate.google.com/?sl=auto&tl=auto&text={}",
+            encode_query(&t)
+          ))
+        }
+      });
+      Ok(None)
+    }
+    _ => Ok(None),
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn encode_query(s: &str) -> String {
+  let mut out = String::new();
+  for b in s.as_bytes() {
+    match *b {
+      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+        out.push(*b as char)
+      }
+      b' ' => out.push_str("%20"),
+      other => out.push_str(&format!("%{other:02X}")),
+    }
+  }
+  out
+}
+
+#[cfg(target_os = "ios")]
+fn run_on_main(f: impl FnOnce() + Send + 'static) {
+  use block2::RcBlock;
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2::MainThreadMarker;
+  use std::sync::Mutex;
+
+  if MainThreadMarker::new().is_some() {
+    f();
+    return;
+  }
+  let cell = Mutex::new(Some(f));
+  let block = RcBlock::new(move || {
+    if let Some(func) = cell.lock().ok().and_then(|mut g| g.take()) {
+      func();
+    }
+  });
+  let Some(cls) = AnyClass::get(c"NSOperationQueue") else {
+    log::warn!("selection action: no NSOperationQueue");
+    return;
+  };
+  unsafe {
+    let queue: *mut AnyObject = msg_send![cls, mainQueue];
+    if !queue.is_null() {
+      let _: () = msg_send![queue, addOperationWithBlock: &*block];
+    }
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn key_window() -> *mut objc2::runtime::AnyObject {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+
+  let wk = IOS_WK.load(std::sync::atomic::Ordering::SeqCst) as *mut AnyObject;
+  if !wk.is_null() {
+    let window: *mut AnyObject = unsafe { msg_send![wk, window] };
+    if !window.is_null() {
+      return window;
+    }
+  }
+  let Some(app_cls) = AnyClass::get(c"UIApplication") else {
+    return std::ptr::null_mut();
+  };
+  unsafe {
+    let app: *mut AnyObject = msg_send![app_cls, sharedApplication];
+    if app.is_null() {
+      return std::ptr::null_mut();
+    }
+    msg_send![app, keyWindow]
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn top_view_controller() -> *mut objc2::runtime::AnyObject {
+  use objc2::msg_send;
+  use objc2::runtime::AnyObject;
+
+  let window = key_window();
+  if window.is_null() {
+    return std::ptr::null_mut();
+  }
+  unsafe {
+    let mut vc: *mut AnyObject = msg_send![window, rootViewController];
+    while !vc.is_null() {
+      let presented: *mut AnyObject = msg_send![vc, presentedViewController];
+      if presented.is_null() {
+        break;
+      }
+      vc = presented;
+    }
+    vc
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn present(sheet: *mut objc2::runtime::AnyObject) {
+  use objc2::msg_send;
+  use objc2::runtime::AnyObject;
+
+  if sheet.is_null() {
+    return;
+  }
+  let host = top_view_controller();
+  if host.is_null() {
+    log::warn!("selection action: no view controller to present on");
+    return;
+  }
+  unsafe {
+    let _: () = msg_send![
+      host,
+      presentViewController: sheet,
+      animated: true,
+      completion: std::ptr::null::<AnyObject>()
+    ];
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn present_lookup(term: &str) {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_foundation::NSString;
+
+  let Some(cls) = AnyClass::get(c"UIReferenceLibraryViewController") else {
+    log::warn!("lookup: no UIReferenceLibraryViewController");
+    return;
+  };
+  let ns = NSString::from_str(term);
+  unsafe {
+    let alloc: *mut AnyObject = msg_send![cls, alloc];
+    let vc: *mut AnyObject = msg_send![alloc, initWithTerm: &*ns];
+    present(vc);
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn present_share(text: &str) {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_foundation::NSString;
+
+  let Some(cls) = AnyClass::get(c"UIActivityViewController") else {
+    log::warn!("share: no UIActivityViewController");
+    return;
+  };
+  let Some(arr_cls) = AnyClass::get(c"NSArray") else {
+    return;
+  };
+  let ns = NSString::from_str(text);
+  unsafe {
+    let items: *mut AnyObject = msg_send![arr_cls, arrayWithObject: &*ns];
+    let alloc: *mut AnyObject = msg_send![cls, alloc];
+    let vc: *mut AnyObject = msg_send![
+      alloc,
+      initWithActivityItems: items,
+      applicationActivities: std::ptr::null::<AnyObject>()
+    ];
+    // iPad refuses to present an activity sheet without a popover source.
+    let pop: *mut AnyObject = msg_send![vc, popoverPresentationController];
+    if !pop.is_null() {
+      let window = key_window();
+      if !window.is_null() {
+        let _: () = msg_send![pop, setSourceView: window];
+        #[repr(C)]
+        struct CGPoint {
+          x: f64,
+          y: f64,
+        }
+        #[repr(C)]
+        struct CGSize {
+          width: f64,
+          height: f64,
+        }
+        #[repr(C)]
+        struct CGRect {
+          origin: CGPoint,
+          size: CGSize,
+        }
+        let bounds: CGRect = msg_send![window, bounds];
+        let rect = CGRect {
+          origin: CGPoint {
+            x: bounds.origin.x + bounds.size.width * 0.5,
+            y: bounds.origin.y + bounds.size.height * 0.5,
+          },
+          size: CGSize {
+            width: 1.0,
+            height: 1.0,
+          },
+        };
+        let _: () = msg_send![pop, setSourceRect: rect];
+      }
+    }
+    present(vc);
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn open_url(url: &str) {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_foundation::NSString;
+
+  let Some(url_cls) = AnyClass::get(c"NSURL") else {
+    return;
+  };
+  let Some(app_cls) = AnyClass::get(c"UIApplication") else {
+    return;
+  };
+  let Some(dict_cls) = AnyClass::get(c"NSDictionary") else {
+    return;
+  };
+  let ns = NSString::from_str(url);
+  unsafe {
+    let nsurl: *mut AnyObject = msg_send![url_cls, URLWithString: &*ns];
+    if nsurl.is_null() {
+      return;
+    }
+    let app: *mut AnyObject = msg_send![app_cls, sharedApplication];
+    let opts: *mut AnyObject = msg_send![dict_cls, dictionary];
+    if app.is_null() {
+      return;
+    }
+    let _: () = msg_send![
+      app,
+      openURL: nsurl,
+      options: opts,
+      completionHandler: std::ptr::null::<AnyObject>()
+    ];
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn preferred_language() -> objc2::rc::Retained<objc2_foundation::NSString> {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_foundation::NSString;
+  use std::ffi::CStr;
+
+  if let Some(cls) = AnyClass::get(c"NSLocale") {
+    unsafe {
+      let langs: *mut AnyObject = msg_send![cls, preferredLanguages];
+      if !langs.is_null() {
+        let first: *mut AnyObject = msg_send![langs, firstObject];
+        if !first.is_null() {
+          let utf8: *const i8 = msg_send![first, UTF8String];
+          if !utf8.is_null() {
+            let s = CStr::from_ptr(utf8).to_string_lossy();
+            return NSString::from_str(&s);
+          }
+        }
+      }
+    }
+  }
+  NSString::from_str("en")
+}
+
+#[cfg(target_os = "ios")]
+fn text_guesses(word: &str) -> Vec<String> {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+  use objc2_foundation::NSString;
+  use std::ffi::CStr;
+
+  let Some(cls) = AnyClass::get(c"UITextChecker") else {
+    return Vec::new();
+  };
+  let ns = NSString::from_str(word);
+  let lang = preferred_language();
+  unsafe {
+    let alloc: *mut AnyObject = msg_send![cls, alloc];
+    let checker: *mut AnyObject = msg_send![alloc, init];
+    if checker.is_null() {
+      return Vec::new();
+    }
+    #[repr(C)]
+    struct NSRange {
+      location: usize,
+      length: usize,
+    }
+    let length: usize = msg_send![&*ns, length];
+    let range = NSRange {
+      location: 0,
+      length,
+    };
+    let guesses: *mut AnyObject =
+      msg_send![checker, guessesForWordRange: range, inString: &*ns, language: &*lang];
+    if guesses.is_null() {
+      return Vec::new();
+    }
+    let count: usize = msg_send![guesses, count];
+    let mut out = Vec::with_capacity(count.min(8));
+    for i in 0..count.min(8) {
+      let item: *mut AnyObject = msg_send![guesses, objectAtIndex: i];
+      if item.is_null() {
+        continue;
+      }
+      let utf8: *const i8 = msg_send![item, UTF8String];
+      if utf8.is_null() {
+        continue;
+      }
+      out.push(CStr::from_ptr(utf8).to_string_lossy().into_owned());
+    }
+    out
   }
 }
 
@@ -254,7 +728,11 @@ pub fn run() {
     .plugin(tauri_plugin_store::Builder::new().build())
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_deep_link::init())
-    .invoke_handler(tauri::generate_handler![open_devtools, set_privacy_screen]);
+    .invoke_handler(tauri::generate_handler![
+      open_devtools,
+      set_privacy_screen,
+      ios_selection_action
+    ]);
 
   // The updater plugin is desktop-only.
   #[cfg(desktop)]
