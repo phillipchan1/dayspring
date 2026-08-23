@@ -11,6 +11,14 @@
 // the server refuses to overwrite anything newer. When two devices really have
 // edited the same entry, the device being typed on keeps it and the other
 // version is preserved as its own entry rather than discarded.
+//
+// "Really have" is load-bearing, and is why each row also remembers the body it
+// last agreed with the server on (`base_body_markdown`). A refused push means
+// the timestamp moved, which is not the same as someone having written
+// something: server-side bookkeeping, a lost response, a clock. Judged without
+// the common ancestor, an ordinary typo fix looked like a second author and
+// preserving "both" versions forked the entry into a full copy and a partial
+// one. See `divergedFromBase` and lib/repo.conflict.test.ts.
 
 import {
   listAllEntries as serverListAll,
@@ -23,7 +31,15 @@ import {
 import * as cache from './db'
 import { syncStore } from './sync'
 import { isAuthInvalidation, forceReauth } from './authError'
-import { maxUpdatedAt, shouldAdoptServerRow, shouldApplyRemote, subsumes } from './entryVersion'
+import {
+  divergedFromBase,
+  maxUpdatedAt,
+  shouldAdoptRemoteTimestamp,
+  shouldAdoptServerRow,
+  shouldApplyRemote,
+  withServerBase,
+} from './entryVersion'
+import { conflictShadowId } from './conflictShadowId'
 import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
 import type { Entry, NewEntry } from './types'
 
@@ -221,22 +237,34 @@ async function queueDerive(entryId: string): Promise<void> {
  *
  * The device being typed on keeps the entry — interrupting someone mid-sentence
  * to adjudicate a merge would be worse than the problem. The version that loses
- * is written to a new row carrying the SAME `created_at`, so it lands on the
- * right day in the journal and can be read, compared and merged by hand later.
- * The text is copied verbatim; nothing is annotated into the user's words.
+ * is written to a row carrying the SAME `created_at`, so it lands on the right
+ * day in the journal and can be read, compared and merged by hand later. The
+ * text is copied verbatim; nothing is annotated into the user's words.
+ *
+ * Two things keep this from becoming the duplicate-entry bug it is meant to
+ * prevent. `divergedFromBase` asks whether the server actually holds writing we
+ * don't, rather than whether the two bodies happen to differ. And the row id
+ * names the version it holds, so arriving here twice for the same one — a
+ * rebase, a retried push, the other device reaching the same conclusion —
+ * converges on a single row instead of adding another.
  */
 async function preserveLosingVersion(local: Entry, server: Entry): Promise<void> {
-  if (subsumes(local.body_markdown, server.body_markdown)) return
+  if (!divergedFromBase(local, server.body_markdown)) return
+  const id = await conflictShadowId(server.id, server.updated_at)
+  // Already preserved. Re-putting would overwrite whatever the user has since
+  // made of that row.
+  if (await cache.cacheGet(id)) return
   const shadow: Entry = {
     ...server,
-    id: crypto.randomUUID(),
+    id,
     // A fresh row of our own: never inherit the import-dedup identity.
     source: 'native',
     external_id: null,
   }
-  // Server rows never carry it, but the shadow must not start life looking like
-  // it holds unpushed local edits.
+  // Server rows never carry these, but the shadow must not start life looking
+  // like it holds unpushed local edits, nor claim an ancestor it never had.
   delete shadow.local_edited_at
+  delete shadow.base_body_markdown
   await cache.cachePut(shadow)
   await queueUpsert(shadow.id)
 }
@@ -268,11 +296,12 @@ async function pushEntry(row: Entry): Promise<void> {
       const current = await cache.cacheGet(row.id)
       if (!current) return // deleted while in flight; the delete op handles it
       if (shouldAdoptServerRow(row, current)) {
-        await cache.cachePut(server)
+        await cache.cachePut(withServerBase(server))
       } else {
         // The row changed while the push was in flight. Keep that newer local
-        // body — it queued its own op — but still take the server's timestamp:
-        // the write DID land, so this is the version the next push is based on.
+        // body — it queued its own op — but still take the server's timestamp
+        // and body as the base: the write DID land, so this is the version the
+        // next push is based on.
         //
         // Skipping this entirely was subtly wrong. The next push would declare a
         // base the server had already moved past and get back a false conflict,
@@ -280,13 +309,24 @@ async function pushEntry(row: Entry): Promise<void> {
         // copy — so it would have been preserved as a shadow entry. A stray
         // duplicate of your own paragraph, from nothing but backspacing at the
         // wrong moment.
-        await cache.cachePut({ ...current, updated_at: server.updated_at })
+        await cache.cachePut({
+          ...current,
+          updated_at: server.updated_at,
+          base_body_markdown: server.body_markdown,
+        })
       }
       return
     }
     await preserveLosingVersion(attempt, server)
-    // Retry from their version as the base, now that theirs is safe.
-    attempt = { ...attempt, updated_at: server.updated_at }
+    // Retry from their version as the base, now that theirs is safe. Their body
+    // becomes the common ancestor too — it is the newest version both sides have
+    // now seen, so a second conflict is judged against it rather than against
+    // whatever we last agreed on before this push began.
+    attempt = {
+      ...attempt,
+      updated_at: server.updated_at,
+      base_body_markdown: server.body_markdown,
+    }
   }
   // Still racing after several rounds. Leave the op queued rather than force the
   // write: the next flush retries, and nothing has been lost either way.
@@ -384,23 +424,35 @@ function scheduleFlush(delay = 1500): void {
   }, delay)
 }
 
-/** Apply a remote row using the same last-write-wins rules as sync(). */
+/**
+ * Apply a remote row using the same last-write-wins rules as sync().
+ *
+ * 'rebased' is the third answer: we keep our body but take their timestamp,
+ * because theirs is the version we already hold and only its clock moved. It
+ * changes nothing on screen, and everything about what the next push declares.
+ */
 export async function mergeRemoteEntry(
   remote: Entry,
   preserveId?: string | null,
   pendingIds?: Set<string>,
-): Promise<'applied' | 'skipped'> {
+): Promise<'applied' | 'rebased' | 'skipped'> {
   const pending = pendingIds ?? new Set((await cache.outboxAll()).map((o) => o.entryId))
   const local = await cache.cacheGet(remote.id)
   const apply = shouldApplyRemote(remote, local, {
     pending: pending.has(remote.id),
     preserved: remote.id === preserveId,
   })
-  if (!apply) return 'skipped'
+  if (apply) {
+    await cache.cachePut(withServerBase(remote))
+    syncStore.setSynced(Date.now())
+    return 'applied'
+  }
 
-  await cache.cachePut(remote)
-  syncStore.setSynced(Date.now())
-  return 'applied'
+  if (shouldAdoptRemoteTimestamp(remote, local)) {
+    await cache.cachePut({ ...(local as Entry), updated_at: remote.updated_at })
+    return 'rebased'
+  }
+  return 'skipped'
 }
 
 /** Apply a remote delete; skip echoes of our own deletes and in-flight local edits. */
@@ -450,21 +502,34 @@ export async function applyRemoteChanges(
   const localMap = new Map((await cache.cacheGetAll()).map((e) => [e.id, e]))
   const pendingIds = new Set((await cache.outboxAll()).map((o) => o.entryId))
 
-  const effective = changes.filter((change) =>
-    change.kind === 'delete'
-      ? localMap.has(change.entryId) && !pendingIds.has(change.entryId)
-      : shouldApplyRemote(change.entry, localMap.get(change.entry.id), {
-          pending: pendingIds.has(change.entry.id),
-          preserved: change.entry.id === preserveId,
-        }),
-  )
-  if (effective.length === 0) return { deletedIds: [], upserted: [] }
-  if (effective.length >= RESYNC_BURST_THRESHOLD) return 'resync'
+  const verdictFor = (change: RemoteEntryChange): 'visible' | 'rebase' | 'skip' => {
+    if (change.kind === 'delete') {
+      return localMap.has(change.entryId) && !pendingIds.has(change.entryId) ? 'visible' : 'skip'
+    }
+    const local = localMap.get(change.entry.id)
+    const apply = shouldApplyRemote(change.entry, local, {
+      pending: pendingIds.has(change.entry.id),
+      preserved: change.entry.id === preserveId,
+    })
+    if (apply) return 'visible'
+    return shouldAdoptRemoteTimestamp(change.entry, local) ? 'rebase' : 'skip'
+  }
+
+  const decided = changes.map((change) => ({ change, verdict: verdictFor(change) }))
+  const actionable = decided.filter((d) => d.verdict !== 'skip')
+  if (actionable.length === 0) return { deletedIds: [], upserted: [] }
+  // Only VISIBLE changes argue for pulling the library instead. A rebase writes
+  // one cached row, renders nothing, and a full pull would reach the same answer
+  // the expensive way — counting them here would turn a burst of invisible
+  // timestamp moves into the very re-download this threshold exists to avoid.
+  if (decided.filter((d) => d.verdict === 'visible').length >= RESYNC_BURST_THRESHOLD) {
+    return 'resync'
+  }
 
   const deletedIds: string[] = []
   const upserted: Entry[] = []
 
-  for (const change of effective) {
+  for (const { change } of actionable) {
     if (change.kind === 'delete') {
       if ((await mergeRemoteDelete(change.entryId, pendingIds)) === 'applied') {
         deletedIds.push(change.entryId)
@@ -516,7 +581,16 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
       const local = localMap.get(s.id)
       const keepLocal =
         !!local && (pending.has(s.id) || s.id === preserveId || local.updated_at > s.updated_at)
-      merged.push(keepLocal ? (local as Entry) : s)
+      if (!keepLocal) {
+        merged.push(withServerBase(s))
+        continue
+      }
+      // Keeping our body must not mean keeping a base the server has passed —
+      // that is what leaves the next push declaring a version that no longer
+      // exists. Safe here for the same reason as in mergeRemoteEntry: their body
+      // is the one we already hold.
+      const l = local as Entry
+      merged.push(shouldAdoptRemoteTimestamp(s, l) ? { ...l, updated_at: s.updated_at } : l)
     }
     // Local-only rows: keep ONLY if they have a pending outbox op (i.e. created
     // offline and not yet pushed). If a local entry is absent from the server AND
@@ -598,19 +672,27 @@ export async function syncChanged(preserveId?: string | null): Promise<Entry[] |
 
     const pending = new Set((await cache.outboxAll()).map((o) => o.entryId))
     const toPut: Entry[] = []
+    let visible = 0
     for (const s of changed) {
       const local = await cache.cacheGet(s.id)
       const keepLocal =
         !!local && (pending.has(s.id) || s.id === preserveId || local.updated_at > s.updated_at)
-      if (!keepLocal) toPut.push(s)
+      if (!keepLocal) {
+        toPut.push(withServerBase(s))
+        visible++
+      } else if (shouldAdoptRemoteTimestamp(s, local)) {
+        // Their timestamp, our body — see sync(). Deliberately not counted as
+        // visible: nothing on screen changed.
+        toPut.push({ ...(local as Entry), updated_at: s.updated_at })
+      }
     }
     const newMax = maxUpdatedAt(changed)
     if (newMax && newMax > syncCursor) syncCursor = newMax
 
+    if (toPut.length) await cache.cachePutMany(toPut)
     // Everything the server returned was our own echo / already-newer-local —
-    // nothing to write, so don't churn the list.
-    if (toPut.length === 0) return null
-    await cache.cachePutMany(toPut)
+    // nothing the list would render differently, so don't churn it.
+    if (visible === 0) return null
     return (await cache.cacheGetAll()).sort(byCreatedDesc)
   } catch (e) {
     if (isAuthInvalidation(e)) {
