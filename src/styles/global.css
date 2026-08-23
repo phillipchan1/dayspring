@@ -1139,6 +1139,8 @@ a {
 .format-bar--touch .format-bar__btn,
 .format-bar--touch .format-bar__guess,
 .format-bar--touch .format-bar__chevron {
+  width: auto;
+  height: auto;
   min-width: 44px;
   min-height: 44px;
   padding: 0 0.72rem;

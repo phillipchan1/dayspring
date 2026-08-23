@@ -22,7 +22,7 @@ import {
 import { HIGHLIGHT_LABELS, HIGHLIGHT_ORDER } from '@/lib/highlightColors'
 import { isIOSTauri } from '@/lib/platform'
 import { iosSelectionAction } from '@/lib/iosSelection'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   copySelection,
   cutSelection,
@@ -105,7 +105,11 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
   const [pos, setPos] = useState({ left: 0, top: 0 })
   const ios = isIOSTauri()
   const coarse = useMediaQuery('(pointer: coarse)')
-  const touch = ios || coarse
+  const phone = useIsMobile()
+  // Phone-width counts even when Chrome's device mode lies about `pointer:
+  // coarse` (it almost always does). iPad + finger still arrives via coarse;
+  // iOS Tauri always does.
+  const touch = ios || coarse || phone
   /**
    * The colour row (and on iOS the system-menu overflow / Replace guesses)
    * replace the bar's own contents rather than opening a second floating
