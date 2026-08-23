@@ -1164,7 +1164,7 @@ a {
 }
 .format-bar--touch .format-bar__word,
 .format-bar--touch .format-bar__glyph {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
