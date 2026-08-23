@@ -26,6 +26,20 @@ export interface Entry {
    * while it was in flight.
    */
   local_edited_at?: number
+  /**
+   * Local-only (never sent, never returned): the body as of the last server row
+   * this device adopted — the common ancestor of our copy and theirs.
+   *
+   * Without it a conflict can only be judged by comparing two bodies to each
+   * other, which cannot tell "they wrote something we don't have" apart from
+   * "our timestamp went stale and theirs is the version we already had". Those
+   * demand opposite answers, and guessing wrong forks the entry in two. See
+   * `divergedFromBase` and `pushEntry`.
+   *
+   * Undefined for a row created offline and never yet pushed, and for rows
+   * cached before this field existed.
+   */
+  base_body_markdown?: string
 }
 
 /** Fields the client sets when creating a native entry. */
