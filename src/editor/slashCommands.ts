@@ -1,3 +1,4 @@
+import type { Text } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { applyFormat } from './formatSelection'
 import type { SlashCommandId } from './slashDetect'
@@ -310,6 +311,35 @@ function setLinePrefix(view: EditorView, prefix: string): void {
   view.focus()
 }
 
+const ORDERED_MARK_RE = /^(\s*)(\d+)[.)]\s+/
+
+/**
+ * Next `N. ` at `indent`, from the nearest preceding ordered item at that
+ * indent. More-indented lines are skipped (nested content); a less-indented
+ * ordered item ends the search so a nested list starts at 1.
+ */
+function nextOrderedPrefix(doc: Text, lineNumber: number, indent: string): string {
+  for (let n = lineNumber - 1; n >= 1; n--) {
+    const text = doc.line(n).text
+    const m = ORDERED_MARK_RE.exec(text)
+    if (!m) continue
+    const foundIndent = m[1] ?? ''
+    if (foundIndent === indent) {
+      const num = Number.parseInt(m[2] ?? '1', 10)
+      return `${Number.isFinite(num) ? num + 1 : 1}. `
+    }
+    if (foundIndent.length < indent.length) break
+  }
+  return '1. '
+}
+
+function setNumberedListPrefix(view: EditorView): void {
+  const pos = view.state.selection.main.head
+  const line = view.state.doc.lineAt(pos)
+  const { indent } = stripBlockPrefix(line.text)
+  setLinePrefix(view, nextOrderedPrefix(view.state.doc, line.number, indent))
+}
+
 function insertDivider(view: EditorView): void {
   const pos = view.state.selection.main.head
   const line = view.state.doc.lineAt(pos)
@@ -352,7 +382,7 @@ export function applyFormatCommand(view: EditorView, id: FormatCommandId): void 
       setLinePrefix(view, '- ')
       return
     case 'numbered':
-      setLinePrefix(view, '1. ')
+      setNumberedListPrefix(view)
       return
     case 'todo':
       setLinePrefix(view, '- [ ] ')
