@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { maxUpdatedAt, shouldAdoptServerRow, shouldApplyRemote, subsumes } from './entryVersion'
+import {
+  divergedFromBase,
+  maxUpdatedAt,
+  shouldAdoptRemoteTimestamp,
+  shouldAdoptServerRow,
+  shouldApplyRemote,
+  subsumes,
+  withServerBase,
+} from './entryVersion'
 import type { Entry } from './types'
 
 function entry(over: Partial<Entry> = {}): Entry {
@@ -73,6 +81,96 @@ describe('subsumes — the guard against manufacturing duplicate entries', () =>
     const ours = 'first paragraph'
     const theirs = 'first paragraph\n\nsecond paragraph they added'
     expect(subsumes(ours, theirs)).toBe(false)
+  })
+
+  it('ignores reflow INSIDE the text, not just at its edges', () => {
+    // The editor normalises block separation as text moves through it. Reading a
+    // reflowed blank line as divergence is enough to fork an entry.
+    const theirs = 'first line\n\n\nsecond line'
+    const ours = 'first line\nsecond line\n\nand a third'
+    expect(subsumes(ours, theirs)).toBe(true)
+  })
+})
+
+describe('divergedFromBase — the question subsumes cannot answer', () => {
+  const BASE = 'Lord, I am weary todya. Meet me here.'
+  const FIXED = 'Lord, I am weary today. Meet me here. And thank you.'
+
+  it('is NOT divergence when the server still holds the version we came from', () => {
+    // The bug, exactly. A cron watermark moved updated_at on an untouched row, so
+    // the push read the server's copy as a foreign edit. It is not: it is the
+    // ancestor we already have. Forking here is what produced a full entry and a
+    // partial one on the same day.
+    const local = entry({ body_markdown: FIXED, base_body_markdown: BASE })
+    expect(divergedFromBase(local, BASE)).toBe(false)
+    // ...and the substring test alone gets it wrong, which is why the base exists.
+    expect(subsumes(FIXED, BASE)).toBe(false)
+  })
+
+  it('is NOT divergence when we are the ones who have not moved', () => {
+    const local = entry({ body_markdown: BASE, base_body_markdown: BASE })
+    expect(divergedFromBase(local, 'their newer writing entirely')).toBe(false)
+  })
+
+  it('IS divergence when both sides have written since the version they shared', () => {
+    const local = entry({ body_markdown: `${BASE} And my own ending.`, base_body_markdown: BASE })
+    expect(divergedFromBase(local, `${BASE} And a different ending they wrote.`)).toBe(true)
+  })
+
+  it('is not divergence when we are simply further along than they are', () => {
+    const local = entry({ body_markdown: `${BASE} And more.`, base_body_markdown: 'Lord,' })
+    expect(divergedFromBase(local, BASE)).toBe(false)
+  })
+
+  it('ignores reflow when comparing against the ancestor', () => {
+    const local = entry({ body_markdown: FIXED, base_body_markdown: BASE })
+    expect(divergedFromBase(local, BASE.replace(/ /g, '\n\n'))).toBe(false)
+  })
+
+  it('falls back to the substring test when there is no known ancestor', () => {
+    // A row created offline and never pushed, or one cached before the field
+    // existed. No worse than the old behaviour, and no better.
+    const local = entry({ body_markdown: FIXED })
+    expect(divergedFromBase(local, BASE)).toBe(true)
+    expect(divergedFromBase(local, 'Lord, I am weary today.')).toBe(false)
+  })
+})
+
+describe('shouldAdoptRemoteTimestamp', () => {
+  it('takes a newer timestamp when the remote body is the ancestor we hold', () => {
+    // The stale-base escape hatch: while someone types there is always a queued
+    // write, so without this the clock could never catch up and the next push was
+    // guaranteed to declare a version the server had passed.
+    const local = entry({ body_markdown: 'mine, still being typed', base_body_markdown: 'shared' })
+    const remote = entry({ body_markdown: 'shared', updated_at: '2026-07-09T00:00:00.000Z' })
+    expect(shouldAdoptRemoteTimestamp(remote, local)).toBe(true)
+  })
+
+  it('refuses when the remote body has moved off the ancestor — that is real writing', () => {
+    const local = entry({ body_markdown: 'mine', base_body_markdown: 'shared' })
+    const remote = entry({ body_markdown: 'theirs', updated_at: '2026-07-09T00:00:00.000Z' })
+    expect(shouldAdoptRemoteTimestamp(remote, local)).toBe(false)
+  })
+
+  it('refuses to move a clock backwards', () => {
+    const local = entry({ base_body_markdown: 'shared', updated_at: '2026-07-09T00:00:00.000Z' })
+    const remote = entry({ body_markdown: 'shared', updated_at: '2026-07-01T00:00:00.000Z' })
+    expect(shouldAdoptRemoteTimestamp(remote, local)).toBe(false)
+  })
+
+  it('refuses when we have no ancestor to judge against', () => {
+    const remote = entry({ updated_at: '2026-07-09T00:00:00.000Z' })
+    expect(shouldAdoptRemoteTimestamp(remote, entry())).toBe(false)
+    expect(shouldAdoptRemoteTimestamp(remote, undefined)).toBe(false)
+  })
+})
+
+describe('withServerBase', () => {
+  it('stamps a server row as its own ancestor', () => {
+    expect(withServerBase(entry({ body_markdown: 'from the server' }))).toMatchObject({
+      body_markdown: 'from the server',
+      base_body_markdown: 'from the server',
+    })
   })
 })
 
