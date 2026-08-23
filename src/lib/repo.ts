@@ -11,6 +11,14 @@
 // the server refuses to overwrite anything newer. When two devices really have
 // edited the same entry, the device being typed on keeps it and the other
 // version is preserved as its own entry rather than discarded.
+//
+// "Really have" is load-bearing, and is why each row also remembers the body it
+// last agreed with the server on (`base_body_markdown`). A refused push means
+// the timestamp moved, which is not the same as someone having written
+// something: server-side bookkeeping, a lost response, a clock. Judged without
+// the common ancestor, an ordinary typo fix looked like a second author and
+// preserving "both" versions forked the entry into a full copy and a partial
+// one. See `divergedFromBase` and lib/repo.conflict.test.ts.
 
 import {
   listAllEntries as serverListAll,
