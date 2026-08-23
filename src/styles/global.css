@@ -1057,16 +1057,11 @@ a {
   animation: format-bar-in 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
   pointer-events: auto;
 }
-/* iOS: the bar now also hosts Cut/Copy/Paste + the rest of the system
-   edit menu, so it can outgrow the screen. Scroll like the native pill. */
-.format-bar--ios {
-  max-width: calc(100vw - 20px);
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.format-bar--ios::-webkit-scrollbar {
-  display: none;
+.format-bar__scroller {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 0;
 }
 .format-bar__more {
   font-size: 1.05rem;
@@ -1094,6 +1089,116 @@ a {
   padding: 0.2rem 0.5rem;
   color: var(--text-dim);
   font-size: 0.8rem;
+}
+
+/*
+ * Touch: the native iOS menu we replaced is words at 44pt, not 30px icons.
+ * Labels + real hit targets make the row wider than the phone, so the
+ * scroller — not the pill itself — pages left/right. Back / More stay pinned.
+ */
+.format-bar--touch {
+  gap: 0;
+  padding: 0.2rem;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+.format-bar--touch .format-bar__scroller {
+  flex: 1 1 auto;
+  gap: 0.12rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.format-bar--touch .format-bar__scroller::-webkit-scrollbar {
+  display: none;
+}
+.format-bar--fade-right .format-bar__scroller {
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 1.6rem), transparent);
+}
+.format-bar--fade-left .format-bar__scroller {
+  mask-image: linear-gradient(to right, transparent, #000 1.6rem, #000 100%);
+}
+.format-bar--fade-left.format-bar--fade-right .format-bar__scroller {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.6rem,
+    #000 calc(100% - 1.6rem),
+    transparent
+  );
+}
+.format-bar--touch .format-bar__group {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.format-bar--touch .format-bar__btn,
+.format-bar--touch .format-bar__guess,
+.format-bar--touch .format-bar__chevron {
+  width: auto;
+  height: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.72rem;
+  flex: none;
+  scroll-snap-align: start;
+  touch-action: manipulation;
+}
+.format-bar--touch .format-bar__btn--nav {
+  flex: none;
+}
+.format-bar--touch .format-bar__chevron {
+  width: 44px;
+  margin-left: -0.35rem;
+  padding: 0;
+  font-size: 0.95rem;
+}
+.format-bar--touch .format-bar__sep {
+  flex: none;
+  height: 1.4rem;
+  margin: 0 0.2rem;
+}
+.format-bar--touch .format-bar__word,
+.format-bar--touch .format-bar__glyph {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 0.92;
+}
+.format-bar--touch .format-bar__glyph--bold {
+  font-weight: 750;
+}
+.format-bar--touch .format-bar__glyph--italic {
+  font-style: italic;
+  font-weight: 600;
+}
+.format-bar--touch .format-bar__glyph--underline {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+.format-bar--touch .format-bar__glyph--strike {
+  text-decoration: line-through;
+}
+.format-bar--touch .format-bar__btn[data-active='true'] .format-bar__word,
+.format-bar--touch .format-bar__btn[data-active='true'] .format-bar__glyph {
+  opacity: 1;
+}
+.format-bar--touch .format-bar__swatch {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  scroll-snap-align: start;
+}
+.format-bar--touch .format-bar__empty {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
 }
 @keyframes format-bar-in {
   from {
