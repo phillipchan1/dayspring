@@ -1057,6 +1057,44 @@ a {
   animation: format-bar-in 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
   pointer-events: auto;
 }
+/* iOS: the bar now also hosts Cut/Copy/Paste + the rest of the system
+   edit menu, so it can outgrow the screen. Scroll like the native pill. */
+.format-bar--ios {
+  max-width: calc(100vw - 20px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.format-bar--ios::-webkit-scrollbar {
+  display: none;
+}
+.format-bar__more {
+  font-size: 1.05rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.format-bar__guess {
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-bright);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  cursor: pointer;
+  animation: format-bar-btn-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+}
+.format-bar__guess:hover,
+.format-bar__guess:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+.format-bar__empty {
+  padding: 0.2rem 0.5rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
 @keyframes format-bar-in {
   from {
     opacity: 0;

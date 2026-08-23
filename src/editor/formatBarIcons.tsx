@@ -7,7 +7,20 @@ import type { FormatAction } from './formatSelection'
  * appears on a selection — adding it here costs the writing surface nothing,
  * which is the whole constraint (Principle 3).
  */
-export type BarAction = FormatAction | 'mark'
+/** System edit-menu verbs we re-host on iOS after suppressing the native bubble. */
+export type SystemAction =
+  | 'cut'
+  | 'copy'
+  | 'paste'
+  | 'lookup'
+  | 'translate'
+  | 'search'
+  | 'share'
+  | 'speak'
+  | 'replace'
+  | 'selectAll'
+
+export type BarAction = FormatAction | 'mark' | SystemAction
 
 export function FormatBarIcon({ action }: { action: BarAction }) {
   return (
@@ -87,6 +100,80 @@ const paths: Record<BarAction, ReactNode> = {
       <path d="M19 6v8" />
     </>
   ),
+  cut: (
+    <>
+      <circle cx="6" cy="18" r="2.5" />
+      <circle cx="18" cy="18" r="2.5" />
+      <path d="M8.2 16.2L20 4" />
+      <path d="M14.8 11.2L8.2 16.2" />
+      <path d="M12 9.5L4 4" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="8" y="8" width="11" height="13" rx="1.5" />
+      <path d="M6 16V5.5A1.5 1.5 0 0 1 7.5 4H16" />
+    </>
+  ),
+  paste: (
+    <>
+      <path d="M8 6h8v14H8z" />
+      <path d="M10 6V4.8A1.8 1.8 0 0 1 11.8 3h.4A1.8 1.8 0 0 1 14 4.8V6" />
+      <path d="M10 11h4" />
+    </>
+  ),
+  lookup: (
+    <>
+      <path d="M6 4h9a2 2 0 0 1 2 2v14l-4-2-4 2V6a2 2 0 0 1 2-2" />
+      <path d="M6 4a2 2 0 0 0-2 2v14l4-2" />
+    </>
+  ),
+  translate: (
+    <>
+      <path d="M4 7h9" />
+      <path d="M8.5 7v1.5A6 6 0 0 1 4 14" />
+      <path d="M8.5 8.5A6 6 0 0 0 13 14" />
+      <path d="M12 18l3-8 3 8" />
+      <path d="M13.2 15.5h3.6" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6" />
+      <path d="M20 20l-3.5-3.5" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="18" cy="6" r="2.2" />
+      <circle cx="6" cy="12" r="2.2" />
+      <circle cx="18" cy="18" r="2.2" />
+      <path d="M8 11l8-4" />
+      <path d="M8 13l8 4" />
+    </>
+  ),
+  speak: (
+    <>
+      <path d="M4 10v4h3l5 4V6L7 10H4z" />
+      <path d="M16 9.5a4 4 0 0 1 0 5" />
+      <path d="M18.5 7a7 7 0 0 1 0 10" />
+    </>
+  ),
+  replace: (
+    <>
+      <path d="M7 8h10" />
+      <path d="M12 8v10" />
+      <path d="M4 18h16" />
+    </>
+  ),
+  selectAll: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 9h8" />
+      <path d="M8 12h8" />
+      <path d="M8 15h5" />
+    </>
+  ),
 }
 
 /**
@@ -118,3 +205,30 @@ export const MARK_BAR_ACTION = {
   label: 'Mark',
   title: 'Mark this passage',
 }
+
+/** First page of the iOS system menu we replace: Cut / Copy / Paste. */
+export const IOS_EDIT_ACTIONS: {
+  action: SystemAction
+  label: string
+  title: string
+  sep?: true
+}[] = [
+  { action: 'cut', label: 'Cut', title: 'Cut' },
+  { action: 'copy', label: 'Copy', title: 'Copy' },
+  { action: 'paste', label: 'Paste', title: 'Paste' },
+]
+
+/** Overflow of that same menu: everything after the edit trio. */
+export const IOS_MORE_ACTIONS: {
+  action: SystemAction
+  label: string
+  title: string
+}[] = [
+  { action: 'lookup', label: 'Look Up', title: 'Look Up' },
+  { action: 'translate', label: 'Translate', title: 'Translate' },
+  { action: 'search', label: 'Search Web', title: 'Search Web' },
+  { action: 'share', label: 'Share', title: 'Share' },
+  { action: 'speak', label: 'Speak', title: 'Speak' },
+  { action: 'replace', label: 'Replace', title: 'Replace…' },
+  { action: 'selectAll', label: 'Select All', title: 'Select All' },
+]
