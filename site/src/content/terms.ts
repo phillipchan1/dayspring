@@ -107,4 +107,11 @@ export const termsPage = {
       ],
     },
   ] satisfies TermsSection[],
+  // Same closing links as the live vercel terms page.
+  closing: {
+    privacyLabel: "Privacy Policy",
+    privacyHref: "/privacy",
+    homeLabel: "Dayspring",
+    homeHref: "/",
+  },
 } as const;

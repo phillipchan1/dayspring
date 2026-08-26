@@ -22,6 +22,10 @@ describe("terms of use", () => {
     expect(footerLinks.some((link) => link.href === "/terms")).toBe(true);
   });
 
+  it("closes with the live vercel privacy link", () => {
+    expect(termsPage.closing.privacyHref).toBe("/privacy");
+  });
+
   it("keeps the live vercel subscription and cancel language", () => {
     expect(text).toContain("auto-renewing subscription");
     expect(text).toContain("$7 per month or $64 per year");

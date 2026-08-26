@@ -22,34 +22,36 @@ import { termsPage as t } from "../content/terms";
     </header>
 
     <div class="prose">
-      <SectionReveal>
-        <p>{t.intro}</p>
-      </SectionReveal>
+      <p>{t.intro}</p>
 
       {
         t.sections.map((section) => (
-          <SectionReveal>
-            <section>
-              <h2>{section.heading}</h2>
-              {section.paragraphs.map((p) => (
-                <p set:html={p} />
-              ))}
-              {section.bullets && (
-                <ul>
-                  {section.bullets.map((item) => (
-                    <li>
-                      <strong>{item.label}</strong>, {item.body}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {section.after?.map((p) => (
-                <p>{p}</p>
-              ))}
-            </section>
-          </SectionReveal>
+          <section>
+            <h2>{section.heading}</h2>
+            {section.paragraphs.map((p) => (
+              <p set:html={p} />
+            ))}
+            {section.bullets && (
+              <ul>
+                {section.bullets.map((item) => (
+                  <li>
+                    <strong>{item.label}</strong>, {item.body}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {section.after?.map((p) => (
+              <p>{p}</p>
+            ))}
+          </section>
         ))
       }
+
+      <p class="closing">
+        <a href={t.closing.privacyHref}>{t.closing.privacyLabel}</a>
+        {" · "}
+        <a href={t.closing.homeHref}>{t.closing.homeLabel}</a>
+      </p>
     </div>
   </article>
 </Base>
@@ -136,6 +138,12 @@ import { termsPage as t } from "../content/terms";
   }
   .prose :global(li::marker) {
     color: var(--dawn-1);
+  }
+  .closing {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-size: 15px;
   }
 
   @media (max-width: 600px) {
