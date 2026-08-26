@@ -168,7 +168,6 @@ async function main() {
     }
 
     const manifest = {
-      generatedAt: new Date().toISOString(),
       directionBoard: DIRECTION_BOARD,
       productionSelection: PRODUCTION_SELECTION,
       rendered,
