@@ -47,6 +47,7 @@ export const footerLinks = [
   { label: "FAQ", href: "/faq" },
   { label: "Help", href: "/help" },
   { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
   { label: "A note from the maker", href: "/maker" },
   { label: "Dayspring © 2026", href: "/" },
 ] as const;

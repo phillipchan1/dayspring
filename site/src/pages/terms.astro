@@ -1,0 +1,146 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import DawnGlow from "../components/DawnGlow.astro";
+import { termsPage as t } from "../content/terms";
+---
+
+<Base
+  title={t.title}
+  description={t.description}
+  path="/terms"
+  footer="minimal"
+>
+  <article class="terms">
+    <header class="t-head">
+      <div class="glow-host"><DawnGlow variant="bloom" intensity={0.4} /></div>
+      <SectionReveal>
+        <p class="eyebrow mono">Legal</p>
+        <h1>{t.title}</h1>
+        <p class="meta mono">Dayspring · Last updated {t.updated}</p>
+      </SectionReveal>
+    </header>
+
+    <div class="prose">
+      <SectionReveal>
+        <p>{t.intro}</p>
+      </SectionReveal>
+
+      {
+        t.sections.map((section) => (
+          <SectionReveal>
+            <section>
+              <h2>{section.heading}</h2>
+              {section.paragraphs.map((p) => (
+                <p set:html={p} />
+              ))}
+              {section.bullets && (
+                <ul>
+                  {section.bullets.map((item) => (
+                    <li>
+                      <strong>{item.label}</strong>, {item.body}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {section.after?.map((p) => (
+                <p>{p}</p>
+              ))}
+            </section>
+          </SectionReveal>
+        ))
+      }
+    </div>
+  </article>
+</Base>
+
+<style>
+  .terms {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  .t-head {
+    position: relative;
+    padding: 170px 0 40px;
+  }
+  .glow-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .t-head .eyebrow {
+    position: relative;
+    font-size: 12.5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 22px;
+  }
+  .t-head h1 {
+    position: relative;
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(32px, 5vw, 50px);
+    line-height: 1.08;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+  .t-head .meta {
+    position: relative;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .prose {
+    font-size: 17.5px;
+    line-height: 1.72;
+    color: var(--paper-dim);
+    font-weight: 300;
+    padding-bottom: 90px;
+  }
+  .prose :global(h2) {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(22px, 3vw, 27px);
+    letter-spacing: -0.4px;
+    color: var(--paper);
+    margin: 52px 0 14px;
+  }
+  .prose :global(p) {
+    margin-bottom: 20px;
+  }
+  .prose :global(strong) {
+    color: var(--paper);
+    font-weight: 500;
+  }
+  .prose :global(a) {
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(243, 189, 118, 0.35);
+    transition: border-color 0.25s;
+  }
+  .prose :global(a:hover) {
+    border-bottom-color: var(--dawn-1);
+  }
+  .prose :global(ul) {
+    margin: 0 0 22px 22px;
+  }
+  .prose :global(li) {
+    margin-bottom: 9px;
+    padding-left: 4px;
+  }
+  .prose :global(li::marker) {
+    color: var(--dawn-1);
+  }
+
+  @media (max-width: 600px) {
+    .t-head {
+      padding: 130px 0 32px;
+    }
+  }
+</style>
