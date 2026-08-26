@@ -12,6 +12,9 @@ interface Props {
   verse: { text: string; ref: string };
   primary: { label: string; href: string };
   ghost: { label: string; href: string };
+  /** Secondary Mac download — rendered quietly and hidden at phone width. */
+  macos?: { label: string; href: string };
+  note?: string;
   mockCaption?: string;
   appMock?: ComponentProps<typeof AppMock>;
 }
@@ -22,6 +25,8 @@ const {
   verse,
   primary,
   ghost,
+  macos,
+  note,
   mockCaption,
   appMock = {},
 } = Astro.props;
@@ -46,6 +51,19 @@ const {
           <a href={primary.href} class="btn btn-primary">{primary.label}</a>
           <a href={ghost.href} class="btn btn-ghost">{ghost.label}</a>
         </div>
+        {
+          (note || macos) && (
+            <p class="cta-note">
+              {note && <span>{note}</span>}
+              {note && macos && <span class="macos-only"> · </span>}
+              {macos && (
+                <a href={macos.href} class="macos-only macos-link">
+                  {macos.label}
+                </a>
+              )}
+            </p>
+          )
+        }
       </div>
 
       <div class="hero-visual">
@@ -231,6 +249,25 @@ const {
     animation: up 1s ease 1.15s forwards;
   }
 
+  .cta-note {
+    margin: 14px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    font-weight: 300;
+    opacity: 0;
+    animation: up 1s ease 1.25s forwards;
+  }
+  .cta-note .macos-link {
+    color: var(--paper-dim);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.25s, border-color 0.25s;
+  }
+  .cta-note .macos-link:hover {
+    color: var(--paper);
+    border-bottom-color: var(--border-strong);
+  }
+
   .hero-visual {
     position: relative;
     min-width: 0;
@@ -349,6 +386,15 @@ const {
       justify-content: center;
     }
 
+    .cta-note {
+      text-align: center;
+    }
+
+    /* Phone traffic must not be sent at a Mac .dmg. */
+    .macos-only {
+      display: none;
+    }
+
     .hero-visual {
       margin: 0 auto;
       width: 100%;
@@ -404,6 +450,7 @@ const {
     .sub,
     .verse,
     .actions,
+    .cta-note,
     .hero-mock,
     .mock-caption,
     .scrollcue {

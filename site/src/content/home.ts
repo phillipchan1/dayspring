@@ -10,7 +10,7 @@
 // (src/editor/SlashPalette.tsx): /scripture /pray /sense /ritual /image.
 // ============================================================
 
-import { downloads } from "./site";
+import { downloads, trialCta } from "./site";
 
 export const hero = {
   eyebrow: "A journal for the inner life",
@@ -20,8 +20,11 @@ export const hero = {
     text: "…the Dayspring from on high has visited us",
     ref: "Luke 1:78",
   },
-  primary: { label: "Download for macOS", href: downloads.macos.href },
+  primary: { label: trialCta.label, href: trialCta.href },
   ghost: { label: "Why we built it →", href: "/why" },
+  /** Desktop-only — never the phone door. Hidden at phone width. */
+  macos: { label: "Download for macOS", href: downloads.macos.href },
+  note: "No card required.",
   /** Shown beneath the hero app mock — one quiet editor promise. */
   mockCaption: "Type / and the spiritual life is right there in the sentence.",
   /** Hero mock — the editor mid-sentence with the slash palette open, so a
@@ -432,7 +435,9 @@ export const bringHistory = {
 export const privacy = {
   tag: "Privacy as stewardship",
   heading: "Some things are meant to be written <em>before they're ever spoken aloud.</em>",
-  body: "Your entries are encrypted, never sold, and never used to train AI — and never read by us. What you write here is yours alone.",
+  // Matches /privacy + shipped truth: transit/rest encryption, we hold the key.
+  // Do not claim end-to-end encryption or that we *can't* read entries.
+  body: "Your entries are encrypted in transit and at rest, never sold, never used to train AI. We hold the key, and we never read them.",
   line: "It's just between you and God.",
 };
 
