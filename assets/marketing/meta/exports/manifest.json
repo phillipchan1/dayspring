@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-08-26T00:41:41.859Z",
+  "directionBoard": [
+    "journaling-growth",
+    "long-view",
+    "remembered",
+    "inner-life",
+    "history-read-back"
+  ],
+  "productionSelection": [
+    "journaling-growth",
+    "history-read-back"
+  ],
+  "rendered": [
+    {
+      "concept": "journaling-growth",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/direction-board/01-journaling-growth.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "long-view",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/direction-board/02-long-view.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "remembered",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/direction-board/03-remembered.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "inner-life",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/direction-board/04-inner-life.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "history-read-back",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/direction-board/05-history-read-back.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "journaling-growth",
+      "format": "square",
+      "file": "assets/marketing/meta/exports/placements/journaling-growth/square.png",
+      "width": 1080,
+      "height": 1080
+    },
+    {
+      "concept": "journaling-growth",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/placements/journaling-growth/feed.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "journaling-growth",
+      "format": "story",
+      "file": "assets/marketing/meta/exports/placements/journaling-growth/story.png",
+      "width": 1080,
+      "height": 1920
+    },
+    {
+      "concept": "history-read-back",
+      "format": "square",
+      "file": "assets/marketing/meta/exports/placements/history-read-back/square.png",
+      "width": 1080,
+      "height": 1080
+    },
+    {
+      "concept": "history-read-back",
+      "format": "feed",
+      "file": "assets/marketing/meta/exports/placements/history-read-back/feed.png",
+      "width": 1080,
+      "height": 1350
+    },
+    {
+      "concept": "history-read-back",
+      "format": "story",
+      "file": "assets/marketing/meta/exports/placements/history-read-back/story.png",
+      "width": 1080,
+      "height": 1920
+    }
+  ]
+}

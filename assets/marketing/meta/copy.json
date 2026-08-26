@@ -1,0 +1,71 @@
+{
+  "campaign": "Dayspring — Journaling for spiritual growth",
+  "destination": "https://www.usedayspring.app",
+  "cta": "Begin your 14-day free trial",
+  "concepts": [
+    {
+      "id": "journaling-growth",
+      "role": "mandatory-opening",
+      "eyebrow": "DAYSPRING",
+      "headline": "Journaling for spiritual growth.",
+      "accent": "spiritual growth.",
+      "supporting": "Write freely. Over time, see what God has been making of you.",
+      "proof": "Your own words · week, month, quarter, year",
+      "primaryText": "A quiet place to write—and, over time, to see what your own words have been carrying. No streaks. No scores. Nothing invented.",
+      "asset": "../../appstore/listing/6.9/01-ascent.png",
+      "assetAlt": "Dayspring Ascent year-in-review"
+    },
+    {
+      "id": "long-view",
+      "role": "emotional",
+      "eyebrow": "THE LONG VIEW",
+      "headline": "Spiritual growth is slow. See its shape over time.",
+      "accent": "See its shape over time.",
+      "supporting": "Week, month, quarter, and year—grounded only in what you actually wrote.",
+      "proof": "The Ascent",
+      "primaryText": "A day can feel ordinary. A year can reveal a pattern. Dayspring reflects your writing back without grading your walk with God.",
+      "asset": "../../appstore/listing/6.9/01-ascent.png",
+      "assetAlt": "Dayspring Ascent showing a year of grounded reflection"
+    },
+    {
+      "id": "remembered",
+      "role": "emotional",
+      "eyebrow": "THE ALTAR",
+      "headline": "You wrote the prayer. Remember what came after.",
+      "accent": "Remember what came after.",
+      "supporting": "The people and matters you carry, gathered gently across the years.",
+      "proof": "Your prayers, remembered",
+      "primaryText": "Prayers should not disappear into a pile of pages. Dayspring gathers what you brought to God so you can return without turning prayer into a task list.",
+      "asset": "../../appstore/listing/6.9/04-altar.png",
+      "assetAlt": "Dayspring Altar gathering prayers over time"
+    },
+    {
+      "id": "inner-life",
+      "role": "craft",
+      "eyebrow": "SCRIPTURE · PRAYER · SENSE",
+      "headline": "Beautiful to write in. Made for the inner life.",
+      "accent": "Made for the inner life.",
+      "supporting": "Scripture, prayer, and contemplative practices—inside a writing surface that stays quiet.",
+      "proof": "No streaks · no badges · no sermonizing",
+      "primaryText": "Dayspring is a serious journal for practicing Christians: a beautiful editor with Scripture, Prayer, Sense, and Ritual built into the page.",
+      "asset": "../../appstore/listing/6.9/02-capture.png",
+      "assetAlt": "Dayspring writing surface with scripture and prayer"
+    },
+    {
+      "id": "history-read-back",
+      "role": "product-proof",
+      "eyebrow": "YOUR HISTORY",
+      "headline": "Ten years of journaling. One story you've never read.",
+      "accent": "One story you've never read.",
+      "supporting": "Bring in Day One or Diarly with original dates preserved, then see what has been happening.",
+      "proof": "A journal that reads your history back",
+      "primaryText": "You wrote faithfully. The entries piled up. Dayspring brings in your history and returns its seasons, prayers, and passages in your own words.",
+      "asset": "../../appstore/listing/6.9/06-history.png",
+      "assetAlt": "Dayspring history view after journal import"
+    }
+  ],
+  "productionSelection": [
+    "journaling-growth",
+    "history-read-back"
+  ]
+}
