@@ -156,7 +156,7 @@ export function MobileJournal(props: JournalViewProps) {
         className={`journal-canvas${canvasTaken ? ' journal-canvas--reflections' : ''}`}
         style={{ flex: 1, minHeight: 0 }}
       >
-        {!focused && journalChrome && (
+        {journalChrome && (
           <>
             <div className="journal-horizon" aria-hidden />
             <div className="journal-glow" aria-hidden />
