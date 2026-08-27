@@ -1,15 +1,11 @@
-# Scripture in the journal flow — validating OPP-K2 / OPP-K3
+# Scripture in the journal flow — OPP-K2 / OPP-K3
 
-> **Status:** Draft 1, 2026-08-18. **Nothing here is decided.** This is the frame and the
-> test plan for a scripture opportunity cluster from one real beta interview. A
-> `DECISIONS.md` row gets written only after a walkthrough comes back, and only if
-> something survives.
+> **Status:** Decided 2026-08-22. See **[D-024](./DECISIONS.md)**. Prototype B
+> (chapter beside the journal) plus paste auto-land. Not a book journey.
 >
-> **Click-through:** [prototypes.usedayspring.app/scripture/#intro](https://prototypes.usedayspring.app/scripture/#intro)
-> (short: [scripture.prototypes.usedayspring.app](https://scripture.prototypes.usedayspring.app/#intro)) ·
-> [`prototypes/scripture/`](../prototypes/scripture/). Local:
-> `cd prototypes/scripture && npm install && npm run dev`. Self-guided — opens on
-> `#intro`, footer notes on every screen. Safe to send the link.
+> **Click-through (the walkthrough that produced the pick):**
+> [prototypes.usedayspring.app/scripture/#intro](https://prototypes.usedayspring.app/scripture/#intro)
+> · [`prototypes/scripture/`](../prototypes/scripture/).
 
 ---
 
@@ -175,4 +171,4 @@ Full book browse was removed — not shippable under Crossway limits and product
 - **Both killed** if she says "I'll keep bible.com open beside me" and doesn't care about
   Lamp for pasted verses — then OPP-KG1 is mis-scoped for this ICP.
 
-Nothing ships from this doc. Prototype first, Kristi second pass after.
+Shipped as D-024. Revisit only under that row's kill conditions.

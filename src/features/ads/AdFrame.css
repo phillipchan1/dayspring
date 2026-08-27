@@ -1,0 +1,762 @@
+/*
+ * Paid-social ad chrome — the marketing site's "First Light" tokens, hardcoded,
+ * exactly as src/features/appstore/ShotFrame.css hardcodes them.
+ *
+ * Deliberately NOT wired to the app's theme variables: the frame is the site/
+ * palette (--ink #0c0d11, warm dawn) while any screen inside it runs the app's
+ * own shipped theme. Amber dawn around a cool page is the site's actual look,
+ * and it makes the screen read as an object sitting on a page.
+ *
+ * WHAT IS DIFFERENT FROM A LISTING SHOT
+ *
+ * A listing shot is 642x1434 — a tall column where the caption can breathe and
+ * the card still has 900px to live in. An ad is 660x825 (4:5) or 720x720 (1:1):
+ * roughly half the height at the same width. So the caption is tighter, the type
+ * is smaller relative to the canvas, and every ad gives up ~76px at the foot to
+ * a brand-and-offer bar that a listing shot does not need — on the App Store the
+ * page underneath says who this is and what it costs. In a feed, nothing does.
+ */
+
+.ad {
+  /*
+   * The footer bar's own height. A typographic ad centres its caption in the
+   * space ABOVE the footer rather than in the whole frame — centred against the
+   * full height, the block sits visually low, because the bar at the foot is
+   * weight the arithmetic cannot see. Kept as a variable so the two places that
+   * need the number cannot disagree.
+   */
+  --ad-footer-h: 88px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #0c0d11;
+  isolation: isolate;
+}
+
+/* The dawn bloom — DawnGlow.astro's "bloom" variant, rising behind the caption. */
+.ad__glow {
+  position: absolute;
+  top: -24%;
+  left: 50%;
+  width: 150%;
+  height: 66%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(243, 189, 118, 0.2) 0%,
+    rgba(232, 145, 124, 0.1) 38%,
+    rgba(197, 106, 110, 0.04) 56%,
+    rgba(197, 106, 110, 0) 70%
+  );
+  filter: blur(28px);
+  z-index: 0;
+}
+
+/* A typographic ad is all ground and no card, so the same bloom reads as a
+   smudge in the corner. Sink it under the headline and let it be the only
+   light in the frame. */
+.ad[data-layout='typographic'] .ad__glow {
+  top: -10%;
+  height: 90%;
+}
+
+/*
+ * A typographic ad has no card, so a top-aligned caption leaves the lower two
+ * thirds empty and the whole frame reads as a slide someone forgot to finish.
+ * Centre it in the ground instead, with the footer's height given back as
+ * padding so the type sits optically centred rather than mathematically.
+ *
+ * AdFrame renders NO body element for this layout — an earlier `flex: 1` spacer
+ * ate the free space and silently defeated this rule, which looks in a
+ * screenshot exactly like the rule never applied.
+ */
+.ad[data-layout='typographic'] {
+  justify-content: center;
+}
+
+.ad[data-layout='typographic'] .ad__caption {
+  padding-top: 0;
+  padding-bottom: var(--ad-footer-h);
+}
+
+.ad[data-layout='typographic'] .ad__struck {
+  padding: 0;
+  margin: 22px 0 30px;
+}
+
+/* Film grain, so the gradient never bands on a 1080px-wide export. */
+/*
+ * The bottom fade — the card's dissolve into the footer.
+ *
+ * Anchored to the FRAME, not to the card, and that distinction is the whole
+ * reason this is a separate element. The card is deliberately scaled to overrun
+ * the frame (see AdFrame: width is the binding constraint, and a card shrunk to
+ * fit an ad's height is a thumbnail). At 1:1 that overrun is over 200px — so a
+ * fade anchored to the card's own bottom edge lives entirely off-screen, and
+ * the card meets the footer at full brightness with entry text straight through
+ * the offer line. Anchored here it lands where it is actually needed at every
+ * ratio.
+ *
+ * Four stops rather than two: a cream card against a two-stop fade is still
+ * ~40% paper where the bar starts, and the foot reads as a printing error.
+ */
+.ad__fade {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 250px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(12, 13, 17, 0) 0%,
+    rgba(12, 13, 17, 0.55) 30%,
+    rgba(12, 13, 17, 0.95) 60%,
+    rgba(12, 13, 17, 1) 100%
+  );
+}
+
+/*
+ * Fade depth is tuned per ratio rather than shared, because it is a fraction of
+ * the frame, not an absolute distance. 250px is a third of the 4:5's height and
+ * only a fifth of the story's — left at one value it either fails to cover the
+ * footer on the short frame or dissolves half the card on the tall one.
+ */
+.ad[data-ratio='1x1'] .ad__fade {
+  height: 190px;
+}
+
+.ad[data-ratio='9x16'] .ad__fade {
+  height: 240px;
+}
+
+/*
+ * A story frame is 675px wide. Split 56/44 that is a 320px measure for a serif
+ * headline and a 250px phone — both too small to do their job. AdFrame forces
+ * `stacked` at this ratio, and these rules put back the type sizes the beside
+ * overrides took away.
+ */
+.ad[data-ratio='9x16'][data-composition='stacked'] .ad__headline {
+  font-size: 52px;
+  letter-spacing: -1.1px;
+}
+
+.ad[data-ratio='9x16'][data-composition='stacked'] .ad__sub {
+  font-size: 18px;
+}
+
+.ad[data-ratio='9x16'][data-composition='stacked'] .ad__eyebrow {
+  font-size: 12px;
+  letter-spacing: 2.8px;
+}
+
+.ad__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── caption ─────────────────────────────────────────────────────────────── */
+
+.ad__caption {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  padding: 56px 52px 0;
+}
+
+/*
+ * The eyebrow is the orienting line, not a label — it is where the ad says what
+ * kind of thing it is, and it is read before the headline. That is a bigger job
+ * than the listing shots give it, so it is set a step larger and a shade
+ * heavier here: at 12px/400 it registered as a caption and the eye skipped it
+ * for the serif underneath, which is exactly the failure it exists to prevent.
+ */
+.ad__eyebrow {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: #f3bd76;
+}
+
+.ad__headline {
+  margin: 14px 0 0;
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.9px;
+  color: #ece7dd;
+  text-wrap: balance;
+}
+
+/* The signature: italic, gradient-filled, on the phrase carrying the promise. */
+.ad__headline em {
+  font-style: italic;
+  font-weight: 300;
+  background: linear-gradient(100deg, #f3bd76, #e8917c 60%, #c56a6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.ad__sub {
+  margin: 15px 0 0;
+  max-width: 29rem;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: #b7b3ab;
+  text-wrap: pretty;
+}
+
+/* Horizon rule — echoes the OG card's 1px dawn line. Only where a card follows;
+   on a typographic ad there is nothing below to divide from. */
+.ad__rule {
+  margin-top: 20px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(243, 189, 118, 0) 0%,
+    rgba(243, 189, 118, 0.28) 22%,
+    rgba(243, 189, 118, 0.28) 78%,
+    rgba(243, 189, 118, 0) 100%
+  );
+}
+
+/* ── the screen ──────────────────────────────────────────────────────────── */
+
+.ad__well {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px 0 0;
+}
+
+/* A device gets a little more air above it than a card does: a bezel needs to
+   be seen to be read as one, and butted against the horizon rule it is just a
+   dark edge. */
+.ad[data-presentation='phone']:not([data-composition='beside']) .ad__well {
+  padding-top: 34px;
+}
+
+.ad__card {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  /* `background` is set inline from the ad's palette, so there is no seam while
+     the iframe boots. */
+  border: 1px solid rgba(236, 231, 221, 0.15);
+  border-bottom: 0;
+  /* LetterCard's shadow language: a deep lift plus a faint dawn halo. */
+  box-shadow:
+    0 50px 90px -45px rgba(0, 0, 0, 0.9),
+    0 0 70px -35px rgba(243, 189, 118, 0.16);
+}
+
+/* The pale card needs a warmer, tighter edge than a dark one — a cool hairline
+   on cream reads as a rendering seam. */
+.ad__card[data-light] {
+  border-color: rgba(74, 64, 53, 0.16);
+}
+
+.ad__inner {
+  display: block;
+  border: 0;
+  transform-origin: top left;
+}
+
+/* ── the device shell ────────────────────────────────────────────────────── */
+
+/*
+ * A flat card of UI reads as a screenshot of a tool; the same pixels inside a
+ * bezel read as something a person holds. Nothing about the app changes — this
+ * is the frame around it, and it exists because the first thing a cold reader
+ * files an ad under is "what kind of thing is this".
+ *
+ * The body is a lit metal rail rather than flat black: a single dark fill at
+ * this size reads as a hole cut in the page. The gradient runs off-axis (150deg)
+ * so the highlight crosses the corner instead of running down one edge, which
+ * is what an extruded rail actually does under a single light source.
+ */
+.ad__phone {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  background: linear-gradient(150deg, #55565f 0%, #26272e 22%, #16171c 50%, #202128 74%, #4a4b55 100%);
+  box-shadow:
+    0 60px 100px -40px rgba(0, 0, 0, 0.95),
+    0 0 90px -40px rgba(243, 189, 118, 0.22);
+}
+
+/* The catch-light. One hairline just inside the outer edge — the specular line
+   every metal-railed phone has, and the cheapest way to stop the bezel reading
+   as a printed border. */
+.ad__phone-rail {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+    inset 0 1px 2px rgba(255, 255, 255, 0.18),
+    /* A dark ring OUTSIDE the rail, so the shell separates from the ink ground.
+       Without it a dark bezel on a dark frame has no edge at all and the device
+       dissolves — which is exactly what happened over the Ascent, whose surface
+       is nearly the same value as the metal. */
+      0 0 0 1px rgba(0, 0, 0, 0.85);
+}
+
+/*
+ * Volume and side buttons. Purely silhouette — they are never legible at feed
+ * size, but their absence is: a bezel with perfectly clean edges reads as a
+ * rounded rectangle, and three small interruptions are what make it a device.
+ * Positioned as fractions so they stay put at every scale.
+ */
+.ad__phone-btn {
+  position: absolute;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #3a3b44, #17181d);
+  pointer-events: none;
+}
+
+.ad__phone-btn[data-side='left'] {
+  left: -2px;
+}
+
+.ad__phone-btn[data-side='left'][data-n='1'] {
+  top: 20%;
+  height: 7%;
+}
+
+.ad__phone-btn[data-side='left'][data-n='2'] {
+  top: 30%;
+  height: 7%;
+}
+
+.ad__phone-btn[data-side='right'] {
+  right: -2px;
+  top: 24%;
+  height: 11%;
+}
+
+.ad__phone-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* The screen sits below the glass, not level with the rail. The outer ring is
+     what draws the bezel's inner edge against a dark surface. */
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.9);
+}
+
+/* ── beside: words on the left, device on the right ─────────────────────── */
+
+/*
+ * The caption and the device share a row instead of a column.
+ *
+ * An even split, arrived at rather than assumed. The words want width — a serif
+ * headline broken into four-word lines stops being a sentence and becomes a
+ * list — but a phone given much less than half reads as a thumbnail floating in
+ * its own margin, and the whole point of the device is that it is an object.
+ * Fifty-fifty is where both stop complaining.
+ */
+.ad__row {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* Both columns centre against the space ABOVE the footer, not against the
+     whole frame — the bar at the foot is visual weight the arithmetic cannot
+     see, and centring past it drops everything half a bar too low. */
+  padding-bottom: var(--ad-footer-h);
+}
+
+.ad__row .ad__caption {
+  flex: 1 1 50%;
+  min-width: 0;
+  padding: 0 6px 0 52px;
+}
+
+/*
+ * The device column. `align-items: flex-start` with the well allowed to overflow
+ * is deliberate — the phone runs off the bottom of the frame rather than sitting
+ * neatly inside it, because an object cropped by the edge reads as continuing
+ * into real space, and one floating clear of every edge reads as a sticker.
+ */
+.ad__row .ad__well {
+  flex: 0 0 50%;
+  align-items: center;
+  padding: 0;
+}
+
+/*
+ * The device column's gutter, which is much tighter than the frame's.
+ *
+ * GUTTER exists to keep a full-width card off the frame's edges; applied to a
+ * column that is already less than half the frame it takes a third of the
+ * remaining width and leaves a phone too small to read as one. 18px each side
+ * is enough to keep the shell off the caption and off the edge.
+ */
+.ad[data-composition='beside'] .ad__phone {
+  margin: 0 14px;
+}
+
+/*
+ * No bottom fade beside.
+ *
+ * The fade's job is to dissolve a device that runs off the frame, so the crop
+ * reads as depth rather than as breakage. Beside, the phone sits wholly inside
+ * its column with margin all round — so the same gradient does the opposite of
+ * its job and shaves the bottom bezel off an otherwise complete object. The
+ * footer bar carries its own ground here, and there is nothing behind it.
+ */
+.ad[data-composition='beside'] .ad__fade {
+  display: none;
+}
+
+/* Beside, the headline gives up about a third of its measure, so it has to come
+   down a step or it wraps to four and five lines and stops reading as one
+   thought. */
+.ad[data-composition='beside'] .ad__headline {
+  font-size: 36px;
+  letter-spacing: -0.7px;
+}
+
+.ad[data-composition='beside'] .ad__sub {
+  font-size: 15.5px;
+  max-width: none;
+}
+
+/*
+ * Beside, the caption column is ~310px and the orienting line is 30 characters
+ * of tracked-out mono — just wide enough to wrap, which breaks the one line in
+ * the ad that must be read whole and at once. Sized to fit, and pinned with
+ * `nowrap` so a future wording change fails visibly rather than silently
+ * folding onto a second line.
+ */
+.ad[data-composition='beside'] .ad__eyebrow {
+  font-size: 11.5px;
+  letter-spacing: 1.8px;
+  white-space: nowrap;
+}
+
+.ad[data-ratio='1x1'][data-composition='beside'] .ad__headline {
+  font-size: 34px;
+}
+
+/* ── typographic: the struck-through refusals ────────────────────────────── */
+
+/*
+ * D3's list. Each line is a thing the category does and we won't, so they are
+ * struck AND dimmed — struck alone reads as an edit, dim alone reads as a
+ * feature list in low contrast. The rule is drawn as a pseudo-element rather
+ * than `text-decoration` so it can be amber: a grey strike on grey text is
+ * nearly invisible at feed size, and this list has to be legible in the 1.5
+ * seconds before the headline lands.
+ */
+.ad__struck {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  padding: 0 52px;
+  list-style: none;
+}
+
+.ad__struck li {
+  position: relative;
+  /* `block` puts one refusal per line; `fit-content` keeps the strike hugging
+     the words instead of running the full column width. `inline-block` gave
+     both at once and neither: the items flowed together on a single line with
+     no space between them, because the markup has no whitespace to collapse. */
+  display: block;
+  width: fit-content;
+  margin: 0 0 11px;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 25px;
+  line-height: 1.25;
+  color: #6f6a63;
+}
+
+.ad__struck li::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: 54%;
+  height: 1.5px;
+  background: rgba(197, 106, 110, 0.62);
+}
+
+/* ── pair: two dated lines, joined ───────────────────────────────────────── */
+
+/*
+ * D2. Not a screenshot — the app has no screen that looks like this — so it is
+ * built as the ad's own composition and says so in `.ad__pair-note`. The claim
+ * being made is only that Dayspring puts these two lines of yours back in front
+ * of each other, which is what the Altar does.
+ */
+.ad__pair {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  padding: 0 52px;
+}
+
+.ad__entry {
+  position: relative;
+  padding-left: 30px;
+}
+
+.ad__entry-date {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: #7a7986;
+}
+
+.ad__entry-line {
+  margin: 9px 0 0;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 27px;
+  line-height: 1.34;
+  color: #ece7dd;
+  text-wrap: pretty;
+}
+
+/* The amber dot each entry hangs from — the visual grammar of the Altar's
+   strands, where returning to something thickens it. */
+.ad__entry::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f3bd76;
+  box-shadow: 0 0 16px rgba(243, 189, 118, 0.75);
+}
+
+/*
+ * The thread. It is the whole argument of the ad — the months between the
+ * asking and the noticing — so it gets real vertical room and a dotted stroke
+ * that fades at both ends, the way the Summit's trail does. The label rides it
+ * to say plainly what the gap cost.
+ */
+.ad__thread {
+  position: relative;
+  height: 104px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.ad__thread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(243, 189, 118, 0.5) 0px,
+    rgba(243, 189, 118, 0.5) 3px,
+    rgba(243, 189, 118, 0) 3px,
+    rgba(243, 189, 118, 0) 9px
+  );
+}
+
+.ad__thread span {
+  margin-left: 26px;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: #7a7986;
+}
+
+.ad__pair-note {
+  margin: 34px 0 0 30px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(236, 231, 221, 0.09);
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-size: 15.5px;
+  line-height: 1.45;
+  color: #8f8b84;
+  max-width: 26rem;
+}
+
+/* ── footer: the brand and the offer ─────────────────────────────────────── */
+
+/*
+ * Every ad carries this and no listing shot does. In a feed there is no page
+ * underneath to say whose this is or what it costs, and an ad that makes the
+ * reader work that out has spent its attention on the wrong thing.
+ *
+ * It sits ABOVE the card (z-index 4 against the card's 2) rather than beside
+ * it, so the card can run to the true bottom edge and fade out behind the bar.
+ * A card that stopped short of the footer would read as a screenshot pasted
+ * onto a slide.
+ */
+.ad__footer {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  /* 42px of top padding is not whitespace — it is the feather. The bar has to
+     be fully opaque before the wordmark starts, or a cream card behind it puts
+     entry text through the offer line. */
+  padding: 42px 52px 24px;
+  background: linear-gradient(
+    180deg,
+    rgba(12, 13, 17, 0) 0%,
+    rgba(12, 13, 17, 0.96) 34%,
+    rgba(12, 13, 17, 1) 55%
+  );
+}
+
+.ad__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.ad__wordmark {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.2px;
+  color: #ece7dd;
+  line-height: 1;
+}
+
+.ad__offer {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8f8b84;
+  text-align: right;
+}
+
+/* ── 1:1 ─────────────────────────────────────────────────────────────────── */
+
+/*
+ * 720x720. Wider than the 4:5 but 105px shorter, and the height is what binds —
+ * so the caption loses its subcaption (set to display:none rather than dropped
+ * in JS, because the same registry entry has to render at every ratio) and the
+ * headline shrinks a step to buy the card back its room.
+ */
+.ad[data-ratio='1x1'] .ad__caption {
+  padding-top: 46px;
+}
+.ad[data-ratio='1x1'] .ad__headline {
+  font-size: 40px;
+}
+.ad[data-ratio='1x1'][data-layout='surface'] .ad__sub {
+  display: none;
+}
+.ad[data-ratio='1x1'][data-layout='surface'] .ad__rule {
+  margin-top: 18px;
+}
+.ad[data-ratio='1x1'] .ad__struck li {
+  font-size: 23px;
+  margin-bottom: 9px;
+}
+.ad[data-ratio='1x1'] .ad__entry-line {
+  font-size: 25px;
+}
+.ad[data-ratio='1x1'] .ad__thread {
+  height: 78px;
+}
+
+/* ── 9:16 ────────────────────────────────────────────────────────────────── */
+
+/*
+ * 675x1200 — Stories and Reels. Nearly twice the height of the 4:5 at the same
+ * width, so this is the one ratio with room to spare, and everything scales up
+ * rather than down. Two things it must respect that the feed ratios need not:
+ * Instagram overlays its own UI across roughly the top 14% and bottom 20% of a
+ * story, so the caption starts lower and the footer sits higher than the frame
+ * edge would allow.
+ */
+/* Instagram overlays its own UI across roughly the top 14% of a story, so a
+   top-aligned caption starts well below the frame edge. A centred one does not
+   need the allowance — it is nowhere near either edge — and applying it there
+   would just push the block off centre. */
+.ad[data-ratio='9x16']:not([data-layout='typographic']) .ad__caption {
+  padding: 170px 56px 0;
+}
+.ad[data-ratio='9x16'] .ad__headline {
+  font-size: 52px;
+  letter-spacing: -1.1px;
+}
+.ad[data-ratio='9x16'] .ad__sub {
+  font-size: 18px;
+  margin-top: 18px;
+}
+.ad[data-ratio='9x16'] .ad__glow {
+  top: -6%;
+  height: 52%;
+}
+/* No gutter here: the list is a child of .ad__caption, which already has one.
+   Setting it again indents the refusals away from the headline they set up. */
+.ad[data-ratio='9x16'] .ad__struck {
+  padding: 0;
+}
+.ad[data-ratio='9x16'] .ad__struck li {
+  font-size: 29px;
+  margin-bottom: 14px;
+}
+.ad[data-ratio='9x16'] .ad__pair {
+  padding: 0 56px;
+  flex: none;
+  margin-top: 54px;
+}
+.ad[data-ratio='9x16'] .ad__entry-line {
+  font-size: 31px;
+}
+.ad[data-ratio='9x16'] .ad__thread {
+  height: 150px;
+}
+.ad[data-ratio='9x16'] {
+  --ad-footer-h: 134px;
+}
+.ad[data-ratio='9x16'] .ad__footer {
+  padding: 24px 56px 88px;
+}
