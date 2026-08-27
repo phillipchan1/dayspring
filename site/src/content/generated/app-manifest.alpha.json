@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.260",
+  "appVersion": "1.0.263",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -148,9 +148,9 @@
         "pc": "Esc"
       },
       {
-        "id": "shortcut.pages-your-own-side-by-side",
+        "id": "shortcut.journal-your-own-side-by-side",
         "group": "Navigation",
-        "label": "Pages — your own, side by side",
+        "label": "Journal — your own, side by side",
         "when": null,
         "keys": [
           "Mod",
@@ -1285,7 +1285,7 @@
       },
       {
         "id": "capability.pages-wall",
-        "label": "The Pages wall"
+        "label": "The Journal wall"
       }
     ]
   },
