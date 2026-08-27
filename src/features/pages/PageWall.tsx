@@ -23,6 +23,7 @@ import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
 import { PageRow } from './PageRow'
 import type { FacetIndex } from './facets'
+import { LeafCounter, type LeafMetrics } from './leaves'
 import { MARK_KINDS } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -117,6 +118,26 @@ export function PageWall({
   // fresh object every render would tear down and rebuild the ResizeObserver on
   // every scroll frame.
   const spec = useMemo(() => specForZoom(zoom), [zoom])
+  const leafCounter = useRef(new LeafCounter())
+  /**
+   * The leaf's own geometry, read from the DOM.
+   *
+   * Measured rather than derived from the zoom spec: the body's width is what
+   * the grid and the margin column leave it, and its line height is whatever
+   * the theme's serif resolves to. Guessing either puts the break in the wrong
+   * place, which is the whole defect this replaces.
+   */
+  const [leafBox, setLeafBox] = useState({ width: 0, lines: 18, font: '' })
+  /**
+   * True leaf counts, read back from what the browser actually laid out.
+   *
+   * The canvas measurement is a good first guess and cannot be the last word:
+   * it counts lines, and a rendered page also has heading margins, list
+   * indents and block spacing. Overshoot by one and the reader gets a blank
+   * leaf; undershoot and the tail of the page is unreachable. So the estimate
+   * sizes the scroller, and the DOM corrects it the moment a leaf is on screen.
+   */
+  const [trueLeaves, setTrueLeaves] = useState<Map<string, number>>(new Map())
   // Close enough to read: cells stop being cards and become whole pages.
   const reading = isReading(zoom)
   const rows = isRows(zoom)
@@ -176,10 +197,80 @@ export function PageWall({
   // the only thing on a row that is not simply the page itself.
   const newestId = entries[0]?.id ?? null
 
-  const items: WallItem[] = useMemo(
+  const packed: WallItem[] = useMemo(
     () => collapseUnlit(buildWallItems(entries, echoes, cols), lit, expandedSeams),
     [entries, echoes, cols, lit, expandedSeams],
   )
+
+  /*
+   * At reading zoom a page runs onto the next leaf instead of scrolling inside
+   * its own box. Measured rather than estimated (see `leaves.ts`) — a page that
+   * breaks one line early is a sentence cut in half for no reason the reader
+   * can see.
+   *
+   * The counts have to exist before the scroller can be sized, which is why the
+   * whole lit set is measured here rather than lazily. It is a canvas text
+   * measurement per paragraph, memoised against the geometry, so a resize costs
+   * one pass and a scroll costs nothing.
+   */
+  const leafMetrics: LeafMetrics | null = useMemo(() => {
+    if (!reading || leafBox.width <= 0) return null
+    return { width: leafBox.width, linesPerLeaf: leafBox.lines, font: leafBox.font }
+  }, [reading, leafBox])
+
+  useLayoutEffect(() => {
+    if (!reading) return
+    const el = gridRef.current?.querySelector('.pg-leaf__body') as HTMLElement | null
+    if (!el) return
+    const cs = getComputedStyle(el)
+    const lineHeight = Number.parseFloat(cs.lineHeight) || 24
+    const width = el.clientWidth
+    const height = el.clientHeight
+    if (width <= 0 || height <= 0) return
+    const next = {
+      width,
+      lines: Math.max(1, Math.floor(height / lineHeight)),
+      font: `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`,
+    }
+    setLeafBox((prev) =>
+      prev.width === next.width && prev.lines === next.lines && prev.font === next.font
+        ? prev
+        : next,
+    )
+  }, [reading, spec, cols, entries])
+
+  useLayoutEffect(() => {
+    if (!reading || leafBox.width <= 0) return
+    const cells = gridRef.current?.querySelectorAll('[data-page-id]')
+    if (!cells || cells.length === 0) return
+    let changed: Map<string, number> | null = null
+    for (const cell of cells) {
+      const id = cell.getAttribute('data-page-id')
+      const body = cell.querySelector('.pg-leaf__body') as HTMLElement | null
+      if (!id || !body || body.clientWidth <= 0) continue
+      const actual = Math.max(1, Math.round(body.scrollWidth / body.clientWidth))
+      if (trueLeaves.get(id) === actual) continue
+      changed ??= new Map(trueLeaves)
+      changed.set(id, actual)
+    }
+    if (changed) setTrueLeaves(changed)
+  })
+
+  const items: WallItem[] = useMemo(() => {
+    if (!leafMetrics) return packed
+    const out: WallItem[] = []
+    for (const item of packed) {
+      if (item.seam) {
+        out.push(item)
+        continue
+      }
+      const of = trueLeaves.get(item.entry.id) ?? leafCounter.current.count(item.entry, leafMetrics)
+      for (let index = 0; index < of; index++) {
+        out.push(index === 0 ? { ...item, leaf: { index, of } } : { ...item, key: `${item.key}~${index}`, leaf: { index, of } })
+      }
+    }
+    return out
+  }, [packed, leafMetrics, trueLeaves])
 
   /** Echo cards take focus and open, but are never selection targets — see wallItems. */
   const orderIds = useMemo(() => selectionOrder(items), [items])
@@ -625,6 +716,9 @@ export function PageWall({
             ['--pg-card-h' as string]: `${spec.cardHeight}px`,
             // The spine between two open pages is drawn from the gutter.
             ['--pg-gutter' as string]: `${spec.gap}px`,
+            // A leaf's column width, so a long page's overflow marches sideways
+            // by exactly one leaf at a time.
+            ...(leafBox.width > 0 ? { ['--pg-leaf-w' as string]: `${leafBox.width}px` } : {}),
           }}
         >
           {/*
@@ -697,6 +791,7 @@ export function PageWall({
                 <div
                   key={item.key}
                   className="pg__leaf-cell"
+                  data-page-id={item.entry.id}
                   data-wall-key={item.key}
                   tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                   onFocus={() => onCardFocus(item.key)}
@@ -704,9 +799,10 @@ export function PageWall({
                 >
                   <Leaf
                     entry={item.entry}
-                    shared={item.entry.id === returningId}
+                    shared={item.entry.id === returningId && (item.leaf?.index ?? 0) === 0}
                     markQuotes={markQuotes.get(item.entry.id) ?? []}
                     firstLineTitle={firstLineTitle}
+                    leaf={item.leaf}
                     onEdit={onEdit}
                   />
                 </div>

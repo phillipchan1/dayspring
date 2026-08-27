@@ -1184,10 +1184,46 @@ button.pg__sense-q:hover {
   color: var(--accent);
 }
 
+/*
+ * A LEAF NEVER SCROLLS.
+ *
+ * This used to be `overflow-y: auto`, which made a long page a viewport: you
+ * scrolled inside a page while the wall scrolled behind it, two scrollers deep.
+ * A page in a book does not do that — it fills, and the rest continues on the
+ * next leaf.
+ *
+ * The body is laid out in columns exactly one leaf wide, so the browser breaks
+ * the lines (the only way a break lands where a reader would put it), and each
+ * leaf slides the run along by its own index. `--pg-leaf-at` is that index.
+ */
 .pg__leaf-cell .pg-leaf {
   block-size: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   padding: clamp(0.5rem, 2vw, 1.5rem) clamp(0.75rem, 2.5vw, 2rem);
+}
+
+.pg-leaf__window {
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.pg__leaf-cell .pg-leaf__cols {
+  block-size: calc(100% - 2.4rem);
+}
+
+.pg__leaf-cell .pg-leaf__body {
+  block-size: 100%;
+  /*
+   * One column exactly as wide as a leaf, filled to the brim before the next
+   * one starts. The overflow runs HORIZONTALLY — the box stays one leaf wide
+   * and the columns march off the side of it, which is what the window clips.
+   * `columns: 1` cannot do this: with one column there is nowhere for the rest
+   * to go, so it spills downward and the slide lands past the end of the text.
+   */
+  column-width: var(--pg-leaf-w, 100%);
+  column-gap: 0;
+  column-fill: auto;
+  transform: translateX(calc(var(--pg-leaf-at, 0) * -1 * var(--pg-leaf-w, 0px)));
 }
 
 /* One page on a phone: no spine to draw. */
