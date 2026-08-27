@@ -9,6 +9,22 @@
 // these numbers, so a card can never be a different height than the scroller
 // thinks it is.
 
+/**
+ * Furthest back: the pages as rows.
+ *
+ * D-018 deleted the entries list on the reasoning that the wall beats a 30px
+ * row at every job the row does. That was wrong in one narrow, real way —
+ * browsing for a half-remembered entry got slower, because a row shows ~30 a
+ * screen and the wall at its densest shows fewer. D-018's own kill note said
+ * what to do about it: "an argument for a LIST-TIGHT END OF THE ZOOM rather
+ * than for a second surface."
+ *
+ * So the list is not a surface and not a mode. It is standing very far back —
+ * same wall, same `look for`, same lighting, same windowing, at 30 rows a
+ * screen. 25px + 3px of gap puts 32 on a 900px viewport.
+ */
+const ROWS = { minWidth: 320, cardHeight: 25, gap: 3, maxCols: 1, lines: 1 }
+
 /** Far end: many pages at once. You read shape, dates, and where your marks fall. */
 const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, lines: 6 }
 /**
@@ -32,6 +48,24 @@ const NEAR = { minWidth: 460, cardHeight: 620, gap: 28, maxCols: 2, lines: 18 }
 export const READING_ZOOM = 0.82
 
 export const isReading = (zoom: number): boolean => clampZoom(zoom) >= READING_ZOOM
+
+/**
+ * Where a card stops being a card and becomes a row.
+ *
+ * A threshold for the same reason `READING_ZOOM` is one: an excerpt in a box
+ * and a single line with a date are genuinely different renderings, and
+ * interpolating between them gives you a squashed card rather than a list.
+ */
+export const ROWS_ZOOM = 0.16
+
+export const isRows = (zoom: number): boolean => clampZoom(zoom) < ROWS_ZOOM
+
+/** What the slider is doing, for the label beside it. */
+export function standLabel(zoom: number): string {
+  if (isRows(zoom)) return 'a list'
+  if (isReading(zoom)) return 'reading'
+  return clampZoom(zoom) < 0.55 ? 'the years' : 'the pages'
+}
 
 /**
  * How many pages are open at reading zoom.
@@ -86,7 +120,11 @@ const lerp = (a: number, b: number, t: number): number => Math.round(a + (b - a)
  * rendered window and the scroll position disagree by a whole row.
  */
 export function specForZoom(zoom: number): ZoomSpec {
-  const t = clampZoom(zoom)
+  const z = clampZoom(zoom)
+  if (isRows(z)) return { ...ROWS }
+  // The card bands own what is left of the slider, renormalised — otherwise
+  // adding a band at the bottom would silently shift every card size above it.
+  const t = (z - ROWS_ZOOM) / (ZOOM_MAX - ROWS_ZOOM)
   return {
     minWidth: lerp(FAR.minWidth, NEAR.minWidth, t),
     cardHeight: lerp(FAR.cardHeight, NEAR.cardHeight, t),

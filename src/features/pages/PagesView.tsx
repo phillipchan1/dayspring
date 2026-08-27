@@ -18,9 +18,17 @@ import {
   wordSubject,
   type Subject,
 } from './subjects'
-import { buildFacetIndex, facetGroups, matchFacets } from './facets'
-import { FilterBar } from './FilterBar'
-import { interpret, literalFallback, type Interpretation } from './interpret'
+import { buildFacetIndex, markingChips, matchFacets } from './facets'
+import { LookFor, type LookChip } from './LookFor'
+import {
+  dropSubject,
+  keepSubject,
+  listKeptSubjects,
+  partitionKept,
+  withVocabulary,
+  type KeptSubject,
+} from './keptSubjects'
+import { listMarkings, type MarkingRef } from '@/lib/spiritual'
 import './Pages.css'
 
 /** The chip that stands for a question, since a question has no key of its own. */
@@ -50,8 +58,6 @@ interface Props {
    */
   asked: { question: string; entryIds: string[] } | null
   onClearAsked: () => void
-  /** A question is in flight. */
-  asking: string | null
   /** The weather panel, on its own history frame. */
   panel: 'weather' | null
   onPanel: (panel: 'weather' | null) => void
@@ -94,7 +100,6 @@ export function PagesView({
   onSubject,
   asked,
   onClearAsked,
-  asking,
   panel,
   onPanel,
   spreadId,
@@ -110,7 +115,8 @@ export function PagesView({
   const [senses, setSenses] = useState<AnniversarySense[]>([])
   const [month, setMonth] = useState<number | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
-  const [askingLocal, setAskingLocal] = useState(false)
+  const [kept, setKept] = useState<KeptSubject[]>([])
+  const [markings, setMarkings] = useState<MarkingRef[]>([])
   // The last page opened in the Spread, kept so the wall knows which card the
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
@@ -125,6 +131,26 @@ export function PagesView({
     void allSubjects()
       .then((s) => {
         if (alive) setVocabulary(s)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // What she keeps, and every marking in the archive. Both are conveniences
+  // rather than requirements — the wall reads fine with neither — so a failed
+  // read is silence, the same contract the Concordance chips already have.
+  useEffect(() => {
+    let alive = true
+    void listKeptSubjects()
+      .then((k) => {
+        if (alive) setKept(k)
+      })
+      .catch(() => {})
+    void listMarkings()
+      .then((m) => {
+        if (alive) setMarkings(m)
       })
       .catch(() => {})
     return () => {
@@ -173,19 +199,27 @@ export function PagesView({
         const w = wordSubject(key.slice(5))
         if (w) out.push(w)
       } else if (key.startsWith('c:')) {
-        const found = vocabulary.find((sub) => sub.key === key)
+        // Kept first: a kept subject outlives the Concordance row it came from,
+        // and it has to keep lighting after a rebuild drops that row.
+        const found = kept.find((sub) => sub.key === key) ?? vocabulary.find((sub) => sub.key === key)
         if (found) out.push(found)
       }
     }
     return out
-  }, [keys, vocabulary])
+  }, [keys, vocabulary, kept])
 
   const index = useMemo(() => buildSubjectIndex(entries), [entries])
   const facetIndex = useMemo(
-    () => buildFacetIndex(entries, marks.map((m) => m.entryId)),
-    [entries, marks],
+    () => buildFacetIndex(entries, marks.map((m) => m.entryId), markings),
+    [entries, marks, markings],
   )
-  const groups = useMemo(() => facetGroups(facetIndex), [facetIndex])
+  const markPills = useMemo(() => markingChips(facetIndex), [facetIndex])
+
+  // Kept subjects keep matching against what the Concordance knows today, and
+  // what is offered is everything else — so keeping something moves it between
+  // two lists rather than adding it to a third.
+  const held = useMemo(() => withVocabulary(kept, vocabulary), [kept, vocabulary])
+  const offered = useMemo(() => partitionKept(vocabulary, held).offered, [vocabulary, held])
   const match = useMemo(() => subjectMatcher(subjects), [subjects])
 
   /**
@@ -222,21 +256,15 @@ export function PagesView({
    * else: what is on is visible, and every one of them comes off the same way.
    */
   const chips = useMemo(() => {
-    const out: { key: string; label: string; color?: string; kind: 'ask' | 'word' | 'facet' }[] = []
-    if (asked) out.push({ key: ASK_CHIP_KEY, label: asked.question, kind: 'ask' })
-    for (const sub of subjects) out.push({ key: sub.key, label: sub.label, kind: 'word' })
-    for (const g of groups) {
-      for (const chip of g.chips) {
-        if (!keys.includes(chip.key)) continue
-        out.push(
-          chip.color
-            ? { key: chip.key, label: chip.label, color: chip.color, kind: 'facet' }
-            : { key: chip.key, label: chip.label, kind: 'facet' },
-        )
-      }
+    const out: LookChip[] = []
+    if (asked) out.push({ key: ASK_CHIP_KEY, label: asked.question, kind: 'subject' })
+    for (const sub of subjects) out.push({ key: sub.key, label: sub.label, kind: 'subject' })
+    for (const pill of markPills) {
+      if (!keys.includes(pill.key)) continue
+      out.push({ key: pill.key, label: pill.label, kind: 'marking', tone: pill.tone })
     }
     return out
-  }, [asked, subjects, groups, keys])
+  }, [asked, subjects, markPills, keys])
 
   const anyLit = keys.length > 0 || asked !== null
   const litLabel =
@@ -291,44 +319,6 @@ export function PagesView({
     onSubject(next.length > 0 ? next.join('\u0000') : null)
   }
 
-  /**
-   * A sentence, read as filters.
-   *
-   * One word is a word — no round trip, no waiting, and no model involved in
-   * "Naomi". A sentence is a question, and the server reads it into terms and
-   * markings which land here as ordinary chips: whatever it decided is visible
-   * and one click from gone. That is the answer to not wanting a hotel-search
-   * filter panel — you say it, and then you adjust what it heard.
-   */
-  async function ask(raw: string) {
-    const text = raw.trim()
-    if (!text) return
-    const looksLikeASentence = /\s/.test(text)
-    setAskingLocal(true)
-    let read: Interpretation
-    try {
-      read = looksLikeASentence ? await interpret(text) : literalFallback(text)
-    } finally {
-      setAskingLocal(false)
-    }
-
-    const next: string[] = []
-    for (const term of read.terms) {
-      const sub = wordSubject(term)
-      if (sub) next.push(sub.key)
-    }
-    for (const facet of read.facets) next.push(facet)
-    if (next.length === 0) return
-
-    setMonth(read.months.length === 1 ? read.months[0]! : null)
-    // A question about recurrence ("every year") is asking to SEE the set, not
-    // to find it among the pages that don't carry it — so it filters rather
-    // than dims. The toggle stays visible and one click from off, which is the
-    // whole reason filtering is allowed here at all.
-    if (read.arrange !== 'date') setOnlyLit(true)
-    onSubject([...new Set(next)].join('\u0000'))
-  }
-
   function addSubject(next: Subject) {
     setMonth(null)
     if (keys.includes(next.key)) return
@@ -338,6 +328,30 @@ export function PagesView({
   function clearAll() {
     setMonth(null)
     onSubject(null)
+  }
+
+  /**
+   * Keep, and stop keeping.
+   *
+   * Both move the pill immediately and reconcile behind it. Keeping is one
+   * gesture with no decision attached, and a gesture that makes you wait for a
+   * network round trip has a decision in it whether it means to or not. A
+   * failed write leaves the list as it was on the next read; nothing the writer
+   * wrote is at stake either way.
+   */
+  function keep(subject: Subject) {
+    if (kept.some((k) => k.key === subject.key)) return
+    const optimistic: KeptSubject = { ...subject, keptAt: new Date().toISOString() }
+    setKept((prev) => [...prev, optimistic])
+    void keepSubject(subject).catch(() => {
+      setKept((prev) => prev.filter((k) => k.key !== subject.key))
+    })
+  }
+
+  function drop(key: string) {
+    const previous = kept
+    setKept((prev) => prev.filter((k) => k.key !== key))
+    void dropSubject(key).catch(() => setKept(previous))
   }
 
   /** Flip the notebook open. Uniformly random — no algorithm, nothing recommended. */
@@ -462,22 +476,24 @@ export function PagesView({
             </button>
           </div>
 
-          <FilterBar
-            vocabulary={vocabulary}
-            groups={groups}
+          <LookFor
+            kept={held}
+            offered={offered}
+            index={index}
+            markings={markPills}
             chips={chips}
-            onAddSubject={addSubject}
-            onToggleFacet={toggleKey}
+            onToggleSubject={addSubject}
+            onToggleMarking={toggleKey}
             onRemove={(key) => {
               if (key === ASK_CHIP_KEY) onClearAsked()
               else toggleKey(key)
             }}
-            onAsk={(q) => void ask(q)}
             onClear={() => {
               clearAll()
               onClearAsked()
             }}
-            asking={Boolean(asking) || askingLocal}
+            onKeep={keep}
+            onDrop={drop}
             onlyLit={onlyLit}
             onOnlyLit={setOnlyLit}
           />
@@ -516,6 +532,7 @@ export function PagesView({
           markQuotes={markQuotes}
           lit={onlyLit ? null : lit}
           match={match}
+          facetIndex={facetIndex}
           activeId={activeId}
           // An echo is a page out of its own order. Interleaving one while the
           // wall is already rearranged — dimmed by a subject, or folded to a

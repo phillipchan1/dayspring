@@ -2613,6 +2613,21 @@ html[data-focus-mode] .focus-controls {
 .markdown-body mark.hl--sage { --hl-hue: var(--hl-sage); }
 .markdown-body mark.hl--sky { --hl-hue: var(--hl-sky); }
 .markdown-body mark.hl--lilac { --hl-hue: var(--hl-lilac); }
+
+/* Editor highlighter wash. Colour is applied per `.cm-hl--*` so it reads
+   `--hl-*` off [data-theme] like every other surface. Kept here rather than
+   in EditorView.theme: a custom-property hop inside style-mod can leave
+   `rgba(var(--hl-hue), …)` invalid, which is a highlight with no wash. */
+.cm-hl {
+  border-radius: 0.18em;
+  padding: 0.06em 0.1em;
+  margin: 0 -0.02em;
+}
+.cm-hl--amber { background-color: rgba(var(--hl-amber), var(--hl-alpha)); }
+.cm-hl--rose { background-color: rgba(var(--hl-rose), var(--hl-alpha)); }
+.cm-hl--sage { background-color: rgba(var(--hl-sage), var(--hl-alpha)); }
+.cm-hl--sky { background-color: rgba(var(--hl-sky), var(--hl-alpha)); }
+.cm-hl--lilac { background-color: rgba(var(--hl-lilac), var(--hl-alpha)); }
 .markdown-body u.ul {
   text-decoration-thickness: 0.075em;
   text-underline-offset: 0.18em;
@@ -4034,7 +4049,15 @@ html[data-focus-mode] .focus-controls {
 .shortcut-row__keys {
   flex: 0 0 auto;
   display: inline-flex;
+  align-items: center;
   gap: 0.25rem;
+}
+
+/* Two bindings for one act, joined rather than listed — two rows would read as
+   two different things you can do. */
+.shortcut-row__or {
+  font-size: 0.68rem;
+  color: var(--text-faint);
 }
 
 /* ── “?” overlay ───────────────────────────────────────────────────────── */
@@ -4618,4 +4641,73 @@ html[data-focus-mode] .focus-controls {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── A marking's hand ────────────────────────────────────────────────────────
+   Shared by the glyph on the closed margin rule (a CodeMirror widget, inside the
+   editor) and the note in the open margin (React, outside it) — one set of rules
+   so the two are the same drawing. Colour rides on `currentColor` per kind, so a
+   glyph belongs in all six palettes without a per-theme table.
+   See src/editor/markGlyph.ts for the shapes and why none of them rise. */
+.ds-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+/* Hidden unless the margin extension is loaded, which is what Settings → Show
+   the margin controls. The scripture block widget draws its own hand (a
+   decoration inside a replaced range is swallowed), so with the margin off that
+   hand would otherwise drop into the block's normal flow as a stray rule under
+   the citation. CodeMirror's theme selectors are more specific than this one, so
+   the margin's own rules win whenever it is on. */
+.cm-mark-glyph { display: none; }
+
+.ds-glyph--prayer { color: var(--accent); }
+.ds-glyph--sense { color: var(--md-emphasis); }
+.ds-glyph--scripture { color: rgb(var(--scripture-gold)); }
+
+/* The Lamp's ember→gold rule. A CSS ramp, not an SVG gradient — see markGlyph.ts. */
+.ds-glyph__rule {
+  width: 3px;
+  height: 1em;
+  min-height: 14px;
+  border-radius: 1.5px;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--scripture-gold)),
+    rgb(var(--scripture-ember))
+  );
+}
+
+/* Warmth with no edge. Heft is thickness; the glow never becomes a flame. */
+.ds-glyph__ember {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px 3px color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.ds-glyph__svg {
+  width: 11px;
+  height: 20px;
+}
+
+/* Things arrive by fading. Never a slide, never a scale, never a bounce —
+   movement in peripheral vision is what pulls the eye off the sentence you are
+   still writing; opacity does not. */
+@keyframes ds-glyph-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* A switch that depends on another one being on (e.g. "Let the journal notice"
+   needs "Show the margin"). Dimmed rather than hidden, so the dependency is
+   visible instead of the control silently disappearing. */
+.settings-toggle--disabled {
+  opacity: 0.45;
+}
+.settings-toggle--disabled .switch {
+  cursor: not-allowed;
 }

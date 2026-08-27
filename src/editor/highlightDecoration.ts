@@ -81,7 +81,9 @@ function build(view: EditorView): DecorationSet {
         if (open.to >= close.from) return
         if (posInsideBlock(blocks, open.from)) return
         const color = colorOfMarker(view.state.sliceDoc(open.from, open.to))
-        found.set(`${open.to}:${close.from}`, { from: open.to, to: close.from, color })
+        // Mark decorations that cross a hard line break are split so each
+        // line gets its own wash. Soft wraps are handled by box-decoration-break.
+        splitAcrossLines(found, view.state.doc, open.to, close.from, color)
       },
     })
   }
@@ -91,4 +93,20 @@ function build(view: EditorView): DecorationSet {
     builder.add(range.from, range.to, marks[range.color])
   }
   return builder.finish()
+}
+
+function splitAcrossLines(
+  found: Map<string, { from: number; to: number; color: HighlightColor }>,
+  doc: { lineAt: (pos: number) => { to: number } },
+  from: number,
+  to: number,
+  color: HighlightColor,
+) {
+  let pos = from
+  while (pos < to) {
+    const end = Math.min(doc.lineAt(pos).to, to)
+    if (end > pos) found.set(`${pos}:${end}`, { from: pos, to: end, color })
+    if (end >= to) break
+    pos = end + 1
+  }
 }

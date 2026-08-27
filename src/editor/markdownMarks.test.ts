@@ -84,6 +84,25 @@ describe('Highlight (==)', () => {
     const marks = find('=={nope}word==', 'HighlightMark')
     expect(marks.map((n) => n.text)).toEqual(['==', '=='])
   })
+
+  // The format bar wraps the whole selection, so a two-line highlight is
+  // `==line\nline==`. If this fails, the markers stay visible and there is no
+  // wash — which is exactly the "highlighting did nothing" report.
+  it('parses a highlight that spans a line break', () => {
+    expect(names('==foo\nbar==')).toContain('Highlight')
+    expect(find('==foo\nbar==', 'HighlightMark').map((n) => n.text)).toEqual(['==', '=='])
+  })
+
+  it('parses a highlight whose closer sits after a space', () => {
+    // Selecting a phrase often includes the trailing space, so the wrap is
+    // `==phrase ==`. Obsidian-style `==phrase ==` should still paint.
+    expect(names('==foo ==')).toContain('Highlight')
+  })
+
+  it('parses a two-line wrap with a trailing space before the closer', () => {
+    const doc = '==give me a one thing heart father.\ngive me a heart that loves you above all else. =='
+    expect(names(doc)).toContain('Highlight')
+  })
 })
 
 describe('Underline (++)', () => {

@@ -8,6 +8,7 @@ describe('stripInlineMarkers', () => {
     expect(stripInlineMarkers('a ~~gone~~ b')).toBe('a gone b')
     expect(stripInlineMarkers('a `code` b')).toBe('a code b')
     expect(stripInlineMarkers('a ==hl== b')).toBe('a hl b')
+    expect(stripInlineMarkers('==hl ==')).toBe('hl ')
     expect(stripInlineMarkers('a =={rose}hl== b')).toBe('a hl b')
     expect(stripInlineMarkers('a ++under++ b')).toBe('a under b')
   })

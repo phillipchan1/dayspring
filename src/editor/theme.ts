@@ -88,25 +88,18 @@ export const editorTheme = EditorView.theme({
   // `opacity: 0.28`, which already fades the mark along with its text. An
   // explicit override would dim it twice and lose it entirely.
 
-  // A highlighter wash. Unlike `.cm-mark` above — which is the app setting a
-  // passage aside, and so takes the theme's accent — this is the writer's own
-  // pen, so the hues stay constant across palettes and only the alpha shifts
-  // (see --hl-alpha in themes.css). No transition: the conceal plugin changes
-  // this element's width when markers reveal, and an animating width forces
+  // Highlighter wash colour lives in global.css (`.cm-hl--*`) so it reads
+  // `--hl-*` off [data-theme] like every other surface. Setting `--hl-hue`
+  // through EditorView.theme can fail to paint: style-mod's custom-property
+  // hop leaves `rgba(var(--hl-hue), …)` invalid, which is a wash that vanishes
+  // in every palette. Only wrap-clone stays here — that's a CodeMirror
+  // line-wrapping concern. No transition: the conceal plugin changes this
+  // element's width when markers reveal, and an animating width forces
   // repeated measure passes that fight typewriter scrolling.
   '.cm-hl': {
-    backgroundColor: 'rgba(var(--hl-hue), var(--hl-alpha))',
-    borderRadius: '0.18em',
-    padding: '0.06em 0.1em',
-    margin: '0 -0.02em',
     // lineWrapping is on: without clone, a highlight crossing a wrap gets one
     // stretched box spanning the gutter instead of one box per line fragment.
     WebkitBoxDecorationBreak: 'clone',
     boxDecorationBreak: 'clone',
   },
-  '.cm-hl--amber': { '--hl-hue': 'var(--hl-amber)' },
-  '.cm-hl--rose': { '--hl-hue': 'var(--hl-rose)' },
-  '.cm-hl--sage': { '--hl-hue': 'var(--hl-sage)' },
-  '.cm-hl--sky': { '--hl-hue': 'var(--hl-sky)' },
-  '.cm-hl--lilac': { '--hl-hue': 'var(--hl-lilac)' },
 })

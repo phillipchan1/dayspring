@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
-import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
 import { RAIL_EXPAND_KEY } from './railHints'
@@ -9,7 +8,7 @@ import { useSurfaceUpdates } from './surfaceUpdates'
 import {
   IconAltar,
   IconAscent,
-  IconEntries,
+  IconPages,
   IconMenu,
   IconNew,
   IconScripture,
@@ -20,8 +19,8 @@ const NATIVE = isTauri()
 
 interface RailProps {
   onNew: () => void
-  onEntries: () => void
-  entriesOpen: boolean
+  pagesActive: boolean
+  onPages: () => void
   lookBackActive: boolean
   onLookBack: () => void
   altarActive: boolean
@@ -43,8 +42,8 @@ interface RailProps {
  */
 export function Rail({
   onNew,
-  onEntries,
-  entriesOpen,
+  pagesActive,
+  onPages,
   lookBackActive,
   onLookBack,
   altarActive,
@@ -97,18 +96,9 @@ export function Rail({
           </span>
           <RailButton
             label="New entry"
-            shortcut={formatNewEntryShortcut()}
+            shortcut="⌘1"
             onClick={onNew}
             icon={<IconNew />}
-            labelsExpanded={labelsExpanded}
-          />
-          <RailButton
-            label="Entries"
-            subline="Your own, side by side"
-            shortcut="⌘1"
-            onClick={onEntries}
-            active={entriesOpen}
-            icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
         </div>
@@ -116,10 +106,24 @@ export function Rail({
           <span className="rail__group-label" aria-hidden data-tauri-drag-region={drag}>
             Return
           </span>
+          {/*
+            Pages first, because it is the archive itself and the other three
+            are readings OF it. It also keeps ⌘1 — the number the entries panel
+            had — so fifteen years of muscle memory still lands on your pages.
+          */}
+          <RailButton
+            label="Pages"
+            subline="Your own, side by side"
+            shortcut="⌘2"
+            onClick={onPages}
+            active={pagesActive}
+            icon={<IconPages />}
+            labelsExpanded={labelsExpanded}
+          />
           <RailButton
             label="Ascent"
             subline="The climb through your seasons"
-            shortcut="⌘2"
+            shortcut="⌘3"
             onClick={onLookBack}
             active={lookBackActive}
             ember={dot.reflections}
@@ -129,7 +133,7 @@ export function Rail({
           <RailButton
             label="Lamp"
             subline="The verses you return to"
-            shortcut="⌘3"
+            shortcut="⌘4"
             onClick={onScripture}
             active={scriptureActive}
             lamp
@@ -141,7 +145,7 @@ export function Rail({
             <RailButton
               label="Altar"
               subline="The prayers you return to"
-              shortcut="⌘4"
+              shortcut="⌘5"
               onClick={onAltar}
               active={altarActive}
               ember={dot.altar}

@@ -44,6 +44,7 @@ const noop = () => {}
 /** What the wall needs from the shell to browse, edit, rename and delete. */
 const wallActions = {
   match: null,
+  facetIndex: { byEntry: new Map(), counts: new Map() },
   single: false,
   firstLineTitle: true,
   returningId: null,

@@ -15,7 +15,9 @@
 import { settingsStore } from './settings'
 
 type ReturnSurface = 'reflections' | 'scripture' | 'altar'
-type SlashCmd = 'scripture' | 'pray' | 'sense' | 'ritual' | 'image' | 'emoji'
+import type { SlashCommandId } from '@/editor/slashDetect'
+
+type SlashCmd = SlashCommandId
 
 /** The complete vocabulary. Props must stay enum/number/boolean — see above. */
 interface EventProps {

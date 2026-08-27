@@ -44,6 +44,22 @@ describe('theme registry', () => {
     for (const t of THEMES) expect(css).toContain(`[data-theme='${t.id}']`)
   })
 
+  it('paints highlighter washes from theme tokens in every palette', () => {
+    // A wash that only paints in some palettes is a highlight that "doesn't
+    // work" — Vigil used to miss the dark alpha group, and the editor wash
+    // used to hop through a CodeMirror custom property that never resolved.
+    const themes = readFileSync(new URL('../styles/themes.css', import.meta.url), 'utf8')
+    const global = readFileSync(new URL('../styles/global.css', import.meta.url), 'utf8')
+    for (const hue of ['amber', 'rose', 'sage', 'sky', 'lilac']) {
+      expect(themes).toContain(`--hl-${hue}:`)
+      expect(global).toContain(`.cm-hl--${hue} { background-color: rgba(var(--hl-${hue}), var(--hl-alpha))`)
+    }
+    const grouped = themes.slice(Math.max(0, themes.lastIndexOf('--hl-alpha: 0.24') - 280), themes.lastIndexOf('--hl-alpha: 0.24'))
+    for (const t of THEMES.filter((th) => th.family === 'dark')) {
+      expect(grouped).toContain(`[data-theme='${t.id}']`)
+    }
+  })
+
   it('lists every theme in the pre-paint boot script, on the right side', () => {
     // index.html resolves the theme before React mounts; a palette missing from
     // its LIGHT/DARK maps silently falls back and flashes the wrong family.

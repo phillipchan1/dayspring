@@ -51,7 +51,22 @@ export interface NewEntry {
 
 // ── Spiritual items ────────────────────────────────────────────────────────
 
-export type SpiritualItemType = 'prayer' | 'sense' | 'scripture'
+/**
+ * The eight declared kinds. See `markKinds.ts` for the table that gives each one
+ * its label, fence, command and hue — and for why the set is closed.
+ *
+ * Widening this required a migration: `spiritual_items.type` carries a check
+ * constraint listing the three original values (20260824120000_mark_kinds.sql).
+ */
+export type SpiritualItemType =
+  | 'prayer'
+  | 'sense'
+  | 'scripture'
+  | 'gift'
+  | 'desire'
+  | 'learned'
+  | 'story'
+  | 'absence'
 
 export type PrayerType = 'intercession' | 'gratitude' | 'petition' | 'praise'
 

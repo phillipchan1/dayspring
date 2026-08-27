@@ -18,9 +18,13 @@ import {
   copyEntriesText,
   exportEntriesZip,
 } from '@/features/journal/entryBulkActions'
-import { nextEntryIdAfterDelete } from '@/features/journal/orderedEntryIds'
+import { nextEntryIdAfterDelete } from '@/features/journal/entryFocusAfterDelete'
 import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
+import { PageRow } from './PageRow'
+import type { FacetIndex } from './facets'
+import { MARK_KINDS } from '@/lib/markKinds'
+import type { SpiritualItemType } from '@/lib/types'
 import {
   buildWallItems,
   collapseUnlit,
@@ -32,7 +36,7 @@ import {
   type WallItem,
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
-import { clampZoom, isReading, readingCols, specForZoom, wheelZoomDelta } from './zoom'
+import { clampZoom, isReading, isRows, readingCols, specForZoom, wheelZoomDelta } from './zoom'
 import { Leaf } from './Leaf'
 import { claimTransitionName, withPageTransition } from './viewTransition'
 
@@ -48,6 +52,8 @@ interface Props {
   lit: Set<string> | null
   /** Matcher for the lit words themselves. Null when nothing is lit. */
   match: RegExp | null
+  /** What each page carries. The rows band draws its margin from this. */
+  facetIndex: FacetIndex
   activeId: string | null
   /** Interleave pages from earlier years. */
   echoes: boolean
@@ -70,6 +76,8 @@ interface Props {
 }
 
 const EMPTY_SELECTED: Entry[] = []
+/** Stable identity, so a page with no markings never re-renders its row. */
+const EMPTY_KINDS: SpiritualItemType[] = []
 
 /**
  * The wall.
@@ -92,6 +100,7 @@ export function PageWall({
   markQuotes,
   lit,
   match,
+  facetIndex,
   activeId,
   echoes,
   onOpen,
@@ -110,6 +119,7 @@ export function PageWall({
   const spec = useMemo(() => specForZoom(zoom), [zoom])
   // Close enough to read: cells stop being cards and become whole pages.
   const reading = isReading(zoom)
+  const rows = isRows(zoom)
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
@@ -139,7 +149,7 @@ export function PageWall({
       const w = el.clientWidth
       if (w <= 0) return
       const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
-      const cap = reading ? readingCols(single) : spec.maxCols
+      const cap = rows ? 1 : reading ? readingCols(single) : spec.maxCols
       const next = Math.max(1, Math.min(cap, fits))
       setCols((prev) => (prev === next ? prev : next))
     }
@@ -147,7 +157,24 @@ export function PageWall({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [spec, reading, single])
+  }, [spec, reading, rows, single])
+
+  // The declared kinds each page carries, in the vocabulary's own order — the
+  // row margin's whole content. Built once here rather than per row so a scroll
+  // frame never re-derives it.
+  const rowMarkings = useMemo(() => {
+    const out = new Map<string, SpiritualItemType[]>()
+    if (!rows) return out
+    for (const [id, set] of facetIndex.byEntry) {
+      const kinds = MARK_KINDS.filter((k) => set.has(k.kind)).map((k) => k.kind)
+      if (kinds.length > 0) out.set(id, kinds)
+    }
+    return out
+  }, [rows, facetIndex])
+
+  // Entries arrive newest first, so today's page is the first one — and it is
+  // the only thing on a row that is not simply the page itself.
+  const newestId = entries[0]?.id ?? null
 
   const items: WallItem[] = useMemo(
     () => collapseUnlit(buildWallItems(entries, echoes, cols), lit, expandedSeams),
@@ -638,6 +665,31 @@ export function PageWall({
                   <span className="pg__seam-edges" aria-hidden />
                   <span className="pg__seam-n">{seamLabel(count, fromIso, toIso)}</span>
                 </button>
+              )
+            }
+            if (rows) {
+              return (
+                <PageRow
+                  key={item.key}
+                  wallKey={item.key}
+                  entryId={item.entry.id}
+                  dateIso={item.entry.created_at}
+                  excerpt={excerpts.get(item.entry.id)!}
+                  match={match}
+                  dim={lit !== null && !lit.has(item.entry.id)}
+                  active={item.entry.id === activeId && !item.echo}
+                  selected={!item.echo && selectedIds.has(item.entry.id)}
+                  context={!item.echo && item.entry.id === menuTargetId}
+                  today={item.entry.id === newestId}
+                  markings={rowMarkings.get(item.entry.id) ?? EMPTY_KINDS}
+                  tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
+                  onFocus={onCardFocus}
+                  onKeyDown={onCardKeyDown}
+                  onOpen={openWithTransition}
+                  onEdit={onEdit}
+                  onClick={multi.handleRowClick}
+                  onOpenMenu={openMenuAt}
+                />
               )
             }
             if (reading) {

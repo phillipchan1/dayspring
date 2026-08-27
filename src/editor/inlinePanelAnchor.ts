@@ -91,3 +91,32 @@ export function computeBlockPanelAnchor(view: EditorView, blockEl: HTMLElement):
   }
   return { left, width, top: belowTop, placeAbove: false }
 }
+
+/**
+ * Anchor a panel to a run of ordinary text lines — the shape prayer and sense
+ * take now that they render as marked lines rather than block widgets
+ * (spiritualBlockDecoration.ts). Unlike `computeBlockPanelAnchor` there is no
+ * single element to measure, so the run's vertical extent comes from the
+ * document positions at either end.
+ */
+export function computeRangePanelAnchor(
+  view: EditorView,
+  from: number,
+  to: number,
+): InlinePanelAnchor {
+  const column = editorColumnRect(view)
+  const width = Math.min(column?.width ?? 672, PANEL_MAX_WIDTH_PX)
+  const start = view.coordsAtPos(from)
+  const end = view.coordsAtPos(to)
+  const left = column?.left ?? start?.left ?? 24
+
+  if (!start || !end) return { left, top: 120, width, placeAbove: false }
+
+  const belowTop = end.bottom + GAP_PX
+  const wouldClip = belowTop + PANEL_ESTIMATE_PX > flipLine()
+
+  if (wouldClip && start.top > PANEL_ESTIMATE_PX + GAP_PX) {
+    return { left, width, top: start.top - GAP_PX, placeAbove: true }
+  }
+  return { left, width, top: belowTop, placeAbove: false }
+}

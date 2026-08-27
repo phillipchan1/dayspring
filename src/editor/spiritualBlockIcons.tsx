@@ -60,6 +60,46 @@ const paths: Record<SlashCommandId, ReactNode> = {
       <path d="M5 17l4.2-4.2a2 2 0 0 1 2.8 0L19 19.5" />
     </>
   ),
+  // A shallow bowl with something resting in it. Received, not achieved.
+  gift: (
+    <>
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <circle cx="12" cy="6.2" r="1.9" />
+    </>
+  ),
+  // A ring left open — a reaching that travels toward something and does not
+  // close on it. Sideways, never upward: a glyph that rose would be saying that
+  // wanting more is better.
+  desire: (
+    <>
+      <path d="M16.8 7.6a5.6 5.6 0 1 0 0 8.8" />
+      <circle cx="19.2" cy="12" r="1.3" />
+    </>
+  ),
+  /*
+   * A benchmark: the flat rule a surveyor leaves to say "this is the level",
+   * with a short tick dropping from it. Flat on purpose — Principle 1 forbids
+   * vertical valence, so nothing here rises. The tick hangs rather than crosses
+   * because a centred cross at this size reads as "+", which in a command
+   * palette means insert.
+   */
+  learned: (
+    <>
+      <path d="M4.5 10.5h15" />
+      <path d="M12 10.5v5.5" />
+    </>
+  ),
+  // The brace people actually draw in a margin beside a paragraph they want to
+  // keep.
+  story: <path d="M15.5 3.5c-4 0-2.5 7.5-7 8.5 4.5 1 3 8.5 7 8.5" />,
+  // A line with a gap in it. Not a cross and not an X — absence is a gap, never
+  // a mark against you, and the drawing has to say that before the label does.
+  absence: (
+    <>
+      <path d="M12 3.5v6.2" />
+      <path d="M12 14.3v6.2" />
+    </>
+  ),
   // Smiling face — a light expression, same stroke idiom as the other blocks.
   emoji: (
     <>

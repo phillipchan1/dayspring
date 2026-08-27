@@ -32,6 +32,18 @@ function ShortcutRow({ item, mac }: { item: Shortcut; mac: boolean }) {
             {renderKey(k, mac)}
           </kbd>
         ))}
+        {/* A second binding for the same act — "or" rather than a second row,
+            because two rows read as two different things you can do. */}
+        {item.alsoKeys ? (
+          <>
+            <span className="shortcut-row__or">or</span>
+            {item.alsoKeys.map((k, i) => (
+              <kbd key={`alt-${i}`} className="kbd">
+                {renderKey(k, mac)}
+              </kbd>
+            ))}
+          </>
+        ) : null}
       </span>
     </li>
   )
