@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.253",
+  "appVersion": "1.0.260",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -148,21 +148,9 @@
         "pc": "Esc"
       },
       {
-        "id": "shortcut.entries-your-pages",
+        "id": "shortcut.pages-your-own-side-by-side",
         "group": "Navigation",
-        "label": "Entries — your pages",
-        "when": null,
-        "keys": [
-          "Mod",
-          "1"
-        ],
-        "mac": "⌘1",
-        "pc": "Ctrl + 1"
-      },
-      {
-        "id": "shortcut.ascent",
-        "group": "Navigation",
-        "label": "Ascent",
+        "label": "Pages — your own, side by side",
         "when": null,
         "keys": [
           "Mod",
@@ -172,9 +160,9 @@
         "pc": "Ctrl + 2"
       },
       {
-        "id": "shortcut.lamp",
+        "id": "shortcut.ascent",
         "group": "Navigation",
-        "label": "Lamp",
+        "label": "Ascent",
         "when": null,
         "keys": [
           "Mod",
@@ -184,9 +172,9 @@
         "pc": "Ctrl + 3"
       },
       {
-        "id": "shortcut.altar",
+        "id": "shortcut.lamp",
         "group": "Navigation",
-        "label": "Altar",
+        "label": "Lamp",
         "when": null,
         "keys": [
           "Mod",
@@ -194,6 +182,18 @@
         ],
         "mac": "⌘4",
         "pc": "Ctrl + 4"
+      },
+      {
+        "id": "shortcut.altar",
+        "group": "Navigation",
+        "label": "Altar",
+        "when": null,
+        "keys": [
+          "Mod",
+          "5"
+        ],
+        "mac": "⌘5",
+        "pc": "Ctrl + 5"
       },
       {
         "id": "shortcut.settings",
@@ -350,6 +350,75 @@
           "sense",
           "impression",
           "word"
+        ]
+      },
+      {
+        "id": "slash.gift",
+        "label": "Gift",
+        "hint": "Something you were given",
+        "badge": "◡",
+        "column": "capture",
+        "keywords": [
+          "gift",
+          "given",
+          "grateful",
+          "gratitude",
+          "thanks"
+        ]
+      },
+      {
+        "id": "slash.desire",
+        "label": "Desire",
+        "hint": "Something you want",
+        "badge": "◠",
+        "column": "capture",
+        "keywords": [
+          "desire",
+          "want",
+          "longing",
+          "hope",
+          "wish"
+        ]
+      },
+      {
+        "id": "slash.learned",
+        "label": "Learned",
+        "hint": "Something you would tell yourself again",
+        "badge": "⊥",
+        "column": "capture",
+        "keywords": [
+          "learned",
+          "learn",
+          "lesson",
+          "again"
+        ]
+      },
+      {
+        "id": "slash.story",
+        "label": "Story",
+        "hint": "A thing that happened, worth keeping",
+        "badge": "{",
+        "column": "capture",
+        "keywords": [
+          "story",
+          "happened",
+          "moment",
+          "event"
+        ]
+      },
+      {
+        "id": "slash.absence",
+        "label": "Absence",
+        "hint": "Where He seemed far",
+        "badge": "¦",
+        "column": "capture",
+        "keywords": [
+          "absence",
+          "absent",
+          "far",
+          "silence",
+          "dry",
+          "dark"
         ]
       },
       {
@@ -662,6 +731,18 @@
       {
         "id": "setting.skip-ritual-preview",
         "key": "skipRitualPreview",
+        "default": false,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.show-margin",
+        "key": "showMargin",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.noticing",
+        "key": "noticing",
         "default": false,
         "type": "boolean"
       },
@@ -1223,7 +1304,7 @@
     "editor.font-size-max": 36,
     "counts.practices": 11,
     "counts.themes": 9,
-    "counts.slash-commands": 20,
+    "counts.slash-commands": 25,
     "counts.highlight-colors": 5,
     "counts.importers": 3
   }
