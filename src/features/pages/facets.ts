@@ -8,12 +8,14 @@
 // Built in one pass over the corpus and cached, because it is read on every
 // re-light and the corpus is the whole archive.
 
-import { HIGHLIGHT_ORDER, NAMED_COLOR_PATTERN, type HighlightColor } from '@/lib/highlightColors'
+import { NAMED_COLOR_PATTERN, type HighlightColor } from '@/lib/highlightColors'
+import { LIVE_MARK_KINDS } from '@/lib/markKinds'
+import type { MarkingRef } from '@/lib/spiritual'
 import { entryContentLines, asEntryMarkdown } from '@/lib/entryLabels'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { practiceNameFromLine } from '@/lib/practiceTokens'
 import { parseReferences } from '@/lib/scripture/parse'
-import type { Entry } from '@/lib/types'
+import type { Entry, SpiritualItemType } from '@/lib/types'
 
 /**
  * A facet key.
@@ -61,7 +63,7 @@ export interface FacetIndex {
  * search for `==`.
  */
 const HIGHLIGHT_RE = new RegExp(
-  `==(?:\\{(${NAMED_COLOR_PATTERN})\\})?(?!\\s)([^=]+?)(?<!\\s)==`,
+  `==(?:\\{(${NAMED_COLOR_PATTERN})\\})?(?!\\s)([^=]+?)==`,
   'g',
 )
 const UNDERLINE_RE = /\+\+(?!\s)([^+]+?)(?<!\s)\+\+/
@@ -84,6 +86,7 @@ function add(set: Set<FacetKey>, counts: Map<FacetKey, number>, key: FacetKey): 
 export function buildFacetIndex(
   entries: Entry[],
   markedEntryIds: Iterable<string> = [],
+  markings: Iterable<MarkingRef> = [],
 ): FacetIndex {
   const byEntry = new Map<string, Set<FacetKey>>()
   const counts = new Map<FacetKey, number>()
@@ -144,6 +147,25 @@ export function buildFacetIndex(
     if (set) add(set, counts, FACET_MARK)
   }
 
+  /*
+   * The markings that live in `spiritual_items` rather than in the document.
+   *
+   * A page acquires a marking two ways, and both are real. The writer types
+   * `/pray` and the fence goes into the markdown; or the journal reads a page
+   * already written and lays the prayer that is plainly in it onto the Altar —
+   * the writer's own verbatim sentence, selected by a model, dated to the page.
+   *
+   * Reading only the fences was the defect: on a fifteen-year archive imported
+   * from another journal that is 7 pages with a prayer on them instead of 2,361,
+   * because the markings are a Dayspring gesture and the pages predate it. Both
+   * sources land on the SAME facet — one pill per kind, not two — so choosing
+   * "Prayer" means every page carrying one, however it got there.
+   */
+  for (const m of markings) {
+    const set = byEntry.get(m.entryId)
+    if (set) add(set, counts, m.type)
+  }
+
   return { byEntry, counts }
 }
 
@@ -177,43 +199,32 @@ export interface FacetGrouping {
   chips: FacetChip[]
 }
 
+export interface MarkingChip extends FacetChip {
+  kind: SpiritualItemType
+  /** CSS custom property carrying the kind's hue. */
+  tone: string
+}
+
 /**
- * The chips worth offering, in two plain-English groups.
+ * The declared kinds, as pills — the six, in their own order.
  *
- * Eleven of these in one row was a row nobody could scan, and it read as a
- * filter panel rather than as a way of looking. "Marked" is what you did to a
- * page; "Wrote" is what you put on it. Both are things the WRITER did — nothing
- * here is inferred (D-016).
+ * A kind carrying no pages is KEPT and dimmed rather than dropped. The set is
+ * closed and the same every time; a list that silently changes length teaches
+ * the reader that the vocabulary is variable, which is the beginning of a tag
+ * manager. Dimming says "nothing here yet", which is true and is not a promise
+ * about tomorrow.
  *
- * A facet no page carries is omitted rather than shown empty: an unusable
- * control that reports zero is a worse answer than no control. Counts are shown
- * for the same reason — choosing a filter should never be a shot in the dark.
+ * `LIVE_MARK_KINDS`, not `MARK_KINDS`: Gift and Absence were cut because a
+ * writer read the labels and could not tell what they meant. Pages that already
+ * carry them still draw them — the index is built over every kind — but nothing
+ * retired is ever offered.
  */
-export function facetGroups(index: FacetIndex): FacetGrouping[] {
-  const chip = (key: FacetKey, label: string, color?: HighlightColor): FacetChip | null => {
-    const count = index.counts.get(key) ?? 0
-    if (count === 0) return null
-    return color ? { key, label, count, color } : { key, label, count }
-  }
-  const kept = (...xs: (FacetChip | null)[]): FacetChip[] => xs.filter((x): x is FacetChip => x !== null)
-
-  const marked = kept(
-    chip(FACET_MARK, 'Marked'),
-    chip(FACET_HIGHLIGHT, 'Highlighted'),
-    ...HIGHLIGHT_ORDER.map((c) => chip(highlightFacet(c), c, c)),
-    chip(FACET_UNDERLINE, 'Underlined'),
-    chip(FACET_BOLD, 'Emphasised'),
-    chip(FACET_QUOTE, 'Quoted'),
-  )
-  const wrote = kept(
-    chip(FACET_SCRIPTURE, 'Scripture'),
-    chip(FACET_PRAYER, 'Prayer'),
-    chip(FACET_SENSE, 'Sense'),
-    chip(FACET_RITUAL, 'Ritual'),
-  )
-
-  const out: FacetGrouping[] = []
-  if (marked.length > 0) out.push({ group: 'marked', label: 'Marked', chips: marked })
-  if (wrote.length > 0) out.push({ group: 'wrote', label: 'Wrote', chips: wrote })
-  return out
+export function markingChips(index: FacetIndex): MarkingChip[] {
+  return LIVE_MARK_KINDS.map((k) => ({
+    key: k.kind as FacetKey,
+    kind: k.kind,
+    label: k.label,
+    tone: k.tone,
+    count: index.counts.get(k.kind) ?? 0,
+  }))
 }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { LIVE_MARK_KINDS } from '@/lib/markKinds'
 import type { Entry } from '@/lib/types'
 import {
   buildFacetIndex,
-  facetGroups,
+  markingChips,
   FACET_PRAYER,
   FACET_RITUAL,
   FACET_SENSE,
@@ -130,39 +131,62 @@ describe('the slash blocks — what the writer put on the page', () => {
   })
 })
 
-describe('facetGroups', () => {
-  it('offers nothing for an archive with no markings in it', () => {
-    expect(facetGroups(buildFacetIndex([entry('just plain prose')]))).toEqual([])
+describe('markingChips', () => {
+  // The set is closed and the same every time. A list that silently changes
+  // length teaches the reader that the vocabulary is variable, which is the
+  // beginning of a tag manager.
+  it('offers the six, and never a retired kind', () => {
+    const chips = markingChips(buildFacetIndex([entry('just plain prose')]))
+    expect(chips.map((c) => c.kind)).toEqual(LIVE_MARK_KINDS.map((k) => k.kind))
+    expect(chips.every((c) => c.count === 0)).toBe(true)
   })
 
-  // A control that reports zero is a worse answer than no control.
-  it('offers only the facets some page actually carries', () => {
-    const groups = facetGroups(buildFacetIndex([entry('a =={sky}blue== line')]))
-    const keys = groups.flatMap((g) => g.chips.map((c) => c.key))
-    expect(keys).toContain(FACET_HIGHLIGHT)
-    expect(keys).toContain(highlightFacet('sky'))
-    expect(keys).not.toContain(highlightFacet('rose'))
-    expect(keys).not.toContain(FACET_SCRIPTURE)
-    // Nothing was written with a slash command, so there is no "Wrote" group.
-    expect(groups.map((g) => g.group)).toEqual(['marked'])
+  it('counts the pages a kind would give you', () => {
+    const pray = (body: string) =>
+      entry(['```dayspring-pray 3f2504e0-4f89-11d3-9a0c-0305e82c3301', body, '```'].join('\n'))
+    const chips = markingChips(buildFacetIndex([pray('for Thursday'), pray('for Ben'), entry('plain')]))
+    expect(chips.find((c) => c.kind === 'prayer')!.count).toBe(2)
   })
 
-  it('separates what you did to a page from what you put on it', () => {
-    const marked = entry('a ==bright== line')
-    const wrote = entry(
-      ['```dayspring-pray 3f2504e0-4f89-11d3-9a0c-0305e82c3301', 'for Thursday', '```'].join('\n'),
+  /*
+   * The defect this whole path exists for: reading only the fences finds 7
+   * pages with a prayer on a fifteen-year imported archive instead of 2,361,
+   * because the markings are a Dayspring gesture and the pages predate it.
+   */
+  it('counts a harvested prayer the same as a typed one', () => {
+    const page = entry('I keep bringing her and I keep not knowing what to ask for.')
+    const chips = markingChips(
+      buildFacetIndex([page], [], [{ entryId: page.id, type: 'prayer', declared: false }]),
     )
-    const groups = facetGroups(buildFacetIndex([marked, wrote]))
-    expect(groups.map((g) => g.group)).toEqual(['marked', 'wrote'])
-    expect(groups[1]!.chips.map((c) => c.key)).toContain(FACET_PRAYER)
+    expect(chips.find((c) => c.kind === 'prayer')!.count).toBe(1)
   })
 
-  // Choosing a filter should never be a shot in the dark.
-  it('says how many pages each one would give you', () => {
-    const groups = facetGroups(
-      buildFacetIndex([entry('a ==one== line'), entry('a ==two== line'), entry('plain')]),
+  // ONE pill per kind, not two. Whichever way a page came by its prayer, it is
+  // a page with a prayer on it.
+  it('does not count a page twice when it has the marking both ways', () => {
+    const page = entry(
+      ['```dayspring-pray 3f2504e0-4f89-11d3-9a0c-0305e82c3301', 'for Ben', '```'].join('\n'),
     )
-    const hl = groups[0]!.chips.find((c) => c.key === FACET_HIGHLIGHT)!
-    expect(hl.count).toBe(2)
+    const chips = markingChips(
+      buildFacetIndex([page], [], [{ entryId: page.id, type: 'prayer', declared: false }]),
+    )
+    expect(chips.find((c) => c.kind === 'prayer')!.count).toBe(1)
+  })
+})
+
+describe('retired kinds', () => {
+  // Cut from the vocabulary, kept for the pages that already carry them. An
+  // entry marked `gift` in June must still render as a gift.
+  it('never offers Gift or Absence', () => {
+    const chips = markingChips(buildFacetIndex([entry('plain')]))
+    expect(chips.map((c) => c.kind)).not.toContain('gift')
+    expect(chips.map((c) => c.kind)).not.toContain('absence')
+    expect(chips).toHaveLength(6)
+  })
+
+  it('still indexes a page that carries one', () => {
+    const page = entry('something I was given')
+    const index = buildFacetIndex([page], [], [{ entryId: page.id, type: 'gift', declared: false }])
+    expect(index.byEntry.get(page.id)!.has('gift')).toBe(true)
   })
 })
