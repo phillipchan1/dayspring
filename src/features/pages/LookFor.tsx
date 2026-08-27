@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MarkingChip } from './facets'
 import type { KeptSubject } from './keptSubjects'
 import { searchSubjects, withCounts, wordSubject, type Subject, type SubjectIndex } from './subjects'
+import { READINGS, type Reading } from './readings'
 
 /**
  * Look for.
@@ -48,6 +49,8 @@ interface Props {
   /** The corpus, indexed — the only source of a subject's page count. */
   index: SubjectIndex
   markings: MarkingChip[]
+  reading: Reading
+  onReading: (r: Reading) => void
   chips: LookChip[]
   onToggleSubject: (subject: Subject) => void
   onToggleMarking: (key: string) => void
@@ -68,6 +71,8 @@ export function LookFor({
   offered,
   index,
   markings,
+  reading,
+  onReading,
   chips,
   onToggleSubject,
   onToggleMarking,
@@ -305,6 +310,34 @@ export function LookFor({
                 )
               })}
             </div>
+          </section>
+
+          {/*
+            Four plain pills and ONE gloss — the chosen one. Describing every
+            option is four explanations for one decision, and it doubles the
+            type in the sheet to do it.
+
+            Never dimmed until a subject is chosen, either. Greying this out is
+            exactly what made "the words you used" impossible to find: you would
+            open the sheet on the wall, see a dead group, and never learn what
+            was in it. Every reading arranges whatever is on screen.
+          */}
+          <section className="pg-sheet__g">
+            <h3>reading</h3>
+            <div className="pg-sheet__opts">
+              {READINGS.map((r) => (
+                <span
+                  key={r.id}
+                  className="pg-pill pg-pill--read"
+                  data-on={reading === r.id ? 'true' : undefined}
+                >
+                  <button type="button" className="pg-pill__hit" onClick={() => onReading(r.id)}>
+                    {r.label}
+                  </button>
+                </span>
+              ))}
+            </div>
+            <p className="pg-sheet__gloss">{READINGS.find((r) => r.id === reading)?.gloss}</p>
           </section>
         </div>
       ) : null}

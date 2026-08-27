@@ -1651,3 +1651,188 @@ button.pg__sense-q:hover {
 .pgr[data-today='true'] .pgr__date {
   color: var(--accent);
 }
+
+/* The chosen reading, and its one line of explanation. */
+.pg-pill--read[data-on='true'] {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-color: var(--border);
+}
+
+.pg-pill--read[data-on='true'] .pg-pill__hit {
+  color: var(--text-bright);
+}
+
+.pg-sheet__gloss {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+
+/* ── the readings ──
+ *
+ * The results stay in the page view: every arrangement is still pages, with
+ * their dates, in the writer's own words. Grouped differently, never
+ * summarised, and with no axis anywhere.
+ */
+
+.pg-read {
+  max-inline-size: 62rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+  overflow-y: auto;
+  block-size: 100%;
+}
+
+/* A control, not a finding — so it is plain. */
+.pg-read__split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-end: 1.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+.pg-read__year {
+  padding: 0.15rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg-read__year:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+}
+
+.pg-read__year[data-on='true'] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+/*
+ * Two spans, side by side, with NOTHING BETWEEN THEM. No arrow: an arrow is a
+ * vertical axis laid on its side, saying the second span is where the first was
+ * heading.
+ */
+.pg-read__two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: 2.5rem;
+}
+
+.pg-read__bursts {
+  display: flex;
+  flex-direction: column;
+  gap: 2.2rem;
+}
+
+/* The count IS the heading. A title would be a claim about what it was. */
+.pg-read__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.6rem;
+  margin: 0 0 0.9rem;
+  padding-block-end: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.pg-read__head span {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.pg-read__pages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-read__page {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  inline-size: 100%;
+  padding: 0.28rem 0.4rem;
+  text-align: start;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pg-read__page:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+/* A date is a fact about a page, so it is the one thing here set in mono. */
+.pg-read__date {
+  flex: none;
+  inline-size: 5.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.pg-read__line {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+/*
+ * Her words, and nothing beside them.
+ *
+ * No number, no rank, no good-and-bad. Set in the journal's own face because
+ * they are hers; separated by a middot because a list needs a separator and a
+ * bullet would make it a ranking.
+ */
+.pg-read__words {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.9;
+  color: var(--text);
+}
+
+.pg-read__words i {
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/* The floor, stated where the reader can see it — the only legal way to shorten
+   the list, and it has to be visible to be legal. */
+.pg-read__floor {
+  margin: 2rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  color: var(--text-faint);
+}
+
+.pg-read__none {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  color: var(--text-faint);
+}

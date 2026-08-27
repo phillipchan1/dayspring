@@ -20,6 +20,8 @@ import {
 } from './subjects'
 import { buildFacetIndex, markingChips, matchFacets } from './facets'
 import { LookFor, type LookChip } from './LookFor'
+import { ReadingView } from './ReadingView'
+import { defaultSplit, type Reading } from './readings'
 import {
   dropSubject,
   keepSubject,
@@ -116,6 +118,10 @@ export function PagesView({
   const [month, setMonth] = useState<number | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
   const [kept, setKept] = useState<KeptSubject[]>([])
+  // How the lit pages are arranged. Local rather than a history frame: it is a
+  // way of looking at what is already on screen, not somewhere you went.
+  const [reading, setReading] = useState<Reading>('order')
+  const [split, setSplit] = useState<number | null>(null)
   const [markings, setMarkings] = useState<MarkingRef[]>([])
   // The last page opened in the Spread, kept so the wall knows which card the
   // reader should shrink back into when it closes.
@@ -481,6 +487,8 @@ export function PagesView({
             offered={offered}
             index={index}
             markings={markPills}
+            reading={reading}
+            onReading={setReading}
             chips={chips}
             onToggleSubject={addSubject}
             onToggleMarking={toggleKey}
@@ -523,6 +531,25 @@ export function PagesView({
             <p className="pg__empty-h">Nothing in your pages says that.</p>
             <p className="pg__empty-s">Better to return nothing than a forced match.</p>
           </div>
+        </div>
+      ) : reading !== 'order' ? (
+        /*
+         * An arrangement other than date takes the canvas from the wall.
+         *
+         * It arranges what is SHOWN — the lit pages if something is lit, the
+         * whole archive otherwise. Every reading works on either; greying them
+         * out until a subject was chosen is exactly what made "the words you
+         * used" impossible to find.
+         */
+        <div className="pg__inner">
+          <ReadingView
+            reading={reading}
+            entries={shown}
+            terms={subjects.flatMap((sub) => sub.terms)}
+            split={split ?? defaultSplit(shown)}
+            onSplit={setSplit}
+            onOpen={onSpread}
+          />
         </div>
       ) : (
         <PageWall
