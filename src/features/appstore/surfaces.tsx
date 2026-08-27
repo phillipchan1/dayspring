@@ -189,7 +189,6 @@ export function renderSurface(shot: Shot) {
 function PagesShot() {
   const { settings, update } = useSettings()
   const [subjectKey, setSubjectKey] = useState<string | null>(null)
-  const [panel, setPanel] = useState<'weather' | null>(null)
   const [spreadId, setSpreadId] = useState<string | null>(null)
   return (
     <PagesView
@@ -201,8 +200,6 @@ function PagesShot() {
       onSubject={setSubjectKey}
       asked={null}
       onClearAsked={noop}
-      panel={panel}
-      onPanel={setPanel}
       spreadId={spreadId}
       onSpread={setSpreadId}
       onOpenEntry={noop}

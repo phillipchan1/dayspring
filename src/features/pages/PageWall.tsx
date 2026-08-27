@@ -67,6 +67,15 @@ interface Props {
    * back into the card it grew out of rather than cutting away from it.
    */
   returningId: string | null
+  /**
+   * A page is open, rather than the wall merely being at reading distance.
+   *
+   * Two columns is a spread and reads as one while you are browsing. Opened on
+   * ONE page it lies: a long page's second leaf sits beside its first, but a
+   * short page's neighbour is a different day entirely — so half of what you
+   * are reading is someone else's morning. Opening a page shows that page.
+   */
+  spreadOpen: boolean
   /** Double-click, or "Open to write" — leave for the editor. */
   onEdit: (entryId: string) => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
@@ -106,6 +115,7 @@ export function PageWall({
   echoes,
   onOpen,
   returningId,
+  spreadOpen,
   onEdit,
   onMenuAction,
   onDeleteEntries,
@@ -183,7 +193,7 @@ export function PageWall({
         (Number.parseFloat(cs.paddingRight) || 0)
       if (w <= 0) return
       const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
-      const cap = rows ? 1 : reading ? readingCols(single) : spec.maxCols
+      const cap = rows ? 1 : reading ? (spreadOpen ? 1 : readingCols(single)) : spec.maxCols
       const next = Math.max(1, Math.min(cap, fits))
       setCols((prev) => (prev === next ? prev : next))
       setColWidth((prev) => {
@@ -195,7 +205,7 @@ export function PageWall({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [spec, reading, rows, single])
+  }, [spec, reading, rows, single, spreadOpen])
 
   // The declared kinds each page carries, in the vocabulary's own order — the
   // row margin's whole content. Built once here rather than per row so a scroll
@@ -237,12 +247,35 @@ export function PageWall({
 
   useLayoutEffect(() => {
     if (!reading) return
+    /*
+     * Measure the WINDOW, not the body.
+     *
+     * The body's width is the thing `--pg-leaf-w` defines, so reading it back
+     * is circular — and it goes wrong the moment the column count changes: the
+     * stale narrow width becomes `column-width` inside a now-wider box, the
+     * browser fits two columns in it, and the next leaf's text shows down the
+     * right-hand side of this one instead of being clipped. The window is
+     * sized by the grid cell and knows nothing about columns.
+     */
+    const win = gridRef.current?.querySelector('.pg-leaf__window') as HTMLElement | null
     const el = gridRef.current?.querySelector('.pg-leaf__body') as HTMLElement | null
-    if (!el) return
+    if (!win || !el) return
     const cs = getComputedStyle(el)
     const lineHeight = Number.parseFloat(cs.lineHeight) || 24
+    /*
+     * The COLUMN PITCH, which is the body's own content width — not the
+     * window's. `column-width` is a minimum, so the browser lays columns out at
+     * the body's width and overflows sideways at that pitch; sliding by the
+     * window's width instead leaves the difference showing as a strip of the
+     * next column down the edge of this one.
+     *
+     * Reading it back is not circular: the body's width comes from its
+     * container, and `column-width` only decides how the content flows inside
+     * it. What went wrong before was staleness — a width measured at two
+     * columns, still in force at one — which is why `cols` is a dependency.
+     */
     const width = el.clientWidth
-    const height = el.clientHeight
+    const height = win.clientHeight
     if (width <= 0 || height <= 0) return
     const next = {
       width,

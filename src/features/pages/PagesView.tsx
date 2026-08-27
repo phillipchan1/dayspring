@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
-import { buildFacts, buildWeather, MONTHS as MONTH_NAMES } from './weather'
+import { buildFacts, MONTHS as MONTH_NAMES } from './weather'
 import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
-import { WeatherPanel } from './WeatherPanel'
 import { clampZoom, isReading, READING_ZOOM, standLabel } from './zoom'
 import {
   allSubjects,
@@ -61,9 +60,6 @@ interface Props {
    */
   asked: { question: string; entryIds: string[] } | null
   onClearAsked: () => void
-  /** The weather panel, on its own history frame. */
-  panel: 'weather' | null
-  onPanel: (panel: 'weather' | null) => void
   /**
    * The page you zoomed to, or null.
    *
@@ -103,8 +99,6 @@ export function PagesView({
   onSubject,
   asked,
   onClearAsked,
-  panel,
-  onPanel,
   spreadId,
   onSpread,
   onOpenEntry,
@@ -336,13 +330,6 @@ export function PagesView({
     [wallEntries, lit],
   )
 
-  // Drawn over the subject-filtered set but NOT the month-filtered one: folding a
-  // month must not erase the other months you're comparing it against.
-  const gridSet = useMemo(
-    () => (lit ? entries.filter((e) => lit.has(e.id)) : entries),
-    [entries, lit],
-  )
-  const weather = useMemo(() => buildWeather(gridSet.map((e) => e.created_at)), [gridSet])
   const facts = useMemo(() => buildFacts(shown.map((e) => e.created_at)), [shown])
 
   /** Add or remove one key. The wall never has a "clear all" it can't undo. */
@@ -416,21 +403,6 @@ export function PagesView({
     )
   }
 
-  if (panel === 'weather') {
-    return (
-      <div className="pg">
-        <WeatherPanel
-          weather={weather}
-          facts={facts}
-          month={month}
-          onMonth={setMonth}
-          onClose={() => onPanel(null)}
-          subjectLabel={litLabel}
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="pg">
       <div className="pg__head-wrap">
@@ -457,6 +429,29 @@ export function PagesView({
                 </p>
               ))}
             </div>
+          ) : null}
+
+          {/*
+            The way back out of a page.
+            
+            Opening one takes over the surface, and until now the only ways out
+            were the browser's Back and dragging the zoom — neither of which is
+            visible. It sits where it happened rather than floating over the
+            page, because it is chrome and the page is not.
+          */}
+          {spreadId !== null ? (
+            <button type="button" className="pg__back" onClick={() => onSpread(null)}>
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
+                <path
+                  d="M10 3 5 8l5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              All pages
+            </button>
           ) : null}
 
           <LookFor
@@ -508,19 +503,15 @@ export function PagesView({
           */}
           <div className="pg__meta">
             {/*
-              "the years" used to end this line AND label the zoom's middle
-              band, which meant the same two words named two unrelated things a
-              few inches apart. This says what the panel actually shows: how
-              often you wrote (D-017 — with nothing lit, the grid is writing
-              activity and nothing more).
+              A count, not a control. The link out to the years panel was a
+              second thing to press in a header that already has three, and the
+              band above says the same thing better — it shows the shape of the
+              years instead of offering to.
             */}
-            <button type="button" className="pg__meta-b" onClick={() => onPanel('weather')}>
-              <span className="pg__meta-n">
-                {facts.count.toLocaleString()} {facts.count === 1 ? 'page' : 'pages'}
-                {litLabel ? ` carrying “${litLabel}”` : ''}
-              </span>
-              <span className="pg__meta-go">how often</span>
-            </button>
+            <span className="pg__meta-b">
+              {facts.count.toLocaleString()} {facts.count === 1 ? 'page' : 'pages'}
+              {litLabel ? ` carrying “${litLabel}”` : ''}
+            </span>
             {month !== null ? (
               <button type="button" className="pg__clear" onClick={() => setMonth(null)}>
                 every {MONTH_NAMES[month]} ✕
@@ -579,6 +570,7 @@ export function PagesView({
             onSpread(id)
           }}
           returningId={spreadId ?? lastSpreadRef.current}
+          spreadOpen={spreadId !== null}
           single={single}
           firstLineTitle={settings.firstLineTitle}
           onEdit={onOpenEntry}

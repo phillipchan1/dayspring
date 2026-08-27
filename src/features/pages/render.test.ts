@@ -48,6 +48,7 @@ const wallActions = {
   single: false,
   firstLineTitle: true,
   returningId: null,
+  spreadOpen: false,
   onZoom: noop,
   onOpen: noop,
   onEdit: noop,

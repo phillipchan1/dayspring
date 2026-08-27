@@ -1204,6 +1204,7 @@ button.pg__sense-q:hover {
 
 .pg-leaf__window {
   min-inline-size: 0;
+  block-size: 100%;
   overflow: hidden;
 }
 
@@ -2219,4 +2220,48 @@ button.pg__sense-q:hover {
   inline-size: 5px;
   block-size: 5px;
   border-radius: 50%;
+}
+
+/*
+ * The way back out of a page.
+ *
+ * Opening one takes over the surface, and the only ways out used to be the
+ * browser's Back and dragging the zoom — neither of which is visible. It sits
+ * in the header where the rest of the chrome lives rather than floating over
+ * the writing, because it is chrome and the page is not.
+ */
+.pg__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: flex-start;
+  margin-block-end: 0.15rem;
+  padding: 0.28rem 0.6rem 0.28rem 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg__back:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.pg__back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The count is a fact now, not a control — it lost its link to the years. */
+.pg__meta-b {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
 }
