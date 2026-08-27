@@ -49,6 +49,29 @@ function context(font: string): CanvasRenderingContext2D | null {
 }
 
 /**
+ * Word widths, remembered.
+ *
+ * `measureText` is the whole cost here, and a personal journal is enormously
+ * repetitive — fifteen years of it runs to something like a million tokens
+ * drawn from a few tens of thousands of distinct words. Measuring "the" once
+ * instead of forty thousand times is the difference between a second of
+ * blocked main thread and none.
+ *
+ * Keyed by font as well as word, because the same word is a different width in
+ * a different face, and the cache outlives a theme change.
+ */
+const widths = new Map<string, number>()
+
+function widthOf(ctx: CanvasRenderingContext2D, word: string, font: string): number {
+  const key = `${font}\u0000${word}`
+  const held = widths.get(key)
+  if (held !== undefined) return held
+  const w = ctx.measureText(word).width
+  widths.set(key, w)
+  return w
+}
+
+/**
  * How many rendered lines one paragraph takes at this width.
  *
  * Greedy wrapping on whitespace, which is what a browser does for ordinary
@@ -67,9 +90,9 @@ export function linesForParagraph(text: string, width: number, font: string): nu
 
   let lines = 1
   let used = 0
-  const space = ctx.measureText(' ').width
+  const space = widthOf(ctx, ' ', font)
   for (const word of trimmed.split(/\s+/)) {
-    const w = ctx.measureText(word).width
+    const w = widthOf(ctx, word, font)
     if (used === 0) {
       used = w
       continue

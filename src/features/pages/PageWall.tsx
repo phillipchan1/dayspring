@@ -239,22 +239,6 @@ export function PageWall({
     )
   }, [reading, spec, cols, entries])
 
-  useLayoutEffect(() => {
-    if (!reading || leafBox.width <= 0) return
-    const cells = gridRef.current?.querySelectorAll('[data-page-id]')
-    if (!cells || cells.length === 0) return
-    let changed: Map<string, number> | null = null
-    for (const cell of cells) {
-      const id = cell.getAttribute('data-page-id')
-      const body = cell.querySelector('.pg-leaf__body') as HTMLElement | null
-      if (!id || !body || body.clientWidth <= 0) continue
-      const actual = Math.max(1, Math.round(body.scrollWidth / body.clientWidth))
-      if (trueLeaves.get(id) === actual) continue
-      changed ??= new Map(trueLeaves)
-      changed.set(id, actual)
-    }
-    if (changed) setTrueLeaves(changed)
-  })
 
   const items: WallItem[] = useMemo(() => {
     if (!leafMetrics) return packed
@@ -293,21 +277,56 @@ export function PageWall({
    * every frame of a pinch, which is the one thing that would make this surface
    * feel slow. Principle 3's latency rule is not only about the editor.
    */
-  const excerpts = useMemo(() => {
-    const cache = new Map<string, PageExcerpt>()
-    for (const item of items) {
-      if (item.seam || cache.has(item.entry.id)) continue
-      cache.set(
-        item.entry.id,
-        pageExcerpt(item.entry, markQuotes.get(item.entry.id) ?? [], undefined, match),
-      )
-    }
-    return cache
-  }, [items, markQuotes, match])
+  /**
+   * Excerpts, built for the pages actually on screen.
+   *
+   * This used to build one for every item — all 3,580 of them — and rebuild the
+   * lot whenever `items` changed, which is every step of the zoom (columns
+   * change, so the item array is new) and every time a subject is lit or
+   * cleared (the matcher changes). Forty-two are ever rendered. On a real
+   * archive that was well over a second of blocked main thread per interaction,
+   * and it is the whole reason moving around felt slow.
+   *
+   * A memo rather than a ref so the identity changes exactly when the excerpts
+   * would: a new matcher or new marks means every excerpt is stale, and a new
+   * Map is how that gets said.
+   */
+  const excerptCache = useMemo(() => new Map<string, PageExcerpt>(), [markQuotes, match])
+  const excerptFor = useCallback(
+    (entry: Entry): PageExcerpt => {
+      const held = excerptCache.get(entry.id)
+      if (held) return held
+      const made = pageExcerpt(entry, markQuotes.get(entry.id) ?? [], undefined, match)
+      excerptCache.set(entry.id, made)
+      return made
+    },
+    [excerptCache, markQuotes, match],
+  )
 
   const rowCount = Math.ceil(items.length / cols)
   const rowHeight = spec.cardHeight + spec.gap
   const virtual = useVirtualRange(scrollRef, rowCount, rowCount > 6, rowHeight)
+
+  useLayoutEffect(() => {
+    if (!reading || leafBox.width <= 0) return
+    const cells = gridRef.current?.querySelectorAll('[data-page-id]')
+    if (!cells || cells.length === 0) return
+    let changed: Map<string, number> | null = null
+    for (const cell of cells) {
+      const id = cell.getAttribute('data-page-id')
+      const body = cell.querySelector('.pg-leaf__body') as HTMLElement | null
+      if (!id || !body || body.clientWidth <= 0) continue
+      const actual = Math.max(1, Math.round(body.scrollWidth / body.clientWidth))
+      if (trueLeaves.get(id) === actual) continue
+      changed ??= new Map(trueLeaves)
+      changed.set(id, actual)
+    }
+    if (changed) setTrueLeaves(changed)
+    // Deps, deliberately narrow. Without them this ran after EVERY render —
+    // walking every cell and calling getComputedStyle on each, then possibly
+    // setting state and doing it again. It only needs to run when the window
+    // moved or the geometry changed, which is when new leaves can appear.
+  }, [reading, leafBox.width, virtual.start, virtual.end, items])
 
   const firstIdx = virtual.start * cols
   const lastIdx = Math.min(items.length, virtual.end * cols)
@@ -768,7 +787,7 @@ export function PageWall({
                   wallKey={item.key}
                   entryId={item.entry.id}
                   dateIso={item.entry.created_at}
-                  excerpt={excerpts.get(item.entry.id)!}
+                  excerpt={excerptFor(item.entry)}
                   match={match}
                   dim={lit !== null && !lit.has(item.entry.id)}
                   active={item.entry.id === activeId && !item.echo}
@@ -814,7 +833,7 @@ export function PageWall({
                 wallKey={item.key}
                 entryId={item.entry.id}
                 dateIso={item.entry.created_at}
-                excerpt={excerpts.get(item.entry.id)!}
+                excerpt={excerptFor(item.entry)}
                 maxLines={spec.lines}
                 match={match}
                 dim={lit !== null && !lit.has(item.entry.id)}
