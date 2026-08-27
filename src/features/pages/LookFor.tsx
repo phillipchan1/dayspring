@@ -8,9 +8,20 @@ import { READINGS, type Reading } from './readings'
  * Look for.
  *
  * Collapsed by default, because the default experience is reading the pages
- * raw. What is ON shows beside the toggle; what is not is behind it. The
- * toggle is the opening of a sentence and the chips complete it — "look for —
- * Mom — the prayers" — so it carries no box of its own.
+ * raw. What is ON shows beside the toggle; what is not is behind it.
+ *
+ * ── Why this one is a button, against the prototype ─────────────────────────
+ *
+ * The prototype gives it no box: "look for" is the opening of a sentence the
+ * chips complete, and a bordered button would read as machinery sitting on top
+ * of her writing. That argument holds where it was made — inside the wall, two
+ * inches from her own sentences.
+ *
+ * Here it sits in a header band above the wall, and set in serif lowercase with
+ * no outline it read as a caption rather than a control: the single richest
+ * thing on the surface, and nothing about it said it could be pressed. So it
+ * gets a hairline, a chevron, and the app's own sans. The restraint moves
+ * inward instead — the sheet it opens carries no chrome at all.
  *
  * ── Two typographic rules, both load-bearing ────────────────────────────────
  *
@@ -172,11 +183,21 @@ export function LookFor({
             sentences, and a stock magnifier would read as somebody else's
             software.
           */}
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden>
-            <circle cx="6.9" cy="6.9" r="4.6" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M10.3 10.3 14 14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
+            <circle cx="6.9" cy="6.9" r="4.6" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M10.3 10.3 14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
-          <span>look for</span>
+          <span>Look for</span>
+          <svg
+            className="pg-look__chev"
+            viewBox="0 0 10 6"
+            width="9"
+            height="6"
+            fill="none"
+            aria-hidden
+          >
+            <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
         </button>
 
         {chips.length > 0 ? (

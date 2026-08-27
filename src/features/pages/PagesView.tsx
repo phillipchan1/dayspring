@@ -482,9 +482,19 @@ export function PagesView({
             numbers took the screen and one page peeked in underneath.
           */}
           <div className="pg__meta">
+            {/*
+              "the years" used to end this line AND label the zoom's middle
+              band, which meant the same two words named two unrelated things a
+              few inches apart. This says what the panel actually shows: how
+              often you wrote (D-017 — with nothing lit, the grid is writing
+              activity and nothing more).
+            */}
             <button type="button" className="pg__meta-b" onClick={() => onPanel('weather')}>
-              {facts.count} {facts.count === 1 ? 'page' : 'pages'}
-              {litLabel ? ` carrying “${litLabel}”` : ''} · the years
+              <span className="pg__meta-n">
+                {facts.count.toLocaleString()} {facts.count === 1 ? 'page' : 'pages'}
+                {litLabel ? ` carrying “${litLabel}”` : ''}
+              </span>
+              <span className="pg__meta-go">how often</span>
             </button>
             {month !== null ? (
               <button type="button" className="pg__clear" onClick={() => setMonth(null)}>
