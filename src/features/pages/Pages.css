@@ -1872,3 +1872,98 @@ button.pg__sense-q:hover {
   font-size: 0.79rem;
   color: var(--text-faint);
 }
+
+/* ── the chapter ──
+ *
+ * A subject's masthead: its provenance, its counts, its span, and one band of
+ * months. Everything here is either the writer's own words or a number counted
+ * in code. Deliberately small — no vocabulary portrait, no co-occurrence
+ * network. A network diagram of someone's relationships is a profile whatever
+ * the axis says.
+ */
+
+.pg-chapter {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-block: 0.9rem 0.2rem;
+}
+
+.pg-chapter__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.7rem;
+}
+
+/* Her word for it, in the journal's own face. */
+.pg-chapter__name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.28rem;
+  font-weight: 400;
+  color: var(--text-bright);
+}
+
+/* Ours: sans, one size, one weight, differing only in opacity. */
+.pg-chapter__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  color: var(--text-faint);
+}
+
+/*
+ * THE BAND HAS NO VERTICAL AXIS.
+ *
+ * Every cell is the same size; only warmth changes. A bar chart of
+ * mentions-per-month has a Y axis, and a falling one under a subject called
+ * "Mom" reads as "you care less about your mother now" — a verdict on a
+ * relationship, rendered by a machine (Principle 1).
+ */
+.pg-band {
+  display: flex;
+  gap: 1px;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-band__cell {
+  flex: 1 1 0;
+  min-inline-size: 2px;
+  /* One height, always. There is nothing here to be tall or short. */
+  block-size: 14px;
+  border-radius: 1px;
+  background: rgb(
+    var(--scripture-ember)
+  );
+  /* Warmth, not height: ember at its quietest, gold at its busiest. */
+  background: color-mix(
+    in srgb,
+    rgb(var(--scripture-gold)) calc(var(--warmth, 0) * 100%),
+    rgb(var(--scripture-ember))
+  );
+  opacity: calc(0.25 + var(--warmth, 0) * 0.75);
+}
+
+/* A month with nothing in it is silence, and silence is half of what a band
+   says — so it stays, quietly, rather than being dropped. */
+.pg-band__cell[data-empty='true'] {
+  background: var(--border-subtle);
+  opacity: 0.5;
+}
+
+/* Only the ends are labelled. A tick per year turns a band into a chart. */
+.pg-band__ends {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.3rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}

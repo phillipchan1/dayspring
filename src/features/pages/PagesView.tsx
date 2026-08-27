@@ -21,6 +21,7 @@ import {
 import { buildFacetIndex, markingChips, matchFacets } from './facets'
 import { LookFor, type LookChip } from './LookFor'
 import { ReadingView } from './ReadingView'
+import { Chapter } from './Chapter'
 import { defaultSplit, type Reading } from './readings'
 import {
   dropSubject,
@@ -226,6 +227,7 @@ export function PagesView({
   // two lists rather than adding it to a third.
   const held = useMemo(() => withVocabulary(kept, vocabulary), [kept, vocabulary])
   const offered = useMemo(() => partitionKept(vocabulary, held).offered, [vocabulary, held])
+  const keptKeys = useMemo(() => new Set(held.map((k) => k.key)), [held])
   const match = useMemo(() => subjectMatcher(subjects), [subjects])
 
   /**
@@ -505,6 +507,20 @@ export function PagesView({
             onlyLit={onlyLit}
             onOnlyLit={setOnlyLit}
           />
+
+          {/*
+            The chapter. Present only when a subject is lit, because it is the
+            subject's own masthead — on the whole archive there is nothing for
+            it to be about.
+          */}
+          {subjects.length > 0 ? (
+            <Chapter
+              subjects={subjects}
+              entries={entries}
+              index={index}
+              kept={keptKeys}
+            />
+          ) : null}
 
           {/*
             The way to the density picture — a line, not the picture itself.
