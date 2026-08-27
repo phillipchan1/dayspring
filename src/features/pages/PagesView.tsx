@@ -8,7 +8,7 @@ import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
 import { WeatherPanel } from './WeatherPanel'
-import { clampZoom, READING_ZOOM, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './zoom'
+import { clampZoom, READING_ZOOM, standLabel } from './zoom'
 import {
   allSubjects,
   buildSubjectIndex,
@@ -434,61 +434,14 @@ export function PagesView({
             </div>
           ) : null}
 
-          <div className="pg__controls">
-            {/*
-              One continuous move, not three named stops.
-              Wall / Shelf / Open were three samples of the same act, and naming
-              them made you pick a mode instead of simply standing closer. The
-              slider is the discoverable form of the gesture — pinch and
-              ⌘-scroll on the wall itself do the same thing.
-            */}
-            <label className="pg__zoom">
-              <span className="pg__zoom-icon" aria-hidden>▪</span>
-              <input
-                type="range"
-                className="pg__zoom-range"
-                min={ZOOM_MIN}
-                max={ZOOM_MAX}
-                step={0.01}
-                value={zoom}
-                aria-label="How close you're standing to the wall"
-                onChange={(e) => setZoom(Number(e.target.value))}
-                onKeyDown={(e) => {
-                  // The native range step is 0.01 — a hundred presses end to
-                  // end. Arrow keys take the same notch the ⌘= shortcut does.
-                  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-                    e.preventDefault()
-                    setZoom(zoom + ZOOM_STEP)
-                  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-                    e.preventDefault()
-                    setZoom(zoom - ZOOM_STEP)
-                  }
-                }}
-              />
-              <span className="pg__zoom-icon pg__zoom-icon--near" aria-hidden>▬</span>
-            </label>
-            <button
-              type="button"
-              className="pg__somewhere"
-              onClick={openSomewhere}
-              title="Open a page at random"
-              aria-label="Open a page at random"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <path d="M4 7h4l8 10h4" />
-                <path d="M4 17h4l3-4" />
-                <path d="M14 9l2-2h4" />
-                <path d="M18 4l2 3-2 3" />
-                <path d="M18 14l2 3-2 3" />
-              </svg>
-            </button>
-          </div>
-
           <LookFor
             kept={held}
             offered={offered}
             index={index}
             markings={markPills}
+            zoom={zoom}
+            onZoom={setZoom}
+            standLabel={standLabel(zoom)}
             reading={reading}
             onReading={setReading}
             chips={chips}
@@ -502,6 +455,7 @@ export function PagesView({
               clearAll()
               onClearAsked()
             }}
+            onSomewhere={openSomewhere}
             onKeep={keep}
             onDrop={drop}
             onlyLit={onlyLit}

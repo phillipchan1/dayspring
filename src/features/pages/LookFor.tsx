@@ -49,6 +49,16 @@ interface Props {
   /** The corpus, indexed — the only source of a subject's page count. */
   index: SubjectIndex
   markings: MarkingChip[]
+  /**
+   * How close you are standing. It lives on the surface rather than in the
+   * sheet, because it is not part of what you are looking FOR — and it is one
+   * continuous move rather than named stops, because naming them makes you pick
+   * a mode instead of simply standing closer. The label says where you are; it
+   * is not a control.
+   */
+  zoom: number
+  onZoom: (z: number) => void
+  standLabel: string
   reading: Reading
   onReading: (r: Reading) => void
   chips: LookChip[]
@@ -56,6 +66,8 @@ interface Props {
   onToggleMarking: (key: string) => void
   onRemove: (key: string) => void
   onClear: () => void
+  /** Flip the notebook open. Uniformly random — nothing recommended. */
+  onSomewhere: () => void
   onKeep: (subject: Subject) => void
   onDrop: (key: string) => void
   /** Dim, or show only. Only offered once something is on. */
@@ -71,6 +83,9 @@ export function LookFor({
   offered,
   index,
   markings,
+  zoom,
+  onZoom,
+  standLabel,
   reading,
   onReading,
   chips,
@@ -78,6 +93,7 @@ export function LookFor({
   onToggleMarking,
   onRemove,
   onClear,
+  onSomewhere,
   onKeep,
   onDrop,
   onlyLit,
@@ -210,6 +226,35 @@ export function LookFor({
             </button>
           </div>
         ) : null}
+
+        <button
+          type="button"
+          className="pg-look__somewhere"
+          onClick={onSomewhere}
+          title="Open a page at random"
+          aria-label="Open a page at random"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden>
+            <path d="M4 7h4l8 10h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M4 17h4l3-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M14 9l2-2h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M18 4l2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M18 14l2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        <label className="pg-stand">
+          <span className="pg-stand__where">{standLabel}</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={zoom}
+            aria-label="How close you're standing"
+            onChange={(e) => onZoom(Number(e.target.value))}
+          />
+        </label>
       </div>
 
       {open ? (
