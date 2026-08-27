@@ -39,7 +39,6 @@ import {
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
 import { clampZoom, isReading, isRows, readingCols, specForZoom, wheelZoomDelta } from './zoom'
 import { Leaf } from './Leaf'
-import { claimTransitionName, withPageTransition } from './viewTransition'
 
 interface Props {
   /** Wall order — newest first. */
@@ -519,26 +518,22 @@ export function PageWall({
   }, [zoomBy])
 
   /**
-   * Open a page as a movement.
+   * Open a page.
    *
-   * The card claims the shared name synchronously, BEFORE the state change, so
-   * it is carrying it when the browser snapshots the outgoing state. Exactly one
-   * element may hold a given name at a time, which is why it is stamped on the
-   * one card being opened rather than declared in CSS for all of them.
+   * No shared-element transition. It used to morph the card into the leaf it
+   * became, which was right while opening a page WAS the wall zoomed in — the
+   * card and the leaf were two sizes of one thing. A page is its own view now,
+   * so the card had nothing to morph into and the browser animated it sliding
+   * off across the screen toward an element that never arrived.
+   *
+   * A cut is the honest reading of what happens: you are not moving closer to
+   * the wall, you are opening something.
    */
   const openWithTransition = useCallback(
     (entryId: string) => {
       // Already reading — a click is just a click, not a second way in.
       if (reading) return
-      const node = gridRef.current?.querySelector<HTMLElement>(
-        `[data-wall-key="${CSS.escape(entryId)}"]`,
-      )
-      const release = claimTransitionName(node)
-      // Opening a page IS zooming to it. The card claims the shared name first
-      // so it is carrying it when the outgoing state is captured, and the leaf
-      // it becomes claims it on the way in (`returningId`).
-      withPageTransition(() => onOpen(entryId))
-      window.setTimeout(release, 600)
+      onOpen(entryId)
     },
     [onOpen, reading],
   )
@@ -558,21 +553,6 @@ export function PageWall({
     landedRef.current = returningId
     scrollRef.current?.scrollTo({ top: Math.floor(idx / cols) * rowHeight, behavior: 'auto' })
   }, [returningId, cols, rowHeight])
-
-  // Coming back: the card the reader shrinks into has to be carrying the name
-  // by the time the browser snapshots the incoming state.
-  useLayoutEffect(() => {
-    if (!returningId) return
-    const node = gridRef.current?.querySelector<HTMLElement>(
-      `[data-wall-key="${CSS.escape(returningId)}"]`,
-    )
-    const release = claimTransitionName(node)
-    const t = window.setTimeout(release, 600)
-    return () => {
-      window.clearTimeout(t)
-      release()
-    }
-  }, [returningId])
 
   const focusCard = useCallback((key: string): boolean => {
     const node = gridRef.current?.querySelector<HTMLElement>(
@@ -900,7 +880,6 @@ export function PageWall({
                 >
                   <Leaf
                     entry={item.entry}
-                    shared={item.entry.id === returningId && (item.leaf?.index ?? 0) === 0}
                     markQuotes={markQuotes.get(item.entry.id) ?? []}
                     firstLineTitle={firstLineTitle}
                     leaf={item.leaf}

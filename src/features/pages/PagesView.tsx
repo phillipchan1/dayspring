@@ -391,7 +391,7 @@ export function PagesView({
       <div className="pg__head-wrap">
         <div className="pg__inner pg__inner--head">
 
-          {senses.length > 0 ? (
+          {senses.length > 0 && !openPage ? (
             <div className="pg__senses">
               {senses.map((s) => (
                 <p className="pg__sense" key={s.id}>
@@ -437,6 +437,7 @@ export function PagesView({
             </button>
           ) : null}
 
+          {openPage ? null : (
           <LookFor
             kept={held}
             offered={offered}
@@ -464,13 +465,14 @@ export function PagesView({
             onlyLit={onlyLit}
             onOnlyLit={setOnlyLit}
           />
+          )}
 
           {/*
             The chapter. Present only when a subject is lit, because it is the
             subject's own masthead — on the whole archive there is nothing for
             it to be about.
           */}
-          {subjects.length > 0 ? (
+          {subjects.length > 0 && !openPage ? (
             <Chapter
               subjects={subjects}
               entries={entries}
@@ -484,6 +486,7 @@ export function PagesView({
             It used to sit here in full, which on a phone meant the grid and four
             numbers took the screen and one page peeked in underneath.
           */}
+          {openPage ? null : (
           <div className="pg__meta">
             {/*
               A count, not a control. The link out to the years panel was a
@@ -501,6 +504,7 @@ export function PagesView({
               </button>
             ) : null}
           </div>
+          )}
         </div>
       </div>
 

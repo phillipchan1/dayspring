@@ -1022,48 +1022,14 @@ button.pg__sense-q:hover {
   }
 }
 
-/* ── opening a page ── */
-
-/*
- * The wall and the Spread as two ends of one movement.
- *
- * The card you click and the leaf it becomes claim the same
- * `view-transition-name`, so the browser tweens between them instead of cutting.
- * The pair is stamped imperatively (see viewTransition.ts) because exactly one
- * element may carry a given name at a time, and a wall of 3,500 cards declaring
- * it in CSS would silently disable the whole thing.
- */
-::view-transition-old(pg-page),
-::view-transition-new(pg-page) {
-  /* Both halves fill their box rather than letterboxing: a card and a leaf have
-     very different aspect ratios, and the default `contain` makes the page
-     visibly squash on the way in. */
-  height: 100%;
-  width: 100%;
-  object-fit: cover;
-  object-position: top left;
-}
-
-::view-transition-old(pg-page) {
-  animation-duration: 220ms;
-}
-
-::view-transition-new(pg-page) {
-  animation-duration: 260ms;
-}
-
-/*
- * The rest of the screen crossfades a little faster than the page moves, so
- * attention stays on the page rather than on the chrome leaving.
- */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 160ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Belt and braces — `withPageTransition` already declines to start one, but a
-     transition begun before the preference changed should stop moving. */
+  /* Nothing here starts a view transition any more, but the app's own routing
+     may; a transition begun before the preference changed should stop moving. */
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {

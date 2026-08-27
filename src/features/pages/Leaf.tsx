@@ -3,7 +3,6 @@ import { renderMarkdown } from '@/lib/markdown'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { passagesForEntry } from '@/lib/remember'
 import type { Entry } from '@/lib/types'
-import { SPREAD_TRANSITION_NAME } from './viewTransition'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -29,15 +28,12 @@ function formatDate(iso: string): string {
  */
 export function Leaf({
   entry,
-  shared,
   markQuotes,
   firstLineTitle,
   leaf,
   onEdit,
 }: {
   entry: Entry
-  /** Claims the shared transition name — exactly one leaf may, per transition. */
-  shared: boolean
   markQuotes: string[]
   firstLineTitle: boolean
   /**
@@ -94,7 +90,6 @@ export function Leaf({
   return (
     <article
       className="pg-leaf"
-      style={shared ? { viewTransitionName: SPREAD_TRANSITION_NAME } : undefined}
       onClick={write}
       onKeyDown={(e) => {
         if (e.key === 'Enter') write()
