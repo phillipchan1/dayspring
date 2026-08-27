@@ -1,4 +1,6 @@
 import { memo } from 'react'
+import { MARK_KIND } from '@/lib/markKinds'
+import type { SpiritualItemType } from '@/lib/types'
 import type { PageExcerpt } from './pageExcerpt'
 import { pageFill, splitOnMatch } from './pageExcerpt'
 import { useWallPointer } from './useWallPointer'
@@ -23,6 +25,15 @@ interface Props {
   context: boolean
   /** Set when this page has risen out of another year. */
   echo?: string | undefined
+  /**
+   * The declared kinds this page carries, for the margin.
+   *
+   * Down the RIGHT of the card, the way a Bible does it. They used to have
+   * nowhere to go on a card at all: rule 1 says nothing goes on a page except
+   * her words, her date and her markings — and "on" is doing real work in that
+   * sentence. A hand printed over a sentence is not a margin, it is a stamp.
+   */
+  markings?: readonly SpiritualItemType[] | undefined
   /**
    * Roving-focus wiring from the wall.
    *
@@ -81,6 +92,7 @@ export const PageCard = memo(function PageCard({
   selected,
   context,
   echo,
+  markings,
   wallKey,
   tabIndex,
   onFocus,
@@ -134,6 +146,7 @@ export const PageCard = memo(function PageCard({
         {formatDate(dateIso)}
       </time>
 
+      <div className="pgc__cols">
       <div className="pgc__body">
         {empty ? (
           <p className="pgc__blank">Blank page</p>
@@ -161,6 +174,18 @@ export const PageCard = memo(function PageCard({
           ))
         )}
       </div>
+      {markings && markings.length > 0 ? (
+        <span className="pgc__margin" aria-hidden>
+          {markings.slice(0, 4).map((kind) => (
+            <span
+              key={kind}
+              className="pgc__mark"
+              style={{ background: MARK_KIND[kind]?.tone }}
+            />
+          ))}
+        </span>
+      ) : null}
+      </div>
 
       {truncated ? <span className="pgc__fade" aria-hidden /> : null}
       <span className="pgc__thickness" aria-hidden style={{ inlineSize: `${fill * 100}%` }} />
@@ -180,6 +205,7 @@ function propsEqual(prev: Props, next: Props): boolean {
     prev.selected === next.selected &&
     prev.context === next.context &&
     prev.echo === next.echo &&
+    prev.markings === next.markings &&
     prev.wallKey === next.wallKey &&
     prev.tabIndex === next.tabIndex &&
     // Compared, not assumed stable. The wall keeps them stable with useCallback,

@@ -8,7 +8,7 @@ import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
 import { WeatherPanel } from './WeatherPanel'
-import { clampZoom, READING_ZOOM, standLabel } from './zoom'
+import { clampZoom, isReading, READING_ZOOM, standLabel } from './zoom'
 import {
   allSubjects,
   buildSubjectIndex,
@@ -128,6 +128,15 @@ export function PagesView({
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
   if (spreadId) lastSpreadRef.current = spreadId
+  /**
+   * Where you were standing before you opened a page.
+   *
+   * Opening one zooms the wall in to read it, and that zoom is a persisted
+   * setting — so without this, clicking a single page quietly moved you to
+   * reading distance for good, and getting back meant dragging the slider and
+   * guessing where you had been. Closing puts you back.
+   */
+  const standingBefore = useRef<number | null>(null)
   const zoom = settings.pagesZoom
   const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
 
@@ -179,6 +188,22 @@ export function PagesView({
       alive = false
     }
   }, [])
+
+  /*
+   * Closing a page puts you back where you were standing — unless you moved
+   * while you were in there, in which case the move was deliberate and undoing
+   * it would be the app arguing with you.
+   */
+  useEffect(() => {
+    if (spreadId !== null) return
+    const back = standingBefore.current
+    if (back === null) return
+    standingBefore.current = null
+    if (isReading(zoom)) setZoom(back)
+    // `zoom` is read, not tracked: this fires on the CLOSE, and re-running it
+    // every time the slider moves would fight the reader mid-drag.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spreadId])
 
   const markQuotes = useMemo(() => {
     const m = new Map<string, string[]>()
@@ -549,6 +574,7 @@ export function PagesView({
           // now "the page you zoomed to", which is what scrolls into view and
           // what the shared-element transition lands on.
           onOpen={(id) => {
+            if (!isReading(zoom)) standingBefore.current = zoom
             setZoom(READING_ZOOM)
             onSpread(id)
           }}

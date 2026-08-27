@@ -2175,3 +2175,48 @@ button.pg__sense-q:hover {
   color: var(--accent);
   border-block-end-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
+
+/*
+ * The margin, down the right of a card, the way a Bible does it.
+ *
+ * The markings had nowhere to go on a card at all — rule 1 says nothing goes on
+ * a page except her words, her date and her markings, and "on" is doing real
+ * work in that sentence. A hand printed over a sentence is not a margin, it is
+ * a stamp. So they get their own narrow column, costing the text about
+ * fourteen pixels and buying a card whose hand you can read before you read a
+ * word.
+ */
+.pgc__cols {
+  display: flex;
+  flex: 1;
+  gap: 0.45rem;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.pgc__cols .pgc__body {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.pgc__margin {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  inline-size: 8px;
+  padding-block-start: 0.15rem;
+  opacity: 0.65;
+  transition: opacity var(--transition);
+}
+
+.pgc:hover .pgc__margin {
+  opacity: 1;
+}
+
+.pgc__mark {
+  inline-size: 5px;
+  block-size: 5px;
+  border-radius: 50%;
+}

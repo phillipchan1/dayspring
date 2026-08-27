@@ -127,6 +127,8 @@ export function PageWall({
    * place, which is the whole defect this replaces.
    */
   const [leafBox, setLeafBox] = useState({ width: 0, lines: 18, font: '' })
+  /** One column's real width, so a card can hold a proportion rather than a height. */
+  const [colWidth, setColWidth] = useState(0)
   /**
    * True leaf counts, read back from what the browser actually laid out.
    *
@@ -140,6 +142,8 @@ export function PageWall({
   // Close enough to read: cells stop being cards and become whole pages.
   const reading = isReading(zoom)
   const rows = isRows(zoom)
+  /** The card bands — everything that is neither a row nor a leaf. */
+  const cards = !rows && !isReading(zoom)
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
@@ -166,12 +170,26 @@ export function PageWall({
     const el = gridRef.current
     if (!el) return
     const measure = () => {
-      const w = el.clientWidth
+      /*
+       * The CONTENT width, not `clientWidth` — which includes the grid's own
+       * padding, and this grid carries a good 68px of it. Counting columns
+       * against the padded width over-counts them, and deriving a card's
+       * portrait height from it made every card a sixth too tall.
+       */
+      const cs = getComputedStyle(el)
+      const w =
+        el.clientWidth -
+        (Number.parseFloat(cs.paddingLeft) || 0) -
+        (Number.parseFloat(cs.paddingRight) || 0)
       if (w <= 0) return
       const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
       const cap = rows ? 1 : reading ? readingCols(single) : spec.maxCols
       const next = Math.max(1, Math.min(cap, fits))
       setCols((prev) => (prev === next ? prev : next))
+      setColWidth((prev) => {
+        const each = Math.floor((w - spec.gap * (next - 1)) / next)
+        return prev === each ? prev : each
+      })
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -184,13 +202,13 @@ export function PageWall({
   // frame never re-derives it.
   const rowMarkings = useMemo(() => {
     const out = new Map<string, SpiritualItemType[]>()
-    if (!rows) return out
+    if (!rows && !cards) return out
     for (const [id, set] of facetIndex.byEntry) {
       const kinds = MARK_KINDS.filter((k) => set.has(k.kind)).map((k) => k.kind)
       if (kinds.length > 0) out.set(id, kinds)
     }
     return out
-  }, [rows, facetIndex])
+  }, [rows, cards, facetIndex])
 
   // Entries arrive newest first, so today's page is the first one — and it is
   // the only thing on a row that is not simply the page itself.
@@ -319,7 +337,23 @@ export function PageWall({
   )
 
   const rowCount = Math.ceil(items.length / cols)
-  const rowHeight = spec.cardHeight + spec.gap
+  /*
+   * A CARD IS A PORTRAIT, not a fixed height.
+   *
+   * The zoom spec's `cardHeight` is a height in pixels, so a card got taller
+   * and shorter relative to its own width as the window resized — at a wide
+   * window the far end of the zoom produced letterbox cards, which read as
+   * tiles rather than as pages. The prototype pins the shape instead
+   * (`aspect-ratio: 3 / 4`), and a page is portrait everywhere in the world.
+   *
+   * Uniform height is still what the windowing rests on, and it still holds:
+   * every card in a given layout is the same size, because they all derive from
+   * the same measured column width. Only the reading and rows bands keep their
+   * own heights — a leaf is as tall as the viewport allows, and a row is a row.
+   */
+  const cardHeight =
+    reading || rows || colWidth <= 0 ? spec.cardHeight : Math.round((colWidth * 4) / 3)
+  const rowHeight = cardHeight + spec.gap
   const virtual = useVirtualRange(scrollRef, rowCount, rowCount > 6, rowHeight)
 
   useLayoutEffect(() => {
@@ -535,8 +569,8 @@ export function PageWall({
       if (el) {
         const top = row * rowHeight
         if (top < el.scrollTop) el.scrollTo({ top, behavior: 'auto' })
-        else if (top + spec.cardHeight > el.scrollTop + el.clientHeight) {
-          el.scrollTo({ top: top + spec.cardHeight - el.clientHeight, behavior: 'auto' })
+        else if (top + cardHeight > el.scrollTop + el.clientHeight) {
+          el.scrollTo({ top: top + cardHeight - el.clientHeight, behavior: 'auto' })
         }
       }
       const item = list[clamped] ?? null
@@ -545,7 +579,7 @@ export function PageWall({
       }
       return item
     },
-    [cols, rowHeight, spec.cardHeight, focusCard],
+    [cols, rowHeight, cardHeight, focusCard],
   )
 
   const openMenuAt = useCallback(
@@ -747,7 +781,7 @@ export function PageWall({
             position: 'relative',
             // CSS reads the card height from here so the windowing math above
             // stays the only definition of it.
-            ['--pg-card-h' as string]: `${spec.cardHeight}px`,
+            ['--pg-card-h' as string]: `${cardHeight}px`,
             // The spine between two open pages is drawn from the gutter.
             ['--pg-gutter' as string]: `${spec.gap}px`,
             // A leaf's column width, so a long page's overflow marches sideways
@@ -856,6 +890,7 @@ export function PageWall({
                 selected={!item.echo && selectedIds.has(item.entry.id)}
                 context={!item.echo && item.entry.id === menuTargetId}
                 echo={item.echo}
+                markings={rowMarkings.get(item.entry.id)}
                 tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                 onFocus={onCardFocus}
                 onKeyDown={onCardKeyDown}
