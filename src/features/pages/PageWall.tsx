@@ -23,7 +23,7 @@ import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
 import { PageRow } from './PageRow'
 import type { FacetIndex } from './facets'
-import { LeafCounter, type LeafMetrics } from './leaves'
+import type { LeafMetrics } from './leaves'
 import { MARK_KINDS } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -118,7 +118,6 @@ export function PageWall({
   // fresh object every render would tear down and rebuild the ResizeObserver on
   // every scroll frame.
   const spec = useMemo(() => specForZoom(zoom), [zoom])
-  const leafCounter = useRef(new LeafCounter())
   /**
    * The leaf's own geometry, read from the DOM.
    *
@@ -248,7 +247,23 @@ export function PageWall({
         out.push(item)
         continue
       }
-      const of = trueLeaves.get(item.entry.id) ?? leafCounter.current.count(item.entry, leafMetrics)
+      /*
+       * One leaf until the browser says otherwise.
+       *
+       * This used to canvas-measure every page in the archive the moment
+       * reading zoom was entered — 2,969 of them, ~2s of blocked main thread,
+       * every single time, which is what made clicking into a page feel broken.
+       * And it was redundant: the DOM correction below is the authority anyway,
+       * it runs in a layout effect so it lands before paint, and it only ever
+       * needs the leaves actually on screen.
+       *
+       * The cost is that the scroller's height is an underestimate until you
+       * have visited a stretch — it grows as you go rather than being right
+       * from the first frame. That is a fair trade for an instant click-in, and
+       * `leaves.ts` still holds the measurement for anything that needs a count
+       * without rendering one.
+       */
+      const of = trueLeaves.get(item.entry.id) ?? 1
       for (let index = 0; index < of; index++) {
         out.push(index === 0 ? { ...item, leaf: { index, of } } : { ...item, key: `${item.key}~${index}`, leaf: { index, of } })
       }
