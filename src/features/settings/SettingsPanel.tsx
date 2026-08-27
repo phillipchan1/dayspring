@@ -272,6 +272,24 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         onChange={(v) => update({ skipRitualPreview: !v })}
       />
       <div className="settings-divider" />
+      {/* The vessel before what fills it: the margin has to exist before there
+          is anywhere for the journal to notice into. Turning it off turns
+          noticing off with it, and disables the switch — a control that can be
+          set to a state it cannot be in is a lie about what the app will do. */}
+      <Toggle
+        label="Show the margin"
+        hint="The rule down the right of the page, and the markings on it. Off leaves a bare page — everything you have set apart is still there when you look back."
+        checked={settings.showMargin}
+        onChange={(v) => update(v ? { showMargin: true } : { showMargin: false, noticing: false })}
+      />
+      <Toggle
+        label="Let the journal notice"
+        hint="It may point at a line you wrote and suggest what it was. Nothing it suggests counts until you keep it, and shutting the margin silences it."
+        checked={settings.noticing}
+        disabled={!settings.showMargin}
+        onChange={(v) => update({ noticing: v })}
+      />
+      <div className="settings-divider" />
       <Toggle
         label="Typewriter scrolling"
         hint="Keep the active line centered (focus mode)"
@@ -748,9 +766,22 @@ function Slider({
   )
 }
 
-function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  /** For a switch that depends on another one being on. */
+  disabled?: boolean
+}) {
   return (
-    <label className="settings-toggle">
+    <label className={`settings-toggle${disabled ? ' settings-toggle--disabled' : ''}`}>
       <span>
         <span className="settings-field__label">{label}</span>
         {hint && <span className="settings-toggle__hint">{hint}</span>}
@@ -760,6 +791,8 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        aria-disabled={disabled}
+        disabled={disabled}
         className="switch"
         data-on={checked}
         onClick={() => onChange(!checked)}

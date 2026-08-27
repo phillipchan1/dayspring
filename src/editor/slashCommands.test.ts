@@ -11,6 +11,7 @@ import {
   slashColumns,
   type SlashItem,
 } from './slashCommands'
+import { MARK_KINDS } from '@/lib/markKinds'
 
 function applyNumbered(doc: string, at?: number): string {
   const state = EditorState.create({
@@ -35,9 +36,13 @@ describe('slashColumns', () => {
 })
 
 describe('filterSlashItems', () => {
-  it('returns every command split by column when the query is empty', () => {
+  // Counted against the kind table rather than a literal: a kind the parser
+  // recognises but the palette hides is a kind nobody can make.
+  it('offers every declared kind, and the captures that are not kinds', () => {
     const { capture, format } = filterSlashItems('')
-    expect(capture.length).toBe(6)
+    const ids = capture.map((i) => i.selection.id)
+    for (const kind of MARK_KINDS) expect(ids).toContain(kind.command)
+    expect(ids).toEqual(expect.arrayContaining(['ritual', 'image', 'emoji']))
     expect(format.length).toBeGreaterThan(0)
     expect(capture.every((i) => i.column === 'capture')).toBe(true)
     expect(format.every((i) => i.column === 'format')).toBe(true)

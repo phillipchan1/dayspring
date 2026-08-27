@@ -32,6 +32,7 @@ export function Leaf({
   shared,
   markQuotes,
   firstLineTitle,
+  leaf,
   onEdit,
 }: {
   entry: Entry
@@ -39,6 +40,15 @@ export function Leaf({
   shared: boolean
   markQuotes: string[]
   firstLineTitle: boolean
+  /**
+   * Which leaf of the page this is. Absent means the page is one leaf.
+   *
+   * A long page CONTINUES rather than scrolling inside its own box: the body is
+   * laid out in columns the width of a leaf, and each leaf shows the next one
+   * along. The browser does the line breaking, which is the only way the break
+   * lands where a reader would put it.
+   */
+  leaf?: { index: number; of: number } | undefined
   onEdit: (entryId: string) => void
 }) {
   /**
@@ -91,15 +101,35 @@ export function Leaf({
       }}
       role="button"
       tabIndex={-1}
-      aria-label={`${formatDate(entry.created_at)} — open to write`}
+      aria-label={
+        leaf && leaf.index > 0
+          ? `${formatDate(entry.created_at)}, leaf ${leaf.index + 1} of ${leaf.of} — open to write`
+          : `${formatDate(entry.created_at)} — open to write`
+      }
     >
+      {/*
+        The date prints on the FIRST leaf only, and that absence is the whole
+        continuation cue — a second date would say a second page began.
+      */}
       <header className="pg-leaf__head">
-        <time className="pg-leaf__date" dateTime={entry.created_at}>
-          {formatDate(entry.created_at)}
-        </time>
+        {!leaf || leaf.index === 0 ? (
+          <time className="pg-leaf__date" dateTime={entry.created_at}>
+            {formatDate(entry.created_at)}
+          </time>
+        ) : (
+          <span className="pg-leaf__cont" aria-label={`${formatDate(entry.created_at)}, continued`}>
+            &nbsp;
+          </span>
+        )}
       </header>
       <div className="pg-leaf__cols">
-        <div className="pg-leaf__body markdown-body" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="pg-leaf__window">
+          <div
+            className="pg-leaf__body markdown-body"
+            style={leaf && leaf.of > 1 ? ({ ['--pg-leaf-at']: leaf.index } as React.CSSProperties) : undefined}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </div>
         {margin.length > 0 ? (
           <aside className="pg-leaf__margin" aria-label="What you set apart on this page">
             {margin.map((t, i) => (

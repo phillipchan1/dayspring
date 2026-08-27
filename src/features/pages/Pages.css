@@ -1184,10 +1184,46 @@ button.pg__sense-q:hover {
   color: var(--accent);
 }
 
+/*
+ * A LEAF NEVER SCROLLS.
+ *
+ * This used to be `overflow-y: auto`, which made a long page a viewport: you
+ * scrolled inside a page while the wall scrolled behind it, two scrollers deep.
+ * A page in a book does not do that — it fills, and the rest continues on the
+ * next leaf.
+ *
+ * The body is laid out in columns exactly one leaf wide, so the browser breaks
+ * the lines (the only way a break lands where a reader would put it), and each
+ * leaf slides the run along by its own index. `--pg-leaf-at` is that index.
+ */
 .pg__leaf-cell .pg-leaf {
   block-size: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   padding: clamp(0.5rem, 2vw, 1.5rem) clamp(0.75rem, 2.5vw, 2rem);
+}
+
+.pg-leaf__window {
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.pg__leaf-cell .pg-leaf__cols {
+  block-size: calc(100% - 2.4rem);
+}
+
+.pg__leaf-cell .pg-leaf__body {
+  block-size: 100%;
+  /*
+   * One column exactly as wide as a leaf, filled to the brim before the next
+   * one starts. The overflow runs HORIZONTALLY — the box stays one leaf wide
+   * and the columns march off the side of it, which is what the window clips.
+   * `columns: 1` cannot do this: with one column there is nowhere for the rest
+   * to go, so it spills downward and the slide lands past the end of the text.
+   */
+  column-width: var(--pg-leaf-w, 100%);
+  column-gap: 0;
+  column-fill: auto;
+  transform: translateX(calc(var(--pg-leaf-at, 0) * -1 * var(--pg-leaf-w, 0px)));
 }
 
 /* One page on a phone: no spine to draw. */
@@ -1196,185 +1232,738 @@ button.pg__sense-q:hover {
 }
 
 
-/* ── the filter: one field, everything behind it ── */
+/* ── look for: collapsed by default, everything behind it ──
+ *
+ * Two rules decide every case in here.
+ *
+ * SERIF IS HER. SANS IS US. Subjects are set in the face the journal is written
+ * in, because they are her words. Every label, gloss and count is sans, one
+ * size, one weight, differing only in opacity. No mono anywhere: mono is for
+ * dates, and a date is a fact about a page rather than part of a control.
+ *
+ * ONE SHAPE. Every option is the same pill, whatever it does. What varies is a
+ * hairline (kept) against a dashed line (noticed), and colour once something is
+ * on. Three control shapes in one sheet is the same mistake as six type styles.
+ */
 
-.pg-filter {
+.pg-look {
   position: relative;
 }
 
-.pg-filter__field {
+.pg-look__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  inline-size: min(26rem, 100%);
-  padding: 0.42rem 0.85rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  transition: border-color var(--transition);
-}
-
-.pg-filter__field:focus-within {
-  border-color: var(--accent);
-}
-
-/* Square off the bottom while the menu is under it, so the two read as one. */
-.pg-filter__field[data-open='true'] {
-  border-bottom-left-radius: var(--radius-sm);
-  border-bottom-right-radius: var(--radius-sm);
-}
-
-.pg-filter__icon {
-  inline-size: 0.85rem;
-  block-size: 0.85rem;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: var(--text-faint);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.pg-filter__in {
-  flex: 1;
-  min-inline-size: 0;
-  font-family: var(--font-sans);
-  font-size: 0.82rem;
-  color: var(--text);
-  background: none;
-  border: none;
-  outline: none;
-}
-
-.pg-filter__in::placeholder {
-  color: var(--text-faint);
+  gap: 0.4rem 0.85rem;
 }
 
 /*
- * What the field is offering.
- *
- * One list, not a set of panels — words, markings, what you wrote, and asking,
- * each labelled by kind so the list explains itself without a header per
- * section. Scrolls, because a vocabulary is as long as it is.
+ * The opening of a sentence, which the chips complete: look for — Mom — the
+ * prayers. So it carries no box of its own; an ink-well surfaces under the
+ * cursor instead. A bordered button here would read as machinery sitting on
+ * top of her writing.
  */
-.pg-filter__menu {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  left: 0;
-  z-index: 8;
-  inline-size: min(26rem, 100%);
-  max-block-size: 19rem;
-  overflow-y: auto;
-  padding: 0.3rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-2);
-}
-
-.pg-filter__opt {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  inline-size: 100%;
-  padding: 0.42rem 0.55rem;
-  font-family: var(--font-sans);
-  font-size: 0.82rem;
-  color: var(--text);
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  text-align: left;
-}
-
-.pg-filter__opt[data-sel='true'] {
-  background: var(--bg-input);
-}
-
-/* What kind of thing this is — "word", "marked", "wrote", "ask". */
-.pg-filter__opt-kind {
-  flex: 0 0 3.1rem;
-  font-family: var(--font-mono);
-  font-size: 0.52rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
-.pg-filter__opt-label {
-  flex: 1;
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: capitalize;
-}
-
-/* Choosing should never be a shot in the dark. */
-.pg-filter__opt-n {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-faint);
-}
-
-/* ── what's on ── */
-
-.pg-filter__chips {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  margin-top: 0.55rem;
-}
-
-.pg-filter__chip {
+.pg-look__open {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-family: var(--font-sans);
-  font-size: 0.76rem;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  gap: 0.5rem;
+  margin-inline-start: -0.7rem;
+  padding: 0.34rem 0.7rem;
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
   border-radius: var(--radius-full);
-  padding: 0.24rem 0.6rem;
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+.pg-look__open:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.pg-look__open[data-on='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.pg-look__on {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* What is on. Click it to take it off — the gesture that put it there. */
+.pg-held {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.24rem 0.62rem;
+  font-family: var(--font-serif);
+  font-size: 0.94rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition: background-color var(--transition);
 }
 
-.pg-filter__chip:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+.pg-held svg {
+  opacity: 0.4;
+  transition: opacity var(--transition);
 }
 
-.pg-filter__x {
-  font-size: 0.66rem;
-  opacity: 0.7;
+.pg-held:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.pg-filter__only,
-.pg-filter__reset {
+.pg-held:hover svg {
+  opacity: 1;
+}
+
+/* A marking is the app's word for a gesture, so it is sans and wears its tone. */
+.pg-held[data-kind='marking'] {
   font-family: var(--font-sans);
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+  color: var(--tone, var(--text-bright));
+  background: color-mix(in srgb, var(--tone, var(--text)) 10%, transparent);
+  border-color: color-mix(in srgb, var(--tone, var(--text)) 30%, transparent);
+}
+
+.pg-look__clear,
+.pg-look__only {
+  padding: 0.2rem 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
   color: var(--text-faint);
   background: none;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid transparent;
   border-radius: var(--radius-full);
-  padding: 0.24rem 0.62rem;
   cursor: pointer;
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
 
-.pg-filter__only:hover,
-.pg-filter__reset:hover {
-  color: var(--text-dim);
-  border-color: var(--border);
+.pg-look__clear:hover,
+.pg-look__only:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
 }
 
-.pg-filter__only[data-on='true'] {
+.pg-look__only[data-on='true'] {
   color: var(--bg);
   background: var(--accent);
   border-color: var(--accent);
+}
+
+/* ── the sheet ── */
+
+.pg-sheet {
+  position: absolute;
+  inset-block-start: calc(100% - 0.35rem);
+  inset-inline-start: -0.7rem;
+  z-index: 30;
+  inline-size: min(37rem, calc(100vw - 2.5rem));
+  max-block-size: min(31rem, 74vh);
+  overflow-y: auto;
+  padding: 1.3rem 1.45rem 1.45rem;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: var(--shadow-panel, 0 40px 90px -46px rgba(0, 0, 0, 0.45));
+}
+
+/* A line, not a box. One less rectangle in a sheet full of them. */
+.pg-sheet__find {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-block-end: 0.7rem;
+  margin-block-end: 1.5rem;
+  color: var(--text-faint);
+  border-block-end: 1px solid var(--border-subtle);
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg-sheet__find:focus-within {
+  color: var(--accent);
+  border-block-end-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.pg-sheet__find input {
+  flex: 1;
+  min-inline-size: 0;
+  font-family: var(--font-sans);
+  font-size: 0.83rem;
+  color: var(--text-bright);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.pg-sheet__find input::placeholder {
+  color: var(--text-faint);
+}
+
+.pg-sheet__g + .pg-sheet__g {
+  margin-block-start: 1.45rem;
+}
+
+/*
+ * The label and its gloss are ONE line, one face, one size — separated by
+ * weight and opacity alone. Setting the label in mono uppercase and the gloss
+ * in serif italic beneath it is two typographic decisions for a five-word
+ * explanation.
+ */
+.pg-sheet__g h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.55rem;
+  margin: 0 0 0.72rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.pg-sheet__g h3 span {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.pg-sheet__note {
+  max-inline-size: 31rem;
+  margin: 0 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+.pg-sheet__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pg-pill {
+  display: inline-flex;
+  align-items: stretch;
+  block-size: 1.85rem;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.pg-pill:hover {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
+
+.pg-pill__hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0.72rem;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-pill:hover .pg-pill__hit {
+  color: var(--text-bright);
+}
+
+.pg-pill__hit:disabled {
+  cursor: default;
+}
+
+/* Her words, in the journal's own face. */
+.pg-pill__hit em {
+  font-family: var(--font-serif);
+  font-style: normal;
+  font-size: 0.96rem;
+}
+
+/* A count is us. Sans, small, and never a rank. */
+.pg-pill__hit i {
+  font-style: normal;
+  font-size: 0.68rem;
+  color: var(--text-faint);
+}
+
+/* Noticed, not kept — the journal offering rather than her answering. */
+.pg-pill--noticed {
+  border-style: dashed;
+}
+
+.pg-pill[data-on='true'] {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  border-style: solid;
+}
+
+.pg-pill[data-on='true'] .pg-pill__hit {
+  color: var(--accent);
+}
+
+.pg-pill[data-on='true'] .pg-pill__hit i {
+  color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.pg-pill--mark[data-on='true'] {
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  border-color: color-mix(in srgb, var(--tone) 34%, transparent);
+}
+
+.pg-pill--mark[data-on='true'] .pg-pill__hit {
+  color: var(--tone);
+}
+
+/* Nothing here yet — true, and not a promise about tomorrow. */
+.pg-pill--mark[data-off='true'] {
+  opacity: 0.3;
+}
+
+/* keep / drop — the same slot, revealed on hover, never shouting. */
+.pg-pill__aside {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 0.5rem 0.6rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  border-inline-start: 1px solid transparent;
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+
+.pg-pill:hover .pg-pill__aside,
+.pg-pill__aside:focus-visible {
+  opacity: 1;
+  border-inline-start-color: var(--border-subtle);
+}
+
+.pg-pill__aside:hover {
+  color: var(--text-bright);
+}
+
+.pg-pill__aside--keep:hover {
+  color: var(--accent);
+}
+
+.pg-pill--mine {
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* Touch has no hover, so the keep/drop slot has nowhere to come from. */
+@media (hover: none) {
+  .pg-pill__aside {
+    opacity: 1;
+    border-inline-start-color: var(--border-subtle);
+  }
+}
+
+
+/* ── the rows band: standing very far back ──
+ *
+ * Not a list view and not a mode — the same wall, the same lighting, the same
+ * windowing, at 30 pages a screen. The row height here is set by the grid's
+ * --pg-card-h so the scroller and the CSS can never disagree.
+ */
+
+.pgr {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  inline-size: 100%;
+  block-size: var(--pg-card-h);
+  padding-inline: 0.6rem;
+  text-align: start;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color var(--transition), opacity var(--transition);
+}
+
+.pgr:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.pgr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Lighting DIMS. The pages that don't carry the word are what give the ones
+   that do their shape — the panel this replaced could only hand back a list
+   with the rest thrown away. */
+.pgr[data-dim='true'] {
+  opacity: 0.28;
+}
+
+.pgr[data-active='true'] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.pgr[data-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.pgr[data-context='true'] {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* A date is a fact about a page, so it is the one thing here set in mono. */
+.pgr__date {
+  flex: none;
+  inline-size: 3.9rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+/* Her words, in the journal's own face. */
+.pgr__line {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 0.86rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.pgr__lit {
+  color: var(--accent);
+  background: none;
+}
+
+/* The markings, as the margin — the same information the cards carry, at the
+   only size a 25px row has room for. */
+.pgr__margin {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  align-items: center;
+}
+
+.pgr__mark {
+  inline-size: 4px;
+  block-size: 4px;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+/* The way back to what you were writing, never more than a glance away. */
+.pgr__today {
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.pgr[data-today='true'] .pgr__date {
+  color: var(--accent);
+}
+
+/* The chosen reading, and its one line of explanation. */
+.pg-pill--read[data-on='true'] {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-color: var(--border);
+}
+
+.pg-pill--read[data-on='true'] .pg-pill__hit {
+  color: var(--text-bright);
+}
+
+.pg-sheet__gloss {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+
+/* ── the readings ──
+ *
+ * The results stay in the page view: every arrangement is still pages, with
+ * their dates, in the writer's own words. Grouped differently, never
+ * summarised, and with no axis anywhere.
+ */
+
+.pg-read {
+  max-inline-size: 62rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+  overflow-y: auto;
+  block-size: 100%;
+}
+
+/* A control, not a finding — so it is plain. */
+.pg-read__split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-end: 1.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+.pg-read__year {
+  padding: 0.15rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg-read__year:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+}
+
+.pg-read__year[data-on='true'] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+/*
+ * Two spans, side by side, with NOTHING BETWEEN THEM. No arrow: an arrow is a
+ * vertical axis laid on its side, saying the second span is where the first was
+ * heading.
+ */
+.pg-read__two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: 2.5rem;
+}
+
+.pg-read__bursts {
+  display: flex;
+  flex-direction: column;
+  gap: 2.2rem;
+}
+
+/* The count IS the heading. A title would be a claim about what it was. */
+.pg-read__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.6rem;
+  margin: 0 0 0.9rem;
+  padding-block-end: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.pg-read__head span {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.pg-read__pages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-read__page {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  inline-size: 100%;
+  padding: 0.28rem 0.4rem;
+  text-align: start;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pg-read__page:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+/* A date is a fact about a page, so it is the one thing here set in mono. */
+.pg-read__date {
+  flex: none;
+  inline-size: 5.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.pg-read__line {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+/*
+ * Her words, and nothing beside them.
+ *
+ * No number, no rank, no good-and-bad. Set in the journal's own face because
+ * they are hers; separated by a middot because a list needs a separator and a
+ * bullet would make it a ranking.
+ */
+.pg-read__words {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.9;
+  color: var(--text);
+}
+
+.pg-read__words i {
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/* The floor, stated where the reader can see it — the only legal way to shorten
+   the list, and it has to be visible to be legal. */
+.pg-read__floor {
+  margin: 2rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  color: var(--text-faint);
+}
+
+.pg-read__none {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  color: var(--text-faint);
+}
+
+/* ── the chapter ──
+ *
+ * A subject's masthead: its provenance, its counts, its span, and one band of
+ * months. Everything here is either the writer's own words or a number counted
+ * in code. Deliberately small — no vocabulary portrait, no co-occurrence
+ * network. A network diagram of someone's relationships is a profile whatever
+ * the axis says.
+ */
+
+.pg-chapter {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-block: 0.9rem 0.2rem;
+}
+
+.pg-chapter__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.7rem;
+}
+
+/* Her word for it, in the journal's own face. */
+.pg-chapter__name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.28rem;
+  font-weight: 400;
+  color: var(--text-bright);
+}
+
+/* Ours: sans, one size, one weight, differing only in opacity. */
+.pg-chapter__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  color: var(--text-faint);
+}
+
+/*
+ * THE BAND HAS NO VERTICAL AXIS.
+ *
+ * Every cell is the same size; only warmth changes. A bar chart of
+ * mentions-per-month has a Y axis, and a falling one under a subject called
+ * "Mom" reads as "you care less about your mother now" — a verdict on a
+ * relationship, rendered by a machine (Principle 1).
+ */
+.pg-band {
+  display: flex;
+  gap: 1px;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-band__cell {
+  flex: 1 1 0;
+  min-inline-size: 2px;
+  /* One height, always. There is nothing here to be tall or short. */
+  block-size: 14px;
+  border-radius: 1px;
+  background: rgb(
+    var(--scripture-ember)
+  );
+  /* Warmth, not height: ember at its quietest, gold at its busiest. */
+  background: color-mix(
+    in srgb,
+    rgb(var(--scripture-gold)) calc(var(--warmth, 0) * 100%),
+    rgb(var(--scripture-ember))
+  );
+  opacity: calc(0.25 + var(--warmth, 0) * 0.75);
+}
+
+/* A month with nothing in it is silence, and silence is half of what a band
+   says — so it stays, quietly, rather than being dropped. */
+.pg-band__cell[data-empty='true'] {
+  background: var(--border-subtle);
+  opacity: 0.5;
+}
+
+/* Only the ends are labelled. A tick per year turns a band into a chart. */
+.pg-band__ends {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.3rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
 }

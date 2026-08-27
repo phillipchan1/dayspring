@@ -12,6 +12,8 @@ export interface Shortcut {
   /** Key tokens shown as separate <kbd> chips. */
   keys: KeyToken[]
   label: string
+  /** A second binding for the same act, shown beside the first. */
+  alsoKeys?: KeyToken[]
   /** When the binding only applies in a given context. */
   when?: string
 }
@@ -34,7 +36,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Writing',
     items: [
-      { keys: ['Mod', 'N'], label: 'New entry' },
+      // ⌘1 is the same act from the rail's numbering — one item under Write,
+      // four under Return. Listed here rather than twice under Navigation,
+      // because writing is not a place you go.
+      { keys: ['Mod', 'N'], label: 'New entry', alsoKeys: ['Mod', '1'] },
       { keys: ['Mod', 'S'], label: 'Save now' },
       { keys: ['Mod', 'B'], label: 'Bold', when: 'with text selected in the editor' },
       { keys: ['Mod', 'I'], label: 'Italic', when: 'with text selected in the editor' },
@@ -51,10 +56,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Navigation',
     items: [
-      { keys: ['Mod', '1'], label: 'Entries — your pages' },
-      { keys: ['Mod', '2'], label: 'Ascent' },
-      { keys: ['Mod', '3'], label: 'Lamp' },
-      { keys: ['Mod', '4'], label: 'Altar' },
+      { keys: ['Mod', '2'], label: 'Pages — your own, side by side' },
+      { keys: ['Mod', '3'], label: 'Ascent' },
+      { keys: ['Mod', '4'], label: 'Lamp' },
+      { keys: ['Mod', '5'], label: 'Altar' },
       { keys: ['Mod', ','], label: 'Settings' },
       { keys: ['Mod', 'K'], label: 'Find a word, or ask a question', when: 'anywhere' },
       { keys: ['['], label: 'Toggle sidebar labels' },

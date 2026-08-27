@@ -18,7 +18,11 @@ import {
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
 import { spiritualBlocksField } from './spiritualBlocksField'
+import { markMarginExtension } from './markMargin'
+import { scripturePasteExtension } from './scripturePasteExtension'
 import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { wrapLinesInFence } from '@/lib/markSelection'
+import type { SpiritualItemType } from '@/lib/types'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
 import {
@@ -93,6 +97,27 @@ export interface EditorHandle {
   ) => void
   removePendingAttachment: (pendingId: string) => void
   /**
+   * Turn the selection's lines — or the caret's paragraph — into a marking of
+   * `kind`. Returns the writer's words the fence now carries, so the caller can
+   * write the matching row, or null when the range can't be marked.
+   */
+  markLines: (kind: SpiritualItemType, id: string) => string | null
+  /**
+   * Keep something the journal noticed: find the writer's own sentence in the
+   * live document and mark the lines it sits on. Returns null when the sentence
+   * is no longer there — they may have edited it while the pencil note sat in
+   * the margin, and a proposal about words that no longer exist must do nothing
+   * at all rather than mark the nearest thing.
+   */
+  markQuote: (quote: string, kind: SpiritualItemType, id: string) => string | null
+  /**
+   * Bring a document position into view without touching the selection.
+   *
+   * Used by the open margin: nothing there is allowed to steal focus, so a note
+   * scrolls to its line and leaves the caret exactly where the writer left it.
+   */
+  revealPos: (pos: number) => void
+  /**
    * Replace the document with a version that arrived from another device.
    *
    * The `initialDoc` effect deliberately refuses to re-seed an entry that is
@@ -139,6 +164,22 @@ interface EditorProps {
   ) => void
   /** Called when the user clicks a rendered spiritual block to edit it. */
   onEditBlock?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
+  /** Scripture blocks: primary click opens the chapter pane. */
+  onOpenChapter?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
+  /** A Bible-app paste was wrapped as a scripture fence. */
+  onScripturePaste?: (reference: string) => void
+  /**
+   * Draw the margin at all — the rule, the hands on it, and the `+`. Off is a
+   * bare page, and it is the switch that protects the writing surface (Settings
+   * → Show the margin). Markings are untouched either way; only what is painted
+   * changes.
+   */
+  margin?: boolean
+  /** The writer touched the margin rule or a glyph on it — open the margin. */
+  onOpenMargin?: () => void
+  /** The margin `+` was pressed; carries its viewport rect so the picker can
+   *  open on the rule rather than over the writing. */
+  onMarkHere?: (at: { top: number; bottom: number; left: number }) => void
   /** Called when the user left- or right-clicks a photo block to open its options menu. */
   onImageMenu?: (
     target: AttachmentEditTarget,
@@ -185,6 +226,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     commandLinePos = null,
     onSlashCommand,
     onEditBlock,
+    onOpenChapter,
+    onScripturePaste,
+    margin = true,
+    onOpenMargin,
+    onMarkHere,
     onImageMenu,
     onAboutPractice,
     onSlashPaletteChange,
@@ -201,8 +247,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const titleCompartment = useRef(new Compartment())
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
+  const marginCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
+  const onOpenChapterRef = useRef(onOpenChapter)
+  const onScripturePasteRef = useRef(onScripturePaste)
+  const onOpenMarginRef = useRef(onOpenMargin)
+  const onMarkHereRef = useRef(onMarkHere)
   const onImageMenuRef = useRef(onImageMenu)
   const onAboutPracticeRef = useRef(onAboutPractice)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
@@ -214,6 +265,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const setSlashRef = useRef(setSlashState)
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
+  onOpenChapterRef.current = onOpenChapter
+  onScripturePasteRef.current = onScripturePaste
+  onOpenMarginRef.current = onOpenMargin
+  onMarkHereRef.current = onMarkHere
   onImageMenuRef.current = onImageMenu
   onAboutPracticeRef.current = onAboutPractice
   setFormatBarRef.current = setFormatBar
@@ -312,6 +367,43 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const view = viewRef.current
       if (!view) return
       removePendingAttachmentInView(view, pendingId)
+    },
+      markLines: (kind, id) => {
+      const view = viewRef.current
+      if (!view) return null
+      const { from, to } = view.state.selection.main
+      const wrap = wrapLinesInFence(view.state.doc.toString(), from, to, kind, id)
+      if (!wrap) return null
+      view.dispatch({
+        changes: { from: wrap.from, to: wrap.to, insert: wrap.insert },
+        // Collapse to the start of the new fence. The range the caret was in is
+        // now inside an atomic block, and leaving the old selection would put it
+        // somewhere the caret is not allowed to be.
+        selection: { anchor: wrap.from },
+      })
+      view.focus()
+      return wrap.content
+    },
+    markQuote: (quote, kind, id) => {
+      const view = viewRef.current
+      if (!view || !quote) return null
+      const doc = view.state.doc.toString()
+      const at = doc.indexOf(quote)
+      if (at === -1) return null
+      const wrap = wrapLinesInFence(doc, at, at + quote.length, kind, id)
+      if (!wrap) return null
+      // No selection change and no focus grab: keeping something from the margin
+      // must not move the caret out from under whatever the writer is doing.
+      view.dispatch({ changes: { from: wrap.from, to: wrap.to, insert: wrap.insert } })
+      return wrap.content
+    },
+    revealPos: (pos) => {
+      const view = viewRef.current
+      if (!view) return
+      const at = Math.max(0, Math.min(pos, view.state.doc.length))
+      // Effect only — no `selection`, so the caret stays where the writer left
+      // it and the editor keeps whatever focus it already had.
+      view.dispatch({ effects: EditorView.scrollIntoView(at, { y: 'center' }) })
     },
     applyRemoteDoc: (next) => {
       const view = viewRef.current
@@ -429,7 +521,24 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // below all read this field instead of each re-parsing the full doc.
           // Must precede them so the value is ready when they update.
           spiritualBlocksField,
-          spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
+          spiritualBlockExtension(
+            (target, anchor) => onEditBlockRef.current?.(target, anchor),
+            (target, anchor) => {
+              if (onOpenChapterRef.current) onOpenChapterRef.current(target, anchor)
+              else onEditBlockRef.current?.(target, anchor)
+            },
+          ),
+          // The margin, closed: the rule down the right edge of the writing
+          // column and a hand on it beside every marking. Must follow
+          // spiritualBlocksField, which it reads.
+          marginCompartment.current.of(
+            margin
+              ? markMarginExtension(
+                  () => onOpenMarginRef.current?.(),
+                  (at) => onMarkHereRef.current?.(at),
+                )
+              : [],
+          ),
           scriptureRefDecoration(),
           // Marked passages. Reads spiritualBlocksField above, same as the
           // scripture underline, so it must stay below it.
@@ -444,6 +553,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // Live insertion caret while dragging a file in or reordering a photo.
           dropCursor(),
           Prec.highest(attachmentDropExtension()),
+          Prec.high(
+            scripturePasteExtension((reference) => onScripturePasteRef.current?.(reference)),
+          ),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
           editorTheme,
@@ -525,6 +637,21 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     reconfigure(viewRef.current, dimCompartment.current, dimming ? dimmingExtension : [])
   }, [dimming])
+
+  // Turning the margin off has to reach a live editor, not only a fresh one —
+  // the switch is in a panel over the page you are already writing on.
+  useEffect(() => {
+    reconfigure(
+      viewRef.current,
+      marginCompartment.current,
+      margin
+        ? markMarginExtension(
+            () => onOpenMarginRef.current?.(),
+            (at) => onMarkHereRef.current?.(at),
+          )
+        : [],
+    )
+  }, [margin])
 
   useEffect(() => {
     reconfigure(viewRef.current, titleCompartment.current, titleStyling

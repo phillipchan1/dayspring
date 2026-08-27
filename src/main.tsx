@@ -37,7 +37,9 @@ async function bootstrap() {
   //
   //   ?__preview=locked | paywall   → IAP review shot (capture-appstore-screenshots.mjs)
   //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
+  //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
+  //   ?__preview=margin             → the markings margin (editor/marginPreview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -50,9 +52,24 @@ async function bootstrap() {
       renderListingPreview(preview)
       return
     }
+    if (preview?.startsWith('ad-')) {
+      const { renderAdPreview } = await import('./features/ads/preview')
+      renderAdPreview(preview)
+      return
+    }
     if (preview?.startsWith('applock')) {
       const { renderAppLockPreview } = await import('./features/applock/preview')
       await renderAppLockPreview(preview)
+      return
+    }
+    if (preview === 'margin') {
+      const { renderMarginPreview } = await import('./editor/marginPreview')
+      renderMarginPreview()
+      return
+    }
+    if (preview === 'highlight') {
+      const { renderHighlightPreview } = await import('./editor/highlightPreview')
+      renderHighlightPreview()
       return
     }
     if (preview) {

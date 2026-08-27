@@ -78,6 +78,51 @@ export const SLASH_ITEMS: SlashItem[] = [
     badge: '✨',
     keywords: ['sense', 'impression', 'word'],
   },
+  // The four the set was missing, plus Story. Their order follows the kind table
+  // (markKinds.ts) rather than usage, so the column reads as the same set the
+  // margin picker offers — Received, Brought, Noticed, Named.
+  {
+    selection: { kind: 'spiritual', id: 'gift' },
+    column: 'capture',
+    label: 'Gift',
+    hint: 'Something you were given',
+    badge: '◡',
+    keywords: ['gift', 'given', 'grateful', 'gratitude', 'thanks'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'desire' },
+    column: 'capture',
+    label: 'Desire',
+    hint: 'Something you want',
+    badge: '◠',
+    keywords: ['desire', 'want', 'longing', 'hope', 'wish'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'learned' },
+    column: 'capture',
+    label: 'Learned',
+    // Never "Growth", and never "progress" — the hint has to stay a description
+    // of what the writer did, not a claim about where they are.
+    hint: 'Something you would tell yourself again',
+    badge: '⊥',
+    keywords: ['learned', 'learn', 'lesson', 'again'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'story' },
+    column: 'capture',
+    label: 'Story',
+    hint: 'A thing that happened, worth keeping',
+    badge: '{',
+    keywords: ['story', 'happened', 'moment', 'event'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'absence' },
+    column: 'capture',
+    label: 'Absence',
+    hint: 'Where He seemed far',
+    badge: '¦',
+    keywords: ['absence', 'absent', 'far', 'silence', 'dry', 'dark'],
+  },
   {
     selection: { kind: 'spiritual', id: 'ritual' },
     column: 'capture',

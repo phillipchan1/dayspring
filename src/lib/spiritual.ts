@@ -136,6 +136,49 @@ export async function syncSpiritualBlocksFromMarkdown(
   if (error) throw error
 }
 
+/** One marking, reduced to what a surface needs to light a page by it. */
+export interface MarkingRef {
+  entryId: string
+  type: SpiritualItemType
+  /**
+   * Did the writer name it, or did the journal notice it?
+   *
+   * `source='command'` is a `/pray` the writer typed. Everything else was
+   * harvested from the prose of an already-written page — the writer's own
+   * verbatim sentence, selected by a model. Both are real markings and both
+   * light the same pill; the difference is recorded because it is true, not
+   * because the surface asks the reader to care.
+   */
+  declared: boolean
+}
+
+/**
+ * Every marking, as page references only.
+ *
+ * Deliberately not `listSpiritualItems`: this is the whole archive — thousands
+ * of rows — and a surface that only needs to know WHICH pages carry a prayer
+ * has no business pulling every prayer's text across the wire to find out.
+ */
+export async function listMarkings(): Promise<MarkingRef[]> {
+  const sb = requireSupabase()
+  const out: MarkingRef[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from('spiritual_items')
+      .select('entry_id, type, source')
+      .not('entry_id', 'is', null)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as { entry_id: string; type: SpiritualItemType; source: string | null }[]
+    for (const r of rows) {
+      out.push({ entryId: r.entry_id, type: r.type, declared: r.source === 'command' })
+    }
+    if (rows.length < PAGE) return out
+  }
+}
+
 export async function unmarkPrayerAnswered(id: string): Promise<void> {
   const sb = requireSupabase()
   const { error } = await sb
@@ -202,4 +245,29 @@ export async function resolveScripturePassages(references: string[]): Promise<(R
   }
   const result = (await res.json()) as { resolved: (ResolvedRef | null)[] }
   return result.resolved
+}
+
+export interface ChapterVerse {
+  n: number
+  text: string
+}
+
+export interface ScriptureChapter {
+  book: string
+  chapter: number
+  verses: ChapterVerse[]
+}
+
+/** One chapter of numbered ESV text for the in-journal reader. */
+export async function fetchScriptureChapter(book: string, chapter: number): Promise<ScriptureChapter> {
+  const res = await fetch(apiUrl('/api/spiritual/scripture-chapter'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: await authHeader() },
+    body: JSON.stringify({ book, chapter }),
+  })
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ error: 'failed' }))) as { error?: string }
+    throw new Error(err.error ?? 'Could not load the chapter')
+  }
+  return (await res.json()) as ScriptureChapter
 }

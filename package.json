@@ -33,7 +33,11 @@
     "asc:setup-iap": "node scripts/asc-setup-iap.mjs",
     "dev:site": "npm run dev --prefix site",
     "build:site": "npm run build --prefix site",
-    "test:site": "npm test --prefix site"
+    "test:site": "npm test --prefix site",
+    "ads": "node scripts/capture-ads.mjs",
+    "ads:copy": "tsx scripts/print-ads.ts",
+    "audit:subjects": "tsx --tsconfig tsconfig.app.json scripts/subjects-audit.ts",
+    "verify:pages": "tsx --tsconfig tsconfig.app.json scripts/verify-pages-data.ts"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",

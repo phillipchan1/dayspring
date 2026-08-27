@@ -29,6 +29,10 @@ describe('renderMarkdown — highlight', () => {
     expect(render('a == b == c')).not.toContain('<mark')
   })
 
+  it('renders a highlight that captured a trailing space', () => {
+    expect(render('==word ==')).toContain('<mark class="hl hl--amber">word </mark>')
+  })
+
   it('treats an unknown colour token as content', () => {
     const html = render('=={nope}word==')
     expect(html).toContain('hl--amber')

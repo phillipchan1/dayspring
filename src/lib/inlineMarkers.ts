@@ -12,7 +12,7 @@ import { NAMED_COLOR_PATTERN } from './highlightColors'
  * Order matters — highlight is the outermost wrapper, so it peels first.
  */
 
-const HIGHLIGHT_RE = new RegExp(`==(?:\\{(?:${NAMED_COLOR_PATTERN})\\})?(?!\\s)([^=]+?)(?<!\\s)==`, 'g')
+const HIGHLIGHT_RE = new RegExp(`==(?:\\{(?:${NAMED_COLOR_PATTERN})\\})?(?!\\s)([^=]+?)==`, 'g')
 const UNDERLINE_RE = /\+\+(?!\s)([^+]+?)(?<!\s)\+\+/g
 const EMPHASIS_RE = /(\*\*\*|\*\*|\*|___|__|_)(?!\s)([\s\S]+?)(?<!\s)\1/g
 const STRIKE_RE = /~~(?!\s)([\s\S]+?)(?<!\s)~~/g

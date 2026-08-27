@@ -1,0 +1,279 @@
+/* The open margin. See MarkMargin.tsx for the three rules it keeps. */
+
+.mark-margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Sit immediately beside the writing column, in the empty space a centred
+     42rem column leaves on a wide window — so opening the margin costs the
+     writing nothing. `max(0px, …)` is what makes the fallback automatic: once
+     the window is too narrow for the panel to fit beside the column, it pins to
+     the right edge and overlays instead of pushing. No observer, no breakpoint
+     to keep in sync with the editor's own width setting. */
+  right: max(0px, calc(50% - var(--editor-max-width) / 2 - 15rem - 1.1rem));
+  width: 15rem;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0 1.5rem;
+  /* The panel's left edge lands exactly on the closed rule, so the margin reads
+     as widening rather than as a card arriving. The rule itself fades out
+     underneath (see .journal-write__canvas--margin) and this becomes it. */
+  border-left: 1px solid color-mix(in srgb, var(--text-faint) 26%, transparent);
+  /* A ground, because below the width where the panel fits beside the writing
+     column it pins to the right edge and overlays the text — and an overlay has
+     to be legible over prose. Beside the column the same wash reads as a quiet
+     widened margin. */
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* Arrival is a fade, never a movement. */
+  animation: mark-margin-in 220ms ease both;
+}
+
+@keyframes mark-margin-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark-margin { animation: none; }
+}
+
+.mark-margin__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.9rem 0.4rem 0.7rem 0.9rem;
+}
+
+/* The tracked cap label used by the scripture citation and the practice
+   prompts, so one font still reads as a type system. */
+.mark-margin__title {
+  font-family: var(--font-editor);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.mark-margin__close {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.mark-margin__close:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text-faint) 12%, transparent);
+}
+
+.mark-margin__empty {
+  margin: 0;
+  padding: 0 0.9rem;
+  font-family: var(--font-editor);
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.mark-margin__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mark-margin__note {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.mark-margin__note:hover {
+  background: color-mix(in srgb, var(--text-faint) 9%, transparent);
+}
+
+.mark-margin__glyph {
+  flex-shrink: 0;
+  width: 12px;
+  /* Optically on the first line of the note's text, the way a hand drawn in a
+     real margin sits beside the line it belongs to. */
+  padding-top: 0.15rem;
+}
+
+.mark-margin__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* The writer's own sentence, in the writing face — this is the page's voice,
+   not the app's. Clamped rather than truncated with an ellipsis mid-word: the
+   note is a way back to the line, not a replacement for reading it. */
+.mark-margin__text {
+  font-family: var(--font-editor);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.mark-margin__ref {
+  font-family: var(--font-editor);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* A phone has no room beside the column, so the margin becomes the bottom sheet
+   the slash palette already uses — one motion vocabulary on touch, and it never
+   competes with the thumb. */
+@media (max-width: 767px) {
+  .mark-margin {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 62vh;
+    z-index: 8500;
+    padding: 0 0 env(safe-area-inset-bottom);
+    border: 0.5px solid var(--border);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--bg-elevated);
+    box-shadow: 0 -10px 36px -14px rgba(40, 24, 8, 0.5);
+  }
+
+  .mark-margin__head {
+    flex-shrink: 0;
+    padding: 0.6rem 0.5rem 0.5rem 1rem;
+    border-bottom: 0.5px solid var(--border-subtle);
+  }
+
+  /* The 48px touch floor from MOBILE_DESIGN.md. */
+  .mark-margin__note {
+    min-height: 48px;
+    padding: 0.6rem 1rem;
+  }
+
+  .mark-margin__text {
+    font-size: 0.9rem;
+    -webkit-line-clamp: 3;
+  }
+}
+
+/* ── Pencil ──────────────────────────────────────────────────────────────────
+   What the journal noticed, and has not been kept. Graphite rather than ink, and
+   a dashed rule down its side, because the whole claim of this surface is that a
+   proposal is not a marking: it carries no weight, appears in no count, and
+   reaches nothing else until the writer keeps it. It also has to be legible as
+   provisional before anyone reads a word of it. */
+.mark-margin__list--pencil {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed color-mix(in srgb, var(--text-faint) 35%, transparent);
+}
+
+.mark-margin__note--pencil {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  /* Arrival is a fade, never a movement: no slide, no scale, no bounce. Motion
+     in peripheral vision is what pulls the eye off the sentence you are still
+     writing; opacity does not. 600ms so it resolves rather than appears. */
+  animation: mark-pencil-in 600ms ease both;
+}
+
+@keyframes mark-pencil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark-margin__note--pencil { animation: none; }
+}
+
+/* Graphite: the hand is drawn in the same shape as an ink one, in pencil. */
+.mark-margin__note--pencil .mark-margin__glyph {
+  color: var(--text-dim);
+  opacity: 0.72;
+}
+
+.mark-margin__note--pencil .mark-margin__text {
+  color: var(--text-dim);
+}
+
+.mark-margin__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.mark-margin__keep,
+.mark-margin__not {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-editor);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.mark-margin__keep {
+  color: var(--accent);
+}
+
+.mark-margin__keep:hover {
+  color: var(--text-bright);
+}
+
+/* Quieter than Keep on purpose. Declining is the cheaper act and should look
+   like it — but never so faint that it is hard to find, which would make
+   dismissal cost something after all. */
+.mark-margin__not {
+  color: var(--text-faint);
+}
+
+.mark-margin__not:hover {
+  color: var(--text-dim);
+}

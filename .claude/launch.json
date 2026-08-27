@@ -8,7 +8,9 @@
         "run",
         "dev"
       ],
-      "port": 5180
+      "port": 5180,
+      "autoPort": false,
+      "url": "http://localhost:5180"
     },
     {
       "name": "preview",
@@ -47,6 +49,54 @@
         "--strictPort"
       ],
       "port": 5182
+    },
+    {
+      "name": "markings-proto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "prototypes/recollection",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5186",
+        "--strictPort"
+      ],
+      "port": 5186,
+      "url": "http://localhost:5186"
+    },
+    {
+      "name": "domains-proto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "prototypes/domains",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5187",
+        "--strictPort"
+      ],
+      "port": 5187,
+      "url": "http://localhost:5187"
+    },
+    {
+      "name": "looking-proto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "prototypes/looking",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5189",
+        "--strictPort"
+      ],
+      "port": 5189,
+      "url": "http://localhost:5189"
     }
   ]
 }

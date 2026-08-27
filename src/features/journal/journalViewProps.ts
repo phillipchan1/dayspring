@@ -38,9 +38,6 @@ export interface JournalViewProps {
   onNew: () => void
   /** True while a new entry is being composed but not yet persisted. */
   isNewEntry: boolean
-  /** The sidebar's own search box. */
-  query: string
-  onQueryChange: (q: string) => void
   /** Route to the Reflections ("Looking back") surface. */
   onLookBack: () => void
   /** Route to the Lamp (scripture canon) surface. */
@@ -66,17 +63,8 @@ export interface JournalViewProps {
    * just committed onto that same frame — see `consumeDrawerFrame`.
    */
   onDrawerNavigated: () => void
-  /** Desktop entries-panel visibility — lifted so ⌘K can open it. */
-  entriesOpen: boolean
-  /** ⌘1 / rail "Entries" / mobile tab — shows the entries panel. */
-  onToggleEntries: () => void
-  /**
-   * Switch the panel between its two reading modes.
-   *
-   * List and Pages are siblings, not a mode and an escape hatch — see
-   * EntriesGroupToggle.
-   */
-  onPagesMode: (on: boolean) => void
+  /** ⌘1 / rail "Pages" / mobile tab — the archive itself. */
+  onPages: () => void
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
   /** True when Looking back fills the main canvas. */
@@ -85,7 +73,7 @@ export interface JournalViewProps {
   altarActive: boolean
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
-  /** True when the Pages wall fills the canvas. The panel stays open beside it. */
+  /** True when the Pages wall fills the canvas. */
   pagesActive: boolean
   /** Open ⌘K — Find (instant, local) or Ask (the Well). */
   onFindOrAsk: () => void

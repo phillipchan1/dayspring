@@ -23,6 +23,93 @@ agenda.
 
 ---
 
+## D-025 — Pages replaces Entries and becomes a Return surface; the list is a distance
+**2026-08-26** · **Status:** Decided · **supersedes D-022, and re-runs D-018 with the fix D-018 itself asked for**
+
+**Decision:** the entries panel is deleted a second time. **Pages owns the canvas, moves
+under Return, and absorbs the list as the far end of its zoom.** The rail becomes one item
+under Write and four under Return — Pages, Ascent, Lamp, Altar.
+
+The surface gains, all prototyped in [`prototypes/looking/`](../../prototypes/looking/):
+
+- **`look for`** — one collapsed control opening on three groups: *subject*, *marking*,
+  *reading*. Closed by default, because the default experience is reading the pages raw.
+  What is on shows beside the toggle; what is not is behind it.
+- **Subjects, offered and kept.** The journal notices names (RECALL Act one, mechanism 1.2)
+  and she keeps the ones she carries in one gesture, or types a matter and keeps that.
+  Kept subjects order by *when they were kept*, never by count. Dropping is safe: the
+  journal still notices the name and nothing she wrote changes. Needs a `kept_subjects`
+  table mirroring `marks`.
+- **Subjects union; markings intersect.** "Mom and David" names the people you want to read
+  about; "Mom and prayers" narrows to the prayers. That is what the words mean out loud,
+  and intersecting two people on a real archive returns almost nothing.
+- **The chapter** — a subject's own page: provenance, counts, a band per subject, her
+  markings as rails, and the pages themselves.
+- **Four readings** — *in order · then & now · close together · the words you used.*
+- **The zoom runs from a list to a single page.** Rows → cards → leaves, one continuous
+  move.
+
+**Why D-022 comes off.** D-022 kept the panel open across the List/Pages switch so they
+would read as siblings. They are not siblings — finding a thing you already have in mind
+and coming across a thing you don't are different acts, and a 17rem column of titles beside
+a wall of pages is two indexes of the same archive on screen at once, which is the clutter
+D-017 warned about arriving by the other door.
+
+**Why the deletion works this time.** D-018 fired within three days on one narrow thing:
+*"browsing for a half-remembered entry becomes reliably slower."* Its own kill note said
+what to do about it and nobody did it — *"an argument for a list-tight end of the zoom
+rather than for a second surface."* That is now built and measured: **25px rows, 30 a
+screen at 900px**, against the panel's ~25. Two other things also changed. ⌘K Find was
+never the list's job and always beat it at "I know exactly what I want" — the list only
+ever won the *half*-remembered case. And `look for` did not exist: "it was about Mom" is
+usually more retrievable than "it was March 2019."
+
+**Why Return and not Write.** Once it owns the canvas it behaves like a Return surface, so
+it should be labelled as one — and SURFACES already made the argument: the other three
+*"all interpret… None of them hands back the archive. This does."* Being the Return surface
+that does **not** interpret is its distinguishing virtue. It obeys the Return rule to the
+letter: you go there to see, never to do. Write then holds one item, which is the sharper
+statement of the thesis rather than a weaker one — writing is one act, and everything else
+in this product is returning.
+
+**A knowing violation retires with it.** D-017 accepted the weather grid as a deliberate
+Principle 2 override because with nothing lit it displays writing activity. The band is not
+that: scoped to a subject it describes that subject's rhythm, not the writer's diligence.
+Silence in Mom's band is a season of a relationship; silence in an activity grid is a
+report card.
+
+**What would change our mind:** **you cannot get back to today's draft from a cold start in
+under two seconds.** The panel was how you returned to what you were writing; deleting it
+makes the wall the only way back, which is a Principle 3 problem wearing a navigation
+costume. The mitigations — the newest page marked `today`, every row opening to write on a
+double-click — are mitigations, not proof, and this is what will kill it a second time if
+anything does. **Density is not the risk any more; re-entry is.**
+
+The second falsifier is the subject model: if detection on a real 2,831-page archive
+returns hundreds of names, "keep the ones you carry" is a chore rather than a gesture, and
+the chapter is a feature nobody reaches — the same failure as slash commands going
+unnoticed for three weeks (K1). **Measure this before building, the way
+`scripts/emphasis-audit.ts` measured emphasis before D-016.**
+
+**Cost accepted:** D-018's ~2,800 lines come off again, this time with the zoom end that
+was supposed to replace them. Shortcuts renumber (⌘1 Write, ⌘2 Pages, ⌘3–⌘5 the rest) and
+that is real muscle memory spent. The open book glyph moves from Entries to Pages, which
+has the better claim to it. And the mobile bottom bar changes with the rail, which the
+prototype does not cover at all.
+
+**Unresolved, deliberately:** the surface's **name** — "Pages" describes one state of it
+now, and Ascent, Lamp and Altar are each named for what they are. And whether **the words
+you used** may be scoped to a person: RECALL takes it off person pages (on a spouse it
+reads as a portrait of the marriage), against the counter-argument that the words on her
+pages about her mother are about *her*, and the failure is framing rather than fact.
+
+## D-024 — Read the chapter beside the journal; pasted verses land as scripture
+**2026-08-22** · **Status:** Decided
+**Decision:** tapping a scripture block opens **that chapter only** in a quiet pane beside the journal (the landed verse highlighted, writing still visible). A link at the bottom continues on ESV.org. There is no next/prev chapter and no book journey. Edit/Remove stay on a quiet `⋯` on the block (and on the pane), not on the primary tap. A paste that looks like a Bible-app verse — body plus an obvious citation — wraps in place as a scripture fence using **the writer's words**. We do not swap in ESV, and we do not wrap if we are unsure.
+**Why:** the scripture prototype's beta pick was B (chapter beside the journal). Kristi (OPP-K2 / OPP-K3) already leaves to read around a verse and already pastes from a Bible app; `/scripture` quotes one verse and Lamp misses the paste. One chapter is inside Crossway's size cap and is passage expansion, not a Bible app. Typed underlines stay passive (Principle 3).
+**What would change our mind:** people close the pane and open bible.com anyway; or a wrong wrap is shown as “your verse.” Either is a kill, not a tune. Crossway objecting to one-chapter display on the paid product also reopens this — then we keep the pane chrome and show only the ESV.org handoff.
+**Cost accepted:** displaying one ESV chapter on a $7/mo product is commercially greyer than quoting a verse. We already quote ESV with attribution in Settings and treat one chapter as the same path. Missed wraps (plain-text pastes we declined) are acceptable; false wraps are not.
+
 ## D-023 — The app lock is one account-level PIN, and it is not encryption
 **2026-08-17** · **Status:** Decided
 **Decision:** an optional lock, off by default, set once and valid on every device the

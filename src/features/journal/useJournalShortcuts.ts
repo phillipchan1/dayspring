@@ -12,10 +12,8 @@ import { isTauri } from '@/lib/platform'
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
-  /** ⌘1 — the entries panel. */
-  onToggleEntries: () => void
-  /** ⇧⌘1 — flip the panel between its two reading modes, List and Pages. */
-  onPagesMode: () => void
+  /** ⌘2 — Pages, the archive itself. */
+  onPages: () => void
   onLookBack: () => void
   onScripture: () => void
   onAltar: () => void
@@ -50,8 +48,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
     onNew,
     onSave,
-    onToggleEntries,
-    onPagesMode,
+    onPages,
     onLookBack,
     onScripture,
     onAltar,
@@ -135,20 +132,20 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      // ⇧⌘1 — matched on `e.code`, not `e.key`: with Shift held the 1 key
-      // reports "!" on a US layout, so the digit isn't there to compare against.
-      if (e.shiftKey && e.code === 'Digit1') {
+      /*
+       * The rail, numbered as it reads: one item under Write, four under
+       * Return. Write holding a single item looks thin and is the correct
+       * statement — writing really is one act, and everything else is
+       * returning (SURFACES). Pages joins Return on its own argument: the
+       * other three interpret, and none of them hands back the archive.
+       */
+      if (key >= '1' && key <= '5' && !e.shiftKey) {
         e.preventDefault()
-        onPagesMode()
-        return
-      }
-
-      if (key >= '1' && key <= '4' && !e.shiftKey) {
-        e.preventDefault()
-        if (key === '1') onToggleEntries()
-        else if (key === '2') onLookBack()
-        else if (key === '3') onScripture()
-        else if (key === '4') onAltar()
+        if (key === '1') onNew()
+        else if (key === '2') onPages()
+        else if (key === '3') onLookBack()
+        else if (key === '4') onScripture()
+        else if (key === '5') onAltar()
         return
       }
 
@@ -167,8 +164,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
   }, [
     onNew,
     onSave,
-    onToggleEntries,
-    onPagesMode,
+    onPages,
     onLookBack,
     onScripture,
     onAltar,

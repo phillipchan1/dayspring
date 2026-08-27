@@ -18,7 +18,7 @@ import { addBreadcrumb } from '@/lib/crashReport'
 import * as repo from '@/lib/repo'
 import { cacheGet, cachePut, dictationList, dictationPrune, type PendingDictationRow } from '@/lib/db'
 import { syncStore } from '@/lib/sync'
-import type { Entry, PrayerType } from '@/lib/types'
+import type { Entry, PrayerType, SpiritualItemType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
@@ -27,8 +27,7 @@ import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { isInEditor, shouldIgnoreTarget } from './keyboard'
-import { nextEntryIdAfterDelete } from './orderedEntryIds'
-import { pagesModeAction } from './drawerNav'
+import { nextEntryIdAfterDelete } from './entryFocusAfterDelete'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import { copyEntriesMarkdown, copyEntriesText, exportEntriesZip } from './entryBulkActions'
 import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
@@ -43,6 +42,19 @@ import type { EntryMenuAction } from './EntryContextMenu'
 import { EntryEditDateModal } from './EntryEditDateModal'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
+import { MarkMargin } from './MarkMargin'
+import { marginNotes } from '@/editor/marginNotes'
+import { MARK_KIND, kindForCommand } from '@/lib/markKinds'
+import { InlineDeclaredPopover } from '@/features/capture/InlineDeclaredPopover'
+import { MarkPicker, type MarkPickerAnchor } from './MarkPicker'
+import { createSpiritualItem } from '@/lib/spiritual'
+import {
+  NOTICE_PAUSE_MS,
+  fetchProposals,
+  verbatimIn,
+  worthNoticing,
+  type Proposal,
+} from '@/lib/noticing'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
@@ -86,6 +98,9 @@ import { shouldAutoOpenLatest } from './arrivalNav'
 import { track } from '@/lib/analytics'
 import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem } from '@/lib/spiritual'
+import { recordScriptureCommandRef } from '@/lib/scripture/capture'
+import { chapterFromCitation } from '@/lib/scripture/citation'
+import { ChapterPane } from '@/features/scripture/ChapterPane'
 interface JournalScreenProps {
   userEmail: string
   featureFlags: string[]
@@ -112,6 +127,25 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const handleContentChange = useCallback((doc: string) => {
     setContent((prev) => (prev === doc ? prev : doc))
   }, [])
+  /**
+   * The margin, open or shut. Session state, not a setting: the standing
+   * decision ("show the margin") belongs in Settings, while this is the one you
+   * make in the moment — shut it while you write something raw, open it later.
+   */
+  const [marginOpen, setMarginOpen] = useState(false)
+  /** Open when the writer pressed the margin `+`; carries where it was. */
+  const [markPicker, setMarkPicker] = useState<MarkPickerAnchor | null>(null)
+  /** What the journal noticed and the writer hasn't kept. Never persisted. */
+  const [pencil, setPencil] = useState<Proposal[]>([])
+  /**
+   * Proposals turned down this session, so the next pause doesn't hand back
+   * something already declined. Session-scoped and never written down: "not
+   * this" is meant to cost nothing, and a stored list of everything someone
+   * rejected is a record of their judgement, which is not ours to keep.
+   */
+  const dismissedRef = useRef<Set<string>>(new Set())
+  /** The text the last question was asked about, so a typo fix doesn't re-ask. */
+  const lastNoticedRef = useRef<string | null>(null)
   const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editDateEntry, setEditDateEntry] = useState<Entry | null>(null)
@@ -163,14 +197,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * just asked, not a place you can navigate back into a week later, and 40 ids
    * in a history frame would be state pretending to be a location.
    */
-  // Desktop entries-panel visibility (mobile uses `state.sidebar` for its drawer).
-  const [entriesOpen, setEntriesOpen] = useState(true)
-  const [query, setQuery] = useState('')
   const selectionApiRef = useRef<EntrySelectionApi | null>(null)
   const [bulkSelection, setBulkSelection] = useState<Entry[]>([])
   const [rangeSelectActive, setRangeSelectActive] = useState(false)
   const [asked, setAsked] = useState<{ question: string; entryIds: string[] } | null>(null)
-  const [asking, setAsking] = useState<string | null>(null)
+  // The question in flight. Pages no longer offers to ask one — the sheet has
+  // no question row — but ⌘K still can, and this keeps that path honest.
+  const [, setAsking] = useState<string | null>(null)
   /**
    * Was the open entry written on an earlier calendar day?
    *
@@ -307,6 +340,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const slashCaptureRef = useRef(slashCapture)
   slashCaptureRef.current = slashCapture
 
+  const [chapterOpen, setChapterOpen] = useState<{
+    book: string
+    chapter: number
+    verse: number | null
+    target: SpiritualBlockEditTarget
+    anchor: InlinePanelAnchor
+  } | null>(null)
+
+  useEffect(() => {
+    setChapterOpen(null)
+  }, [entryId])
+
   const [imageEdit, setImageEdit] = useState<{
     target: AttachmentEditTarget
     anchor: InlinePanelAnchor
@@ -359,8 +404,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   /** Map a clicked spiritual block to the popover that created it, pre-filled. */
   const handleEditBlock = useCallback(
     (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => {
-      const cmd: SlashCommandId =
-        target.type === 'prayer' ? 'pray' : target.type === 'sense' ? 'sense' : 'scripture'
+      const cmd = MARK_KIND[target.type].command as SlashCommandId
       setSlashCapture({
         cmd,
         insertAt: target.from,
@@ -378,6 +422,110 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     },
     [],
   )
+
+  const handleOpenChapter = useCallback(
+    (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => {
+      const hit = chapterFromCitation(target.reference)
+      if (!hit) {
+        handleEditBlock(target, anchor)
+        return
+      }
+      setChapterOpen({ ...hit, target, anchor })
+    },
+    [handleEditBlock],
+  )
+
+  /**
+   * Turn what the writer has selected — or the paragraph they are in — into a
+   * marking of the chosen kind.
+   *
+   * The fence in the entry is the source of truth and lands immediately; the
+   * `spiritual_items` row is written after and is allowed to fail. That order is
+   * deliberate: offline, or before the type migration is applied, the marking
+   * still exists on the page and save-time reconcile recreates the row later.
+   */
+  const handlePickKind = useCallback((kind: SpiritualItemType) => {
+    setMarkPicker(null)
+    const id = crypto.randomUUID()
+    const content = editorRef.current?.markLines(kind, id)
+    if (!content) return
+    track('slash_used', { cmd: MARK_KIND[kind].command as SlashCommandId })
+    void createSpiritualItem({ id, entry_id: entryIdRef.current, type: kind, content }).catch(() => {
+      // Reconcile on save picks the fence up.
+    })
+  }, [])
+
+  /**
+   * The pause.
+   *
+   * Off the input path entirely: this is a debounce on the entry text React
+   * already holds, so nothing here runs while a key is down and no keystroke
+   * waits on it. It fires at the pause and never mid-sentence — Principle 3
+   * forbids anything that makes the writing surface slower, and the `#pencil`
+   * prototype tested live/at-pause/at-finish: live is the one that pulls your
+   * eye off the sentence you are still typing.
+   *
+   * **Shutting the margin silences it.** `marginOpen` is in the condition, not
+   * just in the rendering: closed, no question is asked at all. That gesture
+   * already exists and is physical — the margin is shut, nobody is writing in
+   * it — and it answers the real feeling ("I am writing something raw and I do
+   * not want to be watched right now") without adding a control.
+   */
+  useEffect(() => {
+    if (!settings.noticing || !settings.showMargin || !marginOpen) {
+      setPencil([])
+      return
+    }
+    if (!worthNoticing(content, lastNoticedRef.current)) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      const asked = content
+      lastNoticedRef.current = asked
+      void fetchProposals(asked).then((found) => {
+        if (cancelled) return
+        setPencil(found.filter((p) => !dismissedRef.current.has(p.id)))
+      })
+    }, NOTICE_PAUSE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [content, marginOpen, settings.noticing, settings.showMargin])
+
+  // A proposal is about words that were on the page when it was made. Re-check
+  // it against what is there now, every render of the live text — the writer may
+  // have deleted the sentence while the pencil note sat in the margin, and a
+  // note pointing at words that no longer exist is the app quoting something
+  // nobody wrote.
+  const livePencil = useMemo(() => verbatimIn(content, pencil), [content, pencil])
+
+  /** Keep it: the proposal becomes an ordinary marking, made by the writer. */
+  const handleKeep = useCallback((p: Proposal) => {
+    setPencil((current) => current.filter((x) => x.id !== p.id))
+    const id = crypto.randomUUID()
+    const kept = editorRef.current?.markQuote(p.quote, p.kind, id)
+    if (!kept) return
+    void createSpiritualItem({
+      id,
+      entry_id: entryIdRef.current,
+      type: p.kind,
+      content: kept,
+    }).catch(() => {
+      // Reconcile on save picks the fence up.
+    })
+  }, [])
+
+  /** Not this. One tap, costs nothing, says nothing back. */
+  const handleNotThis = useCallback((p: Proposal) => {
+    dismissedRef.current.add(p.id)
+    setPencil((current) => current.filter((x) => x.id !== p.id))
+  }, [])
+
+  const handleScripturePaste = useCallback((reference: string) => {
+    void recordScriptureCommandRef(entryIdRef.current, reference).catch(() => {
+      // Save-time reconcile will pick up the fence.
+    })
+  }, [])
 
   /** Open the photo options menu at the pointer (left- or right-click). */
   const handleImageMenu = useCallback(
@@ -1109,24 +1257,20 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   /**
-   * ⌘1 — show the entries panel.
+   * ⌘1 — Pages.
    *
-   * The panel, not the wall. Pages briefly replaced the list outright; it is now
-   * one of the panel's two reading modes, so ⌘1 means the same thing it always
-   * did and `onPagesMode` is what chooses between them.
+   * It behaves like every other Return destination now: it takes the canvas,
+   * and pressing it again comes back. The panel that used to open here is gone
+   * (D-025) — the list it held lives at the far end of the wall's own zoom, so
+   * ⌘1 still means "my pages" and there is one fewer thing to be in a mode of.
    */
-  function toggleEntries() {
-    if (canvasAlternateActive) {
-      go({ surface: 'journal', sidebar: isMobile })
-      setEntriesOpen(true)
+  async function goToPages() {
+    if (state.entryReturn?.surface === 'pages') {
+      returnFromEntryOrigin()
       return
     }
-    if (isMobile) {
-      if (state.sidebar) back()
-      else go({ sidebar: true })
-    } else {
-      setEntriesOpen((open) => !open)
-    }
+    if (pagesActive) back()
+    else await leaveForSurface({ surface: 'pages' })
   }
 
   /**
@@ -1143,37 +1287,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   function consumeDrawerFrame() {
     go({ sidebar: false }, { replace: true })
   }
-
-  /**
-   * List, or Pages — the panel's two reading modes.
-   *
-   * Switching to Pages puts the wall on the canvas and LEAVES THE PANEL OPEN,
-   * which is what makes them read as siblings: the control that got you here is
-   * still there to get you back. An entry opened from the wall pops its pushed
-   * frame rather than pushing a second, so Back doesn't walk every page you
-   * peeked at. The decision itself — and what changes when the switch is tapped
-   * inside the mobile drawer — lives in `pagesModeAction`.
-   */
-  async function setPagesMode(on: boolean) {
-    const action = pagesModeAction({
-      on,
-      pagesActive,
-      drawerOpen: state.sidebar,
-      surfaceEntryOpenedFrom: state.entryReturn?.surface ?? null,
-    })
-    if (action.kind === 'none') return
-    if (action.kind === 'return-to-origin') {
-      returnFromEntryOrigin()
-      return
-    }
-    if (action.kind === 'pop') {
-      back()
-      return
-    }
-    await saveNow()
-    go(action.patch, { replace: action.replace })
-  }
-
 
   // Altar is flag-gated: never strand a user on it (e.g. a stale history frame
   // from before the flag, or a profile that lost the flag) — send them home.
@@ -1195,9 +1308,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
-    onToggleEntries: toggleEntries,
-    // ⇧⌘1 flips between the panel's two reading modes.
-    onPagesMode: () => void setPagesMode(!pagesActive),
+    onPages: () => void goToPages(),
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
@@ -1260,6 +1371,28 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [settings.devMode])
+
+  // ⌥⌘M — open or shut the margin. Esc shuts it, and only it: the margin is a
+  // reading surface over the page, so backing out of it should never also back
+  // out of the entry.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!marginOpen) return
+        e.preventDefault()
+        e.stopPropagation()
+        setMarginOpen(false)
+        return
+      }
+      if ((e.key !== 'm' && e.key !== 'µ') || !e.metaKey || !e.altKey) return
+      // A bare page stays bare: the shortcut can't open what Settings turned off.
+      if (!settings.showMargin) return
+      e.preventDefault()
+      setMarginOpen((open) => !open)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [marginOpen, settings.showMargin])
 
   // Esc returns to Lamp / Altar / Ascent when previewing an entry from there.
   useEffect(() => {
@@ -1527,6 +1660,23 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   const words = useMemo(() => wordCount(content), [content])
   /**
+   * Only parsed while the margin is open. Closed, the rule and its glyphs come
+   * from the editor's own `spiritualBlocksField`, which is already parsed once
+   * per doc change — so a shut margin costs the writing surface nothing, which
+   * is the only terms on which Principle 3 lets this exist at all.
+   */
+  const notes = useMemo(() => (marginOpen ? marginNotes(content) : []), [marginOpen, content])
+  /**
+   * The kind an open capture is for, when its capture is the generic prose
+   * popover. Prayer, sense and scripture resolve to null here and keep the
+   * popovers they already had.
+   */
+  const proseCaptureKind = (() => {
+    if (!slashCapture) return null
+    const kind = kindForCommand(slashCapture.cmd)
+    return kind && MARK_KIND[kind].capture === 'prose' ? kind : null
+  })()
+  /**
    * Defensive dedup. Should never be needed, but a duplicated row is the visible
    * symptom of the entry-duplication class of bug, and this is cheap insurance
    * against concurrent state updates racing.
@@ -1576,61 +1726,85 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
     </div>
   ) : (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        {entriesReady ? (
-          <Editor
-            ref={editorRef}
-            docKey={docKey}
-            initialDoc={content}
-            onChange={handleContentChange}
-            marks={entryId ? marks.marksFor(entryId) : []}
-            // Marking is a READING act. The button only exists on an entry
-            // written on a previous day — today's page keeps exactly the
-            // formatting bar it has always had, and the writing surface gains
-            // nothing (Principle 3).
-            {...(entryId && isPastEntry
-              ? {
-                  onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
-                    marks.toggleMark(entryId, quote, charStart, existing),
-                }
-              : {})}
-            // The `/` hint is desktop copy: CommandToolbar already puts
-            // Scripture / Pray / Sense / Ritual / Image above the keyboard on
-            // touch, where reaching for a slash is a two-tap detour. The palette
-            // itself stays enabled everywhere.
-            placeholder={
-              entryId === null && seedPrompt
-                ? seedPrompt
-                : settings.firstLineTitle
-                  ? 'Title'
-                  : touchFirst
-                    ? 'Write…'
-                    : 'Write — or type / for scripture, prayer & rituals'
-            }
-            {...(settings.firstLineTitle && {
-              bodyPlaceholder: touchFirst
-                ? 'Keep going…'
-                : 'Keep going — or type / for scripture, prayer & rituals',
-            })}
-            autofocus={!touchFirst}
-            skipAutofocusRef={skipEditorAutofocusRef}
-            typewriter={focus.active && focusEditorReady && settings.typewriter}
-            dimming={focus.active && focusEditorReady && settings.dimming}
-            titleStyling={settings.firstLineTitle}
-            showMarkdownSyntax={settings.showMarkdownSyntax}
-            slashEnabled
-            // Only band the line for a fresh /command; editing a block targets an
-            // atomic widget line, where a line decoration collides with the block.
-            commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
-            onSlashCommand={handleSlashCommand}
-            onEditBlock={handleEditBlock}
-            onImageMenu={handleImageMenu}
-            onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
-            onSlashPaletteChange={setSlashPaletteOpen}
+    <div className={`journal-write${chapterOpen ? ' journal-write--with-pane' : ''}`}>
+      <div className="journal-write__editor">
+        <div
+          className={`journal-write__canvas${marginOpen ? ' journal-write__canvas--margin' : ''}`}
+        >
+          {entriesReady ? (
+            <Editor
+              ref={editorRef}
+              docKey={docKey}
+              initialDoc={content}
+              onChange={handleContentChange}
+              marks={entryId ? marks.marksFor(entryId) : []}
+              // Marking is a READING act. The button only exists on an entry
+              // written on a previous day — today's page keeps exactly the
+              // formatting bar it has always had, and the writing surface gains
+              // nothing (Principle 3).
+              {...(entryId && isPastEntry
+                ? {
+                    onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
+                      marks.toggleMark(entryId, quote, charStart, existing),
+                  }
+                : {})}
+              // The `/` hint is desktop copy: CommandToolbar already puts
+              // Scripture / Pray / Sense / Ritual / Image above the keyboard on
+              // touch, where reaching for a slash is a two-tap detour. The palette
+              // itself stays enabled everywhere.
+              placeholder={
+                entryId === null && seedPrompt
+                  ? seedPrompt
+                  : settings.firstLineTitle
+                    ? 'Title'
+                    : touchFirst
+                      ? 'Write…'
+                      : 'Write — or type / for scripture, prayer & rituals'
+              }
+              {...(settings.firstLineTitle && {
+                bodyPlaceholder: touchFirst
+                  ? 'Keep going…'
+                  : 'Keep going — or type / for scripture, prayer & rituals',
+              })}
+              autofocus={!touchFirst}
+              skipAutofocusRef={skipEditorAutofocusRef}
+              typewriter={focus.active && focusEditorReady && settings.typewriter}
+              dimming={focus.active && focusEditorReady && settings.dimming}
+              titleStyling={settings.firstLineTitle}
+              showMarkdownSyntax={settings.showMarkdownSyntax}
+              slashEnabled
+              // Only band the line for a fresh /command; editing a block targets an
+              // atomic widget line, where a line decoration collides with the block.
+              commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
+              onSlashCommand={handleSlashCommand}
+              onEditBlock={handleEditBlock}
+              onOpenChapter={handleOpenChapter}
+              onScripturePaste={handleScripturePaste}
+              onImageMenu={handleImageMenu}
+              onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
+              onSlashPaletteChange={setSlashPaletteOpen}
+              margin={settings.showMargin}
+              onOpenMargin={() => setMarginOpen(true)}
+              onMarkHere={setMarkPicker}
+            />
+          ) : null}
+          {markPicker && (
+            <MarkPicker
+              anchor={markPicker}
+              onPick={handlePickKind}
+              onDismiss={() => setMarkPicker(null)}
+            />
+          )}
+          <MarkMargin
+            open={marginOpen && entriesReady && settings.showMargin}
+            notes={notes}
+            onClose={() => setMarginOpen(false)}
+            onReveal={(note) => editorRef.current?.revealPos(note.from)}
+            pencil={livePencil}
+            onKeep={handleKeep}
+            onNotThis={handleNotThis}
           />
-        ) : null}
-      </div>
+        </div>
       {showCommandBar && !focus.active && (
         <CommandToolbar
           onCommand={(cmd) => editorRef.current?.triggerCommand(cmd)}
@@ -1678,6 +1852,20 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onDismiss={() => setRecoverableDictation(null)}
         />
       )}
+      </div>
+      {chapterOpen && (
+        <ChapterPane
+          book={chapterOpen.book}
+          chapter={chapterOpen.chapter}
+          highlightVerse={chapterOpen.verse}
+          onClose={() => setChapterOpen(null)}
+          onEdit={() => {
+            const open = chapterOpen
+            setChapterOpen(null)
+            handleEditBlock(open.target, open.anchor)
+          }}
+        />
+      )}
     </div>
   )
 
@@ -1696,7 +1884,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       subjectKey={state.pagesSubject}
       asked={asked}
       onClearAsked={() => setAsked(null)}
-      asking={asking}
       // Replace, not push: a subject is a filter you try on, and pushing a frame
       // per chip would make Back walk every word you looked at.
       onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
@@ -1753,14 +1940,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     settings,
     updateSettings,
     focus,
-    entriesOpen,
-    onToggleEntries: toggleEntries,
-    onPagesMode: (on: boolean) => void setPagesMode(on),
+    onPages: goToPages,
     onDrawerNavigated: consumeDrawerFrame,
     sidebarOpen: state.sidebar,
     onToggleSidebar: () => (state.sidebar ? back() : go({ sidebar: true })),
-    query,
-    onQueryChange: setQuery,
     onSelectionChange: handleSelectionChange,
     bulkActive,
     bulkCount: bulkSelection.length,
@@ -1826,6 +2009,21 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       )}
       {slashCapture?.cmd === 'sense' && (
         <InlineSensePopover
+          entryId={entryId}
+          anchor={slashCapture.anchor}
+          edit={
+            slashCapture.edit
+              ? { id: slashCapture.edit.id, content: slashCapture.edit.content }
+              : undefined
+          }
+          onInsert={completeSlashInsert}
+          onRemove={handleRemoveBlock}
+          onClose={closeSlashCapture}
+        />
+      )}
+      {proseCaptureKind && slashCapture && (
+        <InlineDeclaredPopover
+          kind={proseCaptureKind}
           entryId={entryId}
           anchor={slashCapture.anchor}
           edit={

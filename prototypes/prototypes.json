@@ -18,6 +18,33 @@
       "listed": false,
       "hasFeedback": false,
       "startHash": "strand"
+    },
+    {
+      "slug": "recollection",
+      "title": "Markings",
+      "description": "What you set apart, and what it looks like when you come back. Screen-share walkthrough — not self-guided feedback.",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "margin"
+    },
+    {
+      "slug": "domains",
+      "title": "Domains",
+      "description": "The headings you already write, noticed. Screen-share walkthrough — not self-guided feedback.",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "house"
+    },
+    {
+      "slug": "looking",
+      "title": "Looking",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "wall",
+      "description": "The wall, and ten ways of looking back at it. Screen-share walkthrough — not self-guided feedback."
     }
   ]
 }

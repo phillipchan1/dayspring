@@ -6,7 +6,17 @@ import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import './Capture.css'
 
-export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture' | 'image' | 'emoji'
+export type CommandPopoverVariant =
+  | 'neutral'
+  | 'pray'
+  | 'sense'
+  | 'scripture'
+  | 'image'
+  | 'emoji'
+  /** Any declared kind whose capture is a plain prose field — see
+   *  InlineDeclaredPopover. Its hue arrives as `tone` rather than as a class per
+   *  kind, so a ninth kind would need no CSS at all. */
+  | 'declared'
 
 interface CommandPopoverProps {
   anchor: InlinePanelAnchor
@@ -16,6 +26,8 @@ interface CommandPopoverProps {
   /** `dialog` for capture; `listbox` for scripture results. */
   role?: 'dialog' | 'listbox'
   variant?: CommandPopoverVariant
+  /** CSS colour for the `declared` variant's label and caret. */
+  tone?: string
   /** Chrome row above the body (e.g. scripture · from what you wrote). */
   header?: ReactNode
   footer?: ReactNode
@@ -35,6 +47,7 @@ export function CommandPopover({
   ariaLabel,
   role = 'dialog',
   variant = 'neutral',
+  tone,
   header,
   footer,
   skipViewportClamp = false,
@@ -151,7 +164,7 @@ export function CommandPopover({
     <div
       ref={panelRef}
       className={`command-popover command-popover--${variant}${isMobile ? ' command-popover--sheet' : ''}`}
-      style={style}
+      style={tone ? { ...style, ['--capture-tone' as string]: tone } : style}
       role={role}
       aria-label={ariaLabel}
       onMouseDown={(e) => e.stopPropagation()}

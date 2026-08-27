@@ -324,6 +324,76 @@ separately.
 
 ---
 
+## Tenure — the axis, discovered while prototyping the four acts
+
+> Added 2026-08-24, alongside six further arrangements in
+> [`prototypes/recollection/`](../../prototypes/recollection/). **Still nothing decided.**
+
+Act four frames the choice as *a destination you go to* against *a thing that arrives*.
+Building both sides showed that is not the axis that decides anything. **Tenure** is: how
+long a page exists, and whether it can pile up while the writer is not looking.
+
+| Tenure | Property | Guilt risk |
+|---|---|---|
+| **Permanent** | always there, same shape, grows as you write | none — nothing waits |
+| **Occasional** | exists because of a date, **gone when it passes** | none *if it expires* |
+| **Ephemeral** | appears once beside something you just did, stored nowhere | none — cannot be a backlog |
+| ~~Pending~~ | waits for you, accrues | this is the inbox |
+
+> **The rule: no occasion may accrue.** A weekly page that is gone on Monday is a liturgy.
+> The same page still there in March is a chore about someone's prayer life, and no amount
+> of gentle copy fixes it.
+
+This is what makes a *timely* surface possible at all without violating Principle 2. The
+reason the product has no weekly review today is that every weekly review anyone has
+shipped is **pending** — it waits, it counts, and being behind on it is the mechanic. An
+occasional page that simply expires has none of that, and the tradition's own scheduling
+works exactly this way: Advent arrives whether or not you were faithful, and then it leaves.
+
+Of the arrangements prototyped, `liturgy` is the only one carrying a horizon, which makes
+it the only one that can rot into *pending*. Everything else is permanent or ephemeral by
+construction.
+
+## What the contemplative tradition asks for that none of the four acts do
+
+The four acts are all **selections** — computed fresh on arrival, and all of them lists.
+That is software's instinct, not the tradition's. Six mechanisms it asks for instead, all
+prototyped in `prototypes/recollection/`, none decided:
+
+| | What it is | Where it comes from | Doctrine |
+|---|---|---|---|
+| **the word** | one line, the whole screen, a delayed way on | the desert — "give me a word", one saying carried for years | writer-supplied; no count on screen |
+| **again** | the same line, served a second time | the Exercises repeat rather than advance; lectio's *ruminatio* | identical to `comesto`; the app is merely permitted to repeat itself |
+| **consolation** | an `Absence` she declared, with a `Gift` she declared before it | Rules for Discernment 8 — remember that the consolation was real | both ends declared; **deliberately one-way**, never a Gift shown against an Absence |
+| **around now** | ±7 days of today in prior years; opt-in seasons; or her own recurring dates | a calendar that returns, not a review you owe | occasional tenure — expires, never counted; seasons are opt-in because GUARDRAILS forbids assuming a practice |
+| **the words you use** | vocabulary present in one span and absent in the other | — | GUARDRAILS' own sanctioned form ("'Angry' appears in 7 entries"); no number beside any word, ordered by first appearance; **archive-scoped, never person-scoped** |
+| **what you asked** | every line ending in `?`, repeats grouped by earliest | — | **an argument, not a recommendation** — see below |
+
+**Why `consolation` is the strongest of the six.** It is the clearest case in this whole
+space of digitising removing manual labour from a practice that already existed. Ignatius
+addresses the instruction to precisely the one person who cannot carry it out: from inside
+a dry season you cannot find where the gifts were, and paging back a year to look is the
+reread J5 and J6 both refuse. Code does it instantly, and invents nothing — she marked the
+absence, she marked the gift, and the app writes nothing between them. On the fixture, two
+of five absences have no earlier gift, and the honest render is the absence alone.
+
+**Why `what you asked` is flagged.** The arithmetic is unimpeachable — a line ending in a
+question mark is a fact about the text, and every one of them is shown. The risk is the
+shape: a question asked four times across two years and never again has a visible last
+date, and a reader supplies the word *answered*. That is exactly right when the reader
+supplies it and exactly forbidden when the app does (H2 — absence is not ours to
+interpret). So nothing on the page says `answered`, `resolved` or `no longer`, and groups
+are never sorted or separated by whether they are still being asked. **Whether even the
+arrangement crosses the line is a real argument and should be had on a call.**
+
+**One measurement worth carrying forward.** A vocabulary diff across uneven spans is not a
+finding, it is a volume difference — on the fixture, two years against the two before
+returns 59 words started and 9 stopped, which is 36 entries against 11. It reads as a
+verdict on the thinner side. The fix is not normalising into a rate (a rate is a metric);
+it is putting the entry count for each span on the screen, always.
+
+---
+
 ## How to run the test
 
 Method: **reaction piece inside a live call.** Not a link sent cold — a concept deck sent
@@ -374,4 +444,8 @@ attached, then write the `DECISIONS.md` row — or write the row that kills it.)
 - `DECISIONS.md` — D-016, D-019, D-020, D-022
 - `SURFACES.md` — Pages, and the Write/Return split
 - `src/features/pages/subjects.ts`, `pageExcerpt.ts` — the machinery all three build on
+- [`prototypes/looking/`](../../prototypes/looking/) — the surface these acts became:
+  `look for`, subjects offered and kept, the chapter, four readings, and the list as the
+  far end of the zoom. Settled as [D-025](DECISIONS.md); build plan in
+  [`docs/PAGES_REPLACES_ENTRIES.md`](../PAGES_REPLACES_ENTRIES.md).
 - [`prototypes/recall/`](../prototypes/recall/) — standalone click-through, [recall.prototypes.usedayspring.app](https://recall.prototypes.usedayspring.app/#strand)

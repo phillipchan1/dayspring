@@ -1,8 +1,5 @@
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
-import { EntryList } from './EntryList'
 import { Rail } from './Rail'
-import { ENTRIES_PANEL_WIDTH_MAX, ENTRIES_PANEL_WIDTH_MIN } from './entriesPanelWidth'
-import { useEntriesPanelResize } from './useEntriesPanelResize'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
@@ -19,21 +16,21 @@ function formatBreadcrumb(iso: string): string {
 }
 
 /**
- * Desktop: three columns — a slim navigation rail, a toggleable Entries panel,
- * and the canvas. Entering focus mode hides the rail, panel and top bar so the
- * canvas takes the whole screen.
+ * Desktop: two columns — a slim navigation rail and the canvas. Entering focus
+ * mode hides the rail and top bar so the canvas takes the whole screen.
  *
- * The panel survives Pages. It is unmounted for Ascent / Lamp / Altar, which
- * replace the journal wholesale, but List and Pages are two reading modes of
- * the SAME panel — the control that switches between them lives in it, so
- * hiding it on the way to Pages would strand you there.
+ * There used to be a third: a resizable Entries panel holding a list of 30px
+ * rows. It is gone (D-025). Everything it did, Pages does at the far end of its
+ * zoom — ~30 rows a screen, scannable by date, today's page marked, and a
+ * double-click opens it to write. What the panel could never do is what makes
+ * the trade worth it: lighting a subject DIMS the rest instead of throwing it
+ * away, so you keep the shape of the years around what you were looking for.
  */
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries,
-    onNew, isNewEntry, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
-    settings, updateSettings, focus, entriesOpen, onToggleEntries, onPagesMode, mainSlot,
+    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    settings, updateSettings, focus, onPages, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
@@ -48,12 +45,9 @@ export function DesktopJournal(props: JournalViewProps) {
         : isNewEntry
           ? formatBreadcrumb(new Date().toISOString())
           : ''
-  const { width: entriesPanelWidth, resizing, onResizePointerDown } = useEntriesPanelResize()
-  // A surface owns the canvas, so the journal's own chrome steps aside.
-  // Ascent / Lamp / Altar replace the journal outright; Pages only takes the
-  // canvas, so the panel beside it stays.
-  const surfaceActive = reflectionsActive || altarActive || scriptureActive
-  const canvasTaken = surfaceActive || pagesActive
+  // A surface owns the canvas, so the journal's own chrome steps aside. Pages
+  // is one of them now rather than a mode of a panel beside the canvas.
+  const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
   const journalChrome = !canvasTaken
 
   return (
@@ -61,8 +55,8 @@ export function DesktopJournal(props: JournalViewProps) {
       {!focused && (
         <Rail
           onNew={onNew}
-          onEntries={onToggleEntries}
-          entriesOpen={entriesOpen && !surfaceActive}
+          pagesActive={pagesActive}
+          onPages={onPages}
           lookBackActive={reflectionsActive}
           onLookBack={onLookBack}
           scriptureActive={scriptureActive}
@@ -76,44 +70,6 @@ export function DesktopJournal(props: JournalViewProps) {
           nativeTopInset={NATIVE ? MAC_TRAFFIC_INSET.railTop : undefined}
         />
       )}
-
-      {!focused && !surfaceActive && (
-        <div
-          className="entries-panel"
-          data-open={entriesOpen ? 'true' : 'false'}
-          data-resizing={resizing ? 'true' : undefined}
-          style={{ '--entries-panel-width': `${entriesPanelWidth}px` } as React.CSSProperties}
-        >
-          <EntryList
-            entries={entries}
-            activeId={activeId}
-            isNewEntry={isNewEntry}
-            onSelect={onSelect}
-            onEditEntry={onEditEntry}
-            {...(onSelectionChange ? { onSelectionChange } : {})}
-            onMenuAction={onEntryMenuAction}
-            onDeleteEntries={onDeleteEntries}
-            query={query}
-            onQueryChange={onQueryChange}
-            onCollapse={onToggleEntries}
-            pagesMode={pagesActive}
-            onPagesMode={onPagesMode}
-          />
-          {entriesOpen && (
-            <div
-              className="entries-panel__resize"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize entries panel"
-              aria-valuemin={ENTRIES_PANEL_WIDTH_MIN}
-              aria-valuemax={ENTRIES_PANEL_WIDTH_MAX}
-              aria-valuenow={entriesPanelWidth}
-              onPointerDown={onResizePointerDown}
-            />
-          )}
-        </div>
-      )}
-
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {!focused && journalChrome && (

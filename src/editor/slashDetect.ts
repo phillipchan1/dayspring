@@ -1,6 +1,12 @@
 import type { EditorView } from '@codemirror/view'
 
-export type SlashCommandId = 'scripture' | 'pray' | 'sense' | 'ritual' | 'image' | 'emoji'
+import type { DeclaredCommandId } from '@/lib/markKinds'
+
+/**
+ * Every /command. The declared kinds come from the one kind table, so adding a
+ * kind cannot leave a command the palette offers but nothing handles.
+ */
+export type SlashCommandId = DeclaredCommandId | 'scripture' | 'ritual' | 'image' | 'emoji'
 
 export interface SlashState {
   query: string

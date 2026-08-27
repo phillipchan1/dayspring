@@ -107,6 +107,27 @@
   --hl-sky: 86, 148, 208;
   --hl-lilac: 155, 132, 224;
   --hl-alpha: 0.3;
+
+  /* ── A marking's hue ──────────────────────────────────────────────────────
+     One tone per declared kind, for the hand in the margin and the rule beside
+     the writer's own lines. Four of the eight already had a token and keep it —
+     prayer rides --accent, sense --md-emphasis, scripture the Lamp's gold — so
+     only the kinds added with the margin need naming here.
+
+     Fixed across the palettes rather than per-theme, the same call the
+     highlighter hues make: a kind is a physical thing the writer named, not a
+     theme accent, and it has to stay recognisable as the same hand when someone
+     changes palette. The dark set below is the same hue lifted for contrast,
+     never a different colour.
+
+     Absence is deliberately the only one with no hue at all. It is never
+     counted, never trended and never shown against Gift as a proportion, and a
+     colour of its own would be the first step toward reading it as a state. */
+  --k-gift: #c08a2c;
+  --k-desire: #a8536b;
+  --k-learned: #6f7d61;
+  --k-story: #7a5c43;
+  --k-absence: #8a8175;
 }
 
 /* ── Dawn (light) ───────────────────────────────────────────────────────── */
@@ -547,8 +568,20 @@
 [data-theme='ink'],
 [data-theme='ember'],
 [data-theme='compline'],
-[data-theme='nocturne'] {
+[data-theme='nocturne'],
+[data-theme='vigil'] {
   --hl-alpha: 0.24;
+}
+
+/* The marking hues, lifted for a dark ground. Same hue, more light — a hand
+   drawn at #6f7d61 on ink is a smudge. Keyed on the appearance attribute rather
+   than listed per theme so a new dark palette inherits it. */
+[data-appearance='dark'] {
+  --k-gift: #d9a94e;
+  --k-desire: #c9788f;
+  --k-learned: #93a37f;
+  --k-story: #a3805f;
+  --k-absence: #8f8779;
 }
 
 /* ── Vigil (dark, monochrome — the night watch) ─────────────────────────────

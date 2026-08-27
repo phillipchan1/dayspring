@@ -77,10 +77,14 @@ export const HighlightExtension: MarkdownConfig = {
         const color = COLOR_RE.exec(window)
         const end = pos + 2 + (color ? color[0].length : 0)
 
-        const { open, close } = flanking(cx, pos, end)
-        // A coloured delimiter states an intent to open, so it never closes —
-        // otherwise `=={rose}a== and ==b==` could resolve back-to-front.
-        return cx.addDelimiter(HighlightDelim, pos, end, open, !color && close)
+        const { open } = flanking(cx, pos, end)
+        // Uncoloured closers always close. Open flanking still rejects
+        // `a == b == c` (a space after `==` cannot open), but a wrap that
+        // captured a trailing space (`==phrase ==`) still paints — the
+        // format bar and a two-line selection both produce that shape.
+        // Coloured delimiters never close, so `=={rose}a== and ==b==`
+        // cannot resolve back-to-front.
+        return cx.addDelimiter(HighlightDelim, pos, end, open, !color)
       },
       after: 'Emphasis',
     },

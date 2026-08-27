@@ -51,7 +51,14 @@ export function IconNew(props: { size?: number }) {
   )
 }
 
-export function IconEntries(props: { size?: number }) {
+/**
+ * The open book — Pages.
+ *
+ * It was the Entries panel's glyph, and it moves rather than being redrawn: the
+ * thing it always meant was "your own pages, side by side", and that is what
+ * Pages is. The panel is gone; the book is not.
+ */
+export function IconPages(props: { size?: number }) {
   // An open book — two pages spread from a centre spine.
   //
   // This was a bulleted list, which described the old entries panel exactly and
