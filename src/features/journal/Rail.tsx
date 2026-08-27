@@ -112,7 +112,7 @@ export function Rail({
             had — so fifteen years of muscle memory still lands on your pages.
           */}
           <RailButton
-            label="Pages"
+            label="Journal"
             subline="Your own, side by side"
             shortcut="⌘2"
             onClick={onPages}

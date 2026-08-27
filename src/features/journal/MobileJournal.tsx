@@ -157,7 +157,7 @@ export function MobileJournal(props: JournalViewProps) {
               controls (it hides this bar, so it doesn't belong on it). */}
           <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
             <MobileTab
-              label="Pages"
+              label="Journal"
               onClick={onPages}
               active={pagesActive}
               icon={<IconPages size={22} />}

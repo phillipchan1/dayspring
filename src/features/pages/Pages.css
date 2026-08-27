@@ -2265,3 +2265,125 @@ button.pg__sense-q:hover {
   font-size: 0.74rem;
   color: var(--text-faint);
 }
+
+/* ── a page, open ──
+ *
+ * Its own view, not the wall zoomed in. The whole page, top to bottom,
+ * scrolling the way a document scrolls — no leaves, no next day waiting
+ * underneath, and the wall's zoom untouched behind it.
+ */
+
+/*
+ * Over the wall, not instead of it. A scroller that unmounts forgets where it
+ * was — open a page from four years deep and you came back to the top of the
+ * archive. This covers it; the wall keeps its place underneath.
+ */
+.pg-read1 {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+/* Nothing under an open page is reachable — not by pointer, not by tab. */
+.pg[data-reading-page='true'] .pg__wall-wrap,
+.pg[data-reading-page='true'] .pg-read {
+  pointer-events: none;
+}
+
+.pg-read1__page {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 64rem;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 3vw, 2rem) 6rem;
+  text-align: start;
+  background: none;
+  border: none;
+  cursor: text;
+}
+
+.pg-read1__page:focus-visible {
+  outline: none;
+}
+
+.pg-read1__head {
+  padding-block-end: 0.6rem;
+  margin-block-end: 1.8rem;
+}
+
+.pg-read1__date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  transition: color var(--transition);
+}
+
+.pg-read1__page:hover .pg-read1__date {
+  color: var(--accent);
+}
+
+/*
+ * The margin column is reserved even on an unmarked page, so the measure of
+ * the text does not change from one page to the next as you read through.
+ */
+.pg-read1__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 11rem;
+  gap: 2.25rem;
+}
+
+.pg-read1__body {
+  min-inline-size: 0;
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+/* Marginalia: what the writer set apart, pulled beside the text rather than
+   highlighted inside it — a page of highlighter is harder to read, not easier. */
+.pg-read1__margin {
+  border-inline-start: 1px solid var(--border-subtle);
+  padding-inline-start: 1.1rem;
+}
+
+.pg-read1__note {
+  margin: 0 0 1rem;
+  font-family: var(--font-serif);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text-faint);
+}
+
+@media (max-width: 60rem) {
+  .pg-read1__cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pg-read1__margin {
+    border-inline-start: none;
+    border-block-start: 1px solid var(--border-subtle);
+    padding-inline-start: 0;
+    padding-block-start: 1rem;
+  }
+}
+
+/*
+ * Everything below the header, as one positioned box.
+ *
+ * It exists so an open page can be laid OVER the wall without covering the
+ * header — the way out lives up there — and without anything needing to
+ * measure how tall the header is.
+ */
+.pg__body {
+  position: relative;
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+}

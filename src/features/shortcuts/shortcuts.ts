@@ -56,7 +56,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Navigation',
     items: [
-      { keys: ['Mod', '2'], label: 'Pages — your own, side by side' },
+      { keys: ['Mod', '2'], label: 'Journal — your own, side by side' },
       { keys: ['Mod', '3'], label: 'Ascent' },
       { keys: ['Mod', '4'], label: 'Lamp' },
       { keys: ['Mod', '5'], label: 'Altar' },

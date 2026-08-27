@@ -352,7 +352,7 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
       { id: 'capability.voice-dictation', label: 'Voice dictation', impl: 'src/features/capture/VoiceCapture.tsx', touchOnly: true },
       { id: 'capability.page-scan', label: 'Handwriting page scan', impl: 'src/features/capture/PageScanCapture.tsx', touchOnly: true },
       // Alpha-only today.
-      { id: 'capability.pages-wall', label: 'The Pages wall', impl: 'src/features/pages/PagesView.tsx' },
+      { id: 'capability.pages-wall', label: 'The Journal wall', impl: 'src/features/pages/PagesView.tsx' },
     ]
 
     const capabilityEntries: ManifestEntry[] = CAPABILITIES.filter((c) =>

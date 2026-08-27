@@ -7,7 +7,7 @@ import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
-import { clampZoom, isReading, READING_ZOOM, standLabel } from './zoom'
+import { clampZoom, standLabel } from './zoom'
 import {
   allSubjects,
   buildSubjectIndex,
@@ -21,6 +21,7 @@ import { buildFacetIndex, markingChips, matchFacets } from './facets'
 import { LookFor, type LookChip } from './LookFor'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
+import { PageReader } from './PageReader'
 import { defaultSplit, type Reading } from './readings'
 import {
   dropSubject,
@@ -122,15 +123,6 @@ export function PagesView({
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
   if (spreadId) lastSpreadRef.current = spreadId
-  /**
-   * Where you were standing before you opened a page.
-   *
-   * Opening one zooms the wall in to read it, and that zoom is a persisted
-   * setting — so without this, clicking a single page quietly moved you to
-   * reading distance for good, and getting back meant dragging the slider and
-   * guessing where you had been. Closing puts you back.
-   */
-  const standingBefore = useRef<number | null>(null)
   const zoom = settings.pagesZoom
   const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
 
@@ -183,21 +175,12 @@ export function PagesView({
     }
   }, [])
 
-  /*
-   * Closing a page puts you back where you were standing — unless you moved
-   * while you were in there, in which case the move was deliberate and undoing
-   * it would be the app arguing with you.
-   */
-  useEffect(() => {
-    if (spreadId !== null) return
-    const back = standingBefore.current
-    if (back === null) return
-    standingBefore.current = null
-    if (isReading(zoom)) setZoom(back)
-    // `zoom` is read, not tracked: this fires on the CLOSE, and re-running it
-    // every time the slider moves would fight the reader mid-drag.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spreadId])
+
+  /** The page being read, if one is open. */
+  const openPage = useMemo(
+    () => (spreadId ? (entries.find((e) => e.id === spreadId) ?? null) : null),
+    [spreadId, entries],
+  )
 
   const markQuotes = useMemo(() => {
     const m = new Map<string, string[]>()
@@ -404,7 +387,7 @@ export function PagesView({
   }
 
   return (
-    <div className="pg">
+    <div className="pg" data-reading-page={openPage ? 'true' : undefined}>
       <div className="pg__head-wrap">
         <div className="pg__inner pg__inner--head">
 
@@ -450,7 +433,7 @@ export function PagesView({
                   strokeLinejoin="round"
                 />
               </svg>
-              All pages
+              All entries
             </button>
           ) : null}
 
@@ -521,63 +504,79 @@ export function PagesView({
         </div>
       </div>
 
-      {anyLit && shown.length === 0 ? (
-        <div className="pg__inner">
-          <div className="pg__empty">
-            <p className="pg__empty-h">Nothing in your pages says that.</p>
-            <p className="pg__empty-s">Better to return nothing than a forced match.</p>
+      <div className="pg__body">
+        {anyLit && shown.length === 0 ? (
+          <div className="pg__inner">
+            <div className="pg__empty">
+              <p className="pg__empty-h">Nothing in your pages says that.</p>
+              <p className="pg__empty-s">Better to return nothing than a forced match.</p>
+            </div>
           </div>
-        </div>
-      ) : reading !== 'order' ? (
-        /*
-         * An arrangement other than date takes the canvas from the wall.
-         *
-         * It arranges what is SHOWN — the lit pages if something is lit, the
-         * whole archive otherwise. Every reading works on either; greying them
-         * out until a subject was chosen is exactly what made "the words you
-         * used" impossible to find.
-         */
-        <div className="pg__inner">
-          <ReadingView
-            reading={reading}
-            entries={shown}
-            terms={subjects.flatMap((sub) => sub.terms)}
-            split={split ?? defaultSplit(shown)}
-            onSplit={setSplit}
+        ) : reading !== 'order' ? (
+          /*
+           * An arrangement other than date takes the canvas from the wall.
+           *
+           * It arranges what is SHOWN — the lit pages if something is lit, the
+           * whole archive otherwise. Every reading works on either; greying them
+           * out until a subject was chosen is exactly what made "the words you
+           * used" impossible to find.
+           */
+          <div className="pg__inner">
+            <ReadingView
+              reading={reading}
+              entries={shown}
+              terms={subjects.flatMap((sub) => sub.terms)}
+              split={split ?? defaultSplit(shown)}
+              onSplit={setSplit}
+              onOpen={onSpread}
+            />
+          </div>
+        ) : (
+          <PageWall
+            entries={wallEntries}
+            zoom={zoom}
+            onZoom={setZoom}
+            markQuotes={markQuotes}
+            lit={onlyLit ? null : lit}
+            match={match}
+            facetIndex={facetIndex}
+            activeId={activeId}
+            // An echo is a page out of its own order. Interleaving one while the
+            // wall is already rearranged — dimmed by a subject, or folded to a
+            // single month — would make the arrangement impossible to read.
+            echoes={!anyLit && month == null}
+            // Opening a page is its own view now, so it leaves the zoom alone —
+            // reading something is not a statement about how you like the wall
+            // arranged, and that zoom is a persisted setting.
             onOpen={onSpread}
+            returningId={spreadId ?? lastSpreadRef.current}
+            spreadOpen={spreadId !== null}
+            single={single}
+            firstLineTitle={settings.firstLineTitle}
+            onEdit={onOpenEntry}
+            onMenuAction={onEntryMenuAction}
+            onDeleteEntries={onDeleteEntries}
           />
-        </div>
-      ) : (
-        <PageWall
-          entries={wallEntries}
-          zoom={zoom}
-          onZoom={setZoom}
-          markQuotes={markQuotes}
-          lit={onlyLit ? null : lit}
-          match={match}
-          facetIndex={facetIndex}
-          activeId={activeId}
-          // An echo is a page out of its own order. Interleaving one while the
-          // wall is already rearranged — dimmed by a subject, or folded to a
-          // single month — would make the arrangement impossible to read.
-          echoes={!anyLit && month == null}
-          // Opening a page is zooming to it — see READING_ZOOM. `spreadId` is
-          // now "the page you zoomed to", which is what scrolls into view and
-          // what the shared-element transition lands on.
-          onOpen={(id) => {
-            if (!isReading(zoom)) standingBefore.current = zoom
-            setZoom(READING_ZOOM)
-            onSpread(id)
-          }}
-          returningId={spreadId ?? lastSpreadRef.current}
-          spreadOpen={spreadId !== null}
-          single={single}
-          firstLineTitle={settings.firstLineTitle}
-          onEdit={onOpenEntry}
-          onMenuAction={onEntryMenuAction}
-          onDeleteEntries={onDeleteEntries}
-        />
-      )}
+        )}
+
+        {/*
+          A page, open — OVER the wall rather than instead of it.
+        
+          Replacing the wall unmounted it, and a scroller that unmounts forgets
+          where it was: you opened a page from four years deep and came back to
+          the top of the archive. Covering it keeps the position for free, and
+          the wall behind is made inert so nothing under the page can be tabbed
+          into or clicked through to.
+        */}
+        {openPage ? (
+          <PageReader
+            entry={openPage}
+            markQuotes={markQuotes.get(openPage.id) ?? []}
+            firstLineTitle={settings.firstLineTitle}
+            onEdit={onOpenEntry}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }
