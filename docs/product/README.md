@@ -23,6 +23,13 @@ pass instead of a vibe check.
 | **Operating** | [SURFACES.md](./SURFACES.md) | Auditing; adding a surface | ✅ Draft 1 |
 | | [DECISIONS.md](./DECISIONS.md) | Making or revisiting a call | ✅ Seeded — **7 open** |
 | | [GLOSSARY.md](./GLOSSARY.md) | Naming anything | ✅ Draft 1 |
+| **Investigations** | [RECALL.md](./RECALL.md) | Retrieval, subjects, tenure | 🔬 Frame + test plan — **nothing decided** |
+| | [SCRIPTURE.md](./SCRIPTURE.md) | The canon layer and the Lamp | 🔬 |
+| | [VISITATION.md](./VISITATION.md) | A page for a span of time; the council | 🔬 Frame + test plan — **nothing decided** |
+
+An **investigation** is a frame and a falsifier set for something we have not decided.
+It is not a spec and it does not authorise a build — the `DECISIONS.md` row does, and it
+gets written after the calls come back, or not at all.
 
 ## Commands
 

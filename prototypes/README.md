@@ -8,6 +8,7 @@ Self-guided click-through mockups for beta feedback. Not part of the live app.
 |-----------|------|-----------------|
 | Scripture | [/scripture/#intro](https://prototypes.usedayspring.app/scripture/#intro) | [scripture.prototypes.usedayspring.app](https://scripture.prototypes.usedayspring.app/#intro) |
 | Recall | [/recall/#strand](https://prototypes.usedayspring.app/recall/#strand) | [recall.prototypes.usedayspring.app](https://recall.prototypes.usedayspring.app/#strand) (screen-share; unlisted on hub) |
+| Visitation | [/visitation/#arrives](https://prototypes.usedayspring.app/visitation/#arrives) | [visitation.prototypes.usedayspring.app](https://visitation.prototypes.usedayspring.app/#arrives) (screen-share; unlisted on hub) |
 
 ## New prototype
 
@@ -44,6 +45,7 @@ DNS on `usedayspring.app` (Porkbun — add these **A** records pointing to `76.7
 | `prototypes` | Hub + path URLs |
 | `scripture.prototypes` | Short link for scripture |
 | `recall.prototypes` | Short link for recall |
+| `visitation.prototypes` | Short link for visitation |
 
 For future prototypes, add `<slug>.prototypes` the same way, or a wildcard `*.prototypes` if Porkbun supports it.
 
@@ -60,6 +62,7 @@ prototypes/
   api/feedback.ts       # shared POST endpoint
   scripture/
   recall/
+  visitation/
 ```
 
 Each prototype is its own Vite app with `base: '/<slug>/'`. Hash routing (`#intro`) keeps hosting simple.

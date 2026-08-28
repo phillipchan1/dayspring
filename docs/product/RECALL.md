@@ -354,6 +354,12 @@ Of the arrangements prototyped, `liturgy` is the only one carrying a horizon, wh
 it the only one that can rot into *pending*. Everything else is permanent or ephemeral by
 construction.
 
+> **Picked up 2026-08-28 by [`VISITATION.md`](VISITATION.md)**, which is an *occasional*
+> page taken seriously: a span page that arrives, expires on a date, and is never
+> archived. The tenure rule above is the whole reason it is buildable, and the test it
+> hands the idea — *"a hook works by making you feel bad if you do not come back; an
+> occasion works by being there whether or not you did"* — is the falsifier to watch.
+
 ## What the contemplative tradition asks for that none of the four acts do
 
 The four acts are all **selections** — computed fresh on arrival, and all of them lists.

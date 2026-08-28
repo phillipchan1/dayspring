@@ -45,6 +45,15 @@
       "hasFeedback": false,
       "startHash": "wall",
       "description": "The wall, and ten ways of looking back at it. Screen-share walkthrough — not self-guided feedback."
+    },
+    {
+      "slug": "visitation",
+      "title": "Visitation",
+      "description": "A page that arrives for a span of time, and then is gone. Screen-share walkthrough — not self-guided feedback.",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "arrives"
     }
   ]
 }

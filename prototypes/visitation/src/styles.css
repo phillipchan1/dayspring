@@ -1,0 +1,1151 @@
+/*
+ * Visitation — a page that arrives, and then is gone.
+ *
+ * ── The one visual argument in this file ────────────────────────────────────
+ *
+ * THE APP IS DARK AND THIS PAGE IS LIT. It is the only lit thing in Dayspring.
+ *
+ * That is not a mood. It is the product's own name doing work: Luke 1:78, "the
+ * dayspring from on high hath visited us" — first light, visitation, mercy
+ * after darkness. A surface you go to should look like the app. A thing that
+ * arrives and leaves should look like it came from somewhere else, and the
+ * cheapest honest way to say "somewhere else" is light.
+ *
+ * It also settles a build question for free: this page prints. She can keep it
+ * as paper without anything being redesigned, because it was already paper.
+ * Every other Return surface would need a second stylesheet to leave the app.
+ *
+ * ── Type rule, inherited from `looking` and extended by one line ────────────
+ *
+ *   SERIF IS HER. SANS IS US. MONO IS A DATE.
+ *
+ * Her sentences are set in the face the journal is written in. Everything the
+ * app says about them — labels, counts, the span, the expiry — is sans, one
+ * size, differing only in opacity. Dates are mono because a date is a fact
+ * about a page rather than something anybody said.
+ *
+ * The extension: DISPLAY IS THE OCCASION, and it is used exactly once, on the
+ * span's own name at the top. A second use of Fraunces anywhere on this page
+ * turns an occasion into a brand.
+ *
+ * ── Rules carried in from Pages.css and not negotiable ─────────────────────
+ *
+ * 1. Nothing on a page except the writer's words, their date, and their
+ *    markings. No badge, no chip, no score, no title we invented.
+ * 2. No vertical axis anywhere. Nothing rises. The one element in this file
+ *    with a height encoding is `.forbidden`, which exists to be pointed at.
+ * 3. Nothing scrolls except the surface.
+ */
+
+:root {
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-display: 'Fraunces', Georgia, serif;
+
+  /* The app's ground. Measured off the running app, same as `looking`. */
+  --bg: #0c0d12;
+  --bg-elevated: #12131a;
+  --border: #262833;
+  --border-subtle: #1a1c24;
+  --text: #b7b6c1;
+  --text-bright: #f2f1f6;
+  --text-dim: #71707d;
+  --text-faint: #4a4954;
+  --lilac: #b98ce0;
+  --amber: #c4913c;
+
+  /*
+   * The page. Warm, not white — a white rectangle on this ground reads as a
+   * dialog, and a dialog is machinery. Cream reads as something brought in.
+   */
+  --page: #f6f1e6;
+  --page-edge: #e7dfcd;
+  --ink: #2b2620;
+  --ink-soft: #5c5449;
+  --ink-faint: #8d8478;
+  --ink-hair: #d9d0bd;
+
+  /*
+   * Marking tones, re-measured for ink on cream. The dark-ground values from
+   * `looking` all go muddy here; these are the same hues taken down in
+   * lightness until they hold against #f6f1e6.
+   */
+  --k-scripture: #9a7a15;
+  --k-prayer: #4a6396;
+  --k-sense: #5f5099;
+  --k-story: #3f7550;
+  --k-desire: #a04a68;
+  --k-learned: #3f7c88;
+  --k-mark: #6b6459;
+  --k-hl: #b5872f;
+  --k-ink: #6b6459;
+
+  --hl-amber: 196, 145, 60;
+  --hl-rose: 214, 100, 122;
+  --hl-sage: 108, 160, 110;
+  --hl-sky: 86, 148, 208;
+  --hl-lilac: 155, 132, 224;
+  --hl-alpha: 0.3;
+
+  --radius: 8px;
+  --radius-sm: 5px;
+  --transition: 140ms ease;
+  --transition-slow: 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  block-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ── the scene bar. S hides it before a screen share. ─────────────────────── */
+
+.switcher {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.66);
+  backdrop-filter: blur(14px);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.switcher button {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+}
+
+.switcher button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.switcher button[data-on] {
+  color: var(--amber);
+  background: rgba(196, 145, 60, 0.12);
+}
+
+/* ── the surface. The single scroller in this file. ───────────────────────── */
+
+.surface {
+  position: relative;
+  block-size: 100%;
+  overflow-y: auto;
+  padding: 0 24px 96px;
+}
+
+/*
+ * The dawn. One warm radial, off-centre, behind the page.
+ *
+ * You should not be able to say what it is. It is doing one job: making the
+ * page look lit from behind rather than pasted on. Remove it and the cream
+ * rectangle reads as a modal.
+ */
+.dawn {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    62% 46% at 50% -6%,
+    rgba(196, 145, 60, 0.13),
+    rgba(196, 145, 60, 0.04) 44%,
+    transparent 72%
+  );
+}
+
+/* ── the page itself ──────────────────────────────────────────────────────── */
+
+.sheet {
+  position: relative;
+  z-index: 1;
+  inline-size: min(760px, 100%);
+  margin: 56px auto 0;
+  background: var(--page);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 64px 68px 72px;
+  /*
+   * Warm shadow, never black. A neutral drop shadow on a dark ground reads as
+   * a hole cut in the screen; this reads as a page with light behind it.
+   */
+  box-shadow:
+    0 0 0 1px var(--page-edge),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 26px 70px -18px rgba(0, 0, 0, 0.66),
+    0 0 90px -30px rgba(196, 145, 60, 0.42);
+}
+
+.sheet--narrow {
+  padding: 52px 58px 60px;
+}
+
+/* ── the head: the occasion, the scope, the expiry ────────────────────────── */
+
+.head {
+  margin-block-end: 44px;
+}
+
+/* The one use of the display face in this prototype. */
+.head__occasion {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.014em;
+  margin: 0;
+  color: var(--ink);
+}
+
+.head__occasion small {
+  display: block;
+  font-size: 0.44em;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  margin-block-start: 10px;
+}
+
+/*
+ * Scope. Sans, because it is the app talking, and it is the only place the
+ * app is allowed to state a number about the whole span.
+ *
+ * NEVER a comparison. "Five entries" is scope; "five entries, down from
+ * fourteen" is a scoreboard, and H2's ✅ column notwithstanding, a delta
+ * printed at the top of a recurring page is the streak this product declined.
+ */
+.scope {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-block-start: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: baseline;
+}
+
+.scope b {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/*
+ * The expiry line.
+ *
+ * It is stated plainly, at the top, in the app's own voice, because the whole
+ * legality of this surface rests on it and a rule you hide is a rule you are
+ * embarrassed by. RECALL § Tenure: "no occasion may accrue."
+ *
+ * What it must never do is count down in a way that pressures. No "2 days
+ * left", no colour change as it nears, no red. A date, once.
+ */
+.expiry {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  margin-block-start: 26px;
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--ink-hair);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.expiry svg {
+  flex: none;
+  opacity: 0.55;
+}
+
+/* ── movements ────────────────────────────────────────────────────────────── */
+
+.movement {
+  margin-block-start: 52px;
+}
+
+/* Sans, small, quiet. A heading here describes an arrangement, never a claim. */
+.movement__h {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  color: var(--ink-faint);
+  margin: 0 0 20px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.movement__h em {
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.72;
+}
+
+/* One line of app prose, where an arrangement genuinely needs explaining. */
+.gloss {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  margin: -8px 0 20px;
+  max-inline-size: 52ch;
+}
+
+/* ── her lines. The serif half of the type rule. ──────────────────────────── */
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 16px;
+  align-items: baseline;
+  padding: 9px 10px 9px 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  inline-size: 100%;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.line:hover {
+  background: rgba(43, 38, 32, 0.045);
+}
+
+.line__date {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.01em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  transition: color var(--transition);
+}
+
+.line:hover .line__date {
+  color: var(--k-hl);
+}
+
+.line__text {
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.52;
+  color: var(--ink);
+}
+
+/* The lit word inside her own sentence. Never a badge beside it. */
+.line__text mark {
+  background: rgba(var(--hl-amber), 0.28);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+/*
+ * A marking's rule, in its own tone, down the inside edge.
+ *
+ * Left rather than right here, unlike the wall: on the wall the margin belongs
+ * to the reader beside the writing; in a gathered list the rule is what tells
+ * you which hand you are reading, and it has to lead.
+ */
+.line--marked {
+  grid-template-columns: 78px 3px 1fr;
+  gap: 16px 14px;
+}
+
+.line__rule {
+  align-self: stretch;
+  inline-size: 3px;
+  border-radius: 2px;
+  background: var(--tone, var(--k-mark));
+  opacity: 0.68;
+  transition: opacity var(--transition);
+}
+
+.line:hover .line__rule {
+  opacity: 1;
+}
+
+/* ── the heart ────────────────────────────────────────────────────────────── */
+
+.heart {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  border: 1px solid var(--ink-hair);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--ink-hair);
+}
+
+/*
+ * A chamber.
+ *
+ * Every chamber is the SAME SIZE. That is the whole design constraint and it
+ * cost the obvious idea: sizing by count would make the biggest thing in the
+ * grid the biggest thing in her heart, which is a portrait, and a portrait is
+ * the most total verdict a machine can render about a person.
+ *
+ * The count is printed instead. A number you can read is arithmetic; a shape
+ * you can only feel is a claim.
+ */
+.chamber {
+  position: relative;
+  background: var(--page);
+  padding: 18px 18px 20px;
+  min-block-size: 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: start;
+  border: 0;
+  transition: background var(--transition);
+}
+
+.chamber:hover {
+  background: #faf6ec;
+}
+
+/*
+ * Brightness is recency. The Covenant sky's own encoding — Principle 1
+ * verbatim — and the only reason a varying visual is legal here at all.
+ *
+ * Set as an alpha on the tone wash, driven by days-since. Dim means A WHILE
+ * AGO and nothing else; the page never supplies a word like "cooled".
+ */
+.chamber::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--tone);
+  opacity: var(--warmth, 0.06);
+  pointer-events: none;
+}
+
+.chamber > * {
+  position: relative;
+}
+
+.chamber__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chamber__count {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.chamber__quote {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 1.46;
+  color: var(--ink);
+  margin: 0;
+}
+
+.chamber__empty {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink-faint);
+  opacity: 0.62;
+}
+
+.chamber__dot {
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--tone);
+  flex: none;
+}
+
+/* ── the shoji reading of the same facts ──────────────────────────────────── */
+
+/*
+ * Panels with light behind them.
+ *
+ * Same data as `.heart`, arranged as a screen rather than a grid of boxes: the
+ * lattice is structural, the paper is translucent, and what varies is how much
+ * light comes through. Recency again, and again no size and no height.
+ *
+ * The argument for it over the chambers: a chamber has an inside, and "what is
+ * inside your heart" is a claim about a person. A screen has only light and
+ * no interior, so it can carry the same six facts without implying it has
+ * seen into anybody.
+ */
+.shoji {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 14px;
+  background: #241f1a;
+  border-radius: 4px;
+}
+
+.shoji__panel {
+  position: relative;
+  min-block-size: 118px;
+  padding: 16px;
+  border: 1px solid rgba(246, 241, 230, 0.16);
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(246, 241, 230, calc(0.06 + var(--warmth, 0.06) * 0.8)),
+    rgba(246, 241, 230, calc(0.02 + var(--warmth, 0.06) * 0.5))
+  );
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: start;
+  color: #f2ece0;
+  transition: background var(--transition);
+}
+
+/*
+ * The lattice — kumiko, which is many small squares rather than one cross.
+ *
+ * The first pass drew a single muntin down each axis, and it put a hard cross
+ * through the middle of her sentence: the structure read as a redaction mark
+ * rather than as joinery. A fine repeating grid disappears into texture, which
+ * is what a lattice is supposed to do — you notice the light, not the wood.
+ */
+.shoji__panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(246, 241, 230, 0.055) 0 1px,
+      transparent 1px 34px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(246, 241, 230, 0.055) 0 1px,
+      transparent 1px 34px
+    );
+}
+
+.shoji__panel:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(246, 241, 230, calc(0.11 + var(--warmth, 0.06) * 0.8)),
+    rgba(246, 241, 230, calc(0.05 + var(--warmth, 0.06) * 0.5))
+  );
+}
+
+.shoji__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(242, 236, 224, 0.82);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.shoji__quote {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.46;
+  color: rgba(242, 236, 224, 0.94);
+  margin: 0;
+  position: relative;
+}
+
+.shoji__count {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: rgba(242, 236, 224, 0.5);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+/* ── the arrangement we are not allowed to build ──────────────────────────── */
+
+/*
+ * A mood line. Rendered properly, exactly as a competitor ships it, because a
+ * strawman proves nothing on a call.
+ *
+ * It is the only element in this stylesheet with a height encoding, and it is
+ * here to be pointed at. See `.verboten` for the three rules it breaks.
+ */
+.forbidden {
+  position: relative;
+  padding: 26px 24px 20px;
+  border: 1px dashed #c9b8b8;
+  border-radius: 4px;
+  background: #fbf4f2;
+}
+
+.forbidden svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.forbidden__axis {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #a08484;
+  text-transform: uppercase;
+}
+
+.verboten {
+  margin-block-start: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.verboten li {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.55;
+  color: #7d5d5d;
+  list-style: none;
+  padding-inline-start: 20px;
+  position: relative;
+}
+
+.verboten li::before {
+  content: '✕';
+  position: absolute;
+  inset-inline-start: 0;
+  color: #b58080;
+}
+
+.verboten b {
+  font-weight: 500;
+  color: #6a4a4a;
+}
+
+/* ── the council ──────────────────────────────────────────────────────────── */
+
+.pin {
+  margin-block-start: 34px;
+}
+
+/*
+ * The pin: her word, and the count of entries it is in.
+ *
+ * Always on screen, always first. The passage below it is only defensible
+ * because you can see what reached it — a reader who thinks the pin is wrong
+ * can say so, which is the entire difference between this and an oracle.
+ */
+.pin__word {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.pin__count {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pin__hers {
+  margin: 12px 0 0;
+  border-inline-start: 2px solid var(--ink-hair);
+  padding-inline-start: 18px;
+}
+
+/*
+ * The passage. Set apart, in the same serif as her own writing.
+ *
+ * Deliberately NOT a distinct "quote card" with its own colour and icon: the
+ * moment it gets its own visual chrome it becomes the app's contribution to
+ * the page, and the claim of this whole surface is that the app contributes
+ * nothing. Two texts on one sheet, one hairline between them.
+ */
+.passage {
+  margin-block-start: 22px;
+  padding-inline-start: 18px;
+  border-inline-start: 2px solid rgba(154, 122, 21, 0.4);
+}
+
+.passage__text {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.56;
+  color: var(--ink);
+  margin: 0;
+}
+
+.passage__cite {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-faint);
+  margin-block-start: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+}
+
+.passage__cite b {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* Facilitator-only. Never on the artifact. */
+.passage__unverified {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: #a06a4a;
+  margin-block-start: 8px;
+}
+
+/*
+ * The sentence that is forbidden. Shown struck through, on the council scene
+ * only, so the difference between "beside" and "about" is visible rather than
+ * argued.
+ */
+.bridge {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.5;
+  color: #a88a8a;
+  margin: 18px 0 0;
+  padding-inline-start: 18px;
+  border-inline-start: 2px dashed #d8c2c2;
+  text-decoration: line-through;
+  text-decoration-color: rgba(168, 138, 138, 0.5);
+}
+
+.bridge__why {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-style: normal;
+  text-decoration: none;
+  color: #8d6a6a;
+  margin-block-start: 8px;
+}
+
+/* Silence, rendered. A word that reached nothing and was left bare. */
+.silent {
+  margin-block-start: 34px;
+  opacity: 0.9;
+}
+
+.silent__note {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-block-start: 12px;
+  padding-inline-start: 18px;
+  border-inline-start: 2px solid transparent;
+}
+
+/* ── words she kept saying ────────────────────────────────────────────────── */
+
+.words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+/*
+ * One shape, no size encoding, no count beside any word, first-appearance
+ * order. Every one of those is load-bearing; the first three keep it off
+ * D-016's forbidden side and the fourth keeps it off Principle 1's.
+ */
+.word {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink-hair);
+  border-radius: 999px;
+  padding: 5px 14px;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.word:hover {
+  border-color: var(--k-hl);
+  background: rgba(var(--hl-amber), 0.1);
+}
+
+.word[data-on='true'] {
+  border-color: var(--k-hl);
+  background: rgba(var(--hl-amber), 0.16);
+}
+
+.floor {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-block-start: 16px;
+}
+
+/* ── onward: the page this becomes ───────────────────────────────────────── */
+
+.onward {
+  margin-block-start: 56px;
+  padding-block-start: 30px;
+  border-block-start: 1px solid var(--ink-hair);
+}
+
+.onward__act {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink-hair);
+  border-radius: var(--radius-sm);
+  padding: 11px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.onward__act:hover {
+  border-color: var(--k-hl);
+  background: rgba(var(--hl-amber), 0.09);
+}
+
+.onward__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.onward__act--quiet {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+/* The composed entry, shown as the editor would open it. */
+.draft {
+  margin-block-start: 26px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 26px 28px;
+  color: var(--text);
+}
+
+.draft__date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-block-end: 18px;
+}
+
+.draft__quote {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0 0 6px;
+  padding-inline-start: 16px;
+  border-inline-start: 2px solid var(--amber);
+}
+
+.draft__src {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  padding-inline-start: 18px;
+  margin-block-end: 22px;
+}
+
+.draft__caret {
+  display: inline-block;
+  inline-size: 2px;
+  block-size: 19px;
+  background: var(--amber);
+  vertical-align: text-bottom;
+  animation: blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── the empty ground, after it has gone ─────────────────────────────────── */
+
+.gone {
+  position: relative;
+  z-index: 1;
+  inline-size: min(760px, 100%);
+  margin: 0 auto;
+  min-block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 80px 0;
+}
+
+.gone__line {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-inline-size: 44ch;
+  margin: 0;
+}
+
+.gone__note {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-faint);
+  max-inline-size: 56ch;
+  margin: 0;
+}
+
+/* ── evidence: her page, opened ──────────────────────────────────────────── */
+
+.evidence {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: rgba(6, 6, 10, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.evidence__page {
+  inline-size: min(620px, 100%);
+  max-block-size: 100%;
+  overflow-y: auto;
+  background: var(--page);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 46px 50px 50px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+}
+
+.evidence__date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-block-end: 26px;
+}
+
+.evidence__p {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 0 0 18px;
+}
+
+.evidence__p mark {
+  background: rgba(var(--hl-amber), 0.3);
+  color: inherit;
+}
+
+.evidence__close {
+  position: fixed;
+  inset-block-start: 20px;
+  inset-inline-end: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.evidence__close:hover {
+  color: var(--text-bright);
+}
+
+/* ── the toggles a facilitator uses. Never part of the artifact. ─────────── */
+
+.rig {
+  position: relative;
+  z-index: 1;
+  inline-size: min(760px, 100%);
+  margin: 30px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rig__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-inline-end: 4px;
+}
+
+.rig button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.rig button:hover {
+  color: var(--text-bright);
+  border-color: var(--text-faint);
+}
+
+.rig button[data-on='true'] {
+  color: var(--amber);
+  border-color: rgba(196, 145, 60, 0.5);
+  background: rgba(196, 145, 60, 0.1);
+}
+
+/* ── the facilitator page ─────────────────────────────────────────────────── */
+
+.notes {
+  position: relative;
+  z-index: 1;
+  inline-size: min(720px, 100%);
+  margin: 0 auto;
+  padding: 60px 0 40px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.68;
+  color: var(--text);
+}
+
+.notes h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 30px;
+  color: var(--text-bright);
+  margin: 0 0 8px;
+}
+
+.notes h2 {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lilac);
+  margin: 40px 0 12px;
+}
+
+.notes p,
+.notes li {
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.notes li {
+  margin-inline-start: 18px;
+}
+
+.notes b {
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+.notes code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--amber);
+}
+
+.notes a {
+  color: var(--lilac);
+}
+
+.notes .warn {
+  border-inline-start: 2px solid #a06a4a;
+  padding-inline-start: 16px;
+  color: #d09a78;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .sheet {
+    padding: 40px 26px 48px;
+    margin-block-start: 26px;
+  }
+
+  .heart,
+  .shoji {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .line,
+  .line--marked {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .line__rule {
+    display: none;
+  }
+}
