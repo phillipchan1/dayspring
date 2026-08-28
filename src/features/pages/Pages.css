@@ -3418,6 +3418,14 @@ button.pg__sense-q:hover {
     font-size: 0.72rem;
   }
 
+  /* Three touch-sized controls do not fit one phone line, so the position wraps
+     — and it has to keep hugging the right edge when it does. The adjacency rule
+     that spaces it from `Write` sets a fixed start margin, which on a line of
+     its own left it stranded at the left margin looking like a mistake. */
+  .pg__write + .pg__through-nav {
+    margin-inline-start: auto;
+  }
+
   .pg-read1__date {
     font-size: 0.68rem;
   }
