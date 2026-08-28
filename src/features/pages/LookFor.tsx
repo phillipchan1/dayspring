@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import type { MarkingChip } from './facets'
 import type { KeptSubject } from './keptSubjects'
 import { searchSubjects, withCounts, wordSubject, type Subject, type SubjectIndex } from './subjects'
@@ -124,7 +126,15 @@ export function LookFor({
 
   useEffect(() => {
     if (!open) return
+    /*
+     * A tap away shuts a dropdown. It must NOT be wired up for the bottom
+     * sheet: that one renders through a portal (see the note where it is
+     * rendered), so every tap inside it lands outside `box` and would shut the
+     * sheet on the way to the pill you were aiming at. The scrim is the sheet's
+     * tap-away, and it is visible, which a document listener never is.
+     */
     const away = (e: PointerEvent) => {
+      if (narrow) return
       if (box.current && !box.current.contains(e.target as Node)) setOpen(false)
     }
     const esc = (e: KeyboardEvent) => {
@@ -136,7 +146,17 @@ export function LookFor({
       document.removeEventListener('pointerdown', away)
       document.removeEventListener('keydown', esc)
     }
-  }, [open])
+  }, [open, narrow])
+
+  /*
+   * A bottom sheet you cannot flick away is not a bottom sheet.
+   *
+   * The grabber is the visible half of this and the drag is the other half; the
+   * hook hands the gesture back to the sheet's own scroller whenever the finger
+   * lands somewhere already scrolled, so pulling the options back up never
+   * throws the sheet off the screen.
+   */
+  const sheet = useSheetDismiss({ onDismiss: () => setOpen(false), enabled: narrow && open })
 
   const on = useMemo(() => new Set(chips.map((c) => c.key)), [chips])
   const q = typed.trim()
@@ -180,10 +200,27 @@ export function LookFor({
   return (
     <div className="pg-look" data-narrow={narrow ? 'true' : undefined} ref={box}>
       <div className="pg-look__row">
+        {/*
+          THE CONTROL, and where a thumb finds it.
+
+          On a phone this is the primary act of the surface — you came to look
+          for something — and it was a 0.78rem hairline button in the far top
+          corner, which is the hardest place on a phone to reach and the easiest
+          to mistake for a caption. On narrow it becomes a floating pill in the
+          bottom corner opposite `New entry`: same 52px disc height as that FAB,
+          neutral rather than accent (writing is the primary act of the APP), and
+          carrying the number of things currently on so the count is legible
+          without opening anything.
+
+          Still the same button, in the same place in the DOM — the
+          pointerdown-away handler and `aria-expanded` both depend on that, and
+          a second element for narrow would be two things to keep in step.
+        */}
         <button
           type="button"
           className="pg-look__open"
           data-on={open ? 'true' : undefined}
+          data-lit={chips.length > 0 ? 'true' : undefined}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -198,6 +235,11 @@ export function LookFor({
             <path d="M10.3 10.3 14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
           <span>Look for</span>
+          {chips.length > 0 ? (
+            <i className="pg-look__count" aria-label={`${chips.length} on`}>
+              {chips.length}
+            </i>
+          ) : null}
           <svg
             className="pg-look__chev"
             viewBox="0 0 10 6"
@@ -301,17 +343,31 @@ export function LookFor({
         </label>
       </div>
 
-      {open && narrow ? (
-        <button
-          type="button"
-          className="pg-sheet__scrim"
-          aria-label="Close"
-          onClick={() => setOpen(false)}
-        />
-      ) : null}
-
       {open ? (
-        <div className="pg-sheet" role={narrow ? 'dialog' : undefined} aria-modal={narrow || undefined}>
+        <Layer portal={narrow}>
+          {narrow ? (
+            <button
+              type="button"
+              className="pg-sheet__scrim"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+            />
+          ) : null}
+
+          <div
+          className="pg-sheet"
+          role={narrow ? 'dialog' : undefined}
+          aria-modal={narrow || undefined}
+          data-narrow={narrow ? 'true' : undefined}
+          data-sheet-scroll={narrow ? 'true' : undefined}
+          data-dragging={sheet.dragging ? 'true' : undefined}
+          // The `translate` property, not `transform`: the entrance animation
+          // owns `transform`, and an animation with a `both` fill beats an
+          // inline style on the same property for good. The two compose.
+          style={sheet.dragY ? { translate: `0 ${sheet.dragY}px` } : undefined}
+          {...sheet.handlers}
+        >
+          {narrow ? <span className="pg-sheet__grab" aria-hidden /> : null}
           <div className="pg-sheet__find">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
               <circle cx="7" cy="7" r="4.3" stroke="currentColor" strokeWidth="1.25" />
@@ -456,10 +512,27 @@ export function LookFor({
             </div>
             <p className="pg-sheet__gloss">{READINGS.find((r) => r.id === reading)?.gloss}</p>
           </section>
-        </div>
+          </div>
+        </Layer>
       ) : null}
     </div>
   )
+}
+
+/**
+ * The bottom sheet, out of the surface and onto the body.
+ *
+ * `.journal-canvas__content` is `position: relative; z-index: 1`, which makes it
+ * a stacking context — so the sheet's `z-index: 71` only ever meant "71 within
+ * the canvas", and the mobile New-entry disc (z-index 45, a sibling of the
+ * canvas) painted straight over the top of it. No z-index inside the surface can
+ * fix that; the layer has to leave the surface.
+ *
+ * Narrow only. The dropdown is positioned against the control it belongs to and
+ * has to stay where it is.
+ */
+function Layer({ portal, children }: { portal: boolean; children: React.ReactNode }) {
+  return portal ? createPortal(children, document.body) : <>{children}</>
 }
 
 function SubjectPill({
