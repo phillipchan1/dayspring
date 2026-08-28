@@ -946,6 +946,7 @@ export function PagesView({
             match={match}
             firstLineTitle={settings.firstLineTitle}
             onEdit={onOpenEntry}
+            onBack={() => onSpread(null)}
           />
         ) : null}
       </div>

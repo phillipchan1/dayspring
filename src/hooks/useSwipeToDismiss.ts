@@ -15,11 +15,23 @@ export function useSwipeToDismiss({
   onDismiss,
   enabled = true,
   threshold = 80,
+  direction = 'right',
 }: {
   onDismiss: () => void
   enabled?: boolean
-  /** Rightward distance (px) past which release dismisses. */
+  /** Horizontal distance (px) past which release dismisses. */
   threshold?: number
+  /**
+   * Which way the surface leaves.
+   *
+   * `right` is for a panel flush to the right edge — it can only go one way, so
+   * a leftward pull is resisted. `either` is for something that covers the whole
+   * screen and is being backed out of rather than pushed aside: "swipe back" is
+   * rightward in iOS and leftward in plenty of Android apps, and a reader that
+   * only answers to one of them reads as broken to whoever has the other habit.
+   * With `either`, `dragX` is signed.
+   */
+  direction?: 'right' | 'either'
 }) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const axis = useRef<'h' | 'v' | null>(null)
@@ -52,15 +64,24 @@ export function useSwipeToDismiss({
       if (axis.current === 'h') setDragging(true)
     }
     if (axis.current !== 'h') return
+    if (direction === 'either') {
+      setDragX(dx)
+      return
+    }
     // Track rightward freely; resist a leftward pull (the panel can't open further).
     setDragX(Math.max(0, dx > 0 ? dx : dx * 0.2))
   }
 
   function onTouchEnd() {
-    if (axis.current === 'h' && dragX > threshold) onDismiss()
+    const far = direction === 'either' ? Math.abs(dragX) > threshold : dragX > threshold
+    if (axis.current === 'h' && far) onDismiss()
     reset()
   }
 
   if (!enabled) return { handlers: {}, dragX: 0, dragging: false }
-  return { handlers: { onTouchStart, onTouchMove, onTouchEnd }, dragX, dragging }
+  return {
+    handlers: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel: reset },
+    dragX,
+    dragging,
+  }
 }
