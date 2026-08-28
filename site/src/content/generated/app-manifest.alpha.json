@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.267",
+  "appVersion": "1.0.269",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -353,20 +353,6 @@
         ]
       },
       {
-        "id": "slash.gift",
-        "label": "Gift",
-        "hint": "Something you were given",
-        "badge": "◡",
-        "column": "capture",
-        "keywords": [
-          "gift",
-          "given",
-          "grateful",
-          "gratitude",
-          "thanks"
-        ]
-      },
-      {
         "id": "slash.desire",
         "label": "Desire",
         "hint": "Something you want",
@@ -404,21 +390,6 @@
           "happened",
           "moment",
           "event"
-        ]
-      },
-      {
-        "id": "slash.absence",
-        "label": "Absence",
-        "hint": "Where He seemed far",
-        "badge": "¦",
-        "column": "capture",
-        "keywords": [
-          "absence",
-          "absent",
-          "far",
-          "silence",
-          "dry",
-          "dark"
         ]
       },
       {
@@ -735,8 +706,8 @@
         "type": "boolean"
       },
       {
-        "id": "setting.show-margin",
-        "key": "showMargin",
+        "id": "setting.reader-leaves",
+        "key": "readerLeaves",
         "default": true,
         "type": "boolean"
       },
@@ -1304,7 +1275,7 @@
     "editor.font-size-max": 36,
     "counts.practices": 11,
     "counts.themes": 9,
-    "counts.slash-commands": 25,
+    "counts.slash-commands": 23,
     "counts.highlight-colors": 5,
     "counts.importers": 3
   }
