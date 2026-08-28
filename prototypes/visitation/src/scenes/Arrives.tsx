@@ -1,41 +1,59 @@
 import { useState } from 'react'
 import { KIND_META } from '../kinds'
 import { Dawn, Evidence, Head, Lines, Movement, type LineItem } from '../parts'
-import { daysSince, read, spanById, THIN_FLOOR, type Chamber, type Reading } from '../span'
+import { read, spanById, THIN_FLOOR, type Reading, type Thread } from '../span'
 
 /**
- * The artifact, whole, top to bottom. The main event.
+ * The artifact, whole. The main event.
  *
- * ── The arc, and why it ends where it ends ──────────────────────────────────
+ * ── What this page is for, after the first version was wrong ────────────────
  *
- *   what you set apart  →  the words you kept saying  →  what was said
- *   beside them  →  what you asked  →  write
+ * The first build's central movement was a grid of her declared markings —
+ * six chambers of `/pray`, `/sense`, `/desire`, `/story`, `/learned`,
+ * `/scripture`. It was legal, it was grounded, it was pretty, and it was
+ * REDUNDANT: a time-sliced Altar beside a time-sliced Lamp. Slicing an
+ * existing surface by date is a filter, not a surface.
  *
- * The last movement is the point of the other four. Phil's own framing was
- * "not to be an oracle but to funnel and fuel prayer" — and the structural way
- * to guarantee that is to make the TERMINAL ACT OF THE PAGE BE HER WRITING,
- * not her reading a conclusion. A report that ends in a summary has told her
- * what her season was. A report that ends in a blank page has handed her back
- * her own material and got out of the way.
+ * The job that is actually unclaimed:
  *
- * The questions sit immediately before it on purpose: they are the only
- * movement that is already addressed to somebody.
+ *   > EVERY OTHER RETURN SURFACE SHOWS YOU WHAT. NONE OF THEM DOES ANYTHING
+ *   > WITH IT. THIS PAGE HELPS YOU ASK BETTER.
  *
- * ── What is deliberately not here ───────────────────────────────────────────
+ * That reframing does three things at once, which is how you can tell it is
+ * the real thesis rather than a nicer description of the same object:
  *
- * No summary paragraph. No "this season you…". No theme, no title, no arc, no
- * throughline. Every one of those is the app writing a sentence about her,
- * which H1 and H2 forbid and which D-016 already settled: the writer supplies
- * the signal.
+ *   1. It kills the oracle by construction. A page whose output is a question
+ *      has no answer in it to be wrong about.
+ *   2. It stops being redundant. The contribution is no longer new data — the
+ *      Altar already has the data — it is a new ACT performed on it.
+ *   3. It threads H4. Counsel, diagnosis and prescription are all assertions.
+ *      A question is none of the three.
  *
- * Nothing compares this span to the last one. Not entry counts, not marking
- * counts, not words. A delta at the top of a recurring page is a streak
- * counter wearing vestments, and Principle 2 does not care what it is wearing.
+ * ── And the markings become input ───────────────────────────────────────────
+ *
+ * They are not displayed anywhere on this page. They corroborate her words —
+ * see span.ts § wordsIn, including the stronger version that was built and
+ * reverted. The Altar keeps its job.
+ *
+ * ── The arc ─────────────────────────────────────────────────────────────────
+ *
+ *   what you are still asking  →  and these  →  write
+ *
+ * Three movements. The first is her questions grouped by her own word with a
+ * question from the tradition beneath. The second is every other question she
+ * asked, with nothing beside them, because most of what someone asks reaches
+ * nothing and pretending otherwise is the fortune cookie. The third is the
+ * editor.
+ *
+ * ── What is still deliberately absent ───────────────────────────────────────
+ *
+ * No summary. No theme name (the theme is machinery — see span.ts § Thread).
+ * No answer, ever, to any question on the page. Nothing comparing this span to
+ * the last one.
  */
-export function Arrives({ spanId = 'summer-2026' }: { spanId?: string }) {
+export function Arrives({ spanId = 'spring-2026' }: { spanId?: string }) {
   const reading = read(spanById(spanId))
   const [open, setOpen] = useState<{ id: string; word?: string } | null>(null)
-  const [word, setWord] = useState<string | null>(null)
 
   return (
     <div className="surface">
@@ -47,10 +65,8 @@ export function Arrives({ spanId = 'summer-2026' }: { spanId?: string }) {
           <ThinBody reading={reading} onOpen={(id) => setOpen({ id })} />
         ) : (
           <>
-            <Heart reading={reading} onOpen={(id) => setOpen({ id })} />
-            <Words reading={reading} chosen={word} onChoose={setWord} />
-            <Beside reading={reading} chosen={word} onOpen={(id, w) => setOpen({ id, word: w })} />
-            <Asked reading={reading} onOpen={(id) => setOpen({ id })} />
+            <Asking reading={reading} onOpen={(id, word) => setOpen({ id, word })} />
+            <Unmatched reading={reading} onOpen={(id) => setOpen({ id })} />
             <Onward reading={reading} />
           </>
         )}
@@ -62,231 +78,123 @@ export function Arrives({ spanId = 'summer-2026' }: { spanId?: string }) {
 }
 
 /**
- * The heart — six chambers, one per declared kind.
+ * The central movement: what she is still asking.
  *
- * Everything in it is an act she named with her own hand while writing. There
- * is no sentiment in here, no tone, nothing derived: `/pray`, `/desire`,
- * `/sense`, `/story`, `/learned`, `/scripture`. That is the whole legal
- * content of "the things in your heart", and it is a stronger thing than the
- * inferred version would have been, because she cannot dispute it.
- *
- * Same size for every chamber; the count is printed; brightness is recency.
- * See styles.css § .chamber for why each of those is load-bearing.
+ * Her word heads it, never the theme. Her questions follow, all of them. Then
+ * one question from the tradition, with nothing between them.
  */
-export function Heart({ reading, onOpen }: { reading: Reading; onOpen: (id: string) => void }) {
-  return (
-    <Movement
-      title="what you set apart"
-      /*
-       * The second sentence is not decoration. An unexplained visual encoding
-       * is exactly what a reader fills in with a verdict — a pale panel beside
-       * a bright one reads as "less" until something says otherwise. Saying
-       * what the light means costs one clause and removes the only reading of
-       * this grid that Principle 1 forbids.
-       */
-      gloss="Every line here is one you marked while you were writing. Nothing was chosen for you. How lit a panel is means how lately — nothing more."
-    >
-      <div className="heart">
-        {reading.chambers.map((c) => (
-          <ChamberCell key={c.kind} chamber={c} reading={reading} onOpen={onOpen} />
-        ))}
-      </div>
-    </Movement>
-  )
-}
-
-/**
- * One chamber.
- *
- * The quote shown is THE MOST RECENT of that kind in the span. Recency is
- * arithmetic; "the best one" would be selection, and selection is significance,
- * and significance is a verdict (D-016). It also means the chamber and its
- * warmth agree: the line you see is the line the brightness is about.
- */
-function ChamberCell({
-  chamber,
+export function Asking({
   reading,
   onOpen,
 }: {
-  chamber: Chamber
   reading: Reading
-  onOpen: (id: string) => void
-}) {
-  const meta = KIND_META[chamber.kind]
-  const latest = chamber.markings[chamber.markings.length - 1]
-  const since = daysSince(reading.span, chamber.kind)
-
-  /*
-   * Recency → light. 0.16 at today, floor 0.03 at a season out.
-   * A floor rather than zero, because an unlit chamber would read as a hole,
-   * and a hole reads as a failing.
-   */
-  const warmth = since === null ? 0.02 : Math.max(0.03, 0.16 - (since / 90) * 0.13)
-
-  return (
-    <button
-      type="button"
-      className="chamber"
-      style={
-        {
-          '--tone': `var(--k-${meta.tone})`,
-          '--warmth': warmth,
-        } as React.CSSProperties
-      }
-      onClick={() => latest && onOpen(latest.entryId)}
-      disabled={!latest}
-    >
-      <span className="chamber__label">
-        <span className="chamber__dot" />
-        {meta.label}
-        <span className="chamber__count">
-          {chamber.markings.length === 0 ? '—' : chamber.markings.length}
-        </span>
-      </span>
-      {latest ? (
-        <p className="chamber__quote">{latest.quote}</p>
-      ) : (
-        /* Nothing, said as nothing. Never "you didn't…". H2: absence is not ours to interpret. */
-        <span className="chamber__empty">Nothing this season.</span>
-      )}
-    </button>
-  )
-}
-
-/**
- * The words she kept saying.
- *
- * GUARDRAILS' own sanctioned form — *"'Angry' appears in 7 entries this
- * month"* — and the only legal cousin of the sentiment reading Phil described.
- * The floor is on screen; the order is first appearance; no number sits beside
- * any word; nothing is sorted into good and bad.
- *
- * Choosing one lights it inside her own sentences below. The word is the
- * explanation, which is the answer D-020 left open: *why did this come back?*
- */
-export function Words({
-  reading,
-  chosen,
-  onChoose,
-}: {
-  reading: Reading
-  chosen: string | null
-  onChoose: (w: string | null) => void
-}) {
-  return (
-    <Movement title="the words you kept saying">
-      <div className="words">
-        {reading.words.map((w) => (
-          <button
-            key={w.word}
-            type="button"
-            className="word"
-            data-on={chosen === w.word ? 'true' : undefined}
-            onClick={() => onChoose(chosen === w.word ? null : w.word)}
-          >
-            {w.word}
-          </button>
-        ))}
-      </div>
-      <p className="floor">Words you wrote in more than one of these pages, in the order you first wrote them.</p>
-    </Movement>
-  )
-}
-
-/**
- * The council.
- *
- * Her word, her lines carrying it, and then a passage — with nothing between
- * them. No bridge sentence, no application, no "this may speak to your
- * season." See fathers.ts for the doctrine and the three-hop join.
- *
- * Only the first pin renders on the artifact. A council of eight is a reading
- * list, and a reading list is an assignment (H4). One voice, sometimes two.
- */
-export function Beside({
-  reading,
-  chosen,
-  onOpen,
-}: {
-  reading: Reading
-  chosen: string | null
   onOpen: (id: string, word: string) => void
 }) {
-  const pins = chosen ? reading.council.filter((p) => p.word === chosen) : reading.council.slice(0, 1)
-  if (!pins.length) {
-    /*
-     * The chosen word reached nothing, and the page says so rather than
-     * reaching one shelf over. Principle 4 is called "grounded, OR SILENT".
-     */
-    return (
-      <Movement title="beside them">
-        <p className="silent__note">Nothing in the reading answers to “{chosen}”.</p>
-      </Movement>
-    )
-  }
-
+  if (!reading.threads.length) return null
   return (
-    <Movement title="beside them">
-      {pins.map((pin) => {
-        const passage = pin.passages[0]
-        const items: LineItem[] = pin.entryIds.map((id) => {
-          const entry = reading.entries.find((e) => e.id === id)
-          const para = entry?.paragraphs.find((p) => new RegExp(`\\b${pin.word}\\b`, 'i').test(p))
-          return { entryId: id, date: entry?.date ?? '', text: para ?? '', lit: pin.word }
-        })
-
-        return (
-          <div className="pin" key={pin.word}>
-            <div className="pin__word">
-              {pin.word}
-              <span className="pin__count">
-                {pin.entryIds.length} {pin.entryIds.length === 1 ? 'page' : 'pages'}
-              </span>
-            </div>
-
-            <div className="pin__hers">
-              <Lines items={items} onOpen={(id) => onOpen(id, pin.word)} />
-            </div>
-
-            {/* Nothing between them. Not one word of ours. */}
-            <div className="passage">
-              <p className="passage__text">{passage.text}</p>
-              <div className="passage__cite">
-                <b>{passage.who}</b>
-                <span>{passage.when}</span>
-                <span>{passage.where}</span>
-                <span>{passage.edition}</span>
-              </div>
-            </div>
-          </div>
-        )
-      })}
+    <Movement
+      title="what you are still asking"
+      /*
+       * The gloss states the floor, because a grouping whose rule is invisible
+       * reads as the app having decided these belong together. It has not: they
+       * share a word she wrote on more than one page, and that is all.
+       *
+       * The second sentence is the promise the surface has to keep. Say it once,
+       * plainly, at the top — and then never answer anything.
+       */
+      gloss="Questions of yours that share a word you wrote on more than one of these pages. Nothing here has been answered, and nothing here will be."
+    >
+      {reading.threads.map((t) => (
+        <ThreadBlock key={t.theme} thread={t} onOpen={onOpen} />
+      ))}
     </Movement>
   )
 }
 
-/**
- * What she asked.
- *
- * Every line in the span ending in a question mark. All of them, date order,
- * never grouped by whether they are still being asked and never a word on
- * screen suggesting any was answered — a reader supplies that, and it is
- * theirs to supply (H2, and RECALL flags this arrangement as the one to argue
- * about on a call).
- *
- * This is also the movement that most directly does the job Phil named: it is
- * the only one already addressed to somebody.
- */
-export function Asked({ reading, onOpen }: { reading: Reading; onOpen: (id: string) => void }) {
-  const items: LineItem[] = reading.questions.map((q) => ({
+function ThreadBlock({ thread, onOpen }: { thread: Thread; onOpen: (id: string, word: string) => void }) {
+  const lead = thread.words[0].word
+  const items: LineItem[] = thread.questions.map((q) => ({
     entryId: q.entryId,
     date: q.date,
     text: q.text,
+    lit: thread.words.find((w) => new RegExp(`\\b${w.word}\\b`, 'i').test(q.text))?.word,
   }))
-  if (!items.length) return null
+
+  /* Which kinds of marking her words also sit inside. Corroboration, not a list. */
+  const declared = [...new Set(thread.words.flatMap((w) => w.declaredIn))]
+
   return (
-    <Movement title="what you asked">
+    <div className="pin">
+      <div className="pin__word">
+        {thread.words.map((w) => w.word).join(' · ')}
+        <span className="pin__count">
+          {thread.questions.length} {thread.questions.length === 1 ? 'question' : 'questions'}
+        </span>
+      </div>
+
+      {/*
+        The native data, doing its work without being displayed. It says the
+        word is not merely frequent — it also sits inside something she reached
+        over and marked. The Altar shows the prayers; this only says there were
+        some.
+      */}
+      {declared.length ? (
+        <p className="corroborate">
+          also inside what you marked · {declared.map((k) => KIND_META[k].label).join(' · ')}
+        </p>
+      ) : null}
+
+      <div className="pin__hers">
+        <Lines items={items} onOpen={(id) => onOpen(id, lead)} />
+      </div>
+
+      {thread.asked ? (
+        <div className="passage">
+          <p className="passage__text">{thread.asked.text}</p>
+          <div className="passage__cite">
+            <b>{thread.asked.who}</b>
+            <span>{thread.asked.when}</span>
+            <span>{thread.asked.where}</span>
+            <span>{thread.asked.edition}</span>
+          </div>
+          {/*
+            The addressee, and it is the whole defence rendered visible: this
+            was asked of a room of monks, of an elder, of God — never of her.
+            A question with no stated addressee starts to read as though it
+            were addressed to whoever is holding the page.
+          */}
+          <p className="passage__askedof">asked of {thread.asked.askedOf}</p>
+        </div>
+      ) : (
+        <p className="silent__note">The reading has no question for this. There is nothing here.</p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Every other question she asked, with nothing beside them.
+ *
+ * Most of what a person asks reaches nothing, and a page that found a
+ * companion for all eight would be a fortune cookie. Showing them bare is
+ * Principle 4's second half — grounded, OR SILENT — and it is also the only
+ * thing on the page that keeps the matched ones honest: if every question got
+ * a father, the fathers would mean nothing.
+ *
+ * All of them, date order, never sorted by whether they are still being asked.
+ */
+export function Unmatched({ reading, onOpen }: { reading: Reading; onOpen: (id: string) => void }) {
+  const matched = new Set(reading.threads.flatMap((t) => t.questions.map((q) => q.entryId + q.text)))
+  const rest = reading.questions.filter((q) => !matched.has(q.entryId + q.text))
+  if (!rest.length) return null
+
+  const items: LineItem[] = rest.map((q) => ({ entryId: q.entryId, date: q.date, text: q.text }))
+  return (
+    <Movement title="and these">
       <Lines items={items} onOpen={onOpen} />
+      <p className="floor">
+        Also yours, from these pages. The reading has nothing to set beside them, so nothing is set beside them.
+      </p>
     </Movement>
   )
 }
@@ -294,27 +202,27 @@ export function Asked({ reading, onOpen }: { reading: Reading; onOpen: (id: stri
 /**
  * The last movement, and the whole point of the page.
  *
- * Two acts, and the order matters: writing first, keeping second. A page whose
- * primary act is "save as PDF" is a collectible; a page whose primary act is
- * "write" is a prompt to pray, which is what this was supposed to be.
+ * A page that ends in a conclusion has told her what her season was. A page
+ * that ends in the editor has handed her back her own material and got out of
+ * the way. It is the only Return→Write path in the app.
  *
  * NOTE WHAT IS ABSENT: no share button, no image card, no link. Principle 1
- * says a screenshot of this must not be a scoreboard, and the surest way is to
- * not build the affordance that wants one. Export is for her.
+ * says a screenshot of this must not be a scoreboard, and the surest way is
+ * not to build the affordance that wants one. Export is for her.
  */
 export function Onward({ reading }: { reading: Reading }) {
   return (
     <div className="onward">
       <div className="onward__row">
         <button type="button" className="onward__act">
-          Take this into a page
+          Take a question into a page
         </button>
         <button type="button" className="onward__act onward__act--quiet">
           Keep it as paper
         </button>
       </div>
       <p className="floor" style={{ marginBlockStart: 18 }}>
-        {reading.entries.length} pages, {reading.span.from.slice(0, 4)}. Everything here is something you wrote.
+        {reading.entries.length} pages. Every question here is one you asked.
       </p>
     </div>
   )
@@ -323,28 +231,46 @@ export function Onward({ reading }: { reading: Reading }) {
 /**
  * The thin span, and the most important screen nobody would build.
  *
- * Principle 5: "we would rather show an empty state that tells the truth than
- * a manufactured insight that impresses." The threshold is printed, the
- * arrangement stops, and the page does NOT say she wrote less than usual, did
- * not keep it up, or has been away. Absence is not ours to interpret.
+ * ── It degrades into its own last movement, not into a different page ───────
  *
- * What it still does: hands back the pages themselves. That costs no model, no
- * threshold and no synthesis, so even the thinnest occasion pays out something
- * real — which is Principle 5's own corollary, design for the dip.
+ * The first version showed the first paragraph of each entry, which was a
+ * different object wearing the same header. This shows her QUESTIONS, bare —
+ * which is exactly what `and these` is on the full page. The surface does not
+ * become something else when the archive is thin; it becomes less of itself.
+ *
+ * That falls out of the thesis rather than being a nicety: gathering questions
+ * needs no threshold, no recurrence and no corpus. Only the grouping does. So
+ * the floor gates the threads and nothing else, and even three entries pay out
+ * something real — Principle 5's own corollary, design for the dip.
+ *
+ * Principle 5: "we would rather show an empty state that tells the truth than
+ * a manufactured insight that impresses." The threshold is printed, and the
+ * page does NOT say she wrote less than usual, did not keep it up, or has been
+ * away. Absence is not ours to interpret.
+ *
+ * It is deliberately the SAME OCCASION as the main page — spring and summer,
+ * two years earlier — so the only thing differing is her archive.
  */
 function ThinBody({ reading, onOpen }: { reading: Reading; onOpen: (id: string) => void }) {
-  const items: LineItem[] = reading.entries.map((e) => ({
+  const questions: LineItem[] = reading.questions.map((q) => ({
+    entryId: q.entryId,
+    date: q.date,
+    text: q.text,
+  }))
+  const pages: LineItem[] = reading.entries.map((e) => ({
     entryId: e.id,
     date: e.date,
     text: e.paragraphs[0],
   }))
+  const has = questions.length > 0
+
   return (
     <>
       <Movement
-        title="what is here"
-        gloss={`These are the pages. There are fewer than ${THIN_FLOOR} of them, so the rest of this page has nothing to stand on and is not here.`}
+        title={has ? 'what you asked' : 'what is here'}
+        gloss={`There are fewer than ${THIN_FLOOR} pages here, so nothing is grouped and nothing is set beside anything.`}
       >
-        <Lines items={items} onOpen={onOpen} />
+        <Lines items={has ? questions : pages} onOpen={onOpen} />
       </Movement>
       <Onward reading={reading} />
     </>

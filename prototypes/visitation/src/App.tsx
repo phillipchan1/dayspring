@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { validateMarkings } from './corpus'
 import { validateCouncil } from './fathers'
+import { validateAsking } from './questions'
 import { Arrives } from './scenes/Arrives'
 import { HeartScene } from './scenes/HeartScene'
+import { AskingScene } from './scenes/AskingScene'
 import { CouncilScene } from './scenes/CouncilScene'
 import { OnwardScene } from './scenes/OnwardScene'
 import { GoneScene } from './scenes/GoneScene'
@@ -20,11 +22,12 @@ import { Notes } from './scenes/Notes'
  */
 export const ROUTES = [
   { id: 'arrives', key: '1', label: 'it arrives' },
-  { id: 'heart', key: '2', label: 'the heart' },
-  { id: 'council', key: '3', label: 'beside them' },
-  { id: 'onward', key: '4', label: 'onward' },
-  { id: 'thin', key: '5', label: 'a thin season' },
-  { id: 'gone', key: '6', label: 'after' },
+  { id: 'heart', key: '2', label: 'the heart (cut)' },
+  { id: 'asking', key: '3', label: 'where the question comes from' },
+  { id: 'council', key: '4', label: 'the statement version' },
+  { id: 'onward', key: '5', label: 'onward' },
+  { id: 'thin', key: '6', label: 'the same season, 2024' },
+  { id: 'gone', key: '7', label: 'after' },
   { id: 'notes', key: '?', label: 'notes' },
 ] as const
 
@@ -69,6 +72,12 @@ export function App() {
     if (marks.length) console.error('[markings] not verbatim:\n' + marks.join('\n'))
     const council = validateCouncil()
     if (council.length) console.error('[council] not auditable:\n' + council.join('\n'))
+    /* The questions corpus has one extra invariant, and it is the one that
+       matters: every row must END IN A QUESTION MARK. The moment a statement
+       sneaks in, the surface has gone back to telling her things and it will
+       not look any different. */
+    const asking = validateAsking()
+    if (asking.length) console.error('[asking] not questions:\n' + asking.join('\n'))
   }, [])
 
   useEffect(() => {
@@ -93,10 +102,13 @@ export function App() {
   let view: ReactNode
   switch (route) {
     case 'arrives':
-      view = <Arrives spanId="summer-2026" />
+      view = <Arrives spanId="spring-2026" />
       break
     case 'heart':
       view = <HeartScene />
+      break
+    case 'asking':
+      view = <AskingScene />
       break
     case 'council':
       view = <CouncilScene />

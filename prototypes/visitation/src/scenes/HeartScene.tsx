@@ -1,22 +1,40 @@
 import { useState } from 'react'
 import { KIND_META } from '../kinds'
 import { Dawn, Evidence, Movement, Rig } from '../parts'
-import { daysSince, read, spanById, type Chamber, type Reading } from '../span'
-import { Heart } from './Arrives'
+import { chambers, daysSince, read, spanById, type Chamber, type Reading } from '../span'
 
 /**
- * Three readings of one idea: "a diagram of the things in your heart."
+ * The heart — built, argued, and cut. Kept because the argument is the value.
  *
- * The idea is right and the obvious build is illegal, so this scene puts the
- * legal readings and the illegal one on the same screen, at the same fidelity,
- * and lets the difference be seen instead of argued.
+ * ── What was proposed ───────────────────────────────────────────────────────
  *
- *   chambers — six declared acts, equal size, count printed
- *   shoji    — the same six as light through a screen
- *   mood     — what every competitor ships, and what we may not
+ * "A diagram of a heart — the sentiments and emotions you felt." The inferred
+ * version is forbidden three times over and `the one we cannot build` shows
+ * why. The legal version replaced it: six chambers of what she DECLARED, equal
+ * in size, counts printed, brightness meaning recency.
  *
- * `mood` is drawn properly, not as a strawman. A strawman proves nothing on a
- * call, and Phil will meet the real version in somebody else's app anyway.
+ * ── Why the legal version came off the page anyway ──────────────────────────
+ *
+ * It was legal and grounded and it still had to go, for a reason that has
+ * nothing to do with guardrails:
+ *
+ *   > IT IS A TIME-SLICED ALTAR BESIDE A TIME-SLICED LAMP.
+ *
+ * Prayers already have a surface. Scripture already has a surface. Slicing an
+ * existing surface by date is a filter, not a surface — and the only part that
+ * was genuinely new is that `/sense`, `/story`, `/learned` and `/desire` have
+ * no home yet, which is an argument for giving them one, not for building a
+ * page around them.
+ *
+ * That is a sharper kill than any principle fired here, and it is worth
+ * keeping on a route: a feature can clear every guardrail in the product and
+ * still not deserve to exist.
+ *
+ * ── Where the markings went ─────────────────────────────────────────────────
+ *
+ * Into the arithmetic. They corroborate her words rather than being listed —
+ * see span.ts § wordsIn, including the stronger version that was built and
+ * reverted for a reason `looking` had already written down.
  */
 const READINGS = [
   { id: 'chambers', label: 'chambers' },
@@ -30,6 +48,7 @@ export function HeartScene() {
   const reading = read(spanById('year-2026'))
   const [which, setWhich] = useState<ReadingId>('chambers')
   const [open, setOpen] = useState<string | null>(null)
+  const cells = chambers(reading.span)
 
   return (
     <div className="surface">
@@ -37,21 +56,24 @@ export function HeartScene() {
 
       <Rig label="reading">
         {READINGS.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            data-on={which === r.id ? 'true' : undefined}
-            onClick={() => setWhich(r.id)}
-          >
+          <button key={r.id} type="button" data-on={which === r.id ? 'true' : undefined} onClick={() => setWhich(r.id)}>
             {r.label}
           </button>
         ))}
       </Rig>
 
       <article className="sheet sheet--narrow">
-        {which === 'chambers' ? <Heart reading={reading} onOpen={setOpen} /> : null}
-        {which === 'shoji' ? <Shoji reading={reading} onOpen={setOpen} /> : null}
+        {which === 'chambers' ? <Chambers cells={cells} reading={reading} onOpen={setOpen} /> : null}
+        {which === 'shoji' ? <Shoji cells={cells} reading={reading} onOpen={setOpen} /> : null}
         {which === 'mood' ? <Mood reading={reading} /> : null}
+
+        {which !== 'mood' ? (
+          <p className="floor" style={{ marginBlockStart: 34 }}>
+            Cut from the page — not because it breaks a rule, but because prayers already have the Altar and
+            verses already have the Lamp. What survived is the markings as <b>input</b>: they corroborate her own
+            words rather than being shown again.
+          </p>
+        ) : null}
       </article>
 
       {open ? <Evidence id={open} onClose={() => setOpen(null)} /> : null}
@@ -60,32 +82,104 @@ export function HeartScene() {
 }
 
 /**
+ * Six chambers, one per declared kind.
+ *
+ * Equal size — sizing by count would make the biggest cell the biggest thing
+ * in her heart, which is a portrait, and a portrait is the most total verdict
+ * a machine can render. The count is printed: a number you can read is
+ * arithmetic, a shape you can only feel is a claim. Brightness is recency,
+ * which is the Covenant sky's own encoding and the only reason a varying
+ * visual is legal here.
+ */
+function Chambers({
+  cells,
+  reading,
+  onOpen,
+}: {
+  cells: Chamber[]
+  reading: Reading
+  onOpen: (id: string) => void
+}) {
+  return (
+    <Movement
+      title="what you set apart"
+      gloss="Every line here is one you marked while you were writing. Nothing was chosen for you. How lit a panel is means how lately — nothing more."
+    >
+      <div className="heart">
+        {cells.map((c) => (
+          <ChamberCell key={c.kind} chamber={c} reading={reading} onOpen={onOpen} />
+        ))}
+      </div>
+    </Movement>
+  )
+}
+
+/** The quote is the MOST RECENT of its kind. Recency is arithmetic; "the best one" is a verdict. */
+function ChamberCell({
+  chamber,
+  reading,
+  onOpen,
+}: {
+  chamber: Chamber
+  reading: Reading
+  onOpen: (id: string) => void
+}) {
+  const meta = KIND_META[chamber.kind]
+  const latest = chamber.markings[chamber.markings.length - 1]
+  const since = daysSince(reading.span, chamber.kind)
+  const warmth = since === null ? 0.02 : Math.max(0.03, 0.16 - (since / 90) * 0.13)
+
+  return (
+    <button
+      type="button"
+      className="chamber"
+      style={{ '--tone': `var(--k-${meta.tone})`, '--warmth': warmth } as React.CSSProperties}
+      onClick={() => latest && onOpen(latest.entryId)}
+      disabled={!latest}
+    >
+      <span className="chamber__label">
+        <span className="chamber__dot" />
+        {meta.label}
+        <span className="chamber__count">{chamber.markings.length === 0 ? '—' : chamber.markings.length}</span>
+      </span>
+      {latest ? (
+        <p className="chamber__quote">{latest.quote}</p>
+      ) : (
+        /* Nothing, said as nothing. Never "you didn't…". H2: absence is not ours to interpret. */
+        <span className="chamber__empty">Nothing this season.</span>
+      )}
+    </button>
+  )
+}
+
+/**
  * The shoji reading — the same six facts as light through a screen.
  *
- * Phil's word, and it turns out to carry the better argument. A CHAMBER HAS AN
- * INSIDE. Rendering "what is inside your heart" implies the app has seen in
- * there, and that implication is doing damage even when every line in it is
- * verbatim. A screen has no interior at all: it has panels, and it has however
- * much light is coming through each one.
+ * Phil's word, and it carries the better argument: A CHAMBER HAS AN INSIDE.
+ * Rendering "what is inside your heart" implies the app has seen in there, and
+ * that implication does damage even when every line in it is verbatim. A
+ * screen has no interior at all — only panels, and however much light comes
+ * through each.
  *
- * So the identical data reads as *what you set down, and how lately* rather
- * than as *what you are made of*. Same rules hold — equal panels, printed
- * counts, brightness is recency, nothing rises.
- *
- * The cost, named: it is darker than the artifact around it, which means it
- * either forces a dark inset into a page that prints, or the page stops
- * printing well. That is a real conflict with the surface's own light-on-dark
- * argument and it is the reason this is a reading to choose between, not a
- * second movement to add.
+ * Cost, named: it is dark, so it either forces a dark inset into a page that
+ * prints or the page stops printing well.
  */
-function Shoji({ reading, onOpen }: { reading: Reading; onOpen: (id: string) => void }) {
+function Shoji({
+  cells,
+  reading,
+  onOpen,
+}: {
+  cells: Chamber[]
+  reading: Reading
+  onOpen: (id: string) => void
+}) {
   return (
     <Movement
       title="what you set apart"
       gloss="The same six acts. How much light a panel carries is how lately you did it — nothing else."
     >
       <div className="shoji">
-        {reading.chambers.map((c) => (
+        {cells.map((c) => (
           <Panel key={c.kind} chamber={c} reading={reading} onOpen={onOpen} />
         ))}
       </div>
@@ -128,45 +222,22 @@ function Panel({
 /**
  * The mood line. Forbidden, drawn properly, kept on the screen.
  *
- * ── Where these numbers came from ───────────────────────────────────────────
+ * The numbers are INVENTED — hand-typed for this scene, which is the honest
+ * way to show it: a real build would have a model score each entry, and the
+ * scores would be no more grounded than these, only harder to notice.
  *
- * They are INVENTED. Hand-typed for this scene, which is the honest way to
- * show it: a real build would have a model score each entry, and the scores
- * would be no more grounded than these — they would just have arrived with a
- * confidence interval attached.
+ * Three independent rules, any one of which is fatal: H2 (never infer interior
+ * state), Principle 1 (no vertical axis, because a vertical axis implies
+ * better and worse), D-016 (the writer supplies the signal). `looking` already
+ * killed the rescue too: a DECLARED sentiment mark is still "Sense with a mood
+ * attached", and any arrangement of it over time rebuilds the axis.
  *
- * ── Why it cannot ship ──────────────────────────────────────────────────────
- *
- * Three independent rules, any one of which is enough:
- *
- *   H2 — never infer someone's interior state. A tone score is precisely that
- *        and there is no version of it that is not.
- *   Principle 1 — no vertical axis, because a vertical axis implies better and
- *        worse. This line falls through May, and what a falling line beside a
- *        span containing her mother says is *you are doing worse*.
- *   D-016 — the writer supplies the signal. She marked eleven things this
- *        year; not one of them was a number.
- *
- * `looking/README.md` already killed this and even killed the rescue attempt:
- * a DECLARED sentiment mark is still "Sense with a mood attached", and any
- * arrangement of it over time rebuilds the axis Principle 1 forbids.
- *
- * ── Why it is still worth putting on a screen ───────────────────────────────
- *
- * Because it is beautiful and immediately legible and Phil's instinct reached
- * for something in this neighbourhood, and a rule you have only read is weaker
- * than a rule you have seen the cost of. Show it, then show `chambers` again,
- * and the second one stops looking like a compromise.
+ * It stays on a route because a rule you have only read is weaker than a rule
+ * you have seen the cost of.
  */
 function Mood({ reading }: { reading: Reading }) {
-  /* Invented. See the comment above. There is no honest source for these. */
+  /* Invented. There is no honest source for these. */
   const series = [0.62, 0.7, 0.55, 0.48, 0.3, 0.44, 0.4, 0.52, 0.58, 0.66]
-  /*
-   * A real 600×150 viewBox scaled uniformly, rather than a 100×100 one
-   * stretched with preserveAspectRatio="none". The stretched version squashed
-   * every data point into an ellipse, which made the chart look like a mockup —
-   * and a mockup is arguable. This has to be the thing itself.
-   */
   const W = 600
   const H = 150
   const pts = reading.entries.map((e, i) => ({

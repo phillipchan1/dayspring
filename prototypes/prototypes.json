@@ -49,7 +49,7 @@
     {
       "slug": "visitation",
       "title": "Visitation",
-      "description": "A page that arrives for a span of time, and then is gone. Screen-share walkthrough — not self-guided feedback.",
+      "description": "A page that arrives for a span of time, helps you ask better, and then is gone. Screen-share walkthrough — not self-guided feedback.",
       "status": "draft",
       "listed": false,
       "hasFeedback": false,

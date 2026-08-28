@@ -742,6 +742,87 @@ button {
   color: var(--ink-soft);
 }
 
+/*
+ * The addressee. Small, and load-bearing.
+ *
+ * "asked of a room of monks" is the entire defence of this movement made
+ * visible: the question was not put to her. Drop this line and the same
+ * verbatim question starts reading as though the app were asking it.
+ */
+.passage__askedof {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink-faint);
+  margin-block-start: 6px;
+}
+
+/*
+ * Corroboration from the native data, which is never listed on this page.
+ *
+ * The Altar shows the prayers. This only says there were some, beside a word
+ * recurrence already found — see span.ts § wordsIn.
+ */
+.corroborate {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin: 8px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.corroborate::before {
+  content: '';
+  inline-size: 14px;
+  block-size: 1px;
+  background: var(--ink-hair);
+  flex: none;
+}
+
+/*
+ * A question written by the app, with what it assumes marked inside it.
+ *
+ * The point of the underline is that the assertions are not adjacent to the
+ * question — they are load-bearing parts of its grammar. You cannot answer
+ * "where might God be inviting you to be still?" without first conceding
+ * that God is inviting and that stillness is the thing.
+ */
+.assumed {
+  border-block-end: 2px solid #d99a9a;
+  padding-block-end: 1px;
+}
+
+.assumes {
+  margin-block-start: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.assumes li {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.55;
+  color: #7d5d5d;
+  list-style: none;
+  padding-inline-start: 20px;
+  position: relative;
+}
+
+.assumes li::before {
+  content: '↳';
+  position: absolute;
+  inset-inline-start: 0;
+  color: #b58080;
+}
+
+.assumes b {
+  font-weight: 500;
+  color: #6a4a4a;
+}
+
 /* Facilitator-only. Never on the artifact. */
 .passage__unverified {
   font-family: var(--font-sans);

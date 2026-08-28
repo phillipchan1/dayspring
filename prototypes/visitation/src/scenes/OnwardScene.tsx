@@ -51,7 +51,7 @@ const SEEDS = [
 type SeedId = (typeof SEEDS)[number]['id']
 
 export function OnwardScene() {
-  const reading = read(spanById('summer-2026'))
+  const reading = read(spanById('spring-2026'))
   const [seed, setSeed] = useState<SeedId>('hers')
 
   /*

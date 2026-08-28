@@ -1,5 +1,6 @@
 import { ENTRIES, SUBJECTS, type Entry, type Marking, type MarkingKind } from './corpus'
-import { pinsFor, type Pin } from './fathers'
+import { LEXICON, pinsFor, type Pin, type Theme } from './fathers'
+import { questionFor, type TraditionQuestion } from './questions'
 
 /**
  * The arithmetic. Every number on the page is computed here, in code.
@@ -31,11 +32,27 @@ export type Span = {
   expires: string
 }
 
+/**
+ * Three spans, and the first two are the same occasion two years apart.
+ *
+ * ── The span is a property of the archive, not a product decision ───────────
+ *
+ * Anna writes about once a month. A monthly page for her is one entry, which
+ * is not a span, it is an entry with a headline on it. Phil writes ~26 a
+ * month, where a monthly page is rich and a six-month one would be a book.
+ *
+ * So no fixed cadence is correct for both, and the rule that picks the span is
+ * a real open question this prototype cannot settle. What it can do is stop
+ * pretending: the spans below are sized to the fixture, and `Spring and
+ * summer` appears twice on purpose — 2026 with eight entries, 2024 with three.
+ * Same occasion, same shape, the archive doing all the differing. That pairing
+ * is the most useful thing on the facilitator's screen.
+ */
 export const SPANS: Span[] = [
   {
-    id: 'summer-2026',
-    label: 'Summer',
-    from: '2026-06-01',
+    id: 'spring-2026',
+    label: 'Spring and summer',
+    from: '2026-03-01',
     to: '2026-08-31',
     expires: '2026-09-22',
   },
@@ -213,6 +230,90 @@ export function repeatedWords(span: Span): RepeatedWord[] {
     .map(([word, v]) => ({ word, entryIds: v.ids }))
 }
 
+/**
+ * Every word that counts, and the one place the native data does its work.
+ *
+ * ── The redundancy this fixes ───────────────────────────────────────────────
+ *
+ * The first build gave the declared markings their own grid — six chambers of
+ * `/pray`, `/sense`, `/desire` and the rest. Phil's objection was right and it
+ * is fatal: THAT IS A TIME-SLICED ALTAR BESIDE A TIME-SLICED LAMP. Slicing an
+ * existing surface by date is a filter, not a surface, and "we found a home
+ * for four orphan mark kinds" is not a reason to ship a page.
+ *
+ * So the markings stop being OUTPUT and become INPUT. They are never listed
+ * here. What they contribute is `declaredIn`: the kinds of marking a word also
+ * appears inside, which the page renders as *and you marked this* beside her
+ * own word. The Altar keeps its job; this page uses its data without showing
+ * it again.
+ *
+ * ── The stronger version, built and reverted, because it is wrong ───────────
+ *
+ * The obvious move is to let a declaration LOWER THE FLOOR: a word needs two
+ * entries to count, unless she declared it inside a marking, in which case one
+ * is enough, because she already told us it mattered. It sounds like the
+ * strongest possible form of D-016.
+ *
+ * On this fixture it returns `blanket`, `ugly`, `coats`, `wake`,
+ * `circumstance` and about forty more — every noun in every marked sentence.
+ * `looking/subjects.ts` had already written down exactly why, and the note was
+ * sitting in the tree while this was built:
+ *
+ *   "restricting to words inside a marking is no better, because a marking
+ *    quote is a whole sentence and drags the same ordinary English along
+ *    with it."
+ *
+ * The finding underneath it is the one worth carrying, and it is the same
+ * shape as `looking`'s pronoun finding:
+ *
+ *   > A MARKING TELLS YOU THE SENTENCE MATTERED. IT DOES NOT TELL YOU WHICH
+ *   > WORD DID — and no amount of arithmetic recovers the difference.
+ *
+ * So a declaration cannot promote a word, because it does not point at one.
+ * It can only corroborate a word that recurrence already found, which is what
+ * `declaredIn` does. The floor stays at two entries for everything.
+ */
+export type SpanWord = RepeatedWord & { declaredIn: MarkingKind[] }
+
+export function wordsIn(span: Span): SpanWord[] {
+  const byWord = new Map<string, { order: number; ids: string[]; kinds: MarkingKind[] }>()
+  let order = 0
+
+  for (const e of entriesIn(span)) {
+    const seenHere = new Set<string>()
+    for (const p of e.paragraphs) {
+      for (const raw of p.toLowerCase().match(/[a-z']+/g) ?? []) {
+        const w = raw.replace(/^'+|'+$/g, '')
+        if (w.length < 3 || ORDINARY.has(w) || NAMES.has(w)) continue
+        if (seenHere.has(w)) continue
+        seenHere.add(w)
+        const rec = byWord.get(w)
+        if (rec) rec.ids.push(e.id)
+        else byWord.set(w, { order: order++, ids: [e.id], kinds: [] })
+      }
+    }
+  }
+
+  /* The declaration pass. A quote is verbatim, so a word inside it is a word
+     she marked — no inference anywhere in this loop. */
+  for (const m of markingsIn(span)) {
+    if (!DECLARED_KINDS.includes(m.kind)) continue
+    for (const raw of m.quote.toLowerCase().match(/[a-z']+/g) ?? []) {
+      const w = raw.replace(/^'+|'+$/g, '')
+      const rec = byWord.get(w)
+      if (rec && !rec.kinds.includes(m.kind)) rec.kinds.push(m.kind)
+    }
+  }
+
+  return [...byWord.entries()]
+    .filter(([, v]) => v.ids.length >= 2)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([word, v]) => ({ word, entryIds: v.ids, declaredIn: v.kinds }))
+}
+
+/** The kinds she names with a slash command. `mark`, `highlight` and the rest are touch, not declaration. */
+const DECLARED_KINDS: MarkingKind[] = ['prayer', 'desire', 'sense', 'story', 'learned', 'scripture']
+
 /** Her repeated words, joined to the council. Pure lookup — see fathers.ts. */
 export function councilFor(span: Span): Pin[] {
   return pinsFor(repeatedWords(span))
@@ -222,6 +323,78 @@ export function councilFor(span: Span): Pin[] {
 export function unreachedWords(span: Span): RepeatedWord[] {
   const reached = new Set(councilFor(span).map((p) => p.word))
   return repeatedWords(span).filter((w) => !reached.has(w.word))
+}
+
+/**
+ * A thread: her word, her questions carrying it, and a question from the
+ * tradition. The central object of the surface.
+ *
+ * ── The theme is machinery and never reaches the page ───────────────────────
+ *
+ * Threads are grouped by theme, because that is how the lexicon joins. But
+ * `theme` is NEVER RENDERED, and that is not fastidiousness — printing
+ * "memory" over her questions would be the app naming what her questions are
+ * about, which is precisely D-016's forbidden side: *a subject the writer
+ * named* is legal, *a theme the app named* is not.
+ *
+ * So the heading is her own word — `remember`, `still`, `want` — and the theme
+ * stays invisible plumbing. Where two of her words land on one theme, both
+ * words head the thread. The app's vocabulary never appears on the page at all.
+ *
+ * ── Every question, never a selection ───────────────────────────────────────
+ *
+ * `questions` holds all of hers in the span carrying the word. A line view
+ * that shows the best three of nine has made a judgment, and selection is
+ * significance, and significance is a verdict.
+ */
+export type Thread = {
+  /** Machinery. Never rendered. See above. */
+  theme: Theme
+  /** Her words, verbatim, in the order she first wrote them. These are the heading. */
+  words: SpanWord[]
+  /** Every question of hers in the span carrying one of those words. */
+  questions: Question[]
+  /** From the tradition. Null is a legal outcome — silence is a result. */
+  asked: TraditionQuestion | null
+}
+
+export function threadsIn(span: Span): Thread[] {
+  const words = wordsIn(span)
+  const questions = questionsIn(span)
+  const byTheme = new Map<Theme, SpanWord[]>()
+
+  for (const w of words) {
+    const theme = LEXICON[w.word]
+    if (!theme) continue
+    const list = byTheme.get(theme)
+    if (list) list.push(w)
+    else byTheme.set(theme, [w])
+  }
+
+  /*
+   * Taken in the order her words first appear, each thread claiming the first
+   * question nobody has claimed — so one reading never puts the same question
+   * under two of her words. Same rule, same reason, as fathers.ts § One
+   * passage, once.
+   */
+  const taken = new Set<string>()
+  return [...byTheme.entries()].map(([theme, ws]) => ({
+    theme,
+    words: ws,
+    questions: questions.filter((q) => ws.some((w) => new RegExp(`\\b${w.word}\\b`, 'i').test(q.text))),
+    asked: questionFor(theme, taken),
+  }))
+}
+
+/**
+ * Threads carrying at least one of her own questions.
+ *
+ * The page shows only these. A thread where she never actually asked anything
+ * is the app finding a theme and supplying the question for it — which is the
+ * whole failure mode, arriving through the back door.
+ */
+export function askingThreads(span: Span): Thread[] {
+  return threadsIn(span).filter((t) => t.questions.length > 0)
 }
 
 export type ScriptureRef = { ref: string; entryId: string; date: string; quote: string }
@@ -287,9 +460,11 @@ export type Reading = {
   entries: Entry[]
   chambers: Chamber[]
   questions: Question[]
-  words: RepeatedWord[]
+  words: SpanWord[]
   unreached: RepeatedWord[]
   council: Pin[]
+  /** The central movement. See threadsIn(). */
+  threads: Thread[]
   scripture: ScriptureRef[]
   prayers: PlacedMarking[]
   /**
@@ -316,9 +491,10 @@ export function read(span: Span): Reading {
     entries,
     chambers: chambers(span),
     questions: questionsIn(span),
-    words: repeatedWords(span),
+    words: wordsIn(span),
     unreached: unreachedWords(span),
     council: councilFor(span),
+    threads: askingThreads(span),
     scripture: scriptureIn(span),
     prayers: markingsOfKind(span, 'prayer'),
     thin: entries.length < THIN_FLOOR,
