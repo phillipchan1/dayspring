@@ -74,18 +74,6 @@ export interface Settings {
    */
   pagesZoom: number
 
-  /**
-   * How close you're standing, on a PHONE.
-   *
-   * Its own number, not the same one. Syncing a single zoom across a 27" display
-   * and a 375pt screen means every trip between them lands on a wall arranged
-   * for the other device — and the two preferences are genuinely different
-   * questions, because the answer is bounded by how much glass there is. It
-   * opens on the list, which is what a phone is good at: ~18 pages a screen,
-   * scannable by date, with a tap target you can actually hit.
-   */
-  pagesZoomNarrow: number
-
   /** Desktop rail: show text labels beside icons. */
   railLabels: boolean
 
@@ -150,7 +138,6 @@ const DEFAULTS: Settings = {
   entriesGroupBy: 'flat',
   showEntryPreview: false,
   pagesZoom: 0.45,
-  pagesZoomNarrow: 0,
   railLabels: false,
   firstLineTitle: true,
   showMarkdownSyntax: false,

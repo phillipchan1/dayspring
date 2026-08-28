@@ -154,19 +154,17 @@ export function PagesView({
   const lastSpreadRef = useRef<string | null>(null)
   if (spreadId) lastSpreadRef.current = spreadId
   /*
-   * Two zooms, one slider.
+   * One zoom, and it belongs to the pointer.
    *
-   * A phone and a 27" display are not asking the same question — how much of
-   * the archive fits at once is bounded by how much glass there is — so syncing
-   * one number across both meant every trip between devices landed on a wall
-   * arranged for the other one. The phone's opens on the list.
+   * There were two — a phone's and a display's — because the same number across
+   * both meant every trip between devices landed on a wall arranged for the
+   * other one. The phone's has gone with the phone's slider (see `zoom.ts`): a
+   * phone renders rows at every setting, so a second stored number was recording
+   * a preference that could no longer change anything.
    */
   const narrow = useIsMobile()
-  const zoom = narrow ? settings.pagesZoomNarrow : settings.pagesZoom
-  const setZoom = (next: number) =>
-    updateSettings(
-      narrow ? { pagesZoomNarrow: clampZoom(next) } : { pagesZoom: clampZoom(next) },
-    )
+  const zoom = settings.pagesZoom
+  const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
 
   // Concordance chips are a convenience, not a requirement: the surface is fully
   // usable offline with typed words, so a failed read is silence, not an error.
@@ -608,6 +606,163 @@ export function PagesView({
     )
   }
 
+  /*
+   * THE READER'S OWN BAR — the way out, the way in, and the way along.
+   *
+   * ── THE THROUGH LINE: what is still on, above the page you opened ──────────
+   *
+   * Opening a page used to empty the header: the chips went, the count went,
+   * and the way out said "All entries" while a filter was still on. That is a
+   * lie the reader cannot catch, and it threw away the one thing that explains
+   * why they are looking at THIS page — they are not reading a page, they are
+   * reading the seventh of thirty-four that say Esther.
+   *
+   * The chips, not the sheet. `look for` is a control for arranging the wall
+   * and belongs to the wall; what is ON is a fact about what you are reading,
+   * and it belongs here. Every one of them still comes off the same way it does
+   * upstairs.
+   *
+   * Where it is RENDERED depends on the form factor, and that is the whole
+   * reason it is a value rather than JSX in place.
+   *
+   * Beside a cursor it belongs in the surface header, above the page: the wall
+   * is still there behind, the header is the surface's, and what is lit is a
+   * fact about the whole surface.
+   *
+   * On a phone the reader is a pushed view, and half of it was being left
+   * behind. The page slid out from under a bar that stayed put — so the thing
+   * that said "All entries" sat still while you went to all entries, which is
+   * the tell that this is a panel in a frame rather than a view on a stack.
+   * There it travels with the page, sticky to the top of the reader's own
+   * scroller, and the surface header goes away entirely.
+   */
+  const readerBar =
+    spreadId === null ? null : (
+      <div className="pg__through">
+        <button type="button" className="pg__back" onClick={() => onSpread(null)}>
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
+            <path
+              d="M10 3 5 8l5 5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          All entries
+        </button>
+
+        {chips.length > 0 ? (
+          <div className="pg__through-on">
+            <LitChips
+              chips={chips}
+              onRemove={(key) => {
+                if (key === ASK_CHIP_KEY) onClearAsked()
+                else toggleKey(key)
+              }}
+            />
+          </div>
+        ) : null}
+
+        {/*
+          THE WAY IN, beside the way out.
+
+          Clicking the page has always opened it for writing, and nothing
+          said so — the old "Open to write" link was removed as "a label
+          explaining what the page already is", which is true of the label
+          and not true of the affordance. A page you can write on and a
+          page you cannot look identical, and the one that reads back
+          eleven years of someone's journal should not make them guess.
+
+          In the header with the way out, never over the writing, and set
+          as a word beside a nib rather than an icon on its own: a lone
+          glyph in a corner is a thing to decode.
+        */}
+        <button
+          type="button"
+          className="pg__write"
+          onClick={() => onOpenEntry(openPage!.id)}
+        >
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
+            {/* A nib: the shoulders, the point, and the slit down it. */}
+            <path
+              d="M8 2.4 11.1 8.7 8 13.2 4.9 8.7Z"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M8 7.2v4"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+            />
+          </svg>
+          Write
+        </button>
+
+        {within && within.total > 1 ? (
+          <div className="pg__through-nav">
+            <button
+              type="button"
+              className="pg__step"
+              disabled={!within.newer}
+              onClick={() => within.newer && onSpread(within.newer)}
+              aria-label="The page after this one"
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                <path
+                  d="M10 3 5 8l5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            {/*
+              A position, not a progress bar — nothing here is finishable.
+
+              It carries `data-lit` when the arrows are walking the lit
+              set rather than the whole wall, which is the difference
+              between "seventh of the pages that say Esther" and "seventh
+              of the archive". Colour rather than a word: it lands in the
+              same accent the chips beside it are already in, so the two
+              read as one statement.
+            */}
+            <span
+              className="pg__through-at"
+              data-lit={within.lit ? 'true' : undefined}
+              aria-label={
+                within.lit
+                  ? `Page ${within.at + 1} of ${within.total.toLocaleString()} lit`
+                  : `Page ${within.at + 1} of ${within.total.toLocaleString()}`
+              }
+            >
+              {within.at + 1} of {within.total.toLocaleString()}
+            </span>
+            <button
+              type="button"
+              className="pg__step"
+              disabled={!within.older}
+              onClick={() => within.older && onSpread(within.older)}
+              aria-label="The page before this one"
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    )
+
   return (
     <div className="pg" data-reading-page={openPage ? 'true' : undefined}>
       <div className="pg__head-wrap">
@@ -636,146 +791,9 @@ export function PagesView({
             </div>
           ) : null}
 
-          {/*
-            THE THROUGH LINE — what is still on, above the page you opened.
-
-            Opening a page used to empty this header: the chips went, the count
-            went, and the way out said "All entries" while a filter was still
-            on. That is a lie the reader cannot catch, and it threw away the one
-            thing that explains why they are looking at THIS page — they are not
-            reading a page, they are reading the seventh of thirty-four that say
-            Esther.
-
-            The chips, not the sheet. `look for` is a control for arranging the
-            wall and belongs to the wall; what is ON is a fact about what you
-            are reading, and it belongs here. Every one of them still comes off
-            the same way it does upstairs.
-          */}
-          {spreadId !== null ? (
-            <div className="pg__through">
-              <button type="button" className="pg__back" onClick={() => onSpread(null)}>
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
-                  <path
-                    d="M10 3 5 8l5 5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                All entries
-              </button>
-
-              {chips.length > 0 ? (
-                <div className="pg__through-on">
-                  <LitChips
-                    chips={chips}
-                    onRemove={(key) => {
-                      if (key === ASK_CHIP_KEY) onClearAsked()
-                      else toggleKey(key)
-                    }}
-                  />
-                </div>
-              ) : null}
-
-              {/*
-                THE WAY IN, beside the way out.
-
-                Clicking the page has always opened it for writing, and nothing
-                said so — the old "Open to write" link was removed as "a label
-                explaining what the page already is", which is true of the label
-                and not true of the affordance. A page you can write on and a
-                page you cannot look identical, and the one that reads back
-                eleven years of someone's journal should not make them guess.
-
-                In the header with the way out, never over the writing, and set
-                as a word beside a nib rather than an icon on its own: a lone
-                glyph in a corner is a thing to decode.
-              */}
-              <button
-                type="button"
-                className="pg__write"
-                onClick={() => onOpenEntry(openPage!.id)}
-              >
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
-                  {/* A nib: the shoulders, the point, and the slit down it. */}
-                  <path
-                    d="M8 2.4 11.1 8.7 8 13.2 4.9 8.7Z"
-                    stroke="currentColor"
-                    strokeWidth="1.25"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M8 7.2v4"
-                    stroke="currentColor"
-                    strokeWidth="1.25"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                Write
-              </button>
-
-              {within && within.total > 1 ? (
-                <div className="pg__through-nav">
-                  <button
-                    type="button"
-                    className="pg__step"
-                    disabled={!within.newer}
-                    onClick={() => within.newer && onSpread(within.newer)}
-                    aria-label="The page after this one"
-                  >
-                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
-                      <path
-                        d="M10 3 5 8l5 5"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  {/*
-                    A position, not a progress bar — nothing here is finishable.
-
-                    It carries `data-lit` when the arrows are walking the lit
-                    set rather than the whole wall, which is the difference
-                    between "seventh of the pages that say Esther" and "seventh
-                    of the archive". Colour rather than a word: it lands in the
-                    same accent the chips beside it are already in, so the two
-                    read as one statement.
-                  */}
-                  <span
-                    className="pg__through-at"
-                    data-lit={within.lit ? 'true' : undefined}
-                    aria-label={
-                      within.lit
-                        ? `Page ${within.at + 1} of ${within.total.toLocaleString()} lit`
-                        : `Page ${within.at + 1} of ${within.total.toLocaleString()}`
-                    }
-                  >
-                    {within.at + 1} of {within.total.toLocaleString()}
-                  </span>
-                  <button
-                    type="button"
-                    className="pg__step"
-                    disabled={!within.older}
-                    onClick={() => within.older && onSpread(within.older)}
-                    aria-label="The page before this one"
-                  >
-                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
-                      <path
-                        d="M6 3l5 5-5 5"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          {/* The reader's bar, when there is a header for it to sit in. On a
+              phone it travels with the page instead — see `readerBar`. */}
+          {narrow ? null : readerBar}
 
           {openPage ? null : (
           <LookFor
@@ -940,6 +958,7 @@ export function PagesView({
         */}
         {openPage ? (
           <PageReader
+            bar={narrow ? readerBar : null}
             entry={openPage}
             markQuotes={markQuotes.get(openPage.id) ?? []}
             markings={openMarkings}

@@ -65,6 +65,25 @@ function formatDate(iso: string): string {
  * and every row opens to write on a double-click — the same gesture the cards
  * take. If returning to your own draft costs a hunt, the editor got further
  * away, and the editor is why anyone opens the app (Principle 3).
+ *
+ * ── One DOM, two shapes ─────────────────────────────────────────────────────
+ *
+ * Beside a cursor this is a single line: date, sentence, markings, all across.
+ * On a phone that line was 26 characters of prose after the date column and the
+ * year rail had taken their fixed widths, which is not a preview of anything.
+ *
+ * So on a phone the same four children lay out as two rows instead — the facts
+ * about the page (date, today, markings: mono, small, quiet) on a thin line of
+ * their own, and the writer's words at FULL WIDTH underneath, two lines of
+ * them. It is the surface's own typographic rule made into a layout: "serif is
+ * her, sans is us", so her sentence gets the whole measure and everything we
+ * added gets out of its way.
+ *
+ * Grid areas, not a second render path. A phone row and a desktop row differ in
+ * where the same four things sit, and two JSX branches for that is two things to
+ * keep in step for no gain — every behaviour on this element (selection, the
+ * long-press menu, focus, the double-click to write) would have to be written
+ * twice and would eventually be written differently.
  */
 export const PageRow = memo(function PageRow({
   entryId,
@@ -87,9 +106,20 @@ export const PageRow = memo(function PageRow({
   onOpenMenu,
 }: Props) {
   const pointer = useWallPointer((x, y) => onOpenMenu(entryId, x, y))
-  // One line, and it is the writer's own opening — not a title, because we do
-  // not invent titles (`deriveTitle` exists for chrome; a page has none).
+  // The writer's own opening — not a title, because we do not invent titles
+  // (`deriveTitle` exists for chrome; a page has none).
   const line = excerpt.lines[0]?.text ?? ''
+  /*
+   * And what comes after it, for the phone's second line.
+   *
+   * Also verbatim, also hers — a preview here is the next thing she wrote, never
+   * a summary of what she wrote (Principle 4). It runs on from the opening in
+   * the same block so ONE clamp decides the whole thing: a long opening fills
+   * both lines and this never appears, a short one ("morning jesus") lets the
+   * next sentence flow in behind it. Which is the behaviour that makes a list of
+   * short openings readable at all.
+   */
+  const next = excerpt.lines[1]?.text ?? ''
 
   return (
     <button
@@ -128,6 +158,9 @@ export const PageRow = memo(function PageRow({
       </time>
       <span className="pgr__line">
         {match ? paint(line, match) : line}
+        {next ? (
+          <span className="pgr__next"> {match ? paint(next, match) : next}</span>
+        ) : null}
       </span>
       <span className="pgr__margin" aria-hidden>
         {markings.map((kind) => (

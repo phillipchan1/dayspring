@@ -200,26 +200,27 @@ function perScreen(zoom: number, width: number, height: number, narrow: boolean)
   const spec = specForZoom(zoom, narrow)
   const cols = Math.max(1, Math.min(spec.maxCols, Math.floor((width + spec.gap) / (spec.minWidth + spec.gap))))
   const colWidth = Math.floor((width - spec.gap * (cols - 1)) / cols)
-  const h = isRows(zoom) ? spec.cardHeight : cardHeightFor(spec, colWidth, cols, narrow)
+  const h = isRows(zoom, narrow) ? spec.cardHeight : cardHeightFor(spec, colWidth)
   return Math.max(1, Math.floor(height / (h + spec.gap)) * cols)
 }
 
 const PHONE = { w: 335, h: 700 }
 
-describe('the phone bands', () => {
+describe('the phone', () => {
   /*
-   * The whole complaint, as a test. Run the DESKTOP ramp at 335px and it gives
-   * you the list, two columns for one notch, and then one column for the
-   * remaining four fifths of the slider — dragging it does nothing for most of
-   * its range. Every step has to change what you can see.
+   * One rendering, at every setting.
+   *
+   * The phone has no slider — the argument for taking it off is in `zoom.ts` —
+   * so whatever number is stored (from a desktop session, from a migration, from
+   * a keyboard shortcut on a tablet that then rotates) the phone must land on
+   * rows. Anything else and a value the reader cannot see or change decides what
+   * their entries list looks like.
    */
-  it('changes what is on screen at every step of the slider', () => {
-    const steps = [0, 0.16, 0.3, 0.45, 0.7, 1].map((z) => perScreen(z, PHONE.w, PHONE.h, true))
-    for (let i = 1; i < steps.length; i++) {
-      expect(steps[i]!).toBeLessThanOrEqual(steps[i - 1]!)
+  it('renders rows wherever the stored zoom happens to be', () => {
+    for (const z of [0, 0.16, 0.3, 0.45, 0.7, 1]) {
+      expect(isRows(z, true)).toBe(true)
+      expect(specForZoom(z, true)).toEqual(specForZoom(0, true))
     }
-    // And the two ends are genuinely different places to stand.
-    expect(steps[0]!).toBeGreaterThan(steps.at(-1)! * 5)
   })
 
   /*
@@ -231,43 +232,45 @@ describe('the phone bands', () => {
     expect(specForZoom(ZOOM_MIN, true).cardHeight).toBeGreaterThanOrEqual(48)
   })
 
-  // The whole reason to keep a list on a phone: it has to stay the densest
-  // thing there, or a comfortable row has quietly cost the band its job.
-  it('still puts a dozen pages on a phone screen', () => {
-    expect(perScreen(0, PHONE.w, PHONE.h, true)).toBeGreaterThanOrEqual(12)
+  /*
+   * And room for the words, which is the other half of a target worth aiming at.
+   *
+   * A row that shows one clipped line is a date with decoration — the reader has
+   * to open the page to find out whether it was the one. Two lines of her own
+   * prose is what makes the list answer the question instead.
+   */
+  it('gives the row more than one line of her own prose', () => {
+    expect(specForZoom(ZOOM_MIN, true).lines).toBeGreaterThanOrEqual(2)
+    expect(EXCERPT_MAX_LINES).toBeGreaterThanOrEqual(specForZoom(ZOOM_MIN, true).lines)
   })
 
-  it('is one page across in the list, where a phone has no room for two', () => {
+  it('is one page across, where a phone has no room for two', () => {
     expect(specForZoom(ZOOM_MIN, true).maxCols).toBe(1)
   })
 
-  // The list is still what a phone is best at: it must beat every card band.
-  it('still shows more pages as a list than as cards', () => {
-    expect(perScreen(0, PHONE.w, PHONE.h, true)).toBeGreaterThan(perScreen(0.16, PHONE.w, PHONE.h, true))
+  /*
+   * Legible, and still a list.
+   *
+   * Recognition beats density once density stops being readable — but a row tall
+   * enough to read is only worth it while the thing is still a LIST. Seven to a
+   * screen is where Mail and Notes sit; below about six this has become a card
+   * wall with the cards turned sideways.
+   */
+  it('still puts most of a screenful of pages in front of you', () => {
+    expect(perScreen(0, PHONE.w, PHONE.h, true)).toBeGreaterThanOrEqual(7)
   })
 })
 
 describe('cardHeightFor', () => {
   // A card is a portrait, which is what makes it read as a page rather than a
-  // tile — everywhere there is more than one of them.
-  it('keeps a card portrait wherever there is more than one column', () => {
+  // tile. Cards are a pointer's rendering only — a phone never reaches this.
+  it('keeps a card portrait', () => {
     const spec = specForZoom(0.5)
-    expect(cardHeightFor(spec, 300, 4, false)).toBe(400)
-    expect(cardHeightFor(spec, 300, 3, true)).toBe(400)
-  })
-
-  /*
-   * Except at one column on a phone: the column is the whole screen wide, so a
-   * 4:3 page is 60% of the screen and the near half of the slider does nothing.
-   */
-  it('takes its height from the band at one column on a phone', () => {
-    const spec = specForZoom(1, true)
-    expect(cardHeightFor(spec, 335, 1, true)).toBe(spec.cardHeight)
-    expect(cardHeightFor(spec, 335, 1, true)).toBeLessThan((335 * 4) / 3)
+    expect(cardHeightFor(spec, 300)).toBe(400)
   })
 
   it('falls back to the band before anything has been measured', () => {
     const spec = specForZoom(0.5)
-    expect(cardHeightFor(spec, 0, 1, false)).toBe(spec.cardHeight)
+    expect(cardHeightFor(spec, 0)).toBe(spec.cardHeight)
   })
 })

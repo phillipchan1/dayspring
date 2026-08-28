@@ -49,34 +49,56 @@
 const ROWS = { minWidth: 360, cardHeight: 25, gap: 3, maxCols: 3, lines: 1 }
 
 /**
- * The same three bands, for a phone.
+ * A phone gets ONE rendering, and no slider at all.
  *
- * ── Why the desktop numbers cannot just be reused ───────────────────────────
+ * ── Why the control went, rather than being re-measured again ───────────────
  *
- * They are widths in pixels, and a phone has 335 of them. Run the desktop ramp
- * at that width and it gives you: the list, then two columns for one notch, and
- * then ONE column for the remaining four fifths of the slider's travel. Dragging
- * it does nothing for most of its range, which is what "the zoom makes less
- * sense on mobile" is describing. It is not that a phone doesn't want the
- * control — it is that the control was measured for a different screen.
+ * It was re-measured first. The desktop ramp is widths in pixels and a phone has
+ * 335 of them, so the bands were rebuilt for that width — three cards across at
+ * the far end, one at the near end — and every part of the slider's travel did
+ * change something. It still did not earn its place, for a reason no amount of
+ * re-measuring reaches.
  *
- * So the card bands are re-measured for the width there actually is: three
- * across at the far end, one at the near end, two in the middle. Every part of
- * the slider now changes something.
+ * On a 27" display, standing back is a real act: 96 pages at once is a shape you
+ * can read — thin years, dense winters, where your marks fall. That is what the
+ * control is FOR. A phone cannot show you a shape at any setting. Its ends are
+ * thirteen pages and three, and both of those are a list; all the slider moves
+ * is how big the type is. So it was asking the reader to choose between two
+ * things that are not different, in the most valuable strip of a 390pt screen,
+ * on the surface that is now their entries list.
  *
- * And the rows band gets a REAL TAP TARGET. 25px is a pointer's row, and on a
- * phone it is under half of Apple's 44pt floor — you aim at a date and open the
- * page above it.
+ * The shape of the archive is still on the phone — it is the Stretch band, which
+ * shows eleven years in 10px and can be brushed. That band is the honest answer
+ * to the question the slider was pretending to answer.
  *
- * 52, not 44. The floor is what a target must clear to be hittable at all, and
- * this is a list you scroll fast with a moving thumb, where 44 is hittable and
- * still feels like aiming. 52 with a hairline of gap is a row you can take
- * without looking, and it still puts thirteen pages on a phone screen — which
- * is more than any card band on this surface manages there.
+ * So the phone renders rows, always, and the whole control comes off the header.
+ *
+ * ── The row, with the space that bought ─────────────────────────────────────
+ *
+ * 25px is a pointer's row; on a phone it is under half of Apple's 44pt floor.
+ * And height is only half of a tap target — the other half is a row that says
+ * enough to be worth aiming at. The old one gave a fixed 4.3rem date column and
+ * the year rail 3.4rem more, leaving the writer's own sentence about 26
+ * characters before the ellipsis: "back home now. really strugg…". A list of
+ * those is a list of dates with decoration.
+ *
+ * So the date moves ONTO ITS OWN LINE, with the markings and today's marker —
+ * facts about the page, in mono, together — and the prose gets the full width
+ * beneath them, two lines of it. That is around 70 characters instead of 26,
+ * which is the difference between recognising an entry and having to open it.
+ *
+ * 76px, so eight to a screen rather than thirteen. Fewer, and every one of them
+ * legible: recognition beats density the moment density stops being readable,
+ * which is the trade Mail and Notes both make at almost exactly this height.
+ *
+ * The number is arithmetic, not taste, and the CSS has to keep agreeing with
+ * it: a 0.66rem date line, 0.28rem of gap, two lines of 0.95rem prose at 1.32,
+ * and 0.5rem of padding top and bottom comes to 73px. The slack is for a root
+ * font size larger than 16px, which scales all of that and none of this — and
+ * `.pgr` clips on narrow so that even a reader who has scaled past the slack
+ * gets a tidy row rather than one bleeding into the next.
  */
-const NARROW_ROWS = { minWidth: 260, cardHeight: 52, gap: 1, maxCols: 1, lines: 1 }
-const NARROW_FAR = { minWidth: 104, cardHeight: 140, gap: 8, maxCols: 3, lines: 4 }
-const NARROW_NEAR = { minWidth: 300, cardHeight: 300, gap: 14, maxCols: 1, lines: 12 }
+const NARROW_ROWS = { minWidth: 260, cardHeight: 76, gap: 1, maxCols: 1, lines: 2 }
 
 /** Far end: many pages at once. You read shape, dates, and where your marks fall. */
 const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, lines: 6 }
@@ -112,7 +134,15 @@ const NEAR = { minWidth: 320, cardHeight: 430, gap: 20, maxCols: 3, lines: 20 }
  */
 export const ROWS_ZOOM = 0.16
 
-export const isRows = (zoom: number): boolean => clampZoom(zoom) < ROWS_ZOOM
+/**
+ * Rows rather than cards.
+ *
+ * On a phone, always — there is no slider there and no card band to reach (see
+ * `NARROW_ROWS`). The zoom argument is still taken so that one call answers for
+ * both form factors and no caller has to remember which rule it is under.
+ */
+export const isRows = (zoom: number, narrow = false): boolean =>
+  narrow || clampZoom(zoom) < ROWS_ZOOM
 
 /**
  * What the slider is doing, for the label beside it.
@@ -137,26 +167,19 @@ export function densityLabel(perScreen: number): string {
  * 60fps is the one thing that would make this surface feel slow.
  */
 /**
- * A card is a portrait — except at one column on a phone.
+ * A card is a portrait: `colWidth × 4/3` is what makes it read as a page rather
+ * than a tile.
  *
- * `colWidth × 4/3` is what makes a card read as a page rather than a tile, and
- * it is right at every width where there is more than one of them. At ONE
- * column on a 375pt screen it is not: the column is the whole screen wide, so
- * the card comes out 447px tall and you get a single page per screen with the
- * bottom half of it empty. The near end of the slider then does nothing for its
- * last half, which is the "zoom makes less sense on mobile" complaint exactly.
- *
- * So a lone column on a phone takes its height from the band instead, and the
- * ramp keeps moving all the way to the end: roughly fifteen pages a screen as a
- * list, twelve at three across, six at two, and two or three at one.
+ * Cards are a pointer's rendering only — a phone is rows at every setting, so
+ * this is never reached there and the phone's one-column exception it used to
+ * carry went with the bands it was correcting for.
  */
-export function cardHeightFor(spec: ZoomSpec, colWidth: number, cols: number, narrow: boolean): number {
+export function cardHeightFor(spec: ZoomSpec, colWidth: number): number {
   if (colWidth <= 0) return spec.cardHeight
-  if (narrow && cols === 1) return spec.cardHeight
   return Math.round((colWidth * 4) / 3)
 }
 
-export const EXCERPT_MAX_LINES = Math.max(NEAR.lines, NARROW_NEAR.lines)
+export const EXCERPT_MAX_LINES = NEAR.lines
 
 export interface ZoomSpec {
   /** Narrowest a page may get before dropping a column. */
@@ -193,9 +216,10 @@ const lerp = (a: number, b: number, t: number): number => Math.round(a + (b - a)
  */
 export function specForZoom(zoom: number, narrow = false): ZoomSpec {
   const z = clampZoom(zoom)
-  if (isRows(z)) return { ...(narrow ? NARROW_ROWS : ROWS) }
-  const far = narrow ? NARROW_FAR : FAR
-  const near = narrow ? NARROW_NEAR : NEAR
+  if (narrow) return { ...NARROW_ROWS }
+  if (isRows(z)) return { ...ROWS }
+  const far = FAR
+  const near = NEAR
   // The card bands own what is left of the slider, renormalised — otherwise
   // adding a band at the bottom would silently shift every card size above it.
   const t = (z - ROWS_ZOOM) / (ZOOM_MAX - ROWS_ZOOM)

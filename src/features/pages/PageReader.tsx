@@ -49,6 +49,7 @@ function formatDate(iso: string): string {
  * exception to that rule: they are the writer's own words, lit.
  */
 export function PageReader({
+  bar,
   entry,
   markQuotes,
   markings,
@@ -57,6 +58,15 @@ export function PageReader({
   onEdit,
   onBack,
 }: {
+  /**
+   * The reader's own bar — the way out, the way in, and the way along.
+   *
+   * Passed in rather than built here because on a pointer it belongs to the
+   * surface header, where the wall is still visible behind it. On a phone this
+   * IS the view, so the bar travels inside it: see `readerBar` in PagesView.
+   * Null on a pointer, where the header has already rendered it.
+   */
+  bar: React.ReactNode
   entry: Entry
   markQuotes: string[]
   /**
@@ -94,23 +104,31 @@ export function PageReader({
    * arrived at by accident. So on touch the page is only a page, and `Write` in
    * the header is the way in.
    *
-   * And the way out becomes a gesture. `either` direction: backing out is a
-   * rightward drag on iOS and a leftward one in plenty of Android apps, and a
-   * reader that answers to only one of them reads as broken to whoever has the
-   * other habit.
+   * And the way out becomes a gesture — rightward, and only rightward.
+   *
+   * It used to answer to either direction, on the reasoning that Android's back
+   * gesture comes off either edge. That is true of the SYSTEM gesture and not
+   * of a view inside an app: nothing on either platform pops a pushed view by
+   * dragging it further left. What the extra direction actually bought was a
+   * reader that fell off the screen whenever a thumb drifted sideways, and one
+   * that left leftward — away from the list it came from — while claiming to be
+   * going back to it. A view that came in from the right goes out to the right,
+   * and the wall showing through behind it says where that is.
    */
   const touch = useMediaQuery('(pointer: coarse)')
   const back = useSwipeToDismiss({
-    onDismiss: () => {
-      // Dragging out a selection is a horizontal gesture too, and copying a
-      // sentence out of a page is the other thing this view is for.
-      const sel = window.getSelection()
-      if (sel && !sel.isCollapsed) return
-      onBack()
-    },
+    onDismiss: onBack,
     enabled: touch,
-    direction: 'either',
-    threshold: 64,
+    // Dragging a selection handle is a horizontal gesture too, and copying a
+    // sentence out of a page is the other thing this view is for.
+    guard: () => {
+      const sel = window.getSelection()
+      return !sel || sel.isCollapsed
+    },
+    threshold: 72,
+    // Nothing else animates this away — the reader is simply unmounted — so the
+    // gesture has to carry it off the screen before it says it is done.
+    exit: true,
   })
   /*
    * Spiritual blocks are their own rendering elsewhere; here they would arrive
@@ -207,20 +225,49 @@ export function PageReader({
         'aria-label': `${formatDate(entry.created_at)} — open to write`,
       }
 
+  /*
+   * How far out of the way the page has been pulled, 0 to 1.
+   *
+   * The veil over the wall is drawn from this, so the archive fades up behind
+   * the page at exactly the rate the page uncovers it. A back-swipe that
+   * reveals nothing is a card being shoved around; one that shows you where you
+   * are going is the thing every phone has trained a thumb to expect. 320px is
+   * most of a phone's width — far enough that the veil is still doing something
+   * at the point the gesture commits.
+   */
+  const out = Math.min(1, Math.max(0, back.dragX / 320))
+
   return (
-    <div className="pg-read1" {...back.handlers}>
+    <div
+      className="pg-read1"
+      data-dragging={back.dragging ? 'true' : undefined}
+      data-leaving={back.leaving ? 'true' : undefined}
+      style={{ ['--pg-out']: out } as React.CSSProperties}
+      {...back.handlers}
+    >
       {/*
         The page follows the finger while the back-swipe is being made, and
-        snaps or leaves on release. On the inner element rather than the
-        scroller, because `.pg-read1` carries the entrance animation and an
-        animated transform beats an inline one for as long as the animation's
-        `both` fill holds.
+        snaps back or carries on off the screen on release. On the inner element
+        rather than the container, because `.pg-read1` carries the entrance
+        animation and an animated transform beats an inline one for as long as
+        the animation's `both` fill holds.
       */}
       <div
         className="pg-read1__slide"
-        data-dragging={back.dragging ? 'true' : undefined}
-        style={back.dragX ? { transform: `translateX(${back.dragX}px)` } : undefined}
+        style={back.dragX && !back.leaving ? { transform: `translateX(${back.dragX}px)` } : undefined}
       >
+        {/*
+          Inside the moving layer, and sticky to the top of it.
+
+          Both halves matter. Inside, because a bar that stays put while the
+          page slides out from under it says the page is a panel in somebody
+          else's frame — and it is the bar that says "All entries", sitting
+          still while you go to all entries. Sticky, because it is the way out
+          and the way to the next page, and those must not scroll off the top of
+          a page that runs for a thousand words.
+        */}
+        {bar}
+
         {/*
           Keyed on the entry, so stepping to the next page re-runs the article's
           entrance. Without the key React reuses the element and the words swap

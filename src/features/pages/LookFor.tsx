@@ -222,6 +222,11 @@ export function LookFor({
           data-on={open ? 'true' : undefined}
           data-lit={chips.length > 0 ? 'true' : undefined}
           aria-expanded={open}
+          // Named explicitly because the word is dropped on a phone, where this
+          // is a disc — see the note on the narrow rule in Pages.css. Without it
+          // the accessible name falls back to the count, and "3" is not a
+          // control anyone can find in a rotor.
+          aria-label={chips.length > 0 ? `Look for — ${chips.length} on` : 'Look for'}
           onClick={() => setOpen((v) => !v)}
         >
           {/*
@@ -234,7 +239,7 @@ export function LookFor({
             <circle cx="6.9" cy="6.9" r="4.6" stroke="currentColor" strokeWidth="1.4" />
             <path d="M10.3 10.3 14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
-          <span>Look for</span>
+          <span className="pg-look__word">Look for</span>
           {chips.length > 0 ? (
             <i className="pg-look__count" aria-label={`${chips.length} on`}>
               {chips.length}
@@ -280,6 +285,22 @@ export function LookFor({
           </div>
         ) : null}
 
+        {/*
+          Flip the notebook open.
+        
+          Beside a cursor it sits in the header, a glyph the width of a
+          fingernail that costs the row nothing. On a phone that row is about to
+          be empty — the zoom has gone (see `zoom.ts`) — and what was left was
+          ONE unlabelled book icon, alone, above the reader's own writing: the
+          exact thing this file already refuses to do to `Write`, a lone glyph in
+          a corner being a thing to decode. A whole band of the most valuable
+          strip on the screen, spent on a mystery.
+        
+          So on a phone it moves into the sheet, as a row with words on it. It
+          belongs there anyway: the sheet is every way INTO the archive that
+          isn't scrolling, and letting the notebook fall open is one of them.
+        */}
+        {narrow ? null : (
         <button
           type="button"
           className="pg-look__somewhere"
@@ -328,19 +349,29 @@ export function LookFor({
             />
           </svg>
         </button>
+        )}
 
-        <label className="pg-stand">
-          <span className="pg-stand__where">{standLabel}</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={zoom}
-            aria-label="How close you're standing"
-            onChange={(e) => onZoom(Number(e.target.value))}
-          />
-        </label>
+        {/*
+          How close you're standing — a pointer's control, and only a pointer's.
+        
+          A phone renders rows at every setting, so this had nothing left to
+          move; the full argument is in `zoom.ts`. It is not hidden with CSS
+          because there is no state here to hide: the phone does not have a zoom.
+        */}
+        {narrow ? null : (
+          <label className="pg-stand">
+            <span className="pg-stand__where">{standLabel}</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={zoom}
+              aria-label="How close you're standing"
+              onChange={(e) => onZoom(Number(e.target.value))}
+            />
+          </label>
+        )}
       </div>
 
       {open ? (
@@ -512,6 +543,51 @@ export function LookFor({
             </div>
             <p className="pg-sheet__gloss">{READINGS.find((r) => r.id === reading)?.gloss}</p>
           </section>
+
+          {/*
+            And the way in that isn't looking for anything.
+        
+            Last, and set as a sentence rather than a pill, because it is not one
+            more thing to combine with the others — it ends the sheet by
+            abandoning the question it asks. Phone only: beside a cursor it is
+            already a glyph in the header, and it does not need saying twice.
+          */}
+          {narrow ? (
+            <button
+              type="button"
+              className="pg-sheet__somewhere"
+              onClick={() => {
+                setOpen(false)
+                onSomewhere()
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden>
+                <path d="M12 7.4v11.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <path
+                  d="M12 7.4C10.3 6.2 7.9 5.7 5 5.9v10.9c2.9-.2 5.3.3 7 1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 7.4c1.7-1.2 4.1-1.7 7-1.5v10.9c-2.9-.2-5.3.3-7 1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 7.4c1.5-2 3-3.1 4.6-3.4"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  opacity="0.55"
+                />
+              </svg>
+              Let it fall open somewhere
+            </button>
+          ) : null}
           </div>
         </Layer>
       ) : null}

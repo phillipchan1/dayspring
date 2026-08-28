@@ -1948,6 +1948,18 @@ button.pg__sense-q:hover {
   color: var(--text);
 }
 
+/*
+ * The sentence after the opening — a phone's second line, and nothing else's.
+ *
+ * A pointer's row is 25px of one line: there is no second line for this to be,
+ * and inline it would just push her opening under the ellipsis sooner. It is in
+ * the DOM at every width because the row is one component (see PageRow), and
+ * `display: none` is what makes that free rather than merely tidy.
+ */
+.pgr__next {
+  display: none;
+}
+
 .pgr__lit {
   color: var(--accent);
   background: none;
@@ -2720,13 +2732,45 @@ button.pg__sense-q:hover {
  * is allowed, and a whisper is all it is. 190ms, which is under the threshold
  * where a transition starts costing you time rather than giving you a beat.
  */
+/*
+ * The reader is a LAYER, and the page inside it is what moves.
+ *
+ * This used to be one element: the scroller, the opaque background and the
+ * thing being dragged, all at once. Which meant a back-swipe dragged an opaque
+ * sheet across a background of the identical colour — nothing was revealed, so
+ * nothing said the page was on top of anything. It read as a card being shoved
+ * sideways rather than as a view being popped off a stack, and no amount of
+ * easing fixes that, because the missing thing is the wall behind.
+ *
+ * So: the layer clips and holds the veil, and `__slide` is the page — opaque,
+ * scrolling, shadowed at its leading edge, and free to travel.
+ */
 .pg-read1 {
   position: absolute;
   inset: 0;
   z-index: 5;
-  overflow-y: auto;
-  background: var(--bg);
+  overflow: hidden;
   animation: pg-open 190ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  /* How far the page has been pulled out of the way, 0–1. Written from the
+     gesture; see the note on `out` in PageReader. */
+  --pg-out: 0;
+}
+
+/*
+ * The veil over the wall, lifting as the page leaves.
+ *
+ * Not a dimmer for its own sake — the archive underneath is the same paper
+ * colour as the page on top, and without a shade between them a page half
+ * dragged away looks like a rendering bug. It is at its strongest while the
+ * page still covers everything and gone by the time it does not.
+ */
+.pg-read1::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  opacity: calc(1 - var(--pg-out));
+  pointer-events: none;
 }
 
 @keyframes pg-open {
@@ -2741,24 +2785,75 @@ button.pg__sense-q:hover {
 }
 
 /*
- * The page, following a back-swipe.
+ * The page: the scroller, and the thing a back-swipe carries.
  *
- * Its own layer rather than the scroller, which carries the entrance animation:
- * an animation with a `both` fill outranks an inline transform for good, so the
- * drag would have had nothing to move. Snaps back on release short of the
- * threshold; when the swipe carries, the reader unmounts and there is nothing
- * left to animate.
+ * Snaps back on release short of the threshold, and on a committed swipe
+ * carries on off the right edge under `[data-leaving]` — the reader stays
+ * mounted for exactly that long (`EXIT_MS` in useSwipeToDismiss, which is this
+ * duration by construction). Before, `onDismiss` and the reset to zero landed
+ * in the same tick, so the page snapped back to centre for one frame before
+ * vanishing: the dismissal played backwards at speed, which was most of what
+ * made the gesture feel broken.
  */
 .pg-read1__slide {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  background: var(--bg);
+  /*
+   * The two axes, split between the browser and the gesture.
+   *
+   * This element scrolls, and a scroller left on `auto` hands the browser both
+   * directions: it is free to read the start of a horizontal drag as a pan and
+   * take the gesture, which on a surface whose horizontal drag IS the way back
+   * means the way back sometimes just does not happen. `pan-y` gives it the
+   * vertical axis — reading a long page stays composited and smooth, which
+   * matters more here than anywhere — and keeps the horizontal one for the
+   * gesture that needs it. The same division `.pg-stretch__band` makes for its
+   * brush, for the same reason.
+   */
+  touch-action: pan-y;
   transition: transform 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
 }
 
-.pg-read1__slide[data-dragging='true'] {
+/*
+ * The edge that says there is something under this.
+ *
+ * Drawn only while the page is actually off its mark — a permanent shadow down
+ * the left of a full-screen view is a bevel on nothing.
+ */
+.pg-read1__slide::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 100%;
+  inline-size: 2rem;
+  background: linear-gradient(to left, color-mix(in srgb, var(--text) 16%, transparent), transparent);
+  opacity: var(--pg-out);
+  pointer-events: none;
+}
+
+.pg-read1[data-dragging='true'] .pg-read1__slide {
   transition: none;
 }
 
+/* Committed: the page finishes the journey the thumb started, at the speed it
+   would have had. `--pg-out` goes to 1 with it so the veil lifts and the edge
+   shadow stays lit the whole way out. */
+.pg-read1[data-leaving='true'] {
+  --pg-out: 1;
+}
+
+/* 220ms is `EXIT_MS` in useSwipeToDismiss, which is how long the reader stays
+   mounted for. Change one and change the other. */
+.pg-read1[data-leaving='true'] .pg-read1__slide {
+  transform: translateX(100%);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pg-read1__slide {
+  .pg-read1__slide,
+  .pg-read1[data-leaving='true'] .pg-read1__slide {
     transition: none;
   }
 }
@@ -3015,12 +3110,76 @@ button.pg__sense-q:hover {
  * after everything it means to override.
  */
 @media (max-width: 767px) {
-  /* Clear of the year rail, which is wider here so a thumb can find it. The two
-     numbers have to move together, or the years are drawn over the pages. */
-  /* The rail is wider here so a thumb can find it; the grid's padding follows
-     it automatically through `--pg-rail-w`. */
+  /*
+   * The rail keeps its width for a thumb; what changes is how loud it is.
+   *
+   * Eleven years is eleven numerals stacked down the edge of a reading surface —
+   * on the archive this was built for it is sixteen — and at rest they are the
+   * second thing the eye lands on, over the writing. A rail does not need to
+   * recite the years to be a rail. It needs to say "run your thumb here", and a
+   * column of ticks says that at a fraction of the volume.
+   *
+   * So at rest: ticks, plus the ONE numeral for the year you are actually on,
+   * which is a thumb in the book rather than a table of contents. Under a thumb
+   * the whole list comes back, because then it is the only thing you are
+   * reading.
+   */
   .pg {
     --pg-rail-w: 3.4rem;
+  }
+
+  /*
+   * And the header band it used to sit in, gone with it.
+   *
+   * `look for` is fixed to the bottom corner and the other two controls are off
+   * the phone entirely, so this row holds nothing in the flow — but it still
+   * reserved 2rem plus the header's gap at the very top of the screen, which is
+   * a band of empty paper above the only content on the surface. It comes back
+   * the moment something is lit, because the chips are in it.
+   */
+  .pg-look[data-narrow='true'] .pg-look__row {
+    min-block-size: 0;
+    gap: 0.4rem 0.5rem;
+  }
+
+  .pg__scrub-y {
+    position: relative;
+  }
+
+  /* The tick. Short, hard against the spine, and the same hairline colour — so
+     the rail reads as one ruled edge rather than as sixteen marks. */
+  .pg__scrub-y::before {
+    content: '';
+    position: absolute;
+    inset-inline-end: 0;
+    inline-size: 0.45rem;
+    block-size: 1px;
+    background: var(--border);
+    transition: background var(--transition), inline-size var(--transition);
+  }
+
+  .pg__scrub-y[data-on='true']::before {
+    inline-size: 0.8rem;
+    background: var(--accent);
+  }
+
+  /* The numerals: gone at rest, back under a thumb. Faded rather than removed,
+     so the rail keeps its width and nothing on the wall reflows when the
+     gesture starts. */
+  .pg__scrub-n {
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .pg__scrub-y[data-on='true'] .pg__scrub-n,
+  .pg__scrub[data-scrubbing='true'] .pg__scrub-n {
+    opacity: 1;
+  }
+
+  /* Under a thumb the ticks have said their piece — the numbers are the readout
+     now, and a row of dashes behind them is just noise. */
+  .pg__scrub[data-scrubbing='true'] .pg__scrub-y::before {
+    background: transparent;
   }
 
   /*
@@ -3111,11 +3270,20 @@ button.pg__sense-q:hover {
    * was reserving a row to show nothing.
    */
   .pg-stretch {
-    margin-block: 0.1rem 0.35rem;
+    margin-block: 0 0.3rem;
   }
 
+  /*
+   * The same 10px band, with a thumb's worth of air around it.
+   *
+   * `content-box` means this padding is hit area and not height: the band looks
+   * exactly as thin as it does on a display, and is 33px to aim at. It is the
+   * only time control left on the phone now that the zoom has gone, so a brush
+   * that needs a stylus to start would be the whole of "when" lost.
+   */
   .pg-stretch__band {
     block-size: 0.65rem;
+    padding-block: 0.7rem;
   }
 
   .pg-stretch__ends {
@@ -3123,33 +3291,85 @@ button.pg__sense-q:hover {
   }
 
   /*
-   * A row, for a thumb.
+   * ── A row, for a thumb ────────────────────────────────────────────────────
    *
-   * The height is only half of a tap target — the other half is being able to
-   * read what you are aiming at without leaning in. Desktop's 0.86rem serif
-   * over a 3.9rem date column is a pointer's row at a pointer's distance; at
-   * arm's length on a phone it is small enough that you check twice before
-   * committing, which is the same cost as a target you can miss.
+   * Beside a cursor a row is one line across: date, sentence, markings. On a
+   * phone that line was spending 4.3rem on a fixed date column and 3.4rem more
+   * on the year rail, and handing what was left — about 26 characters — to the
+   * writer's own sentence: "back home now. really strugg…". Which is a date
+   * with an ellipsis after it. You cannot recognise an entry from it, so every
+   * row costs an open-and-back to rule out.
+   *
+   * The same four children, laid out as two lines instead. The FACTS about the
+   * page go on a thin line of their own — date, today, markings, all mono, all
+   * quiet, all things we added — and her prose gets the entire width beneath
+   * them, two lines of it. About seventy characters, which is enough to know.
+   *
+   * Grid areas rather than a second component: see the note in PageRow.tsx.
    */
   .pgr {
-    gap: 0.85rem;
-    padding-inline: 0.35rem;
-  }
-
-  .pgr__line {
-    font-size: 0.95rem;
-    line-height: 1.3;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'date today margin'
+      'line line  line';
+    align-content: center;
+    gap: 0.28rem 0.5rem;
+    padding: 0.5rem 0.4rem;
+    /* The row's height is a number in `zoom.ts` — the windowing math divides
+       scrollTop by it, so it cannot be allowed to grow. Everything in here is
+       in rem and scales with the reader's root font size; this is what keeps a
+       scaled-up row tidy instead of bleeding into the one below. */
+    overflow: hidden;
   }
 
   .pgr__date {
-    inline-size: 4.3rem;
-    font-size: 0.7rem;
+    grid-area: date;
+    inline-size: auto;
+    font-size: 0.66rem;
   }
 
-  /* The markings sit further from the words, so a thumb aiming at the row does
-     not land on a 4px dot instead. */
+  .pgr__today {
+    grid-area: today;
+    justify-self: start;
+  }
+
   .pgr__margin {
-    padding-inline-start: 0.3rem;
+    grid-area: margin;
+    justify-self: end;
+  }
+
+  /*
+   * Her words, with the measure to be worth reading.
+   *
+   * Two lines, clamped — not truncated at one. The clamp covers the opening
+   * sentence AND the one after it as a single flow (see `next` in PageRow), so
+   * a long opening simply fills the space and a short one lets the next
+   * sentence follow it. Either way the row is full and the reader is looking at
+   * prose rather than at a stub.
+   */
+  .pgr__line {
+    grid-area: line;
+    font-size: 0.95rem;
+    line-height: 1.32;
+    white-space: normal;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  /*
+   * The sentence after the opening, a shade back.
+   *
+   * Both are hers and both are verbatim; the tone only says which one she wrote
+   * first. Without the step down, two sentences of equal weight read as one
+   * run-on and the eye has nothing to catch the start of the page on.
+   */
+  .pgr__next {
+    display: inline;
+    color: var(--text-dim);
   }
 
   /*
@@ -3194,26 +3414,68 @@ button.pg__sense-q:hover {
    * something — and it was a 0.82rem pill in the top-left of the header: the
    * furthest point from a thumb, in a band that also holds the shuffle and the
    * zoom, above a list that is the actual content. So it leaves the header and
-   * floats in the bottom corner OPPOSITE `New entry`, at the same 52px height
-   * as that disc.
+   * floats in the bottom corner OPPOSITE `New entry`.
+   *
+   * ── And it is a DISC, not a pill ──────────────────────────────────────────
+   *
+   * With the word on it, the control was about 170px wide and it floated over
+   * the list — so it permanently covered most of one row's prose, on a surface
+   * whose entire job is showing prose. Paying a row for a label is a bad trade
+   * when the label is on a lens: a magnifier is the most-learned glyph in
+   * software, and the sheet it opens says `look for` at the top in words the
+   * moment it is pressed.
+   *
+   * Left, not right, and matched to `New entry` at 52px: two symmetric discs in
+   * the two bottom corners read as the surface's chrome, where two dissimilar
+   * shapes read as clutter. Right is the write action, and the one gesture that
+   * must never be mis-tapped is the one that opens a blank page.
    *
    * Neutral, not accent: writing is the primary act of the app, and there is
-   * only one accent disc on a screen. What is ON still shows as chips in the
-   * header, with the count repeated on the pill itself.
+   * only one accent disc on a screen. What is ON shows as chips in the header,
+   * with the count repeated on the disc itself.
    */
   .pg-look[data-narrow='true'] .pg-look__open {
     position: fixed;
     z-index: 46;
     inset-block-end: calc(env(safe-area-inset-bottom, 0px) + 4.25rem);
     inset-inline-start: max(1.1rem, env(safe-area-inset-left));
-    gap: 0.5rem;
+    justify-content: center;
+    gap: 0;
+    inline-size: 52px;
     block-size: 52px;
-    padding-inline: 1.1rem;
-    font-size: 0.95rem;
+    padding-inline: 0;
+    border-radius: 50%;
     color: var(--text-bright);
     background: var(--bg-elevated);
     border-color: var(--border);
     box-shadow: var(--shadow-3);
+  }
+
+  .pg-look[data-narrow='true'] .pg-look__open svg {
+    inline-size: 19px;
+    block-size: 19px;
+  }
+
+  /* The word is on the sheet, which is one press away and can afford it. */
+  .pg-look[data-narrow='true'] .pg-look__word {
+    display: none;
+  }
+
+  /*
+   * The count, as a badge on the disc rather than a figure in a line of text.
+   *
+   * There is no line of text left for it to sit in, and a numeral floating in
+   * the middle of a circle beside a lens is unreadable as either. On the
+   * shoulder, in the accent, it is the one thing on this surface that says
+   * something is filtering the wall from across the screen.
+   */
+  .pg-look[data-narrow='true'] .pg-look__count {
+    position: absolute;
+    inset-block-start: -2px;
+    inset-inline-end: -2px;
+    color: var(--bg);
+    background: var(--accent);
+    border: 2px solid var(--bg);
   }
 
   .pg-look[data-narrow='true'] .pg-look__open:active {
@@ -3236,9 +3498,71 @@ button.pg__sense-q:hover {
     font-size: 0.74rem;
   }
 
-  /* Flipping the notebook open is a thumb target too, not a 16px glyph. */
-  .pg-look__somewhere {
-    padding: 0.6rem;
+  /*
+   * ── Let it fall open, at the end of the sheet ─────────────────────────────
+   *
+   * A sentence with a book beside it, full width, sitting under a hairline
+   * after the last group — the way out of the question the sheet asks rather
+   * than one more answer to it. Not a pill: every pill in here combines with
+   * the others, and this one ends the visit.
+   */
+  .pg-sheet__somewhere {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    inline-size: 100%;
+    min-block-size: 3rem;
+    margin-block-start: 1.15rem;
+    padding: 0 0.15rem;
+    padding-block-start: 1.15rem;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    text-align: start;
+    background: none;
+    border: none;
+    border-block-start: 1px solid var(--border-subtle);
+    cursor: pointer;
+  }
+
+  .pg-sheet__somewhere:active {
+    color: var(--accent);
+  }
+
+  /*
+   * ── An open page, arriving the way it leaves ──────────────────────────────
+   *
+   * The reader rose four pixels to enter and was dragged sideways to leave, so
+   * the two halves of the same trip described different geometries — it came
+   * from underneath and went out to the side. On a phone it is a pushed view:
+   * in from the right, out to the right, and the wall is where it was the whole
+   * time. That coherence is most of what "feels native" means here; the rest is
+   * in `useSwipeToDismiss`.
+   */
+  .pg-read1 {
+    animation-name: pg-open-narrow;
+    animation-duration: 260ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0.3, 1);
+  }
+
+  @keyframes pg-open-narrow {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  /* Re-stated here because this block comes after the surface's reduced-motion
+     rules and would otherwise hand the animation back to someone who asked for
+     none. `both` fill means "off" has to restore the end state explicitly. */
+  @media (prefers-reduced-motion: reduce) {
+    .pg-read1 {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /*
@@ -3390,13 +3714,96 @@ button.pg__sense-q:hover {
    * — correct beside a cursor that can hover them, invisible on a phone.
    */
   .pg__through {
-    gap: 0.4rem 0.45rem;
+    gap: 0.4rem 0.35rem;
   }
 
+  /*
+   * The surface header, while a page is open: gone.
+   *
+   * Everything in it is already hidden when a page is open except the reader's
+   * own bar, and that bar has moved inside the reader on a phone (see
+   * `readerBar` in PagesView) — so what was left was an empty band, its bottom
+   * padding, and a hairline ruled across the top of a full-screen page.
+   */
+  .pg[data-reading-page='true'] .pg__head-wrap {
+    display: none;
+  }
+
+  /*
+   * The bar, now that it rides in the reader.
+   *
+   * Sticky to the top of the page's own scroller with the page colour behind
+   * it, so a long entry scrolls under it rather than taking the way out with
+   * it. The inline padding is the surface's, restated here because the bar has
+   * left `.pg__inner` and there is nothing else giving it a margin.
+   */
+  .pg-read1 .pg__through {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    padding: calc(var(--safe-top) + 0.6rem) clamp(1rem, 3vw, 2rem) 0.6rem;
+    background: var(--bg);
+  }
+
+  /* A floor under it once the writing has begun to pass beneath — and nothing
+     at all while the page is still at the top, where a rule would just be a
+     line drawn under a button. */
+  .pg-read1 .pg__through::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--border-subtle) 12%,
+      var(--border-subtle) 88%,
+      transparent
+    );
+  }
+
+  /* The page's own top padding is the bar's now, or the date sits too far down
+     the screen to be the first thing on it. */
+  .pg-read1__page {
+    padding-block-start: 0.9rem;
+  }
+
+  /*
+   * The floating chrome, off the reader.
+   *
+   * `New entry` floats over every surface, which is right on a list and wrong
+   * on an open page: the reader already carries `Write`, which opens THIS page,
+   * and a second disc six inches away that opens a BLANK one is two writing
+   * affordances with different meanings and no way to tell them apart.
+   *
+   * The writing-controls cluster goes with it. Entering focus mode is a writing
+   * act with nothing to focus on here, and the appearance toggle — which does
+   * belong on a reading surface, and stays on the wall — costs a paragraph of
+   * somebody's writing to sit over an open page. Both come back the moment the
+   * page is closed.
+   */
+  .journal-canvas:has(.pg[data-reading-page='true']) ~ .mobile-fab,
+  .journal-canvas:has(.pg[data-reading-page='true']) ~ .focus-controls--docked {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /*
+   * All three groups on ONE line, by about twenty pixels.
+   *
+   * They wrapped, and the second row cost roughly ninety pixels of a reading
+   * screen — a quarter of the page given to chrome before the first word. The
+   * widths were a pointer's: 0.85rem of padding either side of every label and
+   * 2.4rem stepper discs. Trimmed to what a thumb still clears (2.6rem of
+   * height is the target; the inline padding is not what makes it hittable)
+   * they fit, and the wrap rule below is still there for the archive whose
+   * position reads "1,203 of 2,969".
+   */
   .pg__back,
   .pg__write {
     min-block-size: 2.6rem;
-    padding-inline: 0.85rem;
+    padding-inline: 0.7rem;
     font-size: 0.86rem;
     border-color: var(--border);
     background: var(--bg-elevated);
@@ -3409,8 +3816,8 @@ button.pg__sense-q:hover {
   }
 
   .pg__step {
-    inline-size: 2.4rem;
-    block-size: 2.4rem;
+    inline-size: 2.15rem;
+    block-size: 2.15rem;
     border-color: var(--border);
   }
 

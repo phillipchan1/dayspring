@@ -2880,7 +2880,11 @@ html[data-focus-mode] .focus-controls {
   background: var(--accent);
   color: var(--bg);
   box-shadow: var(--shadow-3);
-  transition: transform var(--transition), filter var(--transition);
+  /* Opacity is in here because surfaces fade this out rather than cutting it —
+     Pages does while a page is open (see `.pg[data-reading-page]` in
+     Pages.css), and a disc that blinks away reads as a glitch. */
+  transition: transform var(--transition), filter var(--transition),
+    opacity var(--transition);
 }
 .mobile-fab:active {
   transform: scale(0.93);

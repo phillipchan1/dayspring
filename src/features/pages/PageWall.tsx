@@ -138,7 +138,7 @@ export function PageWall({
    * with `Leaf`: opening a page is its own view, so the wall does not also need
    * to be a reader (see `zoom.ts`).
    */
-  const rows = isRows(zoom)
+  const rows = isRows(zoom, narrow)
   /** Everything that is not a row is a card. */
   const cards = !rows
   const [cols, setCols] = useState(1)
@@ -286,7 +286,7 @@ export function PageWall({
    * the same measured column width. Only the rows band keeps its own height,
    * because a row is a row.
    */
-  const cardHeight = rows ? spec.cardHeight : cardHeightFor(spec, colWidth, cols, narrow)
+  const cardHeight = rows ? spec.cardHeight : cardHeightFor(spec, colWidth)
   const rowHeight = cardHeight + spec.gap
   const virtual = useVirtualRange(scrollRef, rowCount, rowCount > 6, rowHeight)
 
@@ -756,8 +756,15 @@ export function PageWall({
             Absolutely positioned against the grid so they take no row and shift
             nothing — the alternative, a header in the flow, is exactly what
             makes rows uneven and windowing impossible.
+
+            Not on a phone. The gutter there is one pixel, so the rule had
+            nowhere to sit but across the last line of the row above it — and it
+            was marking a boundary the reader can already see, because a phone
+            row states its own month in the date line ("AUG 24" over "JUL 28").
+            A label drawn through someone's sentence to repeat what the sentence
+            is sitting next to is worse than no label.
           */}
-          {visibleMonths.map((m) => (
+          {(narrow ? [] : visibleMonths).map((m) => (
             <span
               key={`${m.year}-${m.month}`}
               className="pg__month-rule"
@@ -909,7 +916,13 @@ export function PageWall({
               data-on={y === topYear ? 'true' : undefined}
               onClick={() => scrollToRow(yearRow.get(y) ?? 0)}
             >
-              {y}
+              {/*
+                The numeral in its own element, so a phone can fade it out
+                without the rail losing the width it will need when the thumb
+                lands — see the narrow rule in Pages.css. Beside a cursor it is
+                simply the label, always on.
+              */}
+              <span className="pg__scrub-n">{y}</span>
             </button>
           ))}
         </nav>
