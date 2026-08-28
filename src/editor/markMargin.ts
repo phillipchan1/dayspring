@@ -136,10 +136,27 @@ const marginTheme = EditorView.theme({
   '@media (prefers-reduced-motion: reduce)': {
     '.cm-mark-glyph': { animation: 'none' },
   },
+  // A pseudo-element on the line, not a widget in it — and the reason is the
+  // caret.
+  //
+  // The `+` is the one thing on the rule that lands on a line with nothing on
+  // it yet, and as a widget it was the only node in that line's box. WebKit
+  // then painted no caret there at all: the cursor vanished on exactly the
+  // empty line the writer was about to write in, while the `+` beside it said
+  // the editor still had focus. (Chrome paints it at the line start anyway,
+  // which is why this only ever showed on the iPad, the phone and the Mac
+  // app.) Drawn this way an empty line's DOM is `<br>` and nothing else —
+  // identical to a page with the margin turned off, which is the state the
+  // caret is known to survive. It is also the same bargain the rule itself
+  // strikes above: one more paint, and no more DOM inside a contenteditable.
+  //
   // Faint to the point of nearly not being there until you look for it, and it
   // brightens on hover. This sits in the writing surface permanently, so it has
-  // to earn its pixels twice.
-  '.cm-mark-here': {
+  // to earn its pixels twice. Hover is the whole line rather than the 14px of
+  // the `+`, because a pseudo-element cannot be hovered on its own — a bigger
+  // target for the same brightening, on the one line the writer is already in.
+  '.cm-line.cm-mark-here::after': {
+    content: '"+"',
     position: 'absolute',
     top: '0.1em',
     left: `calc(100% + ${RULE_OFFSET_REM}rem)`,
@@ -154,10 +171,9 @@ const marginTheme = EditorView.theme({
     lineHeight: '1',
     opacity: '0.45',
     cursor: 'pointer',
-    userSelect: 'none',
     transition: 'opacity 120ms ease, color 120ms ease',
   },
-  '.cm-mark-here:hover': {
+  '.cm-line.cm-mark-here:hover::after': {
     opacity: '1',
     color: 'var(--text)',
   },
@@ -169,7 +185,7 @@ const marginTheme = EditorView.theme({
   '@media (max-width: 767px)': {
     '.cm-content::before': { display: 'none' },
     '.cm-mark-glyph': { display: 'none' },
-    '.cm-mark-here': { display: 'none' },
+    '.cm-line.cm-mark-here::after': { display: 'none' },
   },
 })
 
@@ -187,29 +203,7 @@ const marginTheme = EditorView.theme({
  * already marked: a fence inside a fence is not a document anyone can edit back
  * out of, and the line already has a hand on the rule there.
  */
-class MarkHereWidget extends WidgetType {
-  eq(): boolean {
-    // Identical wherever it lands, so CodeMirror moves the same node between
-    // lines instead of tearing one down and fading a new one in on every
-    // keystroke.
-    return true
-  }
-
-  toDOM(): HTMLElement {
-    const el = document.createElement('span')
-    el.className = 'cm-mark-here'
-    el.setAttribute('contenteditable', 'false')
-    el.title = 'Set this apart'
-    el.textContent = '+'
-    return el
-  }
-
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
-const markHereWidget = Decoration.widget({ widget: new MarkHereWidget(), side: -1 })
+const markHereLine = Decoration.line({ class: 'cm-mark-here' })
 
 function buildMarkHere(view: EditorView): DecorationSet {
   if (!view.hasFocus) return Decoration.none
@@ -217,7 +211,48 @@ function buildMarkHere(view: EditorView): DecorationSet {
   const blocks = view.state.field(spiritualBlocksField)
   if (posInsideBlock(blocks, from)) return Decoration.none
   const line = view.state.doc.lineAt(from)
-  return Decoration.set([markHereWidget.range(line.from)])
+  return Decoration.set([markHereLine.range(line.from)])
+}
+
+/** Horizontal centre of the margin rule, in viewport coordinates. */
+function ruleX(view: EditorView): number {
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  return view.contentDOM.getBoundingClientRect().right + RULE_OFFSET_REM * rem
+}
+
+/** A click at this x is on the rule — the band the `+` and the hands share. */
+function onRule(view: EditorView, clientX: number): boolean {
+  return Math.abs(clientX - ruleX(view)) <= RULE_HIT_PX
+}
+
+/**
+ * The `+` was hit, and here is the line it belongs to.
+ *
+ * A pseudo-element reports its own line as the event target, so "was this the
+ * `+`?" is a question about geometry: the caret's line, inside the rule's band,
+ * within the small box the `+` is actually drawn in. That last test matters on
+ * a wrapped line — the class covers every row of it, but the `+` is only ever
+ * beside the first, and rule beside the rest still opens the margin.
+ */
+function hitMarkHere(view: EditorView, event: MouseEvent): HTMLElement | null {
+  const line = (event.target as HTMLElement | null)?.closest('.cm-line')
+  if (!line?.classList.contains('cm-mark-here')) return null
+  if (!onRule(view, event.clientX)) return null
+  const { top, bottom } = handRect(view, line as HTMLElement)
+  return event.clientY >= top && event.clientY <= bottom ? (line as HTMLElement) : null
+}
+
+/**
+ * Where the `+` is drawn for a line, in viewport coordinates.
+ *
+ * Read back from the theme rather than measured: a pseudo-element has no rect
+ * of its own to ask for. `0.1em` of offset and `1.2em` of height at `0.7em`
+ * resolve against the line's own font size, which is the one number to look up.
+ */
+function handRect(view: EditorView, line: HTMLElement): { top: number; bottom: number; left: number } {
+  const size = parseFloat(getComputedStyle(line).fontSize) || 16
+  const top = line.getBoundingClientRect().top + 0.1 * 0.7 * size
+  return { top, bottom: top + 1.2 * 0.7 * size, left: ruleX(view) - 7 }
 }
 
 function markHerePlugin() {
@@ -252,12 +287,8 @@ function railClickPlugin(onOpen: () => void) {
     const onMouseDown = (event: MouseEvent) => {
       // The `+` sits in this same band and has its own handler. Without this the
       // one click both opened the picker and opened the margin.
-      const el = event.target as HTMLElement | null
-      if (el?.closest('.cm-mark-here')) return
-      const rect = view.contentDOM.getBoundingClientRect()
-      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-      const ruleX = rect.right + RULE_OFFSET_REM * rem
-      if (Math.abs(event.clientX - ruleX) > RULE_HIT_PX) return
+      if (hitMarkHere(view, event)) return
+      if (!onRule(view, event.clientX)) return
       event.preventDefault()
       onOpen()
     }
@@ -290,16 +321,15 @@ export function markMarginExtension(
     // the scripture glyph as a click on the verse and open the chapter pane.
     Prec.highest(
       EditorView.domEventHandlers({
-        mousedown(event) {
+        mousedown(event, view) {
           const el = event.target as HTMLElement | null
-          const plus = el?.closest('.cm-mark-here') as HTMLElement | null
-          if (plus) {
+          const plusLine = hitMarkHere(view, event)
+          if (plusLine) {
             // Cancel the mousedown rather than handling the click: the caret and
             // any live selection have to survive, since the selection is the
             // range about to be marked.
             event.preventDefault()
-            const rect = plus.getBoundingClientRect()
-            onMarkHere?.({ top: rect.top, bottom: rect.bottom, left: rect.left })
+            onMarkHere?.(handRect(view, plusLine))
             return true
           }
           if (!el?.closest('.cm-mark-glyph')) return false
