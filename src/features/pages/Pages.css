@@ -1273,169 +1273,6 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-/* ── narrow ── */
-
-@media (max-width: 767px) {
-  /* Clear of the year rail, which is wider here so a thumb can find it. The two
-     numbers have to move together, or the years are drawn over the pages. */
-  /* The rail is wider here so a thumb can find it; the grid's padding follows
-     it automatically through `--pg-rail-w`. */
-  .pg {
-    --pg-rail-w: 3.4rem;
-  }
-
-  /*
-   * `look for`, as a bottom sheet.
-   *
-   * As a dropdown it hung off a control at the top of the screen: the status
-   * bar and the dynamic island sat over its head, the keyboard took the bottom
-   * half, and what was left was a search field and a sliver of the thing you
-   * came to look at. Up from the bottom it lands in the thumb's half of the
-   * screen, and the keyboard pushes it rather than covering it.
-   *
-   * `100dvh`, not `vh`: on iOS `vh` is the height with the URL bar retracted,
-   * which is not the height you have.
-   */
-  .pg-look[data-narrow='true'] .pg-sheet {
-    position: fixed;
-    inset: auto 0 0 0;
-    inline-size: auto;
-    max-block-size: min(68dvh, 34rem);
-    z-index: 60;
-    padding: 1.1rem 1.15rem calc(1.15rem + var(--safe-bottom, 0px));
-    border-inline: none;
-    border-block-end: none;
-    border-start-start-radius: 20px;
-    border-start-end-radius: 20px;
-    border-end-start-radius: 0;
-    border-end-end-radius: 0;
-    box-shadow: 0 -24px 60px -30px rgba(0, 0, 0, 0.55);
-    /* The scroll belongs to the sheet, not the wall behind it. */
-    overscroll-behavior: contain;
-  }
-
-  /* A tap outside is the obvious way out of a sheet that covers two thirds of
-     the screen — the pointerdown-away handler alone is invisible. */
-  .pg-sheet__scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    border: none;
-    background: color-mix(in srgb, var(--bg) 55%, transparent);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
-  }
-
-  /*
-   * The year rail, for a thumb.
-   *
-   * Wider, and clear of the bottom chrome — the tab bar floats over this
-   * scroller, so a rail running to the bottom edge puts its oldest years under
-   * the tabs where they cannot be reached at all.
-   */
-  /*
-   * Wider still for a thumb, and clear of the bottom chrome — the tab bar
-   * floats over this scroller, so a rail running to the bottom edge puts its
-   * oldest years under the tabs where they cannot be reached at all.
-   */
-  .pg__scrub {
-    padding: 0.5rem 0.6rem calc(var(--mobile-chrome-h) + 0.5rem) 0;
-  }
-
-  .pg__scrub-y {
-    font-size: 0.72rem;
-  }
-
-  .pg__scrub[data-scrubbing='true'] .pg__scrub-y[data-on='true'] {
-    font-size: 1.05rem;
-  }
-
-  /*
-   * The stretch, compressed.
-   *
-   * Every pixel this takes in the header is a pixel off the list underneath it,
-   * and on a phone the list is the surface. Shorter band, tighter margins, and
-   * no hint line: the hint reveals on hover, and there is no hover here — it
-   * was reserving a row to show nothing.
-   */
-  .pg-stretch {
-    margin-block: 0.1rem 0.35rem;
-  }
-
-  .pg-stretch__band {
-    block-size: 0.65rem;
-  }
-
-  .pg-stretch__ends {
-    margin-block-start: 0.2rem;
-  }
-
-  /*
-   * A row, for a thumb.
-   *
-   * The height is only half of a tap target — the other half is being able to
-   * read what you are aiming at without leaning in. Desktop's 0.86rem serif
-   * over a 3.9rem date column is a pointer's row at a pointer's distance; at
-   * arm's length on a phone it is small enough that you check twice before
-   * committing, which is the same cost as a target you can miss.
-   */
-  .pgr {
-    gap: 0.85rem;
-    padding-inline: 0.35rem;
-  }
-
-  .pgr__line {
-    font-size: 0.95rem;
-    line-height: 1.3;
-  }
-
-  .pgr__date {
-    inline-size: 4.3rem;
-    font-size: 0.7rem;
-  }
-
-  /* The markings sit further from the words, so a thumb aiming at the row does
-     not land on a 4px dot instead. */
-  .pgr__margin {
-    padding-inline-start: 0.3rem;
-  }
-
-  /*
-   * Reserve what the mobile chrome covers.
-   *
-   * The tab bar and the FAB float over this scroller, so without it the last
-   * row is sliced in half — survivable while Pages was somewhere you rarely
-   * went, and not now that it IS Entries.
-   *
-   * On the SCROLLER, not the grid: the grid's `padding-bottom` is the
-   * windowing spacer, written inline from `virtual.bottomSpacer`, so anything
-   * declared here would simply lose to it.
-   */
-  .pg__scroll {
-    padding-bottom: var(--mobile-chrome-h);
-  }
-
-  /*
-   * The header carries its own top inset here.
-   *
-   * On a surface the mobile layout skips its <header>, and that header was the
-   * only element applying `env(safe-area-inset-top)` — so "Your own, side by
-   * side" sat under the notch.
-   */
-  .pg__inner--head {
-    padding-top: calc(clamp(1rem, 4vw, 1.75rem) + var(--safe-top));
-  }
-
-  /* Clear of the tab bar, not tucked behind it. */
-  .pg__selection {
-    bottom: calc(var(--mobile-chrome-h) + 0.5rem);
-  }
-
-  .pg__facts {
-    gap: 1.25rem;
-  }
-
-}
 
 /* Re-declared locally, per house convention — the global kill switch is not the
    only thing a surface with animation should be relying on. */
@@ -1616,6 +1453,29 @@ button.pg__sense-q:hover {
   opacity: 1;
 }
 
+/*
+ * How many things are on, on the control itself.
+ *
+ * The chips say WHAT is on and they are the truth; this says HOW MANY, which is
+ * the one fact you still want when the control has been moved to the bottom
+ * corner of a phone and the chips are up in the header. Tabular, so it does not
+ * change width between 1 and 7.
+ */
+.pg-look__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.2rem;
+  block-size: 1.2rem;
+  padding-inline: 0.3rem;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: var(--radius-full);
+}
+
 .pg-look__on {
   display: flex;
   flex-wrap: wrap;
@@ -1703,6 +1563,30 @@ button.pg__sense-q:hover {
   border-radius: 18px;
   box-shadow: var(--shadow-panel, 0 40px 90px -46px rgba(0, 0, 0, 0.45));
   animation: pg-sheet-in 150ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  /* `translate`, not `transform`: the entrance animation owns `transform` for
+     good (a `both` fill outranks an inline style on the same property), and the
+     drag has to be able to move the sheet after it has arrived. */
+  transition: translate 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+/* Following a finger, so no easing between frames. */
+.pg-sheet[data-dragging='true'] {
+  transition: none;
+}
+
+/*
+ * The grabber — the visible half of drag-to-dismiss.
+ *
+ * Narrow only: there is nothing to grab on a dropdown, and a handle on one
+ * would be a promise the control does not keep.
+ */
+.pg-sheet__grab {
+  display: block;
+  inline-size: 2.5rem;
+  block-size: 4px;
+  margin: 0 auto 0.85rem;
+  background: var(--border);
+  border-radius: 2px;
 }
 
 /* It comes from the control it belongs to rather than simply appearing — three
@@ -2857,6 +2741,29 @@ button.pg__sense-q:hover {
 }
 
 /*
+ * The page, following a back-swipe.
+ *
+ * Its own layer rather than the scroller, which carries the entrance animation:
+ * an animation with a `both` fill outranks an inline transform for good, so the
+ * drag would have had nothing to move. Snaps back on release short of the
+ * threshold; when the swipe carries, the reader unmounts and there is nothing
+ * left to animate.
+ */
+.pg-read1__slide {
+  transition: transform 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+.pg-read1__slide[data-dragging='true'] {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__slide {
+    transition: none;
+  }
+}
+
+/*
  * Stepping from page to page inside the reader.
  *
  * Keyed on the entry, so the article re-enters when the id changes and sits
@@ -3093,4 +3000,449 @@ button.pg__sense-q:hover {
   min-block-size: 0;
   display: flex;
   flex-direction: column;
+}
+
+/*
+ * ══ NARROW ═════════════════════════════════════════════════════════════
+ *
+ * At the END of the file, and it has to stay here.
+ *
+ * This block used to sit in the middle, above the declarations for the pill,
+ * the row, the stand, the through line and the reader — and a media query buys
+ * no specificity at all. So `.pgr { font-size: 0.95rem }` in here lost to
+ * `.pgr { font-size: 0.86rem }` six hundred lines below it, and most of the
+ * phone treatment was quietly doing nothing. Anything added for narrow belongs
+ * after everything it means to override.
+ */
+@media (max-width: 767px) {
+  /* Clear of the year rail, which is wider here so a thumb can find it. The two
+     numbers have to move together, or the years are drawn over the pages. */
+  /* The rail is wider here so a thumb can find it; the grid's padding follows
+     it automatically through `--pg-rail-w`. */
+  .pg {
+    --pg-rail-w: 3.4rem;
+  }
+
+  /*
+   * `look for`, as a bottom sheet.
+   *
+   * As a dropdown it hung off a control at the top of the screen: the status
+   * bar and the dynamic island sat over its head, the keyboard took the bottom
+   * half, and what was left was a search field and a sliver of the thing you
+   * came to look at. Up from the bottom it lands in the thumb's half of the
+   * screen, and the keyboard pushes it rather than covering it.
+   *
+   * `100dvh`, not `vh`: on iOS `vh` is the height with the URL bar retracted,
+   * which is not the height you have.
+   */
+  .pg-sheet[data-narrow='true'] {
+    position: fixed;
+    inset: auto 0 0 0;
+    inline-size: auto;
+    /*
+     * Tall enough that nothing needs scrolling.
+     *
+     * At 68dvh the sheet ended a few pixels short of its own last row, so every
+     * visit came with a scroll gesture worth about four pixels — the worst kind,
+     * because you cannot tell there is anything below until you try. The whole
+     * sheet is a search field, a dozen pills and three groups; it fits, given
+     * the room. `overflow-y` stays as the honest fallback for someone who keeps
+     * thirty subjects.
+     */
+    max-block-size: min(88dvh, 46rem);
+    /* Above the mobile chrome, which the layer now shares a stacking context
+       with — see the note on `Layer` in LookFor.tsx. */
+    z-index: 71;
+    padding: 0.85rem 1.15rem calc(1.15rem + var(--safe-bottom, 0px));
+    border-inline: none;
+    border-block-end: none;
+    border-start-start-radius: 20px;
+    border-start-end-radius: 20px;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    box-shadow: 0 -24px 60px -30px rgba(0, 0, 0, 0.55);
+    /* The scroll belongs to the sheet, not the wall behind it. */
+    overscroll-behavior: contain;
+  }
+
+  /* A tap outside is the obvious way out of a sheet that covers two thirds of
+     the screen — and on narrow it is the ONLY way out that isn't the pill,
+     because the document pointerdown handler is off there. */
+  .pg-sheet__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    border: none;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /*
+   * The year rail, for a thumb.
+   *
+   * Wider, and clear of the bottom chrome — the tab bar floats over this
+   * scroller, so a rail running to the bottom edge puts its oldest years under
+   * the tabs where they cannot be reached at all.
+   */
+  /*
+   * Wider still for a thumb, and clear of the bottom chrome — the tab bar
+   * floats over this scroller, so a rail running to the bottom edge puts its
+   * oldest years under the tabs where they cannot be reached at all.
+   */
+  .pg__scrub {
+    padding: 0.5rem 0.6rem calc(var(--mobile-chrome-h) + 0.5rem) 0;
+  }
+
+  .pg__scrub-y {
+    font-size: 0.72rem;
+  }
+
+  .pg__scrub[data-scrubbing='true'] .pg__scrub-y[data-on='true'] {
+    font-size: 1.05rem;
+  }
+
+  /*
+   * The stretch, compressed.
+   *
+   * Every pixel this takes in the header is a pixel off the list underneath it,
+   * and on a phone the list is the surface. Shorter band, tighter margins, and
+   * no hint line: the hint reveals on hover, and there is no hover here — it
+   * was reserving a row to show nothing.
+   */
+  .pg-stretch {
+    margin-block: 0.1rem 0.35rem;
+  }
+
+  .pg-stretch__band {
+    block-size: 0.65rem;
+  }
+
+  .pg-stretch__ends {
+    margin-block-start: 0.2rem;
+  }
+
+  /*
+   * A row, for a thumb.
+   *
+   * The height is only half of a tap target — the other half is being able to
+   * read what you are aiming at without leaning in. Desktop's 0.86rem serif
+   * over a 3.9rem date column is a pointer's row at a pointer's distance; at
+   * arm's length on a phone it is small enough that you check twice before
+   * committing, which is the same cost as a target you can miss.
+   */
+  .pgr {
+    gap: 0.85rem;
+    padding-inline: 0.35rem;
+  }
+
+  .pgr__line {
+    font-size: 0.95rem;
+    line-height: 1.3;
+  }
+
+  .pgr__date {
+    inline-size: 4.3rem;
+    font-size: 0.7rem;
+  }
+
+  /* The markings sit further from the words, so a thumb aiming at the row does
+     not land on a 4px dot instead. */
+  .pgr__margin {
+    padding-inline-start: 0.3rem;
+  }
+
+  /*
+   * Reserve what the mobile chrome covers.
+   *
+   * The tab bar and the FAB float over this scroller, so without it the last
+   * row is sliced in half — survivable while Pages was somewhere you rarely
+   * went, and not now that it IS Entries.
+   *
+   * On the SCROLLER, not the grid: the grid's `padding-bottom` is the
+   * windowing spacer, written inline from `virtual.bottomSpacer`, so anything
+   * declared here would simply lose to it.
+   */
+  .pg__scroll {
+    padding-bottom: var(--mobile-chrome-h);
+  }
+
+  /*
+   * The header carries its own top inset here.
+   *
+   * On a surface the mobile layout skips its <header>, and that header was the
+   * only element applying `env(safe-area-inset-top)` — so "Your own, side by
+   * side" sat under the notch.
+   */
+  .pg__inner--head {
+    padding-top: calc(clamp(1rem, 4vw, 1.75rem) + var(--safe-top));
+  }
+
+  /* Clear of the tab bar, not tucked behind it. */
+  .pg__selection {
+    bottom: calc(var(--mobile-chrome-h) + 0.5rem);
+  }
+
+  .pg__facts {
+    gap: 1.25rem;
+  }
+
+  /*
+   * ── `Look for`, in the thumb's corner ─────────────────────────────────────
+   *
+   * This is the primary act of the surface on a phone — you came here to find
+   * something — and it was a 0.82rem pill in the top-left of the header: the
+   * furthest point from a thumb, in a band that also holds the shuffle and the
+   * zoom, above a list that is the actual content. So it leaves the header and
+   * floats in the bottom corner OPPOSITE `New entry`, at the same 52px height
+   * as that disc.
+   *
+   * Neutral, not accent: writing is the primary act of the app, and there is
+   * only one accent disc on a screen. What is ON still shows as chips in the
+   * header, with the count repeated on the pill itself.
+   */
+  .pg-look[data-narrow='true'] .pg-look__open {
+    position: fixed;
+    z-index: 46;
+    inset-block-end: calc(env(safe-area-inset-bottom, 0px) + 4.25rem);
+    inset-inline-start: max(1.1rem, env(safe-area-inset-left));
+    gap: 0.5rem;
+    block-size: 52px;
+    padding-inline: 1.1rem;
+    font-size: 0.95rem;
+    color: var(--text-bright);
+    background: var(--bg-elevated);
+    border-color: var(--border);
+    box-shadow: var(--shadow-3);
+  }
+
+  .pg-look[data-narrow='true'] .pg-look__open:active {
+    transform: scale(0.95);
+  }
+
+  /* Something is on, and the control says so from across the screen. */
+  .pg-look[data-narrow='true'] .pg-look__open[data-lit='true'] {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  /* Nothing drops down from a control sitting on the bottom edge. */
+  .pg-look[data-narrow='true'] .pg-look__chev {
+    display: none;
+  }
+
+  .pg-look__count {
+    min-inline-size: 1.35rem;
+    block-size: 1.35rem;
+    font-size: 0.74rem;
+  }
+
+  /* Flipping the notebook open is a thumb target too, not a 16px glyph. */
+  .pg-look__somewhere {
+    padding: 0.6rem;
+  }
+
+  /*
+   * ── The sheet, for a thumb ────────────────────────────────────────────────
+   *
+   * Two failures, one cause: everything in here was drawn for a cursor. A pill
+   * outlined in `--border-subtle` at 85% opacity is invisible against the page
+   * on a phone held at arm's length — it reads as an outline in the background
+   * rather than as a thing to press — and a 2rem pill is under every touch-
+   * target floor there is. So on narrow the options carry a fill and a real
+   * border, and they are 2.6rem tall.
+   */
+  .pg-sheet__opts {
+    gap: 0.55rem;
+  }
+
+  .pg-sheet .pg-pill {
+    block-size: 2.6rem;
+    background: var(--bg-elevated);
+    border-color: var(--border);
+  }
+
+  /* Noticed rather than kept — still dashed, still provisional, but a dashed
+     line you can actually see. */
+  .pg-sheet .pg-pill--noticed {
+    border-color: color-mix(in srgb, var(--text-faint) 55%, transparent);
+  }
+
+  .pg-sheet .pg-pill[data-on='true'] {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+
+  .pg-sheet .pg-pill--mark[data-on='true'] {
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+  }
+
+  .pg-sheet .pg-pill--read[data-on='true'] {
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    border-color: var(--text-faint);
+  }
+
+  .pg-sheet .pg-pill__hit {
+    padding-inline: 1rem;
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+
+  .pg-sheet .pg-pill__hit i {
+    font-size: 0.72rem;
+  }
+
+  /* Keep / drop has no hover to arrive on, so it is always there — and wide
+     enough that aiming for it is not aiming for the pill. */
+  .pg-sheet .pg-pill__aside {
+    padding-inline: 0.65rem 0.8rem;
+  }
+
+  /*
+   * 16px, and not a pixel less.
+   *
+   * iOS zooms the whole page when a field smaller than 16px takes focus, which
+   * on a bottom sheet means the sheet is left half off the screen with no way
+   * to see what you typed.
+   */
+  .pg-sheet__find {
+    padding-block-end: 0.7rem;
+    margin-block-end: 1.1rem;
+  }
+
+  .pg-sheet__find input {
+    font-size: 1rem;
+  }
+
+  /* Groups still separated by air and a hairline — less air, because the sheet
+     is now competing with a screen rather than a window. */
+  .pg-sheet__g + .pg-sheet__g {
+    margin-block-start: 1.15rem;
+    padding-block-start: 1.15rem;
+  }
+
+  .pg-sheet__g h3 {
+    margin-block-end: 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  /*
+   * ── The zoom, for a thumb ─────────────────────────────────────────────────
+   *
+   * It never worked here, and the reason is in the base rule: the INPUT was the
+   * hairline — 6rem by 2px — so the drag had to begin inside a two-pixel band.
+   * The box becomes a real 2.75rem target and the hairline moves to the track,
+   * which is what it should have been all along.
+   *
+   * `touch-action: none` matters as much as the size: without it the browser is
+   * free to read the first few pixels of a horizontal drag as a scroll and hand
+   * the gesture to the surface behind, which is the other half of "it doesn't
+   * work".
+   */
+  .pg-stand {
+    gap: 0.35rem;
+  }
+
+  .pg-stand__where {
+    min-inline-size: 3.4rem;
+    font-size: 0.68rem;
+  }
+
+  .pg-stand input[type='range'] {
+    inline-size: 7.5rem;
+    block-size: 2.75rem;
+    background: none;
+    touch-action: none;
+  }
+
+  .pg-stand input[type='range']::-webkit-slider-runnable-track {
+    block-size: 3px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .pg-stand input[type='range']::-webkit-slider-thumb {
+    inline-size: 22px;
+    block-size: 22px;
+    /* WebKit hangs the thumb off the top of the track, so it is centred by
+       hand: (track − thumb) ÷ 2. */
+    margin-block-start: -9.5px;
+    background: var(--accent);
+  }
+
+  .pg-stand input[type='range']::-moz-range-track {
+    block-size: 3px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .pg-stand input[type='range']::-moz-range-thumb {
+    inline-size: 22px;
+    block-size: 22px;
+    background: var(--accent);
+  }
+
+  /*
+   * ── An open page ──────────────────────────────────────────────────────────
+   *
+   * The way out, the way in, and the way along, all at a size a thumb can hit
+   * and with a border you can see. These were transparent-bordered text buttons
+   * — correct beside a cursor that can hover them, invisible on a phone.
+   */
+  .pg__through {
+    gap: 0.4rem 0.45rem;
+  }
+
+  .pg__back,
+  .pg__write {
+    min-block-size: 2.6rem;
+    padding-inline: 0.85rem;
+    font-size: 0.86rem;
+    border-color: var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .pg__write {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+  }
+
+  .pg__step {
+    inline-size: 2.4rem;
+    block-size: 2.4rem;
+    border-color: var(--border);
+  }
+
+  .pg__through-at {
+    font-size: 0.72rem;
+  }
+
+  .pg-read1__date {
+    font-size: 0.68rem;
+  }
+
+  /* The tab bar and both floating controls sit over the reader — the last
+     paragraph of a page must not end underneath them. */
+  .pg-read1__page {
+    padding-block-end: calc(var(--mobile-chrome-h) + 1.5rem);
+  }
+
+  /* No 300ms tap delay, no double-tap zoom, no grey flash on the controls a
+     thumb hits most on this surface. */
+  .pgr,
+  .pg-pill,
+  .pg-pill__hit,
+  .pg-pill__aside,
+  .pg-look__open,
+  .pg-look__only,
+  .pg-look__clear,
+  .pg-look__somewhere,
+  .pg-held,
+  .pg__back,
+  .pg__write,
+  .pg__step {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 }
