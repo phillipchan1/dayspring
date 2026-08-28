@@ -1,8 +1,13 @@
-import { useMemo } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { renderMarkdown } from '@/lib/markdown'
 import { passagesForEntry } from '@/lib/remember'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
-import type { Entry } from '@/lib/types'
+import { MarkGlyph } from '@/components/MarkGlyph'
+import { MARK_KIND } from '@/lib/markKinds'
+import type { PageMarking } from '@/lib/spiritual'
+import type { Entry, SpiritualItemType } from '@/lib/types'
+import { paintMatches } from './paintMatches'
+import { drawMarkings, flatten, sortMarkings } from './pageMarkings'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -38,16 +43,38 @@ function formatDate(iso: string): string {
  *
  * Everything on it is still only the writer's: their words, their date, their
  * marginalia. No summary, no title we invented, no chrome except the way out —
- * and that lives in the header, not over the writing.
+ * and that lives in the header, not over the writing. The lit words are not an
+ * exception to that rule: they are the writer's own words, lit.
  */
 export function PageReader({
   entry,
   markQuotes,
+  markings,
+  match,
   firstLineTitle,
   onEdit,
 }: {
   entry: Entry
   markQuotes: string[]
+  /**
+   * What the page carries, with the sentences it was made of.
+   *
+   * A marking used to be a page-level boolean with no words, so "Tiffany and
+   * Scripture" could only mean "both true somewhere here" and an opened page
+   * had nothing to show for it. With the text, the ones the page actually says
+   * are drawn where they sit and the rest go to the margin (see
+   * `pageMarkings.ts`).
+   */
+  markings: readonly PageMarking[]
+  /**
+   * The lit subjects, for painting the matched words. Null when nothing is lit.
+   *
+   * Without this, opening a page from a filtered wall dropped the highlighting
+   * the card had: you searched for a name, saw it on the card, clicked in, and
+   * the page looked like every other page. The word that made this page appear
+   * has to still be visible on it, or the filter has no through line.
+   */
+  match: RegExp | null
   firstLineTitle: boolean
   onEdit: (entryId: string) => void
 }) {
@@ -63,25 +90,64 @@ export function PageReader({
     [entry.body_markdown, firstLineTitle],
   )
 
-  /** What the writer set apart on this page, verbatim, in the margin. */
+  /**
+   * Light the lit words, after the markdown is on the page.
+   *
+   * The body is rendered HTML, so the matches cannot be wrapped in the string —
+   * a subject called "img" or "class" would rewrite the markup. `paintMatches`
+   * walks text nodes instead, which can only ever touch what the writer wrote.
+   *
+   * The `innerHTML` reset is what makes this idempotent. React skips the DOM
+   * write when `html` is unchanged, so a previous pass's `<mark>`s would still
+   * be sitting there when the subject changes; restoring the pristine markup
+   * first means the paint is always applied to a clean page rather than layered
+   * onto the last one.
+   */
+  /**
+   * The markings this page says out loud, and the ones it doesn't.
+   *
+   * A declared `/pray` is stripped from both the prose and the rendered page,
+   * so it is correctly never found — it is not missing, it is its own thing,
+   * and the margin is where it goes.
+   */
+  const { inProse, loose } = useMemo(
+    () => sortMarkings(entry.body_markdown, markings),
+    [entry.body_markdown, markings],
+  )
+
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    el.innerHTML = html
+    paintMatches(el, match, 'pg-read1__lit')
+    drawMarkings(el, inProse)
+  }, [html, match, inProse])
+
+  /**
+   * What the writer set apart on this page, verbatim, in the margin.
+   *
+   * Three sources, deduped on the flattened text because they overlap: a
+   * highlighted sentence is often also the sentence a prayer was harvested
+   * from. A marking goes in labelled with its kind — that label is the only
+   * word in the margin the writer did not type, and it names one of six closed
+   * kinds rather than describing anything.
+   */
   const margin = useMemo(() => {
     const seen = new Set<string>()
-    const out: string[] = []
-    for (const q of markQuotes) {
-      const t = q.replace(/\s+/g, ' ').trim()
-      if (t && !seen.has(t)) {
-        seen.add(t)
-        out.push(t)
-      }
+    const out: { text: string; kind?: SpiritualItemType }[] = []
+    const add = (raw: string, kind?: SpiritualItemType) => {
+      const t = raw.replace(/\s+/g, ' ').trim()
+      const key = flatten(t)
+      if (!t || !key || seen.has(key)) return
+      seen.add(key)
+      out.push(kind ? { text: t, kind } : { text: t })
     }
-    for (const p of passagesForEntry(entry)) {
-      if (!seen.has(p.text)) {
-        seen.add(p.text)
-        out.push(p.text)
-      }
-    }
+    for (const q of markQuotes) add(q)
+    for (const m of loose) add(m.content, m.type)
+    for (const p of passagesForEntry(entry)) add(p.text)
     return out
-  }, [entry, markQuotes])
+  }, [entry, markQuotes, loose])
 
   /*
    * The whole page opens the editor — except while selecting text, because
@@ -96,7 +162,14 @@ export function PageReader({
 
   return (
     <div className="pg-read1">
+      {/*
+        Keyed on the entry, so stepping to the next page re-runs the article's
+        entrance. Without the key React reuses the element and the words swap
+        with no acknowledgement at all — which on a surface built for reading is
+        the one place a beat is worth having.
+      */}
       <article
+        key={entry.id}
         className="pg-read1__page"
         onClick={write}
         onKeyDown={(e) => {
@@ -114,14 +187,24 @@ export function PageReader({
 
         <div className="pg-read1__cols">
           <div
+            ref={bodyRef}
             className="pg-read1__body markdown-body"
             dangerouslySetInnerHTML={{ __html: html }}
           />
           {margin.length > 0 ? (
             <aside className="pg-read1__margin" aria-label="What you set apart on this page">
-              {margin.map((t, i) => (
+              {margin.map((note, i) => (
                 <p className="pg-read1__note" key={i}>
-                  {t}
+                  {note.kind ? (
+                    <span
+                      className="pg-read1__kind"
+                      style={{ ['--tone']: MARK_KIND[note.kind]?.tone } as React.CSSProperties}
+                    >
+                      <MarkGlyph kind={note.kind} className="pg-read1__kind-hand" />
+                      {MARK_KIND[note.kind]?.label ?? note.kind}
+                    </span>
+                  ) : null}
+                  {note.text}
                 </p>
               ))}
             </aside>

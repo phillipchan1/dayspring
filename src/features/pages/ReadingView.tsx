@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import { entryContentLines } from '@/lib/entryLabels'
+import { MarkGlyph } from '@/components/MarkGlyph'
+import { MARK_KIND } from '@/lib/markKinds'
+import type { PageMarking } from '@/lib/spiritual'
 import type { Entry } from '@/lib/types'
+import { distanceText, markingsNear } from './nearby'
 import {
   bursts,
   thenAndNow,
@@ -25,6 +29,10 @@ export function ReadingView({
   reading,
   entries,
   terms,
+  match,
+  narrowed,
+  markings,
+  markingsLoading,
   split,
   onSplit,
   onOpen,
@@ -33,6 +41,17 @@ export function ReadingView({
   entries: Entry[]
   /** The lit subject's spellings — a subject is not a finding about itself. */
   terms: string[]
+  /** The lit subjects as a matcher, for finding the mentions to be near. */
+  match: RegExp | null
+  /**
+   * Something has narrowed the set — a subject, a marking, a question, a
+   * bracketed stretch. Any of them will do; what matters is that these
+   * arrangements are of a HANDFUL of pages rather than of the archive.
+   */
+  narrowed: boolean
+  /** Markings with their text, for the pages on screen. Empty until fetched. */
+  markings: readonly PageMarking[]
+  markingsLoading: boolean
   split: number
   onSplit: (year: number) => void
   onOpen: (entryId: string) => void
@@ -47,15 +66,50 @@ export function ReadingView({
     )
   }
 
+  /*
+   * ── Why these ask for a narrowing, and do not simply run ────────────────
+   *
+   * Each of them technically works on the whole archive, and each of them is
+   * useless there. `then & now` over eleven years is two columns of fifteen
+   * hundred pages. `close together` on a near-daily journal returns ONE stretch
+   * containing everything — its own module says so. `the words you used` over
+   * the whole vocabulary is a word cloud, which is the thing the floor exists
+   * to prevent. They are arrangements OF something, and with nothing chosen the
+   * something is "your entire life", which no arrangement makes legible.
+   *
+   * An instruction, though — never a dimmed pill. Greying these out is exactly
+   * what made "the words you used" impossible to find: you open the sheet, see
+   * a dead group, and never learn what was in it. So the option stays pressable
+   * and says what it wants, and pressing it teaches you what it does.
+   *
+   * A BRACKET counts as a narrowing as much as a subject does. "Then & now"
+   * across one year you bracketed is a real question.
+   */
+  if (!narrowed && reading !== 'near') {
+    return (
+      <div className="pg-read">
+        <Ask reading={reading} />
+      </div>
+    )
+  }
+
   return (
     <div className="pg-read">
-      {reading !== 'bursts' ? (
+      {reading !== 'bursts' && reading !== 'near' ? (
         <SplitPick split={split} years={years} onSplit={onSplit} />
       ) : null}
       {reading === 'thennow' ? (
         <ThenAndNow entries={entries} split={split} onOpen={onOpen} />
       ) : reading === 'words' ? (
         <TheWordsYouUsed entries={entries} split={split} terms={terms} />
+      ) : reading === 'near' ? (
+        <MarkedNearIt
+          entries={entries}
+          markings={markings}
+          match={match}
+          loading={markingsLoading}
+          onOpen={onOpen}
+        />
       ) : (
         <CloseTogether entries={entries} onOpen={onOpen} />
       )}
@@ -278,5 +332,126 @@ function PageLine({ entry, onOpen }: { entry: Entry; onOpen: (id: string) => voi
         <span className="pg-read__line">{line}</span>
       </button>
     </li>
+  )
+}
+
+/**
+ * MARKED NEAR IT — the join that never existed.
+ *
+ * Every other reading arranges PAGES. This one arranges LINES, because the
+ * question it answers is not "which pages carry both" — that was the answer
+ * that felt like nothing — but "what did I reach for while I was writing about
+ * her". A page-level intersection cannot say that; two located things in the
+ * same prose can (see `nearby.ts`).
+ *
+ * Order is the order she wrote them, never by distance. Sorting by closeness
+ * would be the app deciding which of her verses matter most about a person,
+ * which is selection, and selection is significance, and significance is a
+ * verdict (D-016). The distance is PRINTED — "on the same line" — so the reader
+ * can weigh it themselves, which is the whole difference.
+ */
+function MarkedNearIt({
+  entries,
+  markings,
+  match,
+  loading,
+  onOpen,
+}: {
+  entries: Entry[]
+  markings: readonly PageMarking[]
+  match: RegExp | null
+  loading: boolean
+  onOpen: (id: string) => void
+}) {
+  const near = useMemo(
+    () => (match ? markingsNear(entries, markings, match) : []),
+    [entries, markings, match],
+  )
+
+  /*
+   * An instruction, not a dimmed pill.
+   *
+   * This reading needs something to be NEAR, and greying it out until there is
+   * one is exactly what made "the words you used" impossible to find: you open
+   * the sheet, see a dead option, and never learn what was in it. So it stays
+   * pressable and says what it wants.
+   */
+  // This one wants a SUBJECT specifically, not merely a narrowing: there has to
+  // be a mention on the page for a marking to be near.
+  if (!match) return <Ask reading="near" />
+
+  if (loading) return <p className="pg-read__none">Reading what you marked…</p>
+
+  if (near.length === 0) {
+    return (
+      <p className="pg-read__none">
+        Nothing marked near it. Better to return nothing than a forced match.
+      </p>
+    )
+  }
+
+  return (
+    <div className="pg-near">
+      {/* A count, and the rule that produced it. Both facts; neither a claim. */}
+      <p className="pg-near__facts">
+        {near.length} {near.length === 1 ? 'marking' : 'markings'} within three lines of a mention
+      </p>
+      <ol className="pg-near__list">
+        {near.map(({ entry, marking, distance }) => (
+          <li className="pg-near__one" key={marking.id}>
+            <button type="button" className="pg-near__hit" onClick={() => onOpen(entry.id)}>
+              <span
+                className="pg-near__kind"
+                style={{ ['--tone']: MARK_KIND[marking.type]?.tone } as React.CSSProperties}
+              >
+                <MarkGlyph kind={marking.type} className="pg-near__hand" />
+                {MARK_KIND[marking.type]?.label ?? marking.type}
+              </span>
+              {/* Her sentence, verbatim. The only thing here she did not write
+                  is the kind above it and the two facts below it. */}
+              <span className="pg-near__text">{marking.content}</span>
+              <span className="pg-near__where">
+                <time dateTime={entry.created_at}>
+                  {new Date(entry.created_at).toLocaleDateString(undefined, {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </time>
+                <span aria-hidden>·</span>
+                <span>{distanceText(distance)}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+/**
+ * What an arrangement needs before it can be one.
+ *
+ * One shape for all of them, and a second line that says what THIS one will
+ * show — a generic "choose something first" teaches nothing, and the whole
+ * reason these stay pressable rather than dimmed is so that pressing one is how
+ * you find out what it is.
+ */
+function Ask({ reading }: { reading: Exclude<Reading, 'order'> }) {
+  const says: Record<Exclude<Reading, 'order'>, string> = {
+    thennow:
+      'Then this splits the pages that carry it into two spans — before a year, and since — with the page count for each, so an uneven comparison cannot pass for a verdict.',
+    bursts:
+      'Then this shows the stretches where it gathers: runs of pages with quiet on both sides, measured against how often you usually write.',
+    words:
+      'Then this shows the words on those pages in one span and not the other. Yours, in the order they first appeared, and never scored.',
+    near:
+      'Then this shows what you marked beside the pages that carry it — the verses, the prayers, the lines you set apart, in the order you wrote them.',
+  }
+  return (
+    <div className="pg-read__ask">
+      <p className="pg-read__ask-h">Look for a name, a word, or a marking first.</p>
+      <p className="pg-read__ask-s">{says[reading]}</p>
+    </div>
   )
 }

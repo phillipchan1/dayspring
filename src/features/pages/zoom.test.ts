@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cardHeightFor,
   clampZoom,
+  densityLabel,
   EXCERPT_MAX_LINES,
   isRows,
   PAGES_ZOOM_DEFAULT,
   ROWS_ZOOM,
   specForZoom,
-  standLabel,
   wheelZoomDelta,
   ZOOM_MAX,
   ZOOM_MIN,
@@ -117,8 +118,27 @@ describe('the rows band', () => {
     expect(perScreen).toBeGreaterThanOrEqual(30)
   })
 
-  it('is one page across, however wide the screen', () => {
-    expect(specForZoom(ZOOM_MIN).maxCols).toBe(1)
+  /*
+   * The band exists purely for density, and a line of prose has a measure past
+   * which extra width buys nothing. Left at one column, a wide display spent
+   * its whole width on one 25px row — so past that measure the width goes to
+   * MORE ROWS instead. This is the fix for "a full-width list makes no sense".
+   */
+  it('spends extra width on more rows rather than a longer one', () => {
+    const spec = specForZoom(ZOOM_MIN)
+    expect(spec.maxCols).toBeGreaterThan(1)
+    // Narrow windows still get exactly one, because the measure comes first.
+    const fits = (w: number) => Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
+    // Narrow windows still get exactly one, because the measure comes first.
+    expect(Math.min(spec.maxCols, fits(700))).toBe(1)
+    expect(Math.min(spec.maxCols, fits(1400))).toBeGreaterThanOrEqual(3)
+  })
+
+  it('puts ninety pages on a wide screen, which is what the band is for', () => {
+    const spec = specForZoom(ZOOM_MIN)
+    const rows = Math.floor(900 / (spec.cardHeight + spec.gap))
+    const cols = Math.min(spec.maxCols, Math.floor((1400 + spec.gap) / (spec.minWidth + spec.gap)))
+    expect(rows * cols).toBeGreaterThanOrEqual(90)
   })
 
   // A threshold, not a blend: a squashed card is not a list.
@@ -133,12 +153,121 @@ describe('the rows band', () => {
   // Adding a band at the bottom must not silently resize every card above it.
   it('leaves the card bands spanning their full range', () => {
     expect(specForZoom(ROWS_ZOOM).cardHeight).toBe(190)
-    expect(specForZoom(ZOOM_MAX).cardHeight).toBe(620)
+    expect(specForZoom(ZOOM_MAX).cardHeight).toBe(430)
+  })
+})
+
+describe('the near end', () => {
+  /*
+   * The reading band is gone, and this is what stops it coming back by
+   * accident. It rendered whole pages two-up: at two columns a long page's
+   * second leaf sat beside its first while a short page's neighbour was a
+   * different day entirely, so half of what you were reading was someone
+   * else's morning. The near end is a WALL of large cards — several across.
+   */
+  it('is still a wall, not two pages side by side', () => {
+    expect(specForZoom(ZOOM_MAX).maxCols).toBeGreaterThan(2)
   })
 
-  it('says where you are standing', () => {
-    expect(standLabel(ZOOM_MIN)).toBe('a list')
-    expect(standLabel(ZOOM_MAX)).toBe('reading')
-    expect(standLabel(PAGES_ZOOM_DEFAULT)).toBe('the years')
+  it('holds enough prose to read a page\u2019s substance', () => {
+    expect(specForZoom(ZOOM_MAX).lines).toBeGreaterThanOrEqual(12)
+  })
+})
+
+describe('densityLabel', () => {
+  // A count, not a name. The old labels named four stops on a control that has
+  // none, and the last of them named a mode that no longer exists.
+  it('states the count', () => {
+    expect(densityLabel(40)).toBe('40 a screen')
+    expect(densityLabel(96)).toBe('96 a screen')
+  })
+
+  // The wall reports 0 until it has measured itself. An empty string is the
+  // honest rendering of "not known yet"; "0 a screen" is a claim.
+  it('says nothing before anything has been measured', () => {
+    expect(densityLabel(0)).toBe('')
+    expect(densityLabel(NaN)).toBe('')
+    expect(densityLabel(-3)).toBe('')
+  })
+})
+
+/**
+ * How many pages a viewport of `width` × `height` actually holds at `zoom` —
+ * the same arithmetic PageWall does, so these tests measure the thing the
+ * reader sees rather than the numbers in the table.
+ */
+function perScreen(zoom: number, width: number, height: number, narrow: boolean): number {
+  const spec = specForZoom(zoom, narrow)
+  const cols = Math.max(1, Math.min(spec.maxCols, Math.floor((width + spec.gap) / (spec.minWidth + spec.gap))))
+  const colWidth = Math.floor((width - spec.gap * (cols - 1)) / cols)
+  const h = isRows(zoom) ? spec.cardHeight : cardHeightFor(spec, colWidth, cols, narrow)
+  return Math.max(1, Math.floor(height / (h + spec.gap)) * cols)
+}
+
+const PHONE = { w: 335, h: 700 }
+
+describe('the phone bands', () => {
+  /*
+   * The whole complaint, as a test. Run the DESKTOP ramp at 335px and it gives
+   * you the list, two columns for one notch, and then one column for the
+   * remaining four fifths of the slider — dragging it does nothing for most of
+   * its range. Every step has to change what you can see.
+   */
+  it('changes what is on screen at every step of the slider', () => {
+    const steps = [0, 0.16, 0.3, 0.45, 0.7, 1].map((z) => perScreen(z, PHONE.w, PHONE.h, true))
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]!).toBeLessThanOrEqual(steps[i - 1]!)
+    }
+    // And the two ends are genuinely different places to stand.
+    expect(steps[0]!).toBeGreaterThan(steps.at(-1)! * 5)
+  })
+
+  /*
+   * 44 is Apple's floor — what a target must clear to be hittable at all. This
+   * is a list you scroll fast with a moving thumb, where 44 is hittable and
+   * still feels like aiming, so it clears the floor with room over it.
+   */
+  it('gives a row a tap target with room over the 44pt floor', () => {
+    expect(specForZoom(ZOOM_MIN, true).cardHeight).toBeGreaterThanOrEqual(48)
+  })
+
+  // The whole reason to keep a list on a phone: it has to stay the densest
+  // thing there, or a comfortable row has quietly cost the band its job.
+  it('still puts a dozen pages on a phone screen', () => {
+    expect(perScreen(0, PHONE.w, PHONE.h, true)).toBeGreaterThanOrEqual(12)
+  })
+
+  it('is one page across in the list, where a phone has no room for two', () => {
+    expect(specForZoom(ZOOM_MIN, true).maxCols).toBe(1)
+  })
+
+  // The list is still what a phone is best at: it must beat every card band.
+  it('still shows more pages as a list than as cards', () => {
+    expect(perScreen(0, PHONE.w, PHONE.h, true)).toBeGreaterThan(perScreen(0.16, PHONE.w, PHONE.h, true))
+  })
+})
+
+describe('cardHeightFor', () => {
+  // A card is a portrait, which is what makes it read as a page rather than a
+  // tile — everywhere there is more than one of them.
+  it('keeps a card portrait wherever there is more than one column', () => {
+    const spec = specForZoom(0.5)
+    expect(cardHeightFor(spec, 300, 4, false)).toBe(400)
+    expect(cardHeightFor(spec, 300, 3, true)).toBe(400)
+  })
+
+  /*
+   * Except at one column on a phone: the column is the whole screen wide, so a
+   * 4:3 page is 60% of the screen and the near half of the slider does nothing.
+   */
+  it('takes its height from the band at one column on a phone', () => {
+    const spec = specForZoom(1, true)
+    expect(cardHeightFor(spec, 335, 1, true)).toBe(spec.cardHeight)
+    expect(cardHeightFor(spec, 335, 1, true)).toBeLessThan((335 * 4) / 3)
+  })
+
+  it('falls back to the band before anything has been measured', () => {
+    const spec = specForZoom(0.5)
+    expect(cardHeightFor(spec, 0, 1, false)).toBe(spec.cardHeight)
   })
 })

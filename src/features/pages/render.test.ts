@@ -45,10 +45,8 @@ const noop = () => {}
 const wallActions = {
   match: null,
   facetIndex: { byEntry: new Map(), counts: new Map() },
-  single: false,
-  firstLineTitle: true,
+  narrow: false,
   returningId: null,
-  spreadOpen: false,
   onZoom: noop,
   onOpen: noop,
   onEdit: noop,

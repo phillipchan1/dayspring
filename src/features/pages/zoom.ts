@@ -5,6 +5,19 @@
 // samples made you pick a mode instead of just moving closer. There is one
 // number now, and everything on screen is a function of it.
 //
+// ── The slider does ONE thing, and that took a deletion ─────────────────────
+//
+// It used to span three renderings with two hard thresholds: rows, then cards,
+// then — above 0.82 — whole pages two-up, paginated into leaves. That top band
+// was not more zoom, it was a different app reached by dragging a slider, and
+// it is why there were two full-page renderers in this directory (`Leaf` on the
+// wall, `PageReader` over it) drifting apart from each other.
+//
+// Opening a page is already its own view. So the wall does not also need to be
+// a reader, and the ramp now runs from many small cards to few large ones —
+// which is the only thing "standing closer" ever honestly meant. `Leaf.tsx` and
+// `leaves.ts` (with its canvas line-measuring) went with the band.
+//
 // One source of truth for the geometry: the windowing math and the CSS both read
 // these numbers, so a card can never be a different height than the scroller
 // thinks it is.
@@ -22,60 +35,99 @@
  * So the list is not a surface and not a mode. It is standing very far back —
  * same wall, same `look for`, same lighting, same windowing, at 30 rows a
  * screen. 25px + 3px of gap puts 32 on a 900px viewport.
+ *
+ * ── Why it runs in columns ──────────────────────────────────────────────────
+ *
+ * `maxCols` was 1, which meant one 25px row stretched the full width of the
+ * window: on a wide display, a date and a single line of prose with three feet
+ * of nothing after them. A list is the one band that exists purely for density,
+ * and a line of text has a readable measure past which extra width buys
+ * nothing — so past that measure the band spends the width on MORE ROWS
+ * instead. Three columns of 32 is 96 pages a screen, which is the number the
+ * band was added to hit.
  */
-const ROWS = { minWidth: 320, cardHeight: 25, gap: 3, maxCols: 1, lines: 1 }
+const ROWS = { minWidth: 360, cardHeight: 25, gap: 3, maxCols: 3, lines: 1 }
+
+/**
+ * The same three bands, for a phone.
+ *
+ * ── Why the desktop numbers cannot just be reused ───────────────────────────
+ *
+ * They are widths in pixels, and a phone has 335 of them. Run the desktop ramp
+ * at that width and it gives you: the list, then two columns for one notch, and
+ * then ONE column for the remaining four fifths of the slider's travel. Dragging
+ * it does nothing for most of its range, which is what "the zoom makes less
+ * sense on mobile" is describing. It is not that a phone doesn't want the
+ * control — it is that the control was measured for a different screen.
+ *
+ * So the card bands are re-measured for the width there actually is: three
+ * across at the far end, one at the near end, two in the middle. Every part of
+ * the slider now changes something.
+ *
+ * And the rows band gets a REAL TAP TARGET. 25px is a pointer's row, and on a
+ * phone it is under half of Apple's 44pt floor — you aim at a date and open the
+ * page above it.
+ *
+ * 52, not 44. The floor is what a target must clear to be hittable at all, and
+ * this is a list you scroll fast with a moving thumb, where 44 is hittable and
+ * still feels like aiming. 52 with a hairline of gap is a row you can take
+ * without looking, and it still puts thirteen pages on a phone screen — which
+ * is more than any card band on this surface manages there.
+ */
+const NARROW_ROWS = { minWidth: 260, cardHeight: 52, gap: 1, maxCols: 1, lines: 1 }
+const NARROW_FAR = { minWidth: 104, cardHeight: 140, gap: 8, maxCols: 3, lines: 4 }
+const NARROW_NEAR = { minWidth: 300, cardHeight: 300, gap: 14, maxCols: 1, lines: 12 }
 
 /** Far end: many pages at once. You read shape, dates, and where your marks fall. */
 const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, lines: 6 }
 /**
- * Near end: two pages side by side, read rather than glanced at.
+ * Near end: the largest a card gets, and still a card.
  *
- * Not "one step short of reading" — this IS the reading view. The wall and the
- * open book were two separate things at first, and they were never two things:
- * you are standing further away, or you are standing close enough to read. So
- * the top of the range renders whole pages, two up, and you scroll through them.
- */
-const NEAR = { minWidth: 460, cardHeight: 620, gap: 28, maxCols: 2, lines: 18 }
-
-/**
- * Where a card stops being a card and becomes a page you can read.
+ * Not a reader. This used to be `minWidth: 460, cardHeight: 620, maxCols: 2` —
+ * two whole pages side by side, which was unreadable for a reason that had
+ * nothing to do with size: at two columns a long page's second leaf sits beside
+ * its first, but a short page's neighbour is a different day entirely, so half
+ * of what you were reading was someone else's morning.
  *
- * A threshold rather than a smooth blend because the two renderings are
- * genuinely different — an excerpt of flattened lines versus the writer's
- * markdown with their highlights and blockquotes intact. Crossfading those
- * would be mush.
+ * Three across at this end, holding twenty lines of prose — enough to read a
+ * page's substance and decide, which is what the near end of a WALL is for. To
+ * read the whole of one, open it.
+ *
+ * `lines` is not a taste call at either end: a card is `colWidth × 4/3` tall,
+ * its body is what the date and padding leave, and a line of `.pgc__line` costs
+ * `0.79rem × 1.5` plus `0.4rem` of margin — about 25px. FAR's card is ~200px
+ * tall and holds six; NEAR's is ~575 and holds twenty. Ask for fewer and every
+ * card carries a band of empty paper; ask for more and the overflow clips under
+ * the fade, which reads as "there is more here" and is true. So it errs high
+ * rather than low.
  */
-export const READING_ZOOM = 0.82
-
-export const isReading = (zoom: number): boolean => clampZoom(zoom) >= READING_ZOOM
+const NEAR = { minWidth: 320, cardHeight: 430, gap: 20, maxCols: 3, lines: 20 }
 
 /**
  * Where a card stops being a card and becomes a row.
  *
- * A threshold for the same reason `READING_ZOOM` is one: an excerpt in a box
- * and a single line with a date are genuinely different renderings, and
- * interpolating between them gives you a squashed card rather than a list.
+ * The one threshold left, and it earns itself: an excerpt in a box and a single
+ * line with a date are genuinely different renderings, and interpolating
+ * between them gives you a squashed card rather than a list.
  */
 export const ROWS_ZOOM = 0.16
 
 export const isRows = (zoom: number): boolean => clampZoom(zoom) < ROWS_ZOOM
 
-/** What the slider is doing, for the label beside it. */
-export function standLabel(zoom: number): string {
-  if (isRows(zoom)) return 'a list'
-  if (isReading(zoom)) return 'reading'
-  return clampZoom(zoom) < 0.55 ? 'the years' : 'the pages'
-}
-
 /**
- * How many pages are open at reading zoom.
+ * What the slider is doing, for the label beside it.
  *
- * A hard two, not the interpolated `maxCols` — that lands on three at the
- * threshold and only reaches two at the very end of the range, so "close enough
- * to read" would mean three pages at first and two later, which is not a thing
- * an open book does. One on a phone, which cannot hold two.
+ * A COUNT, not a name. The old labels — "a list", "the years", "the pages",
+ * "reading" — named four stops on a control that has none, and the last of them
+ * named a mode that no longer exists. Everything else on this surface states a
+ * number counted in code rather than a word we chose, and the slider is not an
+ * exception. It also says the true thing about what the control is for: the
+ * whole question is how much of the archive you can see at once.
  */
-export const readingCols = (single: boolean): number => (single ? 1 : 2)
+export function densityLabel(perScreen: number): string {
+  if (!Number.isFinite(perScreen) || perScreen <= 0) return ''
+  return `${Math.round(perScreen)} a screen`
+}
 
 /**
  * The most lines any card can want.
@@ -84,7 +136,27 @@ export const readingCols = (single: boolean): number => (single ? 1 : 2)
  * budget changes on every frame of a pinch and rebuilding 3,500 excerpts at
  * 60fps is the one thing that would make this surface feel slow.
  */
-export const EXCERPT_MAX_LINES = NEAR.lines
+/**
+ * A card is a portrait — except at one column on a phone.
+ *
+ * `colWidth × 4/3` is what makes a card read as a page rather than a tile, and
+ * it is right at every width where there is more than one of them. At ONE
+ * column on a 375pt screen it is not: the column is the whole screen wide, so
+ * the card comes out 447px tall and you get a single page per screen with the
+ * bottom half of it empty. The near end of the slider then does nothing for its
+ * last half, which is the "zoom makes less sense on mobile" complaint exactly.
+ *
+ * So a lone column on a phone takes its height from the band instead, and the
+ * ramp keeps moving all the way to the end: roughly fifteen pages a screen as a
+ * list, twelve at three across, six at two, and two or three at one.
+ */
+export function cardHeightFor(spec: ZoomSpec, colWidth: number, cols: number, narrow: boolean): number {
+  if (colWidth <= 0) return spec.cardHeight
+  if (narrow && cols === 1) return spec.cardHeight
+  return Math.round((colWidth * 4) / 3)
+}
+
+export const EXCERPT_MAX_LINES = Math.max(NEAR.lines, NARROW_NEAR.lines)
 
 export interface ZoomSpec {
   /** Narrowest a page may get before dropping a column. */
@@ -119,18 +191,20 @@ const lerp = (a: number, b: number, t: number): number => Math.round(a + (b - a)
  * fractional row height accumulates error down a 3,500-page wall until the
  * rendered window and the scroll position disagree by a whole row.
  */
-export function specForZoom(zoom: number): ZoomSpec {
+export function specForZoom(zoom: number, narrow = false): ZoomSpec {
   const z = clampZoom(zoom)
-  if (isRows(z)) return { ...ROWS }
+  if (isRows(z)) return { ...(narrow ? NARROW_ROWS : ROWS) }
+  const far = narrow ? NARROW_FAR : FAR
+  const near = narrow ? NARROW_NEAR : NEAR
   // The card bands own what is left of the slider, renormalised — otherwise
   // adding a band at the bottom would silently shift every card size above it.
   const t = (z - ROWS_ZOOM) / (ZOOM_MAX - ROWS_ZOOM)
   return {
-    minWidth: lerp(FAR.minWidth, NEAR.minWidth, t),
-    cardHeight: lerp(FAR.cardHeight, NEAR.cardHeight, t),
-    gap: lerp(FAR.gap, NEAR.gap, t),
-    maxCols: lerp(FAR.maxCols, NEAR.maxCols, t),
-    lines: lerp(FAR.lines, NEAR.lines, t),
+    minWidth: lerp(far.minWidth, near.minWidth, t),
+    cardHeight: lerp(far.cardHeight, near.cardHeight, t),
+    gap: lerp(far.gap, near.gap, t),
+    maxCols: lerp(far.maxCols, near.maxCols, t),
+    lines: lerp(far.lines, near.lines, t),
   }
 }
 

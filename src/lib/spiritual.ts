@@ -179,6 +179,93 @@ export async function listMarkings(): Promise<MarkingRef[]> {
   }
 }
 
+/** One marking on one page, with the sentence it was made of. */
+export interface PageMarking {
+  id: string
+  entryId: string
+  type: SpiritualItemType
+  /** The writer's own words, verbatim — never a summary. */
+  content: string
+  declared: boolean
+}
+
+/**
+ * The markings on ONE page, with their text.
+ *
+ * `listMarkings` deliberately fetches no content: it lights the whole wall, and
+ * a surface that only needs to know WHICH pages carry a prayer has no business
+ * pulling every prayer's text across the wire.
+ *
+ * That economy had a cost nobody had noticed. It made a marking a page-level
+ * boolean with no words and no place on the page — so lighting "Tiffany" and
+ * "Scripture" together could only ever mean "both are true somewhere on this
+ * page", and opening one showed nothing connecting them, because no connection
+ * had ever been computed. A subject is located in the prose; a marking was not.
+ *
+ * This is the other half. One page's worth is a handful of short rows, fetched
+ * when that page is opened — which is cheap in exactly the way the whole
+ * corpus is not, and it is what lets an open page show the scripture where it
+ * actually sits rather than asserting that one is in here somewhere.
+ */
+export async function markingsForEntry(entryId: string): Promise<PageMarking[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('spiritual_items')
+    .select('id, type, content, source')
+    .eq('entry_id', entryId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return toPageMarkings(data, entryId)
+}
+
+interface MarkingRow {
+  id: string
+  entry_id?: string | null
+  type: SpiritualItemType
+  content: string | null
+  source: string | null
+}
+
+function toPageMarkings(data: unknown, fallbackEntryId?: string): PageMarking[] {
+  const rows = (data ?? []) as MarkingRow[]
+  const out: PageMarking[] = []
+  for (const r of rows) {
+    const content = (r.content ?? '').trim()
+    const entryId = r.entry_id ?? fallbackEntryId
+    // A marking with no words cannot be shown where it sits, and one with no
+    // page has nowhere to sit — neither is an error, just nothing to draw.
+    if (!content || !entryId) continue
+    out.push({ id: r.id, entryId, type: r.type, content, declared: r.source === 'command' })
+  }
+  return out
+}
+
+/**
+ * The markings on MANY pages, with their text.
+ *
+ * For the one reading that needs the join rather than the page: what you marked
+ * beside the pages that carry a subject. The set is already narrowed by that
+ * subject before this is called, so the cost is bounded by the question the
+ * reader actually asked rather than by the size of the archive — which is what
+ * keeps `listMarkings` right to stay text-free for everything else.
+ *
+ * Chunked to stay under PostgREST's URL limit, the same as `fetchEntriesByIds`.
+ */
+export async function markingsForEntries(entryIds: string[]): Promise<PageMarking[]> {
+  if (entryIds.length === 0) return []
+  const sb = requireSupabase()
+  const out: PageMarking[] = []
+  for (let i = 0; i < entryIds.length; i += 200) {
+    const { data, error } = await sb
+      .from('spiritual_items')
+      .select('id, entry_id, type, content, source')
+      .in('entry_id', entryIds.slice(i, i + 200))
+    if (error) throw error
+    out.push(...toPageMarkings(data))
+  }
+  return out
+}
+
 export async function unmarkPrayerAnswered(id: string): Promise<void> {
   const sb = requireSupabase()
   const { error } = await sb

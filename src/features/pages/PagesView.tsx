@@ -1,26 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
-import { buildFacts, MONTHS as MONTH_NAMES } from './weather'
+import { buildFacts } from './weather'
 import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { PageWall } from './PageWall'
-import { clampZoom, standLabel } from './zoom'
+import { clampZoom, densityLabel } from './zoom'
 import {
   allSubjects,
-  buildSubjectIndex,
   keysFromSubjects,
   matchSubjects,
   subjectMatcher,
   wordSubject,
   type Subject,
 } from './subjects'
-import { buildFacetIndex, markingChips, matchFacets } from './facets'
-import { LookFor, type LookChip } from './LookFor'
+import { markingChips, matchFacets } from './facets'
+import { facetIndexFor, subjectIndexFor } from './derived'
+import { LookFor } from './LookFor'
+import { LitChips, type LookChip } from './LitChips'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
+import { Stretch } from './Stretch'
+import { inSpan, monthsAcross, type Span } from './band'
 import { PageReader } from './PageReader'
 import { defaultSplit, type Reading } from './readings'
 import {
@@ -31,7 +35,14 @@ import {
   withVocabulary,
   type KeptSubject,
 } from './keptSubjects'
-import { listMarkings, type MarkingRef } from '@/lib/spiritual'
+import {
+  listMarkings,
+  markingsForEntries,
+  markingsForEntry,
+  type MarkingRef,
+  type PageMarking,
+} from '@/lib/spiritual'
+import { litSentence } from './litSentence'
 import './Pages.css'
 
 /** The chip that stands for a question, since a question has no key of its own. */
@@ -75,7 +86,6 @@ interface Props {
   /** Per-entry context-menu actions — rename the date, duplicate, print, export. */
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
-  single: boolean
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
 }
@@ -105,13 +115,20 @@ export function PagesView({
   onOpenEntry,
   onEntryMenuAction,
   onDeleteEntries,
-  single,
   settings,
   updateSettings,
 }: Props) {
   const [vocabulary, setVocabulary] = useState<Subject[]>([])
   const [senses, setSenses] = useState<AnniversarySense[]>([])
-  const [month, setMonth] = useState<number | null>(null)
+  /**
+   * A bracketed stretch of months, or the whole archive.
+   *
+   * This replaced a `month` fold that nothing could set any more — the years
+   * panel that produced it went with D-025, and it had been dead state ever
+   * since. A stretch is the better shape anyway: "every November" is a question
+   * about the calendar, and "that winter" is a question about a life.
+   */
+  const [span, setSpan] = useState<Span | null>(null)
   const [onlyLit, setOnlyLit] = useState(false)
   const [kept, setKept] = useState<KeptSubject[]>([])
   // How the lit pages are arranged. Local rather than a history frame: it is a
@@ -119,12 +136,37 @@ export function PagesView({
   const [reading, setReading] = useState<Reading>('order')
   const [split, setSplit] = useState<number | null>(null)
   const [markings, setMarkings] = useState<MarkingRef[]>([])
+  // How many pages the wall is currently showing at once — measured there,
+  // where the column count and the scroller's height both live, and said beside
+  // the slider as a count rather than a name for a stop it does not have.
+  const [perScreen, setPerScreen] = useState(0)
+  // The markings on the page currently open, WITH their text. The corpus-wide
+  // read deliberately carries none (see `markingsForEntry`); one page's worth
+  // is a handful of short rows, and it is what lets an open page show the
+  // scripture where it sits instead of asserting one is in here somewhere.
+  const [openMarkings, setOpenMarkings] = useState<PageMarking[]>([])
+  // Markings WITH their text for the pages on screen, fetched only for the one
+  // reading that needs the join rather than the page. See `nearby.ts`.
+  const [nearMarkings, setNearMarkings] = useState<PageMarking[]>([])
+  const [nearLoading, setNearLoading] = useState(false)
   // The last page opened in the Spread, kept so the wall knows which card the
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
   if (spreadId) lastSpreadRef.current = spreadId
-  const zoom = settings.pagesZoom
-  const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
+  /*
+   * Two zooms, one slider.
+   *
+   * A phone and a 27" display are not asking the same question — how much of
+   * the archive fits at once is bounded by how much glass there is — so syncing
+   * one number across both meant every trip between devices landed on a wall
+   * arranged for the other one. The phone's opens on the list.
+   */
+  const narrow = useIsMobile()
+  const zoom = narrow ? settings.pagesZoomNarrow : settings.pagesZoom
+  const setZoom = (next: number) =>
+    updateSettings(
+      narrow ? { pagesZoomNarrow: clampZoom(next) } : { pagesZoom: clampZoom(next) },
+    )
 
   // Concordance chips are a convenience, not a requirement: the surface is fully
   // usable offline with typed words, so a failed read is silence, not an error.
@@ -176,6 +218,22 @@ export function PagesView({
   }, [])
 
 
+  // Cleared before the fetch, not after: holding the last page's markings while
+  // the next one loads would draw them onto a page that does not carry them.
+  useEffect(() => {
+    setOpenMarkings([])
+    if (!spreadId) return
+    let alive = true
+    void markingsForEntry(spreadId)
+      .then((m) => {
+        if (alive) setOpenMarkings(m)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [spreadId])
+
   /** The page being read, if one is open. */
   const openPage = useMemo(
     () => (spreadId ? (entries.find((e) => e.id === spreadId) ?? null) : null),
@@ -217,10 +275,51 @@ export function PagesView({
     return out
   }, [keys, vocabulary, kept])
 
-  const index = useMemo(() => buildSubjectIndex(entries), [entries])
+  /*
+   * Both go through `derived.ts` rather than being built here.
+   *
+   * A `useMemo` only survives as long as the component, and this one is
+   * unmounted every time you leave Pages — so tapping the Journal tab rebuilt
+   * the whole corpus index each time, which on a phone is most of a second of
+   * nothing happening after the tap. The caches there are keyed per page on the
+   * text they were derived from, so a return visit costs assembly and a visit
+   * after writing one entry costs one page.
+   */
+  /** The archive's months — one timeline the Stretch and every subject band share. */
+  const months = useMemo(() => monthsAcross(entries), [entries])
+
+  /**
+   * TWO subject indexes, and the difference between them is the whole feature.
+   *
+   * `fullIndex` covers the archive and is what the subject BANDS are drawn from,
+   * so a chapter always shows where a name appears across every year you have —
+   * including outside the bracket you are holding. Being able to see what a
+   * bracket excludes is what stops it lying to you.
+   *
+   * `index` covers the bracket and is what LIGHTS the wall and COUNTS the pills.
+   * Bracket a winter and Tiffany's count becomes her count that winter; a name
+   * with nothing in it goes to zero and dims. Nothing is reordered — order stays
+   * first-appearance, never count, because a ranking of what someone carried in
+   * a year of their life is a verdict rendered as a sort (D-016).
+   *
+   * Two builds cost one, near enough: `derived.ts` memoises per page, so the
+   * bracketed index re-uses every derivation the full one already did.
+   */
+  const fullIndex = useMemo(() => subjectIndexFor(entries), [entries])
+  const markedIds = useMemo(() => marks.map((m) => m.entryId), [marks])
+
+  /** The pages inside the bracket — what every count and every light is about. */
+  const bracketed = useMemo(
+    () => (span ? entries.filter((e) => inSpan(e.created_at, span, months)) : entries),
+    [entries, span, months],
+  )
+  const index = useMemo(
+    () => (span ? subjectIndexFor(bracketed) : fullIndex),
+    [span, bracketed, fullIndex],
+  )
   const facetIndex = useMemo(
-    () => buildFacetIndex(entries, marks.map((m) => m.entryId), markings),
-    [entries, marks, markings],
+    () => facetIndexFor(bracketed, markedIds, markings),
+    [bracketed, markedIds, markings],
   )
   const markPills = useMemo(() => markingChips(facetIndex), [facetIndex])
 
@@ -271,14 +370,23 @@ export function PagesView({
     for (const sub of subjects) out.push({ key: sub.key, label: sub.label, kind: 'subject' })
     for (const pill of markPills) {
       if (!keys.includes(pill.key)) continue
-      out.push({ key: pill.key, label: pill.label, kind: 'marking', tone: pill.tone })
+      out.push({
+        key: pill.key,
+        label: pill.label,
+        kind: 'marking',
+        tone: pill.tone,
+        mark: pill.kind,
+      })
     }
     return out
   }, [asked, subjects, markPills, keys])
 
   const anyLit = keys.length > 0 || asked !== null
-  const litLabel =
-    asked?.question ?? (subjects.map((sub) => sub.label).join(' + ') || null)
+  /** The declared kinds currently lit, for the sentence the surface says. */
+  const litMarkings = useMemo(
+    () => markPills.filter((p) => keys.includes(p.key)).map((p) => p.kind),
+    [markPills, keys],
+  )
 
   /**
    * Every page on the wall.
@@ -292,14 +400,19 @@ export function PagesView({
    * notebook can't give you — every November you've written, in one place.
    */
   const wallEntries = useMemo(() => {
-    let list = entries
-    if (month != null) list = list.filter((e) => new Date(e.created_at).getMonth() === month)
+    /*
+     * A bracket FILTERS where a subject only dims, and that is the difference
+     * between the two controls: a subject asks "where is this", so the pages
+     * that don't carry it are the shape it stands against; a stretch asks
+     * "what about then", and the answer cannot include now.
+     */
+    let list = bracketed
     // "only these" is the one thing that turns lighting into filtering, and it
     // is a visible toggle sitting beside the lit chips — which is what makes it
     // different from a query left behind in a panel you can't see.
     if (onlyLit && lit) list = list.filter((e) => lit.has(e.id))
     return list
-  }, [entries, month, onlyLit, lit])
+  }, [bracketed, onlyLit, lit])
 
   /**
    * The set the numbers describe — and therefore what the grid draws over.
@@ -315,21 +428,130 @@ export function PagesView({
 
   const facts = useMemo(() => buildFacts(shown.map((e) => e.created_at)), [shown])
 
+  /**
+   * The markings for `marked near it`, fetched when that reading is chosen.
+   *
+   * Only then, and only for the pages on screen. `listMarkings` deliberately
+   * carries no text because it lights the whole wall; this one carries text
+   * because the reader has asked a question that cannot be answered without it,
+   * and the subject has already narrowed the set the question is about — so the
+   * cost is bounded by the question rather than by the archive.
+   */
+  const nearKey = useMemo(
+    () => (reading === 'near' && subjects.length > 0 ? shown.map((e) => e.id).join(',') : ''),
+    [reading, subjects.length, shown],
+  )
+  useEffect(() => {
+    if (!nearKey) {
+      setNearMarkings([])
+      setNearLoading(false)
+      return
+    }
+    let alive = true
+    setNearLoading(true)
+    void markingsForEntries(nearKey.split(','))
+      .then((m) => {
+        if (alive) setNearMarkings(m)
+      })
+      // Silence, the same contract every other read on this surface has: the
+      // reading shows "nothing marked near it", which is what an empty result
+      // looks like anyway, and nothing the writer wrote is at stake.
+      .catch(() => {
+        if (alive) setNearMarkings([])
+      })
+      .finally(() => {
+        if (alive) setNearLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [nearKey])
+
+  /**
+   * Where the open page sits in the list you came from, and how to move along it.
+   *
+   * This is what makes a filter a READING rather than a lookup. You did not
+   * arrive at this page on its own — you arrived at it seventh of three hundred
+   * that say Esther, and the other pages are the reason the seventh is
+   * interesting. Without a way along them, every one of them costs a trip back
+   * to the wall to find your place again.
+   *
+   * ── Which list, and why there are two answers ───────────────────────────────
+   *
+   * The lit set, when the page is in it. But lighting DIMS rather than filters,
+   * so with a subject on you can still open any page on the wall — and most
+   * cards on screen are dimmed ones. Answering "not in the lit set, so no
+   * position" left the arrows missing for the commonest click there is.
+   *
+   * So the list is the lit set if this page is in it, and the wall otherwise.
+   * Either way it is the list you were actually looking at, and `lit` records
+   * which one it was so the surface can say so rather than leaving the reader
+   * to guess what the count counts.
+   *
+   * Newest first, because both lists are: the arrows are older and newer, which
+   * is true whatever is lit and whatever arrangement the wall is in.
+   */
+  const within = useMemo(() => {
+    if (!spreadId) return null
+    let list = shown
+    let at = list.findIndex((e) => e.id === spreadId)
+    let inLit = true
+    if (at < 0) {
+      list = wallEntries
+      at = list.findIndex((e) => e.id === spreadId)
+      inLit = false
+    }
+    // Reached from somewhere off the wall entirely — a sense from an earlier
+    // year, say, while a month is folded. Inventing a position for it would be
+    // worse than having none.
+    if (at < 0) return null
+    return {
+      at,
+      total: list.length,
+      lit: inLit && anyLit,
+      newer: at > 0 ? list[at - 1]!.id : null,
+      older: at < list.length - 1 ? list[at + 1]!.id : null,
+    }
+  }, [spreadId, shown, wallEntries, anyLit])
+
+  /*
+   * The arrows, from the keyboard.
+   *
+   * Left and right rather than up and down: they do not scroll a page, so
+   * taking them costs the reader nothing, and moving along a list is a
+   * horizontal idea everywhere else in the world. Skipped whenever something
+   * is being typed into, and whenever a modifier is held — ⌘← is the browser's.
+   */
+  useEffect(() => {
+    if (!within) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(?:INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      if (e.key === 'ArrowLeft' && within.newer) {
+        e.preventDefault()
+        onSpread(within.newer)
+      } else if (e.key === 'ArrowRight' && within.older) {
+        e.preventDefault()
+        onSpread(within.older)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [within, onSpread])
+
   /** Add or remove one key. The wall never has a "clear all" it can't undo. */
   function toggleKey(key: string) {
-    setMonth(null)
     const next = keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]
     onSubject(next.length > 0 ? next.join('\u0000') : null)
   }
 
   function addSubject(next: Subject) {
-    setMonth(null)
     if (keys.includes(next.key)) return
     onSubject(keysFromSubjects([...subjects, next]) === null ? null : [...keys, next.key].join('\u0000'))
   }
 
   function clearAll() {
-    setMonth(null)
     onSubject(null)
   }
 
@@ -415,26 +637,144 @@ export function PagesView({
           ) : null}
 
           {/*
-            The way back out of a page.
-            
-            Opening one takes over the surface, and until now the only ways out
-            were the browser's Back and dragging the zoom — neither of which is
-            visible. It sits where it happened rather than floating over the
-            page, because it is chrome and the page is not.
+            THE THROUGH LINE — what is still on, above the page you opened.
+
+            Opening a page used to empty this header: the chips went, the count
+            went, and the way out said "All entries" while a filter was still
+            on. That is a lie the reader cannot catch, and it threw away the one
+            thing that explains why they are looking at THIS page — they are not
+            reading a page, they are reading the seventh of thirty-four that say
+            Esther.
+
+            The chips, not the sheet. `look for` is a control for arranging the
+            wall and belongs to the wall; what is ON is a fact about what you
+            are reading, and it belongs here. Every one of them still comes off
+            the same way it does upstairs.
           */}
           {spreadId !== null ? (
-            <button type="button" className="pg__back" onClick={() => onSpread(null)}>
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
-                <path
-                  d="M10 3 5 8l5 5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              All entries
-            </button>
+            <div className="pg__through">
+              <button type="button" className="pg__back" onClick={() => onSpread(null)}>
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
+                  <path
+                    d="M10 3 5 8l5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                All entries
+              </button>
+
+              {chips.length > 0 ? (
+                <div className="pg__through-on">
+                  <LitChips
+                    chips={chips}
+                    onRemove={(key) => {
+                      if (key === ASK_CHIP_KEY) onClearAsked()
+                      else toggleKey(key)
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {/*
+                THE WAY IN, beside the way out.
+
+                Clicking the page has always opened it for writing, and nothing
+                said so — the old "Open to write" link was removed as "a label
+                explaining what the page already is", which is true of the label
+                and not true of the affordance. A page you can write on and a
+                page you cannot look identical, and the one that reads back
+                eleven years of someone's journal should not make them guess.
+
+                In the header with the way out, never over the writing, and set
+                as a word beside a nib rather than an icon on its own: a lone
+                glyph in a corner is a thing to decode.
+              */}
+              <button
+                type="button"
+                className="pg__write"
+                onClick={() => onOpenEntry(openPage!.id)}
+              >
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
+                  {/* A nib: the shoulders, the point, and the slit down it. */}
+                  <path
+                    d="M8 2.4 11.1 8.7 8 13.2 4.9 8.7Z"
+                    stroke="currentColor"
+                    strokeWidth="1.25"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 7.2v4"
+                    stroke="currentColor"
+                    strokeWidth="1.25"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                Write
+              </button>
+
+              {within && within.total > 1 ? (
+                <div className="pg__through-nav">
+                  <button
+                    type="button"
+                    className="pg__step"
+                    disabled={!within.newer}
+                    onClick={() => within.newer && onSpread(within.newer)}
+                    aria-label="The page after this one"
+                  >
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                      <path
+                        d="M10 3 5 8l5 5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  {/*
+                    A position, not a progress bar — nothing here is finishable.
+
+                    It carries `data-lit` when the arrows are walking the lit
+                    set rather than the whole wall, which is the difference
+                    between "seventh of the pages that say Esther" and "seventh
+                    of the archive". Colour rather than a word: it lands in the
+                    same accent the chips beside it are already in, so the two
+                    read as one statement.
+                  */}
+                  <span
+                    className="pg__through-at"
+                    data-lit={within.lit ? 'true' : undefined}
+                    aria-label={
+                      within.lit
+                        ? `Page ${within.at + 1} of ${within.total.toLocaleString()} lit`
+                        : `Page ${within.at + 1} of ${within.total.toLocaleString()}`
+                    }
+                  >
+                    {within.at + 1} of {within.total.toLocaleString()}
+                  </span>
+                  <button
+                    type="button"
+                    className="pg__step"
+                    disabled={!within.older}
+                    onClick={() => within.older && onSpread(within.older)}
+                    aria-label="The page before this one"
+                  >
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                      <path
+                        d="M6 3l5 5-5 5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {openPage ? null : (
@@ -445,7 +785,8 @@ export function PagesView({
             markings={markPills}
             zoom={zoom}
             onZoom={setZoom}
-            standLabel={standLabel(zoom)}
+            narrow={narrow}
+            standLabel={densityLabel(perScreen)}
             reading={reading}
             onReading={setReading}
             chips={chips}
@@ -468,43 +809,65 @@ export function PagesView({
           )}
 
           {/*
+            The stretch — the archive's months, and a way to bracket them.
+
+            Above `look for` rather than inside it, because it is not one of the
+            things you are looking FOR: it is WHEN, and it changes what every
+            option in that sheet is counted over.
+          */}
+          {openPage ? null : (
+            <Stretch
+              entries={entries}
+              months={months}
+              span={span}
+              onSpan={setSpan}
+              caption={`${facts.count.toLocaleString()} ${facts.count === 1 ? 'page' : 'pages'}`}
+            />
+          )}
+
+          {/*
             The chapter. Present only when a subject is lit, because it is the
             subject's own masthead — on the whole archive there is nothing for
             it to be about.
+
+            Drawn from the FULL index, never the bracketed one: a chapter's job
+            is to show where a name appears across every year you have, and
+            being able to see what your bracket is leaving out is what keeps the
+            bracket from lying to you.
           */}
           {subjects.length > 0 && !openPage ? (
             <Chapter
               subjects={subjects}
               entries={entries}
-              index={index}
+              index={fullIndex}
               kept={keptKeys}
             />
           ) : null}
 
           {/*
-            The way to the density picture — a line, not the picture itself.
-            It used to sit here in full, which on a phone meant the grid and four
-            numbers took the screen and one page peeked in underneath.
+            The filter, stated — and ONLY when there is a filter to state.
+
+            Two things were wrong with this as a permanent row. It named only
+            the subjects, so lighting Tiffany AND Scripture narrowed the wall to
+            twelve pages while the sentence still said "carrying Tiffany". And
+            at rest it was a bare count, left-aligned above a grid, which is the
+            shape of a dashboard — the wall IS the archive, and it does not need
+            a line above it saying how much of one. The bare count sits in the
+            middle of the timeline now, where it annotates something instead of
+            heading a table.
           */}
-          {openPage ? null : (
-          <div className="pg__meta">
-            {/*
-              A count, not a control. The link out to the years panel was a
-              second thing to press in a header that already has three, and the
-              band above says the same thing better — it shows the shape of the
-              years instead of offering to.
-            */}
-            <span className="pg__meta-b">
-              {facts.count.toLocaleString()} {facts.count === 1 ? 'page' : 'pages'}
-              {litLabel ? ` carrying “${litLabel}”` : ''}
-            </span>
-            {month !== null ? (
-              <button type="button" className="pg__clear" onClick={() => setMonth(null)}>
-                every {MONTH_NAMES[month]} ✕
-              </button>
-            ) : null}
-          </div>
-          )}
+          {anyLit && !openPage ? (
+            <div className="pg__meta">
+              <span className="pg__meta-b">
+                {litSentence({
+                  count: facts.count,
+                  subjects: subjects.map((sub) => sub.label),
+                  markings: litMarkings,
+                  question: asked?.question ?? null,
+                })}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -530,6 +893,10 @@ export function PagesView({
               reading={reading}
               entries={shown}
               terms={subjects.flatMap((sub) => sub.terms)}
+              match={match}
+              narrowed={anyLit || span !== null}
+              markings={nearMarkings}
+              markingsLoading={nearLoading}
               split={split ?? defaultSplit(shown)}
               onSplit={setSplit}
               onOpen={onSpread}
@@ -540,6 +907,7 @@ export function PagesView({
             entries={wallEntries}
             zoom={zoom}
             onZoom={setZoom}
+            narrow={narrow}
             markQuotes={markQuotes}
             lit={onlyLit ? null : lit}
             match={match}
@@ -548,15 +916,13 @@ export function PagesView({
             // An echo is a page out of its own order. Interleaving one while the
             // wall is already rearranged — dimmed by a subject, or folded to a
             // single month — would make the arrangement impossible to read.
-            echoes={!anyLit && month == null}
+            echoes={!anyLit && span == null}
             // Opening a page is its own view now, so it leaves the zoom alone —
             // reading something is not a statement about how you like the wall
             // arranged, and that zoom is a persisted setting.
             onOpen={onSpread}
             returningId={spreadId ?? lastSpreadRef.current}
-            spreadOpen={spreadId !== null}
-            single={single}
-            firstLineTitle={settings.firstLineTitle}
+            onDensity={setPerScreen}
             onEdit={onOpenEntry}
             onMenuAction={onEntryMenuAction}
             onDeleteEntries={onDeleteEntries}
@@ -576,6 +942,8 @@ export function PagesView({
           <PageReader
             entry={openPage}
             markQuotes={markQuotes.get(openPage.id) ?? []}
+            markings={openMarkings}
+            match={match}
             firstLineTitle={settings.firstLineTitle}
             onEdit={onOpenEntry}
           />

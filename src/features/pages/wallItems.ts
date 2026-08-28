@@ -15,15 +15,6 @@ export interface WallItem {
   echo?: string
   /** Set when this cell stands in for a run of pages the filter passed over. */
   seam?: { count: number; fromIso: string; toIso: string }
-  /**
-   * Which leaf of the page this cell is, at reading zoom.
-   *
-   * A long page runs onto the next leaf rather than scrolling inside its own
-   * box, so it occupies a variable NUMBER of fixed-size cells. Uniform cell
-   * height is what lets a 3,580-page archive window cleanly, so this is the
-   * only shape that change could take.
-   */
-  leaf?: { index: number; of: number }
 }
 
 /**

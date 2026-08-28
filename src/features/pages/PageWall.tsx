@@ -23,7 +23,6 @@ import type { Entry } from '@/lib/types'
 import { PageCard } from './PageCard'
 import { PageRow } from './PageRow'
 import type { FacetIndex } from './facets'
-import type { LeafMetrics } from './leaves'
 import { MARK_KINDS } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -37,8 +36,7 @@ import {
   type WallItem,
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
-import { clampZoom, isReading, isRows, readingCols, specForZoom, wheelZoomDelta } from './zoom'
-import { Leaf } from './Leaf'
+import { cardHeightFor, clampZoom, isRows, specForZoom, wheelZoomDelta } from './zoom'
 
 interface Props {
   /** Wall order — newest first. */
@@ -46,6 +44,14 @@ interface Props {
   /** How close you're standing, 0 (far) → 1 (near). */
   zoom: number
   onZoom: (next: number) => void
+  /**
+   * A phone-width viewport.
+   *
+   * The zoom bands are widths in pixels, so the ramp has to be re-measured for
+   * the width there actually is — and a row has to be a tap target rather than
+   * a pointer's row. See `specForZoom`.
+   */
+  narrow: boolean
   /** Quotes the writer marked, by entry id. */
   markQuotes: Map<string, string[]>
   /** Null when nothing is lit; otherwise the ids that carry every chosen filter. */
@@ -66,22 +72,19 @@ interface Props {
    * back into the card it grew out of rather than cutting away from it.
    */
   returningId: string | null
-  /**
-   * A page is open, rather than the wall merely being at reading distance.
-   *
-   * Two columns is a spread and reads as one while you are browsing. Opened on
-   * ONE page it lies: a long page's second leaf sits beside its first, but a
-   * short page's neighbour is a different day entirely — so half of what you
-   * are reading is someone else's morning. Opening a page shows that page.
-   */
-  spreadOpen: boolean
   /** Double-click, or "Open to write" — leave for the editor. */
   onEdit: (entryId: string) => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
-  /** One page at a time — a phone can't hold two open. */
-  single: boolean
-  firstLineTitle: boolean
+  /**
+   * How many pages the viewport currently holds.
+   *
+   * Reported up rather than derived beside the slider, because the honest
+   * number needs the measured column count and the real scroller height, and
+   * both live here. It is what the slider's label says — a count rather than a
+   * name for a stop the control does not have.
+   */
+  onDensity?: (perScreen: number) => void
 }
 
 const EMPTY_SELECTED: Entry[] = []
@@ -106,6 +109,7 @@ export function PageWall({
   entries,
   zoom,
   onZoom,
+  narrow,
   markQuotes,
   lit,
   match,
@@ -114,45 +118,29 @@ export function PageWall({
   echoes,
   onOpen,
   returningId,
-  spreadOpen,
   onEdit,
   onMenuAction,
   onDeleteEntries,
-  single,
-  firstLineTitle,
+  onDensity,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   // Memoized: it's a dependency of the column-measuring layout effect, and a
   // fresh object every render would tear down and rebuild the ResizeObserver on
   // every scroll frame.
-  const spec = useMemo(() => specForZoom(zoom), [zoom])
-  /**
-   * The leaf's own geometry, read from the DOM.
-   *
-   * Measured rather than derived from the zoom spec: the body's width is what
-   * the grid and the margin column leave it, and its line height is whatever
-   * the theme's serif resolves to. Guessing either puts the break in the wrong
-   * place, which is the whole defect this replaces.
-   */
-  const [leafBox, setLeafBox] = useState({ width: 0, lines: 18, font: '' })
+  const spec = useMemo(() => specForZoom(zoom, narrow), [zoom, narrow])
   /** One column's real width, so a card can hold a proportion rather than a height. */
   const [colWidth, setColWidth] = useState(0)
   /**
-   * True leaf counts, read back from what the browser actually laid out.
+   * The two renderings, and the only threshold between them.
    *
-   * The canvas measurement is a good first guess and cannot be the last word:
-   * it counts lines, and a rendered page also has heading margins, list
-   * indents and block spacing. Overshoot by one and the reader gets a blank
-   * leaf; undershoot and the tail of the page is unreachable. So the estimate
-   * sizes the scroller, and the DOM corrects it the moment a leaf is on screen.
+   * There used to be a third — whole pages, two up, above 0.82 — which is gone
+   * with `Leaf`: opening a page is its own view, so the wall does not also need
+   * to be a reader (see `zoom.ts`).
    */
-  const [trueLeaves, setTrueLeaves] = useState<Map<string, number>>(new Map())
-  // Close enough to read: cells stop being cards and become whole pages.
-  const reading = isReading(zoom)
   const rows = isRows(zoom)
-  /** The card bands — everything that is neither a row nor a leaf. */
-  const cards = !rows && !isReading(zoom)
+  /** Everything that is not a row is a card. */
+  const cards = !rows
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
@@ -192,8 +180,7 @@ export function PageWall({
         (Number.parseFloat(cs.paddingRight) || 0)
       if (w <= 0) return
       const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
-      const cap = rows ? 1 : reading ? (spreadOpen ? 1 : readingCols(single)) : spec.maxCols
-      const next = Math.max(1, Math.min(cap, fits))
+      const next = Math.max(1, Math.min(spec.maxCols, fits))
       setCols((prev) => (prev === next ? prev : next))
       setColWidth((prev) => {
         const each = Math.floor((w - spec.gap * (next - 1)) / next)
@@ -204,7 +191,7 @@ export function PageWall({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [spec, reading, rows, single, spreadOpen])
+  }, [spec])
 
   // The declared kinds each page carries, in the vocabulary's own order — the
   // row margin's whole content. Built once here rather than per row so a scroll
@@ -223,103 +210,19 @@ export function PageWall({
   // the only thing on a row that is not simply the page itself.
   const newestId = entries[0]?.id ?? null
 
-  const packed: WallItem[] = useMemo(
+  /**
+   * What the grid lays out. One cell per page, always.
+   *
+   * There used to be a second pass over this that fanned a long page out across
+   * several cells at reading zoom — the leaf machinery — which is what made
+   * `WallItem` carry a `leaf` field and what made the scroller's height an
+   * estimate that grew as you scrolled. A page is opened to be read now, so a
+   * cell is a page, and the scroller's height is known from the first frame.
+   */
+  const items: WallItem[] = useMemo(
     () => collapseUnlit(buildWallItems(entries, echoes, cols), lit, expandedSeams),
     [entries, echoes, cols, lit, expandedSeams],
   )
-
-  /*
-   * At reading zoom a page runs onto the next leaf instead of scrolling inside
-   * its own box. Measured rather than estimated (see `leaves.ts`) — a page that
-   * breaks one line early is a sentence cut in half for no reason the reader
-   * can see.
-   *
-   * The counts have to exist before the scroller can be sized, which is why the
-   * whole lit set is measured here rather than lazily. It is a canvas text
-   * measurement per paragraph, memoised against the geometry, so a resize costs
-   * one pass and a scroll costs nothing.
-   */
-  const leafMetrics: LeafMetrics | null = useMemo(() => {
-    if (!reading || leafBox.width <= 0) return null
-    return { width: leafBox.width, linesPerLeaf: leafBox.lines, font: leafBox.font }
-  }, [reading, leafBox])
-
-  useLayoutEffect(() => {
-    if (!reading) return
-    /*
-     * Measure the WINDOW, not the body.
-     *
-     * The body's width is the thing `--pg-leaf-w` defines, so reading it back
-     * is circular — and it goes wrong the moment the column count changes: the
-     * stale narrow width becomes `column-width` inside a now-wider box, the
-     * browser fits two columns in it, and the next leaf's text shows down the
-     * right-hand side of this one instead of being clipped. The window is
-     * sized by the grid cell and knows nothing about columns.
-     */
-    const win = gridRef.current?.querySelector('.pg-leaf__window') as HTMLElement | null
-    const el = gridRef.current?.querySelector('.pg-leaf__body') as HTMLElement | null
-    if (!win || !el) return
-    const cs = getComputedStyle(el)
-    const lineHeight = Number.parseFloat(cs.lineHeight) || 24
-    /*
-     * The COLUMN PITCH, which is the body's own content width — not the
-     * window's. `column-width` is a minimum, so the browser lays columns out at
-     * the body's width and overflows sideways at that pitch; sliding by the
-     * window's width instead leaves the difference showing as a strip of the
-     * next column down the edge of this one.
-     *
-     * Reading it back is not circular: the body's width comes from its
-     * container, and `column-width` only decides how the content flows inside
-     * it. What went wrong before was staleness — a width measured at two
-     * columns, still in force at one — which is why `cols` is a dependency.
-     */
-    const width = el.clientWidth
-    const height = win.clientHeight
-    if (width <= 0 || height <= 0) return
-    const next = {
-      width,
-      lines: Math.max(1, Math.floor(height / lineHeight)),
-      font: `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`,
-    }
-    setLeafBox((prev) =>
-      prev.width === next.width && prev.lines === next.lines && prev.font === next.font
-        ? prev
-        : next,
-    )
-  }, [reading, spec, cols, entries])
-
-
-  const items: WallItem[] = useMemo(() => {
-    if (!leafMetrics) return packed
-    const out: WallItem[] = []
-    for (const item of packed) {
-      if (item.seam) {
-        out.push(item)
-        continue
-      }
-      /*
-       * One leaf until the browser says otherwise.
-       *
-       * This used to canvas-measure every page in the archive the moment
-       * reading zoom was entered — 2,969 of them, ~2s of blocked main thread,
-       * every single time, which is what made clicking into a page feel broken.
-       * And it was redundant: the DOM correction below is the authority anyway,
-       * it runs in a layout effect so it lands before paint, and it only ever
-       * needs the leaves actually on screen.
-       *
-       * The cost is that the scroller's height is an underestimate until you
-       * have visited a stretch — it grows as you go rather than being right
-       * from the first frame. That is a fair trade for an instant click-in, and
-       * `leaves.ts` still holds the measurement for anything that needs a count
-       * without rendering one.
-       */
-      const of = trueLeaves.get(item.entry.id) ?? 1
-      for (let index = 0; index < of; index++) {
-        out.push(index === 0 ? { ...item, leaf: { index, of } } : { ...item, key: `${item.key}~${index}`, leaf: { index, of } })
-      }
-    }
-    return out
-  }, [packed, leafMetrics, trueLeaves])
 
   /** Echo cards take focus and open, but are never selection targets — see wallItems. */
   const orderIds = useMemo(() => selectionOrder(items), [items])
@@ -380,34 +283,34 @@ export function PageWall({
    *
    * Uniform height is still what the windowing rests on, and it still holds:
    * every card in a given layout is the same size, because they all derive from
-   * the same measured column width. Only the reading and rows bands keep their
-   * own heights — a leaf is as tall as the viewport allows, and a row is a row.
+   * the same measured column width. Only the rows band keeps its own height,
+   * because a row is a row.
    */
-  const cardHeight =
-    reading || rows || colWidth <= 0 ? spec.cardHeight : Math.round((colWidth * 4) / 3)
+  const cardHeight = rows ? spec.cardHeight : cardHeightFor(spec, colWidth, cols, narrow)
   const rowHeight = cardHeight + spec.gap
   const virtual = useVirtualRange(scrollRef, rowCount, rowCount > 6, rowHeight)
 
+  /**
+   * How many pages fit on screen, reported up for the slider's label.
+   *
+   * Measured rather than derived from the spec: `maxCols` is a cap and the real
+   * column count comes from the container's width, so a spec-derived number
+   * would be wrong on every window narrower than the cap allows. Observed on
+   * the scroller because the viewport is the other half of the answer.
+   */
   useLayoutEffect(() => {
-    if (!reading || leafBox.width <= 0) return
-    const cells = gridRef.current?.querySelectorAll('[data-page-id]')
-    if (!cells || cells.length === 0) return
-    let changed: Map<string, number> | null = null
-    for (const cell of cells) {
-      const id = cell.getAttribute('data-page-id')
-      const body = cell.querySelector('.pg-leaf__body') as HTMLElement | null
-      if (!id || !body || body.clientWidth <= 0) continue
-      const actual = Math.max(1, Math.round(body.scrollWidth / body.clientWidth))
-      if (trueLeaves.get(id) === actual) continue
-      changed ??= new Map(trueLeaves)
-      changed.set(id, actual)
+    const el = scrollRef.current
+    if (!el || !onDensity) return
+    const report = () => {
+      const h = el.clientHeight
+      if (h <= 0 || rowHeight <= 0) return
+      onDensity(Math.max(1, Math.floor(h / rowHeight) * cols))
     }
-    if (changed) setTrueLeaves(changed)
-    // Deps, deliberately narrow. Without them this ran after EVERY render —
-    // walking every cell and calling getComputedStyle on each, then possibly
-    // setting state and doing it again. It only needs to run when the window
-    // moved or the geometry changed, which is when new leaves can appear.
-  }, [reading, leafBox.width, virtual.start, virtual.end, items])
+    report()
+    const ro = new ResizeObserver(report)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [onDensity, rowHeight, cols])
 
   const firstIdx = virtual.start * cols
   const lastIdx = Math.min(items.length, virtual.end * cols)
@@ -461,6 +364,59 @@ export function PageWall({
       scrollRef.current?.scrollTo({ top: row * rowHeight, behavior: 'auto' })
     },
     [rowHeight],
+  )
+
+  /**
+   * The year rail, as something you slide rather than something you tap.
+   *
+   * It was eleven buttons: to reach 2019 you aimed at a 14px word. What a
+   * decade of pages wants is the gesture Photos has — press anywhere on the
+   * right edge and run your thumb down it, with the wall following under you
+   * and the year reading out as you go.
+   *
+   * It SNAPS to years rather than scrubbing proportionally, and that is the
+   * honest mapping for this rail: the labels are evenly spaced, so a
+   * proportional scrub would put 2019 wherever 2019's share of the archive
+   * happened to fall and the words beside your thumb would be lying about where
+   * you were about to land. Every stop is exactly the year it is standing next
+   * to. A tap is the same gesture with no travel, so both work without either
+   * being a special case.
+   *
+   * Measured from the DOM rather than computed: the labels' own boxes are the
+   * only thing that knows where they ended up after the rail wrapped, insetted
+   * for the notch, or shortened on a small screen.
+   */
+  const scrubRef = useRef<HTMLElement>(null)
+  /*
+   * A ref drives the gesture; the state only draws it.
+   *
+   * `onPointerMove` cannot ask a state variable whether a drag is in progress:
+   * the down and the first move can land in the same tick, and React has not
+   * re-rendered in between, so the move reads the flag as still false and the
+   * first part of the gesture is silently dropped. The ref is true the instant
+   * the down fires, which is when the gesture actually starts.
+   */
+  const scrubbingRef = useRef(false)
+  const [scrubbing, setScrubbing] = useState(false)
+  const scrubbedTo = useRef<string | null>(null)
+
+  const scrubAt = useCallback(
+    (clientY: number) => {
+      const rail = scrubRef.current
+      if (!rail) return
+      let best: { year: string; away: number } | null = null
+      for (const stop of rail.querySelectorAll<HTMLElement>('[data-year]')) {
+        const box = stop.getBoundingClientRect()
+        const away = Math.abs(clientY - (box.top + box.height / 2))
+        if (!best || away < best.away) best = { year: stop.dataset.year!, away }
+      }
+      // Re-scrolling to the year you are already on fights the smooth scroll
+      // and pins the wall in place while your thumb keeps moving.
+      if (!best || scrubbedTo.current === best.year) return
+      scrubbedTo.current = best.year
+      scrollToRow(yearRow.get(best.year) ?? 0)
+    },
+    [scrollToRow, yearRow],
   )
 
   const itemsRef = useRef(items)
@@ -528,15 +484,12 @@ export function PageWall({
    *
    * A cut is the honest reading of what happens: you are not moving closer to
    * the wall, you are opening something.
+   *
+   * It also used to swallow the click at reading zoom, on the reasoning that
+   * you were already reading. There is no reading zoom now, so every card on
+   * the wall opens — one gesture, one outcome, at every distance.
    */
-  const openWithTransition = useCallback(
-    (entryId: string) => {
-      // Already reading — a click is just a click, not a second way in.
-      if (reading) return
-      onOpen(entryId)
-    },
-    [onOpen, reading],
-  )
+  const openWithTransition = useCallback((entryId: string) => onOpen(entryId), [onOpen])
 
   /**
    * Bring the page you zoomed to into view.
@@ -784,7 +737,6 @@ export function PageWall({
           role="grid"
           aria-label="Your pages"
           data-cols={cols}
-          data-reading={reading ? 'true' : undefined}
           aria-multiselectable
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
@@ -797,9 +749,6 @@ export function PageWall({
             ['--pg-card-h' as string]: `${cardHeight}px`,
             // The spine between two open pages is drawn from the gutter.
             ['--pg-gutter' as string]: `${spec.gap}px`,
-            // A leaf's column width, so a long page's overflow marches sideways
-            // by exactly one leaf at a time.
-            ...(leafBox.width > 0 ? { ['--pg-leaf-w' as string]: `${leafBox.width}px` } : {}),
           }}
         >
           {/*
@@ -867,27 +816,6 @@ export function PageWall({
                 />
               )
             }
-            if (reading) {
-              return (
-                <div
-                  key={item.key}
-                  className="pg__leaf-cell"
-                  data-page-id={item.entry.id}
-                  data-wall-key={item.key}
-                  tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
-                  onFocus={() => onCardFocus(item.key)}
-                  onKeyDown={(e) => onCardKeyDown(item.key, e)}
-                >
-                  <Leaf
-                    entry={item.entry}
-                    markQuotes={markQuotes.get(item.entry.id) ?? []}
-                    firstLineTitle={firstLineTitle}
-                    leaf={item.leaf}
-                    onEdit={onEdit}
-                  />
-                </div>
-              )
-            }
             return (
               <PageCard
                 key={item.key}
@@ -929,12 +857,55 @@ export function PageWall({
       ) : null}
 
       {years.length > 1 ? (
-        <nav className="pg__scrub" aria-label="Jump to a year">
+        <nav
+          className="pg__scrub"
+          ref={scrubRef}
+          aria-label="Jump to a year"
+          data-scrubbing={scrubbing ? 'true' : undefined}
+          // Pointer events, not touch: one path serves a thumb, a mouse drag and
+          // a stylus, and pointer capture is what keeps the gesture alive when
+          // the thumb wanders off the rail — which on a 40px-wide strip it does
+          // constantly.
+          onPointerDown={(e) => {
+            e.preventDefault()
+            // Capture can throw when the pointer is already gone — a tap fast
+            // enough that the up landed before React dispatched the down. The
+            // scrub still works without it; only the off-rail travel is lost.
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId)
+            } catch {
+              /* not capturable — carry on uncaptured */
+            }
+            scrubbedTo.current = null
+            scrubbingRef.current = true
+            setScrubbing(true)
+            scrubAt(e.clientY)
+          }}
+          onPointerMove={(e) => {
+            if (!scrubbingRef.current) return
+            scrubAt(e.clientY)
+          }}
+          onPointerUp={() => {
+            scrubbingRef.current = false
+            setScrubbing(false)
+          }}
+          onPointerCancel={() => {
+            scrubbingRef.current = false
+            setScrubbing(false)
+          }}
+        >
           {years.map((y) => (
+            /*
+              A button still, so the rail is reachable and operable from a
+              keyboard — the pointer gesture is an addition to that, not a
+              replacement for it. Pointer events are handled on the rail rather
+              than per-stop because a drag crosses all of them.
+            */
             <button
               key={y}
               type="button"
               className="pg__scrub-y"
+              data-year={y}
               data-on={y === topYear ? 'true' : undefined}
               onClick={() => scrollToRow(yearRow.get(y) ?? 0)}
             >

@@ -43,12 +43,26 @@ export interface SubjectIndex {
  * verse text is the Bible's words, not the writer's, and lighting a page because
  * a quoted psalm says "fear" would misreport what they wrote about.
  */
-export function buildSubjectIndex(entries: Entry[]): SubjectIndex {
+export function haystackFor(entry: Entry): string {
+  return entryContentLines(entry.body_markdown).join('\n').toLowerCase()
+}
+
+/**
+ * `haystackFor` is injectable so the caller can hand in a cached derivation —
+ * the flattening depends on nothing but the entry's own markdown, so a corpus
+ * that gained one page should not re-flatten the other three thousand. The
+ * default is the real thing, so tests and indifferent callers are unaffected.
+ * See `derived.ts`.
+ */
+export function buildSubjectIndex(
+  entries: Entry[],
+  haystack: (entry: Entry) => string = haystackFor,
+): SubjectIndex {
   const ids: string[] = []
   const haystacks: string[] = []
   for (const e of entries) {
     ids.push(e.id)
-    haystacks.push(entryContentLines(e.body_markdown).join('\n').toLowerCase())
+    haystacks.push(haystack(e))
   }
   return { ids, haystacks }
 }

@@ -119,3 +119,46 @@ export function spanLabel(first: string | null, last: string | null): string {
   const b = new Date(last).getFullYear()
   return a === b ? String(a) : `${a} – ${b}`
 }
+
+/** A stretch of the archive, as indices into the shared month list. */
+export interface Span {
+  /** Inclusive, and always the earlier of the two — see `spanFrom`. */
+  from: number
+  to: number
+}
+
+/** Normalise a brush: a drag runs either way, and a span does not. */
+export function spanFrom(a: number, b: number, monthCount: number): Span | null {
+  if (monthCount <= 0) return null
+  const lo = Math.max(0, Math.min(a, b))
+  const hi = Math.min(monthCount - 1, Math.max(a, b))
+  if (lo > hi) return null
+  // The whole archive is not a bracket — it is the absence of one, and saying
+  // so keeps "no span" a single state rather than two that look identical.
+  if (lo === 0 && hi === monthCount - 1) return null
+  return { from: lo, to: hi }
+}
+
+/** True when the page falls inside the bracket. */
+export function inSpan(
+  iso: string,
+  span: Span,
+  months: { year: number; month: number }[],
+): boolean {
+  const start = months[span.from]
+  const end = months[span.to]
+  if (!start || !end) return true
+  const t = new Date(iso)
+  const n = t.getFullYear() * 12 + t.getMonth()
+  return n >= start.year * 12 + start.month && n <= end.year * 12 + end.month
+}
+
+/** "November 2019 – March 2021", or one month when that is all it is. */
+export function spanText(span: Span, months: { year: number; month: number }[]): string {
+  const start = months[span.from]
+  const end = months[span.to]
+  if (!start || !end) return ''
+  const label = (m: { year: number; month: number }) =>
+    new Date(m.year, m.month, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  return span.from === span.to ? label(start) : `${label(start)} – ${label(end)}`
+}

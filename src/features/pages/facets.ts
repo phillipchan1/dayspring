@@ -76,17 +76,89 @@ function add(set: Set<FacetKey>, counts: Map<FacetKey, number>, key: FacetKey): 
 }
 
 /**
- * Index the corpus.
+ * Everything ONE page carries, from the document alone.
+ *
+ * Split out of `buildFacetIndex` so it can be cached per entry (see
+ * `derived.ts`). This is the expensive half — a scripture parse, four regex
+ * passes and a fence parse per page — and it depends on nothing but the
+ * entry's own markdown, which means a corpus that gained one page does not
+ * have to re-derive the other three thousand.
  *
  * Scripture is parsed here rather than read from `scripture_refs`, deliberately:
  * that table is behind the network, and the wall's whole contract is that it
  * works on a plane. `parseReferences` is the same parser save-time capture uses,
  * so the two agree.
  */
+export function documentFacets(entry: Entry): FacetKey[] {
+  const out: FacetKey[] = []
+  const seen = new Set<FacetKey>()
+  const put = (key: FacetKey) => {
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(key)
+  }
+
+  // Content lines only: a `/scripture` block's verse text is the Bible's
+  // words, and a page must not count as "you cited Psalms" because a psalm
+  // you pasted happens to quote one.
+  const lines = entryContentLines(entry.body_markdown)
+  const body = lines.join('\n')
+
+  HIGHLIGHT_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = HIGHLIGHT_RE.exec(body))) {
+    put(FACET_HIGHLIGHT)
+    put(highlightFacet((m[1] as HighlightColor) ?? 'amber'))
+  }
+
+  if (UNDERLINE_RE.test(body)) put(FACET_UNDERLINE)
+  if (BOLD_RE.test(body)) put(FACET_BOLD)
+  if (lines.some((l) => l.trimStart().startsWith('>'))) put(FACET_QUOTE)
+
+  for (const ref of parseReferences(body)) {
+    put(FACET_SCRIPTURE)
+    put(bookFacet(ref.book_osis))
+  }
+
+  /*
+   * What the writer deliberately put on the page.
+   *
+   * Read from the RAW markdown, not the content lines — `entryContentLines`
+   * strips these fences before anything else sees them, which is exactly
+   * right for prose and exactly wrong here.
+   *
+   * A `/scripture` block also counts as scripture: citing a verse by typing
+   * it and citing it with the command are the same act to the person who did
+   * it, whatever the storage says.
+   */
+  const raw = asEntryMarkdown(entry.body_markdown)
+  for (const block of parseSpiritualBlocks(raw)) {
+    if (block.type === 'prayer') put(FACET_PRAYER)
+    else if (block.type === 'sense') put(FACET_SENSE)
+    else if (block.type === 'scripture') put(FACET_SCRIPTURE)
+  }
+  for (const line of raw.split('\n')) {
+    if (practiceNameFromLine(line.trim())) {
+      put(FACET_RITUAL)
+      break
+    }
+  }
+  return out
+}
+
+/**
+ * Index the corpus.
+ *
+ * `facetsFor` exists so the caller can hand in a cached derivation. The default
+ * is the real thing, so every test and every call site that doesn't care gets
+ * correct behaviour for free; `derived.ts` passes a per-entry memo so that
+ * re-entering Pages costs assembly rather than re-derivation.
+ */
 export function buildFacetIndex(
   entries: Entry[],
   markedEntryIds: Iterable<string> = [],
   markings: Iterable<MarkingRef> = [],
+  facetsFor: (entry: Entry) => readonly FacetKey[] = documentFacets,
 ): FacetIndex {
   const byEntry = new Map<string, Set<FacetKey>>()
   const counts = new Map<FacetKey, number>()
@@ -94,52 +166,7 @@ export function buildFacetIndex(
   for (const entry of entries) {
     const set = new Set<FacetKey>()
     byEntry.set(entry.id, set)
-
-    // Content lines only: a `/scripture` block's verse text is the Bible's
-    // words, and a page must not count as "you cited Psalms" because a psalm
-    // you pasted happens to quote one.
-    const lines = entryContentLines(entry.body_markdown)
-    const body = lines.join('\n')
-
-    HIGHLIGHT_RE.lastIndex = 0
-    let m: RegExpExecArray | null
-    while ((m = HIGHLIGHT_RE.exec(body))) {
-      add(set, counts, FACET_HIGHLIGHT)
-      add(set, counts, highlightFacet((m[1] as HighlightColor) ?? 'amber'))
-    }
-
-    if (UNDERLINE_RE.test(body)) add(set, counts, FACET_UNDERLINE)
-    if (BOLD_RE.test(body)) add(set, counts, FACET_BOLD)
-    if (lines.some((l) => l.trimStart().startsWith('>'))) add(set, counts, FACET_QUOTE)
-
-    for (const ref of parseReferences(body)) {
-      add(set, counts, FACET_SCRIPTURE)
-      add(set, counts, bookFacet(ref.book_osis))
-    }
-
-    /*
-     * What the writer deliberately put on the page.
-     *
-     * Read from the RAW markdown, not the content lines — `entryContentLines`
-     * strips these fences before anything else sees them, which is exactly
-     * right for prose and exactly wrong here.
-     *
-     * A `/scripture` block also counts as scripture: citing a verse by typing
-     * it and citing it with the command are the same act to the person who did
-     * it, whatever the storage says.
-     */
-    const raw = asEntryMarkdown(entry.body_markdown)
-    for (const block of parseSpiritualBlocks(raw)) {
-      if (block.type === 'prayer') add(set, counts, FACET_PRAYER)
-      else if (block.type === 'sense') add(set, counts, FACET_SENSE)
-      else if (block.type === 'scripture') add(set, counts, FACET_SCRIPTURE)
-    }
-    for (const line of raw.split('\n')) {
-      if (practiceNameFromLine(line.trim())) {
-        add(set, counts, FACET_RITUAL)
-        break
-      }
-    }
+    for (const key of facetsFor(entry)) add(set, counts, key)
   }
 
   for (const id of markedEntryIds) {

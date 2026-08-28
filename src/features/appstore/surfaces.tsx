@@ -205,7 +205,6 @@ function PagesShot() {
       onOpenEntry={noop}
       onEntryMenuAction={noop}
       onDeleteEntries={noop}
-      single={false}
       settings={settings}
       updateSettings={update}
     />

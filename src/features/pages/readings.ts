@@ -1,13 +1,14 @@
-// The four ways to read what is lit.
+// The ways to read what is lit.
 //
-// Every one of them is an ARRANGEMENT of pages the writer already has — never a
+// Every one of them is an ARRANGEMENT of things the writer already has — never a
 // selection of the good ones, never a summary, never a claim about what a
 // stretch of time was. The arithmetic is all here and none of it involves a
 // model: a gap opens a burst, a floor shortens a word list, a year splits two
-// spans. What the reader draws from the arrangement is theirs.
+// spans, a line count decides what counts as near. What the reader draws from
+// the arrangement is theirs.
 //
-// Three rules hold across all four, and each one is a written decision rather
-// than a taste call:
+// Three rules hold across all of them, and each one is a written decision
+// rather than a taste call:
 //
 //   · No vertical axis anywhere. Nothing here returns a score, a ratio or a
 //     trend, because a rising or falling line beside someone's spiritual life
@@ -20,7 +21,7 @@
 import { entryContentLines } from '@/lib/entryLabels'
 import type { Entry } from '@/lib/types'
 
-export type Reading = 'order' | 'thennow' | 'bursts' | 'words'
+export type Reading = 'order' | 'thennow' | 'bursts' | 'words' | 'near'
 
 export const READINGS: { id: Reading; label: string; gloss: string }[] = [
   // "Every" is the load-bearing word, not the direction: a top eight would mean
@@ -30,6 +31,20 @@ export const READINGS: { id: Reading; label: string; gloss: string }[] = [
   // Arithmetic, not narrative. The app never says these are stories.
   { id: 'bursts', label: 'close together', gloss: 'Stretches bounded by silence.' },
   { id: 'words', label: 'the words you used', gloss: 'Yours, then against now. Never a score.' },
+  /*
+   * The only reading that joins the two halves of the filter.
+   *
+   * A subject lights lines; a marking lit a whole page, so "Tiffany and
+   * Scripture" could only mean "both are true somewhere here" and opening one
+   * showed nothing connecting them. With the markings' own text both live in
+   * the same prose and the real question becomes answerable: the verses you
+   * reached for while you were writing about her (see `nearby.ts`).
+   *
+   * It needs a subject to be near, and says so rather than being dimmed —
+   * greying a reading out is exactly what made "the words you used" impossible
+   * to find.
+   */
+  { id: 'near', label: 'marked near it', gloss: 'What you marked, beside the pages that say it.' },
 ]
 
 const year = (iso: string): number => new Date(iso).getFullYear()

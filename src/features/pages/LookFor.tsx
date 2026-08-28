@@ -3,6 +3,10 @@ import type { MarkingChip } from './facets'
 import type { KeptSubject } from './keptSubjects'
 import { searchSubjects, withCounts, wordSubject, type Subject, type SubjectIndex } from './subjects'
 import { READINGS, type Reading } from './readings'
+import { MarkGlyph } from '@/components/MarkGlyph'
+import { LitChips, type LookChip } from './LitChips'
+
+export type { LookChip }
 
 /**
  * Look for.
@@ -45,13 +49,6 @@ import { READINGS, type Reading } from './readings'
  * than not offering it.
  */
 
-export interface LookChip {
-  key: string
-  label: string
-  kind: 'subject' | 'marking'
-  tone?: string
-}
-
 interface Props {
   /** Everything kept, in the order kept. Never sorted by size. */
   kept: KeptSubject[]
@@ -69,6 +66,16 @@ interface Props {
    */
   zoom: number
   onZoom: (z: number) => void
+  /**
+   * A phone-width viewport — the sheet becomes a bottom sheet.
+   *
+   * Not a style choice. As a dropdown it hangs off a control near the top of
+   * the screen, so on a phone the status bar and the dynamic island sit over
+   * its head and the keyboard takes the rest: you got a filter you could see
+   * about a third of. Coming up from the bottom puts it in the thumb's half of
+   * the screen with the keyboard below it rather than across it.
+   */
+  narrow: boolean
   standLabel: string
   reading: Reading
   onReading: (r: Reading) => void
@@ -96,6 +103,7 @@ export function LookFor({
   markings,
   zoom,
   onZoom,
+  narrow,
   standLabel,
   reading,
   onReading,
@@ -141,6 +149,8 @@ export function LookFor({
     const matched = q
       ? kept.filter((s) => s.label.toLowerCase().includes(q.toLowerCase()))
       : kept
+    // Counted, never filtered: what she keeps is hers, and a kept name that has
+    // nothing in the bracketed stretch is dimmed rather than taken away.
     return withCounts(index, matched) as KeptSubject[]
   }, [kept, index, q])
 
@@ -168,7 +178,7 @@ export function LookFor({
   const nothing = heldRows.length === 0 && noticedRows.length === 0 && !mine
 
   return (
-    <div className="pg-look" ref={box}>
+    <div className="pg-look" data-narrow={narrow ? 'true' : undefined} ref={box}>
       <div className="pg-look__row">
         <button
           type="button"
@@ -202,27 +212,7 @@ export function LookFor({
 
         {chips.length > 0 ? (
           <div className="pg-look__on">
-            {chips.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                className="pg-held"
-                data-kind={c.kind}
-                style={c.tone ? ({ ['--tone']: c.tone } as React.CSSProperties) : undefined}
-                onClick={() => onRemove(c.key)}
-                aria-label={`Stop looking for ${c.label}`}
-              >
-                {c.label}
-                <svg viewBox="0 0 8 8" width="7" height="7" fill="none" aria-hidden>
-                  <path
-                    d="M1.5 1.5 6.5 6.5M6.5 1.5 1.5 6.5"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            ))}
+            <LitChips chips={chips} onRemove={onRemove} />
 
             {/*
               Dim, or only. Off by default and staying that way — the pages that
@@ -255,12 +245,45 @@ export function LookFor({
           title="Open a page at random"
           aria-label="Open a page at random"
         >
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden>
-            <path d="M4 7h4l8 10h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M4 17h4l3-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M14 9l2-2h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M18 4l2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M18 14l2 3-2 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          {/*
+            A notebook falling open, not a shuffle arrow.
+
+            This was the media-player shuffle glyph — five arrows crossing —
+            which is the one piece of somebody else's software left on this
+            surface, and it says "randomise a queue" rather than what actually
+            happens. What actually happens is the gesture everyone already has
+            for a notebook: you let it fall open somewhere. So: a spine, two
+            leaves falling away from it, and one page lifting.
+          */}
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden>
+            <path
+              d="M12 7.4v11.2"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+            <path
+              d="M12 7.4C10.3 6.2 7.9 5.7 5 5.9v10.9c2.9-.2 5.3.3 7 1.5"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M12 7.4c1.7-1.2 4.1-1.7 7-1.5v10.9c-2.9-.2-5.3.3-7 1.5"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* The leaf caught mid-turn — the whole reason to press it. */}
+            <path
+              d="M12 7.4c1.5-2 3-3.1 4.6-3.4"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              opacity="0.55"
+            />
           </svg>
         </button>
 
@@ -278,15 +301,35 @@ export function LookFor({
         </label>
       </div>
 
+      {open && narrow ? (
+        <button
+          type="button"
+          className="pg-sheet__scrim"
+          aria-label="Close"
+          onClick={() => setOpen(false)}
+        />
+      ) : null}
+
       {open ? (
-        <div className="pg-sheet">
+        <div className="pg-sheet" role={narrow ? 'dialog' : undefined} aria-modal={narrow || undefined}>
           <div className="pg-sheet__find">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
               <circle cx="7" cy="7" r="4.3" stroke="currentColor" strokeWidth="1.25" />
               <path d="M10.4 10.4 14 14" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
             </svg>
+            {/*
+              Focused on a pointer, never on a phone.
+
+              Autofocus is right at a keyboard — the sheet opens ready to type.
+              On a phone it summons the keyboard over half the screen before the
+              reader has seen a single option, so what opens is a search field
+              and a sliver of the thing they came to look at. The kept pills and
+              the markings are the point of this sheet; typing is one of the
+              ways in, not the way in. Tapping the field still opens the
+              keyboard, at the moment that is what was asked for.
+            */}
             <input
-              autoFocus
+              autoFocus={!narrow}
               value={typed}
               placeholder="a name, or a word you carry"
               aria-label="Find a subject"
@@ -369,6 +412,14 @@ export function LookFor({
                       disabled={m.count === 0}
                       onClick={() => (lit ? onRemove(m.key) : onToggleMarking(m.key))}
                     >
+                      {/*
+                        The kind's own hand, the same one the editor's margin
+                        draws. Six words in a row is a list to read; six words
+                        each wearing the stroke you make in a margin is a set
+                        you recognise — and it is the app's existing language
+                        rather than a second one invented for this sheet.
+                      */}
+                      <MarkGlyph kind={m.kind} className="pg-pill__glyph" />
                       {m.label}
                       <i>{m.count}</i>
                     </button>
@@ -430,8 +481,22 @@ function SubjectPill({
     <span
       className={`pg-pill ${kept ? 'pg-pill--kept' : 'pg-pill--noticed'}${mine ? ' pg-pill--mine' : ''}`}
       data-on={on ? 'true' : undefined}
+      data-off={subject.count === 0 ? 'true' : undefined}
     >
-      <button type="button" className="pg-pill__hit" onClick={onToggle}>
+      {/*
+        A subject with nothing in the bracketed stretch DIMS rather than
+        disappears — the same rule the marking pills already follow. A list that
+        silently changes length teaches the reader that the vocabulary is
+        variable; a dimmed pill says "nothing here in these months", which is
+        true, and is the most useful thing a bracket has to tell you about a
+        name you carry.
+      */}
+      <button
+        type="button"
+        className="pg-pill__hit"
+        disabled={subject.count === 0}
+        onClick={onToggle}
+      >
         <em>{subject.label}</em>
         <i>{subject.count}</i>
       </button>

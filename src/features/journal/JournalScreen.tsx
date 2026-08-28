@@ -61,6 +61,7 @@ import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { PagesView } from '@/features/pages/PagesView'
 import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
 import { useMarks } from '@/features/pages/useMarks'
+import { warmPageIndexes } from '@/features/pages/derived'
 import { ask } from '@/lib/ask'
 import type { EntrySelectionApi, EntrySelectionState } from './entrySelectionApi'
 import type { Mark } from '@/lib/marks'
@@ -1337,6 +1338,23 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     settingsOpen,
   })
 
+  /*
+   * Derive what the wall needs before anyone asks for it.
+   *
+   * Pages unmounts when you leave it, so its corpus indexes are rebuilt on
+   * every visit — and the FIRST visit of a session has nothing cached at all.
+   * On a phone that is most of a second between tapping Journal and seeing it.
+   * Warming in idle time moves the work to a moment with nothing waiting on it;
+   * `derived.ts` chunks it so the warm-up is not itself a dropped frame.
+   *
+   * Cancelled on change: an archive that reloads underneath a half-finished
+   * warm-up should not keep deriving the list it is replacing.
+   */
+  useEffect(() => {
+    if (!entriesReady || entries.length === 0) return
+    return warmPageIndexes(entries)
+  }, [entriesReady, entries])
+
   // After chrome hides, return focus to the editor once layout has settled.
   useEffect(() => {
     if (!focusEditorReady || !entriesReady) return
@@ -1896,7 +1914,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       onOpenEntry={handleOpenReflectionEntry}
       onEntryMenuAction={handleEntryMenuAction}
       onDeleteEntries={handleDeleteEntries}
-      single={isMobile}
       settings={settings}
       updateSettings={updateSettings}
     />
