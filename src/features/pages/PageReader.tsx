@@ -1,4 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { renderMarkdown } from '@/lib/markdown'
 import { passagesForEntry } from '@/lib/remember'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
@@ -53,6 +55,7 @@ export function PageReader({
   match,
   firstLineTitle,
   onEdit,
+  onBack,
 }: {
   entry: Entry
   markQuotes: string[]
@@ -77,7 +80,38 @@ export function PageReader({
   match: RegExp | null
   firstLineTitle: boolean
   onEdit: (entryId: string) => void
+  /** Back to the list this page was opened from. */
+  onBack: () => void
 }) {
+  /*
+   * Touch changes two things about this page, and both are about there being
+   * exactly one place a page is read.
+   *
+   * A pointer can rest on the page without pressing it, so "click the page to
+   * write on it" costs a mouse nothing. A finger cannot: on a phone every tap
+   * meant for scrolling, for dismissing the keyboard, for nothing at all threw
+   * the reader into the editor — a second full-screen view of the same entry,
+   * arrived at by accident. So on touch the page is only a page, and `Write` in
+   * the header is the way in.
+   *
+   * And the way out becomes a gesture. `either` direction: backing out is a
+   * rightward drag on iOS and a leftward one in plenty of Android apps, and a
+   * reader that answers to only one of them reads as broken to whoever has the
+   * other habit.
+   */
+  const touch = useMediaQuery('(pointer: coarse)')
+  const back = useSwipeToDismiss({
+    onDismiss: () => {
+      // Dragging out a selection is a horizontal gesture too, and copying a
+      // sentence out of a page is the other thing this view is for.
+      const sel = window.getSelection()
+      if (sel && !sel.isCollapsed) return
+      onBack()
+    },
+    enabled: touch,
+    direction: 'either',
+    threshold: 64,
+  })
   /*
    * Spiritual blocks are their own rendering elsewhere; here they would arrive
    * as raw fenced code, which is markup rather than writing.
@@ -150,9 +184,10 @@ export function PageReader({
   }, [entry, markQuotes, loose])
 
   /*
-   * The whole page opens the editor — except while selecting text, because
-   * reading and copying out of a page is the other thing you come here to do
-   * and it must not be hijacked.
+   * On a pointer the whole page opens the editor — except while selecting text,
+   * because reading and copying out of a page is the other thing you come here
+   * to do and it must not be hijacked. On touch nothing here writes: see the
+   * note on `touch` above.
    */
   const write = () => {
     const sel = window.getSelection()
@@ -160,57 +195,72 @@ export function PageReader({
     onEdit(entry.id)
   }
 
-  return (
-    <div className="pg-read1">
-      {/*
-        Keyed on the entry, so stepping to the next page re-runs the article's
-        entrance. Without the key React reuses the element and the words swap
-        with no acknowledgement at all — which on a surface built for reading is
-        the one place a beat is worth having.
-      */}
-      <article
-        key={entry.id}
-        className="pg-read1__page"
-        onClick={write}
-        onKeyDown={(e) => {
+  const asButton = touch
+    ? {}
+    : {
+        onClick: write,
+        onKeyDown: (e: React.KeyboardEvent) => {
           if (e.key === 'Enter') write()
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={`${formatDate(entry.created_at)} — open to write`}
-      >
-        <header className="pg-read1__head">
-          <time className="pg-read1__date" dateTime={entry.created_at}>
-            {formatDate(entry.created_at)}
-          </time>
-        </header>
+        },
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `${formatDate(entry.created_at)} — open to write`,
+      }
 
-        <div className="pg-read1__cols">
-          <div
-            ref={bodyRef}
-            className="pg-read1__body markdown-body"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-          {margin.length > 0 ? (
-            <aside className="pg-read1__margin" aria-label="What you set apart on this page">
-              {margin.map((note, i) => (
-                <p className="pg-read1__note" key={i}>
-                  {note.kind ? (
-                    <span
-                      className="pg-read1__kind"
-                      style={{ ['--tone']: MARK_KIND[note.kind]?.tone } as React.CSSProperties}
-                    >
-                      <MarkGlyph kind={note.kind} className="pg-read1__kind-hand" />
-                      {MARK_KIND[note.kind]?.label ?? note.kind}
-                    </span>
-                  ) : null}
-                  {note.text}
-                </p>
-              ))}
-            </aside>
-          ) : null}
-        </div>
-      </article>
+  return (
+    <div className="pg-read1" {...back.handlers}>
+      {/*
+        The page follows the finger while the back-swipe is being made, and
+        snaps or leaves on release. On the inner element rather than the
+        scroller, because `.pg-read1` carries the entrance animation and an
+        animated transform beats an inline one for as long as the animation's
+        `both` fill holds.
+      */}
+      <div
+        className="pg-read1__slide"
+        data-dragging={back.dragging ? 'true' : undefined}
+        style={back.dragX ? { transform: `translateX(${back.dragX}px)` } : undefined}
+      >
+        {/*
+          Keyed on the entry, so stepping to the next page re-runs the article's
+          entrance. Without the key React reuses the element and the words swap
+          with no acknowledgement at all — which on a surface built for reading is
+          the one place a beat is worth having.
+        */}
+        <article key={entry.id} className="pg-read1__page" {...asButton}>
+          <header className="pg-read1__head">
+            <time className="pg-read1__date" dateTime={entry.created_at}>
+              {formatDate(entry.created_at)}
+            </time>
+          </header>
+
+          <div className="pg-read1__cols">
+            <div
+              ref={bodyRef}
+              className="pg-read1__body markdown-body"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+            {margin.length > 0 ? (
+              <aside className="pg-read1__margin" aria-label="What you set apart on this page">
+                {margin.map((note, i) => (
+                  <p className="pg-read1__note" key={i}>
+                    {note.kind ? (
+                      <span
+                        className="pg-read1__kind"
+                        style={{ ['--tone']: MARK_KIND[note.kind]?.tone } as React.CSSProperties}
+                      >
+                        <MarkGlyph kind={note.kind} className="pg-read1__kind-hand" />
+                        {MARK_KIND[note.kind]?.label ?? note.kind}
+                      </span>
+                    ) : null}
+                    {note.text}
+                  </p>
+                ))}
+              </aside>
+            ) : null}
+          </div>
+        </article>
+      </div>
     </div>
   )
 }
