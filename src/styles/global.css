@@ -2379,6 +2379,43 @@ a {
   overflow: hidden;
 }
 
+/*
+ * The edge-swipe back out of an entry (MobileJournal → `back`).
+ *
+ * The shell IS the pushed view here — there is no overlay to slide, because the
+ * surface behind it is not mounted. So the shell travels, and what it uncovers
+ * is the body, which is already `--bg`: the same paper the wall is drawn on, so
+ * a page half pulled aside looks like a page half pulled aside rather than a
+ * hole. The shadow is what says there is something under it.
+ *
+ * `will-change` only while the finger has hold of it — a permanent promotion
+ * would keep the whole editor on its own layer for the life of the app.
+ */
+.app-shell[data-back-swipe] {
+  transition: transform 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+.app-shell[data-back-swipe][data-dragging],
+.app-shell[data-back-swipe][data-leaving] {
+  background: var(--bg);
+  box-shadow: -14px 0 32px color-mix(in srgb, #000 30%, transparent);
+  will-change: transform;
+}
+.app-shell[data-back-swipe][data-dragging] {
+  transition: none;
+}
+/* 220ms is `EXIT_MS` in useSwipeToDismiss, which is how long the shell stays
+   put before the surface changes under it. Change one and change the other. */
+.app-shell[data-back-swipe][data-leaving] {
+  transform: translateX(100%);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell[data-back-swipe],
+  .app-shell[data-back-swipe][data-leaving] {
+    transition: none;
+  }
+}
+
 /* ── Tauri overlay title bar: drag the window from chrome, not the editor ──
    macOS/Windows WebView2 honour -webkit-app-region. Interactive nodes below
    stay clickable via no-drag (buttons, inputs, CodeMirror, etc.). */

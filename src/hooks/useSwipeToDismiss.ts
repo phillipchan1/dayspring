@@ -92,11 +92,26 @@ export function commits({
   return dx + speed * PROJECTION_MS > threshold
 }
 
+/**
+ * May a gesture that landed here be a back-swipe?
+ *
+ * `edge` unset means the whole surface, which is what the reader and the
+ * side panels want. Set, it is a screen-edge pan: measured from the VIEWPORT's
+ * left, not the element's, because the edge a thumb aims for is the edge of the
+ * phone. Pure and tested because the number is a feel decision, and a rule this
+ * small is exactly the kind that goes quietly wrong inside a touch handler.
+ */
+export function startsInEdgeZone(clientX: number, edge: number | undefined): boolean {
+  if (edge == null) return true
+  return clientX <= edge
+}
+
 export function useSwipeToDismiss({
   onDismiss,
   enabled = true,
   threshold = 80,
   exit = false,
+  edge,
   guard,
 }: {
   onDismiss: () => void
@@ -127,6 +142,17 @@ export function useSwipeToDismiss({
    * rule on `[data-leaving]` lasting `EXIT_MS`.
    */
   exit?: boolean
+  /**
+   * Only take gestures that START within this many px of the left edge.
+   *
+   * The reader can afford a page-wide swipe: everything under the finger is
+   * prose you are not going to edit. The EDITOR cannot — the whole surface is
+   * CodeMirror, where a horizontal drag already means "move the caret" or
+   * "extend the selection", and a gesture that eats those would cost more than
+   * it gives. iOS solves this the same way, with a screen-edge pan, so the
+   * hand already knows where to start. Unset = the whole surface, as before.
+   */
+  edge?: number
 }) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const axis = useRef<'h' | 'v' | null>(null)
@@ -190,6 +216,8 @@ export function useSwipeToDismiss({
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0]
     if (!t || leaving) return
+    // A screen-edge gesture, when the surface asked for one.
+    if (!startsInEdgeZone(t.clientX, edge)) return
     if (guard && !guard()) return
     start.current = { x: t.clientX, y: t.clientY }
     last.current = { x: t.clientX, t: performance.now() }

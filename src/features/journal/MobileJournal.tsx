@@ -1,5 +1,7 @@
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { useKeyboardOpen } from '@/hooks/useKeyboard'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
@@ -25,9 +27,9 @@ import type { JournalViewProps } from './journalViewProps'
  * visual viewport so the keyboard never covers the bar.
  *
  * The entries drawer is gone with the list it held: the Entries tab goes to the
- * Pages wall, which takes the canvas like every other surface. That also retires
- * the left-edge swipe — worth naming in a release note, because it was muscle
- * memory for anyone who had it.
+ * Pages wall, which takes the canvas like every other surface. That retired the
+ * left-edge swipe that used to open the drawer; the edge now does what it does
+ * on every other iPhone app, which is go back — see `back` below.
  */
 export function MobileJournal(props: JournalViewProps) {
   const {
@@ -40,6 +42,36 @@ export function MobileJournal(props: JournalViewProps) {
   } = props
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
+  const touch = useMediaQuery('(pointer: coarse)')
+  /*
+   * The way back out of an entry, as a gesture.
+   *
+   * An entry opened from Pages (or Lamp, Altar, Ascent) is a PUSHED view — the
+   * header says so with "← Pages" — and on a phone a pushed view is left by
+   * dragging it off to the right. Only the header button did that, which is the
+   * one thing a thumb reaching for the edge never finds.
+   *
+   * From the edge, and only the edge. Everything below the header is CodeMirror,
+   * where a horizontal drag already means move the caret or extend the
+   * selection; taking those would cost far more than a second way back is worth.
+   * That is also exactly where iOS puts it, so nobody has to be told.
+   *
+   * `exit` because nothing else animates the editor away — the surface simply
+   * changes — so the shell has to carry itself off the screen before it says it
+   * has gone. Its twin is the `[data-leaving]` rule in global.css.
+   */
+  const back = useSwipeToDismiss({
+    onDismiss: onReturnFromEntry,
+    enabled: touch && !!entryReturn,
+    edge: 32,
+    threshold: 72,
+    exit: true,
+    // A selection handle dragged off the left edge is still a selection.
+    guard: () => {
+      const sel = window.getSelection()
+      return !sel || sel.isCollapsed
+    },
+  })
   // Two layers light a Return destination's dot: the one-time discovery ember
   // and recurring "new since last visit" items (see surfaceEmbers/surfaceUpdates).
   const embers = useSurfaceEmbers()
@@ -66,11 +98,23 @@ export function MobileJournal(props: JournalViewProps) {
   return (
     <div
       className="app-shell"
+      {...back.handlers}
+      data-back-swipe={entryReturn ? 'true' : undefined}
+      data-dragging={back.dragging ? 'true' : undefined}
+      data-leaving={back.leaving ? 'true' : undefined}
       // Fill the full screen with 100dvh (reaches the bottom edge on iOS
       // standalone). Only pin to the measured visual-viewport height while the
       // keyboard is up, so the bottom bar lifts above it — visualViewport.height
       // excludes the home-indicator inset, which otherwise leaves a dead band.
-      style={{ flexDirection: 'column', height: keyboardOpen && vh ? `${vh}px` : '100dvh' }}
+      //
+      // The transform is written only while the finger has hold of it: a
+      // permanent one would make this the containing block for every fixed
+      // child (the FAB, the docked command bar) for the entire life of the app.
+      style={{
+        flexDirection: 'column',
+        height: keyboardOpen && vh ? `${vh}px` : '100dvh',
+        ...(back.dragX ? { transform: `translateX(${back.dragX}px)` } : null),
+      }}
     >
       {!focused && journalChrome && (
         <header

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axisOf, commits } from './useSwipeToDismiss'
+import { axisOf, commits, startsInEdgeZone } from './useSwipeToDismiss'
 
 /** What the reader is configured with — the number these rules are tuned to. */
 const THRESHOLD = 72
@@ -89,5 +89,36 @@ describe('commits', () => {
     // Including a leftward pull that whips back rightward as the finger lifts,
     // which the projection on its own would happily take.
     expect(at(-5, 3)).toBe(false)
+  })
+})
+
+/**
+ * The editor's back-swipe is a SCREEN-EDGE pan, and the reader's is not.
+ *
+ * The reader can afford the whole surface: everything under the finger is prose
+ * nobody is about to edit. The editor cannot — it is CodeMirror end to end,
+ * where a horizontal drag already means move the caret or extend the selection.
+ * Taking those would buy a second way back at the price of the first thing the
+ * surface is for. iOS draws the same line in the same place.
+ */
+describe('startsInEdgeZone', () => {
+  /** What MobileJournal is configured with. */
+  const EDGE = 32
+
+  it('takes the whole surface when no edge is asked for', () => {
+    expect(startsInEdgeZone(0, undefined)).toBe(true)
+    expect(startsInEdgeZone(300, undefined)).toBe(true)
+  })
+
+  it('takes a touch that landed on the edge', () => {
+    expect(startsInEdgeZone(0, EDGE)).toBe(true)
+    expect(startsInEdgeZone(12, EDGE)).toBe(true)
+    expect(startsInEdgeZone(EDGE, EDGE)).toBe(true)
+  })
+
+  it('leaves a drag that started out on the page to the page', () => {
+    expect(startsInEdgeZone(EDGE + 1, EDGE)).toBe(false)
+    // Mid-screen: a caret drag, a selection, a word being reached for.
+    expect(startsInEdgeZone(200, EDGE)).toBe(false)
   })
 })
