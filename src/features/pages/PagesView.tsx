@@ -924,7 +924,7 @@ export function PagesView({
            * out until a subject was chosen is exactly what made "the words you
            * used" impossible to find.
            */
-          <div className="pg__inner">
+          <div className="pg__inner pg__inner--read">
             <ReadingView
               reading={reading}
               entries={shown}

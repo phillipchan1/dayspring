@@ -1291,6 +1291,50 @@ button.pg__sense-q:hover {
   min-inline-size: 0;
 }
 
+/* The relative spans, beside the bracket they set. Quiet until pressed — this
+   sits under a band on every visit to the surface and has to earn its pixels. */
+.pg-stretch__presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex: none;
+}
+.pg-stretch__preset {
+  padding: 0.12rem 0.35rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background var(--transition);
+}
+.pg-stretch__preset:hover:not(:disabled) {
+  color: var(--text-dim);
+  background: var(--bg-hover);
+}
+.pg-stretch__preset[data-on='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.pg-stretch__preset:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pg-stretch__preset:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-stretch__preset {
+    transition: none;
+  }
+}
+
 .pg-stretch__count {
   font-family: var(--font-sans);
   font-size: 0.72rem;
@@ -2063,12 +2107,36 @@ button.pg__sense-q:hover {
  * summarised, and with no axis anywhere.
  */
 
+/*
+ * The reading's own scroller.
+ *
+ * `flex: 1; min-block-size: 0` and NOT `block-size: 100%`. The percentage
+ * resolved against a parent whose own height was content-driven, so it became
+ * `auto`: the element grew to 2,971px inside a 519px body, `overflow-y` had
+ * nothing left to do, and `.journal-canvas__content` clipped the rest with
+ * `overflow: hidden`. Every reading longer than the viewport lost its tail —
+ * silently, because a clipped page looks exactly like a page that ended.
+ *
+ * `min-block-size: 0` is the load-bearing half: a flex item's `min-height` is
+ * `auto`, which refuses to shrink below its content and is what let it push out
+ * of the box in the first place.
+ */
 .pg-read {
   max-inline-size: 62rem;
   margin: 0 auto;
   padding: 0 1.5rem 4rem;
   overflow-y: auto;
-  block-size: 100%;
+  flex: 1;
+  min-block-size: 0;
+}
+
+/* The wrapper has to pass the bound down, or there is nothing for the scroller
+   above to be 100% OF. Scoped to the reading — `.pg__inner` is also the head. */
+.pg__inner--read {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-block-size: 0;
 }
 
 /* A control, not a finding — so it is plain. */
@@ -2119,7 +2187,87 @@ button.pg__sense-q:hover {
 .pg-read__bursts {
   display: flex;
   flex-direction: column;
-  gap: 2.2rem;
+  gap: 2.8rem;
+}
+
+/*
+ * A STRETCH, as a stretch.
+ *
+ * It used to be a heading over a run of one-line rows, which reads as a list
+ * that happens to be labelled — twenty-three things, not one thing that took
+ * 387 days. Bounded, with its own ground, the heading belongs TO the block.
+ */
+.pg-read__burst {
+  padding: 1rem 1.1rem 1.2rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 45%, transparent);
+}
+
+/*
+ * The pages in it, as a pile.
+ *
+ * Auto-fill rather than a fixed column count: a stretch of three and a stretch
+ * of twenty-three are different shapes, and the shape carries the count before
+ * the heading is read. `minmax` keeps a card wide enough for its own prose to
+ * be prose rather than a column of two-word lines.
+ */
+.pg-read__pile {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.7rem;
+}
+
+/* A page, not a row. Same excerpt machinery as the wall's cards, same date. */
+.pg-read__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-inline-size: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+.pg-read__card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border-subtle));
+  background: var(--bg-elevated);
+}
+.pg-read__card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.pg-read__card-date {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Cut, never wrapped into a narrow column — a cut edge reads as a page that
+   continues, where a wrapped one reads as a designed block. */
+.pg-read__card-line {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read__card {
+    transition: none;
+  }
 }
 
 /* The count IS the heading. A title would be a claim about what it was. */

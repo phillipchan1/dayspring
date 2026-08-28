@@ -29,6 +29,18 @@ import { bandFor, cellLabel, spanFrom, spanText, type Span } from './band'
  * life, and a thin month in it would read as a failure rather than as a busy
  * fortnight at work.
  */
+/**
+ * The spans worth one press.
+ *
+ * Months, because the band's cells are months — a "last 30 days" that did not
+ * line up with a cell would bracket something the timeline cannot show.
+ */
+const RECENT: { label: string; months: number }[] = [
+  { label: '1m', months: 1 },
+  { label: '6m', months: 6 },
+  { label: '1y', months: 12 },
+]
+
 export function Stretch({
   entries,
   months,
@@ -133,6 +145,41 @@ export function Stretch({
         <span className="pg-stretch__year">{months[0] ? months[0].year : ''}</span>
 
         <span className="pg-stretch__mid">
+          {/*
+            RELATIVE TIME, beside the bracket it sets.
+
+            Dragging the band has always bracketed a span, and nothing said so —
+            a control you have to discover by trying to drag a decoration is a
+            control most people never find. These set the same span a drag sets,
+            so there is one time filter with two ways in, and putting them here
+            teaches the drag by sitting next to it.
+
+            Relative and not named periods: "the last six months" is the
+            question people actually ask of a journal, and it keeps meaning the
+            same thing next month. Nothing here ranks or scores a span — it only
+            changes which months are counted (see the note at the top).
+          */}
+          <span className="pg-stretch__presets">
+            {RECENT.map((p) => {
+              const next = spanFrom(months.length - p.months, months.length - 1, months.length)
+              const on =
+                next !== null && span !== null && span.from === next.from && span.to === next.to
+              return (
+                <button
+                  type="button"
+                  key={p.label}
+                  className="pg-stretch__preset"
+                  data-on={on ? 'true' : undefined}
+                  aria-pressed={on}
+                  disabled={months.length <= p.months}
+                  onClick={() => onSpan(on ? null : next)}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
+          </span>
+
           {/*
             What is bracketed, and the way out of it — beside the count, so the
             middle of the timeline reads as one caption on what you are looking

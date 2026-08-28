@@ -352,13 +352,19 @@ export function LookFor({
         )}
 
         {/*
-          How close you're standing — a pointer's control, and only a pointer's.
-        
+          How close you're standing — a pointer's control, and only a pointer's,
+          and only over the wall.
+
           A phone renders rows at every setting, so this had nothing left to
           move; the full argument is in `zoom.ts`. It is not hidden with CSS
           because there is no state here to hide: the phone does not have a zoom.
+
+          The readings hide it too, for the same reason rather than a different
+          one: zoom arranges the WALL, and every other reading is a list of
+          dated lines with no density to set. A slider that moves nothing is
+          worse than no slider — it says this view has a setting it does not.
         */}
-        {narrow ? null : (
+        {narrow || reading !== 'order' ? null : (
           <label className="pg-stand">
             <span className="pg-stand__where">{standLabel}</span>
             <input

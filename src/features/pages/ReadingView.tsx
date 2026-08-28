@@ -4,6 +4,7 @@ import { MarkGlyph } from '@/components/MarkGlyph'
 import { MARK_KIND } from '@/lib/markKinds'
 import type { PageMarking } from '@/lib/spiritual'
 import type { Entry } from '@/lib/types'
+import { pageExcerpt } from './pageExcerpt'
 import { distanceText, markingsNear } from './nearby'
 import {
   bursts,
@@ -111,7 +112,7 @@ export function ReadingView({
           onOpen={onOpen}
         />
       ) : (
-        <CloseTogether entries={entries} onOpen={onOpen} />
+        <CloseTogether entries={entries} match={match} onOpen={onOpen} />
       )}
     </div>
   )
@@ -206,7 +207,15 @@ function Span({
  * was, and the writer is the only one who gets to say that — they supply the
  * word "story", not us.
  */
-function CloseTogether({ entries, onOpen }: { entries: Entry[]; onOpen: (id: string) => void }) {
+function CloseTogether({
+  entries,
+  match,
+  onOpen,
+}: {
+  entries: Entry[]
+  match: RegExp | null
+  onOpen: (id: string) => void
+}) {
   const found = useMemo(() => bursts(entries), [entries])
   if (found.length === 0) {
     return <p className="pg-read__none">Nothing here came close together.</p>
@@ -214,21 +223,71 @@ function CloseTogether({ entries, onOpen }: { entries: Entry[]; onOpen: (id: str
   return (
     <div className="pg-read__bursts">
       {found.map((b, i) => (
-        <section className="pg-read__span" key={i}>
+        <section className="pg-read__burst" key={i}>
           <h3 className="pg-read__head">
             {b.entries.length} pages in {b.days === 1 ? 'a day' : `${b.days} days`}
             {b.quietDaysBefore > 0 ? <span>after {quiet(b.quietDaysBefore)}</span> : null}
           </h3>
-          <ol className="pg-read__pages">
+          {/*
+            PAGES, not rows.
+            
+            A stretch rendered as a run of one-line rows reads as a list that
+            happens to have a heading — twenty-three things, not one thing that
+            took 387 days. As cards they read as a pile, which is what a burst
+            of writing actually is, and the shape of the pile carries the count
+            before you read it.
+          */}
+          <div className="pg-read__pile">
             {b.entries.map((e) => (
-              <PageLine key={e.id} entry={e} onOpen={onOpen} />
+              <StretchCard key={e.id} entry={e} match={match} onOpen={onOpen} />
             ))}
-          </ol>
+          </div>
         </section>
       ))}
     </div>
   )
 }
+
+/**
+ * One page in a stretch, as a page.
+ *
+ * Deliberately NOT the wall's `PageCard`: that card is wired to the wall's
+ * roving focus, multi-selection, range-select and context menu, none of which
+ * exist here, and threading them through a reading would make the reading own
+ * state it has no use for. What it shares is the part that matters — the same
+ * `pageExcerpt`, so the lines shown are the lines that MADE the page light up,
+ * and the same date format.
+ */
+function StretchCard({
+  entry,
+  match,
+  onOpen,
+}: {
+  entry: Entry
+  match: RegExp | null
+  onOpen: (id: string) => void
+}) {
+  const excerpt = useMemo(() => pageExcerpt(entry, [], PILE_LINES, match), [entry, match])
+  return (
+    <button type="button" className="pg-read__card" onClick={() => onOpen(entry.id)}>
+      <time className="pg-read__card-date" dateTime={entry.created_at}>
+        {new Date(entry.created_at).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
+      </time>
+      {excerpt.lines.map((line, i) => (
+        <span className="pg-read__card-line" key={i}>
+          {line.text}
+        </span>
+      ))}
+    </button>
+  )
+}
+
+/** Lines a card in a pile shows. Enough to recognise a page, too few to read it. */
+const PILE_LINES = 5
 
 /** Silence, in the largest unit that stays honest. */
 function quiet(days: number): string {
