@@ -216,17 +216,43 @@ export function PagesView({
   }, [])
 
 
-  // Cleared before the fetch, not after: holding the last page's markings while
-  // the next one loads would draw them onto a page that does not carry them.
+  /*
+   * The page's markings.
+   *
+   * Cleared before the fetch, not after: holding the last page's markings while
+   * the next one loads would draw them onto a page that does not carry them.
+   *
+   * **A failure is retried, never swallowed.** This used to end in
+   * `.catch(() => {})`, so a transient miss — a dropped request, a token being
+   * refreshed — left the state at `[]` and the page rendered as though the
+   * writer had never marked anything on it. That is not a quiet failure, it is
+   * a confident wrong answer about someone's own journal, and it is
+   * indistinguishable from the truth. One retry after a short pause covers the
+   * transient case; if it still fails the margin stays empty, which is the
+   * honest end of the road, and the error is left on the console rather than
+   * dropped on the floor.
+   */
   useEffect(() => {
     setOpenMarkings([])
     if (!spreadId) return
     let alive = true
-    void markingsForEntry(spreadId)
-      .then((m) => {
-        if (alive) setOpenMarkings(m)
-      })
-      .catch(() => {})
+    const load = (attempt: number) => {
+      void markingsForEntry(spreadId)
+        .then((m) => {
+          if (alive) setOpenMarkings(m)
+        })
+        .catch((err: unknown) => {
+          if (!alive) return
+          if (attempt === 0) {
+            setTimeout(() => {
+              if (alive) load(1)
+            }, 600)
+            return
+          }
+          console.warn('markings failed to load for', spreadId, err)
+        })
+    }
+    load(0)
     return () => {
       alive = false
     }
@@ -237,6 +263,20 @@ export function PagesView({
     () => (spreadId ? (entries.find((e) => e.id === spreadId) ?? null) : null),
     [spreadId, entries],
   )
+
+  /*
+   * A page that is no longer there closes itself.
+   *
+   * Deleting the page you are reading, or a sync that removes it, leaves
+   * `spreadId` pointing at nothing: the reader renders none, and what is left
+   * is a reader's bar sitting over the wall with no page under it. Gated on
+   * `ready`, because before the archive loads EVERY id finds nothing and this
+   * would throw away a page opened from a link while it was still arriving.
+   */
+  useEffect(() => {
+    if (!ready || spreadId === null || openPage !== null) return
+    onSpread(null)
+  }, [ready, spreadId, openPage, onSpread])
 
   const markQuotes = useMemo(() => {
     const m = new Map<string, string[]>()
@@ -696,10 +736,22 @@ export function PagesView({
           as a word beside a nib rather than an icon on its own: a lone
           glyph in a corner is a thing to decode.
         */}
+        {/*
+          Only when there is a page to write on.
+          
+          `openPage` is `entries.find(...)`, and a `spreadId` does not promise a
+          hit: the page can be deleted while it is open, or by a sync from
+          another device, or the id can be restored from history after the entry
+          is gone. The non-null assertion that used to be here threw
+          `Cannot read properties of null` on the click. The way OUT stays
+          rendered either way — a bar with no way back is the one thing worse
+          than a bar with no Write.
+        */}
+        {openPage ? (
         <button
           type="button"
           className="pg__write"
-          onClick={() => onOpenEntry(openPage!.id)}
+          onClick={() => onOpenEntry(openPage.id)}
         >
           <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
             {/* A nib: the shoulders, the point, and the slit down it. */}
@@ -718,6 +770,7 @@ export function PagesView({
           </svg>
           Write
         </button>
+        ) : null}
 
         {within && within.total > 1 ? (
           <div className="pg__through-nav">
