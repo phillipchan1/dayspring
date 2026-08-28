@@ -36,6 +36,16 @@ export function useSheetDismiss({
   const start = useRef<{ x: number; y: number } | null>(null)
   const axis = useRef<'h' | 'v' | null>(null)
   const blocked = useRef(false)
+  /*
+   * The distance, as a ref as well as state.
+   *
+   * State is for drawing; this is for deciding. `touchend` fires whether or not
+   * React has flushed the render from the last `touchmove` — and on a fast flick
+   * the two land in the same frame — so reading the state here meant the quickest
+   * gestures, the ones most likely to be a dismissal, measured themselves as
+   * zero and did nothing.
+   */
+  const live = useRef(0)
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
 
@@ -43,6 +53,7 @@ export function useSheetDismiss({
     start.current = null
     axis.current = null
     blocked.current = false
+    live.current = 0
     setDragY(0)
     setDragging(false)
   }
@@ -76,11 +87,12 @@ export function useSheetDismiss({
       if (axis.current === 'v') setDragging(true)
     }
     if (axis.current !== 'v') return
-    setDragY(Math.max(0, dy))
+    live.current = Math.max(0, dy)
+    setDragY(live.current)
   }
 
   function onTouchEnd() {
-    if (axis.current === 'v' && dragY > threshold) onDismiss()
+    if (axis.current === 'v' && live.current > threshold) onDismiss()
     reset()
   }
 

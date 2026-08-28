@@ -35,12 +35,22 @@ export function useSwipeToDismiss({
 }) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const axis = useRef<'h' | 'v' | null>(null)
+  /*
+   * The distance, as a ref as well as state.
+   *
+   * State is for drawing; this is for deciding. `touchend` fires whether or not
+   * React has flushed the render from the last `touchmove` — and on a fast flick
+   * the two land in the same frame — so reading the state here meant a quick
+   * swipe measured itself as zero and did nothing.
+   */
+  const live = useRef(0)
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
 
   function reset() {
     start.current = null
     axis.current = null
+    live.current = 0
     setDragX(0)
     setDragging(false)
   }
@@ -64,16 +74,15 @@ export function useSwipeToDismiss({
       if (axis.current === 'h') setDragging(true)
     }
     if (axis.current !== 'h') return
-    if (direction === 'either') {
-      setDragX(dx)
-      return
-    }
-    // Track rightward freely; resist a leftward pull (the panel can't open further).
-    setDragX(Math.max(0, dx > 0 ? dx : dx * 0.2))
+    // Track rightward freely; resist a leftward pull when the surface can only
+    // leave one way (the panel can't open further).
+    live.current = direction === 'either' ? dx : Math.max(0, dx > 0 ? dx : dx * 0.2)
+    setDragX(live.current)
   }
 
   function onTouchEnd() {
-    const far = direction === 'either' ? Math.abs(dragX) > threshold : dragX > threshold
+    const far =
+      direction === 'either' ? Math.abs(live.current) > threshold : live.current > threshold
     if (axis.current === 'h' && far) onDismiss()
     reset()
   }
