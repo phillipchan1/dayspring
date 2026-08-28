@@ -27,7 +27,7 @@ import {
 } from '../_lib/notice.js'
 
 /**
- * What may be proposed. Two of the eight are deliberately missing.
+ * What may be proposed. Three of the eight are deliberately missing.
  *
  * **Absence** — where He seemed far — is declared only. Inferring that God felt
  * absent to someone is a verdict on their interior life, and no amount of
@@ -36,6 +36,9 @@ import {
  * **Scripture** is excluded for a duller reason: references are already captured
  * verbatim at save time by a pipeline that resolves real ESV text, and a second
  * guesser would only disagree with it.
+ *
+ * **Gift** is excluded because it is retired from the vocabulary — see
+ * `_lib/notice.ts`, which holds the list itself.
  */
 const SCHEMA = {
   type: 'object',
@@ -65,7 +68,6 @@ You do not write anything. Every "quote" you return MUST be copied CHARACTER FOR
 Quote a whole sentence, or a whole line. Never a fragment that stops mid-clause.
 
 For each one, say which kind it is:
-- gift — something they were given. Received, not achieved.
 - prayer — something they brought, or asked for.
 - desire — something they want, or are reaching toward.
 - sense — something they are holding without concluding. An impression, not a decision.

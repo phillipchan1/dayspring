@@ -1117,20 +1117,64 @@ button.pg__sense-q:hover {
 }
 
 /*
- * The hand in an open page's gutter.
+ * The hand in an open page's gutter, to the RIGHT of the sentence it marks.
  *
  * Hung outside the text column rather than inset into it, the way a note in a
  * book sits beside the line it belongs to and never in it. Nothing about the
  * measure of her writing changes because a sentence happens to carry a marking.
+ *
+ * On the right and not the left: on the left it butted against the start of the
+ * line and read as a bullet, as though the marked sentences were a list. On the
+ * right it lands in the gap the margin column already leaves, where nothing
+ * else is, and the eye meets the words before the annotation about them.
  */
 .pg-read1__hand {
   position: absolute;
-  inset-inline-start: -1.5rem;
+  inset-inline-end: -1.5rem;
   inset-block-start: 0.32em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   inline-size: 1rem;
+}
+
+/*
+ * The kind, on hover. Small, and above the hand so it never lands on the
+ * writing or in the margin's notes.
+ *
+ * Right-aligned to the hand so it grows back over the empty gutter rather than
+ * out into the margin column.
+ */
+.pg-read1__hand::after {
+  content: attr(data-label);
+  position: absolute;
+  inset-block-end: calc(100% + 0.25rem);
+  inset-inline-end: 0;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+/* Hovering the SENTENCE, not the 9px glyph — the hand is small on purpose and
+   a target you have to aim at is a target most people never find. */
+.pg-read1__body [data-marking]:hover .pg-read1__hand::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__hand::after {
+    transition: none;
+  }
 }
 
 .pg-read1__hand .ds-glyph__svg {
@@ -2879,6 +2923,42 @@ button.pg__sense-q:hover {
   }
 }
 
+/*
+ * A turned page arrives from the side it came from.
+ *
+ * The neighbours sit to the left and right, so a page that simply cross-fades
+ * contradicts the thing you just pressed: you reached rightward and the archive
+ * did not appear to move. Short and small — 22px and 200ms — because this has
+ * to survive being done twenty times in a row without becoming a ride.
+ */
+.pg-read1__page[data-from='older'] {
+  animation: pg-turn-from-older 200ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+.pg-read1__page[data-from='newer'] {
+  animation: pg-turn-from-newer 200ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+@keyframes pg-turn-from-older {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pg-turn-from-newer {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+
 /* A lit word arriving. Opacity only, and quick — it is a change to something
    already on screen, not something new to look at. */
 .pg-read1__lit,
@@ -2901,6 +2981,10 @@ button.pg__sense-q:hover {
 @media (prefers-reduced-motion: reduce) {
   .pg-read1,
   .pg-read1__page,
+  /* The direction-aware turns out-specify the bare class, so they have to be
+     named here or they keep sliding. */
+  .pg-read1__page[data-from='older'],
+  .pg-read1__page[data-from='newer'],
   .pg-read1__lit,
   .pgc__lit,
   .pgr__lit {
@@ -2933,6 +3017,158 @@ button.pg__sense-q:hover {
 
 .pg-read1__page:focus-visible {
   outline: none;
+}
+
+/*
+ * ── THE PAGES EITHER SIDE ───────────────────────────────────────────────────
+ *
+ * A notebook does not have a "next" button. It has the next page, half under
+ * your thumb, and you know what turning will get you because you can already
+ * see a corner of it. That is what these are: the writer's own prose, set back
+ * far enough that reading them is not on offer and recognising them is.
+ *
+ * Two rules keep them from becoming a feed:
+ *
+ *   1. They do not move. No parallax, no peek-on-hover that slides the page
+ *      under your cursor, no easing that suggests the next one is coming
+ *      whether you asked or not. They sit still and wait to be pressed.
+ *   2. They are the SET YOU CAME FROM. With a subject lit these are that
+ *      subject's pages; the date on each one is what makes that checkable, and
+ *      the position in the header says which set it counts.
+ *
+ * At the narrow end they are gone entirely and the header's arrows come back —
+ * a 4rem sliver of dimmed prose on a phone is decoration, and the thumb has the
+ * swipe, which is the gesture that belongs to that hand anyway.
+ */
+.pg-read1__edge {
+  position: absolute;
+  inset-block: 0;
+  inline-size: clamp(6rem, 12vw, 13rem);
+  display: none;
+  padding: 4.5rem 0 0;
+  overflow: hidden;
+  text-align: start;
+  background: none;
+  border: none;
+  border-inline: 1px solid transparent;
+  cursor: pointer;
+  /* Quieter than it was: the chevrons carry the navigation, so this only has
+     to say "there is a page over here", never "press me". */
+  opacity: 0.14;
+  transition: opacity var(--transition), border-color var(--transition);
+  animation: pg-leaf-in 260ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+
+/* In from its own edge, so the sliver reads as a page lying under this one
+   rather than as a panel switching on. */
+@keyframes pg-leaf-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--leaf-from, 0));
+  }
+  to {
+    opacity: 0.14;
+    transform: none;
+  }
+}
+
+.pg-read1__edge[data-side='newer'] {
+  --leaf-from: -14px;
+  inset-inline-start: 0;
+  /* Justified to the binding: the newer page's INNER edge is the one that would
+     be showing, so its text runs off the outer side of the screen, not the one
+     facing you. */
+  padding-inline-start: 1.25rem;
+}
+
+.pg-read1__edge[data-side='older'] {
+  --leaf-from: 14px;
+  inset-inline-end: 0;
+  padding-inline-end: 1.25rem;
+}
+
+/* Enough to say "this is pressable", never enough to read. Bringing a
+   neighbour to full strength would put two pages in front of someone who asked
+   for one. */
+.pg-read1__edge:hover,
+.pg-read1__edge:focus-visible {
+  opacity: 0.4;
+}
+
+.pg-read1__edge[data-side='newer']:hover,
+.pg-read1__edge[data-side='newer']:focus-visible {
+  border-inline-end-color: var(--border-subtle);
+}
+
+.pg-read1__edge[data-side='older']:hover,
+.pg-read1__edge[data-side='older']:focus-visible {
+  border-inline-start-color: var(--border-subtle);
+}
+
+.pg-read1__edge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pg-read1__edge-leaf {
+  display: block;
+  /* The leaf is wider than the sliver showing it, so the prose is CUT rather
+     than wrapped into a narrow column. A column would read as a designed
+     element; a cut edge reads as a page continuing past the screen. */
+  inline-size: 22rem;
+  max-inline-size: none;
+}
+
+.pg-read1__edge-when {
+  display: block;
+  margin-block-end: 0.9rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* Which way this is, in a word. The date says WHICH page; this says which
+   direction, so neither has to be inferred from the side of the screen. */
+.pg-read1__edge-side {
+  display: block;
+  color: var(--accent);
+}
+
+.pg-read1__edge-line {
+  display: block;
+  margin-block-end: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/*
+ * The edges need room the page is not already using. Below this the page and
+ * its margin column own the full width, and a neighbour would be crowding the
+ * thing it is a neighbour of.
+ */
+@media (min-width: 78rem) {
+  .pg-read1__edge {
+    /* Flex rather than block: a button's content box is vertically centred by
+       the UA, which floated the leaf halfway down the screen. */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+}
+
+/* Nothing showing through, and nothing moving. */
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__edge {
+    transition: none;
+  }
 }
 
 .pg-read1__head {

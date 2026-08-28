@@ -18,7 +18,7 @@ import {
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
 import { spiritualBlocksField } from './spiritualBlocksField'
-import { markMarginExtension } from './markMargin'
+import { lineMenuExtension } from './lineMenu'
 import { scripturePasteExtension } from './scripturePasteExtension'
 import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { wrapLinesInFence } from '@/lib/markSelection'
@@ -168,18 +168,6 @@ interface EditorProps {
   onOpenChapter?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
   /** A Bible-app paste was wrapped as a scripture fence. */
   onScripturePaste?: (reference: string) => void
-  /**
-   * Draw the margin at all — the rule, the hands on it, and the `+`. Off is a
-   * bare page, and it is the switch that protects the writing surface (Settings
-   * → Show the margin). Markings are untouched either way; only what is painted
-   * changes.
-   */
-  margin?: boolean
-  /** The writer touched the margin rule or a glyph on it — open the margin. */
-  onOpenMargin?: () => void
-  /** The margin `+` was pressed; carries its viewport rect so the picker can
-   *  open on the rule rather than over the writing. */
-  onMarkHere?: (at: { top: number; bottom: number; left: number }) => void
   /** Called when the user left- or right-clicks a photo block to open its options menu. */
   onImageMenu?: (
     target: AttachmentEditTarget,
@@ -228,9 +216,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onEditBlock,
     onOpenChapter,
     onScripturePaste,
-    margin = true,
-    onOpenMargin,
-    onMarkHere,
     onImageMenu,
     onAboutPractice,
     onSlashPaletteChange,
@@ -247,13 +232,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const titleCompartment = useRef(new Compartment())
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
-  const marginCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
   const onOpenChapterRef = useRef(onOpenChapter)
   const onScripturePasteRef = useRef(onScripturePaste)
-  const onOpenMarginRef = useRef(onOpenMargin)
-  const onMarkHereRef = useRef(onMarkHere)
   const onImageMenuRef = useRef(onImageMenu)
   const onAboutPracticeRef = useRef(onAboutPractice)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
@@ -263,12 +245,39 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const [linkTarget, setLinkTarget] = useState<LinkPopoverTarget | null>(null)
   const setSlashRef = useRef(setSlashState)
+  /**
+   * Open the palette from the `+`, without typing anything.
+   *
+   * The palette has one other way in — `detectSlash` on a document update —
+   * and this deliberately does NOT go through it by inserting a `/`. A `+` is a
+   * button, and a button that works by writing a character into the document
+   * would put a stray `/` on the page for every frame between the click and the
+   * pick, and leave one behind on any path that doesn't end in a selection.
+   *
+   * `from === to` makes the removal in `handleSlashSelect` a no-op change,
+   * which is exactly right: there is no `/command` text to take back out.
+   */
+  const openPaletteRef = useRef((pos: number, at: { top: number; left: number }) => {
+    const view = viewRef.current
+    if (!view || !slashEnabledRef.current) return
+    // The caret follows the `+`, the way it does in every editor that has one:
+    // you pressed the button beside THIS line, so this is the line you are on.
+    view.dispatch({ selection: { anchor: pos, head: pos } })
+    view.focus()
+    const coords = view.coordsAtPos(pos)
+    setSlashRef.current({
+      query: '',
+      from: pos,
+      to: pos,
+      x: coords?.left ?? at.left,
+      y: coords?.bottom ?? at.top,
+      yTop: coords?.top ?? at.top,
+    })
+  })
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
   onOpenChapterRef.current = onOpenChapter
   onScripturePasteRef.current = onScripturePaste
-  onOpenMarginRef.current = onOpenMargin
-  onMarkHereRef.current = onMarkHere
   onImageMenuRef.current = onImageMenu
   onAboutPracticeRef.current = onAboutPractice
   setFormatBarRef.current = setFormatBar
@@ -528,17 +537,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               else onEditBlockRef.current?.(target, anchor)
             },
           ),
-          // The margin, closed: the rule down the right edge of the writing
-          // column and a hand on it beside every marking. Must follow
-          // spiritualBlocksField, which it reads.
-          marginCompartment.current.of(
-            margin
-              ? markMarginExtension(
-                  () => onOpenMarginRef.current?.(),
-                  (at) => onMarkHereRef.current?.(at),
-                )
-              : [],
-          ),
+          // The `+` in the left gutter, and the palette it opens. Must follow
+          // spiritualBlocksField, which it reads to stay off fenced lines.
+          lineMenuExtension((pos, at) => openPaletteRef.current(pos, at)),
           scriptureRefDecoration(),
           // Marked passages. Reads spiritualBlocksField above, same as the
           // scripture underline, so it must stay below it.
@@ -637,21 +638,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     reconfigure(viewRef.current, dimCompartment.current, dimming ? dimmingExtension : [])
   }, [dimming])
-
-  // Turning the margin off has to reach a live editor, not only a fresh one —
-  // the switch is in a panel over the page you are already writing on.
-  useEffect(() => {
-    reconfigure(
-      viewRef.current,
-      marginCompartment.current,
-      margin
-        ? markMarginExtension(
-            () => onOpenMarginRef.current?.(),
-            (at) => onMarkHereRef.current?.(at),
-          )
-        : [],
-    )
-  }, [margin])
 
   useEffect(() => {
     reconfigure(viewRef.current, titleCompartment.current, titleStyling

@@ -512,6 +512,24 @@ export function PagesView({
     }
   }, [spreadId, shown, wallEntries, anyLit])
 
+  /**
+   * The neighbouring pages themselves, for the reader's edges.
+   *
+   * Resolved from `within`, so they are neighbours IN THE SET YOU CAME FROM —
+   * the next page that says Esther, not the next page you wrote. That is the
+   * same list the arrows and the count use, which is the point: three ways of
+   * moving that disagreed about what "next" meant would be worse than one.
+   */
+  const byId = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries])
+  const neighbours = useMemo(
+    () => ({
+      newer: within?.newer ? byId.get(within.newer) ?? null : null,
+      older: within?.older ? byId.get(within.older) ?? null : null,
+    }),
+    [within, byId],
+  )
+
+
   /*
    * The arrows, from the keyboard.
    *
@@ -966,6 +984,10 @@ export function PagesView({
             firstLineTitle={settings.firstLineTitle}
             onEdit={onOpenEntry}
             onBack={() => onSpread(null)}
+            leaves={settings.readerLeaves}
+            newer={neighbours.newer}
+            older={neighbours.older}
+            onTurn={onSpread}
           />
         ) : null}
       </div>

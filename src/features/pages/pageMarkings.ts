@@ -126,10 +126,8 @@ export function drawMarkings(root: HTMLElement, markings: readonly PageMarking[]
     const first = kinds[0] as keyof typeof MARK_KIND
     const tone = MARK_KIND[first]?.tone
     if (tone) el.style.setProperty('--mark-tone', tone)
-    el.setAttribute(
-      'aria-label',
-      kinds.map((k) => MARK_KIND[k as keyof typeof MARK_KIND]?.label ?? k).join(' · '),
-    )
+    const named = kinds.map((k) => MARK_KIND[k as keyof typeof MARK_KIND]?.label ?? k)
+    el.setAttribute('aria-label', named.join(' · '))
 
     /*
      * The kind's own hand, in the gutter beside the sentence.
@@ -154,6 +152,17 @@ export function drawMarkings(root: HTMLElement, markings: readonly PageMarking[]
     const hand = doc.createElement('span')
     hand.className = `pg-read1__hand ${markGlyphClass(first)}`
     hand.setAttribute('aria-hidden', 'true')
+    /*
+     * The kind's name, for the hover.
+     *
+     * A hand you cannot read is a decoration: the drawing says WHICH to someone
+     * who already knows the six, and to everyone else it is a dot with no way
+     * in. The name is carried on the element and revealed by CSS rather than
+     * by `title`, because the native tooltip takes a second to appear, lands
+     * wherever the pointer is, and cannot be styled to be small and quiet —
+     * three things that matter on a page someone is reading.
+     */
+    hand.dataset.label = named.join(' · ')
     // Module constants from markGlyph.ts — nothing user-supplied reaches this.
     hand.innerHTML = html
     el.insertBefore(hand, el.firstChild)

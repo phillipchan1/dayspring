@@ -48,6 +48,18 @@ describe('verbatimOnly', () => {
     expect(PROPOSABLE).not.toContain('scripture')
   })
 
+  /*
+   * Gift was RETIRED from the vocabulary (markKinds.ts) — a writer read the
+   * label and did not know what it meant. Proposing it would let a kept pencil
+   * note write a row that `look for` never offers as a filter, so the marking
+   * would exist and be unfindable.
+   */
+  it('never proposes a retired kind', () => {
+    const q = 'That I would stop rehearsing the worst version.'
+    expect(verbatimOnly([{ quote: q, kind: 'gift' }], TEXT)).toEqual([])
+    expect(PROPOSABLE).not.toContain('gift')
+  })
+
   it('drops a fragment too short to be a line', () => {
     expect(verbatimOnly([{ quote: 'the water', kind: 'story' }], TEXT)).toEqual([])
   })
@@ -70,9 +82,10 @@ describe('verbatimOnly', () => {
       { quote: 'Down to the water while it was still dark.', kind: 'story' },
       { quote: 'For Dad, and for Thursday.', kind: 'prayer' },
       { quote: 'The long way home is not a detour.', kind: 'learned' },
-      { quote: 'Just the sound of it.', kind: 'gift' },
+      { quote: 'That I would stop rehearsing the worst version.', kind: 'desire' },
     ]
-    expect(verbatimOnly(many, TEXT).length).toBeLessThanOrEqual(MAX_PROPOSALS)
+    expect(many.length).toBeGreaterThan(MAX_PROPOSALS)
+    expect(verbatimOnly(many, TEXT).length).toBe(MAX_PROPOSALS)
   })
 })
 

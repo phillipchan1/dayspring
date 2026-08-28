@@ -78,17 +78,14 @@ export const SLASH_ITEMS: SlashItem[] = [
     badge: '✨',
     keywords: ['sense', 'impression', 'word'],
   },
-  // The four the set was missing, plus Story. Their order follows the kind table
-  // (markKinds.ts) rather than usage, so the column reads as the same set the
-  // margin picker offers — Received, Brought, Noticed, Named.
-  {
-    selection: { kind: 'spiritual', id: 'gift' },
-    column: 'capture',
-    label: 'Gift',
-    hint: 'Something you were given',
-    badge: '◡',
-    keywords: ['gift', 'given', 'grateful', 'gratitude', 'thanks'],
-  },
+  // The rest of the live set. Order follows the kind table (markKinds.ts)
+  // rather than usage, so the column reads as one vocabulary.
+  //
+  // Gift and Absence are absent because they are RETIRED there — a writer read
+  // the labels and did not know what they meant. `markKinds.ts` states the rule
+  // ("nothing retired is OFFERED, not in the palette, not in `look for`") and
+  // this file was the last place still breaking it. Pages already honours it via
+  // LIVE_MARK_KINDS; entries marked before the cut still render.
   {
     selection: { kind: 'spiritual', id: 'desire' },
     column: 'capture',
@@ -114,14 +111,6 @@ export const SLASH_ITEMS: SlashItem[] = [
     hint: 'A thing that happened, worth keeping',
     badge: '{',
     keywords: ['story', 'happened', 'moment', 'event'],
-  },
-  {
-    selection: { kind: 'spiritual', id: 'absence' },
-    column: 'capture',
-    label: 'Absence',
-    hint: 'Where He seemed far',
-    badge: '¦',
-    keywords: ['absence', 'absent', 'far', 'silence', 'dry', 'dark'],
   },
   {
     selection: { kind: 'spiritual', id: 'ritual' },

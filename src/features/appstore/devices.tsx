@@ -45,6 +45,7 @@ export function journalProps(
     saveError: null,
     onSelect: noop,
     onEditEntry: noop,
+    onCommand: noop,
     bulkActive: false,
     bulkCount: 0,
     rangeSelectActive: false,

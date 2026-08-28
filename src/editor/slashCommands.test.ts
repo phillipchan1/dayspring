@@ -11,7 +11,7 @@ import {
   slashColumns,
   type SlashItem,
 } from './slashCommands'
-import { MARK_KINDS } from '@/lib/markKinds'
+import { LIVE_MARK_KINDS, MARK_KINDS } from '@/lib/markKinds'
 
 function applyNumbered(doc: string, at?: number): string {
   const state = EditorState.create({
@@ -36,12 +36,17 @@ describe('slashColumns', () => {
 })
 
 describe('filterSlashItems', () => {
-  // Counted against the kind table rather than a literal: a kind the parser
-  // recognises but the palette hides is a kind nobody can make.
-  it('offers every declared kind, and the captures that are not kinds', () => {
+  // Counted against the kind table rather than a literal: a LIVE kind the parser
+  // recognises but the palette hides is a kind nobody can make — and a RETIRED
+  // one the palette offers is a marking no surface can find again. `markKinds.ts`
+  // states the rule; this is the assertion of it.
+  it('offers every live kind and no retired one, plus the captures that are not kinds', () => {
     const { capture, format } = filterSlashItems('')
     const ids = capture.map((i) => i.selection.id)
-    for (const kind of MARK_KINDS) expect(ids).toContain(kind.command)
+    for (const kind of LIVE_MARK_KINDS) expect(ids).toContain(kind.command)
+    for (const kind of MARK_KINDS.filter((k) => k.retired)) {
+      expect(ids).not.toContain(kind.command)
+    }
     expect(ids).toEqual(expect.arrayContaining(['ritual', 'image', 'emoji']))
     expect(format.length).toBeGreaterThan(0)
     expect(capture.every((i) => i.column === 'capture')).toBe(true)

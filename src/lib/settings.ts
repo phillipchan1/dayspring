@@ -95,29 +95,26 @@ export interface Settings {
   skipRitualPreview: boolean
 
   /**
-   * The margin: the rule down the right edge of the writing column, the hands on
-   * it, and the panel they open.
+   * Reading a page: show a sliver of the pages either side of it.
    *
-   * Off means no rule, no glyphs, nothing on the right at all — a bare page.
-   * Markings still exist and still appear everywhere you look back; this is only
-   * about the writing surface. It is the switch that actually protects the
-   * writing experience: someone who wants only the writing surface should be
-   * able to have only the writing surface, in one switch, without losing a
-   * single marking they have already made.
+   * On, they slide in beside the page and say "there is more this way" without
+   * being readable. Off is a single page on a bare ground — which is the point
+   * of opening one. The chevrons, ← / →, and the swipe all work either way, so
+   * turning this off costs no navigation, only the preview.
    */
-  showMargin: boolean
+  readerLeaves: boolean
 
   /**
-   * Whether the journal may propose markings while you write.
+   * Whether the journal may propose markings — shown as **heartIQ**. Display
+   * name only; this field, the API route, and every call site keep `noticing`.
    *
-   * **Off by default, and that is not a shipping compromise.** Principle 3's
-   * test is whether a change touches the editor's render or input path, and a
-   * feature nobody enabled does not. It does not answer D-016 — consenting to be
-   * judged is still being judged — which is what `pencil` is for: nothing
-   * proposed is a marking until the writer keeps it.
-   *
-   * Depends on `showMargin`. Noticing has nowhere to appear without the margin,
-   * so turning the margin off turns this off with it.
+   * **Nothing reads this today, and that is deliberate.** heartIQ used to run
+   * while you wrote, proposing lines into a margin down the right of the page.
+   * That margin is gone and so is the proposing: being shown what a machine
+   * made of your half-finished sentence is an interruption whether or not it
+   * costs a millisecond. The engine is intact and waiting on a reading surface
+   * to live in — this switch comes back to Settings when there is something for
+   * it to switch. See D-026.
    */
   noticing: boolean
 
@@ -143,7 +140,7 @@ const DEFAULTS: Settings = {
   showMarkdownSyntax: false,
   devMode: false,
   skipRitualPreview: false,
-  showMargin: true,
+  readerLeaves: true,
   noticing: false,
   shareUsage: true,
 }

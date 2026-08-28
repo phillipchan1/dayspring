@@ -3,6 +3,7 @@ import { Rail } from './Rail'
 import { SaveStatusBadge } from './SaveStatusBadge'
 import { SyncBadge } from './SyncBadge'
 import { WritingControls } from './WritingControls'
+import { IconRitual } from './navIcons'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import type { JournalViewProps } from './journalViewProps'
 
@@ -14,6 +15,23 @@ const NATIVE = isTauri()
 function formatBreadcrumb(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
 }
+
+/**
+ * The door into the rituals, for people who don't know `/` exists.
+ *
+ * Desktop had exactly one way to reach the eleven contemplative practices: type
+ * a slash. The mobile keyboard bar has named them all along; a mouse-and-
+ * hardware-keyboard user never saw a button that did. That is a discovery
+ * problem, not a taste one — a major feature reachable only by a gesture nobody
+ * taught you is a feature most people don't have.
+ *
+ * **Only rituals, and only here.** Scripture and prayer are things you reach for
+ * mid-sentence, about the line you are on — they belong on the `+` beside that
+ * line. A ritual is not about a line; it is a shape for the whole page, chosen
+ * before there is a page. That is why this one sits up top beside the date, and
+ * why the row that briefly sat here offering `/scripture` and `/pray` was
+ * putting three different scopes in one place.
+ */
 
 /**
  * Desktop: two columns — a slim navigation rail and the canvas. Entering focus
@@ -33,6 +51,7 @@ export function DesktopJournal(props: JournalViewProps) {
     settings, updateSettings, focus, onPages, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
+    onCommand,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -49,6 +68,8 @@ export function DesktopJournal(props: JournalViewProps) {
   // is one of them now rather than a mode of a panel beside the canvas.
   const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
   const journalChrome = !canvasTaken
+  // Nothing written yet — either a brand-new entry, or one that's been emptied.
+  const blankPage = !bulkActive && !rangeSelectActive && (isNewEntry || words === 0)
 
   return (
     <div className="app-shell">
@@ -92,6 +113,20 @@ export function DesktopJournal(props: JournalViewProps) {
                 </button>
               ) : null}
               <span className="journal-topbar__label">{topbarLabel}</span>
+              {/* Only on a page nobody has written on yet — the same discipline
+                  bodyLinePlaceholder already keeps. It is a starting affordance,
+                  not a toolbar, and it retires itself at the first word. */}
+              {blankPage && (
+                <button
+                  type="button"
+                  className="journal-topbar__ritual"
+                  onClick={() => onCommand('ritual')}
+                  title="Practices for the inner life"
+                >
+                  <IconRitual />
+                  Ritual
+                </button>
+              )}
             </div>
             <div className="journal-topbar__actions">
               <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>

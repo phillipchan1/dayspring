@@ -23,6 +23,69 @@ agenda.
 
 ---
 
+## D-026 — The editor's margin is deleted; the `+` moves left; heartIQ leaves the writing surface
+**2026-08-28** · **Status:** Decided · alpha only · **supersedes D-016's placement**
+
+**Decision, in three parts.**
+
+**1. The right margin is gone from the editor.** The hairline down the writing column,
+the hand beside each marking, the `+` that sat on the rule, the panel it opened, ⌥⌘M, and
+`settings.showMargin` — all removed. Markings are untouched: they still render inline in
+the text, and they are still there on every surface you read back on.
+
+**2. heartIQ is not on the writing surface.** It ran at a pause, verbatim-checked at both
+ends, nothing counted until kept — and it was still wrong there. *"It doesn't make sense
+to show the user the intelligence as they're writing it. It only makes sense upon reading.
+It's a distracting thing."* The engine (`api/spiritual/notice.ts`, `lib/noticing.ts`) is
+intact and waiting on a reading surface; the Settings switch is parked until there is
+something for it to switch.
+
+**3. The `+` moves to the left gutter and opens the whole palette.** Notion's gesture,
+deliberately: appears on hover and on the caret's line, opens on click, never on hover.
+It opens the same menu `/` opens — so the editor now has one insert door that a mouse can
+find, which is the gap `/` alone left (D-016 gave marking its own affordance on the right;
+this merges the two).
+
+**Why this is a better Principle 3 than the one D-016 satisfied.** The old test was *does
+this add latency* — and the margin passed it honestly: pseudo-elements, decorations that
+track lines for free, no per-frame measurement. The test it failed is *does this belong in
+front of someone who is composing*. Being shown what a machine made of your half-finished
+sentence is an interruption whether or not it costs a millisecond, and three jobs on one
+hairline (show, add, open) is chrome whether or not it is quiet chrome.
+
+**The sub-decision worth arguing about: one row, two acts.** Picking Prayer / Sense /
+Story / Desire / Learned **marks the line** when it already has words, and **opens the
+insert popover** when it doesn't. Those are genuinely different acts, but they have one
+name in a writer's head, and listing both would turn a menu of six kinds into a menu of
+twelve. The line decides, identically from `/pray` and from the `+` — two doors that
+disagree about what a word means are worse than one door. Scripture is excluded (its words
+are not the writer's own); ritual / image / emoji are not kinds.
+
+**Rituals get the top bar, alone.** Scripture and prayer are reached mid-sentence, about
+the line you are on — they belong on the `+` beside that line. A ritual is a shape for the
+whole page, chosen before there is a page. A row that briefly offered `/scripture`,
+`/pray`, `/ritual` and a palette door up there was putting three different scopes in one
+place; only the one that is about the whole entry stayed.
+
+**Fixed in passing:** the palette still offered `/gift` and `/absence`, retired in
+`markKinds.ts` ("nothing retired is OFFERED"). Harmless while the palette was a back door;
+not harmless once the `+` makes it the front one — a kept marking of a retired kind is a
+marking `look for` can never find again. `PROPOSABLE` carried the same bug.
+
+**What would change our mind:**
+· *On the margin* — people stop marking entirely, which would mean the right-hand `+` was
+  carrying the act rather than merely housing it, and the answer is a better affordance on
+  the left rather than the rule coming back.
+· *On the smart row* — someone picks Prayer meaning "start one" on a line that happens to
+  have a stray word on it, and is surprised. One report settles it; the fix is a modifier
+  or a second row, not a second menu.
+· *On heartIQ* — the reading surface lands and nobody keeps anything, which would mean the
+  problem was never placement.
+**Cost accepted:** a subsystem built carefully and deleted four weeks later (~900 lines:
+`markMargin.ts`, `MarkMargin`, `MarkPicker`, `marginNotes`, the `?__preview=margin`
+harness). A Settings switch that currently switches nothing. And, until the reading
+surface exists, a product with an intelligence engine nobody can see.
+
 ## D-025 — Pages replaces Entries and becomes a Return surface; the list is a distance
 **2026-08-26** · **Status:** Decided · **supersedes D-022, and re-runs D-018 with the fix D-018 itself asked for**
 

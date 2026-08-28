@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import type { Settings } from '@/lib/settings'
 import type { FocusMode } from './useFocusMode'
@@ -12,12 +13,57 @@ interface Props {
   onEnterFocus?: (() => void) | undefined
 }
 
-/** Subtle floating appearance on every surface; typewriter / dim / exit in focus mode. */
-export function WritingControls({ settings, update, focus, onEnterFocus }: Props) {
+/**
+ * Subtle floating appearance on every surface; typewriter / dim / exit in
+ * focus mode.
+ *
+ * **In focus mode it starts collapsed.** Four word-pills pinned to the corner of
+ * a page someone is writing on is the busiest thing on that screen, and it sat
+ * on top of the margin's own header besides. Collapsed it is one handle; it
+ * opens on hover, on keyboard focus, or on a tap, which is all three input
+ * kinds. Nothing here is in the editor's render or input path, so expanding
+ * costs the writing nothing.
+ *
+ */
+export function WritingControls({
+  settings,
+  update,
+  focus,
+  onEnterFocus,
+}: Props) {
   const docked = !focus.active
+  const [expanded, setExpanded] = useState(false)
+  // Only focus mode collapses. Docked, the cluster is already one or two icons
+  // in a corner nobody is writing near, and hiding those would be fussier than
+  // showing them.
+  const collapsed = !docked && !expanded
 
   return (
-    <div className={`focus-controls${docked ? ' focus-controls--docked' : ''}`}>
+    <div
+      className={`focus-controls${docked ? ' focus-controls--docked' : ''}`}
+      data-collapsed={collapsed}
+      onPointerEnter={() => setExpanded(true)}
+      onPointerLeave={() => setExpanded(false)}
+      onFocusCapture={() => setExpanded(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setExpanded(false)
+      }}
+    >
+      {!docked && (
+        <button
+          type="button"
+          className="focus-controls__handle"
+          tabIndex={-1}
+          onClick={() => setExpanded((open) => !open)}
+          title="Writing controls"
+          aria-label="Writing controls"
+          aria-expanded={expanded}
+        >
+          <span className="focus-controls__handle-glyph" aria-hidden>
+            ⋯
+          </span>
+        </button>
+      )}
       {docked && onEnterFocus && (
         <>
           <button

@@ -39,7 +39,6 @@ async function bootstrap() {
   //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
   //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
-  //   ?__preview=margin             → the markings margin (editor/marginPreview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
@@ -66,11 +65,6 @@ async function bootstrap() {
     if (preview === 'pages') {
       const { renderPagesPreview } = await import('./features/pages/preview')
       renderPagesPreview()
-      return
-    }
-    if (preview === 'margin') {
-      const { renderMarginPreview } = await import('./editor/marginPreview')
-      renderMarginPreview()
       return
     }
     if (preview === 'highlight') {

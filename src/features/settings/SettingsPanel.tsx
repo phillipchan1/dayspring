@@ -271,23 +271,11 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         checked={!settings.skipRitualPreview}
         onChange={(v) => update({ skipRitualPreview: !v })}
       />
-      <div className="settings-divider" />
-      {/* The vessel before what fills it: the margin has to exist before there
-          is anywhere for the journal to notice into. Turning it off turns
-          noticing off with it, and disables the switch — a control that can be
-          set to a state it cannot be in is a lie about what the app will do. */}
       <Toggle
-        label="Show the margin"
-        hint="The rule down the right of the page, and the markings on it. Off leaves a bare page — everything you have set apart is still there when you look back."
-        checked={settings.showMargin}
-        onChange={(v) => update(v ? { showMargin: true } : { showMargin: false, noticing: false })}
-      />
-      <Toggle
-        label="Let the journal notice"
-        hint="It may point at a line you wrote and suggest what it was. Nothing it suggests counts until you keep it, and shutting the margin silences it."
-        checked={settings.noticing}
-        disabled={!settings.showMargin}
-        onChange={(v) => update({ noticing: v })}
+        label="Preview the pages either side"
+        hint="Reading a page shows a sliver of the pages before and after it. Off leaves the page on its own — the arrows, ← / →, and swiping still turn it either way."
+        checked={settings.readerLeaves}
+        onChange={(v) => update({ readerLeaves: v })}
       />
       <div className="settings-divider" />
       <Toggle

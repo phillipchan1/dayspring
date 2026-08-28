@@ -5,6 +5,7 @@ import type { EntrySelectionChange } from './entrySelectionApi'
 import type { EntryReturnContext } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
+import type { SlashCommandId } from '@/editor/slashDetect'
 
 export interface FocusApi {
   active: boolean
@@ -80,4 +81,12 @@ export interface JournalViewProps {
   /** Set when reading an entry opened from Lamp / Altar / Ascent. */
   entryReturn: EntryReturnContext | null
   onReturnFromEntry: () => void
+
+  /**
+   * Run a capture command at the caret, the way `/ritual` would.
+   *
+   * The layout owns the blank-page door into the rituals, so it needs a way to
+   * reach the editor's imperative handle without holding the ref itself.
+   */
+  onCommand: (cmd: SlashCommandId) => void
 }

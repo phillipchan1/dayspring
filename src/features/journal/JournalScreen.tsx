@@ -42,19 +42,10 @@ import type { EntryMenuAction } from './EntryContextMenu'
 import { EntryEditDateModal } from './EntryEditDateModal'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
-import { MarkMargin } from './MarkMargin'
-import { marginNotes } from '@/editor/marginNotes'
 import { MARK_KIND, kindForCommand } from '@/lib/markKinds'
+import { canMarkExistingLines } from '@/lib/markSelection'
 import { InlineDeclaredPopover } from '@/features/capture/InlineDeclaredPopover'
-import { MarkPicker, type MarkPickerAnchor } from './MarkPicker'
 import { createSpiritualItem } from '@/lib/spiritual'
-import {
-  NOTICE_PAUSE_MS,
-  fetchProposals,
-  verbatimIn,
-  worthNoticing,
-  type Proposal,
-} from '@/lib/noticing'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
@@ -128,25 +119,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const handleContentChange = useCallback((doc: string) => {
     setContent((prev) => (prev === doc ? prev : doc))
   }, [])
-  /**
-   * The margin, open or shut. Session state, not a setting: the standing
-   * decision ("show the margin") belongs in Settings, while this is the one you
-   * make in the moment — shut it while you write something raw, open it later.
-   */
-  const [marginOpen, setMarginOpen] = useState(false)
-  /** Open when the writer pressed the margin `+`; carries where it was. */
-  const [markPicker, setMarkPicker] = useState<MarkPickerAnchor | null>(null)
-  /** What the journal noticed and the writer hasn't kept. Never persisted. */
-  const [pencil, setPencil] = useState<Proposal[]>([])
-  /**
-   * Proposals turned down this session, so the next pause doesn't hand back
-   * something already declined. Session-scoped and never written down: "not
-   * this" is meant to cost nothing, and a stored list of everything someone
-   * rejected is a record of their judgement, which is not ours to keep.
-   */
-  const dismissedRef = useRef<Set<string>>(new Set())
-  /** The text the last question was asked about, so a typo fix doesn't re-ask. */
-  const lastNoticedRef = useRef<string | null>(null)
   const [entriesReady, setEntriesReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editDateEntry, setEditDateEntry] = useState<Entry | null>(null)
@@ -392,6 +364,24 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     return () => cancelAnimationFrame(id)
   }, [focus.active])
 
+  /**
+   * A capture command was chosen — from `/`, from the `+`, or from the touch bar.
+   *
+   * **The same row does two things, and which one is not a decision the writer
+   * should have to make.** "Prayer" beside a paragraph you already wrote means
+   * *that was a prayer*; "Prayer" on an empty line means *I am about to write
+   * one*. Those are genuinely different acts — one wraps words that exist, the
+   * other opens a popover to make some — but they have one name in every
+   * writer's head, and offering both under two labels is how a menu of six
+   * kinds becomes a menu of twelve.
+   *
+   * So the line decides. It reads the same from `/pray` and from the `+`, which
+   * is the point: two doors that disagree about what a word means are worse
+   * than one door.
+   *
+   * Scripture is excluded because its words are not the writer's own (it fetches
+   * verbatim ESV text), and ritual / image / emoji are not kinds at all.
+   */
   function handleSlashCommand(
     cmd: SlashCommandId,
     insertAt: number,
@@ -399,8 +389,61 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   ) {
     addBreadcrumb('command', `slash:${cmd}`)
     track('slash_used', { cmd })
+    const kind = kindForCommand(cmd)
+    if (kind && canMarkExistingLines(kind) && lineHasWords(insertAt)) {
+      markLineAs(kind)
+      return
+    }
     setSlashCapture({ cmd, insertAt, anchor })
   }
+
+  /**
+   * Does the line at `pos` already carry words?
+   *
+   * Read from the live editor rather than React's `content`, which lags by a
+   * render — and the `/command` text has just been removed from the document by
+   * the time this runs, so a line that held only `/pray` correctly reads as
+   * empty and opens the popover.
+   */
+  function lineHasWords(pos: number): boolean {
+    const doc = editorRef.current?.getDoc()
+    if (doc === undefined) return false
+    const start = doc.lastIndexOf('\n', Math.max(0, pos - 1)) + 1
+    const nl = doc.indexOf('\n', pos)
+    return doc.slice(start, nl === -1 ? doc.length : nl).trim().length > 0
+  }
+
+  /**
+   * Put the caret somewhere a command may safely land, and return that position.
+   *
+   * Both doors below are pressed from outside the editor, where the caret is
+   * usually nowhere at all — and "nowhere" means position 0, which with
+   * `firstLineTitle` on is the TITLE line. A prayer block inserted there becomes
+   * the entry's title. So: guarantee a body line exists, land on it, and only
+   * then let the command read the selection.
+   */
+  const caretForCommand = useCallback((): number | null => {
+    const ed = editorRef.current
+    if (!ed) return null
+    const doc = ed.getDoc()
+    let at = doc.length
+    if (settings.firstLineTitle && !doc.includes('\n')) {
+      ed.replaceRange(at, at, '\n\n')
+      at += 2
+    }
+    ed.focusAt(at)
+    return at
+  }, [settings.firstLineTitle])
+
+  /** Run a capture command from the blank-page door in the top bar. */
+  const runCommandAtCaret = useCallback(
+    (cmd: SlashCommandId) => {
+      if (caretForCommand() === null) return
+      editorRef.current?.triggerCommand(cmd)
+    },
+    [caretForCommand],
+  )
+
 
   /** Map a clicked spiritual block to the popover that created it, pre-filled. */
   const handleEditBlock = useCallback(
@@ -445,8 +488,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * deliberate: offline, or before the type migration is applied, the marking
    * still exists on the page and save-time reconcile recreates the row later.
    */
-  const handlePickKind = useCallback((kind: SpiritualItemType) => {
-    setMarkPicker(null)
+  const markLineAs = useCallback((kind: SpiritualItemType) => {
     const id = crypto.randomUUID()
     const content = editorRef.current?.markLines(kind, id)
     if (!content) return
@@ -456,71 +498,27 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     })
   }, [])
 
-  /**
-   * The pause.
+  /*
+   * heartIQ is not on this screen.
    *
-   * Off the input path entirely: this is a debounce on the entry text React
-   * already holds, so nothing here runs while a key is down and no keystroke
-   * waits on it. It fires at the pause and never mid-sentence — Principle 3
-   * forbids anything that makes the writing surface slower, and the `#pencil`
-   * prototype tested live/at-pause/at-finish: live is the one that pulls your
-   * eye off the sentence you are still typing.
+   * It used to run here: a pause, a model call, and up to three proposals in
+   * pencil down the right of the page you were writing. It was built carefully
+   * — off the input path, verbatim-checked twice, nothing counted until kept —
+   * and it was still the wrong place for it. *"It doesn't make sense to show
+   * the user the intelligence as they're writing it. It only makes sense upon
+   * reading. It's a distracting thing."*
    *
-   * **Shutting the margin silences it.** `marginOpen` is in the condition, not
-   * just in the rendering: closed, no question is asked at all. That gesture
-   * already exists and is physical — the margin is shut, nobody is writing in
-   * it — and it answers the real feeling ("I am writing something raw and I do
-   * not want to be watched right now") without adding a control.
+   * That is the sharper version of Principle 3 than the one the original build
+   * satisfied. The test it passed was "does this add latency"; the test it
+   * failed is "does this belong in front of someone who is composing". Being
+   * shown what a machine made of your half-finished sentence is an interruption
+   * whether or not it costs a millisecond.
+   *
+   * The engine is untouched and still earns its keep — `api/spiritual/notice.ts`,
+   * `lib/noticing.ts`, and the verbatim guarantee at both ends. It is waiting on
+   * a reading surface to live in, where the question it answers is one somebody
+   * is actually asking. See D-026.
    */
-  useEffect(() => {
-    if (!settings.noticing || !settings.showMargin || !marginOpen) {
-      setPencil([])
-      return
-    }
-    if (!worthNoticing(content, lastNoticedRef.current)) return
-    let cancelled = false
-    const timer = setTimeout(() => {
-      const asked = content
-      lastNoticedRef.current = asked
-      void fetchProposals(asked).then((found) => {
-        if (cancelled) return
-        setPencil(found.filter((p) => !dismissedRef.current.has(p.id)))
-      })
-    }, NOTICE_PAUSE_MS)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [content, marginOpen, settings.noticing, settings.showMargin])
-
-  // A proposal is about words that were on the page when it was made. Re-check
-  // it against what is there now, every render of the live text — the writer may
-  // have deleted the sentence while the pencil note sat in the margin, and a
-  // note pointing at words that no longer exist is the app quoting something
-  // nobody wrote.
-  const livePencil = useMemo(() => verbatimIn(content, pencil), [content, pencil])
-
-  /** Keep it: the proposal becomes an ordinary marking, made by the writer. */
-  const handleKeep = useCallback((p: Proposal) => {
-    setPencil((current) => current.filter((x) => x.id !== p.id))
-    const id = crypto.randomUUID()
-    const kept = editorRef.current?.markQuote(p.quote, p.kind, id)
-    if (!kept) return
-    void createSpiritualItem({
-      id,
-      entry_id: entryIdRef.current,
-      type: p.kind,
-      content: kept,
-    }).catch(() => {
-      // Reconcile on save picks the fence up.
-    })
-  }, [])
-
-  /** Not this. One tap, costs nothing, says nothing back. */
-  const handleNotThis = useCallback((p: Proposal) => {
-    dismissedRef.current.add(p.id)
-    setPencil((current) => current.filter((x) => x.id !== p.id))
-  }, [])
 
   const handleScripturePaste = useCallback((reference: string) => {
     void recordScriptureCommandRef(entryIdRef.current, reference).catch(() => {
@@ -1162,6 +1160,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       ascentDrill: null,
       settings: null,
       help: false,
+      // Leaving a surface closes the page you had open on Pages.
+      //
+      // It used to persist, and the state then outlived the surface it belonged
+      // to: pressing Pages later re-entered whatever you last read INSTEAD of
+      // the wall, and Back out of that landed on whichever surface happened to
+      // be underneath. "I cannot get to all entries at all" was this — not a
+      // broken button, a stale id nothing ever cleared.
+      pagesSpreadId: null,
       ...next,
     })
   }
@@ -1389,28 +1395,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [settings.devMode])
-
-  // ⌥⌘M — open or shut the margin. Esc shuts it, and only it: the margin is a
-  // reading surface over the page, so backing out of it should never also back
-  // out of the entry.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (!marginOpen) return
-        e.preventDefault()
-        e.stopPropagation()
-        setMarginOpen(false)
-        return
-      }
-      if ((e.key !== 'm' && e.key !== 'µ') || !e.metaKey || !e.altKey) return
-      // A bare page stays bare: the shortcut can't open what Settings turned off.
-      if (!settings.showMargin) return
-      e.preventDefault()
-      setMarginOpen((open) => !open)
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [marginOpen, settings.showMargin])
 
   // Esc returns to Lamp / Altar / Ascent when previewing an entry from there.
   useEffect(() => {
@@ -1683,7 +1667,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * per doc change — so a shut margin costs the writing surface nothing, which
    * is the only terms on which Principle 3 lets this exist at all.
    */
-  const notes = useMemo(() => (marginOpen ? marginNotes(content) : []), [marginOpen, content])
   /**
    * The kind an open capture is for, when its capture is the generic prose
    * popover. Prayer, sense and scripture resolve to null here and keep the
@@ -1747,7 +1730,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     <div className={`journal-write${chapterOpen ? ' journal-write--with-pane' : ''}`}>
       <div className="journal-write__editor">
         <div
-          className={`journal-write__canvas${marginOpen ? ' journal-write__canvas--margin' : ''}`}
+          className="journal-write__canvas"
         >
           {entriesReady ? (
             <Editor
@@ -1801,27 +1784,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               onImageMenu={handleImageMenu}
               onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
               onSlashPaletteChange={setSlashPaletteOpen}
-              margin={settings.showMargin}
-              onOpenMargin={() => setMarginOpen(true)}
-              onMarkHere={setMarkPicker}
             />
           ) : null}
-          {markPicker && (
-            <MarkPicker
-              anchor={markPicker}
-              onPick={handlePickKind}
-              onDismiss={() => setMarkPicker(null)}
-            />
-          )}
-          <MarkMargin
-            open={marginOpen && entriesReady && settings.showMargin}
-            notes={notes}
-            onClose={() => setMarginOpen(false)}
-            onReveal={(note) => editorRef.current?.revealPos(note.from)}
-            pencil={livePencil}
-            onKeep={handleKeep}
-            onNotThis={handleNotThis}
-          />
         </div>
       {showCommandBar && !focus.active && (
         <CommandToolbar
@@ -1906,8 +1870,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // per chip would make Back walk every word you looked at.
       onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
       spreadId={state.pagesSpreadId}
+      /*
+       * Opening a page pushes a frame, so system Back closes it. Turning pages
+       * replaces, so Back never walks every page you read.
+       *
+       * "All entries" is a DESTINATION, not an undo. It used to call `back()`,
+       * which meant the way out of the reader depended on however you got in —
+       * and when that frame was an entry, the way out of Pages was the editor.
+       * A control that names where it goes has to go there.
+       */
       onSpread={(id) => {
-        if (id === null) back()
+        if (id === null) go({ pagesSpreadId: null }, { replace: true })
         else if (state.pagesSpreadId) go({ pagesSpreadId: id }, { replace: true })
         else go({ pagesSpreadId: id })
       }}
@@ -1969,6 +1942,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onFindOrAsk: () => openFindOrAsk(''),
     entryReturn: state.entryReturn,
     onReturnFromEntry: returnFromEntryOrigin,
+    onCommand: runCommandAtCaret,
   }
 
   return (

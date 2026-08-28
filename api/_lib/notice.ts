@@ -6,7 +6,7 @@
  */
 
 /**
- * What may be proposed. Two of the eight are deliberately missing.
+ * What may be proposed. Three of the eight are deliberately missing.
  *
  * **Absence** — where He seemed far — is declared only. Inferring that God felt
  * absent to someone is a verdict on their interior life, and no amount of
@@ -15,8 +15,13 @@
  * **Scripture** is excluded for a duller reason: references are already captured
  * verbatim at save time by a pipeline that resolves real ESV text, and a second
  * guesser would only disagree with it.
+ *
+ * **Gift** is excluded because it was RETIRED from the vocabulary (markKinds.ts)
+ * — a writer read the label and did not know what it meant. Proposing a kind
+ * nothing offers as a filter would let a kept pencil note write a row that no
+ * surface can ever find again.
  */
-export const PROPOSABLE = ['gift', 'prayer', 'desire', 'sense', 'learned', 'story'] as const
+export const PROPOSABLE = ['prayer', 'desire', 'sense', 'learned', 'story'] as const
 export type ProposableKind = (typeof PROPOSABLE)[number]
 
 /** Never more than this in the margin at once. Pencil should never crowd ink. */

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { renderMarkdown } from '@/lib/markdown'
@@ -10,6 +10,20 @@ import type { PageMarking } from '@/lib/spiritual'
 import type { Entry, SpiritualItemType } from '@/lib/types'
 import { paintMatches } from './paintMatches'
 import { drawMarkings, flatten, sortMarkings } from './pageMarkings'
+import { pageExcerpt } from './pageExcerpt'
+import { swipeTurn } from './swipeTurn'
+
+/** The neighbour's date — short, because it is read at a glance and side-on. */
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+/** How many lines of a neighbour show through at the edge. */
+const EDGE_LINES = 8
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -57,6 +71,10 @@ export function PageReader({
   firstLineTitle,
   onEdit,
   onBack,
+  newer,
+  older,
+  onTurn,
+  leaves,
 }: {
   /**
    * The reader's own bar — the way out, the way in, and the way along.
@@ -92,6 +110,19 @@ export function PageReader({
   onEdit: (entryId: string) => void
   /** Back to the list this page was opened from. */
   onBack: () => void
+  /**
+   * The pages either side of this one, IN THE SET YOU CAME FROM.
+   *
+   * With a subject lit, the page after this one is the next page that carries
+   * the subject — not the next page you wrote. Handing someone a neighbour
+   * without saying which of those it is makes the archive feel like it is
+   * skipping, so the dates are printed on the edges.
+   */
+  newer: Entry | null
+  older: Entry | null
+  onTurn: (entryId: string) => void
+  /** Settings → show a sliver of the pages either side. Desktop only. */
+  leaves: boolean
 }) {
   /*
    * Touch changes two things about this page, and both are about there being
@@ -213,6 +244,57 @@ export function PageReader({
     onEdit(entry.id)
   }
 
+  /**
+   * Which way the last turn went, so the arriving page can come from that side.
+   *
+   * A ref and not state: it is read during the render the entry change already
+   * causes, and setting state here would render twice to say the same thing.
+   */
+  const cameFrom = useRef<'newer' | 'older' | null>(null)
+  const turn = useCallback(
+    (way: 'newer' | 'older') => {
+      const to = way === 'older' ? older : newer
+      if (!to) return
+      cameFrom.current = way
+      onTurn(to.id)
+    },
+    [newer, older, onTurn],
+  )
+
+  /**
+   * Turning the page from a trackpad.
+   *
+   * **Touch is deliberately not here.** A horizontal swipe on a phone already
+   * means something on this surface — `useSwipeToDismiss` backs out of the
+   * reader — and one gesture cannot mean both "leave" and "next". The phone
+   * turns pages with the chevrons in its bar; the leaves it would be swiping
+   * between are not drawn there anyway.
+   *
+   * A trackpad's two-finger push arrives as `wheel` with `deltaX`, which is a
+   * different event entirely and collides with nothing. It reuses `swipeTurn`'s
+   * rule so the two input kinds cannot disagree about what counts as a turn.
+   * The gesture is a stream of small deltas rather than one event, so they
+   * accumulate and a 140ms pause ends it. Nothing here calls `preventDefault`,
+   * so vertical scrolling is never touched.
+   */
+  const wheel = useRef<{ x: number; y: number; at: number }>({ x: 0, y: 0, at: 0 })
+  const onWheel = (e: React.WheelEvent) => {
+    if (touch) return
+    const w = wheel.current
+    if (e.timeStamp - w.at > 140) {
+      w.x = 0
+      w.y = 0
+    }
+    w.at = e.timeStamp
+    w.x += e.deltaX
+    w.y += e.deltaY
+    const way = swipeTurn(-w.x, -w.y)
+    if (!way) return
+    w.x = 0
+    w.y = 0
+    turn(way)
+  }
+
   const asButton = touch
     ? {}
     : {
@@ -244,7 +326,25 @@ export function PageReader({
       data-leaving={back.leaving ? 'true' : undefined}
       style={{ ['--pg-out']: out } as React.CSSProperties}
       {...back.handlers}
+      onWheel={onWheel}
     >
+      {/*
+        The pages either side, as pages.
+
+        Outside the sliding layer on purpose: a back-swipe moves the page you
+        are reading, and the neighbours are not part of that movement — they are
+        what the page is lying between.
+
+        Never the full page: three markdown renders where there was one, on a
+        three-thousand-page archive, is the cost that made the Journal tab slow.
+        Excerpts are cheap and already cached upstream.
+      */}
+      {leaves && !touch && newer ? (
+        <TurnEdge side="newer" entry={newer} match={match} onTurn={() => turn('newer')} />
+      ) : null}
+      {leaves && !touch && older ? (
+        <TurnEdge side="older" entry={older} match={match} onTurn={() => turn('older')} />
+      ) : null}
       {/*
         The page follows the finger while the back-swipe is being made, and
         snaps back or carries on off the screen on release. On the inner element
@@ -274,7 +374,15 @@ export function PageReader({
           with no acknowledgement at all — which on a surface built for reading is
           the one place a beat is worth having.
         */}
-        <article key={entry.id} className="pg-read1__page" {...asButton}>
+        <article
+          key={entry.id}
+          className="pg-read1__page"
+          /* Which side the page came in from. Turning to the OLDER page walks
+             rightward along the wall, so the new page arrives from the right —
+             the same direction the gesture that asked for it was going. */
+          data-from={cameFrom.current ?? undefined}
+          {...asButton}
+        >
           <header className="pg-read1__head">
             <time className="pg-read1__date" dateTime={entry.created_at}>
               {formatDate(entry.created_at)}
@@ -309,5 +417,48 @@ export function PageReader({
         </article>
       </div>
     </div>
+  )
+}
+
+/**
+ * One neighbour, showing through at the edge.
+ *
+ * Its date is printed rather than implied. "Newer" and "older" alone would
+ * leave the reader to work out whether a filter is on and what they are
+ * stepping through; a date is a fact they can check against the page they are
+ * holding, and it costs one line.
+ */
+function TurnEdge({
+  side,
+  entry,
+  match,
+  onTurn,
+}: {
+  side: 'newer' | 'older'
+  entry: Entry
+  match: RegExp | null
+  onTurn: () => void
+}) {
+  const excerpt = useMemo(() => pageExcerpt(entry, [], EDGE_LINES, match), [entry, match])
+  return (
+    <button
+      type="button"
+      className="pg-read1__edge"
+      data-side={side}
+      onClick={onTurn}
+      aria-label={`Turn to the ${side} page, ${shortDate(entry.created_at)}`}
+    >
+      <span className="pg-read1__edge-leaf" aria-hidden>
+        <span className="pg-read1__edge-when">
+          <span className="pg-read1__edge-side">{side}</span>
+          {shortDate(entry.created_at)}
+        </span>
+        {excerpt.lines.map((line, i) => (
+          <span className="pg-read1__edge-line" key={i}>
+            {line.text}
+          </span>
+        ))}
+      </span>
+    </button>
   )
 }

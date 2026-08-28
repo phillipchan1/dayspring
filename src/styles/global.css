@@ -889,6 +889,10 @@ a {
   position: fixed;
   z-index: 200;
   min-width: 12.75rem;
+  /* The head carries the entry's own first line, and an entry's first line can
+     be a paragraph. Without a ceiling the `nowrap` below stretches the whole
+     menu to fit it instead of ellipsing. */
+  max-width: min(22rem, calc(100vw - 2rem));
   padding: 0.3rem;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
@@ -2178,6 +2182,43 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/*
+ * The blank-page door into the rituals.
+ *
+ * Quieter than the date it sits beside — it is an offer, not an instruction,
+ * and it is gone at the first word.
+ */
+.journal-topbar__ritual {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem 0.2rem 0.4rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background var(--transition);
+}
+.journal-topbar__ritual svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.journal-topbar__ritual:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.journal-topbar__ritual:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
 .journal-topbar__actions {
   display: flex;
   align-items: center;
@@ -2510,6 +2551,74 @@ html[data-focus-mode] .focus-controls {
   background: var(--border-subtle);
 }
 
+/* ── The collapsed cluster ──────────────────────────────────────────────────
+   In focus mode the controls fold behind one handle. Width + opacity, never
+   `display: none` — the chips have to stay in the tab order and reachable by
+   :focus-within, which is how this opens for a keyboard. */
+.focus-controls__handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.focus-controls__handle:hover {
+  color: var(--text-dim);
+}
+.focus-controls__handle-glyph {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* heartIQ has something in pencil. One dot, graphite, no count — a number
+   beside someone's spiritual writing is a score with extra steps. */
+.focus-controls__handle[data-pencil='true']::after {
+  content: '';
+  position: absolute;
+  top: 0.28rem;
+  right: 0.28rem;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-dim) 62%, transparent);
+}
+
+.focus-controls[data-collapsed='true'] {
+  gap: 0;
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.5;
+}
+.focus-controls[data-collapsed='true'] > :not(.focus-controls__handle) {
+  width: 0;
+  padding-inline: 0;
+  margin-inline: 0;
+  border-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.focus-controls > :not(.focus-controls__handle) {
+  transition:
+    opacity var(--transition),
+    width var(--transition);
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-controls > :not(.focus-controls__handle) {
+    transition: none;
+  }
+}
+
 /* Single appearance control — cycles light → dark → auto */
 .appearance-icon-btn {
   display: inline-flex;
@@ -2534,6 +2643,11 @@ html[data-focus-mode] .focus-controls {
 .appearance-icon-btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: 2px;
+}
+/* The markings toggle borrows this button; on means the margin is open. */
+.appearance-icon-btn[data-on='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 .appearance-icon-btn svg {
   width: 1.05rem;
@@ -4659,14 +4773,6 @@ html[data-focus-mode] .focus-controls {
   justify-content: center;
   line-height: 0;
 }
-/* Hidden unless the margin extension is loaded, which is what Settings → Show
-   the margin controls. The scripture block widget draws its own hand (a
-   decoration inside a replaced range is swallowed), so with the margin off that
-   hand would otherwise drop into the block's normal flow as a stray rule under
-   the citation. CodeMirror's theme selectors are more specific than this one, so
-   the margin's own rules win whenever it is on. */
-.cm-mark-glyph { display: none; }
-
 .ds-glyph--prayer { color: var(--accent); }
 .ds-glyph--sense { color: var(--md-emphasis); }
 .ds-glyph--scripture { color: rgb(var(--scripture-gold)); }

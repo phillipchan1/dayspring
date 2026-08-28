@@ -117,6 +117,18 @@ export function IconSettings(props: { size?: number }) {
   )
 }
 
+export function IconRitual(props: { size?: number }) {
+  // A kindled flame — the same shape the slash palette and the Altar rail use
+  // for `/ritual` ("devotional practice, the kindled inner life"). One icon for
+  // one idea, wherever it appears.
+  return (
+    <NavIcon {...props}>
+      <path d="M12 3c.6 3 3.4 4.2 3.4 7.4A3.4 3.4 0 0 1 12 13.8a3.4 3.4 0 0 1-3.4-3.4C8.6 7.2 11.4 6 12 3Z" />
+      <path d="M12 13.8c2.9 0 5 2 5 4.2 0 1.7-2.2 3-5 3s-5-1.3-5-3c0-2.2 2.1-4.2 5-4.2Z" />
+    </NavIcon>
+  )
+}
+
 export function IconFocus(props: { size?: number }) {
   // Expand-to-corners — entering focus mode opens the canvas to full screen.
   return (

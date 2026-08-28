@@ -13,7 +13,6 @@ import {
   type InlinePanelAnchor,
 } from './inlinePanelAnchor'
 import { MARK_KIND, MARKED_LINE_KINDS } from '@/lib/markKinds'
-import { buildGlyphElement } from './markGlyph'
 import { spiritualBlocksField } from './spiritualBlocksField'
 
 /**
@@ -93,12 +92,6 @@ class ScriptureBlockWidget extends WidgetType {
     menu.setAttribute('aria-label', 'Edit scripture')
     menu.textContent = '⋯'
     root.append(menu)
-
-    // The margin's hand for this verse. A decoration placed inside a replaced
-    // range is swallowed, so scripture — the one kind still drawn as a block —
-    // has to carry its own glyph. It is positioned against the same rule as the
-    // widget glyphs (markMargin.ts), so a verse and a prayer line up.
-    root.append(buildGlyphElement('scripture', this.id))
     return root
   }
 

@@ -16,29 +16,12 @@
   flex: 1 1 56%;
 }
 
-/* The editor's own box. `position: relative` is what lets the open margin be
-   absolutely positioned inside it — which is what lets it open without moving
-   the writing by a pixel. */
+/* The editor's own box. `position: relative` is the positioning context for
+   anything the writing surface overlays. */
 .journal-write__canvas {
   flex: 1;
   min-height: 0;
   position: relative;
-}
-
-/* Open, the panel IS the margin: its left border takes over from the hairline
-   and its notes take over from the glyphs. Fading rather than hiding, because
-   nothing on this surface is allowed to move.
-
-   `.cm-editor` is in the selector to out-specify CodeMirror's own theme rules,
-   whose injection order relative to this stylesheet isn't guaranteed. And
-   `animation: none` is load-bearing on the glyph: its arrival animation uses
-   `fill-mode: both`, and a filled animation beats a plain declaration in the
-   cascade — without clearing it the glyph would stay lit under the panel. */
-.journal-write__canvas--margin .cm-editor .cm-content::before,
-.journal-write__canvas--margin .cm-editor .cm-mark-glyph {
-  opacity: 0;
-  animation: none;
-  transition: opacity 160ms ease;
 }
 
 .chapter-pane {
