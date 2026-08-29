@@ -3,9 +3,10 @@ import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extens
 import { dropCursor, EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { indentUnit, syntaxHighlighting } from '@codemirror/language'
+import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
-import { markdownHighlight } from './highlight'
+import { proseHighlighting } from './proseHighlighting'
+import { nativeTypingAttributes } from './nativeTyping'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
 import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
@@ -340,7 +341,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               UnderlineExtension,
             ],
           }),
-          syntaxHighlighting(markdownHighlight),
+          // Skip mark decorations on the caret line so Safari / WKWebView
+          // keep tracking the word for autocorrect. Finished lines still paint.
+          proseHighlighting(),
           highlightDecoration(),
           concealCompartment.current.of(showMarkdownSyntax ? [] : concealMarkersExtension()),
           orderedListNumberingExtension(),
@@ -405,7 +408,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           dropCursor(),
           Prec.highest(attachmentDropExtension()),
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'on' }),
+          nativeTypingAttributes,
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
           dimCompartment.current.of(dimming ? dimmingExtension : []),

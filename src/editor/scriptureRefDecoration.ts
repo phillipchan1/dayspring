@@ -1,5 +1,6 @@
 import { RangeSetBuilder } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
+import { caretLineChanged, caretLineRange } from './caretLine'
 import { spiritualBlocksField, posInsideBlock } from './spiritualBlocksField'
 import { parseReferences } from '@/lib/scripture/parse'
 
@@ -7,9 +8,9 @@ const refMark = Decoration.mark({ class: 'cm-scriptureRef' })
 
 /**
  * Quiet underline on recognized scripture references as you type. Passive
- * (non-interactive) so it never disrupts typing or focus mode. Scans only the
- * visible lines and rebuilds on doc/viewport changes — the same shape as the
- * other lightweight editor decorations.
+ * (non-interactive) so it never disrupts typing or focus mode. The caret's
+ * line is left unmarked so WebKit can still autocorrect; the underline
+ * returns when the caret leaves. Scans only the visible lines.
  */
 export function scriptureRefDecoration() {
   return ViewPlugin.fromClass(
@@ -21,7 +22,7 @@ export function scriptureRefDecoration() {
       }
 
       update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged) {
+        if (update.docChanged || update.viewportChanged || caretLineChanged(update)) {
           this.decorations = build(update.view)
         }
       }
@@ -40,11 +41,18 @@ function build(view: EditorView): DecorationSet {
   // Skip every line that falls within a block, not just the opening fence line.
   const blocks = view.state.field(spiritualBlocksField)
   const insideBlock = (pos: number) => posInsideBlock(blocks, pos)
+  // Mark decorations on the caret line split the word and kill WebKit
+  // autocorrect. The underline returns the moment the caret leaves.
+  const caret = caretLineRange(view.state)
 
   for (const { from, to } of view.visibleRanges) {
     let pos = from
     while (pos <= to) {
       const line = doc.lineAt(pos)
+      if (line.from < caret.to && line.to > caret.from) {
+        pos = line.to + 1
+        continue
+      }
       // A scripture reference always carries a chapter/verse number, so a line
       // with no digit can't contain one — skip the heavy canon regex on prose.
       if (line.text && /\d/.test(line.text) && !insideBlock(line.from)) {

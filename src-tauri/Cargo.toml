@@ -41,6 +41,11 @@ tauri-plugin-purchases = "0.2"
 # hand-written LocalAuthentication command. Mac and web use the PIN.
 tauri-plugin-biometric = "2"
 
+# Same objc2 major as iOS / wry — used to turn on WKWebView inline predictions
+# before the view is created (see `native_typing.rs`).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+
 # Raw UIKit/ObjC access so the iOS webview can be told to stop insetting itself
 # (see `reclaim_ios_viewport` in src/lib.rs). Versions match what wry 0.55.1
 # already resolves, so this adds no second crate graph.
