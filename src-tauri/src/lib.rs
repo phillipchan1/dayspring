@@ -1,3 +1,6 @@
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+mod native_typing;
+
 /// Open the web inspector (devtools). Gated by the `devtools` Cargo feature so
 /// it works in both debug and release builds when the user enables dev mode.
 #[tauri::command]
@@ -695,6 +698,10 @@ fn install_privacy_screen(webview: &tauri::webview::PlatformWebview) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  // Before wry builds the WKWebView — the predictions flag is creation-only.
+  #[cfg(any(target_os = "ios", target_os = "macos"))]
+  native_typing::enable_inline_predictions();
+
   #[cfg_attr(not(desktop), allow(unused_mut))]
   let mut builder = tauri::Builder::default()
     .plugin(tauri_plugin_process::init())
@@ -750,8 +757,19 @@ pub fn run() {
         use tauri::Manager;
         if let Some(window) = app.get_webview_window("main") {
           let _ = window.with_webview(|webview| {
+            native_typing::enable_writing_tools(webview.inner() as *mut _);
             install_privacy_screen(&webview);
             reclaim_ios_viewport(webview);
+          });
+        }
+      }
+
+      #[cfg(target_os = "macos")]
+      {
+        use tauri::Manager;
+        if let Some(window) = app.get_webview_window("main") {
+          let _ = window.with_webview(|webview| {
+            native_typing::enable_writing_tools(webview.inner() as *mut _);
           });
         }
       }
