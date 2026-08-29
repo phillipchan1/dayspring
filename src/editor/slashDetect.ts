@@ -44,6 +44,27 @@ export function matchSlashBefore(before: string, cursor: number): SlashMatch | n
   return { query, from: cursor - query.length - 1 }
 }
 
+/**
+ * Merge a freshly detected slash with the palette that's already open.
+ *
+ * A palette opened from the `+` has `from === to` and no `/` in the document,
+ * so the next `selectionSet` would otherwise detect nothing and close it —
+ * including the ghost click iOS fires at the `+` a moment after the sheet
+ * appears. Keep that palette until the user actually types or moves the caret.
+ */
+export function reconcileSlashState(
+  prev: SlashState | null,
+  detected: SlashState | null,
+  update: { docChanged: boolean; selectionEmpty: boolean; caret: number },
+): SlashState | null {
+  if (prev && prev.from === prev.to) {
+    if (update.docChanged) return detected
+    if (!update.selectionEmpty || update.caret !== prev.from) return detected
+    return prev
+  }
+  return detected
+}
+
 /** Scan back from the cursor; return non-null when we're in a /command sequence. */
 export function detectSlash(view: EditorView, blockOnTitleLine = false): SlashState | null {
   const state = view.state

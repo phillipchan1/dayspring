@@ -14,7 +14,9 @@ import {
   type SlashItem,
   type SlashSelection,
 } from './slashCommands'
+import { isTapGesture } from './slashTouch'
 import { SpiritualBlockIcon } from './spiritualBlockIcons'
+import { isGhostClick } from '@/lib/ghostClick'
 // The sheet reuses CommandPopover's scrim, grab handle and rise animation, so
 // every bottom sheet in the app reads as the same object.
 import '@/features/capture/Capture.css'
@@ -148,8 +150,18 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
   // and that same gesture's `touchend` used to land on whichever row happened to
   // be there — silently applying a Heading to a real entry, with no undo on
   // mobile to take it back. A row only fires when its own `touchstart` opened
-  // the gesture.
-  const touchStartRow = useRef<SlashSelection | null>(null)
+  // the gesture, and only if that gesture stayed a tap (a scroll starts on a
+  // row too, and used to choose it on lift).
+  const touchStartRow = useRef<{
+    sel: SlashSelection
+    x: number
+    y: number
+    scrollTop: number
+  } | null>(null)
+  // iOS synthesizes a click ~300ms after the tap that opened the sheet. That
+  // click lands on the scrim (or the editor behind it) and cancelled the menu
+  // before a thumb could scroll or pick. Ignore dismissals for a beat.
+  const openedAt = useRef(Date.now())
 
   // Docked above the keyboard rather than over the caret, so the line being
   // written stays visible while you choose.
@@ -158,6 +170,11 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
     onDismiss: onCancel,
     enabled: isMobile,
   })
+
+  function cancelFromScrim() {
+    if (isGhostClick(openedAt.current)) return
+    onCancel()
+  }
 
   if (total === 0) return null
 
@@ -182,20 +199,32 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
           e.preventDefault()
           if (!isMobile) onSelect(item.selection)
         }}
-        onTouchStart={() => {
-          touchStartRow.current = item.selection
+        onTouchStart={(e) => {
+          const t = e.changedTouches[0] ?? e.touches[0]
+          if (!t) return
+          const scroller = (e.currentTarget as Element).closest('[data-sheet-scroll]')
+          touchStartRow.current = {
+            sel: item.selection,
+            x: t.clientX,
+            y: t.clientY,
+            scrollTop: scroller instanceof HTMLElement ? scroller.scrollTop : 0,
+          }
         }}
         // Touch: select on touchend and swallow the synthesized mouse events.
         // iOS can drop the synthetic mousedown when the row re-renders under
-        // the finger, which made taps unreliable.
+        // the finger, which made taps unreliable. A scroll starts on a row
+        // too — only a tap that barely moved is a choice.
         onTouchEnd={(e) => {
-          e.preventDefault()
           const started = touchStartRow.current
           touchStartRow.current = null
-          if (started !== item.selection) return
-          // A pull-to-dismiss that happened to start on a row is a dismissal,
-          // not a choice.
-          if (dragging || dragY > 0) return
+          if (!started || started.sel !== item.selection) return
+          const t = e.changedTouches[0]
+          if (!t || !isTapGesture(started, { x: t.clientX, y: t.clientY })) return
+          const scroller = (e.currentTarget as Element).closest('[data-sheet-scroll]')
+          if (scroller instanceof HTMLElement && scroller.scrollTop !== started.scrollTop) {
+            return
+          }
+          e.preventDefault()
           onSelect(item.selection)
         }}
         onTouchCancel={() => {
@@ -252,21 +281,24 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
         }}
         role="listbox"
         aria-label="Commands"
-        {...dragHandlers}
       >
-        <div className="command-popover__grab" aria-hidden />
-        <div className="slash-palette__sheet-head">
-          <span className="slash-palette__sheet-title">Insert</span>
-          {/* The scrim and the handle both cancel, but neither is labelled —
-              this is the one exit that says what it does. */}
-          <button
-            type="button"
-            className="slash-palette__cancel"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
+        {/* Pull-to-dismiss lives on the chrome only. The list is the point of
+            this sheet — a downward drag on a row is a scroll, not a cancel. */}
+        <div {...dragHandlers}>
+          <div className="command-popover__grab" aria-hidden />
+          <div className="slash-palette__sheet-head">
+            <span className="slash-palette__sheet-title">Insert</span>
+            {/* The scrim and the handle both cancel, but neither is labelled —
+                this is the one exit that says what it does. */}
+            <button
+              type="button"
+              className="slash-palette__cancel"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
         <div className="slash-palette__scroll" data-sheet-scroll>
           {groups}
@@ -277,7 +309,7 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
       <>
         {/* Tapping away cancels — and takes the `/` with it, so backing out
             never leaves a stray slash in the entry. */}
-        <div className="command-popover__scrim" onClick={onCancel} aria-hidden />
+        <div className="command-popover__scrim" onClick={cancelFromScrim} aria-hidden />
         {sheet}
       </>,
       document.body,

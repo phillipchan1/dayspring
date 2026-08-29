@@ -1752,9 +1752,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
                   }
                 : {})}
               // The `/` hint is desktop copy: CommandToolbar already puts
-              // Scripture / Pray / Sense / Ritual / Image above the keyboard on
-              // touch, where reaching for a slash is a two-tap detour. The palette
-              // itself stays enabled everywhere.
+              // Scripture / Pray / Sense / Image above the keyboard on touch,
+              // where reaching for a slash is a two-tap detour. Ritual sits on
+              // the blank-page top bar. The palette itself stays enabled everywhere.
               placeholder={
                 entryId === null && seedPrompt
                   ? seedPrompt

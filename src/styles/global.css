@@ -2219,6 +2219,18 @@ a {
   outline-offset: 1px;
 }
 
+@media (max-width: 767px) {
+  .journal-topbar__ritual {
+    min-height: 44px;
+    padding: 0.35rem 0.55rem 0.35rem 0.45rem;
+    font-size: 0.85rem;
+  }
+  .journal-topbar__ritual svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+}
+
 .journal-topbar__actions {
   display: flex;
   align-items: center;
@@ -4710,6 +4722,7 @@ html[data-focus-mode] .focus-controls {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 0.25rem 0.3rem 0.4rem;
 }
 
