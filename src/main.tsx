@@ -42,6 +42,7 @@ async function bootstrap() {
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
+  //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -77,6 +78,11 @@ async function bootstrap() {
     if (preview === 'hr') {
       const { renderHrPreview } = await import('./editor/hrPreview')
       renderHrPreview()
+      return
+    }
+    if (preview === 'ritual') {
+      const { renderRitualPreview } = await import('./editor/ritualPreview')
+      renderRitualPreview()
       return
     }
     if (preview) {

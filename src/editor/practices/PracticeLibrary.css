@@ -528,6 +528,49 @@
     grid-template-columns: 1fr;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
   }
+
+  /* On the shortest phones the threshold ran past the bottom edge: at 375×667
+     the longest ritual (Ignatian Discernment — four movements, long questions)
+     pushed "Begin writing" off-screen, and several others left it within a few
+     pixels of it. The pane stays centred, which is right when the content fits;
+     the space comes back out of padding a phone cannot afford. */
+  .practice-threshold {
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 0
+      calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+  .practice-threshold__inner {
+    padding: 20px;
+  }
+  .practice-threshold__function {
+    margin-bottom: 14px;
+  }
+  .practice-threshold__origin {
+    margin-bottom: 20px;
+  }
+  .practice-threshold__divider {
+    margin-bottom: 20px;
+  }
+  .practice-threshold__intention {
+    margin-bottom: 22px;
+  }
+  .practice-threshold__movements-label {
+    margin-bottom: 12px;
+  }
+  .practice-threshold__movements {
+    margin-bottom: 24px;
+  }
+  .practice-threshold__movement {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .practice-threshold__skip {
+    margin-top: 18px;
+  }
+  /* Clear the Dynamic Island, like the library's own header does. */
+  .practice-threshold__back {
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    left: 12px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
