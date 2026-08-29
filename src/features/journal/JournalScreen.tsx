@@ -387,6 +387,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     insertAt: number,
     anchor: InlinePanelAnchor,
   ) {
+    // Touch devices use the OS emoji keyboard; the in-app picker is desktop-only.
+    if (cmd === 'emoji' && touchFirst) return
     addBreadcrumb('command', `slash:${cmd}`)
     track('slash_used', { cmd })
     const kind = kindForCommand(cmd)

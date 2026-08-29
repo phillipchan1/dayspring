@@ -53,6 +53,14 @@ describe('filterSlashItems', () => {
     expect(format.every((i) => i.column === 'format')).toBe(true)
   })
 
+  it('hides emoji on touch-primary devices', () => {
+    const { capture } = filterSlashItems('', { touchPrimary: true })
+    expect(capture.map((i) => i.selection.id)).not.toContain('emoji')
+    expect(capture.map((i) => i.selection.id)).toEqual(
+      expect.arrayContaining(['ritual', 'image']),
+    )
+  })
+
   it('matches spiritual commands by keyword prefix', () => {
     const { capture } = filterSlashItems('scr')
     expect(capture.map((i) => i.selection.id)).toEqual(['scripture'])

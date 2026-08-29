@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useIsMobile, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import type { SlashState } from './slashDetect'
@@ -30,7 +30,12 @@ interface Props {
 
 export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
   const isMobile = useIsMobile()
-  const cols = slashColumns(state.query)
+  const touchPrimary = useTouchPrimary()
+  const slashOpts = useMemo(
+    () => (touchPrimary ? { touchPrimary: true as const } : undefined),
+    [touchPrimary],
+  )
+  const cols = slashColumns(state.query, slashOpts)
   const total = cols.reduce((n, c) => n + c.length, 0)
 
   const [cursor, setCursor] = useState<SlashCursor | null>(() => firstCursor(cols))
@@ -48,8 +53,8 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
 
   // Re-seat the cursor whenever the query narrows or clears the list.
   useEffect(() => {
-    setCursor(firstCursor(slashColumns(state.query)))
-  }, [state.query])
+    setCursor(firstCursor(slashColumns(state.query, slashOpts)))
+  }, [state.query, slashOpts])
 
   // Keep the highlighted row visible when arrowing through a list taller than
   // the palette. `nearest` avoids yanking the page or scrolling sideways.
@@ -108,7 +113,7 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const colsNow = slashColumns(state.query)
+      const colsNow = slashColumns(state.query, slashOpts)
       const move = (dir: 'up' | 'down' | 'left' | 'right') => {
         e.preventDefault()
         e.stopPropagation()
@@ -136,7 +141,7 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [state.query, onSelect, onDismiss])
+  }, [state.query, slashOpts, onSelect, onDismiss])
 
   // The touch that *opened* the palette must not also pick a row. Tapping to
   // place the caret next to an existing `/` re-opens the sheet under the finger,

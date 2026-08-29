@@ -44,6 +44,13 @@ export interface SlashItem {
   badgeStyle?: 'bold' | 'italic'
   /** Lowercase tokens matched against the typed query. */
   keywords: string[]
+  /** Omit on touch — the OS keyboard already exposes this (emoji on iOS). */
+  touchExcluded?: boolean
+}
+
+export interface SlashFilterOptions {
+  /** When true, drop commands the on-screen keyboard already covers. */
+  touchPrimary?: boolean
 }
 
 /** The two visible columns, in display order. Format leads — it's used most. */
@@ -135,6 +142,7 @@ export const SLASH_ITEMS: SlashItem[] = [
     hint: 'Search and insert an emoji',
     badge: '🙂',
     keywords: ['emoji', 'emote', 'smiley', 'icon'],
+    touchExcluded: true,
   },
 
   // ── Format: markdown (applied inline) ───────────────────────────────────
@@ -261,18 +269,27 @@ function matches(item: SlashItem, q: string): boolean {
   return item.keywords.some((k) => k.startsWith(q)) || item.label.toLowerCase().includes(q)
 }
 
+function visibleItems(options?: SlashFilterOptions): SlashItem[] {
+  if (!options?.touchPrimary) return SLASH_ITEMS
+  return SLASH_ITEMS.filter((i) => !i.touchExcluded)
+}
+
 /** Filter the catalog by the typed query, split into its two columns. */
-export function filterSlashItems(query: string): { capture: SlashItem[]; format: SlashItem[] } {
+export function filterSlashItems(
+  query: string,
+  options?: SlashFilterOptions,
+): { capture: SlashItem[]; format: SlashItem[] } {
   const q = query.toLowerCase()
+  const items = visibleItems(options)
   return {
-    capture: SLASH_ITEMS.filter((i) => i.column === 'capture' && matches(i, q)),
-    format: SLASH_ITEMS.filter((i) => i.column === 'format' && matches(i, q)),
+    capture: items.filter((i) => i.column === 'capture' && matches(i, q)),
+    format: items.filter((i) => i.column === 'format' && matches(i, q)),
   }
 }
 
 /** Filtered items as a column array in {@link SLASH_COLUMNS} display order. */
-export function slashColumns(query: string): SlashItem[][] {
-  const byKey = filterSlashItems(query)
+export function slashColumns(query: string, options?: SlashFilterOptions): SlashItem[][] {
+  const byKey = filterSlashItems(query, options)
   return SLASH_COLUMNS.map((c) => byKey[c.key])
 }
 
