@@ -10,5 +10,6 @@ is skipped rather than built. Nothing in this directory is meant to build: no
 Astro app, no `package.json`.
 
 The real Astro site lives on `master` under `site/`. When master merges into
-stable, these files are replaced by the real site and its diff-based
-`vercel-ignore.sh`, and `dayspring-site` starts building from stable as normal.
+stable, `vercel-ignore.sh`, `vercel.json`, and this file conflict add/add against
+master's real ones — take master's side for all three. `dayspring-site` then
+builds from stable as normal.

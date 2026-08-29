@@ -14,7 +14,11 @@ fi
 PREV="${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}"
 CURRENT="${VERCEL_GIT_COMMIT_SHA:-HEAD}"
 
-if ! git rev-parse "$PREV" >/dev/null 2>&1; then
+# Build when the range can't be resolved (first deploy, shallow clone, rewritten
+# history) rather than risk skipping a real site change. Capturing the diff up
+# front is what makes that check work: git rev-parse accepts any well-formed
+# 40-hex string without verifying the object exists.
+if ! CHANGED="$(git diff --name-only "$PREV" "$CURRENT" 2>/dev/null)"; then
   exit 1
 fi
 
@@ -23,6 +27,6 @@ while IFS= read -r file; do
   case "$file" in
     site/*|site) exit 1 ;;
   esac
-done < <(git diff --name-only "$PREV" "$CURRENT")
+done <<< "$CHANGED"
 
 exit 0
