@@ -56,14 +56,15 @@ pub fn enable_inline_predictions() {
 
   // SAFETY: same signature as `-[NSObject init]`. We call through to the
   // original IMP so the object is fully initialised before the extra flag.
+  // `set_implementation` returns the previous IMP — store that, not a
+  // separate `implementation()` read that could race with the swap.
   unsafe {
-    let old = method.implementation();
-    ORIG_CONFIG_INIT.store(std::mem::transmute::<Imp, *mut core::ffi::c_void>(old), Ordering::SeqCst);
     let imp: Imp = std::mem::transmute::<
       extern "C" fn(*mut AnyObject, Sel) -> *mut AnyObject,
       Imp,
     >(patched_init);
-    method.set_implementation(imp);
+    let old = method.set_implementation(imp);
+    ORIG_CONFIG_INIT.store(std::mem::transmute::<Imp, *mut core::ffi::c_void>(old), Ordering::SeqCst);
   }
 }
 
