@@ -10,6 +10,7 @@ import type { SlashState } from './slashDetect'
 
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => true,
+  useTouchPrimary: () => true,
 }))
 
 const state: SlashState = {
