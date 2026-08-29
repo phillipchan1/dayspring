@@ -28,11 +28,12 @@ interface CommandToolbarProps {
   keyboardInset?: number
 }
 
+// Ritual lives on the blank-page top bar (desktop and mobile) — it is a shape
+// for the whole page, not a mid-sentence insert. Still reachable from `/` and `+`.
 const COMMANDS: Array<{ id: SlashCommandId; label: string; hint: string }> = [
   { id: 'scripture', label: 'Scripture', hint: 'Find passages' },
   { id: 'pray', label: 'Pray', hint: 'Log prayer' },
   { id: 'sense', label: 'Sense', hint: 'Record impression' },
-  { id: 'ritual', label: 'Ritual', hint: 'Rituals for the inner life' },
   { id: 'image', label: 'Image', hint: 'Add photo' },
   { id: 'emoji', label: 'Emoji', hint: 'Insert emoji' },
 ]

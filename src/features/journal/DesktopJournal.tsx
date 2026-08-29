@@ -19,18 +19,13 @@ function formatBreadcrumb(iso: string): string {
 /**
  * The door into the rituals, for people who don't know `/` exists.
  *
- * Desktop had exactly one way to reach the eleven contemplative practices: type
- * a slash. The mobile keyboard bar has named them all along; a mouse-and-
- * hardware-keyboard user never saw a button that did. That is a discovery
- * problem, not a taste one — a major feature reachable only by a gesture nobody
- * taught you is a feature most people don't have.
- *
- * **Only rituals, and only here.** Scripture and prayer are things you reach for
- * mid-sentence, about the line you are on — they belong on the `+` beside that
- * line. A ritual is not about a line; it is a shape for the whole page, chosen
- * before there is a page. That is why this one sits up top beside the date, and
- * why the row that briefly sat here offering `/scripture` and `/pray` was
- * putting three different scopes in one place.
+ * **Only rituals, and only here** (and the matching blank-page control on
+ * mobile). Scripture and prayer are things you reach for mid-sentence, about
+ * the line you are on — they belong on the `+` beside that line and on the
+ * keyboard bar. A ritual is not about a line; it is a shape for the whole page,
+ * chosen before there is a page. That is why this one sits up top beside the
+ * date, and why the row that briefly sat here offering `/scripture` and `/pray`
+ * was putting three different scopes in one place.
  */
 
 /**
