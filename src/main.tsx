@@ -40,6 +40,8 @@ async function bootstrap() {
   //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
+  //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
+  //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -70,6 +72,11 @@ async function bootstrap() {
     if (preview === 'highlight') {
       const { renderHighlightPreview } = await import('./editor/highlightPreview')
       renderHighlightPreview()
+      return
+    }
+    if (preview === 'hr') {
+      const { renderHrPreview } = await import('./editor/hrPreview')
+      renderHrPreview()
       return
     }
     if (preview) {

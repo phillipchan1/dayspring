@@ -665,3 +665,155 @@
   --glass-shadow-glow: 0 0 58px -30px rgba(138, 127, 106, 0.1);
   --glass-glow-spot: rgba(138, 127, 106, 0.1);
 }
+
+/* ── Thematic-break gems ───────────────────────────────────────────────────
+   One shape per palette, painted onto the shared `.cm-hr` / `hr` structure
+   in global.css. Keep them small: a divider in a journal is a breath, not a
+   banner. Glows are static (no animation) so they never compete with the
+   caret; `prefers-reduced-motion` also drops the box-shadow bloom. */
+
+/* Dawn — a small sun. Sunrise on paper. */
+[data-theme='dawn'] .cm-hr,
+[data-theme='dawn'] .markdown-body hr {
+  --hr-gap: 0.85em;
+}
+[data-theme='dawn'] .cm-hr::before,
+[data-theme='dawn'] .markdown-body hr::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+    0 0 10px 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+/* Vellum — a manuscript lozenge. Aged paper, ink that bites. */
+[data-theme='vellum'] .cm-hr::before,
+[data-theme='vellum'] .markdown-body hr::before {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Cloister — an oculus. Cool stone, north light. */
+[data-theme='cloister'] .cm-hr,
+[data-theme='cloister'] .markdown-body hr {
+  --hr-gap: 0.7em;
+}
+[data-theme='cloister'] .cm-hr::before,
+[data-theme='cloister'] .markdown-body hr::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--accent);
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+}
+
+/* Sabbath — a dinkus of three dots. Sage and pine, the quiet one. */
+[data-theme='sabbath'] .cm-hr,
+[data-theme='sabbath'] .markdown-body hr {
+  --hr-gap: 1.15em;
+}
+[data-theme='sabbath'] .cm-hr::before,
+[data-theme='sabbath'] .markdown-body hr::before {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    -8px 0 0 0 var(--accent),
+    8px 0 0 0 var(--accent);
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+}
+
+/* Ink — a crescent. Moonlight, not sunrise. */
+[data-theme='ink'] .cm-hr,
+[data-theme='ink'] .markdown-body hr {
+  --hr-gap: 0.85em;
+}
+[data-theme='ink'] .cm-hr::before,
+[data-theme='ink'] .markdown-body hr::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--journal-horizon);
+  box-shadow: inset -2.5px -0.5px 0 0 var(--bg);
+  transform: translate(-50%, -50%);
+}
+
+/* Ember — a live coal. Hearth-warm dark. */
+[data-theme='ember'] .cm-hr,
+[data-theme='ember'] .markdown-body hr {
+  --hr-gap: 0.85em;
+}
+[data-theme='ember'] .cm-hr::before,
+[data-theme='ember'] .markdown-body hr::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--accent) 55%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+/* Compline — a four-pointed star. Indigo night prayer. */
+[data-theme='compline'] .cm-hr,
+[data-theme='compline'] .markdown-body hr {
+  --hr-gap: 0.85em;
+}
+[data-theme='compline'] .cm-hr::before,
+[data-theme='compline'] .markdown-body hr::before {
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%, 58% 38%, 100% 50%, 58% 62%, 50% 100%, 42% 62%, 0% 50%, 42% 38%);
+  transform: translate(-50%, -50%);
+  opacity: 0.9;
+}
+
+/* Nocturne — a tiny gold diamond. True black, keep the pixels down. */
+[data-theme='nocturne'] .cm-hr,
+[data-theme='nocturne'] .markdown-body hr {
+  --hr-gap: 0.7em;
+}
+[data-theme='nocturne'] .cm-hr::before,
+[data-theme='nocturne'] .markdown-body hr::before {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+  opacity: 0.7;
+}
+
+/* Vigil — three faint dots, no bloom. Dimmed all the way down. */
+[data-theme='vigil'] .cm-hr,
+[data-theme='vigil'] .markdown-body hr {
+  --hr-gap: 1em;
+  --hr-color: var(--text-faint);
+}
+[data-theme='vigil'] .cm-hr::before,
+[data-theme='vigil'] .markdown-body hr::before {
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  box-shadow:
+    -7px 0 0 0 var(--text-faint),
+    7px 0 0 0 var(--text-faint);
+  transform: translate(-50%, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme='dawn'] .cm-hr::before,
+  [data-theme='dawn'] .markdown-body hr::before,
+  [data-theme='ember'] .cm-hr::before,
+  [data-theme='ember'] .markdown-body hr::before {
+    box-shadow: none;
+  }
+}

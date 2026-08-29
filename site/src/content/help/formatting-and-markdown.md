@@ -4,8 +4,8 @@ summary: Bold, italic, headings, lists and quotes — without a single asterisk 
 section: writing
 order: 1
 requires: [capability.editor]
-keywords: [format, bold, italic, markdown, heading, list, quote, underline, asterisk, syntax]
-updated: 2026-08-10
+keywords: [format, bold, italic, markdown, heading, list, quote, underline, asterisk, syntax, divider, rule]
+updated: 2026-08-29
 ---
 
 Select some text and a small bar appears above it. Bold, italic, underline,
@@ -55,6 +55,12 @@ a line.
 
 You rarely need them in a daily entry, but they earn their keep in a long
 retreat entry or a set of sermon notes.
+
+## Dividers
+
+On a line of its own, type `---` — or pick **Divider** from the slash menu.
+It becomes a quiet break in the page, painted to match the palette you're
+writing in. Click it and the dashes come back, so you can delete it.
 
 ## Marking a passage
 

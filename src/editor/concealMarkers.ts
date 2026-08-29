@@ -43,8 +43,10 @@ const CONCEALED = new Set([
  *                 real left-rule line decoration.
  *   TaskMarker    taskListExtension already replaces it with a checkbox.
  *   Escape        "\*" should keep showing its backslash while you edit it.
- *   HorizontalRule, fenced CodeMark, CodeInfo — meaningful, visible content
- *                 (and the fences are where spiritual blocks live).
+ *   HorizontalRule — horizontalRule.ts replaces the line with a decorative
+ *                 rule, and reveals the source when the caret sits on it.
+ *   fenced CodeMark, CodeInfo — meaningful, visible content (and the fences
+ *                 are where spiritual blocks live).
  */
 
 /** Inline spans whose markers reveal when the selection touches them. */

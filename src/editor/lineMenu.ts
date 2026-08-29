@@ -54,7 +54,7 @@ function buildPlusHere(view: EditorView): DecorationSet {
 }
 
 /** Lines the `+` never belongs beside. Mirrors the `content: none` rules above. */
-const NO_PLUS = ['cm-mark-line', 'cm-mark-fence', 'cm-entry-title', 'cm-entry-title-explicit']
+const NO_PLUS = ['cm-mark-line', 'cm-mark-fence', 'cm-entry-title', 'cm-entry-title-explicit', 'cm-hr-line']
 
 const gutterTheme = EditorView.theme({
   '.cm-line': {
@@ -124,6 +124,7 @@ const gutterTheme = EditorView.theme({
   '.cm-line.cm-mark-fence::after': { content: 'none' },
   '.cm-line.cm-entry-title::after': { content: 'none' },
   '.cm-line.cm-entry-title-explicit::after': { content: 'none' },
+  '.cm-line.cm-hr-line::after': { content: 'none' },
   '@media (prefers-reduced-motion: reduce)': {
     '.cm-line::after': { transition: 'none' },
   },

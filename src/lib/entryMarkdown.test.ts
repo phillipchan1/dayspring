@@ -5,6 +5,7 @@ import {
   firstLineIsTitle,
   isExplicitHeading,
   isNonTitleLine,
+  isThematicBreak,
   markdownForDisplay,
 } from './entryMarkdown'
 
@@ -22,9 +23,18 @@ describe('firstLineIsTitle / isNonTitleLine', () => {
     expect(firstLineIsTitle('My morning')).toBe(true)
   })
   it('does not treat structure or headings as an auto-title', () => {
-    for (const line of ['- item', '1. step', '> quote', '[] todo', '- [x] done', '# Heading']) {
+    for (const line of ['- item', '1. step', '> quote', '[] todo', '- [x] done', '# Heading', '---']) {
       expect(firstLineIsTitle(line)).toBe(false)
     }
+  })
+
+  it('treats a thematic break as a divider, not a title', () => {
+    expect(isThematicBreak('---')).toBe(true)
+    expect(isThematicBreak('***')).toBe(true)
+    expect(isThematicBreak('___')).toBe(true)
+    expect(isThematicBreak('- - -')).toBe(true)
+    expect(isThematicBreak('--')).toBe(false)
+    expect(isNonTitleLine('---')).toBe(true)
   })
   it('flags structural lines as non-title', () => {
     expect(isNonTitleLine('- item')).toBe(true)
@@ -44,6 +54,10 @@ describe('markdownForDisplay', () => {
   it('does not promote a list / quote / task as a title', () => {
     expect(markdownForDisplay('- item\nmore')).toBe('- item\nmore')
     expect(markdownForDisplay('> quote')).toBe('> quote')
+  })
+
+  it('does not promote a thematic break as a title', () => {
+    expect(markdownForDisplay('---\n\nBody')).toBe('---\n\nBody')
   })
 
   it('normalizes task lines for rendering', () => {
