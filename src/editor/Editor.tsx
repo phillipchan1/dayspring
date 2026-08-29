@@ -45,7 +45,7 @@ import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { minimalDocChange } from './minimalDocChange'
-import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
+import { detectSlash, reconcileSlashState, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
 import { applyFormatCommand, type FormatCommandId, type SlashSelection } from './slashCommands'
 import type { HighlightColor } from '@/lib/highlightColors'
@@ -571,7 +571,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             if (u.docChanged) onChangeRef.current(u.state.doc.toString())
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
-              setSlashRef.current(detectSlash(u.view, titleStylingRef.current))
+              const detected = detectSlash(u.view, titleStylingRef.current)
+              const sel = u.view.state.selection.main
+              setSlashRef.current((prev) =>
+                reconcileSlashState(prev, detected, {
+                  docChanged: u.docChanged,
+                  selectionEmpty: sel.empty,
+                  caret: sel.head,
+                }),
+              )
             }
           }),
         ],

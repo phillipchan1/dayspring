@@ -4680,6 +4680,7 @@ html[data-focus-mode] .focus-controls {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 0.25rem 0.3rem 0.4rem;
 }
 
