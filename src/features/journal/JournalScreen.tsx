@@ -397,6 +397,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     setSlashCapture({ cmd, insertAt, anchor })
+    // Ritual is a full-screen library. The blank-page door parks the caret
+    // first (so Begin writing lands in the body, not the title), which would
+    // leave the keyboard covering half the page — drop it for this command.
+    if (cmd === 'ritual') editorRef.current?.blur()
   }
 
   /**
