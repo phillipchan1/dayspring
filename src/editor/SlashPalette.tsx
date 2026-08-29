@@ -16,6 +16,7 @@ import {
 } from './slashCommands'
 import { isTapGesture } from './slashTouch'
 import { SpiritualBlockIcon } from './spiritualBlockIcons'
+import { isGhostClick } from '@/lib/ghostClick'
 // The sheet reuses CommandPopover's scrim, grab handle and rise animation, so
 // every bottom sheet in the app reads as the same object.
 import '@/features/capture/Capture.css'
@@ -155,7 +156,7 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
   // iOS synthesizes a click ~300ms after the tap that opened the sheet. That
   // click lands on the scrim (or the editor behind it) and cancelled the menu
   // before a thumb could scroll or pick. Ignore dismissals for a beat.
-  const ignoreScrimUntil = useRef(Date.now() + 400)
+  const openedAt = useRef(Date.now())
 
   // Docked above the keyboard rather than over the caret, so the line being
   // written stays visible while you choose.
@@ -166,7 +167,7 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
   })
 
   function cancelFromScrim() {
-    if (Date.now() < ignoreScrimUntil.current) return
+    if (isGhostClick(openedAt.current)) return
     onCancel()
   }
 

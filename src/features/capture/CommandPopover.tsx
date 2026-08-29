@@ -4,6 +4,7 @@ import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { GHOST_CLICK_MS, isGhostClick } from '@/lib/ghostClick'
 import './Capture.css'
 
 export type CommandPopoverVariant =
@@ -65,8 +66,14 @@ export function CommandPopover({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onDismiss])
 
+  // The tap that opened this sheet (slash row, toolbar button) is still in
+  // flight on iOS: a synthesized mousedown/click arrives ~300ms later. Wait
+  // that out before listening, or the second menu vanishes on the same tap
+  // that asked for it.
+  const openedAt = useRef(Date.now())
   useEffect(() => {
     const onPointer = (e: MouseEvent | TouchEvent) => {
+      if (isGhostClick(openedAt.current)) return
       const t = e.target
       if (t instanceof Node && document.querySelector('.command-popover')?.contains(t)) return
       onDismiss()
@@ -76,13 +83,18 @@ export function CommandPopover({
       // non-interactive surface doesn't reliably synthesize a mouse event.
       document.addEventListener('mousedown', onPointer, true)
       document.addEventListener('touchstart', onPointer, true)
-    }, 0)
+    }, GHOST_CLICK_MS)
     return () => {
       clearTimeout(t)
       document.removeEventListener('mousedown', onPointer, true)
       document.removeEventListener('touchstart', onPointer, true)
     }
   }, [onDismiss])
+
+  function dismissFromScrim() {
+    if (isGhostClick(openedAt.current)) return
+    onDismiss()
+  }
 
   const isMobile = useIsMobile()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -199,7 +211,7 @@ export function CommandPopover({
       <>
         {/* Dimmed peek of the entry behind the sheet — context stays visible,
             tap it to dismiss. */}
-        <div className="command-popover__scrim" onClick={onDismiss} aria-hidden />
+        <div className="command-popover__scrim" onClick={dismissFromScrim} aria-hidden />
         {sheet}
       </>
     ) : (
