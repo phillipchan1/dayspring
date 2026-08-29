@@ -1,10 +1,9 @@
 import { syntaxTree } from '@codemirror/language'
 import { highlightTree } from '@lezer/highlight'
-import { RangeSetBuilder } from '@codemirror/state'
+import { Prec, RangeSetBuilder } from '@codemirror/state'
 import {
   Decoration,
   EditorView,
-  Prec,
   ViewPlugin,
   type DecorationSet,
   type ViewUpdate,
