@@ -4,6 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { describe, expect, it } from 'vitest'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
+import { markdownHighlight } from './highlight'
 import { proseHighlighting } from './proseHighlighting'
 
 const mdExtension = markdown({
@@ -40,6 +41,10 @@ function highlightRanges(doc: string, caret: number): { from: number; to: number
 
 describe('proseHighlighting', () => {
   const doc = '# Title\n\nplain words'
+
+  it('mounts the highlight stylesheet so finished lines still paint', () => {
+    expect(markdownHighlight.module).not.toBeNull()
+  })
 
   it('leaves the caret line without highlight marks so the OS can spellcheck it', () => {
     const onTitle = highlightRanges(doc, 2)
