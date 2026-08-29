@@ -41,6 +41,7 @@ import { scriptureRefDecoration } from './scriptureRefDecoration'
 import { applyMarks, marksField } from './markDecoration'
 import { anchorOf, normalizeQuote, type Mark } from '@/lib/marks'
 import { taskListExtension } from './taskListExtension'
+import { horizontalRuleExtension } from './horizontalRule'
 import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
@@ -548,6 +549,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // scripture underline, so it must stay below it.
           marksField,
           taskListExtension(),
+          horizontalRuleExtension(),
           // Renders /practice prompts as display-only decorations over hidden tokens.
           practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
           attachmentBlockNormalizeExtension(),

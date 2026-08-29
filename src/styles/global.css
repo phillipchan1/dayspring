@@ -2841,10 +2841,40 @@ html[data-focus-mode] .focus-controls {
   margin: 0 0 1em;
 }
 .markdown-body pre code { background: none; padding: 0; }
+/* ── Thematic break (`---` in the editor, <hr> in the reading view) ────────
+   Typesetting, not a Word rule: two fading arms and a small gem in the
+   middle, tinted with the same horizon colour as the writing-canvas hairline.
+   The gem's *shape* is per-theme (themes.css); the structure is shared so a
+   palette switch never rebuilds the widget. */
+.cm-hr,
 .markdown-body hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 1.6em 0;
+  --hr-color: var(--journal-horizon);
+  --hr-gap: 0.8em;
+  display: block;
+  border: 0;
+  height: 2.45em;
+  margin: 0.1em 0;
+  position: relative;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, var(--hr-color)) no-repeat,
+    linear-gradient(90deg, var(--hr-color), transparent) no-repeat;
+  background-size: calc(50% - var(--hr-gap)) 1px;
+  background-position: left center, right center;
+}
+.cm-hr::before,
+.markdown-body hr::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: var(--hr-color);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.markdown-body hr {
+  margin: 0.55em 0 0.85em;
 }
 .markdown-body img {
   max-width: 100%;

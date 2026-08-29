@@ -49,3 +49,13 @@ describe('renderMarkdown — underline', () => {
     expect(render('I write C++ and more C++ daily')).not.toContain('<u')
   })
 })
+
+describe('renderMarkdown — thematic break', () => {
+  it('renders --- as an hr', () => {
+    expect(render('before\n\n---\n\nafter')).toMatch(/<hr\s*\/?>/i)
+  })
+
+  it('does not turn inline dashes into a rule', () => {
+    expect(render('word --- word')).not.toMatch(/<hr/i)
+  })
+})

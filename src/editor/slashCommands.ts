@@ -258,7 +258,7 @@ export const SLASH_ITEMS: SlashItem[] = [
     selection: { kind: 'format', id: 'divider' },
     column: 'format',
     label: 'Divider',
-    hint: 'Horizontal rule',
+    hint: 'A break across the page',
     badge: '—',
     keywords: ['divider', 'rule', 'separator', 'line'],
   },
