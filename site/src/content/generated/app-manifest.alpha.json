@@ -591,7 +591,7 @@
       {
         "id": "slash.divider",
         "label": "Divider",
-        "hint": "Horizontal rule",
+        "hint": "A break across the page",
         "badge": "—",
         "column": "format",
         "keywords": [
