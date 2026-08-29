@@ -690,12 +690,17 @@
 }
 
 /* Vellum — a manuscript lozenge. Aged paper, ink that bites. */
+[data-theme='vellum'] .cm-hr,
+[data-theme='vellum'] .markdown-body hr {
+  --hr-gap: 0.9em;
+}
 [data-theme='vellum'] .cm-hr::before,
 [data-theme='vellum'] .markdown-body hr::before {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   background: var(--accent);
-  transform: translate(-50%, -50%) rotate(45deg);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  transform: translate(-50%, -50%);
 }
 
 /* Cloister — an oculus. Cool stone, north light. */
