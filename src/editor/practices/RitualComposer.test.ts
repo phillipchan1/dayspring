@@ -203,12 +203,10 @@ describe('RitualComposer', () => {
     act(() => vv.moveTo(141, 600))
     expect(el().style.top).toBe('141px')
     expect(el().style.height).toBe('600px')
-    // And the masthead stops padding for an island it is now well below.
-    expect(el().style.getPropertyValue('--rc-offset')).toBe('141px')
   })
 
   describe('the swipe', () => {
-    const track = () => document.querySelector('.rc__track')!
+    const track = () => document.querySelector<HTMLElement>('.rc__track')!
 
     it('claims a horizontal drag, so the browser cannot pan instead', () => {
       /*
@@ -254,6 +252,32 @@ describe('RitualComposer', () => {
       expect(
         document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
       ).toBe('Awareness')
+    })
+
+    it('never leaves the track between two movements', () => {
+      /*
+       * The one that stranded on a real phone. WebKit hands a touch that begins
+       * on editable text to its own recogniser, and when it does, `touchmove`
+       * stops arriving anywhere — no `touchend`, no `touchcancel`. A gesture
+       * that followed the finger and committed on release was left frozen
+       * halfway between two movements with no event coming to put it back. So
+       * the track is only ever at a whole movement, and the decision is made
+       * mid-gesture rather than on an event that may never arrive.
+       */
+      render()
+      const offsets: string[] = []
+      act(() => {
+        track().dispatchEvent(touchEvent('touchstart', 300, 300))
+        dispatchMove(280, 302)
+        offsets.push(track().style.transform)
+        dispatchMove(200, 304)
+        offsets.push(track().style.transform)
+        dispatchMove(150, 306)
+        offsets.push(track().style.transform)
+        // and then nothing: no touchend, no touchcancel, ever.
+      })
+      offsets.push(track().style.transform)
+      for (const t of offsets) expect(t).toMatch(/^translateX\(-(0|\d+00)%\)$/)
     })
 
     it('snaps back when the drag is only a wobble', () => {

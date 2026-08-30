@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import { Editor } from './Editor'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PRACTICES } from './practices/practicesData'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer } from './practices/RitualComposer'
@@ -52,6 +52,50 @@ function isThemeId(value: string | null): value is ThemeId {
   return THEMES.some((t) => t.id === value)
 }
 
+/**
+ * Live visual-viewport numbers, on top of everything.
+ *
+ * `?__preview=ritual&composer=1&debug=1`. The composer's position on iOS is
+ * decided entirely by these three, and no amount of reasoning from a desktop
+ * browser substitutes for reading them off the device that is misbehaving.
+ */
+function ViewportReadout() {
+  const [n, setN] = useState({ offsetTop: 0, vvHeight: 0, innerHeight: 0 })
+  useEffect(() => {
+    const vv = window.visualViewport
+    const read = () =>
+      setN({
+        offsetTop: Math.round(vv?.offsetTop ?? -1),
+        vvHeight: Math.round(vv?.height ?? -1),
+        innerHeight: Math.round(window.innerHeight),
+      })
+    read()
+    vv?.addEventListener('resize', read)
+    vv?.addEventListener('scroll', read)
+    return () => {
+      vv?.removeEventListener('resize', read)
+      vv?.removeEventListener('scroll', read)
+    }
+  }, [])
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        zIndex: 2000,
+        padding: '2px 6px',
+        background: 'rgba(0,0,0,0.8)',
+        color: '#0f0',
+        font: '11px ui-monospace, monospace',
+        pointerEvents: 'none',
+      }}
+    >
+      offsetTop {n.offsetTop} · vv {n.vvHeight} · win {n.innerHeight}
+    </div>
+  )
+}
+
 /** Holds the document the composer reads and writes, the way JournalScreen does. */
 function ComposerHarness({ seedDoc }: { seedDoc: string }) {
   const [doc, setDoc] = useState(seedDoc)
@@ -71,6 +115,7 @@ function ComposerHarness({ seedDoc }: { seedDoc: string }) {
         blocked={about !== null}
       />
       {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
+      {new URLSearchParams(window.location.search).get('debug') === '1' && <ViewportReadout />}
       {/* What the entry now holds — proof the composer is a surface, not a store. */}
       <pre
         data-testid="doc"

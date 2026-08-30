@@ -37,11 +37,12 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  /* Clear the Dynamic Island — but only by however much of it is still
-     above us. `--rc-offset` is how far the visual viewport has already been
-     pushed down; past the inset there is nothing left to clear. */
-  padding: calc(max(0px, env(safe-area-inset-top, 0px) - var(--rc-offset, 0px)) + 0.7rem)
-    0.9rem 0.4rem;
+  /* Always clear the Dynamic Island. An earlier version subtracted however far
+     the visual viewport had been pushed down, on the theory that the padding
+     was then wasted — but any moment the element's position did not actually
+     match that number, the title sat under the status bar. Wasted space is the
+     cheaper mistake. */
+  padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.9rem 0.4rem;
 }
 .rc__x {
   flex: 0 0 auto;
@@ -116,7 +117,6 @@
   transition: transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
   touch-action: pan-y;
 }
-.rc__track[data-drag='true'] { transition: none; }
 .rc__pane {
   flex: 0 0 100%;
   min-width: 0;
