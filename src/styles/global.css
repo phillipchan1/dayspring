@@ -2380,7 +2380,7 @@ a {
 }
 
 /*
- * The edge-swipe back out of an entry (MobileJournal → `back`).
+ * The back-swipe out of an entry (MobileJournal → `back`).
  *
  * The shell IS the pushed view here — there is no overlay to slide, because the
  * surface behind it is not mounted. So the shell travels, and what it uncovers

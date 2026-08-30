@@ -29,13 +29,88 @@ import { useEffect, useRef, useState } from 'react'
  * vertical. A drag has to be meaningfully more sideways than not before it
  * counts as a dismissal.
  *
- * Both of those decisions are `axisOf` and `commits` below — pure, and tested,
- * because the velocity path had been dead in exactly the way a rule buried in a
- * touch handler goes dead: silently, and only for the gestures nobody can
- * reproduce by hand.
+ * **4. It only answered to a clean swipe.** What a thumb actually does is drag,
+ * hesitate, drift back a little, and then decide — and every rule here punished
+ * that. The axis locked to 'v' on the first slightly-downward pixel and never
+ * reconsidered; the velocity was whatever the last single move sampled, so a
+ * wobble as the finger lifted read as a fling backwards and cancelled a drag
+ * that was most of the way across the screen; and a drag held still at 200px
+ * kept whatever speed it had before it stopped. So: the axis stays open to being
+ * changed its mind about until the scroll is real, the velocity is smoothed and
+ * goes to zero when the finger rests, and past `POINT_OF_NO_RETURN` of the
+ * screen the gesture is simply done — which is what makes it possible to drag
+ * out, stop, look at what is under there, and let go.
+ *
+ * All of those decisions are `axisOf`, `locksToScroll`, `speedAtRelease` and
+ * `commits` below — pure, and tested, because the velocity path had been dead in
+ * exactly the way a rule buried in a touch handler goes dead: silently, and only
+ * for the gestures nobody can reproduce by hand.
+ *
+ * ── The half of this that is not in this file ───────────────────────────────
+ *
+ * None of it fires if the browser takes the gesture first. A scroller left on
+ * `touch-action: auto` is free to read the start of a horizontal drag as a pan,
+ * and once WebKit has claimed it `touchmove` simply stops arriving: the surface
+ * freezes mid-drag, and only a swipe fast enough to finish inside the first few
+ * events works at all. Every surface using this hook has to hand the browser the
+ * vertical axis and keep the horizontal one — `.pg-read1__slide` in Pages.css,
+ * `.cm-scroller` in editor/theme.ts.
  */
 /** Below this much travel, a gesture has not said which way it is going. */
 const INTENT = 8
+
+/**
+ * Past this much vertical travel the gesture is a scroll, and stays one.
+ *
+ * Before it, `axisOf` is asked again on every move. A thumb setting off down and
+ * to the right is not yet a scroll — it is a hand that has not finished deciding
+ * — and locking it out on the first ambiguous pixel is most of why this only
+ * ever answered to a clean, committed swipe. After it, the page has genuinely
+ * moved under the finger, and taking the gesture back would yank it.
+ */
+const SCROLL_LOCK = 32
+
+/**
+ * A drag that begins this long after the finger landed is not a swipe.
+ *
+ * iOS puts the caret loupe and the selection handles behind a long press, and
+ * dragging one of those is horizontal too. A swipe is one motion from touchdown;
+ * a press that becomes a drag half a second later is somebody moving a caret,
+ * and no surface has business taking it. This is what lets the gesture come off
+ * the whole writing surface instead of hiding at the screen edge.
+ */
+export const LONG_PRESS_MS = 400
+
+/**
+ * How long the finger may rest before its speed is treated as zero.
+ *
+ * `speed` is only written by a move, so a drag that travels fast, stops, and is
+ * held keeps its last speed for as long as it is held — and then flings on
+ * release, from a standstill. Anyone who pulls a view out to see what is under
+ * it and then thinks better of it has done exactly that.
+ */
+export const STILL_MS = 90
+
+/**
+ * How much of the screen makes a gesture a decision rather than a drift.
+ *
+ * Past this, release commits whatever the velocity says. Without it a drag
+ * carried 60% of the way across and then wobbled back a few pixels as the finger
+ * lifted projected to a negative and snapped home, which reads as the app
+ * refusing something you plainly did. Every phone has a point past which the
+ * view is going; this is ours.
+ */
+export const POINT_OF_NO_RETURN = 0.45
+
+/**
+ * How much of the newest sample a smoothed speed takes.
+ *
+ * Per-move speeds off a real finger are noisy — one 2ms frame with a 1px move is
+ * 0.5px/ms of nothing. Averaging the whole gesture is worse, because a long slow
+ * drag with a flick at the end IS a fling. This leans on the newest sample while
+ * refusing to be defined by it.
+ */
+const SPEED_SMOOTHING = 0.6
 
 /**
  * Which way a gesture is going, once it has travelled far enough to say.
@@ -79,31 +154,56 @@ export function commits({
   dx,
   speed,
   threshold,
+  width,
 }: {
   /** Signed travel; only rightward can dismiss. */
   dx: number
   /** px/ms at the moment the finger left, signed the same way. */
   speed: number
   threshold: number
+  /**
+   * The surface's width, for the point of no return. Omit and only the
+   * projection decides — which is what the narrow side panels want.
+   */
+  width?: number
 }): boolean {
   // Leftward is not a dismissal at any speed — including a leftward drag that
   // whips back rightward on release, which projection alone would take.
   if (dx <= 0) return false
+  // Far enough across is a decision, and a decision survives a wobble.
+  if (width && dx > width * POINT_OF_NO_RETURN) return true
   return dx + speed * PROJECTION_MS > threshold
 }
 
 /**
- * May a gesture that landed here be a back-swipe?
+ * Has this gesture become a scroll for good?
  *
- * `edge` unset means the whole surface, which is what the reader and the
- * side panels want. Set, it is a screen-edge pan: measured from the VIEWPORT's
- * left, not the element's, because the edge a thumb aims for is the edge of the
- * phone. Pure and tested because the number is a feel decision, and a rule this
- * small is exactly the kind that goes quietly wrong inside a touch handler.
+ * Asked only of a gesture already reading as vertical. Below the lock the axis
+ * stays up for reconsideration on every move, which is what lets a hand that set
+ * off ambiguously still be understood as going sideways.
  */
-export function startsInEdgeZone(clientX: number, edge: number | undefined): boolean {
-  if (edge == null) return true
-  return clientX <= edge
+export function locksToScroll(dy: number): boolean {
+  return Math.abs(dy) >= SCROLL_LOCK
+}
+
+/**
+ * The speed to judge a release by: what the finger was doing, or nothing.
+ *
+ * A finger that has been still longer than `STILL_MS` is not travelling,
+ * whatever the last move it happened to make measured.
+ */
+export function speedAtRelease(speed: number, idleMs: number): number {
+  return idleMs > STILL_MS ? 0 : speed
+}
+
+/**
+ * Is this a swipe, or a long press that turned into a drag?
+ *
+ * Measured from touchdown to the moment the gesture first said which way it was
+ * going. See `LONG_PRESS_MS`.
+ */
+export function isSwipeNotPress(elapsedMs: number): boolean {
+  return elapsedMs <= LONG_PRESS_MS
 }
 
 export function useSwipeToDismiss({
@@ -111,7 +211,6 @@ export function useSwipeToDismiss({
   enabled = true,
   threshold = 80,
   exit = false,
-  edge,
   guard,
 }: {
   onDismiss: () => void
@@ -142,17 +241,6 @@ export function useSwipeToDismiss({
    * rule on `[data-leaving]` lasting `EXIT_MS`.
    */
   exit?: boolean
-  /**
-   * Only take gestures that START within this many px of the left edge.
-   *
-   * The reader can afford a page-wide swipe: everything under the finger is
-   * prose you are not going to edit. The EDITOR cannot — the whole surface is
-   * CodeMirror, where a horizontal drag already means "move the caret" or
-   * "extend the selection", and a gesture that eats those would cost more than
-   * it gives. iOS solves this the same way, with a screen-edge pan, so the
-   * hand already knows where to start. Unset = the whole surface, as before.
-   */
-  edge?: number
 }) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const axis = useRef<'h' | 'v' | null>(null)
@@ -167,6 +255,10 @@ export function useSwipeToDismiss({
   const live = useRef(0)
   const speed = useRef(0)
   const last = useRef<{ x: number; t: number } | null>(null)
+  /** When the finger landed — for telling a swipe from a long press. */
+  const landed = useRef(0)
+  /** The surface's own width, read once per gesture; see `POINT_OF_NO_RETURN`. */
+  const span = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -185,6 +277,7 @@ export function useSwipeToDismiss({
     last.current = null
     live.current = 0
     speed.current = 0
+    span.current = 0
     setDragX(0)
     setDragging(false)
   }
@@ -216,12 +309,16 @@ export function useSwipeToDismiss({
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0]
     if (!t || leaving) return
-    // A screen-edge gesture, when the surface asked for one.
-    if (!startsInEdgeZone(t.clientX, edge)) return
     if (guard && !guard()) return
+    const now = performance.now()
     start.current = { x: t.clientX, y: t.clientY }
-    last.current = { x: t.clientX, t: performance.now() }
+    last.current = { x: t.clientX, t: now }
+    landed.current = now
+    // The element, not the window: the side panels are narrower than the screen
+    // and half of one is not half of a phone.
+    span.current = e.currentTarget.getBoundingClientRect().width
     axis.current = null
+    speed.current = 0
   }
 
   function onTouchMove(e: React.TouchEvent) {
@@ -230,11 +327,40 @@ export function useSwipeToDismiss({
     if (!s || !t || leaving) return
     const dx = t.clientX - s.x
     const dy = t.clientY - s.y
-    if (axis.current === null) {
+    /*
+     * The axis, still open to being changed its mind about.
+     *
+     * Asked again on every move until the gesture is EITHER horizontal (which
+     * is ours, and from then on stays ours — a back-swipe must not turn into a
+     * scroll halfway across) or vertically far enough along to be a real scroll.
+     * The old code decided once, on the first 8 pixels, and a hand that set off
+     * down-and-right was locked out of the gesture it was about to make.
+     */
+    if (axis.current !== 'h' && !(axis.current === 'v' && locksToScroll(dy))) {
       const next = axisOf(dx, dy)
       if (next === null) return // not yet said which way it is going
       axis.current = next
-      if (next === 'h') setDragging(true)
+      // A press that becomes a drag is somebody moving a caret, not leaving.
+      if (next === 'h' && !isSwipeNotPress(performance.now() - landed.current)) {
+        axis.current = 'v'
+        return
+      }
+      if (next === 'h') {
+        /*
+         * Start the travel HERE, not back at touchdown.
+         *
+         * A gesture that set off ambiguously and only later committed to
+         * sideways has already accumulated some dx, and drawing that would
+         * teleport the surface out from under the finger the instant it was
+         * recognised. UIKit measures a pan from where the recogniser began for
+         * the same reason. The few pixels of slop this gives away are the few
+         * pixels nobody meant as travel anyway.
+         */
+        start.current = { x: t.clientX, y: t.clientY }
+        last.current = { x: t.clientX, t: performance.now() }
+        setDragging(true)
+        return
+      }
     }
     if (axis.current !== 'h') return
     const prev = last.current
@@ -250,22 +376,44 @@ export function useSwipeToDismiss({
        */
       const now = performance.now()
       const dt = now - prev.t
-      // Sampled per move rather than averaged over the gesture: what decides a
-      // fling is how fast the finger was going when it left, and a long slow
-      // drag with a flick at the end is a fling.
-      if (dt > 0) speed.current = (t.clientX - prev.x) / dt
-      last.current = { x: t.clientX, t: now }
+      /*
+       * Smoothed towards the newest sample, not replaced by it.
+       *
+       * What decides a fling is how fast the finger was going when it left, so
+       * this cannot be an average over the whole gesture — a long slow drag with
+       * a flick at the end IS a fling. But a single sample off a real finger is
+       * noise, and one jittery frame at the moment of release was enough to
+       * cancel a drag most of the way across the screen.
+       */
+      if (dt > 0) {
+        const now_speed = (t.clientX - prev.x) / dt
+        speed.current = speed.current * (1 - SPEED_SMOOTHING) + now_speed * SPEED_SMOOTHING
+        last.current = { x: t.clientX, t: now }
+      }
     }
-    // Track rightward freely; resist a leftward pull, which the surface has
-    // nowhere to go in — it is already against the edge it came from.
-    live.current = dx > 0 ? dx : dx * 0.2
-    setDragX(live.current)
+    /*
+     * The true travel is what decides; the drawn offset is clamped at home.
+     *
+     * They used to be the same number, with a 0.2 resistance on the leftward
+     * side. But a view that came in from the right has nowhere further left to
+     * go, and iOS simply stops it there — while the hand behind an indecisive
+     * drag that overshoots back past the start is still mid-gesture and must not
+     * have its distance quietly rescaled.
+     */
+    live.current = dx
+    setDragX(Math.max(0, dx))
   }
 
   function onTouchEnd() {
+    const idle = last.current ? performance.now() - last.current.t : Infinity
     const go =
       axis.current === 'h' &&
-      commits({ dx: live.current, speed: speed.current, threshold })
+      commits({
+        dx: live.current,
+        speed: speedAtRelease(speed.current, idle),
+        threshold,
+        width: span.current,
+      })
     if (go) commit()
     else reset()
   }
