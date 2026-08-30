@@ -88,7 +88,11 @@ import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbe
 import { recordSurfaceUpdate } from './surfaceUpdates'
 import { shouldAutoOpenLatest } from './arrivalNav'
 import { track } from '@/lib/analytics'
-import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
+import {
+  needsBlankLineBeforeBlock,
+  parseSpiritualBlocks,
+  type ParsedSpiritualBlock,
+} from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem } from '@/lib/spiritual'
 import { recordScriptureCommandRef } from '@/lib/scripture/capture'
 import { chapterFromCitation } from '@/lib/scripture/citation'
@@ -682,9 +686,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // butts against the next atomic line (e.g. a practice section token, or the
     // end of the doc) there's nowhere to place the caret to keep writing. Append
     // a newline and drop the caret on the line that follows the block.
+    //
+    // Also keep a blank line *above* when inserting directly under a practice
+    // token — otherwise Up-arrow into the widget lands on the opening fence and
+    // typing corrupts it (see atomicRangeFrom in spiritualBlockDecoration).
+    const doc = editorRef.current?.getDoc() ?? contentRef.current
+    const lead =
+      needsBlankLineBeforeBlock(doc, cap.insertAt) && !text.startsWith('\n') ? '\n' : ''
     const withTrailingLine = text.endsWith('\n') ? text : `${text}\n`
-    editorRef.current?.insertAt(cap.insertAt, withTrailingLine)
-    const after = cap.insertAt + withTrailingLine.length
+    const insert = lead + withTrailingLine
+    editorRef.current?.insertAt(cap.insertAt, insert)
+    const after = cap.insertAt + insert.length
     setSlashCapture(null)
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])

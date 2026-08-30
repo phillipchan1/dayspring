@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   ensureBlockSeparation,
+  formatScriptureInsert,
   formatSpiritualBlock,
   isSpiritualFenceLine,
+  needsBlankLineBeforeBlock,
   parseSpiritualBlocks,
   stripSpiritualBlocks,
 } from './spiritualBlocks'
@@ -69,6 +71,13 @@ describe('ensureBlockSeparation', () => {
     const out = ensureBlockSeparation(doc)
     expect(out).toContain('```\n\n<!-- practice:section:Meditatio -->')
   })
+  // Regression: without a blank line *above* the fence, Up-arrow into the
+  // widget lands on the opening ``` and typing corrupts it into raw markdown.
+  it('inserts a blank line between a preceding practice token and a block', () => {
+    const doc = `<!-- practice:section:Lectio -->\n${block}\n`
+    const out = ensureBlockSeparation(doc)
+    expect(out).toContain('<!-- practice:section:Lectio -->\n\n```dayspring-scripture')
+  })
   it('is idempotent — a separated block is left untouched', () => {
     const doc = `<!-- practice:section:Lectio -->\n${block}\n<!-- practice:section:Meditatio -->\n`
     expect(ensureBlockSeparation(ensureBlockSeparation(doc))).toBe(ensureBlockSeparation(doc))
@@ -76,6 +85,20 @@ describe('ensureBlockSeparation', () => {
   it('leaves non-practice documents alone', () => {
     const doc = `${block}\nsome prose`
     expect(ensureBlockSeparation(doc)).toBe(doc)
+  })
+})
+
+describe('needsBlankLineBeforeBlock / formatScriptureInsert', () => {
+  const token = '<!-- ritual:section:Gratitude -->'
+  it('detects a fence sitting directly under a ritual token', () => {
+    const doc = `${token}\n`
+    expect(needsBlankLineBeforeBlock(doc, doc.length)).toBe(true)
+    expect(needsBlankLineBeforeBlock('prose\n', 6)).toBe(false)
+  })
+  it('adds a blank lead line when inserting scripture under a token', () => {
+    const doc = `${token}\n`
+    const insert = formatScriptureInsert(UUID, 'Be still', 'Psalm 46:10', doc, doc.length)
+    expect(insert.startsWith('\n```dayspring-scripture')).toBe(true)
   })
 })
 

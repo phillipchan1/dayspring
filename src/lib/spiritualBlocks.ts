@@ -53,7 +53,9 @@ export function formatSpiritualBlock(
 
 /**
  * Tight scripture insert at the slash position — one newline before the block
- * when needed, no blank line after.
+ * when needed so the fence owns its own line, plus a blank line when inserting
+ * directly under a practice/ritual token (see {@link needsBlankLineBeforeBlock}).
+ * No blank line after.
  */
 export function formatScriptureInsert(
   id: string,
@@ -64,7 +66,8 @@ export function formatScriptureInsert(
 ): string {
   const block = formatSpiritualBlock('scripture', id, verse, reference)
   const needLead = insertAt > 0 && doc[insertAt - 1] !== '\n'
-  return `${needLead ? '\n' : ''}${block}`
+  const needBlank = !needLead && needsBlankLineBeforeBlock(doc, insertAt)
+  return `${needLead || needBlank ? '\n' : ''}${block}`
 }
 
 function parseScriptureBody(lines: string[]): { content: string; reference: string | null } {
@@ -146,20 +149,40 @@ export function parseSpiritualBlocks(markdown: string): ParsedSpiritualBlock[] {
 }
 
 /**
- * Guarantee an editable blank line between a spiritual block and a following
- * practice section token. A block is atomic and the token line is hidden +
- * atomic, so without a normal line between them there's nowhere to place the
- * caret to keep writing beneath the block. Idempotent — a block already followed
- * by a blank line is left untouched — so it's safe to run on every entry load.
+ * True when `insertAt` sits on the line immediately under a practice/ritual
+ * token (the token's trailing newline is at `insertAt - 1`). Used so a
+ * scripture/prayer/sense fence never becomes the first caret landing spot
+ * under a prompt — without a blank line, Up-arrow into the block lands on the
+ * opening fence and typing corrupts it.
+ */
+export function needsBlankLineBeforeBlock(doc: string, insertAt: number): boolean {
+  if (insertAt <= 0 || doc[insertAt - 1] !== '\n') return false
+  const prevNl = doc.lastIndexOf('\n', insertAt - 2)
+  const prevLine = doc.slice(prevNl + 1, insertAt - 1)
+  return isPracticeTokenLine(prevLine.trim())
+}
+
+/**
+ * Guarantee an editable blank line between a spiritual block and a neighboring
+ * practice section token — both below the block (so there's somewhere to keep
+ * writing) and above it (so Up-arrow / click-above doesn't land the caret on
+ * the opening fence). A block is atomic and the token line is hidden + atomic,
+ * so without a normal line between them the caret has nowhere safe to sit.
+ * Idempotent — already-separated blocks are left untouched — so it's safe to
+ * run on every entry load.
  */
 export function ensureBlockSeparation(markdown: string): string {
   if (!markdown.includes('<!-- ritual:') && !markdown.includes('<!-- practice:')) return markdown
   const inserts: number[] = []
   for (const block of parseSpiritualBlocks(markdown)) {
-    if (block.to >= markdown.length) continue
-    let lineEnd = markdown.indexOf('\n', block.to)
-    if (lineEnd === -1) lineEnd = markdown.length
-    if (isPracticeTokenLine(markdown.slice(block.to, lineEnd).trim())) inserts.push(block.to)
+    // Below: blank line before a following practice token.
+    if (block.to < markdown.length) {
+      let lineEnd = markdown.indexOf('\n', block.to)
+      if (lineEnd === -1) lineEnd = markdown.length
+      if (isPracticeTokenLine(markdown.slice(block.to, lineEnd).trim())) inserts.push(block.to)
+    }
+    // Above: blank line after a preceding practice token.
+    if (needsBlankLineBeforeBlock(markdown, block.from)) inserts.push(block.from)
   }
   if (inserts.length === 0) return markdown
   let out = markdown
