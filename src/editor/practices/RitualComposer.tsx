@@ -171,81 +171,74 @@ export function RitualComposer({
 
   // ── The gesture ──────────────────────────────────────────────────────────
   /*
-   * Followed on the WINDOW with a NON-PASSIVE listener, for the reason spelled
-   * out at length above `follow()` in `useSwipeToDismiss.ts`: React registers
-   * `touchmove` passively at its root, so a `preventDefault` inside an
-   * `onPointerMove`/`onTouchMove` prop is a no-op. This composer had exactly
-   * that, and the cost was not a dead swipe — it was WebKit quietly taking the
-   * drag as a pan. With the keyboard up there is nothing to pan but the visual
-   * viewport, so the whole overlay slid up under the Dynamic Island and left a
-   * gap of the same size above the keyboard, and chased itself trying to
-   * recover. The composer keeps `touch-action: pan-y` like every other surface
-   * here — the browser gets the vertical axis, this keeps the horizontal one —
-   * and says so out loud the moment the drag proves horizontal.
+   * A swipe here is a DECISION, not a drag you carry.
+   *
+   * The first version followed the finger, translating the track by the live
+   * offset and committing on `touchend`. On a real phone that stranded: WebKit
+   * hands a touch that begins on editable text to its own recogniser, and when
+   * it does, `touchmove` stops arriving anywhere at all — no `touchend`, no
+   * `touchcancel`, nothing (the same failure documented above `follow()` in
+   * `useSwipeToDismiss.ts`). The track was left frozen halfway between two
+   * movements with no event coming to put it back.
+   *
+   * So the track is only ever at a whole movement, animated between them by CSS,
+   * and the decision is made mid-gesture the moment the drag has travelled far
+   * enough — never on an event that may not come. Losing the rest of the gesture
+   * after that costs nothing, because there is no half-state to lose.
+   *
+   * It still says `preventDefault` as soon as the drag proves horizontal, on a
+   * NON-PASSIVE window listener, because React's own handlers are passive and a
+   * pan taken by WebKit moves the visual viewport under a fixed overlay.
    */
-  const drag = useRef<{ x: number; y: number; horizontal: boolean } | null>(null)
+  const drag = useRef<{ x: number; y: number; live: boolean; spent: boolean } | null>(null)
   const unbind = useRef<(() => void) | null>(null)
-
-  const setOffset = (px: number | null) => {
-    const el = trackRef.current
-    if (!el) return
-    el.dataset.drag = px === null ? 'false' : 'true'
-    // Restore the canonical offset rather than clearing it. React set this
-    // inline and will not rewrite a value it thinks is unchanged, so blanking it
-    // here left the track at movement one — which a plain tap on the writing
-    // area was enough to trigger, since a tap is a touchstart and a touchend.
-    el.style.transform =
-      px === null ? `translateX(-${iRef.current * 100}%)` : `translateX(calc(-${iRef.current} * 100% + ${px}px))`
-  }
 
   const follow = useCallback(() => {
     unbind.current?.()
+    const stop = () => {
+      drag.current = null
+      unbind.current?.()
+    }
     const move = (ev: TouchEvent) => {
       const d = drag.current
       const t = ev.touches[0]
       if (!d || !t) return
       const dx = t.clientX - d.x
       const dy = t.clientY - d.y
-      if (!d.horizontal) {
+      if (!d.live) {
         // Under this much travel the gesture has not said which way it is going,
         // and a vertical one belongs to the writing area's own scrolling.
         if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-        d.horizontal = true
+        d.live = true
       }
+      // Hold the claim for the WHOLE gesture, not just up to the decision.
+      // Letting go at the moment of commit hands WebKit the tail of a drag the
+      // finger is still making, and a pan taken then moves the visual viewport
+      // under a fixed overlay just as surely as one taken at the start.
       if (ev.cancelable) ev.preventDefault()
-      const i = iRef.current
-      setOffset((i === 0 && dx > 0) || (i === CLOSE && dx < 0) ? dx * 0.3 : dx)
-    }
-    const end = (ev: TouchEvent) => {
-      const d = drag.current
-      drag.current = null
-      unbind.current?.()
-      setOffset(null)
-      const t = ev.changedTouches[0]
-      if (!d?.horizontal || !t) return
-      const dx = t.clientX - d.x
-      if (Math.abs(dx) > 60) goRef.current(iRef.current + (dx < 0 ? 1 : -1))
-    }
-    const cancel = () => {
-      drag.current = null
-      unbind.current?.()
-      setOffset(null)
+      if (d.spent || Math.abs(dx) < 45) return
+      d.spent = true
+      goRef.current(iRef.current + (dx < 0 ? 1 : -1))
     }
     window.addEventListener('touchmove', move, { passive: false })
-    window.addEventListener('touchend', end)
-    window.addEventListener('touchcancel', cancel)
+    window.addEventListener('touchend', stop)
+    window.addEventListener('touchcancel', stop)
+    // Last resort for the case that started all this: a gesture WebKit swallows
+    // whole, leaving no end and no cancel to unbind on.
+    const watchdog = window.setTimeout(stop, 1500)
     unbind.current = () => {
+      window.clearTimeout(watchdog)
       window.removeEventListener('touchmove', move)
-      window.removeEventListener('touchend', end)
-      window.removeEventListener('touchcancel', cancel)
+      window.removeEventListener('touchend', stop)
+      window.removeEventListener('touchcancel', stop)
       unbind.current = null
     }
-  }, [CLOSE])
+  }, [])
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0]
     if (!t) return
-    drag.current = { x: t.clientX, y: t.clientY, horizontal: false }
+    drag.current = { x: t.clientX, y: t.clientY, live: false, spent: false }
     follow()
   }
 
@@ -266,15 +259,7 @@ export function RitualComposer({
       aria-label={`${block.name} — movement ${Math.min(i + 1, total)} of ${total}`}
       style={
         frame
-          ? ({
-              top: frame.top,
-              height: frame.height,
-              // The masthead pads itself clear of the Dynamic Island — but once
-              // the overlay has been pushed down past it there is nothing left
-              // to clear, and the padding would be dead space at the top of a
-              // screen that has none to spare.
-              '--rc-offset': `${frame.top}px`,
-            } as React.CSSProperties)
+          ? { top: frame.top, height: frame.height }
           : undefined
       }
     >
