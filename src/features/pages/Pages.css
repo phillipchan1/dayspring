@@ -2023,6 +2023,35 @@ button.pg__sense-q:hover {
   text-transform: uppercase;
 }
 
+/*
+ * An echo — a page that rose out of another year.
+ *
+ * Cards already say so (dashed edge + gold eyebrow). Rows used to omit both, so
+ * "AUG 27" from 2011 sat under "AUG 30 TODAY" and read as broken order. The
+ * year rides on the date; the eyebrow states the calendar fact flatly.
+ */
+.pgr[data-echo='true'] {
+  box-shadow: inset 0 0 0 1px rgba(var(--scripture-gold), 0.55);
+}
+
+.pgr[data-echo='true'] .pgr__date {
+  inline-size: auto;
+  color: rgb(var(--scripture-gold));
+}
+
+.pgr__echo {
+  flex: none;
+  max-inline-size: 14rem;
+  overflow: hidden;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgb(var(--scripture-gold));
+}
+
 /* Her words, in the journal's own face. */
 .pgr__line {
   flex: 1;
@@ -3747,6 +3776,18 @@ button.pg__sense-q:hover {
     overflow: hidden;
   }
 
+  /*
+   * Echo and "today" share the same meta slot — an echo is never today's page
+   * (it is always an earlier year), so they never compete for the cell. Putting
+   * the eyebrow on its own row would grow the cell past `cardHeight` and break
+   * the windowing math.
+   */
+  .pgr[data-echo='true'] {
+    grid-template-areas:
+      'date echo margin'
+      'line line  line';
+  }
+
   .pgr__date {
     grid-area: date;
     inline-size: auto;
@@ -3756,6 +3797,16 @@ button.pg__sense-q:hover {
   .pgr__today {
     grid-area: today;
     justify-self: start;
+  }
+
+  .pgr__echo {
+    grid-area: echo;
+    justify-self: start;
+    max-inline-size: none;
+    min-inline-size: 0;
+    /* Match the date line — 0.52rem was legible on a card and invisible on a phone. */
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
   }
 
   .pgr__margin {

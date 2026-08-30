@@ -17,6 +17,14 @@ interface Props {
   context: boolean
   /** The newest page — the way back to what you were writing. */
   today: boolean
+  /**
+   * Set when this page has risen out of another year.
+   *
+   * Without this, an anniversary echo looks like a mis-sorted neighbour —
+   * "AUG 27" under "AUG 30 TODAY" with no year and no eyebrow. Cards already
+   * carry the label; rows must too, or the list reads as broken order.
+   */
+  echo?: string | undefined
   /** Declared kinds this page carries, in the vocabulary's own order. */
   markings: SpiritualItemType[]
   wallKey: string
@@ -32,11 +40,17 @@ interface Props {
   onOpenMenu: (entryId: string, x: number, y: number) => void
 }
 
-/** Short and fixed-width-ish, because a column of dates is read down, not across. */
-function formatDate(iso: string): string {
+/**
+ * Short and fixed-width-ish, because a column of dates is read down, not across.
+ *
+ * Echoes include the year: they sit out of their own place, so month+day alone
+ * makes 2011 look like it belongs under today.
+ */
+function formatDate(iso: string, withYear: boolean): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
+    ...(withYear ? { year: 'numeric' as const } : {}),
   })
 }
 
@@ -95,6 +109,7 @@ export const PageRow = memo(function PageRow({
   selected,
   context,
   today,
+  echo,
   markings,
   wallKey,
   tabIndex,
@@ -134,6 +149,7 @@ export const PageRow = memo(function PageRow({
       data-selected={selected ? 'true' : undefined}
       data-context={context ? 'true' : undefined}
       data-today={today ? 'true' : undefined}
+      data-echo={echo ? 'true' : undefined}
       aria-selected={selected || undefined}
       tabIndex={tabIndex}
       onFocus={() => onFocus(wallKey)}
@@ -154,8 +170,9 @@ export const PageRow = memo(function PageRow({
       }}
     >
       <time className="pgr__date" dateTime={dateIso}>
-        {formatDate(dateIso)}
+        {formatDate(dateIso, Boolean(echo))}
       </time>
+      {echo ? <span className="pgr__echo">{echo}</span> : null}
       <span className="pgr__line">
         {match ? paint(line, match) : line}
         {next ? (

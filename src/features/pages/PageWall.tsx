@@ -812,6 +812,7 @@ export function PageWall({
                   selected={!item.echo && selectedIds.has(item.entry.id)}
                   context={!item.echo && item.entry.id === menuTargetId}
                   today={item.entry.id === newestId}
+                  echo={item.echo}
                   markings={rowMarkings.get(item.entry.id) ?? EMPTY_KINDS}
                   tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                   onFocus={onCardFocus}
