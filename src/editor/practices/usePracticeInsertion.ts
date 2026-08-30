@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view'
 import { Prec, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
+import { PRACTICE_PLACEHOLDER_CLASS, placeholderLineDeco } from '../linePlaceholder'
 import { PRACTICE_BY_NAME, type Practice } from './practicesData'
 import { PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
 
@@ -131,26 +132,6 @@ class PracticePromptWidget extends WidgetType {
       root.append(label)
     }
     return root
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
-/** Example phrasing on an empty answer line — fades out as the writer types. */
-class PracticePlaceholderWidget extends WidgetType {
-  constructor(readonly text: string) {
-    super()
-  }
-  eq(other: PracticePlaceholderWidget): boolean {
-    return other.text === this.text
-  }
-  toDOM(): HTMLElement {
-    const span = document.createElement('span')
-    span.className = 'cm-practice-placeholder'
-    span.setAttribute('aria-hidden', 'true')
-    span.textContent = this.text
-    return span
   }
   ignoreEvent(): boolean {
     return false
@@ -297,12 +278,7 @@ function buildDecorations(state: EditorState): PracticeDecorations {
 
     // Placeholder hint sits on the (empty) answer line until the writer begins.
     if (!filled && prompt?.placeholder) {
-      ranges.push(
-        Decoration.widget({
-          widget: new PracticePlaceholderWidget(prompt.placeholder),
-          side: 1,
-        }).range(answer.from),
-      )
+      ranges.push(placeholderLineDeco(prompt.placeholder, PRACTICE_PLACEHOLDER_CLASS).range(answer.from))
     }
   })
 
@@ -402,13 +378,9 @@ const practiceTheme = EditorView.theme({
     color: 'var(--text-dim, #4a3f35)',
     fontOpticalSizing: 'auto',
   },
-  // Roman, not italic: this one sits on the writer's own line, so it takes the
-  // writer's typography and only ghosts it. Italic here made an unanswered
-  // section read as a second question stacked under the first.
-  '.cm-practice-placeholder': {
-    color: 'var(--text-faint, #c4b5a8)',
-    pointerEvents: 'none',
-  },
+  // Unanswered-line hint is a line class + ::before on editorTheme
+  // (`.cm-practice-placeholder`) so WebKit can still autocorrect the first word.
+
   // The block's masthead: the ritual's name over a hairline that spans the
   // writing column, so everything below plainly belongs to it. Padding (not
   // margin) so CodeMirror counts the spacing in the block's measured height —

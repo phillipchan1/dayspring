@@ -56,9 +56,27 @@ export const editorTheme = EditorView.theme({
   '.cm-selectionBackground': {
     backgroundColor: 'transparent !important',
   },
-  '.cm-placeholder': {
+  // Hint text via ::before on a line class — never a widget span in the
+  // caret line (Safari / WKWebView drop autocorrect when the line is split).
+  '.cm-line.cm-empty-placeholder, .cm-line.cm-practice-placeholder': {
+    position: 'relative',
+  },
+  '.cm-line.cm-empty-placeholder::before, .cm-line.cm-practice-placeholder::before': {
+    content: 'attr(data-placeholder)',
+    position: 'absolute',
+    left: '0',
+    right: '0',
+    pointerEvents: 'none',
+    userSelect: 'none',
+  },
+  '.cm-line.cm-empty-placeholder::before': {
     color: 'var(--text-faint)',
     fontStyle: 'italic',
+  },
+  // Roman: a ritual prompt is already italic; the unanswered line must not
+  // read as a second question stacked under the first.
+  '.cm-line.cm-practice-placeholder::before': {
+    color: 'var(--text-faint, #c4b5a8)',
   },
   // Active line stays subtle — focus mode handles emphasis later.
   '.cm-activeLine': {
