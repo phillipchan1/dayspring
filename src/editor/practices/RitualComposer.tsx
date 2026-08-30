@@ -130,6 +130,9 @@ export function RitualComposer({
     [CLOSE, commit],
   )
 
+  const goRef = useRef(go)
+  goRef.current = go
+
   // Land in the movement being written, with the caret already in it — and land
   // there again when a sheet that was covering us closes. Keyed on `blocked`
   // rather than mount, so closing About returns here; later moves take focus
@@ -167,7 +170,22 @@ export function RitualComposer({
   }, [blocked, go, i, onClose])
 
   // ── The gesture ──────────────────────────────────────────────────────────
-  const drag = useRef<{ x: number; y: number; on: boolean } | null>(null)
+  /*
+   * Followed on the WINDOW with a NON-PASSIVE listener, for the reason spelled
+   * out at length above `follow()` in `useSwipeToDismiss.ts`: React registers
+   * `touchmove` passively at its root, so a `preventDefault` inside an
+   * `onPointerMove`/`onTouchMove` prop is a no-op. This composer had exactly
+   * that, and the cost was not a dead swipe — it was WebKit quietly taking the
+   * drag as a pan. With the keyboard up there is nothing to pan but the visual
+   * viewport, so the whole overlay slid up under the Dynamic Island and left a
+   * gap of the same size above the keyboard, and chased itself trying to
+   * recover. The composer keeps `touch-action: pan-y` like every other surface
+   * here — the browser gets the vertical axis, this keeps the horizontal one —
+   * and says so out loud the moment the drag proves horizontal.
+   */
+  const drag = useRef<{ x: number; y: number; horizontal: boolean } | null>(null)
+  const unbind = useRef<(() => void) | null>(null)
+
   const setOffset = (px: number | null) => {
     const el = trackRef.current
     if (!el) return
@@ -175,48 +193,64 @@ export function RitualComposer({
     // Restore the canonical offset rather than clearing it. React set this
     // inline and will not rewrite a value it thinks is unchanged, so blanking it
     // here left the track at movement one — which a plain tap on the writing
-    // area was enough to trigger, since a tap is a pointerdown and a pointerup.
+    // area was enough to trigger, since a tap is a touchstart and a touchend.
     el.style.transform =
-      px === null ? `translateX(-${i * 100}%)` : `translateX(calc(-${i} * 100% + ${px}px))`
+      px === null ? `translateX(-${iRef.current * 100}%)` : `translateX(calc(-${iRef.current} * 100% + ${px}px))`
   }
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse') return
-    drag.current = { x: e.clientX, y: e.clientY, on: false }
-  }
-  const onPointerMove = (e: React.PointerEvent) => {
-    const d = drag.current
-    if (!d) return
-    const dx = e.clientX - d.x
-    const dy = e.clientY - d.y
-    if (!d.on) {
-      // Only take over once the drag is clearly sideways, so a tap, a caret
-      // drag and a vertical scroll are all left alone.
-      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-      d.on = true
-      // Capture, or the browser treats a drag that began on the writing area as
-      // the start of a text selection and kills the gesture halfway.
-      try {
-        trackRef.current?.setPointerCapture(e.pointerId)
-      } catch {
-        /* not fatal — the drag just ends early */
+
+  const follow = useCallback(() => {
+    unbind.current?.()
+    const move = (ev: TouchEvent) => {
+      const d = drag.current
+      const t = ev.touches[0]
+      if (!d || !t) return
+      const dx = t.clientX - d.x
+      const dy = t.clientY - d.y
+      if (!d.horizontal) {
+        // Under this much travel the gesture has not said which way it is going,
+        // and a vertical one belongs to the writing area's own scrolling.
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+        d.horizontal = true
       }
+      if (ev.cancelable) ev.preventDefault()
+      const i = iRef.current
+      setOffset((i === 0 && dx > 0) || (i === CLOSE && dx < 0) ? dx * 0.3 : dx)
     }
-    const resisted = (i === 0 && dx > 0) || (i === CLOSE && dx < 0) ? dx * 0.3 : dx
-    setOffset(resisted)
-  }
-  const endDrag = (e: React.PointerEvent) => {
-    const d = drag.current
-    drag.current = null
-    setOffset(null)
-    if (!d?.on) return
-    try {
-      trackRef.current?.releasePointerCapture(e.pointerId)
-    } catch {
-      /* already released */
+    const end = (ev: TouchEvent) => {
+      const d = drag.current
+      drag.current = null
+      unbind.current?.()
+      setOffset(null)
+      const t = ev.changedTouches[0]
+      if (!d?.horizontal || !t) return
+      const dx = t.clientX - d.x
+      if (Math.abs(dx) > 60) goRef.current(iRef.current + (dx < 0 ? 1 : -1))
     }
-    const dx = e.clientX - d.x
-    if (Math.abs(dx) > 60) go(i + (dx < 0 ? 1 : -1))
+    const cancel = () => {
+      drag.current = null
+      unbind.current?.()
+      setOffset(null)
+    }
+    window.addEventListener('touchmove', move, { passive: false })
+    window.addEventListener('touchend', end)
+    window.addEventListener('touchcancel', cancel)
+    unbind.current = () => {
+      window.removeEventListener('touchmove', move)
+      window.removeEventListener('touchend', end)
+      window.removeEventListener('touchcancel', cancel)
+      unbind.current = null
+    }
+  }, [CLOSE])
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    if (!t) return
+    drag.current = { x: t.clientX, y: t.clientY, horizontal: false }
+    follow()
   }
+
+  // Never leave the window listening once the composer is gone.
+  useEffect(() => () => unbind.current?.(), [])
 
   if (!block) return null
 
@@ -274,10 +308,7 @@ export function RitualComposer({
         className="rc__track"
         ref={trackRef}
         style={{ transform: `translateX(-${i * 100}%)` }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onTouchStart={onTouchStart}
       >
         {labels.map((label, n) => {
           const prompt = practice?.prompts.find((p) => p.label === label)
