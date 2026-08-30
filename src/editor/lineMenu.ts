@@ -131,7 +131,8 @@ const gutterTheme = EditorView.theme({
   /*
    * A phone has no gutter to put this in, and no hover to reveal it with.
    * Touch keeps the command toolbar above the keyboard, which names the same
-   * commands out loud and is the better affordance there anyway.
+   * commands out loud and is the better affordance there anyway — including
+   * Ritual, which this note used to promise and that bar did not carry.
    */
   '@media (max-width: 767px)': {
     '.cm-line::after': { content: 'none' },

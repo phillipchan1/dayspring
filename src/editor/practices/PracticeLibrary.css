@@ -302,6 +302,21 @@
   transform: translateX(3px);
 }
 
+/* Why the filter is where it is. One line, never a claim about the writer —
+   only about where they opened this from. */
+.practice-library__because {
+  max-width: 46ch;
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--pl-amber) 45%, transparent);
+  font-family: var(--pl-body);
+  font-size: 13px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-muted);
+  line-height: 1.5;
+}
+
 /* ── Threshold view ────────────────────────────────────────────────────── */
 
 .practice-threshold {
@@ -442,6 +457,21 @@
   font-style: italic;
   font-weight: 300;
   color: var(--pl-ink-soft);
+  line-height: 1.45;
+}
+
+/* Where the ritual will land, said before you cross in. The insertion rules
+   have always replaced an untouched ritual and appended below a written one;
+   they were just silent about it, so a second ritual looked like a no-op. */
+.practice-threshold__landing {
+  max-width: 34ch;
+  margin: 0 auto 22px;
+  padding: 9px 12px;
+  border: 1px dashed color-mix(in srgb, var(--pl-amber) 38%, transparent);
+  font-family: var(--pl-body);
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--pl-muted);
   line-height: 1.45;
 }
 

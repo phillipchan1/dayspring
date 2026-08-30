@@ -1583,6 +1583,21 @@ a {
   text-transform: lowercase;
   color: var(--text-faint);
 }
+/* The cluster is the sync control now — it used to be the word "Synced", which
+   is exactly the word that goes away when there is nothing to report. */
+.status-cluster--action {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.status-cluster--action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
 .status-cluster__dot {
   flex: 0 0 auto;
   width: 6px;
@@ -1593,13 +1608,20 @@ a {
   opacity: 0.6;
   animation: status-breathe 4.5s ease-in-out infinite;
 }
-.status-cluster__dot[data-status='saving'] {
+/* Work in flight — the dot carries it so the words don't have to. */
+.status-cluster__dot[data-busy='true'] {
   animation-duration: 1.6s;
 }
-.status-cluster__dot[data-status='error'] {
+/* Offline, or a queue the server refused. The label says which. */
+.status-cluster__dot[data-tone='attention'] {
+  background: var(--md-strong);
+  box-shadow: 0 0 6px var(--md-strong);
+  opacity: 0.85;
+}
+.status-cluster__dot[data-tone='error'] {
   background: var(--danger);
   box-shadow: 0 0 6px var(--danger);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 .status-cluster__sep {
   opacity: 0.45;
@@ -2188,31 +2210,59 @@ a {
  * Quieter than the date it sits beside — it is an offer, not an instruction,
  * and it is gone at the first word.
  */
+/*
+ * The door into a ritual, on a page nobody has written on yet.
+ *
+ * It used to be transparent on --text-faint, turning accent only on hover —
+ * which made the one control we most want found the quietest thing in the bar.
+ * It now wears the accent vocabulary the Rituals surface already owns: the
+ * outlined pill of the library's own "Begin writing" button
+ * (PracticeLibrary.css), lettered like the ritual block's masthead
+ * (.cm-practice-header__name). The door looks like the thing it opens.
+ *
+ * Room for it came from the status cluster above, which stopped spending a
+ * running line on two facts that are almost always fine.
+ */
 .journal-topbar__ritual {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   flex-shrink: 0;
-  padding: 0.2rem 0.5rem 0.2rem 0.4rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-faint);
+  padding: 0.3rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  color: var(--accent);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
   transition:
     color var(--transition),
-    background var(--transition);
+    background var(--transition),
+    border-color var(--transition);
+  /* A single quiet arrival when the blank page appears. One entrance, never a
+     pulse: a door that keeps asking for attention is a nudge, and Principle 2
+     forbids manufacturing compulsion. */
+  animation: ritual-door-in 420ms ease both;
 }
 .journal-topbar__ritual svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 0.9rem;
+  height: 0.9rem;
 }
 .journal-topbar__ritual:hover {
-  color: var(--accent);
   background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 75%, transparent);
+}
+@keyframes ritual-door-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journal-topbar__ritual { animation: none; }
 }
 .journal-topbar__ritual:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
@@ -2222,12 +2272,12 @@ a {
 @media (max-width: 767px) {
   .journal-topbar__ritual {
     min-height: 44px;
-    padding: 0.35rem 0.55rem 0.35rem 0.45rem;
-    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
   }
   .journal-topbar__ritual svg {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 1rem;
+    height: 1rem;
   }
 }
 

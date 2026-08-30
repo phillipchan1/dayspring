@@ -63,7 +63,10 @@ import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
-import { usePracticeInsertion } from '@/editor/practices/usePracticeInsertion'
+import {
+  describeRitualLanding,
+  usePracticeInsertion,
+} from '@/editor/practices/usePracticeInsertion'
 import { PRACTICE_BY_NAME, type Practice } from '@/editor/practices/practicesData'
 import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
 import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
@@ -342,6 +345,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   // The practice "about" slide-over (opened from a practice header).
   const [aboutPractice, setAboutPractice] = useState<Practice | null>(null)
+  /** The entry's shape when the Rituals library was opened — see handleSlashCommand. */
+  const [ritualOpening, setRitualOpening] = useState<{
+    midEntry: boolean
+    landing: string | null
+  } | null>(null)
 
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
   const focusOverlaysOpen =
@@ -400,7 +408,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // Ritual is a full-screen library. The blank-page door parks the caret
     // first (so Begin writing lands in the body, not the title), which would
     // leave the keyboard covering half the page — drop it for this command.
-    if (cmd === 'ritual') editorRef.current?.blur()
+    if (cmd === 'ritual') {
+      // Read the entry's shape once, here, while the caret position that opened
+      // the library is still the live one. The library orders itself by whether
+      // there is writing to start from, and its threshold says where the ritual
+      // will land.
+      const doc = editorRef.current?.getDoc() ?? contentRef.current
+      setRitualOpening({
+        midEntry: doc.trim().length > 0,
+        landing: describeRitualLanding(doc, insertAt),
+      })
+      editorRef.current?.blur()
+    }
   }
 
   /**
@@ -2035,6 +2054,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onClose={closeSlashCapture}
           skipPreview={settings.skipRitualPreview}
           onToggleSkipPreview={(v) => updateSettings({ skipRitualPreview: v })}
+          midEntry={ritualOpening?.midEntry ?? false}
+          landing={ritualOpening?.landing ?? null}
         />
       )}
       {aboutPractice && (

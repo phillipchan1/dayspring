@@ -2,8 +2,7 @@ import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { useKeyboardOpen } from '@/hooks/useKeyboard'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
-import { SaveStatusBadge } from './SaveStatusBadge'
-import { SyncBadge } from './SyncBadge'
+import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
@@ -165,12 +164,12 @@ export function MobileJournal(props: JournalViewProps) {
               Ritual
             </button>
           )}
-          <div className="status-cluster">
-            <span className="status-cluster__dot" data-status={status} aria-hidden />
-            <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
-            <span className="status-cluster__sep" aria-hidden>·</span>
-            <SyncBadge bare onSync={onSync} />
-          </div>
+          <StatusCluster
+            status={status}
+            lastSavedAt={lastSavedAt}
+            saveError={saveError}
+            onSync={onSync}
+          />
         </header>
       )}
 

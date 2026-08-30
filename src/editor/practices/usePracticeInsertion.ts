@@ -15,7 +15,11 @@ import {
 } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
 import { PRACTICE_BY_NAME, type Practice } from './practicesData'
-import { PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
+import {
+  PRACTICE_NAME_RE,
+  PRACTICE_SECTION_RE,
+  practiceNameFromLine,
+} from '@/lib/practiceTokens'
 import {
   clampReveal,
   currentMovementIndex,
@@ -716,6 +720,31 @@ export function findPracticeBlockAt(doc: string, pos: number): PracticeBlock | n
     to: starts[end]! + lines[end]!.length,
     empty: content.trim().length === 0,
   }
+}
+
+/**
+ * What beginning a ritual here will do to the entry, said before it happens —
+ * or null when there is nothing worth saying, because an empty page has no seam
+ * to explain.
+ *
+ * The insertion rules below have always been "replace an untouched ritual,
+ * append below a written one, otherwise insert where the caret is." They were
+ * correct and completely silent, so beginning a second ritual looked like the
+ * first one had been ignored. This is the same behaviour, announced.
+ */
+export function describeRitualLanding(doc: string, insertAt: number): string | null {
+  const block = findPracticeBlockAt(doc, insertAt)
+  if (block?.empty) return 'Replaces the ritual you haven\u2019t written in yet.'
+  if (block) {
+    const nameLineEnd = doc.indexOf('\n', block.from)
+    const name = practiceNameFromLine(
+      doc.slice(block.from, nameLineEnd === -1 ? doc.length : nameLineEnd),
+    )
+    return name ? `Begins below ${name}.` : 'Begins below the ritual above it.'
+  }
+  return doc.trim().length > 0
+    ? 'Begins below what you\u2019ve written, where the entry turned.'
+    : null
 }
 
 /**

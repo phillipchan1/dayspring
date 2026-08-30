@@ -2,7 +2,11 @@ import { createRoot } from 'react-dom/client'
 import { Editor } from './Editor'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { PRACTICES } from './practices/practicesData'
-import { buildPracticeBlock } from './practices/usePracticeInsertion'
+import { PracticeLibrary } from './practices/PracticeLibrary'
+import {
+  buildPracticeBlock,
+  describeRitualLanding,
+} from './practices/usePracticeInsertion'
 
 /**
  * Dev-only: `?__preview=ritual` mounts the real editor with a ritual begun
@@ -10,6 +14,10 @@ import { buildPracticeBlock } from './practices/usePracticeInsertion'
  * the hold exist for. Optional `&theme=vigil` etc. to check every palette, and
  * `&answered=2` to start with the first N movements already written, which is
  * how a ritual looks when you come back to it the next day.
+ *
+ * `&library=1` opens the Rituals library over it as it appears when reached from
+ * inside an entry that already has writing — the filter on Need-based, and the
+ * threshold naming where the ritual will land.
  */
 
 const ABOVE = `Morning, still dark out.
@@ -63,6 +71,21 @@ export function renderRitualPreview(): void {
 
   const el = document.getElementById('root')
   if (!el) throw new Error('Root element #root not found')
+
+  if (params.get('library') === '1') {
+    const doc = ABOVE + block
+    createRoot(el).render(
+      <PracticeLibrary
+        onBegin={() => {}}
+        onClose={() => {}}
+        skipPreview={false}
+        onToggleSkipPreview={() => {}}
+        midEntry={doc.trim().length > 0}
+        landing={describeRitualLanding(doc, doc.length)}
+      />,
+    )
+    return
+  }
 
   createRoot(el).render(
     <div

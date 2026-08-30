@@ -28,13 +28,32 @@ interface CommandToolbarProps {
   keyboardInset?: number
 }
 
-// Ritual lives on the blank-page top bar (desktop and mobile) — it is a shape
-// for the whole page, not a mid-sentence insert. Still reachable from `/` and `+`.
-const COMMANDS: Array<{ id: SlashCommandId; label: string; hint: string }> = [
+/*
+ * The capture verbs, and then Ritual.
+ *
+ * Ritual used to be left out of this bar on the reasoning that it is a shape for
+ * the whole page rather than a mid-sentence insert, and that `/` and `+` still
+ * reached it. Neither is true on a phone: `lineMenu.ts` removes the `+` below
+ * 767px precisely because this bar was supposed to name the same commands, and
+ * the touch placeholder never mentions `/`. After the first word there was no
+ * door at all — and the practices most likely to be wanted mid-entry are exactly
+ * the ones the library files as "Need-based" (Lament, Discernment, Threshold).
+ *
+ * So it belongs here, and it belongs behind a divider: ranked with the capture
+ * verbs, marked as different in kind, because a ritual takes the page for ten
+ * minutes and a verse does not.
+ */
+const COMMANDS: Array<{
+  id: SlashCommandId
+  label: string
+  hint: string
+  sep?: true
+}> = [
   { id: 'scripture', label: 'Scripture', hint: 'Find passages' },
   { id: 'pray', label: 'Pray', hint: 'Log prayer' },
   { id: 'sense', label: 'Sense', hint: 'Record impression' },
   { id: 'image', label: 'Image', hint: 'Add photo' },
+  { id: 'ritual', label: 'Ritual', hint: 'Begin a practice', sep: true },
   // Emoji omitted — this bar only appears above the on-screen keyboard, where
   // iOS already exposes emoji in the keyboard itself.
 ]
@@ -182,7 +201,7 @@ export function CommandToolbar({
           <button
             key={cmd.id}
             type="button"
-            className="command-toolbar__btn"
+            className={`command-toolbar__btn${cmd.sep ? ' command-toolbar__btn--sep command-toolbar__btn--ritual' : ''}`}
             onMouseDown={keepFocus}
             onClick={() => onCommand(cmd.id)}
             title={cmd.hint}

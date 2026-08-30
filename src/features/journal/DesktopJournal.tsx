@@ -1,7 +1,6 @@
 import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { Rail } from './Rail'
-import { SaveStatusBadge } from './SaveStatusBadge'
-import { SyncBadge } from './SyncBadge'
+import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
 import { IconRitual } from './navIcons'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
@@ -124,14 +123,13 @@ export function DesktopJournal(props: JournalViewProps) {
               )}
             </div>
             <div className="journal-topbar__actions">
-              <div className="status-cluster" style={{ marginRight: '0.6rem' }} data-tauri-drag-region>
-                <span className="status-cluster__dot" data-status={status} aria-hidden />
-                <span>{words} {words === 1 ? 'word' : 'words'}</span>
-                <span className="status-cluster__sep" aria-hidden>·</span>
-                <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
-                <span className="status-cluster__sep" aria-hidden>·</span>
-                <SyncBadge bare onSync={onSync} />
-              </div>
+              <StatusCluster
+                status={status}
+                lastSavedAt={lastSavedAt}
+                saveError={saveError}
+                onSync={onSync}
+                leading={<span>{words} {words === 1 ? 'word' : 'words'}</span>}
+              />
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">
                 focus
               </button>
