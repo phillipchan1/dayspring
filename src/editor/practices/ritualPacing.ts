@@ -12,17 +12,11 @@
  * answered, and how many are open — kept free of CodeMirror so it can be
  * reasoned about (and tested) on plain strings.
  *
- * Two rules govern how far a block is open:
- *
- *   floor   — never close a movement that has words in it. Whatever else
- *             happens, the writer's own writing is never hidden from them.
- *   opening — a ritual reopened tomorrow lands where it was left: everything
- *             answered, plus the one movement waiting to be answered.
- *
- * Past the opening, movements are only ever unclosed on purpose (the block's
- * "next" action, ⌘⇧↵, or "show all") — never by the act of typing. Typing the
- * first word of a movement must not fling the next one open; the pause between
- * movements is the practice.
+ * Pacing itself lives in `RitualComposer.tsx` now — a ritual is written there,
+ * one movement to a screen, and read back whole in the entry. What is left here
+ * is the reading of a block out of plain markdown, which both surfaces need:
+ * where each movement starts, which of them have words in them, and which one
+ * the writer is still standing in.
  */
 import { PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
 
@@ -151,50 +145,18 @@ export function ritualBlockAtLine(
   return null
 }
 
-/** Index of the last movement the writer has put words in, or -1. */
-export function lastAnsweredIndex(block: RitualBlock): number {
-  let last = -1
-  for (const movement of block.movements) if (movement.filled) last = movement.index
-  return last
-}
-
 /** Every movement answered — the practice has been prayed all the way through. */
 export function isRitualComplete(block: RitualBlock): boolean {
   return block.movements.length > 0 && block.movements.every((m) => m.filled)
 }
 
 /**
- * The fewest movements that may be open: everything the writer has written in.
- * Nothing — not a stale reveal count, not a document arriving from another
- * device — is ever allowed to close a movement that already holds words.
- */
-export function revealFloor(block: RitualBlock): number {
-  if (block.movements.length === 0) return 0
-  return Math.max(1, lastAnsweredIndex(block) + 1)
-}
-
-/**
- * How far a block stands open the first time we meet it: everything answered,
- * plus the one movement waiting. A freshly begun ritual opens at one.
- */
-export function initialReveal(block: RitualBlock): number {
-  if (block.movements.length === 0) return 0
-  return Math.min(block.movements.length, Math.max(1, lastAnsweredIndex(block) + 2))
-}
-
-/**
  * The movement the writer is standing in: the first one still unanswered, or
  * the last one once the whole practice has been written through.
  */
-export function currentMovementIndex(block: RitualBlock, open: number): number {
-  const limit = Math.min(open, block.movements.length)
-  for (let i = 0; i < limit; i++) if (!block.movements[i]!.filled) return i
-  return Math.max(0, limit - 1)
+export function currentMovementIndex(block: RitualBlock): number {
+  const n = block.movements.length
+  for (let i = 0; i < n; i++) if (!block.movements[i]!.filled) return i
+  return Math.max(0, n - 1)
 }
 
-/** Clamp a stored reveal count against the block as it stands now. */
-export function clampReveal(block: RitualBlock, stored: number): number {
-  const n = block.movements.length
-  if (n === 0) return 0
-  return Math.min(n, Math.max(revealFloor(block), stored))
-}

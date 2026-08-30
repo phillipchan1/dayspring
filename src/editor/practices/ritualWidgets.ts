@@ -17,15 +17,19 @@ import { WidgetType } from '@codemirror/view'
 export class RitualHeaderWidget extends WidgetType {
   constructor(
     readonly name: string,
-    /** True while the block is still opening a movement at a time. */
-    readonly paced: boolean,
+    /** True while some movement is still unanswered — offers a way back in. */
+    readonly unfinished: boolean,
     /** True while the caret is inside this block. */
     readonly held: boolean,
   ) {
     super()
   }
   eq(other: RitualHeaderWidget): boolean {
-    return other.name === this.name && other.paced === this.paced && other.held === this.held
+    return (
+      other.name === this.name &&
+      other.unfinished === this.unfinished &&
+      other.held === this.held
+    )
   }
   toDOM(): HTMLElement {
     const root = document.createElement('div')
@@ -51,11 +55,11 @@ export class RitualHeaderWidget extends WidgetType {
     root.append(
       action('about', 'about', 'Why this ritual, how it moves, and a few tips'),
     )
-    // Only worth offering while something is still closed. It is the release
-    // valve that keeps pacing from being withholding: anyone who wants the
-    // whole shape at once can have it in a single click.
-    if (this.paced) {
-      root.append(action('showall', 'show all', 'Open every movement at once'))
+    // A ritual left part-written needs a door back into the composer, which is
+    // where movements are paced now. A finished one does not: it is a record,
+    // and you edit a record in place like any other text.
+    if (this.unfinished) {
+      root.append(action('continue', 'continue', 'Pick the ritual back up where you left it'))
     }
     root.append(
       action('freewrite', 'free write', 'Remove the prompts and keep only your words'),
@@ -75,8 +79,6 @@ export class RitualPromptWidget extends WidgetType {
     /** True for the movement directly under the masthead — it needs less air
      *  above it, since the header's own rule already opens the block. */
     readonly first: boolean,
-    /** `live` is the movement being written; `passed` is one already behind you. */
-    readonly tone: 'live' | 'passed',
     /** True while the caret is inside this block. */
     readonly held: boolean,
   ) {
@@ -87,7 +89,6 @@ export class RitualPromptWidget extends WidgetType {
       other.label === this.label &&
       other.question === this.question &&
       other.first === this.first &&
-      other.tone === this.tone &&
       other.held === this.held
     )
   }
@@ -96,7 +97,6 @@ export class RitualPromptWidget extends WidgetType {
     root.className = this.first
       ? 'cm-practice-prompt cm-practice-prompt--first'
       : 'cm-practice-prompt'
-    root.dataset.tone = this.tone
     if (this.held) root.dataset.held = 'true'
     root.setAttribute('contenteditable', 'false')
     root.setAttribute('aria-hidden', 'true')
@@ -140,86 +140,7 @@ export class RitualPlaceholderWidget extends WidgetType {
   }
 }
 
-/**
- * The threshold between one movement and the next.
- *
- * A dot for each movement still closed, and the name of the one waiting. The
- * name is deliberately given and the question deliberately withheld: knowing
- * that *Awareness* comes next orients you, where reading its question would
- * start you composing an answer to it while you are still in Gratitude —
- * which is the scanning-ahead this pacing exists to prevent.
- *
- * There is no count and no bar. The dots say what remains without ever
- * measuring the person against it.
- */
-export class RitualAdvanceWidget extends WidgetType {
-  constructor(
-    readonly nextLabel: string,
-    readonly remaining: number,
-    readonly held: boolean,
-  ) {
-    super()
-  }
-  eq(other: RitualAdvanceWidget): boolean {
-    return (
-      other.nextLabel === this.nextLabel &&
-      other.remaining === this.remaining &&
-      other.held === this.held
-    )
-  }
-  toDOM(): HTMLElement {
-    const root = document.createElement('div')
-    root.className = 'cm-ritual-advance'
-    if (this.held) root.dataset.held = 'true'
-    root.setAttribute('contenteditable', 'false')
 
-    const dots = document.createElement('span')
-    dots.className = 'cm-ritual-advance__dots'
-    dots.setAttribute('aria-hidden', 'true')
-    for (let i = 0; i < this.remaining; i++) {
-      const dot = document.createElement('span')
-      dot.className = 'cm-ritual-dot'
-      dots.append(dot)
-    }
-
-    const next = document.createElement('button')
-    next.type = 'button'
-    next.className = 'cm-ritual-advance__next'
-    next.textContent = `Next: ${this.nextLabel}`
-    next.title = 'Open the next movement'
-
-    root.append(dots, next)
-    return root
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
-/**
- * A movement not yet opened. It still occupies a token line, so it still needs
- * a widget — but one with no height, so the block below it closes up.
- *
- * `height: 0` and not `display: none`, for the same reason every hidden thing
- * in this editor is: CodeMirror cannot measure a `display: none` element, so
- * its height map keeps a stale estimate and its coordinate→position mapping
- * drifts out of step with the DOM. A zero-height box measures as zero, honestly.
- */
-export class RitualClosedWidget extends WidgetType {
-  eq(): boolean {
-    return true
-  }
-  toDOM(): HTMLElement {
-    const root = document.createElement('div')
-    root.className = 'cm-ritual-closed'
-    root.setAttribute('contenteditable', 'false')
-    root.setAttribute('aria-hidden', 'true')
-    return root
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
 
 /**
  * The dismissal. A ritual that has been prayed all the way through closes with

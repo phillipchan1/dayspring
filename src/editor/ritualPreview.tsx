@@ -1,8 +1,13 @@
 import { createRoot } from 'react-dom/client'
 import { Editor } from './Editor'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
+import { useState } from 'react'
 import { PRACTICES } from './practices/practicesData'
 import { PracticeLibrary } from './practices/PracticeLibrary'
+import { RitualComposer } from './practices/RitualComposer'
+import { PracticeAboutSheet } from './practices/PracticeAboutSheet'
+import { PRACTICE_BY_NAME, type Practice } from './practices/practicesData'
+import { EDITOR_FONT_VARS, type EditorFont } from '@/lib/settings'
 import {
   buildPracticeBlock,
   describeRitualLanding,
@@ -18,6 +23,11 @@ import {
  * `&library=1` opens the Rituals library over it as it appears when reached from
  * inside an entry that already has writing — the filter on Need-based, and the
  * threshold naming where the ritual will land.
+ *
+ * `&composer=1` opens the ritual composer on that block. `&font=mono&size=36`
+ * drive the writer's face and size exactly as Settings does, which is how the
+ * font/theme matrix gets checked: the app's own voice must hold its shape in
+ * every one of the six faces, including the two that ship only 400 and 700.
  */
 
 const ABOVE = `Morning, still dark out.
@@ -40,6 +50,36 @@ const ANSWERS = [
 
 function isThemeId(value: string | null): value is ThemeId {
   return THEMES.some((t) => t.id === value)
+}
+
+/** Holds the document the composer reads and writes, the way JournalScreen does. */
+function ComposerHarness({ seedDoc }: { seedDoc: string }) {
+  const [doc, setDoc] = useState(seedDoc)
+  // The About sheet is here so the seam between it and the composer is
+  // reachable: it is where the focus and Escape bugs lived.
+  const [about, setAbout] = useState<Practice | null>(null)
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <RitualComposer
+        blockIndex={0}
+        getDoc={() => doc}
+        replaceRange={(from, to, text) =>
+          setDoc((d) => d.slice(0, from) + text + d.slice(to))
+        }
+        onAbout={(name) => setAbout(PRACTICE_BY_NAME.get(name) ?? null)}
+        onClose={() => {}}
+        blocked={about !== null}
+      />
+      {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
+      {/* What the entry now holds — proof the composer is a surface, not a store. */}
+      <pre
+        data-testid="doc"
+        style={{ position: 'fixed', inset: 'auto 0 0 0', opacity: 0, pointerEvents: 'none' }}
+      >
+        {doc}
+      </pre>
+    </div>
+  )
 }
 
 export function renderRitualPreview(): void {
@@ -71,6 +111,14 @@ export function renderRitualPreview(): void {
 
   const el = document.getElementById('root')
   if (!el) throw new Error('Root element #root not found')
+
+  if (params.get('composer') === '1') {
+    const font = (params.get('font') ?? 'serif') as EditorFont
+    if (EDITOR_FONT_VARS[font]) root.style.setProperty('--font-editor', EDITOR_FONT_VARS[font])
+    root.style.setProperty('--editor-font-size', (params.get('size') ?? '24') + 'px')
+    createRoot(el).render(<ComposerHarness seedDoc={ABOVE + block} />)
+    return
+  }
 
   if (params.get('library') === '1') {
     const doc = ABOVE + block
