@@ -41,20 +41,11 @@ const PARAS = [
   'Rain all afternoon. Read the same page of Romans four times and then gave up and made soup.',
 ]
 
-/** A fixture archive: three years of pages, newest first, stable across reloads. */
-const ENTRIES: Entry[] = Array.from({ length: 48 }, (_, i) => {
-  const created = new Date(Date.UTC(2026, 7, 24) - i * 9 * DAY).toISOString()
-  const body = [
-    PARAS[i % PARAS.length],
-    PARAS[(i + 2) % PARAS.length],
-    i % 3 === 0 ? PARAS[(i + 4) % PARAS.length] : '',
-  ]
-    .filter(Boolean)
-    .join('\n\n')
+function page(id: string, iso: string, body: string): Entry {
   return {
-    id: `preview-${i}`,
-    created_at: created,
-    updated_at: created,
+    id,
+    created_at: iso,
+    updated_at: iso,
     body_markdown: body,
     title: null,
     mood: null,
@@ -63,7 +54,38 @@ const ENTRIES: Entry[] = Array.from({ length: 48 }, (_, i) => {
     source: 'native',
     external_id: null,
   } as Entry
+}
+
+/**
+ * A fixture archive: recent pages plus a few from fifteen years earlier on the
+ * same calendar week, so the phone list shows an anniversary echo the way a
+ * real import does — and so the row's year + eyebrow can be looked at without
+ * an account.
+ */
+const RECENT: Entry[] = Array.from({ length: 48 }, (_, i) => {
+  const created = new Date(Date.UTC(2026, 7, 30) - i * 2 * DAY).toISOString()
+  const body = [
+    PARAS[i % PARAS.length],
+    PARAS[(i + 2) % PARAS.length],
+    i % 3 === 0 ? PARAS[(i + 4) % PARAS.length] : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  return page(`preview-${i}`, created, body)
 })
+
+/** Same week of August, 2011 — dense enough to earn an echo beside today. */
+const ECHO_YEAR: Entry[] = [27, 28, 29, 30, 31].map((day) =>
+  page(
+    `preview-2011-${day}`,
+    new Date(Date.UTC(2011, 7, day, 12)).toISOString(),
+    'back home now. really struggling already. Lord Jesus, release a grace for me to be preserved here.',
+  ),
+)
+
+const ENTRIES: Entry[] = [...RECENT, ...ECHO_YEAR].sort(
+  (a, b) => (a.created_at > b.created_at ? -1 : a.created_at < b.created_at ? 1 : 0),
+)
 
 const KEPT: KeptSubject[] = [
   { key: 'c:tiffany', label: 'Tiffany', terms: ['Tiffany'], kind: 'person', keptAt: '2026-01-01T00:00:00.000Z' },
