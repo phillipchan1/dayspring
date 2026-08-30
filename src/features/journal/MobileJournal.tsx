@@ -50,24 +50,30 @@ export function MobileJournal(props: JournalViewProps) {
    * An entry opened from Pages (or Lamp, Altar, Ascent) is a PUSHED view — the
    * header says so with "← Pages" — and on a phone a pushed view is left by
    * dragging it off to the right. Only the header button did that, which is the
-   * one thing a thumb reaching for the edge never finds.
+   * one thing a thumb never reaches for.
    *
-   * From the edge, and only the edge. Everything below the header is CodeMirror,
-   * where a horizontal drag already means move the caret or extend the
-   * selection; taking those would cost far more than a second way back is worth.
-   * That is also exactly where iOS puts it, so nobody has to be told.
+   * Off the whole surface, not the screen edge. It WAS edge-only, on the
+   * reasoning that everything below the header is CodeMirror and a horizontal
+   * drag there means move the caret. On iOS it does not — the caret and the
+   * selection handles are behind a long press, which `LONG_PRESS_MS` declines —
+   * and an edge-only gesture on a phone is one most hands never find.
    *
    * `exit` because nothing else animates the editor away — the surface simply
    * changes — so the shell has to carry itself off the screen before it says it
    * has gone. Its twin is the `[data-leaving]` rule in global.css.
+   *
+   * The other half of this living up to its name is `.cm-scroller`'s
+   * `touch-action: pan-y` (editor/theme.ts). Without it WebKit is free to read
+   * the start of a horizontal drag as a pan of the editor, and once it has, the
+   * touchmoves stop arriving and the shell freezes wherever it got to.
    */
   const back = useSwipeToDismiss({
     onDismiss: onReturnFromEntry,
     enabled: touch && !!entryReturn,
-    edge: 32,
     threshold: 72,
     exit: true,
-    // A selection handle dragged off the left edge is still a selection.
+    // Dragging a selection handle is a horizontal gesture too, and pulling a
+    // sentence out of an entry is a thing people do.
     guard: () => {
       const sel = window.getSelection()
       return !sel || sel.isCollapsed

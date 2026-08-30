@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { axisOf, commits, startsInEdgeZone } from './useSwipeToDismiss'
+import {
+  axisOf,
+  commits,
+  isSwipeNotPress,
+  locksToScroll,
+  LONG_PRESS_MS,
+  POINT_OF_NO_RETURN,
+  speedAtRelease,
+  STILL_MS,
+} from './useSwipeToDismiss'
 
 /** What the reader is configured with — the number these rules are tuned to. */
 const THRESHOLD = 72
@@ -93,32 +102,89 @@ describe('commits', () => {
 })
 
 /**
- * The editor's back-swipe is a SCREEN-EDGE pan, and the reader's is not.
+ * ── The rules that make an indecisive hand work ────────────────────────────
  *
- * The reader can afford the whole surface: everything under the finger is prose
- * nobody is about to edit. The editor cannot — it is CodeMirror end to end,
- * where a horizontal drag already means move the caret or extend the selection.
- * Taking those would buy a second way back at the price of the first thing the
- * surface is for. iOS draws the same line in the same place.
+ * What a thumb actually does on a phone is drag, hesitate, drift back, and then
+ * decide. Every rule below exists because the first version punished exactly
+ * that and answered only to one clean committed swipe.
  */
-describe('startsInEdgeZone', () => {
-  /** What MobileJournal is configured with. */
-  const EDGE = 32
 
-  it('takes the whole surface when no edge is asked for', () => {
-    expect(startsInEdgeZone(0, undefined)).toBe(true)
-    expect(startsInEdgeZone(300, undefined)).toBe(true)
+describe('locksToScroll', () => {
+  it('leaves an ambiguous start open to being reconsidered', () => {
+    // A thumb setting off down-and-right has not decided anything yet.
+    expect(locksToScroll(0)).toBe(false)
+    expect(locksToScroll(12)).toBe(false)
+    expect(locksToScroll(-20)).toBe(false)
   })
 
-  it('takes a touch that landed on the edge', () => {
-    expect(startsInEdgeZone(0, EDGE)).toBe(true)
-    expect(startsInEdgeZone(12, EDGE)).toBe(true)
-    expect(startsInEdgeZone(EDGE, EDGE)).toBe(true)
+  it('locks once the page has genuinely moved under the finger', () => {
+    expect(locksToScroll(32)).toBe(true)
+    expect(locksToScroll(-90)).toBe(true)
+  })
+})
+
+describe('speedAtRelease', () => {
+  it('keeps the speed of a finger that was still moving', () => {
+    expect(speedAtRelease(0.8, 0)).toBe(0.8)
+    expect(speedAtRelease(0.8, STILL_MS)).toBe(0.8)
   })
 
-  it('leaves a drag that started out on the page to the page', () => {
-    expect(startsInEdgeZone(EDGE + 1, EDGE)).toBe(false)
-    // Mid-screen: a caret drag, a selection, a word being reached for.
-    expect(startsInEdgeZone(200, EDGE)).toBe(false)
+  /*
+   * Drag a view out, stop, look at what is underneath, decide against it, lift.
+   * `speed` is only ever written by a move, so without this the gesture flings
+   * from a standstill on whatever it was doing before it stopped.
+   */
+  it('treats a finger that has been resting as not travelling', () => {
+    expect(speedAtRelease(0.8, STILL_MS + 1)).toBe(0)
+    expect(speedAtRelease(2, 400)).toBe(0)
+  })
+})
+
+describe('isSwipeNotPress', () => {
+  it('takes a drag that began as one motion from touchdown', () => {
+    expect(isSwipeNotPress(0)).toBe(true)
+    expect(isSwipeNotPress(LONG_PRESS_MS)).toBe(true)
+  })
+
+  /*
+   * This is what buys the gesture the whole writing surface instead of a strip
+   * at the screen edge: iOS puts the caret loupe and the selection handles
+   * behind a long press, and dragging one of those is horizontal too.
+   */
+  it('leaves a press that turned into a drag to whoever is moving the caret', () => {
+    expect(isSwipeNotPress(LONG_PRESS_MS + 1)).toBe(false)
+    expect(isSwipeNotPress(900)).toBe(false)
+  })
+})
+
+describe('commits, past the point of no return', () => {
+  const PHONE = 402
+
+  /*
+   * A drag carried most of the way across and then wobbled backwards by a few
+   * pixels as the finger lifted used to project to a negative and snap home —
+   * the app refusing something you plainly did.
+   */
+  it('takes a drag that got far enough across, whatever the finger did last', () => {
+    const dx = PHONE * POINT_OF_NO_RETURN + 1
+    expect(commits({ dx, speed: 0, threshold: THRESHOLD, width: PHONE })).toBe(true)
+    expect(commits({ dx, speed: -0.6, threshold: THRESHOLD, width: PHONE })).toBe(true)
+  })
+
+  it('still judges a drag short of it on where it was headed', () => {
+    const dx = PHONE * POINT_OF_NO_RETURN - 1
+    // Pulled back hard enough to be a change of mind, not a wobble.
+    expect(commits({ dx, speed: -1.5, threshold: THRESHOLD, width: PHONE })).toBe(false)
+    expect(commits({ dx, speed: 0, threshold: THRESHOLD, width: PHONE })).toBe(true)
+    // And a wobble on the way out is still a way out.
+    expect(commits({ dx, speed: -0.9, threshold: THRESHOLD, width: PHONE })).toBe(true)
+  })
+
+  it('falls back to the projection alone when the surface has no width to give', () => {
+    expect(commits({ dx: 300, speed: -4, threshold: THRESHOLD })).toBe(false)
+  })
+
+  it('never leaves to the left, however far', () => {
+    expect(commits({ dx: -PHONE, speed: 0, threshold: THRESHOLD, width: PHONE })).toBe(false)
   })
 })

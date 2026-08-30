@@ -17,6 +17,24 @@ export const editorTheme = EditorView.theme({
     fontFamily: 'var(--font-editor)',
     lineHeight: 'var(--editor-line-height)',
     overflow: 'auto',
+    /*
+     * The two axes, split between the browser and the back-swipe.
+     *
+     * A scroller left on `auto` hands WebKit both directions, so it is free to
+     * read the opening pixels of a horizontal drag as a pan — and once it has
+     * claimed the gesture, `touchmove` stops arriving altogether. The shell that
+     * is supposed to be following the finger freezes wherever it got to, and the
+     * only swipes that ever work are the ones fast enough to finish inside the
+     * first few events. Which is exactly what "it only handles a clean swipe"
+     * was.
+     *
+     * `pan-y` gives the browser the vertical axis — scrolling a long entry stays
+     * composited, which matters more here than anywhere — and keeps the
+     * horizontal one for MobileJournal's back-swipe. Lines wrap, so there is no
+     * horizontal scrolling to lose. Same division `.pg-read1__slide` makes in
+     * Pages.css, for the same reason.
+     */
+    touchAction: 'pan-y',
   },
   '.cm-content': {
     caretColor: 'var(--accent)',
