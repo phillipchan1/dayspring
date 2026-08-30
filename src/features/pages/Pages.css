@@ -3422,6 +3422,46 @@ button.pg__sense-q:hover {
  * kind's own drawing says which before you read a word, which is the rule the
  * editor's margin already works by ("the hand is the label").
  */
+/*
+ * Why the prose does not take touches on a phone.
+ *
+ * WebKit hands a touch that lands on running text to its own text-interaction
+ * recogniser, and once that has the gesture the JS touch stream simply stops:
+ * exactly one `touchmove` arrives and then nothing — no move, no end, no cancel,
+ * at the element, at the window, or at the document. The back-swipe froze
+ * wherever that one move left it. It is why the gesture worked over the editor
+ * (CodeMirror's contenteditable arbitrates differently), worked over a page's
+ * gaps and margins, and died anywhere there were words — which on a page of
+ * writing is everywhere that matters. Measured, not guessed: same page, same
+ * finger height, 20px apart. On the gap it goes back. On the sentence it dies.
+ *
+ * `-webkit-user-select: none` does NOT stop it — verified on device, computed
+ * style and all. Taking the prose out of hit-testing does: the touch then lands
+ * on the page around it, which is a box WebKit has no text gesture for.
+ *
+ * What it costs: you cannot select a sentence out of an open page with a finger
+ * any more. Nothing else — on touch the page has no click behaviour to lose
+ * (see the note on `touch` in PageReader), the markings are hover decorations a
+ * finger never had, and the margin is a sibling. A "Copy page" action in the
+ * reader's bar is the way to give copying back, and is better on a phone than
+ * dragging two handles across a paragraph.
+ *
+ * Coarse pointers only. A mouse has no such recogniser and never lost the
+ * gesture, so on a desktop the page stays live and selectable.
+ */
+@media (pointer: coarse) {
+  /* Two classes on purpose. `.markdown-body` is handed `user-select: text` by
+     the coarse-pointer block in global.css — the rule that makes sure people
+     can copy their own words back out — and a single-class selector here ties
+     with it and loses on source order. */
+  .pg-read1__body.markdown-body {
+    pointer-events: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
 .pg-read1__body [data-marking] {
   position: relative;
   --mark-hand: var(--mark-tone, var(--accent));

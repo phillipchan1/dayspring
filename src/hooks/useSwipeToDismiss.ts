@@ -48,13 +48,21 @@ import { useEffect, useRef, useState } from 'react'
  *
  * ── The half of this that is not in this file ───────────────────────────────
  *
- * None of it fires if the browser takes the gesture first. A scroller left on
- * `touch-action: auto` is free to read the start of a horizontal drag as a pan,
- * and once WebKit has claimed it `touchmove` simply stops arriving: the surface
- * freezes mid-drag, and only a swipe fast enough to finish inside the first few
- * events works at all. Every surface using this hook has to hand the browser the
- * vertical axis and keep the horizontal one — `.pg-read1__slide` in Pages.css,
- * `.cm-scroller` in editor/theme.ts.
+ * None of it fires if WebKit takes the gesture first, and it will, two ways.
+ *
+ * A scroller left on `touch-action: auto` is free to read the start of a
+ * horizontal drag as a pan, so every surface using this hook hands the browser
+ * the vertical axis and keeps the horizontal one — `.pg-read1__slide` in
+ * Pages.css, `.cm-scroller` in editor/theme.ts — and this hook follows the
+ * gesture on the window with a NON-passive listener so it can `preventDefault`
+ * the moment the drag proves horizontal.
+ *
+ * And a touch that lands on running text goes to WebKit's text-interaction
+ * recogniser, which is worse: `touchmove` stops arriving anywhere at all — not
+ * the element, not the window, not the document — with no `touchcancel` to
+ * notice, so the surface freezes mid-drag. `user-select: none` does not prevent
+ * it. Only taking the text out of hit-testing does; see the note above
+ * `.pg-read1__body` in Pages.css for what that costs and why it is worth it.
  */
 /** Below this much travel, a gesture has not said which way it is going. */
 const INTENT = 8
@@ -260,6 +268,8 @@ export function useSwipeToDismiss({
   /** The surface's own width, read once per gesture; see `POINT_OF_NO_RETURN`. */
   const span = useRef(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** The window listeners this gesture is being followed with; see `follow`. */
+  const bound = useRef<(() => void) | null>(null)
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -267,11 +277,13 @@ export function useSwipeToDismiss({
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current)
+      bound.current?.()
     },
     [],
   )
 
   function reset() {
+    bound.current?.()
     start.current = null
     axis.current = null
     last.current = null
@@ -319,12 +331,53 @@ export function useSwipeToDismiss({
     span.current = e.currentTarget.getBoundingClientRect().width
     axis.current = null
     speed.current = 0
+    follow()
   }
 
-  function onTouchMove(e: React.TouchEvent) {
+  /**
+   * Follow the rest of the gesture on the WINDOW, not on the element.
+   *
+   * Two reasons, and the second is the one that made it necessary.
+   *
+   * React routes a touch by walking up from the node it landed on, so a gesture
+   * held on the element is only as durable as that node — and both surfaces
+   * here rewrite what is under the finger while the finger is down (the reader
+   * repaints its body to light matched words and draw markings; CodeMirror
+   * recycles lines). A `touchend` dispatched to a replaced node reaches no
+   * handler: no end, no cancel, and the surface sits frozen halfway off the
+   * screen. The window is always there.
+   *
+   * And it is NON-PASSIVE, which React cannot give: React registers `touchmove`
+   * passively at its root, so `preventDefault` inside `onTouchMove` is a no-op.
+   * Once the drag has proved horizontal this has to be able to say so, or a long
+   * page's scroller can still decide the gesture was its own halfway through.
+   *
+   * Only `touchstart` needs the element — for the width, and for knowing the
+   * gesture began on this surface at all.
+   */
+  function follow() {
+    bound.current?.()
+    const move = (ev: TouchEvent) => {
+      const t = ev.touches[0]
+      if (t) track(t)
+      if (axis.current === 'h' && ev.cancelable) ev.preventDefault()
+    }
+    const end = () => release()
+    const cancel = () => reset()
+    window.addEventListener('touchmove', move, { passive: false })
+    window.addEventListener('touchend', end)
+    window.addEventListener('touchcancel', cancel)
+    bound.current = () => {
+      window.removeEventListener('touchmove', move)
+      window.removeEventListener('touchend', end)
+      window.removeEventListener('touchcancel', cancel)
+      bound.current = null
+    }
+  }
+
+  function track(t: Touch) {
     const s = start.current
-    const t = e.touches[0]
-    if (!s || !t || leaving) return
+    if (!s || leaving) return
     const dx = t.clientX - s.x
     const dy = t.clientY - s.y
     /*
@@ -404,7 +457,8 @@ export function useSwipeToDismiss({
     setDragX(Math.max(0, dx))
   }
 
-  function onTouchEnd() {
+  function release() {
+    bound.current?.()
     const idle = last.current ? performance.now() - last.current.t : Infinity
     const go =
       axis.current === 'h' &&
@@ -420,7 +474,10 @@ export function useSwipeToDismiss({
 
   if (!enabled) return { handlers: {}, dragX: 0, dragging: false, leaving: false }
   return {
-    handlers: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel: reset },
+    // Only the start. The rest of the gesture is followed on the window; see
+    // `follow`, and the note there on why the element cannot be trusted to
+    // still be under the finger when the finger lifts.
+    handlers: { onTouchStart },
     dragX,
     dragging,
     leaving,
