@@ -6,7 +6,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
 import { proseHighlighting } from './proseHighlighting'
-import { nativeTypingAttributes } from './nativeTyping'
+import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
 import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
@@ -426,6 +426,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       // caret and viewport through the change, so an edit from another device
       // lands without moving anything under the reader.
       view.dispatch({ changes: change })
+      rearmNativeTypingAfterPaint(view)
     },
   }))
 
@@ -568,7 +569,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             scripturePasteExtension((reference) => onScripturePasteRef.current?.(reference)),
           ),
           EditorView.lineWrapping,
-          nativeTypingAttributes,
+          nativeTyping(),
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
           dimCompartment.current.of(dimming ? dimmingExtension : []),
@@ -636,6 +637,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       // editor when the body arrives after mount — never fight live typing.
       if (entryChanged || (current.trim() === '' && initialDoc.trim() !== '')) {
         view.dispatch({ changes: { from: 0, to: current.length, insert: ensureBlockSeparation(initialDoc) } })
+        rearmNativeTypingAfterPaint(view)
       }
     }
     if (skipAutofocusRef?.current) {
