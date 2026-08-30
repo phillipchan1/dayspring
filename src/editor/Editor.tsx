@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
-import { dropCursor, EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
+import { dropCursor, EditorView, keymap } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
@@ -13,7 +13,7 @@ import { concealMarkersExtension } from './concealMarkers'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { firstLineTitleExtension } from './firstLineTitle'
-import { bodyLinePlaceholder } from './bodyLinePlaceholder'
+import { bodyLinePlaceholder, emptyDocPlaceholder } from './linePlaceholder'
 import {
   spiritualBlockExtension,
   type SpiritualBlockEditTarget,
@@ -413,7 +413,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
           dimCompartment.current.of(dimming ? dimmingExtension : []),
           commandLineCompartment.current.of(commandLineHighlight(commandLinePos)),
-          cmPlaceholder(placeholder ?? 'Write…'),
+          // Line-class hint, not CM's widget placeholder — a span on the
+          // empty caret line is enough for WebKit to drop autocorrect.
+          emptyDocPlaceholder(placeholder ?? 'Write…'),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onChangeRef.current(u.state.doc.toString())
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
