@@ -37,7 +37,11 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.9rem 0.4rem;
+  /* Clear the Dynamic Island — but only by however much of it is still
+     above us. `--rc-offset` is how far the visual viewport has already been
+     pushed down; past the inset there is nothing left to clear. */
+  padding: calc(max(0px, env(safe-area-inset-top, 0px) - var(--rc-offset, 0px)) + 0.7rem)
+    0.9rem 0.4rem;
 }
 .rc__x {
   flex: 0 0 auto;

@@ -15,11 +15,41 @@ vi.mock('@/hooks/useMediaQuery', () => ({
   useTouchPrimary: () => true,
   useMediaQuery: () => false,
 }))
-vi.mock('@/hooks/useViewportHeight', () => ({ useViewportHeight: () => null }))
-vi.mock('@/hooks/useKeyboard', () => ({ useKeyboardOpen: () => false, useKeyboardInset: () => 0 }))
 
 const examen = PRACTICES.find((p) => p.name === 'The Daily Examen')!
 const LABELS = examen.prompts.map((p) => p.label)
+
+/**
+ * jsdom has no visualViewport, and the whole point is what happens when iOS
+ * moves it, so it is faked here and moved on purpose.
+ */
+function fakeVisualViewport(top: number, height: number) {
+  const listeners = new Map<string, Set<() => void>>()
+  const vv = {
+    offsetTop: top,
+    height,
+    addEventListener(type: string, fn: () => void) {
+      if (!listeners.has(type)) listeners.set(type, new Set())
+      listeners.get(type)!.add(fn)
+    },
+    removeEventListener(type: string, fn: () => void) {
+      listeners.get(type)?.delete(fn)
+    },
+    /** Move it the way the soft keyboard does, and tell everyone. */
+    moveTo(nextTop: number, nextHeight: number) {
+      vv.offsetTop = nextTop
+      vv.height = nextHeight
+      listeners.get('scroll')?.forEach((fn) => fn())
+      listeners.get('resize')?.forEach((fn) => fn())
+    },
+  }
+  Object.defineProperty(window, 'visualViewport', {
+    value: vv,
+    configurable: true,
+    writable: true,
+  })
+  return vv
+}
 
 /** React tracks its own value on inputs, so a plain assignment is ignored. */
 function type(el: HTMLTextAreaElement, value: string) {
@@ -137,6 +167,27 @@ describe('RitualComposer', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     })
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('follows the visual viewport instead of the layout viewport', () => {
+    /*
+     * A `position: fixed` overlay is anchored to the LAYOUT viewport. When iOS
+     * opens the keyboard it scrolls the page to keep the focused field in view,
+     * and the overlay then sits `offsetTop` pixels too high: its masthead slides
+     * up under the Dynamic Island and its footer stops the same distance short
+     * of the keyboard. One cause, both symptoms — which is how it was found.
+     */
+    const vv = fakeVisualViewport(0, 800)
+    render()
+    const el = () => document.querySelector<HTMLElement>('.ritual-composer')!
+    expect(el().style.top).toBe('0px')
+    expect(el().style.height).toBe('800px')
+
+    act(() => vv.moveTo(141, 600))
+    expect(el().style.top).toBe('141px')
+    expect(el().style.height).toBe('600px')
+    // And the masthead stops padding for an island it is now well below.
+    expect(el().style.getPropertyValue('--rc-offset')).toBe('141px')
   })
 
   it('opens on the first movement still waiting', () => {

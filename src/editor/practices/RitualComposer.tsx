@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useViewportHeight } from '@/hooks/useViewportHeight'
-import { useKeyboardOpen } from '@/hooks/useKeyboard'
+import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useTouchPrimary } from '@/hooks/useMediaQuery'
 import { PRACTICE_BY_NAME } from './practicesData'
 import {
@@ -74,8 +73,12 @@ export function RitualComposer({
   const trackRef = useRef<HTMLDivElement>(null)
   const paneRefs = useRef<(HTMLTextAreaElement | null)[]>([])
   const touch = useTouchPrimary()
-  const vh = useViewportHeight()
-  const keyboardOpen = useKeyboardOpen()
+  // Not `inset: 0` plus a height: a fixed overlay is anchored to the layout
+  // viewport, so once iOS scrolls the page to keep the focused field above the
+  // keyboard, the composer rides up under the Dynamic Island and leaves a gap of
+  // exactly the same size above the keyboard. Driving both edges from the
+  // visual viewport keeps it where the writer can see it.
+  const frame = useVisualViewportFrame()
 
   const practice = block ? PRACTICE_BY_NAME.get(block.name) : undefined
   const labels = block?.labels ?? []
@@ -227,7 +230,19 @@ export function RitualComposer({
       role="dialog"
       aria-modal="true"
       aria-label={`${block.name} — movement ${Math.min(i + 1, total)} of ${total}`}
-      style={keyboardOpen && vh ? { height: `${vh}px` } : undefined}
+      style={
+        frame
+          ? ({
+              top: frame.top,
+              height: frame.height,
+              // The masthead pads itself clear of the Dynamic Island — but once
+              // the overlay has been pushed down past it there is nothing left
+              // to clear, and the padding would be dead space at the top of a
+              // screen that has none to spare.
+              '--rc-offset': `${frame.top}px`,
+            } as React.CSSProperties)
+          : undefined
+      }
     >
       <header className="rc__bar">
         <button type="button" className="rc__x" onClick={onClose} aria-label="Leave the ritual">
