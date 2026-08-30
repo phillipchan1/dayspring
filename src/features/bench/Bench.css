@@ -1,0 +1,331 @@
+/* The bench — internal. Plain, dense, table-like: it is an instrument, not a
+   surface, and it should never be mistaken for one. No warmth, no ramps, no
+   gold — those belong to the product, where they mean something. */
+
+.bench-scrim {
+  z-index: 60; /* above the settings modal it opens from */
+}
+
+.bench {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(40rem, 96vw);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem 1.25rem 3rem;
+  overflow-y: auto;
+  border-radius: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.bench__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bench__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.bench__subtitle,
+.bench__note {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.bench__empty {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.bench__notice {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 0.06);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bench__notice {
+    background: rgb(255 255 255 / 0.07);
+  }
+}
+
+.bench__notice code {
+  font-size: 0.75rem;
+}
+
+.bench__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bench__h {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.bench__h4 {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.bench__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.bench__table td {
+  padding: 0.15rem 0;
+}
+
+.bench__n {
+  text-align: right;
+  width: 6rem;
+}
+
+.bench__table .bench__note {
+  padding-left: 0.75rem;
+  width: 40%;
+}
+
+.bench__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.25rem 0 0;
+}
+
+.bench__stats div {
+  display: flex;
+  flex-direction: column;
+}
+
+.bench__stats dt {
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+
+.bench__stats dd {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.bench__list {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.bench__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+
+.bench__controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.bench__controls input[type='text'],
+.bench__controls input:not([type]) {
+  min-width: 14rem;
+}
+
+.bench__bars {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bench__bars li {
+  display: grid;
+  grid-template-columns: 6rem 1fr 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.bench__bar-label {
+  opacity: 0.65;
+}
+
+.bench__bar {
+  display: block;
+  block-size: 0.55rem;
+  border-radius: 0.28rem;
+  background: currentColor;
+  opacity: 0.35;
+  min-inline-size: 1px;
+}
+
+/* ── the sandbox (?__preview=noticing) ─────────────────────────────────────
+   A workshop, not a surface. Dense, monospaced where it is showing machine
+   output, and deliberately plain: if this ever looks like the product,
+   someone will mistake a demo for a reading of their life. */
+
+.demo {
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo__head {
+  margin-bottom: 1.25rem;
+}
+
+.demo__title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.demo__subtitle {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.65;
+  max-width: 46rem;
+}
+
+.demo__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .demo__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.demo__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.demo__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.demo__field select {
+  font-size: 0.85rem;
+  padding: 0.35rem;
+}
+
+.demo__body {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(128 128 128 / 0.35);
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+}
+
+.demo__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.demo__controls > label:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 18rem;
+}
+
+.demo__check {
+  display: flex;
+  gap: 0.45rem;
+  align-items: start;
+  line-height: 1.45;
+}
+
+.demo__check em {
+  opacity: 0.6;
+  font-style: normal;
+}
+
+.demo__rows {
+  list-style: none;
+  margin: 0.2rem 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.demo__rows li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.3rem;
+  border-left: 2px solid transparent;
+}
+
+.demo__rows code {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.demo__rows li.is-good {
+  border-left-color: rgb(90 160 110 / 0.8);
+}
+
+.demo__rows li.is-unexpected {
+  border-left-color: rgb(200 140 60 / 0.9);
+}
+
+.demo__rows li.is-missed {
+  border-left-color: rgb(190 90 90 / 0.9);
+  opacity: 0.75;
+}
+
+.demo__quote {
+  flex: 1 1 14rem;
+  min-width: 0;
+  opacity: 0.85;
+}
+
+.demo__join {
+  padding: 0.4rem 0 0.2rem;
+  border-top: 1px solid rgb(128 128 128 / 0.2);
+}

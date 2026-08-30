@@ -9,6 +9,7 @@ import { PRAYER_ENTRIES } from './prayers'
 import { ENTITY_ENTRIES } from './entities'
 import { SUBJECT_ENTRIES } from './subjects'
 import { ORDINARY_ENTRIES } from './ordinary'
+import { JOIN_ENTRIES } from './joins'
 
 const RAW: CorpusEntry[] = [
   ...SCRIPTURE_ENTRIES,
@@ -16,6 +17,7 @@ const RAW: CorpusEntry[] = [
   ...ENTITY_ENTRIES,
   ...SUBJECT_ENTRIES,
   ...ORDINARY_ENTRIES,
+  ...JOIN_ENTRIES,
 ]
 
 /**
@@ -93,6 +95,8 @@ export const DEFECTS: Record<DefectId, { summary: string; entryIds: string[] }> 
     'anchorless-verse-marker': 'The verses actually dwelt on ("vv. 4-5") have no anchor and vanish.',
     'allusion-undetected': 'Quoted scripture with no address. No detector exists.',
     'cue-blind-prayer': 'A genuine prayer whose wording trips none of HARVEST_CUE; never reaches the model.',
+    'book-name-is-a-person':
+      'A book of the Bible that is also this writer\u2019s person. The bare parser reads her name plus a number as a citation; passing `personForms` fixes it.',
   }
   const out = {} as Record<DefectId, { summary: string; entryIds: string[] }>
   for (const [id, summary] of Object.entries(summaries) as [DefectId, string][]) {

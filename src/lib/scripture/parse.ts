@@ -79,6 +79,19 @@ const NOT_NEXT_BOOK = String.raw`(?!\s*(?:${TAIL_ALT})\b)`
 // followed by a headcount, and treating those alike fabricated John 3:16).
 const SEP_V = String.raw`(?:\s*:\s*|\.)`
 
+/**
+ * Characters that, sitting immediately after the last digit, prove the number
+ * was a measurement and not a chapter.
+ *
+ * This exists because of an imported journal whose every entry ends in a weather
+ * footer: "…strengthen my relationship with Esther   57.2°F" parsed as Esther
+ * 57:2, and since Esther has ten chapters the clamp turned it into Esth.10.2 —
+ * a real verse, at a confidence review never questioned. The clamp is right for
+ * "Ps 200:1", which someone at least typed AS a reference. It is not a licence
+ * to round a temperature into scripture.
+ */
+const UNIT_AFTER = /^[°%℉℃]/
+
 // ── admission ────────────────────────────────────────────────────────────────
 // A book name plus a number is not enough to be a reference. "Met Mark 5 minutes
 // late" and "read john 3 today" have the same shape and only one is scripture.
@@ -98,6 +111,13 @@ const SEP_V = String.raw`(?:\s*:\s*|\.)`
  * is written "John", and the lowercase "john 3" that a journal actually contains
  * is unambiguous. Capitalized "John 3" stays admitted because refusing it would
  * cost far more than the rare "Met John 3 times".
+ *
+ * That trade is right for a stranger's journal and wrong for a writer whose wife
+ * is called Esther. `personForms` lets a caller name the forms THIS writer uses
+ * for a person, and those get the ambiguous treatment for that writer only —
+ * the same rule, applied per-archive instead of globally. Measured on a real
+ * 3,048-entry archive, every one of the four book-of-Esther references was a
+ * person's name followed by a number.
  */
 const AMBIGUOUS_FORMS = new Set([
   'is', 'am', 're', 'so', 'no', 'la', 'na', 'ho', 'pm', 'pp', 'mr',
@@ -112,12 +132,12 @@ const AMBIGUOUS_FORMS = new Set([
 function admits(
   raw: string,
   form: string,
-  signal: { hasVerse: boolean; hasChapterKeyword: boolean },
+  signal: { hasVerse: boolean; hasChapterKeyword: boolean; isPersonName: boolean },
 ): boolean {
   const firstLetter = /[a-zA-Z]/.exec(raw)?.[0]
   if (!firstLetter) return false
 
-  if (AMBIGUOUS_FORMS.has(form)) {
+  if (AMBIGUOUS_FORMS.has(form) || signal.isPersonName) {
     // An ordinary English word becomes a book only when there is a verse or an
     // explicit "chapter". Nothing softer holds:
     //   - case is no help — "Is 2 weeks enough?" capitalizes for the sentence
@@ -306,14 +326,28 @@ function osisFor(book: BibleBook, span: Span): string {
   return `${start}-${book.osis}.${span.endChapter ?? span.chapter}.${span.verseEnd}`
 }
 
+export interface ParseOptions {
+  /**
+   * Book-name forms this writer uses for a PERSON. A form listed here needs a
+   * verse or an explicit "chapter" before it counts as scripture — exactly the
+   * `AMBIGUOUS_FORMS` rule, scoped to one archive. Omit it and nothing changes.
+   */
+  personForms?: Iterable<string>
+}
+
 /**
  * Find every scripture reference in `text`. Refs that don't resolve to a canon
  * book are dropped; out-of-range chapters/verses are clamped with lowered
  * confidence (so review can catch them) rather than discarded.
  */
-export function parseReferences(text: string): ParsedRef[] {
+export function parseReferences(text: string, opts?: ParseOptions): ParsedRef[] {
   const out: ParsedRef[] = []
   if (!text) return out
+
+  // Lowercased once; callers pass whatever casing their vocabulary stores.
+  const persons = opts?.personForms
+    ? new Set(Array.from(opts.personForms, (f) => f.toLowerCase().replace(/\s+/g, ' ').trim()))
+    : null
 
   REF_RE.lastIndex = 0
   let m: RegExpExecArray | null
@@ -328,6 +362,10 @@ export function parseReferences(text: string): ParsedRef[] {
     const char_start = m.index
     const char_end = m.index + m[0]!.length
 
+    // A unit hanging off the last digit settles it before any parsing: the
+    // number was measuring something.
+    if (UNIT_AFTER.test(text.slice(char_end, char_end + 1))) continue
+
     const spans = parseBody(firstChapter, body)
 
     // Admission runs on the parsed spans, because "is there a verse" is the
@@ -337,6 +375,7 @@ export function parseReferences(text: string): ParsedRef[] {
       !admits(rawName, canonical, {
         hasVerse: spans.some((s) => s.verseStart != null),
         hasChapterKeyword: m[2] != null,
+        isPersonName: persons?.has(canonical) ?? false,
       })
     ) {
       continue

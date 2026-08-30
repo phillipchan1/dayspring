@@ -34,6 +34,8 @@ import {
   restoreApplePurchases,
 } from '@/lib/appleIap'
 import { displayPrice } from '@/features/paywall/prices'
+import { resolveFlag } from '@/features/flags'
+import { BenchDrawer } from '@/features/bench/BenchDrawer'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppLockSettings } from '@/features/applock/AppLockSettings'
@@ -322,6 +324,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
   // other instance and the two tabs are never mounted at once.
   const { subscription } = useSubscription()
   const [showConcordance, setShowConcordance] = useState(false)
+  const [showBench, setShowBench] = useState(false)
   // Two-step sign-out. Signing out is one tap from being locked out of your own
   // journal until you can get back to an email inbox — too easy to hit by
   // accident in a danger zone whose other button only resets preferences.
@@ -428,6 +431,20 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             </div>
           )}
           {showConcordance && <ConcordanceDrawer onClose={() => setShowConcordance(false)} />}
+          {/* The bench — what the engine is producing, counted against the real
+              archive. Internal: gated behind `bench` (off by default, set via
+              profiles.feature_flags), because it is an instrument for tuning the
+              noticing and not a reading of anyone's journal. It exists because
+              four defects sat in the live data with nowhere to become visible. */}
+          {resolveFlag(featureFlags, 'bench') && (
+            <div className="settings-about__row">
+              <span className="settings-field__label">Bench</span>
+              <button className="btn btn--ghost" onClick={() => setShowBench(true)}>
+                What the engine sees
+              </button>
+            </div>
+          )}
+          {showBench && <BenchDrawer onClose={() => setShowBench(false)} />}
           {isTauri() && featureFlags.includes('beta') && (
             <div className="settings-about__row-toggle">
               <Toggle

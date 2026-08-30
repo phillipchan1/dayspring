@@ -245,6 +245,48 @@ describe('parseReferences — cross-chapter verse spans', () => {
   })
 })
 
+describe('parseReferences — a measurement is not a chapter', () => {
+  // Found in a real 3,048-entry archive: an imported journal whose every entry
+  // ends in a weather footer. All three read as Esther 57:2 / 67:4 / 48:9, and
+  // because Esther has ten chapters the clamp rounded them into Esth.10.2,
+  // Esth.10.4 and Esth.10.9 — real verses, stored at status 'confirmed', which
+  // is a confident lie by another route.
+  it('refuses a number carrying a unit', () => {
+    expect(osis('strengthen my relationship with Esther   57.2°F ☁️')).toEqual([])
+    expect(osis('I will make a home for you and Esther.   67.4°F Clear')).toEqual([])
+    expect(osis('taking on all 5 without Esther.  48.9°F Mostly Clear')).toEqual([])
+    expect(osis('Ran the numbers again — Job 40% of the way there')).toEqual([])
+  })
+
+  it('still clamps a number someone typed AS a reference', () => {
+    // The clamp is not what was wrong; rounding a temperature was.
+    expect(osis('Typed Ps 200:1 into the group chat')).toEqual(['Ps.150.1'])
+  })
+})
+
+describe('parseReferences — book names this writer uses for a person', () => {
+  // The global AMBIGUOUS_FORMS list deliberately omits proper names, which is
+  // right for a stranger and wrong for a writer whose wife is called Esther.
+  // `personForms` applies the same rule to one archive.
+  const hers = { personForms: ['esther'] }
+  const her = (t: string) => parseReferences(t, hers).map((r) => r.osis_ref)
+
+  it('needs a verse before a person’s name counts as scripture', () => {
+    // Was: Esth.2 at confidence 1.0 — the "2" is a numbered-list index.
+    expect(her('your favor 1. To make things right with Esther 2. To understand')).toEqual([])
+    expect(her('dinner with Esther 3 nights running')).toEqual([])
+  })
+
+  it('still reads a real citation of the book', () => {
+    expect(her('Read Esther 4:14 this morning')).toEqual(['Esth.4.14'])
+    expect(her('Esther chapter 4 — for such a time as this')).toEqual(['Esth.4'])
+  })
+
+  it('changes nothing for a writer who supplies no names', () => {
+    expect(osis('dinner with Esther 3 nights running')).toEqual(['Esth.3'])
+  })
+})
+
 describe('parseReferences — reference lists containing a numbered book', () => {
   it('does not eat the next book’s leading digit', () => {
     // Was: ['Ps.62.5', 'Ps.62.2'] — invented a verse AND lost 2 Corinthians.

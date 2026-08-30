@@ -124,7 +124,23 @@ export function scoreScripture(
 
     // Allusions the parser happens to emit are credited above, not counted as
     // spurious explicit hits.
-    const actualExplicit = actual.filter((a) => !allusions.includes(a))
+    //
+    // A reference PINNED in `currentRefs` is likewise not counted. That column
+    // is the corpus's record of what the pipeline does today when it differs
+    // from what it should do, and until now every pinned defect happened to be
+    // a MISS — which is the only reason the explicit precision floor could sit
+    // at a clean 1.0. The first defect that produces a spurious ref instead
+    // would fail the build merely for having been written down, and a corpus
+    // that punishes you for recording a defect is a corpus that stops recording
+    // them. The gap stays visible: `parse.test.ts` asserts the pinned value
+    // exactly, so the lie is frozen rather than forgiven.
+    //
+    // Only the SPURIOUS half of a pin is excused. A pinned ref that is also
+    // expected (Esth.4.14 sits in the same entry as the bogus Esth.2) still has
+    // to be found, or the pin would quietly forgive a miss as well.
+    const explicitSet = new Set(explicit)
+    const spuriousPin = (a: string) => (e.currentRefs ?? []).includes(a) && !explicitSet.has(a)
+    const actualExplicit = actual.filter((a) => !allusions.includes(a) && !spuriousPin(a))
     const { tp: hit, missing, extra } = diffMultiset(explicit, actualExplicit)
     tp += hit
     fn += missing.length

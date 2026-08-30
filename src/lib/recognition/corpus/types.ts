@@ -48,6 +48,19 @@ export type DefectId =
   | 'allusion-undetected'
   /** A genuine prayer whose wording trips none of altar.ts's HARVEST_CUE terms. */
   | 'cue-blind-prayer'
+  /**
+   * A book of the Bible that is also this writer's person. "Esther 2" is her
+   * name and a list index; "Esther 4:14" is scripture, and nothing about the
+   * form tells them apart. `AMBIGUOUS_FORMS` deliberately omits proper names,
+   * which is right for a stranger and wrong for a writer whose wife is called
+   * Esther — measured on a real 3,048-entry archive, every one of its four
+   * book-of-Esther references was her name.
+   *
+   * The FIX exists: `parseReferences(body, { personForms })` applies the
+   * ambiguous rule per-archive. This stays pinned because the bare parser, with
+   * no vocabulary to consult, still gets it wrong.
+   */
+  | 'book-name-is-a-person'
 
 export type Category =
   | 'scripture-baseline'
@@ -71,6 +84,9 @@ export type Category =
   | 'entity-descriptor-bait'
   | 'entity-generic-control'
   | 'subject-stoplist'
+  /** A named subject and a scripture reference on the same page, at a known
+   *  distance. The axis the corpus lacked until 2026-08-29. */
+  | 'join-subject-scripture'
   | 'ordinary'
 
 export interface ExpectedRef {
