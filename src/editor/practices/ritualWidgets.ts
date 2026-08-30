@@ -79,8 +79,6 @@ export class RitualPromptWidget extends WidgetType {
     /** True for the movement directly under the masthead — it needs less air
      *  above it, since the header's own rule already opens the block. */
     readonly first: boolean,
-    /** `live` is the movement being written; `passed` is one already behind you. */
-    readonly tone: 'live' | 'passed',
     /** True while the caret is inside this block. */
     readonly held: boolean,
   ) {
@@ -91,7 +89,6 @@ export class RitualPromptWidget extends WidgetType {
       other.label === this.label &&
       other.question === this.question &&
       other.first === this.first &&
-      other.tone === this.tone &&
       other.held === this.held
     )
   }
@@ -100,7 +97,6 @@ export class RitualPromptWidget extends WidgetType {
     root.className = this.first
       ? 'cm-practice-prompt cm-practice-prompt--first'
       : 'cm-practice-prompt'
-    root.dataset.tone = this.tone
     if (this.held) root.dataset.held = 'true'
     root.setAttribute('contenteditable', 'false')
     root.setAttribute('aria-hidden', 'true')

@@ -22,6 +22,16 @@ interface Props {
   onClose: () => void
   /** Open the practice's "about" sheet. */
   onAbout: (name: string) => void
+  /**
+   * Something is layered over the composer (today: the About sheet).
+   *
+   * While it is, the composer stops answering keys — otherwise Escape closes
+   * both, because both listen on `window` in the capture phase and
+   * `stopPropagation` does not stop a *sibling* listener on the same target and
+   * phase. It also takes its focus back when the cover lifts, so closing About
+   * returns the caret to the movement rather than to the entry underneath.
+   */
+  blocked?: boolean
 }
 
 /**
@@ -49,6 +59,7 @@ export function RitualComposer({
   replaceRange,
   onClose,
   onAbout,
+  blocked = false,
 }: Props) {
   const seed = useRef(readRitual(getDoc(), blockIndex))
   const block = seed.current
@@ -58,6 +69,8 @@ export function RitualComposer({
     const firstEmpty = block.texts.findIndex((t) => t.trim() === '')
     return firstEmpty === -1 ? block.texts.length : firstEmpty
   })
+  const iRef = useRef(i)
+  iRef.current = i
   const trackRef = useRef<HTMLDivElement>(null)
   const paneRefs = useRef<(HTMLTextAreaElement | null)[]>([])
   const touch = useTouchPrimary()
@@ -75,15 +88,27 @@ export function RitualComposer({
   // entry is never more than a moment behind and never stale when you leave.
   const textsRef = useRef(texts)
   textsRef.current = texts
+  // The callbacks come from the parent as fresh closures on every one of its
+  // renders, and JournalScreen re-renders on autosave status, the status
+  // cluster's tick and its own onChange. Depending on them directly made
+  // `commit` a new function each time, which restarted the debounce below —
+  // fast enough re-renders would starve the write entirely — and turned the
+  // unmount effect into an every-render effect. Held in refs, `commit` is
+  // stable for as long as the composer is open, and both effects mean what they
+  // say. A component should not need its caller to memoise.
+  const getDocRef = useRef(getDoc)
+  getDocRef.current = getDoc
+  const replaceRangeRef = useRef(replaceRange)
+  replaceRangeRef.current = replaceRange
   const commit = useCallback(() => {
     if (!block) return
-    const doc = getDoc()
+    const doc = getDocRef.current()
     const range = ritualBlockRange(doc, blockIndex)
     if (!range) return
     const next = composeRitualMarkdown(block.name, block.labels, textsRef.current)
     if (doc.slice(range.from, range.to) === next) return
-    replaceRange(range.from, range.to, next)
-  }, [block, blockIndex, getDoc, replaceRange])
+    replaceRangeRef.current(range.from, range.to, next)
+  }, [block, blockIndex])
 
   useEffect(() => {
     const id = setTimeout(commit, 400)
@@ -102,19 +127,23 @@ export function RitualComposer({
     [CLOSE, commit],
   )
 
-  // Land in the movement being written, with the caret already in it.
+  // Land in the movement being written, with the caret already in it — and land
+  // there again when a sheet that was covering us closes. Keyed on `blocked`
+  // rather than mount, so closing About returns here; later moves take focus
+  // through `go`.
   useEffect(() => {
-    const id = requestAnimationFrame(() => paneRefs.current[i]?.focus())
+    if (blocked) return
+    const id = requestAnimationFrame(() => paneRefs.current[iRef.current]?.focus())
     return () => cancelAnimationFrame(id)
-    // Mount only: later moves focus through `go`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [blocked])
 
   // ── Keys ─────────────────────────────────────────────────────────────────
   // Plain arrows belong to the caret, and ⌘←/⌥← are start-of-line and
   // previous-word, so the shift chord is what is left.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // The sheet over us owns the keyboard while it is open.
+      if (blocked) return
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
@@ -132,7 +161,7 @@ export function RitualComposer({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [go, i, onClose])
+  }, [blocked, go, i, onClose])
 
   // ── The gesture ──────────────────────────────────────────────────────────
   const drag = useRef<{ x: number; y: number; on: boolean } | null>(null)

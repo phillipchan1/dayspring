@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  clampReveal,
   currentMovementIndex,
-  initialReveal,
   isRitualComplete,
-  lastAnsweredIndex,
   parseRitualBlocks,
-  revealFloor,
   ritualBlockAtLine,
 } from './ritualPacing'
 
@@ -112,56 +108,25 @@ describe('parseRitualBlocks', () => {
   })
 })
 
-describe('how far a ritual stands open', () => {
-  it('opens a freshly begun ritual at its first movement only', () => {
-    const [block] = parseRitualBlocks(examen())
-    expect(initialReveal(block!)).toBe(1)
-    expect(lastAnsweredIndex(block!)).toBe(-1)
-  })
-
-  it('does not open the next movement just because you started this one', () => {
-    // The whole point of the pacing: writing in movement 1 must not fling
-    // movement 2 open. Only an explicit advance raises the stored count.
-    const [block] = parseRitualBlocks(examen(['The long walk.', null, null, null]))
-    expect(revealFloor(block!)).toBe(1)
-    expect(clampReveal(block!, 1)).toBe(1)
-  })
-
-  it('reopens a half-written ritual where it was left', () => {
-    const [block] = parseRitualBlocks(examen(['Bread.', 'Distant, mostly.', null, null]))
-    expect(initialReveal(block!)).toBe(3)
-    expect(currentMovementIndex(block!, 3)).toBe(2)
-  })
-
-  it('opens a fully written ritual all the way', () => {
-    const [block] = parseRitualBlocks(examen(['a', 'b', 'c', 'd']))
-    expect(isRitualComplete(block!)).toBe(true)
-    expect(initialReveal(block!)).toBe(4)
-    expect(currentMovementIndex(block!, 4)).toBe(3)
-  })
-
-  it('never closes a movement that holds words', () => {
-    // A stale count (an entry arriving from another device, an undone advance)
-    // must not hide writing that already exists.
-    const [block] = parseRitualBlocks(examen(['a', 'b', 'c', null]))
-    expect(revealFloor(block!)).toBe(3)
-    expect(clampReveal(block!, 1)).toBe(3)
-  })
-
-  it('never opens past the last movement', () => {
-    const [block] = parseRitualBlocks(examen())
-    expect(clampReveal(block!, 99)).toBe(4)
-  })
-
-  it('holds the writer in the first unanswered movement', () => {
+describe('where the writer is standing', () => {
+  it('holds them in the first movement still unanswered', () => {
     const [block] = parseRitualBlocks(examen(['Bread.', null, null, null]))
-    expect(currentMovementIndex(block!, 2)).toBe(1)
+    expect(currentMovementIndex(block!)).toBe(1)
   })
 
   it('treats a skipped movement as the one still waiting', () => {
-    // Advanced past Gratitude without writing in it, then wrote in Awareness.
     const [block] = parseRitualBlocks(examen([null, 'Distant.', null, null]))
-    expect(revealFloor(block!)).toBe(2)
-    expect(currentMovementIndex(block!, 2)).toBe(0)
+    expect(currentMovementIndex(block!)).toBe(0)
+  })
+
+  it('rests on the last movement once the practice is written through', () => {
+    const [block] = parseRitualBlocks(examen(['a', 'b', 'c', 'd']))
+    expect(isRitualComplete(block!)).toBe(true)
+    expect(currentMovementIndex(block!)).toBe(3)
+  })
+
+  it('is not complete while any movement is empty', () => {
+    const [block] = parseRitualBlocks(examen(['a', 'b', 'c', null]))
+    expect(isRitualComplete(block!)).toBe(false)
   })
 })

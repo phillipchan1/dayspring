@@ -2084,6 +2084,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           replaceRange={(from, to, text) => editorRef.current?.replaceRange(from, to, text)}
           onAbout={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
           onClose={() => setComposerIndex(null)}
+          blocked={aboutPractice !== null}
         />
       )}
       {aboutPractice && (
@@ -2091,7 +2092,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           practice={aboutPractice}
           onClose={() => {
             setAboutPractice(null)
-            editorRef.current?.focus()
+            // Only the entry may take focus back. When the composer is open it
+            // is covering the editor, and focusing CodeMirror underneath would
+            // raise the soft keyboard against the wrong surface and leave the
+            // caret in the entry instead of the movement. The composer takes
+            // its own focus back when `blocked` lifts.
+            if (composerIndex === null) editorRef.current?.focus()
           }}
         />
       )}

@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { PRACTICES } from './practices/practicesData'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer } from './practices/RitualComposer'
+import { PracticeAboutSheet } from './practices/PracticeAboutSheet'
+import { PRACTICE_BY_NAME, type Practice } from './practices/practicesData'
 import { EDITOR_FONT_VARS, type EditorFont } from '@/lib/settings'
 import {
   buildPracticeBlock,
@@ -53,6 +55,9 @@ function isThemeId(value: string | null): value is ThemeId {
 /** Holds the document the composer reads and writes, the way JournalScreen does. */
 function ComposerHarness({ seedDoc }: { seedDoc: string }) {
   const [doc, setDoc] = useState(seedDoc)
+  // The About sheet is here so the seam between it and the composer is
+  // reachable: it is where the focus and Escape bugs lived.
+  const [about, setAbout] = useState<Practice | null>(null)
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <RitualComposer
@@ -61,9 +66,11 @@ function ComposerHarness({ seedDoc }: { seedDoc: string }) {
         replaceRange={(from, to, text) =>
           setDoc((d) => d.slice(0, from) + text + d.slice(to))
         }
-        onAbout={() => {}}
+        onAbout={(name) => setAbout(PRACTICE_BY_NAME.get(name) ?? null)}
         onClose={() => {}}
+        blocked={about !== null}
       />
+      {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
       {/* What the entry now holds — proof the composer is a surface, not a store. */}
       <pre
         data-testid="doc"

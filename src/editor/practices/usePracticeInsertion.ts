@@ -188,7 +188,7 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     // The first movement still waiting — the only one that gets a placeholder,
     // so the app's example phrasing never sits on several of the writer's lines
     // at once.
-    const waiting = currentMovementIndex(block, block.movements.length)
+    const waiting = currentMovementIndex(block)
     const held = liveBlock === block
     const practice = PRACTICE_BY_NAME.get(block.name)
 
@@ -221,7 +221,6 @@ function buildDecorations(state: EditorState): PracticeDecorations {
             movement.label,
             prompt?.question ?? '',
             movement.index === 0,
-            'live',
             held,
           ),
           block: true,
@@ -338,7 +337,7 @@ const practiceTheme = EditorView.theme({
   // between those lines, so the rule runs unbroken from masthead to colophon.
   // Without it a ritual is questions floating in the entry with nothing to say
   // they belong together.
-  '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-advance, .cm-ritual-colophon, .cm-ritual-closed':
+  '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
     {
       borderLeft: '1px solid color-mix(in srgb, var(--text-faint) 30%, transparent)',
       paddingLeft: '1.15em',
@@ -346,7 +345,7 @@ const practiceTheme = EditorView.theme({
     },
   // Standing inside the practice lights its spine and lays down the faintest
   // ground. Stepping out lets go of both.
-  '.cm-ritual-body--held, .cm-practice-header[data-held], .cm-practice-prompt[data-held], .cm-ritual-advance[data-held], .cm-ritual-colophon[data-held], .cm-ritual-closed[data-held]':
+  '.cm-ritual-body--held, .cm-practice-header[data-held], .cm-practice-prompt[data-held], .cm-ritual-colophon[data-held]':
     {
       borderLeftColor: 'color-mix(in srgb, var(--accent) 45%, transparent)',
       backgroundColor: 'color-mix(in srgb, var(--accent) 3.5%, transparent)',
@@ -358,20 +357,13 @@ const practiceTheme = EditorView.theme({
   // the element immediately after one of these widgets is never a writing line.
   // Padding is zeroed too — the first line of an entry carries the title's
   // bottom padding, which `height: 0` alone would leave behind.
-  '.cm-line.cm-ritual-tokenline, .cm-line.cm-ritual-closedline, .cm-practice-header + .cm-line, .cm-practice-prompt + .cm-line, .cm-ritual-advance + .cm-line, .cm-ritual-closed + .cm-line':
+  '.cm-line.cm-ritual-tokenline, .cm-practice-header + .cm-line, .cm-practice-prompt + .cm-line':
     {
       height: '0',
       padding: '0',
       border: 'none',
       overflow: 'hidden',
     },
-  // A movement not yet opened: present in the document, absent from the page.
-  '.cm-ritual-closed': {
-    height: '0',
-    padding: '0',
-    border: 'none',
-    overflow: 'hidden',
-  },
   '.cm-practice-prompt': {
     display: 'block',
     // Spacing as PADDING, not margin: CodeMirror measures a block widget's
@@ -392,12 +384,6 @@ const practiceTheme = EditorView.theme({
   },
   // A movement already passed, while the writer is still inside the practice.
   // Its words stay at full strength — this quiets the app's voice, never theirs.
-  '.cm-practice-prompt[data-tone="passed"]': {
-    opacity: '0.4',
-  },
-  '.cm-practice-prompt[data-tone="passed"]:hover': {
-    opacity: '1',
-  },
   // Small letter-spaced cap label — the same motif, and now the same colour, as
   // the scripture/prayer block labels, so the whole surface reads as one type
   // system. It names the movement; it is not the movement.
@@ -432,42 +418,6 @@ const practiceTheme = EditorView.theme({
   '.cm-practice-placeholder': {
     color: 'var(--text-faint, #c4b5a8)',
     pointerEvents: 'none',
-  },
-  // ── The threshold between movements ────────────────────────────────────
-  '.cm-ritual-advance': {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.9em',
-    padding: '1.5em 0 0.4em 1.15em',
-    userSelect: 'none',
-  },
-  '.cm-ritual-advance__dots': {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.4em',
-  },
-  '.cm-ritual-dot': {
-    display: 'block',
-    width: '0.32em',
-    height: '0.32em',
-    borderRadius: '50%',
-    border: '1px solid color-mix(in srgb, var(--text-faint) 70%, transparent)',
-  },
-  '.cm-ritual-advance__next': {
-    fontFamily: 'var(--font-serif)',
-    fontSize: '0.72em',
-    fontWeight: '500',
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    color: 'var(--text-faint, #c4b5a8)',
-    background: 'none',
-    border: 'none',
-    padding: '0.2em 0',
-    cursor: 'pointer',
-    transition: 'color 200ms ease',
-  },
-  '.cm-ritual-advance__next:hover, .cm-ritual-advance[data-held] .cm-ritual-advance__next': {
-    color: 'var(--accent, #c8853a)',
   },
   // ── The dismissal ──────────────────────────────────────────────────────
   '.cm-ritual-colophon': {
@@ -540,19 +490,9 @@ const practiceTheme = EditorView.theme({
   // document exactly as it would to one in a toolbar.
   '@media (hover: none)': {
     '.cm-practice-action': { opacity: '0.55' },
-    '.cm-ritual-advance': {
-      minHeight: '48px',
-      paddingTop: '0.6em',
-    },
-    '.cm-ritual-advance__next': {
-      padding: '0.9em 0',
-      fontSize: '0.75em',
-    },
-    // No hover to reveal them with, so a passed movement stays legible.
-    '.cm-practice-prompt[data-tone="passed"]': { opacity: '0.5' },
   },
   '@media (prefers-reduced-motion: reduce)': {
-    '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-advance, .cm-ritual-colophon':
+    '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
       {
         transition: 'none',
       },
