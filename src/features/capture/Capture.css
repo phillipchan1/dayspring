@@ -757,10 +757,22 @@
   min-width: 2.4rem;
   padding: 0.45rem 0.35rem;
 }
-/* A quiet gap where inline marks end and line styles begin. */
+/* A quiet gap where inline marks end and line styles begin — and, on the capture
+   row, where the inserts end and the one heavier act begins. */
 .command-toolbar__btn--sep {
   margin-left: 0.5rem;
   box-shadow: -0.45rem 0 0 -0.4rem var(--border-subtle);
+}
+/* The door into a ritual wears the same accent as the door on the blank page
+   (.journal-topbar__ritual) and the block's own masthead, so the three read as
+   one thing seen in three places. Tinted, not filled: it sits in a row of
+   equals and only needs to be recognisable, not loud. */
+.command-toolbar__btn--ritual {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
+  color: var(--accent);
+}
+.command-toolbar__btn--ritual .spiritual-icon {
+  color: var(--accent);
 }
 .command-toolbar__btn--mode {
   border-color: transparent;

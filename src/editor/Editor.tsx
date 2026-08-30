@@ -12,6 +12,7 @@ import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
+import { ritualHoldExtension } from './ritualHold'
 import { firstLineTitleExtension } from './firstLineTitle'
 import { bodyLinePlaceholder } from './bodyLinePlaceholder'
 import {
@@ -550,8 +551,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           marksField,
           taskListExtension(),
           horizontalRuleExtension(),
-          // Renders /practice prompts as display-only decorations over hidden tokens.
+          // Renders a ritual's prompts as display-only decorations over hidden
+          // tokens, one movement at a time.
           practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
+          // Lets the rest of the entry recede while a ritual has the page.
+          // Must follow the extension above — it reads its field.
+          ritualHoldExtension,
           attachmentBlockNormalizeExtension(),
           attachmentImageExtension((target, point, anchor) =>
             onImageMenuRef.current?.(target, point, anchor),

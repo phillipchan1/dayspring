@@ -302,6 +302,21 @@
   transform: translateX(3px);
 }
 
+/* Why the filter is where it is. One line, never a claim about the writer —
+   only about where they opened this from. */
+.practice-library__because {
+  max-width: 46ch;
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--pl-amber) 45%, transparent);
+  font-family: var(--pl-body);
+  font-size: 13px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-muted);
+  line-height: 1.5;
+}
+
 /* ── Threshold view ────────────────────────────────────────────────────── */
 
 .practice-threshold {
@@ -445,6 +460,21 @@
   line-height: 1.45;
 }
 
+/* Where the ritual will land, said before you cross in. The insertion rules
+   have always replaced an untouched ritual and appended below a written one;
+   they were just silent about it, so a second ritual looked like a no-op. */
+.practice-threshold__landing {
+  max-width: 34ch;
+  margin: 0 auto 22px;
+  padding: 9px 12px;
+  border: 1px dashed color-mix(in srgb, var(--pl-amber) 38%, transparent);
+  font-family: var(--pl-body);
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--pl-muted);
+  line-height: 1.45;
+}
+
 .practice-threshold__skip {
   display: flex;
   align-items: center;
@@ -527,6 +557,49 @@
   .practice-library__grid {
     grid-template-columns: 1fr;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  }
+
+  /* On the shortest phones the threshold ran past the bottom edge: at 375×667
+     the longest ritual (Ignatian Discernment — four movements, long questions)
+     pushed "Begin writing" off-screen, and several others left it within a few
+     pixels of it. The pane stays centred, which is right when the content fits;
+     the space comes back out of padding a phone cannot afford. */
+  .practice-threshold {
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 0
+      calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+  .practice-threshold__inner {
+    padding: 20px;
+  }
+  .practice-threshold__function {
+    margin-bottom: 14px;
+  }
+  .practice-threshold__origin {
+    margin-bottom: 20px;
+  }
+  .practice-threshold__divider {
+    margin-bottom: 20px;
+  }
+  .practice-threshold__intention {
+    margin-bottom: 22px;
+  }
+  .practice-threshold__movements-label {
+    margin-bottom: 12px;
+  }
+  .practice-threshold__movements {
+    margin-bottom: 24px;
+  }
+  .practice-threshold__movement {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .practice-threshold__skip {
+    margin-top: 18px;
+  }
+  /* Clear the Dynamic Island, like the library's own header does. */
+  .practice-threshold__back {
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    left: 12px;
   }
 }
 
