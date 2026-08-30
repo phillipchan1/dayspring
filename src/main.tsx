@@ -4,13 +4,32 @@ import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/400-italic.css'
 import '@fontsource/jetbrains-mono/600.css'
 import '@fontsource/jetbrains-mono/700.css'
-// Reflections typography: Fraunces (display) + Newsreader (the writer's words).
+// Reflections typography: Fraunces (display) + Newsreader (the app's own voice).
+//
+// Every weight and style below is one the stylesheets actually ask for. They
+// were not all here: the Rituals library and the About sheet are written almost
+// entirely in 300 and 300-italic, and Fraunces had no italic at all — so the
+// threshold's big italic ritual name was a synthesised slant of the roman, and
+// every 300 rule was silently rounded to the nearest weight that happened to be
+// loaded. Missing a weight does not fail loudly; it just quietly renders
+// something you did not design.
+import '@fontsource/fraunces/300.css'
+import '@fontsource/fraunces/300-italic.css'
+import '@fontsource/fraunces/400.css'
 import '@fontsource/fraunces/500.css'
 import '@fontsource/fraunces/600.css'
+import '@fontsource/newsreader/300.css'
+import '@fontsource/newsreader/300-italic.css'
 import '@fontsource/newsreader/400.css'
 import '@fontsource/newsreader/400-italic.css'
+import '@fontsource/newsreader/500.css'
 import '@fontsource/newsreader/600.css'
 // Writing-font picker faces (self-hosted, no CDN): typewriter + readable.
+//
+// These two ship 400 and 700 ONLY — no 300, no 500, no 600. Anything set in
+// `--font-editor` therefore has to stay at 400 (or 700 for bold), because the
+// writer can point that variable at either of them. The app's own voice uses
+// `--font-serif` instead, where the full range above is available.
 import '@fontsource/ia-writer-duo/400.css'
 import '@fontsource/ia-writer-duo/400-italic.css'
 import '@fontsource/ia-writer-duo/700.css'

@@ -63,6 +63,8 @@ import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
+import { RitualComposer } from '@/editor/practices/RitualComposer'
+import { ritualIndexContaining } from '@/editor/practices/ritualDocument'
 import {
   describeRitualLanding,
   usePracticeInsertion,
@@ -350,6 +352,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     midEntry: boolean
     landing: string | null
   } | null>(null)
+  /** Which ritual block the composer is open on, or null when it is closed. */
+  const [composerIndex, setComposerIndex] = useState<number | null>(null)
 
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
   const focusOverlaysOpen =
@@ -724,7 +728,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])
 
-  /** Insert a practice's structured prompt block, then close the library. */
+  /** Write a ritual's scaffolding into the entry, then open the composer on it. */
   const beginPractice = usePracticeInsertion(editorRef)
   const handleBeginPractice = useCallback(
     (practice: Practice) => {
@@ -736,10 +740,24 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // hold the just-removed "/ritual" trigger text — stale positions would
       // insert the ritual in the wrong place and orphan the slash.
       const doc = editorRef.current?.getDoc() ?? contentRef.current
-      beginPractice(practice, cap.insertAt, doc)
+      const caret = beginPractice(practice, cap.insertAt, doc)
+      // The block has to be found in the document *after* the insert, because
+      // that is the only place its real position exists.
+      const after = editorRef.current?.getDoc() ?? ''
+      const index = ritualIndexContaining(after, caret)
+      if (index >= 0) setComposerIndex(index)
     },
     [beginPractice],
   )
+
+  /** Reopen the composer on a ritual already in the entry (the "continue" action). */
+  const handleContinueRitual = useCallback((pos: number) => {
+    const doc = editorRef.current?.getDoc() ?? ''
+    const index = ritualIndexContaining(doc, pos)
+    if (index < 0) return
+    editorRef.current?.blur()
+    setComposerIndex(index)
+  }, [])
 
   /** Remove an edited block from the entry and delete its Altar row. */
   const handleRemoveBlock = useCallback(() => {
@@ -1808,6 +1826,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               onScripturePaste={handleScripturePaste}
               onImageMenu={handleImageMenu}
               onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
+              onContinueRitual={handleContinueRitual}
               onSlashPaletteChange={setSlashPaletteOpen}
             />
           ) : null}
@@ -2056,6 +2075,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onToggleSkipPreview={(v) => updateSettings({ skipRitualPreview: v })}
           midEntry={ritualOpening?.midEntry ?? false}
           landing={ritualOpening?.landing ?? null}
+        />
+      )}
+      {composerIndex !== null && (
+        <RitualComposer
+          blockIndex={composerIndex}
+          getDoc={() => editorRef.current?.getDoc() ?? ''}
+          replaceRange={(from, to, text) => editorRef.current?.replaceRange(from, to, text)}
+          onAbout={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
+          onClose={() => setComposerIndex(null)}
         />
       )}
       {aboutPractice && (

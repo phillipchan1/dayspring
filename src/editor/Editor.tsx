@@ -179,6 +179,8 @@ interface EditorProps {
   ) => void
   /** Called when the user opens a practice's "about" sheet (by practice name). */
   onAboutPractice?: (name: string) => void
+  /** Called when the user picks a part-written ritual back up, at its doc position. */
+  onContinueRitual?: (pos: number) => void
   /**
    * Passages already marked in this entry. Drawn as a quiet ground.
    */
@@ -221,6 +223,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onScripturePaste,
     onImageMenu,
     onAboutPractice,
+    onContinueRitual,
     onSlashPaletteChange,
     skipAutofocusRef,
     marks,
@@ -241,6 +244,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const onScripturePasteRef = useRef(onScripturePaste)
   const onImageMenuRef = useRef(onImageMenu)
   const onAboutPracticeRef = useRef(onAboutPractice)
+  const onContinueRitualRef = useRef(onContinueRitual)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
   const titleStylingRef = useRef(titleStyling)
@@ -283,6 +287,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   onScripturePasteRef.current = onScripturePaste
   onImageMenuRef.current = onImageMenu
   onAboutPracticeRef.current = onAboutPractice
+  onContinueRitualRef.current = onContinueRitual
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
   titleStylingRef.current = titleStyling
@@ -339,7 +344,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       if (!view) return
       if (pos != null) {
         const clamped = Math.max(0, Math.min(pos, view.state.doc.length))
-        view.dispatch({ selection: { anchor: clamped, head: clamped } })
+        // Scroll to it, don't just select it. Without this the caret lands
+        // wherever it lands and the soft keyboard then rises over it — which is
+        // exactly how beginning a ritual on a phone put the writing line
+        // off-screen before the writer had typed anything.
+        view.dispatch({
+          selection: { anchor: clamped, head: clamped },
+          scrollIntoView: true,
+        })
       }
       view.focus()
     },
@@ -553,7 +565,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           horizontalRuleExtension(),
           // Renders a ritual's prompts as display-only decorations over hidden
           // tokens, one movement at a time.
-          practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
+          practicePromptExtension(
+            (name) => onAboutPracticeRef.current?.(name),
+            (pos) => onContinueRitualRef.current?.(pos),
+          ),
           // Lets the rest of the entry recede while a ritual has the page.
           // Must follow the extension above — it reads its field.
           ritualHoldExtension,

@@ -1,0 +1,255 @@
+/*
+ * The ritual composer — a surface that owns the screen.
+ *
+ * Type here follows one rule, and it is the rule the in-entry block was getting
+ * wrong: everything the app says is set in `--font-serif`, and only what the
+ * writer types uses `--font-editor`. The writer can point that variable at iA
+ * Writer Duo or Atkinson Hyperlegible, which ship 400 and 700 and nothing else,
+ * so a question at 300 italic simply became whatever was nearest — and at the
+ * default 24px a mono face turned a two-line question into three and pushed the
+ * writing line off the screen. The given voice keeping its own face and its own
+ * fixed size fixes both.
+ */
+.ritual-composer {
+  --rc-body: var(--font-serif, 'Newsreader', Georgia, serif);
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--rc-body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  animation: rc-in 0.28s ease;
+}
+@keyframes rc-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+.rc__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.9rem 0.4rem;
+}
+.rc__x {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.rc__name {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.rc__about {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-family: var(--rc-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.rc__x:hover, .rc__about:hover { color: var(--accent); }
+.rc__x:focus-visible, .rc__about:focus-visible,
+.rc__next:focus-visible, .rc__back:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* The spine is orientation, not something you need mid-sentence: it yields
+   while there are words, on the same principle as the question. */
+.rc__spine {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.34rem;
+  justify-content: center;
+  padding: 0 0 0.7rem;
+  overflow: hidden;
+  transition: height 0.28s ease, opacity 0.28s ease, padding 0.28s ease;
+}
+.rc__spine[data-yield='true'] { height: 0; padding: 0; opacity: 0; }
+.rc__pip {
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border-subtle);
+  transition: background 0.25s ease;
+}
+.rc__pip[data-done='true'] { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.rc__pip[data-on='true'] { background: var(--accent); }
+
+/* ── The filmstrip ────────────────────────────────────────────────────── */
+.rc__track {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  will-change: transform;
+  transition: transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
+  touch-action: pan-y;
+}
+.rc__track[data-drag='true'] { transition: none; }
+.rc__pane {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* A little air at the top that survives the spine folding away, so the label
+     never ends up tucked under the masthead mid-sentence. */
+  padding: 0.35rem 1.15rem 0;
+}
+.rc__inner {
+  flex: 1;
+  min-height: 0;
+  width: min(34rem, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.rc__label {
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.4rem;
+}
+.rc__q {
+  flex: 0 0 auto;
+  margin: 0 0 0.8rem;
+  font-family: var(--rc-body);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+  transition: font-size 0.28s ease, opacity 0.28s ease, margin 0.28s ease;
+}
+.rc__q[data-small='true'] {
+  font-size: 0.78rem;
+  opacity: 0.62;
+  margin-bottom: 0.55rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The writer's words: their face, their size, and the loudest thing here. */
+.rc__write {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  background: none;
+  resize: none;
+  padding: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-editor);
+  font-size: var(--editor-font-size, 20px);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.rc__write::placeholder { color: var(--text-faint); }
+
+/* ── The close ────────────────────────────────────────────────────────── */
+.rc__close {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+.rc__close-name {
+  margin: 0;
+  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-size: 1.7rem;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--text-bright);
+}
+.rc__close-origin {
+  margin: 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+/* ── Foot ─────────────────────────────────────────────────────────────── */
+.rc__foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.4rem 0.9rem calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+  border-top: 1px solid var(--border-subtle);
+}
+.rc__back {
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-family: var(--rc-body);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.rc__back:disabled { opacity: 0; pointer-events: none; }
+.rc__next {
+  min-height: 44px;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-family: var(--rc-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.rc__next:hover { background: var(--accent-soft); }
+
+/* Desktop has no keyboard to yield to, so the question keeps its full size and
+   the movement sits in a reading column in the middle of the screen. */
+@media (min-width: 768px) {
+  .rc__bar { padding-top: 1.1rem; }
+  .rc__pane { justify-content: center; }
+  .rc__inner { flex: 0 0 auto; }
+  .rc__q { font-size: 1.25rem; margin-bottom: 1rem; }
+  .rc__write { flex: 0 0 auto; height: 9.5rem; }
+  .rc__foot { padding: 0.6rem 1.6rem 0.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ritual-composer, .rc__track, .rc__q, .rc__spine { animation: none; transition: none; }
+}
