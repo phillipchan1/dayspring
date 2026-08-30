@@ -14,6 +14,7 @@ import {
   type Range,
 } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
+import { PRACTICE_PLACEHOLDER_CLASS, placeholderLineDeco } from '../linePlaceholder'
 import { PRACTICE_BY_NAME, type Practice } from './practicesData'
 import {
   PRACTICE_NAME_RE,
@@ -34,7 +35,6 @@ import {
   RitualClosedWidget,
   RitualColophonWidget,
   RitualHeaderWidget,
-  RitualPlaceholderWidget,
   RitualPromptWidget,
 } from './ritualWidgets'
 
@@ -349,10 +349,7 @@ function buildDecorations(state: EditorState): PracticeDecorations {
       // several of the writer's lines at once.
       if (i === current && !complete && prompt?.placeholder) {
         ranges.push(
-          Decoration.widget({
-            widget: new RitualPlaceholderWidget(prompt.placeholder),
-            side: 1,
-          }).range(answer.from),
+          placeholderLineDeco(prompt.placeholder, PRACTICE_PLACEHOLDER_CLASS).range(answer.from),
         )
       }
     }
@@ -527,13 +524,9 @@ const practiceTheme = EditorView.theme({
     color: 'var(--text-dim, #4a3f35)',
     fontOpticalSizing: 'auto',
   },
-  // Roman, not italic: this one sits on the writer's own line, so it takes the
-  // writer's typography and only ghosts it. Italic here made an unanswered
-  // movement read as a second question stacked under the first.
-  '.cm-practice-placeholder': {
-    color: 'var(--text-faint, #c4b5a8)',
-    pointerEvents: 'none',
-  },
+  // Unanswered-line hint is a line class + ::before on editorTheme
+  // (`.cm-practice-placeholder`) so WebKit can still autocorrect the first word.
+
   // ── The threshold between movements ────────────────────────────────────
   '.cm-ritual-advance': {
     display: 'flex',
