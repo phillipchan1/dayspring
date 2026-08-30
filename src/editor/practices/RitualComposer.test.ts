@@ -51,6 +51,23 @@ function fakeVisualViewport(top: number, height: number) {
   return vv
 }
 
+/** jsdom has no constructible TouchEvent; only these fields are read. */
+function touchEvent(type: string, x: number, y: number): Event {
+  const e = new Event(type, { bubbles: true, cancelable: true }) as Event & {
+    touches: unknown[]
+    changedTouches: unknown[]
+  }
+  const t = { identifier: 1, clientX: x, clientY: y }
+  e.touches = type === 'touchend' ? [] : [t]
+  e.changedTouches = [t]
+  return e
+}
+
+/** Returns true when a listener called preventDefault — the claim we care about. */
+function dispatchMove(x: number, y: number): boolean {
+  return !window.dispatchEvent(touchEvent('touchmove', x, y))
+}
+
 /** React tracks its own value on inputs, so a plain assignment is ignored. */
 function type(el: HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(
@@ -188,6 +205,68 @@ describe('RitualComposer', () => {
     expect(el().style.height).toBe('600px')
     // And the masthead stops padding for an island it is now well below.
     expect(el().style.getPropertyValue('--rc-offset')).toBe('141px')
+  })
+
+  describe('the swipe', () => {
+    const track = () => document.querySelector('.rc__track')!
+
+    it('claims a horizontal drag, so the browser cannot pan instead', () => {
+      /*
+       * React registers `touchmove` passively at its root, so a `preventDefault`
+       * inside an `onTouchMove` prop is a no-op — see the note above `follow()`
+       * in `useSwipeToDismiss.ts`. The composer had exactly that, and the cost
+       * was not a dead swipe: WebKit took the drag as a pan, and with the
+       * keyboard up the only thing left to pan is the visual viewport, so the
+       * whole overlay slid up under the Dynamic Island and left a gap of the
+       * same size above the keyboard.
+       */
+      render()
+      act(() => {
+        track().dispatchEvent(touchEvent('touchstart', 300, 300))
+      })
+      let claimed = false
+      act(() => {
+        claimed = dispatchMove(260, 302)
+      })
+      expect(claimed).toBe(true)
+    })
+
+    it('leaves a vertical drag to the browser, so a long answer still scrolls', () => {
+      render()
+      act(() => {
+        track().dispatchEvent(touchEvent('touchstart', 300, 300))
+      })
+      let claimed = true
+      act(() => {
+        claimed = dispatchMove(302, 380)
+      })
+      expect(claimed).toBe(false)
+    })
+
+    it('moves to the next movement when the drag carries far enough', () => {
+      render()
+      act(() => {
+        track().dispatchEvent(touchEvent('touchstart', 300, 300))
+        dispatchMove(200, 302)
+        dispatchMove(120, 304)
+        window.dispatchEvent(touchEvent('touchend', 120, 304))
+      })
+      expect(
+        document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
+      ).toBe('Awareness')
+    })
+
+    it('snaps back when the drag is only a wobble', () => {
+      render()
+      act(() => {
+        track().dispatchEvent(touchEvent('touchstart', 300, 300))
+        dispatchMove(280, 302)
+        window.dispatchEvent(touchEvent('touchend', 280, 302))
+      })
+      expect(
+        document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
+      ).toBe('Gratitude')
+    })
   })
 
   it('opens on the first movement still waiting', () => {
