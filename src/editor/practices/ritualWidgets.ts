@@ -120,26 +120,6 @@ export class RitualPromptWidget extends WidgetType {
   }
 }
 
-/** Example phrasing on the live movement's empty line — gone once writing begins. */
-export class RitualPlaceholderWidget extends WidgetType {
-  constructor(readonly text: string) {
-    super()
-  }
-  eq(other: RitualPlaceholderWidget): boolean {
-    return other.text === this.text
-  }
-  toDOM(): HTMLElement {
-    const span = document.createElement('span')
-    span.className = 'cm-practice-placeholder'
-    span.setAttribute('aria-hidden', 'true')
-    span.textContent = this.text
-    return span
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
 /**
  * The threshold between one movement and the next.
  *
