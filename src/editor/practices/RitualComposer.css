@@ -109,13 +109,19 @@
 .rc__pip[data-on='true'] { background: var(--accent); }
 
 /* ── The filmstrip ────────────────────────────────────────────────────── */
-.rc__track {
+/* Embla's viewport and container. The viewport clips; the container is the
+   flex row Embla moves. No `transition` here and no `touch-action` — Embla
+   animates the transform with its own engine and sets the touch-action for the
+   axis itself, and a CSS transition on top of that fights it mid-drag. */
+.rc__viewport {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+.rc__track {
   display: flex;
+  height: 100%;
   will-change: transform;
-  transition: transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
-  touch-action: pan-y;
 }
 .rc__pane {
   flex: 0 0 100%;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import useEmblaCarousel from 'embla-carousel-react'
 import { createPortal } from 'react-dom'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useTouchPrimary } from '@/hooks/useMediaQuery'
@@ -49,8 +50,21 @@ interface Props {
  * The movements sit on one horizontal track, because they are a sequence in
  * time and sideways is how we draw time; vertical is how a document scrolls, and
  * a ritual being read as a region of a scrolling document is the whole mistake
- * this surface exists to undo. A finger drags the track, a key or a button moves
- * it — one mechanism, both platforms.
+ * this surface exists to undo.
+ *
+ * The track is Embla's, not ours. Three hand-written versions of this gesture
+ * each failed on a real phone in a different way — a `preventDefault` that was a
+ * no-op because React registers `touchmove` passively, and then a drag left
+ * stranded halfway when WebKit swallowed the rest of the gesture and no
+ * `touchend` ever arrived. Embla owns the drag, the momentum and the snapping,
+ * and — the property that matters most here — it always settles on a snap point,
+ * so there is no half-state for a lost gesture to leave behind.
+ *
+ * One caveat is worth writing down rather than discovering again: the slides
+ * contain a focused `<textarea>`, and iOS gives horizontal drags on editable
+ * text to its own caret and selection recogniser. No library governs that. If a
+ * swipe that starts on the writing area is sometimes ignored, this is why — but
+ * "ignored" is a recoverable state and "stranded" was not.
  */
 export function RitualComposer({
   blockIndex,
@@ -62,15 +76,24 @@ export function RitualComposer({
 }: Props) {
   const seed = useRef(readRitual(getDoc(), blockIndex))
   const block = seed.current
-  const [texts, setTexts] = useState<string[]>(block ? block.texts : [])
-  const [i, setI] = useState(() => {
+  /** Open on the movement still waiting, or on the close if there is none. */
+  const startAt = (() => {
     if (!block) return 0
     const firstEmpty = block.texts.findIndex((t) => t.trim() === '')
     return firstEmpty === -1 ? block.texts.length : firstEmpty
-  })
+  })()
+  const [texts, setTexts] = useState<string[]>(block ? block.texts : [])
+  const [i, setI] = useState(startAt)
   const iRef = useRef(i)
   iRef.current = i
-  const trackRef = useRef<HTMLDivElement>(null)
+  const [emblaRef, embla] = useEmblaCarousel({
+    align: 'start',
+    containScroll: 'trimSnaps',
+    // Slower than Embla's default: this is a passage between movements, not a
+    // photo gallery.
+    duration: 26,
+    startIndex: startAt,
+  })
   const paneRefs = useRef<(HTMLTextAreaElement | null)[]>([])
   const touch = useTouchPrimary()
   // Not `inset: 0` plus a height: a fixed overlay is anchored to the layout
@@ -125,13 +148,25 @@ export function RitualComposer({
       const clamped = Math.max(0, Math.min(CLOSE, next))
       commit()
       setI(clamped)
+      embla?.scrollTo(clamped)
       requestAnimationFrame(() => paneRefs.current[clamped]?.focus())
     },
-    [CLOSE, commit],
+    [CLOSE, commit, embla],
   )
 
-  const goRef = useRef(go)
-  goRef.current = go
+  useEffect(() => {
+    if (!embla) return
+    const onSelect = () => {
+      const n = embla.selectedScrollSnap()
+      commit()
+      setI(n)
+      requestAnimationFrame(() => paneRefs.current[n]?.focus())
+    }
+    embla.on('select', onSelect)
+    return () => {
+      embla.off('select', onSelect)
+    }
+  }, [embla, commit])
 
   // Land in the movement being written, with the caret already in it — and land
   // there again when a sheet that was covering us closes. Keyed on `blocked`
@@ -169,81 +204,6 @@ export function RitualComposer({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [blocked, go, i, onClose])
 
-  // ── The gesture ──────────────────────────────────────────────────────────
-  /*
-   * A swipe here is a DECISION, not a drag you carry.
-   *
-   * The first version followed the finger, translating the track by the live
-   * offset and committing on `touchend`. On a real phone that stranded: WebKit
-   * hands a touch that begins on editable text to its own recogniser, and when
-   * it does, `touchmove` stops arriving anywhere at all — no `touchend`, no
-   * `touchcancel`, nothing (the same failure documented above `follow()` in
-   * `useSwipeToDismiss.ts`). The track was left frozen halfway between two
-   * movements with no event coming to put it back.
-   *
-   * So the track is only ever at a whole movement, animated between them by CSS,
-   * and the decision is made mid-gesture the moment the drag has travelled far
-   * enough — never on an event that may not come. Losing the rest of the gesture
-   * after that costs nothing, because there is no half-state to lose.
-   *
-   * It still says `preventDefault` as soon as the drag proves horizontal, on a
-   * NON-PASSIVE window listener, because React's own handlers are passive and a
-   * pan taken by WebKit moves the visual viewport under a fixed overlay.
-   */
-  const drag = useRef<{ x: number; y: number; live: boolean; spent: boolean } | null>(null)
-  const unbind = useRef<(() => void) | null>(null)
-
-  const follow = useCallback(() => {
-    unbind.current?.()
-    const stop = () => {
-      drag.current = null
-      unbind.current?.()
-    }
-    const move = (ev: TouchEvent) => {
-      const d = drag.current
-      const t = ev.touches[0]
-      if (!d || !t) return
-      const dx = t.clientX - d.x
-      const dy = t.clientY - d.y
-      if (!d.live) {
-        // Under this much travel the gesture has not said which way it is going,
-        // and a vertical one belongs to the writing area's own scrolling.
-        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-        d.live = true
-      }
-      // Hold the claim for the WHOLE gesture, not just up to the decision.
-      // Letting go at the moment of commit hands WebKit the tail of a drag the
-      // finger is still making, and a pan taken then moves the visual viewport
-      // under a fixed overlay just as surely as one taken at the start.
-      if (ev.cancelable) ev.preventDefault()
-      if (d.spent || Math.abs(dx) < 45) return
-      d.spent = true
-      goRef.current(iRef.current + (dx < 0 ? 1 : -1))
-    }
-    window.addEventListener('touchmove', move, { passive: false })
-    window.addEventListener('touchend', stop)
-    window.addEventListener('touchcancel', stop)
-    // Last resort for the case that started all this: a gesture WebKit swallows
-    // whole, leaving no end and no cancel to unbind on.
-    const watchdog = window.setTimeout(stop, 1500)
-    unbind.current = () => {
-      window.clearTimeout(watchdog)
-      window.removeEventListener('touchmove', move)
-      window.removeEventListener('touchend', stop)
-      window.removeEventListener('touchcancel', stop)
-      unbind.current = null
-    }
-  }, [])
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0]
-    if (!t) return
-    drag.current = { x: t.clientX, y: t.clientY, live: false, spent: false }
-    follow()
-  }
-
-  // Never leave the window listening once the composer is gone.
-  useEffect(() => () => unbind.current?.(), [])
 
   if (!block) return null
 
@@ -289,12 +249,8 @@ export function RitualComposer({
         ))}
       </div>
 
-      <div
-        className="rc__track"
-        ref={trackRef}
-        style={{ transform: `translateX(-${i * 100}%)` }}
-        onTouchStart={onTouchStart}
-      >
+      <div className="rc__viewport" ref={emblaRef}>
+        <div className="rc__track">
         {labels.map((label, n) => {
           const prompt = practice?.prompts.find((p) => p.label === label)
           return (
@@ -325,15 +281,16 @@ export function RitualComposer({
           )
         })}
 
-        <section className="rc__pane" aria-hidden={i !== CLOSE}>
-          <div className="rc__close">
-            <h2 className="rc__close-name">{block.name}</h2>
-            <p className="rc__close-origin">{practice?.origin ?? ''}</p>
-            <button type="button" className="rc__next" onClick={onClose}>
-              Back to your entry
-            </button>
-          </div>
-        </section>
+          <section className="rc__pane" aria-hidden={i !== CLOSE}>
+            <div className="rc__close">
+              <h2 className="rc__close-name">{block.name}</h2>
+              <p className="rc__close-origin">{practice?.origin ?? ''}</p>
+              <button type="button" className="rc__next" onClick={onClose}>
+                Back to your entry
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
 
       <footer className="rc__foot">

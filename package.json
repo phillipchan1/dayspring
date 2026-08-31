@@ -67,6 +67,7 @@
     "@vercel/functions": "^3.6.2",
     "codemirror": "^6.0.2",
     "dompurify": "^3.4.7",
+    "embla-carousel-react": "^8.6.0",
     "emojilib": "^4.0.3",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",

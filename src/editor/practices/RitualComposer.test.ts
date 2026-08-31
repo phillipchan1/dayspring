@@ -9,6 +9,48 @@ import { PRACTICES } from './practicesData'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+/*
+ * Embla expects a browser jsdom does not fully provide. These three stubs are
+ * the whole cost of the dependency at test time: it reads media queries on
+ * init, watches slides with an IntersectionObserver, and re-measures on a
+ * ResizeObserver. None of them do anything here — jsdom gives every element a
+ * zero size, so Embla initialises and then has nothing to scroll, which is
+ * exactly why the dragging itself is verified in a real browser instead.
+ */
+class NoopObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return []
+  }
+}
+Object.defineProperty(window, 'IntersectionObserver', {
+  writable: true,
+  configurable: true,
+  value: NoopObserver,
+})
+Object.defineProperty(window, 'ResizeObserver', {
+  writable: true,
+  configurable: true,
+  value: NoopObserver,
+})
+
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  configurable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }),
+})
+
 // The composer is under test, not the viewport hooks.
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => true,
@@ -49,23 +91,6 @@ function fakeVisualViewport(top: number, height: number) {
     writable: true,
   })
   return vv
-}
-
-/** jsdom has no constructible TouchEvent; only these fields are read. */
-function touchEvent(type: string, x: number, y: number): Event {
-  const e = new Event(type, { bubbles: true, cancelable: true }) as Event & {
-    touches: unknown[]
-    changedTouches: unknown[]
-  }
-  const t = { identifier: 1, clientX: x, clientY: y }
-  e.touches = type === 'touchend' ? [] : [t]
-  e.changedTouches = [t]
-  return e
-}
-
-/** Returns true when a listener called preventDefault — the claim we care about. */
-function dispatchMove(x: number, y: number): boolean {
-  return !window.dispatchEvent(touchEvent('touchmove', x, y))
 }
 
 /** React tracks its own value on inputs, so a plain assignment is ignored. */
@@ -205,91 +230,38 @@ describe('RitualComposer', () => {
     expect(el().style.height).toBe('600px')
   })
 
-  describe('the swipe', () => {
-    const track = () => document.querySelector<HTMLElement>('.rc__track')!
+  describe('moving between movements', () => {
+    /*
+     * Dragging itself belongs to Embla now, and cannot be exercised here: it
+     * measures a container that jsdom gives no width. What these pin is the part
+     * that is ours — that the buttons move the surface, and that the index the
+     * rest of the component reads stays in step whether or not Embla has
+     * managed to measure anything.
+     */
+    const foot = () => document.querySelector<HTMLElement>('.rc__foot .rc__next')!
+    const label = () =>
+      document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent
 
-    it('claims a horizontal drag, so the browser cannot pan instead', () => {
-      /*
-       * React registers `touchmove` passively at its root, so a `preventDefault`
-       * inside an `onTouchMove` prop is a no-op — see the note above `follow()`
-       * in `useSwipeToDismiss.ts`. The composer had exactly that, and the cost
-       * was not a dead swipe: WebKit took the drag as a pan, and with the
-       * keyboard up the only thing left to pan is the visual viewport, so the
-       * whole overlay slid up under the Dynamic Island and left a gap of the
-       * same size above the keyboard.
-       */
+    it('advances on Next', () => {
       render()
-      act(() => {
-        track().dispatchEvent(touchEvent('touchstart', 300, 300))
-      })
-      let claimed = false
-      act(() => {
-        claimed = dispatchMove(260, 302)
-      })
-      expect(claimed).toBe(true)
+      expect(label()).toBe('Gratitude')
+      act(() => foot().click())
+      expect(label()).toBe('Awareness')
     })
 
-    it('leaves a vertical drag to the browser, so a long answer still scrolls', () => {
+    it('goes back', () => {
       render()
-      act(() => {
-        track().dispatchEvent(touchEvent('touchstart', 300, 300))
-      })
-      let claimed = true
-      act(() => {
-        claimed = dispatchMove(302, 380)
-      })
-      expect(claimed).toBe(false)
+      act(() => foot().click())
+      act(() => document.querySelector<HTMLElement>('.rc__back')!.click())
+      expect(label()).toBe('Gratitude')
     })
 
-    it('moves to the next movement when the drag carries far enough', () => {
+    it('stops at the close rather than running off the end', () => {
       render()
-      act(() => {
-        track().dispatchEvent(touchEvent('touchstart', 300, 300))
-        dispatchMove(200, 302)
-        dispatchMove(120, 304)
-        window.dispatchEvent(touchEvent('touchend', 120, 304))
-      })
-      expect(
-        document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
-      ).toBe('Awareness')
-    })
-
-    it('never leaves the track between two movements', () => {
-      /*
-       * The one that stranded on a real phone. WebKit hands a touch that begins
-       * on editable text to its own recogniser, and when it does, `touchmove`
-       * stops arriving anywhere — no `touchend`, no `touchcancel`. A gesture
-       * that followed the finger and committed on release was left frozen
-       * halfway between two movements with no event coming to put it back. So
-       * the track is only ever at a whole movement, and the decision is made
-       * mid-gesture rather than on an event that may never arrive.
-       */
-      render()
-      const offsets: string[] = []
-      act(() => {
-        track().dispatchEvent(touchEvent('touchstart', 300, 300))
-        dispatchMove(280, 302)
-        offsets.push(track().style.transform)
-        dispatchMove(200, 304)
-        offsets.push(track().style.transform)
-        dispatchMove(150, 306)
-        offsets.push(track().style.transform)
-        // and then nothing: no touchend, no touchcancel, ever.
-      })
-      offsets.push(track().style.transform)
-      for (const t of offsets) expect(t).toMatch(/^translateX\(-(0|\d+00)%\)$/)
-    })
-
-    it('snaps back when the drag is only a wobble', () => {
-      render()
-      act(() => {
-        track().dispatchEvent(touchEvent('touchstart', 300, 300))
-        dispatchMove(280, 302)
-        window.dispatchEvent(touchEvent('touchend', 280, 302))
-      })
-      expect(
-        document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
-      ).toBe('Gratitude')
+      for (let n = 0; n < 8; n++) act(() => foot()?.click())
+      expect(document.querySelector('.rc__close')).toBeTruthy()
+      // The footer's next button is gone at the close; nothing to run past.
+      expect(document.querySelector('.rc__foot .rc__next')).toBeNull()
     })
   })
 
