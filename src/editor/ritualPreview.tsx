@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import { Editor } from './Editor'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PRACTICES } from './practices/practicesData'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer } from './practices/RitualComposer'
@@ -58,17 +58,30 @@ function isThemeId(value: string | null): value is ThemeId {
  * `?__preview=ritual&composer=1&debug=1`. The composer's position on iOS is
  * decided entirely by these three, and no amount of reasoning from a desktop
  * browser substitutes for reading them off the device that is misbehaving.
+ *
+ * Also `console.warn`s every reading (tagged `[vvlog]`) — Vite's dev overlay
+ * forwards `warn`/`error` (not `log`) from the webview to the terminal that
+ * ran `tauri ios dev` / `npm run dev`, which is a more reliable trace than
+ * polling screenshots. This is how the keyboard-open swipe bug was actually
+ * caught: `window.innerHeight` dropping out from under an unchanged
+ * `visualViewport.height` right as Embla's `select` handler re-focused the
+ * next pane's `<textarea>` — iOS re-running its scroll-into-view for a
+ * newly-focused element even though it was already on screen. Fixed in
+ * `RitualComposer.tsx` by focusing with `{ preventScroll: true }`.
  */
 function ViewportReadout() {
   const [n, setN] = useState({ offsetTop: 0, vvHeight: 0, innerHeight: 0 })
   useEffect(() => {
     const vv = window.visualViewport
-    const read = () =>
-      setN({
+    const read = () => {
+      const next = {
         offsetTop: Math.round(vv?.offsetTop ?? -1),
         vvHeight: Math.round(vv?.height ?? -1),
         innerHeight: Math.round(window.innerHeight),
-      })
+      }
+      console.warn('[vvlog]', JSON.stringify(next), Date.now())
+      setN(next)
+    }
     read()
     vv?.addEventListener('resize', read)
     vv?.addEventListener('scroll', read)
@@ -96,6 +109,82 @@ function ViewportReadout() {
   )
 }
 
+/**
+ * Raw window-level touch stream, timestamped, for the stranding bug.
+ *
+ * The hypothesis worth killing or confirming: WebKit's text-interaction
+ * recogniser takes a gesture that lands on non-editable text and the touch
+ * stream stops dead — no `touchend`, no `touchcancel`. Listens in the capture
+ * phase on `window` so nothing upstream (Embla included) can absorb an event
+ * before this sees it. `?__preview=ritual&composer=1&debug=1`.
+ *
+ * Every event also goes to `console.warn` (`[touchlog]`, forwarded to the
+ * terminal — see `ViewportReadout`), because polling screenshots to see
+ * whether a gesture stranded is unreliable: a screenshot can catch the touch
+ * stream mid-delivery and read as permanently dead when it was only slow.
+ * The iOS SIMULATOR's synthetic touch injection did not strand on any
+ * combination tried here — running text (`.rc__q`), the masthead, blank
+ * chrome, fast and slow drags, drags with an initial dwell — every one
+ * eventually produced a `touchend`, confirmed against this log's real
+ * `Date.now()` timestamps. That does not clear the composer: the bug report
+ * is from a physical device, and simulator touch is synthesized from mouse
+ * events rather than real capacitive input, which is exactly the kind of gap
+ * WebKit's text-interaction/selection recognisers could depend on. Use this
+ * log on-device before trusting any fix for the strand itself.
+ */
+function TouchLog() {
+  const [lines, setLines] = useState<string[]>([])
+  const startT = useRef(0)
+  useEffect(() => {
+    const fmt = (e: TouchEvent) => {
+      if (!startT.current) startT.current = performance.now()
+      const t = Math.round(performance.now() - startT.current)
+      const touch = e.touches[0] ?? e.changedTouches[0]
+      const target = e.target instanceof Element ? e.target.tagName : String(e.target)
+      const pos = touch ? `${Math.round(touch.clientX)},${Math.round(touch.clientY)}` : '-'
+      return `${t}ms ${e.type} n=${e.touches.length} @${pos} ${target}`
+    }
+    const push = (e: TouchEvent) => {
+      const line = fmt(e)
+      console.warn('[touchlog]', line, Date.now())
+      setLines((prev) => [...prev.slice(-24), line])
+      if (e.type === 'touchend' || e.type === 'touchcancel') startT.current = 0
+    }
+    const opts = { capture: true, passive: true } as const
+    window.addEventListener('touchstart', push, opts)
+    window.addEventListener('touchmove', push, opts)
+    window.addEventListener('touchend', push, opts)
+    window.addEventListener('touchcancel', push, opts)
+    return () => {
+      window.removeEventListener('touchstart', push, opts)
+      window.removeEventListener('touchmove', push, opts)
+      window.removeEventListener('touchend', push, opts)
+      window.removeEventListener('touchcancel', push, opts)
+    }
+  }, [])
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 20,
+        left: 0,
+        right: 0,
+        maxHeight: '40vh',
+        overflow: 'hidden',
+        zIndex: 2000,
+        padding: '2px 6px',
+        background: 'rgba(0,0,0,0.8)',
+        color: '#0f0',
+        font: '10px ui-monospace, monospace',
+        pointerEvents: 'none',
+        whiteSpace: 'pre',
+      }}
+    >
+      {lines.join('\n')}
+    </div>
+  )
+}
+
 /** Holds the document the composer reads and writes, the way JournalScreen does. */
 function ComposerHarness({ seedDoc }: { seedDoc: string }) {
   const [doc, setDoc] = useState(seedDoc)
@@ -115,7 +204,12 @@ function ComposerHarness({ seedDoc }: { seedDoc: string }) {
         blocked={about !== null}
       />
       {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
-      {new URLSearchParams(window.location.search).get('debug') === '1' && <ViewportReadout />}
+      {new URLSearchParams(window.location.search).get('debug') === '1' && (
+        <>
+          <ViewportReadout />
+          <TouchLog />
+        </>
+      )}
       {/* What the entry now holds — proof the composer is a surface, not a store. */}
       <pre
         data-testid="doc"

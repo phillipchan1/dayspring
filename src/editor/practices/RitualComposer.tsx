@@ -149,18 +149,28 @@ export function RitualComposer({
       commit()
       setI(clamped)
       embla?.scrollTo(clamped)
-      requestAnimationFrame(() => paneRefs.current[clamped]?.focus())
+      requestAnimationFrame(() => paneRefs.current[clamped]?.focus({ preventScroll: true }))
     },
     [CLOSE, commit, embla],
   )
 
   useEffect(() => {
     if (!embla) return
+    // `preventScroll`, here specifically: measured in the iOS Simulator
+    // (`ritualPreview.tsx`'s `?debug=1` readout, console-logged — see there) that
+    // a swipe with the keyboard already open — this handler firing mid-drag
+    // settle — was making `window.innerHeight` drop out from under an unchanged
+    // `visualViewport.height` for several seconds, which `useVisualViewportFrame`
+    // reads straight into the composer's `top`/`height` and is symptom 2 (the
+    // whole surface riding up under the Dynamic Island). iOS was re-running
+    // scroll-into-view for the newly-focused textarea even though Embla had
+    // already placed it on screen. Without `preventScroll` this reproduced on
+    // 2/2 tries; with it, 0/3. Not yet confirmed on a physical device.
     const onSelect = () => {
       const n = embla.selectedScrollSnap()
       commit()
       setI(n)
-      requestAnimationFrame(() => paneRefs.current[n]?.focus())
+      requestAnimationFrame(() => paneRefs.current[n]?.focus({ preventScroll: true }))
     }
     embla.on('select', onSelect)
     return () => {
@@ -174,7 +184,9 @@ export function RitualComposer({
   // through `go`.
   useEffect(() => {
     if (blocked) return
-    const id = requestAnimationFrame(() => paneRefs.current[iRef.current]?.focus())
+    const id = requestAnimationFrame(() =>
+      paneRefs.current[iRef.current]?.focus({ preventScroll: true }),
+    )
     return () => cancelAnimationFrame(id)
   }, [blocked])
 
