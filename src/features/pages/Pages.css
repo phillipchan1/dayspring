@@ -3182,18 +3182,31 @@ button.pg__sense-q:hover {
   inline-size: 100%;
   /* Sized so the body's measure plus the margin column fills it exactly — any
      wider and the whole page block drifts left of centre with slack on the
-     right, which reads as a layout that gave up rather than one that chose. */
-  max-inline-size: 54rem;
+     right, which reads as a layout that gave up rather than one that chose.
+     The measure itself now follows the writer's own column-width setting, so
+     this has to follow it too rather than assume the old fixed 38rem. */
+  max-inline-size: calc(var(--editor-max-width) + 11rem + 2.25rem + 2 * clamp(1rem, 3vw, 2rem));
   margin: 0 auto;
   padding: 0 clamp(1rem, 3vw, 2rem) 6rem;
   text-align: start;
   background: none;
   border: none;
   cursor: text;
+  transition: background var(--transition);
 }
 
 .pg-read1__page:focus-visible {
   outline: none;
+}
+
+/* A hint that the page is click-to-write, on the devices where that's true.
+   `[role='button']` is only present when `PageReader` isn't on touch (see its
+   `asButton`), so this needs no touch-detection logic of its own; `(hover:
+   hover)` keeps it from sticking after a tap on hybrid devices. */
+@media (hover: hover) {
+  .pg-read1__page[role='button']:hover {
+    background: color-mix(in srgb, var(--text) 3%, transparent);
+  }
 }
 
 /*
@@ -3389,16 +3402,17 @@ button.pg__sense-q:hover {
  * That is the exact thing the note on `__cols` says must not happen: the
  * measure of the text must not change from one page to the next as you read
  * through. So the auto margins go, the column is filled, and the measure is a
- * measure — 38rem, which is about seventy-five characters of this face.
+ * measure — the writer's own column-width setting, the same one that shapes
+ * the editor, so opening a page to write on it is not also a resize.
  */
 .pg-read1 .pg-read1__body {
   margin-inline: 0;
   inline-size: 100%;
-  max-inline-size: 38rem;
+  max-inline-size: var(--editor-max-width);
   min-inline-size: 0;
-  font-family: var(--font-serif);
-  font-size: 1.02rem;
-  line-height: 1.75;
+  font-family: var(--font-editor);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
   color: var(--text);
 }
 
@@ -3520,7 +3534,7 @@ button.pg__sense-q:hover {
    * the measure was pinned for.
    */
   .pg-read1__page {
-    max-inline-size: calc(38rem + 2 * clamp(1rem, 3vw, 2rem));
+    max-inline-size: calc(var(--editor-max-width) + 2 * clamp(1rem, 3vw, 2rem));
   }
 
   .pg-read1__cols {
