@@ -118,4 +118,36 @@ describe('Numbered list command continues the sequence', () => {
   it('starts at 1. when nothing precedes the line', () => {
     expect(applyNumbered('hello', 0)).toBe('1. hello')
   })
+
+  it('toggles an already-numbered line off instead of changing the number', () => {
+    expect(applyNumbered('1. hello', 0)).toBe('hello')
+  })
+})
+
+function applyCmd(doc: string, id: 'h2' | 'bullet' | 'quote' | 'todo', at = 0, times = 1): string {
+  const view = new EditorView({
+    state: EditorState.create({ doc, selection: { anchor: at } }),
+    parent: document.body,
+  })
+  for (let i = 0; i < times; i++) applyFormatCommand(view, id)
+  const next = view.state.doc.toString()
+  view.destroy()
+  return next
+}
+
+describe('line format commands toggle instead of stacking', () => {
+  it('takes a heading back off on the second press', () => {
+    expect(applyCmd('Title', 'h2')).toBe('## Title')
+    expect(applyCmd('Title', 'h2', 0, 2)).toBe('Title')
+  })
+
+  it('does not stack ## when the line is already that heading', () => {
+    expect(applyCmd('## Title', 'h2')).toBe('Title')
+  })
+
+  it('toggles bullet, quote, and todo the same way', () => {
+    expect(applyCmd('note', 'bullet', 0, 2)).toBe('note')
+    expect(applyCmd('note', 'quote', 0, 2)).toBe('note')
+    expect(applyCmd('note', 'todo', 0, 2)).toBe('note')
+  })
 })
