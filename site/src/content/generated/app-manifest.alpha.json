@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.274",
+  "appVersion": "1.0.291",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -672,7 +672,7 @@
       {
         "id": "setting.pages-zoom",
         "key": "pagesZoom",
-        "default": 0.45,
+        "default": 0.6,
         "type": "number"
       },
       {
