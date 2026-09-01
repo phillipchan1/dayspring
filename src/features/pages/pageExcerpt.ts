@@ -8,6 +8,7 @@
 
 import { entryContentLines } from '@/lib/entryLabels'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
+import { ATTACHMENT_REF_RE } from '@/lib/attachments'
 import { EXCERPT_MAX_LINES } from './zoom'
 import { passageKey, passagesForEntry } from '@/lib/remember'
 import type { Entry } from '@/lib/types'
@@ -109,6 +110,16 @@ export function pageExcerpt(
   for (const line of raw) {
     const text = display(line)
     if (text) prose.push(text)
+  }
+
+  // The wall stays text-only, but a page containing a photo is not blank.
+  // Prefer the writer's own caption; otherwise name the object without
+  // inventing a description of it.
+  if (prose.length === 0) {
+    ATTACHMENT_REF_RE.lastIndex = 0
+    const photo = ATTACHMENT_REF_RE.exec(entry.body_markdown ?? '')
+    ATTACHMENT_REF_RE.lastIndex = 0
+    if (photo) prose.push(photo[1]?.trim() || 'Photo')
   }
 
   const chars = prose.reduce((n, l) => n + l.length, 0)

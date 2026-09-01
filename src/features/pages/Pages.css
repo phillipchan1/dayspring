@@ -1375,6 +1375,40 @@ button.pg__sense-q:hover {
   animation-duration: 160ms;
 }
 
+/* Pages → Journal is one page changing state. The body owns a shared snapshot;
+   the read-only margin owns a disappearing one. Because the body is centred
+   independently above, its group normally has no horizontal travel at all. */
+.pg-read1__body,
+.journal-write--from-pages .cm-content {
+  view-transition-name: dayspring-entry-body;
+}
+
+.pg-read1__margin {
+  view-transition-name: dayspring-entry-margin;
+}
+
+::view-transition-group(dayspring-entry-body) {
+  animation-duration: 180ms;
+  animation-timing-function: cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+::view-transition-old(dayspring-entry-body),
+::view-transition-new(dayspring-entry-body) {
+  mix-blend-mode: normal;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+::view-transition-old(dayspring-entry-margin) {
+  animation: pg-handoff-margin-out 140ms ease-out both;
+}
+
+@keyframes pg-handoff-margin-out {
+  to {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Nothing here starts a view transition any more, but the app's own routing
      may; a transition begun before the preference changed should stop moving. */
@@ -3046,6 +3080,14 @@ button.pg__sense-q:hover {
   box-shadow: inset 0 -1px 0 0 rgba(var(--hl-amber), 0.55);
 }
 
+/* A passage marked while re-reading uses the same ground as `.cm-mark`.
+   Subjects can still light a word inside it. */
+.pg-read1__saved-mark {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 2px;
+}
+
 /*
  * ── Motion, and the rule it follows ────────────────────────────────────────
  *
@@ -3287,12 +3329,9 @@ button.pg__sense-q:hover {
 .pg-read1__page {
   display: block;
   inline-size: 100%;
-  /* Sized so the body's measure plus the margin column fills it exactly — any
-     wider and the whole page block drifts left of centre with slack on the
-     right, which reads as a layout that gave up rather than one that chose.
-     The measure itself now follows the writer's own column-width setting, so
-     this has to follow it too rather than assume the old fixed 38rem. */
-  max-inline-size: calc(var(--editor-max-width) + 11rem + 2.25rem + 2 * clamp(1rem, 3vw, 2rem));
+  /* The writing column is centred by itself. Marginalia sits beside it without
+     taking part in centring, so opening the editor cannot pull the prose right. */
+  max-inline-size: calc(var(--editor-max-width) + 2 * clamp(1rem, 3vw, 2rem));
   margin: 0 auto;
   padding: 0 clamp(1rem, 3vw, 2rem) 6rem;
   text-align: start;
@@ -3470,7 +3509,9 @@ button.pg__sense-q:hover {
 
 .pg-read1__head {
   padding-block-end: 0.6rem;
-  margin-block-end: 1.8rem;
+  /* Keeps the first writing baseline aligned with the Journal editor. The date
+     is read-only chrome; it should not push the entry down when it fades. */
+  margin-block-end: 0.5rem;
 }
 
 .pg-read1__date {
@@ -3492,9 +3533,8 @@ button.pg__sense-q:hover {
  * the text does not change from one page to the next as you read through.
  */
 .pg-read1__cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 11rem;
-  gap: 2.25rem;
+  position: relative;
+  display: block;
 }
 
 /*
@@ -3523,9 +3563,108 @@ button.pg__sense-q:hover {
   color: var(--text);
 }
 
+/* Photos use the editor's geometry without its hover controls. The frame is
+   installed before the private URL resolves; metadata lands before `src`, so
+   the browser knows the image's ratio before decoding it. */
+.pg-read1__photo {
+  display: block;
+  inline-size: fit-content;
+  min-inline-size: min(240px, 100%);
+  max-inline-size: 100%;
+  margin: 0.6rem auto 1rem;
+}
+
+.pg-read1__photo-media {
+  position: relative;
+  display: block;
+  min-block-size: 120px;
+  max-inline-size: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--photo-tint, var(--bg-input));
+  box-shadow:
+    0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 40%, transparent),
+    inset 0 0 0 1px rgba(20, 12, 4, 0.07);
+}
+
+.pg-read1__photo-img {
+  display: block;
+  inline-size: auto;
+  max-inline-size: 100%;
+  block-size: auto;
+  max-block-size: min(56vh, 480px);
+  margin: 0;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.pg-read1__photo[data-ready='true'] .pg-read1__photo-img {
+  opacity: 1;
+}
+
+.pg-read1__photo--size-s .pg-read1__photo-img {
+  max-block-size: min(34vh, 260px);
+}
+
+.pg-read1__photo--size-f {
+  inline-size: 100%;
+}
+
+.pg-read1__photo--size-f .pg-read1__photo-img {
+  inline-size: 100%;
+  max-block-size: none;
+}
+
+.pg-read1__photo--crop-h.pg-read1__photo--size-s .pg-read1__photo-media {
+  block-size: min(34vh, 260px);
+}
+
+.pg-read1__photo--crop-h.pg-read1__photo--size-m .pg-read1__photo-media {
+  block-size: min(56vh, 480px);
+}
+
+.pg-read1__photo--crop-w .pg-read1__photo-media {
+  inline-size: 100%;
+}
+
+.pg-read1__photo--crop-h .pg-read1__photo-img,
+.pg-read1__photo--crop-w .pg-read1__photo-img {
+  inline-size: 100%;
+  block-size: 100%;
+  max-block-size: none;
+  object-fit: cover;
+}
+
+.pg-read1__photo-caption,
+.pg-read1__photo-meta {
+  inline-size: 0;
+  min-inline-size: 100%;
+  margin: 0.35rem 0 0;
+  font-family: var(--font-editor);
+  font-size: 0.66em;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.pg-read1__photo-meta {
+  font-size: 0.62em;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__photo-img {
+    transition: none;
+  }
+}
+
 /* Marginalia: what the writer set apart, pulled beside the text rather than
    highlighted inside it — a page of highlighter is harder to read, not easier. */
 .pg-read1__margin {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: calc(100% + 2.25rem);
+  inline-size: 11rem;
   border-inline-start: 1px solid var(--border-subtle);
   padding-inline-start: 1.1rem;
 }
@@ -3645,10 +3784,12 @@ button.pg__sense-q:hover {
   }
 
   .pg-read1__cols {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
   }
 
   .pg-read1__margin {
+    position: static;
+    inline-size: auto;
     border-inline-start: none;
     border-block-start: 1px solid var(--border-subtle);
     padding-inline-start: 0;

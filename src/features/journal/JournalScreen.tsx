@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Editor, type EditorHandle } from '@/editor/Editor'
 import type { SpiritualBlockEditTarget } from '@/editor/spiritualBlockDecoration'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
@@ -1597,18 +1598,32 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const returnCtx = entryReturnFromState(state)
     skipEditorAutofocusRef.current = true
     skipEntrySyncRef.current = true
-    go({
-      surface: 'journal',
-      entryId: entry.id,
-      entryReturn: returnCtx,
-      ascentDrill: null,
-      scriptureBook: null,
-      scriptureVerse: null,
-      settings: null,
-      help: false,
-    })
-    setContent(asEntryMarkdown(entry.body_markdown))
-    loadedEntryIdRef.current = entry.id
+    const openEditor = () => {
+      flushSync(() => {
+        go({
+          surface: 'journal',
+          entryId: entry.id,
+          entryReturn: returnCtx,
+          ascentDrill: null,
+          scriptureBook: null,
+          scriptureVerse: null,
+          settings: null,
+          help: false,
+        })
+        setContent(asEntryMarkdown(entry.body_markdown))
+        loadedEntryIdRef.current = entry.id
+      })
+    }
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const fromOpenPage =
+      state.surface === 'pages' &&
+      state.pagesSpreadId === entry.id
+    if (!reducedMotion && fromOpenPage && document.startViewTransition) {
+      document.startViewTransition(openEditor)
+    } else {
+      openEditor()
+    }
   }
 
 
@@ -1790,7 +1805,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       <p className="entry-range-canvas__hint">Shift+↑↓ to extend in either direction</p>
     </div>
   ) : (
-    <div className={`journal-write${chapterOpen ? ' journal-write--with-pane' : ''}`}>
+    <div
+      className={`journal-write${chapterOpen ? ' journal-write--with-pane' : ''}${
+        state.entryReturn?.surface === 'pages' ? ' journal-write--from-pages' : ''
+      }`}
+    >
       <div className="journal-write__editor">
         <div
           className="journal-write__canvas"

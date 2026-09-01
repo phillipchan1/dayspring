@@ -9,8 +9,10 @@ import { MARK_KIND } from '@/lib/markKinds'
 import type { PageMarking } from '@/lib/spiritual'
 import type { Entry, SpiritualItemType } from '@/lib/types'
 import { paintMatches } from './paintMatches'
+import { paintQuotes } from './paintQuotes'
 import { drawMarkings, flatten, sortMarkings } from './pageMarkings'
 import { pageExcerpt } from './pageExcerpt'
+import { hydrateReadAttachments } from './readAttachments'
 import { swipeTurn } from './swipeTurn'
 
 /** The neighbour's date — short, because it is read at a glance and side-on. */
@@ -165,12 +167,13 @@ export function PageReader({
    * Spiritual blocks are their own rendering elsewhere; here they would arrive
    * as raw fenced code, which is markup rather than writing.
    */
+  const renderedMarkdown = useMemo(
+    () => stripSpiritualBlocks(entry.body_markdown ?? ''),
+    [entry.body_markdown],
+  )
   const html = useMemo(
-    () =>
-      renderMarkdown(stripSpiritualBlocks(entry.body_markdown ?? ''), {
-        asTitle: firstLineTitle,
-      }),
-    [entry.body_markdown, firstLineTitle],
+    () => renderMarkdown(renderedMarkdown, { asTitle: firstLineTitle }),
+    [renderedMarkdown, firstLineTitle],
   )
 
   /**
@@ -203,9 +206,11 @@ export function PageReader({
     const el = bodyRef.current
     if (!el) return
     el.innerHTML = html
+    paintQuotes(el, markQuotes, 'pg-read1__saved-mark')
     paintMatches(el, match, 'pg-read1__lit')
     drawMarkings(el, inProse)
-  }, [html, match, inProse])
+    return hydrateReadAttachments(el, renderedMarkdown)
+  }, [html, renderedMarkdown, markQuotes, match, inProse])
 
   /**
    * What the writer set apart on this page, verbatim, in the margin.
@@ -226,11 +231,10 @@ export function PageReader({
       seen.add(key)
       out.push(kind ? { text: t, kind } : { text: t })
     }
-    for (const q of markQuotes) add(q)
     for (const m of loose) add(m.content, m.type)
     for (const p of passagesForEntry(entry)) add(p.text)
     return out
-  }, [entry, markQuotes, loose])
+  }, [entry, loose])
 
   /*
    * On a pointer the whole page opens the editor — except while selecting text,

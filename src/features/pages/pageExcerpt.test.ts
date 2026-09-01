@@ -106,6 +106,19 @@ describe('pageExcerpt', () => {
     expect(x.chars).toBe(0)
     expect(x.total).toBe(0)
   })
+
+  it('uses the writer’s caption for a photo-only page', () => {
+    const hash = 'a'.repeat(64)
+    const x = pageExcerpt(entry(`![Morning light](attachment:${hash}.jpg)`))
+    expect(x.lines.map((line) => line.text)).toEqual(['Morning light'])
+  })
+
+  it('names an uncaptioned photo without calling the page blank', () => {
+    const hash = 'b'.repeat(64)
+    const x = pageExcerpt(entry(`![](attachment:${hash}.webp?size=f)`))
+    expect(x.lines.map((line) => line.text)).toEqual(['Photo'])
+    expect(x.chars).toBe(5)
+  })
 })
 
 describe('pageFill', () => {

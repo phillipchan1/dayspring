@@ -5,6 +5,18 @@
   animation: journal-write-in 170ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
 }
 
+/* Pages hands the same writing column to CodeMirror through a View Transition.
+   A second entrance transform would make the destination drift after landing. */
+.journal-write--from-pages {
+  animation: none;
+}
+
+/* The reader's date occupies 20px more vertical space than the Journal bar.
+   Preserve that baseline instead of letting the same first line jump upward. */
+.journal-write--from-pages .cm-content {
+  padding-top: 1.5rem;
+}
+
 /* Fires once, on the surface swap that mounts this — arriving from Pages,
    Scripture, Altar, or Reflections — never on entry switches within the
    journal surface itself, since `<Editor>` isn't keyed on entry id. */

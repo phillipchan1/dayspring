@@ -129,6 +129,23 @@ describe('PageWall', () => {
     )
     expect(html).toContain('Blank page')
   })
+
+  it('does not call a photo-only entry blank', () => {
+    const hash = 'a'.repeat(64)
+    const html = renderToString(
+      createElement(PageWall, {
+        entries: [entry(`![Morning light](attachment:${hash}.jpg)`)],
+        zoom: 0.45,
+        markQuotes: new Map(),
+        lit: null,
+        activeId: null,
+        echoes: true,
+        ...wallActions,
+      }),
+    )
+    expect(html).toContain('Morning light')
+    expect(html).not.toContain('Blank page')
+  })
 })
 
 describe('PagesView', () => {
