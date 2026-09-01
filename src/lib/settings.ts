@@ -134,7 +134,7 @@ const DEFAULTS: Settings = {
   editorFont: 'serif',
   entriesGroupBy: 'flat',
   showEntryPreview: false,
-  pagesZoom: 0.45,
+  pagesZoom: 0.6,
   railLabels: false,
   firstLineTitle: true,
   showMarkdownSyntax: false,

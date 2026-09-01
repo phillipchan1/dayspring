@@ -7,6 +7,7 @@ import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
+import { deriveTitle } from '@/lib/entryLabels'
 import { PageWall } from './PageWall'
 import { clampZoom, densityLabel } from './zoom'
 import {
@@ -47,6 +48,23 @@ import './Pages.css'
 
 /** The chip that stands for a question, since a question has no key of its own. */
 const ASK_CHIP_KEY = 'asked'
+
+function isToday(iso: string): boolean {
+  const date = new Date(iso)
+  const now = new Date()
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  )
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+}
 
 interface Props {
   /** The whole archive, newest first. */
@@ -263,6 +281,22 @@ export function PagesView({
     () => (spreadId ? (entries.find((e) => e.id === spreadId) ?? null) : null),
     [spreadId, entries],
   )
+  /**
+   * The way back to now.
+   *
+   * The wall is better than the old entries panel at coming across something
+   * you did not have in mind. The panel was better at one different job:
+   * orienting you immediately around the page you were most recently in.
+   * Making cards larger cannot solve that — every card is still a preview.
+   *
+   * So the newest page gets one quiet door in the header. It opens at reading
+   * size like every other page on this surface; Write remains beside it in the
+   * reader. This is an anchor, not a second list.
+   */
+  const latest = entries[0] ?? null
+  const latestTitle = latest
+    ? deriveTitle(latest.body_markdown) || latest.title || 'Blank page'
+    : ''
 
   /*
    * A page that is no longer there closes itself.
@@ -867,34 +901,58 @@ export function PagesView({
           {narrow ? null : readerBar}
 
           {openPage ? null : (
-          <LookFor
-            kept={held}
-            offered={offered}
-            index={index}
-            markings={markPills}
-            zoom={zoom}
-            onZoom={setZoom}
-            narrow={narrow}
-            standLabel={densityLabel(perScreen)}
-            reading={reading}
-            onReading={setReading}
-            chips={chips}
-            onToggleSubject={addSubject}
-            onToggleMarking={toggleKey}
-            onRemove={(key) => {
-              if (key === ASK_CHIP_KEY) onClearAsked()
-              else toggleKey(key)
-            }}
-            onClear={() => {
-              clearAll()
-              onClearAsked()
-            }}
-            onSomewhere={openSomewhere}
-            onKeep={keep}
-            onDrop={drop}
-            onlyLit={onlyLit}
-            onOnlyLit={setOnlyLit}
-          />
+          <div className="pg__head-tools">
+            {!narrow && latest ? (
+              <button
+                type="button"
+                className="pg-now"
+                onClick={() => onSpread(latest.id)}
+                aria-label={`Open ${isToday(latest.created_at) ? "today's page" : `latest page from ${shortDate(latest.created_at)}`}`}
+              >
+                <span className="pg-now__when">
+                  {isToday(latest.created_at) ? 'Today' : `Latest · ${shortDate(latest.created_at)}`}
+                </span>
+                <span className="pg-now__title">{latestTitle}</span>
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                  <path
+                    d="m6 3 5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.35"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
+            <LookFor
+              kept={held}
+              offered={offered}
+              index={index}
+              markings={markPills}
+              zoom={zoom}
+              onZoom={setZoom}
+              narrow={narrow}
+              standLabel={densityLabel(perScreen)}
+              reading={reading}
+              onReading={setReading}
+              chips={chips}
+              onToggleSubject={addSubject}
+              onToggleMarking={toggleKey}
+              onRemove={(key) => {
+                if (key === ASK_CHIP_KEY) onClearAsked()
+                else toggleKey(key)
+              }}
+              onClear={() => {
+                clearAll()
+                onClearAsked()
+              }}
+              onSomewhere={openSomewhere}
+              onKeep={keep}
+              onDrop={drop}
+              onlyLit={onlyLit}
+              onOnlyLit={setOnlyLit}
+            />
+          </div>
           )}
 
           {/*

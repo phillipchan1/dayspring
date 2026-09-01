@@ -192,8 +192,14 @@ export interface ZoomSpec {
   lines: number
 }
 
-/** Where a fresh install stands, and where ⌘0 returns you to. */
-export const PAGES_ZOOM_DEFAULT = 0.45
+/**
+ * Where a fresh install stands, and where ⌘0 returns you to.
+ *
+ * Closer than the original midpoint: the first view should carry enough of
+ * each page to recognise it, while still showing an archive rather than one
+ * open document. Existing readers keep the distance they already chose.
+ */
+export const PAGES_ZOOM_DEFAULT = 0.6
 export const ZOOM_MIN = 0
 export const ZOOM_MAX = 1
 /** One press of ⌘= / ⌘−, and one notch of the slider. */
