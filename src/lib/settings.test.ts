@@ -8,7 +8,7 @@ import { FONT_SIZE_DEFAULT, migrateSettings } from './settings'
 describe('migrateSettings', () => {
   it('gives a blob with nothing in it the defaults', () => {
     const s = migrateSettings({ v: 4 })
-    expect(s.pagesZoom).toBe(0.45)
+    expect(s.pagesZoom).toBe(0.6)
     expect(s.fontSize).toBe(FONT_SIZE_DEFAULT)
   })
 
@@ -40,12 +40,12 @@ describe('migrateSettings', () => {
     })
 
     it('leaves someone who never opened Pages on the default', () => {
-      expect(migrateSettings({ v: 3, appearance: 'dark' }).pagesZoom).toBe(0.45)
+      expect(migrateSettings({ v: 3, appearance: 'dark' }).pagesZoom).toBe(0.6)
     })
 
     it('ignores a value that was never one of the steps', () => {
       const s = migrateSettings({ v: 3, appearance: 'dark', pagesDensity: 'nonsense' as never })
-      expect(s.pagesZoom).toBe(0.45)
+      expect(s.pagesZoom).toBe(0.6)
     })
 
     it('does not overwrite a zoom the user has since chosen', () => {
