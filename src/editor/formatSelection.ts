@@ -70,25 +70,28 @@ const LINE_STYLES: { action: 'list' | 'quote' | 'heading'; prefixes: string[] }[
 ]
 
 /**
- * True when `t` is a single span wrapped by `marker` — i.e. the closing marker
- * is the *first* occurrence after the opening one. This rejects selections that
- * merely share an outer delimiter but hold several spans (`**a** and **b**`),
- * which would otherwise be mis-peeled and corrupted on re-wrap.
+ * True when `t` is a single span wrapped by `marker`. Stacked identical
+ * wrappers (`****word****`) count as one span; several sibling spans that
+ * merely share an outer delimiter (`**a** and **b**`) do not — peeling those
+ * would corrupt the document on re-wrap.
  */
-function isWrapped(t: string, marker: string): boolean {
+function isSingleSpanWrapped(t: string, marker: string): boolean {
   const k = marker.length
   if (t.length < k * 2) return false
   if (!t.startsWith(marker) || !t.endsWith(marker)) return false
-  return t.indexOf(marker, k) === t.length - k
+  const inner = t.slice(k, -k)
+  if (!inner.includes(marker)) return true
+  return isSingleSpanWrapped(inner, marker)
 }
 
 const HL_RE = new RegExp(`^==(?:\\{(${NAMED_COLOR_PATTERN})\\})?([\\s\\S]*)==$`)
+const HL_OPEN_AT_END = new RegExp(`==(?:\\{(?:${NAMED_COLOR_PATTERN})\\})?$`)
 
 /**
- * `isWrapped` can't judge a highlight: the opening marker may carry a colour
- * (`=={rose}`) while the closing one never does. This keeps the same single-span
- * guard — `==a== and ==b==` must NOT peel, or re-wrapping it strands delimiters
- * in the document (the regression `isWrapped` exists to prevent).
+ * `isSingleSpanWrapped` can't judge a highlight: the opening marker may carry
+ * a colour (`=={rose}`) while the closing one never does. This keeps the same
+ * single-span guard — `==a== and ==b==` must NOT peel, or re-wrapping it
+ * strands delimiters in the document.
  */
 function peelHighlight(text: string): { inner: string; color: HighlightColor } | null {
   const m = HL_RE.exec(text)
@@ -98,14 +101,46 @@ function peelHighlight(text: string): { inner: string; color: HighlightColor } |
   return { inner, color: (m[1] as HighlightColor | undefined) ?? 'amber' }
 }
 
+/**
+ * Peel a matching `*` / `_` run from both ends as one emphasis span.
+ *
+ * Counting the run (instead of trying `***` then `**` then `*`) is what
+ * recovers from stacked bold: `****word****` is two bold pairs, not a
+ * `***` wrap around a leftover `*`. Marker soup with no inner text
+ * (`****`, `***`) is read as empty bold / bold+italic so a second press
+ * can take the pair off instead of adding another.
+ */
+function peelDelimRun(
+  t: string,
+  ch: '*' | '_',
+): { inner: string; bold: boolean; italic: boolean } | null {
+  if (!t.startsWith(ch) || !t.endsWith(ch) || t.length < 2) return null
+
+  let n = 0
+  while (n < t.length && t[n] === ch && t[t.length - 1 - n] === ch) n++
+
+  if (n * 2 >= t.length) {
+    if (![...t].every((c) => c === ch)) return null
+    return { inner: '', bold: t.length >= 2, italic: t.length % 2 === 1 }
+  }
+
+  const inner = t.slice(n, t.length - n)
+  const pair = ch + ch
+  if (inner.includes(pair) || (n === 1 && inner.includes(ch))) {
+    if (!peelDelimRun(inner, ch)) return null
+  }
+
+  return { inner, bold: n >= 2, italic: n % 2 === 1 }
+}
+
 /** Peel recognized markdown wrappers until the plain phrase is exposed. */
 export function parseInlineMarks(text: string): { plain: string; marks: InlineMarks } {
   let t = text
   const marks: InlineMarks = { ...EMPTY_INLINE }
 
   // Order mirrors buildInline, outermost wrapper first.
-  for (let guard = 0; guard < 10; guard++) {
-    if (isWrapped(t, '`')) {
+  for (let guard = 0; guard < 16; guard++) {
+    if (isSingleSpanWrapped(t, '`')) {
       marks.code = true
       t = t.slice(1, -1)
       continue
@@ -116,30 +151,21 @@ export function parseInlineMarks(text: string): { plain: string; marks: InlineMa
       t = hl.inner
       continue
     }
-    if (isWrapped(t, '++')) {
+    if (isSingleSpanWrapped(t, '++')) {
       marks.underline = true
       t = t.slice(2, -2)
       continue
     }
-    if (isWrapped(t, '***')) {
-      marks.bold = true
-      marks.italic = true
-      t = t.slice(3, -3)
+    const em = peelDelimRun(t, '*') ?? peelDelimRun(t, '_')
+    if (em) {
+      if (em.bold) marks.bold = true
+      if (em.italic) marks.italic = true
+      t = em.inner
       continue
     }
-    if (isWrapped(t, '**')) {
-      marks.bold = true
-      t = t.slice(2, -2)
-      continue
-    }
-    if (isWrapped(t, '~~')) {
+    if (isSingleSpanWrapped(t, '~~')) {
       marks.strike = true
       t = t.slice(2, -2)
-      continue
-    }
-    if (isWrapped(t, '*')) {
-      marks.italic = true
-      t = t.slice(1, -1)
       continue
     }
     break
@@ -168,7 +194,6 @@ export function highlightMarkers(color: HighlightColor): { open: string; close: 
  * than `**==x==**`, and it matches how the parser resolves the delimiters.
  */
 export function buildInline(plain: string, marks: InlineMarks): string {
-  if (!plain) return plain
   if (marks.code) return `\`${plain}\``
 
   let s = plain
@@ -182,6 +207,90 @@ export function buildInline(plain: string, marks: InlineMarks): string {
     s = `${open}${s}${close}`
   }
   return s
+}
+
+/** Length of the opening wrappers `buildInline` emits — caret sits after them. */
+function openingMarkerLength(marks: InlineMarks): number {
+  if (marks.code) return 1
+  let n = 0
+  if (marks.highlight) n += highlightMarkers(marks.highlight).open.length
+  if (marks.underline) n += 2
+  if (marks.bold && marks.italic) n += 3
+  else if (marks.bold) n += 2
+  else if (marks.italic) n += 1
+  if (marks.strike) n += 2
+  return n
+}
+
+function isWordChar(ch: string | undefined): boolean {
+  if (!ch) return false
+  return /[\p{L}\p{N}'’\-]/u.test(ch)
+}
+
+function isMarkerPunct(ch: string | undefined): boolean {
+  return ch === '*' || ch === '_' || ch === '+' || ch === '~' || ch === '=' || ch === '`'
+}
+
+/** The word touching `pos`, or null when the caret sits in whitespace. */
+export function wordRangeAt(state: EditorState, pos: number): { from: number; to: number } | null {
+  const line = state.doc.lineAt(pos)
+  const text = line.text
+  const offset = Math.max(0, Math.min(pos - line.from, text.length))
+
+  let start = offset
+  let end = offset
+  if (start > 0 && (start === text.length || !isWordChar(text[start])) && isWordChar(text[start - 1])) {
+    start--
+  }
+  while (start > 0 && isWordChar(text[start - 1])) start--
+  while (end < text.length && isWordChar(text[end])) end++
+  if (start === end) return null
+  return { from: line.from + start, to: line.from + end }
+}
+
+/**
+ * If `[from, to)` is immediately wrapped by a recognised pair, return the
+ * range that includes those markers. Longer markers win so `***` is not
+ * stolen as a `*` plus a leftover `**`.
+ */
+function tryConsumeWrapper(doc: string, from: number, to: number): { from: number; to: number } | null {
+  const left = doc.slice(Math.max(0, from - 16), from)
+  const right = doc.slice(to, to + 24)
+
+  const hl = HL_OPEN_AT_END.exec(left)
+  if (hl && right.startsWith('==')) {
+    return { from: from - hl[0].length, to: to + 2 }
+  }
+
+  if (from > 0 && doc[from - 1] === '[') {
+    const link = /^\]\([^)]+\)/.exec(doc.slice(to))
+    if (link) return { from: from - 1, to: to + link[0].length }
+  }
+
+  for (const p of ['***', '**', '__', '++', '~~', '*', '_', '`'] as const) {
+    if (!left.endsWith(p) || !right.startsWith(p)) continue
+    if (p === '*' && (left.endsWith('**') || right.startsWith('**'))) continue
+    if (p === '_' && (left.endsWith('__') || right.startsWith('__'))) continue
+    return { from: from - p.length, to: to + p.length }
+  }
+  return null
+}
+
+/** Widen `[from, to)` across stacked wrappers without needing a syntax tree. */
+export function expandTextualWrappers(
+  doc: string,
+  from: number,
+  to: number,
+): { from: number; to: number } {
+  let f = from
+  let t = to
+  for (let i = 0; i < 16; i++) {
+    const next = tryConsumeWrapper(doc, f, t)
+    if (!next) break
+    f = next.from
+    t = next.to
+  }
+  return { from: f, to: t }
 }
 
 function stripLinePrefix(text: string): { body: string; prefix: string | null } {
@@ -301,7 +410,135 @@ export function expandToInlineSpans(
     }
     node = node.parent
   }
-  return { from: f, to: t }
+  // Textual fallback: concealment, a lagged parse, or a test without the
+  // markdown language still have to see `**word**` when the writer selected
+  // `word`. Without this, each press wraps again (`****word****`, then six).
+  return expandTextualWrappers(state.doc.toString(), f, t)
+}
+
+function delimRunAt(doc: string, pos: number, ch: string): number {
+  let left = 0
+  while (pos - left - 1 >= 0 && doc[pos - left - 1] === ch) left++
+  let right = 0
+  while (pos + right < doc.length && doc[pos + right] === ch) right++
+  return Math.min(left, right)
+}
+
+/**
+ * Empty marker soup at the caret (`*|` `*`, `**|**`, `==|==`). Asterisk runs
+ * are counted from the caret, not parsed as a blob — `**` with the caret in
+ * the middle is empty italic, not empty bold. Rejects a caret sitting inside
+ * a stacked opener (`**|**word****`) so we don't strip the opening of a real
+ * span and leave `word****` behind.
+ */
+function emptyMarksAt(
+  doc: string,
+  pos: number,
+): { from: number; to: number; marks: InlineMarks } | null {
+  const marks: InlineMarks = { ...EMPTY_INLINE }
+  let from = pos
+  let to = pos
+
+  const stars = delimRunAt(doc, pos, '*')
+  const unders = stars === 0 ? delimRunAt(doc, pos, '_') : 0
+  const run = stars || unders
+  if (run > 0) {
+    if (run >= 2) marks.bold = true
+    if (run % 2 === 1) marks.italic = true
+    from = pos - run
+    to = pos + run
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const left = doc.slice(Math.max(0, from - 16), from)
+    const right = doc.slice(to, to + 16)
+    const hl = HL_OPEN_AT_END.exec(left)
+    if (hl && right.startsWith('==')) {
+      const spec = hl[0].match(new RegExp(`\\{(${NAMED_COLOR_PATTERN})\\}$`))
+      marks.highlight = (spec?.[1] as HighlightColor | undefined) ?? 'amber'
+      from -= hl[0].length
+      to += 2
+      continue
+    }
+    if (left.endsWith('++') && right.startsWith('++')) {
+      marks.underline = true
+      from -= 2
+      to += 2
+      continue
+    }
+    if (left.endsWith('~~') && right.startsWith('~~')) {
+      marks.strike = true
+      from -= 2
+      to += 2
+      continue
+    }
+    if (left.endsWith('`') && right.startsWith('`')) {
+      marks.code = true
+      from -= 1
+      to += 1
+      continue
+    }
+    break
+  }
+
+  if (from === to) return null
+  if (isWordChar(doc[from - 1]) || isWordChar(doc[to])) return null
+  return { from, to, marks }
+}
+
+/** Outermost formatted span that contains `pos`, or a word already wrapped. */
+function enclosingFormatRange(
+  state: EditorState,
+  pos: number,
+): { from: number; to: number } | null {
+  let best: { from: number; to: number } | null = null
+  for (const side of [-1, 1, 0] as const) {
+    let node: SyntaxNodeLike | null = syntaxTree(state).resolveInner(pos, side) as SyntaxNodeLike
+    while (node) {
+      if (SPAN_NODES.has(node.name) && node.from <= pos && pos <= node.to) {
+        if (!best || (node.from <= best.from && node.to >= best.to)) {
+          best = { from: node.from, to: node.to }
+        }
+      }
+      node = node.parent
+    }
+  }
+  if (best) return best
+
+  const doc = state.doc.toString()
+  const word = wordRangeAt(state, pos)
+  if (word) {
+    const exp = expandTextualWrappers(doc, word.from, word.to)
+    if (exp.from !== word.from || exp.to !== word.to) return exp
+  }
+
+  // Caret in a marker run next to a formatted word (`**|**hello****`).
+  const snapped = adjacentWrappedWord(doc, pos)
+  if (snapped) return snapped
+  return null
+}
+
+function adjacentWrappedWord(doc: string, pos: number): { from: number; to: number } | null {
+  const tryAt = (at: number): { from: number; to: number } | null => {
+    if (at < 0 || at >= doc.length || !isWordChar(doc[at])) return null
+    let start = at
+    let end = at + 1
+    while (start > 0 && isWordChar(doc[start - 1])) start--
+    while (end < doc.length && isWordChar(doc[end])) end++
+    const exp = expandTextualWrappers(doc, start, end)
+    if (exp.from === start && exp.to === end) return null
+    if (exp.from <= pos && pos <= exp.to) return exp
+    return null
+  }
+
+  let i = pos
+  while (i < doc.length && isMarkerPunct(doc[i])) i++
+  const right = tryAt(i)
+  if (right) return right
+
+  let j = pos
+  while (j > 0 && isMarkerPunct(doc[j - 1])) j--
+  return tryAt(j - 1)
 }
 
 /** The selection, widened to whole inline spans (see `expandToInlineSpans`). */
@@ -361,9 +598,13 @@ export function toggleHighlight(marks: InlineMarks, color: HighlightColor): Inli
 }
 
 /**
- * The one write path for inline marks: widen to whole spans, peel, transform,
+ * The one write path for inline marks: find the target range, peel, transform,
  * rebuild, dispatch. Everything (bar, keymap, slash palette, mobile toolbar)
- * routes through here so concealed markers can't be double-wrapped.
+ * routes through here so a mark is always a toggle — never a second wrap.
+ *
+ * Empty caret, in order: take off an empty pair (`**|**`), toggle the
+ * enclosing span, wrap (or unwrap) the word at the caret, or insert a fresh
+ * empty pair. A second press of the same button always undoes the first.
  */
 function applyInlineTransform(
   view: EditorView,
@@ -371,31 +612,60 @@ function applyInlineTransform(
   emptyMarkers: { open: string; close: string },
 ): boolean {
   const sel = view.state.selection.main
+  const doc = view.state.doc.toString()
+
+  let from: number
+  let to: number
+  let empty: ReturnType<typeof emptyMarksAt> = null
 
   if (sel.empty) {
-    const { open, close } = emptyMarkers
-    view.dispatch({
-      changes: { from: sel.from, insert: open + close },
-      selection: { anchor: sel.from + open.length },
-    })
-    view.focus()
-    return true
+    const pos = sel.from
+    empty = emptyMarksAt(doc, pos)
+    const enclosing = empty ? null : enclosingFormatRange(view.state, pos)
+    const word = empty || enclosing ? null : wordRangeAt(view.state, pos)
+
+    if (empty) {
+      from = empty.from
+      to = empty.to
+    } else if (enclosing) {
+      from = enclosing.from
+      to = enclosing.to
+    } else if (word) {
+      from = word.from
+      to = word.to
+    } else {
+      const { open, close } = emptyMarkers
+      view.dispatch({
+        changes: { from: pos, insert: open + close },
+        selection: { anchor: pos + open.length },
+      })
+      view.focus()
+      return true
+    }
+  } else {
+    const expanded = expandToInlineSpans(view.state, sel.from, sel.to)
+    from = expanded.from
+    to = expanded.to
   }
 
-  const { from, to } = expandToInlineSpans(view.state, sel.from, sel.to)
   const raw = view.state.sliceDoc(from, to)
-  const linkParsed = parseLink(raw)
-  const { plain, marks } = linkParsed
-    ? parseInlineMarks(linkParsed.plain)
-    : parseInlineMarks(raw)
+  const linkParsed = empty ? null : parseLink(raw)
+  const { plain, marks } = empty
+    ? { plain: '', marks: empty.marks }
+    : linkParsed
+      ? parseInlineMarks(linkParsed.plain)
+      : parseInlineMarks(raw)
 
   const next = transform(marks)
   const label = buildInline(plain, next)
   const insert = linkParsed ? `[${label}](${linkParsed.url})` : label
+  const placedEmpty = sel.empty && plain === ''
 
   view.dispatch({
     changes: { from, to, insert },
-    selection: { anchor: from, head: from + insert.length },
+    selection: placedEmpty
+      ? { anchor: from + openingMarkerLength(next) }
+      : { anchor: from, head: from + insert.length },
   })
   view.focus()
   return true

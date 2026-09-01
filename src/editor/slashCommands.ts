@@ -349,11 +349,27 @@ function stripBlockPrefix(text: string): { indent: string; body: string } {
   return { indent: m[1] ?? '', body: text.slice(m[0].length) }
 }
 
+function sameBlockKind(existing: string, next: string): boolean {
+  const heading = /^#{1,6}\s+$/
+  const quote = /^>\s+$/
+  const todo = /^[-*+]\s+\[(?:\s|[xX])?\]\s+$/
+  const bullet = /^[-*+]\s+$/
+  const ordered = /^\d+[.)]\s+$/
+  if (heading.test(next)) return heading.test(existing) && existing === next
+  if (quote.test(next)) return quote.test(existing)
+  if (todo.test(next)) return todo.test(existing)
+  if (bullet.test(next)) return bullet.test(existing)
+  if (ordered.test(next)) return ordered.test(existing)
+  return existing === next
+}
+
 function setLinePrefix(view: EditorView, prefix: string): void {
   const pos = view.state.selection.main.head
   const line = view.state.doc.lineAt(pos)
   const { indent, body } = stripBlockPrefix(line.text)
-  const insert = `${indent}${prefix}${body}`
+  const existing = line.text.slice(indent.length, line.text.length - body.length)
+  // Same mark again takes the prefix off instead of stacking `## ##`.
+  const insert = sameBlockKind(existing, prefix) ? `${indent}${body}` : `${indent}${prefix}${body}`
   view.dispatch({
     changes: { from: line.from, to: line.to, insert },
     // Drop the caret at the end of the (now prefixed) line, ready to type.
@@ -416,8 +432,7 @@ export function applyFormatCommand(view: EditorView, id: FormatCommandId): void 
     case 'strike':
     case 'highlight':
     case 'code':
-      // With an empty selection these insert paired markers and place the
-      // caret between them — type-then-formatted, just like the format bar.
+      // Same toggle as the format bar / keymap — never a second wrap.
       applyFormat(view, id)
       return
     case 'h1':
