@@ -14,6 +14,8 @@ import {
   isAppHistoryState,
   isLegacyScripturePath,
   mergeAppHistory,
+  mouseHistoryAction,
+  mouseHistoryNeedsFallback,
   normalizeAppHistory,
   normalizePathname,
   pathForSurface,
@@ -89,7 +91,13 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
           : readAppHistoryState()
       if (!next) {
         const fromPath = surfaceFromPath(window.location.pathname)
-        if (!fromPath) return
+        if (!fromPath) {
+          // Mouse / swipe Back landed on a frame we never tagged (the original
+          // document load, or a leftover `replaceState({}, …)`). Stay in the
+          // app rather than ignoring the pop and leaving UI and history split.
+          replaceAppHistory(stateRef.current)
+          return
+        }
         next = mergeAppHistory(DEFAULT_APP_HISTORY, { surface: fromPath })
       }
       next = normalizeAppHistory(next)
@@ -98,6 +106,35 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  // Mouse Back / Forward — the same stack as the in-app Back button, Esc, and
+  // Android back. Capture so CodeMirror never swallows the side buttons.
+  useEffect(() => {
+    const block = (event: MouseEvent) => {
+      if (!mouseHistoryAction(event.button)) return
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    const onUp = (event: MouseEvent) => {
+      const action = mouseHistoryAction(event.button)
+      if (!action) return
+      block(event)
+      const before = history.state
+      window.setTimeout(() => {
+        if (!mouseHistoryNeedsFallback(before, history.state)) return
+        if (action === 'back') history.back()
+        else history.forward()
+      }, 0)
+    }
+    window.addEventListener('mousedown', block, true)
+    window.addEventListener('mouseup', onUp, true)
+    window.addEventListener('auxclick', block, true)
+    return () => {
+      window.removeEventListener('mousedown', block, true)
+      window.removeEventListener('mouseup', onUp, true)
+      window.removeEventListener('auxclick', block, true)
+    }
   }, [])
 
   // One baseline frame so the first Back closes an overlay instead of leaving the app.

@@ -18,6 +18,9 @@ export interface EntryReturnContext {
   /** Ascent altitude (0 = Valley/week … 3 = Summit) when returning from an entry preview. */
   ascentAltitude: number
   ascentDrill: AscentDrill | null
+  /** Pages lighting and open reader — so Back lands on the page you left, not the wall. */
+  pagesSubject: string | null
+  pagesSpreadId: string | null
 }
 
 export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
@@ -135,6 +138,8 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
     scriptureVerse: typeof r.scriptureVerse === 'string' ? r.scriptureVerse : null,
     ascentAltitude: normalizeAscentAltitude(r.ascentAltitude),
     ascentDrill: normalizeAscentDrill(r.ascentDrill),
+    pagesSubject: typeof r.pagesSubject === 'string' ? r.pagesSubject : null,
+    pagesSpreadId: typeof r.pagesSpreadId === 'string' ? r.pagesSpreadId : null,
   }
 }
 
@@ -230,6 +235,28 @@ export function replaceAppHistory(state: AppHistoryState): void {
   history.replaceState(state, '', appHistoryUrl(state))
 }
 
+/** Mouse X1 / X2 — "Browser Back" and "Browser Forward" in the UI Events spec. */
+export function mouseHistoryAction(button: number): 'back' | 'forward' | null {
+  if (button === 3) return 'back'
+  if (button === 4) return 'forward'
+  return null
+}
+
+/**
+ * Chrome / Safari / WebView2 already turn those buttons into a history pop.
+ * WKWebView in the Mac app does not — the click arrives, nothing moves.
+ *
+ * Same object identity means the host did not pop; we should. A new
+ * `history.state` means it already did, and calling `history.back()` again
+ * would skip a frame.
+ */
+export function mouseHistoryNeedsFallback(
+  stateBefore: unknown,
+  stateAfter: unknown,
+): boolean {
+  return stateBefore === stateAfter
+}
+
 /** Remove Supabase OAuth tokens from the address bar after sign-in. */
 /** Snapshot return context when leaving an alt canvas to read an entry. */
 export function entryReturnFromState(state: AppHistoryState): EntryReturnContext | null {
@@ -240,6 +267,8 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: state.scriptureVerse,
       ascentAltitude: 0,
       ascentDrill: null,
+      pagesSubject: null,
+      pagesSpreadId: null,
     }
   }
   if (state.surface === 'altar') {
@@ -249,6 +278,8 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: 0,
       ascentDrill: null,
+      pagesSubject: null,
+      pagesSpreadId: null,
     }
   }
   if (state.surface === 'reflections') {
@@ -258,6 +289,8 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: state.ascentAltitude,
       ascentDrill: state.ascentDrill,
+      pagesSubject: null,
+      pagesSpreadId: null,
     }
   }
   if (state.surface === 'pages') {
@@ -267,6 +300,8 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: 0,
       ascentDrill: null,
+      pagesSubject: state.pagesSubject,
+      pagesSpreadId: state.pagesSpreadId,
     }
   }
   return null
