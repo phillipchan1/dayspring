@@ -34,6 +34,8 @@ interface AppNavigationValue {
   go: (patch: Partial<AppHistoryState>, opts?: { replace?: boolean }) => void
   /** Pop one in-app history frame (mouse back, Android back, overlay close). */
   back: () => void
+  /** Hold a history pop until the active editor has flushed its latest text. */
+  setHistoryPopBarrier: (barrier: (() => Promise<void>) | null) => void
   /** Close settings, including an open Import source detail if one is on the stack. */
   closeSettings: () => void
 }
@@ -47,6 +49,15 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state)
   stateRef.current = state
   const seededRef = useRef(false)
+  const historyPopBarrierRef = useRef<(() => Promise<void>) | null>(null)
+  const popSequenceRef = useRef(0)
+
+  const setHistoryPopBarrier = useCallback(
+    (barrier: (() => Promise<void>) | null) => {
+      historyPopBarrierRef.current = barrier
+    },
+    [],
+  )
 
   const commit = useCallback((next: AppHistoryState, replace: boolean) => {
     const prev = stateRef.current
@@ -84,6 +95,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPop = (event: PopStateEvent) => {
+      const sequence = ++popSequenceRef.current
       let next = isAppHistoryState(event.state)
         ? event.state
         : isAppHistoryState(history.state)
@@ -101,8 +113,24 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         next = mergeAppHistory(DEFAULT_APP_HISTORY, { surface: fromPath })
       }
       next = normalizeAppHistory(next)
-      stateRef.current = next
-      setState(next)
+      const commitPop = async () => {
+        // history.back()/forward() moves the browser stack before popstate.
+        // Hold the React transition for the editor's flush so rapid side-button
+        // navigation cannot reset the autosave session out from under its last
+        // keystrokes. If another pop arrives while saving, only the newest
+        // destination commits.
+        try {
+          await historyPopBarrierRef.current?.()
+        } catch {
+          // The editor owns the visible save error. Navigation must not become
+          // a dead end because persistence failed.
+          addBreadcrumb('navigation', 'history flush failed')
+        }
+        if (sequence !== popSequenceRef.current) return
+        stateRef.current = next
+        setState(next)
+      }
+      void commitPop()
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -186,7 +214,10 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ state, go, back, closeSettings }), [state, go, back, closeSettings])
+  const value = useMemo(
+    () => ({ state, go, back, setHistoryPopBarrier, closeSettings }),
+    [state, go, back, setHistoryPopBarrier, closeSettings],
+  )
 
   return (
     <AppNavigationContext.Provider value={value}>

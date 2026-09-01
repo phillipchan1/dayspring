@@ -20,14 +20,29 @@ export interface WallItem {
 /**
  * Every card on the wall, in order.
  *
- * @param cols  Echo spacing is measured in ROWS, not pages: a fixed page gap
- *              puts two echoes on one screen at eight columns and one every few
- *              screens at two.
+ * @param cols  Column count used by the default echo cadence.
+ * @param minEchoGap  Optional page-count cadence for a rendering that knows
+ *                    how many pages its viewport holds.
  */
-export function buildWallItems(entries: Entry[], echoes: boolean, cols: number): WallItem[] {
+export function buildWallItems(
+  entries: Entry[],
+  echoes: boolean,
+  cols: number,
+  minEchoGap?: number,
+): WallItem[] {
   if (!echoes) return entries.map((entry) => ({ key: entry.id, entry }))
 
-  const found = findAnniversaries(entries, entries, Math.max(10, cols * 3))
+  // The present is the orientation anchor. An earlier-year page should never
+  // interrupt the current-week cluster; begin looking for anchors only after
+  // the reader has crossed out of it.
+  const anchors = entries.filter(
+    (entry) => !isCurrentCalendarWeek(entry.created_at),
+  )
+  const found = findAnniversaries(
+    anchors,
+    entries,
+    minEchoGap ?? Math.max(10, cols * 3),
+  )
   const byAnchor = new Map(found.map((a) => [a.anchorId, a]))
   const out: WallItem[] = []
   for (const entry of entries) {
@@ -42,6 +57,26 @@ export function buildWallItems(entries: Entry[], echoes: boolean, cols: number):
     }
   }
   return out
+}
+
+/**
+ * Whether a page belongs to the reader's current Monday–Sunday week.
+ *
+ * Local dates are deliberate: the page date and "this week" are both things
+ * the reader experiences in their own calendar, not UTC reporting periods.
+ */
+export function isCurrentCalendarWeek(iso: string, now = new Date()): boolean {
+  const page = new Date(iso)
+  if (Number.isNaN(page.getTime()) || Number.isNaN(now.getTime())) return false
+
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  const daysSinceMonday = (start.getDay() + 6) % 7
+  start.setDate(start.getDate() - daysSinceMonday)
+
+  const next = new Date(start)
+  next.setDate(start.getDate() + 7)
+  return page >= start && page < next
 }
 
 /**

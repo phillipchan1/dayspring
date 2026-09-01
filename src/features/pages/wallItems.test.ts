@@ -3,6 +3,7 @@ import type { Entry } from '@/lib/types'
 import {
   buildWallItems,
   collapseUnlit,
+  isCurrentCalendarWeek,
   monthAtRow,
   monthMarks,
   seamLabel,
@@ -56,6 +57,50 @@ describe('buildWallItems', () => {
   it('gives every card a distinct React key even when an entry repeats', () => {
     const items = buildWallItems(corpus(), true, 4)
     expect(new Set(items.map((i) => i.key)).size).toBe(items.length)
+  })
+
+  it('accepts a viewport-sized recall cadence', () => {
+    const items = buildWallItems(corpus(), true, 2, 52)
+    expect(items.filter((item) => item.echo)).toHaveLength(1)
+  })
+
+  it('does not let a recall interrupt the current-week cluster', () => {
+    const today = new Date()
+    const current = entry(
+      [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0'),
+      ].join('-'),
+    )
+    const entries = [
+      current,
+      entry('2024-06-10'),
+      entry('2024-06-09'),
+      entry('2023-06-10'),
+      entry('2023-06-09'),
+    ]
+    const items = buildWallItems(entries, true, 2, 1)
+    expect(items[0]!.entry.id).toBe(current.id)
+    expect(items[1]!.echo).toBeUndefined()
+    expect(items.some((item) => item.echo)).toBe(true)
+  })
+})
+
+describe('isCurrentCalendarWeek', () => {
+  const now = new Date(2026, 8, 1, 12)
+  const iso = (year: number, month: number, day: number) =>
+    new Date(year, month, day, 12).toISOString()
+
+  it('uses a local Monday–Sunday week across a month boundary', () => {
+    expect(isCurrentCalendarWeek(iso(2026, 7, 31), now)).toBe(true)
+    expect(isCurrentCalendarWeek(iso(2026, 8, 6), now)).toBe(true)
+    expect(isCurrentCalendarWeek(iso(2026, 7, 30), now)).toBe(false)
+    expect(isCurrentCalendarWeek(iso(2026, 8, 7), now)).toBe(false)
+  })
+
+  it('is silent for an invalid date', () => {
+    expect(isCurrentCalendarWeek('not-a-date', now)).toBe(false)
   })
 })
 

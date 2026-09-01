@@ -107,38 +107,38 @@ describe('wheelZoomDelta', () => {
 
 describe('the rows band', () => {
   /*
-   * The number this whole band exists to hit. D-022 reversed D-018 because
-   * browsing for a half-remembered entry got slower — a row shows ~30 a screen
-   * and the wall at its densest shows fewer. If this stops being true the band
-   * is not beating the panel it replaced.
+   * Enough rows to browse quickly, with enough height for each one to remain a
+   * recognizable target rather than becoming texture.
    */
-  it('puts thirty rows on a 900px screen', () => {
+  it('puts about twenty-six rows on a 900px screen', () => {
     const spec = specForZoom(ZOOM_MIN)
     const perScreen = Math.floor(900 / (spec.cardHeight + spec.gap))
-    expect(perScreen).toBeGreaterThanOrEqual(30)
+    expect(perScreen).toBeGreaterThanOrEqual(25)
+    expect(perScreen).toBeLessThanOrEqual(28)
   })
 
   /*
    * The band exists purely for density, and a line of prose has a measure past
    * which extra width buys nothing. Left at one column, a wide display spent
    * its whole width on one 25px row — so past that measure the width goes to
-   * MORE ROWS instead. This is the fix for "a full-width list makes no sense".
+   * a second lane instead. This is the fix for "a full-width list makes no
+   * sense" without splitting chronology across three competing scan paths.
    */
-  it('spends extra width on more rows rather than a longer one', () => {
+  it('spends extra width on a second lane rather than a longer one', () => {
     const spec = specForZoom(ZOOM_MIN)
-    expect(spec.maxCols).toBeGreaterThan(1)
+    expect(spec.maxCols).toBe(2)
     // Narrow windows still get exactly one, because the measure comes first.
     const fits = (w: number) => Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
-    // Narrow windows still get exactly one, because the measure comes first.
     expect(Math.min(spec.maxCols, fits(700))).toBe(1)
-    expect(Math.min(spec.maxCols, fits(1400))).toBeGreaterThanOrEqual(3)
+    expect(Math.min(spec.maxCols, fits(1400))).toBe(2)
   })
 
-  it('puts ninety pages on a wide screen, which is what the band is for', () => {
+  it('puts fifty to sixty recognizable pages on a wide screen', () => {
     const spec = specForZoom(ZOOM_MIN)
     const rows = Math.floor(900 / (spec.cardHeight + spec.gap))
     const cols = Math.min(spec.maxCols, Math.floor((1400 + spec.gap) / (spec.minWidth + spec.gap)))
-    expect(rows * cols).toBeGreaterThanOrEqual(90)
+    expect(rows * cols).toBeGreaterThanOrEqual(50)
+    expect(rows * cols).toBeLessThanOrEqual(60)
   })
 
   // A threshold, not a blend: a squashed card is not a list.

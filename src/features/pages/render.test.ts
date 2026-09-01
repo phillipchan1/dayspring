@@ -92,6 +92,29 @@ describe('PageWall', () => {
     expect(html).toContain('data-dim="true"')
   })
 
+  it('names and groups the current week without adding a count', () => {
+    const now = new Date()
+    const localDate = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+    const html = renderToString(
+      createElement(PageWall, {
+        entries: [entry('What I wrote this morning', localDate)],
+        zoom: 0,
+        markQuotes: new Map(),
+        lit: null,
+        activeId: null,
+        echoes: false,
+        ...wallActions,
+      }),
+    )
+    expect(html).toContain('data-current-week="true"')
+    expect(html).toContain('this week')
+    expect(html).not.toMatch(/this week · \d/)
+  })
+
   it('survives an entry with no prose at all', () => {
     const html = renderToString(
       createElement(PageWall, {

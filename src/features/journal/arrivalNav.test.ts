@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shouldAutoOpenLatest } from './arrivalNav'
+import { shouldAutoOpenLatest, shouldSkipEntryLoad } from './arrivalNav'
 
 const base = { wantedId: null, hasEntries: true, editorBlank: true, isNewEntry: false }
 
@@ -35,5 +35,19 @@ describe('shouldAutoOpenLatest', () => {
 
   it('does nothing when there are no entries to open', () => {
     expect(shouldAutoOpenLatest({ ...base, hasEntries: false })).toBe(false)
+  })
+})
+
+describe('shouldSkipEntryLoad', () => {
+  it('skips a body already seeded for the exact destination', () => {
+    expect(shouldSkipEntryLoad(true, 'entry-b', 'entry-b')).toBe(true)
+  })
+
+  it('reloads when Back targets a different entry despite a stale skip flag', () => {
+    expect(shouldSkipEntryLoad(true, 'entry-b', 'entry-a')).toBe(false)
+  })
+
+  it('reloads when no programmatic seed was requested', () => {
+    expect(shouldSkipEntryLoad(false, 'entry-a', 'entry-a')).toBe(false)
   })
 })

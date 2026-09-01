@@ -28,6 +28,7 @@ import type { SpiritualItemType } from '@/lib/types'
 import {
   buildWallItems,
   collapseUnlit,
+  isCurrentCalendarWeek,
   monthAtRow,
   monthMarks,
   seamLabel,
@@ -90,6 +91,8 @@ interface Props {
 const EMPTY_SELECTED: Entry[] = []
 /** Stable identity, so a page with no markings never re-renders its row. */
 const EMPTY_KINDS: SpiritualItemType[] = []
+/** Rows need lanes; cards need equal gutters in both directions. */
+const ROW_COLUMN_GAP = 28
 
 /**
  * The wall.
@@ -141,6 +144,7 @@ export function PageWall({
   const rows = isRows(zoom, narrow)
   /** Everything that is not a row is a card. */
   const cards = !rows
+  const columnGap = rows && !narrow ? ROW_COLUMN_GAP : spec.gap
   const [cols, setCols] = useState(1)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [topYear, setTopYear] = useState<string | null>(null)
@@ -179,11 +183,11 @@ export function PageWall({
         (Number.parseFloat(cs.paddingLeft) || 0) -
         (Number.parseFloat(cs.paddingRight) || 0)
       if (w <= 0) return
-      const fits = Math.floor((w + spec.gap) / (spec.minWidth + spec.gap))
+      const fits = Math.floor((w + columnGap) / (spec.minWidth + columnGap))
       const next = Math.max(1, Math.min(spec.maxCols, fits))
       setCols((prev) => (prev === next ? prev : next))
       setColWidth((prev) => {
-        const each = Math.floor((w - spec.gap * (next - 1)) / next)
+        const each = Math.floor((w - columnGap * (next - 1)) / next)
         return prev === each ? prev : each
       })
     }
@@ -191,7 +195,7 @@ export function PageWall({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [spec])
+  }, [spec, columnGap])
 
   // The declared kinds each page carries, in the vocabulary's own order — the
   // row margin's whole content. Built once here rather than per row so a scroll
@@ -219,9 +223,20 @@ export function PageWall({
    * estimate that grew as you scrolled. A page is opened to be read now, so a
    * cell is a page, and the scroller's height is known from the first frame.
    */
+  const echoGap = rows
+    ? Math.max(
+        1,
+        Math.floor((narrow ? 700 : 900) / (spec.cardHeight + spec.gap)),
+      ) * cols
+    : undefined
   const items: WallItem[] = useMemo(
-    () => collapseUnlit(buildWallItems(entries, echoes, cols), lit, expandedSeams),
-    [entries, echoes, cols, lit, expandedSeams],
+    () =>
+      collapseUnlit(
+        buildWallItems(entries, echoes, cols, echoGap),
+        lit,
+        expandedSeams,
+      ),
+    [entries, echoes, cols, echoGap, lit, expandedSeams],
   )
 
   /** Echo cards take focus and open, but are never selection targets — see wallItems. */
@@ -740,7 +755,8 @@ export function PageWall({
           aria-multiselectable
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-            gap: `${spec.gap}px`,
+            rowGap: `${spec.gap}px`,
+            columnGap: `${columnGap}px`,
             paddingTop: virtual.topSpacer,
             paddingBottom: virtual.bottomSpacer,
             position: 'relative',
@@ -799,6 +815,8 @@ export function PageWall({
               )
             }
             if (rows) {
+              const currentWeek =
+                !item.echo && isCurrentCalendarWeek(item.entry.created_at)
               return (
                 <PageRow
                   key={item.key}
@@ -812,6 +830,8 @@ export function PageWall({
                   selected={!item.echo && selectedIds.has(item.entry.id)}
                   context={!item.echo && item.entry.id === menuTargetId}
                   today={item.entry.id === newestId}
+                  currentWeek={currentWeek}
+                  weekAnchor={currentWeek && item.entry.id === newestId}
                   echo={item.echo}
                   markings={rowMarkings.get(item.entry.id) ?? EMPTY_KINDS}
                   tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}

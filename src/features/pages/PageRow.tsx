@@ -17,6 +17,10 @@ interface Props {
   context: boolean
   /** The newest page — the way back to what you were writing. */
   today: boolean
+  /** This page belongs to the reader's current calendar week. */
+  currentWeek: boolean
+  /** The first current-week page, where the cluster names itself. */
+  weekAnchor: boolean
   /**
    * Set when this page has risen out of another year.
    *
@@ -109,6 +113,8 @@ export const PageRow = memo(function PageRow({
   selected,
   context,
   today,
+  currentWeek,
+  weekAnchor,
   echo,
   markings,
   wallKey,
@@ -149,6 +155,7 @@ export const PageRow = memo(function PageRow({
       data-selected={selected ? 'true' : undefined}
       data-context={context ? 'true' : undefined}
       data-today={today ? 'true' : undefined}
+      data-current-week={currentWeek ? 'true' : undefined}
       data-echo={echo ? 'true' : undefined}
       aria-selected={selected || undefined}
       tabIndex={tabIndex}
@@ -172,6 +179,7 @@ export const PageRow = memo(function PageRow({
       <time className="pgr__date" dateTime={dateIso}>
         {formatDate(dateIso, Boolean(echo))}
       </time>
+      {weekAnchor ? <span className="pgr__week">this week</span> : null}
       {echo ? <span className="pgr__echo">{echo}</span> : null}
       <span className="pgr__line">
         {match ? paint(line, match) : line}

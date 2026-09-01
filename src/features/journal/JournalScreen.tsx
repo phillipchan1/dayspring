@@ -91,7 +91,7 @@ import { DictationRecovery } from '@/features/capture/DictationRecovery'
 import { ProcessingBanner } from './ProcessingBanner'
 import { hasVisitedSurface, lightEmber, markSurfaceVisited } from './surfaceEmbers'
 import { recordSurfaceUpdate } from './surfaceUpdates'
-import { shouldAutoOpenLatest } from './arrivalNav'
+import { shouldAutoOpenLatest, shouldSkipEntryLoad } from './arrivalNav'
 import { track } from '@/lib/analytics'
 import { parseSpiritualBlocks, type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import { deleteSpiritualItem } from '@/lib/spiritual'
@@ -116,7 +116,7 @@ function arrivalLabelFor(block: ParsedSpiritualBlock): string {
 }
 
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
-  const { state, go, back, closeSettings } = useAppNavigation()
+  const { state, go, back, setHistoryPopBarrier, closeSettings } = useAppNavigation()
   const { entryId } = state
 
   const [entries, setEntries] = useState<Entry[]>([])
@@ -1129,6 +1129,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   isDirtyRef.current = getIsDirty
   adoptExternalTextRef.current = adoptExternalText
 
+  // Browser/mouse Back changes history before React sees the destination.
+  // Give the navigation provider the same save barrier explicit surface changes
+  // use, so a quick back/forward sequence cannot reset this entry's autosave
+  // session before its final keystrokes land.
+  useEffect(() => {
+    setHistoryPopBarrier(saveNow)
+    return () => setHistoryPopBarrier(null)
+  }, [saveNow, setHistoryPopBarrier])
+
   // Flush the entry we're leaving when back/forward changes `entryId`.
   useEffect(() => {
     return () => {
@@ -1155,8 +1164,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (skipEntrySyncRef.current) {
+      const shouldSkip = shouldSkipEntryLoad(
+        true,
+        loadedEntryIdRef.current,
+        entryId,
+      )
       skipEntrySyncRef.current = false
-      return
+      // Programmatic opens seed the body before changing navigation state.
+      // A history pop does not. A leaked skip flag must never leave entry B's
+      // text under entry A's date, so only consume the load when the editor is
+      // already known to hold this exact destination.
+      if (shouldSkip) return
     }
     // Body can arrive after entriesReady; don't treat the id as "loaded" until
     // we've applied the entry text (or confirmed a deliberate blank new doc).
@@ -1526,7 +1544,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   async function handleBrowse(entry: Entry) {
     skipEditorAutofocusRef.current = true
     setIsNewEntryMode(false)
-    const body = asEntryMarkdown(entry.body_markdown)
     if (entry.id === entryId && !canvasAlternateActive) {
       // Re-selecting the already-open entry: the editor holds the live text and
       // the list row is only a debounced echo of it, so never reload from the
@@ -1536,12 +1553,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       skipEditorAutofocusRef.current = false
       return
     }
+    await saveNow()
+    const body = asEntryMarkdown(entry.body_markdown)
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
+    // Each explicitly opened entry is a place. Keep it on the app-history
+    // stack so browser buttons and mouse X1/X2 move through the same reading
+    // trail the user just made.
+    go({ surface: 'journal', entryId: entry.id })
     setContent(body)
-    // Replace, not push: entry-to-entry browsing must not stack a frame each
-    // time, or Back walks every page you glanced at instead of leaving Pages.
-    go({ surface: 'journal', entryId: entry.id }, { replace: true })
   }
 
   async function handleEditEntry(entry: Entry) {
@@ -1554,7 +1574,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     await saveNow()
     skipEntrySyncRef.current = true
     loadedEntryIdRef.current = entry.id
-    go({ surface: 'journal', entryId: entry.id }, { replace: true })
+    go({ surface: 'journal', entryId: entry.id })
     setContent(asEntryMarkdown(entry.body_markdown))
     // Explicit edit intent, and on touch autofocus is off — ask for the caret.
     if (touchFirst) requestAnimationFrame(() => editorRef.current?.focus())

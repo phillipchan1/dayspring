@@ -33,20 +33,24 @@
  * than for a second surface."
  *
  * So the list is not a surface and not a mode. It is standing very far back —
- * same wall, same `look for`, same lighting, same windowing, at 30 rows a
- * screen. 25px + 3px of gap puts 32 on a 900px viewport.
+ * same wall, same `look for`, same lighting, same windowing. The row is tall
+ * enough to recognise and aim at without turning into a card.
  *
  * ── Why it runs in columns ──────────────────────────────────────────────────
  *
- * `maxCols` was 1, which meant one 25px row stretched the full width of the
+ * `maxCols` was 1, which meant one short row stretched the full width of the
  * window: on a wide display, a date and a single line of prose with three feet
  * of nothing after them. A list is the one band that exists purely for density,
  * and a line of text has a readable measure past which extra width buys
- * nothing — so past that measure the band spends the width on MORE ROWS
- * instead. Three columns of 32 is 96 pages a screen, which is the number the
- * band was added to hit.
+ * nothing — so past that measure the band spends the width on a second lane.
+ *
+ * Three lanes made the archive look impressive but not legible: chronology
+ * runs left-to-right while three tight columns ask the eye to read down, and
+ * 90+ pages at once is too many to recognise. Two lanes of 31px rows put about
+ * 50 pages on a 900px viewport — still denser than the panel this replaced,
+ * with enough rhythm to browse rather than merely count.
  */
-const ROWS = { minWidth: 360, cardHeight: 25, gap: 3, maxCols: 3, lines: 1 }
+const ROWS = { minWidth: 420, cardHeight: 31, gap: 3, maxCols: 2, lines: 1 }
 
 /**
  * A phone gets ONE rendering, and no slider at all.
