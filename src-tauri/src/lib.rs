@@ -1,6 +1,9 @@
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod native_typing;
 
+#[cfg(target_os = "ios")]
+mod ios_oauth;
+
 /// Open the web inspector (devtools). Gated by the `devtools` Cargo feature so
 /// it works in both debug and release builds when the user enables dev mode.
 #[tauri::command]
@@ -69,7 +72,7 @@ fn reclaim_ios_viewport(webview: tauri::webview::PlatformWebview) {
 /// registered as soon as `WKWebView` is, so this works from setup.
 ///
 /// The blast radius is every WKWebView in the process, which here is only ours:
-/// OAuth opens in Safari, not an embedded webview.
+/// OAuth on iOS uses ASWebAuthenticationSession; desktop opens the system browser.
 ///
 /// Fallible at every step by design. If WebKit renames the class or drops the
 /// method, this quietly does nothing and the stock accessory bar comes back.
@@ -711,7 +714,8 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       open_devtools,
       set_privacy_screen,
-      ios_selection_action
+      ios_selection_action,
+      ios_oauth::start_oauth_session,
     ]);
 
   // The updater plugin is desktop-only.

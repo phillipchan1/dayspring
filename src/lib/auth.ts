@@ -1,5 +1,6 @@
+import { invoke } from '@tauri-apps/api/core'
 import { requireSupabase } from './supabase'
-import { isTauri } from './platform'
+import { isIOSTauri, isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
 import { beginExternalTrip } from './appLockSuppress'
 import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
@@ -28,17 +29,36 @@ interface OAuthUrlResult {
   error: Error | null
 }
 
+/** Exchange a PKCE `code` from an OAuth callback URL for a persisted session. */
+export async function exchangeOAuthCode(code: string): Promise<void> {
+  const sb = requireSupabase()
+  const { error } = await sb.auth.exchangeCodeForSession(code)
+  if (error) throw error
+}
+
+/** Finish sign-in from a dayspring:// or bridged HTTPS callback URL. */
+export async function completeOAuthCallback(callbackUrl: string): Promise<void> {
+  const url = new URL(callbackUrl)
+  const code = url.searchParams.get('code')
+  if (!code) throw new Error('No authorization code in OAuth callback')
+  await exchangeOAuthCode(code)
+}
+
 /**
  * Drive an OAuth round-trip, whichever end it is for (a new sign-in or linking
  * a second provider onto the account that is already signed in).
  *
  * Web: normal in-page redirect.
  *
- * Native (desktop + iOS): providers block OAuth inside embedded webviews, so we
- * ask Supabase for the provider URL WITHOUT navigating the webview
+ * Native desktop: providers block OAuth inside embedded webviews, so we ask
+ * Supabase for the provider URL WITHOUT navigating the webview
  * (skipBrowserRedirect), then open it in the system browser. On success the
  * HTTPS bridge page forwards to dayspring://auth-callback, which
  * initDeepLinkAuth exchanges — completing the sign-in or the link.
+ *
+ * Native iOS: same PKCE flow, but ASWebAuthenticationSession presents the
+ * provider login in an in-app sheet (App Store Guideline 4). The bridge page
+ * still forwards to dayspring://, which the session intercepts and returns here.
  */
 async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult>): Promise<void> {
   if (!isTauri()) {
@@ -58,6 +78,13 @@ async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult
   // to be marked or the app lock closes behind it and the user returns from
   // Google to a PIN prompt. See lib/appLockSuppress.ts.
   beginExternalTrip()
+
+  if (isIOSTauri()) {
+    const callbackUrl = await invoke<string>('start_oauth_session', { authUrl: data.url })
+    await completeOAuthCallback(callbackUrl)
+    return
+  }
+
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(data.url)
 }
@@ -74,6 +101,19 @@ export async function signInWithGoogle(): Promise<void> {
 /** Sign in with Apple — required on iOS when Google is also offered (App Store 4.8). */
 export async function signInWithApple(): Promise<void> {
   return signInWithProvider('apple')
+}
+
+/**
+ * Email + password sign-in for App Store review and users who registered with
+ * email. OAuth remains the primary path; this is the fallback Apple expects when
+ * demo credentials are supplied in App Store Connect.
+ */
+export async function signInWithEmail(email: string, password: string): Promise<void> {
+  const sb = requireSupabase()
+  const trimmed = email.trim()
+  if (!trimmed || !password) throw new Error('Enter your email and password')
+  const { error } = await sb.auth.signInWithPassword({ email: trimmed, password })
+  if (error) throw error
 }
 
 /**
@@ -125,6 +165,9 @@ export async function signOut(): Promise<void> {
  * session — which then persists via the origin-independent Tauri store. Also
  * handles the case where the app was launched cold by the deep link. No-ops on
  * web.
+ *
+ * On iOS, ASWebAuthenticationSession usually completes inline; this listener
+ * remains the fallback when the app is cold-started by the deep link.
  */
 export async function initDeepLinkAuth(): Promise<void> {
   if (!isTauri()) return
@@ -134,13 +177,7 @@ export async function initDeepLinkAuth(): Promise<void> {
     const cb = urls.find((u) => u.startsWith('dayspring://'))
     if (!cb) return
     try {
-      // The code rides in the query string of the deep-link URL.
-      const url = new URL(cb)
-      const code = url.searchParams.get('code')
-      if (!code) return
-      const sb = requireSupabase()
-      const { error } = await sb.auth.exchangeCodeForSession(code)
-      if (error) throw error
+      await completeOAuthCallback(cb)
     } catch (err) {
       console.error('[auth] deep-link exchange failed', err)
     }
