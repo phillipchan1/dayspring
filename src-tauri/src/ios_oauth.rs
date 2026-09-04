@@ -16,7 +16,7 @@ use objc2::rc::{Allocated, Retained};
 #[cfg(target_os = "ios")]
 use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, NSObject, Sel};
 #[cfg(target_os = "ios")]
-use objc2::{msg_send, sel, ClassType, MainThreadMarker, ProtocolType};
+use objc2::{msg_send, sel, AnyThread, ClassType, MainThreadMarker, ProtocolType};
 #[cfg(target_os = "ios")]
 use objc2_authentication_services::{
   ASPresentationAnchor, ASWebAuthenticationPresentationContextProviding,
@@ -62,7 +62,7 @@ fn register_oauth_context_class() -> &'static AnyClass {
     );
   }
 
-  let proto = ASWebAuthenticationPresentationContextProviding::protocol()
+  let proto = <dyn ASWebAuthenticationPresentationContextProviding>::protocol()
     .expect("ASWebAuthenticationPresentationContextProviding");
   builder.add_protocol(proto);
 
@@ -75,7 +75,7 @@ fn new_oauth_context_provider() -> Retained<NSObject> {
   // SAFETY: `alloc`/`init` on our NSObject subclass; init-family returns Option.
   unsafe {
     let allocated: Allocated<NSObject> = msg_send![cls, alloc];
-    let obj: Option<Retained<NSObject>> = msg_send![super(allocated, cls), init];
+    let obj: Option<Retained<NSObject>> = msg_send![allocated, init];
     obj.expect("OAuth context provider init failed")
   }
 }
