@@ -12,11 +12,11 @@ use std::sync::{Arc, Mutex};
 #[cfg(target_os = "ios")]
 use block2::RcBlock;
 #[cfg(target_os = "ios")]
-use objc2::rc::Retained;
+use objc2::rc::{Allocated, Retained};
 #[cfg(target_os = "ios")]
 use objc2::runtime::{AnyClass, AnyObject, NSObject, NSObjectProtocol, ProtocolObject};
 #[cfg(target_os = "ios")]
-use objc2::{define_class, msg_send, AnyThread, MainThreadMarker, MainThreadOnly};
+use objc2::{define_class, msg_send, MainThreadMarker, MainThreadOnly};
 #[cfg(target_os = "ios")]
 use objc2_authentication_services::{
   ASPresentationAnchor, ASWebAuthenticationPresentationContextProviding,
@@ -36,8 +36,17 @@ define_class!(
 
   unsafe impl NSObjectProtocol for OAuthContextProvider {}
 
+  impl OAuthContextProvider {
+    #[unsafe(method_id(init))]
+    #[unsafe(method_family = init)]
+    fn init(this: Allocated<Self>) -> Retained<Self> {
+      // SAFETY: NSObject's designated initializer.
+      unsafe { msg_send![super(this), init] }
+    }
+  }
+
   unsafe impl ASWebAuthenticationPresentationContextProviding for OAuthContextProvider {
-    #[unsafe(method(presentationAnchorForWebAuthenticationSession:))]
+    #[unsafe(method_id(presentationAnchorForWebAuthenticationSession:))]
     fn presentation_anchor(
       &self,
       _session: &ASWebAuthenticationSession,
@@ -51,8 +60,8 @@ define_class!(
 impl OAuthContextProvider {
   fn new(mtm: MainThreadMarker) -> Retained<Self> {
     let this = Self::alloc(mtm);
-    // SAFETY: NSObject's `init` has the usual signature.
-    unsafe { msg_send![super(this), init] }
+    // SAFETY: Calls our `init`, which forwards to `-[NSObject init]`.
+    unsafe { msg_send![this, init] }
   }
 }
 
@@ -129,9 +138,8 @@ fn start_session_on_main(
   let mtm = MainThreadMarker::new().ok_or("OAuth must run on the main thread")?;
 
   let ns_url = NSString::from_str(auth_url);
-  let url: Retained<NSURL> = unsafe {
-    NSURL::URLWithString(&ns_url).ok_or_else(|| format!("invalid OAuth URL: {auth_url}"))?
-  };
+  let url: Retained<NSURL> =
+    NSURL::URLWithString(&ns_url).ok_or_else(|| format!("invalid OAuth URL: {auth_url}"))?;
 
   let scheme = NSString::from_str("dayspring");
   let tx_for_block = Arc::clone(&tx);
