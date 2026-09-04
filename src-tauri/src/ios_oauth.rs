@@ -51,8 +51,10 @@ fn register_oauth_context_class() -> &'static AnyClass {
     _this: &NSObject,
     _cmd: Sel,
     _session: &ASWebAuthenticationSession,
-  ) -> Retained<ASPresentationAnchor> {
-    presentation_anchor()
+  ) -> *mut ASPresentationAnchor {
+    // ClassBuilder IMPs must return raw pointers (`Encode` is not implemented
+    // for `Retained<T>`). objc2 0.6.4 docs: autorelease_return for id returns.
+    Retained::autorelease_return(presentation_anchor())
   }
 
   unsafe {
