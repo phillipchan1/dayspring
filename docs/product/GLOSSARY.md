@@ -21,10 +21,11 @@ name forever.
 | **Altar** | `altar` | ⌘4 | Matters returned to, and what came of them. **Not "Covenant"** — that rename was reverted unshipped (D-009). |
 | **Concordance** | `concordance` | — | Per-user vocabulary engine. Names and spellings only, never moods. |
 | **Threads & Ropes** | `threadsRopes` | — | Flagged off, unshipped. Status open (D-005). |
-| **heartIQ** | `noticing` | — | The journal proposing markings in pencil. Built, and deliberately not on the writing surface — waiting on a reading surface to live in (D-026). |
+| **The Keeping** | `noticing` | — | The engine that reads a page into movements, and each movement into what it is about and what the writer did. Named in D-027 — *"the Noticing" was wrong: naming a machine for an act of OBSERVATION, pointed at someone's private spiritual life, reads as surveillance.* Deliberately not on the writing surface (D-026). Was **heartIQ**. |
 
 **Retired:** *Covenant* (Altar, reverted 2026-07-26) · *Reflections* (the old UI Ascent
-replaced; survives only as an internal key).
+replaced; survives only as an internal key) · *heartIQ* and *the Noticing* (both → the
+Keeping, D-027; internal key `noticing` unchanged either time).
 
 ---
 
@@ -68,7 +69,7 @@ means *God met you here*, never *you did well here*. And — from the abandoned 
 
 | Term | Means |
 |---|---|
-| **heartIQ** | The journal proposing markings in pencil. Internal key stays `noticing` (setting, API route, every call site). Nothing it proposes is a marking until the writer keeps it. Belongs to reading, never to the writing surface (D-026). ⚠️ The name is a deliberate override of the `score` ban below. |
+| **The Keeping** | The journal proposing markings in pencil. Internal key stays `noticing` (setting, API route, every call site). Nothing it proposes is a marking until the writer keeps it. Belongs to reading, never to the writing surface (D-026). Renamed from **heartIQ** in D-027 — which is also how the `score` ban below stopped needing an override. |
 | **The `+`** | The one insert door in the editor — left gutter, every line, opens the same palette `/` opens. A capture kind picked from it MARKS a line that has words and INSERTS on one that doesn't (D-026). |
 | `/pray` | Marks a prayer inline; feeds Altar |
 | `/sense` | Marks something sensed or discerned; feeds Altar |
@@ -76,6 +77,40 @@ means *God met you here*, never *you did well here*. And — from the abandoned 
 | `/image` | Inline image |
 | **Page scan** | Photograph a handwritten entry → OCR → reviewable draft |
 | **Dictation** | Voice → transcription → inserted at caret |
+
+---
+
+## The Keeping — what the engine may notice
+
+Four orders. Each has one rule, and the rule is what decides where a new idea
+goes. The long version, with the receipts, is in
+[`docs/THE_KEEPING.md`](../THE_KEEPING.md).
+
+| Term | Means | The rule |
+|---|---|---|
+| **Movement** | One stretch of a page holding one turn of attention. Carries no label, no topic and no id — what it is "about" is emergent from what is in it. | **The read sees one page.** Anything needing a second page is not the read's job. |
+| **Marking** | What the writer *did* here: `prayer · sense · desire · learned`, plus `scripture`. A property of a movement, and it needs no subject. | **A marking is a verbatim span of this page.** If you cannot highlight it, it is not one. |
+| **Mention** | A named thing a movement names. Most movements name nobody, and that is the expected answer. | Never God — nearly every page is addressed to Him, so it separates nothing. |
+| **Subject** | A named thing that persists across pages and can be clicked. `origin` is `name` · `matter` · `both` · `word`. | **A subject outlives the page.** That is what separates it from a topic. |
+| **Pattern** | What only exists when movements are compared: recurrence, bursts, gaps, then→now, refrain. | **Never extracted, always computed.** If it needs two movements, the read must never emit it. |
+
+**Three things this settles, because they come up every time:**
+
+- **Scripture is a subject, not a marking.** Rom 8:28 persists, recurs, has its
+  own surface, and you click it. It behaves like *Mom* and nothing like *prayer*.
+- **Growth is a pattern, not a marking.** `markKinds.ts` already refuses the word:
+  Learned *"is rendered 'Learned' and never 'Growth', and its hand is a flat notch
+  and never an arrow"*, because a rising glyph beside someone's spiritual life is
+  a grade.
+- **Sentiment is neither, and it already exists in its only legal form** — the
+  writer's declared `/sense`, and *"The words you used"* (`readings.ts`), a
+  frequency list of their own vocabulary. A sentiment *kind* does not rescue it:
+  that is Sense with a mood attached, and any arrangement of it over time rebuilds
+  the axis Principle 1 forbids. See the ban on *mood tracking* below.
+
+⚠️ **`movement` is triple-booked.** It means a segment of one page here; *"a
+movement traced across entries"* under Arc; and a section of a subject's chapter
+page in RECALL.md. The internal key stays `movement` — say which one you mean.
 
 ---
 
