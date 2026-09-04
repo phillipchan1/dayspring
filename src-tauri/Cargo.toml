@@ -81,6 +81,7 @@ objc2-core-foundation = { version = "0.3", default-features = false, features = 
 block2 = "0.6"
 objc2-authentication-services = { version = "0.3", default-features = false, features = [
   "std",
+  "ASFoundation",
   "ASWebAuthenticationSession",
   "block2",
 ] }
