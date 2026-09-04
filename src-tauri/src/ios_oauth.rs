@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(target_os = "ios")]
 use block2::RcBlock;
 #[cfg(target_os = "ios")]
-use objc2::rc::{Allocated, Retained};
+use objc2::rc::Retained;
 #[cfg(target_os = "ios")]
 use objc2::runtime::{AnyClass, AnyObject, NSObject, NSObjectProtocol, ProtocolObject};
 #[cfg(target_os = "ios")]
@@ -36,15 +36,6 @@ define_class!(
 
   unsafe impl NSObjectProtocol for OAuthContextProvider {}
 
-  impl OAuthContextProvider {
-    #[unsafe(method_id(init))]
-    #[unsafe(method_family = init)]
-    fn init(this: Allocated<Self>) -> Retained<Self> {
-      // SAFETY: NSObject's designated initializer.
-      unsafe { msg_send![super(this), init] }
-    }
-  }
-
   unsafe impl ASWebAuthenticationPresentationContextProviding for OAuthContextProvider {
     #[unsafe(method_id(presentationAnchorForWebAuthenticationSession:))]
     fn presentation_anchor(
@@ -60,8 +51,9 @@ define_class!(
 impl OAuthContextProvider {
   fn new(mtm: MainThreadMarker) -> Retained<Self> {
     let this = Self::alloc(mtm);
-    // SAFETY: Calls our `init`, which forwards to `-[NSObject init]`.
-    unsafe { msg_send![this, init] }
+    // SAFETY: NSObject's designated initializer (outside define_class so
+    // msg_send![super(..), init] satisfies MainThreadOnly bounds on 0.6.4).
+    unsafe { msg_send![super(this), init] }
   }
 }
 
@@ -171,7 +163,7 @@ fn start_session_on_main(
 
   let session = unsafe {
     ASWebAuthenticationSession::initWithURL_callbackURLScheme_completionHandler(
-      ASWebAuthenticationSession::alloc(),
+      ASWebAuthenticationSession::alloc(mtm),
       &url,
       Some(&scheme),
       completion,
