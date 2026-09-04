@@ -5,18 +5,18 @@
 //! (SFSafariViewController under the hood) and returns the callback URL to us.
 
 #[cfg(target_os = "ios")]
-use std::sync::mpsc;
+use std::sync::{mpsc, OnceLock};
 #[cfg(target_os = "ios")]
 use std::sync::{Arc, Mutex};
 
 #[cfg(target_os = "ios")]
 use block2::RcBlock;
 #[cfg(target_os = "ios")]
-use objc2::rc::Retained;
+use objc2::rc::{Allocated, Retained};
 #[cfg(target_os = "ios")]
-use objc2::runtime::{AnyClass, AnyObject, NSObject, NSObjectProtocol, ProtocolObject};
+use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, NSObject, Sel};
 #[cfg(target_os = "ios")]
-use objc2::{define_class, msg_send, MainThreadMarker, MainThreadOnly};
+use objc2::{msg_send, sel, ClassType, MainThreadMarker, ProtocolType};
 #[cfg(target_os = "ios")]
 use objc2_authentication_services::{
   ASPresentationAnchor, ASWebAuthenticationPresentationContextProviding,
@@ -27,33 +27,56 @@ use objc2_foundation::{NSError, NSURL, NSString};
 #[cfg(target_os = "ios")]
 use objc2_ui_kit::UIWindow;
 
+/// Runtime-registered NSObject subclass that implements
+/// `ASWebAuthenticationPresentationContextProviding`.
+///
+/// Built with `ClassBuilder` instead of `define_class!`: objc2 0.6.4's init
+/// family requires `msg_send![super(..), init]` to be typed as
+/// `Option<Retained<T>>`, and three prior PRs (#76–#78) kept shuffling that
+/// call inside/outside `define_class` without fixing the return type.
 #[cfg(target_os = "ios")]
-define_class!(
-  #[unsafe(super = NSObject)]
-  #[thread_kind = MainThreadOnly]
-  #[name = "DayspringOAuthContextProvider"]
-  struct OAuthContextProvider;
+static OAUTH_CONTEXT_CLASS: OnceLock<&'static AnyClass> = OnceLock::new();
 
-  unsafe impl NSObjectProtocol for OAuthContextProvider {}
+#[cfg(target_os = "ios")]
+fn oauth_context_class() -> &'static AnyClass {
+  OAUTH_CONTEXT_CLASS.get_or_init(register_oauth_context_class)
+}
 
-  unsafe impl ASWebAuthenticationPresentationContextProviding for OAuthContextProvider {
-    #[unsafe(method_id(presentationAnchorForWebAuthenticationSession:))]
-    fn presentation_anchor(
-      &self,
-      _session: &ASWebAuthenticationSession,
-    ) -> Retained<ASPresentationAnchor> {
-      presentation_anchor()
-    }
+#[cfg(target_os = "ios")]
+fn register_oauth_context_class() -> &'static AnyClass {
+  let mut builder = ClassBuilder::new(c"DayspringOAuthContextProvider", NSObject::class())
+    .expect("DayspringOAuthContextProvider already registered");
+
+  unsafe extern "C-unwind" fn presentation_anchor_for_session(
+    _this: &NSObject,
+    _cmd: Sel,
+    _session: &ASWebAuthenticationSession,
+  ) -> Retained<ASPresentationAnchor> {
+    presentation_anchor()
   }
-);
+
+  unsafe {
+    builder.add_method(
+      sel!(presentationAnchorForWebAuthenticationSession:),
+      presentation_anchor_for_session as unsafe extern "C-unwind" fn(_, _, _) -> _,
+    );
+  }
+
+  let proto = ASWebAuthenticationPresentationContextProviding::protocol()
+    .expect("ASWebAuthenticationPresentationContextProviding");
+  builder.add_protocol(proto);
+
+  builder.register()
+}
 
 #[cfg(target_os = "ios")]
-impl OAuthContextProvider {
-  fn new(mtm: MainThreadMarker) -> Retained<Self> {
-    let this = Self::alloc(mtm);
-    // SAFETY: NSObject's designated initializer (outside define_class so
-    // msg_send![super(..), init] satisfies MainThreadOnly bounds on 0.6.4).
-    unsafe { msg_send![super(this), init] }
+fn new_oauth_context_provider() -> Retained<NSObject> {
+  let cls = oauth_context_class();
+  // SAFETY: `alloc`/`init` on our NSObject subclass; init-family returns Option.
+  unsafe {
+    let allocated: Allocated<NSObject> = msg_send![cls, alloc];
+    let obj: Option<Retained<NSObject>> = msg_send![super(allocated, cls), init];
+    obj.expect("OAuth context provider init failed")
   }
 }
 
@@ -127,7 +150,7 @@ fn start_session_on_main(
   auth_url: &str,
   tx: Arc<Mutex<Option<mpsc::Sender<Result<String, String>>>>>,
 ) -> Result<(), String> {
-  let mtm = MainThreadMarker::new().ok_or("OAuth must run on the main thread")?;
+  let _mtm = MainThreadMarker::new().ok_or("OAuth must run on the main thread")?;
 
   let ns_url = NSString::from_str(auth_url);
   let url: Retained<NSURL> =
@@ -161,25 +184,26 @@ fn start_session_on_main(
   let completion: ASWebAuthenticationSessionCompletionHandler =
     RcBlock::into_raw(completion_block);
 
+  // ASWebAuthenticationSession is AnyThread — `alloc()` takes no MainThreadMarker.
+  // PR #78 passed `alloc(mtm)`, which does not match the generated ClassType impl.
   let session = unsafe {
     ASWebAuthenticationSession::initWithURL_callbackURLScheme_completionHandler(
-      ASWebAuthenticationSession::alloc(mtm),
+      ASWebAuthenticationSession::alloc(),
       &url,
       Some(&scheme),
       completion,
     )
   };
 
-  let provider = OAuthContextProvider::new(mtm);
-  let provider_obj = ProtocolObject::from_retained(provider);
+  let provider = new_oauth_context_provider();
   unsafe {
-    session.setPresentationContextProvider(Some(&provider_obj));
+    let _: () = msg_send![&session, setPresentationContextProvider: &*provider];
     session.setPrefersEphemeralWebBrowserSession(false);
   }
 
   let started = unsafe { session.start() };
   // Retain until the completion handler fires (provider is weak on the session).
-  std::mem::forget(provider_obj);
+  std::mem::forget(provider);
   std::mem::forget(session);
 
   if !started {
