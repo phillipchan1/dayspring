@@ -5,8 +5,6 @@
 //! (SFSafariViewController under the hood) and returns the callback URL to us.
 
 #[cfg(target_os = "ios")]
-use std::ffi::CStr;
-#[cfg(target_os = "ios")]
 use std::sync::mpsc;
 #[cfg(target_os = "ios")]
 use std::sync::{Arc, Mutex};
@@ -14,15 +12,15 @@ use std::sync::{Arc, Mutex};
 #[cfg(target_os = "ios")]
 use block2::RcBlock;
 #[cfg(target_os = "ios")]
-use objc2::rc::{Allocated, Retained};
+use objc2::rc::Retained;
 #[cfg(target_os = "ios")]
-use objc2::runtime::{AnyClass, AnyObject, NSObject, NSObjectProtocol};
+use objc2::runtime::{AnyClass, AnyObject, NSObject, NSObjectProtocol, ProtocolObject};
 #[cfg(target_os = "ios")]
-use objc2::{define_class, msg_send, MainThreadMarker, MainThreadOnly, ProtocolObject};
+use objc2::{define_class, msg_send, AnyThread, MainThreadMarker, MainThreadOnly};
 #[cfg(target_os = "ios")]
 use objc2_authentication_services::{
-  ASWebAuthenticationPresentationContextProviding, ASWebAuthenticationSession,
-  ASWebAuthenticationSessionCompletionHandler,
+  ASPresentationAnchor, ASWebAuthenticationPresentationContextProviding,
+  ASWebAuthenticationSession, ASWebAuthenticationSessionCompletionHandler,
 };
 #[cfg(target_os = "ios")]
 use objc2_foundation::{NSError, NSURL, NSString};
@@ -43,34 +41,48 @@ define_class!(
     fn presentation_anchor(
       &self,
       _session: &ASWebAuthenticationSession,
-    ) -> Retained<objc2_authentication_services::ASPresentationAnchor> {
+    ) -> Retained<ASPresentationAnchor> {
       presentation_anchor()
     }
   }
 );
 
 #[cfg(target_os = "ios")]
-fn presentation_anchor() -> Retained<objc2_authentication_services::ASPresentationAnchor> {
+impl OAuthContextProvider {
+  fn new(mtm: MainThreadMarker) -> Retained<Self> {
+    let this = Self::alloc(mtm);
+    // SAFETY: NSObject's `init` has the usual signature.
+    unsafe { msg_send![super(this), init] }
+  }
+}
+
+#[cfg(target_os = "ios")]
+fn window_to_anchor(window: Retained<UIWindow>) -> Retained<ASPresentationAnchor> {
+  window.into_super().into_super().into_super()
+}
+
+#[cfg(target_os = "ios")]
+fn presentation_anchor() -> Retained<ASPresentationAnchor> {
   let Some(app_cls) = AnyClass::get(c"UIApplication") else {
     panic!("UIApplication unavailable");
   };
   unsafe {
     let app: *mut AnyObject = msg_send![app_cls, sharedApplication];
     let window: *mut UIWindow = msg_send![app, keyWindow];
-    if window.is_null() {
-      let windows: *mut AnyObject = msg_send![app, windows];
-      if !windows.is_null() {
-        let count: usize = msg_send![windows, count];
-        if count > 0 {
-          let first: *mut UIWindow = msg_send![windows, objectAtIndex: 0usize];
-          if !first.is_null() {
-            return Retained::retain(first as *mut AnyObject).expect("window retain");
-          }
+    if !window.is_null() {
+      return window_to_anchor(Retained::retain(window).expect("window retain"));
+    }
+    let windows: *mut AnyObject = msg_send![app, windows];
+    if !windows.is_null() {
+      let count: usize = msg_send![windows, count];
+      if count > 0 {
+        let first: *mut UIWindow = msg_send![windows, objectAtIndex: 0usize];
+        if !first.is_null() {
+          return window_to_anchor(Retained::retain(first).expect("window retain"));
         }
       }
-      panic!("no UIWindow for OAuth presentation");
     }
-    Retained::retain(window as *mut AnyObject).expect("window retain")
+    panic!("no UIWindow for OAuth presentation");
   }
 }
 
@@ -114,7 +126,7 @@ fn start_session_on_main(
   auth_url: &str,
   tx: Arc<Mutex<Option<mpsc::Sender<Result<String, String>>>>>,
 ) -> Result<(), String> {
-  let _mtm = MainThreadMarker::new().ok_or("OAuth must run on the main thread")?;
+  let mtm = MainThreadMarker::new().ok_or("OAuth must run on the main thread")?;
 
   let ns_url = NSString::from_str(auth_url);
   let url: Retained<NSURL> = unsafe {
@@ -123,7 +135,7 @@ fn start_session_on_main(
 
   let scheme = NSString::from_str("dayspring");
   let tx_for_block = Arc::clone(&tx);
-  let completion: ASWebAuthenticationSessionCompletionHandler = RcBlock::new(
+  let completion_block = RcBlock::new(
     move |callback_url: *mut NSURL, error: *mut NSError| {
       let sender = tx_for_block.lock().ok().and_then(|mut g| g.take());
       let Some(sender) = sender else {
@@ -131,17 +143,8 @@ fn start_session_on_main(
       };
       if !error.is_null() {
         let msg = unsafe {
-          let desc: *mut AnyObject = msg_send![error, localizedDescription];
-          if desc.is_null() {
-            "OAuth canceled".to_string()
-          } else {
-            let utf8: *const i8 = msg_send![desc, UTF8String];
-            if utf8.is_null() {
-              "OAuth canceled".to_string()
-            } else {
-              CStr::from_ptr(utf8).to_string_lossy().into_owned()
-            }
-          }
+          let desc: Retained<NSString> = msg_send![error, localizedDescription];
+          desc.to_string()
         };
         let _ = sender.send(Err(msg));
         return;
@@ -155,6 +158,8 @@ fn start_session_on_main(
       let _ = sender.send(Ok(url_str));
     },
   );
+  let completion: ASWebAuthenticationSessionCompletionHandler =
+    RcBlock::into_raw(completion_block);
 
   let session = unsafe {
     ASWebAuthenticationSession::initWithURL_callbackURLScheme_completionHandler(
@@ -165,16 +170,16 @@ fn start_session_on_main(
     )
   };
 
-  let provider = OAuthContextProvider::new();
-  let provider_obj: Retained<ProtocolObject<dyn ASWebAuthenticationPresentationContextProviding>> =
-    ProtocolObject::from_retained(provider);
+  let provider = OAuthContextProvider::new(mtm);
+  let provider_obj = ProtocolObject::from_retained(provider);
   unsafe {
     session.setPresentationContextProvider(Some(&provider_obj));
     session.setPrefersEphemeralWebBrowserSession(false);
   }
 
   let started = unsafe { session.start() };
-  // Retain until the completion handler fires.
+  // Retain until the completion handler fires (provider is weak on the session).
+  std::mem::forget(provider_obj);
   std::mem::forget(session);
 
   if !started {
