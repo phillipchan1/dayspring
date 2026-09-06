@@ -16,6 +16,9 @@
   --font-iawriter: 'iA Writer Duo', 'JetBrains Mono', ui-monospace, monospace;
   --font-atkinson: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
   --font-entry-list: 'Inter', -apple-system, sans-serif;
+  /* Eyebrows, citations and tracked caps. A voice may point this anywhere;
+     the default is the sidebar's face so nothing moves before D-028 lands. */
+  --font-label: 'Inter', -apple-system, sans-serif;
 
   /* Dayspring brand amber — sidebar chrome, badges, active view switcher. */
   --dayspring-amber: #c4913c;
@@ -56,9 +59,32 @@
      their glow's mood (warm by default, cool moonlight in Ink). */
   --journal-horizon: var(--accent);
 
-  --editor-font-size: 24px;
-  --editor-line-height: 1.7;
+  /* The reader's own size, set inline from settings by App.tsx. A voice does not
+     get to overrule the slider — it multiplies it, so 24px stays 24px in Dawn
+     and lands near 17px in Plainsong, where a mono face at 24px turned a
+     two-line practice question into three (usePracticeInsertion.ts:322-329). */
+  --editor-font-size-base: 24px;
+  --editor-line-height-base: 1.7;
+  --font-scale: 1;
+  --line-height-scale: 1;
+  --editor-font-size: calc(var(--editor-font-size-base) * var(--font-scale));
+  --editor-line-height: calc(var(--editor-line-height-base) * var(--line-height-scale));
   --editor-max-width: 42rem; /* deep-margin centered writing column */
+
+  /* Heading scale. Was hardcoded 1.6/1.4/1.2 at weight 700 in highlight.ts with
+     no family at all, which is why every palette set headings identically —
+     the body face, larger and fatter. Voices override these. */
+  --h1-size: 1.6em;
+  --h1-weight: 700;
+  --h1-track: 0;
+  --h1-lh: 1.3;
+  --h2-size: 1.4em;
+  --h2-weight: 700;
+  --h3-size: 1.2em;
+  --h3-weight: 600;
+  --label-track: 0.16em;
+  --label-case: uppercase;
+  --label-caps: normal;
 
   --radius: 8px;
   --radius-sm: 5px;
@@ -123,6 +149,13 @@
      Absence is deliberately the only one with no hue at all. It is never
      counted, never trended and never shown against Gift as a proportion, and a
      colour of its own would be the first step toward reading it as a state. */
+  /* Defaults for the three kinds that used to reach through to another token
+     directly. Every palette overrides all six below; these keep a palette that
+     somehow has no voice block rendering exactly as it did before D-028. */
+  --k-scripture: rgb(var(--scripture-gold));
+  --k-prayer: var(--accent);
+  --k-sense: var(--md-emphasis);
+
   --k-gift: #c08a2c;
   --k-desire: #a8536b;
   --k-learned: #6f7d61;
@@ -350,7 +383,8 @@
    these ink-on-paper values. */
 [data-theme='vellum'],
 [data-theme='cloister'],
-[data-theme='sabbath'] {
+[data-theme='sabbath'],
+[data-theme='quire'] {
   --entry-row-hover-bg: rgba(0, 0, 0, 0.03);
   --entry-row-active-bg: rgba(0, 0, 0, 0.06);
   --entry-row-selected-bg: rgba(0, 0, 0, 0.04);
@@ -569,7 +603,8 @@
 [data-theme='ember'],
 [data-theme='compline'],
 [data-theme='nocturne'],
-[data-theme='vigil'] {
+[data-theme='vigil'],
+[data-theme='grove'] {
   --hl-alpha: 0.24;
 }
 
@@ -821,4 +856,578 @@
   [data-theme='ember'] .markdown-body hr::before {
     box-shadow: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE VOICES — D-028
+   ───────────────────────────────────────────────────────────────────────────
+   Two new palettes, then the type, marking tones and ornament each voice sets.
+
+   Kept as a section at the end rather than folded into the nine blocks above,
+   for the same reason the thematic-break gems are: a palette's colour contract
+   is one readable thing, and what a *voice* adds on top of it is another.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Quire — Plainsong's daylight. A gathering of leaves; paper for a plain hand.
+   Warm-neutral rather than the cold grey a mono theme usually gets, because
+   cold grey plus a monospace face reads as an IDE, and this is a journal. */
+[data-theme='quire'] {
+  color-scheme: light;
+
+  --bg: #f4f3f0;
+  --bg-elevated: #fbfaf8;
+  --bg-input: #eae7e1;
+  --bg-hover: #e4e0d8;
+
+  --border: #ddd9d1;
+  --border-subtle: #e8e5df;
+
+  --text: #3c3a35;
+  --text-bright: #1b1a17;
+  --text-dim: #757168;
+  --text-faint: #a5a094;
+
+  --accent: #a06a1e;
+  --accent-soft: rgba(160, 106, 30, 0.12);
+  --selection-bg: color-mix(in srgb, var(--accent) 26%, #fbfaf8);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #8f5d18;
+  --md-emphasis: #7a5f96;
+  --md-strong: #a06a1e;
+  --md-link: #8f5d18;
+  --md-code: #6b7a3a;
+  --md-quote: #757168;
+  --md-list: #6f7a6a;
+
+  --danger: #b23a2a;
+  --success: #5c7a3f;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(200, 165, 105, 0.2), rgba(170, 140, 90, 0.04) 42%, transparent 66%);
+  --journal-horizon: #a06a1e;
+  --scripture-cell-rest: rgba(60, 58, 53, 0.1);
+
+  --glass-bg: rgba(251, 250, 248, 0.85);
+  --glass-nav-bg: rgba(244, 243, 240, 0.73);
+  --glass-border: rgba(60, 58, 53, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.92);
+  --glass-scrim: rgba(27, 26, 23, 0.36);
+  --glass-shadow: 0 36px 64px -32px rgba(52, 48, 40, 0.3);
+  --glass-shadow-glow: 0 0 48px -24px rgba(200, 165, 105, 0.22);
+  --glass-glow-spot: rgba(200, 165, 105, 0.24);
+}
+
+/* Grove — Sabbath's night. Sabbath was the one light palette with no dark
+   partner, so choosing it meant changing voice at sunset. Same sage-and-pine
+   hue family, lifted off a near-black pine ground. */
+[data-theme='grove'] {
+  color-scheme: dark;
+
+  --bg: #101613;
+  --bg-elevated: #161d19;
+  --bg-input: #1b241f;
+  --bg-hover: #212b25;
+
+  --border: #26332c;
+  --border-subtle: #1c2520;
+
+  --text: #bfcdc2;
+  --text-bright: #e7f0e8;
+  --text-dim: #7b8b80;
+  --text-faint: #55635a;
+
+  --accent: #6cb79a;
+  --accent-soft: rgba(108, 183, 154, 0.15);
+  --selection-bg: color-mix(in srgb, var(--accent) 30%, #161d19);
+  --selection-fg: var(--text-bright);
+
+  --md-heading: #7fc4a8;
+  --md-emphasis: #ab8ccf;
+  --md-strong: #6cb79a;
+  --md-link: #7fbfc4;
+  --md-code: #a3c47f;
+  --md-quote: #7b8b80;
+  --md-list: #86b8a6;
+
+  --danger: #e0705c;
+  --success: #8fc48a;
+
+  --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(108, 183, 154, 0.11), rgba(80, 140, 115, 0.03) 42%, transparent 66%);
+  --journal-horizon: rgba(108, 183, 154, 0.5);
+  --scripture-cell-rest: rgba(231, 240, 232, 0.06);
+
+  --glass-bg: rgba(22, 29, 25, 0.85);
+  --glass-nav-bg: rgba(16, 22, 19, 0.73);
+  --glass-border: rgba(231, 240, 232, 0.1);
+  --glass-edge: rgba(231, 240, 232, 0.08);
+  --glass-scrim: rgba(4, 8, 6, 0.5);
+  --glass-shadow: 0 36px 64px -32px rgba(0, 0, 0, 0.6);
+  --glass-shadow-glow: 0 0 48px -24px rgba(108, 183, 154, 0.2);
+  --glass-glow-spot: rgba(108, 183, 154, 0.18);
+}
+
+/* ── A voice's typography ────────────────────────────────────────────────────
+   Both grounds of a voice share one type block, which is the point: the face
+   must not change when the sun goes down.
+
+   `--font-serif` is the APP's voice (its italic questions, labels and asides)
+   and `--font-editor` is the WRITER's — the distinction usePracticeInsertion.ts
+   calls "italic is the tell". Voices whose body face carries a true italic and
+   a light weight repoint both. Plainsong and Vigil repoint only the writer's
+   face and leave the app speaking in Newsreader, which keeps that tell legible
+   when you are writing in mono, and avoids asking a 400/700-only face for the
+   300-weight italic those prompts are set in.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Dawn — the welcoming default. Nothing about the body face moves; what changes
+   is that the title finally has a face of its own instead of being the body
+   font made fat. Both faces already ship. */
+[data-theme='dawn'],
+[data-theme='ink'] {
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-editor: var(--font-serif);
+  --font-label: 'Inter', -apple-system, system-ui, sans-serif;
+
+  /* Declared even at 1: --font-scale inherits, so a voice that omits it picks
+     up whatever an ancestor set the moment two themes are nested. */
+  --font-scale: 1;
+  --line-height-scale: 1;
+  --h1-size: 1.78em;
+  --h1-weight: 500;
+  --h1-track: -0.015em;
+  --h1-lh: 1.1;
+  --h2-size: 1.28em;
+  --h2-weight: 500;
+  --h3-size: 1.12em;
+  --h3-weight: 500;
+  --label-track: 0.2em;
+}
+
+/* Vellum — one family for the whole page, the way a book is set. Old-style
+   faces have a small x-height, so the body scales up rather than holding at the
+   slider's number; hierarchy comes from size and case, not a second family. */
+[data-theme='vellum'],
+[data-theme='ember'] {
+  --font-display: 'EB Garamond Variable', 'EB Garamond', Garamond, Georgia, serif;
+  --font-serif: var(--font-display);
+  --font-editor: var(--font-display);
+  --font-label: var(--font-display);
+
+  --font-scale: 1.08;
+  --line-height-scale: 0.95;
+  --h1-size: 2em;
+  --h1-weight: 600;
+  --h1-track: -0.005em;
+  --h1-lh: 1.08;
+  --h2-size: 1.32em;
+  --h2-weight: 600;
+  --h3-size: 1.14em;
+  --h3-weight: 600;
+  --label-track: 0.12em;
+  --label-case: lowercase;
+  --label-caps: small-caps; /* real small caps, not uppercase-plus-tracking */
+}
+
+/* Cloister — sans display over serif body, which is the reversal. It is what
+   makes this one read as a building rather than a book. */
+[data-theme='cloister'],
+[data-theme='compline'] {
+  --font-display: 'Archivo Variable', 'Archivo', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  --font-editor: var(--font-serif);
+  --font-label: var(--font-display);
+
+  --font-scale: 0.97;
+  --line-height-scale: 1;
+  --h1-size: 1.62em;
+  --h1-weight: 600;
+  --h1-track: -0.025em;
+  --h1-lh: 1.12;
+  --h2-size: 1.12em;
+  --h2-weight: 600;
+  --h3-size: 1.04em;
+  --h3-weight: 600;
+  --label-track: 0.18em;
+}
+
+/* Sabbath — a book face and wide leading. The leading IS the hierarchy here,
+   which is why this is the one voice with no ornament to speak of. */
+[data-theme='sabbath'],
+[data-theme='grove'] {
+  --font-display: 'Crimson Pro Variable', 'Crimson Pro', Georgia, serif;
+  --font-serif: var(--font-display);
+  --font-editor: var(--font-display);
+  --font-label: var(--font-display);
+
+  --font-scale: 1.05;
+  --line-height-scale: 1.12;
+  --h1-size: 1.85em;
+  --h1-weight: 600;
+  --h1-track: -0.008em;
+  --h1-lh: 1.14;
+  --h2-size: 1.2em;
+  --h2-weight: 600;
+  --h3-size: 1.08em;
+  --h3-weight: 600;
+  --label-track: 0.1em;
+  --label-case: lowercase;
+  --label-caps: small-caps;
+}
+
+/* Plainsong — monophonic chant: one line, no harmony, no ornament, and exactly
+   plain text. The scale is the load-bearing part. A mono face at the 24px
+   default turned a two-line practice question into three and pushed the writing
+   line off a phone screen entirely; 0.72 lands it near 17px, and the reader's
+   slider still moves it. */
+[data-theme='quire'],
+[data-theme='nocturne'] {
+  --font-display: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-editor: var(--font-display);
+  --font-label: var(--font-display);
+
+  --font-scale: 0.72;
+  --line-height-scale: 1.07;
+  --h1-size: 1.52em;
+  --h1-weight: 700;
+  --h1-track: -0.035em;
+  --h1-lh: 1.18;
+  --h2-size: 1.04em;
+  --h2-weight: 600;
+  --h3-size: 1em;
+  --h3-weight: 600;
+  --label-track: 0.2em;
+}
+
+/* Vigil — here the face is a function, not a taste. Text sits at #847c6f on
+   #080807, and a high-contrast serif's hairlines disappear at that luminance.
+   Atkinson has even strokes and open apertures, and ships exactly the 400/700
+   this palette's single grey ramp can honestly use — so every weight below is
+   one of those two. */
+[data-theme='vigil'] {
+  --font-display: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+  --font-editor: var(--font-display);
+  --font-label: var(--font-display);
+
+  --font-scale: 0.97;
+  --line-height-scale: 1.05;
+  --h1-size: 1.5em;
+  --h1-weight: 700;
+  --h1-track: -0.01em;
+  --h1-lh: 1.2;
+  --h2-size: 1.15em;
+  --h2-weight: 700;
+  --h3-size: 1.06em;
+  --h3-weight: 700;
+  --label-track: 0.16em;
+}
+
+/* ── A voice's marking tones ─────────────────────────────────────────────────
+   Six live kinds, one tone each, per ground.
+
+   The block above these (":root", "A marking's hue") argued the set should be
+   FIXED across palettes: "a kind is a physical thing the writer named, not a
+   theme accent, and it has to stay recognisable as the same hand when someone
+   changes palette." That argument is kept — but it was only ever half-applied.
+   Prayer rode `--accent` and sense rode `--md-emphasis`, so both already moved
+   with the theme, while scripture, story, desire and learned did not. Three of
+   six moving is not a rule, it is a split; a #a8536b rose sat unchanged in
+   Cloister's cool grey.
+
+   So the identity is carried by the set's SHAPE rather than by six frozen
+   hexes. Every voice holds the same relative arc —
+
+       desire (rose) · scripture (gold) · story (ochre)
+                     · prayer (the accent) · learned (green) · sense (violet)
+
+   — and what changes is chroma and value, pitched to the ground it sits on.
+   Desire is still the rose one next to its neighbours in all eleven palettes,
+   which is the property that made "the same hand" true in the first place.
+
+   Vigil is deliberately near-monochrome: at #847c6f on #080807 there is no
+   chroma to spend, so the kinds separate by value and the glyph
+   (markGlyph.ts) carries the name.
+
+   Retired kinds (--k-gift, --k-absence) keep their :root values above. Storage
+   still reads them — a page marked with a retired kind still has to draw.
+   ────────────────────────────────────────────────────────────────────────── */
+
+[data-theme='dawn'] {
+  --k-scripture: #c8912f;
+  --k-prayer: #c2683a;
+  --k-sense: #8a5a9c;
+  --k-desire: #b0546a;
+  --k-learned: #5f7f60;
+  --k-story: #8c6440;
+}
+
+[data-theme='ink'] {
+  --k-scripture: #e8bd72;
+  --k-prayer: #e0a64e;
+  --k-sense: #b98ce0;
+  --k-desire: #d4869a;
+  --k-learned: #8fae8c;
+  --k-story: #b48a63;
+}
+
+[data-theme='vellum'] {
+  --k-scripture: #a87c22;
+  --k-prayer: #8a5324;
+  --k-sense: #77507f;
+  --k-desire: #9d4f5c;
+  --k-learned: #5f7350;
+  --k-story: #7a5c43;
+}
+
+[data-theme='ember'] {
+  --k-scripture: #dfae63;
+  --k-prayer: #e8743c;
+  --k-sense: #cf8fb4;
+  --k-desire: #d0788a;
+  --k-learned: #93a37f;
+  --k-story: #b3845c;
+}
+
+[data-theme='cloister'] {
+  --k-scripture: #96863f;
+  --k-prayer: #3d6d8f;
+  --k-sense: #6a5a9a;
+  --k-desire: #9c5568;
+  --k-learned: #4f7a62;
+  --k-story: #74695a;
+}
+
+[data-theme='compline'] {
+  --k-scripture: #d4b878;
+  --k-prayer: #9b8ce8;
+  --k-sense: #e08cc8;
+  --k-desire: #cd7f96;
+  --k-learned: #7fa88c;
+  --k-story: #a08d76;
+}
+
+/* Sabbath's accent is itself a green, so learned is pushed to a distinctly
+   yellower olive — the two would otherwise read as one kind. */
+[data-theme='sabbath'] {
+  --k-scripture: #a8892f;
+  --k-prayer: #3f7d6a;
+  --k-sense: #7a5a90;
+  --k-desire: #a1566a;
+  --k-learned: #6d7f45;
+  --k-story: #7d6a4d;
+}
+
+[data-theme='grove'] {
+  --k-scripture: #d8b877;
+  --k-prayer: #6cb79a;
+  --k-sense: #ab8ccf;
+  --k-desire: #cb7f93;
+  --k-learned: #9fb072;
+  --k-story: #a68a68;
+}
+
+/* Plainsong's accent is an amber, which puts prayer next door to scripture's
+   gold. They separate by value instead of hue: scripture brighter, prayer
+   deeper. */
+[data-theme='quire'] {
+  --k-scripture: #c2952c;
+  --k-prayer: #8f5c16;
+  --k-sense: #7a5f96;
+  --k-desire: #9c5566;
+  --k-learned: #5c7a5c;
+  --k-story: #7d6a55;
+}
+
+[data-theme='nocturne'] {
+  --k-scripture: #f0c878;
+  --k-prayer: #d9a441;
+  --k-sense: #a98cd0;
+  --k-desire: #c87f92;
+  --k-learned: #87a887;
+  --k-story: #a08a70;
+}
+
+/* Vigil — value only. Anything louder defeats the theme. */
+[data-theme='vigil'] {
+  --k-scripture: #9a9080;
+  --k-prayer: #8a7f6a;
+  --k-sense: #837b88;
+  --k-desire: #8f7a78;
+  --k-learned: #78826f;
+  --k-story: #857868;
+}
+
+/* ── A voice's ornament ──────────────────────────────────────────────────────
+   The rule this section is written under: ornament lives at the page's EDGES
+   and SEAMS — the head of an entry, the divider, the scripture block, the
+   column's own margin — and never inside the running text you are composing
+   into. Principle 3 is not only about latency; being decorated at is an
+   interruption whether or not it costs a millisecond.
+
+   Everything here is a pseudo-element on something CodeMirror already draws.
+   Nothing measures, nothing positions absolutely over the writing surface, and
+   nothing takes a line out of flow — an absolutely-positioned widget over a
+   blank line is exactly what made WebKit stop painting the caret once before.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Citations take the voice's label face everywhere they appear, so a tracked
+   cap in Cloister is Archivo and in Vellum is a true small cap. */
+.cm-spiritual-block__cite,
+.markdown-body .spiritual-cite {
+  font-family: var(--font-label);
+  letter-spacing: var(--label-track);
+  text-transform: var(--label-case);
+  font-variant-caps: var(--label-caps);
+}
+
+/* ── Dawn — the horizon under the title ─────────────────────────────────────
+   The same fading hairline the writing canvas already draws below the header,
+   at a quarter of its weight, closing the entry's head.
+
+   Drawn as a BACKGROUND on the line, not a pseudo-element. `.cm-line::after` is
+   the `+` insert door (lineMenu.ts) with a whole opacity system behind it, and
+   `::before` would sit above the text rather than under it — so this borrows
+   the technique the marking rules already use, which needs neither.
+   ────────────────────────────────────────────────────────────────────────── */
+[data-theme='dawn'] .cm-line.cm-entry-title,
+[data-theme='ink'] .cm-line.cm-entry-title,
+[data-theme='dawn'] .cm-line.cm-entry-title-explicit,
+[data-theme='ink'] .cm-line.cm-entry-title-explicit {
+  background-image: linear-gradient(90deg, var(--journal-horizon), transparent);
+  background-repeat: no-repeat;
+  background-position: left bottom 0.42em;
+  background-size: 62% 1px;
+}
+[data-theme='dawn'] .markdown-body h1::after,
+[data-theme='ink'] .markdown-body h1::after {
+  content: '';
+  display: block;
+  width: 62%;
+  height: 1px;
+  margin-top: 0.34em;
+  background: linear-gradient(90deg, var(--journal-horizon), transparent);
+  opacity: 0.55;
+}
+
+/* ── Vellum — rubrication ───────────────────────────────────────────────────
+   Red-in-a-manuscript is literally what a rubric is: the scribe's second ink,
+   used for the parts that are not the body — citations, section marks, the
+   opening letter. So the accent does that job here and nothing else.
+
+   The versal is on the READING view only. In a live document a drop cap has to
+   survive a caret landing inside it, and `::first-letter` on a contenteditable
+   line is not a safe place to find that out. The editor gets the pairing, the
+   scale and the rubric; the illuminated letter waits for a decoration that can
+   step aside for the caret. */
+[data-theme='vellum'] .markdown-body > p:first-of-type::first-letter,
+[data-theme='ember'] .markdown-body > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 3.4em;
+  line-height: 0.82;
+  color: var(--accent);
+  margin: 0.06em 0.09em -0.04em 0;
+}
+[data-theme='vellum'] .cm-spiritual-block__cite,
+[data-theme='ember'] .cm-spiritual-block__cite,
+[data-theme='vellum'] .markdown-body .spiritual-cite,
+[data-theme='ember'] .markdown-body .spiritual-cite {
+  color: var(--accent);
+}
+[data-theme='vellum'] .cm-spiritual-block--scripture,
+[data-theme='ember'] .cm-spiritual-block--scripture {
+  border-left-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+[data-theme='vellum'] .markdown-body h2::before,
+[data-theme='ember'] .markdown-body h2::before {
+  content: '¶\00a0';
+  color: var(--accent);
+  font-weight: 400;
+}
+
+/* ── Cloister — the colonnade ───────────────────────────────────────────────
+   One hairline running the full height of the writing column, at its own left
+   edge. It is the only ornament here that is a line rather than a mark, which
+   is the point: the others punctuate, this one encloses. */
+[data-theme='cloister'] .cm-content,
+[data-theme='compline'] .cm-content,
+[data-theme='cloister'] .markdown-body,
+[data-theme='compline'] .markdown-body {
+  border-left: 1px solid var(--border);
+  padding-left: 2.2rem;
+  margin-left: -1.1rem;
+}
+@media (max-width: 640px) {
+  [data-theme='cloister'] .cm-content,
+  [data-theme='compline'] .cm-content,
+  [data-theme='cloister'] .markdown-body,
+  [data-theme='compline'] .markdown-body {
+    border-left: 0;
+    padding-left: 0;
+    margin-left: 0;
+  }
+}
+
+/* ── Sabbath — the ornament is the margin ───────────────────────────────────
+   No versal, no rule, no border on the scripture. One voice has to be bare or
+   "illuminated" stops being a choice and becomes a house style. What Sabbath
+   spends instead is space: the leading is already the widest of the six, and
+   the seams get room rather than a mark. */
+[data-theme='sabbath'] .cm-spiritual-block--scripture,
+[data-theme='grove'] .cm-spiritual-block--scripture {
+  border-left: 0;
+  padding-left: 0;
+  margin: 1.4em 0;
+}
+[data-theme='sabbath'] .cm-hr,
+[data-theme='grove'] .cm-hr,
+[data-theme='sabbath'] .markdown-body hr,
+[data-theme='grove'] .markdown-body hr {
+  height: 3.6em;
+}
+
+/* ── Plainsong — the grid is the ornament ───────────────────────────────────
+   Mono's gift is that a rule can be drawn in characters and a citation can be
+   bracketed, because everything lands on the same column. Deliberately NOT
+   markdown syntax: the app conceals `#` and `**` by default because a real
+   user hit them, and a theme is no place to hand them back. */
+[data-theme='quire'],
+[data-theme='nocturne'] {
+  --hr-gap: 1.2em;
+}
+[data-theme='quire'] .cm-spiritual-block__cite::before,
+[data-theme='nocturne'] .cm-spiritual-block__cite::before,
+[data-theme='quire'] .markdown-body .spiritual-cite::before,
+[data-theme='nocturne'] .markdown-body .spiritual-cite::before {
+  content: '[\00a0';
+}
+[data-theme='quire'] .cm-spiritual-block__cite::after,
+[data-theme='nocturne'] .cm-spiritual-block__cite::after,
+[data-theme='quire'] .markdown-body .spiritual-cite::after,
+[data-theme='nocturne'] .markdown-body .spiritual-cite::after {
+  content: '\00a0]';
+}
+[data-theme='quire'] .cm-spiritual-block--scripture,
+[data-theme='nocturne'] .cm-spiritual-block--scripture,
+[data-theme='quire'] .markdown-body blockquote,
+[data-theme='nocturne'] .markdown-body blockquote {
+  border-left-style: dashed;
+}
+/* Dates and verse numbers hold their column. */
+[data-theme='quire'] .cm-content,
+[data-theme='nocturne'] .cm-content,
+[data-theme='quire'] .markdown-body,
+[data-theme='nocturne'] .markdown-body {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Vigil — ornament off, deliberately ─────────────────────────────────────
+   Nothing glows and nothing floats. You chose this theme to be left alone. */
+[data-theme='vigil'] .cm-line.cm-entry-title,
+[data-theme='vigil'] .cm-line.cm-entry-title-explicit {
+  background-image: none;
+}
+[data-theme='vigil'] .markdown-body h1::after {
+  content: none;
 }

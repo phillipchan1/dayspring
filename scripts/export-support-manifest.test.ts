@@ -24,6 +24,7 @@ describe('support manifest', () => {
       'slashCommands',
       'settings',
       'themes',
+      'voices',
       'fonts',
       'highlightColors',
       'practices',

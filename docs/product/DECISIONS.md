@@ -23,6 +23,98 @@ agenda.
 
 ---
 
+## D-028 — A theme becomes a voice: type, marking tones and ornament per palette
+**2026-09-06** · **Status:** Decided · alpha first, then stable · **branch `theme-voices`**
+
+**The finding, which is blunter than the complaint.** *"The fonts don't match the theme"*
+is not a bad pairing. It is the absence of any pairing at all:
+
+1. **No theme block defined a single font.** All nine `[data-theme]` blocks set ~30 colour
+   roles; every `--font-*` token lived once, in `:root` (`themes.css:9–18, 53`). A palette
+   was *structurally incapable* of carrying a typeface.
+2. **There was no display face on the writing surface.** A heading was `1.6em / 700` with
+   **no `fontFamily` declared** (`highlight.ts:14–17`, `firstLineTitle.ts:35`) — it inherited
+   the body face. Fraunces was bundled and never once appeared in the editor.
+3. **Theme and font were orthogonal settings.** Nine palettes × six faces = 54 reachable
+   combinations, none designed. `lightTheme` and `darkTheme` were independent slots, so the
+   palette could change out from under a face chosen for the other one.
+4. **Three of the six markings followed the palette and three did not.** Prayer rode
+   `--accent` and sense rode `--md-emphasis`; scripture, story, desire and learned were fixed
+   hexes. A `#a8536b` rose sat unchanged in Cloister's cool grey.
+
+**Decision. A theme is now a voice: a palette pair, a type pairing, a scale, six marking
+tones and an ornament, under one name.** Nine picks become six.
+
+| Voice | Light ⇄ Dark | Display / Body | Ornament |
+|---|---|---|---|
+| **Dawn** | dawn ⇄ ink | Fraunces 500 / Newsreader | Horizon hairline under the title |
+| **Vellum** | vellum ⇄ ember | EB Garamond, one family | Rubricated versal, pilcrow, accent citation |
+| **Cloister** | cloister ⇄ compline | Archivo / Source Serif 4 | The colonnade — one hairline the column's height |
+| **Sabbath** | sabbath ⇄ **grove** | Crimson Pro, leading 1.9 | None. The ornament is the margin |
+| **Plainsong** | **quire** ⇄ nocturne | JetBrains Mono @ 0.72 scale | The grid — bracketed citation, `· · ·` break |
+| **Vigil** | night only | Atkinson Hyperlegible | Off. Nothing glows |
+
+**A voice spans light and dark**, so the face cannot change when the sun goes down. That was
+the actual mechanism behind the complaint, and two independent slots could never fix it.
+
+**Nocturne is reclaimed, not cut.** True black with a gold accent was never a mood, it was a
+terminal — it is Plainsong's night ground. Two palettes were drawn (Quire, Grove); none were
+deleted, and Ink/Ember/Compline keep their exact values.
+
+**Plainsong is the argument for the whole system.** Choosing `mono` today keeps the 24px
+default, and `usePracticeInsertion.ts:322–329` records what that does: at 24px a mono face
+turned a two-line practice question into three and *pushed the writing line off a phone
+screen entirely.* A font setting cannot fix that, because size is a separate setting. A voice
+can, because it brings its own — hence `--font-scale`, which **multiplies the reader's slider
+rather than overruling it**.
+
+**Markings: the argument at `themes.css:114–125` is kept, and finally applied.** It said a
+kind must "stay recognisable as the same hand when someone changes palette" — but it was only
+ever half-true. Identity now rides the set's *shape*: every voice holds the same relative arc
+(desire rose · scripture gold · story ochre · prayer accent · learned green · sense violet)
+and only chroma and value move. Vigil is deliberately near-monochrome — at `#847c6f` on
+`#080807` there is no chroma to spend, so kinds separate by value and the glyph carries the
+name. A test asserts no palette spends one tone on two kinds.
+
+**The Principle 3 boundary.** Ornament lives at the page's **edges and seams** and never in
+the running text being composed. Two things fell out of that in practice: the Dawn horizon is
+a **background gradient on the title line**, because `.cm-line::after` is the `+` insert door
+from D-026 and `::before` would sit above the text; and **Vellum's versal is reading-view
+only** — a drop cap on a live line has to survive a caret landing inside it, and
+`::first-letter` on a contenteditable is not where we find that out.
+
+**Shipping it: additive only.** Settings are a whole-object last-writer-wins push to one
+`profiles.settings` row that **alpha and stable both use**. The obvious design — add `'auto'`
+to `EditorFont`, replace the slots with `voice`, bump the format version — would mean a stable
+client hits `EDITOR_FONT_VARS['auto'] === undefined`, does not know `voice`, and has
+`validLight`/`validDark` coerce the missing palettes back to Dawn/Ink. **A beta user's theme
+resets because a font was changed on another machine.** Same shape as the late-Stripe-webhook
+clobber. So:
+
+· `voice` is written **alongside** derived `lightTheme` / `darkTheme` (`reconcileVoice`).
+· `editorFontAuto` is a separate boolean; `editorFont` always holds a real v4 face id.
+· **No `SETTINGS_FORMAT_VERSION` bump** while stable reads v4. The migration is gated on
+  `voice`'s own absence instead. The bump, and the removal of these projections, lands one
+  release after stable can read the new shape.
+
+A stable device on Plainsong therefore renders Nocturne + JetBrains Mono at 24px: degraded,
+coherent, not broken.
+
+**Fixed in passing:** heading weights no longer round silently (the family and its weights
+now travel together); `@fontsource/lora` was installed and never imported; `fontOpticalSizing:
+'auto'` was inert against static faces and now has variable ones to drive.
+
+**What would change our mind:**
+· Someone reports the versal or the colonnade as clutter → ornament retreats to reading
+  surfaces and voices keep only pairing and scale.
+· Nobody ever opens *Advanced typography* → the independent font picker can go entirely.
+· A marking becomes unrecognisable across two voices → the arc is not carrying identity, and
+  the tones go back to fixed with only the neutrals adapting.
+
+**Cost accepted:** four new font families in the desktop binary (~200–320KB), two palettes
+that now need maintaining, and a settings shape carrying redundant projections until stable
+catches up.
+
 ## D-026 — The editor's margin is deleted; the `+` moves left; heartIQ leaves the writing surface
 **2026-08-28** · **Status:** Decided · alpha only · **supersedes D-016's placement**
 

@@ -50,11 +50,30 @@ export function App() {
     // Mobile status-bar / PWA chrome tracks the resolved surface color.
     const themeColor = getComputedStyle(root).getPropertyValue('--bg-elevated').trim()
     if (themeColor) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor)
-    root.style.setProperty('--editor-font-size', `${settings.fontSize}px`)
-    root.style.setProperty('--editor-line-height', String(settings.lineHeight))
+    // The reader's own numbers go into the *base* vars; themes.css multiplies
+    // them by the voice's --font-scale / --line-height-scale. A voice adjusts
+    // the slider's value rather than overruling it, so 24px stays 24px in Dawn
+    // and lands near 17px in Plainsong, where a mono face at 24px pushed the
+    // writing line off a phone screen (usePracticeInsertion.ts:322-329).
+    root.style.setProperty('--editor-font-size-base', `${settings.fontSize}px`)
+    root.style.setProperty('--editor-line-height-base', String(settings.lineHeight))
     root.style.setProperty('--editor-max-width', `${settings.maxWidth}rem`)
-    root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
-  }, [resolvedTheme, settings.fontSize, settings.lineHeight, settings.maxWidth, settings.editorFont])
+    // While the face follows the voice, the inline property has to be REMOVED,
+    // not merely left stale — an inline style beats the [data-theme] block, so
+    // setting it here would pin every voice to one font.
+    if (settings.editorFontAuto) {
+      root.style.removeProperty('--font-editor')
+    } else {
+      root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
+    }
+  }, [
+    resolvedTheme,
+    settings.fontSize,
+    settings.lineHeight,
+    settings.maxWidth,
+    settings.editorFont,
+    settings.editorFontAuto,
+  ])
 
   if (!isSupabaseConfigured) return <SetupNotice />
 

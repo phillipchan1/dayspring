@@ -111,7 +111,7 @@ describe('drawMarkings', () => {
     expect(p.getAttribute('data-marking')).toBe('prayer desire')
     expect(p.getAttribute('aria-label')).toBe('Prayer · Desire')
     // One rule, not two stacked — it says "marked", the label says by what.
-    expect(p.style.getPropertyValue('--mark-tone')).toBe('var(--accent)')
+    expect(p.style.getPropertyValue('--mark-tone')).toBe('var(--k-prayer)')
   })
 
   /*

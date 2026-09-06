@@ -1,4 +1,5 @@
 import type { Settings } from './settings'
+import { getVoice, isNightOnly } from './voices'
 
 export type ThemeId =
   | 'dawn'
@@ -10,6 +11,9 @@ export type ThemeId =
   | 'compline'
   | 'nocturne'
   | 'vigil'
+  // Drawn for the voices (D-028): Plainsong's daylight ground, Sabbath's night.
+  | 'quire'
+  | 'grove'
 
 export type ThemeFamily = 'light' | 'dark'
 
@@ -38,6 +42,8 @@ export const THEMES: ThemeMeta[] = [
   { id: 'compline', label: 'Compline', family: 'dark', blurb: 'Indigo night prayer.', swatch: { bg: '#13121e', accent: '#9b8ce8' } },
   { id: 'nocturne', label: 'Nocturne', family: 'dark', blurb: 'True black, for OLED.', swatch: { bg: '#000000', accent: '#d9a441' } },
   { id: 'vigil', label: 'Vigil', family: 'dark', blurb: 'Dimmed all the way down, for dark rooms.', swatch: { bg: '#080807', accent: '#8a7f6a' } },
+  { id: 'quire', label: 'Quire', family: 'light', blurb: 'Paper for a plain hand.', swatch: { bg: '#f4f3f0', accent: '#a06a1e' } },
+  { id: 'grove', label: 'Grove', family: 'dark', blurb: 'Pine after dark.', swatch: { bg: '#101613', accent: '#6cb79a' } },
 ]
 
 const BY_ID = Object.fromEntries(THEMES.map((t) => [t.id, t])) as Record<ThemeId, ThemeMeta>
@@ -61,13 +67,21 @@ function validDark(id: ThemeId | undefined): ThemeId {
 }
 
 /**
- * Palette applied to `data-theme` from the user's appearance mode + their chosen
- * light/dark palettes + the OS preference. Appearance stays light | dark | auto;
- * each mode maps to the palette the user picked for that side.
+ * Palette applied to `data-theme`.
+ *
+ * A voice owns both grounds, so it answers first. The legacy `lightTheme` /
+ * `darkTheme` slots stay as the fallback and are still written on every save —
+ * alpha and stable share one `profiles.settings` row, and a client that has
+ * never heard of `voice` has to find a real palette in there. See settings.ts.
+ *
+ * A night-only voice resolves to its dark palette in every mode; there is no
+ * daylight version of Vigil to fall back to.
  */
 export function resolveTheme(settings: Settings, prefersDark: boolean): ThemeId {
-  const light = validLight(settings.lightTheme)
-  const dark = validDark(settings.darkTheme)
+  const voice = settings.voice ? getVoice(settings.voice) : null
+  const light = voice ? validLight(voice.light ?? undefined) : validLight(settings.lightTheme)
+  const dark = voice ? validDark(voice.dark) : validDark(settings.darkTheme)
+  if (voice && isNightOnly(voice.id)) return dark
   const mode = settings.appearance
   if (mode === 'light') return light
   if (mode === 'dark') return dark

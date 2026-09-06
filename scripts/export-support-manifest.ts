@@ -186,12 +186,16 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
   }
 
   try {
-    const [shortcuts, slash, settings, themes, highlight, practices, imports, subscription, prices, appleIap, flags] =
+    const [shortcuts, slash, settings, themes, voices, highlight, practices, imports, subscription, prices, appleIap, flags] =
       await Promise.all([
         load('/src/features/shortcuts/shortcuts.ts'),
         load('/src/editor/slashCommands.ts'),
         load('/src/lib/settings.ts'),
         load('/src/lib/resolveTheme.ts'),
+        // Voices (D-028) are alpha-first. Absent on stable means the help
+        // article that cites counts.voices is withheld rather than published
+        // describing a picker nobody has yet.
+        tryLoad('/src/lib/voices.ts'),
         tryLoad('/src/lib/highlightColors.ts'),
         load('/src/editor/practices/practicesData.ts'),
         load('/src/lib/import/sources.ts'),
@@ -252,6 +256,18 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
       blurb: t.blurb,
       isDefault: t.id === themes.DEFAULT_LIGHT_THEME || t.id === themes.DEFAULT_DARK_THEME,
     }))
+
+    const voiceEntries: ManifestEntry[] = !voices
+      ? []
+      : (voices.VOICES as any[]).map((v) => ({
+          id: `voice.${v.id}`,
+          label: v.label,
+          blurb: v.blurb,
+          light: v.light ?? undefined,
+          dark: v.dark,
+          face: v.face,
+          isDefault: v.id === voices.DEFAULT_VOICE,
+        }))
 
     const fontEntries: ManifestEntry[] = Object.keys(
       settings.EDITOR_FONT_VARS as Record<string, string>,
@@ -414,6 +430,7 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
       'editor.font-size-max': settings.FONT_SIZE_MAX as number,
       'counts.practices': practiceEntries.length || undefined,
       'counts.themes': themeEntries.length || undefined,
+      'counts.voices': voiceEntries.length || undefined,
       'counts.slash-commands': slashEntries.length || undefined,
       'counts.highlight-colors': highlightEntries.length || undefined,
       'counts.importers': importEntries.filter((i) => i.status === 'available').length || undefined,
@@ -436,6 +453,7 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
         slashCommands: slashEntries,
         settings: settingEntries,
         themes: themeEntries,
+        voices: voiceEntries,
         fonts: fontEntries,
         highlightColors: highlightEntries,
         practices: practiceEntries,
