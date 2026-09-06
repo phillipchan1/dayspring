@@ -105,6 +105,17 @@ describe('marking tones', () => {
   })
 })
 
+describe('ornament', () => {
+  it('gives every palette its own thematic-break gem', () => {
+    // Without one a palette falls through to the default rotated square — the
+    // one shape that belongs to no theme at all, which is how Quire and Grove
+    // shipped their first hour.
+    for (const t of THEMES) {
+      expect(themesCss, `${t.id}: no gem`).toContain(`[data-theme='${t.id}'] .cm-hr::before`)
+    }
+  })
+})
+
 describe('the pre-paint boot script', () => {
   it('maps every voice to the same two grounds the registry does', () => {
     // index.html resolves the theme before React mounts and duplicates this by

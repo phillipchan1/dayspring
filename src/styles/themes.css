@@ -1356,7 +1356,11 @@
 [data-theme='compline'] .markdown-body {
   border-left: 1px solid var(--border);
   padding-left: 2.2rem;
-  margin-left: -1.1rem;
+  /* No compensating negative margin. `.markdown-body` carries `margin: 0 auto`
+     and Pages pins it to `margin-inline: 0` on a grid item for a documented
+     reason (Pages.css, "The measure, pinned"); reaching in here to re-centre
+     would re-open exactly that bug. Both boxes are border-box and centred, so
+     padding alone offsets the rule without moving the column. */
 }
 @media (max-width: 640px) {
   [data-theme='cloister'] .cm-content,
@@ -1365,7 +1369,6 @@
   [data-theme='compline'] .markdown-body {
     border-left: 0;
     padding-left: 0;
-    margin-left: 0;
   }
 }
 
@@ -1430,4 +1433,41 @@
 }
 [data-theme='vigil'] .markdown-body h1::after {
   content: none;
+}
+
+/* ── Gems for the two palettes D-028 drew ───────────────────────────────────
+   A voice keeps one mark across both its grounds — the pairs above already do
+   this in the nicest possible way (Dawn's sun disc becomes Ink's crescent: the
+   same sky, day and night), so these two just join their own voice's family.
+   Without them both fall through to the default rotated square, which is the
+   one shape that belongs to no theme at all.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Grove takes Sabbath's dinkus. Same three dots, on a night ground. */
+[data-theme='grove'] .cm-hr,
+[data-theme='grove'] .markdown-body hr {
+  --hr-gap: 1.15em;
+}
+[data-theme='grove'] .cm-hr::before,
+[data-theme='grove'] .markdown-body hr::before {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    -8px 0 0 0 var(--accent),
+    8px 0 0 0 var(--accent);
+  transform: translate(-50%, -50%);
+  opacity: 0.8;
+}
+
+/* Quire takes Nocturne's diamond — Plainsong's one mark, in daylight. Slightly
+   more present than the night version, which sits on true black and needs less. */
+[data-theme='quire'] .cm-hr::before,
+[data-theme='quire'] .markdown-body hr::before {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+  opacity: 0.8;
 }
