@@ -1,7 +1,16 @@
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 mod native_typing;
 
-#[cfg(target_os = "ios")]
+// Deliberately NOT `#[cfg(target_os = "ios")]`. The module is already gated
+// from the inside — every `use` in it carries its own cfg, and
+// `start_oauth_session` has a `not(target_os = "ios")` arm returning an error,
+// exactly as its doc comment says ("No-op stub on other platforms"). Gating the
+// declaration as well configured that stub out, and `generate_handler!` below
+// then named a module that did not exist on macOS: E0433, every desktop build
+// since 2026-09-04.
+//
+// Same shape as `ios_selection_action` above — the command compiles everywhere
+// so the front end can invoke it without a platform check (src/lib/auth.ts:83).
 mod ios_oauth;
 
 /// Open the web inspector (devtools). Gated by the `devtools` Cargo feature so
