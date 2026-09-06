@@ -194,12 +194,34 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
       <Field label="Mode" hint="Match your system, or lock it light or dark.">
         <AppearanceToggle appearance={settings.appearance} onChange={(appearance) => update({ appearance })} />
       </Field>
-      <Field label="Theme" hint="Your light and dark palettes. Pick one to switch to it now.">
+      <Field label="Theme" hint="Palette, typeface and ornament, day and night. Pick one to switch to it now.">
         <ThemePicker settings={settings} update={update} active={active} />
       </Field>
-      <Field label="Writing font" hint="The face you read and write in.">
-        <WritingFontPicker value={settings.editorFont} onChange={(editorFont) => update({ editorFont })} />
-      </Field>
+      {/*
+        The font picker is deliberately behind a disclosure now. Theme and font
+        used to be two equal choices, which made nine palettes times six faces
+        of reachable combinations and left the reader to find the good ones.
+        The theme brings a face that was chosen with its colours; this is the
+        door out of that for anyone who wants it, not the front door.
+      */}
+      <details className="settings-disclosure">
+        <summary className="settings-disclosure__summary">Advanced typography</summary>
+        <div className="settings-disclosure__body">
+          <Field
+            label="Writing font"
+            hint="Overrides the face your theme sets. Everything else about the theme stays."
+          >
+            <WritingFontPicker
+              value={settings.editorFontAuto ? 'auto' : settings.editorFont}
+              onChange={(choice) =>
+                choice === 'auto'
+                  ? update({ editorFontAuto: true })
+                  : update({ editorFontAuto: false, editorFont: choice })
+              }
+            />
+          </Field>
+        </div>
+      </details>
       <Toggle
         label="Navigation labels"
         hint="Show names beside the sidebar icons. Press [ to toggle."

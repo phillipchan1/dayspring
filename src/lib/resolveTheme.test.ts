@@ -34,9 +34,11 @@ describe('theme registry', () => {
     for (const t of THEMES) expect(isLightTheme(t.id)).toBe(t.family === 'light')
   })
 
-  it('ships four light and five dark palettes', () => {
-    expect(THEMES.filter((t) => t.family === 'light')).toHaveLength(4)
-    expect(THEMES.filter((t) => t.family === 'dark')).toHaveLength(5)
+  it('ships five light and six dark palettes', () => {
+    // Was 4 and 5. D-028 drew two more — Quire (Plainsong's daylight) and Grove
+    // (Sabbath's night, which it had never had) — and deleted none.
+    expect(THEMES.filter((t) => t.family === 'light')).toHaveLength(5)
+    expect(THEMES.filter((t) => t.family === 'dark')).toHaveLength(6)
   })
 
   it('gives every registered theme a matching [data-theme] block', () => {

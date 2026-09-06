@@ -2,6 +2,7 @@
 // via profiles.settings so they follow the user across desktop and web.
 
 import type { ThemeId } from './resolveTheme'
+import { getVoice, voiceForPalettes, type VoiceId } from './voices'
 
 export type Appearance = 'light' | 'dark' | 'auto'
 
@@ -59,6 +60,31 @@ export interface Settings {
   /** Palette used in dark mode (and in auto when the system is dark). */
   darkTheme: ThemeId
   editorFont: EditorFont // the writing/reading face
+
+  /**
+   * The voice: a palette pair, a type pairing, a scale and an ornament under one
+   * name. See lib/voices.ts and D-028.
+   *
+   * `lightTheme` / `darkTheme` / `editorFont` are NOT replaced by this and are
+   * still written on every save, kept in step with the voice. Settings sync is a
+   * whole-object last-writer-wins push to one `profiles.settings` row that alpha
+   * and stable both use, so a client that has never heard of `voice` still has
+   * to find a real palette and a real font id in the blob. Removing them would
+   * mean a beta user's theme resets because a voice was picked on another
+   * machine — the same shape as the late-Stripe-webhook clobber.
+   */
+  voice: VoiceId
+
+  /**
+   * Whether `editorFont` follows the voice (true) or was deliberately chosen
+   * (false).
+   *
+   * This is a separate flag rather than an `'auto'` member of EditorFont for the
+   * same cross-channel reason: `EDITOR_FONT_VARS['auto']` would be `undefined`
+   * on a client that predates it, and `--font-editor` would resolve to nothing.
+   * An older client ignores this key and reads the resolved face instead.
+   */
+  editorFontAuto: boolean
 
   /** Entries sidebar: flat list vs month/year section headers. */
   entriesGroupBy: EntriesGroupBy
@@ -132,6 +158,8 @@ const DEFAULTS: Settings = {
   lightTheme: 'dawn',
   darkTheme: 'ink',
   editorFont: 'serif',
+  voice: 'dawn',
+  editorFontAuto: true,
   entriesGroupBy: 'flat',
   showEntryPreview: false,
   pagesZoom: 0.6,
@@ -201,9 +229,45 @@ export function migrateSettings(parsed: StoredSettings): Settings {
       merged.pagesZoom = LEGACY_DENSITY_ZOOM[legacy]
     }
   }
+  // The voice arrives WITHOUT a format bump, gated on its own absence rather
+  // than on a version number. That is deliberate: stable is still reading v4,
+  // a shipped client cannot be made tolerant after the fact, and bumping would
+  // hand it a blob it has to guess at. Nothing here writes a value an older
+  // reader cannot use — every slot still ends up holding a real ThemeId and a
+  // real EditorFont id. The format bump, and the removal of these projections,
+  // lands one release after stable can read the new shape.
+  if (parsed.voice === undefined) {
+    merged.voice = voiceForPalettes(parsed.lightTheme, parsed.darkTheme)
+    // Someone who never opened the font picker follows the voice. Someone who
+    // deliberately chose iA Writer chose it, and keeps it.
+    merged.editorFontAuto = parsed.editorFont === undefined || parsed.editorFont === 'serif'
+  }
   merged.pagesZoom = Math.max(0, Math.min(1, merged.pagesZoom ?? DEFAULTS.pagesZoom))
   merged.fontSize = Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, merged.fontSize))
-  return merged
+  return reconcileVoice(merged)
+}
+
+/**
+ * Keep the projected keys in step with the voice.
+ *
+ * `voice` is the source of truth. `lightTheme`, `darkTheme` and — while
+ * `editorFontAuto` is on — `editorFont` are projections of it that exist purely
+ * so a client on the other release channel finds something valid in the shared
+ * `profiles.settings` row. Run on every read and every write, so the two can
+ * never drift apart and leave an older reader holding a palette its user never
+ * chose.
+ *
+ * A night-only voice has no light palette to project, so that slot is left
+ * untouched rather than being filled with something arbitrary.
+ */
+export function reconcileVoice(next: Settings): Settings {
+  const voice = getVoice(next.voice)
+  return {
+    ...next,
+    lightTheme: voice.light ?? next.lightTheme,
+    darkTheme: voice.dark,
+    editorFont: next.editorFontAuto ? voice.face : next.editorFont,
+  }
 }
 
 function load(): Settings {
@@ -241,7 +305,7 @@ export const settingsStore = {
     return () => listeners.delete(listener)
   },
   update(patch: Partial<Settings>): void {
-    state = { ...state, ...patch }
+    state = reconcileVoice({ ...state, ...patch })
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, v: SETTINGS_FORMAT_VERSION }))
     } catch {
@@ -262,7 +326,7 @@ export const settingsStore = {
    * suppresses that by remembering what it last pushed.
    */
   applyRemote(remote: Partial<Settings>): void {
-    state = { ...state, ...remote }
+    state = reconcileVoice({ ...state, ...remote })
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, v: SETTINGS_FORMAT_VERSION }))
     } catch {

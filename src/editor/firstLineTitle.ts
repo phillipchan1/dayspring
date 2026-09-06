@@ -33,14 +33,19 @@ function buildDecorations(view: EditorView): DecorationSet {
 }
 
 const titleTheme = EditorView.theme({
+  // The implicit title takes the voice's display face and scale, exactly as an
+  // explicit `# heading` does in highlight.ts — the two must not diverge, or
+  // turning firstLineTitle off would change how the first line is set.
   '.cm-entry-title': {
-    fontSize: '1.6em',
-    fontWeight: '700',
+    fontFamily: 'var(--font-display)',
+    fontSize: 'var(--h1-size)',
+    fontWeight: 'var(--h1-weight)',
+    letterSpacing: 'var(--h1-track)',
     color: 'var(--md-heading)',
-    lineHeight: '1.3',
+    lineHeight: 'var(--h1-lh)',
   },
   '.cm-entry-title-explicit': {
-    lineHeight: '1.3',
+    lineHeight: 'var(--h1-lh)',
   },
   '.cm-entry-title--spaced, .cm-entry-title-explicit.cm-entry-title--spaced': {
     paddingBottom: '0.85em',

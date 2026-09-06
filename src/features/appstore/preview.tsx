@@ -24,7 +24,7 @@ import { createRoot } from 'react-dom/client'
 import { AppNavigationProvider } from '@/context/AppNavigation'
 import { FeatureFlagProvider } from '@/features/flags'
 import { EDITOR_FONT_VARS, settingsStore } from '@/lib/settings'
-import { isLightTheme, type ThemeId } from '@/lib/resolveTheme'
+import { isLightTheme, THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { ShotFrame } from './ShotFrame'
 import { renderSurface } from './surfaces'
 import { renderDevicePane, type DevicePane } from './devices'
@@ -94,7 +94,13 @@ export function renderListingPreview(variant: string): void {
   // re-lays-out mid-capture. Shot 06's "a decade on screen at once" used to need
   // the entries list forced to year grouping; the wall puts a decade on screen
   // by default, so there is nothing left to arrange.
-  const theme: ThemeId = shot.theme ?? 'ink'
+  //
+  // `&theme=` overrides it. The capture scripts never pass one, so every shot
+  // is byte-identical to before; it exists so a voice can be checked on Altar,
+  // Lamp and the Ascent without reaching for devtools (D-028).
+  const wantedTheme = params.get('theme')
+  const theme: ThemeId =
+    (THEMES.some((t) => t.id === wantedTheme) ? (wantedTheme as ThemeId) : null) ?? shot.theme ?? 'ink'
 
   if (raw) {
     settingsStore.update({

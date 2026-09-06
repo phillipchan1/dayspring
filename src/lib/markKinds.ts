@@ -96,7 +96,7 @@ export const MARK_KINDS: MarkKindMeta[] = [
     fence: 'dayspring-scripture',
     command: 'scripture',
     group: 'received',
-    tone: 'rgb(var(--scripture-gold))',
+    tone: 'var(--k-scripture)',
     capture: 'scripture',
   },
   {
@@ -108,7 +108,7 @@ export const MARK_KINDS: MarkKindMeta[] = [
     fence: 'dayspring-pray',
     command: 'pray',
     group: 'brought',
-    tone: 'var(--accent)',
+    tone: 'var(--k-prayer)',
     capture: 'prayer',
   },
   {
@@ -132,7 +132,7 @@ export const MARK_KINDS: MarkKindMeta[] = [
     fence: 'dayspring-sense',
     command: 'sense',
     group: 'noticed',
-    tone: 'var(--md-emphasis)',
+    tone: 'var(--k-sense)',
     capture: 'sense',
   },
   {

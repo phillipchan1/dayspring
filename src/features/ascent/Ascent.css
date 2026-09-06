@@ -211,6 +211,10 @@
   opacity: 0.85;
 }
 .ascent-title {
+  /* The palette here is the Ascent's own (see the header note); the type is the
+     voice's. An illustrated surface still gets to be set in the face the reader
+     chose. */
+  font-family: var(--font-display);
   font-size: 36px;
   font-weight: 500;
   font-style: italic;

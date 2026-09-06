@@ -38,6 +38,21 @@ import '@fontsource/atkinson-hyperlegible/400-italic.css'
 import '@fontsource/atkinson-hyperlegible/700.css'
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
+// The voices' own faces (D-028). Variable, unlike everything above — which is
+// also what makes `fontOpticalSizing: 'auto'` in spiritualBlockDecoration.ts
+// and usePracticeInsertion.ts mean anything for the first time; against the
+// static instances the app shipped before, it was inert.
+//
+// Italic is imported for the three that become `--font-serif`, because that is
+// the app's OWN voice and it speaks in 300-weight italic. Archivo is Cloister's
+// display face only, so it needs neither.
+import '@fontsource-variable/eb-garamond' // Vellum
+import '@fontsource-variable/eb-garamond/wght-italic.css'
+import '@fontsource-variable/archivo' // Cloister — display
+import '@fontsource-variable/source-serif-4' // Cloister — body
+import '@fontsource-variable/source-serif-4/wght-italic.css'
+import '@fontsource-variable/crimson-pro' // Sabbath
+import '@fontsource-variable/crimson-pro/wght-italic.css'
 import './styles/global.css'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -61,6 +76,7 @@ async function bootstrap() {
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
+  //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
   //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
   //   ?__preview=topbar             → the Ritual door + status cluster (features/journal/topbarPreview.tsx)
   //
@@ -93,6 +109,11 @@ async function bootstrap() {
     if (preview === 'highlight') {
       const { renderHighlightPreview } = await import('./editor/highlightPreview')
       renderHighlightPreview()
+      return
+    }
+    if (preview === 'voices') {
+      const { renderVoicesPreview } = await import('./features/settings/voicesPreview')
+      renderVoicesPreview()
       return
     }
     if (preview === 'hr') {
