@@ -972,11 +972,23 @@
 
    `--font-serif` is the APP's voice (its italic questions, labels and asides)
    and `--font-editor` is the WRITER's — the distinction usePracticeInsertion.ts
-   calls "italic is the tell". Voices whose body face carries a true italic and
-   a light weight repoint both. Plainsong and Vigil repoint only the writer's
-   face and leave the app speaking in Newsreader, which keeps that tell legible
-   when you are writing in mono, and avoids asking a 400/700-only face for the
-   300-weight italic those prompts are set in.
+   calls "italic is the tell". EVERY voice repoints both.
+
+   That is load-bearing well beyond the editor: Altar, Lamp and the Ascent are
+   built almost entirely on `--font-serif` (27, 9 and 18 declarations, and no
+   `--font-editor` between them). A voice that left it at Newsreader would never
+   reach a single reading surface — which is exactly how Plainsong first shipped,
+   writing in monospace and reading back in a serif.
+
+   The cost is real and small: JetBrains Mono and Atkinson ship 400 and 700 only,
+   so the app's 300-weight italic prompts round to 400 in those two voices. That
+   is the same rounding `--font-editor` has always accepted (main.tsx), and it
+   buys those voices every surface in the product.
+
+   Note the two variables now resolve to the same family in every voice. The
+   distinction has not been lost — it reappears the moment someone sets an
+   explicit face in Advanced typography, which moves `--font-editor` alone and
+   leaves the app still speaking in the voice's own face.
    ────────────────────────────────────────────────────────────────────────── */
 
 /* Dawn — the welcoming default. Nothing about the body face moves; what changes
@@ -1083,6 +1095,7 @@
 [data-theme='quire'],
 [data-theme='nocturne'] {
   --font-display: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif: var(--font-display);
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
@@ -1106,6 +1119,7 @@
    one of those two. */
 [data-theme='vigil'] {
   --font-display: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-display);
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
