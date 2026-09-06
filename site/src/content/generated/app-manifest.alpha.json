@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.291",
+  "appVersion": "1.0.296",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -658,6 +658,18 @@
         "type": "string"
       },
       {
+        "id": "setting.voice",
+        "key": "voice",
+        "default": "dawn",
+        "type": "string"
+      },
+      {
+        "id": "setting.editor-font-auto",
+        "key": "editorFontAuto",
+        "default": true,
+        "type": "boolean"
+      },
+      {
         "id": "setting.entries-group-by",
         "key": "entriesGroupBy",
         "default": "flat",
@@ -786,6 +798,75 @@
         "label": "Vigil",
         "family": "dark",
         "blurb": "Dimmed all the way down, for dark rooms.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.quire",
+        "label": "Quire",
+        "family": "light",
+        "blurb": "Paper for a plain hand.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.grove",
+        "label": "Grove",
+        "family": "dark",
+        "blurb": "Pine after dark.",
+        "isDefault": false
+      }
+    ],
+    "voices": [
+      {
+        "id": "voice.dawn",
+        "label": "Dawn",
+        "blurb": "Sunrise on paper. The one that welcomes.",
+        "light": "dawn",
+        "dark": "ink",
+        "face": "serif",
+        "isDefault": true
+      },
+      {
+        "id": "voice.vellum",
+        "label": "Vellum",
+        "blurb": "Aged paper, ink that bites. The manuscript.",
+        "light": "vellum",
+        "dark": "ember",
+        "face": "serif",
+        "isDefault": false
+      },
+      {
+        "id": "voice.cloister",
+        "label": "Cloister",
+        "blurb": "Cool stone, north light. The institution.",
+        "light": "cloister",
+        "dark": "compline",
+        "face": "serif",
+        "isDefault": false
+      },
+      {
+        "id": "voice.sabbath",
+        "label": "Sabbath",
+        "blurb": "Sage and pine. The quiet one.",
+        "light": "sabbath",
+        "dark": "grove",
+        "face": "serif",
+        "isDefault": false
+      },
+      {
+        "id": "voice.plainsong",
+        "label": "Plainsong",
+        "blurb": "One line, unadorned. The plaintext voice.",
+        "light": "quire",
+        "dark": "nocturne",
+        "face": "mono",
+        "isDefault": false
+      },
+      {
+        "id": "voice.vigil",
+        "label": "Vigil",
+        "blurb": "Dimmed all the way down, for dark rooms.",
+        "dark": "vigil",
+        "face": "readable",
         "isDefault": false
       }
     ],
@@ -1274,7 +1355,8 @@
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
     "counts.practices": 11,
-    "counts.themes": 9,
+    "counts.themes": 11,
+    "counts.voices": 6,
     "counts.slash-commands": 23,
     "counts.highlight-colors": 5,
     "counts.importers": 3
