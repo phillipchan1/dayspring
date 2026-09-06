@@ -775,11 +775,44 @@ pub fn run() {
           let _ = window.with_webview(|webview| {
             native_typing::enable_writing_tools(webview.inner() as *mut _);
           });
+
+          // ⌘W / the red traffic light must hide the window, not destroy it.
+          // Tauri's default close destroys the webview, and with a single
+          // window that also exits the process — so ⌘W feels like quit.
+          // Hidden, the app stays in the Dock; the Reopen handler below
+          // brings the window back. ⌘Q is a different menu item and still
+          // quits.
+          let hidden = window.clone();
+          window.on_window_event(move |event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+              api.prevent_close();
+              let _ = hidden.hide();
+            }
+          });
         }
       }
 
       Ok(())
     })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|_app, _event| {
+      // Dock-icon click after ⌘W hid the window
+      // (`applicationShouldHandleReopen:hasVisibleWindows:`). Windows
+      // already up: leave it to macOS. No visible windows: restore main.
+      #[cfg(target_os = "macos")]
+      if let tauri::RunEvent::Reopen {
+        has_visible_windows, ..
+      } = _event
+      {
+        if !has_visible_windows {
+          use tauri::Manager;
+          if let Some(window) = _app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+          }
+        }
+      }
+    });
 }
