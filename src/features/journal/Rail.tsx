@@ -13,6 +13,7 @@ import {
   IconNew,
   IconScripture,
   IconSettings,
+  IconLifeMap,
 } from './navIcons'
 
 const NATIVE = isTauri()
@@ -29,6 +30,8 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
+  lifeMapActive: boolean
+  onLifeMap: () => void
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -51,6 +54,8 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
+  lifeMapActive,
+  onLifeMap,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -156,6 +161,25 @@ export function Rail({
         </div>
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>
+        {/*
+          The Life Map sits in the footer rather than in Return, and the reason
+          is the group's own promise: every member of Return glosses "the X you
+          return to" — they SHOW you your material. This one asks you for input.
+          Putting it up there would make a promise it does not keep, and people
+          would arrive expecting to be shown something.
+
+          It graduates into Return (and takes a ⌘ number) if it turns out to be
+          a surface you open to look rather than to edit. Decide that after using
+          it, not before.
+        */}
+        <RailButton
+          label="Life Map"
+          subline="The people and things you return to"
+          onClick={onLifeMap}
+          active={lifeMapActive}
+          icon={<IconLifeMap />}
+          labelsExpanded={labelsExpanded}
+        />
         <RailButton
           label="Settings"
           shortcut="⌘,"
@@ -175,7 +199,9 @@ export function Rail({
 interface RailButtonProps {
   label: string
   subline?: string | undefined
-  shortcut: string
+  /** Optional — a footer destination can be reached without a key. RailHint
+   *  already renders nothing when it is absent. */
+  shortcut?: string | undefined
   onClick: () => void
   icon: ReactNode
   active?: boolean

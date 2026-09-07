@@ -5,7 +5,7 @@
 // docs/prototypes/life-map.html for the design this is built from.
 
 import { useState } from 'react'
-import { useLifeMap, keepItem, addTyped, dropItem } from './useLifeMap'
+import { useLifeMap, keepItem, addTyped, dropItem, type LifeMap } from './useLifeMap'
 import type { LifeMapItem, LifeMapSection, SectionId } from './lifeMap'
 import { tallies } from './lifeMap'
 import './LifeMap.css'
@@ -208,6 +208,17 @@ export function LifeMapView() {
   if (error) return <div className="lifemap__state">{error}</div>
   if (!map) return <div className="lifemap__state">Reading your journal…</div>
 
+  return <LifeMapBody map={map} onChanged={refresh} />
+}
+
+/**
+ * The surface with its data handed in.
+ *
+ * Split from the hook so `?__preview=lifemap` can render it against fixtures —
+ * this surface sits behind OAuth, and the same reason Pages has a preview
+ * applies here: you cannot design what you cannot look at.
+ */
+export function LifeMapBody({ map, onChanged }: { map: LifeMap; onChanged: () => void }) {
   const t = tallies(map.sections)
 
   return (
@@ -224,7 +235,7 @@ export function LifeMapView() {
         </div>
 
         {map.sections.map((section) => (
-          <Section key={section.id} section={section} onChanged={refresh} />
+          <Section key={section.id} section={section} onChanged={onChanged} />
         ))}
 
         <div className="lifemap__foot">

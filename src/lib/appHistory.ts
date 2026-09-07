@@ -38,7 +38,7 @@ export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
  * surfaces do; in the product it belongs to Entries, which is why the rail still
  * shows four ways to return.
  */
-export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'pages'
+export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'pages' | 'lifemap'
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
@@ -115,7 +115,8 @@ function normalizeSurface(value: unknown): Surface {
     value === 'altar' ||
     value === 'scripture' ||
     value === 'journal' ||
-    value === 'pages'
+    value === 'pages' ||
+    value === 'lifemap'
   )
     return value
   // Retired surfaces fold home rather than stranding a saved frame:

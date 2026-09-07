@@ -75,6 +75,7 @@ async function bootstrap() {
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //   ?__preview=firstlight         → the release-note deck, in any palette (features/firstlight/preview.tsx)
+  //   ?__preview=lifemap            → the Life Map against fixtures (features/lifemap/preview.tsx)
   //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
   //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
@@ -105,6 +106,11 @@ async function bootstrap() {
     if (preview === 'firstlight') {
       const { renderFirstLightPreview } = await import('./features/firstlight/preview')
       renderFirstLightPreview()
+      return
+    }
+    if (preview === 'lifemap') {
+      const { renderLifeMapPreview } = await import('./features/lifemap/preview')
+      renderLifeMapPreview()
       return
     }
     if (preview === 'pages') {
