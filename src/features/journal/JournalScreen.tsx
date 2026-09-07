@@ -1944,7 +1944,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   )
 
   const mainSlot = lifeMapActive ? (
-    <LifeMapView />
+    <LifeMapView
+      onOpenSubject={(key) =>
+        void leaveForSurface({ surface: 'pages', pagesSubject: key, pagesSpreadId: null })
+      }
+    />
   ) : scriptureActive ? (
     <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
   ) : altarActive && altarEnabled ? (

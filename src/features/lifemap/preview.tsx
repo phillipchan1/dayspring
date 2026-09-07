@@ -94,5 +94,5 @@ export function renderLifeMapPreview(): void {
   document.documentElement.style.height = '100%'
   document.body.style.cssText = 'margin:0;height:100%;background:var(--bg)'
   host.style.cssText = 'height:100vh;display:flex;flex-direction:column'
-  createRoot(host).render(<LifeMapBody map={map} onChanged={() => {}} />)
+  createRoot(host).render(<LifeMapBody map={map} onChanged={() => {}} onOpenSubject={() => {}} />)
 }

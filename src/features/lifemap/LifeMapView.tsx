@@ -51,7 +51,15 @@ function Glyph({ kind, found }: { kind: SectionId; found: boolean }) {
   }
 }
 
-function Chip({ item, onDrop }: { item: LifeMapItem; onDrop: () => void }) {
+function Chip({
+  item,
+  onDrop,
+  onOpen,
+}: {
+  item: LifeMapItem
+  onDrop: () => void
+  onOpen: () => void
+}) {
   const found = item.provenance === 'found'
   return (
     <span
@@ -59,9 +67,21 @@ function Chip({ item, onDrop }: { item: LifeMapItem; onDrop: () => void }) {
       data-found={found}
       title={found ? 'Dayspring found this — remove it if it is wrong' : 'You added this'}
     >
-      <Glyph kind={item.section} found={found} />
-      <span className="lb">{item.label}</span>
-      {item.pages > 0 && <span className="n">{item.pages}</span>}
+      {/*
+        The name is the door. Clicking it opens Pages already filtered to this
+        subject — the Life Map is where the vocabulary is tended, Pages is where
+        it gets used, and this is the one gesture that says so.
+      */}
+      <button
+        type="button"
+        className="lifemap__open"
+        onClick={onOpen}
+        title={`Show the pages about ${item.label}`}
+      >
+        <Glyph kind={item.section} found={found} />
+        <span className="lb">{item.label}</span>
+        {item.pages > 0 && <span className="n">{item.pages}</span>}
+      </button>
       <button type="button" className="x" onClick={onDrop} aria-label={`Remove ${item.label}`}>
         ×
       </button>
@@ -72,9 +92,11 @@ function Chip({ item, onDrop }: { item: LifeMapItem; onDrop: () => void }) {
 function Section({
   section,
   onChanged,
+  onOpenSubject,
 }: {
   section: LifeMapSection
   onChanged: () => void
+  onOpenSubject: (key: string) => void
 }) {
   const [draft, setDraft] = useState('')
   const [open, setOpen] = useState(false)
@@ -132,6 +154,7 @@ function Section({
             key={item.key}
             item={item}
             onDrop={act(() => removeItem(item))}
+            onOpen={() => onOpenSubject(item.key)}
           />
         ))}
         <form className="lifemap__add" onSubmit={submit}>
@@ -170,6 +193,7 @@ function Section({
                   key={item.key}
                   item={item}
                   onDrop={act(() => removeItem(item))}
+                  onOpen={() => onOpenSubject(item.key)}
                 />
               ))}
             </div>
@@ -180,13 +204,13 @@ function Section({
   )
 }
 
-export function LifeMapView() {
+export function LifeMapView({ onOpenSubject }: { onOpenSubject: (key: string) => void }) {
   const { map, error, refresh } = useLifeMap()
 
   if (error) return <div className="lifemap__state">{error}</div>
   if (!map) return <div className="lifemap__state">Reading your journal…</div>
 
-  return <LifeMapBody map={map} onChanged={refresh} />
+  return <LifeMapBody map={map} onChanged={refresh} onOpenSubject={onOpenSubject} />
 }
 
 /**
@@ -196,7 +220,15 @@ export function LifeMapView() {
  * this surface sits behind OAuth, and the same reason Pages has a preview
  * applies here: you cannot design what you cannot look at.
  */
-export function LifeMapBody({ map, onChanged }: { map: LifeMap; onChanged: () => void }) {
+export function LifeMapBody({
+  map,
+  onChanged,
+  onOpenSubject,
+}: {
+  map: LifeMap
+  onChanged: () => void
+  onOpenSubject: (key: string) => void
+}) {
   const t = tallies(map.sections)
 
   return (
@@ -226,7 +258,12 @@ export function LifeMapBody({ map, onChanged }: { map: LifeMap; onChanged: () =>
         </div>
 
         {map.sections.map((section) => (
-          <Section key={section.id} section={section} onChanged={onChanged} />
+          <Section
+            key={section.id}
+            section={section}
+            onChanged={onChanged}
+            onOpenSubject={onOpenSubject}
+          />
         ))}
 
         <div className="lifemap__foot">
