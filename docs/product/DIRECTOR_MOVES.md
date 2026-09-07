@@ -148,7 +148,7 @@ reports. Nothing in the app does this today.
 
 ---
 
-## Sentiment is allowed (D-028)
+## Sentiment is allowed (D-029)
 
 Phil's call, 2026-09-06, overriding the prior reading. On close inspection the prior
 prohibition was narrower than it looked, and three of its four sites already permit
@@ -224,7 +224,7 @@ per the type system that already exists:
 | `growth` | **Order 3 — a pattern.** `markKinds.ts:16`: "a rising glyph beside someone's spiritual life is a grade." Already shipped as `thenAndNow`. |
 | `struggle` | Redundant once sentiment is allowed — it is a sentiment word. Do not mint a kind for it. |
 | `sense` | Stays, narrowed: **prophetic sensing**, what the writer received. Not mood. |
-| `sentiment` | Stays as **its own kind** — feeling toward a subject. See D-028. |
+| `sentiment` | Stays as **its own kind** — feeling toward a subject. See D-029. |
 | `desire` | Stays. Already in `READ_KINDS`. |
 | `gift` | Cut, and stays cut. Too interpretive. |
 
@@ -343,8 +343,9 @@ rule of life **annual**.
 ## Open
 
 - **D-027 (The Keeping) is not in DECISIONS.md.** It is referenced in
-  `docs/THE_KEEPING.md` but never logged. D-028 above assumes 027 is taken.
-- GLOSSARY:107–109 needs amending for D-028. Nothing else does.
+  `docs/THE_KEEPING.md` but never logged. D-028 went to the voices work while
+  this session ran, so sentiment is **D-029**, and 027 is still owed an entry.
+- GLOSSARY:107–109 needs amending for D-029. Nothing else does.
 
 ---
 
