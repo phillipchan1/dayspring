@@ -20,7 +20,7 @@ name forever.
 | **Lamp** | `scripture` | ⌘3 | Scripture as it has intersected the user's life. Psalm 119:105. |
 | **Altar** | `altar` | ⌘4 | Matters returned to, and what came of them. **Not "Covenant"** — that rename was reverted unshipped (D-009). |
 | **Concordance** | `concordance` | — | Per-user vocabulary engine. Names and spellings only, never moods. |
-| **Threads & Ropes** | `threadsRopes` | — | Flagged off, unshipped. Status open (D-005). |
+| **Threads & Ropes** | — | — | Surface never shipped; flag deleted 2026-09-07 (D-005). The `features/threads/data/` seam it left behind is live — Altar and the Ascent read warmth bands through it. |
 | **heartIQ** | `noticing` | — | The journal proposing markings in pencil. Built, and deliberately not on the writing surface — waiting on a reading surface to live in (D-026). |
 
 **Retired:** *Covenant* (Altar, reverted 2026-07-26) · *Reflections* (the old UI Ascent

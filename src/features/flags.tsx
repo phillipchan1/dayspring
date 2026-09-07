@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 
 /** Map of flag key → Vite env variable name. */
 const FLAG_ENV: Record<string, string> = {
-  threadsRopes: 'VITE_FF_THREADS_ROPES',
   altar: 'VITE_FF_ALTAR',
   // The Concordance drawer (Settings → About). Off by default — the fidelity
   // engine populates silently; this only exposes the inspect/curate UI. Enable
@@ -34,7 +33,7 @@ const GRADUATED = new Set<string>(['altar'])
  *   3. Off.
  *
  * // TODO: wire real A/B bucketing — for now, assignment is manual via the
- * // profiles.feature_flags jsonb field (set 'threadsRopes' in the array).
+ * // profiles.feature_flags jsonb field (set 'concordance' in the array).
  */
 export function resolveFlag(flags: string[], key: string): boolean {
   if (GRADUATED.has(key)) return true

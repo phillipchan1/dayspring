@@ -1,8 +1,21 @@
 /**
- * Threads & Ropes data seam — real adapters.
+ * The threads/ropes data seam — real adapters over the real tables.
  *
  * Queries:  ropes / threads / thread_members → entries
  * Parked:   connection candidates (mock), encounter naming (mock)
+ *
+ * NOT the Threads & Ropes surface. That surface was built to P0–P1, never
+ * shipped, and its flag is gone (D-005). This directory survives it because the
+ * name follows the SCHEMA — `threads`, `ropes` and `thread_members` are real
+ * tables — and because Altar and the Ascent both read through here:
+ *
+ *   features/altar/data.ts             buildBands / buildTended / WarmthBand
+ *   features/ascent/warmth.ts          WarmthBand
+ *   features/ascent/drilldowns/…       getBandTimeline / loadEntry
+ *
+ * So this is live shared infrastructure, not the leftovers of a parked
+ * prototype. Deleting it alongside the flag breaks three shipped surfaces —
+ * which is exactly the mistake the old name invited.
  */
 
 import { requireSupabase } from '@/lib/supabase'
