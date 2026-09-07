@@ -71,6 +71,8 @@ export interface LifeMapItem {
   provenance: Provenance
   /** Distinct pages this appears on. Shown; NEVER sorted by — see `order`. */
   pages: number
+  /** No occurrence in a year. Rendered quietly; never hidden. */
+  dormant: boolean
   /** From `entries.created_at`, so imports carry their original dates. */
   firstSeen: string | null
   lastSeen: string | null
@@ -107,6 +109,27 @@ export function sectionFor(kind: ConcordanceKind): SectionId {
     case 'term':
       return 'matter'
   }
+}
+
+/**
+ * The floor: how often something has to appear before it is offered.
+ *
+ * ONE PAGE IN A HUNDRED, the same constant and the same reasoning as
+ * `readings.ts`' WORD_FLOOR — which learned this on this exact archive:
+ * "Two pages is the right floor on a fixture of 47 entries and badly wrong on a
+ * real archive." Measured 2026-09-07: the Concordance's own floor of 2 offers
+ * 1,256 subjects, which is a wall of homework; one in a hundred offers 46.
+ *
+ * A FLOOR IS FILTERING. "The most significant thirty" would be ranking, and
+ * ranking is a verdict (D-016). That is the whole difference, and it is why the
+ * floor is STATED ON SCREEN and the writer can lower it — the list shortens by a
+ * rule they can see and overrule, never by the app's opinion of who matters.
+ */
+export const FLOOR_RATIO = 0.01
+
+/** Minimum 3, so a young journal offers something rather than nothing. */
+export function floorFor(pageCount: number): number {
+  return Math.max(3, Math.round(pageCount * FLOOR_RATIO))
 }
 
 /** The key `kept_subjects` stores for a Concordance row. Must match `subjectFromItem`. */
@@ -158,9 +181,21 @@ function order(a: LifeMapItem, b: LifeMapItem): number {
   return a.label.localeCompare(b.label)
 }
 
-/** A Concordance row the surface must not show at all. */
-const retired = (item: ConcordanceItem) =>
-  item.status === 'dormant' || item.status === 'superseded'
+/**
+ * A Concordance row the surface must not show at all — and `dormant` is NOT one.
+ *
+ * `DORMANT_AFTER_DAYS: 365` means "no new occurrence in a year". That is
+ * RECENCY, not retirement, and on a fifteen-year archive it is 4,517 of 5,570
+ * rows — most of the people in it. Hiding them would delete the writer's own
+ * history from a surface whose whole job is holding it, and it would silently
+ * break the one director move that depends on absence: "you wrote about your
+ * father weekly for two years and not once since March."
+ *
+ * Dormant rows come through marked `dormant` so the surface can render them
+ * quietly. Only `superseded` is genuinely gone — that row was replaced by
+ * another and showing both would double the same subject.
+ */
+const retired = (item: ConcordanceItem) => item.status === 'superseded'
 
 /**
  * Build the four sections.
@@ -172,6 +207,7 @@ const retired = (item: ConcordanceItem) =>
 export function buildLifeMap(
   concordance: readonly ConcordanceItem[],
   kept: readonly KeptSubject[],
+  floor = 3,
 ): LifeMapSection[] {
   const keptKeys = new Set(kept.map((k) => k.key))
   const items: LifeMapItem[] = []
@@ -181,6 +217,12 @@ export function buildLifeMap(
     if (retired(item)) continue
     const key = conKey(item.canonical)
     if (seen.has(key)) continue
+    // ANYTHING THE WRITER ANSWERED IS EXEMPT FROM THE FLOOR. A name they kept
+    // must never disappear because it stopped recurring — that would be the app
+    // overruling them with arithmetic, which is the one thing it may never do.
+    const answered = item.source === 'explicit' || item.source === 'correction' ||
+      item.status === 'confirmed' || keptKeys.has(key)
+    if (!answered && item.occurrence_count < floor) continue
     seen.add(key)
     items.push({
       key,
@@ -188,6 +230,7 @@ export function buildLifeMap(
       section: sectionFor(item.kind),
       provenance: provenanceOf(item, keptKeys),
       pages: item.occurrence_count,
+      dormant: item.status === 'dormant',
       firstSeen: item.first_seen,
       lastSeen: item.last_seen,
       terms: item.surface_forms.length > 0 ? item.surface_forms : [item.canonical],
@@ -206,6 +249,7 @@ export function buildLifeMap(
       section: keptSection(k),
       provenance: 'mine',
       pages: 0,
+      dormant: false,
       firstSeen: k.keptAt,
       lastSeen: null,
       terms: k.terms,

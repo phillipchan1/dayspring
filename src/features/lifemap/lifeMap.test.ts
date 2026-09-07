@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { ConcordanceItem } from '@/lib/concordance'
 import type { KeptSubject } from '@/features/pages/keptSubjects'
-import { buildLifeMap, provenanceOf, sectionFor, conKey, tallies } from './lifeMap'
+import { buildLifeMap, provenanceOf, sectionFor, conKey, tallies, floorFor } from './lifeMap'
 
 const item = (over: Partial<ConcordanceItem> & { canonical: string }): ConcordanceItem => ({
   id: over.canonical,
@@ -10,7 +10,8 @@ const item = (over: Partial<ConcordanceItem> & { canonical: string }): Concordan
   descriptor: null,
   status: 'suggested',
   source: 'repetition',
-  occurrence_count: 1,
+  // Above the default floor of 3, so a fixture is offered unless a test says otherwise.
+  occurrence_count: 5,
   first_seen: '2020-01-01T00:00:00Z',
   last_seen: '2026-01-01T00:00:00Z',
   ...over,
@@ -71,6 +72,18 @@ describe('provenanceOf', () => {
   })
 })
 
+describe('floorFor', () => {
+  it('is one page in a hundred, the WORD_FLOOR constant', () => {
+    expect(floorFor(2969)).toBe(30)
+    expect(floorFor(10000)).toBe(100)
+  })
+
+  it('never falls below three, so a young journal offers something', () => {
+    expect(floorFor(0)).toBe(3)
+    expect(floorFor(47)).toBe(3)
+  })
+})
+
 describe('buildLifeMap', () => {
   it('files every kind into its section and counts what was found', () => {
     const out = buildLifeMap(
@@ -94,7 +107,10 @@ describe('buildLifeMap', () => {
     expect(section('person', out).found).toBe(1)
   })
 
-  it('hides dormant and superseded rows', () => {
+  it('keeps dormant rows and hides only superseded ones', () => {
+    // Dormant is "no occurrence in a year" — recency, not retirement. On a
+    // fifteen-year archive it is most of the people in it, and absence is
+    // exactly what the silence move reads.
     const out = buildLifeMap(
       [
         item({ canonical: 'Ben', status: 'dormant' }),
@@ -103,7 +119,36 @@ describe('buildLifeMap', () => {
       ],
       [],
     )
-    expect(section('person', out).items.map((i) => i.label)).toEqual(['Danny'])
+    // Danny is confirmed, Ben is a dormant suggestion — so Ben sorts last as
+    // waiting, but he is still here.
+    expect(section('person', out).items.map((i) => i.label)).toEqual(['Danny', 'Ben'])
+    expect(section('person', out).items.find((i) => i.label === 'Ben')!.dormant).toBe(true)
+  })
+
+  it('offers nothing below the floor', () => {
+    const out = buildLifeMap(
+      [
+        item({ canonical: 'Rare', occurrence_count: 2 }),
+        item({ canonical: 'Often', occurrence_count: 30 }),
+      ],
+      [],
+      12,
+    )
+    expect(section('person', out).items.map((i) => i.label)).toEqual(['Often'])
+  })
+
+  it('exempts anything the writer answered from the floor', () => {
+    // A kept name must never vanish because it stopped recurring. That would be
+    // arithmetic overruling the writer.
+    const out = buildLifeMap(
+      [
+        item({ canonical: 'Ben', occurrence_count: 1 }),
+        item({ canonical: 'Mom', occurrence_count: 1, source: 'explicit' }),
+      ],
+      [kept(conKey('Ben'), 'Ben')],
+      12,
+    )
+    expect(section('person', out).items.map((i) => i.label).sort()).toEqual(['Ben', 'Mom'])
   })
 
   it('carries typed subjects the engine has never seen', () => {
