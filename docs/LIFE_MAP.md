@@ -158,19 +158,52 @@ already the gate and a second gate inside it is redundant (see `flags.tsx`, D-01
 
 ---
 
-## Blocking, and not yet answered
+## What prod actually holds — measured 2026-09-07
 
-1. **Are these two live in prod?** `20260611120000_concordance.sql` and
-   `20260826120000_kept_subjects.sql`. Migration history is out of sync — these go
-   through the SQL editor, never `db push`.
-2. **Does `concordance` have rows for the owner?**
-   `select kind, count(*) from concordance where owner = '…' group by kind;`
-   Population runs as a `concordance` job in `api/_lib/processing.ts`. If it has
-   never ticked, **step zero is running it**, and no amount of UI helps until then.
-3. **Nav slot.** Pages ⌘1, Ascent ⌘2, Lamp ⌘3, Altar ⌘4 → ⌘5 and a rail button,
-   unless it hangs off Settings while it is rough.
+Both migrations are **already live** and the Concordance has **5,570 rows**. The
+`supabase_migrations` ledger disagrees (every local file reads unapplied, plus
+three remote-only entries) — that ledger is out of sync and has been since June.
+**Never `db push` on this project.** Verified read-only over PostgREST.
 
----
+| status | rows | | source | rows |
+|---|---|---|---|---|
+| suggested | 1,053 | | import | 5,140 |
+| **dormant** | **4,517** | | repetition | 430 |
+| confirmed | 0 | | correction | 0 |
+| superseded | 0 | | explicit | 0 |
+
+`kept_subjects`: **0 rows.** Nothing has ever been kept, and `confirmed` is zero
+because the Concordance drawer is flag-off.
+
+### What the surface would show today
+
+Active rows over the existing floor (`SURFACE_MIN_DISTINCT_ENTRIES = 2`):
+
+| section | items |
+|---|---|
+| People | 145 |
+| Places | 28 |
+| Domains | 54 (36 org + 18 project) |
+| Matters | 114 |
+| **total** | **341** |
+
+> ⚠️ **All 341 would render `waiting`** — dashed, undecided — because nothing is
+> confirmed and nothing is kept. That is a wall of homework on first open, not
+> the handful the prototype shows.
+>
+> **The floor is too low for a fifteen-year archive**, and `readings.ts` already
+> learned this exact lesson about `WORD_FLOOR`: *"Two pages is the right floor on
+> a fixture of 47 entries and badly wrong on a real archive."* Its fix is the one
+> to copy — a floor proportional to the span, **stated on screen**, because *"THE
+> FLOOR IS THE ONLY LEGAL WAY TO SHORTEN THIS LIST."* Raising a stated floor is
+> filtering; taking "the top 30" would be ranking, and ranking is a verdict
+> (D-016). Pick the floor so first open shows tens, not hundreds.
+
+### Still open
+
+1. **`kept_subjects.kind`** — `supabase/migrations/20260907120000_kept_subject_kind.sql`
+   still needs applying, in the SQL editor. Additive, idempotent, one column.
+2. **Nav slot.** Rail footer above Settings, or the Return group.
 
 ## How this fails, so it can be caught
 
