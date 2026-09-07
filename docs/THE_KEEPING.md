@@ -128,23 +128,26 @@ downstream of that missing number.
 
 Commit `7011099` on `master`. Ship on the next stable merge.
 
-### 1. Fill in the positions. (~5 min, one command)
+### 1. Fill in the positions. ✅ DONE 2026-09-07
 
 ```bash
-cd /Users/philchan/Work/dayspring-keeping
 npx tsx scripts/backfill-positions.ts --owner phillipchan1@gmail.com
 ```
 
-**STILL NOT RUN.** Dry run on 2026-09-04: **5,667 of 6,405 locatable (88.5%)**,
-and — worth noting — *"text no longer in the body: 0"*, so the harvest's verbatim
-guarantee holds perfectly across the whole archive. Writes one nullable derived
-column, touches no entry text, reversible with
-`UPDATE spiritual_items SET char_start = NULL`.
+**5,684 of 6,422 markings (88.5%) now carry `char_start`/`char_end`**, verified in
+production. The remainder are unlocatable by construction rather than by failure:
+707 have no entry to be located in, 31 are under 12 characters.
 
-Until it runs the movement join can only see a fraction of any page: the bench
-still reads *"0 of 2 markings · 5 have no stored position"* on 8/30. Scripture
-refs already carry offsets, which is why the scripture half of the join works
-today and the prayer half does not.
+The number that matters is the one that stayed at zero: **"text no longer in the
+body: 0."** Across the whole archive, every harvested marking was found verbatim
+in the page it came from — the harvest's verbatim guarantee holds perfectly, and
+that is now measured rather than asserted.
+
+The script has moved to `master`. It lived only on the spike branch, which is a
+large part of why it went a month unrun while every doc called it step 1.
+
+⚠️ **Run for Phil's owner only.** There are nine owners now and `_owner.ts`
+requires the flag; the other archives are untouched.
 
 ### 2. Get a number.
 
