@@ -11,11 +11,33 @@
   min-height: 0;
   overflow: hidden;
   display: flex;
-  color: #ece7df;
+  color: var(--ascent-ink);
   font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
+  /* The Ascent carries its own palette — it is an illustrated surface, not a
+     themed one — so its inks live here rather than in themes.css. Naming them
+     lets a palette that needs a different ceiling (Vigil) bank the whole sky
+     without touching a rule. */
+  --ascent-ink: #ece7df;
+  --ascent-ink-rgb: 236, 231, 223; /* the same ink, for the many alpha uses */
+  --ascent-ink-bright: #f3ecdf;
+  --ascent-ink-quote: #efe9df;
+  --ascent-ink-body: #e6e1d8;
+  --ascent-ink-peak: #fff7ea;
+  --ascent-star: 255, 255, 255;
+  /* The learn-drill card is real paper inside the night sky: a light ground
+     with dark SVG ink on it, so the two move together. */
+  --ascent-paper: #f7f1e4;
+  --ascent-paper-ink: #3a342b;
+  --ascent-paper-accent: #a8732a;
+  --ascent-paper-meta: #9a917f;
   --ascent-gold: #e8b873;
   --ascent-gold-soft: #f0c587;
+  /* The lit peak and the rope's dotted trail — drawn in Summit.tsx's SVG. */
+  --ascent-peak: #f7ecd6;
+  --ascent-peak-rgb: 247, 236, 214;
+  --ascent-glow-rgb: 240, 197, 135;
+  --ascent-trail: rgba(232, 184, 115, 0.28);
   --a0: #0d1018;
   --a1: #141a28;
   --ascent-rock-top: #2a2436;
@@ -38,11 +60,11 @@
   pointer-events: none;
   transition: opacity 1s ease;
   background-image:
-    radial-gradient(1px 1px at 20% 18%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 67% 12%, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1px 1px at 83% 28%, rgba(255, 255, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 38% 8%, rgba(255, 255, 255, 0.35), transparent),
-    radial-gradient(1px 1px at 52% 22%, rgba(255, 255, 255, 0.3), transparent);
+    radial-gradient(1px 1px at 20% 18%, rgba(var(--ascent-star), 0.5), transparent),
+    radial-gradient(1px 1px at 67% 12%, rgba(var(--ascent-star), 0.4), transparent),
+    radial-gradient(1px 1px at 83% 28%, rgba(var(--ascent-star), 0.45), transparent),
+    radial-gradient(1px 1px at 38% 8%, rgba(var(--ascent-star), 0.35), transparent),
+    radial-gradient(1px 1px at 52% 22%, rgba(var(--ascent-star), 0.3), transparent);
 }
 
 .ascent-sr {
@@ -122,7 +144,7 @@
   display: flex;
   flex-direction: column;
   font-size: 14px;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   transition: 0.3s;
   line-height: 1.2;
   text-align: left;
@@ -144,7 +166,7 @@
 }
 .ascent-station:hover .ascent-station__label,
 .ascent-station:focus-visible .ascent-station__label {
-  color: #ece7df;
+  color: var(--ascent-ink);
 }
 .ascent-station:focus-visible {
   outline: 2px solid var(--ascent-gold-soft);
@@ -189,6 +211,10 @@
   opacity: 0.85;
 }
 .ascent-title {
+  /* The palette here is the Ascent's own (see the header note); the type is the
+     voice's. An illustrated surface still gets to be set in the face the reader
+     chose. */
+  font-family: var(--font-display);
   font-size: 36px;
   font-weight: 500;
   font-style: italic;
@@ -199,7 +225,7 @@
 .ascent-line {
   font-size: 16px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.6);
+  color: rgba(var(--ascent-ink-rgb), 0.6);
   max-width: 500px;
   line-height: 1.6;
   margin: 0;
@@ -208,7 +234,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.16em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   margin: 12px 0 0;
 }
 .ascent-terrain {
@@ -218,7 +244,7 @@
 .ascent-empty {
   font-size: 16px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
   line-height: 1.6;
   max-width: 440px;
   margin: 8px 0 0;
@@ -238,7 +264,7 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.18em;
-  color: rgba(236, 231, 223, 0.35);
+  color: rgba(var(--ascent-ink-rgb), 0.35);
 }
 .ascent-lenses__chips {
   display: flex;
@@ -252,13 +278,13 @@
   gap: 5px;
   font-size: 13px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.62);
+  color: rgba(var(--ascent-ink-rgb), 0.62);
 }
 .ascent-lens__x {
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(236, 231, 223, 0.45);
+  color: rgba(var(--ascent-ink-rgb), 0.45);
   font-size: 13px;
   line-height: 1;
   padding: 0 2px;
@@ -270,7 +296,7 @@
   background: rgba(0, 0, 0, 0.22);
   border: 1px solid rgba(232, 184, 115, 0.35);
   border-radius: 6px;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 13px;
@@ -288,7 +314,7 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.1em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-lenses__edit:hover {
   color: var(--ascent-gold-soft);
@@ -314,12 +340,12 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.16em;
-  color: rgba(236, 231, 223, 0.45);
+  color: rgba(var(--ascent-ink-rgb), 0.45);
 }
 .ascent-dim__empty {
   font-size: 14px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   margin: 0;
 }
 .ascent-dim__open {
@@ -340,7 +366,7 @@
 .ascent-dim__note {
   font-size: 12px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.38);
+  color: rgba(var(--ascent-ink-rgb), 0.38);
 }
 
 /* Words */
@@ -375,16 +401,16 @@
   font-size: 16px;
   line-height: 1.55;
   margin: 0 0 5px;
-  color: #e6e1d8;
+  color: var(--ascent-ink-body);
 }
 .ascent-word__text.is-quote {
   font-style: italic;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
 }
 .ascent-word__date {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 /* the one line of the year — set apart, hushed, the quietest content */
 .ascent-dim--words.is-year {
@@ -397,7 +423,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #f3ecdf;
+  color: var(--ascent-ink-bright);
   font-family: var(--font-serif);
   font-size: 27px;
   font-style: italic;
@@ -408,7 +434,7 @@
 .ascent-oneline__date {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 
 /* Themes — the highlight layer (grounded in verbatim quotes) */
@@ -445,7 +471,7 @@
 .ascent-theme__label {
   font-size: 17px;
   font-style: italic;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
   line-height: 1.3;
 }
 .ascent-theme__count {
@@ -453,12 +479,12 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.06em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-theme__peek {
   font-size: 13.5px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -477,7 +503,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   padding: 4px 0;
   transition: color 0.2s;
 }
@@ -523,13 +549,13 @@
 .ascent-scrip__ref {
   font-size: 15px;
   font-style: italic;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
 }
 .ascent-scrip__count {
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.04em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-scrip__suggested {
   align-self: flex-start;
@@ -559,7 +585,7 @@
   font-size: 18px;
   font-style: italic;
   line-height: 1.45;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
 }
 .ascent-prayer__pattern:hover {
   color: var(--ascent-gold-soft);
@@ -577,7 +603,7 @@
 .ascent-ebenezer__ask {
   font-size: 14px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.6);
+  color: rgba(var(--ascent-ink-rgb), 0.6);
 }
 .ascent-ebenezer__arrow {
   color: var(--ascent-gold);
@@ -602,7 +628,7 @@
   font-size: 19px;
   font-style: italic;
   line-height: 1.45;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
 }
 .ascent-learning__q:hover {
   color: var(--ascent-gold-soft);
@@ -624,7 +650,7 @@
   color: var(--ascent-gold-soft);
 }
 .ascent-link:disabled {
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   cursor: default;
 }
 
@@ -645,7 +671,7 @@
   animation: ascent-fade 0.8s both;
 }
 .ascent-stone-dot {
-  filter: drop-shadow(0 0 6px rgba(240, 197, 135, 0.75));
+  filter: drop-shadow(0 0 6px rgba(var(--ascent-glow-rgb), 0.75));
   animation: ascent-breathe 5s ease-in-out infinite;
 }
 .ascent-stone-ring {
@@ -656,14 +682,14 @@
   animation: ascent-breathe 6s ease-in-out infinite;
 }
 .ascent-peak-lit {
-  filter: drop-shadow(0 0 12px rgba(247, 236, 214, 0.9));
+  filter: drop-shadow(0 0 12px rgba(var(--ascent-peak-rgb), 0.9));
 }
 .ascent-summit__look {
   text-align: center;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   margin: 14px 0 0;
 }
 
@@ -679,7 +705,7 @@
 .ascent-ctrl-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #ece7df;
+  color: var(--ascent-ink);
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.08em;
@@ -704,7 +730,7 @@
 .ascent-ctrl-alt {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   letter-spacing: 0.05em;
 }
 
@@ -753,7 +779,7 @@
   font-style: italic;
   font-weight: 500;
   margin: 0;
-  color: #f3ecdf;
+  color: var(--ascent-ink-bright);
 }
 .ascent-drill__close {
   flex: 0 0 auto;
@@ -763,7 +789,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
 }
 .ascent-drill__close:hover {
   color: var(--ascent-gold-soft);
@@ -823,18 +849,18 @@
   font-size: 15px;
   font-style: italic;
   line-height: 1.5;
-  color: #e6e1d8;
+  color: var(--ascent-ink-body);
 }
 .ascent-path__excerpt:hover {
   color: var(--ascent-gold-soft);
 }
 .ascent-path__moment.is-suggested .ascent-path__excerpt {
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
 }
 .ascent-path__date {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-path__confirm {
   display: flex;
@@ -845,7 +871,7 @@
 .ascent-path__hint {
   font-size: 12px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.42);
+  color: rgba(var(--ascent-ink-rgb), 0.42);
 }
 .ascent-path__confirmed {
   font-family: var(--font-mono);
@@ -859,7 +885,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.03em;
-  color: rgba(236, 231, 223, 0.45);
+  color: rgba(var(--ascent-ink-rgb), 0.45);
 }
 
 /* verse rise across altitudes (scripture drill-in) */
@@ -876,7 +902,7 @@
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-vdrill__rise-bars {
   display: flex;
@@ -910,12 +936,12 @@
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 
 /* learning drill-in (the cross-lens cord) */
 .ascent-learndrill__card {
-  background: #f7f1e4;
+  background: var(--ascent-paper);
   border: 0.5px solid rgba(120, 90, 40, 0.18);
   border-radius: 12px;
   overflow: hidden;
@@ -928,28 +954,28 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.18em;
-  fill: #a8732a;
+  fill: var(--ascent-paper-accent);
 }
 .ascent-cord__q {
   font-style: italic;
   font-size: 21px;
-  fill: #3a342b;
+  fill: var(--ascent-paper-ink);
 }
 .ascent-cord__lens {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
-  fill: #a8732a;
+  fill: var(--ascent-paper-accent);
 }
 .ascent-cord__frag {
   font-style: italic;
   font-size: 15px;
-  fill: #3a342b;
+  fill: var(--ascent-paper-ink);
 }
 .ascent-cord__date {
   font-family: var(--font-mono);
   font-size: 11px;
-  fill: #9a917f;
+  fill: var(--ascent-paper-meta);
 }
 .ascent-learndrill__footer {
   display: flex;
@@ -961,14 +987,14 @@
 .ascent-learndrill__note {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
 }
 
 /* prayer drill-in (asks → forward evidence → stone) */
 .ascent-praydrill__pattern {
   font-size: 17px;
   font-style: italic;
-  color: #efe9df;
+  color: var(--ascent-ink-quote);
   margin: 0 0 22px;
 }
 .ascent-praydrill__forward {
@@ -994,7 +1020,7 @@
   font-size: 9.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 
 /* ── keyframes ──────────────────────────────────────────────────────────── */
@@ -1212,11 +1238,20 @@
 }
 
 /* ── responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
+/* 767px, not 640 — this has to fire exactly when useIsMobile() swaps in
+   MobileJournal, which is what hides the shell's safe-area-padded header. */
+@media (max-width: 767px) {
   .ascent-rail {
     width: 30px;
     flex: 0 0 30px;
-    padding: 40px 0;
+    padding: calc(40px + var(--safe-top)) 0 40px;
+    /* The dots land ~15px from the left edge, inside the 28px EDGE_ZONE that
+       MobileJournal claims for the entries drawer's edge-swipe — so aiming at a
+       station could open the drawer instead. On a phone the rail is a progress
+       indicator, not a control: the labels are hidden and ascend/descend
+       (.ascent-ctrl, sticky at the bottom) is the real way to move between
+       altitudes. Let the gesture through. */
+    pointer-events: none;
   }
   /* Dots only on narrow screens — the labels would overflow into the content,
    * and the active altitude is already announced in the header. */
@@ -1226,8 +1261,10 @@
   .ascent-station {
     gap: 0;
   }
+  /* The mobile shell hides its safe-area-padded header here
+     (MobileJournal: canvasAlternateActive) — this is the only status-bar gap. */
   .ascent-main {
-    padding: 40px 18px 28px;
+    padding: calc(40px + var(--safe-top)) 18px var(--mobile-chrome-h);
   }
   /* Keep ascend/descend reachable: it used to scroll away with the content, so
      once you read down the page you lost the way up. Stick it to the bottom of
@@ -1238,8 +1275,17 @@
     margin-top: 24px;
     padding-top: 16px;
     padding-bottom: 12px;
+    /* The 52px .mobile-fab is fixed over this row's right edge, and wins on
+       z-index — reserve its width so "ascend" stays tappable. */
+    padding-right: calc(52px + 1.6rem);
     background: linear-gradient(180deg, transparent, var(--a1) 42%);
     border-top: none;
+  }
+  /* With the FAB's width reserved, three items no longer fit: the hint wrapped
+     to three lines and crowded "descend". The buttons already name the action,
+     so drop the explanatory middle on phones and let them breathe. */
+  .ascent-ctrl-alt {
+    display: none;
   }
   .ascent-title {
     font-size: 26px;
@@ -1266,12 +1312,12 @@
 .ascent-bands__rest {
   font-size: 12.5px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.34);
+  color: rgba(var(--ascent-ink-rgb), 0.34);
   margin: 6px 0 0;
 }
 .ascent-band {
   padding: 16px 0;
-  border-top: 1px solid rgba(236, 231, 223, 0.08);
+  border-top: 1px solid rgba(var(--ascent-ink-rgb), 0.08);
   animation: ascent-rise 0.6s both;
 }
 .ascent-band:first-child {
@@ -1288,7 +1334,7 @@
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 19px;
-  color: #ece7df;
+  color: var(--ascent-ink);
 }
 .ascent-band__name.is-hero {
   color: var(--ascent-gold-soft);
@@ -1297,7 +1343,7 @@
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   text-transform: lowercase;
 }
 .ascent-band__snip {
@@ -1305,7 +1351,7 @@
   font-style: italic;
   font-size: 15px;
   line-height: 1.5;
-  color: rgba(236, 231, 223, 0.62);
+  color: rgba(var(--ascent-ink-rgb), 0.62);
   margin: 5px 0 10px;
 }
 .ascent-band__warmth {
@@ -1315,7 +1361,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.02em;
-  color: rgba(236, 231, 223, 0.42);
+  color: rgba(var(--ascent-ink-rgb), 0.42);
   margin: 9px 0 0;
 }
 .ascent-band--private {
@@ -1327,7 +1373,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-band__locknote {
   margin: 8px 0 0;
@@ -1346,7 +1392,7 @@
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   transition: color 0.2s;
 }
 .ascent-howto__toggle:hover {
@@ -1355,7 +1401,7 @@
 .ascent-howto__key {
   margin-top: 11px;
   padding: 13px 15px;
-  border: 1px solid rgba(236, 231, 223, 0.1);
+  border: 1px solid rgba(var(--ascent-ink-rgb), 0.1);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
   animation: ascent-rise 0.4s both;
@@ -1363,11 +1409,11 @@
 .ascent-howto__key p {
   font-size: 13.5px;
   line-height: 1.5;
-  color: rgba(236, 231, 223, 0.6);
+  color: rgba(var(--ascent-ink-rgb), 0.6);
   margin: 0 0 6px;
 }
 .ascent-howto__key b {
-  color: #ece7df;
+  color: var(--ascent-ink);
   font-weight: 500;
 }
 .ascent-howto__dismiss {
@@ -1440,7 +1486,7 @@
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: rgba(236, 231, 223, 0.42);
+  color: rgba(var(--ascent-ink-rgb), 0.42);
   text-transform: lowercase;
   margin: 0 0 14px;
 }
@@ -1449,7 +1495,7 @@
   font-style: italic;
   font-size: 16px;
   line-height: 1.45;
-  color: rgba(236, 231, 223, 0.72);
+  color: rgba(var(--ascent-ink-rgb), 0.72);
   max-width: 54ch;
   margin: 0 0 22px;
 }
@@ -1457,7 +1503,7 @@
 .ascent-tended__moment.is-bringing .ascent-path__dot,
 .ascent-tended__moment.is-neutral .ascent-path__dot {
   background: none;
-  border: 1.5px solid rgba(236, 231, 223, 0.3);
+  border: 1.5px solid rgba(var(--ascent-ink-rgb), 0.3);
   box-shadow: none;
 }
 .ascent-tended__moment.is-meeting .ascent-path__dot {
@@ -1473,7 +1519,7 @@
 .ascent-tended__when {
   font-family: var(--font-mono);
   font-size: 9.5px;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-tended__kind {
   font-family: var(--font-mono);
@@ -1486,18 +1532,18 @@
 }
 .is-bringing .ascent-tended__kind,
 .is-neutral .ascent-tended__kind {
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-tended__open {
   font-family: var(--font-mono);
   font-size: 8.5px;
   letter-spacing: 0.04em;
-  color: rgba(236, 231, 223, 0.32);
+  color: rgba(var(--ascent-ink-rgb), 0.32);
 }
 .ascent-tended__entry {
   margin-top: 9px;
   padding: 13px 15px;
-  border: 1px solid rgba(236, 231, 223, 0.1);
+  border: 1px solid rgba(var(--ascent-ink-rgb), 0.1);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
   animation: ascent-rise 0.35s both;
@@ -1507,27 +1553,27 @@
   font-size: 9.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   margin-bottom: 7px;
 }
 .ascent-tended__ebody {
   font-family: var(--font-serif);
   font-size: 15px;
   line-height: 1.62;
-  color: #e6e1d8;
+  color: var(--ascent-ink-body);
   white-space: pre-line;
 }
 .ascent-tended__loading {
   font-size: 13px;
   font-style: italic;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
 }
 .ascent-tended__where {
   margin: 8px 0 0;
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 14px;
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
 }
 .ascent-tended__tend {
   display: flex;
@@ -1536,13 +1582,13 @@
   flex-wrap: wrap;
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px solid rgba(236, 231, 223, 0.08);
+  border-top: 1px solid rgba(var(--ascent-ink-rgb), 0.08);
 }
 .ascent-tended__tendlabel {
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.04em;
-  color: rgba(236, 231, 223, 0.35);
+  color: rgba(var(--ascent-ink-rgb), 0.35);
 }
 .ascent-tended__tendact {
   background: none;
@@ -1551,7 +1597,7 @@
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(236, 231, 223, 0.5);
+  color: rgba(var(--ascent-ink-rgb), 0.5);
 }
 .ascent-tended__tendact:hover {
   color: var(--ascent-gold);
@@ -1589,7 +1635,7 @@
   font-style: italic;
   font-size: 18px;
   line-height: 1.45;
-  color: rgba(236, 231, 223, 0.82);
+  color: rgba(var(--ascent-ink-rgb), 0.82);
   margin: 0;
 }
 .ascent--light .ascent-summit__ask {
@@ -1614,7 +1660,7 @@
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.3;
-  color: #f3ecdf;
+  color: var(--ascent-ink-bright);
   letter-spacing: -0.005em;
 }
 .ascent-arc__note {
@@ -1623,7 +1669,7 @@
   font-style: italic;
   font-size: 13.5px;
   line-height: 1.5;
-  color: rgba(236, 231, 223, 0.55);
+  color: rgba(var(--ascent-ink-rgb), 0.55);
   max-width: 60ch;
 }
 
@@ -1650,7 +1696,7 @@
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.3;
-  color: #f3ecdf;
+  color: var(--ascent-ink-bright);
   letter-spacing: -0.005em;
 }
 .ascent-hl__tag {
@@ -1683,14 +1729,14 @@
 }
 .ascent-hl__anchor:hover .ascent-hl__quote,
 .ascent-hl__line:hover .ascent-hl__quote {
-  color: #fff7ea;
+  color: var(--ascent-ink-peak);
   text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
 }
 .ascent-hl__date {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(236, 231, 223, 0.38);
+  color: rgba(var(--ascent-ink-rgb), 0.38);
 }
 .ascent-hl__more {
   display: flex;
@@ -1711,7 +1757,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
-  color: rgba(236, 231, 223, 0.4);
+  color: rgba(var(--ascent-ink-rgb), 0.4);
   transition: color 0.18s ease;
 }
 .ascent-hl__toggle:hover,
@@ -1752,14 +1798,14 @@
   transition: color 0.18s ease;
 }
 .ascent-line:hover .ascent-line__text {
-  color: #fff7ea;
+  color: var(--ascent-ink-peak);
   text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
 }
 .ascent-line__date {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(236, 231, 223, 0.38);
+  color: rgba(var(--ascent-ink-rgb), 0.38);
 }
 
 /* Light (dawn) variants — warm ink on the dawn surface. */
@@ -1806,4 +1852,41 @@
 .ascent--light .ascent-hl__toggle:hover,
 .ascent--light .ascent-dim__showall:hover {
   color: rgba(176, 122, 46, 0.95);
+}
+
+/* ── Vigil: the night sky, banked ───────────────────────────────────────────
+   Every other dark theme gets the same Ascent — the surface is illustrated,
+   not themed, and its near-white ink and lit horizon are the point. Vigil is
+   built for a dark-adapted eye, so the one surface that sets its own ceiling
+   has to come down with the rest of the app. Only the tokens change; not a
+   single rule here knows Vigil exists.
+
+   The learn-drill card stays a light ground with dark ink on it — it is paper,
+   and inverting it would strand the SVG text — but the paper itself drops from
+   near-white to a dim parchment, which is where its glare was coming from. */
+[data-theme='vigil'] .ascent {
+  /* AscentView sets --a0/--a1 inline, per altitude, from ascent.config.ts — an
+     inline custom property outranks a stylesheet one, so banking the sky needs
+     !important. The rest are plain overrides. */
+  --a0: #060605 !important;
+  --a1: #0d0c0b !important;
+  --ascent-ink: #847c6f;
+  --ascent-ink-rgb: 132, 124, 111;
+  --ascent-ink-bright: #9a9285;
+  --ascent-ink-quote: #8f8779;
+  --ascent-ink-body: #7a7266;
+  --ascent-ink-peak: #a49b8c;
+  --ascent-star: 132, 124, 111;
+  --ascent-paper: #847c6f;
+  --ascent-paper-ink: #0b0a09;
+  --ascent-paper-accent: #241f18;
+  --ascent-paper-meta: #322e29;
+  --ascent-gold: #8a7f6a;
+  --ascent-gold-soft: #6e6555;
+  --ascent-peak: #9a9285;
+  --ascent-peak-rgb: 154, 146, 133;
+  --ascent-glow-rgb: 138, 127, 106;
+  --ascent-trail: rgba(138, 127, 106, 0.22);
+  --ascent-rock-top: #171614;
+  --ascent-rock-bottom: #0e0d0c;
 }

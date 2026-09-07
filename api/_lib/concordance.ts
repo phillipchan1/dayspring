@@ -160,20 +160,20 @@ const KIND_SET = new Set<string>(CONCORDANCE.KINDS)
 // Descriptor honesty gate: identity labels only. A descriptor that smells like
 // a verdict (feeling/trait/theme words) is dropped — the entity itself is kept.
 // Belt-and-braces under the prompt; the charter says conclude → drop.
-const EVALUATIVE_DESCRIPTOR =
+export const EVALUATIVE_DESCRIPTOR =
   /\b(seems?|feel(?:s|ing)?|felt|theme|mood|anxi(?:ous|ety)|afraid|fear(?:ful)?|worr(?:y|ied|ies)|struggl\w*|depress\w*|doubt\w*|lonel\w*|angry|anger|sad(?:ness)?|happy|happiness|joy(?:ful)?|hope(?:ful|less)?|stress\w*|grow(?:th|ing)|heal(?:ing|ed)?|broken|wound\w*|sin(?:ful)?|faith(?:ful|less)?)\b/i
 
 const normalizeWs = (s: string) => s.replace(/\s+/g, ' ').trim()
 
 /** The surface form must be the writer's actual spelling — a (whitespace-tolerant) substring. */
-function isVerbatim(body: string, text: string): boolean {
+export function isVerbatim(body: string, text: string): boolean {
   if (!text) return false
   if (body.includes(text)) return true
   return normalizeWs(body).includes(normalizeWs(text))
 }
 
 /** Validate one model-proposed candidate; returns the cleaned candidate or null. */
-function gateCandidate(body: string, raw: Candidate): Candidate | null {
+export function gateCandidate(body: string, raw: Candidate): Candidate | null {
   if (!KIND_SET.has(raw.kind)) return null
   const canonical = normalizeWs(raw.canonical ?? '')
   const surface = (raw.surface_form ?? '').trim()
@@ -468,6 +468,78 @@ export async function concordancePlan(owner: string): Promise<{ unscanned: numbe
  * first/last_seen always come from entries.created_at — the ORIGINAL entry
  * date (imports backfill old dates) — never row time.
  */
+/**
+ * The model half of the concordance scan: one batch of entries in, gated
+ * candidates out.
+ *
+ * PURE — reads and writes nothing, so extraction quality can be evaluated on
+ * real text without touching the database (mirrors tagTexts in declared.ts and
+ * harvestBatch in altar.ts). scripts/recognition-eval.ts scores this against
+ * the hand-labeled corpus in src/lib/recognition/.
+ *
+ * An entry the model returned but proposed nothing for maps to an empty array;
+ * an entry it omitted is absent from the map. scanConcordance depends on that
+ * distinction — it only merges entries the model actually answered for.
+ *
+ * Returns null when the model call fails, so the caller leaves the batch
+ * unmarked to retry.
+ */
+export async function extractBatch(
+  entries: { id: string; body: string }[],
+): Promise<Map<string, Candidate[]> | null> {
+  let out: { entries?: { id: string; candidates?: Candidate[] }[] }
+  try {
+    out = await callModel<{ entries?: { id: string; candidates?: Candidate[] }[] }>(
+      EXTRACT_PROMPT,
+      { entries: entries.map((e) => ({ id: e.id, text: e.body.slice(0, EXTRACT_MAX_CHARS) })) },
+      EXTRACT_SCHEMA as unknown as Record<string, unknown>,
+      'concordance_extract',
+      'low',
+      2000,
+    )
+  } catch {
+    return null
+  }
+
+  const byId = new Map(entries.map((e) => [e.id, e]))
+  const result = new Map<string, Candidate[]>()
+  for (const r of out.entries ?? []) {
+    const entry = byId.get(r.id)
+    if (!entry) continue
+    const accepted: Candidate[] = []
+    for (const raw of (r.candidates ?? []).slice(0, MAX_CANDIDATES_PER_ENTRY)) {
+      const ok = gateCandidate(entry.body, raw)
+      if (ok) accepted.push(ok)
+    }
+    result.set(entry.id, accepted)
+  }
+  return result
+}
+
+/**
+ * extractBatch over an arbitrary number of entries, batched and pooled exactly
+ * as scanConcordance does it. Also DB-free.
+ */
+export async function extractCandidates(
+  entries: { id: string; body: string }[],
+): Promise<{ byEntry: Map<string, Candidate[]>; failed: string[] }> {
+  const batches: { id: string; body: string }[][] = []
+  for (let i = 0; i < entries.length; i += EXTRACT_LLM_BATCH) {
+    batches.push(entries.slice(i, i + EXTRACT_LLM_BATCH))
+  }
+  const byEntry = new Map<string, Candidate[]>()
+  const failed: string[] = []
+  await mapPool(batches, EXTRACT_POOL, async (batch) => {
+    const res = await extractBatch(batch)
+    if (res === null) {
+      failed.push(...batch.map((e) => e.id))
+      return
+    }
+    for (const [id, candidates] of res) byEntry.set(id, candidates)
+  })
+  return { byEntry, failed }
+}
+
 export async function scanConcordance(
   owner: string,
   opts: { max?: number; window?: { fromISO: string; toExclusiveISO: string }; source: 'import' | 'repetition' },
@@ -501,20 +573,9 @@ export async function scanConcordance(
 
   // Model calls run pooled; merging is sequential (one shared match state, and
   // a crash mid-merge just leaves that batch unmarked to retry).
-  const results = await mapPool(batches, EXTRACT_POOL, async (batch) => {
-    try {
-      return await callModel<{ entries?: { id: string; candidates?: Candidate[] }[] }>(
-        EXTRACT_PROMPT,
-        { entries: batch.map((e) => ({ id: e.id, text: e.body_markdown.slice(0, EXTRACT_MAX_CHARS) })) },
-        EXTRACT_SCHEMA as unknown as Record<string, unknown>,
-        'concordance_extract',
-        'low',
-        2000,
-      )
-    } catch {
-      return null // leave this batch unmarked so it retries next run
-    }
-  })
+  const results = await mapPool(batches, EXTRACT_POOL, (batch) =>
+    extractBatch(batch.map((e) => ({ id: e.id, body: e.body_markdown }))),
+  )
 
   const state = await loadMergeState(sb, owner)
   let merged = 0
@@ -523,15 +584,13 @@ export async function scanConcordance(
     const batch = batches[b]!
     const out = results[b]
     if (!out) continue
+    // Iterate the extraction map, not the batch: Map preserves insertion order,
+    // so merges happen in the same order the inline version did them. Merge
+    // state is shared and mutated in sequence, so the order is load-bearing.
     const byId = new Map(batch.map((e) => [e.id, e]))
-    for (const r of out.entries ?? []) {
-      const entry = byId.get(r.id)
+    for (const [entryId, accepted] of out) {
+      const entry = byId.get(entryId)
       if (!entry) continue
-      const accepted: Candidate[] = []
-      for (const raw of (r.candidates ?? []).slice(0, MAX_CANDIDATES_PER_ENTRY)) {
-        const ok = gateCandidate(entry.body_markdown, raw)
-        if (ok) accepted.push(ok)
-      }
       merged += await mergeCandidates(sb, owner, state, entry, accepted, opts.source)
     }
     await markScanned(sb, batch.map((e) => e.id))

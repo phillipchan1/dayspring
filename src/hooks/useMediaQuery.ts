@@ -20,3 +20,13 @@ export function useMediaQuery(query: string): boolean {
 export function useIsMobile(): boolean {
   return useMediaQuery('(max-width: 767px)')
 }
+
+/**
+ * Touch-primary device — phone, or tablet without a fine pointer. With a Magic
+ * Keyboard trackpad the pointer becomes fine, so iPad then behaves like desktop.
+ */
+export function useTouchPrimary(): boolean {
+  const isMobile = useIsMobile()
+  const coarsePointer = useMediaQuery('(pointer: coarse)')
+  return isMobile || coarsePointer
+}

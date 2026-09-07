@@ -29,6 +29,38 @@ export interface ResolvedPassage {
   text: string
 }
 
+export interface ChapterVerse {
+  n: number
+  text: string
+}
+
+export interface ResolvedChapter {
+  book: string
+  chapter: number
+  canonical: string
+  verses: ChapterVerse[]
+}
+
+/** Cache key for a numbered chapter — never collides with a quote-blob `ref`. */
+export function chapterCacheKey(book: string, chapter: number): string {
+  return `${normalizeRef(`${book} ${chapter}`)}#chapter`
+}
+
+/**
+ * Split Crossway numbered text (`[1] … [2] …`) into verses. Headings and
+ * leftover preamble before the first marker are dropped.
+ */
+export function parseChapterVerses(raw: string): ChapterVerse[] {
+  const parts = raw.split(/\[(\d+)\]/)
+  const verses: ChapterVerse[] = []
+  for (let i = 1; i < parts.length; i += 2) {
+    const n = Number.parseInt(parts[i]!, 10)
+    const text = (parts[i + 1] ?? '').replace(/\s+/g, ' ').trim()
+    if (Number.isFinite(n) && n > 0 && text) verses.push({ n, text })
+  }
+  return verses
+}
+
 /** Normalize a reference into a stable cache key: lowercased, ws-collapsed. */
 function normalizeRef(ref: string): string {
   return ref.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -88,4 +120,60 @@ export async function resolvePassage(rawRef: string): Promise<ResolvedPassage | 
   if (error) console.error(`[esv] cache write failed for "${ref}": ${error.message}`)
 
   return { reference: canonical, text: passage }
+}
+
+/**
+ * Resolve one chapter as numbered verses for the in-journal reader.
+ * Cached separately from {@link resolvePassage} so quote blobs stay unnumbered.
+ */
+export async function resolveChapter(book: string, chapter: number): Promise<ResolvedChapter | null> {
+  const name = book.trim()
+  if (!name || !Number.isInteger(chapter) || chapter < 1 || chapter > 176) return null
+
+  const query = `${name} ${chapter}`
+  const ref = chapterCacheKey(name, chapter)
+  const sb = supabaseAdmin()
+
+  const { data: cached } = await sb
+    .from('scripture_text')
+    .select('canonical, text')
+    .eq('ref', ref)
+    .eq('translation', 'ESV')
+    .maybeSingle()
+  if (cached) {
+    const verses = parseChapterVerses(cached.text as string)
+    if (verses.length > 0) {
+      return { book: name, chapter, canonical: cached.canonical as string, verses }
+    }
+  }
+
+  const url = new URL(ESV_ENDPOINT)
+  url.searchParams.set('q', query)
+  url.searchParams.set('include-passage-references', 'false')
+  url.searchParams.set('include-verse-numbers', 'true')
+  url.searchParams.set('include-first-verse-numbers', 'true')
+  url.searchParams.set('include-footnotes', 'false')
+  url.searchParams.set('include-headings', 'false')
+  url.searchParams.set('include-short-copyright', 'false')
+  url.searchParams.set('indent-paragraphs', '0')
+
+  const res = await fetch(url, { headers: { Authorization: `Token ${env.esvApiKey()}` } })
+  if (!res.ok) {
+    console.error(`[esv] ${res.status} resolving chapter "${query}"`)
+    return null
+  }
+
+  const data = (await res.json()) as { canonical?: string; passages?: string[] }
+  const canonical = (data.canonical ?? '').trim()
+  const raw = (data.passages?.[0] ?? '').trim()
+  const verses = parseChapterVerses(raw)
+  if (!canonical || verses.length === 0) return null
+
+  const { error } = await sb.from('scripture_text').upsert(
+    { ref, translation: 'ESV', canonical, text: raw },
+    { onConflict: 'ref,translation' },
+  )
+  if (error) console.error(`[esv] chapter cache write failed for "${ref}": ${error.message}`)
+
+  return { book: name, chapter, canonical, verses }
 }

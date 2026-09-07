@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPracticeBlock,
+  describeRitualLanding,
   dissolvePracticeProse,
   findPracticeBlockAt,
 } from './usePracticeInsertion'
@@ -104,5 +105,34 @@ describe('dissolvePracticeProse', () => {
 
   it('returns empty prose when nothing was written', () => {
     expect(dissolvePracticeProse(seeded().split('\n'))).toBe('')
+  })
+})
+
+describe('describeRitualLanding', () => {
+  it('says nothing on a page with nothing on it', () => {
+    expect(describeRitualLanding('', 0)).toBeNull()
+    expect(describeRitualLanding('   \n\n', 2)).toBeNull()
+  })
+
+  it('names the seam when there is writing above', () => {
+    const doc = 'Third night in a row I have woken at three.\n'
+    expect(describeRitualLanding(doc, doc.length)).toBe(
+      'Begins below what you’ve written, where the entry turned.',
+    )
+  })
+
+  it('names the ritual it will append below', () => {
+    const doc = `${seeded()}`.replace(
+      '<!-- ritual:section:Gratitude -->\n',
+      '<!-- ritual:section:Gratitude -->\nThe long walk.\n',
+    )
+    expect(describeRitualLanding(doc, doc.length - 1)).toBe('Begins below The Daily Examen.')
+  })
+
+  it('says it will replace a ritual nobody has written in', () => {
+    const doc = seeded()
+    expect(describeRitualLanding(doc, doc.length - 1)).toBe(
+      'Replaces the ritual you haven’t written in yet.',
+    )
   })
 })

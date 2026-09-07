@@ -19,6 +19,20 @@ interface Props {
   skipPreview: boolean
   /** Persist the "skip the preview" preference. */
   onToggleSkipPreview: (value: boolean) => void
+  /**
+   * Opened from inside an entry that already has writing in it, rather than
+   * from a blank page.
+   *
+   * The library's own taxonomy says why this matters: `PRACTICE_RHYTHMS` files
+   * the `anytime` group as "Need-based", and a need-based practice — Lament,
+   * Discernment, Threshold — is by definition one you reach for *because
+   * something surfaced while writing*. Opening on "Any hour" buries exactly the
+   * four you came for. So the filter starts on Need-based here, and says so.
+   * Every other filter is still one tap away; this reorders and hides nothing.
+   */
+  midEntry?: boolean
+  /** What beginning a ritual will do to the entry, shown at the threshold. */
+  landing?: string | null
 }
 
 type Filter = PracticeFunction | 'all'
@@ -31,9 +45,16 @@ type RhythmFilter = PracticeRhythm | 'all'
  * the preview entirely (restored from Settings). Nothing is inserted into the
  * entry until "Begin writing".
  */
-export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPreview }: Props) {
+export function PracticeLibrary({
+  onBegin,
+  onClose,
+  skipPreview,
+  onToggleSkipPreview,
+  midEntry = false,
+  landing = null,
+}: Props) {
   const [filter, setFilter] = useState<Filter>('all')
-  const [rhythm, setRhythm] = useState<RhythmFilter>('all')
+  const [rhythm, setRhythm] = useState<RhythmFilter>(midEntry ? 'anytime' : 'all')
   const [selected, setSelected] = useState<Practice | null>(null)
   const [activeIdx, setActiveIdx] = useState(0)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -151,6 +172,11 @@ export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPre
             Tried and true rituals for the inner life — gathered from two thousand
             years of faithful writing.
           </p>
+          {midEntry && (
+            <p className="practice-library__because">
+              Starting from what you’ve written — the need-based practices come first.
+            </p>
+          )}
         </header>
 
         <div className="practice-library__filters" role="tablist" aria-label="Filter by time of day">
@@ -241,6 +267,8 @@ export function PracticeLibrary({ onBegin, onClose, skipPreview, onToggleSkipPre
                 </li>
               ))}
             </ol>
+
+            {landing && <p className="practice-threshold__landing">{landing}</p>}
 
             <button
               type="button"

@@ -1,0 +1,16 @@
+{
+  "name": "dayspring-prototypes",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-all.mjs",
+    "dev:scripture": "cd scripture && npm run dev",
+    "dev:recall": "cd recall && npm run dev",
+    "prototype:new": "node scripts/new-prototype.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.9.3"
+  }
+}

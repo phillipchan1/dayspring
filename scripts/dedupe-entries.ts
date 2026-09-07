@@ -1,18 +1,30 @@
-// One-time cleanup for duplicate entry rows minted by the autosave torn-state
-// bug (fixed June 2026 — see src/lib/saveSession.ts). The bug re-created an
-// existing entry's body under a fresh id, so duplicates are exact copies or
-// prefix-extensions of their twin, created the same day.
+// Cleanup for duplicate entry rows. The matching lives in dedupeEntries.lib.ts
+// (and is tested); this fetches, reports, and deletes.
 //
-//   npx tsx scripts/dedupe-entries.ts            # dry run: list duplicate pairs
-//   npx tsx scripts/dedupe-entries.ts --apply    # delete the lesser twin
+//   npx tsx scripts/dedupe-entries.ts            # dry run: list what it found
+//   npx tsx scripts/dedupe-entries.ts --apply    # delete the contained twins
 //
-// Conservative on purpose: only native entries, same owner, same calendar day,
-// and one body must equal or strictly prefix the other (after whitespace
-// normalization). Keeps the longer body (ties: the more recently updated row).
-// Logs ids/dates/word counts only — never entry text.
+// Two kinds are reported, and only one is ever deleted:
+//
+//   CONTAINED — one body is wholly inside the other. Deleting the smaller loses
+//   no words. `--apply` does this.
+//
+//   NEAR — almost the same, but each holds something the other doesn't. This is
+//   the shape left by the conflict-fork bug. Reported for a human to read and
+//   merge; never deleted, because the smaller row contains writing that would go
+//   with it.
+//
+// Conservative throughout: native rows only, same owner, same calendar day, and
+// a real body. Logs ids/dates/word counts — never entry text.
 
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
+import {
+  findDuplicates,
+  isPreservedVersionId,
+  type DupePair,
+  type DupeRow,
+} from './dedupeEntries.lib.js'
 
 function loadDotEnv(): void {
   let raw = ''
@@ -48,23 +60,11 @@ const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_
   auth: { persistSession: false },
 })
 
-interface Row {
-  id: string
-  owner: string
-  created_at: string
-  updated_at: string
-  body_markdown: string
-  word_count: number
-  source: string
-}
-
-const normalize = (s: string) => s.replace(/\s+/g, ' ').trim()
-
-async function fetchAll(): Promise<Row[]> {
-  const out: Row[] = []
+async function fetchAll(): Promise<DupeRow[]> {
+  const out: DupeRow[] = []
   for (let from = 0; ; from += 1000) {
-    // All sources: the bug minted NATIVE copies, but the surviving twin can be
-    // an imported row. Only native rows are ever dropped (see below).
+    // All sources: both bugs minted NATIVE copies, but the surviving twin can be
+    // an imported row. Only native rows are ever dropped (see the lib).
     const { data, error } = await sb
       .from('entries')
       .select('id, owner, created_at, updated_at, body_markdown, word_count, source')
@@ -72,7 +72,7 @@ async function fetchAll(): Promise<Row[]> {
       .order('id', { ascending: true })
       .range(from, from + 999)
     if (error) throw error
-    out.push(...((data ?? []) as Row[]))
+    out.push(...((data ?? []) as DupeRow[]))
     if ((data ?? []).length < 1000) break
   }
   return out
@@ -81,74 +81,37 @@ async function fetchAll(): Promise<Row[]> {
 const rows = await fetchAll()
 console.log(`scanned ${rows.length} entries`)
 
-// Group by owner + calendar day, then compare within groups.
-const groups = new Map<string, Row[]>()
-for (const r of rows) {
-  const key = `${r.owner}:${r.created_at.slice(0, 10)}`
-  const g = groups.get(key)
-  if (g) g.push(r)
-  else groups.set(key, [r])
-}
+const { contained, near } = findDuplicates(rows)
 
-/**
- * Of a duplicate pair, the one to delete — or null if neither is safely
- * droppable. Never drop an imported row (it wasn't minted by the bug, and
- * deleting it would also break the import's external_id dedup on re-import).
- * Prefer dropping the shorter body; ties → the older update.
- */
-function lesserOf(a: Row, b: Row): Row | null {
-  const aNative = a.source === 'native'
-  const bNative = b.source === 'native'
-  if (!aNative && !bNative) return null
-  if (aNative !== bNative) return aNative ? a : b
-  if (a.body_markdown.length !== b.body_markdown.length) {
-    return a.body_markdown.length < b.body_markdown.length ? a : b
-  }
-  return a.updated_at <= b.updated_at ? a : b
-}
-
-const toDelete = new Map<string, { keep: Row; drop: Row }>()
-for (const g of groups.values()) {
-  for (let i = 0; i < g.length; i++) {
-    for (let j = i + 1; j < g.length; j++) {
-      const a = g[i]!
-      const b = g[j]!
-      if (toDelete.has(a.id) || toDelete.has(b.id)) continue
-      const na = normalize(a.body_markdown)
-      const nb = normalize(b.body_markdown)
-      if (!na || !nb) continue
-      const [shorter, longer] = na.length <= nb.length ? [na, nb] : [nb, na]
-      // Require a real body so daily one-liner rituals can't false-positive.
-      if (shorter.length < 12) continue
-      if (!longer.startsWith(shorter)) continue
-      const drop = lesserOf(a, b)
-      if (!drop) continue
-      const keep = drop === a ? b : a
-      // Never drop the superset of an imported twin — content would be lost.
-      if (keep.source !== 'native' && normalize(keep.body_markdown).length < normalize(drop.body_markdown).length) continue
-      toDelete.set(drop.id, { keep, drop })
-    }
-  }
-}
-
-if (toDelete.size === 0) {
-  console.log('no duplicate pairs found')
-  process.exit(0)
-}
-
-for (const { keep, drop } of toDelete.values()) {
-  console.log(
-    `${drop.created_at.slice(0, 10)}  drop ${drop.id} (${drop.word_count}w, updated ${drop.updated_at})` +
-      `  — twin of ${keep.id} (${keep.word_count}w)`,
+function describe({ keep, drop, coverage }: DupePair, verb: string): string {
+  const forked = isPreservedVersionId(drop.id) || isPreservedVersionId(keep.id)
+  return (
+    `${drop.created_at.slice(0, 10)}  ${verb} ${drop.id} (${drop.word_count}w, updated ${drop.updated_at})` +
+    `  — twin of ${keep.id} (${keep.word_count}w; ${(coverage * 100).toFixed(1)}% of the smaller is in it)` +
+    (forked ? '  [conflict fork]' : '')
   )
 }
 
-if (!APPLY) {
-  console.log(`\ndry run: ${toDelete.size} duplicate(s) found. Re-run with --apply to delete.`)
+if (near.length) {
+  console.log(`\n${near.length} near-duplicate pair(s) — read these and merge by hand:`)
+  for (const pair of near) console.log(`  ${describe(pair, 'review')}`)
+  console.log('  (not deleted: each row holds something the other does not)')
+}
+
+if (contained.length === 0) {
+  console.log(near.length ? '\nno contained duplicates to delete' : 'no duplicate pairs found')
   process.exit(0)
 }
 
-const ids = [...toDelete.keys()]
+console.log(`\n${contained.length} contained duplicate(s):`)
+for (const pair of contained) console.log(`  ${describe(pair, 'drop')}`)
+
+if (!APPLY) {
+  console.log(`\ndry run: ${contained.length} deletable. Re-run with --apply to delete.`)
+  process.exit(0)
+}
+
+const ids = contained.map((p) => p.drop.id)
 const { error } = await sb.from('entries').delete().in('id', ids)
 if (error) {
   console.error('delete failed:', error.message)

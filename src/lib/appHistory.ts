@@ -3,8 +3,8 @@ export const APP_HISTORY_TAG = 'dayspring' as const
 
 export type SettingsTab = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
-/** Where the user was before opening an entry from Lamp, Altar, or Ascent. */
-export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'well'
+/** Where the user was before opening an entry from Lamp, Altar, Ascent, or Pages. */
+export type EntryReturnSurface = 'scripture' | 'altar' | 'reflections' | 'pages'
 
 /** Drill-in overlay on the Ascent canvas (a verse's rise, or a rope's tended life). */
 export type AscentDrill =
@@ -18,16 +18,27 @@ export interface EntryReturnContext {
   /** Ascent altitude (0 = Valley/week … 3 = Summit) when returning from an entry preview. */
   ascentAltitude: number
   ascentDrill: AscentDrill | null
+  /** Pages lighting and open reader — so Back lands on the page you left, not the wall. */
+  pagesSubject: string | null
+  pagesSpreadId: string | null
 }
 
 export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
   scripture: 'Lamp',
   altar: 'Altar',
   reflections: 'Ascent',
-  well: 'the Well',
+  pages: 'Pages',
 }
 
-export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'well'
+/**
+ * A canvas surface.
+ *
+ * `pages` is a surface but NOT a rail destination — it's reached from the Entries
+ * panel's view switcher. Architecturally it takes the canvas like the Return
+ * surfaces do; in the product it belongs to Entries, which is why the rail still
+ * shows four ways to return.
+ */
+export type Surface = 'journal' | 'reflections' | 'altar' | 'scripture' | 'pages'
 
 export interface AppHistoryState {
   tag: typeof APP_HISTORY_TAG
@@ -36,8 +47,8 @@ export interface AppHistoryState {
   /** Open settings modal; `importSource` set on a pushed frame when viewing a source. */
   settings: { tab: SettingsTab; importSource: string | null } | null
   help: boolean
+  /** Mobile entries drawer. Its own history frame so Back closes it. */
   sidebar: boolean
-  restrictIds: string[] | null
   /** OSIS of the open Scripture book panel (null = canon map). Its own history
    *  frame so Back / Esc / the rail all close the panel predictably. */
   scriptureBook: string | null
@@ -49,9 +60,12 @@ export interface AppHistoryState {
   ascentAltitude: number
   /** Open Ascent drill-in; its own history frame for mouse / browser Back. */
   ascentDrill: AscentDrill | null
-  /** The question the Well is answering. Null means the Well has nothing to show
-   *  (arriving from the rail with no question yet just opens ⌘K). */
-  wellQuestion: string | null
+  /** Subject lighting the Pages wall (`word:<text>` or `c:<concordance id>`). */
+  pagesSubject: string | null
+  /** The Pages weather panel, on its own frame so Back closes it. */
+  /** Entry open in the Pages Spread. Its own frame, so Esc/Back close the reader
+   *  and leave you on the wall rather than the editor. */
+  pagesSpreadId: string | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -61,13 +75,13 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   settings: null,
   help: false,
   sidebar: false,
-  restrictIds: null,
   scriptureBook: null,
   scriptureVerse: null,
   entryReturn: null,
   ascentAltitude: 0,
   ascentDrill: null,
-  wellQuestion: null,
+  pagesSubject: null,
+  pagesSpreadId: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -101,10 +115,13 @@ function normalizeSurface(value: unknown): Surface {
     value === 'altar' ||
     value === 'scripture' ||
     value === 'journal' ||
-    value === 'well'
+    value === 'pages'
   )
     return value
-  if (value === 'threads') return 'reflections' // Threads folded into Ascent
+  // Retired surfaces fold home rather than stranding a saved frame:
+  // 'threads' became Ascent, and 'well' was deleted outright (D-020).
+  if (value === 'threads') return 'reflections'
+  if (value === 'well') return 'pages'
   return 'journal'
 }
 
@@ -113,7 +130,7 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
   const r = value as EntryReturnContext
   // A stale entryReturn pointing at the retired 'threads' surface → reflections.
   if ((r.surface as string) === 'threads') r.surface = 'reflections'
-  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'well']
+  const validSurface: EntryReturnSurface[] = ['scripture', 'altar', 'reflections', 'pages']
   if (!validSurface.includes(r.surface)) return null
   return {
     surface: r.surface,
@@ -121,10 +138,17 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
     scriptureVerse: typeof r.scriptureVerse === 'string' ? r.scriptureVerse : null,
     ascentAltitude: normalizeAscentAltitude(r.ascentAltitude),
     ascentDrill: normalizeAscentDrill(r.ascentDrill),
+    pagesSubject: typeof r.pagesSubject === 'string' ? r.pagesSubject : null,
+    pagesSpreadId: typeof r.pagesSpreadId === 'string' ? r.pagesSpreadId : null,
   }
 }
 
 /** Fill defaults for frames saved before ascent navigation fields existed. */
+/**
+ * A stale frame keeps whatever extra keys it was saved with — `sidebar` and
+ * `restrictIds` were removed with the entries panel, and the spread below leaves
+ * them sitting inert on old frames rather than throwing. Nothing reads them.
+ */
 export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
   return {
     ...DEFAULT_APP_HISTORY,
@@ -134,7 +158,8 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     entryReturn: normalizeEntryReturn(state.entryReturn),
     ascentAltitude: normalizeAscentAltitude(state.ascentAltitude),
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
-    wellQuestion: typeof state.wellQuestion === 'string' ? state.wellQuestion : null,
+    pagesSubject: typeof state.pagesSubject === 'string' ? state.pagesSubject : null,
+    pagesSpreadId: typeof state.pagesSpreadId === 'string' ? state.pagesSpreadId : null,
   }
 }
 
@@ -162,10 +187,10 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.scriptureVerse === b.scriptureVerse &&
     JSON.stringify(a.entryReturn) === JSON.stringify(b.entryReturn) &&
     a.ascentAltitude === b.ascentAltitude &&
-    a.wellQuestion === b.wellQuestion &&
+    a.pagesSubject === b.pagesSubject &&
+    a.pagesSpreadId === b.pagesSpreadId &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
-    JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
-    JSON.stringify(a.restrictIds) === JSON.stringify(b.restrictIds)
+    JSON.stringify(a.settings) === JSON.stringify(b.settings)
   )
 }
 
@@ -210,6 +235,28 @@ export function replaceAppHistory(state: AppHistoryState): void {
   history.replaceState(state, '', appHistoryUrl(state))
 }
 
+/** Mouse X1 / X2 — "Browser Back" and "Browser Forward" in the UI Events spec. */
+export function mouseHistoryAction(button: number): 'back' | 'forward' | null {
+  if (button === 3) return 'back'
+  if (button === 4) return 'forward'
+  return null
+}
+
+/**
+ * Chrome / Safari / WebView2 already turn those buttons into a history pop.
+ * WKWebView in the Mac app does not — the click arrives, nothing moves.
+ *
+ * Same object identity means the host did not pop; we should. A new
+ * `history.state` means it already did, and calling `history.back()` again
+ * would skip a frame.
+ */
+export function mouseHistoryNeedsFallback(
+  stateBefore: unknown,
+  stateAfter: unknown,
+): boolean {
+  return stateBefore === stateAfter
+}
+
 /** Remove Supabase OAuth tokens from the address bar after sign-in. */
 /** Snapshot return context when leaving an alt canvas to read an entry. */
 export function entryReturnFromState(state: AppHistoryState): EntryReturnContext | null {
@@ -220,6 +267,8 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: state.scriptureVerse,
       ascentAltitude: 0,
       ascentDrill: null,
+      pagesSubject: null,
+      pagesSpreadId: null,
     }
   }
   if (state.surface === 'altar') {
@@ -229,15 +278,8 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: 0,
       ascentDrill: null,
-    }
-  }
-  if (state.surface === 'well') {
-    return {
-      surface: 'well',
-      scriptureBook: null,
-      scriptureVerse: null,
-      ascentAltitude: 0,
-      ascentDrill: null,
+      pagesSubject: null,
+      pagesSpreadId: null,
     }
   }
   if (state.surface === 'reflections') {
@@ -247,6 +289,19 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       scriptureVerse: null,
       ascentAltitude: state.ascentAltitude,
       ascentDrill: state.ascentDrill,
+      pagesSubject: null,
+      pagesSpreadId: null,
+    }
+  }
+  if (state.surface === 'pages') {
+    return {
+      surface: 'pages',
+      scriptureBook: null,
+      scriptureVerse: null,
+      ascentAltitude: 0,
+      ascentDrill: null,
+      pagesSubject: state.pagesSubject,
+      pagesSpreadId: state.pagesSpreadId,
     }
   }
   return null

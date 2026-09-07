@@ -8,6 +8,7 @@ describe('stripInlineMarkers', () => {
     expect(stripInlineMarkers('a ~~gone~~ b')).toBe('a gone b')
     expect(stripInlineMarkers('a `code` b')).toBe('a code b')
     expect(stripInlineMarkers('a ==hl== b')).toBe('a hl b')
+    expect(stripInlineMarkers('==hl ==')).toBe('hl ')
     expect(stripInlineMarkers('a =={rose}hl== b')).toBe('a hl b')
     expect(stripInlineMarkers('a ++under++ b')).toBe('a under b')
   })
@@ -25,6 +26,13 @@ describe('stripInlineMarkers', () => {
 
   it('collapses a link to its label', () => {
     expect(stripInlineMarkers('see [the docs](https://x.com) now')).toBe('see the docs now')
+  })
+
+  // An image is not prose. Leaving the bang behind puts a character on the page
+  // that the writer never typed.
+  it('drops an image whole, bang included', () => {
+    expect(stripInlineMarkers('before ![the lake](a.png) after')).toBe('before the lake after')
+    expect(stripInlineMarkers('![](a.png)')).toBe('')
   })
 
   it('handles several spans on one line', () => {

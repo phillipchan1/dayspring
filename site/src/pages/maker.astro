@@ -1,0 +1,119 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import DawnGlow from "../components/DawnGlow.astro";
+import { maker } from "../content/maker";
+---
+
+<Base
+  title="A note from the maker"
+  description="Why one person built Dayspring — a journal that remembers for you, so you can finally see the arc of who you're becoming."
+  path="/maker"
+  footer="minimal"
+>
+  <article class="maker">
+    <header class="m-head">
+      <div class="glow-host"><DawnGlow variant="bloom" intensity={0.5} /></div>
+      <SectionReveal>
+        <p class="eyebrow mono">{maker.eyebrow}</p>
+        <h1>{maker.title}</h1>
+      </SectionReveal>
+    </header>
+
+    <section class="m-body">
+      {
+        maker.paragraphs.map((p, i) => (
+          <SectionReveal delay={i * 40}>
+            <p class:list={["prose", { "lead-line": i === 0 }]} set:html={p} />
+          </SectionReveal>
+        ))
+      }
+      <SectionReveal>
+        <p class="signature">{maker.signature}</p>
+      </SectionReveal>
+      <SectionReveal>
+        <div class="cta-wrap">
+          <a href={maker.cta.href} class="btn btn-ghost">{maker.cta.label}</a>
+        </div>
+      </SectionReveal>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .maker {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  .m-head {
+    position: relative;
+    text-align: center;
+    padding: 200px 0 56px;
+  }
+  .glow-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .m-head .eyebrow {
+    font-size: 12.5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 26px;
+    position: relative;
+  }
+  .m-head h1 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(34px, 5.4vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -1.2px;
+    position: relative;
+  }
+
+  .prose {
+    font-size: 19px;
+    line-height: 1.78;
+    color: var(--paper-dim);
+    font-weight: 300;
+    margin: 0 auto 30px;
+  }
+  /* the opening line carries a touch more weight */
+  .prose.lead-line {
+    font-size: 21px;
+    color: var(--paper);
+  }
+  .prose :global(em) {
+    font-style: italic;
+    color: var(--paper);
+  }
+
+  .signature {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 20px;
+    color: var(--gold);
+    margin-top: 6px;
+  }
+
+  .cta-wrap {
+    margin-top: 44px;
+    padding-bottom: 40px;
+  }
+
+  @media (max-width: 600px) {
+    .m-head {
+      padding: 150px 0 44px;
+    }
+    .prose {
+      font-size: 17.5px;
+    }
+    .prose.lead-line {
+      font-size: 19px;
+    }
+  }
+</style>

@@ -3,9 +3,21 @@ import { createPortal } from 'react-dom'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
+import { GHOST_CLICK_MS, isGhostClick } from '@/lib/ghostClick'
 import './Capture.css'
 
-export type CommandPopoverVariant = 'neutral' | 'pray' | 'sense' | 'scripture' | 'image'
+export type CommandPopoverVariant =
+  | 'neutral'
+  | 'pray'
+  | 'sense'
+  | 'scripture'
+  | 'image'
+  | 'emoji'
+  /** Any declared kind whose capture is a plain prose field — see
+   *  InlineDeclaredPopover. Its hue arrives as `tone` rather than as a class per
+   *  kind, so a ninth kind would need no CSS at all. */
+  | 'declared'
 
 interface CommandPopoverProps {
   anchor: InlinePanelAnchor
@@ -15,6 +27,8 @@ interface CommandPopoverProps {
   /** `dialog` for capture; `listbox` for scripture results. */
   role?: 'dialog' | 'listbox'
   variant?: CommandPopoverVariant
+  /** CSS colour for the `declared` variant's label and caret. */
+  tone?: string
   /** Chrome row above the body (e.g. scripture · from what you wrote). */
   header?: ReactNode
   footer?: ReactNode
@@ -34,6 +48,7 @@ export function CommandPopover({
   ariaLabel,
   role = 'dialog',
   variant = 'neutral',
+  tone,
   header,
   footer,
   skipViewportClamp = false,
@@ -51,8 +66,14 @@ export function CommandPopover({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onDismiss])
 
+  // The tap that opened this sheet (slash row, toolbar button) is still in
+  // flight on iOS: a synthesized mousedown/click arrives ~300ms later. Wait
+  // that out before listening, or the second menu vanishes on the same tap
+  // that asked for it.
+  const openedAt = useRef(Date.now())
   useEffect(() => {
     const onPointer = (e: MouseEvent | TouchEvent) => {
+      if (isGhostClick(openedAt.current)) return
       const t = e.target
       if (t instanceof Node && document.querySelector('.command-popover')?.contains(t)) return
       onDismiss()
@@ -62,13 +83,18 @@ export function CommandPopover({
       // non-interactive surface doesn't reliably synthesize a mouse event.
       document.addEventListener('mousedown', onPointer, true)
       document.addEventListener('touchstart', onPointer, true)
-    }, 0)
+    }, GHOST_CLICK_MS)
     return () => {
       clearTimeout(t)
       document.removeEventListener('mousedown', onPointer, true)
       document.removeEventListener('touchstart', onPointer, true)
     }
   }, [onDismiss])
+
+  function dismissFromScrim() {
+    if (isGhostClick(openedAt.current)) return
+    onDismiss()
+  }
 
   const isMobile = useIsMobile()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -106,6 +132,15 @@ export function CommandPopover({
   // (e.g. scripture results) can never spill behind an on-screen keyboard.
   const keyboardInset = useKeyboardInset()
 
+  // The grab handle was decorative — the pill said "swipe me away" and nothing
+  // happened. At full height the scrim above the sheet is an ~82pt strip sitting
+  // under the Dynamic Island, which is not a dismiss target, so the handle has
+  // to actually work.
+  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({
+    onDismiss,
+    enabled: isMobile,
+  })
+
   const panelWidth = Math.min(440, anchor.width, window.innerWidth - 32)
   const style: React.CSSProperties = isMobile
     ? {
@@ -118,6 +153,8 @@ export function CommandPopover({
         // scrim — so you stay anchored in "still editing my entry".
         maxHeight: `calc(100dvh - ${keyboardInset}px - 56px)`,
         zIndex: 8500,
+        transform: dragY ? `translateY(${dragY}px)` : undefined,
+        transition: dragging ? 'none' : undefined,
       }
     : {
         position: 'fixed',
@@ -139,14 +176,32 @@ export function CommandPopover({
     <div
       ref={panelRef}
       className={`command-popover command-popover--${variant}${isMobile ? ' command-popover--sheet' : ''}`}
-      style={style}
+      style={tone ? { ...style, ['--capture-tone' as string]: tone } : style}
       role={role}
       aria-label={ariaLabel}
       onMouseDown={(e) => e.stopPropagation()}
+      {...(isMobile ? dragHandlers : {})}
     >
-      {isMobile && <div className="command-popover__grab" aria-hidden />}
+      {isMobile && (
+        <div className="command-popover__handle">
+          <div className="command-popover__grab" aria-hidden />
+          {/* Named exit. The scrim and the handle both dismiss, but a sheet at
+              90% height leaves neither obvious. */}
+          <button
+            type="button"
+            className="command-popover__close"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onDismiss}
+            aria-label={`Close ${ariaLabel}`}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {header}
-      <div className="command-popover__body">{children}</div>
+      <div className="command-popover__body" data-sheet-scroll={isMobile ? '' : undefined}>
+        {children}
+      </div>
       {footer != null && <footer className="command-popover__footer">{footer}</footer>}
     </div>
   )
@@ -156,7 +211,7 @@ export function CommandPopover({
       <>
         {/* Dimmed peek of the entry behind the sheet — context stays visible,
             tap it to dismiss. */}
-        <div className="command-popover__scrim" onClick={onDismiss} aria-hidden />
+        <div className="command-popover__scrim" onClick={dismissFromScrim} aria-hidden />
         {sheet}
       </>
     ) : (

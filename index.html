@@ -9,13 +9,28 @@
     <script>
       (function () {
         try {
-          var LIGHT = { dawn: 1, vellum: 1, cloister: 1, sabbath: 1 }
-          var DARK = { ink: 1, ember: 1, compline: 1, nocturne: 1 }
+          var LIGHT = { dawn: 1, vellum: 1, cloister: 1, sabbath: 1, quire: 1 }
+          var DARK = { ink: 1, ember: 1, compline: 1, nocturne: 1, vigil: 1, grove: 1 }
+          // Voice → its two grounds. Duplicated from lib/voices.ts by hand, the
+          // same way the maps above duplicate the theme registry; the drift is
+          // caught by resolveTheme.test.ts, which reads this file off disk.
+          var VOICES = {
+            dawn: ['dawn', 'ink'],
+            vellum: ['vellum', 'ember'],
+            cloister: ['cloister', 'compline'],
+            sabbath: ['sabbath', 'grove'],
+            plainsong: ['quire', 'nocturne'],
+            vigil: [null, 'vigil'],
+          }
           var s = {}
           try { s = JSON.parse(localStorage.getItem('dayspring.settings.v1')) || {} } catch (e) {}
           var mode = s.appearance || 'auto'
-          var light = LIGHT[s.lightTheme] ? s.lightTheme : 'dawn'
-          var dark = DARK[s.darkTheme] ? s.darkTheme : 'ink'
+          var v = VOICES[s.voice]
+          var light = v ? v[0] : LIGHT[s.lightTheme] ? s.lightTheme : 'dawn'
+          var dark = v ? v[1] : DARK[s.darkTheme] ? s.darkTheme : 'ink'
+          // A night-only voice has no daylight ground to flash to.
+          if (v && !v[0]) mode = 'dark'
+          if (!light) light = 'dawn'
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
           var theme = mode === 'light' ? light : mode === 'dark' ? dark : prefersDark ? dark : light
           var appearance = LIGHT[theme] ? 'light' : 'dark'

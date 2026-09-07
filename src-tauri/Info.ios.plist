@@ -19,6 +19,22 @@
 	     Apple's exemption. Re-confirm at submission rather than assuming. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- iPhone is portrait-only: landscape is 874pt wide, over useIsMobile()'s
+	     767px breakpoint, so the desktop rail-plus-two-panes layout renders on a
+	     874x402 phone screen. iPad keeps all four orientations. Carried here as
+	     well as in gen/apple/project.yml because `tauri ios init` regenerates
+	     that file. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

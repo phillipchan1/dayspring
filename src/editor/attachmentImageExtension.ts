@@ -25,6 +25,7 @@ import {
   isMeaningfulCaption,
   type AttachmentPhotoMeta,
 } from '@/lib/attachmentCaption'
+import { cropFor, type CropPlan } from '@/lib/attachmentLayout'
 import {
   ATTACHMENT_DND_MIME,
   findAttachmentAtPos,
@@ -164,25 +165,8 @@ function syncCachedUrls(view: EditorView): void {
 
 // ── Widgets ───────────────────────────────────────────────────────────────────
 
-// Crop only genuinely extreme aspect ratios — normal phone photos (3:4, 4:3,
-// 3:2, 16:9) render whole; only tall screenshots and panoramas get reined in,
-// so we never trim a person out of a portrait.
-const MAX_PORTRAIT_RATIO = 2 / 3 // 0.667 — taller than this (e.g. 9:16) gets cropped
-const MAX_LANDSCAPE_RATIO = 16 / 9 // 1.78 — wider than this (e.g. 21:9) gets cropped
-
-export type CropPlan = { aspect: string; axis: 'height' | 'width' } | null
-
-/**
- * Decide whether a photo should be cover-cropped to a calmer aspect. Full size
- * and unknown dimensions are never cropped (whole image shown). Pure for tests.
- */
-export function cropFor(size: ImageSize, width?: number, height?: number): CropPlan {
-  if (size === 'f' || !width || !height) return null
-  const ratio = width / height
-  if (ratio < MAX_PORTRAIT_RATIO) return { aspect: '2 / 3', axis: 'height' }
-  if (ratio > MAX_LANDSCAPE_RATIO) return { aspect: '16 / 9', axis: 'width' }
-  return null
-}
+export { cropFor }
+export type { CropPlan }
 
 class AttachmentImageWidget extends WidgetType {
   constructor(

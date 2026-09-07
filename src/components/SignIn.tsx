@@ -1,20 +1,28 @@
 import { useState, type CSSProperties } from 'react'
-import { signInWithApple, signInWithGoogle } from '@/lib/auth'
+import { signInWithApple, signInWithEmail, signInWithGoogle } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
-import { isMobileTauri } from '@/lib/platform'
+import { isIOSTauri, isMobileTauri } from '@/lib/platform'
 import { legalUrl } from '@/lib/legal'
 import { openExternal } from '@/lib/openExternal'
+import { PROVIDER_LABEL, readLastAuthProvider } from '@/lib/lastAuthProvider'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState<'apple' | 'google' | null>(null)
+  const [busy, setBusy] = useState<'apple' | 'google' | 'email' | null>(null)
   const [hovered, setHovered] = useState<'apple' | 'google' | null>(null)
+  const [showEmail, setShowEmail] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const { settings, update } = useSettings()
   const isLight = isLightTheme(useResolvedTheme(settings))
+  const showEmailSignIn = isIOSTauri()
+  // Read once on mount: the value only changes on a successful sign-in, by
+  // which point this screen is gone.
+  const [lastProvider] = useState(readLastAuthProvider)
   // App Store guideline 4.8: when offering a third-party login (Google), Apple
   // must also be offered. On iOS we put Apple first per HIG.
   const showApple = true
@@ -28,6 +36,18 @@ export function SignIn() {
       else await signInWithGoogle()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign-in failed')
+      setBusy(null)
+    }
+  }
+
+  async function handleEmailSignIn(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setBusy('email')
+    try {
+      await signInWithEmail(email, password)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed')
       setBusy(null)
     }
   }
@@ -147,6 +167,66 @@ export function SignIn() {
           {appleFirst ? <>{appleBtn}{googleBtn}</> : <>{googleBtn}{appleBtn}</>}
         </div>
 
+        {showEmailSignIn && (
+          <div style={{ width: '100%', maxWidth: 260, marginBottom: 16 }}>
+            {!showEmail ? (
+              <button
+                type="button"
+                onClick={() => setShowEmail(true)}
+                disabled={busy !== null}
+                style={secondaryButtonStyle(busy !== null)}
+              >
+                Sign in with email
+              </button>
+            ) : (
+              <form onSubmit={(e) => void handleEmailSignIn(e)} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  type="email"
+                  autoComplete="username"
+                  inputMode="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={busy !== null}
+                  style={inputStyle()}
+                />
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={busy !== null}
+                  style={inputStyle()}
+                />
+                <button
+                  type="submit"
+                  disabled={busy !== null || !email.trim() || !password}
+                  style={buttonStyle(false, busy !== null)}
+                >
+                  {busy === 'email' ? 'Signing in…' : 'Continue with email'}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* Signing in with the other button makes a second, empty account — and
+            with Apple's "Hide My Email" the two addresses never match, so
+            nothing links them. A quiet reminder is the cheapest prevention. */}
+        {lastProvider && (
+          <p style={{
+            fontFamily: "'Inter', -apple-system, sans-serif",
+            fontSize: 11.5,
+            color: 'var(--text-faint)',
+            textAlign: 'center',
+            letterSpacing: '0.01em',
+            margin: '0 0 16px',
+          }}>
+            You continued with {PROVIDER_LABEL[lastProvider]} last time.
+          </p>
+        )}
+
         {error && (
           <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
             {error}
@@ -213,6 +293,28 @@ function buttonStyle(hovered: boolean, disabled: boolean): CSSProperties {
     letterSpacing: '-0.01em',
     marginBottom: 0,
     transition: 'background 0.15s, border-color 0.15s',
+  }
+}
+
+function secondaryButtonStyle(disabled: boolean): CSSProperties {
+  return {
+    ...buttonStyle(false, disabled),
+    background: 'transparent',
+    border: '0.5px solid var(--border)',
+    color: 'var(--text-dim)',
+  }
+}
+
+function inputStyle(): CSSProperties {
+  return {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 7,
+    border: '0.5px solid var(--border)',
+    background: 'color-mix(in srgb, var(--bg) 92%, var(--accent) 8%)',
+    fontFamily: "'Inter', -apple-system, sans-serif",
+    fontSize: 13.5,
+    color: 'var(--text-bright)',
   }
 }
 

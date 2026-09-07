@@ -1,0 +1,169 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import { faqIntro, faqs } from "../content/faq";
+
+// JSON-LD for rich results (strip any markup from answers for the plain text)
+const stripTags = (s: string) => s.replace(/<[^>]+>/g, "");
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: stripTags(f.a) },
+  })),
+};
+---
+
+<Base
+  title="FAQ"
+  description="The honest answers — on privacy, faith, platforms, importing from Day One, and what happens after a year of writing."
+  path="/faq"
+>
+  <section class="faq-intro">
+    <SectionReveal class="wrap">
+      <p class="eyebrow mono">{faqIntro.eyebrow}</p>
+      <h1 set:html={faqIntro.heading} />
+      <p class="lead">{faqIntro.lead}</p>
+    </SectionReveal>
+  </section>
+
+  <section class="faq-list wrap">
+    {
+      faqs.map((f, i) => (
+        <SectionReveal delay={i * 30}>
+          <details class="qa">
+            <summary>
+              <span class="q">{f.q}</span>
+              <span class="chev" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M6 9l6 6 6-6"
+                  />
+                </svg>
+              </span>
+            </summary>
+            <p class="a" set:html={f.a} />
+          </details>
+        </SectionReveal>
+      ))
+    }
+  </section>
+
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify(faqSchema)}
+  />
+</Base>
+
+<style>
+  .faq-intro {
+    padding: 200px 0 56px;
+    text-align: center;
+  }
+  .faq-intro .eyebrow {
+    font-size: 12.5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 24px;
+  }
+  .faq-intro h1 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(40px, 7vw, 72px);
+    letter-spacing: -1.5px;
+    line-height: 1.02;
+    margin-bottom: 20px;
+  }
+  .faq-intro h1 :global(em) {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .faq-intro .lead {
+    font-size: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 46ch;
+    margin: 0 auto;
+  }
+
+  .faq-list {
+    max-width: 760px;
+    padding-bottom: 90px;
+  }
+
+  .qa {
+    border-bottom: 1px solid var(--border);
+  }
+  .qa summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 26px 0;
+  }
+  .qa summary::-webkit-details-marker {
+    display: none;
+  }
+  .qa .q {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(19px, 2.4vw, 23px);
+    color: var(--paper);
+    letter-spacing: -0.3px;
+    transition: color 0.25s;
+  }
+  .qa summary:hover .q {
+    color: var(--dawn-1);
+  }
+  .qa .chev {
+    flex: none;
+    color: var(--muted);
+    transition: transform 0.3s ease, color 0.25s;
+  }
+  .qa[open] .chev {
+    transform: rotate(180deg);
+    color: var(--dawn-1);
+  }
+  .qa .a {
+    font-size: 17px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.7;
+    max-width: 62ch;
+    padding: 0 0 28px;
+    margin-top: -4px;
+  }
+  .qa .a :global(strong) {
+    color: var(--paper);
+    font-weight: 500;
+  }
+  .qa .a :global(em) {
+    font-style: italic;
+    color: var(--paper);
+  }
+  .qa .a :global(a) {
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(243, 189, 118, 0.35);
+  }
+  .qa .a :global(a:hover) {
+    border-bottom-color: var(--dawn-1);
+  }
+
+  @media (max-width: 600px) {
+    .faq-intro {
+      padding: 150px 0 40px;
+    }
+  }
+</style>

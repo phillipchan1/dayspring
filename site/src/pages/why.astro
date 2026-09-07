@@ -1,0 +1,223 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import DawnGlow from "../components/DawnGlow.astro";
+import { why } from "../content/why";
+---
+
+<Base
+  title="Why we built it"
+  description="A long obedience, written down. The people who wrote most honestly about the inner life all said the same thing: formation is slow, and mostly visible in hindsight."
+  path="/why"
+  footer="minimal"
+>
+  <article class="why">
+    {/* title — near-bare, one faint glow */}
+    <header class="why-head">
+      <div class="glow-host"><DawnGlow variant="bloom" intensity={0.5} /></div>
+      <SectionReveal>
+        <p class="kicker mono">Why we built it</p>
+        <h1>{why.title}</h1>
+        <p class="subtitle">{why.subtitle}</p>
+      </SectionReveal>
+    </header>
+
+    {/* opening */}
+    <section class="movement">
+      {
+        why.intro.map((p, i) => (
+          <SectionReveal delay={i * 60}>
+            <p class="prose">{p}</p>
+          </SectionReveal>
+        ))
+      }
+    </section>
+
+    <div class="rule" aria-hidden="true"></div>
+
+    {/* the four figures — each earns a feature */}
+    <section class="figures">
+      {
+        why.figures.map((fig) => (
+          <SectionReveal>
+            <div class="figure">
+              <p class="feature mono">{fig.feature}</p>
+              <p class="prose">
+                <span class="name">{fig.name}</span>{" "}
+                <Fragment set:html={fig.body} />
+              </p>
+              {fig.quote && <blockquote class="pull">{fig.quote}</blockquote>}
+              {fig.after && <p class="prose">{fig.after}</p>}
+            </div>
+          </SectionReveal>
+        ))
+      }
+    </section>
+
+    <div class="rule" aria-hidden="true"></div>
+
+    {/* closing */}
+    <section class="movement">
+      {
+        why.close.map((p, i) =>
+          i === why.close.length - 1 ? (
+            <SectionReveal>
+              <p class="prose whole-reason">{p}</p>
+            </SectionReveal>
+          ) : (
+            <SectionReveal>
+              <p class="prose">{p}</p>
+            </SectionReveal>
+          ),
+        )
+      }
+      <SectionReveal>
+        <div class="cta-wrap">
+          <a href={why.cta.href} class="btn btn-ghost">{why.cta.label}</a>
+        </div>
+      </SectionReveal>
+    </section>
+  </article>
+</Base>
+
+<style>
+  /* darker, near-bare, narrow reading measure */
+  .why {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  .why-head {
+    position: relative;
+    text-align: center;
+    padding: 200px 0 70px;
+  }
+  .glow-host {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100vw;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .glow-host :global(.dg-bloom) {
+    width: 85vw;
+    height: 140%;
+    max-width: 960px;
+  }
+  .why-head .kicker {
+    font-size: 12.5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .why-head h1 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(38px, 6vw, 68px);
+    line-height: 1.04;
+    letter-spacing: -1.2px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .why-head .subtitle {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(18px, 2.4vw, 23px);
+    color: var(--paper-dim);
+    position: relative;
+  }
+
+  .movement {
+    padding: 10px 0;
+  }
+  /* contemplative prose: a touch larger, looser, dimmer than body default */
+  .prose {
+    font-size: 19px;
+    line-height: 1.78;
+    color: var(--paper-dim);
+    font-weight: 300;
+    margin: 0 auto 32px;
+  }
+  .prose :global(em) {
+    font-style: italic;
+    color: var(--paper);
+  }
+  .prose .name {
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--paper);
+  }
+
+  /* a quiet horizon rule between movements */
+  .rule {
+    width: 100%;
+    height: 1px;
+    margin: 54px auto;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(243, 189, 118, 0.35),
+      transparent
+    );
+  }
+
+  .figures {
+    padding: 6px 0;
+  }
+  .figure {
+    margin-bottom: 56px;
+  }
+  /* each figure's feature label — the "earns a feature" tell */
+  .feature {
+    font-size: 11.5px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 16px;
+  }
+
+  /* the single direct quote (Augustine) */
+  .pull {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(22px, 3vw, 30px);
+    line-height: 1.32;
+    color: var(--gold);
+    letter-spacing: -0.3px;
+    border-left: 2px solid rgba(243, 189, 118, 0.4);
+    padding-left: 26px;
+    margin: 4px 0 26px;
+  }
+
+  .whole-reason {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--paper);
+  }
+
+  .cta-wrap {
+    margin-top: 44px;
+    padding-bottom: 40px;
+  }
+
+  @media (max-width: 600px) {
+    .why-head {
+      padding: 150px 0 50px;
+    }
+    .prose {
+      font-size: 17.5px;
+    }
+    .pull {
+      padding-left: 18px;
+    }
+  }
+</style>

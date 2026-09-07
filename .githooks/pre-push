@@ -1,4 +1,12 @@
 #!/bin/sh
-# Run TypeScript type-check before push to catch compile errors before CI does.
+# Run TypeScript type-check and the test suite before push, to catch compile
+# errors and regressions before CI does.
+#
+# The release workflows are build-only, so this hook is the only place tests
+# run. Without it the recognition battery in src/lib/recognition/ is decorative.
+# No test touches the network or Supabase, so the whole suite is ~1s.
+set -e
 echo "Running typecheck before push…"
 npm run typecheck
+echo "Running tests before push…"
+npm test

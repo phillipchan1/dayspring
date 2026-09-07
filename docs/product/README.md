@@ -49,6 +49,28 @@ Superseded: [`docs/archive/personal-ai-journal-requirements.md`](../archive/pers
 4. **Decisions carry a kill condition.** "What would change our mind" is the column
    that turns a log into an instrument.
 
+## External references (Notion)
+
+The team's Notion teamspace ([Teamspace Home](https://app.notion.com/p/272e2f0e776083bdb5bf812ea5bbfd59))
+is where human-facing planning lives — ground rule #1 above still holds, this is not a
+build-time source of truth. Two databases matter most for product work:
+
+- **[Customer Discovery Interviews](https://app.notion.com/p/f642f68814ad484290d57635f073a7f6)**
+  — interview transcripts with AI-synthesized pain points, jobs to be done, opportunities,
+  key quotes; feeds an opportunity-solution tree. Check here before treating a persona
+  claim as validated — this is the thing that upgrades `PERSONAS.md` from hypothesis to
+  finding.
+- **[🧱 Product Feature Backlog](https://app.notion.com/p/73cfa2451aa24e9f81622902160ba357)**
+  — candidate/ready/in-build/shipped features, each tied to an opportunity and its
+  evidence strength, phased against Road to 1,000 Users. Check here before proposing a
+  new feature to avoid duplicating a tracked candidate.
+- **[📥 Feedback Inbox](https://app.notion.com/p/32b0d9292cce4c7dac0e31e8291c264a)**
+  — raw feedback (bugs, friction, requests) triaged and translated into opportunities,
+  which route into the backlog above.
+
+Read via the Notion MCP connector (`notion-fetch` / `notion-search`) when it's attached
+to the session.
+
 ## The single highest-value open action
 
 `PERSONAS.md` § *How to falsify these* — five 20-minute beta interviews. Everything

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
-import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
 import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
 import { RAIL_EXPAND_KEY } from './railHints'
@@ -9,20 +8,19 @@ import { useSurfaceUpdates } from './surfaceUpdates'
 import {
   IconAltar,
   IconAscent,
-  IconEntries,
+  IconPages,
   IconMenu,
   IconNew,
   IconScripture,
   IconSettings,
-  IconWell,
 } from './navIcons'
 
 const NATIVE = isTauri()
 
 interface RailProps {
   onNew: () => void
-  onToggleEntries: () => void
-  entriesOpen: boolean
+  pagesActive: boolean
+  onPages: () => void
   lookBackActive: boolean
   onLookBack: () => void
   altarActive: boolean
@@ -31,9 +29,6 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
-  wellActive: boolean
-  /** Opens ⌘K rather than routing — the Well needs a question before it has anything to show. */
-  onWell: () => void
   onOpenSettings: () => void
   labelsExpanded: boolean
   onToggleLabels: () => void
@@ -47,8 +42,8 @@ interface RailProps {
  */
 export function Rail({
   onNew,
-  onToggleEntries,
-  entriesOpen,
+  pagesActive,
+  onPages,
   lookBackActive,
   onLookBack,
   altarActive,
@@ -56,8 +51,6 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
-  wellActive,
-  onWell,
   onOpenSettings,
   labelsExpanded,
   onToggleLabels,
@@ -103,17 +96,9 @@ export function Rail({
           </span>
           <RailButton
             label="New entry"
-            shortcut={formatNewEntryShortcut()}
+            shortcut="⌘1"
             onClick={onNew}
             icon={<IconNew />}
-            labelsExpanded={labelsExpanded}
-          />
-          <RailButton
-            label="Entries"
-            shortcut="⌘1"
-            onClick={onToggleEntries}
-            active={entriesOpen && !lookBackActive && !altarActive && !scriptureActive && !wellActive}
-            icon={<IconEntries />}
             labelsExpanded={labelsExpanded}
           />
         </div>
@@ -121,10 +106,24 @@ export function Rail({
           <span className="rail__group-label" aria-hidden data-tauri-drag-region={drag}>
             Return
           </span>
+          {/*
+            Pages first, because it is the archive itself and the other three
+            are readings OF it. It also keeps ⌘1 — the number the entries panel
+            had — so fifteen years of muscle memory still lands on your pages.
+          */}
+          <RailButton
+            label="Journal"
+            subline="Your own, side by side"
+            shortcut="⌘2"
+            onClick={onPages}
+            active={pagesActive}
+            icon={<IconPages />}
+            labelsExpanded={labelsExpanded}
+          />
           <RailButton
             label="Ascent"
             subline="The climb through your seasons"
-            shortcut="⌘2"
+            shortcut="⌘3"
             onClick={onLookBack}
             active={lookBackActive}
             ember={dot.reflections}
@@ -134,7 +133,7 @@ export function Rail({
           <RailButton
             label="Lamp"
             subline="The verses you return to"
-            shortcut="⌘3"
+            shortcut="⌘4"
             onClick={onScripture}
             active={scriptureActive}
             lamp
@@ -146,7 +145,7 @@ export function Rail({
             <RailButton
               label="Altar"
               subline="The prayers you return to"
-              shortcut="⌘4"
+              shortcut="⌘5"
               onClick={onAltar}
               active={altarActive}
               ember={dot.altar}
@@ -154,15 +153,6 @@ export function Rail({
               labelsExpanded={labelsExpanded}
             />
           )}
-          <RailButton
-            label="Well"
-            subline="Ask what you've written"
-            shortcut="⌘K"
-            onClick={onWell}
-            active={wellActive}
-            icon={<IconWell />}
-            labelsExpanded={labelsExpanded}
-          />
         </div>
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>

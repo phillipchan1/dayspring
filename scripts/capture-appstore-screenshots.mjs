@@ -14,7 +14,7 @@
  * Output: assets/appstore/*.png
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, execFileSync } from 'node:child_process'
 import { mkdir, access } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -30,15 +30,24 @@ const CHROME_CANDIDATES = [
 ]
 
 /**
- * 640 CSS px at 2x = 1280x2000, clearing Apple's 640x920 minimum.
+ * iPhone 6.5" portrait — an accepted App Store / IAP review screenshot size.
+ * IAP Review Information requires a screenshot that meets *any* size your app
+ * supports (not the old 640×920 minimum). See Apple's screenshot specifications:
+ * https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/
  *
- * Do NOT drop this to a true phone width. macOS enforces a minimum window
- * width of roughly 500px, and Chrome lays out at that minimum while still
- * cropping the capture to --window-size — which silently slices the right-hand
- * side off the auto-renew disclosure. The clipped text is easy to miss and is
- * exactly the copy App Review is checking for.
+ * 642 CSS px at 2× = 1284×2778.
+ *
+ * Do NOT drop width below ~640 CSS px. macOS enforces a ~500px minimum window
+ * width, and Chrome lays out at that minimum while still cropping to
+ * --window-size — which silently slices the right-hand side off the auto-renew
+ * disclosure.
  */
-const VIEWPORT = { width: 640, height: 1000, scale: 2 }
+const OUTPUT = { width: 1284, height: 2778 }
+const VIEWPORT = {
+  width: OUTPUT.width / 2,
+  height: OUTPUT.height / 2,
+  scale: 2,
+}
 
 const SHOTS = [
   { name: 'iap-review-screenshot', preview: 'locked' },
@@ -96,6 +105,39 @@ function capture(chrome, url, outFile) {
   })
 }
 
+function finalizePng(outFile) {
+  // Guarantee exact Apple dimensions, RGB, no alpha (ASC rejects transparency).
+  execFileSync(
+    'python3',
+    [
+      '-c',
+      `
+from PIL import Image
+path = ${JSON.stringify(outFile)}
+target = (${OUTPUT.width}, ${OUTPUT.height})
+bg = (20, 18, 16)  # dusk theme base — matches paywall preview
+with Image.open(path) as im:
+    rgba = im.convert('RGBA')
+    flat = Image.new('RGB', rgba.size, bg)
+    flat.paste(rgba, mask=rgba.split()[3])
+    if flat.size != target:
+        # Scale to fit width, pad vertically (paywall is top-aligned content)
+        ratio = target[0] / flat.width
+        resized = flat.resize((target[0], round(flat.height * ratio)), Image.LANCZOS)
+        canvas = Image.new('RGB', target, bg)
+        if resized.height >= target[1]:
+            canvas.paste(resized.crop((0, 0, target[0], target[1])), (0, 0))
+        else:
+            canvas.paste(resized, (0, 0))
+        flat = canvas
+    flat.save(path, 'PNG')
+print(flat.size, flat.mode)
+`.trim(),
+    ],
+    { stdio: 'inherit' },
+  )
+}
+
 async function main() {
   const chrome = await findChrome()
   await mkdir(OUT_DIR, { recursive: true })
@@ -111,11 +153,11 @@ async function main() {
     for (const shot of SHOTS) {
       const out = path.join(OUT_DIR, `${shot.name}.png`)
       await capture(chrome, `http://localhost:${PORT}/?__preview=${shot.preview}`, out)
+      finalizePng(out)
       console.log(`  ${path.relative(ROOT, out)}`)
     }
     console.log(
-      `\nDone — ${VIEWPORT.width * VIEWPORT.scale}x${VIEWPORT.height * VIEWPORT.scale}, ` +
-        'above Apple’s 640x920 minimum.',
+      `\nDone — ${OUTPUT.width}x${OUTPUT.height} (iPhone 6.5" portrait, IAP review size).`,
     )
   } finally {
     vite.kill()

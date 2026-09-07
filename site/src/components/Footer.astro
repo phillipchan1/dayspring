@@ -1,0 +1,93 @@
+---
+// Footer — closing line, a single soft CTA, and the link row.
+import SectionReveal from "./SectionReveal.astro";
+import { footerLinks } from "../content/site";
+
+interface Props {
+  /** "full" = closing headline + CTA + links. "minimal" = just the link row
+      (for contemplative pages that carry their own soft CTA). */
+  variant?: "full" | "minimal";
+  /** Closing headline. */
+  big?: string;
+  /** Sub-line under the headline. */
+  sub?: string;
+  /** Primary CTA label. */
+  ctaLabel?: string;
+  /** Primary CTA href. */
+  ctaHref?: string;
+}
+const {
+  variant = "full",
+  big = "Start today. Read the year later.",
+  sub = "The page is free to try. The mirror comes with time.",
+  ctaLabel = "Start your 14-day trial",
+  ctaHref = "#",
+} = Astro.props;
+---
+
+<footer class:list={[{ minimal: variant === "minimal" }]}>
+  <SectionReveal class="wrap">
+    {
+      variant === "full" && (
+        <>
+          <div class="big">{big}</div>
+          <div class="sub2">{sub}</div>
+          <a href={ctaHref} class="btn btn-primary">
+            {ctaLabel}
+          </a>
+        </>
+      )
+    }
+    <nav class="links" aria-label="Footer">
+      {footerLinks.map((link) => <a href={link.href}>{link.label}</a>)}
+    </nav>
+  </SectionReveal>
+</footer>
+
+<style>
+  footer {
+    padding: 120px 0 60px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    position: relative;
+  }
+  /* minimal: a quiet link row only — for contemplative pages */
+  footer.minimal {
+    padding: 70px 0 60px;
+  }
+  footer.minimal .links {
+    margin-top: 0;
+  }
+  footer .big {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(32px, 5vw, 58px);
+    letter-spacing: -1px;
+    margin-bottom: 14px;
+    line-height: 1.05;
+  }
+  footer .sub2 {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 18px;
+    margin-bottom: 34px;
+  }
+  footer .links {
+    display: flex;
+    gap: 26px;
+    justify-content: center;
+    margin-top: 60px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    flex-wrap: wrap;
+  }
+  footer .links a {
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.25s;
+  }
+  footer .links a:hover {
+    color: var(--paper);
+  }
+</style>

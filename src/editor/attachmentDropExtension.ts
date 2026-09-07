@@ -3,7 +3,8 @@
 import type { Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
-import { uploadImageAttachment } from '@/lib/attachments'
+import { extFromImageFile } from '@/lib/attachments'
+import { uploadOrQueue } from '@/lib/attachmentQueue'
 import { supabase } from '@/lib/supabase'
 import {
   ATTACHMENT_DND_MIME,
@@ -88,15 +89,28 @@ async function uploadFiles(
     pending.map((p) => ({ id: p.id, alt: p.alt })),
   )
 
+  const ownerId = (await supabase.auth.getUser()).data.user?.id
+  if (!ownerId) return
+
   for (const item of pending) {
     try {
-      const { hash, ext } = await uploadImageAttachment(supabase, item.file, photoMetaFromFile(item.file))
+      const ref = await uploadOrQueue(
+        item.id,
+        ownerId,
+        item.file,
+        extFromImageFile(item.file),
+        item.alt,
+        photoMetaFromFile(item.file),
+      )
       if (!viewAlive(view)) return
-      replacePendingAttachmentInView(view, item.id, hash, ext, item.alt)
+      // null → queued offline. LEAVE the placeholder: it already renders as a
+      // pending photo and resolves itself on reconnect. Deleting it here is what
+      // used to make photos vanish on a bad connection.
+      if (ref) replacePendingAttachmentInView(view, item.id, ref.hash, ref.ext, item.alt)
     } catch (e) {
-      // Surface the failure — a silent catch here made dropped uploads vanish
-      // with no console trace, indistinguishable from "nothing happened".
-      console.warn('[images] drop upload failed', e)
+      // Only reached when the file will never be accepted, so the placeholder is
+      // a promise we can't keep.
+      console.warn('[images] drop upload rejected', e)
       if (viewAlive(view)) removePendingAttachmentInView(view, item.id)
     }
   }

@@ -22,7 +22,7 @@ interface UnderlineToken extends Tokens.Generic {
 // `a == b == c` and `C++ and C++` stay prose here exactly as they do while
 // typing. Without them, print output would disagree with the editor.
 const HIGHLIGHT_RE = new RegExp(
-  `^==(?:\\{(${NAMED_COLOR_PATTERN})\\})?(?!\\s)([\\s\\S]+?)(?<!\\s)==(?!=)`,
+  `^==(?:\\{(${NAMED_COLOR_PATTERN})\\})?(?!\\s)([\\s\\S]+?)==(?!=)`,
 )
 const UNDERLINE_RE = /^\+\+(?!\s)([\s\S]+?)(?<!\s)\+\+(?!\+)/
 

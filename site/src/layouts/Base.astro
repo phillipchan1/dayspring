@@ -1,0 +1,115 @@
+---
+import "../styles/global.css";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import { site } from "../content/site";
+
+interface Props {
+  /** Page <title>. Brand name is prefixed automatically unless `bareTitle`. */
+  title: string;
+  /** Meta description / OG description. */
+  description?: string;
+  /** Path to an OG image under /public (defaults to the site OG card). */
+  ogImage?: string;
+  /** Canonical path, e.g. "/why". Defaults to the current request path. */
+  path?: string;
+  /** When true, use `title` verbatim (don't prefix the brand name). */
+  bareTitle?: boolean;
+  /** Footer style: "full" (closing CTA + links) or "minimal" (links only). */
+  footer?: "full" | "minimal";
+}
+
+const {
+  title,
+  description = site.description,
+  ogImage = "/og/og-card.png",
+  path,
+  bareTitle = false,
+  footer = "full",
+} = Astro.props;
+
+const fullTitle = bareTitle ? title : `${site.name} — ${title}`;
+const canonical = new URL(path ?? Astro.url.pathname, site.url).href;
+const ogImageUrl = new URL(ogImage, site.url).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- No-flash theme: resolve before first paint. Stored choice wins; the
+         literal "auto" (or no choice) follows the OS. Mirrors the app's
+         Light / Dark / Auto. -->
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var mql = window.matchMedia("(prefers-color-scheme: light)");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : mql.matches
+                ? "light"
+                : "dark";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#0c0d11" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <!-- Fonts: Fraunces (display), Newsreader (body), JetBrains Mono (accents).
+         Loaded via Google Fonts to match the prototype 1:1 (display=swap). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Without JS, scroll reveals never fire — show everything immediately. -->
+    <noscript>
+      <style>
+        .reveal {
+          opacity: 1 !important;
+          transform: none !important;
+        }
+      </style>
+    </noscript>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <Nav />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer variant={footer} />
+  </body>
+</html>

@@ -3,9 +3,43 @@ import type { Entry } from './types'
 
 export interface OutboxOp {
   opId: string
-  kind: 'upsert' | 'delete'
+  /**
+   * `derive` rebuilds the rows read off an entry's body — prayers, scripture
+   * refs. It is queued after that entry's push succeeds rather than run inline
+   * on save, so writing a prayer offline still reaches the Altar once the device
+   * reconnects. See repo.setEntryDeriveHook.
+   */
+  kind: 'upsert' | 'delete' | 'derive'
   entryId: string
   ts: number
+  /** Pushes that reached the server and were refused. Absent until the first failure. */
+  attempts?: number
+  /** Last refusal, kept for support triage — never shown verbatim in the UI. */
+  lastError?: string
+  /**
+   * Given up on: the server will never accept this op, or it has burned through
+   * MAX_SYNC_ATTEMPTS. Skipped by the flush so it can't block the ops behind it.
+   */
+  quarantined?: boolean
+}
+
+/**
+ * A marked passage, cached locally so Remember opens offline like Find does.
+ *
+ * `pending` carries its own sync state rather than riding the entry outbox:
+ * that queue is keyed on entryId and reads its payload from the entries cache,
+ * and marks are small, independent, and idempotent server-side. They drain
+ * through repo's sideQueueHook, the same route photo uploads take, so a stuck
+ * mark can never block an entry from syncing.
+ */
+export interface MarkRow {
+  id: string
+  entryId: string
+  quote: string
+  charStart: number | null
+  noticedAt: string
+  /** Unsynced intent. Absent once the server has it. */
+  pending?: 'add' | 'remove'
 }
 
 /** One cached display-sized image blob, keyed by `<hash>.<ext>`. */
@@ -41,19 +75,42 @@ export interface PendingDictationRow {
   blob: Blob
 }
 
+/**
+ * A photo the user added that hasn't reached storage yet. Keyed by the same
+ * `pendingId` that appears in the entry body as `attachment-pending:<id>`, so a
+ * successful retry can find its placeholder and swap in the real ref.
+ *
+ * Unlike attBlobs (a lossless LRU cache of things the cloud already has), this
+ * holds the ONLY copy of those bytes. It is never evicted.
+ */
+export interface PendingUploadRow {
+  id: string
+  owner: string
+  blob: Blob
+  ext: string
+  alt: string
+  meta?: Record<string, unknown>
+  createdAt: number
+  attempts?: number
+  lastError?: string
+  quarantined?: boolean
+}
+
 interface DayspringDB extends DBSchema {
   entries: { key: string; value: Entry }
   outbox: { key: string; value: OutboxOp; indexes: { 'by-entry': string } }
   attBlobs: { key: string; value: AttBlobRow }
   attMeta: { key: string; value: AttMetaRow; indexes: { 'by-last-accessed': number } }
   dictation: { key: string; value: PendingDictationRow }
+  attUploads: { key: string; value: PendingUploadRow }
+  marks: { key: string; value: MarkRow; indexes: { 'by-entry': string } }
 }
 
 let dbp: Promise<IDBPDatabase<DayspringDB>> | null = null
 
 function db(): Promise<IDBPDatabase<DayspringDB>> {
   if (!dbp) {
-    dbp = openDB<DayspringDB>('dayspring', 3, {
+    dbp = openDB<DayspringDB>('dayspring', 5, {
       upgrade(d, oldVersion) {
         if (oldVersion < 1) {
           d.createObjectStore('entries', { keyPath: 'id' })
@@ -70,6 +127,17 @@ function db(): Promise<IDBPDatabase<DayspringDB>> {
         if (oldVersion < 3) {
           d.createObjectStore('dictation', { keyPath: 'sessionId' })
         }
+        if (oldVersion < 4) {
+          // Photos added while offline. Holds the only copy of those bytes —
+          // unlike attBlobs, nothing here may be evicted.
+          d.createObjectStore('attUploads', { keyPath: 'id' })
+        }
+        if (oldVersion < 5) {
+          // Marked passages. A mirror of the server table plus a `pending` flag,
+          // so Remember reads instantly and marking works on a plane.
+          const marks = d.createObjectStore('marks', { keyPath: 'id' })
+          marks.createIndex('by-entry', 'entryId')
+        }
       },
     })
   }
@@ -83,6 +151,10 @@ export async function dictationCheckpoint(row: PendingDictationRow): Promise<voi
 export async function dictationList(owner: string): Promise<PendingDictationRow[]> {
   const all = await (await db()).getAll('dictation')
   return all.filter((r) => r.owner === owner).sort((a, b) => b.createdAt - a.createdAt)
+}
+/** Recordings still awaiting transcription — the only copy of those words. */
+export async function dictationCount(): Promise<number> {
+  return (await db()).count('dictation')
 }
 export async function dictationDelete(sessionId: string): Promise<void> {
   await (await db()).delete('dictation', sessionId)
@@ -127,7 +199,67 @@ export async function cacheClearAll(): Promise<void> {
     d.clear('attBlobs'),
     d.clear('attMeta'),
     d.clear('dictation'),
+    d.clear('attUploads'),
+    // Marks are verbatim entry text. Leaving them behind on an owner switch
+    // would leak one tenant's sentences into another's Remember.
+    d.clear('marks'),
   ])
+}
+
+// ── marks (local mirror + offline intent) ───────────────────────────────────
+export async function marksAll(): Promise<MarkRow[]> {
+  return (await db()).getAll('marks')
+}
+export async function markPut(row: MarkRow): Promise<void> {
+  await (await db()).put('marks', row)
+}
+export async function markDelete(id: string): Promise<void> {
+  await (await db()).delete('marks', id)
+}
+export async function marksPutMany(rows: MarkRow[]): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('marks', 'readwrite')
+  await Promise.all([...rows.map((r) => tx.store.put(r)), tx.done])
+}
+/** Replace the synced mirror, preserving anything still waiting to go out. */
+export async function marksReplaceSynced(rows: MarkRow[]): Promise<void> {
+  const d = await db()
+  const keep = (await d.getAll('marks')).filter((r) => r.pending)
+  const tx = d.transaction('marks', 'readwrite')
+  await tx.store.clear()
+  await Promise.all([...[...rows, ...keep].map((r) => tx.store.put(r)), tx.done])
+}
+
+// ── pending photo uploads (offline-durable) ─────────────────────────────────
+export async function pendingUploadPut(row: PendingUploadRow): Promise<void> {
+  await (await db()).put('attUploads', row)
+}
+export async function pendingUploadAll(): Promise<PendingUploadRow[]> {
+  return (await (await db()).getAll('attUploads')).sort((a, b) => a.createdAt - b.createdAt)
+}
+export async function pendingUploadDelete(id: string): Promise<void> {
+  await (await db()).delete('attUploads', id)
+}
+/** Photos still waiting to reach storage — excludes ones we've given up on. */
+export async function pendingUploadCount(): Promise<number> {
+  return (await pendingUploadAll()).filter((r) => !r.quarantined).length
+}
+export async function pendingUploadMarkFailure(
+  id: string,
+  { quarantine, error }: { quarantine: boolean; error: string },
+): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('attUploads', 'readwrite')
+  const row = await tx.store.get(id)
+  if (row) {
+    await tx.store.put({
+      ...row,
+      attempts: (row.attempts ?? 0) + 1,
+      lastError: error,
+      quarantined: quarantine,
+    })
+  }
+  await tx.done
 }
 
 // ── image blob cache (bounded LRU) ───────────────────────────────────────────
@@ -199,8 +331,25 @@ export async function attachmentCacheTotalBytes(): Promise<number> {
 export async function outboxAll(): Promise<OutboxOp[]> {
   return (await db()).getAll('outbox')
 }
+/**
+ * Ops in the order they were queued. `getAll` returns them keyed by `opId` — a
+ * random UUID — so the unordered version flushes writes in arbitrary order and
+ * which op blocks the queue is pure chance. Anything that drains the outbox
+ * should use this.
+ */
+export async function outboxAllOrdered(): Promise<OutboxOp[]> {
+  return (await outboxAll()).sort((a, b) => a.ts - b.ts)
+}
 export async function outboxCount(): Promise<number> {
   return (await db()).count('outbox')
+}
+/** True when at least one live (non-quarantined) op of `kind` is queued. */
+export async function outboxHasKind(kind: OutboxOp['kind']): Promise<boolean> {
+  return (await outboxAll()).some((o) => o.kind === kind && !o.quarantined)
+}
+/** Ops the flush has given up on — surfaced so the UI can stop claiming "Synced". */
+export async function outboxBlockedCount(): Promise<number> {
+  return (await outboxAll()).filter((o) => o.quarantined).length
 }
 export async function outboxAdd(op: OutboxOp): Promise<void> {
   await (await db()).put('outbox', op)
@@ -208,6 +357,38 @@ export async function outboxAdd(op: OutboxOp): Promise<void> {
 export async function outboxRemove(opId: string): Promise<void> {
   await (await db()).delete('outbox', opId)
 }
+/**
+ * Record a refused push. `quarantine` retires the op so it stops being retried
+ * and — crucially — stops blocking every op queued behind it. The row is kept
+ * rather than deleted: it still holds a write the user made, and keeping it lets
+ * a later fix (a corrected RLS policy, a released constraint) replay it.
+ */
+export async function outboxMarkFailure(
+  opId: string,
+  { quarantine, error }: { quarantine: boolean; error: string },
+): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('outbox', 'readwrite')
+  const op = await tx.store.get(opId)
+  if (op) {
+    const attempts = (op.attempts ?? 0) + 1
+    await tx.store.put({ ...op, attempts, lastError: error, quarantined: quarantine })
+  }
+  await tx.done
+}
+/** Un-retire every quarantined op so the next flush tries them again. */
+export async function outboxClearQuarantine(): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('outbox', 'readwrite')
+  const ops = await tx.store.getAll()
+  await Promise.all([
+    ...ops
+      .filter((o) => o.quarantined)
+      .map((o) => tx.store.put({ ...o, quarantined: false, attempts: 0 })),
+    tx.done,
+  ])
+}
+
 /** Collapse duplicate ops for one entry: drop existing ops of the same kind. */
 export async function outboxRemoveForEntry(entryId: string, kind: OutboxOp['kind']): Promise<void> {
   const d = await db()

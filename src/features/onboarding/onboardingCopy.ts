@@ -24,6 +24,16 @@ export const onboardingCopy = {
     },
   },
 
+  // The import parses the whole archive in memory, which is why Settings offers
+  // it on desktop only (features/settings/ImportPanel.tsx). This is the same
+  // door, said kindly, for someone who picks "I've journaled for years" on a
+  // phone — their history is safe, it just arrives from the desktop app.
+  importMobile: {
+    title: 'Bring your history in from your computer',
+    body: 'Journal archives are large, and they open best on a desktop. Sign in to Dayspring on your Mac and import there — everything you bring in will be waiting here.',
+    cta: 'Start writing here',
+  },
+
   importUpload: {
     title: 'Bring in your journal.',
     body: 'Upload a Dayspring backup, a Day One (JSON) export, or a Diarly export — as a .zip or its unzipped folder. Your entries are parsed on your device and written straight to your private journal — they never pass through anyone else.',

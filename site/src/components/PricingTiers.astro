@@ -1,0 +1,174 @@
+---
+// PricingTiers — Annual (featured) + Monthly. Premium only; 14-day trial on both.
+import DawnGlow from "./DawnGlow.astro";
+import { pricingTiers } from "../content/site";
+---
+
+<div class="tiers">
+  {
+    pricingTiers.map((tier) => (
+      <div class:list={["tier", { feat: tier.featured }]}>
+        {tier.featured && (
+          <>
+            <div class="tier-sheen" aria-hidden="true">
+              <DawnGlow variant="corner" corner="top-right" />
+            </div>
+            {"badge" in tier && tier.badge && (
+              <div class="badge">{tier.badge}</div>
+            )}
+          </>
+        )}
+        <div class="name">{tier.name}</div>
+        <div class="price">
+          {tier.price}
+          {tier.unit && <span>{tier.unit}</span>}
+        </div>
+        <div class="note">{tier.note}</div>
+        <div class="desc">{tier.desc}</div>
+        <a
+          href={tier.cta.href}
+          class:list={["pick", tier.cta.style]}
+        >
+          {tier.cta.label}
+        </a>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+    align-items: stretch;
+    padding-top: 14px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .tier {
+    background: var(--ink-2);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: transform 0.3s;
+  }
+  .tier:hover {
+    transform: translateY(-4px);
+  }
+  .tier.feat {
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    border-color: rgba(243, 189, 118, 0.4);
+    box-shadow:
+      0 40px 90px -50px var(--shadow),
+      0 0 70px -34px var(--accent-glow);
+  }
+  .tier-sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .badge {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: linear-gradient(100deg, var(--dawn-1), var(--dawn-2));
+    color: var(--ink);
+    padding: 5px 13px;
+    border-radius: 100px;
+    font-weight: 500;
+    z-index: 2;
+  }
+
+  .tier .name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 400;
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+  .tier .price {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 44px;
+    letter-spacing: -1px;
+    margin: 12px 0 2px;
+    position: relative;
+    z-index: 1;
+  }
+  .tier .price span {
+    font-size: 16px;
+    color: var(--muted);
+    font-family: var(--font-body);
+  }
+  .tier .note {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 22px;
+    letter-spacing: 0.3px;
+    min-height: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .tier .desc {
+    font-size: 15.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    margin-bottom: 26px;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+  }
+  .tier .pick {
+    text-align: center;
+    text-decoration: none;
+    border-radius: 100px;
+    padding: 12px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    transition: transform 0.25s, background 0.25s, color 0.25s, border-color 0.25s;
+    position: relative;
+    z-index: 1;
+  }
+  .tier .pick.solid {
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .tier .pick.solid:hover {
+    transform: translateY(-2px);
+    background: var(--gold);
+  }
+  .tier .pick.line {
+    border: 1px solid var(--border);
+    color: var(--paper-dim);
+  }
+  .tier .pick.line:hover {
+    color: var(--paper);
+    border-color: var(--border-strong);
+  }
+
+  @media (max-width: 820px) {
+    .tiers {
+      grid-template-columns: 1fr;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+  }
+</style>

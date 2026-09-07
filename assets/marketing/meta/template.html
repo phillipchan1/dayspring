@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dayspring Meta collateral</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="creative" aria-label="Dayspring advertisement">
+      <div class="grain"></div>
+      <div class="dawn dawn--top"></div>
+      <div class="dawn dawn--bottom"></div>
+
+      <header class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <span class="wordmark">Dayspring</span>
+      </header>
+
+      <section class="message">
+        <p class="eyebrow" data-eyebrow></p>
+        <h1 data-headline></h1>
+        <p class="supporting" data-supporting></p>
+      </section>
+
+      <section class="product-window">
+        <div class="product-glow"></div>
+        <img data-product-image alt="" />
+      </section>
+
+      <footer class="footer">
+        <p class="proof" data-proof></p>
+        <div class="cta-row">
+          <span class="cta" data-cta></span>
+          <span class="url">usedayspring.app</span>
+        </div>
+      </footer>
+    </main>
+
+    <script type="module">
+      const params = new URLSearchParams(window.location.search)
+      const conceptId = params.get('concept') || 'journaling-growth'
+      const format = params.get('format') || 'feed'
+      const response = await fetch('./copy.json')
+      const campaign = await response.json()
+      const concept = campaign.concepts.find((item) => item.id === conceptId)
+
+      if (!concept) throw new Error(`Unknown concept: ${conceptId}`)
+
+      const creative = document.querySelector('.creative')
+      creative.dataset.concept = concept.id
+      creative.dataset.format = format
+      document.body.dataset.ready = 'false'
+
+      const headline = document.querySelector('[data-headline]')
+      const accentStart = concept.headline.lastIndexOf(concept.accent)
+      if (accentStart >= 0) {
+        headline.append(document.createTextNode(concept.headline.slice(0, accentStart)))
+        const accent = document.createElement('em')
+        accent.textContent = concept.accent
+        headline.append(accent)
+      } else {
+        headline.textContent = concept.headline
+      }
+
+      document.querySelector('[data-eyebrow]').textContent = concept.eyebrow
+      document.querySelector('[data-supporting]').textContent = concept.supporting
+      document.querySelector('[data-proof]').textContent = concept.proof
+      document.querySelector('[data-cta]').textContent = campaign.cta
+
+      const image = document.querySelector('[data-product-image]')
+      image.alt = concept.assetAlt
+      image.src = concept.asset
+      await image.decode()
+      await document.fonts.ready
+      document.body.dataset.ready = 'true'
+    </script>
+  </body>
+</html>

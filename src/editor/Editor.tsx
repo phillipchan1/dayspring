@@ -6,12 +6,13 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
 import { proseHighlighting } from './proseHighlighting'
-import { nativeTypingAttributes } from './nativeTyping'
+import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
 import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
+import { ritualHoldExtension } from './ritualHold'
 import { firstLineTitleExtension } from './firstLineTitle'
 import { bodyLinePlaceholder } from './bodyLinePlaceholder'
 import {
@@ -19,7 +20,11 @@ import {
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
 import { spiritualBlocksField } from './spiritualBlocksField'
+import { lineMenuExtension } from './lineMenu'
+import { scripturePasteExtension } from './scripturePasteExtension'
 import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { wrapLinesInFence } from '@/lib/markSelection'
+import type { SpiritualItemType } from '@/lib/types'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
 import {
@@ -34,11 +39,15 @@ import { LinkPopover, type LinkPopoverTarget } from './LinkPopover'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
+import { applyMarks, marksField } from './markDecoration'
+import { anchorOf, normalizeQuote, type Mark } from '@/lib/marks'
 import { taskListExtension } from './taskListExtension'
+import { horizontalRuleExtension } from './horizontalRule'
 import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
-import { detectSlash, type SlashCommandId, type SlashState } from './slashDetect'
+import { minimalDocChange } from './minimalDocChange'
+import { detectSlash, reconcileSlashState, type SlashCommandId, type SlashState } from './slashDetect'
 import { SlashPalette } from './SlashPalette'
 import { applyFormatCommand, type FormatCommandId, type SlashSelection } from './slashCommands'
 import type { HighlightColor } from '@/lib/highlightColors'
@@ -90,6 +99,37 @@ export interface EditorHandle {
     size?: ImageSize,
   ) => void
   removePendingAttachment: (pendingId: string) => void
+  /**
+   * Turn the selection's lines — or the caret's paragraph — into a marking of
+   * `kind`. Returns the writer's words the fence now carries, so the caller can
+   * write the matching row, or null when the range can't be marked.
+   */
+  markLines: (kind: SpiritualItemType, id: string) => string | null
+  /**
+   * Keep something the journal noticed: find the writer's own sentence in the
+   * live document and mark the lines it sits on. Returns null when the sentence
+   * is no longer there — they may have edited it while the pencil note sat in
+   * the margin, and a proposal about words that no longer exist must do nothing
+   * at all rather than mark the nearest thing.
+   */
+  markQuote: (quote: string, kind: SpiritualItemType, id: string) => string | null
+  /**
+   * Bring a document position into view without touching the selection.
+   *
+   * Used by the open margin: nothing there is allowed to steal focus, so a note
+   * scrolls to its line and leaves the caret exactly where the writer left it.
+   */
+  revealPos: (pos: number) => void
+  /**
+   * Replace the document with a version that arrived from another device.
+   *
+   * The `initialDoc` effect deliberately refuses to re-seed an entry that is
+   * already loaded, so it never fights live typing. This is the narrow, explicit
+   * exception to that rule, and callers must only use it when the editor has no
+   * unsaved local edits. The change is narrowed to the range that actually
+   * differs so the caret, selection and scroll position survive.
+   */
+  applyRemoteDoc: (next: string) => void
 }
 
 interface EditorProps {
@@ -127,6 +167,10 @@ interface EditorProps {
   ) => void
   /** Called when the user clicks a rendered spiritual block to edit it. */
   onEditBlock?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
+  /** Scripture blocks: primary click opens the chapter pane. */
+  onOpenChapter?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void
+  /** A Bible-app paste was wrapped as a scripture fence. */
+  onScripturePaste?: (reference: string) => void
   /** Called when the user left- or right-clicks a photo block to open its options menu. */
   onImageMenu?: (
     target: AttachmentEditTarget,
@@ -135,6 +179,20 @@ interface EditorProps {
   ) => void
   /** Called when the user opens a practice's "about" sheet (by practice name). */
   onAboutPractice?: (name: string) => void
+  /** Called when the user picks a part-written ritual back up, at its doc position. */
+  onContinueRitual?: (pos: number) => void
+  /**
+   * Passages already marked in this entry. Drawn as a quiet ground.
+   */
+  marks?: Mark[]
+  /**
+   * Set the selected text aside, or clear it if it is already marked.
+   *
+   * Absent while composing. Marking is a READING act: the caller passes this
+   * only for an entry written on a previous day, so today's page keeps exactly
+   * the bar it has always had and the writing surface gains nothing.
+   */
+  onToggleMark?: (quote: string, charStart: number, alreadyMarked: Mark | null) => void
 }
 
 /**
@@ -161,10 +219,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     commandLinePos = null,
     onSlashCommand,
     onEditBlock,
+    onOpenChapter,
+    onScripturePaste,
     onImageMenu,
     onAboutPractice,
+    onContinueRitual,
     onSlashPaletteChange,
     skipAutofocusRef,
+    marks,
+    onToggleMark,
   },
   ref,
 ) {
@@ -177,8 +240,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onEditBlockRef = useRef(onEditBlock)
+  const onOpenChapterRef = useRef(onOpenChapter)
+  const onScripturePasteRef = useRef(onScripturePaste)
   const onImageMenuRef = useRef(onImageMenu)
   const onAboutPracticeRef = useRef(onAboutPractice)
+  const onContinueRitualRef = useRef(onContinueRitual)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
   const slashEnabledRef = useRef(slashEnabled)
   const titleStylingRef = useRef(titleStyling)
@@ -186,10 +252,42 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const [linkTarget, setLinkTarget] = useState<LinkPopoverTarget | null>(null)
   const setSlashRef = useRef(setSlashState)
+  /**
+   * Open the palette from the `+`, without typing anything.
+   *
+   * The palette has one other way in — `detectSlash` on a document update —
+   * and this deliberately does NOT go through it by inserting a `/`. A `+` is a
+   * button, and a button that works by writing a character into the document
+   * would put a stray `/` on the page for every frame between the click and the
+   * pick, and leave one behind on any path that doesn't end in a selection.
+   *
+   * `from === to` makes the removal in `handleSlashSelect` a no-op change,
+   * which is exactly right: there is no `/command` text to take back out.
+   */
+  const openPaletteRef = useRef((pos: number, at: { top: number; left: number }) => {
+    const view = viewRef.current
+    if (!view || !slashEnabledRef.current) return
+    // The caret follows the `+`, the way it does in every editor that has one:
+    // you pressed the button beside THIS line, so this is the line you are on.
+    view.dispatch({ selection: { anchor: pos, head: pos } })
+    view.focus()
+    const coords = view.coordsAtPos(pos)
+    setSlashRef.current({
+      query: '',
+      from: pos,
+      to: pos,
+      x: coords?.left ?? at.left,
+      y: coords?.bottom ?? at.top,
+      yTop: coords?.top ?? at.top,
+    })
+  })
   onChangeRef.current = onChange
   onEditBlockRef.current = onEditBlock
+  onOpenChapterRef.current = onOpenChapter
+  onScripturePasteRef.current = onScripturePaste
   onImageMenuRef.current = onImageMenu
   onAboutPracticeRef.current = onAboutPractice
+  onContinueRitualRef.current = onContinueRitual
   setFormatBarRef.current = setFormatBar
   slashEnabledRef.current = slashEnabled
   titleStylingRef.current = titleStyling
@@ -246,7 +344,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       if (!view) return
       if (pos != null) {
         const clamped = Math.max(0, Math.min(pos, view.state.doc.length))
-        view.dispatch({ selection: { anchor: clamped, head: clamped } })
+        // Scroll to it, don't just select it. Without this the caret lands
+        // wherever it lands and the soft keyboard then rises over it — which is
+        // exactly how beginning a ritual on a phone put the writing line
+        // off-screen before the writer had typed anything.
+        view.dispatch({
+          selection: { anchor: clamped, head: clamped },
+          scrollIntoView: true,
+        })
       }
       view.focus()
     },
@@ -286,6 +391,54 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const view = viewRef.current
       if (!view) return
       removePendingAttachmentInView(view, pendingId)
+    },
+      markLines: (kind, id) => {
+      const view = viewRef.current
+      if (!view) return null
+      const { from, to } = view.state.selection.main
+      const wrap = wrapLinesInFence(view.state.doc.toString(), from, to, kind, id)
+      if (!wrap) return null
+      view.dispatch({
+        changes: { from: wrap.from, to: wrap.to, insert: wrap.insert },
+        // Collapse to the start of the new fence. The range the caret was in is
+        // now inside an atomic block, and leaving the old selection would put it
+        // somewhere the caret is not allowed to be.
+        selection: { anchor: wrap.from },
+      })
+      view.focus()
+      return wrap.content
+    },
+    markQuote: (quote, kind, id) => {
+      const view = viewRef.current
+      if (!view || !quote) return null
+      const doc = view.state.doc.toString()
+      const at = doc.indexOf(quote)
+      if (at === -1) return null
+      const wrap = wrapLinesInFence(doc, at, at + quote.length, kind, id)
+      if (!wrap) return null
+      // No selection change and no focus grab: keeping something from the margin
+      // must not move the caret out from under whatever the writer is doing.
+      view.dispatch({ changes: { from: wrap.from, to: wrap.to, insert: wrap.insert } })
+      return wrap.content
+    },
+    revealPos: (pos) => {
+      const view = viewRef.current
+      if (!view) return
+      const at = Math.max(0, Math.min(pos, view.state.doc.length))
+      // Effect only — no `selection`, so the caret stays where the writer left
+      // it and the editor keeps whatever focus it already had.
+      view.dispatch({ effects: EditorView.scrollIntoView(at, { y: 'center' }) })
+    },
+    applyRemoteDoc: (next) => {
+      const view = viewRef.current
+      if (!view) return
+      const change = minimalDocChange(view.state.doc.toString(), ensureBlockSeparation(next))
+      if (!change) return
+      // No `selection` and no `scrollIntoView`: CodeMirror maps the existing
+      // caret and viewport through the change, so an edit from another device
+      // lands without moving anything under the reader.
+      view.dispatch({ changes: change })
+      rearmNativeTypingAfterPaint(view)
     },
   }))
 
@@ -395,11 +548,31 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // below all read this field instead of each re-parsing the full doc.
           // Must precede them so the value is ready when they update.
           spiritualBlocksField,
-          spiritualBlockExtension((target, anchor) => onEditBlockRef.current?.(target, anchor)),
+          spiritualBlockExtension(
+            (target, anchor) => onEditBlockRef.current?.(target, anchor),
+            (target, anchor) => {
+              if (onOpenChapterRef.current) onOpenChapterRef.current(target, anchor)
+              else onEditBlockRef.current?.(target, anchor)
+            },
+          ),
+          // The `+` in the left gutter, and the palette it opens. Must follow
+          // spiritualBlocksField, which it reads to stay off fenced lines.
+          lineMenuExtension((pos, at) => openPaletteRef.current(pos, at)),
           scriptureRefDecoration(),
+          // Marked passages. Reads spiritualBlocksField above, same as the
+          // scripture underline, so it must stay below it.
+          marksField,
           taskListExtension(),
-          // Renders /practice prompts as display-only decorations over hidden tokens.
-          practicePromptExtension((name) => onAboutPracticeRef.current?.(name)),
+          horizontalRuleExtension(),
+          // Renders a ritual's prompts as display-only decorations over hidden
+          // tokens, one movement at a time.
+          practicePromptExtension(
+            (name) => onAboutPracticeRef.current?.(name),
+            (pos) => onContinueRitualRef.current?.(pos),
+          ),
+          // Lets the rest of the entry recede while a ritual has the page.
+          // Must follow the extension above — it reads its field.
+          ritualHoldExtension,
           attachmentBlockNormalizeExtension(),
           attachmentImageExtension((target, point, anchor) =>
             onImageMenuRef.current?.(target, point, anchor),
@@ -407,8 +580,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // Live insertion caret while dragging a file in or reordering a photo.
           dropCursor(),
           Prec.highest(attachmentDropExtension()),
+          Prec.high(
+            scripturePasteExtension((reference) => onScripturePasteRef.current?.(reference)),
+          ),
           EditorView.lineWrapping,
-          nativeTypingAttributes,
+          nativeTyping(),
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
           dimCompartment.current.of(dimming ? dimmingExtension : []),
@@ -418,14 +594,32 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             if (u.docChanged) onChangeRef.current(u.state.doc.toString())
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
-              setSlashRef.current(detectSlash(u.view, titleStylingRef.current))
+              const detected = detectSlash(u.view, titleStylingRef.current)
+              const sel = u.view.state.selection.main
+              setSlashRef.current((prev) =>
+                reconcileSlashState(prev, detected, {
+                  docChanged: u.docChanged,
+                  selectionEmpty: sel.empty,
+                  caret: sel.head,
+                }),
+              )
             }
           }),
         ],
       }),
     })
     viewRef.current = view
-    if (autofocus) view.focus()
+    // Honour the skip flag here too, not just on docKey swaps. This effect runs
+    // on every *mount*, and the editor unmounts whenever an alternate surface
+    // takes the canvas — so without this, returning to an entry from Lamp/Altar/
+    // Ascent stole focus (and popped the iOS keyboard) even though the caller
+    // had asked us not to. The docKey effect can't cover it: on a fresh mount it
+    // sees entryChanged === false and only clears the flag.
+    if (skipAutofocusRef?.current) {
+      skipAutofocusRef.current = false
+    } else if (autofocus) {
+      view.focus()
+    }
 
     const onScroll = () => syncFormatBar(view)
     view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
@@ -458,6 +652,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       // editor when the body arrives after mount — never fight live typing.
       if (entryChanged || (current.trim() === '' && initialDoc.trim() !== '')) {
         view.dispatch({ changes: { from: 0, to: current.length, insert: ensureBlockSeparation(initialDoc) } })
+        rearmNativeTypingAfterPaint(view)
       }
     }
     if (skipAutofocusRef?.current) {
@@ -505,6 +700,54 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onSlashPaletteChange?.(slashState !== null)
   }, [slashState, onSlashPaletteChange])
 
+  // Push marks into the view when they load or change. Between pushes the field
+  // maps its ranges through edits itself, so typing never re-runs this.
+  useEffect(() => {
+    const view = viewRef.current
+    if (view) applyMarks(view, marks ?? [])
+  }, [marks, docKey])
+
+  // Touch: the palette is a bottom sheet, so it covers the lower half of the
+  // editor. Docking it there is what keeps it off the caret — but only if the
+  // caret then moves above it, so scroll the line being written clear of the
+  // sheet. Measured rather than assumed: the sheet's height depends on how many
+  // commands survived the query.
+  const slashOpen = slashState !== null
+  useEffect(() => {
+    if (!slashOpen) return
+    if (!window.matchMedia('(pointer: coarse)').matches) return
+    const host = hostRef.current
+    if (!host || !viewRef.current) return
+    // The scroll only has somewhere to go if the document is taller than the
+    // scrollport, and most entries aren't — so open up room below the last line
+    // first (CSS: `.editor-host[data-slash-sheet]`). Removing it again on close
+    // lets CodeMirror clamp the scroll back.
+    host.dataset.slashSheet = 'true'
+    // A frame, so the sheet has laid out and the padding has taken effect.
+    const raf = requestAnimationFrame(() => {
+      const sheet = document.querySelector('.slash-palette--sheet')
+      const view = viewRef.current
+      if (!sheet || !view) return
+      // How much of the *scroller* the sheet actually hides — not the sheet's
+      // own height, which overshoots (the sheet extends past the editor, over
+      // the command bar) and scrolls the line clean off the top.
+      const hidden = Math.max(
+        0,
+        view.scrollDOM.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top,
+      )
+      view.dispatch({
+        effects: EditorView.scrollIntoView(view.state.selection.main.head, {
+          y: 'end',
+          yMargin: hidden + 12,
+        }),
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf)
+      delete host.dataset.slashSheet
+    }
+  }, [slashOpen, slashState?.query])
+
   function handleSlashSelect(sel: SlashSelection) {
     const view = viewRef.current
     const s = slashState
@@ -525,12 +768,54 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     setSlashState(null)
   }
 
+  /**
+   * Backing out on purpose — the scrim, the grab handle, or Cancel. Unlike
+   * `handleSlashDismiss` (which also fires when the query stops matching
+   * anything, mid-typing), this takes the `/command` text with it: on touch the
+   * only way to close the old popover was to tap elsewhere, which left a literal
+   * `/` sitting in the entry.
+   */
+  function handleSlashCancel() {
+    const view = viewRef.current
+    const s = slashState
+    setSlashState(null)
+    if (!view || !s) return
+    view.dispatch({ changes: { from: s.from, to: s.to, insert: '' }, selection: { anchor: s.from } })
+    view.focus()
+  }
+
+  /** The mark covering the current selection, if the writer already set it aside. */
+  const selectionMark = (() => {
+    if (!formatBar || !marks?.length) return null
+    const { from, to } = formatBar.view.state.selection.main
+    if (from === to) return null
+    const body = formatBar.view.state.doc.toString()
+    return (
+      marks.find((m) => {
+        const at = anchorOf(body, m)
+        // Overlap, not equality: re-selecting "roughly that sentence" should
+        // offer to unmark rather than silently mark a near-duplicate.
+        return at != null && at < to && at + m.quote.length > from
+      }) ?? null
+    )
+  })()
+
+  const handleToggleMark = (view: EditorView) => {
+    const { from, to } = view.state.selection.main
+    if (from === to) return
+    onToggleMark?.(normalizeQuote(view.state.sliceDoc(from, to)), from, selectionMark)
+    // The bar is transient; dismissing it makes the mark feel committed.
+    setFormatBar(null)
+  }
+
   return (
     <>
       <div ref={hostRef} className="editor-host" style={{ height: '100%' }} />
       <SelectionFormatBar
         anchor={linkTarget ? null : formatBar}
         onRequestLink={(view) => requestLinkRef.current(view)}
+        onMark={onToggleMark ? handleToggleMark : undefined}
+        marked={!!selectionMark}
       />
       {linkTarget && (
         <LinkPopover
@@ -556,6 +841,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           state={slashState}
           onSelect={handleSlashSelect}
           onDismiss={handleSlashDismiss}
+          onCancel={handleSlashCancel}
         />
       )}
     </>

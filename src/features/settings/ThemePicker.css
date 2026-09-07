@@ -1,107 +1,135 @@
-.theme-picker {
+/*
+ * The voice picker — one row per voice, not two grids of palettes.
+ *
+ * Each row names itself in its own display face. That is the whole reason the
+ * row is a row and not a swatch: the face is half of what is being chosen, and
+ * a colour chip cannot show it. The two chips are the voice's grounds, day and
+ * night, which is the other half — they travel together now.
+ */
+
+.voice-picker {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 2px;
 }
 
-.theme-picker__row {
+.voice-row {
   display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.theme-picker__row-label {
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  font-weight: 600;
-}
-
-.theme-picker__swatches {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 9px;
-}
-
-.theme-swatch {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  font: inherit;
-  color: var(--text-dim);
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 7px;
-}
-
-.theme-swatch__chip {
-  position: relative;
+  gap: 14px;
   width: 100%;
-  aspect-ratio: 8 / 5;
-  border-radius: 9px;
-  border: 1px solid var(--border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   transition:
-    transform 140ms ease,
-    box-shadow 140ms ease,
-    border-color 140ms ease;
+    background var(--transition),
+    border-color var(--transition);
 }
 
-.theme-swatch__dot {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg-elevated);
+.voice-row:hover {
+  background: var(--bg-hover);
 }
 
-.theme-swatch__name {
-  font-size: 12px;
-  line-height: 1.2;
-  text-align: center;
+.voice-row[data-selected='true'] {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
 }
 
-.theme-swatch:hover .theme-swatch__chip {
-  transform: translateY(-1px);
-  border-color: var(--text-faint);
-}
-
-.theme-swatch[data-selected='true'] .theme-swatch__chip {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.theme-swatch[data-selected='true'] .theme-swatch__name {
-  color: var(--text-bright);
-  font-weight: 600;
-}
-
-/* The palette currently on screen gets a quiet "now" tag. */
-.theme-swatch[data-active='true'] .theme-swatch__name::after {
-  content: ' · now';
-  color: var(--text-faint);
-  font-weight: 400;
-}
-
-.theme-swatch:focus-visible {
-  outline: none;
-}
-.theme-swatch:focus-visible .theme-swatch__chip {
+.voice-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .theme-swatch__chip {
-    transition: none;
-  }
-  .theme-swatch:hover .theme-swatch__chip {
-    transform: none;
-  }
+/* The two grounds, overlapped like a pair of leaves. */
+.voice-row__chips {
+  display: flex;
+  flex: none;
+}
+
+.voice-row__chip {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-row__chip + .voice-row__chip {
+  margin-left: -8px;
+}
+
+.voice-row__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+}
+
+.voice-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/*
+ * Set in the voice's own display face. The per-voice rules below are the only
+ * place in the app that names a family outside themes.css, and they have to be:
+ * the picker must show Vellum's Garamond while the app is still in Dawn's
+ * Fraunces, so it cannot read the live --font-display.
+ */
+.voice-row__name {
+  font-size: 1.02rem;
+  line-height: 1.25;
+  color: var(--text-bright);
+}
+
+.voice-row__name[data-voice='dawn'] {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+}
+.voice-row__name[data-voice='vellum'] {
+  font-family: 'EB Garamond Variable', 'EB Garamond', Garamond, Georgia, serif;
+  font-weight: 600;
+  font-size: 1.12rem;
+}
+.voice-row__name[data-voice='cloister'] {
+  font-family: 'Archivo Variable', 'Archivo', 'Helvetica Neue', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.voice-row__name[data-voice='sabbath'] {
+  font-family: 'Crimson Pro Variable', 'Crimson Pro', Georgia, serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.voice-row__name[data-voice='plainsong'] {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: -0.035em;
+}
+.voice-row__name[data-voice='vigil'] {
+  font-family: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.96rem;
+}
+
+.voice-row__blurb {
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+/* The one on screen right now. */
+.voice-row[data-active='true'][data-selected='true'] .voice-row__blurb::after {
+  content: ' · now';
+  color: var(--text-faint);
 }

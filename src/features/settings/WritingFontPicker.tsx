@@ -3,7 +3,23 @@ import { createPortal } from 'react-dom'
 import type { EditorFont } from '@/lib/settings'
 import { EDITOR_FONT_VARS } from '@/lib/settings'
 
-const FONTS: { value: EditorFont; label: string; sample: string }[] = [
+/** Sample rendering only. 'auto' shows the face the live theme is already using. */
+const FONT_VARS: Record<FontChoice, string> = {
+  ...EDITOR_FONT_VARS,
+  auto: 'var(--font-editor)',
+}
+
+/**
+ * The picker's own option type. `'auto'` is NOT an EditorFont member — that
+ * union is written into `settings.editorFont` and read by a client on the other
+ * release channel, where `EDITOR_FONT_VARS['auto']` would be undefined and
+ * `--font-editor` would resolve to nothing. The choice is carried by the
+ * separate `editorFontAuto` flag instead; this type exists only for the menu.
+ */
+export type FontChoice = EditorFont | 'auto'
+
+const FONTS: { value: FontChoice; label: string; sample: string }[] = [
+  { value: 'auto', label: 'Follow the theme', sample: 'A quiet morning entry' },
   { value: 'serif', label: 'Serif', sample: 'A quiet morning entry' },
   { value: 'literary', label: 'Literary', sample: 'A quiet morning entry' },
   { value: 'typewriter', label: 'Typewriter', sample: 'A quiet morning entry' },
@@ -17,8 +33,8 @@ const FONTS: { value: EditorFont; label: string; sample: string }[] = [
 const MENU_PREFERRED_HEIGHT = 288
 
 interface Props {
-  value: EditorFont
-  onChange: (font: EditorFont) => void
+  value: FontChoice
+  onChange: (font: FontChoice) => void
 }
 
 export function WritingFontPicker({ value, onChange }: Props) {
@@ -91,10 +107,10 @@ export function WritingFontPicker({ value, onChange }: Props) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="font-picker__trigger-inner">
-          <span className="font-picker__label" style={{ fontFamily: EDITOR_FONT_VARS[value] }}>
+          <span className="font-picker__label" style={{ fontFamily: FONT_VARS[value] }}>
             {active.label}
           </span>
-          <span className="font-picker__sample" style={{ fontFamily: EDITOR_FONT_VARS[value] }}>
+          <span className="font-picker__sample" style={{ fontFamily: FONT_VARS[value] }}>
             {active.sample}
           </span>
         </span>
@@ -127,7 +143,7 @@ export function WritingFontPicker({ value, onChange }: Props) {
                   <span className="font-picker__option-head">
                     <span
                       className="font-picker__label"
-                      style={{ fontFamily: EDITOR_FONT_VARS[f.value] }}
+                      style={{ fontFamily: FONT_VARS[f.value] }}
                     >
                       {f.label}
                     </span>
@@ -135,7 +151,7 @@ export function WritingFontPicker({ value, onChange }: Props) {
                   </span>
                   <span
                     className="font-picker__sample"
-                    style={{ fontFamily: EDITOR_FONT_VARS[f.value] }}
+                    style={{ fontFamily: FONT_VARS[f.value] }}
                   >
                     {f.sample}
                   </span>

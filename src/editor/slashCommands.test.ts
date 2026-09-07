@@ -11,6 +11,7 @@ import {
   slashColumns,
   type SlashItem,
 } from './slashCommands'
+import { LIVE_MARK_KINDS, MARK_KINDS } from '@/lib/markKinds'
 
 function applyNumbered(doc: string, at?: number): string {
   const state = EditorState.create({
@@ -35,12 +36,29 @@ describe('slashColumns', () => {
 })
 
 describe('filterSlashItems', () => {
-  it('returns every command split by column when the query is empty', () => {
+  // Counted against the kind table rather than a literal: a LIVE kind the parser
+  // recognises but the palette hides is a kind nobody can make — and a RETIRED
+  // one the palette offers is a marking no surface can find again. `markKinds.ts`
+  // states the rule; this is the assertion of it.
+  it('offers every live kind and no retired one, plus the captures that are not kinds', () => {
     const { capture, format } = filterSlashItems('')
-    expect(capture.length).toBe(5)
+    const ids = capture.map((i) => i.selection.id)
+    for (const kind of LIVE_MARK_KINDS) expect(ids).toContain(kind.command)
+    for (const kind of MARK_KINDS.filter((k) => k.retired)) {
+      expect(ids).not.toContain(kind.command)
+    }
+    expect(ids).toEqual(expect.arrayContaining(['ritual', 'image', 'emoji']))
     expect(format.length).toBeGreaterThan(0)
     expect(capture.every((i) => i.column === 'capture')).toBe(true)
     expect(format.every((i) => i.column === 'format')).toBe(true)
+  })
+
+  it('hides emoji on touch-primary devices', () => {
+    const { capture } = filterSlashItems('', { touchPrimary: true })
+    expect(capture.map((i) => i.selection.id)).not.toContain('emoji')
+    expect(capture.map((i) => i.selection.id)).toEqual(
+      expect.arrayContaining(['ritual', 'image']),
+    )
   })
 
   it('matches spiritual commands by keyword prefix', () => {

@@ -21,6 +21,7 @@ name forever.
 | **Altar** | `altar` | ⌘4 | Matters returned to, and what came of them. **Not "Covenant"** — that rename was reverted unshipped (D-009). |
 | **Concordance** | `concordance` | — | Per-user vocabulary engine. Names and spellings only, never moods. |
 | **Threads & Ropes** | `threadsRopes` | — | Flagged off, unshipped. Status open (D-005). |
+| **heartIQ** | `noticing` | — | The journal proposing markings in pencil. Built, and deliberately not on the writing surface — waiting on a reading surface to live in (D-026). |
 
 **Retired:** *Covenant* (Altar, reverted 2026-07-26) · *Reflections* (the old UI Ascent
 replaced; survives only as an internal key).
@@ -67,6 +68,8 @@ means *God met you here*, never *you did well here*. And — from the abandoned 
 
 | Term | Means |
 |---|---|
+| **heartIQ** | The journal proposing markings in pencil. Internal key stays `noticing` (setting, API route, every call site). Nothing it proposes is a marking until the writer keeps it. Belongs to reading, never to the writing surface (D-026). ⚠️ The name is a deliberate override of the `score` ban below. |
+| **The `+`** | The one insert door in the editor — left gutter, every line, opens the same palette `/` opens. A capture kind picked from it MARKS a line that has words and INSERTS on one that doesn't (D-026). |
 | `/pray` | Marks a prayer inline; feeds Altar |
 | `/sense` | Marks something sensed or discerned; feeds Altar |
 | `/scripture` | Captures a reference; feeds Lamp |

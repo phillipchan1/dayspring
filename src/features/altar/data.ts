@@ -10,6 +10,7 @@
  */
 
 import { requireSupabase } from '@/lib/supabase'
+import { isListingPreview } from '@/lib/previewMode'
 import {
   buildBands, bandExcerpt, reframeFor,
   type RawThread, type RawMember,
@@ -125,6 +126,14 @@ export function buildAltarStrands(src: AltarSource, windowStartMs: number): Alta
 /** Fetch all declared threads and their member lines (all-time). Heavy + paginated
  *  — called once per surface visit; windowing is a pure client-side derivation. */
 export async function loadAltarSource(): Promise<AltarSource> {
+  // App Store listing preview — see the matching note in features/ascent/data.
+  // Kept inline under a literal `import.meta.env.DEV` so Vite drops the branch
+  // and the dynamic import with it. Needed because AltarView's load rejection
+  // sets loadError, which wins the render.
+  if (import.meta.env.DEV && isListingPreview()) {
+    return (await import('@/features/appstore/mock')).MOCK_ALTAR
+  }
+
   const sb = requireSupabase()
 
   // All declared threads, paginated past the 1000-row cap.

@@ -16,6 +16,11 @@ Before proposing features, writing user-facing copy, or scoping product work, re
 - **[PERSONAS.md](docs/product/PERSONAS.md)** — who it's for (currently **hypotheses**, not findings)
 - **[BRANDSCRIPT.md](docs/product/BRANDSCRIPT.md)** — how we talk; the words we never use
 
+The team's Notion teamspace holds the Customer Feedback Backlog and Customer Discovery
+Interviews databases — check both before proposing a feature or citing a persona as
+validated. See [`docs/product/README.md` § External references (Notion)](docs/product/README.md)
+for links; read via the Notion MCP connector when attached.
+
 Non-negotiables that come up constantly: **light, not verdict** (never score someone's
 spiritual life) · **never sermonize, never gamify** (no streaks, no badges, no guilt) ·
 **grounded, or silent** (every claim traces to something the user actually wrote —
@@ -66,7 +71,18 @@ The endpoint URL is baked into each binary at build time — that's what separat
 
 - `.github/workflows/release.yml` — alpha, push-triggered on master, aarch64 only
 - `.github/workflows/release-stable.yml` — stable, push-triggered on `stable` + Mon/Thu schedule, universal binary
+- `.github/workflows/ios-release.yml` — iOS TestFlight, push-triggered on master (see `docs/IOS.md`)
 
 ## Vercel
 
 Change production branch from `master` → `stable` in the Vercel dashboard (Settings → Git → Production Branch) so the web app matches the desktop channels.
+
+## Marketing / help site
+
+Lives in `site/` (Astro). Separate Vercel project (`dayspring-site`), Root
+Directory `site`, domain `www.usedayspring.app`. Do not fold it into the app
+SPA or the root `vercel.json`.
+
+```bash
+npm run dev:site    # http://localhost:4321
+```

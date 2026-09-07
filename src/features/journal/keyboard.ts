@@ -8,11 +8,6 @@ export function isInEditor(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('.cm-editor') != null
 }
 
-/** True when focus is in the entries sidebar list. */
-export function isInEntryList(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest('.entry-list') != null
-}
-
 /**
  * Skip shortcuts while typing in form fields, except the CodeMirror surface
  * (contenteditable) where mod-key shortcuts should still apply.
@@ -31,11 +26,6 @@ export function isTypingContext(target: EventTarget | null): boolean {
   return shouldIgnoreTarget(target) || isInEditor(target)
 }
 
-/** True when focus is in the entry search field. */
-export function isInEntrySearch(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest('[data-entry-search]') != null
-}
-
 /**
  * True when the editor has a live text selection. ⌘K is overloaded — it inserts
  * a link when text is selected, and opens Find/Ask otherwise — so the selection
@@ -48,10 +38,4 @@ export function hasEditorSelection(): boolean {
   const node = sel.anchorNode
   const el = node instanceof HTMLElement ? node : node?.parentElement
   return el?.closest('.cm-editor') != null
-}
-
-export function focusEntrySearch(): void {
-  const el = document.querySelector<HTMLInputElement>('[data-entry-search]')
-  el?.focus()
-  el?.select()
 }

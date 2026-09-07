@@ -20,6 +20,16 @@ function highlightPrintCss(): string {
   return `  mark.hl { padding: 0 .12em; border-radius: .18em; color: inherit; }
 ${rules}
   u.ul { text-decoration-thickness: .08em; text-underline-offset: .16em; }
+  hr {
+    border: 0;
+    height: 2.2em;
+    margin: 0.4em 0;
+    background:
+      linear-gradient(90deg, transparent, #888) no-repeat,
+      linear-gradient(90deg, #888, transparent) no-repeat;
+    background-size: calc(50% - 0.7em) 1px;
+    background-position: left center, right center;
+  }
   @media print {
     mark.hl { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }`

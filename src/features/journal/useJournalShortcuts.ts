@@ -12,21 +12,26 @@ import { isTauri } from '@/lib/platform'
 export interface JournalShortcutActions {
   onNew: () => void
   onSave: () => void
-  onToggleEntries: () => void
+  /** ⌘2 — Pages, the archive itself. */
+  onPages: () => void
   onLookBack: () => void
   onScripture: () => void
   onAltar: () => void
   onOpenSettings: () => void
-  /** ⌘K — Find (instant, local) or Ask (the Well). */
+  /** ⌘K — Find (instant, local), or Ask (which lights the wall). */
   onFindOrAsk: () => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
-  /** Increase editor font size (⌘= or ⌘+). */
-  onFontSizeUp: () => void
-  /** Decrease editor font size (⌘-). */
-  onFontSizeDown: () => void
-  /** Reset editor font size to default (⌘0). */
-  onFontSizeReset: () => void
+  /**
+   * ⌘= / ⌘− / ⌘0 — "bigger", "smaller", "back to normal".
+   *
+   * What that means depends on what's on screen: editor font size while
+   * writing, how close you're standing while on the Pages wall. The shortcut
+   * layer doesn't need to know which; JournalScreen resolves it.
+   */
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onZoomReset: () => void
   /** Focus mode consumes Esc first (handled in useFocusMode). */
   focusActive: boolean
   /** When true, only Esc (handled elsewhere) should run. */
@@ -36,23 +41,23 @@ export interface JournalShortcutActions {
 /**
  * Global journal shortcuts (capture phase so they win over the browser and CM).
  *
- * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–4 rail · ⌘, settings
+ * Native: ⌘N new · Browser: C new (when not typing) · ⌘1–5 rail · ⌘, settings
  * ⌘S save · ⌘K search · ⌘⏎ focus
  */
 export function useJournalShortcuts(actions: JournalShortcutActions): void {
   const {
     onNew,
     onSave,
-    onToggleEntries,
+    onPages,
     onLookBack,
     onScripture,
     onAltar,
     onOpenSettings,
     onFindOrAsk,
     onToggleRailLabels,
-    onFontSizeUp,
-    onFontSizeDown,
-    onFontSizeReset,
+    onZoomIn,
+    onZoomOut,
+    onZoomReset,
     focusActive,
     settingsOpen,
   } = actions
@@ -105,19 +110,19 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
 
       if (key === '=' || key === '+') {
         e.preventDefault()
-        onFontSizeUp()
+        onZoomIn()
         return
       }
 
       if (key === '-') {
         e.preventDefault()
-        onFontSizeDown()
+        onZoomOut()
         return
       }
 
       if (key === '0') {
         e.preventDefault()
-        onFontSizeReset()
+        onZoomReset()
         return
       }
 
@@ -127,12 +132,20 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
         return
       }
 
-      if (key >= '1' && key <= '4' && !e.shiftKey) {
+      /*
+       * The rail, numbered as it reads: one item under Write, four under
+       * Return. Write holding a single item looks thin and is the correct
+       * statement — writing really is one act, and everything else is
+       * returning (SURFACES). Pages joins Return on its own argument: the
+       * other three interpret, and none of them hands back the archive.
+       */
+      if (key >= '1' && key <= '5' && !e.shiftKey) {
         e.preventDefault()
-        if (key === '1') onToggleEntries()
-        else if (key === '2') onLookBack()
-        else if (key === '3') onScripture()
-        else if (key === '4') onAltar()
+        if (key === '1') onNew()
+        else if (key === '2') onPages()
+        else if (key === '3') onLookBack()
+        else if (key === '4') onScripture()
+        else if (key === '5') onAltar()
         return
       }
 
@@ -151,16 +164,16 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
   }, [
     onNew,
     onSave,
-    onToggleEntries,
+    onPages,
     onLookBack,
     onScripture,
     onAltar,
     onOpenSettings,
     onFindOrAsk,
     onToggleRailLabels,
-    onFontSizeUp,
-    onFontSizeDown,
-    onFontSizeReset,
+    onZoomIn,
+    onZoomOut,
+    onZoomReset,
     focusActive,
     settingsOpen,
   ])

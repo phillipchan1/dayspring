@@ -1,0 +1,81 @@
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.tg{font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;color:#7d8794;background:transparent;border:0;padding:6px 14px;border-radius:7px;cursor:pointer;transition:color .25s,background .25s}
+.tg:hover{color:#c8ccd2}
+.tg.active{color:#e0a951;background:rgba(224,169,81,.10)}
+.scene{transition:opacity .7s ease}
+#kicker,#headline,#sub{transition:opacity .4s ease}
+</style>
+<h2 class="sr-only">Interactive mockup: a journaling reflection screen whose faint background illustration gains altitude — from inside the trees at the week view to a mountain vista at the year view — as you change the time horizon.</h2>
+<div style="padding:.5rem 0;">
+<div style="background:#14161a;border:0.5px solid rgba(255,255,255,.08);border-radius:var(--border-radius-lg);overflow:hidden;max-width:600px;margin:0 auto;">
+  <div style="display:flex;gap:2px;padding:12px 14px;border-bottom:0.5px solid rgba(255,255,255,.06);">
+    <button class="tg active" data-h="week">week</button>
+    <button class="tg" data-h="month">month</button>
+    <button class="tg" data-h="quarter">quarter</button>
+    <button class="tg" data-h="year">year</button>
+  </div>
+  <div style="position:relative;height:340px;">
+    <svg viewBox="0 0 600 340" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;opacity:.6" aria-hidden="true">
+      <g id="sc-week" class="scene">
+        <rect x="0" y="0" width="600" height="340" fill="#1a232e"/>
+        <polygon points="0,250 600,250 600,340 0,340" fill="#10151b"/>
+        <ellipse cx="120" cy="40" rx="150" ry="80" fill="#0c1015"/>
+        <ellipse cx="470" cy="30" rx="170" ry="80" fill="#0c1015"/>
+        <polygon points="40,0 86,0 78,340 48,340" fill="#0d1116"/>
+        <polygon points="205,0 255,0 262,340 198,340" fill="#0a0e12"/>
+        <polygon points="372,0 408,0 402,340 366,340" fill="#0d1116"/>
+        <polygon points="498,0 556,0 566,340 488,340" fill="#090d11"/>
+      </g>
+      <g id="sc-month" class="scene" style="opacity:0">
+        <rect x="0" y="0" width="600" height="340" fill="#1d2935"/>
+        <polygon points="0,205 230,150 430,168 600,142 600,235 0,235" fill="#222e3a"/>
+        <polygon points="0,340 600,340 600,210 0,235" fill="#131922"/>
+        <polygon points="0,0 0,205 70,150 130,200 150,90 40,0" fill="#0e131a"/>
+        <polygon points="600,0 600,200 520,150 470,205 450,70 560,0" fill="#0e131a"/>
+      </g>
+      <g id="sc-quarter" class="scene" style="opacity:0">
+        <rect x="0" y="0" width="600" height="340" fill="#1f2c39"/>
+        <rect x="0" y="146" width="600" height="26" fill="#d9a441" opacity=".10"/>
+        <polygon points="0,150 180,96 340,140 520,104 600,134 600,180 0,180" fill="#283643"/>
+        <polygon points="0,176 150,150 320,178 470,156 600,176 600,205 0,205" fill="#324250"/>
+        <polygon points="0,196 40,182 90,200 140,184 200,202 260,186 330,204 400,188 470,206 540,190 600,204 600,225 0,225" fill="#0f141b"/>
+        <polygon points="0,225 0,340 360,340 200,228 60,212" fill="#0b0f14"/>
+      </g>
+      <g id="sc-year" class="scene" style="opacity:0">
+        <rect x="0" y="0" width="600" height="340" fill="#202d3b"/>
+        <ellipse cx="300" cy="168" rx="220" ry="44" fill="#d9a441" opacity=".14"/>
+        <polygon points="0,150 140,108 300,138 460,104 600,132 600,168 0,168" fill="#41525f"/>
+        <polygon points="0,170 120,138 280,166 430,140 600,166 600,196 0,196" fill="#33424f"/>
+        <polygon points="0,196 160,166 330,196 480,170 600,194 600,232 0,232" fill="#24313d"/>
+        <polygon points="0,236 0,340 600,340 600,224 380,200 200,228 80,212" fill="#141d27"/>
+        <polygon points="0,300 0,340 240,340 110,296" fill="#0b1118"/>
+      </g>
+    </svg>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:170px;background:rgba(15,17,21,.78)"></div>
+    <div style="position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:26px 28px;font-family:var(--font-mono)">
+      <div id="kicker" style="font-size:12px;letter-spacing:.10em;color:#e0a951;margin-bottom:10px">this week · sabbath</div>
+      <div id="headline" style="font-size:21px;line-height:1.3;color:#e8ebef;margin-bottom:10px">what's still live in you</div>
+      <div id="sub" style="font-size:13px;line-height:1.5;color:#8b93a0;max-width:430px">a place to stop. the questions the week left open, not a tidy summary.</div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const data={
+ week:{k:"this week · sabbath",h:"what's still live in you",s:"a place to stop. the questions the week left open, not a tidy summary."},
+ month:{k:"last month · a letter",h:"here's what changed in you",s:"not a report. a letter to yourself, in your own words pulled forward."},
+ quarter:{k:"this quarter · retreat",h:"the arc you can't see from inside a week",s:"recurring themes, and the one tension you keep circling back to."},
+ year:{k:"this year · the mirror",h:"who you were a year ago — and who you are now",s:"the dayspring. measured backward against your former self, never against the ideal."}
+};
+const order=["week","month","quarter","year"];
+const scenes={};order.forEach(o=>scenes[o]=document.getElementById("sc-"+o));
+const K=document.getElementById("kicker"),H=document.getElementById("headline"),S=document.getElementById("sub");
+function set(h){
+ order.forEach(o=>scenes[o].style.opacity=(o===h?1:0));
+ document.querySelectorAll(".tg").forEach(b=>b.classList.toggle("active",b.dataset.h===h));
+ K.style.opacity=0;H.style.opacity=0;S.style.opacity=0;
+ setTimeout(()=>{const d=data[h];K.textContent=d.k;H.textContent=d.h;S.textContent=d.s;K.style.opacity=1;H.style.opacity=1;S.style.opacity=1;},220);
+}
+document.querySelectorAll(".tg").forEach(b=>b.addEventListener("click",()=>set(b.dataset.h)));
+</script>

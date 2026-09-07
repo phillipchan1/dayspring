@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { isAuthInvalidation, forceReauth } from '@/lib/authError'
+import { rememberAuthProvider } from '@/lib/lastAuthProvider'
 
 /**
  * Validate a locally-cached session against the server. getSession() only reads
@@ -44,6 +45,11 @@ export function useSession(): SessionState {
       data: { subscription },
     } = sb.auth.onAuthStateChange((event, next) => {
       setSession(next)
+
+      // Remember which button worked, so the sign-in screen can remind this
+      // device next time instead of letting it start a second account.
+      // app_metadata.provider is the most recent sign-in's provider.
+      if (next) rememberAuthProvider(next.user?.app_metadata?.provider)
 
       if (event !== 'INITIAL_SESSION') return
 

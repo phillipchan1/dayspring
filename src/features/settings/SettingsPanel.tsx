@@ -1,20 +1,32 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
-import { signOut } from '@/lib/auth'
+import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
+import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
+import { HELP_URL, HELP_CONTACT_URL } from '@/lib/support'
 import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import { EDITOR_FONT_VARS, FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
-import { fetchPortalUrl, isAppleManaged, trialDaysRemaining } from '@/lib/subscription'
+import {
+  billingDestination,
+  fetchPortalUrl,
+  hasBillingRelationship,
+  isAppleRelationship,
+  purchaseRoute,
+  startCheckout,
+  trialDaysRemaining,
+} from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
+  describeRestore,
   fetchAppleProducts,
   isAppleIapAvailable,
   manageAppleSubscriptions,
@@ -87,27 +99,15 @@ export function SettingsPanel({
   const visibleTabs = isMobile ? TABS.filter((t) => t.id !== 'shortcuts') : TABS
   const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0]!
 
-  // Swipe-down-to-dismiss for the mobile bottom sheet. It slid up to open, so a
-  // pull down is the natural way back out. Drag tracks the finger; release past a
-  // threshold closes, otherwise it snaps home. Bound to the grabber + header only,
-  // so scrolling the tab row or body never starts a dismiss.
-  const [dragY, setDragY] = useState(0)
-  const dragStart = useRef<number | null>(null)
-  const DISMISS_THRESHOLD = 110
-  function onDragStart(e: React.TouchEvent) {
-    dragStart.current = e.touches[0]?.clientY ?? null
-  }
-  function onDragMove(e: React.TouchEvent) {
-    if (dragStart.current == null) return
-    const y = e.touches[0]?.clientY ?? dragStart.current
-    setDragY(Math.max(0, y - dragStart.current))
-  }
-  function onDragEnd() {
-    if (dragStart.current == null) return
-    dragStart.current = null
-    if (dragY > DISMISS_THRESHOLD) onClose()
-    else setDragY(0)
-  }
+  // Drag-to-dismiss for the mobile bottom sheet. It slid up to open, so a pull
+  // down is the way back out — and the whole sheet is the handle, not just the
+  // grabber, which was a target most thumbs never found. useSheetDismiss yields
+  // the gesture back to the body whenever that body still has somewhere to
+  // scroll, so the two never fight.
+  const { handlers: sheetDrag, dragY, dragging } = useSheetDismiss({
+    onDismiss: onClose,
+    enabled: isMobile,
+  })
 
   return (
     <div className="scrim settings-scrim glass-scrim" onClick={onClose}>
@@ -117,9 +117,15 @@ export function SettingsPanel({
         aria-modal="true"
         aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
+        {...sheetDrag}
         style={
-          dragY
-            ? { transform: `translateY(${dragY}px)`, transition: 'none' }
+          dragging || dragY
+            ? {
+                transform: `translateY(${dragY}px)`,
+                // Suppressed only while the finger is down; on release the
+                // class's transition returns and snaps the sheet home.
+                ...(dragging ? { transition: 'none' } : {}),
+              }
             : undefined
         }
       >
@@ -130,9 +136,6 @@ export function SettingsPanel({
             className="settings-grabber"
             aria-label="Close settings"
             onClick={onClose}
-            onTouchStart={onDragStart}
-            onTouchMove={onDragMove}
-            onTouchEnd={onDragEnd}
           >
             <span className="settings-grabber__bar" aria-hidden />
           </button>
@@ -161,7 +164,10 @@ export function SettingsPanel({
             </button>
           </header>
 
-          <div key={tab} className="settings-main__body">
+          {/* data-sheet-scroll: useSheetDismiss checks this element's scrollTop
+              to decide whether a downward drag belongs to the scroll or to the
+              sheet. */}
+          <div key={tab} className="settings-main__body" data-sheet-scroll>
             {tab === 'appearance' && <AppearanceTab settings={settings} update={update} />}
             {tab === 'writing' && <WritingTab settings={settings} update={update} />}
             {tab === 'import' && (
@@ -188,23 +194,39 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
       <Field label="Mode" hint="Match your system, or lock it light or dark.">
         <AppearanceToggle appearance={settings.appearance} onChange={(appearance) => update({ appearance })} />
       </Field>
-      <Field label="Theme" hint="Your light and dark palettes. Pick one to switch to it now.">
+      <Field label="Theme" hint="Palette, typeface and ornament, day and night. Pick one to switch to it now.">
         <ThemePicker settings={settings} update={update} active={active} />
       </Field>
-      <Field label="Writing font" hint="The face you read and write in.">
-        <WritingFontPicker value={settings.editorFont} onChange={(editorFont) => update({ editorFont })} />
-      </Field>
+      {/*
+        The font picker is deliberately behind a disclosure now. Theme and font
+        used to be two equal choices, which made nine palettes times six faces
+        of reachable combinations and left the reader to find the good ones.
+        The theme brings a face that was chosen with its colours; this is the
+        door out of that for anyone who wants it, not the front door.
+      */}
+      <details className="settings-disclosure">
+        <summary className="settings-disclosure__summary">Advanced typography</summary>
+        <div className="settings-disclosure__body">
+          <Field
+            label="Writing font"
+            hint="Overrides the face your theme sets. Everything else about the theme stays."
+          >
+            <WritingFontPicker
+              value={settings.editorFontAuto ? 'auto' : settings.editorFont}
+              onChange={(choice) =>
+                choice === 'auto'
+                  ? update({ editorFontAuto: true })
+                  : update({ editorFontAuto: false, editorFont: choice })
+              }
+            />
+          </Field>
+        </div>
+      </details>
       <Toggle
         label="Navigation labels"
         hint="Show names beside the sidebar icons. Press [ to toggle."
         checked={settings.railLabels}
         onChange={(railLabels) => update({ railLabels })}
-      />
-      <Toggle
-        label="Show entry preview"
-        hint="Display a short excerpt below each entry title in the list."
-        checked={settings.showEntryPreview}
-        onChange={(showEntryPreview) => update({ showEntryPreview })}
       />
     </div>
   )
@@ -271,6 +293,12 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         checked={!settings.skipRitualPreview}
         onChange={(v) => update({ skipRitualPreview: !v })}
       />
+      <Toggle
+        label="Preview the pages either side"
+        hint="Reading a page shows a sliver of the pages before and after it. Off leaves the page on its own — the arrows, ← / →, and swiping still turn it either way."
+        checked={settings.readerLeaves}
+        onChange={(v) => update({ readerLeaves: v })}
+      />
       <div className="settings-divider" />
       <Toggle
         label="Typewriter scrolling"
@@ -316,6 +344,10 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
   // other instance and the two tabs are never mounted at once.
   const { subscription } = useSubscription()
   const [showConcordance, setShowConcordance] = useState(false)
+  // Two-step sign-out. Signing out is one tap from being locked out of your own
+  // journal until you can get back to an email inbox — too easy to hit by
+  // accident in a danger zone whose other button only resets preferences.
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
   return (
     <div className="settings-about">
       {/* App identity: title + tagline + metadata */}
@@ -337,6 +369,36 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <dd>Private to you · synced</dd>
           </div>
         </dl>
+      </div>
+
+      {/* Help — opens the support site. Deliberately above Updates: someone in
+          Settings looking for an answer should meet this before a changelog. */}
+      <div className="settings-about__section">
+        <div className="settings-about__section-title">Help</div>
+        <div className="settings-about__group">
+          <div className="settings-about__row">
+            <span className="settings-field__label">Guides</span>
+            <a
+              className="btn btn--ghost"
+              href={HELP_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              How to use Dayspring
+            </a>
+          </div>
+          <div className="settings-about__row">
+            <span className="settings-field__label">Questions</span>
+            <a
+              className="btn btn--ghost"
+              href={HELP_CONTACT_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Get in touch
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Updates — desktop: update checker + history; web/iOS: history only
@@ -361,6 +423,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <span className="settings-field__label">Email</span>
             {userEmail && <span className="settings-field__value">{userEmail}</span>}
           </div>
+          <SignInMethods />
           <div className="settings-about__row">
             <span className="settings-field__label">Welcome</span>
             <button
@@ -421,15 +484,121 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
       {/* Danger zone: account actions */}
       <div className="settings-about__danger">
         <div className="settings-about__danger-title">Account Actions</div>
-        <button className="btn btn--ghost" onClick={() => void signOut()}>
-          Sign out
-        </button>
+        {confirmSignOut ? (
+          <div className="settings-about__confirm">
+            <span className="settings-about__confirm-text">Sign out of {userEmail}?</span>
+            <div className="settings-about__confirm-actions">
+              <button className="btn btn--danger" onClick={() => void signOut()}>
+                Sign out
+              </button>
+              <button className="btn btn--ghost" onClick={() => setConfirmSignOut(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn--ghost" onClick={() => setConfirmSignOut(true)}>
+            Sign out
+          </button>
+        )}
         <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
           Reset all settings to defaults
         </button>
         <DeleteAccountFlow userEmail={userEmail} subscription={subscription} />
       </div>
     </div>
+  )
+}
+
+/**
+ * Which sign-in buttons reach this account, and a way to attach the other one.
+ *
+ * Without this, a user who signed up with Google and later taps "Continue with
+ * Apple" gets a second, empty account. Supabase merges the two automatically
+ * only when both providers report the same verified email — and Apple's "Hide
+ * My Email" hands out a relay address that never matches, so the common case is
+ * the one that silently splits. Linking goes through the current session rather
+ * than the email, so it works either way.
+ *
+ * Stays silent when it can't help: no session, or a project without manual
+ * linking enabled, renders nothing rather than a dead button.
+ */
+function SignInMethods() {
+  const [linked, setLinked] = useState<AuthProvider[] | null>(null)
+  const [busy, setBusy] = useState<AuthProvider | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      void listSignInMethods()
+        .then((providers) => alive && setLinked(providers))
+        .catch(() => alive && setLinked(null))
+    }
+    load()
+    // Native opens the provider in the system browser, so we come back to an
+    // already-mounted panel — re-read on return instead of showing stale state.
+    // Clearing busy here is what un-sticks the button when they backed out.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (alive) setBusy(null)
+      load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      alive = false
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
+  if (!linked?.length) return null
+
+  const missing = SIGN_IN_PROVIDERS.filter((p) => !linked.includes(p))
+
+  async function connect(provider: AuthProvider) {
+    setError(null)
+    setBusy(provider)
+    try {
+      await linkProvider(provider)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect that account.')
+      setBusy(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="settings-about__row">
+        <span className="settings-field__label">Sign-in</span>
+        <span className="settings-field__value">
+          {linked.map((p) => PROVIDER_LABEL[p]).join(' · ')}
+        </span>
+      </div>
+      {missing.map((provider) => (
+        <div className="settings-about__row" key={provider}>
+          <span className="settings-field__label">Add {PROVIDER_LABEL[provider]}</span>
+          <button
+            className="btn btn--ghost"
+            onClick={() => void connect(provider)}
+            disabled={busy !== null}
+          >
+            {busy === provider ? 'Opening…' : 'Connect'}
+          </button>
+        </div>
+      ))}
+      {missing.length > 0 && (
+        <div className="settings-about__row">
+          <span className="settings-field__hint">
+            Connect both and either button opens this same journal.
+          </span>
+        </div>
+      )}
+      {error && (
+        <div className="settings-about__row">
+          <span className="settings-field__hint">{error}</span>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -607,9 +776,22 @@ function Slider({
   )
 }
 
-function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  /** For a switch that depends on another one being on. */
+  disabled?: boolean
+}) {
   return (
-    <label className="settings-toggle">
+    <label className={`settings-toggle${disabled ? ' settings-toggle--disabled' : ''}`}>
       <span>
         <span className="settings-field__label">{label}</span>
         {hint && <span className="settings-toggle__hint">{hint}</span>}
@@ -619,6 +801,8 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        aria-disabled={disabled}
+        disabled={disabled}
         className="switch"
         data-on={checked}
         onClick={() => onChange(!checked)}
@@ -635,9 +819,15 @@ function BillingTab() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
   const [iapLoading, setIapLoading] = useState<'annual' | 'monthly' | 'restore' | null>(null)
+  /** Non-failure feedback, e.g. a restore that found only expired purchases. */
+  const [notice, setNotice] = useState<string | null>(null)
 
-  const appleManaged = isAppleManaged(subscription)
   const onIos = isAppleIapAvailable()
+  // Two different questions, and conflating them is what stranded lapsed Apple
+  // subscribers on the web: where the relationship is *managed* (survives
+  // cancellation) vs. where a new purchase has to *go*.
+  const appleRelationship = isAppleRelationship(subscription)
+  const route = purchaseRoute(subscription, { onAppleDevice: onIos })
 
   // StoreKit-supplied, storefront-correct prices. Empty until Apple answers;
   // the plan cards render the cadence rather than a wrong figure until then.
@@ -670,16 +860,19 @@ function BillingTab() {
     setPortalError(null)
     setPortalLoading(true)
     try {
-      if (onIos) {
-        await manageAppleSubscriptions()
-        return
+      // Routed by who bills the account, not by the device — a Stripe
+      // subscriber on an iPhone still manages in Stripe. See billingDestination.
+      switch (billingDestination(subscription, { onAppleDevice: onIos })) {
+        case 'apple-native':
+          await manageAppleSubscriptions()
+          return
+        case 'apple-web':
+          await openExternal('https://apps.apple.com/account/subscriptions')
+          return
+        case 'stripe':
+          await openExternal(await fetchPortalUrl())
+          return
       }
-      if (appleManaged) {
-        await openExternal('https://apps.apple.com/account/subscriptions')
-        return
-      }
-      const url = await fetchPortalUrl()
-      await openExternal(url)
     } catch (e) {
       setPortalError(e instanceof Error ? e.message : 'Could not open billing portal.')
     } finally {
@@ -691,9 +884,11 @@ function BillingTab() {
     setPortalError(null)
     setIapLoading(plan)
     try {
-      const outcome = await purchaseApple(plan)
-      if (outcome === 'purchased') await refetch()
-      else if (outcome === 'pending') {
+      const { outcome, warning } = await purchaseApple(plan)
+      if (outcome === 'purchased') {
+        if (warning) setNotice(warning)
+        await refetch()
+      } else if (outcome === 'pending') {
         setPortalError('Purchase is pending approval.')
       }
     } catch (e) {
@@ -705,14 +900,32 @@ function BillingTab() {
 
   async function handleAppleRestore() {
     setPortalError(null)
+    setNotice(null)
     setIapLoading('restore')
     try {
-      const n = await restoreApplePurchases()
-      if (n === 0) setPortalError('No purchases found for this Apple ID.')
-      else await refetch()
+      const outcome = await restoreApplePurchases()
+      // Reconcile regardless: a non-entitling restore can still correct the
+      // recorded plan, and the server is the authority on what happens next.
+      await refetch()
+      const message = describeRestore(outcome)
+      if (message?.kind === 'error') setPortalError(message.text)
+      else if (message) setNotice(message.text)
     } catch (e) {
       setPortalError(e instanceof Error ? e.message : 'Could not restore purchases.')
     } finally {
+      setIapLoading(null)
+    }
+  }
+
+  /** Web/desktop purchase. Only reachable when Apple isn't still charging them
+   *  — see purchaseRoute; the server enforces the same rule. */
+  async function handleStripePurchase(plan: 'annual' | 'monthly') {
+    setPortalError(null)
+    setIapLoading(plan)
+    try {
+      await openExternal(await startCheckout(plan), { sameTab: true })
+    } catch (e) {
+      setPortalError(e instanceof Error ? e.message : 'Could not open checkout.')
       setIapLoading(null)
     }
   }
@@ -740,18 +953,26 @@ function BillingTab() {
     active:   {
       label:  'Active',
       color:  'var(--success)',
-      detail: appleManaged
+      // Always name who takes the money. It's the one fact that tells you where
+      // to go to cancel, and getting it wrong is what sent Stripe subscribers
+      // hunting through an empty App Store subscription list.
+      detail: appleRelationship
         ? 'Billed through the App Store.'
-        : 'Your subscription is current.',
+        : subscription?.plan_source === 'stripe'
+          ? 'Billed on the web through Stripe.'
+          : 'Your subscription is current.',
     },
     cancelled:{ label: 'Cancelled',        color: 'var(--text-faint)', detail: 'Your subscription has ended.' },
     past_due: { label: 'Payment issue',    color: 'var(--danger)',     detail: 'Update your payment method to restore access.' },
   }[plan] ?? { label: plan, color: 'var(--text-faint)', detail: null }
 
-  const hasPortal = plan !== 'none'
+  // Not just `plan !== 'none'`: the app-managed first-run trial has no card and
+  // no customer at either store, so a portal link would 404 on both paths.
+  const hasPortal = hasBillingRelationship(subscription)
   const showPlans = plan === 'none' || plan === 'cancelled'
-  // Never offer Stripe purchase UI on iOS, or for Apple-managed accounts.
-  const canStripePurchase = !onIos && !appleManaged
+  // Never offer Stripe purchase UI on iOS (App Store rules), nor while Apple may
+  // still charge this account (double billing).
+  const canStripePurchase = route === 'stripe'
 
   return (
     <div className="settings-stack">
@@ -790,7 +1011,7 @@ function BillingTab() {
             <div className="settings-field__head">
               <span className="settings-field__label">Manage billing</span>
               <span className="settings-field__hint">
-                {appleManaged || onIos
+                {appleRelationship
                   ? 'Update your payment method, switch plans, or cancel in the App Store.'
                   : 'Update your payment method, switch plans, or cancel via Stripe.'}
               </span>
@@ -799,7 +1020,7 @@ function BillingTab() {
               <button className="btn" onClick={() => void openPortal()} disabled={portalLoading}>
                 {portalLoading
                   ? 'Opening…'
-                  : appleManaged || onIos
+                  : appleRelationship
                     ? 'Manage in App Store →'
                     : 'Open billing portal →'}
               </button>
@@ -846,14 +1067,24 @@ function BillingTab() {
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>{p.label}</div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>{p.price}</div>
                   <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>{p.note}</div>
-                  {onIos && (
+                  {/* Web used to render these cards with no button at all, so a
+                      cancelled subscriber opening Settings saw two prices and no
+                      way to pay. Both routes get a Subscribe button now; which
+                      one is decided by purchaseRoute, not by the device alone. */}
+                  {(onIos || canStripePurchase) && (
                     <button
                       className="btn"
                       style={{ marginTop: '0.55rem', width: '100%', fontSize: '0.78rem' }}
                       disabled={iapLoading !== null}
-                      onClick={() => void handleApplePurchase(p.plan)}
+                      onClick={() =>
+                        void (onIos ? handleApplePurchase(p.plan) : handleStripePurchase(p.plan))
+                      }
                     >
-                      {iapLoading === p.plan ? 'Confirming…' : 'Subscribe'}
+                      {iapLoading === p.plan
+                        ? onIos
+                          ? 'Confirming…'
+                          : 'Redirecting…'
+                        : 'Subscribe'}
                     </button>
                   )}
                 </div>
@@ -869,9 +1100,15 @@ function BillingTab() {
                 {iapLoading === 'restore' ? 'Restoring…' : 'Restore purchases'}
               </button>
             )}
-            {!canStripePurchase && !onIos && appleManaged && (
+            {route === 'apple-elsewhere' && (
               <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>
-                This subscription is billed through Apple. Open Dayspring on your iPhone to renew.
+                The App Store still bills this account. Settle it there first — on your iPhone or
+                iPad, or at apps.apple.com/account/subscriptions in any browser.
+              </p>
+            )}
+            {notice && (
+              <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>
+                {notice}
               </p>
             )}
             {portalError && showPlans && (

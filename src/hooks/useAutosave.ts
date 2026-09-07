@@ -36,6 +36,25 @@ interface UseAutosaveResult {
   /** Force an immediate flush (e.g. before navigating away). */
   saveNow: () => Promise<void>
   /**
+   * True when the editor holds text this session hasn't persisted yet. Sync uses
+   * it to decide whether an entry open on screen may be refreshed from another
+   * device: a clean editor can be, a dirty one must not be.
+   */
+  getIsDirty: () => boolean
+  /**
+   * Re-baseline after the caller has put text in the editor that came from
+   * storage rather than the keyboard — a body loaded on open, or an update
+   * pulled from another device. Without it that text reads as an unsaved local
+   * edit: autosave pushes it straight back, and `getIsDirty` reports true for an
+   * entry nobody has touched.
+   *
+   * `forEntryId` must be the row the text belongs to. It is checked against the
+   * session's own id and ignored on mismatch, so this can never mark a draft
+   * persisted against the wrong row — the failure mode behind the duplicate-entry
+   * bugs this module exists to prevent.
+   */
+  adoptExternalText: (forEntryId: string | null, text: string) => void
+  /**
    * Reset entry tracking so the next keystroke starts a fresh entry rather than
    * updating the one that was just saved. Call this after saveNow() whenever the
    * navigation entryId will stay null (handleNew while already on a blank entry),
@@ -195,9 +214,15 @@ export function useAutosave({
     }
     document.addEventListener('visibilitychange', onHide)
     window.addEventListener('beforeunload', onBeforeUnload)
+    // `pagehide` is the one that actually fires in iOS WKWebView, and on a
+    // bfcache navigation where `beforeunload` is skipped entirely. Both are
+    // registered because neither covers every case on its own; flush() is
+    // idempotent, so a double-fire costs nothing.
+    window.addEventListener('pagehide', onBeforeUnload)
     return () => {
       document.removeEventListener('visibilitychange', onHide)
       window.removeEventListener('beforeunload', onBeforeUnload)
+      window.removeEventListener('pagehide', onBeforeUnload)
     }
   }, [enabled, flush])
 
@@ -224,5 +249,24 @@ export function useAutosave({
     sessionRef.current = draftSession(asEntryMarkdown(contentRef.current))
   }, [])
 
-  return { status, lastSavedAt, error, saveNow, resetEntry }
+  const getIsDirty = useCallback(
+    () => asEntryMarkdown(contentRef.current) !== sessionRef.current.savedText,
+    [],
+  )
+
+  const adoptExternalText = useCallback((forEntryId: string | null, text: string) => {
+    // Only ever re-baseline the session that already owns this row. A mismatch
+    // means navigation moved on; the [entryId] effect re-baselines correctly.
+    if (forEntryId === null || sessionRef.current.id !== forEntryId) return
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    // The text IS what storage holds, so it is this session's saved baseline.
+    // `savedSession` also marks the session persisted, which is right: the row
+    // exists — we just read it.
+    sessionRef.current = savedSession(sessionRef.current, asEntryMarkdown(text))
+  }, [])
+
+  return { status, lastSavedAt, error, saveNow, resetEntry, getIsDirty, adoptExternalText }
 }

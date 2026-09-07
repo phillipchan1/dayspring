@@ -6,6 +6,15 @@ export function isExplicitHeading(line: string): boolean {
   return /^#{1,6}\s/.test(line.trim())
 }
 
+/**
+ * CommonMark thematic break: three or more matching `-`, `_`, or `*` on
+ * their own line, with optional spaces between. Shared by the title heuristic
+ * so a leading `---` is a divider, not an H1.
+ */
+export function isThematicBreak(line: string): boolean {
+  return /^\s{0,3}(?:(?:-[ \t]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})[ \t]*$/.test(line)
+}
+
 /** First non-empty line number (1-based), or null when the doc is empty. */
 export function firstContentLineNumber(markdown: string): number | null {
   const lines = markdown.split('\n')
@@ -29,7 +38,8 @@ export function isNonTitleLine(line: string): boolean {
     /^>\s/.test(t) ||
     /^(?:[-*+]\s+)?\[(?:\s|[xX])?\]\s*/.test(t) ||
     isSpiritualFenceLine(t) ||
-    t === '```'
+    t === '```' ||
+    isThematicBreak(t)
   )
 }
 

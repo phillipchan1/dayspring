@@ -1,0 +1,355 @@
+---
+import Base from "../../layouts/Base.astro";
+import SectionReveal from "../../components/SectionReveal.astro";
+import DawnGlow from "../../components/DawnGlow.astro";
+import { helpSections } from "../../lib/help";
+import { value } from "../../lib/manifest";
+
+const sections = await helpSections();
+const total = sections.reduce((n, s) => n + s.items.length, 0);
+const trialDays = value("billing.trial-days");
+---
+
+<Base
+  title="Help"
+  description="How to use Dayspring — getting started, the editor, your surfaces, billing, and what to do when something isn't behaving."
+  path="/help"
+  footer="minimal"
+>
+  <section class="hub-head">
+    <div class="glow-host"><DawnGlow variant="bloom" intensity={0.45} /></div>
+    <SectionReveal class="wrap">
+      <p class="eyebrow mono">Help</p>
+      <h1>How can we <em>help?</em></h1>
+      <p class="lead">
+        {total} short guides — how to write, how to find your way back, and what to
+        do when something isn't behaving.
+      </p>
+
+      <div class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="mag">
+          <circle
+            cx="11"
+            cy="11"
+            r="7"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"></circle>
+          <path
+            d="M20 20l-3.6-3.6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"></path>
+        </svg>
+        <input
+          type="search"
+          id="help-search"
+          placeholder="Search help — try “import”, “trial”, “shortcut”"
+          aria-label="Search help articles"
+          autocomplete="off"
+        />
+      </div>
+      <p class="no-hits" id="help-no-hits" hidden>
+        Nothing matched that. <a href="/help/contact">Ask us directly</a> and a
+        person will answer.
+      </p>
+    </SectionReveal>
+  </section>
+
+  <div class="wrap sections" id="help-sections">
+    {
+      sections.map((group) => (
+        <section class="grp" id={group.section} data-section>
+          <SectionReveal>
+            <h2>{group.title}</h2>
+            <p class="grp-blurb">{group.blurb}</p>
+          </SectionReveal>
+          {/* Reveal per card rather than per section: a section wrapping a
+              dozen cards is several viewports tall, and one block of that size
+              fading in at once reads as a flash rather than a reveal. */}
+          <ul class="cards">
+            {group.items.map((item, i) => (
+              <SectionReveal
+                as="li"
+                delay={Math.min(i, 6) * 40}
+                class="card"
+                data-card
+                data-terms={[item.title, item.summary, ...item.keywords]
+                  .join(" ")
+                  .toLowerCase()}
+              >
+                <a href={`/help/${item.slug}`}>
+                  <span class="c-title">
+                    {item.title}
+                    {item.reference && <span class="tag mono">Reference</span>}
+                  </span>
+                  <span class="c-sum">{item.summary}</span>
+                </a>
+              </SectionReveal>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+
+  <section class="wrap still-stuck">
+    <SectionReveal>
+      <div class="stuck">
+        <h2>Still stuck?</h2>
+        <p>
+          Write to us and a person will read it — not a queue, not a bot. If
+          you're still in your {trialDays}-day trial and something's in the way,
+          say so and we'll sort it.
+        </p>
+        <a href="/help/contact" class="btn btn-ghost">Get in touch</a>
+      </div>
+    </SectionReveal>
+  </section>
+</Base>
+
+<script>
+  // Filter the cards already on the page. There's no index to fetch and no
+  // network call — every article is rendered here, so searching is just showing
+  // and hiding. Works the moment the page paints.
+  const input = document.getElementById("help-search") as HTMLInputElement | null;
+  const noHits = document.getElementById("help-no-hits");
+  const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-card]"));
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-section]"));
+
+  if (input) {
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      let hits = 0;
+
+      for (const card of cards) {
+        const match = !q || (card.dataset.terms ?? "").includes(q);
+        card.hidden = !match;
+        if (match) hits++;
+      }
+
+      // Hide a section heading once everything under it is filtered out.
+      for (const section of sections) {
+        const anyVisible = Array.from(
+          section.querySelectorAll<HTMLElement>("[data-card]"),
+        ).some((c) => !c.hidden);
+        section.hidden = !anyVisible;
+      }
+
+      if (noHits) noHits.hidden = hits > 0;
+    };
+
+    input.addEventListener("input", apply);
+    // Re-apply on load in case the browser restored a previous query.
+    if (input.value) apply();
+  }
+</script>
+
+<style>
+  .hub-head {
+    position: relative;
+    padding: 190px 0 20px;
+    text-align: center;
+  }
+  .glow-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .hub-head .eyebrow {
+    font-size: 12.5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .hub-head h1 {
+    position: relative;
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(40px, 7vw, 68px);
+    letter-spacing: -1.5px;
+    line-height: 1.03;
+    margin-bottom: 18px;
+  }
+  .hub-head h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .hub-head .lead {
+    position: relative;
+    font-size: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 46ch;
+    margin: 0 auto 34px;
+  }
+
+  /* search */
+  .search {
+    position: relative;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .search .mag {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .search input {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 16.5px;
+    font-weight: 300;
+    color: var(--paper);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 15px 22px 15px 48px;
+    outline: none;
+    transition: border-color 0.25s, background 0.25s;
+  }
+  .search input::placeholder {
+    color: var(--muted);
+  }
+  .search input:focus {
+    border-color: rgba(243, 189, 118, 0.45);
+    background: var(--surface-strong);
+  }
+  /* the default clear button renders as a dark blob on parchment */
+  .search input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+  .no-hits {
+    position: relative;
+    margin-top: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+  .no-hits a {
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(243, 189, 118, 0.35);
+  }
+
+  /* sections */
+  .sections {
+    /* Single-side properties, NOT the `padding` shorthand — this element also
+       carries .wrap, whose horizontal padding is what keeps the cards off the
+       screen edge. A shorthand here silently resets it to 0. */
+    padding-top: 56px;
+    padding-bottom: 20px;
+  }
+  .grp {
+    margin-bottom: 56px;
+    scroll-margin-top: 100px;
+  }
+  .grp h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(24px, 3.4vw, 31px);
+    letter-spacing: -0.6px;
+    color: var(--paper);
+    margin-bottom: 5px;
+  }
+  .grp-blurb {
+    color: var(--muted);
+    font-weight: 300;
+    margin-bottom: 22px;
+  }
+
+  .cards {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+  /* the reveal wrapper IS the <li>, so it has to carry the grid cell */
+  .cards :global(.card) {
+    display: flex;
+  }
+  .cards a {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: var(--surface);
+    text-decoration: none;
+    transition: border-color 0.25s, background 0.25s, transform 0.25s;
+  }
+  .cards a:hover {
+    border-color: rgba(243, 189, 118, 0.35);
+    background: var(--surface-2);
+    transform: translateY(-2px);
+  }
+  .c-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    font-family: var(--font-display);
+    font-size: 18.5px;
+    color: var(--paper);
+    line-height: 1.25;
+  }
+  .tag {
+    font-size: 9.5px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    border: 1px solid var(--accent-glow);
+    border-radius: 100px;
+    padding: 2px 7px;
+  }
+  .c-sum {
+    font-size: 15.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.5;
+  }
+
+  /* still stuck */
+  .still-stuck {
+    padding-bottom: 90px;
+  }
+  .stuck {
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    padding: 42px 30px;
+  }
+  .stuck h2 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(26px, 3.6vw, 34px);
+    color: var(--paper);
+    margin-bottom: 12px;
+  }
+  .stuck p {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 17px;
+    line-height: 1.6;
+    max-width: 52ch;
+    margin: 0 auto 26px;
+  }
+
+  @media (max-width: 600px) {
+    .hub-head {
+      padding: 145px 0 10px;
+    }
+  }
+</style>

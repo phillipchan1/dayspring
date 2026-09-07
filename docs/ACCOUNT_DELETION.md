@@ -92,6 +92,10 @@ starting over is the cheapest way to be sure.
 **`scripture_text`** is a global Bible-text cache keyed by reference and
 translation. It is not user data; nothing in it came from anyone's journal.
 
+**The Resend Broadcast contact** for this email is removed after the auth user
+goes (best-effort). If Resend is down, the daily `/api/cron/sync-resend` drop
+catches the leftover. Reminder mail and announcement mail both stop.
+
 **Payment records at Stripe and Apple.** Both retain transaction history under
 their own legal and tax obligations, and neither offers us a way to erase it. We
 cannot delete what we do not hold, and the help article says so plainly rather

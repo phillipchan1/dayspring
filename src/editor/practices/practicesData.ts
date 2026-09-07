@@ -1,9 +1,11 @@
 /**
- * The Practices Library — contemplative writing forms drawn from the Christian
- * tradition. Each practice opens (via the `/practice` slash command) into a
- * threshold screen and then a structured set of prompts the writer answers in
- * the editor. The prompt labels/questions render as display-only decorations;
- * only what the writer types is persisted (see usePracticeInsertion.ts).
+ * The Practices Library — structured writing forms, most drawn from the Christian
+ * contemplative tradition, alongside a few secular practices with an optional
+ * closing prompt toward God. Each practice opens (via the `/practice` slash
+ * command) into a threshold screen and then a structured set of prompts the
+ * writer answers in the editor. The prompt labels/questions render as
+ * display-only decorations; only what the writer types is persisted (see
+ * usePracticeInsertion.ts).
  */
 
 /** The contemplative "function" a practice serves — also the filter taxonomy. */
@@ -410,6 +412,92 @@ export const PRACTICES: Practice[] = [
         label: 'Hold',
         question: 'What is the quietest, most persistent sense beneath all the noise?',
         placeholder: 'Not the loudest voice — the most consistent one…',
+      },
+    ],
+  },
+  {
+    name: 'Then vs. Now',
+    function: 'examine',
+    rhythm: ['anytime'],
+    origin: 'Adapted from narrative-therapy practice, contemporary',
+    tradition: 'Secular',
+    intention:
+      'A direct comparison of who you were to who you are — not vague sentiment, but concrete evidence that something has actually changed.',
+    quote: 'What do I believe now that I didn’t a year ago? What’s the proof?',
+    why:
+      'Growth is usually invisible from inside it — you rarely feel yourself changing day to day. This practice forces a direct comparison across time, and asks for evidence, not just a feeling, so the change you name is one you can trust.',
+    shape:
+      'Three movements: name what was true then, name what’s true now, and find the concrete evidence for the gap between them. An optional fourth movement, if you want it, turns that noticing toward God.',
+    tips: [
+      'Pick a real point in time — a year ago, a specific season — not “in general.”',
+      'Push past feelings to evidence: a moment, a choice, a reaction you didn’t have then.',
+      'It’s fine if the honest answer is “not much has changed” — don’t force it.',
+    ],
+    prompts: [
+      {
+        label: 'Then',
+        question:
+          'What did you believe, feel, or struggle with a year ago that’s different now?',
+        placeholder: 'A year ago, I…',
+      },
+      {
+        label: 'Now',
+        question: 'What’s true of you now that wasn’t then?',
+        placeholder: 'Now, I…',
+      },
+      {
+        label: 'Evidence',
+        question:
+          'What’s the proof — a moment, a choice, a reaction you didn’t have then?',
+        placeholder: 'I noticed it when…',
+      },
+      {
+        label: 'Presence',
+        question: 'If you want to — where do you sense God in this change?',
+        placeholder: 'Optional — no need to force it…',
+      },
+    ],
+  },
+  {
+    name: 'Threshold',
+    function: 'examine',
+    rhythm: ['anytime'],
+    origin: 'Adapted from rite-of-passage practice, contemporary',
+    tradition: 'Secular',
+    intention:
+      'For a transition you’re in the middle of — a job, a move, a relationship, a season ending. Growth at a threshold often stays invisible until you name it.',
+    quote: 'What am I leaving? What am I carrying forward? What am I letting go of?',
+    why:
+      'Transitions rarely get marked — you just find yourself on the other side of one. Naming what’s ending, what you’re bringing with you, and what you need to consciously set down turns a blurred passage into something you actually crossed.',
+    shape:
+      'Three movements at the threshold itself: what’s ending, what you’re carrying forward, and what you need to let go of. An optional fourth movement, if you want it, turns that threshold toward God.',
+    tips: [
+      'Use this while you’re still in the transition, not only after it’s resolved.',
+      'Be specific about what you’re carrying — a skill, a person, a way of seeing.',
+      'Letting go isn’t always sad — an old expectation or role can be a relief to set down.',
+    ],
+    prompts: [
+      {
+        label: 'Leaving',
+        question: 'What season or chapter is ending? Name it plainly.',
+        placeholder: 'I am leaving…',
+      },
+      {
+        label: 'Carrying',
+        question:
+          'What are you taking with you into what’s next — a skill, a person, a way of seeing?',
+        placeholder: 'I’m carrying…',
+      },
+      {
+        label: 'Letting go',
+        question:
+          'What do you need to consciously set down — a role, an identity, an expectation?',
+        placeholder: 'I’m letting go of…',
+      },
+      {
+        label: 'Presence',
+        question: 'If you want to — where do you sense God meeting you at this threshold?',
+        placeholder: 'Optional…',
       },
     ],
   },

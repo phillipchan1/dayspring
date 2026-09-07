@@ -1,0 +1,335 @@
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/node_modules/@fontsource/fraunces/files/fraunces-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: italic;
+  font-weight: 400;
+  src: url("/node_modules/@fontsource/fraunces/files/fraunces-latin-400-italic.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/node_modules/@fontsource/newsreader/files/newsreader-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  src: url("/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2")
+    format("woff2");
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #0c0d11;
+  --paper: #ece7dd;
+  --muted: #a6a09a;
+  --dawn-1: #f3bd76;
+  --dawn-2: #e8917c;
+  --dawn-3: #c56a6e;
+  --gold: #e4ba7c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--ink);
+}
+
+.creative {
+  --pad: 7.4%;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 85% 3%, rgba(197, 106, 110, 0.14), transparent 31%),
+    linear-gradient(160deg, #131015 0%, var(--ink) 41%, #08090c 100%);
+  color: var(--paper);
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.dawn {
+  position: absolute;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(90px);
+}
+
+.dawn--top {
+  top: -14%;
+  right: -8%;
+  width: 65%;
+  height: 35%;
+  background: rgba(232, 145, 124, 0.1);
+}
+
+.dawn--bottom {
+  bottom: -18%;
+  left: 10%;
+  width: 72%;
+  height: 38%;
+  background: rgba(243, 189, 118, 0.09);
+}
+
+.brand {
+  position: absolute;
+  top: 5.2%;
+  left: var(--pad);
+  right: var(--pad);
+  display: flex;
+  align-items: center;
+  gap: 1.5%;
+  z-index: 3;
+}
+
+.mark {
+  width: clamp(18px, 2.1vw, 32px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--dawn-1), var(--dawn-2) 55%, var(--dawn-3));
+  box-shadow: 0 0 28px rgba(243, 189, 118, 0.28);
+}
+
+.wordmark {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(23px, 3vw, 42px);
+  letter-spacing: -0.02em;
+}
+
+.message {
+  position: absolute;
+  z-index: 4;
+  top: 13.8%;
+  left: var(--pad);
+  right: var(--pad);
+}
+
+.eyebrow,
+.proof,
+.url {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.21em;
+}
+
+.eyebrow {
+  margin: 0 0 2.2%;
+  color: var(--dawn-1);
+  font-size: clamp(11px, 1.55vw, 21px);
+}
+
+h1 {
+  max-width: 92%;
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(48px, 7.4vw, 104px);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.038em;
+}
+
+h1 em {
+  display: inline;
+  font-weight: 400;
+  background: linear-gradient(92deg, var(--dawn-1), var(--dawn-2) 55%, var(--dawn-3));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.supporting {
+  max-width: 83%;
+  margin: 3.3% 0 0;
+  color: #c5beb4;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: clamp(19px, 2.7vw, 38px);
+  line-height: 1.34;
+}
+
+.product-window {
+  position: absolute;
+  z-index: 2;
+  left: var(--pad);
+  right: var(--pad);
+  top: 47%;
+  height: 43%;
+  overflow: hidden;
+  border: 1px solid rgba(236, 231, 221, 0.13);
+  border-radius: clamp(24px, 4vw, 54px);
+  background: #11131a;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.46),
+    0 0 0 1px rgba(243, 189, 118, 0.035) inset;
+}
+
+.product-window::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 24%;
+  z-index: 2;
+  background: linear-gradient(transparent, rgba(8, 9, 12, 0.93));
+}
+
+.product-glow {
+  position: absolute;
+  inset: -10% 8% auto;
+  height: 42%;
+  border-radius: 50%;
+  background: rgba(232, 145, 124, 0.16);
+  filter: blur(60px);
+}
+
+.product-window img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  transform: translateY(-21%);
+}
+
+[data-concept="journaling-growth"] .product-window img,
+[data-concept="long-view"] .product-window img {
+  transform: translateY(-20%);
+}
+
+[data-concept="remembered"] .product-window img {
+  transform: translateY(-20%);
+}
+
+[data-concept="inner-life"] .product-window img {
+  transform: translateY(-19%);
+}
+
+[data-concept="history-read-back"] .product-window img {
+  transform: translateY(-20%);
+}
+
+.footer {
+  position: absolute;
+  z-index: 5;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: 4.8%;
+}
+
+.proof {
+  margin: 0 0 2.3%;
+  color: #88838a;
+  font-size: clamp(9px, 1.12vw, 15px);
+}
+
+.cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4%;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: clamp(42px, 5.7vw, 72px);
+  padding: 0 3.4%;
+  border: 1px solid rgba(243, 189, 118, 0.46);
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(243, 189, 118, 0.15), rgba(197, 106, 110, 0.11));
+  color: #f7dfc3;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: clamp(15px, 2vw, 28px);
+}
+
+.url {
+  color: #77737a;
+  font-size: clamp(8px, 1.02vw, 13px);
+  white-space: nowrap;
+}
+
+[data-format="square"] {
+  --pad: 7.2%;
+}
+
+[data-format="square"] .message {
+  top: 15%;
+}
+
+[data-format="square"] h1 {
+  max-width: 94%;
+  font-size: clamp(46px, 7vw, 80px);
+}
+
+[data-format="square"] .supporting {
+  max-width: 78%;
+  font-size: clamp(18px, 2.45vw, 28px);
+}
+
+[data-format="square"] .product-window {
+  top: 51%;
+  height: 37%;
+}
+
+[data-format="story"] {
+  --pad: 8.4%;
+}
+
+[data-format="story"] .brand {
+  top: 8.2%;
+}
+
+[data-format="story"] .message {
+  top: 17%;
+}
+
+[data-format="story"] h1 {
+  max-width: 100%;
+  font-size: clamp(54px, 8vw, 104px);
+}
+
+[data-format="story"] .supporting {
+  max-width: 93%;
+  font-size: clamp(21px, 3.1vw, 38px);
+}
+
+[data-format="story"] .product-window {
+  top: 46%;
+  height: 39%;
+}
+
+[data-format="story"] .footer {
+  bottom: 8.4%;
+}
+
+[data-format="story"] .product-window img {
+  transform: translateY(-18%);
+}

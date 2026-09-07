@@ -15,7 +15,7 @@ import {
 import { windowCacheKey } from '@/lib/asyncCache'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
-import { heatColor, intensity } from './heat'
+import { heatColor, intensity, useHeatRamp } from './heat'
 
 /** The book the panel is showing — optionally focused on one verse's thread. */
 export interface BookTarget {
@@ -75,6 +75,7 @@ export function ScriptureBookView({
   onClose,
   onOpenEntry,
 }: Props) {
+  useHeatRamp()
   // Latch the displayed book so the panel can slide out showing its last content.
   const [display, setDisplay] = useState<BookTarget | null>(target)
   useEffect(() => {

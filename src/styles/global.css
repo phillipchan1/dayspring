@@ -1,16 +1,53 @@
 @import './themes.css';
 @import './glass.css';
 
+/* Device insets, named once. The iOS shell draws under the Dynamic Island and
+   the home indicator (viewport-fit=cover + black-translucent status bar in
+   index.html), so anything that touches a screen edge has to add these back.
+   They resolve to 0px everywhere else, so they're safe to use unconditionally. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* What the mobile chrome covers, so scrolling surfaces can reserve it instead
+     of letting the tab bar slice their last row in half.
+     `--mobile-bar-h` is `.mobile-bar--tabs` measured: 0.4rem padding-top + a
+     50px tab + a 1px border, over the home-indicator inset.
+     `--mobile-chrome-h` adds the `.mobile-fab` floating above it (52px disc,
+     ~10px clear of the bar) — the FAB was covering tappable Lamp and Altar
+     cards, so content stops above it too. */
+  --mobile-bar-h: calc(var(--safe-bottom) + 3.6rem);
+  --mobile-chrome-h: calc(var(--mobile-bar-h) + 4rem);
+}
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+/* The document itself never scrolls — this is an app shell, not a page, and
+   `.app-shell` owns every scroller inside it. Pinning html/body is what stops
+   WKWebView scrolling the document to reveal the caret on editor focus, which
+   used to slide the header up behind the status bar (keyboard up) or leave a
+   band under the Dynamic Island (accessory bar only), and — because a scrolled
+   document offsets everything `position: fixed` — dropped the docked
+   CommandToolbar 59pt above the keyboard with dead background between them.
+   `useKeyboardInset`'s arithmetic was always right; the scroll defeated it. */
 html,
-body,
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 #root {
   height: 100%;
+  min-height: 0;
 }
 
 html {
@@ -109,12 +146,6 @@ a {
   cursor: pointer;
 }
 
-@media (max-width: 767px) {
-  .entry-row {
-    padding: 10px 8px;
-    min-height: 44px;
-  }
-}
 @media (hover: hover) {
   .entry-row:hover:not([data-active='true']):not([data-context='true']) {
     background: var(--entry-row-hover-bg);
@@ -187,6 +218,27 @@ a {
 }
 .entry-row[data-has-preview='true'] {
   padding: 7px 8px;
+}
+
+/* Must come *after* [data-has-preview] above: same specificity (0,2,0), so
+   source order decides — and on a phone essentially every row has a preview. */
+@media (max-width: 767px) {
+  .entry-row,
+  .entry-row[data-has-preview='true'] {
+    padding: 10px;
+    min-height: 48px;
+  }
+  /* The list is a sidebar on desktop and a full-width drawer on a phone — at
+     drawer width the sidebar's 13.5px/11.5px reads as a compressed index
+     rather than a list of entries. */
+  .entry-row__title {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  .entry-row__preview {
+    font-size: 13px;
+    margin-top: 3px;
+  }
 }
 
 /* ── New Entry placeholder row ──────────────────────────────────────────── */
@@ -291,8 +343,45 @@ a {
   background: rgba(196, 145, 60, 0.12);
   color: #9a6e24;
 }
+/*
+ * Two levels: how you're reading, then how the list is grouped.
+ *
+ * List and Pages are siblings and share the pill treatment. Grouping is a
+ * property of the list, so it is quieter and only present when the list is.
+ * Pages was a fourth segment bolted onto the grouping control at first, which
+ * made a navigation action look like a fourth way to sort a list.
+ */
+.entry-list__modes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.entry-list__group-by {
+  display: flex;
+  gap: 1px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border-subtle);
+}
+.entry-list__group-btn {
+  padding: 3px 7px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--entry-list-view-inactive);
+  font-family: var(--font-entry-list);
+  font-size: 11px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: color 0.1s ease;
+}
+.entry-list__group-btn[data-active='true'] {
+  color: var(--entry-list-title-active);
+}
 @media (hover: hover) {
-  .entry-list__view-btn:hover:not([data-active='true']) {
+  .entry-list__view-btn:hover:not([data-active='true']),
+  .entry-list__group-btn:hover:not([data-active='true']) {
     color: var(--entry-list-view-hover);
   }
 }
@@ -306,6 +395,47 @@ a {
   flex: 1;
   min-height: 0;
   padding: 6px 6px 12px;
+}
+
+/* Phone drawer: everything here is sized for a mouse in the desktop sidebar.
+   Give each control a thumb-sized target and lift the type off the floor. */
+@media (max-width: 767px) {
+  .entry-list__head {
+    padding: 12px 10px 10px;
+  }
+  .entry-list__search-bar {
+    padding: 9px 10px;
+  }
+  /* 16px exactly: anything smaller and iOS zooms the whole page on focus, which
+     leaves the drawer scaled up and half off-screen. */
+  .entry-list__search-input {
+    font-size: 16px;
+  }
+  .entry-list__view-switcher {
+    gap: 4px;
+  }
+  .entry-list__view-btn {
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
+  }
+  .entry-list__date-header,
+  .entry-list__section-label {
+    padding: 14px 10px 5px;
+    font-size: 11px;
+  }
+  .entry-list__month-row,
+  .entry-list__year-row,
+  .entry-list__year-month-row {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .entry-list__month-label {
+    font-size: 15px;
+  }
+  .entry-list__year-month-label {
+    font-size: 14px;
+  }
 }
 .entry-list__journal-header {
   display: flex;
@@ -600,6 +730,23 @@ a {
   max-width: 32rem;
   width: 100%;
 }
+/* Floating over the wall: count and actions on one line, and a shadow, because
+   this one sits above the pages rather than in a panel with them. */
+.entry-selection-bar--wall {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.7rem 0.5rem 0.9rem;
+  box-shadow: var(--shadow-2);
+  backdrop-filter: blur(12px);
+}
+.entry-selection-bar--wall .entry-selection-bar__count {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.entry-selection-bar--wall .entry-selection-bar__actions {
+  flex-wrap: nowrap;
+}
 .entry-selection-bar__count {
   display: block;
   font-family: var(--font-sans);
@@ -742,6 +889,10 @@ a {
   position: fixed;
   z-index: 200;
   min-width: 12.75rem;
+  /* The head carries the entry's own first line, and an entry's first line can
+     be a paragraph. Without a ceiling the `nowrap` below stretches the whole
+     menu to fit it instead of ellipsing. */
+  max-width: min(22rem, calc(100vw - 2rem));
   padding: 0.3rem;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
@@ -909,6 +1060,149 @@ a {
   backdrop-filter: blur(16px) saturate(var(--glass-saturate));
   animation: format-bar-in 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
   pointer-events: auto;
+}
+.format-bar__scroller {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.format-bar__more {
+  font-size: 1.05rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.format-bar__guess {
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-bright);
+  font-size: 0.82rem;
+  line-height: 1.3;
+  cursor: pointer;
+  animation: format-bar-btn-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+}
+.format-bar__guess:hover,
+.format-bar__guess:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+.format-bar__empty {
+  padding: 0.2rem 0.5rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+/*
+ * Touch: the native iOS menu we replaced is words at 44pt, not 30px icons.
+ * Labels + real hit targets make the row wider than the phone, so the
+ * scroller — not the pill itself — pages left/right. Back / More stay pinned.
+ */
+.format-bar--touch {
+  gap: 0;
+  padding: 0.2rem;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+.format-bar--touch .format-bar__scroller {
+  flex: 1 1 auto;
+  gap: 0.12rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.format-bar--touch .format-bar__scroller::-webkit-scrollbar {
+  display: none;
+}
+.format-bar--fade-right .format-bar__scroller {
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 1.6rem), transparent);
+}
+.format-bar--fade-left .format-bar__scroller {
+  mask-image: linear-gradient(to right, transparent, #000 1.6rem, #000 100%);
+}
+.format-bar--fade-left.format-bar--fade-right .format-bar__scroller {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 1.6rem,
+    #000 calc(100% - 1.6rem),
+    transparent
+  );
+}
+.format-bar--touch .format-bar__group {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.format-bar--touch .format-bar__btn,
+.format-bar--touch .format-bar__guess,
+.format-bar--touch .format-bar__chevron {
+  width: auto;
+  height: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.72rem;
+  flex: none;
+  scroll-snap-align: start;
+  touch-action: manipulation;
+}
+.format-bar--touch .format-bar__btn--nav {
+  flex: none;
+}
+.format-bar--touch .format-bar__chevron {
+  width: 44px;
+  margin-left: -0.35rem;
+  padding: 0;
+  font-size: 0.95rem;
+}
+.format-bar--touch .format-bar__sep {
+  flex: none;
+  height: 1.4rem;
+  margin: 0 0.2rem;
+}
+.format-bar--touch .format-bar__word,
+.format-bar--touch .format-bar__glyph {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 0.92;
+}
+.format-bar--touch .format-bar__glyph--bold {
+  font-weight: 750;
+}
+.format-bar--touch .format-bar__glyph--italic {
+  font-style: italic;
+  font-weight: 600;
+}
+.format-bar--touch .format-bar__glyph--underline {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+.format-bar--touch .format-bar__glyph--strike {
+  text-decoration: line-through;
+}
+.format-bar--touch .format-bar__btn[data-active='true'] .format-bar__word,
+.format-bar--touch .format-bar__btn[data-active='true'] .format-bar__glyph {
+  opacity: 1;
+}
+.format-bar--touch .format-bar__swatch {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  scroll-snap-align: start;
+}
+.format-bar--touch .format-bar__empty {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
 }
 @keyframes format-bar-in {
   from {
@@ -1289,6 +1583,21 @@ a {
   text-transform: lowercase;
   color: var(--text-faint);
 }
+/* The cluster is the sync control now — it used to be the word "Synced", which
+   is exactly the word that goes away when there is nothing to report. */
+.status-cluster--action {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.status-cluster--action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
 .status-cluster__dot {
   flex: 0 0 auto;
   width: 6px;
@@ -1299,13 +1608,20 @@ a {
   opacity: 0.6;
   animation: status-breathe 4.5s ease-in-out infinite;
 }
-.status-cluster__dot[data-status='saving'] {
+/* Work in flight — the dot carries it so the words don't have to. */
+.status-cluster__dot[data-busy='true'] {
   animation-duration: 1.6s;
 }
-.status-cluster__dot[data-status='error'] {
+/* Offline, or a queue the server refused. The label says which. */
+.status-cluster__dot[data-tone='attention'] {
+  background: var(--md-strong);
+  box-shadow: 0 0 6px var(--md-strong);
+  opacity: 0.85;
+}
+.status-cluster__dot[data-tone='error'] {
   background: var(--danger);
   box-shadow: 0 0 6px var(--danger);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 .status-cluster__sep {
   opacity: 0.45;
@@ -1638,10 +1954,67 @@ a {
   .restrict-banner .btn {
     min-height: 44px;
   }
-  /* Let our long-press own the gesture — no iOS text-selection callout. */
-  .entry-row {
+  /* iOS treats everything as selectable text, so a long press anywhere in the
+     app's chrome raises the system `Copy | Look Up | Translate` callout — on
+     top of whatever the app meant the gesture to do. Long-pressing an entry row
+     fired the app's own context menu *and* turned the whole drawer blue;
+     long-pressing an Altar filter chip (a plain `<button>`) produced selection
+     handles. The unprefixed `user-select` alone was not holding — WebKit needs
+     `-webkit-touch-callout` to suppress the callout and the prefixed
+     `-webkit-user-select` to suppress the selection.
+
+     Chrome opts out; prose stays selectable below, because people copy their
+     own words. */
+  button,
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  nav,
+  header,
+  label,
+  .mobile-tab,
+  .mobile-bar,
+  .mobile-fab,
+  .entry-row,
+  .drawer,
+  .rail,
+  .segmented,
+  .toggle-pill,
+  .status-cluster {
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
     user-select: none;
+  }
+
+  /* ...but never the words themselves. The editor, scripture text, and the
+     verbatim quotes the Ascent / Altar / Lamp surfaces are built out of are all
+     things people copy — including out of a card that is itself a button, which
+     is why these have to win back what the rule above took. */
+  .cm-editor,
+  .cm-content,
+  .markdown-body,
+  .ascent-hl__quote,
+  .ascent-word__text,
+  .altar-ev__quote,
+  .practice-card__quote,
+  .practice-sheet__quote,
+  [data-selectable] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* No 300ms tap delay and no stray double-tap zoom on the controls a thumb
+     hits most. Only three `touch-action` declarations existed app-wide. */
+  .mobile-bar,
+  .mobile-tab,
+  .mobile-fab,
+  .altar-pill,
+  .scripture__chip,
+  .practice-filter,
+  .command-toolbar__btn,
+  .slash-palette__item {
+    touch-action: manipulation;
   }
 }
 /* Phones already size entry rows at ≤767px; this lifts the iPad/desktop list
@@ -1831,6 +2204,83 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/*
+ * The blank-page door into the rituals.
+ *
+ * Quieter than the date it sits beside — it is an offer, not an instruction,
+ * and it is gone at the first word.
+ */
+/*
+ * The door into a ritual, on a page nobody has written on yet.
+ *
+ * It used to be transparent on --text-faint, turning accent only on hover —
+ * which made the one control we most want found the quietest thing in the bar.
+ * It now wears the accent vocabulary the Rituals surface already owns: the
+ * outlined pill of the library's own "Begin writing" button
+ * (PracticeLibrary.css), lettered like the ritual block's masthead
+ * (.cm-practice-header__name). The door looks like the thing it opens.
+ *
+ * Room for it came from the status cluster above, which stopped spending a
+ * running line on two facts that are almost always fine.
+ */
+.journal-topbar__ritual {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background var(--transition),
+    border-color var(--transition);
+  /* A single quiet arrival when the blank page appears. One entrance, never a
+     pulse: a door that keeps asking for attention is a nudge, and Principle 2
+     forbids manufacturing compulsion. */
+  animation: ritual-door-in 420ms ease both;
+}
+.journal-topbar__ritual svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+.journal-topbar__ritual:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 75%, transparent);
+}
+@keyframes ritual-door-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journal-topbar__ritual { animation: none; }
+}
+.journal-topbar__ritual:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 767px) {
+  .journal-topbar__ritual {
+    min-height: 44px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
+  }
+  .journal-topbar__ritual svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
 .journal-topbar__actions {
   display: flex;
   align-items: center;
@@ -1989,6 +2439,43 @@ a {
   width: 100%;
   display: flex;
   overflow: hidden;
+}
+
+/*
+ * The back-swipe out of an entry (MobileJournal → `back`).
+ *
+ * The shell IS the pushed view here — there is no overlay to slide, because the
+ * surface behind it is not mounted. So the shell travels, and what it uncovers
+ * is the body, which is already `--bg`: the same paper the wall is drawn on, so
+ * a page half pulled aside looks like a page half pulled aside rather than a
+ * hole. The shadow is what says there is something under it.
+ *
+ * `will-change` only while the finger has hold of it — a permanent promotion
+ * would keep the whole editor on its own layer for the life of the app.
+ */
+.app-shell[data-back-swipe] {
+  transition: transform 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+.app-shell[data-back-swipe][data-dragging],
+.app-shell[data-back-swipe][data-leaving] {
+  background: var(--bg);
+  box-shadow: -14px 0 32px color-mix(in srgb, #000 30%, transparent);
+  will-change: transform;
+}
+.app-shell[data-back-swipe][data-dragging] {
+  transition: none;
+}
+/* 220ms is `EXIT_MS` in useSwipeToDismiss, which is how long the shell stays
+   put before the surface changes under it. Change one and change the other. */
+.app-shell[data-back-swipe][data-leaving] {
+  transform: translateX(100%);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell[data-back-swipe],
+  .app-shell[data-back-swipe][data-leaving] {
+    transition: none;
+  }
 }
 
 /* ── Tauri overlay title bar: drag the window from chrome, not the editor ──
@@ -2163,6 +2650,74 @@ html[data-focus-mode] .focus-controls {
   background: var(--border-subtle);
 }
 
+/* ── The collapsed cluster ──────────────────────────────────────────────────
+   In focus mode the controls fold behind one handle. Width + opacity, never
+   `display: none` — the chips have to stay in the tab order and reachable by
+   :focus-within, which is how this opens for a keyboard. */
+.focus-controls__handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.focus-controls__handle:hover {
+  color: var(--text-dim);
+}
+.focus-controls__handle-glyph {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* heartIQ has something in pencil. One dot, graphite, no count — a number
+   beside someone's spiritual writing is a score with extra steps. */
+.focus-controls__handle[data-pencil='true']::after {
+  content: '';
+  position: absolute;
+  top: 0.28rem;
+  right: 0.28rem;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-dim) 62%, transparent);
+}
+
+.focus-controls[data-collapsed='true'] {
+  gap: 0;
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.5;
+}
+.focus-controls[data-collapsed='true'] > :not(.focus-controls__handle) {
+  width: 0;
+  padding-inline: 0;
+  margin-inline: 0;
+  border-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.focus-controls > :not(.focus-controls__handle) {
+  transition:
+    opacity var(--transition),
+    width var(--transition);
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-controls > :not(.focus-controls__handle) {
+    transition: none;
+  }
+}
+
 /* Single appearance control — cycles light → dark → auto */
 .appearance-icon-btn {
   display: inline-flex;
@@ -2187,6 +2742,11 @@ html[data-focus-mode] .focus-controls {
 .appearance-icon-btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: 2px;
+}
+/* The markings toggle borrows this button; on means the margin is open. */
+.appearance-icon-btn[data-on='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 .appearance-icon-btn svg {
   width: 1.05rem;
@@ -2266,6 +2826,21 @@ html[data-focus-mode] .focus-controls {
 .markdown-body mark.hl--sage { --hl-hue: var(--hl-sage); }
 .markdown-body mark.hl--sky { --hl-hue: var(--hl-sky); }
 .markdown-body mark.hl--lilac { --hl-hue: var(--hl-lilac); }
+
+/* Editor highlighter wash. Colour is applied per `.cm-hl--*` so it reads
+   `--hl-*` off [data-theme] like every other surface. Kept here rather than
+   in EditorView.theme: a custom-property hop inside style-mod can leave
+   `rgba(var(--hl-hue), …)` invalid, which is a highlight with no wash. */
+.cm-hl {
+  border-radius: 0.18em;
+  padding: 0.06em 0.1em;
+  margin: 0 -0.02em;
+}
+.cm-hl--amber { background-color: rgba(var(--hl-amber), var(--hl-alpha)); }
+.cm-hl--rose { background-color: rgba(var(--hl-rose), var(--hl-alpha)); }
+.cm-hl--sage { background-color: rgba(var(--hl-sage), var(--hl-alpha)); }
+.cm-hl--sky { background-color: rgba(var(--hl-sky), var(--hl-alpha)); }
+.cm-hl--lilac { background-color: rgba(var(--hl-lilac), var(--hl-alpha)); }
 .markdown-body u.ul {
   text-decoration-thickness: 0.075em;
   text-underline-offset: 0.18em;
@@ -2276,14 +2851,16 @@ html[data-focus-mode] .focus-controls {
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
+  font-family: var(--font-display);
   color: var(--md-heading);
+  letter-spacing: var(--h1-track);
   line-height: 1.3;
   margin: 1.6em 0 0.6em;
 }
 .markdown-body h1 {
-  font-size: 1.6em;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: var(--h1-size);
+  font-weight: var(--h1-weight);
+  line-height: var(--h1-lh);
   margin: 0 0 1.1em;
 }
 .markdown-body h1 + p,
@@ -2292,8 +2869,8 @@ html[data-focus-mode] .focus-controls {
 .markdown-body h1 + blockquote {
   margin-top: 0;
 }
-.markdown-body h2 { font-size: 1.4em; }
-.markdown-body h3 { font-size: 1.2em; }
+.markdown-body h2 { font-size: var(--h2-size); font-weight: var(--h2-weight); }
+.markdown-body h3 { font-size: var(--h3-size); font-weight: var(--h3-weight); }
 .markdown-body p { margin: 0 0 1em; }
 .markdown-body strong { color: var(--text-bright); }
 .markdown-body em { color: var(--md-emphasis); }
@@ -2328,10 +2905,40 @@ html[data-focus-mode] .focus-controls {
   margin: 0 0 1em;
 }
 .markdown-body pre code { background: none; padding: 0; }
+/* ── Thematic break (`---` in the editor, <hr> in the reading view) ────────
+   Typesetting, not a Word rule: two fading arms and a small gem in the
+   middle, tinted with the same horizon colour as the writing-canvas hairline.
+   The gem's *shape* is per-theme (themes.css); the structure is shared so a
+   palette switch never rebuilds the widget. */
+.cm-hr,
 .markdown-body hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 1.6em 0;
+  --hr-color: var(--journal-horizon);
+  --hr-gap: 0.8em;
+  display: block;
+  border: 0;
+  height: 2.45em;
+  margin: 0.1em 0;
+  position: relative;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, var(--hr-color)) no-repeat,
+    linear-gradient(90deg, var(--hr-color), transparent) no-repeat;
+  background-size: calc(50% - var(--hr-gap)) 1px;
+  background-position: left center, right center;
+}
+.cm-hr::before,
+.markdown-body hr::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: var(--hr-color);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.markdown-body hr {
+  margin: 0.55em 0 0.85em;
 }
 .markdown-body img {
   max-width: 100%;
@@ -2351,6 +2958,13 @@ html[data-focus-mode] .focus-controls {
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-soft) 20%, transparent);
 }
+/* While the touch slash sheet is docked over the lower half of the editor, give
+   the document somewhere to scroll to — otherwise an entry shorter than the
+   scrollport can't move its caret out from behind the sheet (see Editor.tsx). */
+.editor-host[data-slash-sheet] .cm-content {
+  padding-bottom: 55dvh;
+}
+
 /* A photo is a draggable object; show it, and dim it while it's in flight. */
 .cm-attachment--interactive { cursor: grab; }
 .cm-attachment--interactive:active { cursor: grabbing; }
@@ -2369,7 +2983,15 @@ html[data-focus-mode] .focus-controls {
   50%       { opacity: 0.35; }
 }
 
-/* ── Mobile entry drawer ────────────────────────────────────────────────── */
+/* ── Overlay scrim ──────────────────────────────────────────────────────── */
+
+/* The base every full-screen overlay composes on: settings, shortcuts, Find,
+   the concordance drawer, and the mobile entry drawer. Each of those sets its
+   own z-index and layout; all any of them supply is the anchor. It briefly went
+   out with the drawer, which left the overlays as static blocks landing
+   wherever the document happened to end — "settings opens at the bottom of the
+   screen". Don't fold it back into a single component: five of them depend on
+   it. */
 .scrim {
   position: fixed;
   inset: 0;
@@ -2377,6 +2999,8 @@ html[data-focus-mode] .focus-controls {
   z-index: 40;
   animation: fade-in 140ms ease;
 }
+
+/* ── Mobile entry drawer ────────────────────────────────────────────────── */
 .drawer {
   position: fixed;
   top: 0;
@@ -2390,7 +3014,19 @@ html[data-focus-mode] .focus-controls {
   display: flex;
   flex-direction: column;
   animation: slide-in 180ms ease;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--safe-top);
+}
+
+/* Quiet identity line in the drawer header. Not a control — the only reason
+   it's here is so you can tell which account you're in without hunting. */
+.drawer__account {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  letter-spacing: -0.005em;
 }
 @keyframes fade-in {
   from { opacity: 0; }
@@ -2489,7 +3125,11 @@ html[data-focus-mode] .focus-controls {
   background: var(--accent);
   color: var(--bg);
   box-shadow: var(--shadow-3);
-  transition: transform var(--transition), filter var(--transition);
+  /* Opacity is in here because surfaces fade this out rather than cutting it —
+     Pages does while a page is open (see `.pg[data-reading-page]` in
+     Pages.css), and a disc that blinks away reads as a glitch. */
+  transition: transform var(--transition), filter var(--transition),
+    opacity var(--transition);
 }
 .mobile-fab:active {
   transform: scale(0.93);
@@ -2558,6 +3198,12 @@ html[data-focus-mode] .focus-controls {
     border-radius: 12px 12px 0 0;
     animation: glass-modal-mobile-in var(--transition-slow) both;
     flex-direction: column;
+    /* Snap-back when a drag is released short of the dismiss threshold. The
+       drag itself sets `transition: none` inline so it tracks the finger. */
+    transition: transform var(--transition) ease-out;
+    /* The sheet owns vertical gestures; the body opts back in via its own
+       overflow-y. Without this iOS scrolls the page behind the drag. */
+    touch-action: pan-y;
   }
   @keyframes glass-modal-mobile-in {
     from {
@@ -2612,8 +3258,9 @@ html[data-focus-mode] .focus-controls {
   .settings-nav {
     flex: 0 0 auto;
     flex-direction: row;
-    gap: 0;
-    padding: 0.25rem 0.5rem 0;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.35rem 0.5rem;
     background: var(--bg);
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
@@ -2673,23 +3320,24 @@ html[data-focus-mode] .focus-controls {
 }
 
 @media (max-width: 767px) {
+  /* Icon stacked over its word, so all five tabs fit a phone without scrolling.
+     The active state is carried by the pill background, not the rail's sliding
+     accent bar — which is why ::before is hidden rather than re-pointed. */
   .settings-nav__item {
     width: auto;
-    gap: 0.35rem;
-    padding: 0.5rem 0.6rem;
-    border-radius: 0;
-    font-size: 0.8rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 44px;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--radius);
+    font-size: 0.7rem;
+    text-align: center;
     white-space: nowrap;
     flex-shrink: 0;
   }
   .settings-nav__item[data-active='true']::before {
-    left: 0;
-    top: auto;
-    bottom: -0.5rem;
-    transform: none;
-    width: 100%;
-    height: 2px;
-    border-radius: 1px 1px 0 0;
+    display: none;
   }
 }
 .settings-nav__icon {
@@ -2704,6 +3352,11 @@ html[data-focus-mode] .focus-controls {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Mobile stacks the modal into a column, where a flex item's automatic
+     minimum size is its content height — without this, .settings-main grows
+     past the sheet, .settings-main__body's overflow-y never engages, and
+     .glass-surface's overflow:hidden clips the rest with no way to scroll. */
+  min-height: 0;
 }
 .settings-main__head {
   display: flex;
@@ -2736,7 +3389,12 @@ html[data-focus-mode] .focus-controls {
 
 .settings-main__body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* At scrollTop 0 a downward drag belongs to the sheet (useSheetDismiss) —
+     without this the scroller rubber-bands underneath it at the same time. */
+  overscroll-behavior: contain;
   padding: 1.4rem;
   animation: tab-fade var(--transition-slow) both;
 }
@@ -2744,7 +3402,7 @@ html[data-focus-mode] .focus-controls {
 @media (max-width: 767px) {
   .settings-main__body {
     padding: 1rem;
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-bottom: max(1rem, var(--safe-bottom));
   }
 }
 @keyframes tab-fade {
@@ -3066,6 +3724,30 @@ html[data-focus-mode] .focus-controls {
 
 .settings-about__danger .btn:last-child {
   margin-bottom: 0;
+}
+
+/* Sign-out confirm, inline where the button was — no modal for a two-tap
+   answer. The buttons sit side by side so "Cancel" is the easier target. */
+.settings-about__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.settings-about__confirm-text {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.settings-about__confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.settings-about__danger .settings-about__confirm-actions .btn {
+  display: inline-block;
+  width: auto;
+  min-height: 40px;
+  padding: 0.3rem 0.9rem;
+  text-align: center;
 }
 
 .settings-actions {
@@ -3616,7 +4298,15 @@ html[data-focus-mode] .focus-controls {
 .shortcut-row__keys {
   flex: 0 0 auto;
   display: inline-flex;
+  align-items: center;
   gap: 0.25rem;
+}
+
+/* Two bindings for one act, joined rather than listed — two rows would read as
+   two different things you can do. */
+.shortcut-row__or {
+  font-size: 0.68rem;
+  color: var(--text-faint);
 }
 
 /* ── “?” overlay ───────────────────────────────────────────────────────── */
@@ -3657,36 +4347,13 @@ html[data-focus-mode] .focus-controls {
   text-align: center;
 }
 
-/* ── Responsive: stack the settings rail on top on narrow screens ──────── */
-@media (max-width: 720px) {
-  .settings-modal {
-    flex-direction: column;
-    height: min(90vh, 46rem);
-  }
-  .settings-nav {
-    flex: 0 0 auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.15rem;
-    overflow-x: auto;
-    padding: 0.5rem 0.6rem;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .settings-nav__brand {
-    display: none;
-  }
-  .settings-nav__item {
-    flex: 0 0 auto;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.7rem;
-  }
-  .settings-nav__item[data-active='true']::before {
-    display: none;
-  }
-}
+/* NOTE: the old `@media (max-width: 720px)` block that used to live here has
+   been folded into the `max-width: 767px` rules above. It sat *after* them at
+   equal specificity, so its `.settings-modal { height: min(90vh, 46rem) }`
+   silently beat the intended `height: 100dvh` — on any iPhone that pinned the
+   sheet to 736px inside a bottom-anchored full-screen scrim, leaving a dead
+   band of blurred scrim above it. Keep settings breakpoints at 767px so they
+   fire exactly when useIsMobile() does. */
 
 /* ── Desktop update prompt (Tauri) ─────────────────────────────────────────
    Bottom-left toast shown when a new version has been downloaded and staged.
@@ -4045,6 +4712,94 @@ html[data-focus-mode] .focus-controls {
   overflow-y: auto;
 }
 
+/* Touch: a bottom sheet docked on the keyboard, mirroring CommandPopover. The
+   caret-anchored popover swallowed the writing surface — 366×372pt from just
+   under the header to the top of the keyboard, with the caret itself hidden
+   behind it — so on a phone the palette rises from the bottom instead and the
+   line you're writing stays visible above it. */
+.slash-palette--sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 8500;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  max-width: none;
+  padding: 0 0 env(safe-area-inset-bottom);
+  overflow: hidden;
+  border: 0.5px solid var(--border);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--bg-elevated);
+  box-shadow: 0 -10px 36px -14px rgba(40, 24, 8, 0.5);
+  animation: command-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.slash-palette__sheet-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.1rem 0.4rem 0.35rem 0.9rem;
+  border-bottom: 0.5px solid var(--border-subtle);
+}
+
+.slash-palette__sheet-title {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.slash-palette__cancel {
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+/* Pair with useSheetDismiss's `data-sheet-scroll`: contain the overscroll so
+   the list doesn't rubber-band underneath a pull-to-dismiss drag. */
+.slash-palette__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 0.25rem 0.3rem 0.4rem;
+}
+
+.slash-palette--sheet .slash-palette__col {
+  min-width: 0;
+}
+
+/* One column, full descriptions, and rows at the 48px floor from
+   MOBILE_DESIGN.md — the two-column desktop grid was truncating hints
+   mid-word ("Find relevant passag…") into ~42pt rows. */
+.slash-palette--sheet .slash-palette__item {
+  min-height: 48px;
+  padding: 0.5rem 0.7rem;
+  gap: 0.75rem;
+}
+
+.slash-palette--sheet .slash-palette__hint {
+  white-space: normal;
+  overflow: visible;
+}
+
+.slash-palette--sheet .slash-palette__heading {
+  padding: 0.5rem 0.7rem 0.3rem;
+}
+
 .slash-palette__col {
   display: flex;
   flex-direction: column;
@@ -4136,4 +4891,121 @@ html[data-focus-mode] .focus-controls {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── A marking's hand ────────────────────────────────────────────────────────
+   Shared by the glyph on the closed margin rule (a CodeMirror widget, inside the
+   editor) and the note in the open margin (React, outside it) — one set of rules
+   so the two are the same drawing. Colour rides on `currentColor` per kind, so a
+   glyph belongs in all six palettes without a per-theme table.
+   See src/editor/markGlyph.ts for the shapes and why none of them rise. */
+.ds-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.ds-glyph--prayer { color: var(--k-prayer); }
+.ds-glyph--sense { color: var(--k-sense); }
+.ds-glyph--scripture { color: var(--k-scripture); }
+
+/* The Lamp's ember→gold rule. A CSS ramp, not an SVG gradient — see markGlyph.ts. */
+.ds-glyph__rule {
+  width: 3px;
+  height: 1em;
+  min-height: 14px;
+  border-radius: 1.5px;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--scripture-gold)),
+    rgb(var(--scripture-ember))
+  );
+}
+
+/* Warmth with no edge. Heft is thickness; the glow never becomes a flame. */
+.ds-glyph__ember {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px 3px color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.ds-glyph__svg {
+  width: 11px;
+  height: 20px;
+}
+
+/* Things arrive by fading. Never a slide, never a scale, never a bounce —
+   movement in peripheral vision is what pulls the eye off the sentence you are
+   still writing; opacity does not. */
+@keyframes ds-glyph-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* A switch that depends on another one being on (e.g. "Let the journal notice"
+   needs "Show the margin"). Dimmed rather than hidden, so the dependency is
+   visible instead of the control silently disappearing. */
+.settings-toggle--disabled {
+  opacity: 0.45;
+}
+.settings-toggle--disabled .switch {
+  cursor: not-allowed;
+}
+
+/*
+ * Settings disclosure — where a choice that used to be a front door goes when
+ * the theme starts making it for you. Open it and nothing is hidden; leave it
+ * shut and the panel stops offering nine-times-six combinations nobody vetted.
+ */
+.settings-disclosure {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+}
+
+.settings-disclosure__summary {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+  transition: color var(--transition);
+}
+
+.settings-disclosure__summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-disclosure__summary::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  transition: transform var(--transition);
+}
+
+.settings-disclosure[open] > .settings-disclosure__summary::before {
+  transform: rotate(90deg);
+}
+
+.settings-disclosure__summary:hover {
+  color: var(--text);
+}
+
+.settings-disclosure__summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.settings-disclosure__body {
+  padding-top: 12px;
 }

@@ -1,0 +1,490 @@
+---
+// SlashCommandsMock — horizontal command tabs + swappable follow-up panel.
+// The scripture-search result panel is intentionally absent here; that story
+// lives in the Scripture section. This section is about "commands, inline."
+interface Command {
+  id: string;
+  label: string;
+  hint: string;
+  blurb: string;
+}
+interface Props {
+  commands: Command[];
+  editorLines: string[];
+  class?: string;
+}
+const { commands, editorLines, class: className = "" } = Astro.props;
+const defaultId = commands[0]?.id ?? "scripture";
+
+const prayTypes = ["Intercession", "Gratitude", "Petition", "Praise"];
+---
+
+<div class:list={["slash-mock", className]} data-slash-mock>
+  <div class="editor-crop">
+    <p class="ed-date mono">march 14</p>
+    <h3 class="ed-title">Hard conversation with Marcus</h3>
+    <div class="ed-body">
+      {
+        editorLines.map((line, i) => (
+          <p>
+            {line}
+            {i === editorLines.length - 1 && (
+              <>
+                <span class="slash-typed">/</span>
+                <span class="caret" aria-hidden="true" />
+              </>
+            )}
+          </p>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="slash-flow">
+    <!-- horizontal tab row -->
+    <nav class="slash-palette glass-panel" role="listbox" aria-label="Commands">
+      {
+        commands.map((cmd) => (
+          <button
+            type="button"
+            role="option"
+            class="palette-item"
+            data-cmd={cmd.id}
+            aria-selected={cmd.id === defaultId ? "true" : "false"}
+          >
+            <span class="palette-label">{cmd.label}</span>
+          </button>
+        ))
+      }
+    </nav>
+
+    <!-- panels stacked in one grid cell so height stays stable -->
+    <div class="followups">
+      {
+        commands.map((cmd) => (
+          <div
+            class:list={[
+              "followup",
+              "glass-panel",
+              { "is-visible": cmd.id === defaultId },
+            ]}
+            data-panel={cmd.id}
+            aria-hidden={cmd.id !== defaultId ? "true" : "false"}
+          >
+            <p class="cmd-blurb">{cmd.blurb}</p>
+
+            {cmd.id === "scripture" && (
+              <div class="panel-scripture">
+                <p class="verse-result mono">James 1:19</p>
+                <p class="verse-text">
+                  "Let every person be quick to hear, slow to speak, slow to
+                  anger…"
+                </p>
+              </div>
+            )}
+
+            {cmd.id === "pray" && (
+              <div class="panel-pray">
+                <label class="field-label mono">prayer</label>
+                <textarea
+                  class="mock-textarea"
+                  rows={2}
+                  readonly
+                  tabindex="-1"
+                  value="What are you bringing…"
+                />
+                <div class="chips" role="group" aria-label="Prayer type (optional)">
+                  {prayTypes.map((t, i) => (
+                    <span class:list={["chip", { active: i === 0 }]}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cmd.id === "sense" && (
+              <div class="panel-sense">
+                <p class="sense-title">I sense God is saying…</p>
+                <textarea
+                  class="mock-textarea"
+                  rows={2}
+                  readonly
+                  tabindex="-1"
+                  value="Stay — don't rush to fix it."
+                />
+              </div>
+            )}
+
+            {cmd.id === "practice" && (
+              <div class="panel-practice">
+                <p class="practice-kicker mono">The Practices</p>
+                <p class="practice-title">How will you draw near today?</p>
+                <div class="practice-cards">
+                  <span class="practice-chip">The Daily Examen</span>
+                  <span class="practice-chip">Lectio Divina</span>
+                  <span class="practice-chip">Psalmic Lament</span>
+                </div>
+                <p class="practice-foot">
+                  Browse nine forms — then write into gentle scaffolding that
+                  knows where to begin.
+                </p>
+              </div>
+            )}
+
+            {cmd.id === "image" && (
+              <div class="panel-image">
+                <div class="image-drop" aria-hidden="true">
+                  <span class="image-icon">🖼</span>
+                  <span class="image-label">Drop or paste a photo</span>
+                </div>
+                <p class="image-foot">Inline in the entry — not a sidebar attachment.</p>
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</div>
+
+<style>
+  .slash-mock {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    padding: 24px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .editor-crop {
+    position: relative;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+
+  /* palette (horizontal tabs) → panel below */
+  .slash-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ed-date {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: lowercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .ed-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 18px;
+    color: var(--dawn-1);
+    margin-bottom: 12px;
+  }
+  .ed-body p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--paper-dim);
+    font-weight: 300;
+    margin-bottom: 0;
+  }
+  .slash-typed {
+    font-family: var(--font-mono);
+    color: var(--dawn-1);
+  }
+  .caret {
+    display: inline-block;
+    width: 7px;
+    height: 13px;
+    vertical-align: -2px;
+    background: var(--dawn-1);
+    margin-left: 1px;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  .glass-panel {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-strong);
+    backdrop-filter: blur(18px) saturate(1.05);
+    -webkit-backdrop-filter: blur(18px) saturate(1.05);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    box-shadow:
+      0 8px 32px -8px var(--shadow-soft),
+      inset 0 1px 0 var(--border-dim);
+  }
+
+  /* horizontal tab row */
+  .slash-palette {
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    padding: 6px;
+    width: 100%;
+  }
+  .palette-item {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 6px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .palette-item:hover {
+    background: var(--surface);
+  }
+  .palette-item[aria-selected="true"] {
+    background: rgba(243, 189, 118, 0.09);
+    border-color: rgba(243, 189, 118, 0.22);
+  }
+  .palette-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.3;
+    color: var(--paper-dim);
+    letter-spacing: 0.01em;
+  }
+  .palette-item[aria-selected="true"] .palette-label {
+    color: var(--dawn-1);
+  }
+
+  /* panels in one grid cell — tallest one sets height, no layout shift */
+  .followups {
+    display: grid;
+  }
+  .followup {
+    grid-area: 1 / 1;
+    align-self: start;
+    width: 100%;
+    padding: 18px 18px 20px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .followup.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .cmd-blurb {
+    font-size: 13.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+
+  /* scripture — compact inline verse preview, no search form */
+  .verse-result {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 6px;
+  }
+  .verse-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--paper-dim);
+    font-style: italic;
+    padding-left: 12px;
+    border-left: 2px solid rgba(243, 189, 118, 0.35);
+  }
+
+  .mock-textarea {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 11px;
+    resize: none;
+    line-height: 1.5;
+  }
+
+  .field-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: lowercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .chip.active {
+    color: var(--paper);
+    border-color: rgba(243, 189, 118, 0.4);
+    background: rgba(243, 189, 118, 0.08);
+  }
+
+  .sense-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--paper);
+    margin-bottom: 10px;
+  }
+
+  .panel-practice {
+    text-align: left;
+  }
+  .practice-kicker {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 8px;
+  }
+  .practice-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    color: var(--paper);
+    margin-bottom: 12px;
+  }
+  .practice-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .practice-chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 11px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--paper-dim);
+    background: var(--surface);
+  }
+  .practice-foot {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .panel-image {
+    text-align: left;
+  }
+  .image-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 28px 16px;
+    border-radius: 10px;
+    border: 1px dashed rgba(243, 189, 118, 0.35);
+    background: rgba(243, 189, 118, 0.04);
+    margin-bottom: 10px;
+  }
+  .image-icon {
+    font-size: 1.25rem;
+    opacity: 0.7;
+  }
+  .image-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--paper-dim);
+  }
+  .image-foot {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  @media (max-width: 640px) {
+    .slash-mock {
+      padding: 20px 18px 22px;
+    }
+    .palette-label {
+      font-size: 0.75rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .followup {
+      transition: none;
+    }
+    .caret {
+      animation: none;
+      opacity: 1;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll("[data-slash-mock]").forEach((root) => {
+    const items = root.querySelectorAll<HTMLButtonElement>(".palette-item[data-cmd]");
+    const panels = root.querySelectorAll<HTMLElement>(".followup[data-panel]");
+
+    const select = (id: string) => {
+      items.forEach((btn) => {
+        btn.setAttribute("aria-selected", btn.dataset.cmd === id ? "true" : "false");
+      });
+      panels.forEach((panel) => {
+        const on = panel.dataset.panel === id;
+        panel.classList.toggle("is-visible", on);
+        panel.setAttribute("aria-hidden", on ? "false" : "true");
+      });
+    };
+
+    items.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.cmd;
+        if (id) select(id);
+      });
+      btn.addEventListener("mouseenter", () => {
+        const id = btn.dataset.cmd;
+        if (id) select(id);
+      });
+    });
+
+    root.addEventListener("keydown", (e) => {
+      const keys = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Enter"];
+      if (!keys.includes(e.key)) return;
+
+      const list = Array.from(items);
+      const current = list.findIndex((b) => b.getAttribute("aria-selected") === "true");
+      if (current < 0) return;
+
+      e.preventDefault();
+      let next = current;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") next = Math.min(current + 1, list.length - 1);
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = Math.max(current - 1, 0);
+
+      const id = list[next]?.dataset.cmd;
+      if (id) select(id);
+      list[next]?.focus();
+    });
+  });
+</script>

@@ -1,0 +1,91 @@
+---
+// DawnGlow — the reusable radial backlight placed behind showcased
+// elements. Drop it inside any `position: relative` parent.
+//
+//   variant="stage"   large warm halo behind a showcased element (editor stage)
+//   variant="corner"  soft glow bleeding from a corner (letter card, feat tier)
+//   variant="bloom"   wide ambient bloom for section backdrops
+//
+// Tune intensity per use via the `intensity` prop (multiplies opacity).
+interface Props {
+  variant?: "stage" | "corner" | "bloom";
+  /** Corner anchor for variant="corner". */
+  corner?: "top-right" | "top-left";
+  /** 0–1 multiplier on the glow opacity. */
+  intensity?: number;
+  class?: string;
+}
+const {
+  variant = "stage",
+  corner = "top-right",
+  intensity = 1,
+  class: className = "",
+} = Astro.props;
+---
+
+<div
+  class:list={["dawn-glow", `dg-${variant}`, `dg-${corner}`, className]}
+  style={`--dg-intensity:${intensity}`}
+  aria-hidden="true"
+>
+</div>
+
+<style>
+  .dawn-glow {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* large warm halo behind a showcased element */
+  .dg-stage {
+    left: 50%;
+    top: -8%;
+    transform: translateX(-50%);
+    width: 90%;
+    height: 95%;
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(243, 189, 118, calc(0.2 * var(--dg-intensity, 1))),
+      transparent 65%
+    );
+    filter: blur(22px);
+  }
+
+  /* soft glow bleeding from a corner */
+  .dg-corner {
+    width: 60%;
+    height: 80%;
+    background: radial-gradient(
+      circle,
+      rgba(243, 189, 118, calc(0.16 * var(--dg-intensity, 1))),
+      transparent 70%
+    );
+    filter: blur(10px);
+  }
+  .dg-corner.dg-top-right {
+    top: -40%;
+    right: -30%;
+  }
+  .dg-corner.dg-top-left {
+    top: -40%;
+    left: -30%;
+  }
+
+  /* wide ambient bloom */
+  .dg-bloom {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 120%;
+    height: 120%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(243, 189, 118, calc(0.12 * var(--dg-intensity, 1))),
+      rgba(232, 145, 124, calc(0.06 * var(--dg-intensity, 1))) 40%,
+      transparent 70%
+    );
+    filter: blur(30px);
+  }
+</style>

@@ -4,6 +4,7 @@ import type { ImportParseResult } from '@/lib/import/types'
 import type { ImportSourceDef } from '@/lib/import/sources'
 import type { EntrySource } from '@/lib/types'
 import { requireSupabase } from '@/lib/supabase'
+import * as repo from '@/lib/repo'
 import { apiPost } from '@/lib/api'
 import { scanAllForRefs, getImportedEntryCount, writeScanWatermark } from '@/lib/scripture/scan'
 import { archiveFromDrop, archiveFromFiles, type ImportArchive } from '@/lib/import/archive'
@@ -146,6 +147,14 @@ export function ImportRunner({ source }: Props) {
         ...(imageSummary ? { images: imageSummary } : {}),
       })
       setPhase('done')
+
+      // The import writes straight to Supabase, bypassing the local cache — so
+      // without this the device that just did the work is the last to see it,
+      // waiting on a refocus or reload while every OTHER device already has the
+      // entries via realtime. Pull them into the cache now.
+      void repo.sync().catch(() => {
+        // Non-fatal: the entries are on the server, and the next sync collects them.
+      })
 
       // Kick off the background build of this archive's surfaces. Best-effort —
       // a failure here must not undo a successful import (the entries are saved).

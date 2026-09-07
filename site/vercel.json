@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "bash vercel-ignore.sh"
+  "framework": "astro",
+  "ignoreCommand": "bash vercel-ignore.sh",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist"
 }

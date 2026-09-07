@@ -2,28 +2,57 @@ import { useCallback, type RefObject } from 'react'
 import {
   Decoration,
   EditorView,
-  WidgetType,
   keymap,
   type DecorationSet,
 } from '@codemirror/view'
-import { Prec, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
+import {
+  Prec,
+  StateField,
+  type EditorState,
+  type Extension,
+  type Range,
+} from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
 import { PRACTICE_BY_NAME, type Practice } from './practicesData'
-import { PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
+import {
+  PRACTICE_NAME_RE,
+  PRACTICE_SECTION_RE,
+  practiceNameFromLine,
+} from '@/lib/practiceTokens'
+import {
+  currentMovementIndex,
+  isRitualComplete,
+  parseRitualBlocks,
+  ritualBlockAtLine,
+  type RitualBlock,
+} from './ritualPacing'
+import {
+  RitualColophonWidget,
+  RitualHeaderWidget,
+  RitualPlaceholderWidget,
+  RitualPromptWidget,
+} from './ritualWidgets'
 
 /**
- * Practice entries are written directly into the document as plain markdown, but
- * their scaffolding — the practice name and each section's label + question — is
+ * Ritual entries are written directly into the document as plain markdown, but
+ * their scaffolding — the ritual name and each movement's label + question — is
  * carried only as hidden HTML-comment tokens:
  *
- *   <!-- practice:name:The Daily Examen -->
- *   <!-- practice:section:Gratitude -->
+ *   <!-- ritual:name:The Daily Examen -->
+ *   <!-- ritual:section:Gratitude -->
  *   (the writer answers on the blank line here)
  *
  * The tokens never render (they're replaced by decorations) and the prompt text
  * is display-only — only what the writer types is persisted. The tokens are a
  * forward-looking hook so the rollup engine can one day recognise structured
- * practice entries by section. Nothing reads them yet.
+ * ritual entries by movement. Nothing reads them yet.
+ *
+ * A ritual opens ONE MOVEMENT AT A TIME. That pacing is the difference between
+ * praying a practice and filling in a form, and the arithmetic behind it lives
+ * in `ritualPacing.ts`. Everything here is a lens over the same markdown: the
+ * document a paced ritual saves is byte-for-byte the document the old
+ * all-at-once template saved, so entries written either way render correctly and
+ * sync is untouched.
  */
 
 /** Build the raw markdown for a practice, ready to insert at `insertAt`. */
@@ -50,24 +79,53 @@ export function buildPracticeBlock(
   return { text, cursorOffset: cursorOffset < 0 ? text.length : cursorOffset }
 }
 
+// ── Parsed rituals ─────────────────────────────────────────────────────────
+//
+// Parse the document's ritual blocks once per change, the way
+// `spiritualBlocksField` does for scripture and prayer, so the reveal state and
+// the decorations below both read one parse instead of each scanning the doc.
+
+interface RitualDoc {
+  blocks: RitualBlock[]
+  /** False for the overwhelming majority of documents — the cheap bail-out. */
+  hasRituals: boolean
+}
+
+const NO_RITUALS: RitualDoc = { blocks: [], hasRituals: false }
+
+function parseRitualDoc(state: EditorState): RitualDoc {
+  const md = state.doc.toString()
+  if (!md.includes('<!-- ritual:') && !md.includes('<!-- practice:')) return NO_RITUALS
+  return { blocks: parseRitualBlocks(md.split('\n')), hasRituals: true }
+}
+
+const ritualDocField = StateField.define<RitualDoc>({
+  create: parseRitualDoc,
+  update(value, tr) {
+    return tr.docChanged ? parseRitualDoc(tr.state) : value
+  },
+})
+
 // ── Decorations ────────────────────────────────────────────────────────────
 //
-// Each `ritual:*` token line is *replaced* by its block widget (the practice
-// header or a prompt). The replace range stops at the line's text — the trailing
-// newline survives, so the answer line below stays its own editable line, and
-// each prompt renders directly above the answer it introduces.
+// Each `ritual:*` token line is *replaced* by its block widget (the ritual
+// masthead, a movement's prompt, the threshold to the next movement, or — for a
+// movement not yet opened — nothing at all). The replace range stops at the
+// line's text: the trailing newline survives, so the answer line below stays its
+// own editable line, and each prompt renders directly above the answer it
+// introduces.
 //
 // The trailing newline must stay OUT of the range. Pulling it in looks tempting
 // (it removes one of the blank stubs below) but it makes CodeMirror render the
 // widget twice — one token, two DOM blocks — the same artifact that once made
 // scripture blocks appear to duplicate on Enter.
 //
-// We do NOT hide the token lines with `display:none`: CodeMirror can't measure a
+// We do NOT hide anything with `display:none`: CodeMirror can't measure a
 // `display:none` `.cm-line`, so it keeps a stale height estimate (a hidden 1-line
 // token measures as ~16px instead of 0) and its coordinate→position map drifts
 // out of sync with the DOM. That drift made clicks on a ritual answer line resolve
 // to the wrong line — the reported "can't click the last line of a response" bug.
-// A replace widget is measured like any other block, so the map stays aligned.
+// A zero-height box is measured like any other, so the map stays aligned.
 
 /** Marks the writing line below a prompt so it has a comfortable click target. */
 const answerLineDeco = Decoration.line({ class: 'cm-practice-answer' })
@@ -84,229 +142,135 @@ const atomicMark = Decoration.mark({})
  * else. Both stubs belong to the token line, so a line decoration reaches them
  * and nothing else; the answer below is a different line and keeps its height.
  *
- * `height: 0`, not `display: none`. A display:none line has no box for
- * CodeMirror to measure, so its height map keeps a stale estimate and the
- * coordinate→position map drifts — the old "can't click the last line of a
- * response" bug. A zero-height box measures as zero, honestly.
+ * `height: 0`, not `display: none` — see the note above.
  */
 const tokenLineDeco = Decoration.line({ class: 'cm-ritual-tokenline' })
-
-
-/** A `practice:section` line — rendered as a quiet cap label + italic question. */
-class PracticePromptWidget extends WidgetType {
-  constructor(
-    readonly label: string,
-    readonly question: string,
-    /** True for the prompt directly under the ritual header — it needs less air
-     *  above it, since the header's own rule already opens the block. */
-    readonly first: boolean,
-  ) {
-    super()
-  }
-  eq(other: PracticePromptWidget): boolean {
-    return (
-      other.label === this.label &&
-      other.question === this.question &&
-      other.first === this.first
-    )
-  }
-  toDOM(): HTMLElement {
-    const root = document.createElement('div')
-    root.className = this.first
-      ? 'cm-practice-prompt cm-practice-prompt--first'
-      : 'cm-practice-prompt'
-    root.setAttribute('contenteditable', 'false')
-    root.setAttribute('aria-hidden', 'true')
-
-    const label = document.createElement('span')
-    label.className = 'cm-practice-prompt__label'
-    label.textContent = this.label
-
-    if (this.question) {
-      const question = document.createElement('p')
-      question.className = 'cm-practice-prompt__question'
-      question.textContent = this.question
-      root.append(label, question)
-    } else {
-      root.append(label)
-    }
-    return root
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
-/** Example phrasing on an empty answer line — fades out as the writer types. */
-class PracticePlaceholderWidget extends WidgetType {
-  constructor(readonly text: string) {
-    super()
-  }
-  eq(other: PracticePlaceholderWidget): boolean {
-    return other.text === this.text
-  }
-  toDOM(): HTMLElement {
-    const span = document.createElement('span')
-    span.className = 'cm-practice-placeholder'
-    span.setAttribute('aria-hidden', 'true')
-    span.textContent = this.text
-    return span
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
-/**
- * A faint header at the top of a practice block: the practice name (orientation,
- * since the raw name token is hidden) plus a quiet "free write" action that
- * dissolves the whole template into plain prose. Revealed on hover/focus.
- */
-class PracticeNameWidget extends WidgetType {
-  constructor(readonly name: string) {
-    super()
-  }
-  eq(other: PracticeNameWidget): boolean {
-    return other.name === this.name
-  }
-  toDOM(): HTMLElement {
-    const root = document.createElement('div')
-    root.className = 'cm-practice-header'
-    root.dataset.practice = this.name
-    root.setAttribute('contenteditable', 'false')
-
-    const name = document.createElement('span')
-    name.className = 'cm-practice-header__name'
-    name.textContent = this.name
-
-    const about = document.createElement('button')
-    about.type = 'button'
-    about.className = 'cm-practice-action cm-practice-action--about'
-    about.textContent = 'about'
-    about.title = 'Why this ritual, how it moves, and a few tips'
-
-    const action = document.createElement('button')
-    action.type = 'button'
-    action.className = 'cm-practice-action cm-practice-action--freewrite'
-    action.textContent = 'free write'
-    action.title = 'Remove the prompts and keep only your words'
-
-    root.append(name, about, action)
-    return root
-  }
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
-interface ParsedToken {
-  /** 1-based line number. */
-  line: number
-  kind: 'name' | 'section'
-  value: string
-}
+/** Every line of a ritual, carrying the spine that makes the block a container. */
+const bodyLineDeco = Decoration.line({ class: 'cm-ritual-body' })
+/** Same, while the caret is inside — the block lights as you step into it. */
+const heldLineDeco = Decoration.line({ class: 'cm-ritual-body cm-ritual-body--held' })
 
 interface PracticeDecorations {
-  /** All practice decorations (hidden tokens, prompts, placeholders). */
+  /** All ritual decorations (hidden tokens, prompts, thresholds, colophon). */
   deco: DecorationSet
   /** Just the hidden token lines — kept atomic so the caret skips the markup. */
   atomic: DecorationSet
+  /** The block the caret is inside, in document offsets — drives the hold. */
+  live: { from: number; to: number } | null
 }
 
-const EMPTY: PracticeDecorations = { deco: Decoration.none, atomic: Decoration.none }
+const EMPTY: PracticeDecorations = {
+  deco: Decoration.none,
+  atomic: Decoration.none,
+  live: null,
+}
 
 function buildDecorations(state: EditorState): PracticeDecorations {
-  const { doc } = state
-  // Cheap bail-out: ritual entries are rare, so most docs do nothing here.
-  const md = doc.toString()
-  if (!md.includes('<!-- ritual:') && !md.includes('<!-- practice:')) return EMPTY
+  const { blocks, hasRituals } = state.field(ritualDocField)
+  if (!hasRituals || blocks.length === 0) return EMPTY
 
-  const tokens: ParsedToken[] = []
-  for (let n = 1; n <= doc.lines; n++) {
-    const text = doc.line(n).text
-    const name = PRACTICE_NAME_RE.exec(text)
-    if (name) {
-      tokens.push({ line: n, kind: 'name', value: name[1] ?? '' })
-      continue
-    }
-    const section = PRACTICE_SECTION_RE.exec(text)
-    if (section) tokens.push({ line: n, kind: 'section', value: section[1] ?? '' })
-  }
-  if (tokens.length === 0) return EMPTY
+  const { doc } = state
+  const caretLine = doc.lineAt(state.selection.main.head).number
+  const liveBlock = ritualBlockAtLine(blocks, caretLine)
 
   const ranges: Range<Decoration>[] = []
   const atomicRanges: Range<Decoration>[] = []
-  let currentPractice: Practice | undefined
 
-  tokens.forEach((token, idx) => {
-    const line = doc.line(token.line)
-    // Keep the token line atomic so the caret skips the (now replaced) markup
-    // when arrowing through the entry. Same span as the block widget below.
-    const atomicTo = Math.min(line.to + 1, doc.length)
-    if (atomicTo > line.from) atomicRanges.push(atomicMark.range(line.from, atomicTo))
-    // Collapse the blank stubs CodeMirror renders on either side of the widget.
-    ranges.push(tokenLineDeco.range(line.from))
+  /** Keep a token line's markup atomic so the caret arrows straight past it. */
+  const makeAtomic = (from: number, to: number) => {
+    const atomicTo = Math.min(to + 1, doc.length)
+    if (atomicTo > from) atomicRanges.push(atomicMark.range(from, atomicTo))
+  }
 
-    if (token.kind === 'name') {
-      currentPractice = PRACTICE_BY_NAME.get(token.value)
-      // Replace the raw name token with the ritual's header block (the name, the
-      // hairline that opens the block, and the "about" / "free write" actions).
-      ranges.push(
-        Decoration.replace({
-          widget: new PracticeNameWidget(token.value),
-          block: true,
-          inclusive: false,
-        }).range(line.from, line.to),
-      )
-      return
+  for (const block of blocks) {
+    const nameLine = doc.line(block.nameLine)
+    const complete = isRitualComplete(block)
+    // The first movement still waiting — the only one that gets a placeholder,
+    // so the app's example phrasing never sits on several of the writer's lines
+    // at once.
+    const waiting = currentMovementIndex(block)
+    const held = liveBlock === block
+    const practice = PRACTICE_BY_NAME.get(block.name)
+
+    // The spine: one line decoration across the whole block, so the ritual reads
+    // as a container rather than as questions floating in the entry.
+    for (let n = block.nameLine; n <= block.endLine; n++) {
+      ranges.push((held ? heldLineDeco : bodyLineDeco).range(doc.line(n).from))
     }
 
-    // Replace the section token with its prompt block. It renders in place of the
-    // token line — directly above the answer line — and stays visible as you write
-    // so the question you're answering is always in view; only the faint
-    // placeholder (below) clears once the section has content.
-    const prompt = currentPractice?.prompts.find((p) => p.label === token.value)
+    // The masthead.
+    ranges.push(tokenLineDeco.range(nameLine.from))
+    makeAtomic(nameLine.from, nameLine.to)
     ranges.push(
       Decoration.replace({
-        widget: new PracticePromptWidget(
-          token.value,
-          prompt?.question ?? '',
-          tokens[idx - 1]?.kind === 'name',
-        ),
+        widget: new RitualHeaderWidget(block.name, !complete, held),
         block: true,
         inclusive: false,
-      }).range(line.from, line.to),
+      }).range(nameLine.from, nameLine.to),
     )
 
-    // No answer line follows (token is the last line) — nothing to write into.
-    if (token.line + 1 > doc.lines) return
-    const answer = doc.line(token.line + 1)
+    for (const movement of block.movements) {
+      const tokenLine = doc.line(movement.tokenLine)
+      ranges.push(tokenLineDeco.range(tokenLine.from))
+      makeAtomic(tokenLine.from, tokenLine.to)
 
-    // Section content runs from the answer line up to the following token (or EOF).
-    const nextTokenLine = tokens[idx + 1]?.line ?? doc.lines + 1
-    let content = ''
-    for (let n = token.line + 1; n < nextTokenLine; n++) {
-      content += doc.line(n).text
+      const prompt = practice?.prompts.find((p) => p.label === movement.label)
+      ranges.push(
+        Decoration.replace({
+          widget: new RitualPromptWidget(
+            movement.label,
+            prompt?.question ?? '',
+            movement.index === 0,
+            held,
+          ),
+          block: true,
+          inclusive: false,
+        }).range(tokenLine.from, tokenLine.to),
+      )
+
+      // No answer line follows (token is the last line) — nothing to write into.
+      if (movement.answerLine === movement.tokenLine) continue
+      if (movement.filled) continue
+      const answer = doc.line(movement.answerLine)
+
+      // The min-height is a click target for an *empty* answer line. Once the
+      // movement has content the content sets the height, and forcing a
+      // min-height there just opens a dead gap.
+      ranges.push(answerLineDeco.range(answer.from))
+
+      if (movement.index === waiting && !complete && prompt?.placeholder) {
+        ranges.push(
+          Decoration.widget({
+            widget: new RitualPlaceholderWidget(prompt.placeholder),
+            side: 1,
+          }).range(answer.from),
+        )
+      }
     }
-    const filled = content.trim().length > 0
 
-    // The min-height is a click target for an *empty* answer line. Once the
-    // section has content (text or an embedded block like scripture), the content
-    // sets the height — forcing min-height there just opens a dead gap.
-    if (!filled) ranges.push(answerLineDeco.range(answer.from))
-
-    // Placeholder hint sits on the (empty) answer line until the writer begins.
-    if (!filled && prompt?.placeholder) {
+    // The dismissal. Placed at the END of the block's last written line, so it
+    // renders BELOW the caret — finishing the final movement must never reflow
+    // anything above the line being written.
+    if (complete) {
       ranges.push(
         Decoration.widget({
-          widget: new PracticePlaceholderWidget(prompt.placeholder),
+          widget: new RitualColophonWidget(block.name, practice?.origin ?? '', held),
+          block: true,
           side: 1,
-        }).range(answer.from),
+        }).range(doc.line(block.endLine).to),
       )
     }
-  })
+  }
 
-  return { deco: Decoration.set(ranges, true), atomic: Decoration.set(atomicRanges, true) }
+  const live = liveBlock
+    ? { from: doc.line(liveBlock.nameLine).from, to: doc.line(liveBlock.endLine).to }
+    : null
+
+  return {
+    deco: Decoration.set(ranges, true),
+    atomic: Decoration.set(atomicRanges, true),
+    live,
+  }
 }
 
 const practiceField = StateField.define<PracticeDecorations>({
@@ -314,12 +278,26 @@ const practiceField = StateField.define<PracticeDecorations>({
     return buildDecorations(state)
   },
   update(value, tr) {
-    // Rebuild on any doc change; otherwise map positions through the changes.
-    if (tr.docChanged) return buildDecorations(tr.state)
-    return { deco: value.deco.map(tr.changes), atomic: value.atomic.map(tr.changes) }
+    // Documents without a ritual — nearly all of them — cost one flag read per
+    // transaction and nothing else. The writing surface is sacred.
+    if (!tr.state.field(ritualDocField).hasRituals) return EMPTY
+    // Which movement is live, and whether the block is held, both depend on
+    // where the caret is — so unlike before, a selection change rebuilds too.
+    if (tr.docChanged || tr.selection) return buildDecorations(tr.state)
+    return value
   },
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
 })
+
+/**
+ * The ritual the caret is standing in, as document offsets — or null.
+ *
+ * Read by `ritualHold.ts` to let the rest of the entry recede while a practice
+ * has hold of the page.
+ */
+export function liveRitualRange(state: EditorState): { from: number; to: number } | null {
+  return state.field(practiceField, false)?.live ?? null
+}
 
 // ── The ritual's type hierarchy ──────────────────────────────────────────────
 //
@@ -328,10 +306,10 @@ const practiceField = StateField.define<PracticeDecorations>({
 //
 //   1. the writer's answer — roman, full size, --text        (loudest, always)
 //   2. the question        — italic, 0.95em, --text-dim      (the given voice)
-//   3. the section label   — 0.6em tracked caps, --text-faint (a tab, not a headline)
+//   3. the movement label  — 0.6em tracked caps, --text-faint (a tab, not a headline)
 //   4. the ritual name     — the block's masthead; the ONE accent, over a hairline
 //
-// What made this read as noise before: the name and the section labels were the
+// What made this read as noise before: the name and the movement labels were the
 // same treatment (tracked amber caps, and the label was the LARGER of the two),
 // so the container and its parts sat at the same rank and the accent repeated
 // five times a screen. And the question was set BIGGER than the answer, so the
@@ -340,11 +318,38 @@ const practiceField = StateField.define<PracticeDecorations>({
 //
 // Spacing is in `em` (not rem) throughout so the whole block scales with the
 // reader's own font-size setting rather than drifting from it.
+//
+// FAMILY IS NOT INHERITED, and that is deliberate. Everything the app says is
+// set in `--font-serif`; only what the writer types uses `--font-editor`. The
+// writer can point that at iA Writer Duo or Atkinson Hyperlegible, which ship
+// 400 and 700 and nothing else — so a label at 500 or a question at 300 italic
+// silently became whatever was nearest. Worse, at 24px (the default) a mono
+// face turned a two-line question into three and pushed the writing line off a
+// phone screen entirely. The given voice having its own face fixes both, and
+// says the right thing besides: this sentence is not yours.
 const practiceTheme = EditorView.theme({
   // Writing line beneath a prompt — a generous, obvious target to click into.
   '.cm-practice-answer': {
     minHeight: '2.1em',
   },
+  // ── The container ──────────────────────────────────────────────────────
+  // A hairline down the left of every line in the block, matched on the widgets
+  // between those lines, so the rule runs unbroken from masthead to colophon.
+  // Without it a ritual is questions floating in the entry with nothing to say
+  // they belong together.
+  '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
+    {
+      borderLeft: '1px solid color-mix(in srgb, var(--text-faint) 30%, transparent)',
+      paddingLeft: '1.15em',
+      transition: 'border-color 220ms ease, background-color 220ms ease',
+    },
+  // Standing inside the practice lights its spine and lays down the faintest
+  // ground. Stepping out lets go of both.
+  '.cm-ritual-body--held, .cm-practice-header[data-held], .cm-practice-prompt[data-held], .cm-ritual-colophon[data-held]':
+    {
+      borderLeftColor: 'color-mix(in srgb, var(--accent) 45%, transparent)',
+      backgroundColor: 'color-mix(in srgb, var(--accent) 3.5%, transparent)',
+    },
   // The replaced token line's leftover stubs — see tokenLineDeco. The line
   // decoration reaches only the stub *before* the widget; the one after it is a
   // separate block and can only be addressed by adjacency. Both selectors are
@@ -352,11 +357,13 @@ const practiceTheme = EditorView.theme({
   // the element immediately after one of these widgets is never a writing line.
   // Padding is zeroed too — the first line of an entry carries the title's
   // bottom padding, which `height: 0` alone would leave behind.
-  '.cm-line.cm-ritual-tokenline, .cm-practice-header + .cm-line, .cm-practice-prompt + .cm-line': {
-    height: '0',
-    padding: '0',
-    overflow: 'hidden',
-  },
+  '.cm-line.cm-ritual-tokenline, .cm-practice-header + .cm-line, .cm-practice-prompt + .cm-line':
+    {
+      height: '0',
+      padding: '0',
+      border: 'none',
+      overflow: 'hidden',
+    },
   '.cm-practice-prompt': {
     display: 'block',
     // Spacing as PADDING, not margin: CodeMirror measures a block widget's
@@ -364,22 +371,25 @@ const practiceTheme = EditorView.theme({
     // would push the DOM down without being counted, drifting the
     // coordinate→position map and again making answer lines below unclickable.
     //
-    // The asymmetry is the grouping: a wide gap above separates one section from
-    // the last, a tight one below binds the question to the answer it asks for.
-    padding: '1.9em 0 0.3em',
+    // The asymmetry is the grouping: a wide gap above separates one movement
+    // from the last, a tight one below binds the question to the answer it asks.
+    padding: '1.9em 0 0.3em 1.15em',
     userSelect: 'none',
+    transition: 'opacity 220ms ease',
   },
   // The header's hairline already opens the block, so the first prompt would
-  // read as adrift with a full section gap above it.
+  // read as adrift with a full movement gap above it.
   '.cm-practice-prompt--first': {
     paddingTop: '0.7em',
   },
+  // A movement already passed, while the writer is still inside the practice.
+  // Its words stay at full strength — this quiets the app's voice, never theirs.
   // Small letter-spaced cap label — the same motif, and now the same colour, as
   // the scripture/prayer block labels, so the whole surface reads as one type
   // system. It names the movement; it is not the movement.
   '.cm-practice-prompt__label': {
     display: 'block',
-    fontFamily: 'var(--font-editor)',
+    fontFamily: 'var(--font-serif)',
     fontSize: '0.6em',
     fontWeight: '500',
     letterSpacing: '0.18em',
@@ -393,7 +403,7 @@ const practiceTheme = EditorView.theme({
   // the writer will put on the page is roman.
   '.cm-practice-prompt__question': {
     margin: '0',
-    fontFamily: 'var(--font-editor)',
+    fontFamily: 'var(--font-serif)',
     fontStyle: 'italic',
     fontWeight: '300',
     fontSize: '0.95em',
@@ -404,10 +414,27 @@ const practiceTheme = EditorView.theme({
   },
   // Roman, not italic: this one sits on the writer's own line, so it takes the
   // writer's typography and only ghosts it. Italic here made an unanswered
-  // section read as a second question stacked under the first.
+  // movement read as a second question stacked under the first.
   '.cm-practice-placeholder': {
     color: 'var(--text-faint, #c4b5a8)',
     pointerEvents: 'none',
+  },
+  // ── The dismissal ──────────────────────────────────────────────────────
+  '.cm-ritual-colophon': {
+    display: 'block',
+    padding: '1.1em 0 0.2em 1.15em',
+    userSelect: 'none',
+  },
+  '.cm-ritual-colophon__text': {
+    display: 'block',
+    paddingTop: '0.9em',
+    borderTop: '1px solid color-mix(in srgb, var(--text-faint) 38%, transparent)',
+    fontFamily: 'var(--font-serif)',
+    fontSize: '0.62em',
+    fontStyle: 'italic',
+    fontWeight: '300',
+    letterSpacing: '0.06em',
+    color: 'var(--text-faint, #c4b5a8)',
   },
   // The block's masthead: the ritual's name over a hairline that spans the
   // writing column, so everything below plainly belongs to it. Padding (not
@@ -417,15 +444,20 @@ const practiceTheme = EditorView.theme({
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.55em',
+    // On a narrow column the name alone fills the row, and the actions have to
+    // be able to drop below it — squeezed onto the same line they were breaking
+    // mid-word ("abo/ut", "free/write").
+    flexWrap: 'wrap',
+    rowGap: '0.5em',
     // The top gap is the block's own: a ritual begun partway down an entry has
     // prose directly above it, and the masthead has to read as the start of
     // something rather than as the next line of what came before.
-    padding: '1.2em 0 0.5em',
+    padding: '1.2em 0 0.5em 1.15em',
     borderBottom: '1px solid color-mix(in srgb, var(--text-faint) 38%, transparent)',
     userSelect: 'none',
   },
   '.cm-practice-header__name': {
-    fontFamily: 'var(--font-editor)',
+    fontFamily: 'var(--font-serif)',
     fontSize: '0.7em',
     fontWeight: '500',
     letterSpacing: '0.2em',
@@ -433,7 +465,9 @@ const practiceTheme = EditorView.theme({
     color: 'var(--accent, #c8853a)',
   },
   '.cm-practice-action': {
-    fontFamily: 'var(--font-editor)',
+    flex: '0 0 auto',
+    whiteSpace: 'nowrap',
+    fontFamily: 'var(--font-serif)',
     fontSize: '0.55em',
     letterSpacing: '0.08em',
     color: 'var(--text-faint, #c4b5a8)',
@@ -450,19 +484,29 @@ const practiceTheme = EditorView.theme({
   '.cm-practice-action:hover': {
     color: 'var(--accent, #c8853a)',
   },
-  // Touch devices have no hover — keep the action quietly visible there.
+  // Touch devices have no hover — keep the actions quietly visible there, and
+  // give the one control that carries the practice forward a real thumb target.
+  // 48px is the floor in MOBILE_DESIGN.md, and it applies to a control in the
+  // document exactly as it would to one in a toolbar.
   '@media (hover: none)': {
     '.cm-practice-action': { opacity: '0.55' },
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
+      {
+        transition: 'none',
+      },
   },
 })
 
 // ── Editing the scaffolding ─────────────────────────────────────────────────
 //
-// Practice entries are just text, so changing them uses gestures you already
+// Ritual entries are just text, so changing them uses gestures you already
 // know — plus undo as a fearless safety net:
+//   • Pick it back up → the header's "continue" action (opens the composer)
 //   • Skip a prompt   → Backspace on its empty line (deletePracticeSection)
 //   • Free write      → the header's "free write" action (dissolvePracticeBlockAt)
-//   • Swap / add      → run /practice again (smart replace/append in the hook)
+//   • Swap / add      → run /ritual again (smart replace/append in the hook)
 
 const isTokenLine = (text: string) =>
   PRACTICE_NAME_RE.test(text) || PRACTICE_SECTION_RE.test(text)
@@ -514,6 +558,31 @@ export function findPracticeBlockAt(doc: string, pos: number): PracticeBlock | n
     to: starts[end]! + lines[end]!.length,
     empty: content.trim().length === 0,
   }
+}
+
+/**
+ * What beginning a ritual here will do to the entry, said before it happens —
+ * or null when there is nothing worth saying, because an empty page has no seam
+ * to explain.
+ *
+ * The insertion rules below have always been "replace an untouched ritual,
+ * append below a written one, otherwise insert where the caret is." They were
+ * correct and completely silent, so beginning a second ritual looked like the
+ * first one had been ignored. This is the same behaviour, announced.
+ */
+export function describeRitualLanding(doc: string, insertAt: number): string | null {
+  const block = findPracticeBlockAt(doc, insertAt)
+  if (block?.empty) return 'Replaces the ritual you haven\u2019t written in yet.'
+  if (block) {
+    const nameLineEnd = doc.indexOf('\n', block.from)
+    const name = practiceNameFromLine(
+      doc.slice(block.from, nameLineEnd === -1 ? doc.length : nameLineEnd),
+    )
+    return name ? `Begins below ${name}.` : 'Begins below the ritual above it.'
+  }
+  return doc.trim().length > 0
+    ? 'Begins below what you\u2019ve written, where the entry turned.'
+    : null
 }
 
 /**
@@ -597,23 +666,34 @@ function dissolvePracticeBlockAt(view: EditorView, pos: number): void {
 }
 
 /**
- * Paint hidden `practice:*` tokens as their prompts and fade each prompt as its
- * section fills. Display-only: the markdown tokens stay in the document so the
- * structure survives save/sync, but the prompt text is never persisted.
+ * Paint hidden `ritual:*` tokens as their prompts — the ritual as a *record*.
+ *
+ * Pacing lives in `RitualComposer.tsx` now. This surface shows a ritual whole,
+ * because reading one back is a different act from praying it: you want to see
+ * what you wrote and what you were asked, not be walked through it again.
+ * Display-only either way — the markdown tokens stay in the document so the
+ * structure survives save/sync, but no prompt text is ever persisted.
  *
  * @param onAbout Open the practice's "about" sheet (by practice name).
+ * @param onContinue Reopen the composer on the ritual block at a document position.
  */
-export function practicePromptExtension(onAbout: (name: string) => void): Extension {
+export function practicePromptExtension(
+  onAbout: (name: string) => void,
+  onContinue: (pos: number) => void,
+): Extension {
   return [
   practiceTheme,
+  // Order matters: the parse feeds the reveal counts, and both feed the
+  // decorations. A field can only read one registered before it.
+  ritualDocField,
   practiceField,
   // Treat the hidden token lines as atoms so the caret skips them and a
   // backspace from a blank answer line removes the whole prompt in one stroke.
   EditorView.atomicRanges.of((view) => view.state.field(practiceField).atomic),
-  // Backspace on an empty section line removes that single prompt.
+  // Backspace on an empty movement line removes that single prompt.
   Prec.high(keymap.of([{ key: 'Backspace', run: deletePracticeSection }])),
-  // The header's "free write" action dissolves the template into prose; clicking
-  // a prompt drops the caret into that prompt's answer line.
+  // The header's actions act on the whole block; clicking a prompt drops the
+  // caret into that prompt's answer line.
   EditorView.domEventHandlers({
     mousedown(event, view) {
       const node = event.target as HTMLElement | null
@@ -629,6 +709,13 @@ export function practicePromptExtension(onAbout: (name: string) => void): Extens
         event.preventDefault()
         const header = about.closest('.cm-practice-header') as HTMLElement | null
         if (header?.dataset.practice) onAbout(header.dataset.practice)
+        return true
+      }
+      // "continue" — reopen the composer on a ritual left part-written.
+      const cont = node?.closest('.cm-practice-action--continue')
+      if (cont) {
+        event.preventDefault()
+        onContinue(view.posAtDOM(cont))
         return true
       }
       // A prompt is a contenteditable=false block widget with no editable target
@@ -660,14 +747,19 @@ export function practicePromptExtension(onAbout: (name: string) => void): Extens
 // ── React glue ───────────────────────────────────────────────────────────
 
 /**
- * Returns a callback that begins a practice, dropping the caret on the first
- * answer line. If the cursor sits inside an existing practice block, choosing a
- * new one *replaces* it when nothing has been written yet, or *appends* below it
- * once writing has begun — so re-running /practice is both "swap" and "add".
+ * Returns a callback that writes a practice's scaffolding into the entry and
+ * hands back the offset of its first answer line. If the cursor sits inside an
+ * existing practice block, choosing a new one *replaces* it when nothing has
+ * been written yet, or *appends* below it once writing has begun — so re-running
+ * /ritual is both "swap" and "add".
+ *
+ * It deliberately does NOT take focus. The composer opens over this and focuses
+ * its own writing area; letting the editor grab the caret first only raises the
+ * soft keyboard behind a surface that is about to cover it.
  */
 export function usePracticeInsertion(editorRef: RefObject<EditorHandle | null>) {
   return useCallback(
-    (practice: Practice, insertAt: number, doc: string) => {
+    (practice: Practice, insertAt: number, doc: string): number => {
       const block = findPracticeBlockAt(doc, insertAt)
       let from = insertAt
       let to = insertAt
@@ -681,8 +773,7 @@ export function usePracticeInsertion(editorRef: RefObject<EditorHandle | null>) 
       }
       const { text, cursorOffset } = buildPracticeBlock(practice, doc, base)
       editorRef.current?.replaceRange(from, to, text)
-      const caret = base + cursorOffset
-      requestAnimationFrame(() => editorRef.current?.focusAt(caret))
+      return base + cursorOffset
     },
     [editorRef],
   )

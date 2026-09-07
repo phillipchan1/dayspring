@@ -4,13 +4,32 @@ import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/400-italic.css'
 import '@fontsource/jetbrains-mono/600.css'
 import '@fontsource/jetbrains-mono/700.css'
-// Reflections typography: Fraunces (display) + Newsreader (the writer's words).
+// Reflections typography: Fraunces (display) + Newsreader (the app's own voice).
+//
+// Every weight and style below is one the stylesheets actually ask for. They
+// were not all here: the Rituals library and the About sheet are written almost
+// entirely in 300 and 300-italic, and Fraunces had no italic at all — so the
+// threshold's big italic ritual name was a synthesised slant of the roman, and
+// every 300 rule was silently rounded to the nearest weight that happened to be
+// loaded. Missing a weight does not fail loudly; it just quietly renders
+// something you did not design.
+import '@fontsource/fraunces/300.css'
+import '@fontsource/fraunces/300-italic.css'
+import '@fontsource/fraunces/400.css'
 import '@fontsource/fraunces/500.css'
 import '@fontsource/fraunces/600.css'
+import '@fontsource/newsreader/300.css'
+import '@fontsource/newsreader/300-italic.css'
 import '@fontsource/newsreader/400.css'
 import '@fontsource/newsreader/400-italic.css'
+import '@fontsource/newsreader/500.css'
 import '@fontsource/newsreader/600.css'
 // Writing-font picker faces (self-hosted, no CDN): typewriter + readable.
+//
+// These two ship 400 and 700 ONLY — no 300, no 500, no 600. Anything set in
+// `--font-editor` therefore has to stay at 400 (or 700 for bold), because the
+// writer can point that variable at either of them. The app's own voice uses
+// `--font-serif` instead, where the full range above is available.
 import '@fontsource/ia-writer-duo/400.css'
 import '@fontsource/ia-writer-duo/400-italic.css'
 import '@fontsource/ia-writer-duo/700.css'
@@ -19,6 +38,21 @@ import '@fontsource/atkinson-hyperlegible/400-italic.css'
 import '@fontsource/atkinson-hyperlegible/700.css'
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
+// The voices' own faces (D-028). Variable, unlike everything above — which is
+// also what makes `fontOpticalSizing: 'auto'` in spiritualBlockDecoration.ts
+// and usePracticeInsertion.ts mean anything for the first time; against the
+// static instances the app shipped before, it was inert.
+//
+// Italic is imported for the three that become `--font-serif`, because that is
+// the app's OWN voice and it speaks in 300-weight italic. Archivo is Cloister's
+// display face only, so it needs neither.
+import '@fontsource-variable/eb-garamond' // Vellum
+import '@fontsource-variable/eb-garamond/wght-italic.css'
+import '@fontsource-variable/archivo' // Cloister — display
+import '@fontsource-variable/source-serif-4' // Cloister — body
+import '@fontsource-variable/source-serif-4/wght-italic.css'
+import '@fontsource-variable/crimson-pro' // Sabbath
+import '@fontsource-variable/crimson-pro/wght-italic.css'
 import './styles/global.css'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -28,14 +62,23 @@ import { installDropGuard } from './lib/dropGuard'
 import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
+import { initPostHog } from './lib/posthog'
 
 async function bootstrap() {
-  // Dev-only previews: render a surface standalone, with no auth and no
-  // subscription setup, so screenshots can be captured from a browser instead
+  // Dev-only App Store previews: render a surface standalone, with no auth and
+  // no subscription setup, so screenshots can be captured from a browser instead
   // of a provisioned device.
   //
   //   ?__preview=locked | paywall   → IAP review shot (capture-appstore-screenshots.mjs)
+  //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
+  //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
+  //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
+  //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
+  //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
+  //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
+  //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
+  //   ?__preview=topbar             → the Ritual door + status cluster (features/journal/topbarPreview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -43,9 +86,49 @@ async function bootstrap() {
   // Vite dead-code-eliminates this entire block; it can never ship.
   if (import.meta.env.DEV) {
     const preview = new URLSearchParams(window.location.search).get('__preview')
+    if (preview?.startsWith('listing-')) {
+      const { renderListingPreview } = await import('./features/appstore/preview')
+      renderListingPreview(preview)
+      return
+    }
+    if (preview?.startsWith('ad-')) {
+      const { renderAdPreview } = await import('./features/ads/preview')
+      renderAdPreview(preview)
+      return
+    }
     if (preview?.startsWith('applock')) {
       const { renderAppLockPreview } = await import('./features/applock/preview')
       await renderAppLockPreview(preview)
+      return
+    }
+    if (preview === 'pages') {
+      const { renderPagesPreview } = await import('./features/pages/preview')
+      renderPagesPreview()
+      return
+    }
+    if (preview === 'highlight') {
+      const { renderHighlightPreview } = await import('./editor/highlightPreview')
+      renderHighlightPreview()
+      return
+    }
+    if (preview === 'voices') {
+      const { renderVoicesPreview } = await import('./features/settings/voicesPreview')
+      renderVoicesPreview()
+      return
+    }
+    if (preview === 'hr') {
+      const { renderHrPreview } = await import('./editor/hrPreview')
+      renderHrPreview()
+      return
+    }
+    if (preview === 'ritual') {
+      const { renderRitualPreview } = await import('./editor/ritualPreview')
+      renderRitualPreview()
+      return
+    }
+    if (preview === 'topbar') {
+      const { renderTopbarPreview } = await import('./features/journal/topbarPreview')
+      renderTopbarPreview()
       return
     }
     if (preview) {
@@ -61,6 +144,10 @@ async function bootstrap() {
 
   // Catch non-React errors (unhandled rejections, stray throws) and report them.
   installGlobalHandlers()
+
+  // Vendor for the anonymous usage events in lib/analytics.ts. No-ops without
+  // VITE_POSTHOG_KEY. Gated on Settings → About → "Share anonymous usage".
+  initPostHog()
 
   // Neutralize stray file drops so a photo dropped outside a dropzone can't make
   // the WebView navigate to the file and blow away the whole app.

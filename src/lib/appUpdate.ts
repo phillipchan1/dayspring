@@ -5,6 +5,7 @@
 // so they never disagree about state. No-ops in the browser build.
 
 import { isDesktopTauri } from './platform'
+import { flush } from './repo'
 
 export type UpdateStatus =
   | 'idle' // nothing to report
@@ -132,7 +133,15 @@ async function runCheck(manual: boolean, attempt = 1): Promise<void> {
 
 /** Relaunch into the staged update. No-op until one is ready. */
 export async function restartForUpdate(): Promise<void> {
-  if (relaunchFn) await relaunchFn()
+  if (!relaunchFn) return
+  // Push whatever is queued before tearing the process down. The outbox is in
+  // IndexedDB so nothing is lost either way, but a user who clicks "Restart to
+  // update" and then opens the app on their phone should find their last
+  // sentence already there.
+  await flush().catch(() => {
+    /* offline, or the server refused — the outbox keeps it for next launch */
+  })
+  await relaunchFn()
 }
 
 /** Start the background poll once (idempotent). Called when the first hook mounts. */

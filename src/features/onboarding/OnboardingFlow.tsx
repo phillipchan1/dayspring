@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
@@ -32,6 +33,7 @@ export function OnboardingFlow({ onFinish }: Props) {
   // Carried from the fresh-start path into the editor as a gentle first prompt.
   const seedRef = useRef<string | undefined>(undefined)
   const { settings, update: updateSettings } = useSettings()
+  const isMobile = useIsMobile()
   const isLight = isLightTheme(useResolvedTheme(settings))
 
   const toggleTheme = useCallback(() => {
@@ -123,9 +125,30 @@ export function OnboardingFlow({ onFinish }: Props) {
           </div>
         )}
 
-        {step === 'import' && (
-          <ImportFlow onComplete={() => void finish()} onBack={() => setStep('fork')} />
-        )}
+        {/* Import parses a whole archive in memory. Settings refuses to offer
+            that on a phone (ImportPanel.tsx) but this fork did not, so a
+            first-run iPhone user could hand a multi-hundred-MB zip to the
+            WKWebView. Same gate, same reason. */}
+        {step === 'import' &&
+          (isMobile ? (
+            <div className="ob-screen ob-fade-in">
+              <h1 className="ob-title">{copy.importMobile.title}</h1>
+              <p className="ob-body">{copy.importMobile.body}</p>
+              <button
+                type="button"
+                className="ob-primary"
+                onClick={() => void finish()}
+                disabled={finishing}
+              >
+                {copy.importMobile.cta}
+              </button>
+              <button type="button" className="ob-tertiary" onClick={() => setStep('fork')}>
+                ← Back
+              </button>
+            </div>
+          ) : (
+            <ImportFlow onComplete={() => void finish()} onBack={() => setStep('fork')} />
+          ))}
 
         {step === 'fresh' && (
           <div className="ob-screen ob-fade-in">

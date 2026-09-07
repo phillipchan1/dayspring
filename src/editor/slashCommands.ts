@@ -44,6 +44,13 @@ export interface SlashItem {
   badgeStyle?: 'bold' | 'italic'
   /** Lowercase tokens matched against the typed query. */
   keywords: string[]
+  /** Omit on touch — the OS keyboard already exposes this (emoji on iOS). */
+  touchExcluded?: boolean
+}
+
+export interface SlashFilterOptions {
+  /** When true, drop commands the on-screen keyboard already covers. */
+  touchPrimary?: boolean
 }
 
 /** The two visible columns, in display order. Format leads — it's used most. */
@@ -78,6 +85,40 @@ export const SLASH_ITEMS: SlashItem[] = [
     badge: '✨',
     keywords: ['sense', 'impression', 'word'],
   },
+  // The rest of the live set. Order follows the kind table (markKinds.ts)
+  // rather than usage, so the column reads as one vocabulary.
+  //
+  // Gift and Absence are absent because they are RETIRED there — a writer read
+  // the labels and did not know what they meant. `markKinds.ts` states the rule
+  // ("nothing retired is OFFERED, not in the palette, not in `look for`") and
+  // this file was the last place still breaking it. Pages already honours it via
+  // LIVE_MARK_KINDS; entries marked before the cut still render.
+  {
+    selection: { kind: 'spiritual', id: 'desire' },
+    column: 'capture',
+    label: 'Desire',
+    hint: 'Something you want',
+    badge: '◠',
+    keywords: ['desire', 'want', 'longing', 'hope', 'wish'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'learned' },
+    column: 'capture',
+    label: 'Learned',
+    // Never "Growth", and never "progress" — the hint has to stay a description
+    // of what the writer did, not a claim about where they are.
+    hint: 'Something you would tell yourself again',
+    badge: '⊥',
+    keywords: ['learned', 'learn', 'lesson', 'again'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'story' },
+    column: 'capture',
+    label: 'Story',
+    hint: 'A thing that happened, worth keeping',
+    badge: '{',
+    keywords: ['story', 'happened', 'moment', 'event'],
+  },
   {
     selection: { kind: 'spiritual', id: 'ritual' },
     column: 'capture',
@@ -93,6 +134,15 @@ export const SLASH_ITEMS: SlashItem[] = [
     hint: 'Add a photo',
     badge: '🖼',
     keywords: ['image', 'photo', 'picture', 'img'],
+  },
+  {
+    selection: { kind: 'spiritual', id: 'emoji' },
+    column: 'capture',
+    label: 'Emoji',
+    hint: 'Search and insert an emoji',
+    badge: '🙂',
+    keywords: ['emoji', 'emote', 'smiley', 'icon'],
+    touchExcluded: true,
   },
 
   // ── Format: markdown (applied inline) ───────────────────────────────────
@@ -208,7 +258,7 @@ export const SLASH_ITEMS: SlashItem[] = [
     selection: { kind: 'format', id: 'divider' },
     column: 'format',
     label: 'Divider',
-    hint: 'Horizontal rule',
+    hint: 'A break across the page',
     badge: '—',
     keywords: ['divider', 'rule', 'separator', 'line'],
   },
@@ -219,18 +269,27 @@ function matches(item: SlashItem, q: string): boolean {
   return item.keywords.some((k) => k.startsWith(q)) || item.label.toLowerCase().includes(q)
 }
 
+function visibleItems(options?: SlashFilterOptions): SlashItem[] {
+  if (!options?.touchPrimary) return SLASH_ITEMS
+  return SLASH_ITEMS.filter((i) => !i.touchExcluded)
+}
+
 /** Filter the catalog by the typed query, split into its two columns. */
-export function filterSlashItems(query: string): { capture: SlashItem[]; format: SlashItem[] } {
+export function filterSlashItems(
+  query: string,
+  options?: SlashFilterOptions,
+): { capture: SlashItem[]; format: SlashItem[] } {
   const q = query.toLowerCase()
+  const items = visibleItems(options)
   return {
-    capture: SLASH_ITEMS.filter((i) => i.column === 'capture' && matches(i, q)),
-    format: SLASH_ITEMS.filter((i) => i.column === 'format' && matches(i, q)),
+    capture: items.filter((i) => i.column === 'capture' && matches(i, q)),
+    format: items.filter((i) => i.column === 'format' && matches(i, q)),
   }
 }
 
 /** Filtered items as a column array in {@link SLASH_COLUMNS} display order. */
-export function slashColumns(query: string): SlashItem[][] {
-  const byKey = filterSlashItems(query)
+export function slashColumns(query: string, options?: SlashFilterOptions): SlashItem[][] {
+  const byKey = filterSlashItems(query, options)
   return SLASH_COLUMNS.map((c) => byKey[c.key])
 }
 

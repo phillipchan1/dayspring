@@ -1,0 +1,325 @@
+---
+// Renders a reference table straight from the app manifest.
+//
+// Every row the manifest has is rendered — nothing is curated here — so these
+// pages cannot fall behind the app. If a category is somehow empty we say so
+// out loud rather than shipping an empty table that reads as "there are none".
+import { category, value } from "../../lib/manifest";
+import { SETTING_DESCRIPTIONS } from "../../lib/helpReference";
+import type { ReferenceKind } from "../../lib/helpReference";
+
+interface Props {
+  kind: ReferenceKind;
+}
+const { kind } = Astro.props;
+
+const shortcuts = kind === "shortcuts" ? category("shortcuts") : [];
+const groups = [...new Set(shortcuts.map((s) => s.group as string))];
+
+const slash = kind === "slash-menu" ? category("slashCommands") : [];
+const slashColumns = [
+  { key: "format", title: "Format", blurb: "Applied to your text straight away." },
+  { key: "capture", title: "Capture", blurb: "Opens a small window to fill in." },
+];
+
+const settings = kind === "settings" ? category("settings") : [];
+const themes = kind === "settings" ? category("themes") : [];
+const practices = kind === "practices" ? category("practices") : [];
+const highlights = kind === "highlights" ? category("highlights") : [];
+
+const themeLabel = (id: unknown) =>
+  themes.find((t) => t.key === id || t.id === `theme.${id}`)?.label ?? String(id);
+
+/** Render a default value the way a reader would say it. */
+function showDefault(entry: Record<string, unknown>): string {
+  const v = entry.default;
+  if (typeof v === "boolean") return v ? "On" : "Off";
+  if (entry.key === "lightTheme" || entry.key === "darkTheme") return themeLabel(v);
+  if (entry.key === "editorFont") return String(v);
+  if (entry.key === "maxWidth") return `${v} rem`;
+  if (entry.key === "fontSize") return `${v} px`;
+  return String(v);
+}
+---
+
+{
+  kind === "shortcuts" && (
+    <div class="ref">
+      {groups.map((group) => (
+        <section class="grp">
+          <h2>{group}</h2>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>macOS</th>
+                  <th>Windows &amp; Linux</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shortcuts
+                  .filter((s) => s.group === group)
+                  .map((s) => (
+                    <tr>
+                      <td>
+                        {s.label}
+                        {s.when ? <span class="when"> — {s.when}</span> : null}
+                      </td>
+                      <td><kbd>{s.mac}</kbd></td>
+                      <td><kbd>{s.pc}</kbd></td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+{
+  kind === "slash-menu" && (
+    <div class="ref">
+      {slashColumns.map((col) => (
+        <section class="grp">
+          <h2>{col.title}</h2>
+          <p class="grp-blurb">{col.blurb}</p>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>What it does</th>
+                  <th>Also matches</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slash
+                  .filter((s) => s.column === col.key)
+                  .map((s) => (
+                    <tr>
+                      <td><code>/{(s.keywords as string[])[0]}</code> {s.label}</td>
+                      <td>{s.hint}</td>
+                      <td class="kw">{(s.keywords as string[]).slice(1).join(", ") || "—"}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+{
+  kind === "highlights" && (
+    <div class="ref">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Colour</th>
+              <th>What gets written into your entry</th>
+            </tr>
+          </thead>
+          <tbody>
+            {highlights.map((h) => (
+              <tr>
+                <td>{h.label}</td>
+                <td><code>{h.markdown}</code></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        Amber is the plain one — it writes no colour name at all, so an entry read
+        in any other Markdown app still makes sense.
+      </p>
+    </div>
+  )
+}
+
+{
+  kind === "settings" && (
+    <div class="ref">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>What it does</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            {settings.map((s) => {
+              const d = SETTING_DESCRIPTIONS[s.key as string];
+              return (
+                <tr>
+                  <td>{d?.label ?? s.key}</td>
+                  <td>{d?.note ?? ""}</td>
+                  <td class="dflt">{showDefault(s)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        Font size runs from {value("editor.font-size-min")} to{" "}
+        {value("editor.font-size-max")} pixels. Settings follow your account, so
+        changing one on your Mac changes it on your phone too.
+      </p>
+    </div>
+  )
+}
+
+{
+  kind === "practices" && (
+    <div class="ref">
+      {practices.map((p) => (
+        <section class="practice">
+          <h2>{p.name}</h2>
+          <p class="origin mono">
+            {p.tradition} · {p.origin}
+          </p>
+          <p class="intent">{p.intention}</p>
+          <p class="steps">
+            <span class="steps-label mono">Moves through</span>
+            {(p.steps as string[]).join(" · ")}
+          </p>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+<style>
+  .grp {
+    margin-bottom: 46px;
+  }
+  .grp h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 23px;
+    color: var(--paper);
+    margin: 0 0 6px;
+  }
+  .grp-blurb {
+    color: var(--paper-dim);
+    font-weight: 300;
+    margin-bottom: 16px;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    margin-bottom: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 16px;
+  }
+  th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 400;
+    padding: 0 18px 10px 0;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 18px 11px 0;
+    border-bottom: 1px solid var(--border-dim);
+    vertical-align: top;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+  td:first-child {
+    color: var(--paper);
+  }
+  .when {
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+  .kw {
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+  .dflt {
+    white-space: nowrap;
+    color: var(--paper);
+  }
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 3px 8px;
+    color: var(--paper);
+    white-space: nowrap;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 6px;
+    color: var(--paper);
+  }
+  .note {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 16px;
+    margin-top: 18px;
+  }
+
+  /* practices read as entries, not rows */
+  .practice {
+    padding: 22px 0;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .practice h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 21px;
+    color: var(--paper);
+    margin-bottom: 4px;
+  }
+  .origin {
+    font-size: 11.5px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 10px;
+  }
+  .intent {
+    color: var(--paper-dim);
+    font-weight: 300;
+    margin-bottom: 10px;
+  }
+  .steps {
+    font-size: 15.5px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .steps-label {
+    display: block;
+    font-size: 10.5px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+</style>

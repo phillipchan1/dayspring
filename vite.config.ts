@@ -77,6 +77,11 @@ export default defineConfig({
     environment: 'node',
     // api/ too: the server-side grouping logic (declared threads) is pure and worth
     // pinning down — a silent regression there is what made the Altar unreadable.
-    include: ['src/**/*.test.ts', 'api/**/*.test.ts'],
+    // scripts/ too: the support manifest is published to the help site, so an
+    // extractor that silently stops finding a category would put wrong facts on
+    // a public page.
+    include: ['src/**/*.test.ts', 'api/**/*.test.ts', 'scripts/**/*.test.ts'],
+    // buildManifest() spins up a Vite SSR server to load real app modules.
+    testTimeout: 30_000,
   },
 })

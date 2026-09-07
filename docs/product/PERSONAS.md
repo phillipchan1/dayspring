@@ -36,6 +36,17 @@ imported). That's a sample of one — which is a real signal and not remotely pr
 "On This Day." Both feel like a slot machine — occasionally moving, mostly noise,
 never a picture of the whole.
 
+> **One data point, 2026-08-02 — n=1, not a finding.** A paper journaler told Phil
+> unprompted that they'd consider going digital if it helped them **"find the things they
+> highlighted."** That is an unforced answer to Q4 below, from outside the beta, and it
+> named a mechanic the product didn't have. It's the best signal we have on the
+> re-reading job and it is still one conversation. → `DECISIONS.md` D-016.
+>
+> Worth noting what it does *not* tell us: this person marks on paper, where marking is
+> free and retrieval is impossible. Whether someone who has never marked anything in
+> eleven years of Day One will start is the open question — and the one the flagged
+> rollout of Remember exists to answer.
+
 **Objections, in the order they'll raise them:**
 1. *"Will the import actually work, or will it mangle my dates?"* — highest-stakes
    first impression in the product. A bad import loses this persona permanently.

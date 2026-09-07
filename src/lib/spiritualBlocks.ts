@@ -1,19 +1,13 @@
 import type { SpiritualItemType } from './types'
+import { MARK_KIND, MARK_KINDS } from './markKinds'
 import { isPracticeTokenLine } from './practiceTokens'
 
-const FENCE_TYPES: SpiritualItemType[] = ['prayer', 'sense', 'scripture']
-
-const TYPE_TO_FENCE: Record<SpiritualItemType, string> = {
-  prayer: 'dayspring-pray',
-  sense: 'dayspring-sense',
-  scripture: 'dayspring-scripture',
-}
-
-const FENCE_TO_TYPE: Record<string, SpiritualItemType> = {
-  'dayspring-pray': 'prayer',
-  'dayspring-sense': 'sense',
-  'dayspring-scripture': 'scripture',
-}
+// Derived from the one kind table (markKinds.ts) rather than restated here, so
+// adding a kind can't leave the parser recognising a fence the writer can't make
+// or the other way round.
+const FENCE_TO_TYPE: Record<string, SpiritualItemType> = Object.fromEntries(
+  MARK_KINDS.map((k) => [k.fence, k.kind]),
+)
 
 export interface ParsedSpiritualBlock {
   type: SpiritualItemType
@@ -27,7 +21,15 @@ export interface ParsedSpiritualBlock {
   to: number
 }
 
-const OPEN_FENCE_RE = /^```(dayspring-(?:pray|sense|scripture))\s+([0-9a-f-]{36})\s*$/i
+// Built from the table for the same reason. The alternation is sorted longest-
+// first so no fence name can be shadowed by a shorter one that prefixes it.
+const FENCE_ALTERNATION = MARK_KINDS.map((k) => k.fence.replace(/^dayspring-/, ''))
+  .sort((a, b) => b.length - a.length)
+  .join('|')
+const OPEN_FENCE_RE = new RegExp(
+  `^\`\`\`(dayspring-(?:${FENCE_ALTERNATION}))\\s+([0-9a-f-]{36})\\s*$`,
+  'i',
+)
 
 /** True when a trimmed line opens a Dayspring spiritual fence. */
 export function isSpiritualFenceLine(line: string): boolean {
@@ -41,7 +43,7 @@ export function formatSpiritualBlock(
   content: string,
   reference?: string,
 ): string {
-  const fence = TYPE_TO_FENCE[type]
+  const fence = MARK_KIND[type].fence
   const body = content.trimEnd()
   if (type === 'scripture' && reference?.trim()) {
     return `\`\`\`${fence} ${id}\n${body}\n${reference.trim()}\n\`\`\``
@@ -103,7 +105,7 @@ export function parseSpiritualBlocks(markdown: string): ParsedSpiritualBlock[] {
 
     const fenceName = open[1]!.toLowerCase()
     const type = FENCE_TO_TYPE[fenceName]
-    if (!type || !FENCE_TYPES.includes(type)) continue
+    if (!type) continue
 
     const id = open[2]!.toLowerCase()
     const contentLines: string[] = []

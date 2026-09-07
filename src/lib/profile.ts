@@ -54,9 +54,37 @@ export async function setOnboarded(): Promise<void> {
     .throwOnError()
 }
 
+/** Read the account's last-acked processing-completion key, or null if none. */
+export async function getAckedCompletion(): Promise<string | null> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('profiles')
+    .select('acked_processing_completion')
+    .maybeSingle()
+  if (error) throw error
+  return data?.acked_processing_completion ?? null
+}
+
+/** Persist that the account has acked this processing completion. Idempotent upsert. */
+export async function setAckedCompletion(key: string): Promise<void> {
+  const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
+  if (!session) return
+  await sb
+    .from('profiles')
+    .upsert({ owner: session.user.id, acked_processing_completion: key }, { onConflict: 'owner' })
+    .throwOnError()
+}
+
 /**
  * Pull the user's saved settings from the cloud.
- * Returns null when no profile row exists yet or no settings have been saved.
+ *
+ * Returns null when the account genuinely has none saved yet, and THROWS when
+ * the fetch failed. The two used to be indistinguishable, which let a device
+ * that couldn't reach the network conclude "nothing saved" and push its defaults
+ * over the settings the user had deliberately chosen elsewhere.
  */
 export async function loadRemoteSettings(): Promise<Partial<Settings> | null> {
   const sb = requireSupabase()
@@ -64,7 +92,8 @@ export async function loadRemoteSettings(): Promise<Partial<Settings> | null> {
     .from('profiles')
     .select('settings')
     .maybeSingle()
-  if (error || !data?.settings) return null
+  if (error) throw error
+  if (!data?.settings) return null
   const s = data.settings as Record<string, unknown>
   return Object.keys(s).length > 0 ? (s as Partial<Settings>) : null
 }

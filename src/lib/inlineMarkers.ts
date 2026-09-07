@@ -12,12 +12,14 @@ import { NAMED_COLOR_PATTERN } from './highlightColors'
  * Order matters — highlight is the outermost wrapper, so it peels first.
  */
 
-const HIGHLIGHT_RE = new RegExp(`==(?:\\{(?:${NAMED_COLOR_PATTERN})\\})?(?!\\s)([^=]+?)(?<!\\s)==`, 'g')
+const HIGHLIGHT_RE = new RegExp(`==(?:\\{(?:${NAMED_COLOR_PATTERN})\\})?(?!\\s)([^=]+?)==`, 'g')
 const UNDERLINE_RE = /\+\+(?!\s)([^+]+?)(?<!\s)\+\+/g
 const EMPHASIS_RE = /(\*\*\*|\*\*|\*|___|__|_)(?!\s)([\s\S]+?)(?<!\s)\1/g
 const STRIKE_RE = /~~(?!\s)([\s\S]+?)(?<!\s)~~/g
 const CODE_RE = /`([^`]+)`/g
-const LINK_RE = /\[([^\]]*)\]\([^)]*\)/g
+// The leading `!` is part of an image, not prose — without it an image collapses
+// to "!alt text" and the bang reads as punctuation the writer never typed.
+const LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g
 
 export function stripInlineMarkers(text: string): string {
   return text

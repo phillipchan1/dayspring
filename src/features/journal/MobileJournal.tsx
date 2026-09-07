@@ -1,11 +1,8 @@
-import { useRef } from 'react'
-import { signOut } from '@/lib/auth'
-import { Brand } from '@/components/Mark'
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { useKeyboardOpen } from '@/hooks/useKeyboard'
-import { EntryList } from './EntryList'
-import { SaveStatusBadge } from './SaveStatusBadge'
-import { SyncBadge } from './SyncBadge'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
+import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import { formatNewEntryShortcut } from '@/features/shortcuts/shortcuts'
@@ -15,34 +12,73 @@ import { deriveTitle } from './deriveTitle'
 import {
   IconAltar,
   IconAscent,
-  IconEntries,
+  IconPages,
   IconNew,
+  IconRitual,
   IconScripture,
-  IconWell,
   IconSettings,
 } from './navIcons'
 import type { ReactNode } from 'react'
 import type { JournalViewProps } from './journalViewProps'
 
-const SWIPE_THRESHOLD = 60
-const EDGE_ZONE = 28
-
 /**
- * Mobile: a single, full-width column. No persistent sidebar — the entry list
- * is a swipe/tap drawer. Controls live in a thumb-reachable bottom bar that
- * respects the home-indicator inset, and the shell tracks the visual viewport
- * so the keyboard never covers the bar.
+ * Mobile: a single, full-width column. Controls live in a thumb-reachable
+ * bottom bar that respects the home-indicator inset, and the shell tracks the
+ * visual viewport so the keyboard never covers the bar.
+ *
+ * The entries drawer is gone with the list it held: the Entries tab goes to the
+ * Pages wall, which takes the canvas like every other surface. That retired the
+ * left-edge swipe that used to open the drawer; the edge now does what it does
+ * on every other iPhone app, which is go back — see `back` below.
  */
 export function MobileJournal(props: JournalViewProps) {
   const {
-    entries, activeId, isNewEntry, status, lastSavedAt, saveError,
-    onSelect, onEditEntry, onSelectionChange, onEntryMenuAction, onDeleteEntries, onNew, query, onQueryChange, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync, onFindOrAsk,
-    settings, updateSettings, focus, sidebarOpen, onToggleSidebar, onToggleEntries, mainSlot, userEmail,
-    reflectionsActive, altarActive, scriptureActive, wellActive, bulkActive, bulkCount, rangeSelectActive,
+    entries, activeId, words, status, lastSavedAt, saveError,
+    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    settings, updateSettings, focus,
+    onPages, mainSlot,
+    reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
+    onCommand,
   } = props
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
+  const touch = useMediaQuery('(pointer: coarse)')
+  /*
+   * The way back out of an entry, as a gesture.
+   *
+   * An entry opened from Pages (or Lamp, Altar, Ascent) is a PUSHED view — the
+   * header says so with "← Pages" — and on a phone a pushed view is left by
+   * dragging it off to the right. Only the header button did that, which is the
+   * one thing a thumb never reaches for.
+   *
+   * Off the whole surface, not the screen edge. It WAS edge-only, on the
+   * reasoning that everything below the header is CodeMirror and a horizontal
+   * drag there means move the caret. On iOS it does not — the caret and the
+   * selection handles are behind a long press, which `LONG_PRESS_MS` declines —
+   * and an edge-only gesture on a phone is one most hands never find.
+   *
+   * `exit` because nothing else animates the editor away — the surface simply
+   * changes — so the shell has to carry itself off the screen before it says it
+   * has gone. Its twin is the `[data-leaving]` rule in global.css.
+   *
+   * The other half of this living up to its name is `.cm-scroller`'s
+   * `touch-action: pan-y` (editor/theme.ts). Without it WebKit is free to read
+   * the start of a horizontal drag as a pan of the editor, and once it has, the
+   * touchmoves stop arriving and the shell freezes wherever it got to.
+   */
+  const back = useSwipeToDismiss({
+    onDismiss: onReturnFromEntry,
+    enabled: touch && !!entryReturn,
+    threshold: 72,
+    exit: true,
+    // Dragging a selection handle is a horizontal gesture too, and pulling a
+    // sentence out of an entry is a thing people do.
+    guard: () => {
+      const sel = window.getSelection()
+      return !sel || sel.isCollapsed
+    },
+  })
   // Two layers light a Return destination's dot: the one-time discovery ember
   // and recurring "new since last visit" items (see surfaceEmbers/surfaceUpdates).
   const embers = useSurfaceEmbers()
@@ -52,38 +88,10 @@ export function MobileJournal(props: JournalViewProps) {
     scripture: embers.scripture || updates.scripture.length > 0,
     altar: embers.altar || updates.altar.length > 0,
   }
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
   const focused = focus.active
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive || wellActive
-  const journalChrome = !canvasAlternateActive
-
-  function closeDrawer() {
-    if (sidebarOpen) onToggleSidebar()
-  }
-  // Route through onToggleEntries (not the raw sidebar toggle) so opening Entries
-  // from an alternate surface (Ascent / Lamp / Altar) first returns to the journal
-  // — otherwise the alt-surface guard immediately snaps the sidebar shut and the
-  // tap appears to do nothing.
-  function openDrawer() {
-    if (!sidebarOpen) onToggleEntries()
-  }
-
-  function onTouchStart(e: React.TouchEvent) {
-    const t = e.touches[0]
-    if (t) touchStart.current = { x: t.clientX, y: t.clientY }
-  }
-  function onTouchEnd(e: React.TouchEvent) {
-    const start = touchStart.current
-    const t = e.changedTouches[0]
-    if (!start || !t) return
-    const dx = t.clientX - start.x
-    const dy = t.clientY - start.y
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (dx > 0 && start.x < EDGE_ZONE && !sidebarOpen) openDrawer()
-      else if (dx < 0 && sidebarOpen) closeDrawer()
-    }
-    touchStart.current = null
-  }
+  // Every Return destination replaces the journal outright now, Pages included.
+  const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
+  const journalChrome = !canvasTaken
 
   const activeEntry = entries.find((e) => e.id === activeId)
   const heading = bulkActive
@@ -93,17 +101,31 @@ export function MobileJournal(props: JournalViewProps) {
       : activeEntry
         ? deriveTitle(activeEntry.body_markdown) || 'Untitled'
         : 'New entry'
+  // Same blank-page door as desktop: a ritual is a shape for the whole page,
+  // chosen before there is a page. Gone at the first word; `/` and `+` still
+  // reach it while writing.
+  const blankPage = !bulkActive && !rangeSelectActive && (isNewEntry || words === 0)
 
   return (
     <div
       className="app-shell"
+      {...back.handlers}
+      data-back-swipe={entryReturn ? 'true' : undefined}
+      data-dragging={back.dragging ? 'true' : undefined}
+      data-leaving={back.leaving ? 'true' : undefined}
       // Fill the full screen with 100dvh (reaches the bottom edge on iOS
       // standalone). Only pin to the measured visual-viewport height while the
       // keyboard is up, so the bottom bar lifts above it — visualViewport.height
       // excludes the home-indicator inset, which otherwise leaves a dead band.
-      style={{ flexDirection: 'column', height: keyboardOpen && vh ? `${vh}px` : '100dvh' }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
+      //
+      // The transform is written only while the finger has hold of it: a
+      // permanent one would make this the containing block for every fixed
+      // child (the FAB, the docked command bar) for the entire life of the app.
+      style={{
+        flexDirection: 'column',
+        height: keyboardOpen && vh ? `${vh}px` : '100dvh',
+        ...(back.dragX ? { transform: `translateX(${back.dragX}px)` } : null),
+      }}
     >
       {!focused && journalChrome && (
         <header
@@ -137,20 +159,31 @@ export function MobileJournal(props: JournalViewProps) {
           >
             {heading}
           </span>
-          <div className="status-cluster">
-            <span className="status-cluster__dot" data-status={status} aria-hidden />
-            <SaveStatusBadge status={status} lastSavedAt={lastSavedAt} error={saveError} bare />
-            <span className="status-cluster__sep" aria-hidden>·</span>
-            <SyncBadge bare onSync={onSync} />
-          </div>
+          {blankPage && (
+            <button
+              type="button"
+              className="journal-topbar__ritual"
+              onClick={() => onCommand('ritual')}
+              title="Practices for the inner life"
+            >
+              <IconRitual />
+              Ritual
+            </button>
+          )}
+          <StatusCluster
+            status={status}
+            lastSavedAt={lastSavedAt}
+            saveError={saveError}
+            onSync={onSync}
+          />
         </header>
       )}
 
       <div
-        className={`journal-canvas${canvasAlternateActive ? ' journal-canvas--reflections' : ''}`}
+        className={`journal-canvas${canvasTaken ? ' journal-canvas--reflections' : ''}`}
         style={{ flex: 1, minHeight: 0 }}
       >
-        {!focused && journalChrome && (
+        {journalChrome && (
           <>
             <div className="journal-horizon" aria-hidden />
             <div className="journal-glow" aria-hidden />
@@ -159,7 +192,7 @@ export function MobileJournal(props: JournalViewProps) {
         <div
           className="journal-canvas__content"
           style={{
-            padding: focused ? '0 1rem' : canvasAlternateActive ? '0' : '2.5rem 1rem 1.25rem',
+            padding: focused ? '0 1rem' : canvasTaken ? '0' : '2.5rem 1rem 1.25rem',
             overflow: 'hidden',
           }}
         >
@@ -170,9 +203,8 @@ export function MobileJournal(props: JournalViewProps) {
       {/* While the keyboard is up, the command-accessory bar (rendered with the
           editor) takes over the bottom; the global nav steps aside so we never
           stack two bars. It returns the moment the keyboard drops. The bar and
-          FAB also step aside while the entries drawer is open — the drawer is
-          its own focused context. */}
-      {!focused && !keyboardOpen && !sidebarOpen && (
+          FAB step aside while the drawer is open — it is its own context. */}
+      {!focused && !keyboardOpen && (
         <>
           {/* Perpetual New-entry button — the app's primary act, floated above
               the bar so it's always in thumb reach without crowding the labeled
@@ -191,9 +223,10 @@ export function MobileJournal(props: JournalViewProps) {
               controls (it hides this bar, so it doesn't belong on it). */}
           <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
             <MobileTab
-              label="Entries"
-              onClick={onToggleEntries}
-              icon={<IconEntries size={22} />}
+              label="Journal"
+              onClick={onPages}
+              active={pagesActive}
+              icon={<IconPages size={22} />}
             />
             <MobileTab
               label="Ascent"
@@ -219,12 +252,6 @@ export function MobileJournal(props: JournalViewProps) {
               />
             )}
             <MobileTab
-              label="Well"
-              onClick={onFindOrAsk}
-              active={wellActive}
-              icon={<IconWell size={22} />}
-            />
-            <MobileTab
               label="Settings"
               onClick={onOpenSettings}
               icon={<IconSettings size={22} />}
@@ -233,46 +260,12 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-      {sidebarOpen && !focused && (
-        <>
-          <div className="scrim" onClick={closeDrawer} />
-          <div className="drawer">
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.6rem 0.75rem',
-                borderBottom: '1px solid var(--border-subtle)',
-              }}
-            >
-              <Brand size={20} wordmarkRem={1.05} />
-              <button className="btn btn--ghost" onClick={() => void signOut()} title={userEmail}>⎋</button>
-            </div>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-              <EntryList
-                entries={entries}
-                activeId={activeId}
-                isNewEntry={isNewEntry}
-                onSelect={onSelect}
-                onEditEntry={onEditEntry}
-                {...(onSelectionChange ? { onSelectionChange } : {})}
-                onMenuAction={onEntryMenuAction}
-                onDeleteEntries={onDeleteEntries}
-                query={query}
-                onQueryChange={onQueryChange}
-                fullWidth
-              />
-            </div>
-          </div>
-        </>
-      )}
 
       <WritingControls
         settings={settings}
         update={updateSettings}
         focus={focus}
-        {...(journalChrome && !keyboardOpen && !sidebarOpen ? { onEnterFocus: focus.enter } : {})}
+        {...(journalChrome && !keyboardOpen ? { onEnterFocus: focus.enter } : {})}
       />
     </div>
   )

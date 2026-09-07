@@ -1,0 +1,108 @@
+---
+// PhoneFrame — a custom dark device shell (not a glossy stock mockup).
+// Holds either a native HTML mock (default slot) or a real screenshot.
+// When a screenshot is provided, width/height are set to prevent layout
+// shift. Optional dawn glow behind it and a slight rotation/bleed.
+import DawnGlow from "./DawnGlow.astro";
+
+interface Screenshot {
+  /** 1x source under /public, e.g. "/screenshots/home-wins.png". */
+  src: string;
+  /** Optional 2x (retina) source for srcset. */
+  src2x?: string;
+  /** Intrinsic width in CSS px (prevents layout shift). */
+  width: number;
+  /** Intrinsic height in CSS px (prevents layout shift). */
+  height: number;
+  alt: string;
+}
+interface Props {
+  /** Device shell width in px. */
+  width?: number;
+  /** Rotation in degrees (slight bleed/tilt). */
+  rotate?: number;
+  /** Render a dawn glow behind the device. */
+  glow?: boolean;
+  /** Real screenshot to display instead of slotted native content. */
+  screenshot?: Screenshot;
+  class?: string;
+}
+const {
+  width = 280,
+  rotate = 3,
+  glow = true,
+  screenshot,
+  class: className = "",
+} = Astro.props;
+const shellStyle = `width:${width}px;transform:rotate(${rotate}deg)`;
+---
+
+<div class:list={["phone-wrap", className]}>
+  {glow && <DawnGlow variant="bloom" intensity={1.3} />}
+  <div class="phone-shell" style={shellStyle}>
+    <div class="phone-notch" aria-hidden="true"></div>
+    <div class="phone-screen">
+      {
+        screenshot ? (
+          <img
+            src={screenshot.src}
+            srcset={
+              screenshot.src2x
+                ? `${screenshot.src} 1x, ${screenshot.src2x} 2x`
+                : undefined
+            }
+            width={screenshot.width}
+            height={screenshot.height}
+            alt={screenshot.alt}
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <slot />
+        )
+      }
+    </div>
+  </div>
+</div>
+
+<style>
+  .phone-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .phone-shell {
+    position: relative;
+    z-index: 2;
+    border-radius: 28px;
+    border: 6px solid #1b1d26;
+    background: #0f1117;
+    box-shadow:
+      0 40px 70px -28px rgba(0, 0, 0, 0.95),
+      0 0 50px -18px rgba(243, 189, 118, 0.3);
+    overflow: hidden;
+  }
+
+  /* a quiet notch — signals "device" without aping a specific phone */
+  .phone-notch {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32%;
+    height: 5px;
+    border-radius: 100px;
+    background: rgba(236, 231, 221, 0.12);
+    z-index: 3;
+  }
+
+  .phone-screen {
+    border-radius: 22px;
+    overflow: hidden;
+  }
+  .phone-screen :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>

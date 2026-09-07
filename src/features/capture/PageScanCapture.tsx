@@ -4,6 +4,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useKeyboardInset } from '@/hooks/useKeyboard'
 import { ScanIcon } from '@/editor/spiritualBlockIcons'
 import { transcribePages } from '@/lib/transcribeImageClient'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import './PageScanCapture.css'
 
 interface PageScanCaptureProps {
@@ -102,11 +103,26 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
     onClose()
   }
 
-  const style: React.CSSProperties = isMobile
-    ? { position: 'fixed', left: 0, right: 0, bottom: keyboardInset, zIndex: 8500 }
-    : { position: 'fixed', zIndex: 8500 }
-
   const working = phase === 'working'
+
+  // The grab pill rendered but did nothing. Not while the model is reading the
+  // pages, though — dismissing mid-transcribe would throw the work away.
+  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({
+    onDismiss: onClose,
+    enabled: isMobile && !working,
+  })
+
+  const style: React.CSSProperties = isMobile
+    ? {
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: keyboardInset,
+        zIndex: 8500,
+        ...(dragY ? { transform: `translateY(${dragY}px)` } : {}),
+        ...(dragging ? { transition: 'none' } : {}),
+      }
+    : { position: 'fixed', zIndex: 8500 }
 
   return createPortal(
     <>
@@ -117,6 +133,7 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
         role="dialog"
         aria-label="Scan handwritten page"
         onMouseDown={(e) => e.stopPropagation()}
+        {...(isMobile ? dragHandlers : {})}
       >
         <div className="glass-surface__glow" aria-hidden />
         {isMobile && <div className="command-popover__grab" aria-hidden />}
@@ -127,6 +144,9 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
               <p className="page-scan__status">Your words — read it over and fix anything.</p>
               <textarea
                 className="page-scan__draft"
+                // Scrolling back through a long transcription must not slide the
+                // sheet away (see useSheetDismiss).
+                data-sheet-scroll
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={isMobile ? 8 : 12}

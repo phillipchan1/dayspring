@@ -1,0 +1,316 @@
+---
+// PracticeMock — the /practice library + structured in-editor prompts.
+interface Card {
+  function: string;
+  name: string;
+  origin: string;
+  tradition: string;
+  quote: string;
+}
+interface Prompt {
+  label: string;
+  question: string;
+  answer?: string;
+  placeholder?: string;
+}
+interface Active {
+  name: string;
+  prompts: Prompt[];
+}
+interface Props {
+  filters: string[];
+  cards: Card[];
+  active: Active;
+  note?: string;
+  class?: string;
+}
+const {
+  filters,
+  cards,
+  active,
+  note,
+  class: className = "",
+} = Astro.props;
+---
+
+<div class:list={["practice-mock", className]}>
+  <div class="library">
+    <header class="lib-head">
+      <p class="eyebrow mono">The Practices</p>
+      <h3 class="lib-title">How will you <em>draw near</em> today?</h3>
+    </header>
+
+    <div class="filters" role="tablist" aria-label="Filter practices">
+      {
+        filters.map((f, i) => (
+          <span class:list={["filter", { active: i === 0 }]} role="tab">
+            {f}
+          </span>
+        ))
+      }
+    </div>
+
+    <div class="cards">
+      {
+        cards.map((c, i) => (
+          <div class:list={["card", { featured: i === 0 }]}>
+            <span class="card-fn mono">{c.function}</span>
+            <span class="card-name">{c.name}</span>
+            <span class="card-origin">{c.origin}</span>
+            <span class="card-quote">{c.quote}</span>
+            <span class="card-foot">
+              <span class="card-tag mono">{c.tradition}</span>
+              <span class="card-arrow" aria-hidden>→</span>
+            </span>
+          </div>
+        ))
+      }
+    </div>
+    {note && <p class="lib-note mono">{note}</p>}
+  </div>
+
+  <div class="editor-pane">
+    <p class="pane-label mono">In the editor</p>
+    <div class="editor-crop">
+      <p class="practice-name">{active.name}</p>
+      {
+        active.prompts.map((p) => (
+          <div class="prompt-block">
+            <p class="prompt-label mono">{p.label}</p>
+            <p class="prompt-q">{p.question}</p>
+            {p.answer ? (
+              <p class="prompt-a">{p.answer}</p>
+            ) : (
+              <p class="prompt-ph">{p.placeholder}</p>
+            )}
+          </div>
+        ))
+      }
+    </div>
+    <p class="pane-foot">Prompts stay as scaffolding — only your words are saved.</p>
+  </div>
+</div>
+
+<style>
+  .practice-mock {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    min-height: 420px;
+  }
+
+  .library {
+    padding: 28px 26px 24px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 8px;
+  }
+  .lib-title {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(1.35rem, 2.5vw, 1.65rem);
+    line-height: 1.15;
+    color: var(--paper);
+    margin-bottom: 18px;
+  }
+  .lib-title em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 16px;
+  }
+  .filter {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    padding: 5px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .filter.active {
+    color: var(--paper);
+    border-color: rgba(243, 189, 118, 0.35);
+    background: rgba(243, 189, 118, 0.08);
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    flex: 1;
+  }
+  .card {
+    padding: 14px 14px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.2s;
+  }
+  .card.featured {
+    border-color: rgba(243, 189, 118, 0.35);
+    background: rgba(243, 189, 118, 0.06);
+  }
+  .card-fn {
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+  }
+  .card-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: var(--paper);
+    line-height: 1.2;
+  }
+  .card-origin {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  .card-quote {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-style: italic;
+    margin-top: 4px;
+    flex: 1;
+  }
+  .card-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .card-tag {
+    font-size: 9px;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px 8px;
+  }
+  .card-arrow {
+    color: var(--dawn-1);
+    font-size: 14px;
+  }
+
+  .lib-note {
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    margin-top: 14px;
+    text-align: center;
+  }
+
+  .editor-pane {
+    padding: 28px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+  .pane-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .editor-crop {
+    flex: 1;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    padding: 18px 18px 16px;
+  }
+  .practice-name {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .prompt-block {
+    margin-bottom: 20px;
+  }
+  .prompt-block:last-child {
+    margin-bottom: 0;
+  }
+  .prompt-label {
+    font-size: 9.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 6px;
+  }
+  .prompt-q {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14.5px;
+    line-height: 1.45;
+    color: var(--paper-dim);
+    margin-bottom: 10px;
+  }
+  .prompt-a {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--paper);
+    font-weight: 300;
+    padding-left: 2px;
+  }
+  .prompt-ph {
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--muted);
+    font-weight: 300;
+    font-style: italic;
+  }
+  .pane-foot {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+    font-weight: 300;
+    margin-top: 14px;
+    text-align: center;
+  }
+
+  @media (max-width: 820px) {
+    .practice-mock {
+      grid-template-columns: 1fr;
+    }
+    .library {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+  }
+
+  @media (max-width: 520px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+    .filters {
+      display: none;
+    }
+  }
+</style>

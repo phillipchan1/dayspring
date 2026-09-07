@@ -1,0 +1,148 @@
+---
+// FormationMock — a native card showing the qualities Dayspring watches over
+// time: patience, prayer, the head-to-heart move. Movement is shown in words
+// and a quiet directional mark — never a chart, percentage, or streak.
+import DawnGlow from "./DawnGlow.astro";
+
+interface Quality {
+  name: string;
+  movement: string;
+  /** "up" = deepening/growing, "down" = quieting/lessening. Both are gentle. */
+  dir: "up" | "down";
+}
+interface Props {
+  label: string;
+  season: string;
+  qualities: Quality[];
+  comingSoon?: boolean;
+  class?: string;
+}
+const {
+  label,
+  season,
+  qualities,
+  comingSoon = false,
+  class: className = "",
+} = Astro.props;
+---
+
+<div class:list={["formation-wrap", className]}>
+  <article class="formation">
+    <DawnGlow variant="corner" corner="top-left" />
+    <div class="meta"><span>{label}</span><span>{season}</span></div>
+    <ul class="qualities">
+      {
+        qualities.map((q) => (
+          <li>
+            <span class:list={["mark", q.dir]} aria-hidden="true">
+              {q.dir === "up" ? "↗" : "↘"}
+            </span>
+            <span class="name">{q.name}</span>
+            <span class="movement">{q.movement}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </article>
+  {
+    comingSoon && (
+      <div class="soon-overlay" aria-hidden="true">
+        <span class="soon-label">Coming soon</span>
+      </div>
+    )
+  }
+</div>
+
+<style>
+  .formation-wrap {
+    position: relative;
+  }
+
+  .formation {
+    background: linear-gradient(165deg, var(--ink-3), var(--ink-2));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 30px 32px;
+    box-shadow:
+      0 40px 80px -40px rgba(0, 0, 0, 0.8),
+      0 0 60px -30px rgba(243, 189, 118, 0.18);
+    position: relative;
+    overflow: hidden;
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+  }
+  .qualities {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: relative;
+    z-index: 1;
+  }
+  .qualities li {
+    display: grid;
+    grid-template-columns: 18px auto;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    align-items: baseline;
+  }
+  .mark {
+    grid-row: 1 / span 2;
+    align-self: center;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1;
+  }
+  .mark.up {
+    color: var(--dawn-1);
+  }
+  .mark.down {
+    color: var(--paper-dim);
+  }
+  .name {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 18px;
+    color: var(--paper);
+  }
+  .movement {
+    font-size: 14.5px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  .soon-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: rgba(12, 13, 17, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 2;
+  }
+  .soon-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    border: 1px solid rgba(243, 189, 118, 0.35);
+    border-radius: 100px;
+    padding: 8px 16px;
+    background: rgba(12, 13, 17, 0.6);
+  }
+</style>

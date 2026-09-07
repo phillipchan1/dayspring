@@ -5,6 +5,12 @@ export type EntrySource = 'native' | 'day_one' | 'diarly' | 'other'
 export interface Entry {
   id: string
   created_at: string // original entry date (ISO); for native entries = creation time
+  /**
+   * The SERVER's clock, and nothing else. Local edits deliberately leave it
+   * alone so it keeps meaning "the version the server last gave us" — which is
+   * both the only timestamp comparable across devices and the base an
+   * optimistic-concurrency push checks against. See lib/entryVersion.ts.
+   */
   updated_at: string
   body_markdown: string
   title: string | null
@@ -13,6 +19,27 @@ export interface Entry {
   word_count: number
   source: EntrySource
   external_id: string | null
+  /**
+   * Local-only (never sent, never returned): when THIS device last edited the
+   * row, epoch ms. Orders local edits against each other — which `updated_at`
+   * can no longer do — so a push can tell whether the row changed underneath it
+   * while it was in flight.
+   */
+  local_edited_at?: number
+  /**
+   * Local-only (never sent, never returned): the body as of the last server row
+   * this device adopted — the common ancestor of our copy and theirs.
+   *
+   * Without it a conflict can only be judged by comparing two bodies to each
+   * other, which cannot tell "they wrote something we don't have" apart from
+   * "our timestamp went stale and theirs is the version we already had". Those
+   * demand opposite answers, and guessing wrong forks the entry in two. See
+   * `divergedFromBase` and `pushEntry`.
+   *
+   * Undefined for a row created offline and never yet pushed, and for rows
+   * cached before this field existed.
+   */
+  base_body_markdown?: string
 }
 
 /** Fields the client sets when creating a native entry. */
@@ -24,7 +51,22 @@ export interface NewEntry {
 
 // ── Spiritual items ────────────────────────────────────────────────────────
 
-export type SpiritualItemType = 'prayer' | 'sense' | 'scripture'
+/**
+ * The eight declared kinds. See `markKinds.ts` for the table that gives each one
+ * its label, fence, command and hue — and for why the set is closed.
+ *
+ * Widening this required a migration: `spiritual_items.type` carries a check
+ * constraint listing the three original values (20260824120000_mark_kinds.sql).
+ */
+export type SpiritualItemType =
+  | 'prayer'
+  | 'sense'
+  | 'scripture'
+  | 'gift'
+  | 'desire'
+  | 'learned'
+  | 'story'
+  | 'absence'
 
 export type PrayerType = 'intercession' | 'gratitude' | 'petition' | 'praise'
 

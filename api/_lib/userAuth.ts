@@ -3,6 +3,8 @@ import { supabaseAdmin } from './supabaseAdmin.js'
 export interface AuthedUser {
   id: string
   email: string | undefined
+  /** Provider profile fields (Google `full_name`, Apple given/family, …). */
+  user_metadata?: Record<string, unknown> | null
 }
 
 /**
@@ -20,7 +22,11 @@ export async function getAuthedUser(req: Request): Promise<AuthedUser | null> {
   } = await supabaseAdmin().auth.getUser(token)
 
   if (error || !user) return null
-  return { id: user.id, email: user.email }
+  return {
+    id: user.id,
+    email: user.email,
+    user_metadata: (user.user_metadata ?? null) as Record<string, unknown> | null,
+  }
 }
 
 export function notAuthenticated(): Response {

@@ -1,0 +1,4606 @@
+/*
+ * Pages — the read surface.
+ *
+ * The Ascent owns atmosphere; Remember owns quiet. This one owns PAPER. Every
+ * decision here is trying to give back something a scrolling list took away:
+ * peripheral vision, the thickness of a day, your own marks catching your eye
+ * from across the room.
+ *
+ * Two rules hold the surface together:
+ *   1. Nothing on a page except the writer's words, their date, and their marks.
+ *      No badge, no count, no chip. A page in a notebook carries no metadata.
+ *   2. Hover changes COLOUR, never position. A wall of pages that shifts under
+ *      the cursor is unusable, and this is a surface people scroll for minutes.
+ */
+
+.pg {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  /*
+   * The year rail's width, in one place.
+   *
+   * The rail is absolutely positioned over the scroller and the grid has to
+   * keep clear of it, so two rules depend on this number — and the wall's
+   * column count is decided by what is left after it, which makes a
+   * disagreement between them cost actual rows rather than just looking wrong.
+   */
+  --pg-rail-w: clamp(2.8rem, 5vw, 3.8rem);
+}
+
+.pg__inner {
+  max-width: 96rem;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 clamp(1rem, 3vw, 2rem);
+}
+
+/*
+ * No title, no eyebrow.
+ *
+ * The surface used to introduce itself — "PAGES / Your own, side by side" — to
+ * someone who had just pressed the button labelled Entries. A read surface
+ * should open on the reading; the controls are enough to say where you are.
+ */
+.pg__inner--head {
+  padding-top: clamp(0.9rem, 2.5vw, 1.4rem);
+}
+
+/*
+ * The header, and the line under it.
+ *
+ * The rule used to sit hard against the controls with nothing between them, so
+ * it read as a line cutting through the header rather than the floor of it.
+ * It needs room on both sides to be a floor.
+ */
+/*
+ * A hairline that FADES at both ends rather than a rule from edge to edge.
+ *
+ * A full-width 1px border is the single most toolbar-ish mark a screen can
+ * carry: it says "controls above, content below", which is what a dashboard
+ * says. Fading it at the margins leaves the same separation without the
+ * declaration — the header stops rather than being cut off.
+ */
+.pg__head-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  padding-bottom: clamp(0.85rem, 2vw, 1.15rem);
+}
+
+.pg__head-wrap::after {
+  content: '';
+  position: absolute;
+  inset-inline: clamp(1rem, 6vw, 5rem);
+  inset-block-end: 0;
+  block-size: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--border-subtle) 12%,
+    var(--border-subtle) 88%,
+    transparent
+  );
+}
+
+.pg__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 0.4rem;
+}
+
+/* ── on this day ── */
+
+.pg__senses {
+  margin-bottom: 1rem;
+  border-left: 2px solid rgba(var(--scripture-gold), 0.5);
+  padding-left: 0.85rem;
+}
+
+.pg__sense {
+  margin: 0 0 0.55rem;
+}
+
+.pg__sense-w {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.2rem;
+}
+
+.pg__sense-q {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-bright);
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+button.pg__sense-q:hover {
+  color: var(--accent);
+}
+
+/* ── controls ── */
+
+.pg__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.pg__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-faint);
+}
+
+.pg__zoom-icon {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.pg__zoom-icon--near {
+  font-size: 0.85rem;
+}
+
+/*
+ * The discoverable form of a gesture.
+ *
+ * Deliberately quiet and deliberately narrow: pinch and ⌘-scroll on the wall
+ * are the real controls, and a wide prominent slider would read as the primary
+ * way to do this rather than the reminder that it can be done.
+ */
+.pg__zoom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 6.5rem;
+  block-size: 2px;
+  border-radius: 1px;
+  background: var(--border);
+  cursor: ew-resize;
+}
+
+.pg__zoom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 11px;
+  block-size: 11px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: ew-resize;
+  transition: background-color var(--transition);
+}
+
+.pg__zoom-range::-moz-range-thumb {
+  inline-size: 11px;
+  block-size: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: ew-resize;
+}
+
+.pg__zoom-range:hover::-webkit-slider-thumb,
+.pg__zoom-range:focus-visible::-webkit-slider-thumb {
+  background: var(--accent);
+}
+
+.pg__zoom-range:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 6px;
+}
+
+.pg__somewhere,
+.pg__chip,
+.pg__clear {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition),
+    border-color var(--transition);
+}
+
+/*
+ * Open a page at random.
+ *
+ * It said "Open somewhere", which nobody could be expected to parse, and it is
+ * exactly the kind of copy that reads as a phrase rather than a control. An
+ * icon and a tooltip say the same thing without asking anyone to interpret it.
+ */
+.pg__somewhere {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-faint);
+}
+
+.pg__somewhere svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pg__somewhere:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── subjects ── */
+
+.pg__chip,
+.pg__clear {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.75rem;
+}
+
+.pg__chip:hover,
+.pg__clear:hover {
+  color: var(--text-bright);
+  border-color: var(--border);
+}
+
+.pg__chip[data-on='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.pg__clear {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* A concordance suggestion is an offer, not a state — quieter than a facet. */
+/* How many of this group's own filters are on — not a badge, just the count. */
+/*
+ * Highlight colours as swatches, not words.
+ *
+ * You reached for a colour; you should be able to reach for it again the same
+ * way. A row of five discs is also the only chip here that doesn't need
+ * reading — which matters, because this bar sits above the writing.
+ */
+.pg__swatch {
+  inline-size: 1.05rem;
+  block-size: 1.05rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: rgba(var(--swatch-hue), 0.55);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.pg__swatch[data-color='amber'] { --swatch-hue: var(--hl-amber); }
+.pg__swatch[data-color='rose'] { --swatch-hue: var(--hl-rose); }
+.pg__swatch[data-color='sage'] { --swatch-hue: var(--hl-sage); }
+.pg__swatch[data-color='sky'] { --swatch-hue: var(--hl-sky); }
+.pg__swatch[data-color='lilac'] { --swatch-hue: var(--hl-lilac); }
+
+.pg__swatch:hover {
+  background: rgba(var(--swatch-hue), 0.8);
+}
+
+.pg__swatch[data-on='true'] {
+  background: rgba(var(--swatch-hue), 1);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px rgba(var(--swatch-hue), 0.9);
+}
+
+.pg__swatch:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ── the way to the density picture ── */
+
+.pg__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/*
+ * A line, not a panel.
+ *
+ * This is the whole footprint the weather grid and the facts row now have on
+ * the reading path. They used to sit here in full, which on a phone left one
+ * page peeking in under a screenful of numbers.
+ */
+.pg__meta-b {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--transition);
+}
+
+.pg__meta-b:hover {
+  color: var(--text-dim);
+}
+
+/* ── the density picture, on its own frame ── */
+
+.pg-weather {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: clamp(1.5rem, 4vw, 2.75rem);
+  padding-bottom: clamp(2rem, 6vw, 4rem);
+}
+
+.pg-weather__bar {
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.pg-weather__x {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-weather__x:hover {
+  color: var(--accent);
+}
+
+.pg-weather__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 1.75rem);
+  font-weight: 500;
+  color: var(--text-bright);
+  margin: 0 0 clamp(1.5rem, 4vw, 2.25rem);
+}
+
+/*
+ * Still held to a narrow column.
+ *
+ * On its own frame there is room to stretch it, and stretching is exactly what
+ * turns weather into a scoreboard — the contributions-graph failure Principle 2
+ * names. Having its own page is not permission to grow. See D-017.
+ */
+.pg-weather__grid {
+  max-inline-size: 34rem;
+  margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.pg-weather__facts {
+  max-inline-size: 34rem;
+}
+
+.pg__facts {
+  display: flex;
+  gap: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.pg__fact-n {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+
+.pg__fact-k {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-top: 0.15rem;
+}
+
+/* ── the wall ── */
+
+.pg__wall-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pg__scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/*
+ * The bulk bar, over the pages rather than beside them.
+ *
+ * In the sidebar this needed a whole separate canvas component to be legible in
+ * 260px. Here it can simply be where the pages are — which also means it never
+ * takes a row away from the wall.
+ */
+.pg__selection {
+  position: absolute;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 4;
+  max-inline-size: min(44rem, calc(100% - 2rem));
+}
+
+.pg__grid {
+  display: grid;
+  max-width: 96rem;
+  margin: 0 auto;
+  padding-left: clamp(1rem, 3vw, 2rem);
+  /*
+   * Room for the scrubber, from the scrubber's OWN width plus a gap.
+   *
+   * This was a second clamp, written separately, that had to stay in step with
+   * the rail's — and the wall's column count is decided by exactly what is left
+   * after it, so a disagreement between them would cost real rows rather than
+   * merely looking wrong. One variable, and they cannot drift.
+   */
+  padding-right: calc(var(--pg-rail-w) + 0.7rem);
+  align-content: start;
+}
+
+
+/*
+ * The year, held like a thumb in the book.
+ *
+ * A marker, not a header: it never takes a row in the grid, which is what keeps
+ * every row the same height and the windowing honest.
+ *
+ * Sat OVER the first row of pages at first, and even at 7% it put a numeral on
+ * top of someone's sentences. It now rides up into the header's empty right side
+ * — still tracking the scroll, no longer competing with the writing.
+ */
+.pg__where {
+  position: absolute;
+  top: -3.6rem;
+  right: clamp(2.6rem, 5vw, 4.6rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pg__year {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  opacity: 0.16;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The month, under the year.
+ *
+ * Small, mono, quiet: it changes constantly as you scroll, and anything louder
+ * would flicker in the corner of your eye the whole way down.
+ */
+.pg__month-now {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/*
+ * A month, marked where it begins.
+ *
+ * An overlay, never a row. Months as flow headers would make rows uneven, and
+ * uniform rows are the whole reason a 3,500-page wall can be windowed at all.
+ * So the rule is absolutely positioned against the grid: it takes no space and
+ * moves nothing, and it lives in the gap that is already between the rows.
+ */
+.pg__month-rule {
+  position: absolute;
+  /* Matched to .pg__grid's own padding so the rule starts where the pages do —
+     an absolutely positioned child lays out against the padding box, which
+     otherwise puts the label outside the column it belongs to. */
+  inset-inline: clamp(1rem, 3vw, 2rem) clamp(2.5rem, 5vw, 4.5rem);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateY(-0.78rem);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* The hairline that makes it read as a division rather than a stray word. */
+.pg__month-rule::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--border);
+}
+
+/*
+ * The year rail — something you SLIDE, not eleven things you aim at.
+ *
+ * `touch-action: none` is what makes the gesture possible at all: without it
+ * the browser claims a vertical drag as a page scroll before a single
+ * pointermove reaches us, and the rail can only ever be tapped.
+ *
+ * It also stops scrolling itself. It used to be `overflow-y: auto`, so on a
+ * long decade the rail scrolled independently of the wall — you dragged your
+ * thumb down the years and the years moved instead of the pages. The stops are
+ * `flex: 1` now, so a decade shares the height it has however many years there
+ * are, and the rail is always exactly as long as the wall is tall.
+ */
+/*
+ * ── The rail's hit area is wider than the rail looks ────────────────────────
+ *
+ * The years are 0.6rem numerals, and a strip only as wide as they are is a
+ * target you aim at rather than one you reach for. So the element is a good
+ * deal wider than the type it holds: the numerals sit against the right edge
+ * where the eye expects them, and the whole width — a thumb's worth of it — is
+ * live. Nothing about the drawing changes; the reachable part is just bigger
+ * than the readable part, which is the ordinary way to make a small control
+ * usable without making it loud.
+ *
+ * `touch-action: none` is what makes the gesture possible at all: without it
+ * the browser claims a vertical drag as a page scroll before a single
+ * pointermove reaches us, and the rail can only ever be tapped.
+ *
+ * It also stops scrolling itself. It used to be `overflow-y: auto`, so on a
+ * long decade the rail scrolled independently of the wall — you dragged your
+ * thumb down the years and the years moved instead of the pages. The stops are
+ * `flex: 1` now, so a decade shares the height it has however many years there
+ * are, and the rail is always exactly as long as the wall is tall.
+ */
+.pg__scrub {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--pg-rail-w);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 1rem 0.55rem 1rem 0;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+ * A spine, so it reads as a control.
+ *
+ * Without it the years float at the edge of the page and nothing says they are
+ * one thing you can run a thumb down. A hairline, fading at both ends, is the
+ * least the affordance can be and still be there — and it brightens under the
+ * thumb, which is the whole of the feedback this needs.
+ */
+.pg__scrub::before {
+  content: '';
+  position: absolute;
+  inset-block: 1.2rem;
+  inset-inline-end: 0.2rem;
+  inline-size: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--border-subtle) 14%,
+    var(--border-subtle) 86%,
+    transparent
+  );
+  transition: background var(--transition);
+}
+
+.pg__scrub:hover::before,
+.pg__scrub[data-scrubbing='true']::before {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--accent) 45%, transparent) 14%,
+    color-mix(in srgb, var(--accent) 45%, transparent) 86%,
+    transparent
+  );
+}
+
+.pg-stretch:hover .pg-stretch__band,
+.pg-stretch__band:focus-within,
+.pg-stretch__band[data-brushing='true'],
+/* A bracket is a held state — it stays legible whether or not you are near it. */
+.pg-stretch__band:has([data-in='true']) {
+  opacity: 1;
+}
+
+/* Under the thumb: the rail steps forward, so it is obvious the gesture took. */
+.pg__scrub[data-scrubbing='true'] {
+  background: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--text) 6%, transparent),
+    transparent
+  );
+}
+
+.pg__scrub[data-scrubbing='true'] .pg__scrub-y {
+  color: var(--text-dim);
+}
+
+/*
+ * The readout — the year you are on, while you are on it.
+ *
+ * The wall behind is moving too fast to read during a scrub, so the one thing
+ * that has to stay legible is where you have got to. It grows in place rather
+ * than appearing beside the thumb: a bubble that follows your finger is one
+ * more thing to position and one more thing to be wrong about, and this is
+ * already exactly where you are looking.
+ */
+.pg__scrub[data-scrubbing='true'] .pg__scrub-y[data-on='true'] {
+  color: var(--accent);
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+
+.pg__scrub::-webkit-scrollbar {
+  display: none;
+}
+
+.pg__scrub-y {
+  /* Share the rail rather than stacking: the label you are next to is the year
+     you land on, which is only true if the stops fill the height. */
+  flex: 1 1 0;
+  min-block-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  /* The rail owns the gesture; a stop must not swallow the pointer. */
+  pointer-events: none;
+  transition: color var(--transition);
+}
+
+.pg__scrub-y:hover {
+  color: var(--text-bright);
+}
+
+.pg__scrub-y[data-on='true'] {
+  color: var(--accent);
+}
+
+/* Keyboard reach survives `pointer-events: none` — Tab still lands here, and
+   Enter still jumps. The pointer gesture is an addition, not a replacement. */
+.pg__scrub-y:focus-visible {
+  pointer-events: auto;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+
+/* ── one page ── */
+
+.pgc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  inline-size: 100%;
+  /* The wall's windowing math is the only definition of this — see density.ts. */
+  block-size: var(--pg-card-h);
+  outline: none;
+  text-align: left;
+  overflow: hidden;
+  padding: 0.85rem 0.9rem 0.7rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  /* Colour and opacity only — a page must never move under the cursor. */
+  transition: border-color var(--transition), background-color var(--transition),
+    opacity var(--transition-slow);
+}
+
+/*
+ * Hover: the page comes up in the light.
+ *
+ * Colour and elevation only — a wall of pages that shifts under the cursor is
+ * unusable, and this is a surface people scroll for minutes (rule 2 up top).
+ * The good part is the fade: it recedes, so leaning toward a page shows you a
+ * little more of it. Nothing moves; you just see further in.
+ */
+.pgc:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg-elevated));
+  box-shadow: var(--shadow-2);
+}
+
+.pgc:hover .pgc__fade {
+  opacity: 0.25;
+}
+
+.pgc:hover .pgc__date {
+  color: var(--accent);
+}
+
+.pgc:hover .pgc__thickness {
+  opacity: 0.3;
+}
+
+.pgc__fade {
+  transition: opacity var(--transition-slow);
+}
+
+.pgc__date {
+  transition: color var(--transition);
+}
+
+.pgc:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.pgc[data-active='true'] {
+  border-color: var(--accent);
+}
+
+/*
+ * Selected, and the card a menu is pointing at.
+ *
+ * Border and wash only. A selected page must not grow, lift, or gain a
+ * checkbox: the wall's second rule is that nothing moves under the cursor, and
+ * on a grid of a thousand cards a reflow on selection is unusable.
+ */
+.pgc[data-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pgc[data-context='true'] {
+  border-color: var(--accent);
+}
+
+/* Selection wins over subject dimming — you can only select what you can see,
+   so a selected page has to stay legible even when the wall is dimmed. */
+.pgc[data-dim='true'][data-selected='true'] {
+  opacity: 1;
+}
+
+/*
+ * Unlit by a subject.
+ *
+ * Faded, never hidden: the pages that DON'T carry a word are what give the ones
+ * that do their shape. Text goes translucent rather than disappearing, so the
+ * wall still reads as a decade of writing rather than a filtered result.
+ */
+.pgc[data-dim='true'] {
+  opacity: 0.16;
+}
+
+.pgc[data-dim='true']:hover,
+.pgc[data-dim='true']:focus-visible {
+  opacity: 0.5;
+}
+
+.pgc__date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.pgc__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pgc__line {
+  font-family: var(--font-editor);
+  font-size: 0.79rem;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A line the writer set apart.
+ *
+ * The whole reason to look at a wall instead of a list: your own emphases catch
+ * your eye from a distance, the way a highlighter does across an open book. Gold
+ * because that is already this product's word for "the writer marked this."
+ */
+/*
+ * The word that made this page light up.
+ *
+ * Painted in the text rather than only implied by the card lighting up, so a
+ * page can say why it is here without being opened. Underline-weight rather
+ * than a block of colour — the writer's OWN highlighter has to stay louder than
+ * ours, or their emphasis and our search result compete.
+ */
+.pgc__lit {
+  background: none;
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 rgba(var(--hl-amber), 0.55);
+}
+
+/* A line that carries the lit word sits at full strength even when the page is
+   long enough that the rest has faded back. */
+.pgc__line[data-hit='true'] {
+  color: var(--text-bright);
+}
+
+.pgc__line[data-set='true'] {
+  color: var(--text-bright);
+  box-shadow: inset 2px 0 0 rgba(var(--scripture-gold), 0.85);
+  padding-left: 0.5rem;
+}
+
+.pgc__blank {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* The page ends mid-sentence, the way a glance at one does. */
+.pgc__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.2rem;
+  background: linear-gradient(to bottom, transparent, var(--bg-elevated) 82%);
+  pointer-events: none;
+}
+
+/*
+ * Page thickness — how much was written that day.
+ *
+ * Deliberately has NO track behind it. A bar in a groove is a progress meter and
+ * invites a reading of "full" and "not full"; a mark with nothing to be measured
+ * against is just the look of a thick day next to a thin one.
+ *
+ * Horizontal, at the foot of the page, inset from both edges. It ran down the
+ * RIGHT edge at first, flush to the border and a different height on every card
+ * — which is not what it looked like. It looked like a border that stopped
+ * short, i.e. like a rendering bug, on every card at once. A rule that is
+ * clearly inside the page cannot be mistaken for the edge of it.
+ */
+.pgc__thickness {
+  position: absolute;
+  left: 0.9rem;
+  bottom: 0.55rem;
+  block-size: 2px;
+  max-inline-size: calc(100% - 1.8rem);
+  border-radius: 1px;
+  background: var(--text);
+  opacity: 0.16;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+/* An echo — a page that rose out of another year. */
+.pgc[data-echo='true'] {
+  background: transparent;
+  border-style: dashed;
+  border-color: rgba(var(--scripture-gold), 0.4);
+}
+
+.pgc[data-echo='true'] .pgc__fade {
+  background: linear-gradient(to bottom, transparent, var(--bg) 82%);
+}
+
+.pgc__echo {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--scripture-gold), 0.9);
+  margin-bottom: 0.35rem;
+  flex: 0 0 auto;
+}
+
+/* ── empty ── */
+
+.pg__empty {
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.pg__empty-h {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--text-bright);
+  margin: 0 0 0.4rem;
+}
+
+.pg__empty-s {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* ── marked near it ──
+ *
+ * The one reading that shows LINES rather than pages, because the question is
+ * not "which pages carry both" but "what did I reach for while writing about
+ * her". Her sentence is the largest thing in each row and the only serif one;
+ * the kind above it and the two facts below it are the only words here she did
+ * not write, and they are sans, small, and out of the way.
+ */
+
+.pg-near__facts {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+.pg-near__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-near__hit {
+  display: block;
+  inline-size: 100%;
+  text-align: start;
+  padding: 0.75rem 0.9rem;
+  background: none;
+  border: 1px solid transparent;
+  border-inline-start: 2px solid color-mix(in srgb, var(--tone, var(--accent)) 55%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.pg-near__hit:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.pg-near__hit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pg-near__kind {
+  display: block;
+  margin-block-end: 0.3rem;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tone, var(--text-faint));
+  opacity: 0.85;
+}
+
+/* Verbatim, in the face the journal is written in. */
+.pg-near__text {
+  display: block;
+  font-family: var(--font-editor);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.pg-near__where {
+  display: flex;
+  gap: 0.45rem;
+  margin-block-start: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+/* What the reading wants, said plainly — not a dimmed pill. Greying an option
+   out is exactly what made "the words you used" impossible to find. */
+.pg-read__ask {
+  padding: 2.5rem 0;
+  max-inline-size: 34rem;
+}
+
+.pg-read__ask-h {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--text-bright);
+}
+
+.pg-read__ask-s {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+/* ── a marking's hand, at Pages' sizes ──
+ *
+ * The shapes come from `editor/markGlyph.ts` — the same drawing the editor puts
+ * in its own margin, so a prayer looks like a prayer whether you meet it while
+ * writing or while reading back. Only the scale changes here: a margin glyph is
+ * drawn for a line of prose, and a pill is smaller than a line of prose.
+ */
+
+.pg-pill__glyph,
+.pg-held__glyph,
+.pg-near__hand,
+.pg-read1__kind-hand {
+  flex: none;
+}
+
+.pg-pill__glyph .ds-glyph__svg,
+.pg-held__glyph .ds-glyph__svg,
+.pg-read1__kind-hand .ds-glyph__svg {
+  width: 7px;
+  height: 13px;
+}
+
+.pg-pill__glyph .ds-glyph__rule,
+.pg-held__glyph .ds-glyph__rule,
+.pg-read1__kind-hand .ds-glyph__rule {
+  width: 2px;
+  height: 11px;
+  min-height: 0;
+}
+
+.pg-pill__glyph .ds-glyph__ember,
+.pg-held__glyph .ds-glyph__ember,
+.pg-read1__kind-hand .ds-glyph__ember {
+  width: 4px;
+  height: 4px;
+  box-shadow: 0 0 4px 2px color-mix(in srgb, currentColor 26%, transparent);
+}
+
+.pg-near__hand .ds-glyph__svg {
+  width: 9px;
+  height: 16px;
+}
+
+.pg-near__hand .ds-glyph__rule {
+  width: 2.5px;
+  height: 13px;
+  min-height: 0;
+}
+
+/*
+ * The hand in an open page's gutter, to the RIGHT of the sentence it marks.
+ *
+ * Hung outside the text column rather than inset into it, the way a note in a
+ * book sits beside the line it belongs to and never in it. Nothing about the
+ * measure of her writing changes because a sentence happens to carry a marking.
+ *
+ * On the right and not the left: on the left it butted against the start of the
+ * line and read as a bullet, as though the marked sentences were a list. On the
+ * right it lands in the gap the margin column already leaves, where nothing
+ * else is, and the eye meets the words before the annotation about them.
+ */
+.pg-read1__hand {
+  position: absolute;
+  inset-inline-end: -1.5rem;
+  inset-block-start: 0.32em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1rem;
+}
+
+/*
+ * The kind, on hover. Small, and above the hand so it never lands on the
+ * writing or in the margin's notes.
+ *
+ * Right-aligned to the hand so it grows back over the empty gutter rather than
+ * out into the margin column.
+ */
+.pg-read1__hand::after {
+  content: attr(data-label);
+  position: absolute;
+  inset-block-end: calc(100% + 0.25rem);
+  inset-inline-end: 0;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+/* Hovering the SENTENCE, not the 9px glyph — the hand is small on purpose and
+   a target you have to aim at is a target most people never find. */
+.pg-read1__body [data-marking]:hover .pg-read1__hand::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__hand::after {
+    transition: none;
+  }
+}
+
+.pg-read1__hand .ds-glyph__svg {
+  width: 9px;
+  height: 16px;
+}
+
+.pg-read1__hand .ds-glyph__rule {
+  width: 2.5px;
+  height: 14px;
+  min-height: 0;
+}
+
+/* ── the stretch: the archive's months, and a bracket ──
+ *
+ * Same rule as every other band on this surface: every cell is the same size
+ * and only its warmth changes (Principle 1). A bar chart of pages-per-month
+ * would be a productivity graph of somebody's prayer life, and a thin month in
+ * it would read as a failure rather than as a busy fortnight at work.
+ */
+
+.pg-stretch {
+  margin-block: 0.15rem 0.55rem;
+}
+
+/*
+ * Thin, and quiet until you reach for it.
+ *
+ * At full strength this was the loudest thing on the surface — a hundred and
+ * thirty amber ticks across the top of someone's journal, which is a chart, and
+ * a chart at the top of a reading surface is a dashboard however carefully it
+ * is drawn. So it rests at a third of itself and comes up when approached: an
+ * edge you can reach for rather than a readout you have to look past.
+ *
+ * The bar is thin and the TARGET is not — the padding is hit area, so a thumb
+ * has 1.6rem to land in while the drawing stays a hairline.
+ */
+.pg-stretch__band {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  block-size: 0.7rem;
+  box-sizing: content-box;
+  padding-block: 0.45rem;
+  margin: 0;
+  padding-inline: 0;
+  list-style: none;
+  opacity: 0.42;
+  transition: opacity var(--transition);
+  cursor: ew-resize;
+  /* The brush owns the gesture — without this a drag is a page scroll on touch
+     and the band can only ever be tapped. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pg-stretch__cell {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  border-radius: 1px;
+  background: color-mix(
+    in srgb,
+    var(--accent) calc(var(--warmth, 0) * 52%),
+    color-mix(in srgb, var(--text) 7%, transparent)
+  );
+  transition: opacity var(--transition);
+}
+
+.pg-stretch__cell[data-empty='true'] {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+/* Outside the bracket, the months are still THERE — recessed, never removed.
+   What a bracket leaves out is half of what it tells you. */
+.pg-stretch__band:has([data-in='true']) .pg-stretch__cell {
+  opacity: 0.25;
+}
+
+.pg-stretch__band .pg-stretch__cell[data-in='true'] {
+  opacity: 1;
+}
+
+/* space-between, not an auto margin on the middle child: the middle child is
+   hidden on touch (there is no hover to reveal it), and an auto margin that
+   isn't there leaves both years stacked at the left edge. */
+.pg-stretch__ends {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.3rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+
+
+/* Only on approach: an instruction that is always on screen is noise once it
+   has been read, and this one is discoverable from the cursor alone. */
+.pg-stretch__year {
+  flex: none;
+  opacity: 0.7;
+}
+
+/* The middle of the timeline: what you are looking at, as a caption on the
+   thing it describes rather than as a count heading a grid. */
+.pg-stretch__mid {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+/* The relative spans, beside the bracket they set. Quiet until pressed — this
+   sits under a band on every visit to the surface and has to earn its pixels. */
+.pg-stretch__presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex: none;
+}
+.pg-stretch__preset {
+  padding: 0.12rem 0.35rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background var(--transition);
+}
+.pg-stretch__preset:hover:not(:disabled) {
+  color: var(--text-dim);
+  background: var(--bg-hover);
+}
+.pg-stretch__preset[data-on='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.pg-stretch__preset:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pg-stretch__preset:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-stretch__preset {
+    transition: none;
+  }
+}
+
+.pg-stretch__count {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: normal;
+  color: var(--text-faint);
+}
+
+.pg-stretch__on {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.16rem 0.55rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: normal;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.pg-stretch__on:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+
+/* Re-declared locally, per house convention — the global kill switch is not the
+   only thing a surface with animation should be relying on. */
+@media (prefers-reduced-motion: reduce) {
+  .pgc {
+    transition: none;
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+
+/* Pages → Journal is one page changing state. The body owns a shared snapshot;
+   the read-only margin owns a disappearing one. Because the body is centred
+   independently above, its group normally has no horizontal travel at all. */
+.pg-read1__body,
+.journal-write--from-pages .cm-content {
+  view-transition-name: dayspring-entry-body;
+}
+
+.pg-read1__margin {
+  view-transition-name: dayspring-entry-margin;
+}
+
+::view-transition-group(dayspring-entry-body) {
+  animation-duration: 180ms;
+  animation-timing-function: cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+::view-transition-old(dayspring-entry-body),
+::view-transition-new(dayspring-entry-body) {
+  mix-blend-mode: normal;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+::view-transition-old(dayspring-entry-margin) {
+  animation: pg-handoff-margin-out 140ms ease-out both;
+}
+
+@keyframes pg-handoff-margin-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Nothing here starts a view transition any more, but the app's own routing
+     may; a transition begun before the preference changed should stop moving. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+
+/*
+ * A seam — the pages the filter passed over.
+ *
+ * On a real archive, a filter that matches thirty pages across eleven years
+ * leaves hundreds of dimmed ones between the hits, and four screens of "shape"
+ * stops being shape and becomes scrolling. This keeps the FACT of them — how
+ * many, across what span — and gives back the room.
+ *
+ * Drawn as a squeezed stack of page edges, because that is what it is.
+ */
+.pgc,
+.pg__seam {
+  block-size: var(--pg-card-h);
+}
+
+.pg__seam {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-inline-size: 0;
+  padding: 1rem 0.6rem;
+  background: none;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: zoom-in;
+  outline: none;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.pg__seam:hover,
+.pg__seam:focus-visible {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
+}
+
+.pg__seam:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* The stack itself: a few hairlines, tight together, like page edges seen side-on. */
+.pg__seam-edges {
+  inline-size: 60%;
+  max-inline-size: 5rem;
+  block-size: 1.4rem;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0 1px,
+    transparent 1px 4px
+  );
+  opacity: 0.7;
+}
+
+.pg__seam-n {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.5;
+}
+
+
+/* ── reading zoom: the wall IS the open book ── */
+
+/* ── look for: collapsed by default, everything behind it ──
+ *
+ * Two rules decide every case in here.
+ *
+ * SERIF IS HER. SANS IS US. Subjects are set in the face the journal is written
+ * in, because they are her words. Every label, gloss and count is sans, one
+ * size, one weight, differing only in opacity. No mono anywhere: mono is for
+ * dates, and a date is a fact about a page rather than part of a control.
+ *
+ * ONE SHAPE. Every option is the same pill, whatever it does. What varies is a
+ * hairline (kept) against a dashed line (noticed), and colour once something is
+ * on. Three control shapes in one sheet is the same mistake as six type styles.
+ */
+
+.pg__head-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.9rem;
+}
+
+.pg__head-tools > .pg-look {
+  flex: 1 1 34rem;
+  min-inline-size: 0;
+}
+
+/*
+ * The way back to now.
+ *
+ * Not another card and not a miniature entries list: one page, named by its
+ * date and its own opening words. It is deliberately quieter than `Look for`
+ * until the pointer reaches it, because the wall remains the surface rather
+ * than becoming a backdrop for a toolbar.
+ */
+.pg-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-inline-size: 0;
+  max-inline-size: min(28rem, 42vw);
+  padding: 0.4rem 0.7rem;
+  color: var(--text-dim);
+  text-align: start;
+  background: color-mix(in srgb, var(--text) 2.5%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition),
+    border-color var(--transition);
+}
+
+.pg-now:hover {
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.pg-now:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pg-now__when {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pg-now__title {
+  min-inline-size: 0;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pg-now svg {
+  flex: 0 0 auto;
+  opacity: 0.45;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.pg-now:hover svg {
+  opacity: 0.9;
+  transform: translateX(2px);
+}
+
+.pg-look {
+  position: relative;
+}
+
+.pg-look__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.85rem;
+}
+
+/*
+ * The opening of a sentence, which the chips complete: look for — Mom — the
+ * prayers. So it carries no box of its own; an ink-well surfaces under the
+ * cursor instead. A bordered button here would read as machinery sitting on
+ * top of her writing.
+ */
+/*
+ * A CONTROL, not a caption.
+ *
+ * Set in serif lowercase with no outline this read as a label — the single
+ * richest thing on the surface, and nothing about it said it could be pressed.
+ * The prototype's ink-well is right where it was drawn, inside the wall beside
+ * her own sentences; in a header band it just disappears. So: the app's sans, a
+ * hairline, and a chevron that says there is more behind it.
+ */
+.pg-look__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), background-color var(--transition),
+    border-color var(--transition);
+}
+
+.pg-look__open:hover {
+  color: var(--text-bright);
+  border-color: var(--text-faint);
+}
+
+.pg-look__open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pg-look__open[data-on='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.pg-look__chev {
+  opacity: 0.5;
+  transition: transform var(--transition), opacity var(--transition);
+}
+
+.pg-look__open:hover .pg-look__chev {
+  opacity: 1;
+}
+
+.pg-look__open[data-on='true'] .pg-look__chev {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/*
+ * How many things are on, on the control itself.
+ *
+ * The chips say WHAT is on and they are the truth; this says HOW MANY, which is
+ * the one fact you still want when the control has been moved to the bottom
+ * corner of a phone and the chips are up in the header. Tabular, so it does not
+ * change width between 1 and 7.
+ */
+.pg-look__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.2rem;
+  block-size: 1.2rem;
+  padding-inline: 0.3rem;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+.pg-look__on {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* What is on. Click it to take it off — the gesture that put it there. */
+.pg-held {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.24rem 0.62rem;
+  font-family: var(--font-serif);
+  font-size: 0.94rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pg-held svg {
+  opacity: 0.4;
+  transition: opacity var(--transition);
+}
+
+.pg-held:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.pg-held:hover svg {
+  opacity: 1;
+}
+
+/* A marking is the app's word for a gesture, so it is sans and wears its tone. */
+.pg-held[data-kind='marking'] {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--tone, var(--text-bright));
+  background: color-mix(in srgb, var(--tone, var(--text)) 10%, transparent);
+  border-color: color-mix(in srgb, var(--tone, var(--text)) 30%, transparent);
+}
+
+.pg-look__clear,
+.pg-look__only {
+  padding: 0.2rem 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg-look__clear:hover,
+.pg-look__only:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+}
+
+.pg-look__only[data-on='true'] {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── the sheet ── */
+
+.pg-sheet {
+  position: absolute;
+  inset-block-start: calc(100% - 0.35rem);
+  inset-inline-start: -0.7rem;
+  z-index: 30;
+  inline-size: min(37rem, calc(100vw - 2.5rem));
+  max-block-size: min(31rem, 74vh);
+  overflow-y: auto;
+  padding: 1.5rem 1.65rem 1.7rem;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  box-shadow: var(--shadow-panel, 0 40px 90px -46px rgba(0, 0, 0, 0.45));
+  animation: pg-sheet-in 150ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  /* `translate`, not `transform`: the entrance animation owns `transform` for
+     good (a `both` fill outranks an inline style on the same property), and the
+     drag has to be able to move the sheet after it has arrived. */
+  transition: translate 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+/* Following a finger, so no easing between frames. */
+.pg-sheet[data-dragging='true'] {
+  transition: none;
+}
+
+/*
+ * The grabber — the visible half of drag-to-dismiss.
+ *
+ * Narrow only: there is nothing to grab on a dropdown, and a handle on one
+ * would be a promise the control does not keep.
+ */
+.pg-sheet__grab {
+  display: block;
+  inline-size: 2.5rem;
+  block-size: 4px;
+  margin: 0 auto 0.85rem;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* It comes from the control it belongs to rather than simply appearing — three
+   pixels of travel, which is enough to connect the two and not enough to be a
+   movement anyone has to wait for. */
+@keyframes pg-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-sheet {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A line, not a box. One less rectangle in a sheet full of them. */
+.pg-sheet__find {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-block-end: 0.85rem;
+  margin-block-end: 1.6rem;
+  color: var(--text-faint);
+  border-block-end: 1px solid var(--border-subtle);
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg-sheet__find:focus-within {
+  color: var(--accent);
+  border-block-end-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.pg-sheet__find input {
+  flex: 1;
+  min-inline-size: 0;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-bright);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.pg-sheet__find input::placeholder {
+  color: var(--text-faint);
+}
+
+/*
+ * Groups separated by air and a hairline, not by louder headings.
+ *
+ * The alternative is to make each label shout enough to be a boundary, and a
+ * sheet whose structure comes from its type is a form. Structure from the
+ * spacing leaves the type free to be quiet.
+ */
+.pg-sheet__g + .pg-sheet__g {
+  margin-block-start: 1.5rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
+}
+
+/*
+ * The label and its gloss are ONE line, one face, one size — separated by
+ * weight and opacity alone. Setting the label in mono uppercase and the gloss
+ * in serif italic beneath it is two typographic decisions for a five-word
+ * explanation.
+ */
+.pg-sheet__g h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.55rem;
+  margin: 0 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  /* Dim, not bright. The label was the most contrasted thing in its own group,
+     which made the sheet read as a form with the options as its fields — the
+     options are the sheet, and they should be what the eye lands on. */
+  color: var(--text-dim);
+}
+
+.pg-sheet__g h3 span {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.pg-sheet__note {
+  max-inline-size: 31rem;
+  margin: 0 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+.pg-sheet__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+/*
+ * ── The pill ────────────────────────────────────────────────────────────────
+ *
+ * One shape for everything in this sheet, whatever it does — a subject, a
+ * marking, an arrangement. What varies is a hairline against a dashed line, and
+ * colour once something is on.
+ *
+ * The elegance is in the object, not in the typeface. A subject used to be set
+ * in the journal's serif on the reasoning that "serif is her, sans is us" — but
+ * a pill is ours whatever is written in it, and a serif word inside a sans
+ * control reads as a quotation someone has pasted in rather than as a thing you
+ * can press. So: one face throughout, and the pill earns its keep with
+ * proportion instead — a taller box, more room at the ends than a label strictly
+ * needs, and a border that lifts rather than a fill that arrives.
+ */
+.pg-pill {
+  display: inline-flex;
+  align-items: stretch;
+  block-size: 2rem;
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 85%, transparent);
+  border-radius: var(--radius-full);
+  transition: border-color var(--transition), background-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.pg-pill:hover {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text) 3.5%, transparent);
+}
+
+.pg-pill__hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-inline: 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: -0.004em;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-pill:hover .pg-pill__hit {
+  color: var(--text-bright);
+}
+
+.pg-pill__hit:disabled {
+  cursor: default;
+}
+
+/*
+ * Her word. Still marked up as hers, no longer set apart by face — see the note
+ * on `.pg-pill` for why the serif came out.
+ */
+.pg-pill__hit em {
+  font-style: normal;
+  color: var(--text);
+}
+
+.pg-pill:hover .pg-pill__hit em,
+.pg-pill[data-on='true'] .pg-pill__hit em {
+  color: inherit;
+}
+
+/*
+ * A count is us: small, tabular, and never a rank.
+ *
+ * Tabular figures matter more here than they look like they should — these sit
+ * in a wrapping row of pills, and proportional digits make a column of counts
+ * jitter as the numbers change under a bracket.
+ */
+.pg-pill__hit i {
+  font-style: normal;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+/* Noticed, not kept — the journal offering rather than her answering. Softer
+   than the kept hairline as well as dashed, so it reads as provisional rather
+   than as a broken border. */
+.pg-pill--noticed {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--border-subtle) 62%, transparent);
+}
+
+.pg-pill[data-on='true'] {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  border-style: solid;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.pg-pill[data-on='true'] .pg-pill__hit {
+  color: var(--accent);
+}
+
+.pg-pill[data-on='true'] .pg-pill__hit i {
+  color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.pg-pill--mark[data-on='true'] {
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  border-color: color-mix(in srgb, var(--tone) 34%, transparent);
+}
+
+.pg-pill--mark[data-on='true'] .pg-pill__hit {
+  color: var(--tone);
+}
+
+/* Nothing here yet — true, and not a promise about tomorrow.
+ *
+ * A SUBJECT dims by the same rule, and for the same reason: bracket a stretch
+ * and a name you carry may have nothing in those months. Dropping it from the
+ * list would teach the reader that the vocabulary is variable; dimming it says
+ * "nothing here in these months", which is true, and is the most useful thing a
+ * bracket has to tell you about a name. */
+.pg-pill--mark[data-off='true'],
+.pg-pill[data-off='true'] {
+  opacity: 0.3;
+}
+
+/* Keeping and dropping stay live on a dimmed subject: it is still hers, and a
+   stretch with nothing in it is no reason to make her list unmanageable. */
+.pg-pill[data-off='true'] .pg-pill__aside {
+  opacity: 0.55;
+}
+
+/* keep / drop — the same slot, revealed on hover, never shouting. */
+.pg-pill__aside {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 0.5rem 0.6rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  border-inline-start: 1px solid transparent;
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+
+.pg-pill:hover .pg-pill__aside,
+.pg-pill__aside:focus-visible {
+  opacity: 1;
+  border-inline-start-color: var(--border-subtle);
+}
+
+.pg-pill__aside:hover {
+  color: var(--text-bright);
+}
+
+.pg-pill__aside--keep:hover {
+  color: var(--accent);
+}
+
+.pg-pill--mine {
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* Touch has no hover, so the keep/drop slot has nowhere to come from. */
+@media (hover: none) {
+  .pg-pill__aside {
+    opacity: 1;
+    border-inline-start-color: var(--border-subtle);
+  }
+}
+
+
+/* ── the rows band: standing very far back ──
+ *
+ * Not a list view and not a mode — the same wall, the same lighting, the same
+ * windowing, at 30 pages a screen. The row height here is set by the grid's
+ * --pg-card-h so the scroller and the CSS can never disagree.
+ */
+
+.pgr {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  inline-size: 100%;
+  block-size: var(--pg-card-h);
+  padding-inline: 0.6rem;
+  text-align: start;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color var(--transition), opacity var(--transition);
+}
+
+.pgr:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+/*
+ * "Where am I?" before "what did I write?"
+ *
+ * The current week is a quiet cluster, not a score or a count. Its first page
+ * names the period; the shared wash lets the remaining pages belong to it
+ * without repeating chrome on every row.
+ */
+.pgr[data-current-week='true'] {
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+}
+
+.pgr[data-current-week='true']:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.pgr[data-today='true'] {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.pgr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Lighting DIMS. The pages that don't carry the word are what give the ones
+   that do their shape — the panel this replaced could only hand back a list
+   with the rest thrown away. */
+.pgr[data-dim='true'] {
+  opacity: 0.28;
+}
+
+.pgr[data-active='true'] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.pgr[data-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.pgr[data-context='true'] {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* A date is a fact about a page, so it is the one thing here set in mono. */
+.pgr__date {
+  flex: none;
+  inline-size: 3.9rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+/*
+ * An echo — a page that rose out of another year.
+ *
+ * Cards already say so (dashed edge + gold eyebrow). Rows used to omit both, so
+ * "AUG 27" from 2011 sat under "AUG 30 TODAY" and read as broken order. The
+ * year rides on the date; the eyebrow states the calendar fact flatly.
+ */
+.pgr[data-echo='true'] {
+  box-shadow: inset 2px 0 0 rgba(var(--scripture-gold), 0.38);
+}
+
+.pgr[data-echo='true'] .pgr__date {
+  inline-size: auto;
+  color: rgba(var(--scripture-gold), 0.78);
+}
+
+.pgr__week {
+  flex: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--accent);
+}
+
+.pgr__echo {
+  flex: none;
+  max-inline-size: 14rem;
+  overflow: hidden;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(var(--scripture-gold), 0.72);
+}
+
+/* Her words, so they take the face she writes in (--font-editor), not the
+   one the app speaks in. See D-028. */
+.pgr__line {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-family: var(--font-editor);
+  font-size: 0.86rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+/*
+ * The sentence after the opening — a phone's second line, and nothing else's.
+ *
+ * A pointer's row is 25px of one line: there is no second line for this to be,
+ * and inline it would just push her opening under the ellipsis sooner. It is in
+ * the DOM at every width because the row is one component (see PageRow), and
+ * `display: none` is what makes that free rather than merely tidy.
+ */
+.pgr__next {
+  display: none;
+}
+
+.pgr__lit {
+  color: var(--accent);
+  background: none;
+}
+
+/* The markings, as the margin — the same information the cards carry, at the
+   only size a 25px row has room for. */
+.pgr__margin {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  align-items: center;
+}
+
+.pgr__mark {
+  inline-size: 4px;
+  block-size: 4px;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+/* The way back to what you were writing, never more than a glance away. */
+.pgr__today {
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.pgr[data-today='true'] .pgr__date {
+  color: var(--accent);
+}
+
+/* The chosen reading, and its one line of explanation. */
+.pg-pill--read[data-on='true'] {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-color: var(--border);
+}
+
+.pg-pill--read[data-on='true'] .pg-pill__hit {
+  color: var(--text-bright);
+}
+
+.pg-sheet__gloss {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+
+/* ── the readings ──
+ *
+ * The results stay in the page view: every arrangement is still pages, with
+ * their dates, in the writer's own words. Grouped differently, never
+ * summarised, and with no axis anywhere.
+ */
+
+/*
+ * The reading's own scroller.
+ *
+ * `flex: 1; min-block-size: 0` and NOT `block-size: 100%`. The percentage
+ * resolved against a parent whose own height was content-driven, so it became
+ * `auto`: the element grew to 2,971px inside a 519px body, `overflow-y` had
+ * nothing left to do, and `.journal-canvas__content` clipped the rest with
+ * `overflow: hidden`. Every reading longer than the viewport lost its tail —
+ * silently, because a clipped page looks exactly like a page that ended.
+ *
+ * `min-block-size: 0` is the load-bearing half: a flex item's `min-height` is
+ * `auto`, which refuses to shrink below its content and is what let it push out
+ * of the box in the first place.
+ */
+.pg-read {
+  max-inline-size: 62rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+  overflow-y: auto;
+  flex: 1;
+  min-block-size: 0;
+}
+
+/* The wrapper has to pass the bound down, or there is nothing for the scroller
+   above to be 100% OF. Scoped to the reading — `.pg__inner` is also the head. */
+.pg__inner--read {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-block-size: 0;
+}
+
+/* A control, not a finding — so it is plain. */
+.pg-read__split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-end: 1.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+.pg-read__year {
+  padding: 0.15rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg-read__year:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+}
+
+.pg-read__year[data-on='true'] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+/*
+ * Two spans, side by side, with NOTHING BETWEEN THEM. No arrow: an arrow is a
+ * vertical axis laid on its side, saying the second span is where the first was
+ * heading.
+ */
+.pg-read__two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: 2.5rem;
+}
+
+.pg-read__bursts {
+  display: flex;
+  flex-direction: column;
+  gap: 2.8rem;
+}
+
+/*
+ * A STRETCH, as a stretch.
+ *
+ * It used to be a heading over a run of one-line rows, which reads as a list
+ * that happens to be labelled — twenty-three things, not one thing that took
+ * 387 days. Bounded, with its own ground, the heading belongs TO the block.
+ */
+.pg-read__burst {
+  padding: 1rem 1.1rem 1.2rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 45%, transparent);
+}
+
+/*
+ * The pages in it, as a pile.
+ *
+ * Auto-fill rather than a fixed column count: a stretch of three and a stretch
+ * of twenty-three are different shapes, and the shape carries the count before
+ * the heading is read. `minmax` keeps a card wide enough for its own prose to
+ * be prose rather than a column of two-word lines.
+ */
+.pg-read__pile {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.7rem;
+}
+
+/* A page, not a row. Same excerpt machinery as the wall's cards, same date. */
+.pg-read__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-inline-size: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+.pg-read__card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border-subtle));
+  background: var(--bg-elevated);
+}
+.pg-read__card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.pg-read__card-date {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Cut, never wrapped into a narrow column — a cut edge reads as a page that
+   continues, where a wrapped one reads as a designed block. */
+.pg-read__card-line {
+  display: block;
+  font-family: var(--font-editor);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read__card {
+    transition: none;
+  }
+}
+
+/* The count IS the heading. A title would be a claim about what it was. */
+.pg-read__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.6rem;
+  margin: 0 0 0.9rem;
+  padding-block-end: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.pg-read__head span {
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.pg-read__pages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-read__page {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  inline-size: 100%;
+  padding: 0.28rem 0.4rem;
+  text-align: start;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.pg-read__page:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+/* A date is a fact about a page, so it is the one thing here set in mono. */
+.pg-read__date {
+  flex: none;
+  inline-size: 5.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.pg-read__line {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-family: var(--font-editor);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+/*
+ * Her words, and nothing beside them.
+ *
+ * No number, no rank, no good-and-bad. Set in the journal's own face because
+ * they are hers; separated by a middot because a list needs a separator and a
+ * bullet would make it a ranking.
+ */
+.pg-read__words {
+  margin: 0;
+  font-family: var(--font-editor);
+  font-size: 1rem;
+  line-height: 1.9;
+  color: var(--text);
+}
+
+.pg-read__words i {
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+/* The floor, stated where the reader can see it — the only legal way to shorten
+   the list, and it has to be visible to be legal. */
+.pg-read__floor {
+  margin: 2rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  color: var(--text-faint);
+}
+
+.pg-read__none {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  color: var(--text-faint);
+}
+
+/* ── the chapter ──
+ *
+ * A subject's masthead: its provenance, its counts, its span, and one band of
+ * months. Everything here is either the writer's own words or a number counted
+ * in code. Deliberately small — no vocabulary portrait, no co-occurrence
+ * network. A network diagram of someone's relationships is a profile whatever
+ * the axis says.
+ */
+
+.pg-chapter {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-block: 0.9rem 0.2rem;
+}
+
+.pg-chapter__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.7rem;
+}
+
+/* Her word for it, in the journal's own face. */
+.pg-chapter__name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.28rem;
+  font-weight: 400;
+  color: var(--text-bright);
+}
+
+/* Ours: sans, one size, one weight, differing only in opacity. */
+.pg-chapter__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.73rem;
+  color: var(--text-faint);
+}
+
+/*
+ * THE BAND HAS NO VERTICAL AXIS.
+ *
+ * Every cell is the same size; only warmth changes. A bar chart of
+ * mentions-per-month has a Y axis, and a falling one under a subject called
+ * "Mom" reads as "you care less about your mother now" — a verdict on a
+ * relationship, rendered by a machine (Principle 1).
+ */
+.pg-band {
+  display: flex;
+  gap: 1px;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-band__cell {
+  flex: 1 1 0;
+  min-inline-size: 2px;
+  /* One height, always. There is nothing here to be tall or short. */
+  block-size: 14px;
+  border-radius: 1px;
+  background: rgb(
+    var(--scripture-ember)
+  );
+  /* Warmth, not height: ember at its quietest, gold at its busiest. */
+  background: color-mix(
+    in srgb,
+    rgb(var(--scripture-gold)) calc(var(--warmth, 0) * 100%),
+    rgb(var(--scripture-ember))
+  );
+  opacity: calc(0.25 + var(--warmth, 0) * 0.75);
+}
+
+/* A month with nothing in it is silence, and silence is half of what a band
+   says — so it stays, quietly, rather than being dropped. */
+.pg-band__cell[data-empty='true'] {
+  background: var(--border-subtle);
+  opacity: 0.5;
+}
+
+/* Only the ends are labelled. A tick per year turns a band into a chart. */
+.pg-band__ends {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.3rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+/*
+ * How close you are standing — at the RIGHT of the look-for row.
+ *
+ * It sits on the surface rather than in the sheet, because it is not part of
+ * what you are looking FOR. One continuous move rather than named stops: naming
+ * them makes you pick a mode instead of simply standing closer. The label says
+ * where you are; it is not a control, which is why it is not a button.
+ */
+.pg-stand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-inline-start: auto;
+}
+
+/*
+ * The count appears when you reach for the slider, and not before.
+ *
+ * A permanent "12 a screen" beside a track is a readout, and a readout in a
+ * header is the shape of a dashboard. The slider says it is a slider without
+ * help; the number is only wanted while you are moving it. It keeps its space
+ * rather than being removed, so nothing shifts when it arrives.
+ *
+ * Only where there is a pointer to hover with — on touch there is no "reach
+ * for", so it simply stays.
+ */
+.pg-stand__where {
+  min-inline-size: 4.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  text-align: end;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+@media (hover: hover) {
+  .pg-stand__where {
+    opacity: 0;
+  }
+
+  .pg-stand:hover .pg-stand__where,
+  .pg-stand:focus-within .pg-stand__where,
+  .pg-stand:active .pg-stand__where {
+    opacity: 1;
+    color: var(--text-dim);
+  }
+}
+
+.pg-stand input[type='range'] {
+  inline-size: 6rem;
+  block-size: 2px;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.pg-stand input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: 11px;
+  block-size: 11px;
+  background: var(--text-faint);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background var(--transition), box-shadow var(--transition);
+}
+
+.pg-stand:hover input[type='range']::-webkit-slider-thumb {
+  background: var(--accent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/*
+ * THE LIFT.
+ *
+ * A page picked up off the table, not a button pressed — so it rises, and casts
+ * a shadow that is mostly transparent and warm rather than black. A neutral
+ * drop shadow reads as a hole, and a page is not a hole.
+ *
+ * This reverses the wall's earlier rule ("a page must never move under the
+ * cursor"). The prototype settled the other way and it is right: colour alone
+ * does not read as picking something up, and the movement is 3px, which is a
+ * page lifting rather than a card jumping.
+ *
+ * `will-change` is deliberate — hundreds of cards, and the hover fires while
+ * the wall is scrolling, which is exactly when a main-thread paint is felt.
+ */
+.pgc {
+  will-change: transform;
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    background-color var(--transition),
+    box-shadow var(--transition),
+    opacity var(--transition-slow);
+}
+
+.pgc:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow:
+    0 18px 34px -20px color-mix(in srgb, var(--text) 32%, transparent),
+    0 0 30px -14px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* The date is the one thing that brightens. The writing itself never flickers. */
+.pgc:hover .pgc__date {
+  color: var(--accent);
+}
+
+.pgc:active {
+  transform: translateY(-1px);
+  transition-duration: 90ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pgc,
+  .pgc:hover,
+  .pgc:active {
+    transform: none;
+  }
+}
+
+/* The year numeral was a watermark the size of a headline. The prototype marks
+   a year with a hairline rule and a small mono label, which says the same thing
+   without competing with the writing. */
+.pg__where {
+  display: none;
+}
+
+/* Flip the notebook open. Beside the stand rather than alone above the row —
+   one header row, not two. */
+.pg-look__somewhere {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: auto;
+  padding: 0.25rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-look__somewhere:hover {
+  color: var(--accent);
+}
+
+/* The stand follows it, so only the first of the pair pushes right. */
+.pg-look__somewhere + .pg-stand {
+  margin-inline-start: 0.7rem;
+}
+
+/* ── the header, given room ── */
+
+/*
+ * The controls row and the meta line are one block, and the wall starts BELOW
+ * it rather than against it. There was no gap at all: the first row of cards
+ * began the pixel after the rule, so the header read as the top card rather
+ * than as chrome.
+ */
+.pg__inner--head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.pg__head-wrap {
+  margin-block-end: clamp(1rem, 2.4vw, 1.6rem);
+}
+
+.pg-look__row {
+  min-block-size: 2rem;
+}
+
+/* The count, and the way to the years. Quiet — it is a footnote to the row
+   above, not a second control. */
+.pg__meta-b {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.pg__meta-n {
+  color: var(--text-dim);
+}
+
+.pg__meta-go {
+  color: var(--text-faint);
+  border-block-end: 1px solid transparent;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg__meta-b:hover .pg__meta-go {
+  color: var(--accent);
+  border-block-end-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/*
+ * The margin, down the right of a card, the way a Bible does it.
+ *
+ * The markings had nowhere to go on a card at all — rule 1 says nothing goes on
+ * a page except her words, her date and her markings, and "on" is doing real
+ * work in that sentence. A hand printed over a sentence is not a margin, it is
+ * a stamp. So they get their own narrow column, costing the text about
+ * fourteen pixels and buying a card whose hand you can read before you read a
+ * word.
+ */
+.pgc__cols {
+  display: flex;
+  flex: 1;
+  gap: 0.45rem;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.pgc__cols .pgc__body {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.pgc__margin {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  inline-size: 8px;
+  padding-block-start: 0.15rem;
+  opacity: 0.65;
+  transition: opacity var(--transition);
+}
+
+.pgc:hover .pgc__margin {
+  opacity: 1;
+}
+
+.pgc__mark {
+  inline-size: 5px;
+  block-size: 5px;
+  border-radius: 50%;
+}
+
+/*
+ * The way back out of a page.
+ *
+ * Opening one takes over the surface, and the only ways out used to be the
+ * browser's Back and dragging the zoom — neither of which is visible. It sits
+ * in the header where the rest of the chrome lives rather than floating over
+ * the writing, because it is chrome and the page is not.
+ */
+.pg__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: flex-start;
+  margin-block-end: 0.15rem;
+  padding: 0.28rem 0.6rem 0.28rem 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg__back:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.pg__back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── the through line ──
+ *
+ * One row above an open page: the way out, what is still lit, and where this
+ * page sits in the list you came from. Opening a page used to empty this
+ * header entirely, which threw away the only thing explaining why you are
+ * looking at THIS page.
+ *
+ * It wraps rather than scrolls or truncates — several chips and a long count
+ * on a narrow window become two lines, and two lines of context is better than
+ * one line with the context cut off.
+ */
+.pg__through {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  margin-block-end: 0.15rem;
+}
+
+.pg__through .pg__back {
+  margin-block-end: 0;
+}
+
+.pg__through-on {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/*
+ * The way IN to writing, beside the way out.
+ *
+ * A word next to a nib rather than a lone glyph: this is the one control on the
+ * surface that leaves it, and a mystery icon in a corner is the wrong place to
+ * be clever. Pushed to the end of the row with the position, so the two things
+ * you reach for repeatedly are always in the same place however many chips are
+ * on.
+ */
+.pg__write {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-inline-start: auto;
+  padding: 0.3rem 0.75rem 0.3rem 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+
+.pg__write:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.pg__write:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* When both are present the nav keeps its own end of the row and `Write` sits
+   just inside it — the auto margin belongs to whichever comes first. */
+.pg__write + .pg__through-nav {
+  margin-inline-start: 0.35rem;
+}
+
+/* Pushed to the end of the row, so the position never moves as chips come and
+   go — it is the one thing here you reach for repeatedly. */
+.pg__through-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-inline-start: auto;
+}
+
+/* In the accent when the arrows are walking the LIT set rather than the whole
+   wall — the same colour the chips beside it are already in, so the position
+   and what is lit read as one statement rather than two. */
+.pg__through-at[data-lit='true'] {
+  color: var(--accent);
+}
+
+.pg__through-at {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  padding-inline: 0.3rem;
+  white-space: nowrap;
+}
+
+.pg__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.pg__step:hover:not(:disabled) {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+}
+
+/* Kept in place rather than hidden at the ends of the list: a control that
+   vanishes takes the other one with it as the row reflows. */
+.pg__step:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.pg__step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The count is a fact now, not a control — it lost its link to the years. */
+.pg__meta-b {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+/* ── a page, open ──
+ *
+ * Its own view, not the wall zoomed in. The whole page, top to bottom,
+ * scrolling the way a document scrolls — no leaves, no next day waiting
+ * underneath, and the wall's zoom untouched behind it.
+ */
+
+/*
+ * Over the wall, not instead of it. A scroller that unmounts forgets where it
+ * was — open a page from four years deep and you came back to the top of the
+ * archive. This covers it; the wall keeps its place underneath.
+ */
+/*
+ * The lit word, on an open page.
+ *
+ * Exactly what a card does (`.pgc__lit`), because it has to be recognisably
+ * the same thing: you saw the word lit on the card, you clicked in, and it is
+ * still lit. An underline rather than a fill — a page of highlighter is harder
+ * to read, not easier, and this one is being read rather than scanned.
+ */
+.pg-read1__lit {
+  background: none;
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 rgba(var(--hl-amber), 0.55);
+}
+
+/* A passage marked while re-reading uses the same ground as `.cm-mark`.
+   Subjects can still light a word inside it. */
+.pg-read1__saved-mark {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 2px;
+}
+
+/*
+ * ── Motion, and the rule it follows ────────────────────────────────────────
+ *
+ * A page does not appear, it is opened. A hard cut is honest but it is the one
+ * moment on this surface where nothing acknowledges that you did something, and
+ * a read surface with no acknowledgement anywhere reads as a database.
+ *
+ * So: a fade, and four pixels of rise. Not eight, not a scale, not a slide from
+ * the side. The editor's own rule is that things arrive by fading because
+ * movement in peripheral vision pulls the eye off a sentence — this is a page
+ * you are about to read rather than one you are writing, so a whisper of travel
+ * is allowed, and a whisper is all it is. 190ms, which is under the threshold
+ * where a transition starts costing you time rather than giving you a beat.
+ */
+/*
+ * The reader is a LAYER, and the page inside it is what moves.
+ *
+ * This used to be one element: the scroller, the opaque background and the
+ * thing being dragged, all at once. Which meant a back-swipe dragged an opaque
+ * sheet across a background of the identical colour — nothing was revealed, so
+ * nothing said the page was on top of anything. It read as a card being shoved
+ * sideways rather than as a view being popped off a stack, and no amount of
+ * easing fixes that, because the missing thing is the wall behind.
+ *
+ * So: the layer clips and holds the veil, and `__slide` is the page — opaque,
+ * scrolling, shadowed at its leading edge, and free to travel.
+ */
+.pg-read1 {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  animation: pg-open 190ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  /* How far the page has been pulled out of the way, 0–1. Written from the
+     gesture; see the note on `out` in PageReader. */
+  --pg-out: 0;
+}
+
+/*
+ * The veil over the wall, lifting as the page leaves.
+ *
+ * Not a dimmer for its own sake — the archive underneath is the same paper
+ * colour as the page on top, and without a shade between them a page half
+ * dragged away looks like a rendering bug. It is at its strongest while the
+ * page still covers everything and gone by the time it does not.
+ */
+.pg-read1::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  opacity: calc(1 - var(--pg-out));
+  pointer-events: none;
+}
+
+@keyframes pg-open {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The page: the scroller, and the thing a back-swipe carries.
+ *
+ * Snaps back on release short of the threshold, and on a committed swipe
+ * carries on off the right edge under `[data-leaving]` — the reader stays
+ * mounted for exactly that long (`EXIT_MS` in useSwipeToDismiss, which is this
+ * duration by construction). Before, `onDismiss` and the reset to zero landed
+ * in the same tick, so the page snapped back to centre for one frame before
+ * vanishing: the dismissal played backwards at speed, which was most of what
+ * made the gesture feel broken.
+ */
+.pg-read1__slide {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  background: var(--bg);
+  /*
+   * The two axes, split between the browser and the gesture.
+   *
+   * This element scrolls, and a scroller left on `auto` hands the browser both
+   * directions: it is free to read the start of a horizontal drag as a pan and
+   * take the gesture, which on a surface whose horizontal drag IS the way back
+   * means the way back sometimes just does not happen. `pan-y` gives it the
+   * vertical axis — reading a long page stays composited and smooth, which
+   * matters more here than anywhere — and keeps the horizontal one for the
+   * gesture that needs it. The same division `.pg-stretch__band` makes for its
+   * brush, for the same reason.
+   */
+  touch-action: pan-y;
+  transition: transform 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+/*
+ * The edge that says there is something under this.
+ *
+ * Drawn only while the page is actually off its mark — a permanent shadow down
+ * the left of a full-screen view is a bevel on nothing.
+ */
+.pg-read1__slide::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 100%;
+  inline-size: 2rem;
+  background: linear-gradient(to left, color-mix(in srgb, var(--text) 16%, transparent), transparent);
+  opacity: var(--pg-out);
+  pointer-events: none;
+}
+
+.pg-read1[data-dragging='true'] .pg-read1__slide {
+  transition: none;
+}
+
+/* Committed: the page finishes the journey the thumb started, at the speed it
+   would have had. `--pg-out` goes to 1 with it so the veil lifts and the edge
+   shadow stays lit the whole way out. */
+.pg-read1[data-leaving='true'] {
+  --pg-out: 1;
+}
+
+/* 220ms is `EXIT_MS` in useSwipeToDismiss, which is how long the reader stays
+   mounted for. Change one and change the other. */
+.pg-read1[data-leaving='true'] .pg-read1__slide {
+  transform: translateX(100%);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__slide,
+  .pg-read1[data-leaving='true'] .pg-read1__slide {
+    transition: none;
+  }
+}
+
+/*
+ * Stepping from page to page inside the reader.
+ *
+ * Keyed on the entry, so the article re-enters when the id changes and sits
+ * still while you read. Shorter than the open — you are already here, and the
+ * only thing that needs saying is that the words changed. NO horizontal travel:
+ * a page sliding in from the side is a carousel, and a journal is not one.
+ */
+.pg-read1__page {
+  animation: pg-turn 130ms ease-out both;
+}
+
+@keyframes pg-turn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * A turned page arrives from the side it came from.
+ *
+ * The neighbours sit to the left and right, so a page that simply cross-fades
+ * contradicts the thing you just pressed: you reached rightward and the archive
+ * did not appear to move. Short and small — 22px and 200ms — because this has
+ * to survive being done twenty times in a row without becoming a ride.
+ */
+.pg-read1__page[data-from='older'] {
+  animation: pg-turn-from-older 200ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+.pg-read1__page[data-from='newer'] {
+  animation: pg-turn-from-newer 200ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+@keyframes pg-turn-from-older {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pg-turn-from-newer {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+
+/* A lit word arriving. Opacity only, and quick — it is a change to something
+   already on screen, not something new to look at. */
+.pg-read1__lit,
+.pgc__lit,
+.pgr__lit {
+  animation: pg-fade-in 160ms ease-out both;
+}
+
+@keyframes pg-fade-in {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Everything above, off. `both` fill on an animation means "off" has to restore
+   the end state explicitly, or the element is left at the `from` keyframe. */
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1,
+  .pg-read1__page,
+  /* The direction-aware turns out-specify the bare class, so they have to be
+     named here or they keep sliding. */
+  .pg-read1__page[data-from='older'],
+  .pg-read1__page[data-from='newer'],
+  .pg-read1__lit,
+  .pgc__lit,
+  .pgr__lit {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Nothing under an open page is reachable — not by pointer, not by tab. */
+.pg[data-reading-page='true'] .pg__wall-wrap,
+.pg[data-reading-page='true'] .pg-read {
+  pointer-events: none;
+}
+
+.pg-read1__page {
+  display: block;
+  inline-size: 100%;
+  /* The writing column is centred by itself. Marginalia sits beside it without
+     taking part in centring, so opening the editor cannot pull the prose right. */
+  max-inline-size: calc(var(--editor-max-width) + 2 * clamp(1rem, 3vw, 2rem));
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 3vw, 2rem) 6rem;
+  text-align: start;
+  background: none;
+  border: none;
+  cursor: text;
+  transition: background var(--transition);
+}
+
+.pg-read1__page:focus-visible {
+  outline: none;
+}
+
+/* A hint that the page is click-to-write, on the devices where that's true.
+   `[role='button']` is only present when `PageReader` isn't on touch (see its
+   `asButton`), so this needs no touch-detection logic of its own; `(hover:
+   hover)` keeps it from sticking after a tap on hybrid devices. */
+@media (hover: hover) {
+  .pg-read1__page[role='button']:hover {
+    background: color-mix(in srgb, var(--text) 3%, transparent);
+  }
+}
+
+/*
+ * ── THE PAGES EITHER SIDE ───────────────────────────────────────────────────
+ *
+ * A notebook does not have a "next" button. It has the next page, half under
+ * your thumb, and you know what turning will get you because you can already
+ * see a corner of it. That is what these are: the writer's own prose, set back
+ * far enough that reading them is not on offer and recognising them is.
+ *
+ * Two rules keep them from becoming a feed:
+ *
+ *   1. They do not move. No parallax, no peek-on-hover that slides the page
+ *      under your cursor, no easing that suggests the next one is coming
+ *      whether you asked or not. They sit still and wait to be pressed.
+ *   2. They are the SET YOU CAME FROM. With a subject lit these are that
+ *      subject's pages; the date on each one is what makes that checkable, and
+ *      the position in the header says which set it counts.
+ *
+ * At the narrow end they are gone entirely and the header's arrows come back —
+ * a 4rem sliver of dimmed prose on a phone is decoration, and the thumb has the
+ * swipe, which is the gesture that belongs to that hand anyway.
+ */
+.pg-read1__edge {
+  position: absolute;
+  inset-block: 0;
+  inline-size: clamp(6rem, 12vw, 13rem);
+  display: none;
+  padding: 4.5rem 0 0;
+  overflow: hidden;
+  text-align: start;
+  background: none;
+  border: none;
+  border-inline: 1px solid transparent;
+  cursor: pointer;
+  /* Quieter than it was: the chevrons carry the navigation, so this only has
+     to say "there is a page over here", never "press me". */
+  opacity: 0.14;
+  transition: opacity var(--transition), border-color var(--transition);
+  animation: pg-leaf-in 260ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+
+/* In from its own edge, so the sliver reads as a page lying under this one
+   rather than as a panel switching on. */
+@keyframes pg-leaf-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--leaf-from, 0));
+  }
+  to {
+    opacity: 0.14;
+    transform: none;
+  }
+}
+
+.pg-read1__edge[data-side='newer'] {
+  --leaf-from: -14px;
+  inset-inline-start: 0;
+  /* Justified to the binding: the newer page's INNER edge is the one that would
+     be showing, so its text runs off the outer side of the screen, not the one
+     facing you. */
+  padding-inline-start: 1.25rem;
+}
+
+.pg-read1__edge[data-side='older'] {
+  --leaf-from: 14px;
+  inset-inline-end: 0;
+  padding-inline-end: 1.25rem;
+}
+
+/* Enough to say "this is pressable", never enough to read. Bringing a
+   neighbour to full strength would put two pages in front of someone who asked
+   for one. */
+.pg-read1__edge:hover,
+.pg-read1__edge:focus-visible {
+  opacity: 0.4;
+}
+
+.pg-read1__edge[data-side='newer']:hover,
+.pg-read1__edge[data-side='newer']:focus-visible {
+  border-inline-end-color: var(--border-subtle);
+}
+
+.pg-read1__edge[data-side='older']:hover,
+.pg-read1__edge[data-side='older']:focus-visible {
+  border-inline-start-color: var(--border-subtle);
+}
+
+.pg-read1__edge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pg-read1__edge-leaf {
+  display: block;
+  /* The leaf is wider than the sliver showing it, so the prose is CUT rather
+     than wrapped into a narrow column. A column would read as a designed
+     element; a cut edge reads as a page continuing past the screen. */
+  inline-size: 22rem;
+  max-inline-size: none;
+}
+
+.pg-read1__edge-when {
+  display: block;
+  margin-block-end: 0.9rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* Which way this is, in a word. The date says WHICH page; this says which
+   direction, so neither has to be inferred from the side of the screen. */
+.pg-read1__edge-side {
+  display: block;
+  color: var(--accent);
+}
+
+.pg-read1__edge-line {
+  display: block;
+  margin-block-end: 0.5rem;
+  font-family: var(--font-editor);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/*
+ * The edges need room the page is not already using. Below this the page and
+ * its margin column own the full width, and a neighbour would be crowding the
+ * thing it is a neighbour of.
+ */
+@media (min-width: 78rem) {
+  .pg-read1__edge {
+    /* Flex rather than block: a button's content box is vertically centred by
+       the UA, which floated the leaf halfway down the screen. */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+}
+
+/* Nothing showing through, and nothing moving. */
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__edge {
+    transition: none;
+  }
+}
+
+.pg-read1__head {
+  padding-block-end: 0.6rem;
+  /* Keeps the first writing baseline aligned with the Journal editor. The date
+     is read-only chrome; it should not push the entry down when it fades. */
+  margin-block-end: 0.5rem;
+}
+
+.pg-read1__date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  transition: color var(--transition);
+}
+
+.pg-read1__page:hover .pg-read1__date {
+  color: var(--accent);
+}
+
+/*
+ * The margin column is reserved even on an unmarked page, so the measure of
+ * the text does not change from one page to the next as you read through.
+ */
+.pg-read1__cols {
+  position: relative;
+  display: block;
+}
+
+/*
+ * ── The measure, pinned ─────────────────────────────────────────────────────
+ *
+ * `.markdown-body` carries `margin: 0 auto`, and an auto inline margin on a
+ * GRID ITEM beats `stretch`: the browser sizes the item to its content and
+ * centres it. So this column was as wide as the page's longest line — a short
+ * entry came out 311px and centred, a long one filled the column, and the date
+ * in the header (which is not in the grid) lined up with neither.
+ *
+ * That is the exact thing the note on `__cols` says must not happen: the
+ * measure of the text must not change from one page to the next as you read
+ * through. So the auto margins go, the column is filled, and the measure is a
+ * measure — the writer's own column-width setting, the same one that shapes
+ * the editor, so opening a page to write on it is not also a resize.
+ */
+.pg-read1 .pg-read1__body {
+  margin-inline: 0;
+  inline-size: 100%;
+  max-inline-size: var(--editor-max-width);
+  min-inline-size: 0;
+  font-family: var(--font-editor);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  color: var(--text);
+}
+
+/* Photos use the editor's geometry without its hover controls. The frame is
+   installed before the private URL resolves; metadata lands before `src`, so
+   the browser knows the image's ratio before decoding it. */
+.pg-read1__photo {
+  display: block;
+  inline-size: fit-content;
+  min-inline-size: min(240px, 100%);
+  max-inline-size: 100%;
+  margin: 0.6rem auto 1rem;
+}
+
+.pg-read1__photo-media {
+  position: relative;
+  display: block;
+  min-block-size: 120px;
+  max-inline-size: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--photo-tint, var(--bg-input));
+  box-shadow:
+    0 10px 26px -8px color-mix(in srgb, var(--photo-tint, #1a120a) 40%, transparent),
+    inset 0 0 0 1px rgba(20, 12, 4, 0.07);
+}
+
+.pg-read1__photo-img {
+  display: block;
+  inline-size: auto;
+  max-inline-size: 100%;
+  block-size: auto;
+  max-block-size: min(56vh, 480px);
+  margin: 0;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.pg-read1__photo[data-ready='true'] .pg-read1__photo-img {
+  opacity: 1;
+}
+
+.pg-read1__photo--size-s .pg-read1__photo-img {
+  max-block-size: min(34vh, 260px);
+}
+
+.pg-read1__photo--size-f {
+  inline-size: 100%;
+}
+
+.pg-read1__photo--size-f .pg-read1__photo-img {
+  inline-size: 100%;
+  max-block-size: none;
+}
+
+.pg-read1__photo--crop-h.pg-read1__photo--size-s .pg-read1__photo-media {
+  block-size: min(34vh, 260px);
+}
+
+.pg-read1__photo--crop-h.pg-read1__photo--size-m .pg-read1__photo-media {
+  block-size: min(56vh, 480px);
+}
+
+.pg-read1__photo--crop-w .pg-read1__photo-media {
+  inline-size: 100%;
+}
+
+.pg-read1__photo--crop-h .pg-read1__photo-img,
+.pg-read1__photo--crop-w .pg-read1__photo-img {
+  inline-size: 100%;
+  block-size: 100%;
+  max-block-size: none;
+  object-fit: cover;
+}
+
+.pg-read1__photo-caption,
+.pg-read1__photo-meta {
+  inline-size: 0;
+  min-inline-size: 100%;
+  margin: 0.35rem 0 0;
+  font-family: var(--font-editor);
+  font-size: 0.66em;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.pg-read1__photo-meta {
+  font-size: 0.62em;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-read1__photo-img {
+    transition: none;
+  }
+}
+
+/* Marginalia: what the writer set apart, pulled beside the text rather than
+   highlighted inside it — a page of highlighter is harder to read, not easier. */
+.pg-read1__margin {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: calc(100% + 2.25rem);
+  inline-size: 11rem;
+  border-inline-start: 1px solid var(--border-subtle);
+  padding-inline-start: 1.1rem;
+}
+
+.pg-read1__note {
+  margin: 0 0 1rem;
+  font-family: var(--font-serif);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--text-faint);
+}
+
+/*
+ * The kind, on a marking that is not in the prose — a declared block, almost
+ * always. Sans, because it is the one word in this margin the writer did not
+ * type, and the margin is otherwise entirely theirs.
+ */
+.pg-read1__kind {
+  display: block;
+  margin-block-end: 0.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tone, var(--text-faint));
+  opacity: 0.85;
+}
+
+/*
+ * A sentence the page was marked ON.
+ *
+ * This is the join that never existed: a subject lit particular lines and a
+ * marking lit the whole page, so "Tiffany and Scripture" had nothing to show
+ * where the two met. With the marking's own text it has a place, and the place
+ * is where the writer put it.
+ *
+ * A rule in the gutter, the way a Bible marks a cross-reference — never a fill
+ * behind the words. The page is being read.
+ */
+/*
+ * A sentence the page was marked ON — and no coloured bar.
+ *
+ * A flat rule said "something is marked here" and made you look up which; the
+ * kind's own drawing says which before you read a word, which is the rule the
+ * editor's margin already works by ("the hand is the label").
+ */
+/*
+ * Why the prose does not take touches on a phone.
+ *
+ * WebKit hands a touch that lands on running text to its own text-interaction
+ * recogniser, and once that has the gesture the JS touch stream simply stops:
+ * exactly one `touchmove` arrives and then nothing — no move, no end, no cancel,
+ * at the element, at the window, or at the document. The back-swipe froze
+ * wherever that one move left it. It is why the gesture worked over the editor
+ * (CodeMirror's contenteditable arbitrates differently), worked over a page's
+ * gaps and margins, and died anywhere there were words — which on a page of
+ * writing is everywhere that matters. Measured, not guessed: same page, same
+ * finger height, 20px apart. On the gap it goes back. On the sentence it dies.
+ *
+ * `-webkit-user-select: none` does NOT stop it — verified on device, computed
+ * style and all. Taking the prose out of hit-testing does: the touch then lands
+ * on the page around it, which is a box WebKit has no text gesture for.
+ *
+ * What it costs: you cannot select a sentence out of an open page with a finger
+ * any more. Nothing else — on touch the page has no click behaviour to lose
+ * (see the note on `touch` in PageReader), the markings are hover decorations a
+ * finger never had, and the margin is a sibling. A "Copy page" action in the
+ * reader's bar is the way to give copying back, and is better on a phone than
+ * dragging two handles across a paragraph.
+ *
+ * Coarse pointers only. A mouse has no such recogniser and never lost the
+ * gesture, so on a desktop the page stays live and selectable.
+ */
+@media (pointer: coarse) {
+  /* Two classes on purpose. `.markdown-body` is handed `user-select: text` by
+     the coarse-pointer block in global.css — the rule that makes sure people
+     can copy their own words back out — and a single-class selector here ties
+     with it and loses on source order. */
+  .pg-read1__body.markdown-body {
+    pointer-events: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.pg-read1__body [data-marking] {
+  position: relative;
+  --mark-hand: var(--mark-tone, var(--accent));
+}
+
+.pg-read1__hand {
+  color: var(--mark-hand);
+}
+
+/* On a narrow page the margin column collapses and there is no gutter left to
+   hang a hand in — it sits inline with the first line instead. */
+@media (max-width: 44rem) {
+  .pg-read1__hand {
+    position: static;
+    margin-inline-end: 0.4rem;
+    inline-size: auto;
+    vertical-align: -0.15em;
+  }
+}
+
+@media (max-width: 60rem) {
+  /*
+   * With the margin column gone there is nothing to balance the page against,
+   * so the whole block centres instead of hanging at the left edge with a hand
+   * of slack on the right. The cap is the measure plus its own padding, so the
+   * date and the first line still start at the same place — which is the thing
+   * the measure was pinned for.
+   */
+  .pg-read1__page {
+    max-inline-size: calc(var(--editor-max-width) + 2 * clamp(1rem, 3vw, 2rem));
+  }
+
+  .pg-read1__cols {
+    display: block;
+  }
+
+  .pg-read1__margin {
+    position: static;
+    inline-size: auto;
+    border-inline-start: none;
+    border-block-start: 1px solid var(--border-subtle);
+    padding-inline-start: 0;
+    padding-block-start: 1rem;
+  }
+}
+
+/*
+ * Everything below the header, as one positioned box.
+ *
+ * It exists so an open page can be laid OVER the wall without covering the
+ * header — the way out lives up there — and without anything needing to
+ * measure how tall the header is.
+ */
+.pg__body {
+  position: relative;
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * ══ NARROW ═════════════════════════════════════════════════════════════
+ *
+ * At the END of the file, and it has to stay here.
+ *
+ * This block used to sit in the middle, above the declarations for the pill,
+ * the row, the stand, the through line and the reader — and a media query buys
+ * no specificity at all. So `.pgr { font-size: 0.95rem }` in here lost to
+ * `.pgr { font-size: 0.86rem }` six hundred lines below it, and most of the
+ * phone treatment was quietly doing nothing. Anything added for narrow belongs
+ * after everything it means to override.
+ */
+@media (max-width: 767px) {
+  /*
+   * The rail keeps its width for a thumb; what changes is how loud it is.
+   *
+   * Eleven years is eleven numerals stacked down the edge of a reading surface —
+   * on the archive this was built for it is sixteen — and at rest they are the
+   * second thing the eye lands on, over the writing. A rail does not need to
+   * recite the years to be a rail. It needs to say "run your thumb here", and a
+   * column of ticks says that at a fraction of the volume.
+   *
+   * So at rest: ticks, plus the ONE numeral for the year you are actually on,
+   * which is a thumb in the book rather than a table of contents. Under a thumb
+   * the whole list comes back, because then it is the only thing you are
+   * reading.
+   */
+  .pg {
+    --pg-rail-w: 3.4rem;
+  }
+
+  /*
+   * And the header band it used to sit in, gone with it.
+   *
+   * `look for` is fixed to the bottom corner and the other two controls are off
+   * the phone entirely, so this row holds nothing in the flow — but it still
+   * reserved 2rem plus the header's gap at the very top of the screen, which is
+   * a band of empty paper above the only content on the surface. It comes back
+   * the moment something is lit, because the chips are in it.
+   */
+  .pg-look[data-narrow='true'] .pg-look__row {
+    min-block-size: 0;
+    gap: 0.4rem 0.5rem;
+  }
+
+  .pg__scrub-y {
+    position: relative;
+  }
+
+  /* The tick. Short, hard against the spine, and the same hairline colour — so
+     the rail reads as one ruled edge rather than as sixteen marks. */
+  .pg__scrub-y::before {
+    content: '';
+    position: absolute;
+    inset-inline-end: 0;
+    inline-size: 0.45rem;
+    block-size: 1px;
+    background: var(--border);
+    transition: background var(--transition), inline-size var(--transition);
+  }
+
+  .pg__scrub-y[data-on='true']::before {
+    inline-size: 0.8rem;
+    background: var(--accent);
+  }
+
+  /* The numerals: gone at rest, back under a thumb. Faded rather than removed,
+     so the rail keeps its width and nothing on the wall reflows when the
+     gesture starts. */
+  .pg__scrub-n {
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .pg__scrub-y[data-on='true'] .pg__scrub-n,
+  .pg__scrub[data-scrubbing='true'] .pg__scrub-n {
+    opacity: 1;
+  }
+
+  /* Under a thumb the ticks have said their piece — the numbers are the readout
+     now, and a row of dashes behind them is just noise. */
+  .pg__scrub[data-scrubbing='true'] .pg__scrub-y::before {
+    background: transparent;
+  }
+
+  /*
+   * `look for`, as a bottom sheet.
+   *
+   * As a dropdown it hung off a control at the top of the screen: the status
+   * bar and the dynamic island sat over its head, the keyboard took the bottom
+   * half, and what was left was a search field and a sliver of the thing you
+   * came to look at. Up from the bottom it lands in the thumb's half of the
+   * screen, and the keyboard pushes it rather than covering it.
+   *
+   * `100dvh`, not `vh`: on iOS `vh` is the height with the URL bar retracted,
+   * which is not the height you have.
+   */
+  .pg-sheet[data-narrow='true'] {
+    position: fixed;
+    inset: auto 0 0 0;
+    inline-size: auto;
+    /*
+     * Tall enough that nothing needs scrolling.
+     *
+     * At 68dvh the sheet ended a few pixels short of its own last row, so every
+     * visit came with a scroll gesture worth about four pixels — the worst kind,
+     * because you cannot tell there is anything below until you try. The whole
+     * sheet is a search field, a dozen pills and three groups; it fits, given
+     * the room. `overflow-y` stays as the honest fallback for someone who keeps
+     * thirty subjects.
+     */
+    max-block-size: min(88dvh, 46rem);
+    /* Above the mobile chrome, which the layer now shares a stacking context
+       with — see the note on `Layer` in LookFor.tsx. */
+    z-index: 71;
+    padding: 0.85rem 1.15rem calc(1.15rem + var(--safe-bottom, 0px));
+    border-inline: none;
+    border-block-end: none;
+    border-start-start-radius: 20px;
+    border-start-end-radius: 20px;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    box-shadow: 0 -24px 60px -30px rgba(0, 0, 0, 0.55);
+    /* The scroll belongs to the sheet, not the wall behind it. */
+    overscroll-behavior: contain;
+  }
+
+  /* A tap outside is the obvious way out of a sheet that covers two thirds of
+     the screen — and on narrow it is the ONLY way out that isn't the pill,
+     because the document pointerdown handler is off there. */
+  .pg-sheet__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    border: none;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /*
+   * The year rail, for a thumb.
+   *
+   * Wider, and clear of the bottom chrome — the tab bar floats over this
+   * scroller, so a rail running to the bottom edge puts its oldest years under
+   * the tabs where they cannot be reached at all.
+   */
+  /*
+   * Wider still for a thumb, and clear of the bottom chrome — the tab bar
+   * floats over this scroller, so a rail running to the bottom edge puts its
+   * oldest years under the tabs where they cannot be reached at all.
+   */
+  .pg__scrub {
+    padding: 0.5rem 0.6rem calc(var(--mobile-chrome-h) + 0.5rem) 0;
+  }
+
+  .pg__scrub-y {
+    font-size: 0.72rem;
+  }
+
+  .pg__scrub[data-scrubbing='true'] .pg__scrub-y[data-on='true'] {
+    font-size: 1.05rem;
+  }
+
+  /*
+   * The stretch, compressed.
+   *
+   * Every pixel this takes in the header is a pixel off the list underneath it,
+   * and on a phone the list is the surface. Shorter band, tighter margins, and
+   * no hint line: the hint reveals on hover, and there is no hover here — it
+   * was reserving a row to show nothing.
+   */
+  .pg-stretch {
+    margin-block: 0 0.3rem;
+  }
+
+  /*
+   * The same 10px band, with a thumb's worth of air around it.
+   *
+   * `content-box` means this padding is hit area and not height: the band looks
+   * exactly as thin as it does on a display, and is 33px to aim at. It is the
+   * only time control left on the phone now that the zoom has gone, so a brush
+   * that needs a stylus to start would be the whole of "when" lost.
+   */
+  .pg-stretch__band {
+    block-size: 0.65rem;
+    padding-block: 0.7rem;
+  }
+
+  .pg-stretch__ends {
+    margin-block-start: 0.2rem;
+  }
+
+  /*
+   * ── A row, for a thumb ────────────────────────────────────────────────────
+   *
+   * Beside a cursor a row is one line across: date, sentence, markings. On a
+   * phone that line was spending 4.3rem on a fixed date column and 3.4rem more
+   * on the year rail, and handing what was left — about 26 characters — to the
+   * writer's own sentence: "back home now. really strugg…". Which is a date
+   * with an ellipsis after it. You cannot recognise an entry from it, so every
+   * row costs an open-and-back to rule out.
+   *
+   * The same four children, laid out as two lines instead. The FACTS about the
+   * page go on a thin line of their own — date, today, markings, all mono, all
+   * quiet, all things we added — and her prose gets the entire width beneath
+   * them, two lines of it. About seventy characters, which is enough to know.
+   *
+   * Grid areas rather than a second component: see the note in PageRow.tsx.
+   */
+  .pgr {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      'date week today margin'
+      'line line line line';
+    align-content: center;
+    gap: 0.28rem 0.5rem;
+    padding: 0.5rem 0.4rem;
+    /* The row's height is a number in `zoom.ts` — the windowing math divides
+       scrollTop by it, so it cannot be allowed to grow. Everything in here is
+       in rem and scales with the reader's root font size; this is what keeps a
+       scaled-up row tidy instead of bleeding into the one below. */
+    overflow: hidden;
+  }
+
+  /*
+   * Echo and "today" share the same meta slot — an echo is never today's page
+   * (it is always an earlier year), so they never compete for the cell. Putting
+   * the eyebrow on its own row would grow the cell past `cardHeight` and break
+   * the windowing math.
+   */
+  .pgr[data-echo='true'] {
+    grid-template-areas:
+      'date echo echo margin'
+      'line line line line';
+  }
+
+  .pgr__date {
+    grid-area: date;
+    inline-size: auto;
+    font-size: 0.66rem;
+  }
+
+  .pgr__today {
+    grid-area: today;
+    justify-self: start;
+  }
+
+  .pgr__week {
+    grid-area: week;
+    justify-self: start;
+  }
+
+  .pgr__echo {
+    grid-area: echo;
+    justify-self: start;
+    max-inline-size: none;
+    min-inline-size: 0;
+    /* Match the date line — 0.52rem was legible on a card and invisible on a phone. */
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+  }
+
+  .pgr__margin {
+    grid-area: margin;
+    justify-self: end;
+  }
+
+  /*
+   * Her words, with the measure to be worth reading.
+   *
+   * Two lines, clamped — not truncated at one. The clamp covers the opening
+   * sentence AND the one after it as a single flow (see `next` in PageRow), so
+   * a long opening simply fills the space and a short one lets the next
+   * sentence follow it. Either way the row is full and the reader is looking at
+   * prose rather than at a stub.
+   */
+  .pgr__line {
+    grid-area: line;
+    font-size: 0.95rem;
+    line-height: 1.32;
+    white-space: normal;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  /*
+   * The sentence after the opening, a shade back.
+   *
+   * Both are hers and both are verbatim; the tone only says which one she wrote
+   * first. Without the step down, two sentences of equal weight read as one
+   * run-on and the eye has nothing to catch the start of the page on.
+   */
+  .pgr__next {
+    display: inline;
+    color: var(--text-dim);
+  }
+
+  /*
+   * Reserve what the mobile chrome covers.
+   *
+   * The tab bar and the FAB float over this scroller, so without it the last
+   * row is sliced in half — survivable while Pages was somewhere you rarely
+   * went, and not now that it IS Entries.
+   *
+   * On the SCROLLER, not the grid: the grid's `padding-bottom` is the
+   * windowing spacer, written inline from `virtual.bottomSpacer`, so anything
+   * declared here would simply lose to it.
+   */
+  .pg__scroll {
+    padding-bottom: var(--mobile-chrome-h);
+  }
+
+  /*
+   * The header carries its own top inset here.
+   *
+   * On a surface the mobile layout skips its <header>, and that header was the
+   * only element applying `env(safe-area-inset-top)` — so "Your own, side by
+   * side" sat under the notch.
+   */
+  .pg__inner--head {
+    padding-top: calc(clamp(1rem, 4vw, 1.75rem) + var(--safe-top));
+  }
+
+  /* Clear of the tab bar, not tucked behind it. */
+  .pg__selection {
+    bottom: calc(var(--mobile-chrome-h) + 0.5rem);
+  }
+
+  .pg__facts {
+    gap: 1.25rem;
+  }
+
+  /*
+   * ── `Look for`, in the thumb's corner ─────────────────────────────────────
+   *
+   * This is the primary act of the surface on a phone — you came here to find
+   * something — and it was a 0.82rem pill in the top-left of the header: the
+   * furthest point from a thumb, in a band that also holds the shuffle and the
+   * zoom, above a list that is the actual content. So it leaves the header and
+   * floats in the bottom corner OPPOSITE `New entry`.
+   *
+   * ── And it is a DISC, not a pill ──────────────────────────────────────────
+   *
+   * With the word on it, the control was about 170px wide and it floated over
+   * the list — so it permanently covered most of one row's prose, on a surface
+   * whose entire job is showing prose. Paying a row for a label is a bad trade
+   * when the label is on a lens: a magnifier is the most-learned glyph in
+   * software, and the sheet it opens says `look for` at the top in words the
+   * moment it is pressed.
+   *
+   * Left, not right, and matched to `New entry` at 52px: two symmetric discs in
+   * the two bottom corners read as the surface's chrome, where two dissimilar
+   * shapes read as clutter. Right is the write action, and the one gesture that
+   * must never be mis-tapped is the one that opens a blank page.
+   *
+   * Neutral, not accent: writing is the primary act of the app, and there is
+   * only one accent disc on a screen. What is ON shows as chips in the header,
+   * with the count repeated on the disc itself.
+   */
+  .pg-look[data-narrow='true'] .pg-look__open {
+    position: fixed;
+    z-index: 46;
+    inset-block-end: calc(env(safe-area-inset-bottom, 0px) + 4.25rem);
+    inset-inline-start: max(1.1rem, env(safe-area-inset-left));
+    justify-content: center;
+    gap: 0;
+    inline-size: 52px;
+    block-size: 52px;
+    padding-inline: 0;
+    border-radius: 50%;
+    color: var(--text-bright);
+    background: var(--bg-elevated);
+    border-color: var(--border);
+    box-shadow: var(--shadow-3);
+  }
+
+  .pg-look[data-narrow='true'] .pg-look__open svg {
+    inline-size: 19px;
+    block-size: 19px;
+  }
+
+  /* The word is on the sheet, which is one press away and can afford it. */
+  .pg-look[data-narrow='true'] .pg-look__word {
+    display: none;
+  }
+
+  /*
+   * The count, as a badge on the disc rather than a figure in a line of text.
+   *
+   * There is no line of text left for it to sit in, and a numeral floating in
+   * the middle of a circle beside a lens is unreadable as either. On the
+   * shoulder, in the accent, it is the one thing on this surface that says
+   * something is filtering the wall from across the screen.
+   */
+  .pg-look[data-narrow='true'] .pg-look__count {
+    position: absolute;
+    inset-block-start: -2px;
+    inset-inline-end: -2px;
+    color: var(--bg);
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+
+  .pg-look[data-narrow='true'] .pg-look__open:active {
+    transform: scale(0.95);
+  }
+
+  /* Something is on, and the control says so from across the screen. */
+  .pg-look[data-narrow='true'] .pg-look__open[data-lit='true'] {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  /* Nothing drops down from a control sitting on the bottom edge. */
+  .pg-look[data-narrow='true'] .pg-look__chev {
+    display: none;
+  }
+
+  .pg-look__count {
+    min-inline-size: 1.35rem;
+    block-size: 1.35rem;
+    font-size: 0.74rem;
+  }
+
+  /*
+   * ── Let it fall open, at the end of the sheet ─────────────────────────────
+   *
+   * A sentence with a book beside it, full width, sitting under a hairline
+   * after the last group — the way out of the question the sheet asks rather
+   * than one more answer to it. Not a pill: every pill in here combines with
+   * the others, and this one ends the visit.
+   */
+  .pg-sheet__somewhere {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    inline-size: 100%;
+    min-block-size: 3rem;
+    margin-block-start: 1.15rem;
+    padding: 0 0.15rem;
+    padding-block-start: 1.15rem;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    text-align: start;
+    background: none;
+    border: none;
+    border-block-start: 1px solid var(--border-subtle);
+    cursor: pointer;
+  }
+
+  .pg-sheet__somewhere:active {
+    color: var(--accent);
+  }
+
+  /*
+   * ── An open page, arriving the way it leaves ──────────────────────────────
+   *
+   * The reader rose four pixels to enter and was dragged sideways to leave, so
+   * the two halves of the same trip described different geometries — it came
+   * from underneath and went out to the side. On a phone it is a pushed view:
+   * in from the right, out to the right, and the wall is where it was the whole
+   * time. That coherence is most of what "feels native" means here; the rest is
+   * in `useSwipeToDismiss`.
+   */
+  .pg-read1 {
+    animation-name: pg-open-narrow;
+    animation-duration: 260ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0.3, 1);
+  }
+
+  @keyframes pg-open-narrow {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  /* Re-stated here because this block comes after the surface's reduced-motion
+     rules and would otherwise hand the animation back to someone who asked for
+     none. `both` fill means "off" has to restore the end state explicitly. */
+  @media (prefers-reduced-motion: reduce) {
+    .pg-read1 {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
+   * ── The sheet, for a thumb ────────────────────────────────────────────────
+   *
+   * Two failures, one cause: everything in here was drawn for a cursor. A pill
+   * outlined in `--border-subtle` at 85% opacity is invisible against the page
+   * on a phone held at arm's length — it reads as an outline in the background
+   * rather than as a thing to press — and a 2rem pill is under every touch-
+   * target floor there is. So on narrow the options carry a fill and a real
+   * border, and they are 2.6rem tall.
+   */
+  .pg-sheet__opts {
+    gap: 0.55rem;
+  }
+
+  .pg-sheet .pg-pill {
+    block-size: 2.6rem;
+    background: var(--bg-elevated);
+    border-color: var(--border);
+  }
+
+  /* Noticed rather than kept — still dashed, still provisional, but a dashed
+     line you can actually see. */
+  .pg-sheet .pg-pill--noticed {
+    border-color: color-mix(in srgb, var(--text-faint) 55%, transparent);
+  }
+
+  .pg-sheet .pg-pill[data-on='true'] {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+
+  .pg-sheet .pg-pill--mark[data-on='true'] {
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+  }
+
+  .pg-sheet .pg-pill--read[data-on='true'] {
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    border-color: var(--text-faint);
+  }
+
+  .pg-sheet .pg-pill__hit {
+    padding-inline: 1rem;
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+
+  .pg-sheet .pg-pill__hit i {
+    font-size: 0.72rem;
+  }
+
+  /* Keep / drop has no hover to arrive on, so it is always there — and wide
+     enough that aiming for it is not aiming for the pill. */
+  .pg-sheet .pg-pill__aside {
+    padding-inline: 0.65rem 0.8rem;
+  }
+
+  /*
+   * 16px, and not a pixel less.
+   *
+   * iOS zooms the whole page when a field smaller than 16px takes focus, which
+   * on a bottom sheet means the sheet is left half off the screen with no way
+   * to see what you typed.
+   */
+  .pg-sheet__find {
+    padding-block-end: 0.7rem;
+    margin-block-end: 1.1rem;
+  }
+
+  .pg-sheet__find input {
+    font-size: 1rem;
+  }
+
+  /* Groups still separated by air and a hairline — less air, because the sheet
+     is now competing with a screen rather than a window. */
+  .pg-sheet__g + .pg-sheet__g {
+    margin-block-start: 1.15rem;
+    padding-block-start: 1.15rem;
+  }
+
+  .pg-sheet__g h3 {
+    margin-block-end: 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  /*
+   * ── The zoom, for a thumb ─────────────────────────────────────────────────
+   *
+   * It never worked here, and the reason is in the base rule: the INPUT was the
+   * hairline — 6rem by 2px — so the drag had to begin inside a two-pixel band.
+   * The box becomes a real 2.75rem target and the hairline moves to the track,
+   * which is what it should have been all along.
+   *
+   * `touch-action: none` matters as much as the size: without it the browser is
+   * free to read the first few pixels of a horizontal drag as a scroll and hand
+   * the gesture to the surface behind, which is the other half of "it doesn't
+   * work".
+   */
+  .pg-stand {
+    gap: 0.35rem;
+  }
+
+  .pg-stand__where {
+    min-inline-size: 3.4rem;
+    font-size: 0.68rem;
+  }
+
+  .pg-stand input[type='range'] {
+    inline-size: 7.5rem;
+    block-size: 2.75rem;
+    background: none;
+    touch-action: none;
+  }
+
+  .pg-stand input[type='range']::-webkit-slider-runnable-track {
+    block-size: 3px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .pg-stand input[type='range']::-webkit-slider-thumb {
+    inline-size: 22px;
+    block-size: 22px;
+    /* WebKit hangs the thumb off the top of the track, so it is centred by
+       hand: (track − thumb) ÷ 2. */
+    margin-block-start: -9.5px;
+    background: var(--accent);
+  }
+
+  .pg-stand input[type='range']::-moz-range-track {
+    block-size: 3px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .pg-stand input[type='range']::-moz-range-thumb {
+    inline-size: 22px;
+    block-size: 22px;
+    background: var(--accent);
+  }
+
+  /*
+   * ── An open page ──────────────────────────────────────────────────────────
+   *
+   * The way out, the way in, and the way along, all at a size a thumb can hit
+   * and with a border you can see. These were transparent-bordered text buttons
+   * — correct beside a cursor that can hover them, invisible on a phone.
+   */
+  .pg__through {
+    gap: 0.4rem 0.35rem;
+  }
+
+  /*
+   * The surface header, while a page is open: gone.
+   *
+   * Everything in it is already hidden when a page is open except the reader's
+   * own bar, and that bar has moved inside the reader on a phone (see
+   * `readerBar` in PagesView) — so what was left was an empty band, its bottom
+   * padding, and a hairline ruled across the top of a full-screen page.
+   */
+  .pg[data-reading-page='true'] .pg__head-wrap {
+    display: none;
+  }
+
+  /*
+   * The bar, now that it rides in the reader.
+   *
+   * Sticky to the top of the page's own scroller with the page colour behind
+   * it, so a long entry scrolls under it rather than taking the way out with
+   * it. The inline padding is the surface's, restated here because the bar has
+   * left `.pg__inner` and there is nothing else giving it a margin.
+   */
+  .pg-read1 .pg__through {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    padding: calc(var(--safe-top) + 0.6rem) clamp(1rem, 3vw, 2rem) 0.6rem;
+    background: var(--bg);
+  }
+
+  /* A floor under it once the writing has begun to pass beneath — and nothing
+     at all while the page is still at the top, where a rule would just be a
+     line drawn under a button. */
+  .pg-read1 .pg__through::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--border-subtle) 12%,
+      var(--border-subtle) 88%,
+      transparent
+    );
+  }
+
+  /* The page's own top padding is the bar's now, or the date sits too far down
+     the screen to be the first thing on it. */
+  .pg-read1__page {
+    padding-block-start: 0.9rem;
+  }
+
+  /*
+   * The floating chrome, off the reader.
+   *
+   * `New entry` floats over every surface, which is right on a list and wrong
+   * on an open page: the reader already carries `Write`, which opens THIS page,
+   * and a second disc six inches away that opens a BLANK one is two writing
+   * affordances with different meanings and no way to tell them apart.
+   *
+   * The writing-controls cluster goes with it. Entering focus mode is a writing
+   * act with nothing to focus on here, and the appearance toggle — which does
+   * belong on a reading surface, and stays on the wall — costs a paragraph of
+   * somebody's writing to sit over an open page. Both come back the moment the
+   * page is closed.
+   */
+  .journal-canvas:has(.pg[data-reading-page='true']) ~ .mobile-fab,
+  .journal-canvas:has(.pg[data-reading-page='true']) ~ .focus-controls--docked {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /*
+   * All three groups on ONE line, by about twenty pixels.
+   *
+   * They wrapped, and the second row cost roughly ninety pixels of a reading
+   * screen — a quarter of the page given to chrome before the first word. The
+   * widths were a pointer's: 0.85rem of padding either side of every label and
+   * 2.4rem stepper discs. Trimmed to what a thumb still clears (2.6rem of
+   * height is the target; the inline padding is not what makes it hittable)
+   * they fit, and the wrap rule below is still there for the archive whose
+   * position reads "1,203 of 2,969".
+   */
+  .pg__back,
+  .pg__write {
+    min-block-size: 2.6rem;
+    padding-inline: 0.7rem;
+    font-size: 0.86rem;
+    border-color: var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .pg__write {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+  }
+
+  .pg__step {
+    inline-size: 2.15rem;
+    block-size: 2.15rem;
+    border-color: var(--border);
+  }
+
+  .pg__through-at {
+    font-size: 0.72rem;
+  }
+
+  /* Three touch-sized controls do not fit one phone line, so the position wraps
+     — and it has to keep hugging the right edge when it does. The adjacency rule
+     that spaces it from `Write` sets a fixed start margin, which on a line of
+     its own left it stranded at the left margin looking like a mistake. */
+  .pg__write + .pg__through-nav {
+    margin-inline-start: auto;
+  }
+
+  .pg-read1__date {
+    font-size: 0.68rem;
+  }
+
+  /* The tab bar and both floating controls sit over the reader — the last
+     paragraph of a page must not end underneath them. */
+  .pg-read1__page {
+    padding-block-end: calc(var(--mobile-chrome-h) + 1.5rem);
+  }
+
+  /* No 300ms tap delay, no double-tap zoom, no grey flash on the controls a
+     thumb hits most on this surface. */
+  .pgr,
+  .pg-pill,
+  .pg-pill__hit,
+  .pg-pill__aside,
+  .pg-look__open,
+  .pg-look__only,
+  .pg-look__clear,
+  .pg-look__somewhere,
+  .pg-held,
+  .pg__back,
+  .pg__write,
+  .pg__step {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}

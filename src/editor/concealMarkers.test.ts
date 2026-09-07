@@ -62,6 +62,11 @@ describe('concealMarkers', () => {
   it('hides the highlight and underline markers, colour spec included', () => {
     expect(concealed('a =={rose}b== c')).toEqual(['=={rose}', '=='])
     expect(concealed('a ++b++ c')).toEqual(['++', '++'])
+    // Trailing prose keeps the caret (parked at doc end) outside the span,
+    // which is what actually conceals. `==foo ==` filling the whole doc would
+    // leave the caret on the closer and reveal.
+    expect(concealed('x ==foo == y')).toEqual(['==', '=='])
+    expect(concealed('x ==foo\nbar == y')).toEqual(['==', '=='])
   })
 
   it('swallows the space after a heading hash so the text does not indent', () => {

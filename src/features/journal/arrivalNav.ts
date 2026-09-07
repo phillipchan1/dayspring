@@ -22,3 +22,17 @@ export function shouldAutoOpenLatest(opts: {
 }): boolean {
   return opts.wantedId === null && opts.hasEntries && opts.editorBlank && !opts.isNewEntry
 }
+
+/**
+ * A programmatic open may seed the destination body before navigation changes
+ * `entryId`. History Back/Forward does not. Only skip the normal load when the
+ * editor is already known to hold the exact destination; matching a stale flag
+ * alone can put one entry's words under another entry's date.
+ */
+export function shouldSkipEntryLoad(
+  skipRequested: boolean,
+  loadedEntryId: string | null,
+  destinationEntryId: string | null,
+): boolean {
+  return skipRequested && loadedEntryId === destinationEntryId
+}
