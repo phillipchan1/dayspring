@@ -74,6 +74,7 @@ async function bootstrap() {
   //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
+  //   ?__preview=firstlight         → the release-note deck, in any palette (features/firstlight/preview.tsx)
   //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
   //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
@@ -99,6 +100,11 @@ async function bootstrap() {
     if (preview?.startsWith('applock')) {
       const { renderAppLockPreview } = await import('./features/applock/preview')
       await renderAppLockPreview(preview)
+      return
+    }
+    if (preview === 'firstlight') {
+      const { renderFirstLightPreview } = await import('./features/firstlight/preview')
+      renderFirstLightPreview()
       return
     }
     if (preview === 'pages') {

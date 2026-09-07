@@ -9,6 +9,7 @@ import { WelcomeFlow } from '@/features/welcome/WelcomeFlow'
 import { onboardingCopy as copy, pickOpeningPrompt } from './onboardingCopy'
 import { ImportFlow } from './ImportFlow'
 import './Onboarding.css'
+import { CURRENT_RELEASE_ID } from '@/features/firstlight/releases'
 
 type Step = 'tour' | 'fork' | 'import' | 'fresh'
 
@@ -46,13 +47,17 @@ export function OnboardingFlow({ onFinish }: Props) {
     if (finishing) return
     setFinishing(true)
     if (seedRef.current) setSeedPrompt(seedRef.current)
+    // Someone who just arrived is caught up by definition — never tell a new
+    // account "the entries list moved" about a list it never had. Stamped here
+    // rather than at sign-up so it also covers the import path.
+    if (CURRENT_RELEASE_ID) updateSettings({ lastSeenRelease: CURRENT_RELEASE_ID })
     try {
       await setOnboarded()
     } catch {
       /* non-fatal */
     }
     onFinish()
-  }, [finishing, onFinish])
+  }, [finishing, onFinish, updateSettings])
 
   const startFresh = useCallback(() => {
     seedRef.current = pickOpeningPrompt()

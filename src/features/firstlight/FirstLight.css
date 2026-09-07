@@ -1,0 +1,220 @@
+/*
+ * First Light — the release-note deck.
+ *
+ * Every colour comes from the theme tokens, so the deck is correct in all nine
+ * palettes without a single per-theme rule. The one flourish is the same glow
+ * the journal canvas uses (--journal-glow), which is the product's own visual
+ * signature and the reason the surface is called what it is.
+ */
+
+.firstlight {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: firstlight-in 0.28s ease both;
+}
+
+.firstlight__panel {
+  position: relative;
+  overflow: hidden;
+  width: min(420px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.42);
+}
+.firstlight__panel:focus { outline: none; }
+
+/* First light, falling across the top of the card. */
+.firstlight__panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 58%;
+  background: var(--journal-glow);
+  pointer-events: none;
+}
+
+.firstlight__top,
+.firstlight__body,
+.firstlight__foot { position: relative; z-index: 1; }
+
+.firstlight__top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 0;
+}
+
+.firstlight__mark {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.firstlight__skip {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-dim);
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+.firstlight__skip:hover { color: var(--text-bright); }
+
+.firstlight__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 28px 22px;
+}
+
+.firstlight__card { animation: firstlight-rise 0.42s cubic-bezier(0.22, 0.68, 0.35, 1) both; }
+
+.firstlight__kicker {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 13px;
+}
+
+.firstlight__title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--text-bright);
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+
+.firstlight__text {
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  font-weight: 300;
+  line-height: 1.58;
+  color: var(--text);
+  margin: 0 0 13px;
+}
+.firstlight__text:last-child { margin-bottom: 0; }
+
+/* ── The wall glyph ── */
+.firstlight__wall {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin: 0 0 20px;
+}
+.firstlight__wall i {
+  display: block;
+  height: 26px;
+  border-radius: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.firstlight__wall i.lit {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+}
+
+/* ── The keycap row ── */
+.firstlight__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+.firstlight__key {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 5px 8px;
+}
+.firstlight__key b { color: var(--accent); font-weight: 600; }
+
+/* ── Footer ── */
+.firstlight__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px 22px;
+}
+
+.firstlight__dots { display: flex; gap: 7px; }
+
+.firstlight__dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.firstlight__dot[aria-current='true'] {
+  background: var(--accent);
+  transform: scale(1.32);
+}
+
+.firstlight__next {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--bg-elevated);
+  background: var(--accent);
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.firstlight__next:hover { opacity: 0.87; }
+
+.firstlight__skip:focus-visible,
+.firstlight__dot:focus-visible,
+.firstlight__next:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@keyframes firstlight-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes firstlight-rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .firstlight,
+  .firstlight__card { animation: none; }
+  .firstlight__dot { transition: none; }
+}

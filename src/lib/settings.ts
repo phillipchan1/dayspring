@@ -146,6 +146,22 @@ export interface Settings {
 
   /** Share anonymous feature-usage counts — never entry content. See lib/analytics.ts. */
   shareUsage: boolean
+
+  /**
+   * The newest release whose First Light deck this account has seen.
+   *
+   * Optional on purpose: `undefined` means "never seen one", which is every
+   * existing user on the day First Light ships — exactly the people who need to
+   * be told the entries list moved. Onboarding stamps CURRENT_RELEASE_ID so a
+   * brand-new account is never told what changed about an app it has not used.
+   *
+   * Safe to live in `settings` even though sync is last-writer-wins: the worst
+   * a stale blob can do is show one deck a second time on one device, and
+   * FirstLight keeps a localStorage guard against even that. Contrast the app
+   * lock verifier, which needed its own column because losing a write there
+   * switches the lock off.
+   */
+  lastSeenRelease?: string
 }
 
 const DEFAULTS: Settings = {

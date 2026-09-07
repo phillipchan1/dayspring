@@ -40,6 +40,7 @@ import { AppLockSettings } from '@/features/applock/AppLockSettings'
 import { ImportPanel } from './ImportPanel'
 import { WritingFontPicker } from './WritingFontPicker'
 import { ThemePicker } from './ThemePicker'
+import { openFirstLight } from '@/features/firstlight/open'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 
 interface Props {
@@ -386,6 +387,21 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             >
               How to use Dayspring
             </a>
+          </div>
+          <div className="settings-about__row">
+            <span className="settings-field__label">This release</span>
+            {/* Close Settings first — the deck is a full-screen surface and
+                should not have to out-stack the panel that opened it. */}
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                onClose()
+                openFirstLight()
+              }}
+            >
+              What changed
+            </button>
           </div>
           <div className="settings-about__row">
             <span className="settings-field__label">Questions</span>
