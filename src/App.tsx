@@ -20,6 +20,7 @@ import { LockedScreen } from './features/paywall/LockedScreen'
 import { TrialWelcome } from './features/paywall/TrialWelcome'
 import { TrialBanner } from './features/paywall/TrialBanner'
 import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
+import { FirstLight } from './features/firstlight/FirstLight'
 import { AppLockGate } from './features/applock/AppLockGate'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { ensureProfile } from './lib/onboarding'
@@ -310,6 +311,10 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
         <JournalScreen userEmail={userEmail} featureFlags={featureFlags} />
       </SurfaceErrorBoundary>
       <UpdateToast />
+      {/* Mounted only here — never over onboarding, the paywall or the locked
+          screen. Decides once, at mount, so it can never open mid-session
+          (PRINCIPLE 3). Renders nothing when there is nothing to announce. */}
+      <FirstLight />
       <FeedbackWidget featureFlags={featureFlags} />
     </WelcomeProvider>
   )
