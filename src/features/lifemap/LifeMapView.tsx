@@ -5,9 +5,10 @@
 // docs/prototypes/life-map.html for the design this is built from.
 
 import { useState } from 'react'
-import { useLifeMap, keepItem, addTyped, dropItem, type LifeMap } from './useLifeMap'
+import { useLifeMap, addTyped, removeItem, type LifeMap } from './useLifeMap'
 import type { LifeMapItem, LifeMapSection, SectionId } from './lifeMap'
 import { tallies } from './lifeMap'
+import { LifeMapCanvas } from './LifeMapCanvas'
 import './LifeMap.css'
 
 /**
@@ -50,38 +51,17 @@ function Glyph({ kind, found }: { kind: SectionId; found: boolean }) {
   }
 }
 
-function Chip({
-  item,
-  onKeep,
-  onDrop,
-}: {
-  item: LifeMapItem
-  onKeep: () => void
-  onDrop: () => void
-}) {
-  const waiting = item.provenance === 'waiting'
-  const found = item.provenance !== 'mine'
+function Chip({ item, onDrop }: { item: LifeMapItem; onDrop: () => void }) {
+  const found = item.provenance === 'found'
   return (
     <span
       className="lifemap__chip"
-      data-found={found && !waiting}
-      data-waiting={waiting}
-      title={
-        item.provenance === 'mine'
-          ? 'You added this'
-          : waiting
-            ? 'Dayspring found this — not yours until you keep it'
-            : 'Dayspring found this — you kept it'
-      }
+      data-found={found}
+      title={found ? 'Dayspring found this — remove it if it is wrong' : 'You added this'}
     >
       <Glyph kind={item.section} found={found} />
       <span className="lb">{item.label}</span>
       {item.pages > 0 && <span className="n">{item.pages}</span>}
-      {waiting && (
-        <button type="button" className="keep" onClick={onKeep}>
-          keep
-        </button>
-      )}
       <button type="button" className="x" onClick={onDrop} aria-label={`Remove ${item.label}`}>
         ×
       </button>
@@ -151,8 +131,7 @@ function Section({
           <Chip
             key={item.key}
             item={item}
-            onKeep={act(() => keepItem(item))}
-            onDrop={act(() => dropItem(item.key))}
+            onDrop={act(() => removeItem(item))}
           />
         ))}
         <form className="lifemap__add" onSubmit={submit}>
@@ -190,8 +169,7 @@ function Section({
                 <Chip
                   key={item.key}
                   item={item}
-                  onKeep={act(() => keepItem(item))}
-                  onDrop={act(() => dropItem(item.key))}
+                  onDrop={act(() => removeItem(item))}
                 />
               ))}
             </div>
@@ -234,6 +212,19 @@ export function LifeMapBody({ map, onChanged }: { map: LifeMap; onChanged: () =>
           </div>
         </div>
 
+        <LifeMapCanvas sections={map.sections} />
+        <div className="lifemap__legend">
+          <span>
+            older<i className="lifemap__ramp" />recent
+          </span>
+          <span>
+            <svg className="lifemap__glyph" viewBox="0 0 12 12" aria-hidden>
+              <circle cx="6" cy="6" r="3.4" fill="var(--dayspring-amber)" />
+            </svg>
+            <i className="lifemap__spec">found</i>
+          </span>
+        </div>
+
         {map.sections.map((section) => (
           <Section key={section.id} section={section} onChanged={onChanged} />
         ))}
@@ -248,7 +239,7 @@ export function LifeMapBody({ map, onChanged }: { map: LifeMap; onChanged: () =>
           </span>
           <span title="Found by Dayspring">
             <i className="lifemap__pip lifemap__pip--auto" />
-            <b>{t.found + t.waiting}</b>
+            <b>{t.found}</b>
           </span>
           {/*
             The floor, stated. A floor is filtering and can be overruled; "the

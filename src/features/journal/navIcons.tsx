@@ -143,21 +143,23 @@ export function IconFocus(props: { size?: number }) {
 
 
 /**
- * Life Map — the four kinds' own marks, arranged.
+ * Life Map — a few things, placed.
  *
- * A person's circle, a place's diamond, a domain's square and a matter's dashed
- * ring, tethered to a centre. It is the surface's own vocabulary at 20px rather
- * than a borrowed metaphor, and deliberately not a globe or a pin: this is a map
- * of people, not of ground.
+ * Three points and the faintest tie between them. Deliberately the quietest mark
+ * on the rail: this is a surface you visit occasionally to tend a list, not a
+ * destination competing with Lamp or Altar, and an icon that shouts about it
+ * would misreport how often it wants opening.
+ *
+ * Stroked on the 24 grid like every other nav icon — the first version drew
+ * filled shapes on a 20 grid and read as a different family.
  */
-export function IconLifeMap() {
+export function IconLifeMap(props: { size?: number }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
-      <path d="M10 10 5.2 5.6M10 10l5.1-4.2M10 10l-4.4 4.8M10 10l4.9 4.4" opacity=".45" />
-      <circle cx="4.4" cy="4.9" r="1.9" fill="currentColor" stroke="none" />
-      <path d="M15.9 5.1 17.7 7l-1.8 1.9L14.1 7Z" fill="currentColor" stroke="none" />
-      <rect x="3.1" y="13.6" width="3.5" height="3.5" rx=".8" fill="currentColor" stroke="none" />
-      <circle cx="15.6" cy="15.2" r="1.9" strokeDasharray="1.8 1.5" />
-    </svg>
+    <NavIcon {...props}>
+      <circle cx="7" cy="8" r="1.9" />
+      <circle cx="17" cy="10" r="1.9" />
+      <circle cx="11" cy="17" r="1.9" />
+      <path d="M8.7 8.6 15.2 9.7M15.9 11.8 12.2 15.3M9.7 15.5 7.8 9.9" opacity=".38" />
+    </NavIcon>
   )
 }

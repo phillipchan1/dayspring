@@ -65,8 +65,10 @@ const CONCORDANCE: ConcordanceItem[] = [
   old('the thesis', 'term', 41),
   old('night shifts', 'term', 33),
 
-  // Below the floor — must not be offered.
+  // Below the floor — must not be offered at all.
   row('the raise', 'term', 7),
+  // The addressee: assumed, never offered, however often it appears.
+  row('Jesus', 'person', 2914),
 ]
 
 const KEPT: KeptSubject[] = [

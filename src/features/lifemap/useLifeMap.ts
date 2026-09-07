@@ -8,9 +8,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { requireSupabase } from '@/lib/supabase'
-import type { ConcordanceItem } from '@/lib/concordance'
 import { listKeptSubjects, dropSubject, type KeptSubject } from '@/features/pages/keptSubjects'
+import { forgetConcordanceItem, type ConcordanceKind } from '@/lib/concordance'
 import { buildLifeMap, floorFor, type LifeMapItem, type LifeMapSection, type SectionId } from './lifeMap'
+import type { ConcordanceItem } from '@/lib/concordance'
 
 const COLUMNS =
   'id, kind, canonical, surface_forms, descriptor, status, source, occurrence_count, first_seen, last_seen'
@@ -62,25 +63,30 @@ export async function loadLifeMap(): Promise<LifeMap> {
 }
 
 /**
- * Keep — the writer answering "yes, that one".
+ * Remove — the one gesture on a chip, and it means two different things.
  *
- * Writes `kind` alongside, which `keepSubject()` does not: a typed subject has
- * no Concordance row to carry its kind, so without this "Vera" typed into People
- * would land nowhere. Rows from the Concordance carry theirs already and pass
- * null.
+ * A TYPED subject just loses its `kept_subjects` row; the journal still notices
+ * the word and adding it again is one keystroke.
+ *
+ * A FOUND subject is superseded in the Concordance, which is what makes removal
+ * stick: without it the next scan would offer the same wrong name again, and a
+ * dismissal that does not hold is worse than no dismissal at all. `forget` also
+ * appends to `concordance_events`, so the correction survives a rebuild — and
+ * that event log is the labelled-negative stream The Keeping has never had.
+ *
+ * Nothing the writer wrote changes either way.
  */
-export async function keepItem(item: LifeMapItem): Promise<void> {
-  const sb = requireSupabase()
-  const { error } = await sb.from('kept_subjects').upsert(
-    {
-      subject_key: item.key,
-      label: item.label,
-      terms: item.terms,
-      kind: item.key.startsWith('word:') ? item.section : null,
-    },
-    { onConflict: 'owner,subject_key' },
-  )
-  if (error) throw error
+export async function removeItem(item: LifeMapItem): Promise<void> {
+  if (item.id === null) {
+    await dropSubject(item.key)
+    return
+  }
+  await forgetConcordanceItem({
+    id: item.id,
+    kind: item.section === 'domain' ? 'org' : (item.section as ConcordanceKind),
+    canonical: item.label,
+  } as ConcordanceItem)
+  await dropSubject(item.key)
 }
 
 /** What the writer typed into one of the four boxes. */

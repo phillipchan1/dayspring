@@ -58,14 +58,15 @@ export type SectionId = (typeof SECTIONS)[number]['id']
 export type Provenance =
   /** The writer typed it, or corrected the engine into it. */
   | 'mine'
-  /** The engine offered it and the writer kept it. */
+  /** Dayspring found it. In by default — the writer removes it if it is wrong. */
   | 'found'
-  /** The engine offered it and the writer has not answered. */
-  | 'waiting'
 
 export interface LifeMapItem {
   /** Stable identity, shared with `kept_subjects.subject_key`. */
   key: string
+  /** The Concordance row, when one backs this. Null for a typed subject.
+   *  Removing a found item supersedes this row so it stops being offered. */
+  id: string | null
   label: string
   section: SectionId
   provenance: Provenance
@@ -155,17 +156,25 @@ export function floorFor(pageCount: number): number {
 export const conKey = (canonical: string) => `c:${canonical.toLowerCase()}`
 
 /**
- * Provenance, in the one order the checks may run.
+ * Provenance — two states, because WHAT DAYSPRING FINDS IS IN BY DEFAULT.
  *
- * `explicit` wins over everything: a row the writer created is theirs even once
- * the engine has since confirmed it. Checking `status` first would relabel every
- * typed subject as something the machine found, which is the one claim this
- * surface must never make.
+ * There used to be a third, `waiting`: found, dashed, and inert until the writer
+ * pressed keep. On this archive that was 341 things to answer before the surface
+ * did anything, which is a wall of homework standing where the value should be.
+ * Recognition beats recall, and removing one wrong name is cheaper than
+ * confirming three hundred right ones.
+ *
+ * The floor is what earns the default. Nothing is offered until it has recurred
+ * across one page in a hundred, so "found" already means "you came back to this".
+ *
+ * `explicit` still wins over everything: a row the writer created is theirs, and
+ * checking status first would relabel every typed subject as something the
+ * machine found — the one claim this surface must never make.
  */
 export function provenanceOf(item: ConcordanceItem, keptKeys: ReadonlySet<string>): Provenance {
   if (item.source === 'explicit' || item.source === 'correction') return 'mine'
-  if (item.status === 'confirmed' || keptKeys.has(conKey(item.canonical))) return 'found'
-  return 'waiting'
+  if (keptKeys.has(conKey(item.canonical))) return 'mine'
+  return 'found'
 }
 
 /**
@@ -192,8 +201,10 @@ export function provenanceOf(item: ConcordanceItem, keptKeys: ReadonlySet<string
  * subtle and it is the only reason a count is allowed on this surface at all.
  */
 function order(a: LifeMapItem, b: LifeMapItem): number {
-  const waiting = (i: LifeMapItem) => (i.provenance === 'waiting' ? 1 : 0)
-  if (waiting(a) !== waiting(b)) return waiting(a) - waiting(b)
+  // The writer's own first, then what Dayspring found. Both are in; this only
+  // decides which the eye meets first.
+  const rank = (i: LifeMapItem) => (i.provenance === 'mine' ? 0 : 1)
+  if (rank(a) !== rank(b)) return rank(a) - rank(b)
   const at = a.firstSeen ?? ''
   const bt = b.firstSeen ?? ''
   if (at !== bt) return at < bt ? -1 : 1
@@ -228,7 +239,7 @@ function order(a: LifeMapItem, b: LifeMapItem): number {
  * the moment they would be worth the most.
  */
 export function eraOf(provenance: Provenance, dormant: boolean): Era {
-  if (provenance !== 'waiting') return 'current'
+  if (provenance === 'mine') return 'current'
   return dormant ? 'earlier' : 'current'
 }
 
@@ -266,6 +277,7 @@ export function buildLifeMap(
     const dormant = item.status === 'dormant'
     items.push({
       key,
+      id: item.id,
       label: displayLabel(item.canonical, item.surface_forms),
       section: sectionFor(item.kind),
       provenance,
@@ -286,6 +298,7 @@ export function buildLifeMap(
     seen.add(k.key)
     items.push({
       key: k.key,
+      id: null,
       label: k.label,
       section: keptSection(k),
       provenance: 'mine',
@@ -333,6 +346,5 @@ export function tallies(sections: readonly LifeMapSection[]) {
   return {
     mine: all.filter((i) => i.provenance === 'mine').length,
     found: all.filter((i) => i.provenance === 'found').length,
-    waiting: all.filter((i) => i.provenance === 'waiting').length,
   }
 }

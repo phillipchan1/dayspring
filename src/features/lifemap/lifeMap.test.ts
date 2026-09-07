@@ -61,14 +61,16 @@ describe('provenanceOf', () => {
     expect(provenanceOf(item({ canonical: 'Marcus', status: 'confirmed' }), none)).toBe('found')
   })
 
-  it('promotes a suggested row to found once it is kept', () => {
+  it('makes a kept row the writer\'s own', () => {
     const it_ = item({ canonical: 'Marcus' })
-    expect(provenanceOf(it_, none)).toBe('waiting')
-    expect(provenanceOf(it_, new Set([conKey('Marcus')]))).toBe('found')
+    expect(provenanceOf(it_, none)).toBe('found')
+    expect(provenanceOf(it_, new Set([conKey('Marcus')]))).toBe('mine')
   })
 
-  it('leaves an unanswered suggestion waiting', () => {
-    expect(provenanceOf(item({ canonical: 'Naomi' }), none)).toBe('waiting')
+  it('takes what Dayspring found as in by default — nothing waits to be confirmed', () => {
+    // The old third state cost 341 decisions before the surface did anything.
+    // Removing one wrong name is cheaper than confirming three hundred right ones.
+    expect(provenanceOf(item({ canonical: 'Naomi' }), none)).toBe('found')
   })
 })
 
@@ -85,19 +87,18 @@ describe('floorFor', () => {
 })
 
 describe('eraOf', () => {
-  it('files an unanswered dormant offer under earlier', () => {
-    expect(eraOf('waiting', true)).toBe('earlier')
+  it('files a dormant find under earlier', () => {
+    expect(eraOf('found', true)).toBe('earlier')
   })
 
-  it('keeps anything the writer answered current, however quiet it has gone', () => {
+  it("keeps the writer's own current, however quiet it has gone", () => {
     // Vera must never drift into "earlier" for going quiet — that is the app
     // appearing to forget someone's wife.
     expect(eraOf('mine', true)).toBe('current')
-    expect(eraOf('found', true)).toBe('current')
   })
 
-  it('keeps a recent offer current', () => {
-    expect(eraOf('waiting', false)).toBe('current')
+  it('keeps a recent find current', () => {
+    expect(eraOf('found', false)).toBe('current')
   })
 })
 
@@ -115,10 +116,8 @@ describe('buildLifeMap', () => {
       [],
     )
     expect(out.map((s) => s.id)).toEqual(['person', 'place', 'domain', 'matter'])
-    // Equal first_seen, so they tie and fall through to alphabetical. Typed and
-    // found sort together on purpose: separating them would rank the writer's
-    // own names above the ones the journal surfaced.
-    expect(section('person', out).items.map((i) => i.label)).toEqual(['Marcus', 'Vera'])
+    // The writer's own meet the eye first; both are in either way.
+    expect(section('person', out).items.map((i) => i.label)).toEqual(['Vera', 'Marcus'])
     expect(section('domain', out).items).toHaveLength(2)
     // Vera is the writer's; Marcus is not.
     expect(section('person', out).found).toBe(1)
@@ -246,7 +245,7 @@ describe('buildLifeMap', () => {
       ],
       [],
     )
-    expect(tallies(out)).toEqual({ mine: 1, found: 1, waiting: 1 })
+    expect(tallies(out)).toEqual({ mine: 1, found: 2 })
   })
 
   it('counts earlier items in the tallies, since filed is not gone', () => {
@@ -256,7 +255,7 @@ describe('buildLifeMap', () => {
     )
     expect(section('person', out).items).toHaveLength(1)
     expect(section('person', out).earlier).toHaveLength(1)
-    expect(tallies(out)).toEqual({ mine: 1, found: 0, waiting: 1 })
+    expect(tallies(out)).toEqual({ mine: 1, found: 1 })
   })
 
   it('returns all four sections even when the journal is blank', () => {
