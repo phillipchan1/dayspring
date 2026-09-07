@@ -44,6 +44,7 @@ export function DesktopJournal(props: JournalViewProps) {
     onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onLifeMap, onOpenSettings, onSync,
     settings, updateSettings, focus, onPages, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, lifeMapActive, bulkActive, bulkCount, rangeSelectActive,
+    userEmail, concordanceEnabled,
     entryReturn, onReturnFromEntry,
     onCommand,
   } = props
@@ -79,8 +80,9 @@ export function DesktopJournal(props: JournalViewProps) {
           onScripture={onScripture}
           altarActive={altarActive}
           onAltar={onAltar}
-          lifeMapActive={lifeMapActive}
           onLifeMap={onLifeMap}
+          userEmail={userEmail}
+          concordanceEnabled={concordanceEnabled}
           altarEnabled={altarEnabled}
           onOpenSettings={onOpenSettings}
           labelsExpanded={settings.railLabels}

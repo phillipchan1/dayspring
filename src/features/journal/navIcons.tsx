@@ -140,26 +140,3 @@ export function IconFocus(props: { size?: number }) {
     </NavIcon>
   )
 }
-
-
-/**
- * Life Map — a few things, placed.
- *
- * Three points and the faintest tie between them. Deliberately the quietest mark
- * on the rail: this is a surface you visit occasionally to tend a list, not a
- * destination competing with Lamp or Altar, and an icon that shouts about it
- * would misreport how often it wants opening.
- *
- * Stroked on the 24 grid like every other nav icon — the first version drew
- * filled shapes on a 20 grid and read as a different family.
- */
-export function IconLifeMap(props: { size?: number }) {
-  return (
-    <NavIcon {...props}>
-      <circle cx="7" cy="8" r="1.9" />
-      <circle cx="17" cy="10" r="1.9" />
-      <circle cx="11" cy="17" r="1.9" />
-      <path d="M8.7 8.6 15.2 9.7M15.9 11.8 12.2 15.3M9.7 15.5 7.8 9.9" opacity=".38" />
-    </NavIcon>
-  )
-}

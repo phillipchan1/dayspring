@@ -72,6 +72,7 @@ export function journalProps(
     reflectionsActive: false,
     altarActive: false,
   lifeMapActive: false,
+  concordanceEnabled: false,
   onLifeMap: () => {},
     scriptureActive: false,
     pagesActive: false,

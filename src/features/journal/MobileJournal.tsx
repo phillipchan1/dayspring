@@ -16,10 +16,10 @@ import {
   IconNew,
   IconRitual,
   IconScripture,
-  IconSettings,
 } from './navIcons'
 import type { ReactNode } from 'react'
 import type { JournalViewProps } from './journalViewProps'
+import { YouMenu } from './YouMenu'
 
 /**
  * Mobile: a single, full-width column. Controls live in a thumb-reachable
@@ -35,6 +35,7 @@ export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
     onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    userEmail, onLifeMap, concordanceEnabled,
     settings, updateSettings, focus,
     onPages, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
@@ -251,10 +252,19 @@ export function MobileJournal(props: JournalViewProps) {
                 icon={<IconAltar size={22} />}
               />
             )}
-            <MobileTab
-              label="Settings"
-              onClick={onOpenSettings}
-              icon={<IconSettings size={22} />}
+            {/*
+              The same "you" menu the rail carries. On a phone it opens upward
+              from the bar, which is why it needs the `--bar` placement — but it
+              is the same component, so the Life Map has one door and one set of
+              words on both platforms rather than drifting apart.
+            */}
+            <YouMenu
+              placement="bar"
+              userEmail={userEmail}
+              onLifeMap={onLifeMap}
+              onOpenSettings={onOpenSettings}
+              concordanceEnabled={concordanceEnabled}
+              labelsExpanded={false}
             />
           </nav>
         </>

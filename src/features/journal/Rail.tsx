@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
 import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
+import { YouMenu } from './YouMenu'
 import { RAIL_EXPAND_KEY } from './railHints'
 import { useSurfaceEmbers } from './surfaceEmbers'
 import { useSurfaceUpdates } from './surfaceUpdates'
@@ -12,8 +13,6 @@ import {
   IconMenu,
   IconNew,
   IconScripture,
-  IconSettings,
-  IconLifeMap,
 } from './navIcons'
 
 const NATIVE = isTauri()
@@ -30,9 +29,11 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
-  lifeMapActive: boolean
   onLifeMap: () => void
   onOpenSettings: () => void
+  userEmail: string
+  /** The Concordance drawer is still flag-gated; the menu hides its row when off. */
+  concordanceEnabled: boolean
   labelsExpanded: boolean
   onToggleLabels: () => void
   /** macOS traffic-light top clearance under Tauri's overlay title bar. */
@@ -54,9 +55,10 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
-  lifeMapActive,
   onLifeMap,
   onOpenSettings,
+  userEmail,
+  concordanceEnabled,
   labelsExpanded,
   onToggleLabels,
   nativeTopInset,
@@ -162,29 +164,17 @@ export function Rail({
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>
         {/*
-          The Life Map sits in the footer rather than in Return, and the reason
-          is the group's own promise: every member of Return glosses "the X you
-          return to" — they SHOW you your material. This one asks you for input.
-          Putting it up there would make a promise it does not keep, and people
-          would arrive expecting to be shown something.
-
-          It graduates into Return (and takes a ⌘ number) if it turns out to be
-          a surface you open to look rather than to edit. Decide that after using
-          it, not before.
+          The "you" menu replaces the Settings button and the Life Map slot that
+          used to sit above it. Both were about the WRITER rather than about the
+          archive, and the rail's Return group is for readings of the archive —
+          which is why neither ever sat right here as a peer of Lamp and Altar.
+          See YouMenu.tsx for the rest of the reasoning.
         */}
-        <RailButton
-          label="Life Map"
-          subline="The people and things you return to"
-          onClick={onLifeMap}
-          active={lifeMapActive}
-          icon={<IconLifeMap />}
-          labelsExpanded={labelsExpanded}
-        />
-        <RailButton
-          label="Settings"
-          shortcut="⌘,"
-          onClick={onOpenSettings}
-          icon={<IconSettings />}
+        <YouMenu
+          userEmail={userEmail}
+          onLifeMap={onLifeMap}
+          onOpenSettings={onOpenSettings}
+          concordanceEnabled={concordanceEnabled}
           labelsExpanded={labelsExpanded}
         />
         <RailToggle

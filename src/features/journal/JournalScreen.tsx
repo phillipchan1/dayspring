@@ -158,6 +158,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
+  const concordanceEnabled = resolveFlag(featureFlags, 'concordance')
   // Pages carries no flag of its own: the alpha channel is the gate. See D-017.
   /**
    * A Return surface owns the canvas AND replaces the journal's chrome.
@@ -2006,6 +2007,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onAltar: toggleAltar,
     onLifeMap: toggleLifeMap,
     altarEnabled,
+    concordanceEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       // An explicit tap also un-retires anything the flush gave up on — whatever

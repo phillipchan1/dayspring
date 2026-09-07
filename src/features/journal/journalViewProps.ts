@@ -48,6 +48,8 @@ export interface JournalViewProps {
   /** Altar is gated behind the `altar` feature flag until it's ready to ship. */
   altarEnabled: boolean
   onLifeMap: () => void
+  /** Gates the Concordance row in the You menu. */
+  concordanceEnabled: boolean
   onOpenSettings: () => void
   /** Force a full re-sync from the server (pull latest + flush outbox). */
   onSync: () => void
