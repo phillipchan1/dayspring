@@ -78,7 +78,12 @@ come from rather than two.
 | `found` | the engine offered it, the writer kept it | `status = 'confirmed'`, or a `c:` kept row |
 | `waiting` | the engine offered it, the writer hasn't answered | `status = 'suggested'` |
 
-`dormant` and `superseded` rows never appear.
+**Only `superseded` rows are hidden.** `dormant` is `DORMANT_AFTER_DAYS: 365` —
+"no occurrence in a year" — which is RECENCY, not retirement, and on this archive
+it is 4,517 of 5,570 rows. Hiding them would delete most of the writer's own
+history from the surface whose job is holding it, and would silently break the
+one director move that reads absence. They come through marked `dormant` and are
+rendered quietly.
 
 > **Rule: `explicit` is checked before `status`.** A row the writer created stays
 > theirs even after the engine confirms it. Checking status first would relabel
@@ -146,7 +151,7 @@ keep mechanism, and they stay forbidden here:
 | | | State |
 |---|---|---|
 | 1 | `lifeMap.ts` — pure read layer, four sections + provenance | **done**, 15 tests |
-| 2 | `kept_subjects.kind` migration | **written**, needs applying |
+| 2 | `kept_subjects.kind` migration | **applied** |
 | 3 | `useLifeMap.ts` — the two queries, calling into (1) | not started |
 | 4 | The surface: sections, inline add, popovers, empty map | not started |
 | 5 | The two canvases: Map and Over time | not started |
@@ -175,35 +180,39 @@ three remote-only entries) — that ledger is out of sync and has been since Jun
 `kept_subjects`: **0 rows.** Nothing has ever been kept, and `confirmed` is zero
 because the Concordance drawer is flag-off.
 
-### What the surface would show today
+### The floor, chosen from the distribution
 
-Active rows over the existing floor (`SURFACE_MIN_DISTINCT_ENTRIES = 2`):
+Subjects offered at each floor (superseded excluded, dormant included):
 
-| section | items |
-|---|---|
-| People | 145 |
-| Places | 28 |
-| Domains | 54 (36 org + 18 project) |
-| Matters | 114 |
-| **total** | **341** |
+| floor | People | Places | Domains | Matters | total |
+|---|---|---|---|---|---|
+| ≥2 *(the old default)* | 416 | 206 | 193 | 441 | **1,256** |
+| ≥5 | 150 | 61 | 39 | 78 | 328 |
+| ≥12 | 64 | 26 | 17 | 23 | 130 |
+| **≥30 — one page in a hundred** | **23** | **10** | **8** | **5** | **46** |
 
-> ⚠️ **All 341 would render `waiting`** — dashed, undecided — because nothing is
-> confirmed and nothing is kept. That is a wall of homework on first open, not
-> the handful the prototype shows.
->
-> **The floor is too low for a fifteen-year archive**, and `readings.ts` already
-> learned this exact lesson about `WORD_FLOOR`: *"Two pages is the right floor on
-> a fixture of 47 entries and badly wrong on a real archive."* Its fix is the one
-> to copy — a floor proportional to the span, **stated on screen**, because *"THE
-> FLOOR IS THE ONLY LEGAL WAY TO SHORTEN THIS LIST."* Raising a stated floor is
-> filtering; taking "the top 30" would be ranking, and ranking is a verdict
-> (D-016). Pick the floor so first open shows tens, not hundreds.
+`FLOOR_RATIO = 0.01`, the same constant and the same reasoning as `readings.ts`'
+WORD_FLOOR, which learned it on this archive: *"Two pages is the right floor on a
+fixture of 47 entries and badly wrong on a real archive."* Minimum 3 so a young
+journal offers something.
+
+> **A floor is filtering; "the most significant thirty" would be ranking, and
+> ranking is a verdict (D-016).** That is the whole difference, and it is why the
+> floor must be STATED ON SCREEN and lowerable by the writer — the list shortens
+> by a rule they can see and overrule, never by the app's opinion of who matters.
+
+**Anything the writer answered is exempt from the floor.** A kept name must never
+disappear because it stopped recurring; that is arithmetic overruling the writer.
+
+⚠️ Everything still renders `waiting` on first open — `confirmed` is 0 and
+`kept_subjects` is empty. Forty-six is a sitting, not a wall.
 
 ### Still open
 
-1. **`kept_subjects.kind`** — `supabase/migrations/20260907120000_kept_subject_kind.sql`
-   still needs applying, in the SQL editor. Additive, idempotent, one column.
-2. **Nav slot.** Rail footer above Settings, or the Return group.
+1. ~~`kept_subjects.kind`~~ — **applied 2026-09-07**, verified live.
+2. **Nav slot.** Rail footer above Settings — Return's members all gloss "the X
+   you return to" and this one asks for input instead. Graduates to Return (and
+   ⌘6) if it turns out to be a surface you open to look rather than to edit.
 
 ## How this fails, so it can be caught
 
