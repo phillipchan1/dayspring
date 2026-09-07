@@ -71,6 +71,8 @@ export function journalProps(
     mainSlot,
     reflectionsActive: false,
     altarActive: false,
+  lifeMapActive: false,
+  onLifeMap: () => {},
     scriptureActive: false,
     pagesActive: false,
     ...active,

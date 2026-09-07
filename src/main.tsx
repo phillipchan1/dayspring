@@ -59,6 +59,7 @@ async function bootstrap() {
   //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
+  //   ?__preview=lifemap            → the Life Map against fixtures (features/lifemap/preview.tsx)
   //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
   //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
@@ -83,6 +84,11 @@ async function bootstrap() {
     if (preview?.startsWith('applock')) {
       const { renderAppLockPreview } = await import('./features/applock/preview')
       await renderAppLockPreview(preview)
+      return
+    }
+    if (preview === 'lifemap') {
+      const { renderLifeMapPreview } = await import('./features/lifemap/preview')
+      renderLifeMapPreview()
       return
     }
     if (preview === 'pages') {
