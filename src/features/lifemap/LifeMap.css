@@ -9,12 +9,17 @@
  */
 
 .lifemap {
-  /* A canvas surface: fill the slot rather than assert a height, since the
-     shell hands it a column flex parent (#root, and the canvas slot). */
-  flex: 1 1 auto;
+  /* The canvas slot is a plain div with `overflow: hidden` — NOT a flex parent.
+     So this has to assert `height: 100%` and do its own scrolling; `flex: 1 1
+     auto` is inert there, which left the surface taller than its clipped
+     parent with nothing able to scroll. `flex` is kept for the case where a
+     future slot IS a flex column, where height:100% would be the inert one. */
+  height: 100%;
   min-height: 0;
+  flex: 1 1 auto;
   width: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--bg);
   color: var(--text);
 }

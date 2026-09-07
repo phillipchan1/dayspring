@@ -93,6 +93,9 @@ export function renderLifeMapPreview(): void {
   document.documentElement.dataset['theme'] = 'dawn'
   document.documentElement.style.height = '100%'
   document.body.style.cssText = 'margin:0;height:100%;background:var(--bg)'
-  host.style.cssText = 'height:100vh;display:flex;flex-direction:column'
+  // Mimic the real canvas slot: a plain block with a bounded height and
+  // `overflow: hidden`. It used to be a flex column here, which is exactly why
+  // a scroll bug that only appears in the app got past this preview once.
+  host.style.cssText = 'height:100vh;overflow:hidden'
   createRoot(host).render(<LifeMapBody map={map} onChanged={() => {}} onOpenSubject={() => {}} />)
 }
