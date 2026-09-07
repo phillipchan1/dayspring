@@ -19,6 +19,7 @@
 // pretending there is more behind it.
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { signOut } from '@/lib/auth'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import './You.css'
@@ -47,12 +48,32 @@ export function YouMenu({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [concordance, setConcordance] = useState(false)
+  const [at, setAt] = useState<{ left: number; bottom: number } | null>(null)
   const wrap = useRef<HTMLDivElement | null>(null)
+  const menu = useRef<HTMLDivElement | null>(null)
+
+  /**
+   * The menu is PORTALLED to the body, not nested in the rail.
+   *
+   * The rail clips its overflow, so a menu wider than the rail was cut off
+   * mid-word — and no z-index fixes that, because clipping is not stacking. A
+   * portal escapes every ancestor's overflow, and fixed coordinates taken from
+   * the trigger keep it anchored.
+   */
+  useEffect(() => {
+    if (!open) {
+      setAt(null)
+      return
+    }
+    const r = wrap.current?.getBoundingClientRect()
+    if (r) setAt({ left: r.left, bottom: window.innerHeight - r.top + 8 })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (!wrap.current?.contains(t) && !menu.current?.contains(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
@@ -86,8 +107,15 @@ export function YouMenu({
         {labelsExpanded && <span className="you__label">You</span>}
       </button>
 
-      {open && (
-        <div className="you__menu" role="menu">
+      {open &&
+        at &&
+        createPortal(
+          <div
+            className={`you__menu you__menu--${placement}`}
+            role="menu"
+            ref={menu}
+            style={{ left: at.left, bottom: at.bottom }}
+          >
           <button type="button" role="menuitem" className="you__item" onClick={pick(onLifeMap)}>
             Life Map
             <span className="you__gloss">the people and things you return to</span>
@@ -129,8 +157,9 @@ export function YouMenu({
           >
             Sign out
           </button>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {concordance && <ConcordanceDrawer onClose={() => setConcordance(false)} />}
     </div>
