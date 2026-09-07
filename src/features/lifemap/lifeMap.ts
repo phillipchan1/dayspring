@@ -73,6 +73,8 @@ export interface LifeMapItem {
   pages: number
   /** No occurrence in a year. Rendered quietly; never hidden. */
   dormant: boolean
+  /** Which era it is filed under. See `eraOf`. */
+  era: Era
   /** From `entries.created_at`, so imports carry their original dates. */
   firstSeen: string | null
   lastSeen: string | null
@@ -80,12 +82,29 @@ export interface LifeMapItem {
   terms: string[]
 }
 
+/**
+ * The era split, which is `DORMANT_AFTER_DAYS: 365` made visible.
+ *
+ * No buckets to invent and no boundary to defend: "written in the last year" is
+ * a line the schema already draws, and on this archive it falls at 341 current
+ * against 915 earlier. A three- or four-bucket scheme would need an interior
+ * boundary nobody can justify, and the data does not cluster there anyway.
+ *
+ * FILED, NOT HIDDEN. An era is where something sits, not whether it exists. The
+ * surface shows `earlier` behind one expander per section, with its count on
+ * screen — the list is short by a stated rule the reader can overrule.
+ */
+export type Era = 'current' | 'earlier'
+
 export interface LifeMapSection {
   id: SectionId
   label: string
   ask: string
   what: string
+  /** The current era — what the section shows at rest. */
   items: LifeMapItem[]
+  /** Filed behind the expander. Never dropped. */
+  earlier: LifeMapItem[]
   /** How many of `items` the engine found — kept or waiting. */
   found: number
 }
@@ -195,6 +214,24 @@ function order(a: LifeMapItem, b: LifeMapItem): number {
  * quietly. Only `superseded` is genuinely gone — that row was replaced by
  * another and showing both would double the same subject.
  */
+/**
+ * ANYTHING THE WRITER ANSWERED IS ALWAYS CURRENT.
+ *
+ * Vera must never drift into "earlier" because she has not come up lately. That
+ * is the app appearing to forget someone's wife, and a sort order making a claim
+ * about a relationship. Eras organise the UNANSWERED OFFERS and nothing else.
+ *
+ * ⚠️ THE SCAN MUST NEVER SEE THIS. Filed is not forgotten: the vocabulary the
+ * save-time matcher runs on is every answered subject, all eras, forever. If an
+ * era ever filters that list, writing about your father after two years of
+ * silence matches nothing — and the silence and return readings break at exactly
+ * the moment they would be worth the most.
+ */
+export function eraOf(provenance: Provenance, dormant: boolean): Era {
+  if (provenance !== 'waiting') return 'current'
+  return dormant ? 'earlier' : 'current'
+}
+
 const retired = (item: ConcordanceItem) => item.status === 'superseded'
 
 /**
@@ -224,13 +261,16 @@ export function buildLifeMap(
       item.status === 'confirmed' || keptKeys.has(key)
     if (!answered && item.occurrence_count < floor) continue
     seen.add(key)
+    const provenance = provenanceOf(item, keptKeys)
+    const dormant = item.status === 'dormant'
     items.push({
       key,
       label: displayLabel(item.canonical, item.surface_forms),
       section: sectionFor(item.kind),
-      provenance: provenanceOf(item, keptKeys),
+      provenance,
       pages: item.occurrence_count,
-      dormant: item.status === 'dormant',
+      dormant,
+      era: eraOf(provenance, dormant),
       firstSeen: item.first_seen,
       lastSeen: item.last_seen,
       terms: item.surface_forms.length > 0 ? item.surface_forms : [item.canonical],
@@ -250,6 +290,7 @@ export function buildLifeMap(
       provenance: 'mine',
       pages: 0,
       dormant: false,
+      era: 'current',
       firstSeen: k.keptAt,
       lastSeen: null,
       terms: k.terms,
@@ -257,14 +298,16 @@ export function buildLifeMap(
   }
 
   return SECTIONS.map((s) => {
-    const mine = items.filter((i) => i.section === s.id).sort(order)
+    const own = items.filter((i) => i.section === s.id).sort(order)
+    const current = own.filter((i) => i.era === 'current')
     return {
       id: s.id,
       label: s.label,
       ask: s.ask,
       what: s.what,
-      items: mine,
-      found: mine.filter((i) => i.provenance !== 'mine').length,
+      items: current,
+      earlier: own.filter((i) => i.era === 'earlier'),
+      found: current.filter((i) => i.provenance !== 'mine').length,
     }
   })
 }
@@ -285,7 +328,7 @@ function keptSection(k: KeptSubject): SectionId {
 
 /** Totals for the footer. Counts only — the surface states no ratio and no rate. */
 export function tallies(sections: readonly LifeMapSection[]) {
-  const all = sections.flatMap((s) => s.items)
+  const all = sections.flatMap((s) => [...s.items, ...s.earlier])
   return {
     mine: all.filter((i) => i.provenance === 'mine').length,
     found: all.filter((i) => i.provenance === 'found').length,

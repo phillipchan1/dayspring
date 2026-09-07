@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { ConcordanceItem } from '@/lib/concordance'
 import type { KeptSubject } from '@/features/pages/keptSubjects'
-import { buildLifeMap, provenanceOf, sectionFor, conKey, tallies, floorFor } from './lifeMap'
+import { buildLifeMap, provenanceOf, sectionFor, conKey, tallies, floorFor, eraOf } from './lifeMap'
 
 const item = (over: Partial<ConcordanceItem> & { canonical: string }): ConcordanceItem => ({
   id: over.canonical,
@@ -84,6 +84,23 @@ describe('floorFor', () => {
   })
 })
 
+describe('eraOf', () => {
+  it('files an unanswered dormant offer under earlier', () => {
+    expect(eraOf('waiting', true)).toBe('earlier')
+  })
+
+  it('keeps anything the writer answered current, however quiet it has gone', () => {
+    // Vera must never drift into "earlier" for going quiet — that is the app
+    // appearing to forget someone's wife.
+    expect(eraOf('mine', true)).toBe('current')
+    expect(eraOf('found', true)).toBe('current')
+  })
+
+  it('keeps a recent offer current', () => {
+    expect(eraOf('waiting', false)).toBe('current')
+  })
+})
+
 describe('buildLifeMap', () => {
   it('files every kind into its section and counts what was found', () => {
     const out = buildLifeMap(
@@ -121,8 +138,11 @@ describe('buildLifeMap', () => {
     )
     // Danny is confirmed, Ben is a dormant suggestion — so Ben sorts last as
     // waiting, but he is still here.
-    expect(section('person', out).items.map((i) => i.label)).toEqual(['Danny', 'Ben'])
-    expect(section('person', out).items.find((i) => i.label === 'Ben')!.dormant).toBe(true)
+    // Danny is confirmed so he stays current; Ben is a dormant suggestion, so
+    // he is filed under `earlier` rather than dropped.
+    expect(section('person', out).items.map((i) => i.label)).toEqual(['Danny'])
+    expect(section('person', out).earlier.map((i) => i.label)).toEqual(['Ben'])
+    expect(section('person', out).earlier[0]!.dormant).toBe(true)
   })
 
   it('offers nothing below the floor', () => {
@@ -209,10 +229,20 @@ describe('buildLifeMap', () => {
     expect(tallies(out)).toEqual({ mine: 1, found: 1, waiting: 1 })
   })
 
+  it('counts earlier items in the tallies, since filed is not gone', () => {
+    const out = buildLifeMap(
+      [item({ canonical: 'Ruth', status: 'dormant' }), item({ canonical: 'Vera', source: 'explicit' })],
+      [],
+    )
+    expect(section('person', out).items).toHaveLength(1)
+    expect(section('person', out).earlier).toHaveLength(1)
+    expect(tallies(out)).toEqual({ mine: 1, found: 0, waiting: 1 })
+  })
+
   it('returns all four sections even when the journal is blank', () => {
     const out = buildLifeMap([], [])
     expect(out).toHaveLength(4)
-    expect(out.every((s) => s.items.length === 0)).toBe(true)
+    expect(out.every((s) => s.items.length === 0 && s.earlier.length === 0)).toBe(true)
     expect(out.map((s) => s.ask)).toEqual([
       'add a name…',
       'add a place…',
