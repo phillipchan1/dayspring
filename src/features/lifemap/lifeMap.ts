@@ -17,7 +17,7 @@
 
 import { type ConcordanceItem, type ConcordanceKind } from '@/lib/concordance'
 import type { KeptSubject } from '@/features/pages/keptSubjects'
-import { displayLabel } from '@/features/pages/subjects'
+import { displayLabel, isAddressee } from '@/features/pages/subjects'
 
 /** The four sections, in the order the surface shows them. */
 export const SECTIONS = [
@@ -252,6 +252,7 @@ export function buildLifeMap(
 
   for (const item of concordance) {
     if (retired(item)) continue
+    if (isAddressee(item.canonical)) continue
     const key = conKey(item.canonical)
     if (seen.has(key)) continue
     // ANYTHING THE WRITER ANSWERED IS EXEMPT FROM THE FLOOR. A name they kept

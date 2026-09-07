@@ -124,6 +124,26 @@ describe('buildLifeMap', () => {
     expect(section('person', out).found).toBe(1)
   })
 
+  it('never offers the One the journal is addressed to', () => {
+    // Assumed, not noticed. "Jesus" lights 2,914 pages of 3,571 — lighting it
+    // dims nothing, so it is not a way of looking at anything.
+    const out = buildLifeMap(
+      [
+        item({ canonical: 'Jesus', occurrence_count: 2914 }),
+        item({ canonical: 'the Lord', occurrence_count: 1800 }),
+        item({ canonical: 'Holy Spirit', occurrence_count: 2832 }),
+        item({ canonical: 'Mom' }),
+      ],
+      [],
+    )
+    expect(section('person', out).items.map((i) => i.label)).toEqual(['Mom'])
+  })
+
+  it('still offers Father, which is a real person at least as often', () => {
+    const out = buildLifeMap([item({ canonical: 'Father' })], [])
+    expect(section('person', out).items).toHaveLength(1)
+  })
+
   it('keeps dormant rows and hides only superseded ones', () => {
     // Dormant is "no occurrence in a year" — recency, not retirement. On a
     // fifteen-year archive it is most of the people in it, and absence is
