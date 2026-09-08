@@ -5,8 +5,12 @@
   position: relative;
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
   pointer-events: auto;
+  touch-action: manipulation;
   -webkit-app-region: no-drag;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .signin__glow {
@@ -72,8 +76,10 @@
   gap: 10px;
   width: 100%;
   max-width: 260px;
-  min-height: 44px;
-  padding: 11px 20px;
+  min-height: 48px;
+  padding: 12px 20px;
+  position: relative;
+  z-index: 3;
   border-radius: 7px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   border: 0.5px solid color-mix(in srgb, var(--accent) 38%, transparent);
@@ -98,32 +104,45 @@
   color: var(--text-dim);
 }
 
+/* Do not use the HTML `disabled` attribute on OAuth buttons: iOS drops the
+   rest of the gesture (pointerup/click) once the node is disabled. Busy is
+   aria + CSS; JS ignores a second tap. */
 .signin__btn:disabled,
-.signin__btn--secondary:disabled {
+.signin__btn--secondary:disabled,
+.signin__btn--busy,
+.signin__btn[aria-disabled='true'] {
   cursor: default;
   opacity: 0.7;
+}
+
+/* Extra hit slop without moving the visual chip. */
+.signin__btn::after,
+.signin__btn--secondary::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
 }
 
 /* Hover only where a mouse really hovers. iPad synthesizes :hover on tap and
    would otherwise leave the first button stuck “lit”. */
 @media (hover: hover) and (pointer: fine) {
-  .signin__btn:hover:not(:disabled) {
+  .signin__btn:hover:not(:disabled):not([aria-disabled='true']) {
     background: color-mix(in srgb, var(--accent) 20%, transparent);
     border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   }
-  .signin__btn--secondary:hover:not(:disabled) {
+  .signin__btn--secondary:hover:not(:disabled):not([aria-disabled='true']) {
     background: color-mix(in srgb, var(--accent) 10%, transparent);
   }
 }
 
-.signin__btn:active:not(:disabled),
-.signin__btn--secondary:active:not(:disabled) {
+.signin__btn:active:not(:disabled):not([aria-disabled='true']),
+.signin__btn--secondary:active:not(:disabled):not([aria-disabled='true']) {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .signin__input {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   padding: 10px 12px;
   border-radius: 7px;
   border: 0.5px solid var(--border);

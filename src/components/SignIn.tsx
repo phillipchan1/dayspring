@@ -66,10 +66,10 @@ export function SignIn() {
     <button
       key="apple"
       type="button"
-      className="signin__btn"
+      className={`signin__btn${busy === 'apple' ? ' signin__btn--busy' : ''}`}
       aria-busy={busy === 'apple'}
+      aria-disabled={oauthBusy}
       {...appleTap}
-      disabled={oauthBusy}
     >
       <AppleIcon />
       {busy === 'apple' ? 'Opening…' : 'Continue with Apple'}
@@ -80,10 +80,10 @@ export function SignIn() {
     <button
       key="google"
       type="button"
-      className="signin__btn"
+      className={`signin__btn${busy === 'google' ? ' signin__btn--busy' : ''}`}
       aria-busy={busy === 'google'}
+      aria-disabled={oauthBusy}
       {...googleTap}
-      disabled={oauthBusy}
     >
       <GoogleIcon />
       {busy === 'google' ? 'Opening…' : 'Continue with Google'}

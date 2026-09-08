@@ -143,7 +143,21 @@ describe('SignIn (iPad tap)', () => {
       await Promise.resolve()
     })
     expect(host.textContent).toContain('Could not start in-app OAuth session')
-    expect(buttonNamed(host, 'Continue with Apple').disabled).toBe(false)
+    expect(buttonNamed(host, 'Continue with Apple').getAttribute('aria-disabled')).not.toBe('true')
+  })
+
+  it('starts Google on iPadOS mouse pointerup when click is dropped', () => {
+    mount()
+    const google = buttonNamed(host, 'Continue with Google')
+    act(() => {
+      firePointer(google, 'pointerdown', 'mouse')
+      google.dispatchEvent(new Event('mouseenter', { bubbles: true }))
+      google.dispatchEvent(new Event('mouseleave', { bubbles: true }))
+      firePointer(google, 'pointerup', 'mouse')
+    })
+    expect(signInWithGoogle).toHaveBeenCalledTimes(1)
+    expect(host.textContent).toContain('Opening…')
+    expect(host.textContent).toContain('Opening Google')
   })
 
   it('submits the review email path', async () => {
