@@ -403,7 +403,7 @@ fn scene_key_window(app: *mut objc2::runtime::AnyObject) -> *mut objc2::runtime:
       return std::ptr::null_mut();
     }
     let count: usize = msg_send![all, count];
-    let mut fallback = std::ptr::null_mut();
+    let mut fallback: *mut AnyObject = std::ptr::null_mut();
     for i in 0..count {
       let scene: *mut AnyObject = msg_send![all, objectAtIndex: i];
       if scene.is_null() {
