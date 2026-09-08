@@ -4,7 +4,16 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view'
-import { RangeSet, RangeSetBuilder, StateField, type Extension, type Text } from '@codemirror/state'
+import {
+  ChangeSet,
+  EditorState,
+  RangeSet,
+  RangeSetBuilder,
+  StateField,
+  type ChangeSpec,
+  type Extension,
+  type Text,
+} from '@codemirror/state'
 import { type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -509,17 +518,84 @@ export function spiritualBlockExtension(
     // is what keeps the edit panel the way you change a marking — the fence
     // delimiters have no height, so a caret inside the run could otherwise land
     // on markup it can't see and corrupt the ``` marker.
-    // Use block.to (includes the closing fence's trailing \n) rather than the
-    // trimmed decoration end.
+    //
+    // Range bounds (both ends matter — each has bitten us once):
+    //   - `to` uses the full block.to (includes the closing fence's trailing
+    //     \n), not the trimmed decoration end. Otherwise the cursor can land on
+    //     the closing fence line and typing turns ``` into ```h.
+    //   - `from` steps back over a preceding newline when there is one. CM's
+    //     skipAtomicRanges only treats positions *strictly inside* (from, to)
+    //     as atomic, so Up-arrow into the widget lands on `from`. Starting at
+    //     block.from put the caret on the opening ``` line; typing there
+    //     prepended into the fence (`x```dayspring-…`) and the widget vanished.
+    //     Leading with the newline makes that landing spot the end of the
+    //     previous (editable) line instead.
     EditorView.atomicRanges.of((view) => {
       const blocks = view.state.field(spiritualBlocksField)
       if (blocks.length === 0) return RangeSet.empty
+      const doc = view.state.doc
       const builder = new RangeSetBuilder<Decoration>()
       for (const block of blocks) {
-        builder.add(block.from, block.to, Decoration.mark({}))
+        builder.add(atomicRangeFrom(block, doc), block.to, Decoration.mark({}))
       }
       return builder.finish()
     }),
+    // Belt-and-suspenders for the rare case the caret still sits at block.from
+    // (block at document start, or a click that bypasses skipAtomicRanges): a
+    // pure insert there would corrupt the opening fence. Rewrite it so the
+    // typed text lands on its own line above the fence instead.
+    protectOpeningFenceFilter,
     blockClickHandler(onEdit, onOpenChapter),
   ]
 }
+
+/**
+ * Start of the atomic range for a spiritual block. Steps back over a preceding
+ * newline so Up-arrow / click-above cannot park the caret on the opening fence.
+ * Exported for tests.
+ */
+export function atomicRangeFrom(block: ParsedSpiritualBlock, doc: Text): number {
+  if (block.from > 0 && doc.sliceString(block.from - 1, block.from) === '\n') {
+    return block.from - 1
+  }
+  return block.from
+}
+
+/**
+ * If a transaction would insert text at an opening fence (pure insert at
+ * `block.from`), append a newline so the fence stays on its own line and keeps
+ * parsing. Composes onto the original changes the same way the UUID-dedup
+ * filter in Editor.tsx does.
+ */
+const protectOpeningFenceFilter = EditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged) return tr
+  let blocks: readonly ParsedSpiritualBlock[]
+  try {
+    blocks = tr.startState.field(spiritualBlocksField)
+  } catch {
+    return tr
+  }
+  if (blocks.length === 0) return tr
+
+  // Collect newline inserts in *new-doc* coordinates (after tr.changes).
+  const fixes: ChangeSpec[] = []
+  tr.changes.iterChanges((fromA, toA, _fromB, toB, inserted) => {
+    if (inserted.length === 0 || fromA !== toA) return
+    const text = inserted.toString()
+    if (text.endsWith('\n')) return
+    for (const block of blocks) {
+      if (fromA === block.from) {
+        fixes.push({ from: toB, insert: '\n' })
+        return
+      }
+    }
+  })
+  if (fixes.length === 0) return tr
+  const fixCS = ChangeSet.of(fixes, tr.newDoc.length)
+  return {
+    changes: tr.changes.compose(fixCS),
+    selection: tr.selection,
+    effects: tr.effects,
+    scrollIntoView: tr.scrollIntoView,
+  }
+})
