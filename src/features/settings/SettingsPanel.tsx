@@ -488,6 +488,14 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
           <AppLockSettings />
           <div className="settings-about__row-toggle">
             <Toggle
+              label="Remember where you write"
+              hint="Remembers the place and weather when you start a page. Your device is asked once. Dayspring never shows a pin."
+              checked={settings.rememberWhereYouWrite}
+              onChange={(rememberWhereYouWrite) => update({ rememberWhereYouWrite })}
+            />
+          </div>
+          <div className="settings-about__row-toggle">
+            <Toggle
               label="Share anonymous usage"
               hint="Counts which features are used — never your entries, prayers, or any words you write."
               checked={settings.shareUsage}

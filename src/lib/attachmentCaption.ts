@@ -24,6 +24,13 @@ export function takenAtFromFile(file: File): string | undefined {
   return undefined
 }
 
+/** EXIF DateTimeOriginal when present, otherwise lastModified. */
+export async function takenAtFromFileAsync(file: File): Promise<string | undefined> {
+  const { readPhotoExif } = await import('./exif')
+  const exif = await readPhotoExif(file)
+  return exif.takenAt ?? takenAtFromFile(file)
+}
+
 export interface AttachmentPhotoMeta {
   takenAt?: string
   /** Intrinsic pixel size — drives the editor's aspect-ratio crop decision. */

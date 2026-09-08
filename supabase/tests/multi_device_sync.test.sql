@@ -241,7 +241,8 @@ declare
   identity_cols constant text[] := array['id', 'owner', 'updated_at'];
   -- Mirrors ENTRY_COLUMNS in src/lib/entries.ts.
   synced_cols   constant text[] := array['created_at', 'body_markdown', 'title', 'mood',
-                                         'tags', 'word_count', 'source', 'external_id'];
+                                         'tags', 'word_count', 'source', 'external_id',
+                                         'circumstances'];
   derived_cols  constant text[] := array['embedding', 'prayer_scanned_at', 'concordance_scanned_at',
                                          'superseded', 'entry_lens', 'entry_domain'];
   unclassified  text[];

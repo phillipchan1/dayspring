@@ -8,6 +8,8 @@
 	<string>Dayspring uses the camera to scan handwritten journal pages.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Dayspring lets you attach photos from your library to journal entries.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Dayspring can remember where you were writing — the place and the weather — so a page can bring a morning back. You can turn this off.</string>
 	<!-- Only reached when the user has turned on the optional app lock AND opted
 	     into biometrics; the PIN always remains a way in. Required whenever the
 	     app links LocalAuthentication, even if it never calls it. -->

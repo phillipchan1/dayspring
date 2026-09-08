@@ -12,6 +12,7 @@
 // `creationDate`. `text` is escaped Markdown with `dayone-moment://` embeds for
 // attachments; we unescape it and drop the embeds (attachments aren't imported).
 
+import { circumstancesFromDayOne } from '../circumstances'
 import { wordCount } from '../entries'
 import { deriveImportTitle, extractTags } from '../diarlyImport'
 import type { ImportArchive } from './archive'
@@ -26,6 +27,9 @@ interface DayOneEntry {
   text?: string
   tags?: unknown
   starred?: boolean
+  timeZone?: unknown
+  location?: unknown
+  weather?: unknown
 }
 
 interface DayOneJournal {
@@ -98,13 +102,17 @@ function parseEntry(
   // Prefer the stable uuid as the dedup key; fall back to journal + timestamp.
   const externalId = id ?? `${journal}/${created}`
 
+  const createdAt = new Date(created).toISOString()
+  const circumstances = circumstancesFromDayOne(raw, createdAt)
+
   return {
     external_id: externalId,
-    created_at: new Date(created).toISOString(),
+    created_at: createdAt,
     body_markdown: body,
     title: deriveImportTitle(body),
     tags: mergeTags(extractTags(body, journal), raw.tags),
     word_count: wordCount(body),
+    ...(circumstances ? { circumstances } : {}),
   }
 }
 

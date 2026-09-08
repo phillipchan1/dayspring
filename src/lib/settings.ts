@@ -148,6 +148,14 @@ export interface Settings {
   shareUsage: boolean
 
   /**
+   * Remember the place and weather when a page is started today.
+   *
+   * The device is asked once. After that the snap is silent. Off is off —
+   * timezone is still stored (no permission), place and weather are not.
+   */
+  rememberWhereYouWrite: boolean
+
+  /**
    * The newest release whose First Light deck this account has seen.
    *
    * Optional on purpose: `undefined` means "never seen one", which is every
@@ -187,6 +195,7 @@ const DEFAULTS: Settings = {
   readerLeaves: true,
   noticing: false,
   shareUsage: true,
+  rememberWhereYouWrite: true,
 }
 
 /**

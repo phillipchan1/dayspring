@@ -52,6 +52,7 @@ plist_set_bool ITSAppUsesNonExemptEncryption false
 plist_set_string NSMicrophoneUsageDescription "Dayspring uses the microphone to transcribe voice journal entries."
 plist_set_string NSCameraUsageDescription "Dayspring uses the camera to scan handwritten journal pages."
 plist_set_string NSPhotoLibraryUsageDescription "Dayspring lets you attach photos from your library to journal entries."
+plist_set_string NSLocationWhenInUseUsageDescription "Dayspring can remember where you were writing — the place and the weather — so a page can bring a morning back. You can turn this off."
 
 # dayspring:// — how Google OAuth returns from Safari into the app.
 /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$PLIST" 2>/dev/null || true

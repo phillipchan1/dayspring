@@ -39,7 +39,15 @@ describe('archive helpers', () => {
 const DAY_ONE_JSON = JSON.stringify({
   metadata: { version: '1.0' },
   entries: [
-    { uuid: 'AAAA1111BBBB2222CCCC3333DDDD4444', creationDate: '2024-03-02T08:00:00Z', text: 'Hello #joy', tags: ['Gratitude'] },
+    {
+      uuid: 'AAAA1111BBBB2222CCCC3333DDDD4444',
+      creationDate: '2024-03-02T08:00:00Z',
+      text: 'Hello #joy',
+      tags: ['Gratitude'],
+      timeZone: 'America/Denver',
+      location: { latitude: 39.7392, longitude: -104.9903, localityName: 'Denver' },
+      weather: { temperatureCelsius: 3, weatherCode: 'mostlycloudy', conditionsDescription: 'Mostly Cloudy' },
+    },
     { uuid: 'EEEE5555FFFF6666AAAA7777BBBB8888', creationDate: '2024-01-15T20:30:00Z', text: 'Earlier entry' },
   ],
 })
@@ -56,6 +64,8 @@ describe('parseDayOne from a folder (Day One folder-view export)', () => {
     expect(result.dated[0]!.created_at).toBe('2024-01-15T20:30:00.000Z')
     expect(result.dated[1]!.body_markdown).toBe('Hello #joy')
     expect(result.dated[1]!.external_id).toBe('AAAA1111BBBB2222CCCC3333DDDD4444')
+    expect(result.dated[1]!.circumstances?.location?.label).toBe('Denver')
+    expect(result.dated[1]!.circumstances?.weather?.condition).toBe('cloud')
     expect(result.skipped).toHaveLength(0)
   })
 
@@ -80,13 +90,16 @@ describe('parseDayOne from a folder (Day One folder-view export)', () => {
 describe('parseDiarly from a folder', () => {
   it('reads dated Markdown out of a dropped folder', async () => {
     const arc = folderFrom({
-      'Export/Personal/2024/03-02.md': '# A good day\n\nWrote some words.',
+      'Export/Personal/2024/03-02.md':
+        '# A good day\n\nWrote some words.\n\n[Denver](diarly://map/39.7392,-104.9903)\n\n57.2°F Mostly Cloudy\n',
       'Export/Personal/notes.md': 'undated note',
     })
     const result = await parseDiarly(arc)
     expect(result.dated).toHaveLength(1)
     expect(result.dated[0]!.created_at).toBe('2024-03-02T12:00:00.000Z')
     expect(result.dated[0]!.external_id).toBe('Personal/2024/03-02')
+    expect(result.dated[0]!.body_markdown).toBe('# A good day\n\nWrote some words.')
+    expect(result.dated[0]!.circumstances?.location?.label).toBe('Denver')
     expect(result.undated).toHaveLength(1)
   })
 })
@@ -99,13 +112,25 @@ describe('parseDayspring from a folder', () => {
         exported_at: '2024-06-01T00:00:00Z',
         entry_count: 1,
         entries: [
-          { id: 'uuid-1', created_at: '2024-05-01T10:00:00Z', body_markdown: 'restored', title: null, mood: null, tags: [], word_count: 1, source: 'native', external_id: null },
+          {
+            id: 'uuid-1',
+            created_at: '2024-05-01T10:00:00Z',
+            body_markdown: 'restored',
+            title: null,
+            mood: null,
+            tags: [],
+            word_count: 1,
+            source: 'native',
+            external_id: null,
+            circumstances: { timezone: 'America/Denver', source: 'live', location: { lat: 39.74, lon: -104.99, label: 'Denver' } },
+          },
         ],
       }),
     })
     const result = await parseDayspring(arc)
     expect(result.dated).toHaveLength(1)
     expect(result.dated[0]!.external_id).toBe('uuid-1')
+    expect(result.dated[0]!.circumstances?.location?.label).toBe('Denver')
   })
 
   it('throws a clear error when entries.json is absent', async () => {

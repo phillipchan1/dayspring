@@ -10,6 +10,7 @@ describe('migrateSettings', () => {
     const s = migrateSettings({ v: 4 })
     expect(s.pagesZoom).toBe(0.6)
     expect(s.fontSize).toBe(FONT_SIZE_DEFAULT)
+    expect(s.rememberWhereYouWrite).toBe(true)
   })
 
   /**

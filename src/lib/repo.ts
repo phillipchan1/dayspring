@@ -41,6 +41,12 @@ import {
 } from './entryVersion'
 import { conflictShadowId } from './conflictShadowId'
 import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
+import {
+  dropLiveSnapshot,
+  mergeCircumstances,
+  timezoneOnly,
+  type EntryCircumstances,
+} from './circumstances'
 import type { Entry, NewEntry } from './types'
 
 function nowISO(): string {
@@ -88,10 +94,12 @@ export async function createEntry(input: NewEntry, id?: string): Promise<Entry> 
     word_count: wordCount(input.body_markdown),
     source: 'native',
     external_id: null,
+    circumstances: input.circumstances ?? timezoneOnly('live'),
   }
   await cache.cachePut(entry)
   await queueUpsert(entry.id)
   scheduleFlush()
+  scheduleCircumstancesSnap(entry.id)
   return entry
 }
 
@@ -118,7 +126,30 @@ export async function updateEntryBody(id: string, body: string): Promise<Entry> 
 export async function updateEntryDate(id: string, newCreatedAt: string): Promise<Entry> {
   const base = await cache.cacheGet(id)
   if (!base) throw new Error('Entry not found')
-  const entry = locallyEdited(base, { created_at: newCreatedAt })
+  const snapped = dropLiveSnapshot(base.circumstances)
+  const entry = locallyEdited(base, {
+    created_at: newCreatedAt,
+    ...(snapped ? { circumstances: snapped } : {}),
+  })
+  await cache.cachePut(entry)
+  await queueUpsert(id)
+  scheduleFlush()
+  return entry
+}
+
+/**
+ * Merge circumstance onto a cached row and queue the write. Used by the silent
+ * snap and by photo EXIF — never by the editor's input path.
+ */
+export async function updateEntryCircumstances(
+  id: string,
+  patch: EntryCircumstances,
+): Promise<Entry | null> {
+  const base = await cache.cacheGet(id)
+  if (!base) return null
+  const entry = locallyEdited(base, {
+    circumstances: mergeCircumstances(base.circumstances, patch),
+  })
   await cache.cachePut(entry)
   await queueUpsert(id)
   scheduleFlush()
@@ -391,6 +422,12 @@ async function flushOnce(): Promise<void> {
   // Derives queued by the pushes above landed after this drain's snapshot was
   // taken; pick them up promptly rather than waiting on the heartbeat.
   if (reachedServer && (await cache.outboxHasKind('derive'))) scheduleFlush()
+}
+
+function scheduleCircumstancesSnap(entryId: string): void {
+  void import('./circumstancesSnap')
+    .then((m) => m.snapCircumstances(entryId))
+    .catch(() => {})
 }
 
 export function flush(): Promise<void> {

@@ -124,6 +124,7 @@ async function main() {
     'NSMicrophoneUsageDescription',
     'NSCameraUsageDescription',
     'NSPhotoLibraryUsageDescription',
+    'NSLocationWhenInUseUsageDescription',
     'ITSAppUsesNonExemptEncryption',
     'dayspring',
   ]) {

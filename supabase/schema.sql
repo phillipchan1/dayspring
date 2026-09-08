@@ -15,7 +15,8 @@ create table if not exists public.entries (
   tags          text[] not null default '{}',
   word_count    integer not null default 0,
   source        text not null default 'native' check (source in ('native', 'day_one', 'diarly', 'other')),
-  external_id   text
+  external_id   text,
+  circumstances jsonb not null default '{}'::jsonb
 );
 
 -- Dedup target for idempotent imports (§7): (source, external_id) is unique.

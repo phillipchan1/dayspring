@@ -21,6 +21,14 @@ export interface ReadAttachmentDeps {
   resolve: (hash: string, ext: string) => Promise<ResolvedReadAttachment>
 }
 
+export interface ReadAttachmentOptions {
+  /**
+   * Circumstance line for the first photo that has no writer caption —
+   * the verso of a print. Later photos keep their own capture-time line.
+   */
+  verso?: string | null
+}
+
 const defaultDeps: ReadAttachmentDeps = {
   async resolve(hash, ext) {
     if (!supabase) return { url: null, meta: null }
@@ -95,7 +103,9 @@ export function hydrateReadAttachments(
   root: HTMLElement,
   markdown: string,
   deps: ReadAttachmentDeps = defaultDeps,
+  options: ReadAttachmentOptions = {},
 ): () => void {
+  const resolve = deps?.resolve ?? defaultDeps.resolve
   let alive = true
   const images = [...root.querySelectorAll<HTMLImageElement>('img')]
   ATTACHMENT_REF_RE.lastIndex = 0
@@ -111,6 +121,8 @@ export function hydrateReadAttachments(
   }
   ATTACHMENT_REF_RE.lastIndex = 0
   const usedRefs = new Set<number>()
+  let firstPhoto = true
+  const verso = options.verso?.trim() || null
 
   for (const img of images) {
     const raw = img.getAttribute('src') ?? ''
@@ -141,9 +153,10 @@ export function hydrateReadAttachments(
     if (!attachment) continue
     const { hash, ext, size } = attachment
     const { figure, media, caption } = replaceWithFigure(img, size)
+    const isFirstPhoto = firstPhoto
+    firstPhoto = false
 
-    void deps
-      .resolve(hash!, ext!)
+    void resolve(hash!, ext!)
       .then(({ url, meta }) => {
         if (!alive || !figure.isConnected) return
 
@@ -166,7 +179,7 @@ export function hydrateReadAttachments(
         }
 
         if (!caption) {
-          const metaLine = formatPhotoMetaLine(meta ?? undefined)
+          const metaLine = (isFirstPhoto ? verso : null) ?? formatPhotoMetaLine(meta ?? undefined)
           if (metaLine) {
             const line = root.ownerDocument.createElement('figcaption')
             line.className = 'pg-read1__photo-meta'

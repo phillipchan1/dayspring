@@ -1,3 +1,4 @@
+import { isCircumstances } from './circumstances'
 import { stripSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
 import type { Entry, EntrySource, NewEntry } from './types'
@@ -7,7 +8,7 @@ import type { Entry, EntrySource, NewEntry } from './types'
 // sizes (~1000 rows) that blows past the authenticated role's statement timeout
 // (→ 500). Embeddings are never read client-side.
 const ENTRY_COLUMNS =
-  'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id'
+  'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances'
 
 export function wordCount(markdown: string): number {
   const trimmed = stripSpiritualBlocks(markdown).trim()
@@ -36,6 +37,7 @@ export async function createEntry(input: NewEntry): Promise<Entry> {
       tags: input.tags ?? [],
       word_count: wordCount(input.body_markdown),
       source: 'native',
+      circumstances: input.circumstances ?? {},
     })
     .select(ENTRY_COLUMNS)
     .single()
@@ -78,6 +80,7 @@ export async function upsertEntryChecked(
     p_source: entry.source,
     p_external_id: entry.external_id,
     p_base_updated_at: baseUpdatedAt,
+    p_circumstances: entry.circumstances ?? {},
   })
   if (error) throw error
   const result = data as { conflicted: boolean; entry: Entry } | null
@@ -93,6 +96,7 @@ export interface ImportedEntry {
   tags: string[]
   word_count: number
   external_id: string
+  circumstances?: Entry['circumstances']
 }
 
 const IMPORT_BATCH_SIZE = 500
@@ -131,6 +135,7 @@ export async function upsertImportedEntries(
       word_count: r.word_count,
       source,
       external_id: r.external_id,
+      circumstances: isCircumstances(r.circumstances) ? r.circumstances : {},
     }))
     const { error } = await sb
       .from('entries')

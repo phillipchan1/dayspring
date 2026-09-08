@@ -78,6 +78,7 @@ vi.mock('./entries', () => {
     'word_count',
     'source',
     'external_id',
+    'circumstances',
   ] as const
 
   /** The server never sees the client's local-only bookkeeping. */

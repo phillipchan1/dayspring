@@ -1,8 +1,10 @@
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import { isCircumstances } from './circumstances'
 import { supabase } from './supabase'
 import type { Entry } from './types'
 
 function toEntry(row: Record<string, unknown>): Entry {
+  const circumstances = isCircumstances(row.circumstances) ? row.circumstances : null
   return {
     id: row.id as string,
     created_at: row.created_at as string,
@@ -14,6 +16,7 @@ function toEntry(row: Record<string, unknown>): Entry {
     word_count: row.word_count as number,
     source: row.source as Entry['source'],
     external_id: (row.external_id as string | null) ?? null,
+    ...(circumstances ? { circumstances } : {}),
   }
 }
 

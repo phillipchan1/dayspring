@@ -7,6 +7,7 @@
 // There is no frontmatter — the entry date comes ONLY from <Year> + MM-DD in
 // the path, pinned to noon UTC so a timezone can never flip the calendar day.
 
+import { liftDiarlyCircumstances, type EntryCircumstances } from './circumstances'
 import { wordCount } from './entries'
 import type { ImportArchive } from './import/archive'
 
@@ -18,6 +19,7 @@ export interface ParsedDiarlyEntry {
   title: string | null
   tags: string[]
   word_count: number
+  circumstances?: EntryCircumstances
 }
 
 /** A .md file with no resolvable date — never guessed, surfaced for manual handling. */
@@ -140,15 +142,17 @@ export function parseDiarlyFile(path: string, body: string): ParsedDiarlyEntry |
 
   const journal = parts[parts.length - 3] ?? null
   const externalId = journal ? `${journal}/${year}/${base}` : `${year}/${base}`
-  const clean = stripBom(body)
+  const createdAt = `${year}-${mm}-${dd}T12:00:00.000Z`
+  const { body: clean, circumstances } = liftDiarlyCircumstances(stripBom(body), createdAt)
 
   return {
     external_id: externalId,
-    created_at: `${year}-${mm}-${dd}T12:00:00.000Z`,
+    created_at: createdAt,
     body_markdown: clean,
     title: deriveImportTitle(clean),
     tags: extractTags(clean, journal),
     word_count: wordCount(clean),
+    ...(circumstances ? { circumstances } : {}),
   }
 }
 
