@@ -102,6 +102,20 @@ export async function deleteSpiritualItem(id: string): Promise<void> {
  * while an insert gets the column default. `created_at` is likewise omitted —
  * the Altar dates a linked item by its entry (lib/altar/query.ts), so a row
  * recreated on reconnect still reads as the day it was written.
+ *
+ * ── What the reconcile OWNS ──────────────────────────────────────────────────
+ *
+ * Only rows that came from a fence. The delete used to be scoped by entry alone,
+ * which read as "the block is the source of truth" and meant something much
+ * larger: a harvested row has no fence, so every `source='scanned'` prayer on the
+ * page was deleted the next time the writer touched the entry. Measured before
+ * the fix, that was 6,463 of 6,514 markings — 99.2% of the archive, across 2,097
+ * entries — one edit away from being erased, with the Altar quietly losing the
+ * thread each one belonged to.
+ *
+ * The harvest has its own lifecycle (`prayer_scanned_at`, `resetHarvest`) and is
+ * not this function's to prune. NULL counts as editor-written: rows predate the
+ * `source` column's default.
  */
 export async function syncSpiritualBlocksFromMarkdown(
   entryId: string | null,
@@ -124,13 +138,22 @@ export async function syncSpiritualBlocksFromMarkdown(
         entry_id: entryId,
         type: b.type,
         content: b.content,
+        // Offsets into body_markdown as stored, fences included — so a declared
+        // block finally has a position. Rewritten on every save, because every
+        // edit above it moves it.
+        char_start: b.from,
+        char_end: b.to,
       })),
       { onConflict: 'id' },
     )
     if (error) throw error
   }
 
-  let del = sb.from('spiritual_items').delete().eq('entry_id', entryId)
+  let del = sb
+    .from('spiritual_items')
+    .delete()
+    .eq('entry_id', entryId)
+    .or('source.is.null,source.eq.command')
   if (ids.length > 0) del = del.not('id', 'in', `(${ids.join(',')})`)
   const { error } = await del
   if (error) throw error

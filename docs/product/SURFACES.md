@@ -155,7 +155,7 @@ relocated. **If a future surface reads `spiritual_items`, that filter has to com
 | Surface | State | Assessment |
 |---|---|---|
 | **Concordance** (`features/concordance/`) | Engine on and populating silently; drawer flag OFF (`VITE_FF_CONCORDANCE`) | **Correctly invisible.** It's infrastructure for P6 — learns names and spellings, never moods. It's what lets the app speak the user's vocabulary instead of a generic evangelical register. Also powers voice-dictation biasing. Keep the UI off unless users ask to curate. |
-| **Threads & Ropes** (`features/threads/`) | Flag OFF (`VITE_FF_THREADS_ROPES`), `data/` fixtures only, no shipped UI | **Needs a decision.** Built to P0–P1 on mocks, then parked. Either wire it to real data or delete it — a half-built flagged surface is carrying cost with no user. → D-005. |
+| **Threads & Ropes** (`features/threads/data/`) | Surface deleted; flag removed 2026-09-07. The `data/` layer ships. | **Decided (D-005): the surface goes, the seam stays.** There was never a shipped UI, so the flag gated nothing and was removed. The description this row used to carry was wrong on the facts: `data/` is not fixtures — it queries `ropes`, `threads` and `thread_members` for real, and **Altar and the Ascent both read through it**. It is shared infrastructure named after the schema, not the parked prototype. Do not delete it with the flag. |
 | **Reflect** (`features/reflect/`) | Single dir, superseded by Ascent | **Probable dead code.** Ascent replaced the old reflections UI. Verify and remove. |
 
 ---

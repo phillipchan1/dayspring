@@ -1291,6 +1291,86 @@ button.pg__sense-q:hover {
   opacity: 1;
 }
 
+/*
+ * ── The periods, under the band that produced them ──────────────────────────
+ *
+ * Directly beneath, and only ever beneath: these ARE brackets on that band, and
+ * putting them anywhere else would make them look like a separate filter with
+ * its own idea of time. Pressing one lights the same cells a drag would.
+ *
+ * Quieter than the band at rest and louder than the presets, because that is
+ * their job here — the drag is the precise gesture nobody discovers, and these
+ * are the discoverable one. A horizontal scroller rather than a wrap: eleven
+ * years of a patchy journal can be six or seven chips, and a row that reflows
+ * to two lines pushes the whole wall down every time somebody brackets a winter.
+ */
+.pg-stretch__eras {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0 0.15rem;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pg-stretch__eras::-webkit-scrollbar {
+  display: none;
+}
+
+.pg-stretch__era {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.32rem;
+  flex: none;
+  padding: 0.16rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: -0.004em;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.pg-stretch__era:hover {
+  color: var(--text-dim);
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+}
+
+/* The count is us, and it is tabular for the same reason the pill counts are:
+   a row of chips whose digits are proportional jitters as the bracket moves. */
+.pg-stretch__era i {
+  font-style: normal;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, currentColor 62%, transparent);
+}
+
+.pg-stretch__era[data-on='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.pg-stretch__era:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-stretch__era {
+    transition: none;
+  }
+}
+
 /* space-between, not an auto margin on the middle child: the middle child is
    hidden on touch (there is no hover to reveal it), and an auto margin that
    isn't there leaves both years stacked at the left edge. */
@@ -1773,9 +1853,11 @@ button.pg__sense-q:hover {
   /*
    * THE COLUMN, not a card hanging off the button.
    *
-   * A 37rem dropdown on a left-of-centre control was a well you scrolled.
-   * The sheet now answers to `.pg__head-tools`, so it is as wide as the
-   * stretch and the wall.
+   * A 52rem dropdown on a left-of-centre control was a well you scrolled:
+   * two skinny lists, two pills a row, markings and readings stacked under
+   * them. The sheet now answers to `.pg__head-tools`, so it is as wide as
+   * the stretch and the wall — two-up on a real line, and the extra
+   * decisions sit beside each other rather than below.
    */
   inline-size: auto;
   max-block-size: min(42rem, 78vh);
@@ -1921,7 +2003,38 @@ button.pg__sense-q:hover {
 }
 
 /*
- * Marking and reading, on one hem once the sheet is a column wide.
+ * ── The four lists, side by side ────────────────────────────────────────────
+ *
+ * The Life Map stacks People · Places · Domains · Matters down a full-width
+ * page. The sheet is now that same width, so two-up is a wide line rather
+ * than two fragments — more pills per row, less height, and the vocabulary
+ * can be taken in without scrolling. Same names, same order, same glyphs;
+ * only the shelf changes.
+ *
+ * 32rem rather than 19: at the old number a full-width sheet snapped to
+ * four skinny columns, which is the Life Map's shape and the opposite of
+ * what "don't scroll" needs. Two fat columns wrap fewer times. A third
+ * arrives only on a truly wide window.
+ *
+ * `auto-fit` rather than a fixed two: a sheet squeezed by a narrow window
+ * drops to one column on its own.
+ */
+.pg-sheet__kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(32rem, 1fr));
+  gap: 1.15rem 1.9rem;
+  /* Each column starts at the top of its own cell rather than stretching to the
+     tallest — four lists of wildly different lengths is the normal case. */
+  align-items: start;
+}
+
+/*
+ * Marking and reading, on one hem.
+ *
+ * Two short groups stacked under four lists was the leftover scroll after
+ * the subjects themselves fit. Side by side they become a footer rather
+ * than two more chapters. `auto-fit` stacks them again when the sheet is
+ * a phone.
  */
 .pg-sheet__also {
   display: grid;
@@ -1936,6 +2049,34 @@ button.pg__sense-q:hover {
   margin-block-start: 0;
   padding-block-start: 0;
   border-block-start: none;
+}
+
+/*
+ * The list's own head, one step quieter than the group's.
+ *
+ * `h3` (subject / marking / reading) says what KIND OF DECISION this is; `h4`
+ * says which list. Making them the same weight would give the sheet two
+ * competing levels of structure and no hierarchy at all.
+ */
+.pg-sheet__kind h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+/* The Life Map's glyph at the sheet's scale. Grey on a heading, always: on a
+   chip its colour is the third channel saying "found", and a heading is not a
+   subject. */
+.pg-sheet__kglyph {
+  inline-size: 9px;
+  block-size: 9px;
+  flex: none;
 }
 
 /*
@@ -2104,6 +2245,90 @@ button.pg__sense-q:hover {
 
 .pg-pill--mine {
   border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/*
+ * ── AMBER MEANS DAYSPRING FOUND IT ──────────────────────────────────────────
+ *
+ * The same rule and the same tokens as `LifeMap.css`, so a subject the engine
+ * found reads identically on both surfaces — they are one vocabulary, and until
+ * this they looked like two. A wash on the pill and an underline under the word,
+ * which is the sign the editor already draws when it recognises something; the
+ * third channel, the kind glyph, sits on the list's head.
+ *
+ * NEVER A WAND, NEVER A SPARKLE. BRANDSCRIPT rules out saying *AI-powered* —
+ * "it frightens this audience" — and an extra mark would say it in pictures.
+ *
+ * Amber rather than the terracotta accent on purpose: amber is already the app's
+ * "this came from the journal" colour, and terracotta is interaction, which is
+ * what `[data-on]` below has to keep for itself.
+ */
+.pg-pill[data-found='true'] {
+  background: var(--dayspring-amber-bg-subtle);
+  border-color: var(--dayspring-amber-bg);
+}
+
+.pg-pill[data-found='true'] .pg-pill__hit em {
+  border-block-end: 1.5px solid var(--dayspring-amber);
+  padding-block-end: 0.5px;
+}
+
+/* Lit beats found. Once a subject is ON it is the accent's, like every other
+   pill in the sheet — otherwise the one thing you chose would be the one thing
+   still wearing the colour that means "we chose this for you". */
+.pg-pill[data-found='true'][data-on='true'] {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+.pg-pill[data-found='true'][data-on='true'] .pg-pill__hit em {
+  border-block-end-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/*
+ * ── The hem: the rule on the left, the door on the right ────────────────────
+ *
+ * THE FLOOR IS STATED, which is what makes it a floor rather than a ranking. It
+ * is set at the sheet's quietest weight because it is not a control — it is the
+ * sentence that lets the reader argue with the list's length, and the argument
+ * is typing.
+ */
+.pg-sheet__hem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  margin-block-start: 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+/*
+ * The door back to the Life Map.
+ *
+ * A sentence, not a pill. Every pill in this sheet changes what is on screen
+ * behind it; this one leaves for somewhere else, and giving it the same shape
+ * would be the sheet's one lie about itself.
+ */
+.pg-sheet__tend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.pg-sheet__tend:hover,
+.pg-sheet__tend:focus-visible {
+  color: var(--accent);
 }
 
 /* Touch has no hover, so the keep/drop slot has nowhere to come from. */
@@ -4121,6 +4346,33 @@ button.pg__sense-q:hover {
   }
 
   /*
+   * Bigger targets, and the scroller runs to the screen edges.
+   *
+   * The band's brush is hard on a phone — a hundred and eighty cells across
+   * three hundred and ninety pixels is about two pixels a month — so on touch
+   * these are not a convenience, they are how you get a bracket at all. Bleeding
+   * the row past the surface's padding lets the last chip sit at the edge rather
+   * than half-clipped, which is what tells a thumb there is more to swipe.
+   */
+  .pg-stretch__eras {
+    gap: 0.3rem;
+    /* `.pg__inner`'s own inline padding, cancelled and handed back — so the row
+       scrolls edge to edge while the first chip still lines up with everything
+       above it. Kept as the literal clamp rather than a variable: `.pg__inner`
+       states it that way, and one of the two moving without the other would put
+       the chips half a gutter out of true. */
+    margin-inline: calc(clamp(1rem, 3vw, 2rem) * -1);
+    padding-inline: clamp(1rem, 3vw, 2rem);
+    scroll-padding-inline: clamp(1rem, 3vw, 2rem);
+  }
+
+  .pg-stretch__era {
+    padding: 0.34rem 0.7rem;
+    font-size: 0.76rem;
+    border-color: var(--border-subtle);
+  }
+
+  /*
    * ── A row, for a thumb ────────────────────────────────────────────────────
    *
    * Beside a cursor a row is one line across: date, sentence, markings. On a
@@ -4468,6 +4720,39 @@ button.pg__sense-q:hover {
      line you can actually see. */
   .pg-sheet .pg-pill--noticed {
     border-color: color-mix(in srgb, var(--text-faint) 55%, transparent);
+  }
+
+  /*
+   * Amber, at arm's length.
+   *
+   * The desktop wash is 8% of a mid-brown on paper — correct on a screen you
+   * are eighteen inches from, and gone on a phone in daylight. Same rule as the
+   * pill borders above: the phone gets the fuller `--dayspring-amber-bg` and a
+   * border with real colour in it, so "Dayspring found this" survives the trip.
+   */
+  .pg-sheet .pg-pill[data-found='true'] {
+    background: var(--dayspring-amber-bg);
+    border-color: color-mix(in srgb, var(--dayspring-amber) 50%, transparent);
+  }
+
+  /*
+   * One column.
+   *
+   * `auto-fit` would already collapse at this width; pinning it says so, and it
+   * stops a 19rem minimum from producing a two-column grid on a wide phone in
+   * landscape, where the sheet is short and the lists need their height.
+   */
+  .pg-sheet__kinds {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* The hem's two halves stack rather than sit at opposite ends of a narrow
+     line, where the floor sentence wraps to two and the door hangs alone. */
+  .pg-sheet__hem {
+    justify-content: flex-start;
+    gap: 0.35rem 0.9rem;
+    font-size: 0.78rem;
   }
 
   .pg-sheet .pg-pill[data-on='true'] {

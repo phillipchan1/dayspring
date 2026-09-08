@@ -83,6 +83,27 @@ describe('hydrateReadAttachments', () => {
     expect(root.textContent).not.toContain('attachment:')
   })
 
+  it('puts the circumstance line on the first uncaptioned photo', async () => {
+    const root = mountedRoot(`<p><img src="attachment:${HASH}.jpg" alt=""></p>`)
+    hydrateReadAttachments(
+      root,
+      `![](attachment:${HASH}.jpg)`,
+      {
+        resolve: async () => ({
+          url: 'https://example.test/photo.jpg',
+          meta: { takenAt: '2026-01-14T13:14:00.000Z' },
+        }),
+      },
+      { verso: 'early morning · Denver · light snow, 28°' },
+    )
+
+    await vi.waitFor(() =>
+      expect(root.querySelector('.pg-read1__photo-meta')?.textContent).toBe(
+        'early morning · Denver · light snow, 28°',
+      ),
+    )
+  })
+
   it('recovers refs whose private scheme DOMPurify removed', async () => {
     const root = mountedRoot('<p><img alt="Morning light"></p>')
     hydrateReadAttachments(

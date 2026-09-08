@@ -1,3 +1,4 @@
+import { isCircumstances } from '../circumstances'
 import { findByName, type ImportArchive } from './archive'
 import type { ImportParseResult } from './types'
 import type { ImportedEntry } from '../entries'
@@ -12,6 +13,7 @@ interface BackupEntry {
   word_count: number
   source: string
   external_id: string | null
+  circumstances?: unknown
 }
 
 interface BackupManifest {
@@ -52,6 +54,7 @@ export async function parseDayspring(archive: ImportArchive): Promise<ImportPars
       tags: Array.isArray(e.tags) ? e.tags : [],
       word_count: typeof e.word_count === 'number' ? e.word_count : 0,
       external_id: e.id, // original UUID as dedup key — safe to reimport repeatedly
+      ...(isCircumstances(e.circumstances) ? { circumstances: e.circumstances } : {}),
     })
   }
 

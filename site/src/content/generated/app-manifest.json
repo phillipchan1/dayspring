@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.215",
+  "appVersion": "1.0.306",
   "channel": "stable",
   "categories": {
     "shortcuts": [
@@ -51,6 +51,31 @@
         ],
         "mac": "⌘I",
         "pc": "Ctrl + I"
+      },
+      {
+        "id": "shortcut.underline",
+        "group": "Writing",
+        "label": "Underline",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "U"
+        ],
+        "mac": "⌘U",
+        "pc": "Ctrl + U"
+      },
+      {
+        "id": "shortcut.highlight",
+        "group": "Writing",
+        "label": "Highlight",
+        "when": "with text selected in the editor",
+        "keys": [
+          "Mod",
+          "Shift",
+          "H"
+        ],
+        "mac": "⌘⇧H",
+        "pc": "Ctrl + Shift + H"
       },
       {
         "id": "shortcut.inline-code",
@@ -123,21 +148,9 @@
         "pc": "Esc"
       },
       {
-        "id": "shortcut.toggle-entries-panel",
+        "id": "shortcut.journal-your-own-side-by-side",
         "group": "Navigation",
-        "label": "Toggle entries panel",
-        "when": null,
-        "keys": [
-          "Mod",
-          "1"
-        ],
-        "mac": "⌘1",
-        "pc": "Ctrl + 1"
-      },
-      {
-        "id": "shortcut.ascent",
-        "group": "Navigation",
-        "label": "Ascent",
+        "label": "Journal — your own, side by side",
         "when": null,
         "keys": [
           "Mod",
@@ -147,9 +160,9 @@
         "pc": "Ctrl + 2"
       },
       {
-        "id": "shortcut.lamp",
+        "id": "shortcut.ascent",
         "group": "Navigation",
-        "label": "Lamp",
+        "label": "Ascent",
         "when": null,
         "keys": [
           "Mod",
@@ -159,9 +172,9 @@
         "pc": "Ctrl + 3"
       },
       {
-        "id": "shortcut.altar",
+        "id": "shortcut.lamp",
         "group": "Navigation",
-        "label": "Altar",
+        "label": "Lamp",
         "when": null,
         "keys": [
           "Mod",
@@ -169,6 +182,18 @@
         ],
         "mac": "⌘4",
         "pc": "Ctrl + 4"
+      },
+      {
+        "id": "shortcut.altar",
+        "group": "Navigation",
+        "label": "Altar",
+        "when": null,
+        "keys": [
+          "Mod",
+          "5"
+        ],
+        "mac": "⌘5",
+        "pc": "Ctrl + 5"
       },
       {
         "id": "shortcut.settings",
@@ -206,22 +231,24 @@
         "pc": "["
       },
       {
-        "id": "shortcut.browse-entries",
+        "id": "shortcut.move-between-pages",
         "group": "Navigation",
-        "label": "Browse entries",
-        "when": "while focus is in the entry list",
+        "label": "Move between pages",
+        "when": "on the Pages wall",
         "keys": [
           "↑",
-          "↓"
+          "↓",
+          "←",
+          "→"
         ],
-        "mac": "↑↓",
-        "pc": "↑ + ↓"
+        "mac": "↑↓←→",
+        "pc": "↑ + ↓ + ← + →"
       },
       {
         "id": "shortcut.extend-selection",
         "group": "Navigation",
         "label": "Extend selection",
-        "when": "while focus is in the entry list",
+        "when": "on the Pages wall",
         "keys": [
           "Shift",
           "↑",
@@ -231,26 +258,38 @@
         "pc": "Shift + ↑ + ↓"
       },
       {
-        "id": "shortcut.edit-selected-entry",
+        "id": "shortcut.select-every-page",
         "group": "Navigation",
-        "label": "Edit selected entry",
-        "when": "while focus is in the entry list",
+        "label": "Select every page",
+        "when": "on the Pages wall",
         "keys": [
-          "Tab"
+          "Mod",
+          "A"
         ],
-        "mac": "Tab",
-        "pc": "Tab"
+        "mac": "⌘A",
+        "pc": "Ctrl + A"
       },
       {
-        "id": "shortcut.edit-selected-entry",
+        "id": "shortcut.read-the-page",
         "group": "Navigation",
-        "label": "Edit selected entry",
-        "when": "while focus is in the entry list",
+        "label": "Read the page",
+        "when": "on the Pages wall",
         "keys": [
           "Enter"
         ],
         "mac": "⏎",
         "pc": "Enter"
+      },
+      {
+        "id": "shortcut.clear-the-selection",
+        "group": "Navigation",
+        "label": "Clear the selection",
+        "when": "on the Pages wall",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
       },
       {
         "id": "shortcut.show-this-shortcut-guide",
@@ -314,6 +353,46 @@
         ]
       },
       {
+        "id": "slash.desire",
+        "label": "Desire",
+        "hint": "Something you want",
+        "badge": "◠",
+        "column": "capture",
+        "keywords": [
+          "desire",
+          "want",
+          "longing",
+          "hope",
+          "wish"
+        ]
+      },
+      {
+        "id": "slash.learned",
+        "label": "Learned",
+        "hint": "Something you would tell yourself again",
+        "badge": "⊥",
+        "column": "capture",
+        "keywords": [
+          "learned",
+          "learn",
+          "lesson",
+          "again"
+        ]
+      },
+      {
+        "id": "slash.story",
+        "label": "Story",
+        "hint": "A thing that happened, worth keeping",
+        "badge": "{",
+        "column": "capture",
+        "keywords": [
+          "story",
+          "happened",
+          "moment",
+          "event"
+        ]
+      },
+      {
         "id": "slash.ritual",
         "label": "Ritual",
         "hint": "Practices for the inner life",
@@ -337,6 +416,19 @@
           "photo",
           "picture",
           "img"
+        ]
+      },
+      {
+        "id": "slash.emoji",
+        "label": "Emoji",
+        "hint": "Search and insert an emoji",
+        "badge": "🙂",
+        "column": "capture",
+        "keywords": [
+          "emoji",
+          "emote",
+          "smiley",
+          "icon"
         ]
       },
       {
@@ -400,6 +492,17 @@
         ]
       },
       {
+        "id": "slash.underline",
+        "label": "Underline",
+        "hint": "A quiet line beneath",
+        "badge": "U",
+        "column": "format",
+        "keywords": [
+          "underline",
+          "under"
+        ]
+      },
+      {
         "id": "slash.strike",
         "label": "Strikethrough",
         "hint": "Crossed-out text",
@@ -409,6 +512,18 @@
           "strike",
           "strikethrough",
           "cross"
+        ]
+      },
+      {
+        "id": "slash.highlight",
+        "label": "Highlight",
+        "hint": "Wash a phrase in colour",
+        "badge": "▮",
+        "column": "format",
+        "keywords": [
+          "highlight",
+          "marker",
+          "hl"
         ]
       },
       {
@@ -476,7 +591,7 @@
       {
         "id": "slash.divider",
         "label": "Divider",
-        "hint": "Horizontal rule",
+        "hint": "A break across the page",
         "badge": "—",
         "column": "format",
         "keywords": [
@@ -543,10 +658,34 @@
         "type": "string"
       },
       {
+        "id": "setting.voice",
+        "key": "voice",
+        "default": "dawn",
+        "type": "string"
+      },
+      {
+        "id": "setting.editor-font-auto",
+        "key": "editorFontAuto",
+        "default": true,
+        "type": "boolean"
+      },
+      {
         "id": "setting.entries-group-by",
         "key": "entriesGroupBy",
         "default": "flat",
         "type": "string"
+      },
+      {
+        "id": "setting.show-entry-preview",
+        "key": "showEntryPreview",
+        "default": false,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.pages-zoom",
+        "key": "pagesZoom",
+        "default": 0.6,
+        "type": "number"
       },
       {
         "id": "setting.rail-labels",
@@ -561,20 +700,32 @@
         "type": "boolean"
       },
       {
+        "id": "setting.show-markdown-syntax",
+        "key": "showMarkdownSyntax",
+        "default": false,
+        "type": "boolean"
+      },
+      {
         "id": "setting.dev-mode",
         "key": "devMode",
         "default": false,
         "type": "boolean"
       },
       {
-        "id": "setting.show-entry-preview",
-        "key": "showEntryPreview",
+        "id": "setting.skip-ritual-preview",
+        "key": "skipRitualPreview",
         "default": false,
         "type": "boolean"
       },
       {
-        "id": "setting.skip-ritual-preview",
-        "key": "skipRitualPreview",
+        "id": "setting.reader-leaves",
+        "key": "readerLeaves",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.noticing",
+        "key": "noticing",
         "default": false,
         "type": "boolean"
       },
@@ -641,6 +792,82 @@
         "family": "dark",
         "blurb": "True black, for OLED.",
         "isDefault": false
+      },
+      {
+        "id": "theme.vigil",
+        "label": "Vigil",
+        "family": "dark",
+        "blurb": "Dimmed all the way down, for dark rooms.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.quire",
+        "label": "Quire",
+        "family": "light",
+        "blurb": "Paper for a plain hand.",
+        "isDefault": false
+      },
+      {
+        "id": "theme.grove",
+        "label": "Grove",
+        "family": "dark",
+        "blurb": "Pine after dark.",
+        "isDefault": false
+      }
+    ],
+    "voices": [
+      {
+        "id": "voice.dawn",
+        "label": "Dawn",
+        "blurb": "Sunrise on paper. The one that welcomes.",
+        "light": "dawn",
+        "dark": "ink",
+        "face": "serif",
+        "isDefault": true
+      },
+      {
+        "id": "voice.vellum",
+        "label": "Vellum",
+        "blurb": "Aged paper, ink that bites. The manuscript.",
+        "light": "vellum",
+        "dark": "ember",
+        "face": "serif",
+        "isDefault": false
+      },
+      {
+        "id": "voice.cloister",
+        "label": "Cloister",
+        "blurb": "Cool stone, north light. The institution.",
+        "light": "cloister",
+        "dark": "compline",
+        "face": "serif",
+        "isDefault": false
+      },
+      {
+        "id": "voice.sabbath",
+        "label": "Sabbath",
+        "blurb": "Sage and pine. The quiet one.",
+        "light": "sabbath",
+        "dark": "grove",
+        "face": "serif",
+        "isDefault": false
+      },
+      {
+        "id": "voice.plainsong",
+        "label": "Plainsong",
+        "blurb": "One line, unadorned. The plaintext voice.",
+        "light": "quire",
+        "dark": "nocturne",
+        "face": "mono",
+        "isDefault": false
+      },
+      {
+        "id": "voice.vigil",
+        "label": "Vigil",
+        "blurb": "Dimmed all the way down, for dark rooms.",
+        "dark": "vigil",
+        "face": "readable",
+        "isDefault": false
       }
     ],
     "fonts": [
@@ -675,7 +902,38 @@
         "isDefault": false
       }
     ],
-    "highlightColors": [],
+    "highlightColors": [
+      {
+        "id": "highlight.amber",
+        "key": "amber",
+        "label": "Amber",
+        "markdown": "==text=="
+      },
+      {
+        "id": "highlight.rose",
+        "key": "rose",
+        "label": "Rose",
+        "markdown": "=={rose}text=="
+      },
+      {
+        "id": "highlight.sage",
+        "key": "sage",
+        "label": "Sage",
+        "markdown": "=={sage}text=="
+      },
+      {
+        "id": "highlight.sky",
+        "key": "sky",
+        "label": "Sky",
+        "markdown": "=={sky}text=="
+      },
+      {
+        "id": "highlight.lilac",
+        "key": "lilac",
+        "label": "Lilac",
+        "markdown": "=={lilac}text=="
+      }
+    ],
     "practices": [
       {
         "id": "practice.the-daily-examen",
@@ -836,6 +1094,42 @@
           "Desolation",
           "Hold"
         ]
+      },
+      {
+        "id": "practice.then-vs-now",
+        "name": "Then vs. Now",
+        "function": "examine",
+        "rhythm": [
+          "anytime"
+        ],
+        "origin": "Adapted from narrative-therapy practice, contemporary",
+        "tradition": "Secular",
+        "intention": "A direct comparison of who you were to who you are — not vague sentiment, but concrete evidence that something has actually changed.",
+        "quote": "What do I believe now that I didn’t a year ago? What’s the proof?",
+        "steps": [
+          "Then",
+          "Now",
+          "Evidence",
+          "Presence"
+        ]
+      },
+      {
+        "id": "practice.threshold",
+        "name": "Threshold",
+        "function": "examine",
+        "rhythm": [
+          "anytime"
+        ],
+        "origin": "Adapted from rite-of-passage practice, contemporary",
+        "tradition": "Secular",
+        "intention": "For a transition you’re in the middle of — a job, a move, a relationship, a season ending. Growth at a threshold often stays invisible until you name it.",
+        "quote": "What am I leaving? What am I carrying forward? What am I letting go of?",
+        "steps": [
+          "Leaving",
+          "Carrying",
+          "Letting go",
+          "Presence"
+        ]
       }
     ],
     "importers": [
@@ -988,6 +1282,10 @@
         "label": "Rituals and practices"
       },
       {
+        "id": "capability.marking",
+        "label": "Marking a passage"
+      },
+      {
         "id": "capability.backup",
         "label": "Download a backup"
       },
@@ -1002,6 +1300,10 @@
       {
         "id": "capability.billing",
         "label": "Subscription and billing"
+      },
+      {
+        "id": "capability.account-deletion",
+        "label": "Deleting your account"
       },
       {
         "id": "capability.apple-iap",
@@ -1032,12 +1334,17 @@
         "id": "capability.page-scan",
         "label": "Handwriting page scan",
         "touchOnly": true
+      },
+      {
+        "id": "capability.pages-wall",
+        "label": "The Journal wall"
       }
     ]
   },
   "values": {
     "billing.trial-days": 14,
     "billing.extension-days": 7,
+    "billing.grace-days": 3,
     "billing.web.monthly": "$7",
     "billing.web.annual": "$64",
     "billing.apple.monthly-product": "dayspring_monthly",
@@ -1045,11 +1352,13 @@
     "limits.image-max-mb": 20,
     "limits.scan-max-pages": 8,
     "editor.font-size-default": 24,
-    "editor.font-size-min": 18,
+    "editor.font-size-min": 14,
     "editor.font-size-max": 36,
-    "counts.practices": 9,
-    "counts.themes": 8,
-    "counts.slash-commands": 17,
+    "counts.practices": 11,
+    "counts.themes": 11,
+    "counts.voices": 6,
+    "counts.slash-commands": 23,
+    "counts.highlight-colors": 5,
     "counts.importers": 3
   }
 }

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Entry } from '@/lib/types'
 import { bandFor, cellLabel, spanFrom, spanText, type Span } from './band'
+import { eraLabel, erasFrom } from './eras'
 
 /**
  * THE STRETCH — the archive's own months, and a way to bracket them.
@@ -65,6 +66,19 @@ export function Stretch({
   caption: string
 }) {
   const band = useMemo(() => bandFor('all', 'your pages', entries, months), [entries, months])
+
+  /*
+   * The periods worth one press — `bursts` from `readings.ts`, projected onto
+   * this band's months. See `eras.ts` for why it borrows that rule rather than
+   * inventing a silence of its own.
+   *
+   * WHY THIS EXISTS: dragging a hundred and eighty cells to land on "that
+   * winter" is a fine gesture once you know it is there, and an invisible one
+   * until then — and on a phone the band is about two pixels a month, so the
+   * drag is not really available at all. These are the same brackets a drag
+   * makes, at the places the writing itself already breaks.
+   */
+  const eras = useMemo(() => erasFrom(entries, months), [entries, months])
   /*
    * The anchor a drag started on, in a ref rather than state.
    *
@@ -140,6 +154,48 @@ export function Stretch({
           />
         ))}
       </ol>
+
+      {/*
+        THE APP PROPOSES; THE WRITER NAMES.
+
+        Progoff's Stepping Stones by way of DIRECTOR_MOVES move 2, and the rule
+        travels with it: `bursts` produces the candidate set, the writer names
+        them. So a chip carries two dates and a count — facts about the archive —
+        and never a word about what the period WAS. "Your hardest season" is a
+        machine narrating somebody's life back at them from a page count, which
+        is a verdict wearing a label (Principle 1).
+
+        The rule that produced them is stated, the same as the subject floor, and
+        it is overruled the same way: by dragging the band yourself.
+      */}
+      {eras.length > 0 ? (
+        <ol
+          className="pg-stretch__eras"
+          aria-label="Periods, split where you stopped writing for a while"
+        >
+          {eras.map((era) => {
+            const next = spanFrom(era.from, era.to, months.length)
+            const on =
+              next !== null && span !== null && span.from === next.from && span.to === next.to
+            const label = eraLabel(era, months)
+            return (
+              <li key={`${era.from}-${era.to}`}>
+                <button
+                  type="button"
+                  className="pg-stretch__era"
+                  data-on={on ? 'true' : undefined}
+                  aria-pressed={on}
+                  title={`${spanText({ from: era.from, to: era.to }, months)} — ${era.pages.toLocaleString()} ${era.pages === 1 ? 'page' : 'pages'}`}
+                  onClick={() => onSpan(on ? null : next)}
+                >
+                  {label}
+                  <i>{era.pages.toLocaleString()}</i>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      ) : null}
 
       <p className="pg-stretch__ends">
         <span className="pg-stretch__year">{months[0] ? months[0].year : ''}</span>

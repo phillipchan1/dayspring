@@ -300,6 +300,15 @@ async function fetchAll<T>(
   for (let from = 0; ; from += pageSize) {
     let q = sb.from(table).select(select).eq('owner', owner).range(from, from + pageSize - 1)
     if (refine) q = refine(q)
+  //
+  // `.order('id')` is appended LAST, as a tiebreaker, and it is not redundant
+  // with whatever `refine` ordered by. These callers order by `created_at`, and
+  // 61% of this archive's entries share a `created_at` with another (the import
+  // stamped them all to noon; the largest tie group is 11). A page boundary
+  // landing inside a tie group serves some rows twice and never serves others —
+  // which, for the harvest and the concordance scan, means an entry silently
+  // never gets read at all.
+    q = q.order('id', { ascending: true })
     const { data, error } = await q
     if (error) throw error
     const rows = (data ?? []) as T[]

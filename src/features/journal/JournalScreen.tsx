@@ -49,6 +49,7 @@ import { InlineDeclaredPopover } from '@/features/capture/InlineDeclaredPopover'
 import { createSpiritualItem } from '@/lib/spiritual'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
+import { LifeMapView } from '@/features/lifemap/LifeMapView'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { PagesView } from '@/features/pages/PagesView'
 import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
@@ -152,10 +153,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const altarActive = state.surface === 'altar'
   const scriptureActive = state.surface === 'scripture'
   const pagesActive = state.surface === 'pages'
+  const lifeMapActive = state.surface === 'lifemap'
   // Altar is unfinished — hidden behind the `altar` flag (per-profile or
   // VITE_FF_ALTAR). When off, the rail/mobile buttons and ⌘4 are suppressed and
   // any stray navigation to the surface is redirected back to the journal.
   const altarEnabled = resolveFlag(featureFlags, 'altar')
+  const concordanceEnabled = resolveFlag(featureFlags, 'concordance')
   // Pages carries no flag of its own: the alpha channel is the gate. See D-017.
   /**
    * A Return surface owns the canvas AND replaces the journal's chrome.
@@ -165,7 +168,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * the same archive, and the control that switches between them lives in the
    * panel, so the panel has to survive the switch.
    */
-  const canvasAlternateActive = reflectionsActive || altarActive || scriptureActive
+  const canvasAlternateActive =
+    reflectionsActive || altarActive || scriptureActive || lifeMapActive
   // Marks are drawn by the editor and filtered on by the wall, so they load
   // always — and cheaply: this reads a small store, never the corpus.
   const marks = useMarks()
@@ -1316,6 +1320,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     back()
   }
 
+  async function toggleLifeMap() {
+    if (lifeMapActive) back()
+    else await leaveForSurface({ surface: 'lifemap' })
+  }
+
   async function toggleAltar() {
     if (!altarEnabled) return
     if (state.entryReturn?.surface === 'altar') {
@@ -1936,7 +1945,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     </div>
   )
 
-  const mainSlot = scriptureActive ? (
+  const mainSlot = lifeMapActive ? (
+    <LifeMapView
+      onOpenSubject={(key) =>
+        void leaveForSurface({ surface: 'pages', pagesSubject: key, pagesSpreadId: null })
+      }
+    />
+  ) : scriptureActive ? (
     <ScriptureView onOpenEntry={handleOpenReflectionEntry} />
   ) : altarActive && altarEnabled ? (
     <AltarView onOpenEntry={handleOpenReflectionEntry} />
@@ -1972,6 +1987,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       onOpenEntry={handleOpenReflectionEntry}
       onEntryMenuAction={handleEntryMenuAction}
       onDeleteEntries={handleDeleteEntries}
+      // The other end of the Life Map's own door. `toggleLifeMap` rather than a
+      // fresh `leaveForSurface`, so pressing it lands exactly where the rail
+      // and ⌘-nav land — one way in, one behaviour.
+      onTendSubjects={() => void toggleLifeMap()}
       settings={settings}
       updateSettings={updateSettings}
     />
@@ -1996,7 +2015,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onLookBack: toggleLookBack,
     onScripture: toggleScripture,
     onAltar: toggleAltar,
+    onLifeMap: toggleLifeMap,
     altarEnabled,
+    concordanceEnabled,
     onOpenSettings: () => openSettings(),
     onSync: () => {
       // An explicit tap also un-retires anything the flush gave up on — whatever
@@ -2022,6 +2043,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     mainSlot,
     reflectionsActive,
     altarActive,
+    lifeMapActive,
     scriptureActive,
     pagesActive,
     onFindOrAsk: () => openFindOrAsk(''),

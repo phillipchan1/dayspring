@@ -1,5 +1,9 @@
 // Domain types mirroring the Supabase schema.
 
+import type { EntryCircumstances } from './circumstances'
+
+export type { EntryCircumstances, CircumstanceSource, CircumstanceLocation, CircumstanceWeather, WeatherCondition } from './circumstances'
+
 export type EntrySource = 'native' | 'day_one' | 'diarly' | 'other'
 
 export interface Entry {
@@ -19,6 +23,11 @@ export interface Entry {
   word_count: number
   source: EntrySource
   external_id: string | null
+  /**
+   * Circumstances of writing — timezone, place, weather. Empty `{}` on older
+   * rows that predate the column. Never shown in the editor.
+   */
+  circumstances?: EntryCircumstances
   /**
    * Local-only (never sent, never returned): when THIS device last edited the
    * row, epoch ms. Orders local edits against each other — which `updated_at`
@@ -47,6 +56,7 @@ export interface NewEntry {
   body_markdown: string
   title?: string | null
   tags?: string[]
+  circumstances?: EntryCircumstances
 }
 
 // ── Spiritual items ────────────────────────────────────────────────────────

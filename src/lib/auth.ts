@@ -59,12 +59,20 @@ export async function completeOAuthCallback(callbackUrl: string): Promise<void> 
  * Native iOS: same PKCE flow, but ASWebAuthenticationSession presents the
  * provider login in an in-app sheet (App Store Guideline 4). The bridge page
  * still forwards to dayspring://, which the session intercepts and returns here.
+ *
+ * Desktop returns `'waiting-for-browser'` after the system browser opens —
+ * sign-in finishes later via the deep link. The sign-in screen uses that to
+ * offer Open again / Cancel if the window is closed.
  */
-async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult>): Promise<void> {
+export type OAuthHandoff = 'completed' | 'waiting-for-browser'
+
+async function runOAuth(
+  start: (options: OAuthOptions) => Promise<OAuthUrlResult>,
+): Promise<OAuthHandoff> {
   if (!isTauri()) {
     const { error } = await start({ redirectTo: authRedirectUrl() })
     if (error) throw error
-    return
+    return 'completed'
   }
 
   const { data, error } = await start({
@@ -80,26 +88,42 @@ async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult
   beginExternalTrip()
 
   if (isIOSTauri()) {
-    const callbackUrl = await invoke<string>('start_oauth_session', { authUrl: data.url })
-    await completeOAuthCallback(callbackUrl)
-    return
+    try {
+      const callbackUrl = await invoke<string>('start_oauth_session', { authUrl: data.url })
+      await completeOAuthCallback(callbackUrl)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(msg || 'Could not open in-app sign-in')
+    }
+    return 'completed'
   }
 
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(data.url)
+  return 'waiting-for-browser'
 }
 
-async function signInWithProvider(provider: OAuthProvider): Promise<void> {
+async function signInWithProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
+  // Dev-only `?__preview=signin`: show the busy state without a live Supabase.
+  // `import.meta.env.DEV` is statically false in production; Vite drops this.
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 1600))
+    throw new Error('Preview: the in-app OAuth sheet would open here')
+  }
   const sb = requireSupabase()
   return runOAuth((options) => sb.auth.signInWithOAuth({ provider, options }))
 }
 
-export async function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(): Promise<OAuthHandoff> {
   return signInWithProvider('google')
 }
 
 /** Sign in with Apple — required on iOS when Google is also offered (App Store 4.8). */
-export async function signInWithApple(): Promise<void> {
+export async function signInWithApple(): Promise<OAuthHandoff> {
   return signInWithProvider('apple')
 }
 
@@ -109,9 +133,17 @@ export async function signInWithApple(): Promise<void> {
  * demo credentials are supplied in App Store Connect.
  */
 export async function signInWithEmail(email: string, password: string): Promise<void> {
-  const sb = requireSupabase()
   const trimmed = email.trim()
   if (!trimmed || !password) throw new Error('Enter your email and password')
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 1200))
+    throw new Error('Preview: email sign-in would complete here')
+  }
+  const sb = requireSupabase()
   const { error } = await sb.auth.signInWithPassword({ email: trimmed, password })
   if (error) throw error
 }
@@ -133,7 +165,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
  * Authentication → Sign In / Up → Allow manual linking). Without it Supabase
  * rejects the call, which surfaces as an error on the button.
  */
-export async function linkProvider(provider: OAuthProvider): Promise<void> {
+export async function linkProvider(provider: OAuthProvider): Promise<OAuthHandoff> {
   const sb = requireSupabase()
   return runOAuth((options) => sb.auth.linkIdentity({ provider, options }))
 }

@@ -8,7 +8,7 @@ import type { Entry } from '../types'
 const EXPORT_PAGE = 1000
 
 const ENTRY_COLUMNS =
-  'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id'
+  'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances'
 
 /**
  * Fetch all entries and package them into a downloadable zip.

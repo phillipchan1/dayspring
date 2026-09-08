@@ -23,6 +23,7 @@ import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
 import { FirstLight } from './features/firstlight/FirstLight'
 import { AppLockGate } from './features/applock/AppLockGate'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
+import { shouldHoldForProfile } from './lib/subscription'
 import { ensureProfile } from './lib/onboarding'
 import { fenceCacheToOwner } from './lib/localData'
 import { registerEntryDerive } from './lib/entryDerive'
@@ -112,13 +113,14 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   const { subscription, entitled, featureFlags, loading, unreachable, refetch } = useSubscription()
 
   // Initialize the account once on entry. initReady only gates on the privacy
-  // fence (fast for a returning user — no network) so the app can paint from
-  // useSubscription's cached value immediately. ensureProfile — which grants
-  // the 14-day reverse trial for a brand-new user and is otherwise an
-  // idempotent no-op — runs in the background and reconciles via refetch();
-  // a brand-new user still has no cached subscription, so useSubscription
-  // stays in `loading` (and this screen stays up) until that reconcile lands.
+  // fence (fast for a returning user — no network) so a cached entitlement can
+  // paint the journal immediately. ensureProfile — which grants the 14-day
+  // reverse trial for a brand-new user and is otherwise an idempotent no-op —
+  // plus a refetch must finish before we show paywall/locked/onboarding.
+  // The first profile select can return an empty row; treating that as "no
+  // plan" flashed the subscribe screen at paying users on login.
   const [initReady, setInitReady] = useState(false)
+  const [profileReady, setProfileReady] = useState(false)
   useEffect(() => {
     let alive = true
     // Before anything can flush: `derive` ops drain as no-ops without this.
@@ -136,7 +138,9 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
         try {
           await ensureProfile()
         } catch { /* offline / not-yet-migrated — fall through to refetch */ }
-        if (alive) void refetch()
+        if (!alive) return
+        await refetch()
+        if (alive) setProfileReady(true)
       })()
 
       // Catch-up backfill for accounts with history but no processing yet.
@@ -199,7 +203,7 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
     setCheckoutState('idle')
   }
 
-  if (loading || !initReady) {
+  if (loading || !initReady || shouldHoldForProfile(entitled, profileReady)) {
     return <div className="app-shell"><SurfaceLoader /></div>
   }
 

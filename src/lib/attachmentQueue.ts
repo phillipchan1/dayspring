@@ -25,6 +25,7 @@ import type { AttachmentPhotoMeta } from './attachmentCaption'
 import * as cache from './db'
 import { rewriteEntryBodies } from './repo'
 import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
+import { readPhotoExif } from './exif'
 
 export interface UploadedRef {
   hash: string
@@ -100,12 +101,19 @@ export async function uploadOrQueue(
 ): Promise<UploadedRef | null> {
   const sb = supabase
   if (!sb) throw new Error('Supabase is not configured')
+  const exif = await readPhotoExif(file)
+  const metaWithExif: AttachmentPhotoMeta | undefined = (() => {
+    const takenAt = exif.takenAt ?? meta?.takenAt
+    if (!takenAt && !meta) return meta
+    return { ...meta, ...(takenAt ? { takenAt } : {}) }
+  })()
+  if (exif.gps) void seedExifIntoPendingEntry(pendingId, exif.gps, exif.takenAt)
   try {
-    const { hash, ext: uploadedExt } = await uploadImageAttachment(sb, file, meta)
+    const { hash, ext: uploadedExt } = await uploadImageAttachment(sb, file, metaWithExif)
     return { hash, ext: uploadedExt }
   } catch (e) {
     if (classifySyncError(e) === 'permanent') throw e
-    await queueUpload(pendingId, ownerId, file, ext, alt, meta)
+    await queueUpload(pendingId, ownerId, file, ext, alt, metaWithExif)
     return null
   }
 }
@@ -114,6 +122,24 @@ export async function uploadOrQueue(
  * Retry every queued photo. Called after each outbox flush, so it rides the same
  * triggers as everything else: reconnect, refocus, the heartbeat, app launch.
  */
+async function seedExifIntoPendingEntry(
+  pendingId: string,
+  gps: { lat: number; lon: number },
+  takenAt?: string,
+): Promise<void> {
+  // The pending ref is in the editor first; autosave writes the cache a beat later.
+  for (let i = 0; i < 8; i++) {
+    const entries = await cache.cacheGetAll()
+    const hit = entries.find((e) => bodyHasPending(e.body_markdown, pendingId))
+    if (hit) {
+      const { seedCircumstancesFromExif } = await import('./circumstancesSnap')
+      await seedCircumstancesFromExif(hit.id, gps, takenAt)
+      return
+    }
+    await new Promise((r) => setTimeout(r, 400))
+  }
+}
+
 export async function drainPendingUploads(): Promise<void> {
   const sb = supabase
   if (!sb || !navigator.onLine) return

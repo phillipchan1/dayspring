@@ -338,8 +338,13 @@ fn run_on_main(f: impl FnOnce() + Send + 'static) {
   }
 }
 
+/// The window OAuth and share sheets must present from.
+///
+/// iPad (and iOS 13+ scenes) often has a nil `keyWindow`. `windows.first` can
+/// be a keyboard window. Prefer the WKWebView's own window, then a foreground
+/// `UIWindowScene`'s key window.
 #[cfg(target_os = "ios")]
-fn key_window() -> *mut objc2::runtime::AnyObject {
+pub(crate) fn key_window() -> *mut objc2::runtime::AnyObject {
   use objc2::msg_send;
   use objc2::runtime::{AnyClass, AnyObject};
 
@@ -358,7 +363,82 @@ fn key_window() -> *mut objc2::runtime::AnyObject {
     if app.is_null() {
       return std::ptr::null_mut();
     }
-    msg_send![app, keyWindow]
+    let from_scene = scene_key_window(app);
+    if !from_scene.is_null() {
+      return from_scene;
+    }
+    let key: *mut AnyObject = msg_send![app, keyWindow];
+    if !key.is_null() {
+      return key;
+    }
+    let windows: *mut AnyObject = msg_send![app, windows];
+    if windows.is_null() {
+      return std::ptr::null_mut();
+    }
+    let count: usize = msg_send![windows, count];
+    if count == 0 {
+      return std::ptr::null_mut();
+    }
+    msg_send![windows, objectAtIndex: 0usize]
+  }
+}
+
+/// Walk `connectedScenes` for a `UIWindowScene` window. Sending `-windows` to
+/// any other scene class is undefined, so the class is checked first.
+#[cfg(target_os = "ios")]
+fn scene_key_window(app: *mut objc2::runtime::AnyObject) -> *mut objc2::runtime::AnyObject {
+  use objc2::msg_send;
+  use objc2::runtime::{AnyClass, AnyObject};
+
+  let Some(scene_cls) = AnyClass::get(c"UIWindowScene") else {
+    return std::ptr::null_mut();
+  };
+  unsafe {
+    let scenes: *mut AnyObject = msg_send![app, connectedScenes];
+    if scenes.is_null() {
+      return std::ptr::null_mut();
+    }
+    let all: *mut AnyObject = msg_send![scenes, allObjects];
+    if all.is_null() {
+      return std::ptr::null_mut();
+    }
+    let count: usize = msg_send![all, count];
+    let mut fallback: *mut AnyObject = std::ptr::null_mut();
+    for i in 0..count {
+      let scene: *mut AnyObject = msg_send![all, objectAtIndex: i];
+      if scene.is_null() {
+        continue;
+      }
+      let is_window_scene: bool = msg_send![scene, isKindOfClass: scene_cls];
+      if !is_window_scene {
+        continue;
+      }
+      // UISceneActivationState: 0 unattached, 1 foregroundActive,
+      // 2 foregroundInactive, 3 background.
+      let state: i64 = msg_send![scene, activationState];
+      let windows: *mut AnyObject = msg_send![scene, windows];
+      if windows.is_null() {
+        continue;
+      }
+      let wcount: usize = msg_send![windows, count];
+      for j in 0..wcount {
+        let window: *mut AnyObject = msg_send![windows, objectAtIndex: j];
+        if window.is_null() {
+          continue;
+        }
+        let is_key: bool = msg_send![window, isKeyWindow];
+        if is_key && state == 1 {
+          return window;
+        }
+        if is_key && fallback.is_null() {
+          fallback = window;
+        }
+        if fallback.is_null() {
+          fallback = window;
+        }
+      }
+    }
+    fallback
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.296",
+  "appVersion": "1.0.320",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -32,7 +32,7 @@
         "id": "shortcut.bold",
         "group": "Writing",
         "label": "Bold",
-        "when": "with text selected in the editor",
+        "when": "in the editor",
         "keys": [
           "Mod",
           "B"
@@ -44,7 +44,7 @@
         "id": "shortcut.italic",
         "group": "Writing",
         "label": "Italic",
-        "when": "with text selected in the editor",
+        "when": "in the editor",
         "keys": [
           "Mod",
           "I"
@@ -56,7 +56,7 @@
         "id": "shortcut.underline",
         "group": "Writing",
         "label": "Underline",
-        "when": "with text selected in the editor",
+        "when": "in the editor",
         "keys": [
           "Mod",
           "U"
@@ -68,7 +68,7 @@
         "id": "shortcut.highlight",
         "group": "Writing",
         "label": "Highlight",
-        "when": "with text selected in the editor",
+        "when": "in the editor",
         "keys": [
           "Mod",
           "Shift",
@@ -81,13 +81,26 @@
         "id": "shortcut.inline-code",
         "group": "Writing",
         "label": "Inline code",
-        "when": "with text selected in the editor",
+        "when": "in the editor",
         "keys": [
           "Mod",
           "E"
         ],
         "mac": "⌘E",
         "pc": "Ctrl + E"
+      },
+      {
+        "id": "shortcut.show-formatting",
+        "group": "Writing",
+        "label": "Show formatting",
+        "when": "in the editor",
+        "keys": [
+          "Mod",
+          "Shift",
+          "F"
+        ],
+        "mac": "⌘⇧F",
+        "pc": "Ctrl + Shift + F"
       },
       {
         "id": "shortcut.link",

@@ -8,7 +8,7 @@ for (const line of (() => { try { return readFileSync('.env', 'utf8').split('\n'
 }
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
 const sb = supabaseAdmin()
-const E = 'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id'
+const E = 'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances'
 const I = 'id, owner, entry_id, type, content, metadata, created_at, resolved_at, thread_id'
 const T = 'id, owner, title, carries, planted_at, last_touch_at, seed_item_id, created_at'
 {

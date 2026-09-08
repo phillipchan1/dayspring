@@ -41,9 +41,10 @@ function formatBreadcrumb(iso: string): string {
 export function DesktopJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
-    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onLifeMap, onOpenSettings, onSync,
     settings, updateSettings, focus, onPages, mainSlot,
-    reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
+    reflectionsActive, altarActive, scriptureActive, pagesActive, lifeMapActive, bulkActive, bulkCount, rangeSelectActive,
+    userEmail, concordanceEnabled,
     entryReturn, onReturnFromEntry,
     onCommand,
   } = props
@@ -60,7 +61,8 @@ export function DesktopJournal(props: JournalViewProps) {
           : ''
   // A surface owns the canvas, so the journal's own chrome steps aside. Pages
   // is one of them now rather than a mode of a panel beside the canvas.
-  const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
+  const canvasTaken =
+    reflectionsActive || altarActive || scriptureActive || pagesActive || lifeMapActive
   const journalChrome = !canvasTaken
   // Nothing written yet — either a brand-new entry, or one that's been emptied.
   const blankPage = !bulkActive && !rangeSelectActive && (isNewEntry || words === 0)
@@ -78,6 +80,9 @@ export function DesktopJournal(props: JournalViewProps) {
           onScripture={onScripture}
           altarActive={altarActive}
           onAltar={onAltar}
+          onLifeMap={onLifeMap}
+          userEmail={userEmail}
+          concordanceEnabled={concordanceEnabled}
           altarEnabled={altarEnabled}
           onOpenSettings={onOpenSettings}
           labelsExpanded={settings.railLabels}

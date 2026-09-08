@@ -18,6 +18,7 @@ interface KeptRow {
   subject_key: string
   label: string
   terms: string[] | null
+  kind: string | null
   kept_at: string
 }
 
@@ -36,7 +37,7 @@ export async function listKeptSubjects(): Promise<KeptSubject[]> {
   const sb = requireSupabase()
   const { data, error } = await sb
     .from('kept_subjects')
-    .select('subject_key, label, terms, kept_at')
+    .select('subject_key, label, terms, kind, kept_at')
     .order('kept_at', { ascending: true })
   if (error) throw error
   return (data ?? []).map(fromRow)
@@ -47,6 +48,15 @@ const fromRow = (r: KeptRow): KeptSubject => ({
   label: r.label,
   terms: r.terms && r.terms.length > 0 ? r.terms : [r.label],
   kind: r.subject_key.startsWith('word:') ? 'word' : 'term',
+  /*
+   * `kept_subjects.kind` is the Life Map list, renamed on the way in because
+   * `Subject.kind` already means the extractor's person/place/org/project/term.
+   * Null for rows kept before the Life Map, and for anything a Concordance row
+   * backs — which carries its own kind. Both fall back to Matters rather than
+   * being dropped: a name the writer kept must never vanish because a column
+   * arrived late.
+   */
+  section: r.kind,
   keptAt: r.kept_at,
 })
 
@@ -100,6 +110,9 @@ export function withVocabulary(kept: KeptSubject[], vocabulary: Subject[]): Kept
     const live = byKey.get(k.key)
     if (!live) return k
     const terms = [...new Set([...k.terms, ...live.terms])]
+    // `section` is deliberately not touched. The live row's `kind` is the
+    // Concordance's guess; `section` is the box the writer typed into, and the
+    // writer outranks the extractor about their own life.
     return { ...k, terms, kind: live.kind }
   })
 }

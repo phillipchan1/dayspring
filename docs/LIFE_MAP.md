@@ -1,0 +1,287 @@
+# The Life Map
+
+Branch `life-map`, worktree `/Users/philchan/Work/dayspring-lifemap`, alpha only.
+Written 2026-09-07 so the build has one place to check itself against.
+
+**Look at [`docs/prototypes/life-map.html`](prototypes/life-map.html) first.** It is
+the design, committed rather than linked, and it is the reference for every visual
+decision below. Open it in a browser — it renders standalone, light and dark.
+
+---
+
+## What it is
+
+Four lists and a map: **People · Places · Domains · Matters**. The writer types into
+any of them; the ones Dayspring found are marked amber.
+
+On screen it says one thing about itself, and that is the whole explanation:
+
+> Name what's in your journal. It's how Dayspring can show it back to you with
+> some intelligence.
+
+## Why it exists
+
+Every surface downstream of this — silence about a subject, the ledger, images of
+God over eras, the contradiction retrieval in
+[`docs/product/DIRECTOR_MOVES.md`](product/DIRECTOR_MOVES.md) — needs to know that
+Vera is a person and Frontier is a church. The engine can guess; only the writer
+can confirm. **This is the surface where the guessing gets settled.**
+
+Two things fall out of it that are worth more than the surface itself:
+
+1. **A confirmed name leaves the expensive path.** "Vera" as a known name is a
+   literal string match at save time — no model, no latency, no precision gate.
+   Only *matters* still need interpretation.
+2. **Every keep is a labelled positive and every drop a labelled negative**,
+   generated as a byproduct of use. The Keeping has been stalled on having no
+   number; this produces one without anybody sitting down to grade anything.
+
+---
+
+## The bones already exist
+
+This is the part that decides whether the build is a week or a month. **Almost
+nothing here is new.** The Concordance has been populating silently since June —
+its own migration says *"DARK this phase: population runs silently; no feature
+reads these tables."* The Life Map is the first reader.
+
+| Life Map | Source | Already built |
+|---|---|---|
+| **People** | `concordance.kind = 'person'` | `listConcordance()` |
+| **Places** | `concordance.kind = 'place'` | " |
+| **Domains** | `concordance.kind IN ('org','project')` — unioned in `sectionFor()` | " |
+| **Matters** | `concordance.kind = 'term'` | " |
+| the keep gesture | `kept_subjects`, keyed `c:<name>` / `word:<typed>` | `keepSubject()` · `dropSubject()` · `listKeptSubjects()` |
+| page counts | `concordance.occurrence_count` (distinct entries) | on the row |
+| recency | `concordance.last_seen`, from `entries.created_at` | on the row |
+| spellings | `concordance.surface_forms` | `displayLabel()` · `mergeItems()` |
+| add / confirm / forget | | `editConcordanceItem()` · `confirmConcordanceItem()` · `forgetConcordanceItem()` |
+
+`src/features/lifemap/lifeMap.ts` is pure composition of the above. It queries
+nothing.
+
+**A second source exists and is deliberately NOT wired yet:** Altar's
+`spiritual_items.subject_tags` (`{label, kind}[]`, kinds `person | place | theme`
+from `api/_lib/declared.ts`). It covers matters the Concordance misses, and it is
+step 5 — after the Concordance half is proven, so a bad join has one place to
+come from rather than two.
+
+---
+
+## The model
+
+### Three provenances
+
+| | Means | Written as |
+|---|---|---|
+| `mine` | the writer typed it, or corrected the engine into it | `source IN ('explicit','correction')`, or a `word:` kept row |
+| `found` | the engine offered it, the writer kept it | `status = 'confirmed'`, or a `c:` kept row |
+| `waiting` | the engine offered it, the writer hasn't answered | `status = 'suggested'` |
+
+**Only `superseded` rows are hidden.** `dormant` is `DORMANT_AFTER_DAYS: 365` —
+"no occurrence in a year" — which is RECENCY, not retirement, and on this archive
+it is 4,517 of 5,570 rows. Hiding them would delete most of the writer's own
+history from the surface whose job is holding it, and would silently break the
+one director move that reads absence. They come through marked `dormant` and are
+rendered quietly.
+
+> **Rule: `explicit` is checked before `status`.** A row the writer created stays
+> theirs even after the engine confirms it. Checking status first would relabel
+> every typed subject as something the machine found — the one claim this surface
+> must never make. There is a test named for it.
+
+### The one visual rule
+
+**Amber means Dayspring found it.** Three redundant channels, no new iconography:
+
+1. the kind glyph turns amber (grey when the writer typed it),
+2. an amber wash on the chip,
+3. an amber underline under the word — the same sign the editor already uses when
+   it recognises something.
+
+Border style carries the second axis: **solid = settled · dashed = still waiting
+on you.** So *found-and-kept* and *found-undecided* read as siblings, which they
+are.
+
+> **Never add a wand, a sparkle, or any "magic" glyph.** BRANDSCRIPT: *AI-powered*
+> is an implementation detail *"and it frightens this audience."* The chip already
+> carries a kind glyph; a second mark would both compete with it and say the word.
+
+Amber rather than the terracotta accent on purpose: `--dayspring-amber` is already
+the app's "this came from the journal" colour, and terracotta is interaction.
+
+### Pages' `look for` is the second surface, not a second vocabulary
+
+`PagesView` calls `allSubjects()` and `listKeptSubjects()` — the same rows
+`buildLifeMap()` reads. It has always been one list. But the sheet rendered it
+flat, so nothing on screen said so, and a reader who had just named twelve people
+here met them again over there as an undifferentiated heap.
+
+So the sheet borrows this file's `SECTIONS`, `sectionFor` and `floorFor` rather
+than restating them (`src/features/pages/lookGroups.ts`), and the kind glyph
+moved out to `Glyph.tsx` so both surfaces draw the same mark. Amber means the
+same thing in both places, on the same tokens.
+
+Two differences are deliberate, and both are Pages being Pages:
+
+- **The count on a pill is the LITERAL one**, recounted from the corpus by
+  `withCounts` — the wall beside it is lit by that same match, and printing the
+  stored number next to it would be the surface contradicting itself in a glance.
+  The floor still reads `concordance.occurrence_count` (carried as
+  `Subject.occurrences`), because counting nine hundred subjects against three
+  thousand pages to decide which forty to offer costs most of a second.
+- **The floor is overruled by typing, not by a control.** The find field has
+  always searched the whole vocabulary; that is the "lowerable by the writer"
+  half of the floor rule, and the sheet says so — *offered from N pages up — type
+  for the rest*.
+- **The floor follows the bracket, and so do the names.** Pages has a time
+  filter the Life Map does not (the Stretch), and the sheet's counts have always
+  been the bracket's — but the offered NAMES were still the whole archive's, so a
+  winter came back with the winter's numbers written beside eleven years of
+  subjects. `aliveIn` now narrows the vocabulary by the `first_seen`/`last_seen`
+  every Concordance row already carries, and the floor re-bases on the bracketed
+  page count: one page in a hundred **of these months**, said on screen.
+
+  Under a bracket the floor is measured in the LITERAL count — the number the
+  pill prints and the wall is lit by — which is more honest than the unbracketed
+  path and affordable only because the corpus is small. The stored count still
+  pre-filters, and that is a bound rather than a proof: it under-reports (see
+  `withCounts`), so it can lose a subject the real number would have kept. Typing
+  reaches anything it loses.
+
+  Anything KEPT is exempt and stays, dimmed at zero. A bracket may not remove a
+  name the writer chose — that would be arithmetic overruling them, which is the
+  one thing this surface may never do.
+
+The door now runs both ways: a name here opens Pages lit to it, and the sheet has
+*Tend these in your Life Map*.
+
+### Ordering
+
+**Never by page count.** From `kept_subjects`' own migration: *"Riverside above Mom
+at 31 pages to 14 would be the app ranking what a person carries, and a ranking of
+the people in someone's life is a verdict rendered in a sort (Principle 1)."*
+
+Everything orders by `first_seen` — chronology, a fact about the journal rather
+than a judgement about the writer. Waiting items sort after answered ones. Typed
+and found sort **together**: ranking the writer's own names above the ones the
+journal surfaced is a hierarchy nobody asked for, and the amber already says which
+is which.
+
+> **The count is still SHOWN on every chip.** Showing a count is arithmetic;
+> sorting by it is significance, and significance is a verdict (D-016). That
+> distinction is the only reason a number is allowed on this surface.
+
+---
+
+## What is deliberately absent
+
+Carried forward from `kept_subjects`' migration, which forbids these for the whole
+keep mechanism, and they stay forbidden here:
+
+- **colour, rename, merge, nesting, archive, parent, order-by-hand.** Keeping is
+  ONE gesture with no decision attached. The moment it grows management
+  affordances this is a to-do list about someone's prayer life.
+- **A kind picker.** `kept_subjects.kind` records which box the writer typed into,
+  and it is corrected by moving the chip — never by a dropdown.
+- **Any completeness meter.** `CONCORDANCE.DRAWER_*` says it outright: *"NEVER add
+  a completeness meter or 'we know N things about you' string here."* The footer
+  shows counts and no ratio, no rate, no bar.
+- **A disclaimer.** The prototype used to say *"Counts, not a score."* It was cut —
+  if a surface needs a disclaimer, the disclaimer isn't the fix.
+
+---
+
+## Build order
+
+| | | State |
+|---|---|---|
+| 1 | `lifeMap.ts` — pure read layer, four sections + provenance | **done**, 15 tests |
+| 2 | `kept_subjects.kind` migration | **applied** |
+| 3 | `useLifeMap.ts` — the two queries, calling into (1) | not started |
+| 4 | The surface: sections, inline add, popovers, empty map | not started |
+| 5 | The two canvases: Map and Over time | not started |
+| 6 | Wire keep / drop / add to `keepSubject` · `dropSubject` · `editConcordanceItem` | not started |
+| 7 | Altar's `subject_tags` as a second source for Matters | deferred, on purpose |
+
+**Alpha-unflagged**, same call as Pages and handwriting scan: the alpha channel is
+already the gate and a second gate inside it is redundant (see `flags.tsx`, D-017).
+
+---
+
+## What prod actually holds — measured 2026-09-07
+
+Both migrations are **already live** and the Concordance has **5,570 rows**. The
+`supabase_migrations` ledger disagrees (every local file reads unapplied, plus
+three remote-only entries) — that ledger is out of sync and has been since June.
+**Never `db push` on this project.** Verified read-only over PostgREST.
+
+| status | rows | | source | rows |
+|---|---|---|---|---|
+| suggested | 1,053 | | import | 5,140 |
+| **dormant** | **4,517** | | repetition | 430 |
+| confirmed | 0 | | correction | 0 |
+| superseded | 0 | | explicit | 0 |
+
+`kept_subjects`: **0 rows.** Nothing has ever been kept, and `confirmed` is zero
+because the Concordance drawer is flag-off.
+
+### The floor, chosen from the distribution
+
+Subjects offered at each floor (superseded excluded, dormant included):
+
+| floor | People | Places | Domains | Matters | total |
+|---|---|---|---|---|---|
+| ≥2 *(the old default)* | 416 | 206 | 193 | 441 | **1,256** |
+| ≥5 | 150 | 61 | 39 | 78 | 328 |
+| ≥12 | 64 | 26 | 17 | 23 | 130 |
+| **≥30 — one page in a hundred** | **23** | **10** | **8** | **5** | **46** |
+
+`FLOOR_RATIO = 0.01`, the same constant and the same reasoning as `readings.ts`'
+WORD_FLOOR, which learned it on this archive: *"Two pages is the right floor on a
+fixture of 47 entries and badly wrong on a real archive."* Minimum 3 so a young
+journal offers something.
+
+> **A floor is filtering; "the most significant thirty" would be ranking, and
+> ranking is a verdict (D-016).** That is the whole difference, and it is why the
+> floor must be STATED ON SCREEN and lowerable by the writer — the list shortens
+> by a rule they can see and overrule, never by the app's opinion of who matters.
+
+**Anything the writer answered is exempt from the floor.** A kept name must never
+disappear because it stopped recurring; that is arithmetic overruling the writer.
+
+⚠️ Everything still renders `waiting` on first open — `confirmed` is 0 and
+`kept_subjects` is empty. Forty-six is a sitting, not a wall.
+
+### Still open
+
+1. ~~`kept_subjects.kind`~~ — **applied 2026-09-07**, verified live.
+2. **Nav slot.** Rail footer above Settings — Return's members all gloss "the X
+   you return to" and this one asks for input instead. Graduates to Return (and
+   ⌘6) if it turns out to be a surface you open to look rather than to edit.
+
+## How this fails, so it can be caught
+
+- **It opens empty** because the Concordance was never populated for this owner.
+  Check (2) above before building anything downstream of step 3.
+- **Everything reads as `found`** because a provenance check ran in the wrong
+  order. The test `calls a writer-created row mine even once the engine confirmed
+  it` is the guard.
+- **It grows a management UI** — rename, merge, colour, a kind dropdown — and
+  becomes the tag manager `SURFACES.md` forbids. Every one of those is listed
+  above as absent rather than unbuilt.
+- **The counts start sorting things.** Grep for `occurrence_count` and `pages` in
+  any comparator — `Subject.occurrences` too, now that Pages carries it. There
+  should never be one. It may be compared against the FLOOR and nothing else.
+
+---
+
+## Related
+
+- [`docs/prototypes/life-map.html`](prototypes/life-map.html) — the design
+- [`docs/product/DIRECTOR_MOVES.md`](product/DIRECTOR_MOVES.md) — what this feeds
+- [`docs/THE_KEEPING.md`](THE_KEEPING.md) — the engine, and its four orders
+- `supabase/migrations/20260826120000_kept_subjects.sql` — read its header; it is
+  half the spec for this surface
+- `src/features/pages/lookGroups.ts` — the other reader of `SECTIONS`; see
+  § "Pages' `look for` is the second surface" above

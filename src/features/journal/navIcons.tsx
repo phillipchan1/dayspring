@@ -140,4 +140,3 @@ export function IconFocus(props: { size?: number }) {
     </NavIcon>
   )
 }
-

@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
+import { formatColophon } from '@/lib/circumstances'
 import { renderMarkdown } from '@/lib/markdown'
 import { passagesForEntry } from '@/lib/remember'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
@@ -60,9 +61,10 @@ function formatDate(iso: string): string {
  * exactly as you left it when you come back.
  *
  * Everything on it is still only the writer's: their words, their date, their
- * marginalia. No summary, no title we invented, no chrome except the way out —
- * and that lives in the header, not over the writing. The lit words are not an
- * exception to that rule: they are the writer's own words, lit.
+ * markings, and the circumstances of the writing (hour, place, weather — facts
+ * about the room, not a title we invented). No summary. The way out lives in
+ * the header, not over the writing. The lit words are not an exception: they
+ * are the writer's own words, lit.
  */
 export function PageReader({
   bar,
@@ -175,6 +177,7 @@ export function PageReader({
     () => renderMarkdown(renderedMarkdown, { asTitle: firstLineTitle }),
     [renderedMarkdown, firstLineTitle],
   )
+  const colophon = formatColophon(entry.created_at, entry.circumstances)
 
   /**
    * Light the lit words, after the markdown is on the page.
@@ -209,8 +212,10 @@ export function PageReader({
     paintQuotes(el, markQuotes, 'pg-read1__saved-mark')
     paintMatches(el, match, 'pg-read1__lit')
     drawMarkings(el, inProse)
-    return hydrateReadAttachments(el, renderedMarkdown)
-  }, [html, renderedMarkdown, markQuotes, match, inProse])
+    return hydrateReadAttachments(el, renderedMarkdown, undefined, {
+      verso: colophon,
+    })
+  }, [html, renderedMarkdown, markQuotes, match, inProse, colophon])
 
   /**
    * What the writer set apart on this page, verbatim, in the margin.
@@ -391,6 +396,7 @@ export function PageReader({
             <time className="pg-read1__date" dateTime={entry.created_at}>
               {formatDate(entry.created_at)}
             </time>
+            {colophon ? <p className="pg-read1__colophon">{colophon}</p> : null}
           </header>
 
           <div className="pg-read1__cols">

@@ -47,6 +47,9 @@ export interface JournalViewProps {
   onAltar: () => void
   /** Altar is gated behind the `altar` feature flag until it's ready to ship. */
   altarEnabled: boolean
+  onLifeMap: () => void
+  /** Gates the Concordance row in the You menu. */
+  concordanceEnabled: boolean
   onOpenSettings: () => void
   /** Force a full re-sync from the server (pull latest + flush outbox). */
   onSync: () => void
@@ -72,6 +75,7 @@ export interface JournalViewProps {
   reflectionsActive: boolean
   /** True when the Altar fills the main canvas. */
   altarActive: boolean
+  lifeMapActive: boolean
   /** True when the Lamp surface fills the main canvas. */
   scriptureActive: boolean
   /** True when the Pages wall fills the canvas. */

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Mark } from '@/components/Mark'
 import { isTauri } from '@/lib/platform'
 import { RailHint } from './RailHint'
+import { YouMenu } from './YouMenu'
 import { RAIL_EXPAND_KEY } from './railHints'
 import { useSurfaceEmbers } from './surfaceEmbers'
 import { useSurfaceUpdates } from './surfaceUpdates'
@@ -12,7 +13,6 @@ import {
   IconMenu,
   IconNew,
   IconScripture,
-  IconSettings,
 } from './navIcons'
 
 const NATIVE = isTauri()
@@ -29,7 +29,11 @@ interface RailProps {
   altarEnabled: boolean
   scriptureActive: boolean
   onScripture: () => void
+  onLifeMap: () => void
   onOpenSettings: () => void
+  userEmail: string
+  /** The Concordance drawer is still flag-gated; the menu hides its row when off. */
+  concordanceEnabled: boolean
   labelsExpanded: boolean
   onToggleLabels: () => void
   /** macOS traffic-light top clearance under Tauri's overlay title bar. */
@@ -51,7 +55,10 @@ export function Rail({
   altarEnabled,
   scriptureActive,
   onScripture,
+  onLifeMap,
   onOpenSettings,
+  userEmail,
+  concordanceEnabled,
   labelsExpanded,
   onToggleLabels,
   nativeTopInset,
@@ -156,11 +163,18 @@ export function Rail({
         </div>
       </div>
       <div className="rail__footer" data-tauri-drag-region={drag}>
-        <RailButton
-          label="Settings"
-          shortcut="⌘,"
-          onClick={onOpenSettings}
-          icon={<IconSettings />}
+        {/*
+          The "you" menu replaces the Settings button and the Life Map slot that
+          used to sit above it. Both were about the WRITER rather than about the
+          archive, and the rail's Return group is for readings of the archive —
+          which is why neither ever sat right here as a peer of Lamp and Altar.
+          See YouMenu.tsx for the rest of the reasoning.
+        */}
+        <YouMenu
+          userEmail={userEmail}
+          onLifeMap={onLifeMap}
+          onOpenSettings={onOpenSettings}
+          concordanceEnabled={concordanceEnabled}
           labelsExpanded={labelsExpanded}
         />
         <RailToggle
@@ -175,7 +189,9 @@ export function Rail({
 interface RailButtonProps {
   label: string
   subline?: string | undefined
-  shortcut: string
+  /** Optional — a footer destination can be reached without a key. RailHint
+   *  already renders nothing when it is absent. */
+  shortcut?: string | undefined
   onClick: () => void
   icon: ReactNode
   active?: boolean

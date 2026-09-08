@@ -22,12 +22,41 @@ export interface Subject {
   terms: string[]
   kind: ConcordanceKind | 'word'
   /**
+   * Which of the Life Map's four lists the WRITER filed this under —
+   * `kept_subjects.kind`, and a different question from `kind` above, which is
+   * the extractor's guess at what sort of thing the word is.
+   *
+   * Set only on a subject someone kept. Absent on an offered one (its `kind`
+   * answers for it) and null on a row kept before the column existed. Where both
+   * exist the writer wins: on the real archive 52 names live under two or more
+   * extractor kinds, and the person who wrote them knows which.
+   */
+  section?: string | null
+  /**
    * Pages this lights. Filled by `withCounts` from the corpus, never read from
    * the Concordance — see the note there. Absent until something counts it.
    */
   count?: number
+  /**
+   * What the Concordance RECORDED, which is a different number from `count` and
+   * a worse one — see `withCounts`, which exists because the two disagree on
+   * 123 of the 124 subjects above five pages.
+   *
+   * NEVER SHOW THIS. It is here for exactly one job: the floor in `lookGroups`
+   * needs a page count for every subject in the vocabulary, and re-counting nine
+   * hundred of them against three thousand pages to decide which dozen to offer
+   * is a second of nothing happening. Deciding membership by the stored number
+   * and printing the literal one is what the Life Map already does.
+   */
+  occurrences?: number
   /** When it first appeared in the journal. What the offered list orders by. */
   firstSeen?: string | null
+  /**
+   * When it last appeared. With `firstSeen` this is the subject's own stretch,
+   * and it is what lets a bracket ask "was this alive in these months?" without
+   * re-reading three thousand pages to find out — see `aliveIn`.
+   */
+  lastSeen?: string | null
 }
 
 /** One entry, flattened and lowercased once so re-lighting costs nothing. */
@@ -302,10 +331,13 @@ export function mergeItems(items: ConcordanceItem[]): Subject[] {
     // The kind is only a grouping hint, so the one the extractor saw most often
     // wins. Nothing downstream matches on it.
     const dominant = rows.slice().sort((a, b) => b.occurrence_count - a.occurrence_count)[0]!
-    const first = rows
-      .map((r) => r.first_seen)
-      .filter((d): d is string => Boolean(d))
-      .sort()[0]
+    const dates = (pick: (r: ConcordanceItem) => string | null) =>
+      rows.map(pick).filter((d): d is string => Boolean(d)).sort()
+    const seen = dates((r) => r.first_seen)
+    const first = seen[0]
+    // The LAST of the merged rows' lasts, and the FIRST of their firsts: the
+    // rows are one name filed twice, so the subject's stretch is their union.
+    const last = dates((r) => r.last_seen).at(-1)
     out.push({
       // Keyed by the NAME, not by a row id: the row a name resolves to changes
       // every time the Concordance rebuilds, and a kept subject must survive that.
@@ -314,6 +346,11 @@ export function mergeItems(items: ConcordanceItem[]): Subject[] {
       terms: forms.length > 0 ? forms : [dominant.canonical],
       kind: dominant.kind,
       firstSeen: first ?? null,
+      lastSeen: last ?? null,
+      // The largest of the merged rows, not their sum. Two rows sharing a
+      // canonical are one name filed twice, so they describe the same pages —
+      // adding them would double-count the same appearances.
+      occurrences: Math.max(...rows.map((r) => r.occurrence_count)),
     })
   }
   return out
