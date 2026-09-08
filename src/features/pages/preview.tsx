@@ -170,6 +170,7 @@ function SheetPreview() {
     <div className="pg" style={{ height: '100dvh' }}>
       <div className="pg__head-wrap">
         <div className="pg__inner pg__inner--head">
+          <div className="pg__head-tools">
           <LookFor
             kept={KEPT}
             offered={OFFERED}
@@ -194,6 +195,7 @@ function SheetPreview() {
             onlyLit={false}
             onOnlyLit={() => {}}
           />
+          </div>
         </div>
       </div>
     </div>

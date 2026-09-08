@@ -289,9 +289,11 @@ export function PagesView({
    * orienting you immediately around the page you were most recently in.
    * Making cards larger cannot solve that — every card is still a preview.
    *
-   * So the newest page gets one quiet door in the header. It opens at reading
-   * size like every other page on this surface; Write remains beside it in the
-   * reader. This is an anchor, not a second list.
+   * So the newest page gets one quiet door on the right of the tools row. It
+   * opens at reading size like every other page on this surface; Write remains
+   * beside it in the reader. This is an anchor, not a second list, and it
+   * must not outrank Look for — that is why it sits after the sentence rather
+   * than opening it.
    */
   const latest = entries[0] ?? null
   const latestTitle = latest
@@ -902,28 +904,6 @@ export function PagesView({
 
           {openPage ? null : (
           <div className="pg__head-tools">
-            {!narrow && latest ? (
-              <button
-                type="button"
-                className="pg-now"
-                onClick={() => onSpread(latest.id)}
-                aria-label={`Open ${isToday(latest.created_at) ? "today's page" : `latest page from ${shortDate(latest.created_at)}`}`}
-              >
-                <span className="pg-now__when">
-                  {isToday(latest.created_at) ? 'Today' : `Latest · ${shortDate(latest.created_at)}`}
-                </span>
-                <span className="pg-now__title">{latestTitle}</span>
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
-                  <path
-                    d="m6 3 5 5-5 5"
-                    stroke="currentColor"
-                    strokeWidth="1.35"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : null}
             <LookFor
               kept={held}
               offered={offered}
@@ -952,6 +932,38 @@ export function PagesView({
               onlyLit={onlyLit}
               onOnlyLit={setOnlyLit}
             />
+            {/*
+              A door, not a headline.
+
+              Look for is the primary verb of this surface, so it opens the
+              row. This is the way BACK to the page you were most recently
+              in — an exit from looking, not the sentence the chips complete.
+              The title lives on the first row of the wall and in the
+              tooltip; repeating it here made a second masthead that fought
+              whatever was lit.
+            */}
+            {!narrow && latest ? (
+              <button
+                type="button"
+                className="pg-now"
+                onClick={() => onSpread(latest.id)}
+                title={latestTitle}
+                aria-label={`Open ${isToday(latest.created_at) ? "today's page" : `latest page from ${shortDate(latest.created_at)}`}`}
+              >
+                <span className="pg-now__when">
+                  {isToday(latest.created_at) ? 'Today' : `Latest · ${shortDate(latest.created_at)}`}
+                </span>
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                  <path
+                    d="m6 3 5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.35"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
           </div>
           )}
 
