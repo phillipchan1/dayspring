@@ -89,27 +89,23 @@ fn window_to_anchor(window: Retained<UIWindow>) -> Retained<ASPresentationAnchor
 
 #[cfg(target_os = "ios")]
 fn presentation_anchor() -> Retained<ASPresentationAnchor> {
-  let Some(app_cls) = AnyClass::get(c"UIApplication") else {
-    panic!("UIApplication unavailable");
-  };
-  unsafe {
-    let app: *mut AnyObject = msg_send![app_cls, sharedApplication];
-    let window: *mut UIWindow = msg_send![app, keyWindow];
-    if !window.is_null() {
-      return window_to_anchor(Retained::retain(window).expect("window retain"));
+  let window = crate::key_window() as *mut UIWindow;
+  if window.is_null() {
+    // The IMP must return a window. start_session_on_main refuses to start
+    // when key_window is nil, so this path is a last-resort empty window
+    // rather than a panic that leaves the JS side hung with every button
+    // disabled (ASC 2.1 on iPad: keyWindow is often nil).
+    log::warn!("OAuth presentation anchor: no UIWindow");
+    let Some(cls) = AnyClass::get(c"UIWindow") else {
+      panic!("UIWindow unavailable");
+    };
+    unsafe {
+      let allocated: Allocated<UIWindow> = msg_send![cls, alloc];
+      let created: Option<Retained<UIWindow>> = msg_send![allocated, init];
+      return window_to_anchor(created.expect("OAuth fallback window"));
     }
-    let windows: *mut AnyObject = msg_send![app, windows];
-    if !windows.is_null() {
-      let count: usize = msg_send![windows, count];
-      if count > 0 {
-        let first: *mut UIWindow = msg_send![windows, objectAtIndex: 0usize];
-        if !first.is_null() {
-          return window_to_anchor(Retained::retain(first).expect("window retain"));
-        }
-      }
-    }
-    panic!("no UIWindow for OAuth presentation");
   }
+  unsafe { window_to_anchor(Retained::retain(window).expect("window retain")) }
 }
 
 /// Opens an OAuth URL in ASWebAuthenticationSession and returns the callback
@@ -137,14 +133,21 @@ fn start_oauth_session_ios(auth_url: &str) -> Result<String, String> {
     let auth_url = auth_url.to_string();
     let tx = Arc::clone(&tx);
     move || {
-      if let Err(err) = start_session_on_main(&auth_url, tx) {
+      if let Err(err) = start_session_on_main(&auth_url, Arc::clone(&tx)) {
         log::warn!("OAuth session failed to start: {err}");
+        if let Ok(mut guard) = tx.lock() {
+          if let Some(sender) = guard.take() {
+            let _ = sender.send(Err(err));
+          }
+        }
       }
     }
   });
 
-  rx.recv()
-    .map_err(|_| "OAuth session ended unexpectedly".to_string())?
+  rx.recv_timeout(std::time::Duration::from_secs(90))
+    .map_err(|_| {
+      "Sign-in didn’t open. Tap again, or use email.".to_string()
+    })?
 }
 
 #[cfg(target_os = "ios")]
@@ -153,6 +156,21 @@ fn start_session_on_main(
   tx: Arc<Mutex<Option<mpsc::Sender<Result<String, String>>>>>,
 ) -> Result<(), String> {
   let _mtm = MainThreadMarker::new().ok_or("OAuth must run on the main thread")?;
+
+  let window_ptr = crate::key_window();
+  if window_ptr.is_null() {
+    if let Ok(mut guard) = tx.lock() {
+      if let Some(sender) = guard.take() {
+        let _ = sender.send(Err(
+          "Could not find a window to present sign-in. Try email, or tap again.".into(),
+        ));
+      }
+    }
+    return Err("Could not find a window to present sign-in".into());
+  }
+  unsafe {
+    let _: () = msg_send![window_ptr, makeKeyAndVisible];
+  }
 
   let ns_url = NSString::from_str(auth_url);
   let url: Retained<NSURL> =

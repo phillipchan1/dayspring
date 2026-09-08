@@ -2013,7 +2013,9 @@ a {
   .scripture__chip,
   .practice-filter,
   .command-toolbar__btn,
-  .slash-palette__item {
+  .slash-palette__item,
+  .signin__btn,
+  .signin__btn--secondary {
     touch-action: manipulation;
   }
 }
@@ -2511,8 +2513,16 @@ html[data-platform='desktop'] .entry-list__head,
 html[data-platform='desktop'] .entries-panel,
 html[data-platform='desktop'] .settings-nav,
 html[data-platform='desktop'] .settings-main__head,
-html[data-platform='desktop'] .center-screen {
+html[data-platform='desktop'] .center-screen:not(.signin) {
   -webkit-app-region: drag;
+}
+
+/* Sign-in must stay tappable even if iPad is tagged desktop (Macintosh UA). */
+html[data-platform='desktop'] .signin,
+html[data-platform='desktop'] .signin button,
+html[data-platform='desktop'] .signin input,
+html[data-platform='desktop'] .signin a {
+  -webkit-app-region: no-drag;
 }
 
 /* Focus mode hides the top bar — keep a grab strip under the traffic lights. */
