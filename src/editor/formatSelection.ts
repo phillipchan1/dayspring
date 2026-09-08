@@ -541,19 +541,32 @@ function adjacentWrappedWord(doc: string, pos: number): { from: number; to: numb
   return tryAt(j - 1)
 }
 
-/** The selection, widened to whole inline spans (see `expandToInlineSpans`). */
-function formatRange(view: EditorView): { from: number; to: number } {
+/**
+ * The range a format would act on: a live selection (widened to its inline
+ * span), or at an empty caret the empty marker pair / enclosing span / word
+ * the caret is in. Collapses to the caret when none of those apply, so the
+ * format bar can sit on a collapsed insertion point.
+ */
+export function formatTargetRange(view: EditorView): { from: number; to: number } {
   const sel = view.state.selection.main
-  return expandToInlineSpans(view.state, sel.from, sel.to)
+  if (!sel.empty) return expandToInlineSpans(view.state, sel.from, sel.to)
+
+  const pos = sel.from
+  const doc = view.state.doc.toString()
+  const empty = emptyMarksAt(doc, pos)
+  if (empty) return { from: empty.from, to: empty.to }
+  const enclosing = enclosingFormatRange(view.state, pos)
+  if (enclosing) return enclosing
+  const word = wordRangeAt(view.state, pos)
+  if (word) return word
+  return { from: pos, to: pos }
 }
 
-export function getFormatState(view: EditorView): FormatState | null {
+export function getFormatState(view: EditorView): FormatState {
   const sel = view.state.selection.main
-  if (sel.empty) return null
-
-  const span = formatRange(view)
+  const span = formatTargetRange(view)
   const text = view.state.sliceDoc(span.from, span.to)
-  const linkParsed = parseLink(text)
+  const linkParsed = span.from === span.to ? null : parseLink(text)
   const { marks } = linkParsed ? parseInlineMarks(linkParsed.plain) : parseInlineMarks(text)
 
   const doc = view.state.doc
@@ -612,40 +625,19 @@ function applyInlineTransform(
   emptyMarkers: { open: string; close: string },
 ): boolean {
   const sel = view.state.selection.main
-  const doc = view.state.doc.toString()
+  const empty = sel.empty ? emptyMarksAt(view.state.doc.toString(), sel.from) : null
+  const span = formatTargetRange(view)
+  const from = span.from
+  const to = span.to
 
-  let from: number
-  let to: number
-  let empty: ReturnType<typeof emptyMarksAt> = null
-
-  if (sel.empty) {
-    const pos = sel.from
-    empty = emptyMarksAt(doc, pos)
-    const enclosing = empty ? null : enclosingFormatRange(view.state, pos)
-    const word = empty || enclosing ? null : wordRangeAt(view.state, pos)
-
-    if (empty) {
-      from = empty.from
-      to = empty.to
-    } else if (enclosing) {
-      from = enclosing.from
-      to = enclosing.to
-    } else if (word) {
-      from = word.from
-      to = word.to
-    } else {
-      const { open, close } = emptyMarkers
-      view.dispatch({
-        changes: { from: pos, insert: open + close },
-        selection: { anchor: pos + open.length },
-      })
-      view.focus()
-      return true
-    }
-  } else {
-    const expanded = expandToInlineSpans(view.state, sel.from, sel.to)
-    from = expanded.from
-    to = expanded.to
+  if (sel.empty && from === to) {
+    const { open, close } = emptyMarkers
+    view.dispatch({
+      changes: { from, insert: open + close },
+      selection: { anchor: from + open.length },
+    })
+    view.focus()
+    return true
   }
 
   const raw = view.state.sliceDoc(from, to)
@@ -821,18 +813,16 @@ export function isFormatActive(state: FormatState, action: FormatAction): boolea
   }
 }
 
-/** Bounding box for the current selection in viewport coordinates. */
+/** Bounding box for the format target in viewport coordinates. */
 export function selectionAnchorRect(view: EditorView): DOMRect | null {
-  const sel = view.state.selection.main
-  if (sel.empty) return null
-
-  const start = view.coordsAtPos(sel.from, -1)
-  const end = view.coordsAtPos(sel.to, 1)
+  const span = formatTargetRange(view)
+  const start = view.coordsAtPos(span.from, -1)
+  const end = view.coordsAtPos(span.to, 1)
   if (!start || !end) return null
 
   const left = Math.min(start.left, end.left)
   const right = Math.max(start.right, end.right)
   const top = Math.min(start.top, end.top)
   const bottom = Math.max(start.bottom, end.bottom)
-  return new DOMRect(left, top, right - left, bottom - top)
+  return new DOMRect(left, top, Math.max(right - left, 0), bottom - top)
 }

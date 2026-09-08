@@ -5,15 +5,20 @@ section: writing
 order: 1
 requires: [capability.editor]
 keywords: [format, bold, italic, markdown, heading, list, quote, underline, asterisk, syntax, divider, rule]
-updated: 2026-08-29
+updated: 2026-09-08
 ---
 
 Select some text and a small bar appears above it. Bold, italic, underline,
 strikethrough, highlight, code, link, list, quote, heading.
 
+You don't have to highlight first. Put the caret in a word and press
+<kbd>⌘⇧F</kbd> — same bar, sitting on that word. Right-click does the same,
+and the usual system menu still appears. Escape or the next letter you type
+puts it away.
+
 Or use the shortcuts: <kbd>⌘B</kbd> for bold, <kbd>⌘I</kbd> for italic,
-<kbd>⌘U</kbd> for underline. On a new line, type `/` and pick a heading or a
-list from the menu.
+<kbd>⌘U</kbd> for underline. They wrap the word the caret is in. On a new
+line, type `/` and pick a heading or a list from the menu.
 
 ## Why you don't see asterisks
 
