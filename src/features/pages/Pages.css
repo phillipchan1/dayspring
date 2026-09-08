@@ -521,10 +521,9 @@ button.pg__sense-q:hover {
 /*
  * A month, marked where it begins.
  *
- * An overlay, never a row. Months as flow headers would make rows uneven, and
- * uniform rows are the whole reason a 3,500-page wall can be windowed at all.
- * So the rule is absolutely positioned against the grid: it takes no space and
- * moves nothing, and it lives in the gap that is already between the rows.
+ * Card mode keeps this as an overlay because its month marks are hints over a
+ * visual wall. Dense list mode uses `.pg__section` below: equal-height rows
+ * that make month boundaries structural without compromising virtualization.
  */
 .pg__month-rule {
   position: absolute;
@@ -552,6 +551,39 @@ button.pg__sense-q:hover {
   flex: 1;
   block-size: 1px;
   background: var(--border);
+}
+
+/*
+ * Dense rows are organized by real calendar sections. The header occupies one
+ * ordinary virtual row, so it cannot drift, overlap prose, or label two months
+ * that happen to share a two-column grid row.
+ */
+.pg__section {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  block-size: var(--pg-card-h);
+  padding-inline: 0.6rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.pg__section::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--border);
+}
+
+.pg__section[data-current-week='true'] {
+  color: var(--accent);
 }
 
 /*
@@ -2326,9 +2358,8 @@ button.pg__sense-q:hover {
 /*
  * "Where am I?" before "what did I write?"
  *
- * The current week is a quiet cluster, not a score or a count. Its first page
- * names the period; the shared wash lets the remaining pages belong to it
- * without repeating chrome on every row.
+ * The current week is a quiet cluster, not a score or a count. The section
+ * header names the period; this shared wash lets its pages belong together.
  */
 .pgr[data-current-week='true'] {
   background: color-mix(in srgb, var(--accent) 3%, transparent);
@@ -2366,6 +2397,81 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
+/*
+ * ── the fold lane ─────────────────────────────────────────────────────────────
+ *
+ * What a run of passed-over pages looks like among rows: a caret and a count in
+ * a lane before the date, on the page that follows the run. Click it and the
+ * pages come back where they were.
+ *
+ * A lane rather than a cell, and this is the whole reason it exists. A sparse
+ * filter — forty pages that say one name, across eleven years — puts a gap
+ * before nearly every answer, so a seam drawn as a cell means one answer per
+ * row and the other half of the wall spent saying "nothing here". Drawn in the
+ * lane it costs no row and no cell: the answers pack the grid the way they
+ * would if the rest of the archive weren't there, and what was passed over is
+ * still counted, still spanned, and still one click from coming back.
+ *
+ * Reserved wall-wide (see `data-folds`), because a lane that came and went
+ * would step the date column in and out down the page.
+ */
+.pg__cell {
+  position: relative;
+  min-inline-size: 0;
+}
+
+.pg__fold {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.16rem;
+  padding: 0.14rem 0.2rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.54rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  /* Fainter than a dimmed page. What was passed over is context for the answer
+     beside it, never a thing competing with it for the eye. */
+  color: var(--text-faint);
+  opacity: 0.55;
+  cursor: zoom-in;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+.pg__fold:hover,
+.pg__fold:focus-visible {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.pg__fold:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.pg__fold-n {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The lane itself. On the date rather than on the row: the row's padding is
+   also the prose's left edge, and the phone gives the prose the whole measure
+   on a line of its own (see the phone block below). */
+.pg__grid[data-folds='true'] .pgr__date {
+  inline-size: 6.4rem;
+  padding-inline-start: 2.5rem;
+}
+
+.pg__grid[data-folds='true'] .pg__section {
+  padding-inline-start: 3.1rem;
+}
+
 /* A date is a fact about a page, so it is the one thing here set in mono. */
 .pgr__date {
   flex: none;
@@ -2391,16 +2497,6 @@ button.pg__sense-q:hover {
 .pgr[data-echo='true'] .pgr__date {
   inline-size: auto;
   color: rgba(var(--scripture-gold), 0.78);
-}
-
-.pgr__week {
-  flex: none;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--accent);
 }
 
 .pgr__echo {
@@ -4275,10 +4371,10 @@ button.pg__sense-q:hover {
    */
   .pgr {
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: auto 1fr auto;
     grid-template-areas:
-      'date week today margin'
-      'line line line line';
+      'date today margin'
+      'line line line';
     align-content: center;
     gap: 0.28rem 0.5rem;
     padding: 0.5rem 0.4rem;
@@ -4297,8 +4393,8 @@ button.pg__sense-q:hover {
    */
   .pgr[data-echo='true'] {
     grid-template-areas:
-      'date echo echo margin'
-      'line line line line';
+      'date echo margin'
+      'line line line';
   }
 
   .pgr__date {
@@ -4307,13 +4403,35 @@ button.pg__sense-q:hover {
     font-size: 0.66rem;
   }
 
-  .pgr__today {
-    grid-area: today;
-    justify-self: start;
+  /*
+   * The fold lane, at a thumb's scale.
+   *
+   * Only the FACTS line is indented here. On a phone the writer's prose already
+   * has a line of its own at full width — about seventy characters, which is
+   * what makes the list recognisable — and taking two and a half rem off it to
+   * make room for our count would be paying for the lane out of her sentence.
+   */
+  .pg__grid[data-folds='true'] .pgr__date {
+    inline-size: auto;
+    padding-inline-start: 2.1rem;
   }
 
-  .pgr__week {
-    grid-area: week;
+  .pg__grid[data-folds='true'] .pg__section {
+    padding-inline-start: 2.5rem;
+  }
+
+  /* Beside the date, not centred on a two-line row — and grown into a target a
+     thumb can actually hit, without growing what it looks like. */
+  .pg__fold {
+    inset-block-start: 0.86rem;
+    inset-inline-start: -0.25rem;
+    padding: 0.4rem 0.32rem;
+    font-size: 0.6rem;
+    opacity: 0.7;
+  }
+
+  .pgr__today {
+    grid-area: today;
     justify-self: start;
   }
 

@@ -106,13 +106,26 @@ export function selectionOrder(items: WallItem[]): string[] {
  * A seam keeps the fact of them (how many, and across what span) while giving
  * back the space. Clicking one puts its pages back, in place.
  *
- * Deliberately one CELL, not a full-width rule between rows. A rule reads
- * better, and costs a whole row of height per seam — which on a sparse filter
- * is exactly the scrolling this exists to remove. The seam sits inline among
- * the pages, so a run of 200 collapses to the width of one.
+ * Deliberately not a full-width rule between rows. A rule reads better, and
+ * costs a whole row of height per seam — which on a sparse filter is exactly
+ * the scrolling this exists to remove.
  *
- * @param minRun  Runs shorter than this stay as pages. Collapsing two dimmed
- *                cards saves nothing and costs you the rhythm of the archive.
+ * What a seam costs instead depends on where it is drawn, and the two bands
+ * answer differently. Among CARDS it is one cell: a dashed card among the
+ * pages, which is the right weight for a visual wall. Among ROWS it costs
+ * nothing at all — it folds onto the leading edge of the page that follows it
+ * (see `WallRowCell.fold`), because a seam is the gap BETWEEN two answers
+ * rather than an answer, and a gap that takes a cell of its own means one
+ * answer per row and half the wall spent on the pages you didn't ask for.
+ *
+ * @param minRun  Runs shorter than this stay as pages, and that floor holds in
+ *                both bands even though the row band could now afford to fold
+ *                every run for free. Lighting DIMS rather than filters; a short
+ *                run left standing is the shape the surface promises, and
+ *                trading three readable dimmed pages for the numeral "3" is a
+ *                worse page, not a denser one. What the free fold buys is the
+ *                LONG runs — the twenty and the hundred and forty-nine — and
+ *                those were already over this line.
  */
 export function collapseUnlit(
   items: WallItem[],
@@ -227,10 +240,37 @@ export function monthMarks(items: WallItem[], cols: number): MonthMark[] {
   return out
 }
 
-/** The month label for whatever is at the top of the viewport. */
-export function monthAtRow(items: WallItem[], cols: number, row: number): string | null {
-  const item = items[row * cols]
+export interface CalendarPosition {
+  month: string
+  year: string
+}
+
+/**
+ * Calendar position for a visual row.
+ *
+ * Recalls and seams do not claim the corner indicator. Prefer a real page in
+ * the row, then the next real page in wall order.
+ */
+export function calendarAtRow(
+  items: WallItem[],
+  cols: number,
+  row: number,
+): CalendarPosition | null {
+  const start = row * cols
+  if (start < 0 || start >= items.length) return null
+  const real = (item: WallItem | undefined) => item && !item.echo && !item.seam
+  let item = items.slice(start, start + cols).find(real)
+  if (!item) item = items.slice(start + cols).find(real)
+  if (!item) item = items.slice(0, start).reverse().find(real)
   if (!item) return null
   const d = new Date(item.entry.created_at)
-  return `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`
+  return {
+    month: `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`,
+    year: String(d.getFullYear()),
+  }
+}
+
+/** The month label for whatever real page is at the top of the viewport. */
+export function monthAtRow(items: WallItem[], cols: number, row: number): string | null {
+  return calendarAtRow(items, cols, row)?.month ?? null
 }
