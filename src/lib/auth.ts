@@ -95,6 +95,16 @@ async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult
 }
 
 async function signInWithProvider(provider: OAuthProvider): Promise<void> {
+  // Dev-only `?__preview=signin`: show the busy state without a live Supabase.
+  // `import.meta.env.DEV` is statically false in production; Vite drops this.
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 1600))
+    throw new Error('Preview: the in-app OAuth sheet would open here')
+  }
   const sb = requireSupabase()
   return runOAuth((options) => sb.auth.signInWithOAuth({ provider, options }))
 }
@@ -114,9 +124,17 @@ export async function signInWithApple(): Promise<void> {
  * demo credentials are supplied in App Store Connect.
  */
 export async function signInWithEmail(email: string, password: string): Promise<void> {
-  const sb = requireSupabase()
   const trimmed = email.trim()
   if (!trimmed || !password) throw new Error('Enter your email and password')
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 1200))
+    throw new Error('Preview: email sign-in would complete here')
+  }
+  const sb = requireSupabase()
   const { error } = await sb.auth.signInWithPassword({ email: trimmed, password })
   if (error) throw error
 }
