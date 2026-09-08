@@ -133,7 +133,7 @@ describe('the rows band', () => {
     expect(Math.min(spec.maxCols, fits(1400))).toBe(2)
   })
 
-  it('puts fifty to sixty recognizable pages on a wide screen', () => {
+  it('offers fifty to sixty page cells before section headers', () => {
     const spec = specForZoom(ZOOM_MIN)
     const rows = Math.floor(900 / (spec.cardHeight + spec.gap))
     const cols = Math.min(spec.maxCols, Math.floor((1400 + spec.gap) / (spec.minWidth + spec.gap)))

@@ -111,8 +111,31 @@ describe('PageWall', () => {
       }),
     )
     expect(html).toContain('data-current-week="true"')
-    expect(html).toContain('this week')
-    expect(html).not.toMatch(/this week · \d/)
+    expect(html).toContain('class="pg__section"')
+    expect(html).toContain('This week')
+    expect(html).not.toMatch(/This week · \d/)
+    expect(html).not.toContain('class="pgr__week"')
+  })
+
+  it('renders older months as in-flow archive sections', () => {
+    const html = renderToString(
+      createElement(PageWall, {
+        entries: [
+          entry('Late June', '2024-06-30'),
+          entry('Early June', '2024-06-01'),
+          entry('Last day of May', '2024-05-31'),
+        ],
+        zoom: 0,
+        markQuotes: new Map(),
+        lit: null,
+        activeId: null,
+        echoes: false,
+        ...wallActions,
+      }),
+    )
+    expect(html).toContain('June 2024')
+    expect(html).toContain('May 2024')
+    expect(html.match(/class="pg__section"/g)).toHaveLength(2)
   })
 
   it('survives an entry with no prose at all', () => {

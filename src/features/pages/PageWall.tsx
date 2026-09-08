@@ -27,9 +27,9 @@ import { MARK_KINDS } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import {
   buildWallItems,
+  calendarAtRow,
   collapseUnlit,
   isCurrentCalendarWeek,
-  monthAtRow,
   monthMarks,
   seamLabel,
   selectionOrder,
@@ -38,6 +38,23 @@ import {
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
 import { cardHeightFor, clampZoom, isRows, specForZoom, wheelZoomDelta } from './zoom'
+import {
+  buildWallRows,
+  chooseGrain,
+  firstItemIndexAtRow,
+  itemIndexByRowOffset,
+  visibleItemCount,
+  type WallLayoutRow,
+} from './wallRows'
+
+type VisibleCell =
+  | {
+      kind: 'item'
+      item: WallItem
+      itemIndex: number
+      fold?: { item: WallItem; itemIndex: number }
+    }
+  | { kind: 'section'; row: Extract<WallLayoutRow, { kind: 'section' }> }
 
 interface Props {
   /** Wall order — newest first. */
@@ -86,6 +103,58 @@ interface Props {
    * name for a stop the control does not have.
    */
   onDensity?: (perScreen: number) => void
+}
+
+/**
+ * A run the filter passed over, folded onto the page that follows it.
+ *
+ * In the row's lane rather than in the flow, and that is the whole point: a
+ * sparse filter puts a gap before nearly every answer, so a seam that took a
+ * row — or even a cell — of its own would spend half the wall saying "nothing
+ * here" over and over. Drawn here it costs neither, and the answers pack the
+ * grid as if the rest of the archive weren't between them.
+ *
+ * A sibling of the row, not a child, because a row is itself a `<button>`.
+ * It keeps the seam's own wall key and item index, so ← and → still step onto
+ * it and Enter still opens it: the seam's keyboard contract is unchanged, only
+ * where it is drawn.
+ */
+function WallFold({
+  item,
+  focused,
+  onFocus,
+  onKeyDown,
+  onExpand,
+}: {
+  item: WallItem
+  focused: boolean
+  onFocus: (wallKey: string) => void
+  onKeyDown: (wallKey: string, e: React.KeyboardEvent) => void
+  onExpand: (wallKey: string) => void
+}) {
+  const seam = item.seam
+  if (!seam) return null
+  const label = seamLabel(seam.count, seam.fromIso, seam.toIso)
+  return (
+    <button
+      type="button"
+      className="pg__fold"
+      data-wall-key={item.key}
+      tabIndex={focused ? 0 : -1}
+      // The count alone is the visible mark; the span is what makes it an
+      // answerable question, so it goes where a reader can actually get it.
+      aria-label={`Show ${label}`}
+      title={`Show ${label}`}
+      onFocus={() => onFocus(item.key)}
+      onKeyDown={(e) => onKeyDown(item.key, e)}
+      onClick={() => onExpand(item.key)}
+    >
+      <svg viewBox="0 0 8 5" width="7" height="5" fill="none" aria-hidden>
+        <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+      <span className="pg__fold-n">{seam.count}</span>
+    </button>
+  )
 }
 
 const EMPTY_SELECTED: Entry[] = []
@@ -286,7 +355,16 @@ export function PageWall({
     [excerptCache, markQuotes, match],
   )
 
-  const rowCount = Math.ceil(items.length / cols)
+  const rowLayout = useMemo(
+    () => (rows ? buildWallRows(items, cols, undefined, chooseGrain(items)) : null),
+    [rows, items, cols],
+  )
+  /** Whether any cell on the wall carries a fold, so the lane is only paid for when used. */
+  const folds = useMemo(
+    () => rowLayout?.rows.some((r) => r.kind === 'items' && r.cells.some((c) => c.fold)) ?? false,
+    [rowLayout],
+  )
+  const rowCount = rowLayout?.rows.length ?? Math.ceil(items.length / cols)
   /*
    * A CARD IS A PORTRAIT, not a fixed height.
    *
@@ -319,17 +397,52 @@ export function PageWall({
     const report = () => {
       const h = el.clientHeight
       if (h <= 0 || rowHeight <= 0) return
-      onDensity(Math.max(1, Math.floor(h / rowHeight) * cols))
+      const viewportRows = Math.max(1, Math.floor(h / rowHeight))
+      const pageCount = rowLayout
+        ? visibleItemCount(
+            rowLayout,
+            Math.floor(el.scrollTop / rowHeight),
+            viewportRows,
+          )
+        : viewportRows * cols
+      onDensity(Math.max(1, pageCount))
     }
     report()
     const ro = new ResizeObserver(report)
     ro.observe(el)
-    return () => ro.disconnect()
-  }, [onDensity, rowHeight, cols])
+    el.addEventListener('scroll', report, { passive: true })
+    return () => {
+      ro.disconnect()
+      el.removeEventListener('scroll', report)
+    }
+  }, [onDensity, rowHeight, cols, rowLayout])
 
-  const firstIdx = virtual.start * cols
-  const lastIdx = Math.min(items.length, virtual.end * cols)
-  const slice = items.slice(firstIdx, lastIdx)
+  const visibleCells = useMemo<VisibleCell[]>(() => {
+    if (!rowLayout) {
+      const first = virtual.start * cols
+      const last = Math.min(items.length, virtual.end * cols)
+      return items.slice(first, last).map((item, offset) => ({
+        kind: 'item' as const,
+        item,
+        itemIndex: first + offset,
+      }))
+    }
+    const cells: VisibleCell[] = []
+    for (const row of rowLayout.rows.slice(virtual.start, virtual.end)) {
+      if (row.kind === 'section') cells.push({ kind: 'section', row })
+      else {
+        cells.push(
+          ...row.cells.map((cell) => ({
+            kind: 'item' as const,
+            item: cell.item,
+            itemIndex: cell.itemIndex,
+            ...(cell.fold ? { fold: cell.fold } : {}),
+          })),
+        )
+      }
+    }
+    return cells
+  }, [rowLayout, virtual.start, virtual.end, cols, items])
 
   // Years present, newest first — the scrubber's stops.
   const years = useMemo(() => {
@@ -341,16 +454,18 @@ export function PageWall({
     return seen
   }, [entries])
 
-  const yearRow = useMemo(() => yearRows(items, cols), [items, cols])
+  const cardYearRows = useMemo(() => yearRows(items, cols), [items, cols])
+  const yearRow = rowLayout?.yearRows ?? cardYearRows
 
   /**
-   * Where the months begin.
-   *
-   * Drawn as an overlay in the gutter, never as rows: the windowing math needs
-   * every row the same height. Only the marks inside the rendered window are
-   * laid out, so a decade of months costs nothing to scroll past.
+   * Card-mode month hints. Dense rows use fixed-height in-flow sections; cards
+   * retain the lighter overlay because they are a visual wall, not the archive
+   * list structure.
    */
-  const months = useMemo(() => monthMarks(items, cols), [items, cols])
+  const months = useMemo(
+    () => (rowLayout ? [] : monthMarks(items, cols)),
+    [rowLayout, items, cols],
+  )
   const visibleMonths = useMemo(
     // Row 0 is deliberately skipped: its rule would be drawn in the gap ABOVE
     // the first row, which doesn't exist. The sticky label already says which
@@ -365,14 +480,20 @@ export function PageWall({
     if (!el) return
     const read = () => {
       const row = Math.floor(el.scrollTop / rowHeight)
-      const item = items[row * cols]
-      setTopYear(item ? String(new Date(item.entry.created_at).getFullYear()) : null)
-      setTopMonth(monthAtRow(items, cols, row))
+      if (rowLayout) {
+        const period = rowLayout.rows[Math.min(row, rowLayout.rows.length - 1)]?.period
+        setTopYear(period ? String(period.year) : null)
+        setTopMonth(period?.label ?? null)
+        return
+      }
+      const position = calendarAtRow(items, cols, row)
+      setTopYear(position?.year ?? null)
+      setTopMonth(position?.month ?? null)
     }
     read()
     el.addEventListener('scroll', read, { passive: true })
     return () => el.removeEventListener('scroll', read)
-  }, [items, cols, rowHeight])
+  }, [items, cols, rowHeight, rowLayout])
 
   const scrollToRow = useCallback(
     (row: number) => {
@@ -450,10 +571,15 @@ export function PageWall({
   const zoomBy = useCallback(
     (delta: number) => {
       const el = scrollRef.current
-      if (el) anchorRef.current = Math.floor(el.scrollTop / rowHeight) * cols
+      if (el) {
+        const row = Math.floor(el.scrollTop / rowHeight)
+        anchorRef.current = rowLayout
+          ? firstItemIndexAtRow(rowLayout, row)
+          : row * cols
+      }
       onZoom(clampZoom(zoom + delta))
     },
-    [zoom, onZoom, rowHeight, cols],
+    [zoom, onZoom, rowHeight, cols, rowLayout],
   )
 
   // Layout effect, not an effect: restore the scroll position in the same frame
@@ -463,8 +589,9 @@ export function PageWall({
     if (idx === null) return
     anchorRef.current = null
     const el = scrollRef.current
-    if (el) el.scrollTop = Math.floor(idx / cols) * rowHeight
-  }, [cols, rowHeight])
+    const row = rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
+    if (el) el.scrollTop = row * rowHeight
+  }, [cols, rowHeight, rowLayout])
 
   /**
    * Pinch and ⌘-scroll.
@@ -519,8 +646,9 @@ export function PageWall({
     const idx = itemsRef.current.findIndex((it) => !it.seam && it.entry.id === returningId)
     if (idx < 0) return
     landedRef.current = returningId
-    scrollRef.current?.scrollTo({ top: Math.floor(idx / cols) * rowHeight, behavior: 'auto' })
-  }, [returningId, cols, rowHeight])
+    const row = rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
+    scrollRef.current?.scrollTo({ top: row * rowHeight, behavior: 'auto' })
+  }, [returningId, cols, rowHeight, rowLayout])
 
   const focusCard = useCallback((key: string): boolean => {
     const node = gridRef.current?.querySelector<HTMLElement>(
@@ -545,7 +673,7 @@ export function PageWall({
       const list = itemsRef.current
       const clamped = Math.max(0, Math.min(list.length - 1, next))
       setFocusIdx(clamped)
-      const row = Math.floor(clamped / cols)
+      const row = rowLayout?.itemPositions[clamped]?.row ?? Math.floor(clamped / cols)
       const el = scrollRef.current
       if (el) {
         const top = row * rowHeight
@@ -560,7 +688,7 @@ export function PageWall({
       }
       return item
     },
-    [cols, rowHeight, cardHeight, focusCard],
+    [cols, rowHeight, cardHeight, focusCard, rowLayout],
   )
 
   const openMenuAt = useCallback(
@@ -664,9 +792,9 @@ export function PageWall({
       if (base < 0) return
       const visibleRows = Math.max(1, Math.floor((scrollRef.current?.clientHeight ?? 0) / rowHeight))
 
-      const step = (delta: number) => {
+      const land = (next: number) => {
         e.preventDefault()
-        const landed = moveFocus(base + delta)
+        const landed = moveFocus(next)
         if (!landed || landed.echo) return
         if (e.shiftKey) {
           if (!multi.rangePivotId) beginRange(list[base]?.entry.id ?? landed.entry.id)
@@ -676,21 +804,37 @@ export function PageWall({
 
       switch (e.key) {
         case 'ArrowRight':
-          return step(1)
+          return land(base + 1)
         case 'ArrowLeft':
-          return step(-1)
+          return land(base - 1)
         case 'ArrowDown':
-          return step(cols)
+          return land(
+            rowLayout
+              ? itemIndexByRowOffset(rowLayout, base, 1)
+              : base + cols,
+          )
         case 'ArrowUp':
-          return step(-cols)
+          return land(
+            rowLayout
+              ? itemIndexByRowOffset(rowLayout, base, -1)
+              : base - cols,
+          )
         case 'PageDown':
-          return step(cols * visibleRows)
+          return land(
+            rowLayout
+              ? itemIndexByRowOffset(rowLayout, base, visibleRows)
+              : base + cols * visibleRows,
+          )
         case 'PageUp':
-          return step(-cols * visibleRows)
+          return land(
+            rowLayout
+              ? itemIndexByRowOffset(rowLayout, base, -visibleRows)
+              : base - cols * visibleRows,
+          )
         case 'Home':
-          return step(-base)
+          return land(0)
         case 'End':
-          return step(list.length - 1 - base)
+          return land(list.length - 1)
         case 'Enter':
         case ' ': {
           e.preventDefault()
@@ -732,6 +876,7 @@ export function PageWall({
     [
       cols,
       rowHeight,
+      rowLayout,
       moveFocus,
       beginRange,
       selectRangeTo,
@@ -752,6 +897,10 @@ export function PageWall({
           role="grid"
           aria-label="Your pages"
           data-cols={cols}
+          /* The fold lane is reserved for the whole wall or not at all: a lane
+             that appeared only on folded rows would step the date column in and
+             out down the page, and a column of dates is read down. */
+          data-folds={folds ? 'true' : undefined}
           aria-multiselectable
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
@@ -768,10 +917,9 @@ export function PageWall({
           }}
         >
           {/*
-            Month rules, in the gutter.
-            Absolutely positioned against the grid so they take no row and shift
-            nothing — the alternative, a header in the flow, is exactly what
-            makes rows uneven and windowing impossible.
+            Card-mode month rules, in the gutter.
+            Dense rows render equal-height section rows in this same flow, while
+            card mode keeps these non-structural hints from changing its geometry.
 
             Not on a phone. The gutter there is one pixel, so the rule had
             nowhere to sit but across the last line of the row above it — and it
@@ -791,8 +939,29 @@ export function PageWall({
             </span>
           ))}
 
-          {slice.map((item, i) => {
-            const idx = firstIdx + i
+          {visibleCells.map((cell) => {
+            if (cell.kind === 'section') {
+              return (
+                <div
+                  key={cell.row.key}
+                  className="pg__section"
+                  data-current-week={cell.row.period.currentWeek ? 'true' : undefined}
+                  aria-label={cell.row.period.label}
+                >
+                  <span>{cell.row.period.label}</span>
+                </div>
+              )
+            }
+            const { item, itemIndex: idx } = cell
+            const fold = cell.fold ? (
+              <WallFold
+                item={cell.fold.item}
+                focused={cell.fold.itemIndex === focusIdx}
+                onFocus={onCardFocus}
+                onKeyDown={onCardKeyDown}
+                onExpand={(key) => setExpandedSeams((prev) => new Set(prev).add(key))}
+              />
+            ) : null
             if (item.seam) {
               const { count, fromIso, toIso } = item.seam
               return (
@@ -817,7 +986,7 @@ export function PageWall({
             if (rows) {
               const currentWeek =
                 !item.echo && isCurrentCalendarWeek(item.entry.created_at)
-              return (
+              const row = (
                 <PageRow
                   key={item.key}
                   wallKey={item.key}
@@ -831,7 +1000,6 @@ export function PageWall({
                   context={!item.echo && item.entry.id === menuTargetId}
                   today={item.entry.id === newestId}
                   currentWeek={currentWeek}
-                  weekAnchor={currentWeek && item.entry.id === newestId}
                   echo={item.echo}
                   markings={rowMarkings.get(item.entry.id) ?? EMPTY_KINDS}
                   tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
@@ -842,6 +1010,17 @@ export function PageWall({
                   onClick={multi.handleRowClick}
                   onOpenMenu={openMenuAt}
                 />
+              )
+              // Only a folded row is wrapped. An unwrapped row is a grid item
+              // in its own right, and wrapping every one of them to hold a mark
+              // most of them don't have is 3,500 elements for nothing.
+              return fold ? (
+                <div className="pg__cell" key={item.key}>
+                  {fold}
+                  {row}
+                </div>
+              ) : (
+                row
               )
             }
             return (

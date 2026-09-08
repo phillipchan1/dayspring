@@ -19,8 +19,6 @@ interface Props {
   today: boolean
   /** This page belongs to the reader's current calendar week. */
   currentWeek: boolean
-  /** The first current-week page, where the cluster names itself. */
-  weekAnchor: boolean
   /**
    * Set when this page has risen out of another year.
    *
@@ -114,7 +112,6 @@ export const PageRow = memo(function PageRow({
   context,
   today,
   currentWeek,
-  weekAnchor,
   echo,
   markings,
   wallKey,
@@ -179,7 +176,6 @@ export const PageRow = memo(function PageRow({
       <time className="pgr__date" dateTime={dateIso}>
         {formatDate(dateIso, Boolean(echo))}
       </time>
-      {weekAnchor ? <span className="pgr__week">this week</span> : null}
       {echo ? <span className="pgr__echo">{echo}</span> : null}
       <span className="pgr__line">
         {match ? paint(line, match) : line}

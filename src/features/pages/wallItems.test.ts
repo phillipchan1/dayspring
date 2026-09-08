@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Entry } from '@/lib/types'
 import {
   buildWallItems,
+  calendarAtRow,
   collapseUnlit,
   isCurrentCalendarWeek,
   monthAtRow,
@@ -9,6 +10,7 @@ import {
   seamLabel,
   selectionOrder,
   yearRows,
+  type WallItem,
 } from './wallItems'
 
 const MONTHS = [
@@ -224,6 +226,25 @@ describe('monthAtRow', () => {
 
   it('is silent past the end rather than throwing', () => {
     expect(monthAtRow(buildWallItems([entry('2024-03-20')], false, 4), 4, 99)).toBeNull()
+  })
+
+  it('does not let recalls or seams claim the corner calendar', () => {
+    const march = entry('2024-03-20')
+    const old = entry('2012-03-20')
+    const february = entry('2024-02-28')
+    const items: WallItem[] = [
+      { key: `echo:${old.id}`, entry: old, echo: '12 years earlier' },
+      {
+        key: 'seam:march',
+        entry: march,
+        seam: { count: 8, fromIso: '2024-03-01', toIso: march.created_at },
+      },
+      { key: february.id, entry: february },
+    ]
+    expect(calendarAtRow(items, 2, 0)).toEqual({
+      month: 'February 2024',
+      year: '2024',
+    })
   })
 })
 
