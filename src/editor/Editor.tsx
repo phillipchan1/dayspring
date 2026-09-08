@@ -24,6 +24,7 @@ import { lineMenuExtension } from './lineMenu'
 import { scripturePasteExtension } from './scripturePasteExtension'
 import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { wrapLinesInFence } from '@/lib/markSelection'
+import { isIOSTauri } from '@/lib/platform'
 import type { SpiritualItemType } from '@/lib/types'
 import type { InlinePanelAnchor } from './inlinePanelAnchor'
 import { formatKeymap } from './formatKeymap'
@@ -31,6 +32,7 @@ import {
   applyHighlight as applyHighlightToSelection,
   clearLink,
   expandToInlineSpans,
+  formatTargetRange,
   linkUrlInRange,
   selectionAnchorRect,
   setLink,
@@ -249,6 +251,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const slashEnabledRef = useRef(slashEnabled)
   const titleStylingRef = useRef(titleStyling)
   const [formatBar, setFormatBar] = useState<FormatBarAnchor | null>(null)
+  /**
+   * The format bar is selection-triggered by default. This flag pins it at a
+   * collapsed caret — summoned with ⌘⇧F or a desktop right-click — so highlight
+   * colours stay reachable without dragging. Cleared on type, Escape, or blur.
+   */
+  const caretFormatRef = useRef(false)
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const [linkTarget, setLinkTarget] = useState<LinkPopoverTarget | null>(null)
   const setSlashRef = useRef(setSlashState)
@@ -267,6 +275,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const openPaletteRef = useRef((pos: number, at: { top: number; left: number }) => {
     const view = viewRef.current
     if (!view || !slashEnabledRef.current) return
+    caretFormatRef.current = false
     // The caret follows the `+`, the way it does in every editor that has one:
     // you pressed the button beside THIS line, so this is the line you are on.
     view.dispatch({ selection: { anchor: pos, head: pos } })
@@ -295,22 +304,76 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
 
   // Open the link popover for the live selection (⌘K or the format-bar link button).
   const requestLink = useCallback((view: EditorView) => {
-    const sel = view.state.selection.main
-    if (sel.empty) return
+    const span = formatTargetRange(view)
     const rect = selectionAnchorRect(view)
     if (!rect) return
     // Widen to the whole `[label](url)`: with the brackets concealed, selecting
     // an existing link's visible label would otherwise nest a second link.
-    const { from, to } = expandToInlineSpans(view.state, sel.from, sel.to)
+    const { from, to } = expandToInlineSpans(view.state, span.from, span.to)
     setLinkTarget({
       from,
       to,
-      url: linkUrlInRange(view, from, to) ?? '',
+      url: from === to ? '' : (linkUrlInRange(view, from, to) ?? ''),
       rect,
     })
   }, [])
   const requestLinkRef = useRef(requestLink)
   requestLinkRef.current = requestLink
+
+  const toggleFormatBarRef = useRef<(view: EditorView) => boolean>(() => false)
+  toggleFormatBarRef.current = (view) => {
+    caretFormatRef.current = !caretFormatRef.current
+    if (view.state.selection.main.empty && !caretFormatRef.current) {
+      setFormatBar(null)
+      return true
+    }
+    setFormatBar(anchorFromView(view))
+    return true
+  }
+
+  const formatBarEventsRef = useRef({
+    contextmenu: (_event: MouseEvent, _view: EditorView) => false,
+    keydown: (_event: KeyboardEvent) => false,
+  })
+  formatBarEventsRef.current = {
+    contextmenu(event, view) {
+      if (isIOSTauri()) return false
+      if (typeof window !== 'undefined' && !window.matchMedia('(pointer: fine)').matches) {
+        return false
+      }
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+      if (pos == null) return false
+      if (!view.state.selection.main.empty) return false
+      caretFormatRef.current = true
+      const sel = view.state.selection.main
+      if (sel.anchor !== pos || sel.head !== pos) {
+        view.dispatch({ selection: { anchor: pos } })
+      } else {
+        setFormatBar(anchorFromView(view))
+      }
+      view.focus()
+      return false
+    },
+    keydown(event) {
+      if (!caretFormatRef.current) return false
+      if (event.metaKey || event.ctrlKey || event.altKey) return false
+      if (event.key.length === 1) caretFormatRef.current = false
+      return false
+    },
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (!caretFormatRef.current) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      caretFormatRef.current = false
+      setFormatBar(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
 
   useImperativeHandle(ref, () => ({
     insertAt: (pos: number, text: string) => {
@@ -443,7 +506,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   }))
 
   const syncFormatBar = useCallback((view: EditorView) => {
-    if (view.state.selection.main.empty) {
+    if (!view.hasFocus) caretFormatRef.current = false
+    const empty = view.state.selection.main.empty
+    if (!empty) caretFormatRef.current = false
+    if (empty && !caretFormatRef.current) {
       setFormatBarRef.current(null)
       return
     }
@@ -465,7 +531,20 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           // Above defaultKeymap — CM binds Mod-i to selectParentSyntax (whole line/paragraph).
-          Prec.highest(formatKeymap((view) => requestLinkRef.current(view))),
+          Prec.highest(
+            formatKeymap(
+              (view) => requestLinkRef.current(view),
+              (view) => toggleFormatBarRef.current(view),
+            ),
+          ),
+          EditorView.domEventHandlers({
+            contextmenu(event, view) {
+              return formatBarEventsRef.current.contextmenu(event, view)
+            },
+            keydown(event) {
+              return formatBarEventsRef.current.keydown(event)
+            },
+          }),
           editorTabKeymap,
           // 3 spaces (not 2) — CommonMark/GFM requires a nested list item to be indented
           // at least as wide as the parent marker (e.g. "1. " is 3 columns); 2 spaces
@@ -699,6 +778,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   }, [commandLinePos])
 
   useEffect(() => {
+    if (slashState) {
+      caretFormatRef.current = false
+      setFormatBar(null)
+    }
     onSlashPaletteChange?.(slashState !== null)
   }, [slashState, onSlashPaletteChange])
 
@@ -786,10 +869,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     view.focus()
   }
 
-  /** The mark covering the current selection, if the writer already set it aside. */
+  /** The mark covering the current format target, if the writer already set it aside. */
   const selectionMark = (() => {
     if (!formatBar || !marks?.length) return null
-    const { from, to } = formatBar.view.state.selection.main
+    const { from, to } = formatTargetRange(formatBar.view)
     if (from === to) return null
     const body = formatBar.view.state.doc.toString()
     return (
@@ -803,10 +886,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   })()
 
   const handleToggleMark = (view: EditorView) => {
-    const { from, to } = view.state.selection.main
+    const { from, to } = formatTargetRange(view)
     if (from === to) return
     onToggleMark?.(normalizeQuote(view.state.sliceDoc(from, to)), from, selectionMark)
     // The bar is transient; dismissing it makes the mark feel committed.
+    caretFormatRef.current = false
     setFormatBar(null)
   }
 
@@ -814,10 +898,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     <>
       <div ref={hostRef} className="editor-host" style={{ height: '100%' }} />
       <SelectionFormatBar
-        anchor={linkTarget ? null : formatBar}
+        anchor={linkTarget || slashState ? null : formatBar}
         onRequestLink={(view) => requestLinkRef.current(view)}
         onMark={onToggleMark ? handleToggleMark : undefined}
         marked={!!selectionMark}
+        onDismiss={() => {
+          caretFormatRef.current = false
+          setFormatBar(null)
+        }}
       />
       {linkTarget && (
         <LinkPopover

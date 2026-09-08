@@ -8,6 +8,8 @@ import {
   buildInline,
   EMPTY_INLINE,
   expandTextualWrappers,
+  formatTargetRange,
+  getFormatState,
   parseInlineMarks,
   parseLink,
   toggleHighlight,
@@ -308,6 +310,40 @@ describe('applyFormat — never stacks markers', () => {
     expect(view.state.doc.toString()).toBe('=={sky}hi==')
     applyHighlight(view, 'sky')
     expect(view.state.doc.toString()).toBe('hi')
+    view.destroy()
+  })
+})
+
+describe('formatTargetRange', () => {
+  it('returns the word at an empty caret', () => {
+    const view = viewWith('say hello there', 6)
+    expect(formatTargetRange(view)).toEqual({ from: 4, to: 9 })
+    view.destroy()
+  })
+
+  it('collapses to the caret in whitespace', () => {
+    const view = viewWith('say  hello', 4)
+    expect(formatTargetRange(view)).toEqual({ from: 4, to: 4 })
+    view.destroy()
+  })
+
+  it('widens a selection to matching wrappers', () => {
+    const view = viewWith('**hello**', 2, 7)
+    expect(formatTargetRange(view)).toEqual({ from: 0, to: 9 })
+    view.destroy()
+  })
+})
+
+describe('getFormatState at the caret', () => {
+  it('reads marks off the word the caret is in', () => {
+    const view = viewWith('**hello**', 4)
+    expect(getFormatState(view).inline.bold).toBe(true)
+    view.destroy()
+  })
+
+  it('is empty on a plain word', () => {
+    const view = viewWith('hello', 2)
+    expect(getFormatState(view).inline).toEqual(EMPTY_INLINE)
     view.destroy()
   })
 })

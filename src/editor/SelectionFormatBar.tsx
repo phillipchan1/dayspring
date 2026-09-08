@@ -51,6 +51,8 @@ interface Props {
   onMark?: ((view: EditorView) => void) | undefined
   /** The selection is already marked — the button unmarks. */
   marked?: boolean | undefined
+  /** Dismiss a caret-summoned bar (Escape on the last page). */
+  onDismiss?: (() => void) | undefined
 }
 
 type Page = 'format' | 'swatches' | 'system' | 'replace'
@@ -99,7 +101,7 @@ function TouchFace({ action, label }: { action: BarAction; label: string }) {
 }
 
 /** Single-line markdown formatter that floats above the current selection. */
-export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Props) {
+export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDismiss }: Props) {
   const barRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
@@ -255,10 +257,13 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
         onMouseDown={(e) => e.preventDefault()}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
-          if (e.key === 'Escape' && page !== 'format') {
-            e.stopPropagation()
+          if (e.key !== 'Escape') return
+          e.stopPropagation()
+          if (page !== 'format') {
             setPage('format')
+            return
           }
+          onDismiss?.()
         }}
       >
         {opts.leading}
@@ -298,7 +303,7 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
           className="format-bar__swatch"
           data-color={color}
           data-active={current === color ? 'true' : undefined}
-          style={{ animationDelay: `${0.02 + i * 0.018}s` }}
+          style={{ animationDelay: `${i * 0.008}s` }}
           title={HIGHLIGHT_LABELS[color]}
           aria-label={HIGHLIGHT_LABELS[color]}
           aria-pressed={current === color}
@@ -328,7 +333,7 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
               key={`${guess}-${i}`}
               type="button"
               className="format-bar__guess"
-              style={{ animationDelay: `${0.02 + i * 0.018}s` }}
+              style={{ animationDelay: `${i * 0.008}s` }}
               onClick={() => {
                 replaceSelection(anchor.view, guess)
                 setPage('format')
@@ -355,7 +360,7 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
           type="button"
           className="format-bar__btn"
           data-action={action}
-          style={{ animationDelay: `${0.02 + i * 0.018}s` }}
+          style={{ animationDelay: `${i * 0.008}s` }}
           title={title}
           aria-label={label}
           onClick={() => run(action)}
@@ -407,7 +412,7 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
             // the readout the swatch row would otherwise have to provide.
             style={
               {
-                animationDelay: `${0.02 + i * 0.018}s`,
+                animationDelay: `${i * 0.008}s`,
                 ...(color ? { '--hl-hue': `var(--hl-${color})` } : null),
               } as React.CSSProperties
             }
@@ -439,7 +444,6 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked }: Pr
 
 export function anchorFromView(view: EditorView): FormatBarAnchor | null {
   const rect = selectionAnchorRect(view)
-  const state = getFormatState(view)
-  if (!rect || !state) return null
-  return { view, rect, state }
+  if (!rect) return null
+  return { view, rect, state: getFormatState(view) }
 }

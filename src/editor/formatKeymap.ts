@@ -6,8 +6,14 @@ import { applyFormat } from './formatSelection'
  * are toggles: an empty pair comes off, a word at the caret wraps or unwraps, and a
  * second press never stacks another delimiter. `onRequestLink` is invoked for ⌘K
  * so the caller can open the link popover — link entry is a UI flow, not a synchronous text edit.
+ *
+ * ⌘⇧F summons the same format bar the selection uses, at the caret — so
+ * highlight colours and the rest of the pill are reachable without dragging.
  */
-export function formatKeymap(onRequestLink: (view: EditorView) => void) {
+export function formatKeymap(
+  onRequestLink: (view: EditorView) => void,
+  onToggleFormatBar: (view: EditorView) => boolean,
+) {
   return keymap.of([
     {
       key: 'Mod-b',
@@ -49,6 +55,11 @@ export function formatKeymap(onRequestLink: (view: EditorView) => void) {
         onRequestLink(view)
         return true
       },
+    },
+    {
+      key: 'Mod-Shift-f',
+      preventDefault: true,
+      run: (view) => onToggleFormatBar(view),
     },
   ])
 }
