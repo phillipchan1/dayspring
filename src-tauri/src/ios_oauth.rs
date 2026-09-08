@@ -110,8 +110,16 @@ fn presentation_anchor() -> Retained<ASPresentationAnchor> {
 
 /// Opens an OAuth URL in ASWebAuthenticationSession and returns the callback
 /// URL (e.g. `dayspring://auth-callback?code=…`). No-op stub on other platforms.
+///
+/// **Must be `async`.** A sync command on iOS often runs on the UIKit main
+/// thread (WKScriptMessageHandler). The old body did `run_on_main(start)`
+/// then `rx.recv_timeout(90s)` on that same thread. Presentation and the
+/// completion handler both need the main run loop, so the recv deadlocked:
+/// no sheet, React never painted “Opening…”, every later tap looked dead,
+/// and leaving the app tripped the watchdog (“this app crashed”).
+/// `spawn_blocking` keeps the wait off main. JS `invoke` is unchanged.
 #[tauri::command]
-pub fn start_oauth_session(auth_url: String) -> Result<String, String> {
+pub async fn start_oauth_session(auth_url: String) -> Result<String, String> {
   #[cfg(not(target_os = "ios"))]
   {
     let _ = auth_url;
@@ -120,7 +128,9 @@ pub fn start_oauth_session(auth_url: String) -> Result<String, String> {
 
   #[cfg(target_os = "ios")]
   {
-    start_oauth_session_ios(&auth_url)
+    tauri::async_runtime::spawn_blocking(move || start_oauth_session_ios(&auth_url))
+      .await
+      .map_err(|e| format!("OAuth waiter failed: {e}"))?
   }
 }
 
