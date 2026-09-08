@@ -494,8 +494,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               UnderlineExtension,
             ],
           }),
-          // Skip mark decorations on the caret line so Safari / WKWebView
-          // keep tracking the word for autocorrect. Finished lines still paint.
+          // Skip mark decorations on the word being typed so Safari / WKWebView
+          // keep tracking it for autocorrect. Closed inline marks still paint
+          // on the same line the moment the caret leaves them — or sits at the
+          // closing delimiter.
           proseHighlighting(),
           highlightDecoration(),
           concealCompartment.current.of(showMarkdownSyntax ? [] : concealMarkersExtension()),
