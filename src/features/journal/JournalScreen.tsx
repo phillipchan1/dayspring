@@ -327,6 +327,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     book: string
     chapter: number
     verse: number | null
+    verseEnd: number | null
     target: SpiritualBlockEditTarget
     anchor: InlinePanelAnchor
   } | null>(null)
@@ -1932,6 +1933,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           book={chapterOpen.book}
           chapter={chapterOpen.chapter}
           highlightVerse={chapterOpen.verse}
+          highlightVerseEnd={chapterOpen.verseEnd}
           onClose={() => setChapterOpen(null)}
           onEdit={() => {
             const open = chapterOpen

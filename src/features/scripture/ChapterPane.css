@@ -58,6 +58,18 @@
 }
 
 .chapter-pane {
+  /* --scripture-gold is an `r, g, b` triple (see themes.css). Wrap it in rgb()
+     before mixing; a raw triple is not a <color> and the wash would vanish. */
+  --chapter-here-wash: color-mix(in srgb, rgb(var(--scripture-gold)) 22%, var(--bg-elevated));
+  --chapter-here-peak: color-mix(in srgb, rgb(var(--scripture-gold)) 40%, var(--bg-elevated));
+  --chapter-here-rule: rgb(var(--scripture-gold));
+  --chapter-here-rule-width: 2px;
+  --chapter-here-rule-style: solid;
+  --chapter-here-glow: 0 0 28px -10px rgba(var(--scripture-gold), 0.55);
+  --chapter-here-radius: 6px;
+  --chapter-here-flash: 820ms;
+  --chapter-context-opacity: 0.68;
+
   flex: 0 0 38%;
   max-width: 26rem;
   min-width: 15rem;
@@ -128,20 +140,78 @@
 }
 
 .chapter-pane__verse {
+  position: relative;
+  z-index: 0;
   margin: 0 0 0.85rem;
   font-family: var(--font-editor);
   font-size: 0.95rem;
   line-height: 1.6;
   color: var(--text);
+  transition: opacity 280ms ease;
+}
+
+.chapter-pane[data-focused='true'] .chapter-pane__verse:not([data-highlight]) {
+  opacity: var(--chapter-context-opacity);
+}
+
+.chapter-pane[data-focused='true'] .chapter-pane__verse:not([data-highlight]):hover,
+.chapter-pane[data-focused='true'] .chapter-pane__verse:not([data-highlight]):focus-visible {
+  opacity: 1;
 }
 
 .chapter-pane__verse[data-highlight='true'] {
-  background: color-mix(in srgb, var(--scripture-gold, #e8c07a) 28%, transparent);
-  border-radius: 4px;
-  padding: 0.35rem 0.45rem;
-  margin-left: -0.45rem;
-  margin-right: -0.45rem;
+  z-index: 1;
+  background: var(--chapter-here-wash);
+  /* Rule sits in the left wash so verse text stays on the chapter's column. */
+  border-left: var(--chapter-here-rule-width) var(--chapter-here-rule-style) var(--chapter-here-rule);
+  border-radius: var(--chapter-here-radius);
+  padding: 0.5rem 0.7rem 0.5rem calc(0.7rem - var(--chapter-here-rule-width));
+  margin-left: -0.7rem;
+  margin-right: -0.7rem;
   color: var(--text-bright);
+  scroll-margin-top: 2.75rem;
+  scroll-margin-bottom: 2.5rem;
+  animation: chapter-here-settle var(--chapter-here-flash) ease-out both;
+}
+
+.chapter-pane__verse[data-edge='solo'] {
+  box-shadow: var(--chapter-here-glow);
+}
+
+.chapter-pane__verse[data-edge='start'] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: 0;
+  padding-bottom: 0.35rem;
+}
+
+.chapter-pane__verse[data-edge='mid'] {
+  border-radius: 0;
+  margin-bottom: 0;
+  padding-top: 0.22rem;
+  padding-bottom: 0.22rem;
+  box-shadow: none;
+}
+
+.chapter-pane__verse[data-edge='end'] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-top: 0.35rem;
+  box-shadow: none;
+}
+
+@keyframes chapter-here-settle {
+  from {
+    background: var(--chapter-here-peak);
+  }
+  to {
+    background: var(--chapter-here-wash);
+  }
+}
+
+.chapter-pane__verse[data-highlight='true'] .chapter-pane__num {
+  color: rgb(var(--scripture-gold));
+  font-weight: 600;
 }
 
 .chapter-pane__num {
@@ -149,6 +219,7 @@
   color: var(--text-faint);
   margin-right: 0.4rem;
   letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 .chapter-pane__foot {
@@ -195,4 +266,73 @@
     border-left: none;
     border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-pane {
+    --chapter-here-flash: 0ms;
+    --chapter-here-glow: none;
+  }
+
+  .chapter-pane__verse {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .chapter-pane__verse[data-highlight='true'] {
+    background: Highlight;
+    color: HighlightText;
+    border-left-color: HighlightText;
+    box-shadow: none;
+    forced-color-adjust: none;
+  }
+
+  .chapter-pane__verse[data-highlight='true'] .chapter-pane__num {
+    color: HighlightText;
+  }
+}
+
+/* Vellum / Ember — the manuscript rule is a little thicker, no bloom. */
+[data-theme='vellum'] .chapter-pane,
+[data-theme='ember'] .chapter-pane {
+  --chapter-here-glow: none;
+  --chapter-here-rule-width: 3px;
+}
+
+/* Cloister / Compline — a hairline, like the colonnade. */
+[data-theme='cloister'] .chapter-pane,
+[data-theme='compline'] .chapter-pane {
+  --chapter-here-glow: none;
+  --chapter-here-rule-width: 1px;
+  --chapter-here-radius: 2px;
+}
+
+/* Sabbath / Grove — ornament is space. The wash is the only mark. */
+[data-theme='sabbath'] .chapter-pane,
+[data-theme='grove'] .chapter-pane {
+  --chapter-here-rule: transparent;
+  --chapter-here-rule-width: 0px;
+  --chapter-here-glow: none;
+  --chapter-here-radius: 0;
+  --chapter-here-wash: color-mix(in srgb, rgb(var(--scripture-gold)) 16%, var(--bg-elevated));
+}
+
+/* Plainsong — a dashed column, square corners, no bloom. */
+[data-theme='quire'] .chapter-pane,
+[data-theme='nocturne'] .chapter-pane {
+  --chapter-here-radius: 0;
+  --chapter-here-glow: none;
+  --chapter-here-rule-style: dashed;
+}
+
+/* Vigil — nothing glows. A lifted band in the theme's own grey gold. */
+[data-theme='vigil'] .chapter-pane {
+  --chapter-here-wash: color-mix(in srgb, rgb(var(--scripture-gold)) 28%, var(--bg-elevated));
+  --chapter-here-peak: var(--chapter-here-wash);
+  --chapter-here-glow: none;
+  --chapter-here-flash: 0ms;
+  --chapter-here-rule: var(--text-dim);
+  --chapter-here-rule-width: 1px;
+  --chapter-context-opacity: 0.8;
 }
