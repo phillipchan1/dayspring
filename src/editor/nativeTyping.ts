@@ -11,7 +11,7 @@ import { EditorView } from '@codemirror/view'
  * is the newer hint (Safari 18 / Chromium) for inline predictions.
  *
  * Attributes alone are not enough on WKWebView — Safari also drops
- * as-you-type correction when the caret line is rewritten with mark
+ * as-you-type correction when the word at the caret is rewritten with mark
  * decorations (see `proseHighlighting`). The Tauri shells additionally
  * turn on `allowsInlinePredictions` on the WKWebView configuration, which
  * is off by default and is why the app feels weaker than Safari.
