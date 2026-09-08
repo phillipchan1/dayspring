@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   isEntitled,
+  shouldHoldForProfile,
   appleMayStillCharge,
   isAppleRelationship,
   billingDestination,
@@ -117,6 +118,17 @@ describe('isEntitled', () => {
       // behaviour rather than an unbounded free ride.
       expect(isEntitled(sub({ plan: 'past_due', plan_expires_at: null }), NOW)).toBe(false)
     })
+  })
+})
+
+describe('shouldHoldForProfile', () => {
+  // The login flash: first profile select can come back empty, and treating
+  // that as "no plan" painted the subscribe screen at a paying user.
+  it('holds the loader until the profile is reconciled, unless already entitled', () => {
+    expect(shouldHoldForProfile(false, false)).toBe(true)
+    expect(shouldHoldForProfile(true, false)).toBe(false)
+    expect(shouldHoldForProfile(false, true)).toBe(false)
+    expect(shouldHoldForProfile(true, true)).toBe(false)
   })
 })
 

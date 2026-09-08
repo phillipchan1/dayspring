@@ -1992,6 +1992,9 @@ a {
      verbatim quotes the Ascent / Altar / Lamp surfaces are built out of are all
      things people copy — including out of a card that is itself a button, which
      is why these have to win back what the rule above took. */
+  input,
+  textarea,
+  [contenteditable],
   .cm-editor,
   .cm-content,
   .markdown-body,

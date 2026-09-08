@@ -181,6 +181,18 @@ export function isEntitled(sub: Subscription | null, now: number = Date.now()): 
   }
 }
 
+/**
+ * True when the app must keep the loader up instead of showing paywall /
+ * locked / onboarding. A subscribed user whose profile row isn't readable on
+ * the first tick (RLS not yet attached, or ensureProfile still creating it)
+ * used to land on "pick a plan" for a frame. Cached or already-fetched
+ * entitlement can enter the journal immediately; anyone else waits until
+ * ensureProfile + a refetch have landed.
+ */
+export function shouldHoldForProfile(entitled: boolean, profileReady: boolean): boolean {
+  return !entitled && !profileReady
+}
+
 export function trialDaysRemaining(sub: Subscription | null): number {
   if (!sub?.trial_ends_at) return 0
   const ms = new Date(sub.trial_ends_at).getTime() - Date.now()
@@ -223,14 +235,18 @@ export async function fetchSubscription(): Promise<Subscription> {
     .maybeSingle()
 
   if (error) throw error
+  // A missing row is not "no plan". Treating it as none painted the paywall
+  // for paying users whose first select raced ensureProfile / RLS. Keep the
+  // cached entitlement (or stay loading) until a real row arrives.
+  if (!data) throw new Error('No profile row')
 
   return {
-    plan: (data?.plan as Plan | null) ?? 'none',
-    plan_source: (data?.plan_source as PlanSource | null) ?? null,
-    trial_ends_at: data?.trial_ends_at ?? null,
-    plan_expires_at: data?.plan_expires_at ?? null,
-    onboarded_at: data?.onboarded_at ?? null,
-    featureFlags: (data?.feature_flags as string[] | null) ?? [],
+    plan: (data.plan as Plan | null) ?? 'none',
+    plan_source: (data.plan_source as PlanSource | null) ?? null,
+    trial_ends_at: data.trial_ends_at ?? null,
+    plan_expires_at: data.plan_expires_at ?? null,
+    onboarded_at: data.onboarded_at ?? null,
+    featureFlags: (data.feature_flags as string[] | null) ?? [],
   }
 }
 

@@ -42,6 +42,7 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
+import { TAP_GUARD_MS } from '@/lib/tapAction'
 import { SignIn } from './SignIn'
 
 function buttonNamed(host: HTMLElement, name: string): HTMLButtonElement {
@@ -81,6 +82,7 @@ describe('SignIn (iPad tap)', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     act(() => root.unmount())
     host.remove()
   })
@@ -134,6 +136,65 @@ describe('SignIn (iPad tap)', () => {
     expect(host.querySelector('input[type="password"]')).toBeTruthy()
   })
 
+  it('does not offer reopen while the in-app sheet is still opening', () => {
+    mount()
+    act(() => {
+      firePointer(buttonNamed(host, 'Continue with Apple'), 'pointerdown', 'touch')
+    })
+    expect(host.textContent).toContain('Opening Apple')
+    expect(host.textContent).not.toContain('Open again')
+    expect(host.textContent).not.toContain('Cancel')
+  })
+
+  it('offers Open again and Cancel after the browser handoff', async () => {
+    signInWithGoogle.mockReset()
+    signInWithGoogle.mockResolvedValue('waiting-for-browser')
+    mount()
+    await act(async () => {
+      firePointer(buttonNamed(host, 'Continue with Google'), 'pointerdown', 'touch')
+      await Promise.resolve()
+    })
+    expect(host.textContent).toContain('Continue with Google in your browser.')
+    expect(buttonNamed(host, 'Open again').getAttribute('aria-disabled')).not.toBe('true')
+    expect(buttonNamed(host, 'Cancel').disabled).toBe(false)
+    expect(buttonNamed(host, 'Continue with Apple').getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('cancels the waiting handoff and restores the buttons', async () => {
+    signInWithGoogle.mockReset()
+    signInWithGoogle.mockResolvedValue('waiting-for-browser')
+    mount()
+    await act(async () => {
+      firePointer(buttonNamed(host, 'Continue with Google'), 'pointerdown', 'touch')
+      await Promise.resolve()
+    })
+    act(() => {
+      firePointer(buttonNamed(host, 'Cancel'), 'pointerdown', 'touch')
+    })
+    expect(buttonNamed(host, 'Continue with Google').getAttribute('aria-disabled')).not.toBe('true')
+    expect(buttonNamed(host, 'Continue with Apple').getAttribute('aria-disabled')).not.toBe('true')
+    expect(host.textContent).not.toContain('Open again')
+    expect(host.textContent).not.toContain('Continue with Google in your browser.')
+  })
+
+  it('reopens the provider from the waiting state', async () => {
+    signInWithGoogle.mockReset()
+    signInWithGoogle.mockResolvedValue('waiting-for-browser')
+    mount()
+    await act(async () => {
+      firePointer(buttonNamed(host, 'Continue with Google'), 'pointerdown', 'touch')
+      await Promise.resolve()
+    })
+    expect(signInWithGoogle).toHaveBeenCalledTimes(1)
+    const t0 = performance.now()
+    vi.spyOn(performance, 'now').mockReturnValue(t0 + TAP_GUARD_MS + 1)
+    await act(async () => {
+      firePointer(buttonNamed(host, 'Open again'), 'pointerdown', 'touch')
+      await Promise.resolve()
+    })
+    expect(signInWithGoogle).toHaveBeenCalledTimes(2)
+  })
+
   it('surfaces a present failure instead of hanging silently', async () => {
     signInWithApple.mockReset()
     signInWithApple.mockRejectedValue(new Error('Could not start in-app OAuth session'))
@@ -158,6 +219,42 @@ describe('SignIn (iPad tap)', () => {
     expect(signInWithGoogle).toHaveBeenCalledTimes(1)
     expect(host.textContent).toContain('Opening…')
     expect(host.textContent).toContain('Opening Google')
+  })
+
+  it('exposes a pasteable email field (no autocapitalize, real text input)', () => {
+    mount()
+    act(() => {
+      firePointer(buttonNamed(host, 'Sign in with email'), 'pointerdown', 'touch')
+    })
+    const email = host.querySelector('input[type="email"]') as HTMLInputElement
+    expect(email).toBeTruthy()
+    expect(email.autocomplete).toBe('username')
+    expect(email.getAttribute('autocapitalize')).toBe('none')
+    expect(email.getAttribute('autocorrect')).toBe('off')
+    expect(email.getAttribute('spellcheck')).toBe('false')
+    expect(email.inputMode).toBe('email')
+    expect(email.classList.contains('signin__input')).toBe(true)
+  })
+
+  it('reveals and hides the password from the eye control', () => {
+    mount()
+    act(() => {
+      firePointer(buttonNamed(host, 'Sign in with email'), 'pointerdown', 'touch')
+    })
+    const field = host.querySelector('input[name="password"]') as HTMLInputElement
+    expect(field.type).toBe('password')
+    const show = host.querySelector('[aria-label="Show password"]') as HTMLButtonElement
+    expect(show).toBeTruthy()
+    act(() => {
+      firePointer(show, 'pointerdown', 'touch')
+    })
+    expect(field.type).toBe('text')
+    const hide = host.querySelector('[aria-label="Hide password"]') as HTMLButtonElement
+    expect(hide).toBeTruthy()
+    act(() => {
+      firePointer(hide, 'pointerdown', 'touch')
+    })
+    expect(field.type).toBe('password')
   })
 
   it('submits the review email path', async () => {
