@@ -4,8 +4,10 @@ import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import type { MarkingChip } from './facets'
 import type { KeptSubject } from './keptSubjects'
 import { searchSubjects, withCounts, wordSubject, type Subject, type SubjectIndex } from './subjects'
+import { aboveFloor, aliveIn, groupSubjects, type Window } from './lookGroups'
 import { READINGS, type Reading } from './readings'
 import { MarkGlyph } from '@/components/MarkGlyph'
+import { Glyph } from '@/features/lifemap/Glyph'
 import { LitChips, type LookChip } from './LitChips'
 
 export type { LookChip }
@@ -42,6 +44,21 @@ export type { LookChip }
  * something is on. Three control shapes in one sheet is the same mistake as six
  * type styles wearing a different hat.
  *
+ * ── The four lists are the Life Map's, on purpose ───────────────────────────
+ *
+ * `PagesView` calls `allSubjects()` and `listKeptSubjects()`; the Life Map calls
+ * `buildLifeMap()` over those same two tables. It has always been ONE
+ * vocabulary — but this sheet rendered it as one flat run of pills, so nothing
+ * on screen said so, and a reader who had just named twelve people over there
+ * met them again here as an undifferentiated heap. Grouping by `SECTIONS` (via
+ * `lookGroups`) is the whole fix: same names, same kinds, same order.
+ *
+ * AMBER MEANS DAYSPRING FOUND IT, carried across from `LifeMap.css` unchanged —
+ * wash, underline, and the kind glyph on the group's own head. Never a wand or a
+ * sparkle: BRANDSCRIPT rules out saying *AI-powered*, "it frightens this
+ * audience", and a second mark would compete with the one that says what a
+ * subject IS.
+ *
  * ── What is deliberately not here ───────────────────────────────────────────
  *
  * Asking a question. `api/ask.ts` still exists and D-020's finding is recorded
@@ -58,6 +75,27 @@ interface Props {
   offered: Subject[]
   /** The corpus, indexed — the only source of a subject's page count. */
   index: SubjectIndex
+  /**
+   * How often something has to recur before it is offered — `floorFor`, one page
+   * in a hundred, the Life Map's own constant.
+   *
+   * OVER THE BRACKET WHEN THERE IS ONE. Same rule, different denominator: one
+   * page in a hundred of the months you are holding. That is what keeps a
+   * bracketed sheet honest — the counts have always been the bracket's, and
+   * until `window` existed the NAMES were still the whole archive's.
+   *
+   * STATED ON SCREEN, and overruled by typing. A floor is filtering and can be
+   * argued with; a top-N would be the app's opinion of who matters (D-016).
+   */
+  floor: number
+  /**
+   * The bracketed months, or null for the whole archive.
+   *
+   * Only ever used to ask whether a subject was ALIVE then — see `aliveIn`. It
+   * is not a second filter on the pages; the wall and `index` already answer for
+   * those.
+   */
+  window: Window | null
   markings: MarkingChip[]
   /**
    * How close you are standing. It lives on the surface rather than in the
@@ -93,15 +131,36 @@ interface Props {
   /** Dim, or show only. Only offered once something is on. */
   onlyLit: boolean
   onOnlyLit: (v: boolean) => void
+  /**
+   * The way back to the Life Map, where this vocabulary is tended.
+   *
+   * The relationship already ran one way — a name over there opens Pages lit to
+   * it — and one-way doors are how two halves of one thing come to look like
+   * two things. Optional because the previews and the listing shots mount this
+   * surface with no app around it to navigate.
+   */
+  onTend?: (() => void) | undefined
 }
 
-/** How many noticed subjects sit in the sheet before you have typed anything. */
-const NOTICED_AT_REST = 6
+/**
+ * How far a search reaches past the floor.
+ *
+ * Not a cap on what is OFFERED — that is the floor's job, and the floor is a
+ * rule about the journal rather than a number about the writer. This is a cap on
+ * what a two-letter prefix can drag onto the screen, spread across four lists,
+ * and it is the same kind of bound the field already had.
+ */
+const FOUND_WHEN_SEARCHING = 24
+
+/** A stable empty list, so a shut sheet's memos never hand back a new array. */
+const NONE: Subject[] = []
 
 export function LookFor({
   kept,
   offered,
   index,
+  floor,
+  window,
   markings,
   zoom,
   onZoom,
@@ -119,6 +178,7 @@ export function LookFor({
   onDrop,
   onlyLit,
   onOnlyLit,
+  onTend,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState('')
@@ -162,40 +222,109 @@ export function LookFor({
   const q = typed.trim()
   const searching = q.length > 0
 
-  // Counted here, at the last moment, over the handful actually on screen.
-  // Counting the whole vocabulary is hundreds of regexes across thousands of
-  // pages, and this list never shows more than a dozen rows.
+  /*
+   * Counted at the last moment, and ONLY WHILE THE SHEET IS OPEN.
+   *
+   * Every count on a pill is a literal re-read of the corpus — one regex per
+   * subject across every page in the bracket — because the Concordance's stored
+   * number disagrees with a re-count on 123 of the 124 subjects above five pages
+   * (see `withCounts`). Measured at ~1.5µs a page, that is 75ms for fifty
+   * subjects on three thousand pages: fine once, when the sheet opens, and
+   * absurd on every render of a surface whose sheet is shut by default. It used
+   * to run unconditionally, which was survivable only because the list was
+   * capped at six.
+   */
   const heldRows = useMemo(() => {
+    if (!open) return NONE
     const matched = q
       ? kept.filter((s) => s.label.toLowerCase().includes(q.toLowerCase()))
       : kept
     // Counted, never filtered: what she keeps is hers, and a kept name that has
-    // nothing in the bracketed stretch is dimmed rather than taken away.
-    return withCounts(index, matched) as KeptSubject[]
-  }, [kept, index, q])
+    // nothing in the bracketed stretch is dimmed rather than taken away. Exempt
+    // from the floor for the same reason — a name she answered must never
+    // disappear for going quiet, which would be arithmetic overruling her.
+    return withCounts(index, matched)
+  }, [open, kept, index, q])
 
   const noticedRows = useMemo(() => {
-    const found = searching ? searchSubjects(offered, q, 8) : offered.slice(0, NOTICED_AT_REST * 3)
-    // A pill that lights nothing is not an option anyone can use — the same rule
-    // the marking pills follow by dimming.
-    const counted = withCounts(index, found).filter((s) => s.count)
-    return searching ? counted : counted.slice(0, NOTICED_AT_REST)
-  }, [offered, index, q, searching])
+    if (!open) return NONE
+    /*
+     * THE FLOOR, and the one way past it.
+     *
+     * At rest this was the first six of the vocabulary, which is a cap: honest
+     * arithmetic, but it left the other nine hundred names unreachable except by
+     * guessing. Now everything that recurs across one page in a hundred is here
+     * — the Life Map's own rule, its own constant — and typing lifts the floor
+     * entirely, because the find field has always searched the whole vocabulary.
+     * That is what makes a floor legitimate where a ranking would not be: the
+     * reader can see the rule and overrule it.
+     */
+    if (searching) {
+      const found = searchSubjects(offered, q, FOUND_WHEN_SEARCHING)
+      // A pill that lights nothing is not an option anyone can use — the same
+      // rule the marking pills follow by dimming.
+      return withCounts(index, found).filter((s) => s.count)
+    }
+
+    /*
+     * ── Bracketed: the names follow the months, not just the numbers ─────────
+     *
+     * Bracketing has always re-counted every pill against the stretch — `index`
+     * is the bracketed index — but it went on offering the WHOLE ARCHIVE'S
+     * names, so a winter came back with the winter's numbers written beside
+     * eleven years of subjects. The sheet half-followed the bracket, which is
+     * worse than either following it or not.
+     *
+     * Three stages, cheapest first, and only the last one removes a name:
+     *
+     *   1. `aliveIn` — two date comparisons per subject, no text touched.
+     *   2. `aboveFloor` on the Concordance's stored count. Not a proof: that
+     *      column UNDER-reports against a literal re-count (see `withCounts`),
+     *      so this can drop a subject that would have cleared the floor on the
+     *      real number. It is a bound the archive's own record vouches for, it
+     *      keeps the re-count from running over nine hundred subjects, and the
+     *      find field reaches anything it loses.
+     *   3. the literal count, which is the number the pill prints and the wall
+     *      is lit by — so under a bracket the floor is measured in exactly the
+     *      figure the reader can see. That is strictly more honest than the
+     *      unbracketed path, and affordable only because the corpus is small.
+     */
+    if (window) {
+      const alive = aboveFloor(aliveIn(offered, window), floor)
+      return withCounts(index, alive).filter((s) => (s.count ?? 0) >= floor)
+    }
+
+    return withCounts(index, aboveFloor(offered, floor)).filter((s) => s.count)
+  }, [open, offered, index, q, searching, floor, window])
 
   // Detection finds people and cannot find matters — it will never return
   // "marriage", because nobody capitalises it. So a matter becomes a subject
   // the moment she says so, typed from this same field.
   const mine = useMemo(() => {
-    if (q.length < 2) return null
+    if (!open || q.length < 2) return null
     const w = wordSubject(q)
     if (!w) return null
     const known = [...kept, ...offered].some((s) => s.label.toLowerCase() === q.toLowerCase())
     if (known) return null
     const [counted] = withCounts(index, [w])
     return counted ?? null
-  }, [q, kept, offered, index])
+  }, [open, q, kept, offered, index])
 
-  const nothing = heldRows.length === 0 && noticedRows.length === 0 && !mine
+  /*
+   * The four lists, and they are the Life Map's four lists — `groupSubjects`
+   * borrows `SECTIONS` rather than restating them beside it.
+   *
+   * A typed word joins whatever she keeps: it is hers the moment she says so,
+   * and `sectionOf` files it under Matters, which is where the Life Map files a
+   * typed subject too. Nothing is sorted here — kept order and first-appearance
+   * order both come through untouched.
+   */
+  const groups = useMemo(
+    () => groupSubjects(mine ? [...heldRows, mine] : heldRows, noticedRows),
+    [heldRows, noticedRows, mine],
+  )
+
+  const nothing = groups.length === 0
 
   return (
     <div className="pg-look" data-narrow={narrow ? 'true' : undefined} ref={box}>
@@ -431,54 +560,154 @@ export function LookFor({
           </div>
 
           <section className="pg-sheet__g">
-            <h3>subject</h3>
+            <h3>
+              subject
+              <span>the four lists your Life Map keeps</span>
+            </h3>
 
             {/*
-              First run. An empty row teaches nothing and looks broken, so the
-              group opens on what the journal already noticed — with one line
-              saying where those came from, because a name appearing without
-              explanation is the app claiming to know her.
+              First run. A name appearing without explanation is the app
+              claiming to know her, so the one line that says where these came
+              from — and what the colour means — sits above them until she has
+              kept something of her own.
+
+              Conditioned on there BEING amber on screen. It used to fire on an
+              empty vocabulary too, and "Amber is what Dayspring found in your
+              pages" over a blank space is the surface describing a thing that
+              is not there. A legend pinned to the sheet forever would be a
+              disclaimer anyway, and if a surface needs a disclaimer the
+              disclaimer isn't the fix.
             */}
-            {kept.length === 0 && !searching ? (
-              <p className="pg-sheet__note">Names you wrote most often. Keep the ones you carry.</p>
+            {kept.length === 0 && !searching && groups.some((g) => g.found.length > 0) ? (
+              <p className="pg-sheet__note">
+                Amber is what Dayspring found in your pages. Keep the ones you carry.
+              </p>
             ) : null}
 
-            <div className="pg-sheet__opts">
-              {heldRows.map((s) => (
-                <SubjectPill
-                  key={s.key}
-                  subject={s}
-                  kept
-                  on={on.has(s.key)}
-                  onToggle={() => (on.has(s.key) ? onRemove(s.key) : onToggleSubject(s))}
-                  onAside={() => onDrop(s.key)}
-                />
+            {/*
+              Four lists, side by side where there is room.
+
+              The Life Map stacks them down a full-width page; a dropdown is
+              wide and short, so the same four go two-up and the sheet stays
+              something you can read without scrolling. Same names, same order,
+              same glyphs — what changes is the shelf, not the shape.
+            */}
+            <div className="pg-sheet__kinds">
+              {groups.map((g) => (
+                <div className="pg-sheet__kind" key={g.id}>
+                  <h4>
+                    {/*
+                      The Life Map's own glyph, imported rather than redrawn.
+                      Grey here: on a chip the glyph's colour is the third
+                      channel saying "found", and a heading is not a subject —
+                      it would be claiming the whole list was found.
+                    */}
+                    <Glyph kind={g.id} found={false} className="pg-sheet__kglyph" />
+                    {g.label}
+                  </h4>
+                  <div className="pg-sheet__opts">
+                    {g.mine.map((s) => {
+                      // The one pill that is neither kept nor offered: a word
+                      // she has just typed that nothing in the vocabulary
+                      // knows. Its aside KEEPS rather than drops.
+                      const fresh = mine?.key === s.key
+                      return (
+                        <SubjectPill
+                          key={s.key}
+                          subject={s}
+                          kept={!fresh}
+                          mine={fresh}
+                          found={false}
+                          on={on.has(s.key)}
+                          onToggle={() => (on.has(s.key) ? onRemove(s.key) : onToggleSubject(s))}
+                          onAside={() => (fresh ? onKeep(s) : onDrop(s.key))}
+                        />
+                      )
+                    })}
+
+                    {g.found.map((s) => (
+                      <SubjectPill
+                        key={s.key}
+                        subject={s}
+                        kept={false}
+                        found
+                        on={on.has(s.key)}
+                        onToggle={() => (on.has(s.key) ? onRemove(s.key) : onToggleSubject(s))}
+                        onAside={() => onKeep(s)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
+            </div>
 
-              {noticedRows.map((s) => (
-                <SubjectPill
-                  key={s.key}
-                  subject={s}
-                  kept={false}
-                  on={on.has(s.key)}
-                  onToggle={() => (on.has(s.key) ? onRemove(s.key) : onToggleSubject(s))}
-                  onAside={() => onKeep(s)}
-                />
-              ))}
+            {/*
+              Nothing — and the two nothings are different.
+        
+              Searching, it is a fact about the word. At rest it is a young
+              journal, or a Concordance that has not run, or a read that failed
+              silently (which this surface does on purpose — the wall works
+              without any of this). Either way the honest answer names the rule
+              that emptied the list and points at the one thing that still
+              works, which is typing.
+            */}
+            {nothing ? (
+              <p className="pg-sheet__note">
+                {searching
+                  ? 'Nothing in your pages says that.'
+                  : `No subject comes up on ${floor} ${floor === 1 ? 'page' : 'pages'}` +
+                    (window ? ' in these months. ' : ' yet. ') +
+                    'Type any word and the pages that say it light up.'}
+              </p>
+            ) : null}
 
-              {mine ? (
-                <SubjectPill
-                  subject={mine}
-                  kept={false}
-                  mine
-                  on={on.has(mine.key)}
-                  onToggle={() => (on.has(mine.key) ? onRemove(mine.key) : onToggleSubject(mine))}
-                  onAside={() => onKeep(mine)}
-                />
-              ) : null}
+            {/*
+              The hem: the rule on the left, the door on the right.
 
-              {searching && nothing ? (
-                <p className="pg-sheet__note">Nothing in your pages says that.</p>
+              THE FLOOR IS STATED because that is what separates it from a
+              ranking. "Offered from thirty pages up" is a fact about the journal
+              the reader can argue with — and the argument is typing, which
+              reaches the whole vocabulary. "Your thirty most significant
+              subjects" would be the app's opinion of who matters, and there
+              would be nothing to say back to it (D-016).
+
+              It re-bases itself on the bracket, and says so. One page in a
+              hundred OF THESE MONTHS is the same rule over a different
+              denominator, and a floor that quietly kept counting the whole
+              archive while the pills counted a winter would be two arithmetics
+              on one line.
+
+              Hidden while searching, because while searching it is not true.
+            */}
+            <div className="pg-sheet__hem">
+              {searching || nothing ? (
+                <span />
+              ) : (
+                <span title="Anything you keep stays, however rarely it comes up">
+                  offered from {floor} {floor === 1 ? 'page' : 'pages'} up
+                  {window ? ' in these months' : null} — type for the rest
+                </span>
+              )}
+              {onTend ? (
+                <button
+                  type="button"
+                  className="pg-sheet__tend"
+                  onClick={() => {
+                    setOpen(false)
+                    onTend()
+                  }}
+                >
+                  Tend these in your Life Map
+                  <svg viewBox="0 0 10 10" width="8" height="8" fill="none" aria-hidden>
+                    <path
+                      d="m3.4 1.6 3.4 3.4-3.4 3.4"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
               ) : null}
             </div>
           </section>
@@ -621,6 +850,7 @@ function SubjectPill({
   subject,
   kept,
   mine,
+  found,
   on,
   onToggle,
   onAside,
@@ -628,6 +858,16 @@ function SubjectPill({
   subject: Subject
   kept: boolean
   mine?: boolean
+  /**
+   * Dayspring found this; the writer has not answered it. Amber, on the same
+   * two channels `LifeMap.css` uses — a wash on the pill and an underline under
+   * the word, which is the sign the editor already draws when it recognises
+   * something. The third channel, the glyph, sits on the group's head.
+   *
+   * Never an added mark. A wand or a sparkle would say the word BRANDSCRIPT
+   * rules out, and this sheet sits two inches from her own sentences.
+   */
+  found: boolean
   on: boolean
   onToggle: () => void
   onAside: () => void
@@ -637,6 +877,8 @@ function SubjectPill({
       className={`pg-pill ${kept ? 'pg-pill--kept' : 'pg-pill--noticed'}${mine ? ' pg-pill--mine' : ''}`}
       data-on={on ? 'true' : undefined}
       data-off={subject.count === 0 ? 'true' : undefined}
+      data-found={found ? 'true' : undefined}
+      title={found ? 'Dayspring found this in your pages' : undefined}
     >
       {/*
         A subject with nothing in the bracketed stretch DIMS rather than

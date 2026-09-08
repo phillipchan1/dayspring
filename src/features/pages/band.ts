@@ -153,6 +153,29 @@ export function inSpan(
   return n >= start.year * 12 + start.month && n <= end.year * 12 + end.month
 }
 
+/**
+ * The bracket as dates, so things that carry their own dates can be asked
+ * whether they belong in it.
+ *
+ * The MONTHS' bounds, not the bounds of the pages inside them: the bracket is a
+ * stretch of the calendar the reader drew, and a subject whose last mention
+ * falls in an empty corner of it was still alive then. `end` is the first
+ * instant of the following month, so the comparison stays a half-open interval
+ * and no page falls through the gap on the 31st.
+ */
+export function spanBounds(
+  span: Span,
+  months: { year: number; month: number }[],
+): { start: string; end: string } | null {
+  const start = months[span.from]
+  const end = months[span.to]
+  if (!start || !end) return null
+  return {
+    start: new Date(Date.UTC(start.year, start.month, 1)).toISOString(),
+    end: new Date(Date.UTC(end.year, end.month + 1, 1)).toISOString(),
+  }
+}
+
 /** "November 2019 – March 2021", or one month when that is all it is. */
 export function spanText(span: Span, months: { year: number; month: number }[]): string {
   const start = months[span.from]

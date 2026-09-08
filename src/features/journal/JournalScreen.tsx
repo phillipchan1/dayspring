@@ -1985,6 +1985,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       onOpenEntry={handleOpenReflectionEntry}
       onEntryMenuAction={handleEntryMenuAction}
       onDeleteEntries={handleDeleteEntries}
+      // The other end of the Life Map's own door. `toggleLifeMap` rather than a
+      // fresh `leaveForSurface`, so pressing it lands exactly where the rail
+      // and ⌘-nav land — one way in, one behaviour.
+      onTendSubjects={() => void toggleLifeMap()}
       settings={settings}
       updateSettings={updateSettings}
     />

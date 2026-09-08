@@ -10,6 +10,7 @@ import type { Entry } from '@/lib/types'
 import { deriveTitle } from '@/lib/entryLabels'
 import { PageWall } from './PageWall'
 import { clampZoom, densityLabel } from './zoom'
+import { floorFor } from '@/features/lifemap/lifeMap'
 import {
   allSubjects,
   keysFromSubjects,
@@ -25,7 +26,7 @@ import { LitChips, type LookChip } from './LitChips'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
 import { Stretch } from './Stretch'
-import { inSpan, monthsAcross, type Span } from './band'
+import { inSpan, monthsAcross, spanBounds, type Span } from './band'
 import { PageReader } from './PageReader'
 import { defaultSplit, type Reading } from './readings'
 import {
@@ -104,6 +105,14 @@ interface Props {
   /** Per-entry context-menu actions — rename the date, duplicate, print, export. */
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
+  /**
+   * Leave for the Life Map — the other end of a door that already ran one way.
+   *
+   * A subject named over there opens Pages lit to it; nothing here went back,
+   * so two halves of one vocabulary looked like two vocabularies. Optional: the
+   * previews and the listing shots mount this surface with no app to navigate.
+   */
+  onTendSubjects?: (() => void) | undefined
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
 }
@@ -133,6 +142,7 @@ export function PagesView({
   onOpenEntry,
   onEntryMenuAction,
   onDeleteEntries,
+  onTendSubjects,
   settings,
   updateSettings,
 }: Props) {
@@ -398,6 +408,33 @@ export function PagesView({
   // Kept subjects keep matching against what the Concordance knows today, and
   // what is offered is everything else — so keeping something moves it between
   // two lists rather than adding it to a third.
+  /*
+   * The floor `look for` offers subjects above — one page in a hundred, the
+   * Life Map's own constant so the two surfaces shorten their lists by the same
+   * rule.
+   *
+   * IT FOLLOWS THE BRACKET. `bracketed`, not `entries`: the sheet's counts have
+   * always been the bracket's, so a floor still measured over eleven years put
+   * two different denominators on one line — bracket a winter and a name that
+   * filled it could not clear a bar set by the whole archive. Same rule, the
+   * months you are holding. `floorFor` keeps its minimum of 3, which is what
+   * stops a one-month bracket from offering everything anyone ever wrote twice.
+   */
+  const subjectFloor = useMemo(() => floorFor(bracketed.length), [bracketed.length])
+
+  /**
+   * The bracket as dates, for asking a subject whether it was alive then.
+   *
+   * Not another filter on the pages — `bracketed` and `index` already answer for
+   * those. This is the cheap first stage of the offered list: two comparisons
+   * against dates the Concordance already stores, which is what makes re-counting
+   * a bracketed vocabulary affordable at all. See `aliveIn`.
+   */
+  const subjectWindow = useMemo(
+    () => (span ? spanBounds(span, months) : null),
+    [span, months],
+  )
+
   const held = useMemo(() => withVocabulary(kept, vocabulary), [kept, vocabulary])
   const offered = useMemo(() => partitionKept(vocabulary, held).offered, [vocabulary, held])
   const keptKeys = useMemo(() => new Set(held.map((k) => k.key)), [held])
@@ -928,6 +965,8 @@ export function PagesView({
               kept={held}
               offered={offered}
               index={index}
+              floor={subjectFloor}
+              window={subjectWindow}
               markings={markPills}
               zoom={zoom}
               onZoom={setZoom}
@@ -951,6 +990,7 @@ export function PagesView({
               onDrop={drop}
               onlyLit={onlyLit}
               onOnlyLit={setOnlyLit}
+              onTend={onTendSubjects}
             />
           </div>
           )}

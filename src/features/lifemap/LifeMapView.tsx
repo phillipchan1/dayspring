@@ -6,50 +6,11 @@
 
 import { useState } from 'react'
 import { useLifeMap, addTyped, removeItem, type LifeMap } from './useLifeMap'
-import type { LifeMapItem, LifeMapSection, SectionId } from './lifeMap'
+import type { LifeMapItem, LifeMapSection } from './lifeMap'
 import { tallies } from './lifeMap'
 import { LifeMapCanvas } from './LifeMapCanvas'
+import { Glyph } from './Glyph'
 import './LifeMap.css'
-
-/**
- * One geometric mark per kind, and its COLOUR carries provenance.
- *
- * Deliberately not a second icon. Every chip already has this glyph, so a wand
- * or a sparkle beside it would compete with the mark that says what a thing is —
- * and would say the word BRANDSCRIPT rules out ("AI-powered … it frightens this
- * audience"). Amber on the glyph the chip already has costs nothing and reads at
- * a glance across forty of them.
- */
-function Glyph({ kind, found }: { kind: SectionId; found: boolean }) {
-  const c = found ? 'var(--dayspring-amber)' : 'var(--text-faint)'
-  const common = { className: 'lifemap__glyph', viewBox: '0 0 12 12', 'aria-hidden': true } as const
-  switch (kind) {
-    case 'person':
-      return (
-        <svg {...common}>
-          <circle cx="6" cy="6" r="3.4" fill={c} />
-        </svg>
-      )
-    case 'place':
-      return (
-        <svg {...common}>
-          <path d="M6 1.6 10 6 6 10.4 2 6Z" fill={c} />
-        </svg>
-      )
-    case 'domain':
-      return (
-        <svg {...common}>
-          <rect x="2.3" y="2.3" width="7.4" height="7.4" rx="1.2" fill={c} />
-        </svg>
-      )
-    default:
-      return (
-        <svg {...common}>
-          <circle cx="6" cy="6" r="3.6" fill="none" stroke={c} strokeWidth="1.4" strokeDasharray="2 1.6" />
-        </svg>
-      )
-  }
-}
 
 function Chip({
   item,

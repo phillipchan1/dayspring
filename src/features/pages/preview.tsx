@@ -15,10 +15,12 @@ import type { MarkingChip } from './facets'
  * inside a phone-sized frame, so the mobile treatment can be looked at without
  * an account.
  *
- *   ?__preview=pages              → the surface, in a 390×844 frame
- *   ?__preview=pages&part=sheet   → `look for`, open, with fixture options
- *   ?__preview=pages&frame=0      → no frame; the window IS the viewport
- *   ?__preview=pages&theme=ink    → any palette; defaults to dawn
+ *   ?__preview=pages                  → the surface, in a 390×844 frame
+ *   ?__preview=pages&part=sheet       → `look for`, open, with fixture options
+ *   ?__preview=pages&part=sheet&wide=1 → the same sheet as a desktop DROPDOWN
+ *   ?__preview=pages&part=sheet&bracket=1 → the sheet with an ERA bracketed
+ *   ?__preview=pages&frame=0          → no frame; the window IS the viewport
+ *   ?__preview=pages&theme=ink        → any palette; defaults to dawn
  *
  * The frame is an `<iframe>` rather than a fixed-size box on purpose: media
  * queries answer to the viewport, and an iframe has its own. A 390px box in a
@@ -87,17 +89,47 @@ const ENTRIES: Entry[] = [...RECENT, ...ECHO_YEAR].sort(
   (a, b) => (a.created_at > b.created_at ? -1 : a.created_at < b.created_at ? 1 : 0),
 )
 
+/*
+ * Kept — what the writer answered. Never amber, whichever list it sits in.
+ *
+ * `word:soup` has neither a Concordance kind nor a `section` (the box it was
+ * typed into on the Life Map), which is exactly the shape of a row kept before
+ * that column existed. It must still land somewhere: Matters.
+ */
 const KEPT: KeptSubject[] = [
   { key: 'c:tiffany', label: 'Tiffany', terms: ['Tiffany'], kind: 'person', keptAt: '2026-01-01T00:00:00.000Z' },
   { key: 'c:naomi', label: 'Naomi', terms: ['Naomi'], kind: 'person', keptAt: '2026-01-02T00:00:00.000Z' },
+  { key: 'word:soup', label: 'soup', terms: ['soup'], kind: 'word', keptAt: '2026-01-03T00:00:00.000Z' },
 ]
 
+/*
+ * Offered — what the journal noticed and nobody has answered. Amber, and spread
+ * across all four Life Map lists on purpose: the whole point of the grouping is
+ * that it has a shape, and a fixture with only people in it would prove nothing.
+ *
+ * `occurrences` is the Concordance's own stored count, which is what the floor
+ * reads. `stones` sits below the fixture's floor of 3, so it should be absent
+ * until you type it — which is the floor's overrule, and worth being able to see.
+ */
+const NOW = { firstSeen: '2026-06-01T00:00:00.000Z', lastSeen: '2026-08-30T00:00:00.000Z' }
+const THEN = { firstSeen: '2011-08-27T00:00:00.000Z', lastSeen: '2011-08-31T00:00:00.000Z' }
+
 const OFFERED: Subject[] = [
-  { key: 'c:marcus', label: 'Marcus', terms: ['Marcus'], kind: 'person' },
-  { key: 'c:romans', label: 'Romans', terms: ['Romans'], kind: 'term' },
-  { key: 'c:thursday', label: 'Thursday', terms: ['Thursday'], kind: 'term' },
-  { key: 'c:dad', label: 'Dad', terms: ['Dad'], kind: 'person' },
+  { key: 'c:marcus', label: 'Marcus', terms: ['Marcus'], kind: 'person', occurrences: 18, ...NOW },
+  { key: 'c:dad', label: 'Dad', terms: ['Dad'], kind: 'person', occurrences: 9, ...NOW },
+  { key: 'c:water', label: 'the water', terms: ['the water'], kind: 'place', occurrences: 24, ...NOW },
+  { key: 'c:frontier', label: 'Frontier', terms: ['Frontier'], kind: 'org', occurrences: 7, ...NOW },
+  { key: 'c:romans', label: 'Romans', terms: ['Romans'], kind: 'term', occurrences: 12, ...NOW },
+  { key: 'c:thursday', label: 'Thursday', terms: ['Thursday'], kind: 'term', occurrences: 5, ...NOW },
+  { key: 'c:stones', label: 'stones', terms: ['stones'], kind: 'term', occurrences: 2, ...NOW },
+  // The 2011 side of the fixture's fifteen-year silence, so `bracket=1` has
+  // something to find and the rest has something to lose.
+  { key: 'c:grace', label: 'grace', terms: ['grace'], kind: 'term', occurrences: 5, ...THEN },
+  { key: 'c:home', label: 'home', terms: ['home'], kind: 'place', occurrences: 4, ...THEN },
 ]
+
+/** The older of the fixture's two eras — what pressing its chip brackets. */
+const BRACKET = { start: '2011-08-01T00:00:00.000Z', end: '2011-09-01T00:00:00.000Z' }
 
 const MARKINGS: MarkingChip[] = (['gift', 'prayer', 'scripture', 'sense', 'learned'] as const).map(
   (kind, i) => ({
@@ -159,7 +191,17 @@ function SurfacePreview() {
 /** The fixture archive, indexed — what gives the sheet's pills their counts. */
 const SHEET_INDEX = buildSubjectIndex(ENTRIES)
 
-function SheetPreview() {
+/** The same, over one era only — what a bracket hands the sheet. */
+const BRACKET_INDEX = buildSubjectIndex(
+  ENTRIES.filter((e) => e.created_at >= BRACKET.start && e.created_at < BRACKET.end),
+)
+
+/**
+ * `wide` is not cosmetic. The dropdown and the bottom sheet lay the four Life
+ * Map lists out differently — two-up against stacked — and the grouping is the
+ * thing being looked at, so both need to be reachable without a phone.
+ */
+function SheetPreview({ wide, bracket }: { wide: boolean; bracket: boolean }) {
   const [zoom, setZoom] = useState(0)
   const [keys, setKeys] = useState<string[]>(['c:tiffany'])
   const chips = [...KEPT, ...OFFERED]
@@ -173,11 +215,16 @@ function SheetPreview() {
           <LookFor
             kept={KEPT}
             offered={OFFERED}
-            index={SHEET_INDEX}
+            index={bracket ? BRACKET_INDEX : SHEET_INDEX}
+            // The fixture archive is 53 pages, so `floorFor` lands on its
+            // minimum of 3 either way — which is the young-journal case, and the
+            // one where a floor has to be careful not to empty the sheet.
+            floor={3}
+            window={bracket ? BRACKET : null}
             markings={MARKINGS}
             zoom={zoom}
             onZoom={setZoom}
-            narrow
+            narrow={!wide}
             standLabel="30 a screen"
             reading="order"
             onReading={() => {}}
@@ -193,6 +240,7 @@ function SheetPreview() {
             onDrop={() => {}}
             onlyLit={false}
             onOnlyLit={() => {}}
+            onTend={() => window.alert('This is where the Life Map would open.')}
           />
         </div>
       </div>
@@ -221,7 +269,7 @@ function isThemeId(value: string | null): value is ThemeId {
 export function renderPagesPreview(): void {
   const params = new URLSearchParams(window.location.search)
 
-  if (params.get('frame') !== '0') {
+  if (params.get('frame') !== '0' && params.get('wide') !== '1') {
     const inner = new URLSearchParams(params)
     inner.set('frame', '0')
     frame(`${window.location.pathname}?${inner.toString()}`)
@@ -240,5 +288,11 @@ export function renderPagesPreview(): void {
 
   const el = document.getElementById('root')
   if (!el) throw new Error('Root element #root not found')
-  createRoot(el).render(params.get('part') === 'sheet' ? <SheetPreview /> : <SurfacePreview />)
+  createRoot(el).render(
+    params.get('part') === 'sheet' ? (
+      <SheetPreview wide={params.get('wide') === '1'} bracket={params.get('bracket') === '1'} />
+    ) : (
+      <SurfacePreview />
+    ),
+  )
 }

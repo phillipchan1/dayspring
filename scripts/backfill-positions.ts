@@ -64,7 +64,15 @@ async function pageAll<T>(table: string, cols: string): Promise<T[]> {
   const PAGE = 1000
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await sb
-      .from(table).select(cols).eq('owner', owner).range(from, from + PAGE - 1)
+      .from(table).select(cols).eq('owner', owner)
+      // Ordered, because `.range()` alone is LIMIT/OFFSET over an unordered
+      // relation: Postgres promises nothing about row order between two
+      // queries, so a page can repeat rows the last one served and — the
+      // dangerous half — skip others entirely, silently, in a backfill that
+      // then reports success over them. `id` is the primary key, so it is
+      // unique and total. See `src/lib/pagedReads.test.ts`.
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
     if (error) throw error
     const rows = (data ?? []) as T[]
     out.push(...rows)

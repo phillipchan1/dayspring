@@ -141,8 +141,31 @@ the pages. Everything on it is either her words or a number counted in code.
 |---|---|
 | **in order** | every matching page, oldest first. No top eight, ever (D-016). |
 | **then & now** | two spans of pages, **no arrow between them**. Page count for each span always on screen — an uneven comparison reads as a verdict on the thinner side. |
-| **close together** | stretches bounded by silence. Needs a real `burstsFor` — prototype-only today. Likely a `processing_jobs` kind. **Every heading is a count**; a title would be a claim about what it was. |
+| **close together** | stretches bounded by silence. Built: `bursts` + `quietFor` in `readings.ts`, no job needed. **Every heading is a count**; a title would be a claim about what it was. |
 | **the words you used** | see below. |
+
+### The eras on the timeline — the same `bursts`, projected
+
+The Stretch is a band of every month in the archive that you drag to bracket a span.
+Two problems with a drag as the only way in: it is invisible until somebody tries it,
+and on a phone the band is about **two pixels a month**, so it is not really available
+at all. So the row underneath offers the periods themselves, one press each —
+*2018 – 2020 · 412*.
+
+`erasFrom` in `eras.ts` **does not define its own silence.** It calls the same `bursts`
+this table already lists and projects each stretch onto the band's months, for one
+reason: two seam rules would mean pressing an era and then choosing *close together*
+showed different boundaries for the same archive. `quietFor` is also the better rule —
+six times the writer's own median gap, not a constant, because *"fifty days is a long
+silence for someone who writes about their mother twice a year and no silence at all
+for someone who writes every morning."*
+
+**The app proposes; the writer names** (DIRECTOR_MOVES move 2, Progoff's Stepping
+Stones). A chip carries two dates and a count and never a word about what the period
+*was*. Two floors, both already ours: `bursts`' `min` is `floorFor`, so a stray page
+between two silences is not offered as a period of a life; and **one era is no eras** —
+a journal whose rhythm never breaks gets no chips, which is true about that journal
+rather than a gap in the feature.
 
 ### The words you used — the sentiment question, answered the only legal way
 
@@ -171,7 +194,8 @@ Name these rather than discovering them.
 
 - **Line counts are estimated from characters** in `page.ts`. The app version must measure,
   or a page will occasionally break one line early.
-- **`burstsFor` is prototype-only lib code.** Not implemented anywhere in `src/` or `api/`.
+- ~~**`burstsFor` is prototype-only lib code.**~~ Landed as `bursts`/`quietFor` in
+  `readings.ts`, and now drives the Stretch's era chips as well as *close together*.
 - **Name detection is a capitalisation regex.** The Concordance is the real engine —
   reconcile in Phase 0.
 - **Nothing persists.** Kept subjects live in React state.

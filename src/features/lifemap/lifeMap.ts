@@ -334,7 +334,7 @@ export function buildLifeMap(
  * a subject the writer kept must never vanish because a column arrived late.
  */
 function keptSection(k: KeptSubject): SectionId {
-  const kind = (k as KeptSubject & { section?: string }).section
+  const kind = k.section
   return kind === 'person' || kind === 'place' || kind === 'domain' || kind === 'matter'
     ? kind
     : 'matter'

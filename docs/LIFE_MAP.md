@@ -110,6 +110,52 @@ are.
 Amber rather than the terracotta accent on purpose: `--dayspring-amber` is already
 the app's "this came from the journal" colour, and terracotta is interaction.
 
+### Pages' `look for` is the second surface, not a second vocabulary
+
+`PagesView` calls `allSubjects()` and `listKeptSubjects()` — the same rows
+`buildLifeMap()` reads. It has always been one list. But the sheet rendered it
+flat, so nothing on screen said so, and a reader who had just named twelve people
+here met them again over there as an undifferentiated heap.
+
+So the sheet borrows this file's `SECTIONS`, `sectionFor` and `floorFor` rather
+than restating them (`src/features/pages/lookGroups.ts`), and the kind glyph
+moved out to `Glyph.tsx` so both surfaces draw the same mark. Amber means the
+same thing in both places, on the same tokens.
+
+Two differences are deliberate, and both are Pages being Pages:
+
+- **The count on a pill is the LITERAL one**, recounted from the corpus by
+  `withCounts` — the wall beside it is lit by that same match, and printing the
+  stored number next to it would be the surface contradicting itself in a glance.
+  The floor still reads `concordance.occurrence_count` (carried as
+  `Subject.occurrences`), because counting nine hundred subjects against three
+  thousand pages to decide which forty to offer costs most of a second.
+- **The floor is overruled by typing, not by a control.** The find field has
+  always searched the whole vocabulary; that is the "lowerable by the writer"
+  half of the floor rule, and the sheet says so — *offered from N pages up — type
+  for the rest*.
+- **The floor follows the bracket, and so do the names.** Pages has a time
+  filter the Life Map does not (the Stretch), and the sheet's counts have always
+  been the bracket's — but the offered NAMES were still the whole archive's, so a
+  winter came back with the winter's numbers written beside eleven years of
+  subjects. `aliveIn` now narrows the vocabulary by the `first_seen`/`last_seen`
+  every Concordance row already carries, and the floor re-bases on the bracketed
+  page count: one page in a hundred **of these months**, said on screen.
+
+  Under a bracket the floor is measured in the LITERAL count — the number the
+  pill prints and the wall is lit by — which is more honest than the unbracketed
+  path and affordable only because the corpus is small. The stored count still
+  pre-filters, and that is a bound rather than a proof: it under-reports (see
+  `withCounts`), so it can lose a subject the real number would have kept. Typing
+  reaches anything it loses.
+
+  Anything KEPT is exempt and stays, dimmed at zero. A bracket may not remove a
+  name the writer chose — that would be arithmetic overruling them, which is the
+  one thing this surface may never do.
+
+The door now runs both ways: a name here opens Pages lit to it, and the sheet has
+*Tend these in your Life Map*.
+
 ### Ordering
 
 **Never by page count.** From `kept_subjects`' own migration: *"Riverside above Mom
@@ -225,7 +271,8 @@ disappear because it stopped recurring; that is arithmetic overruling the writer
   becomes the tag manager `SURFACES.md` forbids. Every one of those is listed
   above as absent rather than unbuilt.
 - **The counts start sorting things.** Grep for `occurrence_count` and `pages` in
-  any comparator. There should never be one.
+  any comparator — `Subject.occurrences` too, now that Pages carries it. There
+  should never be one. It may be compared against the FLOOR and nothing else.
 
 ---
 
@@ -236,3 +283,5 @@ disappear because it stopped recurring; that is arithmetic overruling the writer
 - [`docs/THE_KEEPING.md`](THE_KEEPING.md) — the engine, and its four orders
 - `supabase/migrations/20260826120000_kept_subjects.sql` — read its header; it is
   half the spec for this surface
+- `src/features/pages/lookGroups.ts` — the other reader of `SECTIONS`; see
+  § "Pages' `look for` is the second surface" above
