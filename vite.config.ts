@@ -51,6 +51,9 @@ const APP_VERSION = resolveAppVersion()
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
+    // Tauri CLI sets TAURI_ENV_PLATFORM=ios for `tauri ios build` / `tauri ios dev`.
+    // The iOS IPA must not guess iPad from a Macintosh UA.
+    __TAURI_IOS__: JSON.stringify(process.env.TAURI_ENV_PLATFORM === 'ios'),
   },
   plugins: [react()],
   resolve: {

@@ -143,6 +143,11 @@ async function bootstrap() {
       renderTopbarPreview()
       return
     }
+    if (preview === 'signin') {
+      const { renderSignInPreview } = await import('./components/signinPreview')
+      renderSignInPreview()
+      return
+    }
     if (preview) {
       const { renderPaywallPreview } = await import('./features/paywall/preview')
       renderPaywallPreview(preview)

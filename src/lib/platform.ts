@@ -3,15 +3,35 @@
 // The same dist/ bundle runs on the web (Vercel) and inside the native apps, so
 // any desktop-only chrome (e.g. leaving room for the macOS traffic-light
 // buttons under the overlay title bar) must be gated on these checks.
+
+/** Compile-time: Vite sets this true only when Tauri builds the iOS target. */
+function builtForIOS(): boolean {
+  return typeof __TAURI_IOS__ !== 'undefined' && __TAURI_IOS__
+}
+
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
+
+/**
+ * iPadOS reports a Macintosh UA. The usual tell is maxTouchPoints; some
+ * WKWebViews (desktop-site mode) have reported 0 or 1, so 0 is the floor —
+ * a Mac trackpad still reports 0. The iOS binary also stamps `__TAURI_IOS__`.
+ */
+export function isAppleTouchDevice(
+  ua = typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  maxTouchPoints = typeof navigator === 'undefined' ? 0 : navigator.maxTouchPoints,
+): boolean {
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  return /Macintosh/i.test(ua) && maxTouchPoints > 0
 }
 
 /** True inside the Tauri app on a touch device (iPhone/iPad/Android).
  *  iPadOS masquerades as "Macintosh" in the UA, so multi-touch is the tell. */
 export function isMobileTauri(): boolean {
+  if (builtForIOS()) return true
   if (!isTauri()) return false
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1
+  return /Android/i.test(navigator.userAgent) || isAppleTouchDevice()
 }
 
 /** Tauri on an actual desktop (macOS/Windows/Linux) — the only place the
@@ -30,17 +50,16 @@ export function isDesktopTauri(): boolean {
  * isMobileTauri uses, restricted to Apple UAs.
  */
 export function isIOSTauri(): boolean {
+  if (builtForIOS()) return true
   if (!isTauri()) return false
-  const ua = navigator.userAgent
-  if (/iPhone|iPad|iPod/i.test(ua)) return true
-  return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1
+  return isAppleTouchDevice()
 }
 
 // Tags <html data-platform="desktop"|"mobile"> inside the native app so CSS can
 // adapt. No-ops in a plain browser. The iOS app must NOT get "desktop" — that
 // would reserve room for macOS traffic lights and mark drag regions.
 export function applyPlatformClass(): void {
-  if (!isTauri()) return
+  if (!isTauri() && !builtForIOS()) return
   const root = document.documentElement
   if (isMobileTauri()) {
     root.dataset.platform = 'mobile'

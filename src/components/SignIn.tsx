@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import { signInWithApple, signInWithEmail, signInWithGoogle } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -9,11 +9,12 @@ import { isIOSTauri, isMobileTauri } from '@/lib/platform'
 import { legalUrl } from '@/lib/legal'
 import { openExternal } from '@/lib/openExternal'
 import { PROVIDER_LABEL, readLastAuthProvider } from '@/lib/lastAuthProvider'
+import { isOAuthCanceled, useTapAction } from '@/lib/tapAction'
+import './SignIn.css'
 
 export function SignIn() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<'apple' | 'google' | 'email' | null>(null)
-  const [hovered, setHovered] = useState<'apple' | 'google' | null>(null)
   const [showEmail, setShowEmail] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -27,21 +28,26 @@ export function SignIn() {
   // must also be offered. On iOS we put Apple first per HIG.
   const showApple = true
   const appleFirst = isMobileTauri()
+  const oauthBusy = busy === 'apple' || busy === 'google'
 
   async function handleSignIn(provider: 'apple' | 'google') {
+    if (busy !== null) return
     setError(null)
     setBusy(provider)
     try {
       if (provider === 'apple') await signInWithApple()
       else await signInWithGoogle()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Sign-in failed')
+      if (!isOAuthCanceled(e)) {
+        setError(e instanceof Error ? e.message : 'Sign-in failed')
+      }
       setBusy(null)
     }
   }
 
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault()
+    if (busy === 'email') return
     setError(null)
     setBusy('email')
     try {
@@ -52,14 +58,18 @@ export function SignIn() {
     }
   }
 
+  const appleTap = useTapAction(() => void handleSignIn('apple'), busy === null)
+  const googleTap = useTapAction(() => void handleSignIn('google'), busy === null)
+  const emailTap = useTapAction(() => setShowEmail(true), busy !== 'email')
+
   const appleBtn = showApple && (
     <button
       key="apple"
-      onClick={() => void handleSignIn('apple')}
-      onMouseEnter={() => setHovered('apple')}
-      onMouseLeave={() => setHovered(null)}
-      disabled={busy !== null}
-      style={buttonStyle(hovered === 'apple', busy !== null)}
+      type="button"
+      className="signin__btn"
+      aria-busy={busy === 'apple'}
+      {...appleTap}
+      disabled={oauthBusy}
     >
       <AppleIcon />
       {busy === 'apple' ? 'Opening…' : 'Continue with Apple'}
@@ -69,11 +79,11 @@ export function SignIn() {
   const googleBtn = (
     <button
       key="google"
-      onClick={() => void handleSignIn('google')}
-      onMouseEnter={() => setHovered('google')}
-      onMouseLeave={() => setHovered(null)}
-      disabled={busy !== null}
-      style={buttonStyle(hovered === 'google', busy !== null)}
+      type="button"
+      className="signin__btn"
+      aria-busy={busy === 'google'}
+      {...googleTap}
+      disabled={oauthBusy}
     >
       <GoogleIcon />
       {busy === 'google' ? 'Opening…' : 'Continue with Google'}
@@ -81,37 +91,16 @@ export function SignIn() {
   )
 
   return (
-    <div className="center-screen" style={{ position: 'relative' }}>
+    <div className="center-screen signin">
       <ThemeToggle
         isLight={isLight}
         onToggle={() => update({ appearance: isLight ? 'dark' : 'light' })}
         className="theme-toggle--fixed"
       />
 
-      {/* Ambient warm glow */}
-      <div style={{
-        position: 'fixed',
-        width: 500,
-        height: 500,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(196,145,60,0.05) 0%, transparent 70%)',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -55%)',
-        pointerEvents: 'none',
-        zIndex: 0,
-      }} />
+      <div className="signin__glow" aria-hidden />
 
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        maxWidth: 340,
-        width: '100%',
-        padding: '0 24px',
-        position: 'relative',
-        zIndex: 1,
-      }}>
+      <div className="signin__card">
         <Mark size={40} style={{ marginBottom: 14 }} />
 
         <h1 style={{
@@ -156,30 +145,23 @@ export function SignIn() {
           A journal built for spiritual growth.
         </p>
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: '100%',
-          gap: 10,
-          marginBottom: 16,
-        }}>
+        <div className="signin__actions">
           {appleFirst ? <>{appleBtn}{googleBtn}</> : <>{googleBtn}{appleBtn}</>}
         </div>
 
         {showEmailSignIn && (
-          <div style={{ width: '100%', maxWidth: 260, marginBottom: 16 }}>
+          <div className="signin__email">
             {!showEmail ? (
               <button
                 type="button"
-                onClick={() => setShowEmail(true)}
-                disabled={busy !== null}
-                style={secondaryButtonStyle(busy !== null)}
+                className="signin__btn signin__btn--secondary"
+                {...emailTap}
+                disabled={busy === 'email'}
               >
                 Sign in with email
               </button>
             ) : (
-              <form onSubmit={(e) => void handleEmailSignIn(e)} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <form onSubmit={(e) => void handleEmailSignIn(e)} className="signin__form">
                 <input
                   type="email"
                   autoComplete="username"
@@ -187,8 +169,8 @@ export function SignIn() {
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={busy !== null}
-                  style={inputStyle()}
+                  disabled={busy === 'email'}
+                  className="signin__input"
                 />
                 <input
                   type="password"
@@ -196,13 +178,13 @@ export function SignIn() {
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={busy !== null}
-                  style={inputStyle()}
+                  disabled={busy === 'email'}
+                  className="signin__input"
                 />
                 <button
                   type="submit"
-                  disabled={busy !== null || !email.trim() || !password}
-                  style={buttonStyle(false, busy !== null)}
+                  className="signin__btn"
+                  disabled={busy === 'email' || !email.trim() || !password}
                 >
                   {busy === 'email' ? 'Signing in…' : 'Continue with email'}
                 </button>
@@ -211,37 +193,28 @@ export function SignIn() {
           </div>
         )}
 
+        {oauthBusy && (
+          <p className="signin__status" role="status" aria-live="polite">
+            Opening {busy === 'apple' ? 'Apple' : 'Google'}…
+          </p>
+        )}
+
         {/* Signing in with the other button makes a second, empty account — and
             with Apple's "Hide My Email" the two addresses never match, so
             nothing links them. A quiet reminder is the cheapest prevention. */}
         {lastProvider && (
-          <p style={{
-            fontFamily: "'Inter', -apple-system, sans-serif",
-            fontSize: 11.5,
-            color: 'var(--text-faint)',
-            textAlign: 'center',
-            letterSpacing: '0.01em',
-            margin: '0 0 16px',
-          }}>
+          <p className="signin__hint">
             You continued with {PROVIDER_LABEL[lastProvider]} last time.
           </p>
         )}
 
         {error && (
-          <p style={{ color: 'var(--danger)', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+          <p className="signin__error" role="alert">
             {error}
           </p>
         )}
 
-        <p style={{
-          fontFamily: "'Inter', -apple-system, sans-serif",
-          fontSize: 10.5,
-          color: 'var(--text-faint)',
-          textAlign: 'center',
-          lineHeight: 1.7,
-          letterSpacing: '0.02em',
-          margin: 0,
-        }}>
+        <p className="signin__legal">
           Your words stay private.
           {' · '}
           {/* Was hardcoded to dayspring.app/privacy — a domain that fails DNS,
@@ -255,12 +228,6 @@ export function SignIn() {
               e.preventDefault()
               void openExternal(legalUrl('privacy'))
             }}
-            style={{
-              color: 'inherit',
-              textDecoration: 'underline',
-              textUnderlineOffset: '2px',
-              textDecorationColor: 'var(--border)',
-            }}
           >
             Privacy
           </a>
@@ -268,54 +235,6 @@ export function SignIn() {
       </div>
     </div>
   )
-}
-
-function buttonStyle(hovered: boolean, disabled: boolean): CSSProperties {
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    width: '100%',
-    maxWidth: 260,
-    padding: '11px 20px',
-    borderRadius: 7,
-    background: hovered
-      ? 'color-mix(in srgb, var(--accent) 20%, transparent)'
-      : 'color-mix(in srgb, var(--accent) 12%, transparent)',
-    border: `0.5px solid color-mix(in srgb, var(--accent) ${hovered ? 55 : 38}%, transparent)`,
-    cursor: disabled ? 'default' : 'pointer',
-    opacity: disabled ? 0.7 : 1,
-    fontFamily: "'Inter', -apple-system, sans-serif",
-    fontSize: 13.5,
-    fontWeight: 500,
-    color: 'var(--accent)',
-    letterSpacing: '-0.01em',
-    marginBottom: 0,
-    transition: 'background 0.15s, border-color 0.15s',
-  }
-}
-
-function secondaryButtonStyle(disabled: boolean): CSSProperties {
-  return {
-    ...buttonStyle(false, disabled),
-    background: 'transparent',
-    border: '0.5px solid var(--border)',
-    color: 'var(--text-dim)',
-  }
-}
-
-function inputStyle(): CSSProperties {
-  return {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 7,
-    border: '0.5px solid var(--border)',
-    background: 'color-mix(in srgb, var(--bg) 92%, var(--accent) 8%)',
-    fontFamily: "'Inter', -apple-system, sans-serif",
-    fontSize: 13.5,
-    color: 'var(--text-bright)',
-  }
 }
 
 function GoogleIcon() {

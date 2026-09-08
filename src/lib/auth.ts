@@ -80,8 +80,13 @@ async function runOAuth(start: (options: OAuthOptions) => Promise<OAuthUrlResult
   beginExternalTrip()
 
   if (isIOSTauri()) {
-    const callbackUrl = await invoke<string>('start_oauth_session', { authUrl: data.url })
-    await completeOAuthCallback(callbackUrl)
+    try {
+      const callbackUrl = await invoke<string>('start_oauth_session', { authUrl: data.url })
+      await completeOAuthCallback(callbackUrl)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(msg || 'Could not open in-app sign-in')
+    }
     return
   }
 

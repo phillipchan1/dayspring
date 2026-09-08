@@ -2,6 +2,8 @@
 
 /** Injected by Vite's `define` from package.json — see vite.config.ts. */
 declare const __APP_VERSION__: string
+/** True only when Vite is invoked by `tauri ios` (TAURI_ENV_PLATFORM=ios). */
+declare const __TAURI_IOS__: boolean
 
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string
