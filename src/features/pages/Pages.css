@@ -65,6 +65,7 @@
  */
 .pg__head-wrap {
   position: relative;
+  z-index: 2;
   flex: 0 0 auto;
   padding-bottom: clamp(0.85rem, 2vw, 1.15rem);
 }
@@ -1615,6 +1616,7 @@ button.pg__sense-q:hover {
  */
 
 .pg__head-tools {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1629,32 +1631,30 @@ button.pg__sense-q:hover {
 /*
  * The way back to now.
  *
- * Not another card and not a miniature entries list: one page, named by its
- * date and its own opening words. It is deliberately quieter than `Look for`
- * until the pointer reaches it, because the wall remains the surface rather
- * than becoming a backdrop for a toolbar.
+ * An exit from looking, so it sits after the sentence and wears almost
+ * nothing — the same quiet hand as `only these` and `clear`. A boxed title
+ * here became a second masthead: orange TODAY plus the page's opening words
+ * occupied the origin of the row, which is where Look for belongs.
+ *
+ * The first row of the wall already shows those words. The tooltip keeps
+ * them for a pointer that wants to know where the door lands.
  */
 .pg-now {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  min-inline-size: 0;
-  max-inline-size: min(28rem, 42vw);
-  padding: 0.4rem 0.7rem;
-  color: var(--text-dim);
-  text-align: start;
-  background: color-mix(in srgb, var(--text) 2.5%, transparent);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding: 0.35rem 0.1rem;
+  color: var(--text-faint);
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: color var(--transition), background-color var(--transition),
-    border-color var(--transition);
+  transition: color var(--transition);
 }
 
 .pg-now:hover {
   color: var(--text-bright);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .pg-now:focus-visible {
@@ -1663,7 +1663,6 @@ button.pg__sense-q:hover {
 }
 
 .pg-now__when {
-  flex: 0 0 auto;
   font-family: var(--font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.06em;
@@ -1671,18 +1670,7 @@ button.pg__sense-q:hover {
   color: var(--accent);
 }
 
-.pg-now__title {
-  min-inline-size: 0;
-  overflow: hidden;
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  line-height: 1.1;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 .pg-now svg {
-  flex: 0 0 auto;
   opacity: 0.45;
   transition: opacity var(--transition), transform var(--transition);
 }
@@ -1690,10 +1678,6 @@ button.pg__sense-q:hover {
 .pg-now:hover svg {
   opacity: 0.9;
   transform: translateX(2px);
-}
-
-.pg-look {
-  position: relative;
 }
 
 .pg-look__row {
@@ -1864,19 +1848,19 @@ button.pg__sense-q:hover {
 .pg-sheet {
   position: absolute;
   inset-block-start: calc(100% - 0.35rem);
-  inset-inline-start: -0.7rem;
+  inset-inline: 0;
   z-index: 30;
   /*
-   * ROOM.
+   * THE COLUMN, not a card hanging off the button.
    *
-   * This was 37rem and one flat run of pills, which held six offered subjects.
-   * The vocabulary on a real archive is hundreds of names across four kinds, and
-   * at that width four lists side by side is two pills a row — a column of
-   * fragments. 52rem is what the two-up grid needs to give each list a readable
-   * line, and it is still well inside a laptop's window.
+   * A 52rem dropdown on a left-of-centre control was a well you scrolled:
+   * two skinny lists, two pills a row, markings and readings stacked under
+   * them. The sheet now answers to `.pg__head-tools`, so it is as wide as
+   * the stretch and the wall — two-up on a real line, and the extra
+   * decisions sit beside each other rather than below.
    */
-  inline-size: min(52rem, calc(100vw - 2.5rem));
-  max-block-size: min(37rem, 78vh);
+  inline-size: auto;
+  max-block-size: min(42rem, 78vh);
   overflow-y: auto;
   padding: 1.5rem 1.65rem 1.7rem;
   background: var(--bg);
@@ -2022,22 +2006,49 @@ button.pg__sense-q:hover {
  * ── The four lists, side by side ────────────────────────────────────────────
  *
  * The Life Map stacks People · Places · Domains · Matters down a full-width
- * page. A dropdown is the other shape — wide and short — so the same four go
- * two-up, which halves the height and lets the whole vocabulary be taken in
- * without scrolling. Same names, same order, same glyphs; only the shelf
- * changes.
+ * page. The sheet is now that same width, so two-up is a wide line rather
+ * than two fragments — more pills per row, less height, and the vocabulary
+ * can be taken in without scrolling. Same names, same order, same glyphs;
+ * only the shelf changes.
  *
- * `auto-fit` rather than a fixed two: a sheet squeezed by a narrow window drops
- * to one column on its own, and there is nothing to keep in step with the width
- * above.
+ * 32rem rather than 19: at the old number a full-width sheet snapped to
+ * four skinny columns, which is the Life Map's shape and the opposite of
+ * what "don't scroll" needs. Two fat columns wrap fewer times. A third
+ * arrives only on a truly wide window.
+ *
+ * `auto-fit` rather than a fixed two: a sheet squeezed by a narrow window
+ * drops to one column on its own.
  */
 .pg-sheet__kinds {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(32rem, 1fr));
   gap: 1.15rem 1.9rem;
   /* Each column starts at the top of its own cell rather than stretching to the
      tallest — four lists of wildly different lengths is the normal case. */
   align-items: start;
+}
+
+/*
+ * Marking and reading, on one hem.
+ *
+ * Two short groups stacked under four lists was the leftover scroll after
+ * the subjects themselves fit. Side by side they become a footer rather
+ * than two more chapters. `auto-fit` stacks them again when the sheet is
+ * a phone.
+ */
+.pg-sheet__also {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.5rem 2.4rem;
+  margin-block-start: 1.5rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
+}
+
+.pg-sheet__also > .pg-sheet__g + .pg-sheet__g {
+  margin-block-start: 0;
+  padding-block-start: 0;
+  border-block-start: none;
 }
 
 /*
@@ -3846,6 +3857,15 @@ button.pg__sense-q:hover {
 
 .pg-read1__page:hover .pg-read1__date {
   color: var(--accent);
+}
+
+.pg-read1__colophon {
+  margin: 0.28rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  color: var(--text-faint);
 }
 
 /*

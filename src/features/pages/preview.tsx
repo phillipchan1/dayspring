@@ -212,6 +212,7 @@ function SheetPreview({ wide, bracket }: { wide: boolean; bracket: boolean }) {
     <div className="pg" style={{ height: '100dvh' }}>
       <div className="pg__head-wrap">
         <div className="pg__inner pg__inner--head">
+          <div className="pg__head-tools">
           <LookFor
             kept={KEPT}
             offered={OFFERED}
@@ -242,6 +243,7 @@ function SheetPreview({ wide, bracket }: { wide: boolean; bracket: boolean }) {
             onOnlyLit={() => {}}
             onTend={() => window.alert('This is where the Life Map would open.')}
           />
+          </div>
         </div>
       </div>
     </div>

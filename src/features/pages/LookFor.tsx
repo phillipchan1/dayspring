@@ -587,9 +587,10 @@ export function LookFor({
             {/*
               Four lists, side by side where there is room.
 
-              The Life Map stacks them down a full-width page; a dropdown is
-              wide and short, so the same four go two-up and the sheet stays
-              something you can read without scrolling. Same names, same order,
+              The Life Map stacks them down a full-width page; the sheet
+              spans the column so the same four can sit two-up on a wide
+              line — more pills per row, less height, and the vocabulary
+              can be taken in without scrolling. Same names, same order,
               same glyphs — what changes is the shelf, not the shape.
             */}
             <div className="pg-sheet__kinds">
@@ -712,6 +713,12 @@ export function LookFor({
             </div>
           </section>
 
+          {/*
+            Marking and reading share one hem once the sheet is a column wide
+            — two short decisions, not two more stacked chapters. The phone
+            sheet still stacks them; `auto-fit` is what decides.
+          */}
+          <div className="pg-sheet__also">
           <section className="pg-sheet__g">
             <h3>
               marking
@@ -778,6 +785,7 @@ export function LookFor({
             </div>
             <p className="pg-sheet__gloss">{READINGS.find((r) => r.id === reading)?.gloss}</p>
           </section>
+          </div>
 
           {/*
             And the way in that isn't looking for anything.
@@ -839,8 +847,8 @@ export function LookFor({
  * canvas) painted straight over the top of it. No z-index inside the surface can
  * fix that; the layer has to leave the surface.
  *
- * Narrow only. The dropdown is positioned against the control it belongs to and
- * has to stay where it is.
+ * Narrow only. The dropdown is positioned against the tools row so it can
+ * span the column; a portal would lose that containing block.
  */
 function Layer({ portal, children }: { portal: boolean; children: React.ReactNode }) {
   return portal ? createPortal(children, document.body) : <>{children}</>
