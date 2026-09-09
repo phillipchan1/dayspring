@@ -932,6 +932,23 @@ button.pg__sense-q:hover {
   margin: 0;
 }
 
+/*
+ * The unwritten next page — quieter paper, not a dashed "add" tile.
+ *
+ * It has to read as a page or the wall stops being a notebook. No thickness
+ * bar (nothing was written), no accent wash (that would be a CTA sitting on
+ * someone else's archive). Hover is the same invitation the other cards use.
+ */
+.pgc[data-blank='true'] {
+  background: color-mix(in srgb, var(--bg) 28%, var(--bg-elevated));
+}
+
+.pgr[data-blank='true'] .pgr__line {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--text-faint);
+}
+
 /* The page ends mid-sentence, the way a glance at one does. */
 .pgc__fade {
   position: absolute;

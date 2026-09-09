@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { Entry } from '@/lib/types'
 import {
+  BLANK_PAGE_KEY,
+  blankPageItem,
   buildWallItems,
   calendarAtRow,
   collapseUnlit,
   isCurrentCalendarWeek,
+  localNoonIso,
   monthAtRow,
   monthMarks,
   seamLabel,
   selectionOrder,
+  withBlankPage,
   yearRows,
   type WallItem,
 } from './wallItems'
@@ -147,6 +151,37 @@ describe('selectionOrder', () => {
     const entries = corpus()
     const ids = selectionOrder(buildWallItems(entries, true, 4))
     expect(ids).toEqual(entries.map((e) => e.id))
+  })
+
+  it('never contains the unwritten next page', () => {
+    const items = withBlankPage(buildWallItems(corpus(), false, 4), true)
+    expect(items[0]?.blank).toBe(true)
+    expect(selectionOrder(items)).not.toContain(BLANK_PAGE_KEY)
+  })
+})
+
+describe('withBlankPage', () => {
+  it('is a no-op when the wall is answering a question', () => {
+    const items = buildWallItems(corpus(), false, 4)
+    expect(withBlankPage(items, false)).toBe(items)
+  })
+
+  it('sits at the front, dated today, and does not reuse a real id', () => {
+    const now = new Date(2026, 8, 9, 8)
+    const items = withBlankPage(buildWallItems(corpus(), false, 4), true, now)
+    expect(items[0]).toMatchObject({
+      key: BLANK_PAGE_KEY,
+      blank: true,
+    })
+    expect(items[0]!.entry.created_at).toBe(localNoonIso(now))
+    expect(items.slice(1).every((item) => item.key !== BLANK_PAGE_KEY)).toBe(true)
+  })
+
+  it('uses the reader\'s calendar day, not UTC', () => {
+    // 11pm Pacific on Sep 9 is already Sep 10 in UTC.
+    const late = new Date(2026, 8, 9, 23, 30)
+    expect(blankPageItem(late).entry.created_at).toBe(localNoonIso(late))
+    expect(new Date(blankPageItem(late).entry.created_at).getDate()).toBe(9)
   })
 })
 
