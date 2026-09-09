@@ -27,6 +27,10 @@ describe('firstLineIsTitle / isNonTitleLine', () => {
       expect(firstLineIsTitle(line)).toBe(false)
     }
   })
+  it('does not promote a ritual token (or its revealed form) as a title', () => {
+    expect(firstLineIsTitle('<!-- ritual:name:The Daily Examen -->')).toBe(false)
+    expect(firstLineIsTitle('<p class="read-ritual-name">The Daily Examen</p>')).toBe(false)
+  })
 
   it('treats a thematic break as a divider, not a title', () => {
     expect(isThematicBreak('---')).toBe(true)

@@ -2250,7 +2250,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         <RitualComposer
           blockIndex={composerIndex}
           getDoc={() => editorRef.current?.getDoc() ?? ''}
-          replaceRange={(from, to, text) => editorRef.current?.replaceRange(from, to, text)}
+          replaceRange={(from, to, text, opts) =>
+            editorRef.current?.replaceRange(from, to, text, opts)
+          }
           onAbout={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
           onClose={() => setComposerIndex(null)}
           blocked={aboutPractice !== null}

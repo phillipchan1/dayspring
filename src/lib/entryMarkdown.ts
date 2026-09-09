@@ -1,3 +1,4 @@
+import { isPracticeTokenLine } from './practiceTokens'
 import { isSpiritualFenceLine } from './spiritualBlocks'
 import { isTaskLine, normalizeTaskLineForDisplay } from './taskListMarkdown'
 
@@ -38,6 +39,8 @@ export function isNonTitleLine(line: string): boolean {
     /^>\s/.test(t) ||
     /^(?:[-*+]\s+)?\[(?:\s|[xX])?\]\s*/.test(t) ||
     isSpiritualFenceLine(t) ||
+    isPracticeTokenLine(t) ||
+    t.startsWith('<p class="read-ritual') ||
     t === '```' ||
     isThematicBreak(t)
   )

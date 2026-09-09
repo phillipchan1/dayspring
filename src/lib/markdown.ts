@@ -1,6 +1,7 @@
 import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 import { markdownForDisplay, type DisplayOptions } from './entryMarkdown'
+import { revealRitualsForDisplay } from './ritualDisplay'
 import { isHighlightColor, NAMED_COLOR_PATTERN, type HighlightColor } from './highlightColors'
 
 marked.setOptions({
@@ -76,7 +77,9 @@ marked.use({
 
 /** Render markdown to sanitized HTML for the read-only reading view. */
 export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
-  const raw = marked.parse(markdownForDisplay(md, opts), { async: false })
+  const raw = marked.parse(markdownForDisplay(revealRitualsForDisplay(md), opts), {
+    async: false,
+  })
   return DOMPurify.sanitize(raw, {
     USE_PROFILES: { html: true },
     // `class` is already in DOMPurify's default ALLOWED_ATTR, so this changes

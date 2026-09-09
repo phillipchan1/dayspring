@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RitualComposer } from './RitualComposer'
 import { composeRitualMarkdown } from './ritualDocument'
+import { RitualHeaderWidget } from './ritualWidgets'
 import { PRACTICES } from './practicesData'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -200,6 +201,59 @@ describe('RitualComposer', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('does not ask the editor to take the caret when writing back', () => {
+    const focusFlags: Array<boolean | undefined> = []
+    act(() => {
+      root.render(
+        createElement(RitualComposer, {
+          blockIndex: 0,
+          getDoc: () => doc,
+          replaceRange: (from: number, to: number, text: string, opts?: { focus?: boolean }) => {
+            focusFlags.push(opts?.focus)
+            doc = doc.slice(0, from) + text + doc.slice(to)
+          },
+          onClose,
+          onAbout: () => {},
+        }),
+      )
+    })
+    act(() => type(liveTextarea(), 'The long walk after dinner.'))
+    act(() => vi.advanceTimersByTime(500))
+    expect(focusFlags.length).toBeGreaterThan(0)
+    expect(focusFlags.every((flag) => flag === false)).toBe(true)
+  })
+
+  it('removes the ritual from the entry when asked', () => {
+    doc = `Morning.\n\n${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])}\n\nEvening.`
+    render()
+    act(() => {
+      document.querySelector<HTMLButtonElement>('.rc__remove')!.click()
+    })
+    expect(onClose).toHaveBeenCalled()
+    expect(doc).toBe('Morning.\n\nEvening.')
+    expect(doc).not.toContain('ritual:name')
+  })
+
+  it('takes an untouched ritual with it on the way out', () => {
+    render()
+    act(() => {
+      document.querySelector<HTMLButtonElement>('.rc__x')!.click()
+    })
+    expect(onClose).toHaveBeenCalled()
+    expect(doc).toBe('')
+  })
+
+  it('keeps a written ritual when leaving', () => {
+    doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])
+    render()
+    act(() => {
+      document.querySelector<HTMLButtonElement>('.rc__x')!.click()
+    })
+    expect(onClose).toHaveBeenCalled()
+    expect(doc).toContain('Bread.')
+    expect(doc).toContain('ritual:name')
+  })
+
   it('ignores Escape while a sheet is open over it', () => {
     // Both listen on window in the capture phase, and `stopPropagation` does not
     // stop a sibling listener on the same target — so without this the one
@@ -263,6 +317,14 @@ describe('RitualComposer', () => {
       // The footer's next button is gone at the close; nothing to run past.
       expect(document.querySelector('.rc__foot .rc__next')).toBeNull()
     })
+  })
+
+  it('offers remove on the in-entry masthead, finished or not', () => {
+    const open = new RitualHeaderWidget('The Daily Examen', true, false).toDOM()
+    const done = new RitualHeaderWidget('The Daily Examen', false, false).toDOM()
+    expect(open.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
+    expect(done.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
+    expect(done.querySelector('.cm-practice-action--continue')).toBeNull()
   })
 
   it('opens on the first movement still waiting', () => {

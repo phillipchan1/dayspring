@@ -2889,6 +2889,27 @@ html[data-focus-mode] .focus-controls {
 .markdown-body h2 { font-size: var(--h2-size); font-weight: var(--h2-weight); }
 .markdown-body h3 { font-size: var(--h3-size); font-weight: var(--h3-weight); }
 .markdown-body p { margin: 0 0 1em; }
+.markdown-body .read-ritual-name {
+  font-family: var(--font-serif);
+  font-size: 0.7em;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 1.6em 0 0.45em;
+  padding-bottom: 0.45em;
+  border-bottom: 1px solid color-mix(in srgb, var(--text-faint) 38%, transparent);
+}
+.markdown-body .read-ritual-name:first-child { margin-top: 0; }
+.markdown-body .read-ritual-label {
+  font-family: var(--font-serif);
+  font-size: 0.6em;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 1.15em 0 0.35em;
+}
 .markdown-body strong { color: var(--text-bright); }
 .markdown-body em { color: var(--md-emphasis); }
 .markdown-body a { color: var(--md-link); }

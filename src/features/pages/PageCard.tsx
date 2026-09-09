@@ -105,7 +105,7 @@ export const PageCard = memo(function PageCard({
   const fill = pageFill(excerpt.chars)
   const shown = excerpt.lines.length > maxLines ? excerpt.lines.slice(0, maxLines) : excerpt.lines
   const truncated = excerpt.total > shown.length
-  const empty = shown.length === 0
+  const empty = shown.length === 0 && excerpt.rituals.length === 0
   const pointer = useWallPointer((x, y) => onOpenMenu(entryId, x, y))
 
   return (
@@ -151,7 +151,13 @@ export const PageCard = memo(function PageCard({
         {empty ? (
           <p className="pgc__blank">Blank page</p>
         ) : (
-          shown.map((line, i) => (
+          <>
+          {excerpt.rituals.map((name, i) => (
+            <p className="pgc__ritual" key={`${name}-${i}`}>
+              {name}
+            </p>
+          ))}
+          {shown.map((line, i) => (
             <p
               key={i}
               className="pgc__line"
@@ -171,7 +177,8 @@ export const PageCard = memo(function PageCard({
                   )
                 : line.text}
             </p>
-          ))
+          ))}
+          </>
         )}
       </div>
       {markings && markings.length > 0 ? (

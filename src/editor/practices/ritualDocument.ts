@@ -43,6 +43,31 @@ export function ritualBlockRange(
   return { from, to: endStart + (lines[block.endLine - 1] ?? '').length }
 }
 
+/**
+ * The range to delete so a ritual leaves no hole in the entry.
+ *
+ * `ritualBlockRange` is the tokens and the writing, nothing around them. A
+ * ritual begun mid-entry is almost always wrapped in the blank lines
+ * `buildPracticeBlock` keeps as a seam, and deleting only the block would
+ * leave those stacked. Eat the trailing newline, and the extra blank below
+ * when the seam above is already a blank (or the ritual is at the start).
+ */
+export function ritualRemovalRange(
+  doc: string,
+  index: number,
+): { from: number; to: number } | null {
+  const range = ritualBlockRange(doc, index)
+  if (!range) return null
+  let { from, to } = range
+  if (doc[to] === '\n') {
+    to += 1
+    if (doc[to] === '\n' && (from === 0 || doc[from - 1] === '\n')) to += 1
+  } else if (from > 0 && doc[from - 1] === '\n') {
+    from -= 1
+  }
+  return { from, to }
+}
+
 /** Everything the writer has already put into block `index`. */
 export function readRitual(doc: string, index: number): RitualContents | null {
   const lines = doc.split('\n')

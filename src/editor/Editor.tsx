@@ -72,8 +72,20 @@ import { practicePromptExtension } from './practices/usePracticeInsertion'
 export interface EditorHandle {
   /** Insert text at the given document position (e.g. after removing a /command). */
   insertAt: (pos: number, text: string) => void
-  /** Replace the document range [from, to) — used to edit/remove a block in place. */
-  replaceRange: (from: number, to: number, text: string) => void
+  /**
+   * Replace the document range [from, to) — used to edit/remove a block in place.
+   *
+   * `focus` defaults to true so slash-insert and the other in-editor edits put
+   * the caret back. Pass `false` when an overlay owns the caret: the ritual
+   * composer writes back on a debounce, and focusing the editor from under it
+   * is how the movement's textarea used to go dead mid-sentence.
+   */
+  replaceRange: (
+    from: number,
+    to: number,
+    text: string,
+    opts?: { focus?: boolean },
+  ) => void
   /** The editor's live document — authoritative when React `content` may lag. */
   getDoc: () => string
   /** Current caret position (main selection head) — capture before opening an overlay. */
@@ -386,7 +398,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       })
       view.focus()
     },
-    replaceRange: (from: number, to: number, text: string) => {
+    replaceRange: (from: number, to: number, text: string, opts) => {
       const view = viewRef.current
       if (!view) return
       const len = view.state.doc.length
@@ -396,7 +408,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         changes: { from: f, to: t, insert: text },
         selection: { anchor: f + text.length, head: f + text.length },
       })
-      view.focus()
+      if (opts?.focus !== false) view.focus()
     },
     getDoc: () => viewRef.current?.state.doc.toString() ?? '',
     getCursor: () => viewRef.current?.state.selection.main.head ?? 0,
