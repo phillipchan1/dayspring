@@ -96,7 +96,7 @@ export function SignIn() {
   function revealField(el: HTMLElement) {
     // html/body cannot scroll (position:fixed). The .signin scroller can.
     requestAnimationFrame(() => {
-      el.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      el.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
     })
   }
 
