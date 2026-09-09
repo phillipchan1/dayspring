@@ -56,6 +56,16 @@ type VisibleCell =
     }
   | { kind: 'section'; row: Extract<WallLayoutRow, { kind: 'section' }> }
 
+export interface WallJumpTarget {
+  year: number
+  /** 0-11. */
+  month: number
+  /** The first matching page in that month, before wall folding. */
+  entryId: string
+  /** Makes clicking the same cell twice a fresh request. */
+  request: number
+}
+
 interface Props {
   /** Wall order — newest first. */
   entries: Entry[]
@@ -90,6 +100,8 @@ interface Props {
    * back into the card it grew out of rather than cutting away from it.
    */
   returningId: string | null
+  /** A density-band month the reader asked to see on the wall. */
+  jumpTarget?: WallJumpTarget | null
   /** Double-click, or "Open to write" — leave for the editor. */
   onEdit: (entryId: string) => void
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
@@ -190,6 +202,7 @@ export function PageWall({
   echoes,
   onOpen,
   returningId,
+  jumpTarget,
   onEdit,
   onMenuAction,
   onDeleteEntries,
@@ -649,6 +662,51 @@ export function PageWall({
     const row = rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
     scrollRef.current?.scrollTo({ top: row * rowHeight, behavior: 'auto' })
   }, [returningId, cols, rowHeight, rowLayout])
+
+  /**
+   * A month in the subject band is a map coordinate, not decoration.
+   *
+   * Prefer the matching page represented by the warm cell. Under a compound
+   * filter that page can be inside a collapsed unlit seam, so fall back to the
+   * first visible item in the same calendar month. This is calculated against
+   * wall items rather than DOM nodes because the destination is usually outside
+   * the virtualized window and therefore does not exist in the DOM yet.
+   */
+  const handledJumpRef = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (!jumpTarget || handledJumpRef.current === jumpTarget.request) return
+    const list = itemsRef.current
+    let idx = list.findIndex(
+      (item) => !item.echo && !item.seam && item.entry.id === jumpTarget.entryId,
+    )
+    if (idx < 0) {
+      idx = list.findIndex((item) => {
+        if (item.echo || item.seam) return false
+        const date = new Date(item.entry.created_at)
+        return date.getFullYear() === jumpTarget.year && date.getMonth() === jumpTarget.month
+      })
+    }
+    if (idx < 0) {
+      const monthStart = new Date(jumpTarget.year, jumpTarget.month, 1).getTime()
+      const monthEnd = new Date(jumpTarget.year, jumpTarget.month + 1, 1).getTime()
+      idx = list.findIndex((item) => {
+        if (!item.seam) return false
+        const from = new Date(item.seam.fromIso).getTime()
+        const to = new Date(item.seam.toIso).getTime()
+        return from < monthEnd && to >= monthStart
+      })
+    }
+    if (idx < 0) return
+    const row = rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
+    scrollRef.current?.scrollTo({ top: row * rowHeight, behavior: 'smooth' })
+    // Layout measurement can change the column count immediately after mount.
+    // Consume the request on the next frame so that correction gets one chance
+    // to use the measured geometry, without making a later resize snap back.
+    const frame = requestAnimationFrame(() => {
+      handledJumpRef.current = jumpTarget.request
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [jumpTarget, cols, rowHeight, rowLayout])
 
   const focusCard = useCallback((key: string): boolean => {
     const node = gridRef.current?.querySelector<HTMLElement>(
