@@ -8,7 +8,7 @@ import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { deriveTitle } from '@/lib/entryLabels'
-import { PageWall } from './PageWall'
+import { PageWall, type WallJumpTarget } from './PageWall'
 import { clampZoom, densityLabel } from './zoom'
 import { floorFor } from '@/features/lifemap/lifeMap'
 import {
@@ -168,6 +168,8 @@ export function PagesView({
   // where the column count and the scroller's height both live, and said beside
   // the slider as a count rather than a name for a stop it does not have.
   const [perScreen, setPerScreen] = useState(0)
+  const [wallJump, setWallJump] = useState<WallJumpTarget | null>(null)
+  const wallJumpRequest = useRef(0)
   // The markings on the page currently open, WITH their text. The corpus-wide
   // read deliberately carries none (see `markingsForEntry`); one page's worth
   // is a handful of short rows, and it is what lets an open page show the
@@ -1040,6 +1042,10 @@ export function PagesView({
               entries={entries}
               index={fullIndex}
               kept={keptKeys}
+              onJump={(year, month, entryId) => {
+                setReading('order')
+                setWallJump({ year, month, entryId, request: ++wallJumpRequest.current })
+              }}
             />
           ) : null}
 
@@ -1121,6 +1127,7 @@ export function PagesView({
             // arranged, and that zoom is a persisted setting.
             onOpen={onSpread}
             returningId={spreadId ?? lastSpreadRef.current}
+            jumpTarget={wallJump}
             onDensity={setPerScreen}
             onEdit={onOpenEntry}
             onMenuAction={onEntryMenuAction}
@@ -1157,5 +1164,4 @@ export function PagesView({
     </div>
   )
 }
-
 

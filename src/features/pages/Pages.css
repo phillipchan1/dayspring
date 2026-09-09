@@ -2950,6 +2950,42 @@ button.pg__sense-q:hover {
   opacity: calc(0.25 + var(--warmth, 0) * 0.75);
 }
 
+.pg-band__cell > span,
+.pg-band__jump {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.pg-band__jump {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pg-band__cell:has(.pg-band__jump) {
+  transition: filter var(--transition), opacity var(--transition), transform var(--transition);
+}
+
+.pg-band__cell:has(.pg-band__jump):hover {
+  filter: brightness(1.35);
+  opacity: 1;
+  transform: scaleY(1.35);
+}
+
+.pg-band__cell:has(.pg-band__jump:focus-visible) {
+  opacity: 1;
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pg-band__jump:focus-visible {
+  outline: none;
+}
+
 /* A month with nothing in it is silence, and silence is half of what a band
    says — so it stays, quietly, rather than being dropped. */
 .pg-band__cell[data-empty='true'] {

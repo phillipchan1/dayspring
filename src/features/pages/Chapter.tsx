@@ -22,6 +22,7 @@ export function Chapter({
   entries,
   index,
   kept,
+  onJump,
 }: {
   subjects: Subject[]
   /** The whole archive — the band spans it, not just the subject. */
@@ -29,15 +30,24 @@ export function Chapter({
   index: SubjectIndex
   /** Which of these the writer has kept, by key. */
   kept: ReadonlySet<string>
+  /** Bring the corresponding month of the wall into view. */
+  onJump: (year: number, month: number, entryId: string) => void
 }) {
   const months = useMemo(() => monthsAcross(entries), [entries])
 
-  const bands: Band[] = useMemo(() => {
-    const byId = new Map(entries.map((e) => [e.id, e]))
+  const bands: (Band & { firstEntryByMonth: ReadonlyMap<string, string> })[] = useMemo(() => {
     return subjects.map((s) => {
       const hit = matchSubject(index, s)
-      const lit = [...hit].map((id) => byId.get(id)).filter((e): e is Entry => Boolean(e))
-      return bandFor(s.key, s.label, lit, months)
+      // Entries are newest first. Keep that order so a month jump lands on the
+      // first matching page the reader will encounter in the wall.
+      const lit = entries.filter((e) => hit.has(e.id))
+      const firstEntryByMonth = new Map<string, string>()
+      for (const entry of lit) {
+        const date = new Date(entry.created_at)
+        const key = `${date.getFullYear()}-${date.getMonth()}`
+        if (!firstEntryByMonth.has(key)) firstEntryByMonth.set(key, entry.id)
+      }
+      return { ...bandFor(s.key, s.label, lit, months), firstEntryByMonth }
     })
   }, [subjects, entries, index, months])
 
@@ -83,9 +93,22 @@ export function Chapter({
                 className="pg-band__cell"
                 data-empty={cell.pages === 0 ? 'true' : undefined}
                 style={{ ['--warmth']: cell.warmth } as React.CSSProperties}
-                title={cellLabel(cell, band.label)}
-                aria-label={cellLabel(cell, band.label)}
-              />
+              >
+                {cell.pages > 0 ? (
+                  <button
+                    type="button"
+                    className="pg-band__jump"
+                    title={`${cellLabel(cell, band.label)} — jump to this month`}
+                    aria-label={`${cellLabel(cell, band.label)}. Jump to this month.`}
+                    onClick={() => {
+                      const entryId = band.firstEntryByMonth.get(`${cell.year}-${cell.month}`)
+                      if (entryId) onJump(cell.year, cell.month, entryId)
+                    }}
+                  />
+                ) : (
+                  <span title={cellLabel(cell, band.label)} aria-hidden />
+                )}
+              </li>
             ))}
           </ol>
 
