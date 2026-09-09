@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.324",
+  "appVersion": "1.0.329",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -161,6 +161,17 @@
         "pc": "Esc"
       },
       {
+        "id": "shortcut.stop-writing",
+        "group": "Writing",
+        "label": "Stop writing",
+        "when": "in the editor",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
+      },
+      {
         "id": "shortcut.journal-your-own-side-by-side",
         "group": "Navigation",
         "label": "Journal — your own, side by side",
@@ -292,6 +303,17 @@
         ],
         "mac": "⏎",
         "pc": "Enter"
+      },
+      {
+        "id": "shortcut.close-the-page",
+        "group": "Navigation",
+        "label": "Close the page",
+        "when": "reading a page",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
       },
       {
         "id": "shortcut.clear-the-selection",
