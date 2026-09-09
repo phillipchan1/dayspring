@@ -27,6 +27,7 @@ import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
 import { Stretch } from './Stretch'
 import { inSpan, monthsAcross, spanBounds, type Span } from './band'
+import { localNoonIso } from './wallItems'
 import { PageReader } from './PageReader'
 import { defaultSplit, type Reading } from './readings'
 import {
@@ -102,6 +103,11 @@ interface Props {
   onSpread: (entryId: string | null) => void
   /** Leave Pages for the editor. */
   onOpenEntry: (entryId: string) => void
+  /**
+   * The unwritten next page at the front of the wall. Optional: previews and
+   * listing shots mount this surface with no editor to go to.
+   */
+  onNew?: (() => void) | undefined
   /** Per-entry context-menu actions — rename the date, duplicate, print, export. */
   onEntryMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
@@ -140,6 +146,7 @@ export function PagesView({
   spreadId,
   onSpread,
   onOpenEntry,
+  onNew,
   onEntryMenuAction,
   onDeleteEntries,
   onTendSubjects,
@@ -495,6 +502,11 @@ export function PagesView({
   }, [asked, subjects, markPills, keys])
 
   const anyLit = keys.length > 0 || asked !== null
+  /**
+   * The unwritten next page belongs on the archive, not on a question.
+   * A stretch that excludes today is also a question ("what about then").
+   */
+  const offerBlank = !anyLit && (span === null || inSpan(localNoonIso(), span, months))
   /** The declared kinds currently lit, for the sentence the surface says. */
   const litMarkings = useMemo(
     () => markPills.filter((p) => keys.includes(p.key)).map((p) => p.kind),
@@ -1130,6 +1142,8 @@ export function PagesView({
             jumpTarget={wallJump}
             onDensity={setPerScreen}
             onEdit={onOpenEntry}
+            onNew={onNew}
+            offerBlank={offerBlank}
             onMenuAction={onEntryMenuAction}
             onDeleteEntries={onDeleteEntries}
           />

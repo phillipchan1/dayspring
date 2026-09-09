@@ -15,6 +15,52 @@ export interface WallItem {
   echo?: string
   /** Set when this cell stands in for a run of pages the filter passed over. */
   seam?: { count: number; fromIso: string; toIso: string }
+  /**
+   * The unwritten next page — today's blank, sitting at the front of the wall.
+   *
+   * Not a button and not a third New-entry control. A notebook has a next
+   * page; this is that page. The `entry` it carries exists so the rest of the
+   * wall can read a date. Its id is never persistable and must never enter a
+   * selection, a menu, or a delete.
+   */
+  blank?: true
+}
+
+/** Well-known key/id for the unwritten next page. Not a real entry. */
+export const BLANK_PAGE_KEY = 'blank'
+
+/**
+ * Local noon as ISO, so "today" is the reader's calendar day rather than
+ * whatever UTC date it is on the other side of midnight.
+ */
+export function localNoonIso(now = new Date()): string {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).toISOString()
+}
+
+export function blankPageItem(now = new Date()): WallItem {
+  const created_at = localNoonIso(now)
+  return {
+    key: BLANK_PAGE_KEY,
+    blank: true,
+    entry: {
+      id: BLANK_PAGE_KEY,
+      created_at,
+      updated_at: created_at,
+      body_markdown: '',
+      title: null,
+      mood: null,
+      tags: [],
+      word_count: 0,
+      source: 'native',
+      external_id: null,
+    },
+  }
+}
+
+/** Prepend the unwritten next page when the wall is the archive, not a question. */
+export function withBlankPage(items: WallItem[], offer: boolean, now?: Date): WallItem[] {
+  if (!offer) return items
+  return [blankPageItem(now), ...items]
 }
 
 /**
@@ -91,7 +137,7 @@ export function isCurrentCalendarWeek(iso: string, now = new Date()): boolean {
  * standing between the user and that.
  */
 export function selectionOrder(items: WallItem[]): string[] {
-  return items.filter((it) => !it.echo && !it.seam).map((it) => it.entry.id)
+  return items.filter((it) => !it.echo && !it.seam && !it.blank).map((it) => it.entry.id)
 }
 
 /**

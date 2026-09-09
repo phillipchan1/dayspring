@@ -2088,6 +2088,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         else go({ pagesSpreadId: id })
       }}
       onOpenEntry={handleOpenReflectionEntry}
+      onNew={() => void handleNew()}
       onEntryMenuAction={handleEntryMenuAction}
       onDeleteEntries={handleDeleteEntries}
       // The other end of the Life Map's own door. `toggleLifeMap` rather than a

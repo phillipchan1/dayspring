@@ -20,6 +20,7 @@ import {
 } from '@/features/journal/entryBulkActions'
 import { nextEntryIdAfterDelete } from '@/features/journal/entryFocusAfterDelete'
 import type { Entry } from '@/lib/types'
+import { BlankPageCard, BlankPageRow } from './BlankPage'
 import { PageCard } from './PageCard'
 import { PageRow } from './PageRow'
 import type { FacetIndex } from './facets'
@@ -33,6 +34,7 @@ import {
   monthMarks,
   seamLabel,
   selectionOrder,
+  withBlankPage,
   yearRows,
   type WallItem,
 } from './wallItems'
@@ -104,6 +106,18 @@ interface Props {
   jumpTarget?: WallJumpTarget | null
   /** Double-click, or "Open to write" — leave for the editor. */
   onEdit: (entryId: string) => void
+  /**
+   * The unwritten next page. Optional: listing shots and the pages preview
+   * mount this wall with no editor to go to.
+   */
+  onNew?: (() => void) | undefined
+  /**
+   * Offer the blank next page at the front of the wall.
+   *
+   * Only when the wall is the archive itself — not a subject, not a stretch,
+   * not a question. A new page is not an answer to "pages that say Naomi".
+   */
+  offerBlank?: boolean | undefined
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   /**
@@ -204,6 +218,8 @@ export function PageWall({
   returningId,
   jumpTarget,
   onEdit,
+  onNew,
+  offerBlank = false,
   onMenuAction,
   onDeleteEntries,
   onDensity,
@@ -313,12 +329,15 @@ export function PageWall({
     : undefined
   const items: WallItem[] = useMemo(
     () =>
-      collapseUnlit(
-        buildWallItems(entries, echoes, cols, echoGap),
-        lit,
-        expandedSeams,
+      withBlankPage(
+        collapseUnlit(
+          buildWallItems(entries, echoes, cols, echoGap),
+          lit,
+          expandedSeams,
+        ),
+        offerBlank,
       ),
-    [entries, echoes, cols, echoGap, lit, expandedSeams],
+    [entries, echoes, cols, echoGap, lit, expandedSeams, offerBlank],
   )
 
   /** Echo cards take focus and open, but are never selection targets — see wallItems. */
@@ -681,7 +700,7 @@ export function PageWall({
     )
     if (idx < 0) {
       idx = list.findIndex((item) => {
-        if (item.echo || item.seam) return false
+        if (item.echo || item.seam || item.blank) return false
         const date = new Date(item.entry.created_at)
         return date.getFullYear() === jumpTarget.year && date.getMonth() === jumpTarget.month
       })
@@ -853,7 +872,7 @@ export function PageWall({
       const land = (next: number) => {
         e.preventDefault()
         const landed = moveFocus(next)
-        if (!landed || landed.echo) return
+        if (!landed || landed.echo || landed.blank) return
         if (e.shiftKey) {
           if (!multi.rangePivotId) beginRange(list[base]?.entry.id ?? landed.entry.id)
           selectRangeTo(landed.entry.id)
@@ -900,6 +919,7 @@ export function PageWall({
           // Enter on a seam opens the run back up rather than opening the one
           // page that happens to sit at its head.
           if (item.seam) setExpandedSeams((prev) => new Set(prev).add(item.key))
+          else if (item.blank) onNew?.()
           else openWithTransition(item.entry.id)
           return
         }
@@ -919,7 +939,7 @@ export function PageWall({
           // A seam is not a page. Deleting "47 pages" from a keystroke aimed at
           // a placeholder is not a thing anyone should be able to do by accident.
           const item = list[base]!
-          if (item.seam) return
+          if (item.seam || item.blank) return
           setPhase({ kind: 'confirm', entry: item.entry })
           return
         }
@@ -941,6 +961,7 @@ export function PageWall({
       clearSelection,
       selectedIds.size,
       openWithTransition,
+      onNew,
       orderIds,
       multi,
     ],
@@ -1020,6 +1041,30 @@ export function PageWall({
                 onExpand={(key) => setExpandedSeams((prev) => new Set(prev).add(key))}
               />
             ) : null
+            if (item.blank) {
+              const blankTab = idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1
+              return rows ? (
+                <BlankPageRow
+                  key={item.key}
+                  wallKey={item.key}
+                  dateIso={item.entry.created_at}
+                  tabIndex={blankTab}
+                  onFocus={onCardFocus}
+                  onKeyDown={onCardKeyDown}
+                  onNew={() => onNew?.()}
+                />
+              ) : (
+                <BlankPageCard
+                  key={item.key}
+                  wallKey={item.key}
+                  dateIso={item.entry.created_at}
+                  tabIndex={blankTab}
+                  onFocus={onCardFocus}
+                  onKeyDown={onCardKeyDown}
+                  onNew={() => onNew?.()}
+                />
+              )
+            }
             if (item.seam) {
               const { count, fromIso, toIso } = item.seam
               return (

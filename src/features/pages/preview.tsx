@@ -175,6 +175,7 @@ function SurfacePreview() {
             spreadId={spreadId}
             onSpread={setSpreadId}
             onOpenEntry={() => window.alert('This is where the editor would open.')}
+            onNew={() => window.alert('This is where a new entry would open.')}
             onEntryMenuAction={() => {}}
             onDeleteEntries={() => {}}
             settings={settings}
