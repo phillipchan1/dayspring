@@ -20,6 +20,21 @@ function highlightPrintCss(): string {
   return `  mark.hl { padding: 0 .12em; border-radius: .18em; color: inherit; }
 ${rules}
   u.ul { text-decoration-thickness: .08em; text-underline-offset: .16em; }
+  .read-ritual-name {
+    font-size: 0.72em;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin: 1.4em 0 0.4em;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid #ccc;
+  }
+  .read-ritual-label {
+    font-size: 0.68em;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #888;
+    margin: 1em 0 0.3em;
+  }
   hr {
     border: 0;
     height: 2.2em;

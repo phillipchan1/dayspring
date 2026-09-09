@@ -873,6 +873,15 @@ button.pg__sense-q:hover {
   overflow: hidden;
 }
 
+.pgc__ritual {
+  font-family: var(--font-serif);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.45rem;
+}
 .pgc__line {
   font-family: var(--font-editor);
   font-size: 0.79rem;
@@ -2535,6 +2544,15 @@ button.pg__sense-q:hover {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--text);
+}
+.pgr__ritual {
+  margin-right: 0.55em;
+  font-family: var(--font-serif);
+  font-size: 0.68em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 /*

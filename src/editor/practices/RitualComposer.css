@@ -67,7 +67,13 @@
   text-transform: uppercase;
   color: var(--accent);
 }
-.rc__about {
+.rc__tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.rc__about, .rc__remove {
   flex: 0 0 auto;
   min-width: 44px;
   min-height: 44px;
@@ -79,8 +85,8 @@
   letter-spacing: 0.06em;
   cursor: pointer;
 }
-.rc__x:hover, .rc__about:hover { color: var(--accent); }
-.rc__x:focus-visible, .rc__about:focus-visible,
+.rc__x:hover, .rc__about:hover, .rc__remove:hover { color: var(--accent); }
+.rc__x:focus-visible, .rc__about:focus-visible, .rc__remove:focus-visible,
 .rc__next:focus-visible, .rc__back:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: 2px;

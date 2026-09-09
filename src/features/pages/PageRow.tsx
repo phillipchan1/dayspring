@@ -126,6 +126,7 @@ export const PageRow = memo(function PageRow({
   const pointer = useWallPointer((x, y) => onOpenMenu(entryId, x, y))
   // The writer's own opening — not a title, because we do not invent titles
   // (`deriveTitle` exists for chrome; a page has none).
+  const ritual = excerpt.rituals[0]
   const line = excerpt.lines[0]?.text ?? ''
   /*
    * And what comes after it, for the phone's second line.
@@ -178,7 +179,8 @@ export const PageRow = memo(function PageRow({
       </time>
       {echo ? <span className="pgr__echo">{echo}</span> : null}
       <span className="pgr__line">
-        {match ? paint(line, match) : line}
+        {ritual ? <span className="pgr__ritual">{ritual}</span> : null}
+        {line ? (match ? paint(line, match) : line) : ritual ? null : ''}
         {next ? (
           <span className="pgr__next"> {match ? paint(next, match) : next}</span>
         ) : null}

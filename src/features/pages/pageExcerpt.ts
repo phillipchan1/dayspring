@@ -9,6 +9,7 @@
 import { entryContentLines } from '@/lib/entryLabels'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import { ATTACHMENT_REF_RE } from '@/lib/attachments'
+import { ritualNamesIn } from '@/lib/ritualDisplay'
 import { EXCERPT_MAX_LINES } from './zoom'
 import { passageKey, passagesForEntry } from '@/lib/remember'
 import type { Entry } from '@/lib/types'
@@ -29,6 +30,14 @@ export interface PageExcerpt {
   chars: number
   /** Prose lines in the whole entry, so a card can tell whether it stopped short. */
   total: number
+  /**
+   * Rituals begun on this page, in document order.
+   *
+   * Not a summary — the writer chose the practice. Without this a card of an
+   * Examen is four unmarked sentences, and you have to open it to see what
+   * it was.
+   */
+  rituals: string[]
 }
 
 type ExcerptEntry = Pick<Entry, 'id' | 'created_at' | 'body_markdown'>
@@ -105,6 +114,7 @@ export function pageExcerpt(
    */
   match: RegExp | null = null,
 ): PageExcerpt {
+  const rituals = ritualNamesIn(entry.body_markdown)
   const raw = entryContentLines(entry.body_markdown)
   const prose: string[] = []
   for (const line of raw) {
@@ -145,7 +155,7 @@ export function pageExcerpt(
     return hit ? { ...line, hit: true } : line
   })
 
-  return { lines, chars, total: prose.length }
+  return { lines, chars, total: prose.length, rituals }
 }
 
 /**

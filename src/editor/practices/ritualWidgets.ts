@@ -63,6 +63,7 @@ export class RitualHeaderWidget extends WidgetType {
     }
     root.append(
       action('freewrite', 'free write', 'Remove the prompts and keep only your words'),
+      action('remove', 'remove', 'Remove this ritual from the entry'),
     )
     return root
   }

@@ -105,6 +105,21 @@ describe('pageExcerpt', () => {
     expect(x.lines).toEqual([])
     expect(x.chars).toBe(0)
     expect(x.total).toBe(0)
+    expect(x.rituals).toEqual([])
+  })
+
+  it('names the ritual on the page, and keeps the answers as prose', () => {
+    const body = [
+      '<!-- ritual:name:Emotionally Healthy Examen -->',
+      '<!-- ritual:section:Feel -->',
+      'i felt happy that we are going ot be off this project',
+      '<!-- ritual:section:Reveal -->',
+    ].join('\n')
+    const x = pageExcerpt(entry(body))
+    expect(x.rituals).toEqual(['Emotionally Healthy Examen'])
+    expect(x.lines.map((l) => l.text)).toEqual([
+      'i felt happy that we are going ot be off this project',
+    ])
   })
 
   it('uses the writer’s caption for a photo-only page', () => {

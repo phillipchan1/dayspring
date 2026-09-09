@@ -8,6 +8,7 @@ import {
   composeRitualMarkdown,
   readRitual,
   ritualBlockRange,
+  ritualRemovalRange,
 } from './ritualDocument'
 import './RitualComposer.css'
 
@@ -17,7 +18,12 @@ interface Props {
   /** The editor's live document. */
   getDoc: () => string
   /** Write the rebuilt block back into the entry. */
-  replaceRange: (from: number, to: number, text: string) => void
+  replaceRange: (
+    from: number,
+    to: number,
+    text: string,
+    opts?: { focus?: boolean },
+  ) => void
   /** Leave the composer. What was written is already in the entry. */
   onClose: () => void
   /** Open the practice's "about" sheet. */
@@ -126,15 +132,47 @@ export function RitualComposer({
   getDocRef.current = getDoc
   const replaceRangeRef = useRef(replaceRange)
   replaceRangeRef.current = replaceRange
+  // Once the writer has asked this ritual out of the entry, later commits —
+  // the debounce, the unmount flush — must not write it back. `blockIndex`
+  // would then point at whatever ritual slid into this slot, or at nothing.
+  const goneRef = useRef(false)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   const commit = useCallback(() => {
-    if (!block) return
+    if (!block || goneRef.current) return
     const doc = getDocRef.current()
     const range = ritualBlockRange(doc, blockIndex)
     if (!range) return
     const next = composeRitualMarkdown(block.name, block.labels, textsRef.current)
     if (doc.slice(range.from, range.to) === next) return
-    replaceRangeRef.current(range.from, range.to, next)
+    // The editor's replaceRange focuses CodeMirror by default. Doing that
+    // here is the bug: the debounce fires, the entry underneath takes the
+    // caret, and the movement the writer is looking at goes dead.
+    replaceRangeRef.current(range.from, range.to, next, { focus: false })
   }, [block, blockIndex])
+
+  const removeBlock = useCallback(() => {
+    if (!block || goneRef.current) return
+    goneRef.current = true
+    const doc = getDocRef.current()
+    const range = ritualRemovalRange(doc, blockIndex)
+    if (range) replaceRangeRef.current(range.from, range.to, '')
+    onCloseRef.current()
+  }, [block, blockIndex])
+
+  const leave = useCallback(() => {
+    // An untouched ritual is scaffolding, not a record. Leaving it behind
+    // is how "I changed my mind" used to get stuck — ✕ closed the surface
+    // and the empty block sat in the entry with no way out but continue.
+    const empty = textsRef.current.every((t) => t.trim() === '')
+    if (empty) {
+      removeBlock()
+      return
+    }
+    commit()
+    onCloseRef.current()
+  }, [commit, removeBlock])
 
   useEffect(() => {
     const id = setTimeout(commit, 400)
@@ -200,7 +238,7 @@ export function RitualComposer({
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
-        onClose()
+        leave()
         return
       }
       if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return
@@ -214,7 +252,7 @@ export function RitualComposer({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [blocked, go, i, onClose])
+  }, [blocked, go, i, leave])
 
 
   if (!block) return null
@@ -236,18 +274,37 @@ export function RitualComposer({
       }
     >
       <header className="rc__bar">
-        <button type="button" className="rc__x" onClick={onClose} aria-label="Leave the ritual">
+        <button
+          type="button"
+          className="rc__x"
+          onClick={leave}
+          aria-label={
+            texts.every((t) => t.trim() === '')
+              ? 'Remove the ritual'
+              : 'Leave the ritual'
+          }
+        >
           ✕
         </button>
         <span className="rc__name">{block.name}</span>
-        <button
-          type="button"
-          className="rc__about"
-          onClick={() => onAbout(block.name)}
-          aria-label={`About ${block.name}`}
-        >
-          about
-        </button>
+        <div className="rc__tools">
+          <button
+            type="button"
+            className="rc__remove"
+            onClick={removeBlock}
+            aria-label="Remove this ritual from the entry"
+          >
+            remove
+          </button>
+          <button
+            type="button"
+            className="rc__about"
+            onClick={() => onAbout(block.name)}
+            aria-label={`About ${block.name}`}
+          >
+            about
+          </button>
+        </div>
       </header>
 
       <div className="rc__spine" data-yield={yielding ? 'true' : undefined} aria-hidden>
@@ -297,7 +354,7 @@ export function RitualComposer({
             <div className="rc__close">
               <h2 className="rc__close-name">{block.name}</h2>
               <p className="rc__close-origin">{practice?.origin ?? ''}</p>
-              <button type="button" className="rc__next" onClick={onClose}>
+              <button type="button" className="rc__next" onClick={leave}>
                 Back to your entry
               </button>
             </div>

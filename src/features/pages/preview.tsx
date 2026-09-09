@@ -85,7 +85,20 @@ const ECHO_YEAR: Entry[] = [27, 28, 29, 30, 31].map((day) =>
   ),
 )
 
-const ENTRIES: Entry[] = [...RECENT, ...ECHO_YEAR].sort(
+const RITUAL: Entry = page(
+  'preview-ritual',
+  new Date(Date.UTC(2026, 8, 9, 6)).toISOString(),
+  [
+    '<!-- ritual:name:Emotionally Healthy Examen -->',
+    '<!-- ritual:section:Feel -->',
+    'The long walk after dinner, and that the rain held off for it.',
+    'Short with her when she asked how the day went.',
+    '<!-- ritual:section:Reveal -->',
+    '<!-- ritual:section:Encounter -->',
+  ].join('\n'),
+)
+
+const ENTRIES: Entry[] = [...RECENT, ...ECHO_YEAR, RITUAL].sort(
   (a, b) => (a.created_at > b.created_at ? -1 : a.created_at < b.created_at ? 1 : 0),
 )
 

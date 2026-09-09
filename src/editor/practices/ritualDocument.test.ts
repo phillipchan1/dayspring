@@ -4,6 +4,7 @@ import {
   readRitual,
   ritualBlockRange,
   ritualIndexAt,
+  ritualRemovalRange,
 } from './ritualDocument'
 import { buildPracticeBlock } from './usePracticeInsertion'
 import { PRACTICES } from './practicesData'
@@ -87,5 +88,30 @@ describe('reading a ritual back', () => {
   it('returns null for a block that is not there', () => {
     expect(readRitual('just prose', 0)).toBeNull()
     expect(ritualBlockRange(doc, 3)).toBeNull()
+  })
+})
+
+describe('ritualRemovalRange', () => {
+  it('leaves following prose with a single seam, not a hole', () => {
+    const block = composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])
+    const source = `Morning.\n\n${block}\n\nEvening.`
+    const range = ritualRemovalRange(source, 0)!
+    expect(source.slice(0, range.from) + source.slice(range.to)).toBe('Morning.\n\nEvening.')
+  })
+
+  it('clears an entry that was only the ritual', () => {
+    const source = composeRitualMarkdown(examen.name, LABELS, ['', '', '', ''])
+    const range = ritualRemovalRange(source, 0)!
+    expect(source.slice(0, range.from) + source.slice(range.to)).toBe('')
+  })
+
+  it('does not eat the ritual next to it', () => {
+    const first = composeRitualMarkdown(examen.name, LABELS, ['first', '', '', ''])
+    const second = composeRitualMarkdown(examen.name, LABELS, ['second', '', '', ''])
+    const source = `${first}\n\n${second}`
+    const range = ritualRemovalRange(source, 0)!
+    const next = source.slice(0, range.from) + source.slice(range.to)
+    expect(readRitual(next, 0)!.texts[0]).toBe('second')
+    expect(readRitual(next, 1)).toBeNull()
   })
 })

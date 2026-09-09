@@ -50,6 +50,26 @@ describe('renderMarkdown — underline', () => {
   })
 })
 
+describe('renderMarkdown — ritual', () => {
+  it('renders the practice name and the answered movement, not the tokens', () => {
+    const html = render(
+      [
+        '<!-- ritual:name:Emotionally Healthy Examen -->',
+        '<!-- ritual:section:Feel -->',
+        'i felt happy',
+        '<!-- ritual:section:Reveal -->',
+      ].join('\n'),
+    )
+    expect(html).toContain('class="read-ritual-name"')
+    expect(html).toContain('Emotionally Healthy Examen')
+    expect(html).toContain('class="read-ritual-label"')
+    expect(html).toContain('Feel')
+    expect(html).toContain('i felt happy')
+    expect(html).not.toContain('ritual:name')
+    expect(html).not.toContain('Reveal')
+  })
+})
+
 describe('renderMarkdown — thematic break', () => {
   it('renders --- as an hr', () => {
     expect(render('before\n\n---\n\nafter')).toMatch(/<hr\s*\/?>/i)

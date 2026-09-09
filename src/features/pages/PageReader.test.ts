@@ -92,6 +92,25 @@ describe('PageReader', () => {
     expect(body.querySelector('img[alt="Morning light"]')).not.toBeNull()
   })
 
+  it('shows the ritual as a record, not as unmarked sentences', () => {
+    const previous = entry.body_markdown
+    entry.body_markdown = [
+      '<!-- ritual:name:Emotionally Healthy Examen -->',
+      '<!-- ritual:section:Feel -->',
+      'i felt happy that we are going ot be off this project',
+      '<!-- ritual:section:Reveal -->',
+    ].join('\n')
+    renderReader()
+    entry.body_markdown = previous
+    const body = host!.querySelector<HTMLElement>('.pg-read1__body')!
+    expect(body.querySelector('.read-ritual-name')?.textContent).toBe(
+      'Emotionally Healthy Examen',
+    )
+    expect(body.querySelector('.read-ritual-label')?.textContent).toBe('Feel')
+    expect(body.textContent).toContain('i felt happy that we are going ot be off this project')
+    expect(body.textContent).not.toContain('ritual:')
+  })
+
   it('opens the same entry for writing on pointer devices', () => {
     const onEdit = vi.fn()
     renderReader(onEdit)

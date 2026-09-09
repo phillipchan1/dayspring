@@ -26,6 +26,7 @@ import {
   ritualBlockAtLine,
   type RitualBlock,
 } from './ritualPacing'
+import { ritualIndexContaining, ritualRemovalRange } from './ritualDocument'
 import {
   RitualColophonWidget,
   RitualHeaderWidget,
@@ -506,6 +507,7 @@ const practiceTheme = EditorView.theme({
 //   • Pick it back up → the header's "continue" action (opens the composer)
 //   • Skip a prompt   → Backspace on its empty line (deletePracticeSection)
 //   • Free write      → the header's "free write" action (dissolvePracticeBlockAt)
+//   • Remove          → the header's "remove" action (the whole block, gone)
 //   • Swap / add      → run /ritual again (smart replace/append in the hook)
 
 const isTokenLine = (text: string) =>
@@ -665,6 +667,20 @@ function dissolvePracticeBlockAt(view: EditorView, pos: number): void {
   view.focus()
 }
 
+/** Take the whole ritual out of the entry — prompts and words together. */
+function removePracticeBlockAt(view: EditorView, pos: number): void {
+  const doc = view.state.doc.toString()
+  const index = ritualIndexContaining(doc, pos)
+  if (index < 0) return
+  const range = ritualRemovalRange(doc, index)
+  if (!range) return
+  view.dispatch({
+    changes: { from: range.from, to: range.to, insert: '' },
+    selection: { anchor: range.from },
+  })
+  view.focus()
+}
+
 /**
  * Paint hidden `ritual:*` tokens as their prompts — the ritual as a *record*.
  *
@@ -701,6 +717,12 @@ export function practicePromptExtension(
       if (freewrite) {
         event.preventDefault()
         dissolvePracticeBlockAt(view, view.posAtDOM(freewrite))
+        return true
+      }
+      const remove = node?.closest('.cm-practice-action--remove')
+      if (remove) {
+        event.preventDefault()
+        removePracticeBlockAt(view, view.posAtDOM(remove))
         return true
       }
       // The "about" action opens a slide-over describing the practice.
@@ -772,7 +794,7 @@ export function usePracticeInsertion(editorRef: RefObject<EditorHandle | null>) 
         from = to = base = block.to
       }
       const { text, cursorOffset } = buildPracticeBlock(practice, doc, base)
-      editorRef.current?.replaceRange(from, to, text)
+      editorRef.current?.replaceRange(from, to, text, { focus: false })
       return base + cursorOffset
     },
     [editorRef],
