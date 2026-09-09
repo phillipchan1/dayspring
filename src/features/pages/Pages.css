@@ -925,28 +925,76 @@ button.pg__sense-q:hover {
 }
 
 .pgc__blank {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 0.76rem;
-  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
   margin: 0;
 }
 
 /*
- * The unwritten next page — quieter paper, not a dashed "add" tile.
+ * The unwritten next page.
  *
- * It has to read as a page or the wall stops being a notebook. No thickness
- * bar (nothing was written), no accent wash (that would be a CTA sitting on
- * someone else's archive). Hover is the same invitation the other cards use.
+ * It keeps the same paper and dimensions as the archive, but its centered plus
+ * makes its purpose immediately different from a page whose body happens to be
+ * empty. The accent stays quiet until hover so it remains part of the wall.
  */
 .pgc[data-blank='true'] {
   background: color-mix(in srgb, var(--bg) 28%, var(--bg-elevated));
 }
 
+.pgc[data-blank='true'] .pgc__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding-bottom: 1.35rem;
+}
+
+.pgc__new-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border-subtle));
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 1.45rem;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.pgc[data-blank='true']:hover .pgc__new-mark {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
 .pgr[data-blank='true'] .pgr__line {
-  font-family: var(--font-serif);
-  font-style: italic;
-  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.pgr__new-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border-subtle));
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--accent);
 }
 
 /* The page ends mid-sentence, the way a glance at one does. */

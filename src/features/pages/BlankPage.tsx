@@ -28,9 +28,9 @@ interface Props {
  * The unwritten next page.
  *
  * Same object at both distances — a card among cards, a row among rows — so
- * the journal has one place to begin, not a button we invented for each view.
- * The words are the page, not a command: "A blank page" is what a notebook
- * holds out. The action name ("New entry") lives on the accessible name.
+ * the journal has one place to begin. Unlike written pages, this one has an
+ * explicit plus and action label: it should read as the door to a new page,
+ * not as another empty-looking entry in the archive.
  */
 export function BlankPageCard({
   dateIso,
@@ -57,7 +57,10 @@ export function BlankPageCard({
         {formatDate(dateIso)}
       </time>
       <div className="pgc__body">
-        <p className="pgc__blank">A blank page</p>
+        <span className="pgc__new-mark" aria-hidden="true">
+          +
+        </span>
+        <span className="pgc__blank">Start a new page</span>
       </div>
     </button>
   )
@@ -88,7 +91,12 @@ export function BlankPageRow({
       <time className="pgr__date" dateTime={dateIso}>
         {formatRowDate(dateIso)}
       </time>
-      <span className="pgr__line">A blank page</span>
+      <span className="pgr__line">
+        <span className="pgr__new-mark" aria-hidden="true">
+          +
+        </span>
+        Start a new page
+      </span>
     </button>
   )
 }
