@@ -27,11 +27,18 @@ import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
-import { isInEditor, shouldIgnoreTarget } from './keyboard'
+import { hasEditorSelection, isInEditor, shouldIgnoreTarget } from './keyboard'
 import { nextEntryIdAfterDelete } from './entryFocusAfterDelete'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import { copyEntriesMarkdown, copyEntriesText, exportEntriesZip } from './entryBulkActions'
-import { entryReturnFromState, type AppHistoryState } from '@/lib/appHistory'
+import {
+  entryReturnFromState,
+  newEntryReturn,
+  pagesHomeReturn,
+  readAppHistoryState,
+  type AppHistoryState,
+} from '@/lib/appHistory'
+import { editorUpDestination } from './leaveEditor'
 import { consumeSeedPrompt } from '@/lib/onboardingSeed'
 import {
   copyEntryMarkdown,
@@ -1320,6 +1327,44 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     back()
   }
 
+  /**
+   * Stop writing: up one layer.
+   *
+   * Overlays and focus mode claim Escape first. What is left is this — the
+   * editor is a layer on a page, and New must not skip the stack on the way out.
+   */
+  async function leaveEditorUp() {
+    await saveNow()
+    focus.exit()
+    // onCreated replaces entryId on the history frame during the flush; React
+    // state has not re-rendered yet, so read the frame rather than the closure.
+    const id = readAppHistoryState()?.entryId ?? entryIdRef.current
+    const dest = editorUpDestination({
+      entryId: id,
+      entryReturn: state.entryReturn,
+      pagesSubject: state.pagesSubject,
+    })
+    if (dest.action === 'origin') {
+      returnFromEntryOrigin()
+      return
+    }
+    skipEntrySyncRef.current = true
+    loadedEntryIdRef.current = null
+    go(
+      {
+        surface: 'pages',
+        entryId: null,
+        entryReturn: null,
+        ascentDrill: null,
+        settings: null,
+        help: false,
+        pagesSpreadId: dest.spreadId,
+        pagesSubject: dest.subject,
+      },
+      { replace: true },
+    )
+  }
+
   async function toggleLifeMap() {
     if (lifeMapActive) back()
     else await leaveForSurface({ surface: 'lifemap' })
@@ -1344,6 +1389,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * ⌘1 still means "my pages" and there is one fewer thing to be in a mode of.
    */
   async function goToPages() {
+    if (state.surface === 'journal' && state.entryReturn?.surface === 'pages') {
+      await leaveEditorUp()
+      return
+    }
     if (state.entryReturn?.surface === 'pages') {
       returnFromEntryOrigin()
       return
@@ -1468,18 +1517,69 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [settings.devMode])
 
-  // Esc returns to Lamp / Altar / Ascent when previewing an entry from there.
+  // Esc walks one layer up: editor → reader (or origin), reader → wall.
+  // Bubble, not capture — slash / find / format bar / focus mode listen in
+  // capture and must keep first claim. A selected range claims the first Esc
+  // (collapse, the way CodeMirror already does); the next one leaves.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || !state.entryReturn) return
-      if (settingsOpen || helpOpen || focus.active || slashCapture !== null) return
-      if (shouldIgnoreTarget(e.target) || isInEditor(e.target)) return
-      e.preventDefault()
-      returnFromEntryOrigin()
+    let selectionEsc = false
+    const onCapture = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isInEditor(e.target) && hasEditorSelection()) {
+        selectionEsc = true
+      }
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [state.entryReturn, settingsOpen, helpOpen, focus.active, slashCapture])
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (selectionEsc) {
+        selectionEsc = false
+        return
+      }
+      if (
+        settingsOpen ||
+        helpOpen ||
+        focus.active ||
+        slashCapture !== null ||
+        findOpen ||
+        voiceOpen ||
+        scanOpen ||
+        imageEdit !== null ||
+        imageMenu !== null ||
+        slashPaletteOpen
+      ) {
+        return
+      }
+      if (shouldIgnoreTarget(e.target)) return
+      if (state.surface === 'journal') {
+        e.preventDefault()
+        void leaveEditorUp()
+        return
+      }
+      if (state.surface === 'pages' && state.pagesSpreadId) {
+        e.preventDefault()
+        go({ pagesSpreadId: null }, { replace: true })
+      }
+    }
+    window.addEventListener('keydown', onCapture, true)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onCapture, true)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [
+    state.surface,
+    state.pagesSpreadId,
+    state.entryReturn,
+    settingsOpen,
+    helpOpen,
+    focus.active,
+    slashCapture,
+    findOpen,
+    voiceOpen,
+    scanOpen,
+    imageEdit,
+    imageMenu,
+    slashPaletteOpen,
+  ])
 
   // Keep the active entry's list row (title + word count) in sync as you type.
   // Rebuilding the `entries` array re-filters and re-groups the whole library
@@ -1545,7 +1645,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     loadedEntryIdRef.current = null
     setIsNewEntryMode(true)
     setNewEntryGeneration((g) => g + 1)
-    go({ surface: 'journal', entryId: null })
+    go(
+      { surface: 'journal', entryId: null, entryReturn: newEntryReturn(state) },
+      { replace: state.surface === 'journal' },
+    )
     setContent('')
     // On touch the Editor gets autofocus={false}, so a new entry — the one place
     // you unambiguously arrived to write — has to ask for the caret itself.
@@ -2047,8 +2150,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     scriptureActive,
     pagesActive,
     onFindOrAsk: () => openFindOrAsk(''),
-    entryReturn: state.entryReturn,
-    onReturnFromEntry: returnFromEntryOrigin,
+    // A ticket they earned (from Pages / Lamp / …), or Pages as the way out of
+    // a draft that never had one. The label is chrome; leaveEditorUp still
+    // reads the real ticket so a synthetic Pages frame cannot pop off the app.
+    entryReturn: state.entryReturn ?? pagesHomeReturn(),
+    onReturnFromEntry: () => void leaveEditorUp(),
     onCommand: runCommandAtCaret,
   }
 

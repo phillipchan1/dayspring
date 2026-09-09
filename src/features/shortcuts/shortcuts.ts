@@ -52,6 +52,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Tab'], label: 'Indent line', when: 'while writing in the editor' },
       { keys: ['Shift', 'Tab'], label: 'Outdent line', when: 'while writing in the editor' },
       { keys: ['Esc'], label: 'Exit focus mode', when: 'while in focus mode' },
+      { keys: ['Esc'], label: 'Stop writing', when: 'in the editor' },
     ],
   },
   {
@@ -68,6 +69,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Shift', '↑', '↓'], label: 'Extend selection', when: 'on the Pages wall' },
       { keys: ['Mod', 'A'], label: 'Select every page', when: 'on the Pages wall' },
       { keys: ['Enter'], label: 'Read the page', when: 'on the Pages wall' },
+      { keys: ['Esc'], label: 'Close the page', when: 'reading a page' },
       { keys: ['Esc'], label: 'Clear the selection', when: 'on the Pages wall' },
     ],
   },
