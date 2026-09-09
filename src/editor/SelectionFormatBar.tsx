@@ -105,6 +105,11 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDi
   const barRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === 'undefined'
+      ? 0
+      : (window.visualViewport?.width ?? window.innerWidth),
+  )
   const ios = isIOSTauri()
   const coarse = useMediaQuery('(pointer: coarse)')
   const phone = useIsMobile()
@@ -141,12 +146,49 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDi
     })
   }, [])
 
-  useLayoutEffect(() => {
+  const positionBar = useCallback((refreshAnchor = false) => {
     const el = barRef.current
     if (!anchor || !el) return
-    const barRect = el.getBoundingClientRect()
-    setPos(clampPosition(anchor.rect, barRect))
-  }, [anchor, onMark, page, guesses, ios, touch])
+    // `anchor.rect` is the opening snapshot. Re-read the live CodeMirror
+    // coordinates because wrapping and the editor's viewport position can both
+    // change while the application window is being resized.
+    const selectionRect = refreshAnchor
+      ? (selectionAnchorRect(anchor.view) ?? anchor.rect)
+      : anchor.rect
+    setPos(clampPosition(selectionRect, el.getBoundingClientRect()))
+    setViewportWidth(window.visualViewport?.width ?? window.innerWidth)
+  }, [anchor])
+
+  useLayoutEffect(() => {
+    positionBar()
+  }, [positionBar, onMark, page, guesses, ios, touch])
+
+  useEffect(() => {
+    if (!anchor) return
+    let frame: number | null = null
+    const schedulePosition = () => {
+      if (frame !== null) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        frame = null
+        positionBar(true)
+      })
+    }
+
+    window.addEventListener('resize', schedulePosition, { passive: true })
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', schedulePosition)
+    vv?.addEventListener('scroll', schedulePosition)
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedulePosition)
+    ro?.observe(anchor.view.dom)
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame)
+      window.removeEventListener('resize', schedulePosition)
+      vv?.removeEventListener('resize', schedulePosition)
+      vv?.removeEventListener('scroll', schedulePosition)
+      ro?.disconnect()
+    }
+  }, [anchor, positionBar])
 
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -230,8 +272,7 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDi
   const pageLabel =
     page === 'swatches' ? 'Highlight colour' : page === 'system' ? 'Edit' : page === 'replace' ? 'Replace' : 'Formatting'
 
-  const vv = typeof window !== 'undefined' ? window.visualViewport : null
-  const maxWidth = Math.max(0, (vv?.width ?? window.innerWidth) - 16)
+  const maxWidth = Math.max(0, viewportWidth - 16)
 
   const face = (action: BarAction, label: string) =>
     touch ? <TouchFace action={action} label={label} /> : <FormatBarIcon action={action} />

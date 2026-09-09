@@ -33,6 +33,11 @@ describe('SelectionFormatBar (touch)', () => {
   let view: EditorView
 
   beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0)
+      return 1
+    })
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
     host = document.createElement('div')
     document.body.append(host)
     root = createRoot(host)
@@ -49,6 +54,7 @@ describe('SelectionFormatBar (touch)', () => {
     act(() => root.unmount())
     view.destroy()
     host.remove()
+    vi.unstubAllGlobals()
   })
 
   it('uses words and a scroll track instead of icon-only chips', () => {
@@ -104,5 +110,26 @@ describe('SelectionFormatBar (touch)', () => {
     const scroller = bar?.querySelector('.format-bar__scroller')
     expect(scroller?.querySelector('[aria-label="Look Up"]')).toBeTruthy()
     expect(scroller?.querySelector('[aria-label="Back to formatting"]')).toBeFalsy()
+  })
+
+  it('tracks the live selection position when the application is resized', () => {
+    let left = 40
+    vi.spyOn(view, 'coordsAtPos').mockImplementation((pos) => {
+      const x = left + (pos === 0 ? 0 : 100)
+      return new DOMRect(x, 120, 1, 18)
+    })
+
+    act(() => {
+      root.render(
+        createElement(SelectionFormatBar, { anchor: anchor(view), onRequestLink: () => {} }),
+      )
+    })
+    const bar = document.querySelector('.format-bar') as HTMLDivElement
+    expect(bar.style.left).toBe('90px')
+
+    left = 240
+    act(() => window.dispatchEvent(new Event('resize')))
+
+    expect(bar.style.left).toBe('290.5px')
   })
 })
