@@ -93,6 +93,13 @@ export function SignIn() {
     if (oauthProvider) handleSignIn(oauthProvider)
   }, waiting)
 
+  function revealField(el: HTMLElement) {
+    // html/body cannot scroll (position:fixed). The .signin scroller can.
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
+  }
+
   const appleBtn = showApple && (
     <button
       key="apple"
@@ -140,49 +147,15 @@ export function SignIn() {
       <div className="signin__glow" aria-hidden />
 
       <div className="signin__card">
-        <Mark size={40} style={{ marginBottom: 14 }} />
+        <Mark size={40} className="signin__mark" />
 
-        <h1 style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 26,
-          fontWeight: 500,
-          color: 'var(--text-bright)',
-          letterSpacing: '-0.02em',
-          margin: '0 0 6px',
-        }}>
-          Dayspring
-        </h1>
+        <h1 className="signin__title">Dayspring</h1>
 
-        <p style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 12.5,
-          fontStyle: 'italic',
-          color: 'var(--accent)',
-          opacity: 0.9,
-          margin: '0 0 28px',
-          letterSpacing: '0.01em',
-        }}>
-          the dayspring from on high
-        </p>
+        <p className="signin__verse">the dayspring from on high</p>
 
-        <div style={{
-          width: 36,
-          height: 0.5,
-          background: 'var(--border)',
-          margin: '0 auto 28px',
-        }} />
+        <div className="signin__rule" />
 
-        <p style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 15,
-          fontWeight: 400,
-          color: 'var(--text-dim)',
-          textAlign: 'center',
-          lineHeight: 1.75,
-          margin: '0 0 36px',
-        }}>
-          A journal built for spiritual growth.
-        </p>
+        <p className="signin__lede">A journal built for spiritual growth.</p>
 
         <div className="signin__actions">
           {appleFirst ? <>{appleBtn}{googleBtn}</> : <>{googleBtn}{appleBtn}</>}
@@ -214,6 +187,7 @@ export function SignIn() {
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={(e) => revealField(e.currentTarget)}
                   disabled={busy === 'email'}
                   className="signin__input"
                 />
@@ -229,6 +203,7 @@ export function SignIn() {
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={(e) => revealField(e.currentTarget)}
                     disabled={busy === 'email'}
                     className="signin__input signin__input--secret"
                   />
