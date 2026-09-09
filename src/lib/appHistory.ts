@@ -259,6 +259,30 @@ export function mouseHistoryNeedsFallback(
 }
 
 /** Remove Supabase OAuth tokens from the address bar after sign-in. */
+/** The Pages wall — where a new entry goes when nothing else claimed it. */
+export function pagesHomeReturn(): EntryReturnContext {
+  return {
+    surface: 'pages',
+    scriptureBook: null,
+    scriptureVerse: null,
+    ascentAltitude: 0,
+    ascentDrill: null,
+    pagesSubject: null,
+    pagesSpreadId: null,
+  }
+}
+
+/**
+ * Return ticket for a new entry.
+ *
+ * Snapshot the surface they are on, or keep a ticket they already hold.
+ * Do not invent a Pages ticket — a synthetic one would make Escape call
+ * `back()` with no Pages frame underneath and leave the app.
+ */
+export function newEntryReturn(state: AppHistoryState): EntryReturnContext | null {
+  return entryReturnFromState(state) ?? state.entryReturn
+}
+
 /** Snapshot return context when leaving an alt canvas to read an entry. */
 export function entryReturnFromState(state: AppHistoryState): EntryReturnContext | null {
   if (state.surface === 'scripture') {
