@@ -38,8 +38,16 @@ describe('newEntryReturn', () => {
       pagesSpreadId: 'page-x',
       pagesSubject: 'word:grace',
     })
-    expect(newEntryReturn(reading).pagesSpreadId).toBe('page-x')
-    expect(newEntryReturn(reading).pagesSubject).toBe('word:grace')
+    const ticket = newEntryReturn(reading)
+    expect(ticket).toEqual({
+      surface: 'pages',
+      scriptureBook: null,
+      scriptureVerse: null,
+      ascentAltitude: 0,
+      ascentDrill: null,
+      pagesSubject: 'word:grace',
+      pagesSpreadId: 'page-x',
+    })
   })
 
   it('keeps an existing ticket when New is pressed from the editor', () => {
