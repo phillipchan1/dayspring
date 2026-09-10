@@ -444,6 +444,38 @@
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
+/* A dynamic ritual with nothing to walk yet — The Round on a young journal.
+   The card STAYS ON THE SHELF and says what it needs, rather than vanishing:
+   Principle 5, tell the truth about a surface that needs history. Quieted, not
+   hidden, and it does not lift on hover because there is nowhere to go. */
+.practice-card[data-unready='true'] {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.practice-card[data-unready='true']:hover,
+.practice-card[data-unready='true'][data-active='true'] {
+  border-color: var(--pl-border);
+  transform: none;
+  box-shadow: none;
+}
+
+.practice-card[data-unready='true']:hover::before,
+.practice-card[data-unready='true'][data-active='true']::before {
+  opacity: 0;
+}
+
+.practice-card__needs {
+  font-family: var(--pl-body);
+  font-size: 10.5px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--pl-muted);
+  text-align: right;
+  max-width: 62%;
+  line-height: 1.35;
+}
+
 .practice-card:hover .practice-card__arrow,
 .practice-card[data-active='true'] .practice-card__arrow {
   color: var(--pl-amber);

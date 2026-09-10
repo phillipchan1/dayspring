@@ -45,6 +45,37 @@ export interface PracticePrompt {
   placeholder: string
 }
 
+/**
+ * A practice whose movements are the WRITER'S OWN LIFE rather than a form from
+ * the tradition.
+ *
+ * Everything else on the shelf ships its movements in this file. The Round's are
+ * the domains on the writer's Life Map, so they are resolved once, at the moment
+ * the ritual begins, and written into the entry as ordinary section tokens. The
+ * document format does not change at all: the same
+ * `<!-- ritual:section:Label -->` line, just with a label this table never saw.
+ *
+ * Which is exactly why `question` exists. Both render paths look a movement's
+ * question up by `(practice name, section label)` — see `usePracticeInsertion.ts`
+ * and `RitualComposer.tsx` — and a domain label matches no static prompt. They
+ * fall through to this template instead.
+ */
+export interface PracticeDynamic {
+  /** The only source today: the `domain` section of the Life Map. */
+  source: 'lifemap-domains'
+  /** The question asked of each resolved movement. */
+  question: (label: string) => string
+  placeholder: string
+  /**
+   * What the library says when the source is empty.
+   *
+   * Shown rather than hiding the card: a young journal has no domains yet, and
+   * Principle 5 says tell the truth about a surface that needs history instead
+   * of faking a generic four-part life.
+   */
+  needs: string
+}
+
 export interface Practice {
   name: string
   function: PracticeFunction
@@ -83,6 +114,8 @@ export interface Practice {
    * it out so nobody meets it again.
    */
   retired?: boolean
+  /** Movements come from the writer's own data. See `PracticeDynamic`. */
+  dynamic?: PracticeDynamic
 }
 
 export const PRACTICES: Practice[] = [
@@ -213,6 +246,40 @@ export const PRACTICES: Practice[] = [
         placeholder: 'So I ask you…',
       },
     ],
+  },
+  {
+    name: 'The Round',
+    function: 'order',
+    rhythm: ['weekly'],
+    origin: 'The Benedictine Rule of Life, 6th century — adapted',
+    tradition: 'Benedictine',
+    intention:
+      'A walk through the domains of your own life — the ones already on your Life Map — stopping at each one long enough to say what is true there this week.',
+    quote: 'Your life, one domain at a time. Once around, once a week.',
+    why:
+      'A Rule of Life orders the whole of a life, not only its devotional corner: work, household, rest, friendship, the thing you are quietly worried about. Most weeks you only ever think about whichever domain is loudest. Going around the whole circle is how the quiet ones get heard before they become loud ones.',
+    shape:
+      'One movement per domain on your Life Map, in the order they first appeared in your journal. Nothing to think up — the circle is already yours. A domain you have nothing to say about this week is a real answer; leave it and move on.',
+    tips: [
+      'Same time each week. The point is the circuit, not the depth.',
+      'Skip freely. Silence in a domain is information too.',
+      'If a domain is missing or wrong, fix it in your Life Map — this walks whatever is there.',
+    ],
+    // Empty by design: the movements are the writer's, and this table has never
+    // met them. `dynamic` below is what stands in.
+    prompts: [],
+    dynamic: {
+      source: 'lifemap-domains',
+      // The domain name is deliberately NOT repeated here. Every surface that
+      // draws a movement puts the label directly above the question — the
+      // threshold's list, the prompt widget in the entry, the composer's pane —
+      // so naming the domain again read as "FRONTIER CHURCH / Frontier Church —
+      // what is true here this week?" The label carries the name; the question
+      // only has to carry the ask.
+      question: () => 'What is true here this week?',
+      placeholder: 'Or leave it, and move on…',
+      needs: 'Needs a few domains on your Life Map.',
+    },
   },
   {
     name: 'The Daily Examen',
@@ -677,6 +744,40 @@ export const PRACTICES: Practice[] = [
     ],
   },
 ]
+
+/**
+ * The movements a practice will actually be written with.
+ *
+ * For everything on the shelf but The Round this is just `practice.prompts`.
+ * For a dynamic practice it is one movement per source label, built here so that
+ * the threshold's preview, the block written into the entry and the composer all
+ * agree — resolved ONCE, at begin, and then carried in the document like any
+ * other ritual.
+ *
+ * ORDER IS THE CALLER'S, AND MUST STAY CHRONOLOGICAL. The Life Map hands these
+ * over sorted by when each domain first appeared, and `lifeMap.ts` explains at
+ * length why: ranking the parts of someone's life by how often they come up is
+ * "a verdict rendered in a sort" (Principle 1, D-016). Do not re-sort here, and
+ * never by page count.
+ *
+ * NO CAP. A long Round is a long life, and truncating would silently drop
+ * domains from the one ritual whose entire point is going all the way around.
+ * What makes that affordable is that skipping is free: a movement left untouched
+ * is dropped from the record when the writer leaves (see `RitualComposer`), so a
+ * nine-domain Round walked past five of them is a four-movement entry, not a
+ * permanent "you didn't finish".
+ */
+export function resolveMovements(
+  practice: Practice,
+  labels: readonly string[] = [],
+): PracticePrompt[] {
+  if (!practice.dynamic) return practice.prompts
+  return labels.map((label) => ({
+    label,
+    question: practice.dynamic!.question(label),
+    placeholder: practice.dynamic!.placeholder,
+  }))
+}
 
 /**
  * Fast lookup by practice name — used by the editor decoration layer and the

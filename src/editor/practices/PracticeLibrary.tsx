@@ -4,16 +4,24 @@ import {
   SHELF,
   PRACTICE_FUNCTIONS,
   PRACTICE_RHYTHMS,
+  resolveMovements,
   type Practice,
   type PracticeFunction,
+  type PracticePrompt,
   type PracticeRhythm,
 } from './practicesData'
 import { skyFor } from './ritualSky'
 import './PracticeLibrary.css'
 
 interface Props {
-  /** Begin a ritual — the caller closes the modal and seeds the editor. */
-  onBegin: (practice: Practice) => void
+  /**
+   * Begin a ritual — the caller closes the modal and seeds the editor.
+   *
+   * `movements` is what the block is actually written with. For every static
+   * ritual it is `practice.prompts`; for The Round it is one movement per Life
+   * Map domain, resolved here because this is where the domains are known.
+   */
+  onBegin: (practice: Practice, movements: PracticePrompt[]) => void
   /** Dismiss without beginning (Escape / scrim) — caller restores the caret. */
   onClose: () => void
   /** When true, selecting a ritual begins immediately (no preview/threshold). */
@@ -40,6 +48,21 @@ interface Props {
    * unset and gets the real hour.
    */
   now?: Date
+  /**
+   * The writer's Life Map domains, in the Life Map's own chronological order —
+   * the movements The Round is walked through.
+   *
+   * Injected rather than fetched here, for two reasons. The library is rendered
+   * by the App Store screenshot surfaces and the `?__preview=` harness, neither
+   * of which has a Supabase session, so a query inside this component would
+   * throw in both. And loading is the caller's concern: `JournalScreen` already
+   * knows when the library opened.
+   *
+   * `null` means not known yet (still loading, or a surface that has no Life
+   * Map). `[]` means known and empty — a young journal — which is what puts The
+   * Round into its "needs a few domains" state rather than hiding it.
+   */
+  domains?: readonly string[] | null
 }
 
 type RhythmFilter = PracticeRhythm | 'all'
@@ -80,6 +103,7 @@ export function PracticeLibrary({
   midEntry = false,
   landing = null,
   now,
+  domains = null,
 }: Props) {
   // The sky is decided once, on open. Recomputing it would mean the light
   // shifting under someone who left the library sitting open — and the
@@ -119,9 +143,29 @@ export function PracticeLibrary({
   // Reset the keyboard cursor when the visible set changes.
   useEffect(() => setActiveIdx(0), [query, rhythm])
 
+  /** The movements a practice would actually be written with, right now. */
+  const movementsOf = (practice: Practice) =>
+    resolveMovements(practice, domains ?? [])
+
+  /**
+   * A dynamic ritual with nothing to walk yet. Its card stays on the shelf and
+   * says what it needs — Principle 5, tell the truth about a surface that needs
+   * history rather than faking a generic four-part life.
+   *
+   * `domains === null` is "not known yet", not "empty": while the Life Map is
+   * still loading the card must not accuse a full journal of being empty.
+   */
+  const unready = (practice: Practice) =>
+    practice.dynamic !== undefined && domains !== null && domains.length === 0
+
   // Selecting a ritual either previews it (threshold) or begins straight away.
   const choose = (practice: Practice) => {
-    if (skipPreview) onBegin(practice)
+    if (unready(practice)) return
+    // Skipping the preview is a power-user setting for rituals whose shape you
+    // already know. The Round's shape is your own life and changes week to
+    // week, so it always crosses the threshold — that screen is the only place
+    // you see which domains you are about to walk.
+    if (skipPreview && !practice.dynamic) onBegin(practice, movementsOf(practice))
     else setSelected(practice)
   }
 
@@ -158,7 +202,7 @@ export function PracticeLibrary({
       if (selected) {
         if (e.key === 'Enter') {
           e.preventDefault()
-          onBegin(selected)
+          onBegin(selected, movementsOf(selected))
         } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
           e.preventDefault()
           setSelected(null)
@@ -311,6 +355,8 @@ export function PracticeLibrary({
               className="practice-card"
               data-function={practice.function}
               data-active={i === activeIdx ? 'true' : undefined}
+              data-unready={unready(practice) ? 'true' : undefined}
+              aria-disabled={unready(practice) || undefined}
               onMouseEnter={() => setActiveIdx(i)}
               onClick={() => choose(practice)}
             >
@@ -322,9 +368,15 @@ export function PracticeLibrary({
               <span className="practice-card__quote">{practice.quote}</span>
               <span className="practice-card__footer">
                 <span className="practice-card__tag">{practice.tradition}</span>
-                <span className="practice-card__arrow" aria-hidden>
-                  →
-                </span>
+                {unready(practice) ? (
+                  <span className="practice-card__needs">
+                    {practice.dynamic?.needs}
+                  </span>
+                ) : (
+                  <span className="practice-card__arrow" aria-hidden>
+                    →
+                  </span>
+                )}
               </span>
             </button>
           ))}
@@ -349,11 +401,16 @@ export function PracticeLibrary({
             <div className="practice-threshold__divider" aria-hidden />
             <p className="practice-threshold__intention">{selected.intention}</p>
 
+            {/* Resolved, not `selected.prompts` — The Round's movements are the
+                writer's own domains and this screen is the only place they see
+                which ones they are about to walk. */}
             <div className="practice-threshold__movements-label">
-              {selected.prompts.length} movements
+              {selected.dynamic
+                ? `${movementsOf(selected).length} domains, in the order they first appeared`
+                : `${movementsOf(selected).length} movements`}
             </div>
             <ol className="practice-threshold__movements">
-              {selected.prompts.map((prompt) => (
+              {movementsOf(selected).map((prompt) => (
                 <li key={prompt.label} className="practice-threshold__movement">
                   <span className="practice-threshold__movement-name">{prompt.label}</span>
                   <span className="practice-threshold__movement-q">{prompt.question}</span>
@@ -366,7 +423,7 @@ export function PracticeLibrary({
             <button
               type="button"
               className="practice-threshold__begin"
-              onClick={() => onBegin(selected)}
+              onClick={() => onBegin(selected, movementsOf(selected))}
             >
               Begin writing
             </button>

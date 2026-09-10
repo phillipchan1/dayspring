@@ -57,6 +57,7 @@ import { createSpiritualItem } from '@/lib/spiritual'
 import { AscentView } from '@/features/ascent/AscentView'
 import { AltarView } from '@/features/altar/AltarView'
 import { LifeMapView } from '@/features/lifemap/LifeMapView'
+import { loadLifeMap } from '@/features/lifemap/useLifeMap'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { PagesView } from '@/features/pages/PagesView'
 import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
@@ -78,7 +79,11 @@ import {
   describeRitualLanding,
   usePracticeInsertion,
 } from '@/editor/practices/usePracticeInsertion'
-import { PRACTICE_BY_NAME, type Practice } from '@/editor/practices/practicesData'
+import {
+  PRACTICE_BY_NAME,
+  type Practice,
+  type PracticePrompt,
+} from '@/editor/practices/practicesData'
 import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
 import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
 import { InlineEmojiPopover } from '@/features/capture/InlineEmojiPopover'
@@ -365,6 +370,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     midEntry: boolean
     landing: string | null
   } | null>(null)
+  /**
+   * The writer's Life Map domains — the movements The Round walks.
+   *
+   * Loaded lazily, only once the Rituals library is actually open, and cached
+   * for the rest of the session. The library is opened deliberately and is not
+   * the writing surface, so two queries there cost nothing that Principle 3
+   * protects; running them on every mount of the journal would.
+   *
+   * `null` means not known yet, which is why the library treats it differently
+   * from `[]` — an empty list is a claim about the journal and must not be made
+   * while the query is still in flight.
+   */
+  const [lifeMapDomains, setLifeMapDomains] = useState<string[] | null>(null)
   /** Which ritual block the composer is open on, or null when it is closed. */
   const [composerIndex, setComposerIndex] = useState<number | null>(null)
 
@@ -741,10 +759,35 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     requestAnimationFrame(() => editorRef.current?.focusAt(after))
   }, [])
 
+  // Fetch the domains the first time the library opens, and keep them.
+  // `loadLifeMap` needs a session, so a failure here is not an error the writer
+  // should see: The Round simply stays in its "needs a few domains" state, and
+  // every other ritual is unaffected.
+  useEffect(() => {
+    if (slashCapture?.cmd !== 'ritual' || lifeMapDomains !== null) return
+    let cancelled = false
+    loadLifeMap()
+      .then((map) => {
+        if (cancelled) return
+        const domains = map.sections.find((s) => s.id === 'domain')
+        // `items` is the current era, already ordered by when each domain first
+        // appeared. That order is load-bearing and must not be touched here —
+        // see `lifeMap.ts`, where sorting the parts of someone's life by how
+        // often they come up is "a verdict rendered in a sort".
+        setLifeMapDomains((domains?.items ?? []).map((i) => i.label))
+      })
+      .catch(() => {
+        if (!cancelled) setLifeMapDomains([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slashCapture?.cmd, lifeMapDomains])
+
   /** Write a ritual's scaffolding into the entry, then open the composer on it. */
   const beginPractice = usePracticeInsertion(editorRef)
   const handleBeginPractice = useCallback(
-    (practice: Practice) => {
+    (practice: Practice, movements: PracticePrompt[]) => {
       const cap = slashCaptureRef.current
       if (!cap) return
       setSlashCapture(null)
@@ -753,7 +796,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // hold the just-removed "/ritual" trigger text — stale positions would
       // insert the ritual in the wrong place and orphan the slash.
       const doc = editorRef.current?.getDoc() ?? contentRef.current
-      const caret = beginPractice(practice, cap.insertAt, doc)
+      const caret = beginPractice(practice, cap.insertAt, doc, movements)
       // The block has to be found in the document *after* the insert, because
       // that is the only place its real position exists.
       const after = editorRef.current?.getDoc() ?? ''
@@ -2245,6 +2288,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onToggleSkipPreview={(v) => updateSettings({ skipRitualPreview: v })}
           midEntry={ritualOpening?.midEntry ?? false}
           landing={ritualOpening?.landing ?? null}
+          domains={lifeMapDomains}
         />
       )}
       {composerIndex !== null && (

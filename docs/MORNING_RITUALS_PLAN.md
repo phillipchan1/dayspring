@@ -1,6 +1,8 @@
 # The Rituals Library — rebalancing toward the morning
 
-**Status:** proposal, 2026-09-10. Nothing here is built yet.
+**Status:** **built, 2026-09-10** — all five steps, on
+`claude/morning-ritual-library-rmxo1k`. See §8 for what changed under contact
+with the real app. Kept in the proposal's own voice as the record of *why*.
 **Trigger:** the library is browsed but not returned to. The founder — the heaviest
 user of every other surface — does not use it, and named why: he journals in the
 *morning*, and the library is built for the *evening*.
@@ -360,10 +362,23 @@ domains. Show the card, disabled, reading *"needs a few domains on your Life Map
 Principle 5 — tell the truth about a surface that needs history rather than
 faking a generic four-part life.
 
-**5. Nine pips is a long track.** Untested. The composer's Embla track and pip
-spine were built for three-to-five movements. Worth a real check on a phone with
-a realistic domain count before shipping — this is the one place The Round could
-fail on feel rather than logic.
+**5. Nine pips is a long track.** ~~Untested.~~ **Checked, and it holds.** Nine
+domains at 390×844: the pip spine stays on one row at full viewport width with
+no overflow, the threshold scrolls with "Begin writing" reachable, and the
+footer names the next domain ("Next: Trading") so a long circuit still tells you
+where you are. No cap needed.
+
+**6. The domain name does not go in the question.** Every surface renders the
+label directly above the question — the threshold's list, the prompt widget in
+the entry, the composer's pane. The first draft's template read
+*"Frontier Church — what is true here this week?"* under a **FRONTIER CHURCH**
+label, twice on every movement. The label carries the name; the question is just
+*"What is true here this week?"*
+
+**7. The Round always crosses the threshold**, even for writers who set "skip
+the preview". That setting is for rituals whose shape you already know; The
+Round's shape is your own life and changes week to week, and the threshold is
+the only place you see which domains you are about to walk.
 
 ---
 
@@ -513,7 +528,19 @@ Thirteen rituals: eleven, minus two retired, plus four.
 Six morning rituals, three of which need no Bible passage in hand. Two examens
 instead of four. And the shelf opens on the right one at 6am without being asked.
 
-## 8. Order of work
+## 8. Status — all five steps are built
+
+Shipped on `claude/morning-ritual-library-rmxo1k`, verified in Chromium across
+dawn/midday/evening/night on five themes plus phone width. 1,567 tests pass.
+
+The plan below is kept as written, as the record of why each piece is shaped the
+way it is. Two things changed under contact with the real app and are marked
+above: the horizon line came out (§6), and The Round's question stopped
+repeating the domain name (§4).
+
+---
+
+## 9. Order of work
 
 1. `retired` flag + retire the two. *Small, and unblocks any future pruning safely.*
 2. The three static morning rituals — A, B, C. *Content only; no new mechanics.*
@@ -527,7 +554,7 @@ instead of four. And the shelf opens on the right one at 6am without being asked
 Steps 1–4 are a day or two. Step 5 is the interesting one, and it is the one that
 would make the library something no other journal has.
 
-## 9. What would change our mind
+## 10. What would change our mind
 
 - **The load-bearing assumption is unwritten.** "People journal in the morning to
   order their thoughts" is not in the interview database. Get those conversations

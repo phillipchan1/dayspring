@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { Editor } from './Editor'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
-import { PRACTICES } from './practices/practicesData'
+import { PRACTICES, resolveMovements } from './practices/practicesData'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer } from './practices/RitualComposer'
 import { PracticeAboutSheet } from './practices/PracticeAboutSheet'
@@ -228,8 +228,25 @@ export function renderRitualPreview(): void {
   const family = THEMES.find((t) => t.id === theme)?.family ?? 'dark'
   const answered = Number(params.get('answered') ?? '0')
 
-  const practice = PRACTICES.find((p) => p.name === 'The Daily Examen') ?? PRACTICES[0]!
-  let block = buildPracticeBlock(practice, ABOVE, ABOVE.length).text
+  // The Round's movements are the writer's Life Map domains, which the app
+  // injects and this harness has no session to load. A fixture stands in;
+  // `?domains=a,b,c` overrides it, and `?domains=` (empty) is the young-journal
+  // case that shows the "needs a few domains" card.
+  const wantedDomains = params.get('domains')
+  const domains =
+    wantedDomains === null
+      ? ['Frontier Church', 'Trading', 'Marriage', 'The kids', 'Health', 'Dayspring']
+      : wantedDomains.split(',').map((d) => d.trim()).filter(Boolean)
+
+  // `?practice=The Round` opens the composer on any ritual — the long dynamic
+  // track is the one shape that cannot be judged from the four-movement Examen.
+  const wantedPractice = params.get('practice')
+  const practice =
+    PRACTICES.find((p) => p.name === wantedPractice) ??
+    PRACTICES.find((p) => p.name === 'The Daily Examen') ??
+    PRACTICES[0]!
+  const movements = resolveMovements(practice, domains)
+  let block = buildPracticeBlock(practice, ABOVE, ABOVE.length, movements).text
   // Fill the first `answered` movements, the way returning to a half-prayed
   // ritual the next day would find them.
   if (answered > 0) {
@@ -283,6 +300,7 @@ export function renderRitualPreview(): void {
         onToggleSkipPreview={() => {}}
         midEntry={midEntry}
         landing={describeRitualLanding(doc, doc.length)}
+        domains={domains}
         {...now}
       />,
     )
