@@ -102,7 +102,7 @@ function VerdictControl({
   onChange,
 }: {
   dimension: Dimension
-  value?: Verdict
+  value: Verdict | undefined
   onChange: (verdict: Verdict | null) => void
 }) {
   return (
