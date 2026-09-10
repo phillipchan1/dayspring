@@ -31,8 +31,8 @@ describe('sanitizeKeepingRead', () => {
               activation: 0.8,
               confidence: 0.9,
               emotions: [
-                { emotion: 'weariness', intensity: 0.9 },
-                { emotion: 'fear', intensity: 0.7 },
+                { emotion: 'weariness', intensity: 0.9, quote: 'exhausted' },
+                { emotion: 'fear', intensity: 0.7, quote: 'afraid' },
               ],
             },
             ingredients: [
@@ -60,6 +60,7 @@ describe('sanitizeKeepingRead', () => {
       'weariness',
       'fear',
     ])
+    expect(result.sentiment.emotions[0]?.quote).toBe('exhausted')
   })
 
   it('drops fabricated quotes, unknown subjects, and ingredients outside a movement', () => {
@@ -75,7 +76,7 @@ describe('sanitizeKeepingRead', () => {
               valence: 1,
               activation: 1,
               confidence: 0.8,
-              emotions: [{ emotion: 'joy', intensity: 1 }],
+              emotions: [{ emotion: 'joy', intensity: 1, quote: 'talked' }],
             },
             ingredients: [
               { kind: 'story', quote: 'Words that are not in the movement.', confidence: 1 },
@@ -89,7 +90,7 @@ describe('sanitizeKeepingRead', () => {
               valence: 1,
               activation: 1,
               confidence: 1,
-              emotions: [{ emotion: 'joy', intensity: 1 }],
+              emotions: [{ emotion: 'joy', intensity: 1, quote: 'never wrote' }],
             },
             ingredients: [],
           },
@@ -126,9 +127,9 @@ describe('sanitizeKeepingRead', () => {
               activation: 4,
               confidence: 2,
               emotions: [
-                { emotion: 'fear', intensity: 5 },
-                { emotion: 'fear', intensity: 0.2 },
-                { emotion: 'surprise', intensity: 1 },
+                { emotion: 'fear', intensity: 5, quote: 'afraid' },
+                { emotion: 'fear', intensity: 0.2, quote: 'afraid' },
+                { emotion: 'surprise', intensity: 1, quote: 'angry' },
               ],
             },
             ingredients: [],
@@ -145,8 +146,129 @@ describe('sanitizeKeepingRead', () => {
       valence: -1,
       activation: 1,
       confidence: 1,
-      emotions: [{ emotion: 'fear', intensity: 1 }],
+      emotions: [{ emotion: 'fear', intensity: 1, quote: 'afraid' }],
     })
+  })
+
+  it('drops an emotion without grounded evidence and keeps explicit mixed emotion', () => {
+    const text =
+      'I felt happy that we are going to be off this project, but this afternoon I felt stress because we are still on the hook for it.'
+    const result = sanitizeKeepingRead(
+      {
+        movements: [
+          {
+            quote: text,
+            subject_keys: [],
+            sentiment: {
+              present: true,
+              valence: 0.1,
+              activation: 0.65,
+              confidence: 0.92,
+              emotions: [
+                { emotion: 'joy', intensity: 0.8, quote: 'felt happy' },
+                { emotion: 'stress', intensity: 0.75, quote: 'felt stress' },
+                { emotion: 'anger', intensity: 0.4, quote: 'words not on the page' },
+              ],
+            },
+            ingredients: [],
+          },
+        ],
+      },
+      'entry-mixed',
+      text,
+      [],
+    )
+
+    expect(result.movements[0]?.sentiment.emotions).toEqual([
+      { emotion: 'joy', intensity: 0.8, quote: 'felt happy' },
+      { emotion: 'stress', intensity: 0.75, quote: 'felt stress' },
+    ])
+  })
+
+  it('adds scripture references deterministically to their movement', () => {
+    const text = 'I returned to Romans 8:28 tonight and remembered that I am not alone.'
+    const result = sanitizeKeepingRead(
+      {
+        movements: [
+          {
+            quote: text,
+            subject_keys: [],
+            sentiment: {
+              present: false,
+              valence: 0,
+              activation: 0,
+              confidence: 0.8,
+              emotions: [],
+            },
+            ingredients: [],
+          },
+        ],
+      },
+      'entry-scripture',
+      text,
+      [],
+    )
+
+    expect(result.movements[0]?.ingredients).toContainEqual({
+      kind: 'scripture',
+      quote: 'Romans 8:28',
+      confidence: 1,
+    })
+  })
+
+  it('keeps grounded desire and prayer but rejects model-authored scripture', () => {
+    const text =
+      'I want to become less hurried. Lord, help me pay attention to the person before me.'
+    const result = sanitizeKeepingRead(
+      {
+        movements: [
+          {
+            quote: text,
+            subject_keys: [],
+            sentiment: {
+              present: true,
+              valence: 0.2,
+              activation: 0.3,
+              confidence: 0.8,
+              emotions: [{ emotion: 'longing', intensity: 0.7, quote: 'I want' }],
+            },
+            ingredients: [
+              {
+                kind: 'desire',
+                quote: 'I want to become less hurried.',
+                confidence: 0.99,
+              },
+              {
+                kind: 'prayer',
+                quote: 'Lord, help me pay attention to the person before me.',
+                confidence: 0.99,
+              },
+              {
+                kind: 'scripture',
+                quote: 'Lord, help me',
+                confidence: 1,
+              },
+            ],
+          },
+        ],
+      },
+      'entry-desire-prayer',
+      text,
+      [],
+    )
+
+    expect(result.movements[0]?.ingredients).toEqual([
+      {
+        kind: 'desire',
+        quote: 'I want to become less hurried.',
+        confidence: 0.99,
+      },
+      {
+        kind: 'prayer',
+        quote: 'Lord, help me pay attention to the person before me.',
+        confidence: 0.99,
+      },
+    ])
   })
 })
 

@@ -10,10 +10,10 @@ export const KEEPING_FIXTURE_ENTRIES: Entry[] = [
     updated_at: now,
     title: 'The last box',
     body_markdown:
-      'We packed the last box tonight. I expected relief, but standing in the empty kitchen I felt grief and gratitude together. The boys ran from room to room saying goodbye to every hiding place.\n\nI am learning that leaving well is its own kind of love.',
+      'We packed the last box tonight. I expected relief, but standing in the empty kitchen I felt grief and gratitude together. The boys ran from room to room saying goodbye to every hiding place.\n\nI am learning that leaving well is its own kind of love.\n\nI want to carry their delight with me. Lord, help me receive this move without rushing past the grief. Romans 8:28 stays with me.',
     mood: null,
     tags: [],
-    word_count: 47,
+    word_count: 70,
     source: 'native',
     external_id: null,
   },
@@ -34,7 +34,7 @@ export const KEEPING_FIXTURE_ENTRIES: Entry[] = [
 
 export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
   [KEEPING_FIXTURE_ENTRIES[0]!.id]: {
-    version: 'movements-v1',
+    version: 'movements-v2-seven-signals',
     entryId: KEEPING_FIXTURE_ENTRIES[0]!.id,
     truncated: false,
     sentiment: {
@@ -43,9 +43,9 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
       activation: 0.42,
       confidence: 0.92,
       emotions: [
-        { emotion: 'grief', intensity: 0.78 },
-        { emotion: 'gratitude', intensity: 0.72 },
-        { emotion: 'love', intensity: 0.63 },
+        { emotion: 'grief', intensity: 0.78, quote: 'I felt grief' },
+        { emotion: 'gratitude', intensity: 0.72, quote: 'gratitude together' },
+        { emotion: 'love', intensity: 0.63, quote: 'its own kind of love' },
       ],
     },
     movements: [
@@ -54,7 +54,7 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
         quote:
           'We packed the last box tonight. I expected relief, but standing in the empty kitchen I felt grief and gratitude together. The boys ran from room to room saying goodbye to every hiding place.',
         charStart: 0,
-        charEnd: 179,
+        charEnd: 190,
         subjects: [
           { key: 'word:the move', label: 'The move', kind: 'matter' },
           { key: 'word:family', label: 'Family', kind: 'domain' },
@@ -65,9 +65,9 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
           activation: 0.48,
           confidence: 0.96,
           emotions: [
-            { emotion: 'grief', intensity: 0.86 },
-            { emotion: 'gratitude', intensity: 0.81 },
-            { emotion: 'love', intensity: 0.65 },
+            { emotion: 'grief', intensity: 0.86, quote: 'I felt grief' },
+            { emotion: 'gratitude', intensity: 0.81, quote: 'gratitude together' },
+            { emotion: 'love', intensity: 0.65, quote: 'saying goodbye to every hiding place' },
           ],
         },
         ingredients: [
@@ -81,8 +81,8 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
       {
         id: 'fixture-move-two',
         quote: 'I am learning that leaving well is its own kind of love.',
-        charStart: 181,
-        charEnd: 237,
+        charStart: 192,
+        charEnd: 248,
         subjects: [{ key: 'word:the move', label: 'The move', kind: 'matter' }],
         sentiment: {
           present: true,
@@ -90,8 +90,8 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
           activation: 0.23,
           confidence: 0.82,
           emotions: [
-            { emotion: 'love', intensity: 0.72 },
-            { emotion: 'peace', intensity: 0.42 },
+            { emotion: 'love', intensity: 0.72, quote: 'its own kind of love' },
+            { emotion: 'peace', intensity: 0.42, quote: 'leaving well' },
           ],
         },
         ingredients: [
@@ -102,10 +102,48 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
           },
         ],
       },
+      {
+        id: 'fixture-move-three',
+        quote:
+          'I want to carry their delight with me. Lord, help me receive this move without rushing past the grief. Romans 8:28 stays with me.',
+        charStart: 250,
+        charEnd: 379,
+        subjects: [
+          { key: 'word:the move', label: 'The move', kind: 'matter' },
+          { key: 'word:family', label: 'Family', kind: 'domain' },
+        ],
+        sentiment: {
+          present: true,
+          valence: 0.12,
+          activation: 0.46,
+          confidence: 0.9,
+          emotions: [
+            { emotion: 'longing', intensity: 0.7, quote: 'I want to carry their delight with me' },
+            { emotion: 'grief', intensity: 0.58, quote: 'the grief' },
+          ],
+        },
+        ingredients: [
+          {
+            kind: 'desire',
+            quote: 'I want to carry their delight with me.',
+            confidence: 0.99,
+          },
+          {
+            kind: 'prayer',
+            quote: 'Lord, help me receive this move without rushing past the grief.',
+            confidence: 0.99,
+          },
+          {
+            kind: 'scripture',
+            quote: 'Romans 8:28',
+            confidence: 1,
+          },
+        ],
+      },
     ],
   },
   [KEEPING_FIXTURE_ENTRIES[1]!.id]: {
-    version: 'movements-v1',
+    version: 'movements-v2-seven-signals',
     entryId: KEEPING_FIXTURE_ENTRIES[1]!.id,
     truncated: false,
     sentiment: {
@@ -114,8 +152,8 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
       activation: 0.76,
       confidence: 0.94,
       emotions: [
-        { emotion: 'anger', intensity: 0.83 },
-        { emotion: 'fear', intensity: 0.77 },
+        { emotion: 'anger', intensity: 0.83, quote: 'I was furious' },
+        { emotion: 'fear', intensity: 0.77, quote: 'I was afraid' },
       ],
     },
     movements: [
@@ -132,8 +170,8 @@ export const KEEPING_FIXTURE_READINGS: Record<string, KeepingEntryReading> = {
           activation: 0.76,
           confidence: 0.94,
           emotions: [
-            { emotion: 'anger', intensity: 0.83 },
-            { emotion: 'fear', intensity: 0.77 },
+            { emotion: 'anger', intensity: 0.83, quote: 'I was furious' },
+            { emotion: 'fear', intensity: 0.77, quote: 'I was afraid' },
           ],
         },
         ingredients: [
