@@ -27,6 +27,7 @@ import {
   MOCK_ACTIVE_ENTRY,
   MOCK_DOC,
   MOCK_ENTRIES,
+  SCREENSHOT_HOUR,
   SUMMIT_SCRIPTURE,
   SUMMIT_WORDS,
 } from './mock'
@@ -132,6 +133,13 @@ export function renderSurface(shot: Shot) {
       // the Examen, Lectio Divina, Ignatian Discernment — is what makes the
       // "two thousand years of the praying church" claim land as substance
       // rather than atmosphere.
+      //
+      // `now` is PINNED. The library's sky and greeting follow the clock, so
+      // without this a capture run at 11pm ships a night shelf and one run at
+      // breakfast ships a morning one — the shot would change with the hour the
+      // build happened to run at. Dawn, because the morning rituals are the
+      // strongest thing on the shelf and "Good morning" is the frame we want a
+      // stranger to meet first.
       return (
         <Canvas>
           <PracticeLibrary
@@ -139,6 +147,7 @@ export function renderSurface(shot: Shot) {
             onClose={noop}
             skipPreview={false}
             onToggleSkipPreview={noop}
+            now={SCREENSHOT_HOUR}
           />
         </Canvas>
       )

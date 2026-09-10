@@ -13,7 +13,7 @@ import {
   type Range,
 } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
-import { PRACTICE_BY_NAME, type Practice } from './practicesData'
+import { PRACTICE_BY_NAME, type Practice, type PracticePrompt } from './practicesData'
 import {
   PRACTICE_NAME_RE,
   PRACTICE_SECTION_RE,
@@ -56,28 +56,60 @@ import {
  * sync is untouched.
  */
 
-/** Build the raw markdown for a practice, ready to insert at `insertAt`. */
+/**
+ * Build the raw markdown for a practice, ready to insert at `insertAt`.
+ *
+ * `movements` overrides `practice.prompts`, which is how The Round gets written
+ * with the writer's own domains. It changes nothing about the document format —
+ * the same section tokens, with labels this library never saw — so every reader
+ * downstream (the parser, the rollups, sync) is untouched.
+ */
 export function buildPracticeBlock(
   practice: Practice,
   doc: string,
   insertAt: number,
+  movements: readonly PracticePrompt[] = practice.prompts,
 ): { text: string; cursorOffset: number } {
   const needLead = insertAt > 0 && doc[insertAt - 1] !== '\n'
   let text = needLead ? '\n' : ''
   text += `<!-- ritual:name:${practice.name} -->\n`
   let cursorOffset = -1
-  practice.prompts.forEach((prompt, i) => {
+  movements.forEach((prompt, i) => {
     text += `<!-- ritual:section:${prompt.label} -->\n`
     // First blank answer line — where the caret should land after insertion.
     if (cursorOffset < 0) cursorOffset = text.length
     // One blank answer line per prompt. The break that ends each line goes
     // *between* sections; the last answer stays a terminal line so the block
     // doesn't leave a stray empty line dangling below the final question.
-    if (i < practice.prompts.length - 1) text += '\n'
+    if (i < movements.length - 1) text += '\n'
   })
   // Keep a blank line between the practice and any text that follows.
   if (insertAt < doc.length && doc[insertAt] !== '\n') text += '\n'
   return { text, cursorOffset: cursorOffset < 0 ? text.length : cursorOffset }
+}
+
+/**
+ * A movement's question, for a block already in the document.
+ *
+ * The static table first, because that is where every shipped ritual's wording
+ * lives — including RETIRED ones, which is the whole reason `PRACTICE_BY_NAME`
+ * keeps them. A dynamic ritual's labels are the writer's own and match no static
+ * prompt, so those fall through to the template.
+ *
+ * Both surfaces that draw a ritual go through here, so a question can never be
+ * right in the composer and blank in the entry.
+ */
+export function questionFor(practice: Practice | undefined, label: string): string {
+  const prompt = practice?.prompts.find((p) => p.label === label)
+  if (prompt) return prompt.question
+  return practice?.dynamic?.question(label) ?? ''
+}
+
+/** A movement's placeholder, resolved the same way. */
+export function placeholderFor(practice: Practice | undefined, label: string): string {
+  const prompt = practice?.prompts.find((p) => p.label === label)
+  if (prompt) return prompt.placeholder
+  return practice?.dynamic?.placeholder ?? ''
 }
 
 // ── Parsed rituals ─────────────────────────────────────────────────────────
@@ -215,12 +247,11 @@ function buildDecorations(state: EditorState): PracticeDecorations {
       ranges.push(tokenLineDeco.range(tokenLine.from))
       makeAtomic(tokenLine.from, tokenLine.to)
 
-      const prompt = practice?.prompts.find((p) => p.label === movement.label)
       ranges.push(
         Decoration.replace({
           widget: new RitualPromptWidget(
             movement.label,
-            prompt?.question ?? '',
+            questionFor(practice, movement.label),
             movement.index === 0,
             held,
           ),
@@ -239,10 +270,11 @@ function buildDecorations(state: EditorState): PracticeDecorations {
       // min-height there just opens a dead gap.
       ranges.push(answerLineDeco.range(answer.from))
 
-      if (movement.index === waiting && !complete && prompt?.placeholder) {
+      const placeholder = placeholderFor(practice, movement.label)
+      if (movement.index === waiting && !complete && placeholder) {
         ranges.push(
           Decoration.widget({
-            widget: new RitualPlaceholderWidget(prompt.placeholder),
+            widget: new RitualPlaceholderWidget(placeholder),
             side: 1,
           }).range(answer.from),
         )
@@ -781,7 +813,14 @@ export function practicePromptExtension(
  */
 export function usePracticeInsertion(editorRef: RefObject<EditorHandle | null>) {
   return useCallback(
-    (practice: Practice, insertAt: number, doc: string): number => {
+    (
+      practice: Practice,
+      insertAt: number,
+      doc: string,
+      // Resolved by the library, which is where the writer's domains are known.
+      // Defaults to the practice's own prompts for every static ritual.
+      movements: readonly PracticePrompt[] = practice.prompts,
+    ): number => {
       const block = findPracticeBlockAt(doc, insertAt)
       let from = insertAt
       let to = insertAt
@@ -793,7 +832,7 @@ export function usePracticeInsertion(editorRef: RefObject<EditorHandle | null>) 
       } else if (block) {
         from = to = base = block.to
       }
-      const { text, cursorOffset } = buildPracticeBlock(practice, doc, base)
+      const { text, cursorOffset } = buildPracticeBlock(practice, doc, base, movements)
       editorRef.current?.replaceRange(from, to, text, { focus: false })
       return base + cursorOffset
     },

@@ -1,0 +1,984 @@
+<title>The Ritual Sky</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&family=Inter:wght@400;500;600&display=swap">
+
+<style>
+  /* ──────────────────────────────────────────────────────────────────────────
+     THE RITUAL SKY — prototype for a time-of-day treatment on the Rituals
+     library. See docs/MORNING_RITUALS_PLAN.md § 5.
+
+     THE ARGUMENT THIS FILE EXISTS TO MAKE: the sky is not new art. Every theme
+     in src/styles/themes.css already defines --journal-glow, a light source
+     parked at 50% -30% — just above the top edge of the page. The app has had a
+     sky the whole time; it has never moved. All the hour does is give that
+     existing light a POSITION and a WARMTH.
+
+     So the theme is never overridden. `dawn` gets a bright morning and
+     `nocturne` gets a dark one — first amber at a black horizon — and both are
+     the writer's own chosen theme, still theirs.
+
+     Two token systems live here on purpose and must not touch:
+       --ui-*        the prototype's own chrome (the rail). Follows the HOST.
+       --bg/--accent/--journal-glow etc. the real Dayspring tokens, lifted
+                     verbatim from themes.css, scoped to .screen. Follow the
+                     APP THEME the reader picks.
+     ────────────────────────────────────────────────────────────────────────── */
+
+  /* ── Prototype chrome: light ─────────────────────────────────────────── */
+  :root {
+    --ui-bg: #f2f0ec;
+    --ui-panel: #ffffff;
+    --ui-line: rgba(38, 33, 27, 0.13);
+    --ui-line-soft: rgba(38, 33, 27, 0.07);
+    --ui-text: #3b352d;
+    --ui-bright: #1d1913;
+    --ui-dim: #837b6f;
+    --ui-accent: #9a6e24;
+    --ui-accent-soft: rgba(154, 110, 36, 0.12);
+    --ui-shadow: 0 30px 64px -40px rgba(29, 25, 19, 0.45);
+
+    --f-display: 'Fraunces', Georgia, serif;
+    --f-serif: 'Newsreader', Georgia, serif;
+    --f-ui: 'Inter', -apple-system, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ui-bg: #16151a;
+      --ui-panel: #1e1d24;
+      --ui-line: rgba(233, 229, 222, 0.14);
+      --ui-line-soft: rgba(233, 229, 222, 0.07);
+      --ui-text: #c6c1b8;
+      --ui-bright: #eae6de;
+      --ui-dim: #857f75;
+      --ui-accent: #c8933f;
+      --ui-accent-soft: rgba(200, 147, 63, 0.16);
+      --ui-shadow: 0 30px 64px -40px rgba(0, 0, 0, 0.85);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ui-bg: #16151a;
+    --ui-panel: #1e1d24;
+    --ui-line: rgba(233, 229, 222, 0.14);
+    --ui-line-soft: rgba(233, 229, 222, 0.07);
+    --ui-text: #c6c1b8;
+    --ui-bright: #eae6de;
+    --ui-dim: #857f75;
+    --ui-accent: #c8933f;
+    --ui-accent-soft: rgba(200, 147, 63, 0.16);
+    --ui-shadow: 0 30px 64px -40px rgba(0, 0, 0, 0.85);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-family: var(--f-ui);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-block: 40px 72px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* ── Masthead ────────────────────────────────────────────────────────── */
+
+  .masthead { max-width: 62ch; }
+
+  .masthead__eyebrow {
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ui-accent);
+    margin: 0 0 12px;
+  }
+
+  .masthead__title {
+    font-family: var(--f-display);
+    font-weight: 300;
+    font-size: clamp(30px, 5vw, 42px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--ui-bright);
+    text-wrap: balance;
+    margin: 0 0 14px;
+  }
+
+  .masthead__title em { font-style: italic; color: var(--ui-accent); }
+
+  .masthead__lede {
+    font-family: var(--f-serif);
+    font-size: 16.5px;
+    font-weight: 300;
+    line-height: 1.62;
+    color: var(--ui-text);
+    margin: 0;
+  }
+
+  .masthead__lede code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.86em;
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ── The instrument rail ─────────────────────────────────────────────── */
+  /* Deliberately Inter, deliberately squared off: this is the harness, not
+     the product. Nothing in here is a proposal about the app. */
+
+  .rail {
+    margin-top: 34px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 26px 34px;
+    padding: 18px 20px;
+    background: var(--ui-panel);
+    border: 1px solid var(--ui-line);
+    border-radius: 4px;
+  }
+
+  .control { display: flex; flex-direction: column; gap: 9px; }
+  .control--hour { flex: 1 1 300px; min-width: 240px; }
+
+  .control__label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ui-dim);
+  }
+
+  .control__readout {
+    font-family: var(--f-ui);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--ui-accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 2px;
+    background: var(--ui-line);
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 2px;
+    background: var(--ui-line);
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: var(--ui-accent);
+    border: 2px solid var(--ui-panel);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--ui-panel);
+    border-radius: 50%;
+    background: var(--ui-accent);
+  }
+  input[type="range"]:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 4px;
+    border-radius: 3px;
+  }
+
+  .hours {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ui-dim);
+    font-variant-numeric: tabular-nums;
+    margin-top: -2px;
+  }
+
+  .themes { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .theme-chip {
+    font-family: var(--f-ui);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: var(--ui-dim);
+    background: transparent;
+    border: 1px solid var(--ui-line);
+    border-radius: 3px;
+    padding: 5px 11px;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+
+  .theme-chip:hover { color: var(--ui-text); border-color: var(--ui-dim); }
+
+  .theme-chip[aria-pressed="true"] {
+    color: var(--ui-accent);
+    border-color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+  }
+
+  .theme-chip:focus-visible {
+    outline: 2px solid var(--ui-accent);
+    outline-offset: 2px;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 7px;
+    vertical-align: baseline;
+    border: 1px solid var(--ui-line);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE SCREEN — everything below is the product.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  .stage {
+    margin-top: 26px;
+    border: 1px solid var(--ui-line);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: var(--ui-shadow);
+  }
+
+  .screen {
+    position: relative;
+    isolation: isolate;
+    min-height: 620px;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-serif);
+    overflow: hidden;
+    transition: background 1.1s ease, color 1.1s ease;
+  }
+
+  /* ── The real Dayspring themes, verbatim from src/styles/themes.css ──── */
+
+  .screen[data-app-theme="dawn"] {
+    --bg: #fbf6ee; --bg-elevated: #fffdf8;
+    --text: #4a4035; --text-bright: #2a2118; --text-dim: #8a7c69; --text-faint: #b4a78f;
+    --border-subtle: #ece3d4;
+    --accent: #c2683a; --accent-soft: rgba(194, 104, 58, 0.12);
+    --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(224, 150, 70, 0.22), rgba(181, 80, 58, 0.05) 40%, transparent 64%);
+  }
+
+  .screen[data-app-theme="cloister"] {
+    --bg: #f1f2f4; --bg-elevated: #fafbfc;
+    --text: #3f464e; --text-bright: #1e242b; --text-dim: #78818c; --text-faint: #a8b0ba;
+    --border-subtle: #dfe3e8;
+    --accent: #3d6d8f; --accent-soft: rgba(61, 109, 143, 0.12);
+    --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(140, 175, 210, 0.22), rgba(120, 150, 190, 0.05) 42%, transparent 66%);
+  }
+
+  .screen[data-app-theme="compline"] {
+    --bg: #13121e; --bg-elevated: #1a1928;
+    --text: #c5c1d6; --text-bright: #edebf6; --text-dim: #7d7997; --text-faint: #55516e;
+    --border-subtle: #252236;
+    --accent: #9b8ce8; --accent-soft: rgba(155, 140, 232, 0.16);
+    --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(150, 140, 230, 0.18), rgba(120, 110, 200, 0.05) 44%, transparent 66%);
+  }
+
+  .screen[data-app-theme="nocturne"] {
+    --bg: #000000; --bg-elevated: #0b0b0d;
+    --text: #b9b3a6; --text-bright: #e6e0d2; --text-dim: #7a7468; --text-faint: #4e4a42;
+    --border-subtle: #1c1b18;
+    --accent: #d9a441; --accent-soft: rgba(217, 164, 65, 0.16);
+    --journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(217, 164, 65, 0.1), rgba(180, 140, 60, 0.03) 42%, transparent 62%);
+  }
+
+  .screen {
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-serif: 'Newsreader', Georgia, serif;
+  }
+
+  /* ── The sky ──────────────────────────────────────────────────────────
+     Two layers, both behind everything, both pointer-inert.
+
+     .sky__fixed is the theme's own --journal-glow, untouched. It is the
+     constant — the reason a `cloister` morning still reads as cloister.
+
+     .sky__hour is the ONLY thing the clock controls: one radial gradient
+     whose position and hue come from the band. It sits at low opacity over
+     the theme's own light rather than in place of it. */
+
+  .sky__fixed,
+  .sky__hour,
+  .sky__stars {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .sky__fixed { background: var(--journal-glow); }
+
+  .sky__hour {
+    background: radial-gradient(
+      var(--sky-size, 90% 70%) at var(--sky-pos, 50% -30%),
+      var(--sky-near, transparent) 0%,
+      var(--sky-far, transparent) 45%,
+      transparent 72%
+    );
+    opacity: var(--sky-strength, 1);
+    transition: background 1.2s ease, opacity 1.2s ease;
+    animation: sky-drift 90s ease-in-out infinite alternate;
+  }
+
+  @keyframes sky-drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to   { transform: translate3d(1.5%, 1.2%, 0) scale(1.05); }
+  }
+
+  /* NO HORIZON LINE. An earlier draft drew one for dawn and evening. In this
+     620px stage it sat below the grid and read as a horizon; at real viewport
+     height it lands mid-grid, and because the cards are translucent a hairline
+     crosses the gaps between them and reads as a rendering seam. Removed from
+     the shipped CSS and from here, so the two agree. */
+
+  /* Night only, dark themes only. Three sparse layers, no animation — a still
+     sky. Anything that twinkles would be the app performing. */
+  .sky__stars {
+    opacity: 0;
+    transition: opacity 1.6s ease;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, rgba(255, 253, 245, 0.75), transparent),
+      radial-gradient(1px 1px at 28% 9%, rgba(255, 253, 245, 0.45), transparent),
+      radial-gradient(1.5px 1.5px at 46% 23%, rgba(255, 253, 245, 0.6), transparent),
+      radial-gradient(1px 1px at 63% 12%, rgba(255, 253, 245, 0.5), transparent),
+      radial-gradient(1px 1px at 79% 27%, rgba(255, 253, 245, 0.65), transparent),
+      radial-gradient(1px 1px at 91% 15%, rgba(255, 253, 245, 0.4), transparent),
+      radial-gradient(1px 1px at 37% 36%, rgba(255, 253, 245, 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 71% 41%, rgba(255, 253, 245, 0.45), transparent),
+      radial-gradient(1px 1px at 19% 44%, rgba(255, 253, 245, 0.3), transparent);
+  }
+
+  .screen[data-stars="true"] .sky__stars { opacity: 1; }
+
+  /* ── Library content, over the sky ───────────────────────────────────── */
+
+  .library {
+    position: relative;
+    z-index: 1;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 52px 40px 60px;
+  }
+
+  .greeting {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+    transition: color 0.9s ease;
+  }
+
+  .library__title {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 4vw, 36px);
+    font-weight: 300;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--text-bright);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .library__title em { font-style: italic; color: var(--accent); }
+
+  /* The existing .practice-library__because slot, doing the same job it
+     already does mid-entry: say why the filter is where it is. Never a claim
+     about the writer — only about the clock. */
+  .because {
+    max-width: 46ch;
+    margin: 14px 0 0;
+    padding-left: 11px;
+    border-left: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    font-family: var(--font-serif);
+    font-size: 13.5px;
+    font-weight: 300;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 30px;
+  }
+
+  .filter {
+    font-family: var(--font-serif);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: 100px;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  }
+
+  .filter[data-active="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .grid {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+    padding: 22px 20px 18px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    /* Translucent, not opaque: the sky has to come through the cards or the
+       whole treatment stops at the margins. */
+    background: color-mix(in srgb, var(--bg-elevated) 76%, transparent);
+    backdrop-filter: blur(3px);
+    transition: background 0.9s ease, border-color 0.25s ease, transform 0.25s ease;
+  }
+
+  .card:hover {
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .card__function {
+    font-family: var(--font-serif);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .card__name {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--text-bright);
+  }
+
+  .card__origin {
+    font-family: var(--font-serif);
+    font-size: 11px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--text-faint);
+  }
+
+  .card__quote {
+    flex: 1;
+    font-family: var(--font-serif);
+    font-size: 12.5px;
+    font-weight: 300;
+    font-style: italic;
+    line-height: 1.55;
+    color: var(--text-dim);
+    border-left: 2px solid var(--border-subtle);
+    padding-left: 10px;
+    margin-top: 2px;
+  }
+
+  .card__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+
+  .card__tag {
+    font-family: var(--font-serif);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    border: 1px solid var(--border-subtle);
+    border-radius: 100px;
+    padding: 3px 9px;
+  }
+
+  .card__arrow { color: var(--text-faint); font-size: 14px; line-height: 1; }
+
+  .card--new { border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle)); }
+
+  .card__new {
+    font-family: var(--font-serif);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 100px;
+    padding: 2px 8px;
+  }
+
+  /* ── Notes below the stage ───────────────────────────────────────────── */
+
+  .notes {
+    margin-top: 44px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(272px, 1fr));
+    gap: 30px 40px;
+  }
+
+  .note { max-width: 60ch; }
+
+  .note h3 {
+    font-family: var(--f-display);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--ui-bright);
+    margin: 0 0 8px;
+  }
+
+  .note p {
+    font-family: var(--f-serif);
+    font-size: 14.5px;
+    font-weight: 300;
+    line-height: 1.62;
+    color: var(--ui-text);
+    margin: 0 0 10px;
+  }
+
+  .note p:last-child { margin-bottom: 0; }
+
+  .note code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.85em;
+    color: var(--ui-accent);
+  }
+
+  .note strong { font-weight: 600; color: var(--ui-bright); }
+
+  .rule {
+    margin-top: 40px;
+    border: 0;
+    border-top: 1px solid var(--ui-line-soft);
+  }
+
+  .colophon {
+    margin-top: 18px;
+    font-size: 12.5px;
+    color: var(--ui-dim);
+    font-family: var(--f-ui);
+  }
+
+  .colophon code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.9em; }
+
+  /* ── Narrow ──────────────────────────────────────────────────────────── */
+
+  @media (max-width: 640px) {
+    .library { padding: 40px 22px 46px; }
+    .grid { grid-template-columns: 1fr; }
+    .screen { min-height: 0; }
+    .rail { gap: 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sky__hour { animation: none; }
+    .screen, .sky__hour, .sky__stars, .card, .greeting { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="masthead__eyebrow">Dayspring · prototype</p>
+    <h1 class="masthead__title">The library should know <em>what hour it is</em></h1>
+    <p class="masthead__lede">
+      This isn't new art. Every Dayspring theme already defines
+      <code>--journal-glow</code> — a light source parked at <code>50% -30%</code>,
+      just above the top edge of the page. The app has had a sky the whole time.
+      It has just never moved. All the hour does is give that light a position
+      and a warmth, so the theme is tinted rather than replaced. Scrub the clock,
+      then switch themes: a <em>nocturne</em> morning is first amber at a black
+      horizon, and it is still nocturne.
+    </p>
+  </header>
+
+  <div class="rail">
+    <div class="control control--hour">
+      <label class="control__label" for="hour">
+        <span>Hour of day</span>
+        <span class="control__readout" id="readout">6:00 — Dawn</span>
+      </label>
+      <input type="range" id="hour" min="0" max="23" step="1" value="6"
+             aria-describedby="readout">
+      <div class="hours" aria-hidden="true">
+        <span>12a</span><span>6a</span><span>noon</span><span>6p</span><span>11p</span>
+      </div>
+    </div>
+
+    <div class="control">
+      <span class="control__label" id="theme-label">Their chosen theme</span>
+      <div class="themes" role="group" aria-labelledby="theme-label" id="themes">
+        <button type="button" class="theme-chip" data-app-theme="dawn" aria-pressed="true">
+          <span class="swatch" style="background:#fbf6ee" aria-hidden="true"></span>dawn
+        </button>
+        <button type="button" class="theme-chip" data-app-theme="cloister" aria-pressed="false">
+          <span class="swatch" style="background:#f1f2f4" aria-hidden="true"></span>cloister
+        </button>
+        <button type="button" class="theme-chip" data-app-theme="compline" aria-pressed="false">
+          <span class="swatch" style="background:#13121e" aria-hidden="true"></span>compline
+        </button>
+        <button type="button" class="theme-chip" data-app-theme="nocturne" aria-pressed="false">
+          <span class="swatch" style="background:#000" aria-hidden="true"></span>nocturne
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="screen" id="screen" data-app-theme="dawn">
+      <div class="sky__fixed" aria-hidden="true"></div>
+      <div class="sky__hour" id="skyHour" aria-hidden="true"></div>
+      <div class="sky__stars" aria-hidden="true"></div>
+
+      <div class="library">
+        <p class="greeting" id="greeting">Good morning</p>
+        <h2 class="library__title">How will you <em>draw near</em> today?</h2>
+        <p class="because" id="because">
+          It’s early — the rituals to begin the day come first.
+        </p>
+
+        <div class="filters" id="filters" role="tablist" aria-label="Filter by time of day"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h3>The sky is composed, never swapped</h3>
+      <p>
+        Two layers sit behind the library. The lower one is the theme’s own
+        <code>--journal-glow</code>, untouched — that’s why a cloister morning
+        still reads as cloister. The upper one is the only thing the clock
+        controls: a single radial gradient whose position and hue come from the
+        band, laid over the theme’s light rather than in place of it.
+      </p>
+      <p>
+        That distinction matters more than it looks. Someone who chose
+        <em>nocturne</em> chose pure black on purpose. Replacing it with a bright
+        morning at 7am overrules them in their own journal.
+      </p>
+    </div>
+
+    <div class="note">
+      <h3>Four bands, named for the hours</h3>
+      <p>
+        <strong>Dawn</strong> (4–10): light low and to the left, warm,
+        rising. <strong>Midday</strong> (11–16): high and centred — exactly where the
+        app already puts it — pale and small. <strong>Evening</strong> (17–21): low and
+        right, deeper. <strong>Night</strong> (22–3): the overhead light
+        nearly gone, a cool wash from the lower edge, and on dark themes a still
+        star field. Nothing twinkles; that would be the app performing.
+      </p>
+    </div>
+
+    <div class="note">
+      <h3>The greeting states a fact about the world</h3>
+      <p>
+        “Good morning” is a fact about the clock. “You usually write in the
+        mornings” would be a claim about the writer — and a claim about the
+        writer’s devotional habits is the streak this product has already
+        refused (<strong>Principle 2</strong>).
+      </p>
+      <p>
+        The line under the title is the existing
+        <code>.practice-library__because</code> slot, whose comment in the source
+        already reads <em>“never a claim about the writer — only about where they
+        opened this from.”</em> The clock is the same kind of fact. And at 1am it
+        says <em>if you want them</em>, not <em>you haven’t written today</em>.
+      </p>
+    </div>
+
+    <div class="note">
+      <h3>Mid-entry still wins the filter</h3>
+      <p>
+        Opening the library from inside an entry already defaults to Need-based,
+        because something surfaced while writing. That signal is stronger than
+        the clock and keeps priority.
+      </p>
+      <p>
+        But the sky and the greeting still follow the hour — the sky is about the
+        world, the filter is about you. Every filter stays one tap away; this
+        reorders and hides nothing.
+      </p>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <p class="colophon">
+    Prototype only — no product code changes. Theme values lifted verbatim from
+    <code>src/styles/themes.css</code>. Rationale and build order in
+    <code>docs/MORNING_RITUALS_PLAN.md</code>. Rituals marked <em>new</em> are
+    proposed in §3 of that document and do not exist yet.
+  </p>
+</div>
+
+<script>
+  // ── The bands ────────────────────────────────────────────────────────────
+  // Named for the canonical hours, which is what the themes are already named
+  // for (dawn, compline, vigil). `filter` is the existing PracticeRhythm id.
+  const BANDS = {
+    dawn: {
+      label: 'Dawn',
+      greeting: 'Good morning',
+      because: 'It’s early — the rituals to begin the day come first.',
+      filter: 'morning',
+      sky: {
+        '--sky-pos': '18% 6%',
+        '--sky-size': '95% 78%',
+        '--sky-near': 'rgba(236, 158, 74, 0.30)',
+        '--sky-far': 'rgba(206, 108, 72, 0.10)',
+        '--sky-strength': '1',
+      },
+      stars: false,
+    },
+    midday: {
+      label: 'Midday',
+      greeting: 'Midday',
+      because: 'The day is underway — these are the ones for pausing inside it.',
+      filter: 'midday',
+      sky: {
+        '--sky-pos': '50% -34%',
+        '--sky-size': '80% 62%',
+        '--sky-near': 'rgba(255, 241, 214, 0.26)',
+        '--sky-far': 'rgba(226, 214, 190, 0.06)',
+        '--sky-strength': '0.85',
+      },
+      stars: false,
+    },
+    evening: {
+      label: 'Evening',
+      greeting: 'Good evening',
+      because: 'The light is going — these are the ones for closing the day.',
+      filter: 'evening',
+      sky: {
+        '--sky-pos': '84% 10%',
+        '--sky-size': '98% 80%',
+        '--sky-near': 'rgba(206, 96, 70, 0.28)',
+        '--sky-far': 'rgba(122, 74, 122, 0.12)',
+        '--sky-strength': '1',
+      },
+      stars: false,
+    },
+    night: {
+      label: 'Night',
+      greeting: 'It’s late',
+      // Deliberately permissive. Nobody awake at 1am needs the app to have an
+      // opinion about it.
+      because: 'The closing rituals are here, if you want them.',
+      filter: 'evening',
+      sky: {
+        '--sky-pos': '50% 118%',
+        '--sky-size': '120% 70%',
+        '--sky-near': 'rgba(78, 84, 140, 0.22)',
+        '--sky-far': 'rgba(40, 44, 82, 0.10)',
+        '--sky-strength': '1',
+      },
+      stars: true,
+    },
+  };
+
+  function bandFor(hour) {
+    if (hour >= 4 && hour <= 10) return 'dawn';
+    if (hour >= 11 && hour <= 16) return 'midday';
+    if (hour >= 17 && hour <= 21) return 'evening';
+    return 'night';
+  }
+
+  // ── The shelf ────────────────────────────────────────────────────────────
+  // Eleven shipped rituals as they are tagged in practicesData.ts today, plus
+  // the four proposed in MORNING_RITUALS_PLAN.md §3–4. The two marked for
+  // retirement are left out.
+  const RITUALS = [
+    { name: 'The Morning Offering', fn: 'Order', origin: 'Ignatius of Loyola, 16th century — the Suscipe', tradition: 'Ignatian', rhythm: ['morning'], isNew: true,
+      quote: 'Empty your head onto the page. Then find the one thing that matters.' },
+    { name: 'New Every Morning', fn: 'Gratitude', origin: 'The Hebrew morning blessings', tradition: 'Hebrew', rhythm: ['morning'], isNew: true,
+      quote: 'You are awake, and the day is given. Start there.' },
+    { name: 'Luther’s Garland', fn: 'Order', origin: 'Martin Luther, 1535 — a letter to his barber', tradition: 'Lutheran', rhythm: ['morning', 'anytime'], isNew: true,
+      quote: 'Instruction. Thanksgiving. Confession. Prayer. Wound around one short text.' },
+    { name: 'Lectio Divina', fn: 'Encounter', origin: 'Benedict of Nursia, 6th century', tradition: 'Benedictine', rhythm: ['morning'],
+      quote: 'Read. Meditate. Pray. Contemplate. Let the Word find you.' },
+    { name: 'SOAP', fn: 'Encounter', origin: 'Wayne Cordeiro, contemporary', tradition: 'Evangelical', rhythm: ['morning'],
+      quote: 'Scripture. Observation. Application. Prayer.' },
+    { name: 'Prayer of Recollection', fn: 'Listen', origin: 'Teresa of Ávila, 16th century', tradition: 'Carmelite', rhythm: ['morning', 'midday'],
+      quote: 'Turn inward. The castle of the soul has many rooms. Begin at the gate.' },
+    { name: 'The Examen of Consolation', fn: 'Gratitude', origin: 'Ignatius of Loyola, 16th century', tradition: 'Ignatian', rhythm: ['midday', 'evening'],
+      quote: 'Where did love move in me today? Name it. Receive it. Return it.' },
+    { name: 'The Daily Examen', fn: 'Examine', origin: 'Ignatius of Loyola, 16th century', tradition: 'Ignatian', rhythm: ['evening'],
+      quote: 'Where was I consoled today? Where did I resist grace?' },
+    { name: 'Wesley’s Questions', fn: 'Form', origin: 'John Wesley, 18th century', tradition: 'Wesleyan', rhythm: ['evening'],
+      quote: 'Am I consciously or unconsciously creating the impression I desire?' },
+    { name: 'The Round', fn: 'Order', origin: 'The Benedictine Rule of Life — adapted', tradition: 'Benedictine', rhythm: ['weekly'], isNew: true,
+      quote: 'Your life, one domain at a time. Once around, once a week.' },
+    { name: 'Psalmic Lament', fn: 'Lament', origin: 'Ancient — the Hebrew Psalter', tradition: 'Hebrew', rhythm: ['anytime'],
+      quote: 'Address God. Complain honestly. Ask boldly. Trust anyway.' },
+    { name: 'Ignatian Discernment', fn: 'Listen', origin: 'Ignatius of Loyola, 16th century', tradition: 'Ignatian', rhythm: ['anytime'],
+      quote: 'Which choice brings deeper peace? Not comfort — peace.' },
+    { name: 'Threshold', fn: 'Examine', origin: 'Adapted from rite-of-passage practice', tradition: 'Secular', rhythm: ['anytime'],
+      quote: 'What am I leaving? What am I carrying forward? What am I letting go of?' },
+  ];
+
+  // PRACTICE_RHYTHMS as it stands, plus the proposed `weekly`.
+  const FILTERS = [
+    { id: 'all', label: 'Any hour' },
+    { id: 'morning', label: 'To begin' },
+    { id: 'midday', label: 'To pause' },
+    { id: 'evening', label: 'To close' },
+    { id: 'weekly', label: 'Week’s turn' },
+    { id: 'anytime', label: 'Need-based' },
+  ];
+
+  const screen = document.getElementById('screen');
+  const skyHour = document.getElementById('skyHour');
+  const greetingEl = document.getElementById('greeting');
+  const becauseEl = document.getElementById('because');
+  const readout = document.getElementById('readout');
+  const gridEl = document.getElementById('grid');
+  const filtersEl = document.getElementById('filters');
+  const hourInput = document.getElementById('hour');
+
+  let activeFilter = 'morning';
+  let touchedFilter = false;
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function clockLabel(hour) {
+    const h12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${h12}:00${hour < 12 ? 'am' : 'pm'}`;
+  }
+
+  function renderFilters() {
+    filtersEl.innerHTML = FILTERS.map((f) => `
+      <button type="button" class="filter" role="tab"
+              data-filter="${f.id}"
+              data-active="${f.id === activeFilter ? 'true' : 'false'}"
+              aria-selected="${f.id === activeFilter}">${esc(f.label)}</button>
+    `).join('');
+  }
+
+  function renderGrid() {
+    const visible = RITUALS.filter(
+      (r) => activeFilter === 'all' || r.rhythm.includes(activeFilter),
+    );
+    gridEl.innerHTML = visible.map((r) => `
+      <article class="card${r.isNew ? ' card--new' : ''}">
+        <span class="card__function">${esc(r.fn)}</span>
+        <span class="card__name">${esc(r.name)}</span>
+        <span class="card__origin">${esc(r.origin)}</span>
+        <span class="card__quote">${esc(r.quote)}</span>
+        <span class="card__foot">
+          <span class="card__tag">${esc(r.tradition)}</span>
+          ${r.isNew ? '<span class="card__new">proposed</span>' : '<span class="card__arrow" aria-hidden="true">→</span>'}
+        </span>
+      </article>
+    `).join('');
+  }
+
+  function applyHour(hour) {
+    const key = bandFor(hour);
+    const band = BANDS[key];
+
+    for (const [prop, value] of Object.entries(band.sky)) {
+      skyHour.style.setProperty(prop, value);
+    }
+    screen.dataset.stars = band.stars ? 'true' : 'false';
+    greetingEl.textContent = band.greeting;
+    becauseEl.textContent = band.because;
+    readout.textContent = `${clockLabel(hour)} — ${band.label}`;
+
+    // The clock only moves the filter while the reader hasn't set one
+    // themselves — the same courtesy the real library owes someone who has
+    // already chosen.
+    if (!touchedFilter) {
+      activeFilter = band.filter;
+      renderFilters();
+      renderGrid();
+    }
+  }
+
+  filtersEl.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-filter]');
+    if (!button) return;
+    activeFilter = button.dataset.filter;
+    touchedFilter = true;
+    renderFilters();
+    renderGrid();
+  });
+
+  document.getElementById('themes').addEventListener('click', (e) => {
+    const button = e.target.closest('[data-app-theme]');
+    if (!button) return;
+    screen.dataset.appTheme = button.dataset.appTheme;
+    for (const chip of document.querySelectorAll('[data-app-theme].theme-chip')) {
+      chip.setAttribute('aria-pressed', String(chip === button));
+    }
+  });
+
+  hourInput.addEventListener('input', (e) => applyHour(Number(e.target.value)));
+
+  renderFilters();
+  renderGrid();
+  applyHour(Number(hourInput.value));
+</script>

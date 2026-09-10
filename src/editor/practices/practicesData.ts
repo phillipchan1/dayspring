@@ -8,7 +8,15 @@
  * usePracticeInsertion.ts).
  */
 
-/** The contemplative "function" a practice serves — also the filter taxonomy. */
+/**
+ * The contemplative "function" a practice serves — also the filter taxonomy.
+ *
+ * `order` is the odd one out and deliberately so. The other six are all
+ * RECEPTIVE: you notice, you receive, you look back. A morning practice is
+ * usually GENERATIVE — you are putting something in order rather than reviewing
+ * it — and the library had no word for that, which is part of why it read as a
+ * shelf for the end of the day.
+ */
 export type PracticeFunction =
   | 'examine'
   | 'encounter'
@@ -16,9 +24,17 @@ export type PracticeFunction =
   | 'lament'
   | 'gratitude'
   | 'form'
+  | 'order'
 
-/** When in the day a practice is best suited — the rhythmic filter taxonomy. */
-export type PracticeRhythm = 'morning' | 'midday' | 'evening' | 'anytime'
+/**
+ * When a practice is best suited — the rhythmic filter taxonomy.
+ *
+ * `weekly` is not a time of day, which is the point: The Round is walked once
+ * around, once a week, and belongs on no clock. Anything filtering by hour must
+ * therefore treat it as out of scope rather than sorting it into an hour — see
+ * `ritualSky.ts`.
+ */
+export type PracticeRhythm = 'morning' | 'midday' | 'evening' | 'weekly' | 'anytime'
 
 export interface PracticePrompt {
   /** Short section name — rendered as an amber small-caps eyebrow. */
@@ -27,6 +43,37 @@ export interface PracticePrompt {
   question: string
   /** Example phrasing shown on the empty answer line until the writer begins. */
   placeholder: string
+}
+
+/**
+ * A practice whose movements are the WRITER'S OWN LIFE rather than a form from
+ * the tradition.
+ *
+ * Everything else on the shelf ships its movements in this file. The Round's are
+ * the domains on the writer's Life Map, so they are resolved once, at the moment
+ * the ritual begins, and written into the entry as ordinary section tokens. The
+ * document format does not change at all: the same
+ * `<!-- ritual:section:Label -->` line, just with a label this table never saw.
+ *
+ * Which is exactly why `question` exists. Both render paths look a movement's
+ * question up by `(practice name, section label)` — see `usePracticeInsertion.ts`
+ * and `RitualComposer.tsx` — and a domain label matches no static prompt. They
+ * fall through to this template instead.
+ */
+export interface PracticeDynamic {
+  /** The only source today: the `domain` section of the Life Map. */
+  source: 'lifemap-domains'
+  /** The question asked of each resolved movement. */
+  question: (label: string) => string
+  placeholder: string
+  /**
+   * What the library says when the source is empty.
+   *
+   * Shown rather than hiding the card: a young journal has no domains yet, and
+   * Principle 5 says tell the truth about a surface that needs history instead
+   * of faking a generic four-part life.
+   */
+  needs: string
 }
 
 export interface Practice {
@@ -49,9 +96,191 @@ export interface Practice {
   /** A few practical pointers for entering it well. */
   tips: string[]
   prompts: PracticePrompt[]
+  /**
+   * Off the shelf, but NOT gone. Read this before deleting a practice instead.
+   *
+   * An entry written months ago carries only hidden tokens — the ritual's name
+   * and each movement's label. The QUESTION above every answer is looked up
+   * live, at render time, through `PRACTICE_BY_NAME` (see
+   * `usePracticeInsertion.ts` and `RitualComposer.tsx`). Delete a practice from
+   * this array and every entry ever written with it silently loses its
+   * questions: the writer's words survive, and the questions that produced them
+   * do not.
+   *
+   * For a journal whose whole promise is showing someone what God has been
+   * making of them, an old entry degrading in place is not an acceptable price
+   * for tidying a menu. So retiring is a FLAG, never a deletion — the row stays
+   * here forever so the archive keeps rendering, and only the library filters
+   * it out so nobody meets it again.
+   */
+  retired?: boolean
+  /** Movements come from the writer's own data. See `PracticeDynamic`. */
+  dynamic?: PracticeDynamic
 }
 
 export const PRACTICES: Practice[] = [
+  {
+    name: 'The Morning Offering',
+    function: 'order',
+    rhythm: ['morning'],
+    origin: 'Ignatius of Loyola, 16th century — the Suscipe',
+    tradition: 'Ignatian',
+    intention:
+      'For the morning you sit down carrying everything at once. Put it all down first, then find what today is actually for.',
+    quote: 'Empty your head onto the page. Then find the one thing that matters.',
+    why:
+      'Ignatius ended the Spiritual Exercises with the Suscipe — take, Lord, and receive my memory, my understanding, my whole will. This is that prayer with the working-out left in: you cannot offer a day you have not yet looked at. Getting the noise onto the page is not a productivity step; it is what makes an honest offering possible.',
+    shape:
+      'Four movements, front-loaded. A long first one — everything you are carrying, unordered — then three short turns that sort it: what matters, what is not yours, what you are handing over.',
+    tips: [
+      'Do the first movement badly on purpose. Fragments, lists, half-sentences.',
+      'Read your own dump back before answering the second — the answer is usually already in it.',
+      'If nothing feels offerable, offer the day as it is. That counts.',
+    ],
+    prompts: [
+      {
+        label: 'Everything',
+        question:
+          'Put down everything you are carrying into today. No order, no editing, nothing left out because it seems small.',
+        placeholder: 'Just empty it out…',
+      },
+      {
+        label: 'What matters',
+        question:
+          'Read back what you just wrote. What is the one thing today is actually for?',
+        placeholder: 'Out of all of that, this…',
+      },
+      {
+        label: 'Not yours',
+        question: 'What in that list is not yours to carry? Name it, and set it down.',
+        placeholder: 'I am not going to carry…',
+      },
+      {
+        label: 'Offering',
+        question: 'Take, Lord, and receive. What are you offering God for today?',
+        placeholder: 'I offer you…',
+      },
+    ],
+  },
+  {
+    name: 'New Every Morning',
+    function: 'gratitude',
+    rhythm: ['morning'],
+    origin: 'The Hebrew morning blessings — Talmudic, with Lamentations 3',
+    tradition: 'Hebrew',
+    intention:
+      'The oldest morning practice there is: thanks before anything else — before the news, before the list, before you have decided how the day is going.',
+    quote: 'You are awake, and the day is given. Start there.',
+    why:
+      'The Birkot HaShachar bless what nobody notices — opening your eyes, standing up straight, the ground being there when your foot lands. They are said at the very start of the day, on purpose, because gratitude offered before the day is evaluated is a different act from gratitude offered after it has gone well. Lamentations says the mercies are new every morning; this is the practice of looking for the new ones.',
+    shape:
+      'Three short movements, and short is the point — this should take three minutes. Thanks for being here, thanks for something ordinary, and one named instance of faithfulness.',
+    tips: [
+      'Do it before you look at your phone, if you can.',
+      'The ordinary things count most — that is the whole tradition here.',
+      'One named thing beats a long list. Specific, not comprehensive.',
+    ],
+    prompts: [
+      {
+        label: 'Awake',
+        question:
+          'Before anything else — you are here, and today was given to you. What is the first thing you can thank God for?',
+        placeholder: 'Thank you for…',
+      },
+      {
+        label: 'The ordinary',
+        question:
+          'What ordinary mercy is already here this morning — something you would have walked straight past?',
+        placeholder: 'The small thing already here…',
+      },
+      {
+        label: 'Faithfulness',
+        question: 'Where has God been faithful lately? Not in general — name one thing.',
+        placeholder: 'You were faithful when…',
+      },
+    ],
+  },
+  {
+    name: 'Luther’s Garland',
+    function: 'order',
+    rhythm: ['morning', 'anytime'],
+    origin: 'Martin Luther, 1535 — a letter to his barber',
+    tradition: 'Lutheran',
+    intention:
+      'A way to pray a single verse, a commandment, or one line of the Lord’s Prayer — four strands wound around it, in order.',
+    quote: 'Instruction. Thanksgiving. Confession. Prayer. Wound around one short text.',
+    why:
+      'Luther wrote this for a barber who asked him how to pray, and it shows: it is practical, unmystical, and built for the mornings when prayer has gone cold. The order matters — you are taught before you thank, you thank before you confess, and you ask last, so that petition sits inside gratitude instead of standing in for it.',
+    shape:
+      'One short text — a verse, a commandment, a petition — and four strands wound around it. Luther’s own instruction: if one strand catches fire, stay there and let the others go.',
+    tips: [
+      'Keep the text very short. One line is plenty; Luther used one commandment.',
+      'If a strand opens up, abandon the rest and stay in it. He said so himself.',
+      'The order is the discipline: ask last, not first.',
+    ],
+    prompts: [
+      {
+        label: 'The text',
+        question:
+          'What one line are you praying today — a verse, a commandment, a petition of the Lord’s Prayer?',
+        placeholder: 'Write the line here…',
+      },
+      {
+        label: 'Instruction',
+        question: 'What is this line teaching you? Take it as said to you, today.',
+        placeholder: 'This is telling me…',
+      },
+      {
+        label: 'Thanksgiving',
+        question: 'What does this line give you reason to thank God for?',
+        placeholder: 'Because of this, thank you for…',
+      },
+      {
+        label: 'Confession',
+        question: 'What does it show you about yourself? Say it plainly.',
+        placeholder: 'It shows me…',
+      },
+      {
+        label: 'Prayer',
+        question: 'Now ask. What are you asking God for out of this?',
+        placeholder: 'So I ask you…',
+      },
+    ],
+  },
+  {
+    name: 'The Round',
+    function: 'order',
+    rhythm: ['weekly'],
+    origin: 'The Benedictine Rule of Life, 6th century — adapted',
+    tradition: 'Benedictine',
+    intention:
+      'A walk through the domains of your own life — the ones already on your Life Map — stopping at each one long enough to say what is true there this week.',
+    quote: 'Your life, one domain at a time. Once around, once a week.',
+    why:
+      'A Rule of Life orders the whole of a life, not only its devotional corner: work, household, rest, friendship, the thing you are quietly worried about. Most weeks you only ever think about whichever domain is loudest. Going around the whole circle is how the quiet ones get heard before they become loud ones.',
+    shape:
+      'One movement per domain on your Life Map, in the order they first appeared in your journal. Nothing to think up — the circle is already yours. A domain you have nothing to say about this week is a real answer; leave it and move on.',
+    tips: [
+      'Same time each week. The point is the circuit, not the depth.',
+      'Skip freely. Silence in a domain is information too.',
+      'If a domain is missing or wrong, fix it in your Life Map — this walks whatever is there.',
+    ],
+    // Empty by design: the movements are the writer's, and this table has never
+    // met them. `dynamic` below is what stands in.
+    prompts: [],
+    dynamic: {
+      source: 'lifemap-domains',
+      // The domain name is deliberately NOT repeated here. Every surface that
+      // draws a movement puts the label directly above the question — the
+      // threshold's list, the prompt widget in the entry, the composer's pane —
+      // so naming the domain again read as "FRONTIER CHURCH / Frontier Church —
+      // what is true here this week?" The label carries the name; the question
+      // only has to carry the ask.
+      question: () => 'What is true here this week?',
+      placeholder: 'Or leave it, and move on…',
+      needs: 'Needs a few domains on your Life Map.',
+    },
+  },
   {
     name: 'The Daily Examen',
     function: 'examine',
@@ -297,6 +526,12 @@ export const PRACTICES: Practice[] = [
   },
   {
     name: 'Emotionally Healthy Examen',
+    // RETIRED 2026-09. The third examen on a shelf of eleven. Its distinctive
+    // move — trace a feeling down to the belief underneath it — is real, but it
+    // sat between the Daily Examen, which already opens on awareness, and
+    // Wesley's Questions, which already does uncomfortable interior honesty.
+    // Kept here so entries written with it still render their questions.
+    retired: true,
     function: 'examine',
     rhythm: ['evening'],
     origin: 'Peter Scazzero, contemporary',
@@ -417,6 +652,13 @@ export const PRACTICES: Practice[] = [
   },
   {
     name: 'Then vs. Now',
+    // RETIRED 2026-09, for a reason specific to this product: THE APP ALREADY
+    // DOES THIS, better, from real data. The Ascent, the Covenant sky and the
+    // year-in-review compute then-versus-now from the actual archive —
+    // grounded, with the evidence attached (Principle 4). A ritual asking the
+    // writer to hand-produce a worse version of what the engine produces was
+    // the one card on the shelf competing with the product.
+    retired: true,
     function: 'examine',
     rhythm: ['anytime'],
     origin: 'Adapted from narrative-therapy practice, contemporary',
@@ -503,10 +745,54 @@ export const PRACTICES: Practice[] = [
   },
 ]
 
-/** Fast lookup by practice name (used by the editor decoration layer). */
+/**
+ * The movements a practice will actually be written with.
+ *
+ * For everything on the shelf but The Round this is just `practice.prompts`.
+ * For a dynamic practice it is one movement per source label, built here so that
+ * the threshold's preview, the block written into the entry and the composer all
+ * agree — resolved ONCE, at begin, and then carried in the document like any
+ * other ritual.
+ *
+ * ORDER IS THE CALLER'S, AND MUST STAY CHRONOLOGICAL. The Life Map hands these
+ * over sorted by when each domain first appeared, and `lifeMap.ts` explains at
+ * length why: ranking the parts of someone's life by how often they come up is
+ * "a verdict rendered in a sort" (Principle 1, D-016). Do not re-sort here, and
+ * never by page count.
+ *
+ * NO CAP. A long Round is a long life, and truncating would silently drop
+ * domains from the one ritual whose entire point is going all the way around.
+ * What makes that affordable is that skipping is free: a movement left untouched
+ * is dropped from the record when the writer leaves (see `RitualComposer`), so a
+ * nine-domain Round walked past five of them is a four-movement entry, not a
+ * permanent "you didn't finish".
+ */
+export function resolveMovements(
+  practice: Practice,
+  labels: readonly string[] = [],
+): PracticePrompt[] {
+  if (!practice.dynamic) return practice.prompts
+  return labels.map((label) => ({
+    label,
+    question: practice.dynamic!.question(label),
+    placeholder: practice.dynamic!.placeholder,
+  }))
+}
+
+/**
+ * Fast lookup by practice name — used by the editor decoration layer and the
+ * composer to render a movement's question.
+ *
+ * ⚠️ THIS MAP INCLUDES RETIRED PRACTICES, and must. It is what every past entry
+ * reads its questions out of; filtering it would strip the questions from
+ * entries already written. Only browse surfaces filter — see `SHELF`.
+ */
 export const PRACTICE_BY_NAME: ReadonlyMap<string, Practice> = new Map(
   PRACTICES.map((p) => [p.name, p]),
 )
+
+/** What the library offers. `PRACTICES` minus anything retired. */
+export const SHELF: readonly Practice[] = PRACTICES.filter((p) => !p.retired)
 
 /** The rhythm filter, in day order, with human-facing labels. */
 export const PRACTICE_RHYTHMS: { id: PracticeRhythm | 'all'; label: string }[] = [
@@ -514,10 +800,18 @@ export const PRACTICE_RHYTHMS: { id: PracticeRhythm | 'all'; label: string }[] =
   { id: 'morning', label: 'To begin' },
   { id: 'midday', label: 'To pause' },
   { id: 'evening', label: 'To close' },
+  { id: 'weekly', label: 'Week’s turn' },
   { id: 'anytime', label: 'Need-based' },
 ]
 
-/** The function filter taxonomy, in display order, with human-facing labels. */
+/**
+ * The function taxonomy, with human-facing labels.
+ *
+ * No longer a row of chips — the library shows one axis (rhythm) and reaches
+ * the rest through search. These labels still name the function on every card,
+ * on the threshold and in the About sheet, and they are part of what search
+ * matches against.
+ */
 export const PRACTICE_FUNCTIONS: { id: PracticeFunction | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'examine', label: 'Examine' },
@@ -526,4 +820,5 @@ export const PRACTICE_FUNCTIONS: { id: PracticeFunction | 'all'; label: string }
   { id: 'lament', label: 'Lament' },
   { id: 'gratitude', label: 'Gratitude' },
   { id: 'form', label: 'Form' },
+  { id: 'order', label: 'Order' },
 ]
