@@ -438,13 +438,19 @@ stock sunrise, and it is still theirs.
 
 | Band | Hours | Light | Filter |
 |---|---|---|---|
-| **Dawn** | 4–10 | low and left, warm, rising, with a horizon | To begin |
+| **Dawn** | 4–10 | low and left, warm, rising | To begin |
 | **Midday** | 11–16 | high and centred — where the app already puts it — pale, small | To pause |
-| **Evening** | 17–21 | low and right, deeper, a second horizon | To close |
+| **Evening** | 17–21 | low and right, deeper | To close |
 | **Night** | 22–3 | overhead light nearly gone; a cool wash from the lower edge, and on dark themes a still star field | To close |
 
 Nothing twinkles. A slow drift on the glow (90s, `prefers-reduced-motion` off),
 and nothing else moves. Anything faster is the app performing.
+
+**No horizon line.** The prototype drew one for dawn and evening; in a 620px
+stage it sat below the grid and read as a horizon, but at real viewport height
+it lands mid-grid, and since the cards are translucent a hairline crosses the
+gaps between them and reads as a rendering seam. The gradient carries the hour
+on its own. Cut from both the prototype and the shipped CSS.
 
 Cards go translucent (`color-mix` over `--bg-elevated`) so the sky comes through
 them — otherwise the treatment stops at the margins and reads as a header image.

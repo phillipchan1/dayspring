@@ -369,18 +369,11 @@
     to   { transform: translate3d(1.5%, 1.2%, 0) scale(1.05); }
   }
 
-  /* The horizon. Present only at the two hours that have one — which is the
-     whole reason it reads as a horizon and not as a divider. */
-  .sky__hour::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 21%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--sky-horizon, transparent) 22%, var(--sky-horizon, transparent) 78%, transparent);
-    opacity: 0.5;
-  }
+  /* NO HORIZON LINE. An earlier draft drew one for dawn and evening. In this
+     620px stage it sat below the grid and read as a horizon; at real viewport
+     height it lands mid-grid, and because the cards are translucent a hairline
+     crosses the gaps between them and reads as a rendering seam. Removed from
+     the shipped CSS and from here, so the two agree. */
 
   /* Night only, dark themes only. Three sparse layers, no animation — a still
      sky. Anything that twinkles would be the app performing. */
@@ -731,10 +724,10 @@
     <div class="note">
       <h3>Four bands, named for the hours</h3>
       <p>
-        <strong>Dawn</strong> (4–10): light low and to the left, warm, rising, with a
-        horizon. <strong>Midday</strong> (11–16): high and centred — exactly where the
+        <strong>Dawn</strong> (4–10): light low and to the left, warm,
+        rising. <strong>Midday</strong> (11–16): high and centred — exactly where the
         app already puts it — pale and small. <strong>Evening</strong> (17–21): low and
-        right, deeper, second horizon. <strong>Night</strong> (22–3): the overhead light
+        right, deeper. <strong>Night</strong> (22–3): the overhead light
         nearly gone, a cool wash from the lower edge, and on dark themes a still
         star field. Nothing twinkles; that would be the app performing.
       </p>
@@ -796,7 +789,6 @@
         '--sky-size': '95% 78%',
         '--sky-near': 'rgba(236, 158, 74, 0.30)',
         '--sky-far': 'rgba(206, 108, 72, 0.10)',
-        '--sky-horizon': 'rgba(236, 170, 96, 0.55)',
         '--sky-strength': '1',
       },
       stars: false,
@@ -811,7 +803,6 @@
         '--sky-size': '80% 62%',
         '--sky-near': 'rgba(255, 241, 214, 0.26)',
         '--sky-far': 'rgba(226, 214, 190, 0.06)',
-        '--sky-horizon': 'transparent',
         '--sky-strength': '0.85',
       },
       stars: false,
@@ -826,7 +817,6 @@
         '--sky-size': '98% 80%',
         '--sky-near': 'rgba(206, 96, 70, 0.28)',
         '--sky-far': 'rgba(122, 74, 122, 0.12)',
-        '--sky-horizon': 'rgba(212, 118, 88, 0.5)',
         '--sky-strength': '1',
       },
       stars: false,
@@ -843,7 +833,6 @@
         '--sky-size': '120% 70%',
         '--sky-near': 'rgba(78, 84, 140, 0.22)',
         '--sky-far': 'rgba(40, 44, 82, 0.10)',
-        '--sky-horizon': 'transparent',
         '--sky-strength': '1',
       },
       stars: true,

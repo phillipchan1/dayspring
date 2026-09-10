@@ -261,14 +261,29 @@ export function renderRitualPreview(): void {
 
   if (params.get('library') === '1') {
     const doc = ABOVE + block
+    // The library's sky, greeting and default filter follow the clock, and
+    // waiting until 6am to look at the dawn sky is not a workflow. `?hour=N`
+    // pins it; the app itself passes nothing and gets the real hour.
+    const wantedHour = params.get('hour')
+    // Spread rather than pass `undefined`: `exactOptionalPropertyTypes` is on,
+    // so an explicit undefined is not the same as an absent optional prop.
+    const now =
+      wantedHour === null
+        ? {}
+        : { now: new Date(2026, 0, 15, Number(wantedHour), 40, 0) }
+    // `midEntry` forces the Need-based filter, which is right in the app and
+    // hides exactly what an hour is supposed to change. `?midentry=1` opts back
+    // into it; by default the preview shows the clock doing its work.
+    const midEntry = params.get('midentry') === '1'
     createRoot(el).render(
       <PracticeLibrary
         onBegin={() => {}}
         onClose={() => {}}
         skipPreview={false}
         onToggleSkipPreview={() => {}}
-        midEntry={doc.trim().length > 0}
+        midEntry={midEntry}
         landing={describeRitualLanding(doc, doc.length)}
+        {...now}
       />,
     )
     return
