@@ -1,4 +1,8 @@
 .keeping-playground {
+  /* Preview-local aliases; the product theme names these roles differently. */
+  --surface: var(--bg-elevated);
+  --text-muted: var(--text-dim);
+  --font-ui: var(--font-sans);
   min-height: 100vh;
   padding: 56px clamp(20px, 5vw, 72px) 120px;
   color: var(--text);

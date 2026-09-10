@@ -16,6 +16,7 @@ import type {
   KeepingMovement,
   KeepingSentiment,
 } from './types'
+import { KEEPING_FIXTURE_ENTRIES, KEEPING_FIXTURE_READINGS } from './fixtures'
 import './preview.css'
 
 type Dimension = 'boundary' | 'subjects' | 'sentiment' | 'story' | 'learning' | 'change'
@@ -24,6 +25,7 @@ type Verdicts = Record<string, Verdict>
 
 const DIMENSIONS: Dimension[] = ['boundary', 'subjects', 'sentiment', 'story', 'learning', 'change']
 const STORAGE_KEY = 'dayspring:keeping-playground-verdicts'
+const fixtureMode = new URLSearchParams(window.location.search).get('fixture') === '1'
 
 function loadVerdicts(): Verdicts {
   try {
@@ -229,6 +231,13 @@ function KeepingPlayground() {
   const [verdicts, setVerdicts] = useState<Verdicts>(loadVerdicts)
 
   useEffect(() => {
+    if (fixtureMode) {
+      setEntries(KEEPING_FIXTURE_ENTRIES)
+      setSelected(new Set(KEEPING_FIXTURE_ENTRIES.map((entry) => entry.id)))
+      setReadings(KEEPING_FIXTURE_READINGS)
+      setLoading(false)
+      return
+    }
     void listEntries(60)
       .then((rows) => {
         const usable = rows.filter((entry) => entry.body_markdown.trim().length >= 40)
@@ -310,8 +319,9 @@ function KeepingPlayground() {
           <p className="keeping-kicker">The Keeping · engine playground</p>
           <h1>Can it read one page correctly?</h1>
           <p>
-            Your entries load from your authenticated account and are never stored by this
-            playground. Results and verdicts remain in this browser.
+            {fixtureMode
+              ? 'Visual fixture mode. No model calls are made.'
+              : 'Your entries load from your authenticated account and are never stored by this playground. Results and verdicts remain in this browser.'}
           </p>
         </div>
         <div className="keeping-score">
@@ -340,8 +350,8 @@ function KeepingPlayground() {
               <button onClick={() => setSelected(new Set(entries.slice(0, 10).map((entry) => entry.id)))}>
                 latest ten
               </button>
-              <button className="keeping-run" disabled={!picked.length || running.size > 0} onClick={() => void analyze()}>
-                {running.size ? `reading ${running.size}…` : `read ${picked.length}`}
+              <button className="keeping-run" disabled={fixtureMode || !picked.length || running.size > 0} onClick={() => void analyze()}>
+                {fixtureMode ? 'fixture results' : running.size ? `reading ${running.size}…` : `read ${picked.length}`}
               </button>
             </div>
             <div className="keeping-entry-list">
