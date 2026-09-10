@@ -63,7 +63,7 @@
 .theme-toggle--fixed {
   position: fixed;
   top: max(18px, env(safe-area-inset-top, 0px));
-  left: 24px;
+  left: max(16px, env(safe-area-inset-left, 0px));
   z-index: 20;
 }
 html[data-platform='desktop'] .theme-toggle--fixed {

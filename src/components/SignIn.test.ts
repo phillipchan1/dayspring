@@ -100,6 +100,19 @@ describe('SignIn (iPad tap)', () => {
     expect(buttonNamed(host, 'Sign in with email')).toBeTruthy()
   })
 
+  it('keeps brand copy and both auth stacks in the same card', () => {
+    mount()
+    const card = host.querySelector('.signin__card')
+    expect(card?.querySelector('.signin__title')?.textContent).toBe('Dayspring')
+    expect(card?.querySelector('.signin__actions')).toBeTruthy()
+    expect(card?.querySelector('.signin__email')).toBeTruthy()
+    act(() => {
+      firePointer(buttonNamed(host, 'Sign in with email'), 'pointerdown', 'touch')
+    })
+    expect(card?.querySelector('.signin__form')).toBeTruthy()
+    expect(card?.querySelectorAll('.signin__input').length).toBe(2)
+  })
+
   it('starts Apple on a touch pointerdown (before the synthesized click)', () => {
     mount()
     const apple = buttonNamed(host, 'Continue with Apple')
