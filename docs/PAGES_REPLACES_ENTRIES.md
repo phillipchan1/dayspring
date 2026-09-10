@@ -7,6 +7,11 @@
 > The prototype is the spec for *behaviour and look*. This document is the spec for
 > *where it goes in the real app* and *what it costs*. Where they disagree, the prototype
 > is a fixture and this is the archive — see **Where the prototype cheats**.
+>
+> **Sentiment amendment, 2026-09-10:** D-029 supersedes this plan's absolute
+> prohibition on sentiment scoring. The Pages vocabulary reading remains valid,
+> but it is no longer the only permitted emotional reading. See
+> [`product/MOVEMENTS.md`](product/MOVEMENTS.md).
 
 ---
 
