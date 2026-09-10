@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.329",
+  "appVersion": "1.0.335",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -977,6 +977,74 @@
     ],
     "practices": [
       {
+        "id": "practice.the-morning-offering",
+        "name": "The Morning Offering",
+        "function": "order",
+        "rhythm": [
+          "morning"
+        ],
+        "origin": "Ignatius of Loyola, 16th century — the Suscipe",
+        "tradition": "Ignatian",
+        "intention": "For the morning you sit down carrying everything at once. Put it all down first, then find what today is actually for.",
+        "quote": "Empty your head onto the page. Then find the one thing that matters.",
+        "steps": [
+          "Everything",
+          "What matters",
+          "Not yours",
+          "Offering"
+        ]
+      },
+      {
+        "id": "practice.new-every-morning",
+        "name": "New Every Morning",
+        "function": "gratitude",
+        "rhythm": [
+          "morning"
+        ],
+        "origin": "The Hebrew morning blessings — Talmudic, with Lamentations 3",
+        "tradition": "Hebrew",
+        "intention": "The oldest morning practice there is: thanks before anything else — before the news, before the list, before you have decided how the day is going.",
+        "quote": "You are awake, and the day is given. Start there.",
+        "steps": [
+          "Awake",
+          "The ordinary",
+          "Faithfulness"
+        ]
+      },
+      {
+        "id": "practice.luthers-garland",
+        "name": "Luther’s Garland",
+        "function": "order",
+        "rhythm": [
+          "morning",
+          "anytime"
+        ],
+        "origin": "Martin Luther, 1535 — a letter to his barber",
+        "tradition": "Lutheran",
+        "intention": "A way to pray a single verse, a commandment, or one line of the Lord’s Prayer — four strands wound around it, in order.",
+        "quote": "Instruction. Thanksgiving. Confession. Prayer. Wound around one short text.",
+        "steps": [
+          "The text",
+          "Instruction",
+          "Thanksgiving",
+          "Confession",
+          "Prayer"
+        ]
+      },
+      {
+        "id": "practice.the-round",
+        "name": "The Round",
+        "function": "order",
+        "rhythm": [
+          "weekly"
+        ],
+        "origin": "The Benedictine Rule of Life, 6th century — adapted",
+        "tradition": "Benedictine",
+        "intention": "A walk through the domains of your own life — the ones already on your Life Map — stopping at each one long enough to say what is true there this week.",
+        "quote": "Your life, one domain at a time. Once around, once a week.",
+        "steps": []
+      },
+      {
         "id": "practice.the-daily-examen",
         "name": "The Daily Examen",
         "function": "examine",
@@ -1395,7 +1463,7 @@
     "editor.font-size-default": 24,
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
-    "counts.practices": 11,
+    "counts.practices": 15,
     "counts.themes": 11,
     "counts.voices": 6,
     "counts.slash-commands": 23,
