@@ -1,3 +1,20 @@
+html.keeping-preview-root,
+html.keeping-preview-root body {
+  position: static;
+  inset: auto;
+  width: auto;
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: auto;
+}
+
+html.keeping-preview-root #root {
+  display: block;
+  height: auto;
+  min-height: 100vh;
+}
+
 .keeping-playground {
   /* Preview-local aliases; the product theme names these roles differently. */
   --surface: var(--bg-elevated);

@@ -397,6 +397,7 @@ export function renderKeepingPreview(): void {
   const host = document.getElementById('root')
   if (!host) return
   document.documentElement.dataset['theme'] = 'dawn'
+  document.documentElement.classList.add('keeping-preview-root')
   document.body.style.margin = '0'
   createRoot(host).render(<KeepingPlayground />)
 }
