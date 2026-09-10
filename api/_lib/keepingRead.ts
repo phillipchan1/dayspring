@@ -233,7 +233,7 @@ function readableMarkdown(markdown: string): string {
   // Keep the writer's prose but remove Dayspring's storage syntax. Unlike
   // notice.stripFences, the read must not discard a declared prayer or story.
   return markdown
-    .replace(/^```dayspring-[^\n]*\n([\s\S]*?)^```[ \t]*$/gim, '$1')
+    .replace(/^```dayspring-[^\n]*\n([\s\S]*?)^```[ \t]*(?:\r?\n|$)/gim, '$1')
     .trim()
 }
 
