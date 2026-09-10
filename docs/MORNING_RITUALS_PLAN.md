@@ -381,7 +381,7 @@ Extend the same one line of logic to the clock — before 11am open on **To begi
 after 5pm on **To close** — with the same honest because-line. This is a state
 initialiser and a string. It is the highest-leverage change in this document and
 the cheapest, and it is what makes the shelf feel like it knows you without
-claiming anything about you.
+claiming anything about you. **§6 takes this all the way.**
 
 **2. Add search; delete the function row.** One field, matching name, tradition,
 origin, quote and every prompt question. That answers *"I have a decision to
@@ -399,7 +399,100 @@ be written down before anyone starts, not after.
 
 ---
 
-## 6. Where this leaves the shelf
+## 6. The sky — the library knows what hour it is
+
+Prototype: **`docs/prototypes/ritual-sky.html`**. Scrub the clock, switch themes.
+Read it before this section; the argument is visual.
+
+### The app already has a sky. It has just never moved.
+
+Every theme in `src/styles/themes.css` defines `--journal-glow`:
+
+```css
+--journal-glow: radial-gradient(120% 130% at 50% -30%, rgba(224, 150, 70, 0.22), …);
+```
+
+A light source parked just above the top edge of the page, in every one of the
+eleven themes, tinted to each. `DesktopJournal`, `MobileJournal`, the Altar, the
+Paywall and Scripture all render it, and `FirstLight.css` calls it *"the product's
+own visual language."*
+
+So the time-of-day treatment is not new art and should not be built as new art.
+**The hour gives that existing light a position and a warmth.** One extra radial
+gradient, laid *over* the theme's own glow rather than in place of it.
+
+### Why compose rather than replace — the constraint that decides the design
+
+The themes are already named for the hours: `dawn`, `compline`, `vigil`,
+`sabbath`, `nocturne`. Someone running `nocturne` chose pure black **on
+purpose**. A bright morning sky at 7am overrules them inside their own journal —
+and `PracticeLibrary.css` opens by promising the opposite: *"All colour/type
+tokens map to the existing theme layer… so the library reads correctly under
+every Dayspring theme."*
+
+Composing keeps that promise and is the better idea anyway. A `nocturne` morning
+is **first amber at a black horizon** — which is a more beautiful thing than a
+stock sunrise, and it is still theirs.
+
+### Four bands, named for the hours
+
+| Band | Hours | Light | Filter |
+|---|---|---|---|
+| **Dawn** | 4–10 | low and left, warm, rising, with a horizon | To begin |
+| **Midday** | 11–16 | high and centred — where the app already puts it — pale, small | To pause |
+| **Evening** | 17–21 | low and right, deeper, a second horizon | To close |
+| **Night** | 22–3 | overhead light nearly gone; a cool wash from the lower edge, and on dark themes a still star field | To close |
+
+Nothing twinkles. A slow drift on the glow (90s, `prefers-reduced-motion` off),
+and nothing else moves. Anything faster is the app performing.
+
+Cards go translucent (`color-mix` over `--bg-elevated`) so the sky comes through
+them — otherwise the treatment stops at the margins and reads as a header image.
+
+### The greeting says something about the world, never about the writer
+
+"Good morning" is a fact about the clock. *"You usually write in the mornings"*
+is a claim about the writer's devotional habits — which is the streak this
+product has already refused (Principle 2). The line lands in the existing
+`.practice-library__because` slot, whose source comment already draws exactly
+this line: *"never a claim about the writer — only about where they opened this
+from."* The clock is the same kind of fact.
+
+- Dawn — **Good morning.** *It's early — the rituals to begin the day come first.*
+- Midday — **Midday.** *The day is underway — these are the ones for pausing inside it.*
+- Evening — **Good evening.** *The light is going — these are the ones for closing the day.*
+- Night — **It's late.** *The closing rituals are here, if you want them.*
+
+The night line is deliberately permissive. Nobody awake at 1am needs the app to
+have an opinion about it.
+
+### Rules that keep this from going wrong
+
+1. **Mid-entry still wins the filter.** Opening from inside an entry already
+   defaults to Need-based, because something surfaced while writing — a stronger
+   signal than the clock. But the **sky and greeting still follow the hour**: the
+   sky is about the world, the filter is about you.
+2. **The clock stops steering the moment the writer picks a filter.** Same
+   courtesy the library owes anyone who has already chosen.
+3. **No inference from an unusual hour.** A 3am sky is fine; a 3am *lament
+   suggestion* is the app diagnosing someone at their worst, and crisis content
+   has no handling yet (**D-007**, open). Bands map to hours and nothing else.
+4. **Principle 3 is not at risk** — the library is a deliberately-opened
+   full-screen overlay, not the writing surface. Nothing here touches the
+   editor's render or input path.
+5. **The Round has no hour.** A weekly ritual has no place on a clock; it stays
+   in the filter row and never drives the sky.
+
+### Cost
+
+One `skyFor(date)` pure function (hour → band), four token sets, two absolutely
+positioned divs behind `.practice-library`, and the four greeting strings. No new
+dependency, no image, no canvas. It is roughly the size of the change in §5 item 1
+and it is what that item was actually reaching for.
+
+---
+
+## 7. Where this leaves the shelf
 
 Thirteen rituals: eleven, minus two retired, plus four.
 
@@ -414,18 +507,21 @@ Thirteen rituals: eleven, minus two retired, plus four.
 Six morning rituals, three of which need no Bible passage in hand. Two examens
 instead of four. And the shelf opens on the right one at 6am without being asked.
 
-## 7. Order of work
+## 8. Order of work
 
 1. `retired` flag + retire the two. *Small, and unblocks any future pruning safely.*
 2. The three static morning rituals — A, B, C. *Content only; no new mechanics.*
 3. Library: open-on-the-clock, search, drop the function row. *Cheapest real win.*
-4. The Round. *New `dynamic` field, the drop-untouched-movements fix, the empty
+4. **The sky** (§6). *Do it right after 3 — it is the same `skyFor(date)` the
+   clock-default already needs, so building 3 without it means writing that
+   function twice.*
+5. The Round. *New `dynamic` field, the drop-untouched-movements fix, the empty
    state, and a phone check on a long track.*
 
-Steps 1–3 are a day. Step 4 is the interesting one, and it is the one that would
-make the library something no other journal has.
+Steps 1–4 are a day or two. Step 5 is the interesting one, and it is the one that
+would make the library something no other journal has.
 
-## 8. What would change our mind
+## 9. What would change our mind
 
 - **The load-bearing assumption is unwritten.** "People journal in the morning to
   order their thoughts" is not in the interview database. Get those conversations
@@ -435,6 +531,10 @@ make the library something no other journal has.
   three and four left empty — it is the wrong ritual and we took a PKM feature by
   accident. The `ritual_begun` analytics event can't see this; reading a few of
   our own entries can.
+- **If the sky reads as decoration**, it is. The test: with the sky on, does
+  anyone open the library at 6am who wasn't already going to? If it only ever
+  looks nice in a screenshot, it is chrome on a surface whose problem was
+  contents — and §3 was the real work.
 - **If the rebalanced shelf still isn't returned to**, the problem was never the
   contents. It is that a ritual is something you *choose*, and choosing is work at
   6am. The next move after this one is not a fifteenth ritual — it is asking
