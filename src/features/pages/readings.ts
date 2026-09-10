@@ -287,14 +287,12 @@ export interface WordsUsed {
 }
 
 /**
- * The sentiment question, answered the only legal way there is.
+ * The literal-vocabulary answer to the sentiment question.
  *
- * A mood curve is forbidden three times over — GUARDRAILS H2 (never infer
- * interior state), Principle 1 (no vertical axis: a falling line over a subject
- * called "Mom" reads as *you care less about your mother now*), and D-016 (the
- * writer supplies the signal). A sentiment MARK does not rescue it either: that
- * is `Sense` with a mood attached, and any arrangement of it over time rebuilds
- * the axis.
+ * D-029 now permits sourced emotional estimates while keeping spiritual
+ * discernment forbidden. This reading remains the model-free form: the writer's
+ * own vocabulary, with no inferred label and no score. It should survive even if
+ * the Movements engine fails its accuracy gate.
  *
  * What IS sanctioned is the writer's own vocabulary — GUARDRAILS' approved
  * example is literally *"'Angry' appears in 7 entries this month."* So this
@@ -306,9 +304,8 @@ export interface WordsUsed {
  *   · the page count for each span always on screen
  *   · a floor, stated on screen
  *
- * Nobody scores anything, and the shift — if there is one — is the reader's to
- * see. Per RECALL that is "the most meaningful thing in the product precisely
- * because the app didn't hand it to them."
+ * Nobody scores anything in THIS reading, and the shift — if there is one — is
+ * the reader's to see.
  */
 export function wordsUsed(entries: Entry[], split: number, terms: string[] = []): WordsUsed {
   const { before, after } = thenAndNow(entries, split)

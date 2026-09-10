@@ -23,6 +23,47 @@ agenda.
 
 ---
 
+## D-029 — Sentiment may be measured; discernment may not
+**2026-09-10** · **Status:** Decided · engine-first · **supersedes the sentiment ban in D-027 / RECALL**
+
+**Decision:** Dayspring may estimate the emotion expressed in a journal passage and
+score it for engine evaluation. Every estimate must be sourced, confidence-bearing,
+correctable, and distinct from spiritual interpretation. It may never turn emotion
+into a claim about faith, maturity, obedience, growth, spiritual health, divine
+intent, diagnosis, or what the writer should do.
+
+The product direction is **Movements**: what the writer felt, how their language
+changed, the stories within it, and what they explicitly learned. The first
+deliverable is not that destination. It is one unified entry read—movements,
+subjects, sentiment, story evidence, learning, and explicit change evidence—and a
+private playground where ten real entries can be judged dimension by dimension.
+See [`MOVEMENTS.md`](MOVEMENTS.md).
+
+**Why:** the prior rule collapsed two different acts. Estimating *"this sentence
+expresses grief"* is an observation about language. Claiming *"this grief means you
+were far from God"* is discernment. Refusing the former prevents Dayspring from
+showing emotional change, connecting feeling to the people and matters that carried
+it, and recovering the shape of a story. Permitting the latter would make the app a
+spiritual director or oracle, which remains permanently out.
+
+This also corrects the unit. Sentiment, story, and learning are not competing
+markings. They are measurements or ingredients of a movement, joined to subjects
+inside one read. Spiritual growth remains cross-entry discernment; a single entry
+may only supply explicit learning or before/after evidence in the writer's words.
+
+**What would change our mind:** the engine repeatedly mistakes quoted speech,
+another person's emotion, or topic language for the writer's felt experience;
+subject joins stay plausible but wrong; corrections become maintenance; or users
+experience the presentation as surveillance or spiritual grading. Failure returns
+sentiment to literal vocabulary only—it does not license softer wording around an
+unreliable model.
+
+**Cost accepted:** Principle 1, Guardrail H2, the Glossary, RECALL, and The Keeping
+all carried an absolute sentiment prohibition and must now distinguish emotional
+measurement from spiritual verdict. Scores introduce a new calibration and
+presentation burden: confidence, evidence, mixed feeling, correction, and
+third-party attribution are requirements rather than polish.
+
 ## D-028 — A theme becomes a voice: type, marking tones and ornament per palette
 **2026-09-06** · **Status:** Decided · alpha first, then stable · **branch `theme-voices`**
 

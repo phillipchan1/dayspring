@@ -39,14 +39,38 @@ thing in the product precisely *because* the app didn't hand it to them.
 No assessment of faith, maturity, obedience, backsliding, or health. Not as a score,
 not as a sentence, not as an emoji, not as a color that reads as good/bad.
 
+This does **not** prohibit estimating emotion in the writer's language. Sentiment
+is observation; discernment is interpretation. Dayspring may say a sourced passage
+expresses grief, anger, peace, or mixed feeling, with confidence. It may not say
+what that emotion means spiritually, whether it is good or bad, or where it came
+from.
+
 | ❌ Never | ✅ Instead |
 |---|---|
 | "You've been distant from God lately." | "You wrote 4 times this month, down from 14 in May." |
 | "This was a season of spiritual growth." | "This was a season you described as 'finally breathing.'" |
 | "Your prayer life has weakened." | *(say nothing — absence is not ours to interpret)* |
+| "Your sadness shows that your faith was weakening." | "This passage expresses sadness (high confidence)." |
+| "You healed in your relationship with your father." | "The emotional language in these passages changed; here are the words behind that estimate." |
 
 **Silence is always available.** When the only honest thing to say would be a verdict,
 say nothing. See also H4.
+
+#### The emotional-inference contract
+
+Every emotional estimate must:
+
+1. point to an exact source passage;
+2. be labelled as an estimate rather than a fact about the person;
+3. carry confidence and permit mixed or absent emotion;
+4. distinguish the writer's emotion from quoted speech and a third party's emotion;
+5. remain correctable by the writer;
+6. never be translated into spiritual health, growth, maturity, divine intent,
+   diagnosis, or advice.
+
+A numerical score may power the engine and its evaluation. A user-facing number
+must earn its place by improving discernment without reading as a grade; otherwise
+show the emotional language and its evidence instead.
 
 ### H3 — Never invent, and never blur quotation
 

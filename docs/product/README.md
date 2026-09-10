@@ -20,6 +20,7 @@ pass instead of a vibe check.
 | **Who & why** | [PERSONAS.md](./PERSONAS.md) | Any feature idea; writing copy | ✅ Draft 1 — **hypotheses** |
 | | [BRANDSCRIPT.md](./BRANDSCRIPT.md) | Writing user-facing words | ✅ Draft 1 |
 | | [POSITIONING.md](./POSITIONING.md) | Competitive or pricing questions | ✅ Draft 1 — best guess |
+| **Direction** | [MOVEMENTS.md](./MOVEMENTS.md) | Reading emotion, stories, learning, or change | ✅ Engine-first direction |
 | **Operating** | [SURFACES.md](./SURFACES.md) | Auditing; adding a surface | ✅ Draft 1 |
 | | [DECISIONS.md](./DECISIONS.md) | Making or revisiting a call | ✅ Seeded — **7 open** |
 | | [GLOSSARY.md](./GLOSSARY.md) | Naming anything | ✅ Draft 1 |
