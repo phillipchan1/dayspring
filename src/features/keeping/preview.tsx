@@ -19,11 +19,38 @@ import type {
 import { KEEPING_FIXTURE_ENTRIES, KEEPING_FIXTURE_READINGS } from './fixtures'
 import './preview.css'
 
-type Dimension = 'boundary' | 'subjects' | 'sentiment' | 'story' | 'learning' | 'change'
+type Dimension =
+  | 'boundary'
+  | 'subjects'
+  | 'sentiment'
+  | 'desire'
+  | 'story'
+  | 'learning'
+  | 'change'
+  | 'prayer'
+  | 'scripture'
 type Verdict = 'right' | 'wrong'
 type Verdicts = Record<string, Verdict>
 
-const DIMENSIONS: Dimension[] = ['boundary', 'subjects', 'sentiment', 'story', 'learning', 'change']
+const DIMENSIONS: Dimension[] = [
+  'boundary',
+  'subjects',
+  'sentiment',
+  'desire',
+  'story',
+  'learning',
+  'change',
+  'prayer',
+  'scripture',
+]
+const INGREDIENTS: KeepingIngredient['kind'][] = [
+  'desire',
+  'story',
+  'learning',
+  'change',
+  'prayer',
+  'scripture',
+]
 const STORAGE_KEY = 'dayspring:keeping-playground-verdicts'
 const fixtureMode = new URLSearchParams(window.location.search).get('fixture') === '1'
 
@@ -56,8 +83,8 @@ function Sentiment({ value }: { value: KeepingSentiment }) {
   return (
     <div className="keeping-sentiment">
       <div className="keeping-sentiment__numbers">
-        <span>valence {signed(value.valence)}</span>
-        <span>activation {value.activation.toFixed(2)}</span>
+        <span>pleasantness {signed(value.valence)}</span>
+        <span>energy {value.activation.toFixed(2)}</span>
         <span>confidence {pct(value.confidence)}</span>
       </div>
       <div className="keeping-valence" aria-label={`valence ${value.valence.toFixed(2)}`}>
@@ -65,8 +92,11 @@ function Sentiment({ value }: { value: KeepingSentiment }) {
       </div>
       <div className="keeping-emotions">
         {value.emotions.map((emotion) => (
-          <span key={emotion.emotion}>
-            {emotion.emotion} <small>{pct(emotion.intensity)}</small>
+          <span key={emotion.emotion} title={`Evidence: “${emotion.quote}”`}>
+            {emotion.emotion}{' '}
+            <small>
+              {pct(emotion.intensity)} · “{emotion.quote}”
+            </small>
           </span>
         ))}
       </div>
@@ -156,9 +186,9 @@ function MovementCard({
       </div>
       <Sentiment value={movement.sentiment} />
       <div className="keeping-ingredients">
-        <IngredientList ingredients={movement.ingredients} kind="story" />
-        <IngredientList ingredients={movement.ingredients} kind="learning" />
-        <IngredientList ingredients={movement.ingredients} kind="change" />
+        {INGREDIENTS.map((kind) => (
+          <IngredientList key={kind} ingredients={movement.ingredients} kind={kind} />
+        ))}
       </div>
       <div className="keeping-verdicts">
         {DIMENSIONS.map((dimension) => (
@@ -329,6 +359,15 @@ function KeepingPlayground() {
           <span>{right} right · {wrong} wrong · {judged.length} judged</span>
         </div>
       </header>
+
+      <aside className="keeping-method">
+        <b>How to read the emotional score</b>
+        <span>
+          Pleasantness runs from −1 to +1. Energy runs from 0 to 1. An emotion’s
+          percentage estimates its strength; confidence estimates how sure the read is.
+          Every named emotion must show the exact words supporting it.
+        </span>
+      </aside>
 
       {loading && <p>Loading your entries…</p>}
       {loadError && (

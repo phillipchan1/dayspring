@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
+import { parseReferences } from '../../src/lib/scripture/parse.js'
 import { callModel } from './openai.js'
 
-export const KEEPING_READ_VERSION = 'movements-v1'
+export const KEEPING_READ_VERSION = 'movements-v2-seven-signals'
 export const MAX_ENTRY_CHARS = 20_000
 export const MAX_SUBJECTS = 80
 export const MAX_MOVEMENTS = 12
@@ -20,10 +21,12 @@ export const EMOTIONS = [
   'shame',
   'confusion',
   'weariness',
+  'stress',
 ] as const
 
 export type Emotion = (typeof EMOTIONS)[number]
-export type IngredientKind = 'story' | 'learning' | 'change'
+export type IngredientKind = 'desire' | 'story' | 'learning' | 'change' | 'prayer' | 'scripture'
+type ModelIngredientKind = Exclude<IngredientKind, 'scripture'>
 export type SubjectKind = 'person' | 'place' | 'domain' | 'matter'
 
 export interface SubjectCandidate {
@@ -37,6 +40,8 @@ export interface SubjectCandidate {
 export interface EmotionScore {
   emotion: Emotion
   intensity: number
+  /** Exact words in the movement supporting this label. */
+  quote: string
 }
 
 export interface SentimentReading {
@@ -121,8 +126,9 @@ const SCHEMA = {
                   properties: {
                     emotion: { type: 'string', enum: [...EMOTIONS] },
                     intensity: { type: 'number', minimum: 0, maximum: 1 },
+                    quote: { type: 'string', maxLength: 240 },
                   },
-                  required: ['emotion', 'intensity'],
+                  required: ['emotion', 'intensity', 'quote'],
                   additionalProperties: false,
                 },
               },
@@ -136,7 +142,10 @@ const SCHEMA = {
             items: {
               type: 'object',
               properties: {
-                kind: { type: 'string', enum: ['story', 'learning', 'change'] },
+                kind: {
+                  type: 'string',
+                  enum: ['desire', 'story', 'learning', 'change', 'prayer'],
+                },
                 quote: { type: 'string', maxLength: 800 },
                 confidence: { type: 'number', minimum: 0, maximum: 1 },
               },
@@ -173,12 +182,18 @@ SENTIMENT
 - present=false is normal. For absent emotion return valence=0, activation=0, confidence reflecting confidence that no writer emotion is expressed, and emotions=[].
 - Valence is pleasantness, never goodness. Activation is felt energy or urgency, never importance.
 - Mixed emotions are expected. Use up to four from the supplied vocabulary.
+- Each emotion requires a short, exact quote from the movement that supports that label. Omit an emotion when you cannot point to its evidence.
+- Give first-person statements such as "I felt happy", "I was furious", or "I felt stress" priority over inferred emotion. Include every explicitly named state before adding inferred ones.
+- Use joy for happy/glad/delighted. Use anger only for angry/frustrated/furious language, fear only for afraid/scared/threatened language, weariness only for tired/exhausted/depleted language, and stress for stressed/tense/pressured/overwhelmed language. Stress alone is not evidence of anger, fear, or weariness.
 - Emotion is not spiritual discernment. Never infer faith, maturity, obedience, health, growth, divine intent, diagnosis, or advice.
 
 INGREDIENTS
+- desire: something the writer explicitly wants, hopes for, wishes for, or longs for. Report the expressed desire; never infer a hidden motive.
 - story: a concrete thing that happened, with people/action/time; not general reflection.
 - learning: an understanding the writer explicitly states or clearly arrives at in these exact words.
 - change: an explicit before/after shift stated inside this page ("I used to... now...", "at first... but..."). This is evidence of change, never a claim of spiritual growth.
+- prayer: words addressed to God, Jesus, or the Holy Spirit, including a request, thanks, confession, lament, or simple attention. Writing about prayer is not itself a prayer.
+- Scripture references are added deterministically after your read. Do not return scripture ingredients.
 - An ingredient quote must sit inside its movement quote. Omit rather than infer.
 
 Return the structured result only.`
@@ -199,7 +214,10 @@ const emptySentiment = (): SentimentReading => ({
   emotions: [],
 })
 
-function sanitizeSentiment(raw: RawMovement['sentiment']): SentimentReading {
+function sanitizeSentiment(
+  raw: RawMovement['sentiment'],
+  movementQuote: string,
+): SentimentReading {
   if (!raw || raw.present !== true) {
     return {
       ...emptySentiment(),
@@ -210,10 +228,21 @@ function sanitizeSentiment(raw: RawMovement['sentiment']): SentimentReading {
   const emotions: EmotionScore[] = []
   if (Array.isArray(raw.emotions)) {
     for (const item of raw.emotions) {
-      const row = item as { emotion?: unknown; intensity?: unknown }
+      const row = item as { emotion?: unknown; intensity?: unknown; quote?: unknown }
       if (!isEmotion(row.emotion) || seen.has(row.emotion)) continue
+      if (
+        typeof row.quote !== 'string' ||
+        row.quote.length < 2 ||
+        !movementQuote.includes(row.quote)
+      ) {
+        continue
+      }
       seen.add(row.emotion)
-      emotions.push({ emotion: row.emotion, intensity: clamp(row.intensity, 0, 1) })
+      emotions.push({
+        emotion: row.emotion,
+        intensity: clamp(row.intensity, 0, 1),
+        quote: row.quote,
+      })
       if (emotions.length === 4) break
     }
   }
@@ -226,8 +255,12 @@ function sanitizeSentiment(raw: RawMovement['sentiment']): SentimentReading {
   }
 }
 
-const isIngredient = (value: unknown): value is IngredientKind =>
-  value === 'story' || value === 'learning' || value === 'change'
+const isIngredient = (value: unknown): value is ModelIngredientKind =>
+  value === 'desire' ||
+  value === 'story' ||
+  value === 'learning' ||
+  value === 'change' ||
+  value === 'prayer'
 
 function readableMarkdown(markdown: string): string {
   // Keep the writer's prose but remove Dayspring's storage syntax. Unlike
@@ -255,7 +288,10 @@ function aggregateSentiment(movements: MovementReading[]): SentimentReading {
   let valence = 0
   let activation = 0
   let confidence = 0
-  const emotions = new Map<Emotion, { weighted: number; weight: number }>()
+  const emotions = new Map<
+    Emotion,
+    { weighted: number; weight: number; quote: string; quoteScore: number }
+  >()
   for (const movement of felt) {
     const w = Math.max(1, movement.quote.length) * movement.sentiment.confidence
     weight += w
@@ -263,9 +299,19 @@ function aggregateSentiment(movements: MovementReading[]): SentimentReading {
     activation += movement.sentiment.activation * w
     confidence += movement.sentiment.confidence * w
     for (const emotion of movement.sentiment.emotions) {
-      const held = emotions.get(emotion.emotion) ?? { weighted: 0, weight: 0 }
+      const quoteScore = emotion.intensity * w
+      const held = emotions.get(emotion.emotion) ?? {
+        weighted: 0,
+        weight: 0,
+        quote: emotion.quote,
+        quoteScore,
+      }
       held.weighted += emotion.intensity * w
       held.weight += w
+      if (quoteScore > held.quoteScore) {
+        held.quote = emotion.quote
+        held.quoteScore = quoteScore
+      }
       emotions.set(emotion.emotion, held)
     }
   }
@@ -278,6 +324,7 @@ function aggregateSentiment(movements: MovementReading[]): SentimentReading {
       .map(([emotion, score]) => ({
         emotion,
         intensity: score.weight ? score.weighted / score.weight : 0,
+        quote: score.quote,
       }))
       .sort((a, b) => b.intensity - a.intensity)
       .slice(0, 4),
@@ -292,6 +339,7 @@ export function sanitizeKeepingRead(
   truncated = false,
 ): EntryReading {
   const allowedSubjects = new Map(subjects.map((subject) => [subject.key, subject]))
+  const scriptureRefs = parseReferences(text)
   const movements: MovementReading[] = []
   const seenQuotes = new Set<string>()
 
@@ -327,13 +375,30 @@ export function sanitizeKeepingRead(
       .map(({ key, label, kind }) => ({ key, label, kind }))
 
     const charStart = text.indexOf(quote)
+    const charEnd = charStart + quote.length
+    const seenScripture = new Set(
+      ingredients
+        .filter((ingredient) => ingredient.kind === 'scripture')
+        .map((ingredient) => ingredient.quote),
+    )
+    for (const ref of scriptureRefs) {
+      if (ref.char_start < charStart || ref.char_end > charEnd) continue
+      const scriptureQuote = text.slice(ref.char_start, ref.char_end)
+      if (seenScripture.has(scriptureQuote)) continue
+      seenScripture.add(scriptureQuote)
+      ingredients.push({
+        kind: 'scripture',
+        quote: scriptureQuote,
+        confidence: ref.confidence,
+      })
+    }
     movements.push({
       id: createHash('sha256').update(`${entryId}\0${quote}`).digest('hex').slice(0, 16),
       quote,
       charStart,
-      charEnd: charStart + quote.length,
+      charEnd,
       subjects: joined,
-      sentiment: sanitizeSentiment(candidate.sentiment),
+      sentiment: sanitizeSentiment(candidate.sentiment, quote),
       ingredients,
     })
     if (movements.length === MAX_MOVEMENTS) break

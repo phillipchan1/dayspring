@@ -40,7 +40,7 @@ The contemplative traditions create space between attention and conclusion:
 Dayspring borrows the posture, not the authority. It recollects, attends, and
 returns the writer's evidence. It does not become a spiritual director.
 
-## The four readings
+## The seven readings
 
 ### 1. What you felt
 
@@ -79,6 +79,30 @@ One entry can contain **learning** or explicit **change evidence**. Spiritual
 growth is a cross-entry interpretation and must not be minted by the entry read.
 Later, Dayspring may place evidence from different times beside one another and
 invite the writer to name what they see.
+
+### 5. What you desired
+
+Return desire the writer actually expressed: what they wanted, hoped for, wished
+for, or longed for. Desire is especially important in contemplative reflection,
+but naming its meaning is discernment and remains the writer's work.
+
+The engine may say, "You wrote, 'I want to carry their delight with me.'" It may
+not turn stress into a hidden desire for control, infer a vocation, or claim that
+one desire is holier than another.
+
+### 6. How you prayed
+
+Preserve words the writer addressed to God: request, thanks, confession, lament,
+or simple attention. Distinguish prayer itself from merely writing that prayer
+happened. Return the writer's words without assessing whether the prayer was
+faithful, answered, or spiritually significant.
+
+### 7. Scripture you carried
+
+Identify explicit Scripture references with the deterministic parser already
+used by Dayspring. Scripture is grounded in the characters the writer typed; a
+model does not invent or interpret the reference. Later readings may place the
+reference beside its movement, subjects, emotion, desire, or prayer.
 
 ## The eventual product shape
 
@@ -141,20 +165,24 @@ Nothing downstream matters if a single-entry read is unreliable. The first
 deliverable is therefore a private playground over real entries, not a customer
 surface or a database migration.
 
-For each coherent movement on one page, the engine measures:
+For each coherent movement on one page, the engine measures seven signals:
 
-1. **Subjects** — known People, Places, Domains, and Matters connected to this
-   movement, including semantic connections that are not simple proximity.
-2. **Sentiment** — valence, activation, named emotions, and confidence.
+1. **Sentiment** — pleasantness, energy, named emotions, exact supporting words,
+   and confidence.
+2. **Desire** — something the writer explicitly wants, hopes for, wishes for, or
+   longs for.
 3. **Story evidence** — a concrete event or episode-bearing passage.
 4. **Learning** — something the writer explicitly says they understood or would
    carry forward.
 5. **Change evidence** — an explicit before/after claim within the writer's own
    words. Never silently relabelled "growth."
+6. **Prayer** — words addressed to God, distinct from writing about prayer.
+7. **Scripture** — an explicit reference found deterministically.
 
-Prayer, sense, desire, and Scripture remain useful markings, but they are not
-substitutes for these measurements. The engine should ultimately produce one
-read, not a collection of competing scanners.
+Known People, Places, Domains, and Matters are joined to each movement as
+structure around these seven signals, including semantic connections that are
+not simple proximity. The engine should ultimately produce one read, not a
+collection of competing scanners.
 
 ### Structural guarantees
 
@@ -176,9 +204,12 @@ text to the repository. The reviewer judges each dimension independently:
 - movement boundary
 - subject join
 - emotional reading
+- desire evidence
 - story evidence
 - learning
 - change evidence
+- prayer
+- Scripture reference
 
 Precision is the first gate because a false claim about someone's heart is more
 harmful than a missed one. Do not persist results, trigger reads on save, or build

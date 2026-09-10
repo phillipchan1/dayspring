@@ -12,17 +12,18 @@ export type KeepingEmotion =
   | 'shame'
   | 'confusion'
   | 'weariness'
+  | 'stress'
 
 export interface KeepingSentiment {
   present: boolean
   valence: number
   activation: number
   confidence: number
-  emotions: Array<{ emotion: KeepingEmotion; intensity: number }>
+  emotions: Array<{ emotion: KeepingEmotion; intensity: number; quote: string }>
 }
 
 export interface KeepingIngredient {
-  kind: 'story' | 'learning' | 'change'
+  kind: 'desire' | 'story' | 'learning' | 'change' | 'prayer' | 'scripture'
   quote: string
   confidence: number
 }

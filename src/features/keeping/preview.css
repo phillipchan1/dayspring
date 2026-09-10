@@ -99,9 +99,24 @@ html.keeping-preview-root #root {
 }
 
 .keeping-picker,
-.keeping-result {
+.keeping-result,
+.keeping-method {
   max-width: 1180px;
   margin: 0 auto 34px;
+}
+
+.keeping-method {
+  display: flex;
+  gap: 14px;
+  padding: 12px 16px;
+  border-left: 2px solid var(--accent);
+  color: var(--text-muted);
+  font: 12px/1.5 var(--font-ui);
+}
+
+.keeping-method b {
+  flex: none;
+  color: var(--text);
 }
 
 .keeping-picker {
@@ -275,6 +290,20 @@ html.keeping-preview-root #root {
   font: 500 11px/1 var(--font-ui);
 }
 
+.keeping-emotions > span {
+  display: inline-flex;
+  max-width: 280px;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+.keeping-emotions > span small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .keeping-subjects small,
 .keeping-emotions small,
 .keeping-ingredient small {
@@ -416,6 +445,11 @@ html.keeping-preview-root #root {
   .keeping-picker__bar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .keeping-method {
+    flex-direction: column;
+    gap: 4px;
   }
 
   .keeping-entry-list label {
