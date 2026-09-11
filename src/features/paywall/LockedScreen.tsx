@@ -24,6 +24,8 @@ import {
   restoreApplePurchases,
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
+import { useTapAction } from '@/lib/tapAction'
+import { IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
@@ -222,6 +224,10 @@ export function LockedScreen({
   }
 
   const busy = loading !== null
+  const manageTap = useTapAction(() => void handleManage(), !busy)
+  const annualTap = useTapAction(() => void handleResubscribe('annual'), !busy)
+  const monthlyTap = useTapAction(() => void handleResubscribe('monthly'), !busy)
+  const restoreTap = useTapAction(() => void handleRestore(), !busy)
 
   // ── Past-due: simpler "fix your card" screen ──────────────────────────────
   if (isPastDue) {
@@ -236,7 +242,13 @@ export function LockedScreen({
             left off.
           </p>
           <div className="locked-screen__actions">
-            <button className="btn" disabled={busy} onClick={() => void handleManage()}>
+            <button
+              type="button"
+              className="btn"
+              aria-disabled={busy}
+              aria-busy={loading === 'portal'}
+              {...manageTap}
+            >
               {loading === 'portal'
                 ? 'Opening…'
                 : // Follow where the money actually is, not the device in hand —
@@ -291,7 +303,13 @@ export function LockedScreen({
         </p>
 
         <div className="locked-screen__actions">
-          <button className="btn" disabled={busy} onClick={() => void handleResubscribe('annual')}>
+          <button
+            type="button"
+            className="btn"
+            aria-disabled={busy}
+            aria-busy={loading === 'annual'}
+            {...annualTap}
+          >
             {loading === 'annual'
               ? isAppleIapAvailable()
                 ? 'Confirming…'
@@ -301,9 +319,11 @@ export function LockedScreen({
                 : 'Continue yearly'}
           </button>
           <button
+            type="button"
             className="btn btn--ghost"
-            disabled={busy}
-            onClick={() => void handleResubscribe('monthly')}
+            aria-disabled={busy}
+            aria-busy={loading === 'monthly'}
+            {...monthlyTap}
           >
             {loading === 'monthly'
               ? isAppleIapAvailable()
@@ -315,9 +335,11 @@ export function LockedScreen({
           </button>
           {isAppleIapAvailable() && (
             <button
+              type="button"
               className="btn btn--ghost"
-              disabled={busy}
-              onClick={() => void handleRestore()}
+              aria-disabled={busy}
+              aria-busy={loading === 'restore'}
+              {...restoreTap}
             >
               {loading === 'restore' ? 'Restoring…' : 'Restore purchases'}
             </button>
@@ -331,7 +353,7 @@ export function LockedScreen({
         {useApple && <AppleSubscriptionTerms />}
 
         <div className="locked-soft">
-          {canExtend && (
+          {canExtend && !IS_APP_STORE_RELEASE && (
             <button
               type="button"
               className="locked-soft__link"

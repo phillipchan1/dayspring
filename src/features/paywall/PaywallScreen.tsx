@@ -11,6 +11,7 @@ import {
   type ApplePlan,
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
+import { useTapAction } from '@/lib/tapAction'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
 import './Paywall.css'
@@ -86,6 +87,9 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
   // pricing is .99-tiered ($7.99, not $7) and localised per storefront.
   const annualPrice = displayPrice('annual', { useApple, products })
   const monthlyPrice = displayPrice('monthly', { useApple, products })
+  const annualTap = useTapAction(() => void handleSelect('annual'), !busy)
+  const monthlyTap = useTapAction(() => void handleSelect('monthly'), !busy)
+  const restoreTap = useTapAction(() => void handleRestore(), !busy)
 
   return (
     <div className="paywall">
@@ -112,10 +116,12 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
 
         <div className="paywall__plans">
           <button
+            type="button"
             className="paywall__plan"
             data-recommended="true"
-            disabled={busy}
-            onClick={() => void handleSelect('annual')}
+            aria-disabled={busy}
+            aria-busy={loading === 'annual'}
+            {...annualTap}
             aria-label={`Start annual plan${annualPrice ? ` — ${annualPrice} per year` : ''}`}
           >
             <span className="paywall__plan-badge">Best value</span>
@@ -133,9 +139,11 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           </button>
 
           <button
+            type="button"
             className="paywall__plan"
-            disabled={busy}
-            onClick={() => void handleSelect('monthly')}
+            aria-disabled={busy}
+            aria-busy={loading === 'monthly'}
+            {...monthlyTap}
             aria-label={`Start monthly plan${monthlyPrice ? ` — ${monthlyPrice} per month` : ''}`}
           >
             <span className="paywall__plan-price">{monthlyPrice ?? 'Monthly'}</span>
@@ -162,10 +170,12 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
 
         {useApple && (
           <button
+            type="button"
             className="btn btn--ghost"
             style={{ marginBottom: '0.75rem' }}
-            disabled={busy}
-            onClick={() => void handleRestore()}
+            aria-disabled={busy}
+            aria-busy={loading === 'restore'}
+            {...restoreTap}
           >
             {loading === 'restore' ? 'Restoring…' : 'Restore purchases'}
           </button>

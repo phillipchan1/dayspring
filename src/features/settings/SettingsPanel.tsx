@@ -25,6 +25,8 @@ import {
   trialDaysRemaining,
 } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
+import { useTapAction } from '@/lib/tapAction'
+import { ALLOWS_INTERNAL_UI, IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
 import {
   describeRestore,
   fetchAppleProducts,
@@ -360,7 +362,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <dt>Version</dt>
             <dd>
               {__APP_VERSION__}
-              {import.meta.env.VITE_RELEASE_CHANNEL === 'alpha' && (
+              {ALLOWS_INTERNAL_UI && (
                 <span className="settings-about__channel-badge">alpha</span>
               )}
             </dd>
@@ -427,9 +429,9 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
           </div>
           <ReleaseHistory />
         </div>
-      ) : (
+      ) : !IS_APP_STORE_RELEASE ? (
         <ReleaseHistory withSection />
-      )}
+      ) : null}
 
       {/* Account & preferences section */}
       <div className="settings-about__section">
@@ -466,7 +468,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             </div>
           )}
           {showConcordance && <ConcordanceDrawer onClose={() => setShowConcordance(false)} />}
-          {isTauri() && featureFlags.includes('beta') && (
+          {ALLOWS_INTERNAL_UI && isTauri() && featureFlags.includes('beta') && (
             <div className="settings-about__row-toggle">
               <Toggle
                 label="Developer mode"
@@ -954,6 +956,17 @@ function BillingTab() {
     }
   }
 
+  const manageTap = useTapAction(() => void openPortal(), !portalLoading)
+  const annualTap = useTapAction(
+    () => void (onIos ? handleApplePurchase('annual') : handleStripePurchase('annual')),
+    iapLoading === null,
+  )
+  const monthlyTap = useTapAction(
+    () => void (onIos ? handleApplePurchase('monthly') : handleStripePurchase('monthly')),
+    iapLoading === null,
+  )
+  const restoreTap = useTapAction(() => void handleAppleRestore(), iapLoading === null)
+
   if (loading) {
     return <p style={{ color: 'var(--text-faint)', fontFamily: 'var(--font-sans)', fontSize: '0.88rem' }}>Loading…</p>
   }
@@ -1041,7 +1054,13 @@ function BillingTab() {
               </span>
             </div>
             <div className="settings-actions">
-              <button className="btn" onClick={() => void openPortal()} disabled={portalLoading}>
+              <button
+                type="button"
+                className="btn storekit-tap-target"
+                aria-disabled={portalLoading}
+                aria-busy={portalLoading}
+                {...manageTap}
+              >
                 {portalLoading
                   ? 'Opening…'
                   : appleRelationship
@@ -1097,12 +1116,12 @@ function BillingTab() {
                       one is decided by purchaseRoute, not by the device alone. */}
                   {(onIos || canStripePurchase) && (
                     <button
-                      className="btn"
+                      type="button"
+                      className="btn storekit-tap-target"
                       style={{ marginTop: '0.55rem', width: '100%', fontSize: '0.78rem' }}
-                      disabled={iapLoading !== null}
-                      onClick={() =>
-                        void (onIos ? handleApplePurchase(p.plan) : handleStripePurchase(p.plan))
-                      }
+                      aria-disabled={iapLoading !== null}
+                      aria-busy={iapLoading === p.plan}
+                      {...(p.plan === 'annual' ? annualTap : monthlyTap)}
                     >
                       {iapLoading === p.plan
                         ? onIos
@@ -1116,10 +1135,12 @@ function BillingTab() {
             </div>
             {onIos && (
               <button
-                className="btn btn--ghost"
+                type="button"
+                className="btn btn--ghost storekit-tap-target"
                 style={{ marginTop: '0.75rem' }}
-                disabled={iapLoading !== null}
-                onClick={() => void handleAppleRestore()}
+                aria-disabled={iapLoading !== null}
+                aria-busy={iapLoading === 'restore'}
+                {...restoreTap}
               >
                 {iapLoading === 'restore' ? 'Restoring…' : 'Restore purchases'}
               </button>
