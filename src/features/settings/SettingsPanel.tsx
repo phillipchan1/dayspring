@@ -26,7 +26,7 @@ import {
 } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import { useTapAction } from '@/lib/tapAction'
-import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
+import { ALLOWS_INTERNAL_UI, IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
 import {
   describeRestore,
   fetchAppleProducts,
@@ -429,9 +429,9 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
           </div>
           <ReleaseHistory />
         </div>
-      ) : (
+      ) : !IS_APP_STORE_RELEASE ? (
         <ReleaseHistory withSection />
-      )}
+      ) : null}
 
       {/* Account & preferences section */}
       <div className="settings-about__section">

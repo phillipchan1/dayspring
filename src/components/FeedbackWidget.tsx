@@ -55,7 +55,7 @@ export function FeedbackWidget({ featureFlags }: Props) {
       {open && (
         <div className="feedback-popover" role="dialog" aria-label="Send feedback">
           <div className="feedback-popover__header">
-            <span>beta feedback</span>
+            <span>Send feedback</span>
             <button
               className="feedback-popover__close"
               onClick={() => setOpen(false)}
