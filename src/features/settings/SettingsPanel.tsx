@@ -26,6 +26,7 @@ import {
 } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import { useTapAction } from '@/lib/tapAction'
+import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import {
   describeRestore,
   fetchAppleProducts,
@@ -361,7 +362,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             <dt>Version</dt>
             <dd>
               {__APP_VERSION__}
-              {import.meta.env.VITE_RELEASE_CHANNEL === 'alpha' && (
+              {ALLOWS_INTERNAL_UI && (
                 <span className="settings-about__channel-badge">alpha</span>
               )}
             </dd>
@@ -467,7 +468,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             </div>
           )}
           {showConcordance && <ConcordanceDrawer onClose={() => setShowConcordance(false)} />}
-          {isTauri() && featureFlags.includes('beta') && (
+          {ALLOWS_INTERNAL_UI && isTauri() && featureFlags.includes('beta') && (
             <div className="settings-about__row-toggle">
               <Toggle
                 label="Developer mode"
