@@ -25,6 +25,7 @@ import {
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { useTapAction } from '@/lib/tapAction'
+import { IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
@@ -352,7 +353,7 @@ export function LockedScreen({
         {useApple && <AppleSubscriptionTerms />}
 
         <div className="locked-soft">
-          {canExtend && (
+          {canExtend && !IS_APP_STORE_RELEASE && (
             <button
               type="button"
               className="locked-soft__link"
