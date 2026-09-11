@@ -11,6 +11,8 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-app-region: no-drag;
 }
 
 /* Same dawn glow the editor canvas uses — keeps the visual language consistent. */
@@ -95,19 +97,15 @@
     box-shadow var(--transition),
     transform 0.14s ease;
 }
-.paywall__plan:hover {
-  border-color: var(--accent);
-  background: var(--bg-hover);
-  transform: translateY(-1px);
-}
-.paywall__plan:active {
+.paywall__plan:active:not([aria-disabled='true']) {
   transform: scale(0.985);
 }
 .paywall__plan[data-recommended='true'] {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
 }
-.paywall__plan:disabled {
+.paywall__plan:disabled,
+.paywall__plan[aria-disabled='true'] {
   opacity: 0.6;
   cursor: default;
   transform: none;
@@ -414,11 +412,13 @@
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition);
   -webkit-app-region: no-drag;
+  touch-action: manipulation;
+  min-height: 44px;
 }
 
-.trial-banner__action:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+.trial-banner__action[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.65;
 }
 
 /* ── Locked screen (trial ended / past due) ─────────────────────────────── */
@@ -434,6 +434,8 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-app-region: no-drag;
 }
 
 .locked-screen__glow {
@@ -480,6 +482,40 @@
   gap: 0.6rem;
   width: 100%;
   max-width: 18rem;
+}
+
+/* StoreKit controls share SignIn's iPad-safe interaction contract: no native
+   disabled state mid-gesture, a real touch target, and no delayed double-tap. */
+.paywall__plan,
+.paywall .btn,
+.locked-screen .btn,
+.storekit-tap-target {
+  min-height: 48px;
+  touch-action: manipulation;
+  -webkit-app-region: no-drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.paywall .btn[aria-disabled='true'],
+.locked-screen .btn[aria-disabled='true'],
+.storekit-tap-target[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.65;
+}
+
+/* Avoid iPad's synthesized hover state becoming part of the tap gesture. */
+@media (hover: hover) and (pointer: fine) {
+  .paywall__plan:hover:not([aria-disabled='true']) {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+  }
+
+  .trial-banner__action:hover:not([aria-disabled='true']) {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
 }
 
 /* ── Dawn unification ─────────────────────────────────────────────────────
@@ -573,10 +609,6 @@
   border-color: rgba(255, 255, 255, 0.14);
   color: #ece7df;
 }
-.paywall__plan:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(232, 184, 115, 0.55);
-}
 .paywall__plan[data-recommended='true'] {
   border-color: rgba(232, 184, 115, 0.5);
   box-shadow: 0 0 0 1px rgba(232, 184, 115, 0.18);
@@ -588,8 +620,17 @@
   border-color: rgba(74, 64, 53, 0.16);
   color: #2a2118;
 }
-[data-appearance='light'] .paywall__plan:hover { background: rgba(255, 255, 255, 0.6); }
 [data-appearance='light'] .paywall__plan-price { color: #221a12; }
+
+@media (hover: hover) and (pointer: fine) {
+  .paywall__plan:hover:not([aria-disabled='true']) {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(232, 184, 115, 0.55);
+  }
+  [data-appearance='light'] .paywall__plan:hover:not([aria-disabled='true']) {
+    background: rgba(255, 255, 255, 0.6);
+  }
+}
 
 /* Primary actions → the gold "Begin" CTA; ghosts → glass. */
 .locked-screen .btn,
