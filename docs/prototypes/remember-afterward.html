@@ -1,0 +1,1502 @@
+<title>Afterward</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ──────────────────────────────────────────────────────────────────────────
+     AFTERWARD — prototypes for the ephemeral offer.
+     See docs/REMEMBER_AFTERWARD.md.
+
+     THE ARGUMENT THIS FILE EXISTS TO MAKE: `collectPassages()` in
+     src/lib/remember.ts already produces the only body of text in the product
+     that is significant BY THE WRITER'S OWN HAND — corpus-wide, dated,
+     verbatim, source-tagged — and nothing reads it. One line out of that pool,
+     handed back after the writing is done, is the cheapest thing the product
+     could do with it: no model, no new table, no cold start, nothing that
+     accrues.
+
+     Handing back ONE line means something selected it, and D-016 says selection
+     is significance and significance is a verdict. The answer is that the rule
+     is arithmetic and is stated on screen. So the prototypes differ by RULE
+     first and by SHAPE second, and every rule here is computed live from the
+     fixture — nothing on any screen is typed in by hand.
+
+     Two token systems, and they must not touch:
+       --ui-*    the prototype's own chrome. Follows the reader's OS theme.
+       --app-*   the writing surface, lifted from src/styles/themes.css.
+     ────────────────────────────────────────────────────────────────────────── */
+
+  :root {
+    --ui-bg: #f2f0ec;
+    --ui-panel: #ffffff;
+    --ui-line: rgba(38, 33, 27, 0.13);
+    --ui-line-soft: rgba(38, 33, 27, 0.07);
+    --ui-text: #3b352d;
+    --ui-bright: #1d1913;
+    --ui-dim: #837b6f;
+    --ui-faint: #a9a296;
+    --ui-accent: #9a6e24;
+    --ui-accent-soft: rgba(154, 110, 36, 0.13);
+    --ui-shadow: 0 30px 64px -40px rgba(29, 25, 19, 0.45);
+
+    /* The writing surface. Warm paper in both themes — it is the same page. */
+    --app-bg: #f7f4ee;
+    --app-ink: #2a251e;
+    --app-dim: rgba(42, 37, 30, 0.44);
+    --app-rule: rgba(42, 37, 30, 0.13);
+    --app-glow: rgba(196, 145, 60, 0.20);
+    --app-lit: rgba(196, 145, 60, 0.26);
+
+    --f-display: 'Fraunces', Georgia, serif;
+    --f-serif: 'Newsreader', Georgia, serif;
+    --f-ui: 'Inter', -apple-system, ui-sans-serif, system-ui, sans-serif;
+    --f-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ui-bg: #16151a;
+      --ui-panel: #1e1d24;
+      --ui-line: rgba(233, 229, 222, 0.14);
+      --ui-line-soft: rgba(233, 229, 222, 0.07);
+      --ui-text: #c6c1b8;
+      --ui-bright: #eae6de;
+      --ui-dim: #857f75;
+      --ui-faint: #6a6459;
+      --ui-accent: #c8933f;
+      --ui-accent-soft: rgba(200, 147, 63, 0.16);
+      --ui-shadow: 0 30px 64px -40px rgba(0, 0, 0, 0.85);
+
+      --app-bg: #191820;
+      --app-ink: #ddd8cf;
+      --app-dim: rgba(221, 216, 207, 0.42);
+      --app-rule: rgba(221, 216, 207, 0.15);
+      --app-glow: rgba(200, 147, 63, 0.16);
+      --app-lit: rgba(200, 147, 63, 0.24);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ui-bg: #16151a; --ui-panel: #1e1d24;
+    --ui-line: rgba(233, 229, 222, 0.14); --ui-line-soft: rgba(233, 229, 222, 0.07);
+    --ui-text: #c6c1b8; --ui-bright: #eae6de; --ui-dim: #857f75; --ui-faint: #6a6459;
+    --ui-accent: #c8933f; --ui-accent-soft: rgba(200, 147, 63, 0.16);
+    --ui-shadow: 0 30px 64px -40px rgba(0, 0, 0, 0.85);
+    --app-bg: #191820; --app-ink: #ddd8cf; --app-dim: rgba(221, 216, 207, 0.42);
+    --app-rule: rgba(221, 216, 207, 0.15); --app-glow: rgba(200, 147, 63, 0.16);
+    --app-lit: rgba(200, 147, 63, 0.24);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-family: var(--f-ui);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 40px 20px 96px; }
+
+  /* ── Masthead ────────────────────────────────────────────────────────── */
+
+  .masthead { max-width: 64ch; margin-bottom: 34px; }
+  .eyebrow {
+    font-size: 10.5px; font-weight: 500; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--ui-accent); margin: 0 0 12px;
+  }
+  .masthead h1 {
+    font-family: var(--f-display); font-weight: 300;
+    font-size: clamp(30px, 5vw, 42px); line-height: 1.1; letter-spacing: -0.02em;
+    color: var(--ui-bright); text-wrap: balance; margin: 0 0 14px;
+  }
+  .masthead h1 em { font-style: italic; color: var(--ui-accent); }
+  .masthead p { margin: 0 0 10px; color: var(--ui-dim); font-size: 15.5px; }
+  .masthead code { font-family: var(--f-mono); font-size: 0.86em; color: var(--ui-text); }
+
+  /* ── Scene bar ───────────────────────────────────────────────────────── */
+
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 8px 0 26px; border-bottom: 1px solid var(--ui-line-soft); margin-bottom: 34px;
+  }
+  .bar button {
+    font: inherit; font-size: 12.5px; color: var(--ui-dim);
+    background: none; border: 1px solid transparent; border-radius: 999px;
+    padding: 5px 12px; cursor: pointer; transition: color .16s, background .16s, border-color .16s;
+  }
+  .bar button:hover { color: var(--ui-bright); border-color: var(--ui-line); }
+  .bar button[aria-current="true"] {
+    color: var(--ui-accent); background: var(--ui-accent-soft); border-color: transparent;
+  }
+  .bar .key {
+    font-family: var(--f-mono); font-size: 10px; opacity: .55; margin-right: 6px;
+  }
+  .bar .spacer { flex: 1; }
+  .bar .hint { font-size: 11px; color: var(--ui-faint); }
+
+  body.bare .bar, body.bare .masthead, body.bare .colophon { display: none; }
+  body.bare .wrap { padding-top: 24px; }
+
+  /* ── A screen ────────────────────────────────────────────────────────── */
+
+  .screen[hidden] { display: none !important; }
+
+  .screen > header { max-width: 66ch; margin-bottom: 22px; }
+  .screen > header h2 {
+    font-family: var(--f-display); font-weight: 300; font-size: 27px;
+    line-height: 1.15; letter-spacing: -0.015em; color: var(--ui-bright); margin: 0 0 10px;
+  }
+  .screen > header .rule-line {
+    font-size: 14.5px; color: var(--ui-text); margin: 0 0 8px;
+  }
+  .screen > header .rule-line b { color: var(--ui-bright); font-weight: 500; }
+  .screen > header .measured {
+    font-size: 12.5px; color: var(--ui-dim); margin: 0;
+  }
+  .screen > header .measured b { color: var(--ui-bright); font-weight: 500; }
+  /* Mono is for figures only — a whole sentence in mono is machinery talking. */
+  .screen > header .measured .n { font-family: var(--f-mono); font-weight: 500; color: var(--ui-accent); }
+
+  /* ── Controls above a stage ──────────────────────────────────────────── */
+
+  .knobs { display: flex; flex-wrap: wrap; gap: 18px; margin: 0 0 14px; }
+  .knob { display: flex; align-items: baseline; gap: 8px; }
+  .knob > span {
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--ui-faint);
+  }
+  .knob button {
+    font: inherit; font-size: 12.5px; background: none; border: 0; padding: 0 2px;
+    color: var(--ui-dim); cursor: pointer; border-bottom: 1px solid transparent;
+  }
+  .knob button[aria-pressed="true"] { color: var(--ui-accent); border-bottom-color: currentColor; }
+
+  /* ── The stage: the app's own surface ────────────────────────────────── */
+
+  .stage {
+    position: relative; overflow: hidden;
+    background: var(--app-bg); color: var(--app-ink);
+    border: 1px solid var(--ui-line); border-radius: 10px;
+    box-shadow: var(--ui-shadow);
+    min-height: 460px;
+    display: flex; flex-direction: column;
+  }
+  /* The light source themes.css parks just above the top edge of the page. */
+  .stage::before {
+    content: ''; position: absolute; inset: 0 0 auto; height: 62%;
+    background: radial-gradient(ellipse 58% 90% at 50% -8%, var(--app-glow), transparent 68%);
+    pointer-events: none;
+  }
+  .stage__body {
+    position: relative; flex: 1; display: flex; flex-direction: column;
+    padding: 44px clamp(22px, 5vw, 64px);
+  }
+  .stage--centre .stage__body { align-items: center; justify-content: center; text-align: center; }
+
+  /* Her words. Serif is her; sans is us. */
+  .her {
+    font-family: var(--f-serif); font-weight: 300;
+    font-size: 19px; line-height: 1.66; color: var(--app-ink);
+    margin: 0 0 1.05em; max-width: 46ch;
+  }
+  .her:last-child { margin-bottom: 0; }
+
+  .said {
+    font-family: var(--f-ui); font-size: 12px; color: var(--app-dim);
+    letter-spacing: .01em; margin: 0;
+  }
+  .when {
+    font-family: var(--f-mono); font-size: 11px; color: var(--app-dim);
+    letter-spacing: .02em; margin: 0;
+  }
+  .lit { background: var(--app-lit); border-radius: 2px; padding: 0 .12em; }
+
+  /* ── 1 · the word ────────────────────────────────────────────────────── */
+
+  .word__line {
+    font-family: var(--f-serif); font-weight: 300; font-style: italic;
+    font-size: clamp(23px, 3.4vw, 31px); line-height: 1.42;
+    color: var(--app-ink); max-width: 22ch; margin: 0 auto 30px; text-wrap: balance;
+  }
+  .word__when { margin-bottom: 4px; }
+  .word__rule { margin-top: 2px; }
+  .word__out {
+    margin-top: 44px; font-family: var(--f-ui); font-size: 12px; color: var(--app-dim);
+    border-bottom: 1px solid var(--app-rule); padding-bottom: 2px;
+    opacity: 0; transition: opacity 1.1s ease;
+  }
+  .word__out.shown { opacity: 1; }
+
+  /* ── 2 · the hairline ────────────────────────────────────────────────── */
+
+  .hair { border: 0; border-top: 1px solid var(--app-rule); margin: 30px 0 22px; max-width: 46ch; }
+  .back { max-width: 46ch; }
+  .back__line {
+    font-family: var(--f-serif); font-weight: 300; font-style: italic;
+    font-size: 18px; line-height: 1.6; color: var(--app-ink); margin: 8px 0 10px;
+  }
+
+  /* ── 3 · facing pages ────────────────────────────────────────────────── */
+
+  .facing { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; flex: 1; }
+  .facing__spine { background: var(--app-rule); }
+  .facing__side { padding-right: 34px; }
+  .facing__side + .facing__spine + .facing__side { padding: 0 0 0 34px; }
+  .facing__side--past { display: flex; flex-direction: column; justify-content: center; }
+  .facing__side--now .her { font-size: 16.5px; color: var(--app-dim); }
+  @media (max-width: 720px) {
+    .facing { grid-template-columns: 1fr; }
+    .facing__spine { height: 1px; margin: 26px 0; }
+    .facing__side, .facing__side + .facing__spine + .facing__side { padding: 0; }
+  }
+
+  /* ── 5 · nothing ─────────────────────────────────────────────────────── */
+
+  .blank { flex: 1; display: flex; align-items: flex-start; }
+  .blank__caret {
+    display: inline-block; width: 2px; height: 26px; background: var(--ui-accent);
+    animation: blink 1.15s steps(2, start) infinite;
+  }
+  @keyframes blink { to { visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) {
+    .blank__caret { animation: none; }
+    .word__out { transition: none; }
+  }
+
+  /* ── 6 · all three ───────────────────────────────────────────────────── */
+
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; flex: 1; }
+  .three__col { padding: 0 26px; border-left: 1px solid var(--app-rule); display: flex; flex-direction: column; }
+  .three__col:first-child { border-left: 0; padding-left: 0; }
+  .three__col:last-child { padding-right: 0; }
+  .three__name {
+    font-family: var(--f-ui); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ui-accent); margin: 0 0 4px;
+  }
+  .three__how { font-size: 11.5px; color: var(--app-dim); margin: 0 0 18px; min-height: 2.4em; }
+  .three__line {
+    font-family: var(--f-serif); font-weight: 300; font-style: italic;
+    font-size: 17px; line-height: 1.5; color: var(--app-ink); margin: 0 0 14px;
+  }
+  .three__foot { margin-top: auto; padding-top: 18px; }
+  .three__rate { font-family: var(--f-mono); font-size: 11px; color: var(--app-dim); margin: 6px 0 0; }
+  @media (max-width: 760px) {
+    .three { grid-template-columns: 1fr; }
+    .three__col { border-left: 0; border-top: 1px solid var(--app-rule); padding: 24px 0 0; margin-top: 24px; }
+    .three__col:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+    .three__how { min-height: 0; }
+  }
+
+  /* ── notes ───────────────────────────────────────────────────────────── */
+
+  .notes { max-width: 70ch; }
+  .notes h3 {
+    font-family: var(--f-display); font-weight: 400; font-size: 17px;
+    color: var(--ui-bright); margin: 32px 0 10px;
+  }
+  .notes p, .notes li { font-size: 14.5px; color: var(--ui-text); }
+  .notes li { margin-bottom: 7px; }
+  .notes code { font-family: var(--f-mono); font-size: .86em; color: var(--ui-accent); }
+  .notes table { border-collapse: collapse; width: 100%; margin: 14px 0 4px; font-size: 13.5px; }
+  .notes th, .notes td { text-align: left; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--ui-line-soft); vertical-align: top; }
+  .notes th { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ui-faint); font-weight: 500; }
+  .notes td b { font-family: var(--f-mono); font-weight: 500; color: var(--ui-accent); }
+  .notes .tablewrap { overflow-x: auto; }
+
+  .colophon {
+    margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--ui-line-soft);
+    font-size: 12px; color: var(--ui-faint); max-width: 70ch;
+  }
+  .colophon code { font-family: var(--f-mono); }
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <p class="eyebrow">Remember engine · prototype</p>
+    <h1>Afterward — one line you set apart, <em>handed back</em> when the writing is done.</h1>
+    <p><code>collectPassages()</code> already returns every passage the writer set apart, across the whole
+      archive, dated and verbatim. Nothing in the app reads it. These are five shapes for the cheapest
+      thing it could do.</p>
+    <p>Every line on every screen is computed live from the fixture. Nothing here is typed in by hand.</p>
+  </div>
+
+  <nav class="bar" id="bar"></nav>
+
+  <main id="main"></main>
+
+  <p class="colophon">
+    Fixture: Anna, 47 fictional entries, 2023–2026, taken from
+    <code>prototypes/recollection/src/corpus.ts</code> — same woman, same voice, so this can be walked
+    beside the other prototypes. <span id="poolnote"></span>
+    Press <b>S</b> to hide the chrome before sharing a screen.
+  </p>
+</div>
+
+<script>
+const ENTRIES = [] = [
+  // ── 2023 · she begins ────────────────────────────────────────────────────
+  {
+    id: 'e-2023-02-05',
+    date: '2023-02-05',
+    paragraphs: [
+      "First page. I bought this because Sarah said writing helps and I have run out of other ideas.",
+      "I do not know what to put down. It is Sunday, the dishwasher is running, and everyone else is asleep.",
+      "I will try again tomorrow. That is the whole entry.",
+      'Is this the kind of thing that works, or the kind of thing people say works?',
+    ],
+  },
+  {
+    id: 'e-2023-03-19',
+    date: '2023-03-19',
+    paragraphs: [
+      "Conference with Leo's teacher. She used the word bright twice and the word distracted four times, and I counted.",
+      "He is seven. I keep having to remind myself that he is seven.",
+      "David thinks I take it harder than Leo does, which is probably the truest thing anyone said today.",
+      'Am I making this harder for him than it already is?',
+    ],
+    markings: [{ kind: 'highlight', hue: 'amber', para: 1, quote: 'I keep having to remind myself that he is seven' }],
+  },
+  {
+    id: 'e-2023-05-07',
+    date: '2023-05-07',
+    paragraphs: [
+      "Mom told me the story about the neighbor's dog twice in one phone call.",
+      "The second time she told it the same way, with the same pause before the punchline, and I laughed in the same place.",
+      "I am probably making something out of nothing.",
+    ],
+    markings: [
+      {
+        kind: 'mark',
+        para: 1,
+        quote: 'The second time she told it the same way, with the same pause before the punchline, and I laughed in the same place.',
+      },
+    ],
+  },
+  {
+    id: 'e-2023-06-24',
+    date: '2023-06-24',
+    paragraphs: [
+      "David's project went long again. He got home after the kids and ate standing up at the counter.",
+      "I am not angry. I am something with fewer letters than angry and it lasts longer.",
+      "Mira drew all four of us and put the dog we do not have in the middle.",
+    ],
+    markings: [
+      { kind: 'highlight', hue: 'rose', para: 1, quote: 'something with fewer letters than angry and it lasts longer' },
+    ],
+  },
+  {
+    id: 'e-2023-08-13',
+    date: '2023-08-13',
+    paragraphs: [
+      "Mira starts kindergarten in three weeks and has started asking what happens if nobody sits with her.",
+      "I told her I would pack two of everything so she would have something to offer. She thought about that for a long time and then said okay.",
+      "Bringing her to God tonight because I cannot go in with her.",
+      'What do I pack for the part I cannot walk into with her?',
+    ],
+    markings: [
+      { kind: 'prayer', para: 2, quote: 'Bringing her to God tonight because I cannot go in with her.' },
+    ],
+  },
+  {
+    id: 'e-2023-09-30',
+    date: '2023-09-30',
+    paragraphs: [
+      "Church. The reading was Psalm 121 and I have heard it a hundred times and today the first line stopped me.",
+      "I lift up my eyes. That is all I got. I did not hear the rest of the sermon.",
+      "I wrote the reference on the back of my hand like a teenager so I would not lose it.",
+    ],
+    markings: [
+      { kind: 'scripture', ref: 'Psalm 121:1', para: 0, quote: 'The reading was Psalm 121 and I have heard it a hundred times and today the first line stopped me.' },
+      { kind: 'underline', para: 1, quote: 'I lift up my eyes. That is all I got.' },
+    ],
+  },
+  {
+    id: 'e-2023-11-05',
+    date: '2023-11-05',
+    paragraphs: [
+      "Mom forgot the pie. Not forgot to make it — forgot that she had made it, and found it in the oven cold on Sunday.",
+      "She laughed. Everyone laughed. I laughed a beat late.",
+      "Leo asked me in the car why I was quiet and I said I was thinking about pie, which was not a lie exactly.",
+      'How much of this is she going to remember?',
+    ],
+    markings: [
+      { kind: 'mark', para: 0, quote: 'forgot that she had made it, and found it in the oven cold on Sunday' },
+      { kind: 'highlight', hue: 'sky', para: 1, quote: 'I laughed a beat late' },
+    ],
+  },
+  {
+    id: 'e-2023-12-18',
+    date: '2023-12-18',
+    paragraphs: [
+      "Almost a year of this. I went back and read February and did not recognize the person who wrote it, which I think is good.",
+      "What I have learned: I write when things are hard and I forget to write when things are fine, so the record is lopsided and I should not read it as the whole year.",
+      'If the record is lopsided, whose year have I actually been reading?',
+    ],
+    markings: [
+      {
+        kind: 'learned',
+        para: 1,
+        quote: 'I write when things are hard and I forget to write when things are fine, so the record is lopsided',
+      },
+    ],
+  },
+
+  // ── 2024 · the thin stretch, then the burst ──────────────────────────────
+  {
+    id: 'e-2024-01-14',
+    date: '2024-01-14',
+    paragraphs: [
+      "New year. I want to be someone who prays for her family on purpose instead of in emergencies.",
+      "That is the whole resolution. I am not making a chart for it.",
+      'Am I making it harder by deciding in advance that it will be harder?',
+    ],
+    markings: [
+      { kind: 'desire', para: 0, quote: 'I want to be someone who prays for her family on purpose instead of in emergencies.' },
+    ],
+  },
+  {
+    id: 'e-2024-03-02',
+    date: '2024-03-02',
+    paragraphs: ["Tired. Nothing to say. Writing it down so the page is not empty.", 'Where did the spring go?'],
+  },
+  {
+    id: 'e-2024-06-11',
+    date: '2024-06-11',
+    paragraphs: [
+      "I have not written since March.",
+      "Nothing happened. That is not true — a whole spring happened. I just did not sit down for any of it.",
+      'Is anyone hearing any of this, or am I talking to the ceiling?',
+    ],
+    markings: [{ kind: 'absence', para: 1, quote: 'I just did not sit down for any of it.' }],
+  },
+  {
+    id: 'e-2024-08-25',
+    date: '2024-08-25',
+    paragraphs: [
+      "End of summer. The kids are brown and feral and I am ready for a schedule.",
+      "Mom has an appointment in September that David keeps calling routine in a voice that is not routine.",
+    ],
+  },
+  {
+    id: 'e-2024-09-21',
+    date: '2024-09-21',
+    paragraphs: [
+      "They used a word about Mom today. Not the worst word, an early word, but a word.",
+      "I drove home the long way and I do not remember any of the drive.",
+      "I keep thinking about the pie.",
+    ],
+    markings: [
+      { kind: 'mark', para: 0, quote: 'Not the worst word, an early word, but a word.' },
+      { kind: 'highlight', hue: 'rose', para: 2, quote: 'I keep thinking about the pie' },
+    ],
+  },
+  {
+    id: 'e-2024-09-27',
+    date: '2024-09-27',
+    paragraphs: [
+      "Called Mom to check and she was completely herself, sharp, asking about Leo's reading.",
+      "So now I am a person who is relieved and suspicious at the same time.",
+      "Bringing her before God. I do not have a request. I just keep saying her name.",
+    ],
+    markings: [
+      { kind: 'prayer', para: 2, quote: 'I do not have a request. I just keep saying her name.' },
+    ],
+  },
+  {
+    id: 'e-2024-10-03',
+    date: '2024-10-03',
+    paragraphs: [
+      "Told David I am scared about Mom and he did not say it will be fine, which I noticed and was grateful for.",
+      "He said we will go together, and then he actually put the dates in the calendar, which for him is a love language.",
+      'Is it him, or am I the one making it harder?',
+    ],
+    markings: [
+      { kind: 'story', para: 0, quote: 'Told David I am scared about Mom and he did not say it will be fine' },
+      { kind: 'underline', para: 1, quote: 'we will go together' },
+    ],
+  },
+  {
+    id: 'e-2024-10-09',
+    date: '2024-10-09',
+    paragraphs: [
+      "Lamentations came up in the group tonight — the mercies are new every morning line — and I have always found it a little easy.",
+      "Tonight it was not easy. Tonight it was the only sentence that fit.",
+      "I have the sense that I am being handed something to carry rather than something to fix. I do not know what to do with that yet.",
+    ],
+    markings: [
+      { kind: 'scripture', ref: 'Lamentations 3:22-23', para: 0, quote: 'Lamentations came up in the group tonight' },
+      { kind: 'highlight', hue: 'amber', para: 1, quote: 'Tonight it was the only sentence that fit' },
+      { kind: 'sense', para: 2, quote: 'I am being handed something to carry rather than something to fix' },
+    ],
+  },
+  {
+    id: 'e-2024-10-22',
+    date: '2024-10-22',
+    paragraphs: [
+      "Took the kids to see her. She made Leo show her the reading book and she was patient with him in a way I am not.",
+      "Mira sat on the arm of the chair and narrated. Mom let her.",
+      "On the way home Leo said Grandma is good at listening and I had to stop at a light and breathe.",
+    ],
+    markings: [
+      { kind: 'story', para: 2, quote: 'Leo said Grandma is good at listening and I had to stop at a light and breathe' },
+      { kind: 'mark', para: 0, quote: 'she was patient with him in a way I am not' },
+    ],
+  },
+  {
+    id: 'e-2024-12-01',
+    date: '2024-12-01',
+    paragraphs: [
+      "Quieter month. The word from September has become a thing we live with instead of a thing that happened.",
+      "What I have learned: the fear was worse in the week before we knew than it has been in any week since.",
+      'When do I stop making it harder in advance?',
+    ],
+    markings: [
+      { kind: 'learned', para: 1, quote: 'the fear was worse in the week before we knew than it has been in any week since' },
+    ],
+  },
+
+  // ── 2025 ─────────────────────────────────────────────────────────────────
+  {
+    id: 'e-2025-01-08',
+    date: '2025-01-08',
+    paragraphs: [
+      'First quiet morning of the year. The house is still and I am trying to remember how to sit.',
+      'I want to be praying about my marriage this year. Not fixing David. Just bringing him.',
+      'I keep making lists instead of actually talking to God about it.',
+      'How much will she remember of this year?',
+    ],
+    markings: [
+      { kind: 'desire', para: 1, quote: 'I want to be praying about my marriage this year.' },
+      { kind: 'prayer', para: 1, quote: 'Not fixing David. Just bringing him.' },
+      { kind: 'highlight', hue: 'sage', para: 2, quote: 'I keep making lists instead of actually talking to God about it' },
+      { kind: 'absence', para: 2, quote: 'instead of actually talking to God about it' },
+    ],
+  },
+  {
+    id: 'e-2025-01-22',
+    date: '2025-01-22',
+    paragraphs: [
+      'Leo had practice and then a meltdown in the gym lobby over a water bottle.',
+      'Mira watched from the bench with that little folded-up face she gets when someone else is loud.',
+      'I was short with both of them in the car and then sorry the whole way home.',
+    ],
+    markings: [
+      { kind: 'highlight', hue: 'lilac', para: 1, quote: 'that little folded-up face she gets when someone else is loud' },
+    ],
+  },
+  {
+    id: 'e-2025-02-03',
+    date: '2025-02-03',
+    paragraphs: [
+      'Long day. I am writing this because if I don\'t I will just keep moving.',
+      'Work ran late. David had already fed them. The kitchen was a wreck and I was grateful and irritated at the same time, which is a stupid combination.',
+      'Leo wanted me to watch a video of a trick he learned. I said in a minute and then it was bedtime.',
+      'Mira asked if we could read the one about the fox again. We did.',
+      'I still have not unpacked the bag from the weekend.',
+      'Mom called and told me the same story about the neighbor\'s dog, twice, and I did not know whether to laugh or to put my head down on the table.',
+      'Then I paid the electric bill and wiped the counters and it was 10:40.',
+    ],
+    markings: [
+      { kind: 'mark', para: 5, quote: 'told me the same story about the neighbor\'s dog, twice' },
+    ],
+  },
+  {
+    id: 'e-2025-02-18',
+    date: '2025-02-18',
+    paragraphs: [
+      'Church this morning. I was half-listening until Isaiah 43:19 — behold I am doing a new thing.',
+      'I wrote it in the bulletin and then lost the bulletin in the van under Mira\'s seat.',
+      'I don\'t know what the new thing is. I just know I have been asking for one.',
+      'What if the new thing is not an event?',
+    ],
+    markings: [
+      { kind: 'scripture', ref: 'Isaiah 43:19', para: 0, quote: 'I was half-listening until Isaiah 43:19 — behold I am doing a new thing.' },
+      { kind: 'underline', para: 2, quote: 'I just know I have been asking for one' },
+    ],
+  },
+  {
+    id: 'e-2025-03-04',
+    date: '2025-03-04',
+    paragraphs: [
+      'I sat down to dump and now I cannot stop.',
+      'Leo\'s coach emailed about playing time and I drafted three replies and sent none of them.',
+      'David was short at breakfast. I was shorter. We recovered by dinner the way we do, without actually saying the thing.',
+      'I keep thinking if I just get through this month the house will feel like a house again.',
+      'Grocery list: milk, the bread Mira will actually eat, more coffee, something green so I can pretend.',
+      'Mom asked what year it was and laughed like it was a joke, and I laughed too, and then I sat in the driveway for a long time.',
+      'Mira\'s left shoe is still missing. Leo says he didn\'t take it. I believe him and also I don\'t.',
+      'I don\'t know why I wrote all of this. It is a lot of words to say I am tired.',
+    ],
+    markings: [
+      { kind: 'mark', para: 5, quote: 'then I sat in the driveway for a long time' },
+    ],
+  },
+  {
+    id: 'e-2025-03-21',
+    date: '2025-03-21',
+    paragraphs: [
+      'We argued about money. Not even a lot of money. The tone of it.',
+      'After the kids were down I told David I was scared we were becoming roommates who share a calendar.',
+      'He sat on the edge of the bed and didn\'t defend himself, which was either grace or exhaustion.',
+      'I prayed for my marriage in the dark like I used to, before I had a system for it.',
+      'How long have we been roommates who share a calendar?',
+    ],
+    markings: [
+      { kind: 'highlight', hue: 'rose', para: 1, quote: 'roommates who share a calendar' },
+      { kind: 'prayer', para: 3, quote: 'I prayed for my marriage in the dark like I used to, before I had a system for it.' },
+    ],
+  },
+  {
+    id: 'e-2025-04-09',
+    date: '2025-04-09',
+    paragraphs: [
+      'Mira woke at 2 from a nightmare and would not tell me what it was.',
+      'She just said stay, so I stayed.',
+      'Leo slept through the whole thing, which felt like a small mercy and also like I was doing two different nights at once.',
+      'Why is stay the only word she needed?',
+    ],
+    markings: [{ kind: 'highlight', hue: 'lilac', para: 1, quote: 'She just said stay, so I stayed.' }],
+  },
+  {
+    id: 'e-2025-04-27',
+    date: '2025-04-27',
+    paragraphs: [
+      'Drove to Mom\'s. She was in the garden with the tomatoes and she knew my name.',
+      'We sat on the back step and she asked about the kids as if she had been saving the question.',
+      'I did not want to leave. I left anyway, because Leo had a game.',
+    ],
+    markings: [
+      { kind: 'mark', para: 0, quote: 'She was in the garden with the tomatoes and she knew my name.' },
+      { kind: 'gift', para: 0, quote: 'she knew my name' },
+      { kind: 'story', para: 1, quote: 'she asked about the kids as if she had been saving the question' },
+    ],
+  },
+  {
+    id: 'e-2025-05-14',
+    date: '2025-05-14',
+    paragraphs: [
+      'The same verse found me again. Isaiah. A new thing. I was not even looking for it — it was in a song Mira was humming.',
+      'I don\'t trust how much I want it to mean something.',
+      'David asked why I was quiet at dinner. I said I was tired, which was true and also not the whole true.',
+    ],
+    markings: [
+      { kind: 'scripture', ref: 'Isaiah 43:19', para: 0, quote: 'The same verse found me again. Isaiah. A new thing.' },
+      { kind: 'sense', para: 1, quote: 'I don\'t trust how much I want it to mean something.' },
+    ],
+  },
+  {
+    id: 'e-2025-06-02',
+    date: '2025-06-02',
+    paragraphs: [
+      'David took me out. No occasion. He had already asked my sister to take the kids.',
+      'I cried in the car on the way home, which I hated, and he didn\'t try to fix it.',
+      'I want to remember that he still knows how to do this.',
+    ],
+    markings: [
+      { kind: 'story', para: 0, quote: 'David took me out. No occasion. He had already asked my sister to take the kids.' },
+      { kind: 'underline', para: 2, quote: 'he still knows how to do this' },
+      { kind: 'gift', para: 1, quote: 'he didn\'t try to fix it' },
+    ],
+  },
+  {
+    id: 'e-2025-06-19',
+    date: '2025-06-19',
+    paragraphs: [
+      'Dumping because the week was noise.',
+      'Leo lost his library book. Mira bit a kid at camp and I had to have the conversation, the one where I am calm on the outside.',
+      'Work wants an answer by Friday on a thing I do not want to do.',
+      'I stood in the pantry eating crackers and calling it lunch.',
+      'Mom did not pick up. I did not try a second time, and I am writing that down so I cannot pretend I did.',
+      'David loaded the dishwasher without being asked. I noticed and did not say it.',
+    ],
+    markings: [
+      { kind: 'mark', para: 4, quote: 'I am writing that down so I cannot pretend I did' },
+    ],
+  },
+  {
+    id: 'e-2025-07-08',
+    date: '2025-07-08',
+    paragraphs: [
+      'Half a day alone at the library. I brought the journal on purpose.',
+      'What I have been praying about the kids: that Leo would not decide he is the problem, and that Mira would come out from behind her own quiet.',
+      'I think God has been kind in small ways I only see when I sit still long enough.',
+      'I still don\'t like rereading the messy pages. They feel like walking back into a room I already left.',
+    ],
+    markings: [
+      { kind: 'prayer', para: 1, quote: 'that Leo would not decide he is the problem, and that Mira would come out from behind her own quiet' },
+      { kind: 'sense', para: 2, quote: 'God has been kind in small ways I only see when I sit still long enough' },
+      { kind: 'highlight', hue: 'sky', para: 3, quote: 'like walking back into a room I already left' },
+      { kind: 'mark', para: 0, quote: 'I brought the journal on purpose.' },
+    ],
+  },
+  {
+    id: 'e-2025-08-15',
+    date: '2025-08-15',
+    paragraphs: [
+      'Mom is in the hospital. Not the bad kind of sentence, they said, and then they said we should come.',
+      'I sat in the hallway and wrote this on my phone because I could not sit there doing nothing and I also could not pray out loud.',
+      'She looked small. I hated that I thought that. I am leaving it anyway.',
+      'Leo asked if Grandma was dying. I said I don\'t know, which was the first honest thing I had said all day.',
+      'Does it matter how much she can remember, if I remember for her?',
+    ],
+    markings: [
+      { kind: 'mark', para: 2, quote: 'She looked small. I hated that I thought that. I am leaving it anyway.' },
+      { kind: 'absence', para: 1, quote: 'I also could not pray out loud' },
+    ],
+  },
+  {
+    id: 'e-2025-08-22',
+    date: '2025-08-22',
+    paragraphs: [
+      "Mom is home. The discharge papers say a lot of words that mean we do not know.",
+      "David drove. I sat in the back with her like a kid.",
+      "Leo asked twice whether Grandma was better and I gave him two different answers.",
+    ],
+    markings: [
+      { kind: 'mark', para: 0, quote: 'a lot of words that mean we do not know' },
+      { kind: 'story', para: 1, quote: 'I sat in the back with her like a kid.' },
+    ],
+  },
+  {
+    id: 'e-2025-08-28',
+    date: '2025-08-28',
+    paragraphs: [
+      "Sat with Mom while she napped. The house smells the same as it did when I was nine.",
+      "I keep bringing her and I keep not knowing what to ask for.",
+    ],
+    markings: [
+      { kind: 'story', para: 0, quote: 'The house smells the same as it did when I was nine.' },
+      { kind: 'prayer', para: 1, quote: 'I keep bringing her and I keep not knowing what to ask for.' },
+    ],
+  },
+  {
+    id: 'e-2025-09-02',
+    date: '2025-09-02',
+    paragraphs: [
+      'First day of school. Leo walked in without looking back. Mira held my fingers until the last possible second.',
+      'The house was too quiet and I wasted it on email.',
+      'David texted a picture of his coffee like we were still new.',
+    ],
+    markings: [
+      { kind: 'highlight', hue: 'amber', para: 0, quote: 'Mira held my fingers until the last possible second' },
+    ],
+  },
+  {
+    id: 'e-2025-10-11',
+    date: '2025-10-11',
+    paragraphs: [
+      'Marriage feels like a hallway this month. We pass. We are kind. We do not stop.',
+      'I miss David in the specific way you miss someone who is still in the house.',
+      'I prayed about it for four minutes and then folded laundry, which is also a kind of prayer if I am being generous, and I am not sure I should be.',
+    ],
+    markings: [
+      { kind: 'mark', para: 1, quote: 'I miss David in the specific way you miss someone who is still in the house.' },
+      { kind: 'absence', para: 2, quote: 'I prayed about it for four minutes and then folded laundry' },
+      { kind: 'highlight', hue: 'rose', para: 0, quote: 'Marriage feels like a hallway this month' },
+    ],
+  },
+  {
+    id: 'e-2025-11-20',
+    date: '2025-11-20',
+    paragraphs: [
+      'Leo\'s concert. He looked for us in the dark and found us.',
+      'Mira fell asleep against David\'s arm in the second row.',
+      'I thought: this is the whole thing, and I am going to forget I thought it.',
+    ],
+    markings: [
+      { kind: 'story', para: 0, quote: 'He looked for us in the dark and found us.' },
+      { kind: 'gift', para: 1, quote: 'Mira fell asleep against David\'s arm in the second row.' },
+      { kind: 'underline', para: 2, quote: 'this is the whole thing, and I am going to forget I thought it' },
+    ],
+  },
+  {
+    id: 'e-2025-12-24',
+    date: '2025-12-24',
+    paragraphs: [
+      'Christmas Eve. The kids put out the plates for cookies like it still works.',
+      'David read the Luke passage and his voice went quiet at the shepherds, the way it does every year.',
+      'I was glad for a night that asked so little of me.',
+      'What do I do with a night that asks nothing of me?',
+    ],
+    markings: [
+      { kind: 'scripture', ref: 'Luke 2:8-14', para: 1, quote: 'David read the Luke passage and his voice went quiet at the shepherds' },
+    ],
+  },
+
+  // ── 2026 ─────────────────────────────────────────────────────────────────
+  {
+    id: 'e-2026-01-06',
+    date: '2026-01-06',
+    paragraphs: [
+      'Another January. I wrote last year that I wanted to pray about my marriage, and I did, in fits.',
+      'I am not making a plan this time. I am just going to keep bringing David when I sit down.',
+      'Are we still roommates who share a calendar, or did that pass?',
+    ],
+    markings: [
+      { kind: 'prayer', para: 1, quote: 'I am just going to keep bringing David when I sit down.' },
+      { kind: 'learned', para: 0, quote: 'I wrote last year that I wanted to pray about my marriage, and I did, in fits' },
+    ],
+  },
+  {
+    id: 'e-2026-02-14',
+    date: '2026-02-14',
+    paragraphs: [
+      'David left a note on the counter. Not a production. Just my name and a line from a song we used to know.',
+      'The kids made him a card with too much glue. He put it on the fridge like it was serious.',
+    ],
+    markings: [
+      { kind: 'story', para: 0, quote: 'David left a note on the counter. Not a production. Just my name and a line from a song we used to know.' },
+      { kind: 'gift', para: 0, quote: 'Just my name and a line from a song we used to know.' },
+      { kind: 'highlight', hue: 'amber', para: 1, quote: 'He put it on the fridge like it was serious.' },
+    ],
+  },
+  {
+    id: 'e-2026-03-01',
+    date: '2026-03-01',
+    paragraphs: [
+      'Leo said he thinks he is bad at friends. I sat on the floor of his room and did not rush him.',
+      'Mira practiced writing her name with the R backwards and was proud anyway.',
+      'Who told him that friends are a thing you are good at?',
+    ],
+    markings: [
+      { kind: 'mark', para: 0, quote: 'Leo said he thinks he is bad at friends.' },
+      { kind: 'learned', para: 0, quote: 'I sat on the floor of his room and did not rush him' },
+      { kind: 'highlight', hue: 'sage', para: 1, quote: 'was proud anyway' },
+    ],
+  },
+  {
+    id: 'e-2026-04-18',
+    date: '2026-04-18',
+    paragraphs: [
+      'Mira did not want to go to the birthday party. She hid in the coat closet.',
+      'I sat outside the door and talked to the coats until she laughed, which felt like cheating and also like the only thing that worked.',
+    ],
+    markings: [
+      { kind: 'story', para: 1, quote: 'I sat outside the door and talked to the coats until she laughed' },
+    ],
+  },
+  {
+    id: 'e-2026-05-09',
+    date: '2026-05-09',
+    paragraphs: [
+      'I went to see Mom. She is home. She is smaller. She knew me after a minute.',
+      'We looked at old photographs and she told a story that was half true and I let it be.',
+      'I keep wanting a conclusion. There isn\'t one. She is still my mother.',
+      'How much am I supposed to remember for her?',
+    ],
+    markings: [
+      { kind: 'mark', para: 2, quote: 'I keep wanting a conclusion. There isn\'t one. She is still my mother.' },
+      { kind: 'absence', para: 2, quote: 'I keep wanting a conclusion. There isn\'t one.' },
+      { kind: 'sense', para: 1, quote: 'she told a story that was half true and I let it be' },
+    ],
+  },
+  {
+    id: 'e-2026-06-03',
+    date: '2026-06-03',
+    capture: 'car',
+    paragraphs: [
+      'Waiting at pickup. Mira said she doesn\'t want to go in.',
+      'I told her I would be right here.',
+    ],
+    markings: [{ kind: 'underline', para: 1, quote: 'I would be right here' }],
+  },
+  {
+    id: 'e-2026-06-22',
+    date: '2026-06-22',
+    paragraphs: [
+      'Isaiah again. A new thing. I am almost embarrassed by how often it finds me.',
+      'Maybe the new thing is not a change in circumstance. Maybe it is that I am still here, still asking.',
+      'What if the new thing is only that I keep showing up?',
+    ],
+    markings: [
+      { kind: 'scripture', ref: 'Isaiah 43:19', para: 0, quote: 'Isaiah again. A new thing. I am almost embarrassed by how often it finds me.' },
+      { kind: 'learned', para: 1, quote: 'Maybe the new thing is not a change in circumstance. Maybe it is that I am still here, still asking.' },
+    ],
+  },
+  {
+    id: 'e-2026-07-14',
+    date: '2026-07-14',
+    paragraphs: [
+      'I want to be praying about David the way I used to, before I turned it into a project.',
+      'He fell asleep on the couch with a book on his chest. I covered him with the ugly blanket and did not wake him.',
+      'When did I start managing him instead of loving him?',
+    ],
+    markings: [
+      { kind: 'desire', para: 0, quote: 'I want to be praying about David the way I used to, before I turned it into a project.' },
+      { kind: 'story', para: 1, quote: 'I covered him with the ugly blanket and did not wake him.' },
+    ],
+  },
+  {
+    id: 'e-2026-08-04',
+    date: '2026-08-04',
+    paragraphs: [
+      'Summer is ending and the kids can feel it. Leo is already performing being older.',
+      'Mira asked if Grandma could come to the pool. I said maybe, which was a coward\'s answer.',
+      'How do I tell her that maybe means no without telling her that maybe means no?',
+      'How much of her do I get to remember?',
+    ],
+    markings: [
+      { kind: 'mark', para: 1, quote: 'I said maybe, which was a coward\'s answer' },
+    ],
+  },
+  {
+    id: 'e-2026-08-16',
+    date: '2026-08-16',
+    paragraphs: [
+      'Sat with Mom this afternoon. She held my hand like I was the child.',
+      'I told her about Mira hiding in the coats and she laughed a real laugh.',
+      'I do not know how many more afternoons like this there are. I am not going to make that into a sentence God has to answer.',
+      'What am I supposed to do with a love that only knows how to sit still?',
+    ],
+    markings: [
+      { kind: 'story', para: 1, quote: 'I told her about Mira hiding in the coats and she laughed a real laugh.' },
+      { kind: 'gift', para: 1, quote: 'she laughed a real laugh' },
+      { kind: 'mark', para: 0, quote: 'She held my hand like I was the child.' },
+      { kind: 'sense', para: 2, quote: 'I am not going to make that into a sentence God has to answer.' },
+    ],
+  },
+]
+
+/* ────────────────────────────────────────────────────────────────────────────
+   TODAY — the page Anna just finished. Everything on every screen happens
+   after she puts this down. The editor is never touched (Principle 3); the
+   offer exists only once writing is over (RECALL, Act four).
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const TODAY = {
+  id: 'e-2026-09-15',
+  date: '2026-09-15',
+  paragraphs: [
+    'Mira started first grade and did not look back. I stood in the doorway like it was my first day and not hers.',
+    'Leo is quieter this year in a way I cannot tell is growth or a wall.',
+    'I keep thinking this is the whole thing and that I am going to miss it while it is happening.',
+    "Sat with Mom on Sunday. She called me by my sister's name, corrected herself, and we both let it go.",
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   THE POOL — what collectPassages() returns.
+
+   src/lib/remember.ts reads four sources: marks, blockquotes, markdown
+   emphasis, and writer-DECLARED /pray and /sense blocks. The fixture's kinds
+   map onto them below. Two exclusions are the engine's own and are load-bearing:
+
+     · scripture — the Lamp already ships as "the verses you return to", and on
+       the real archive refs were 284 of 563 passages. Including them would make
+       this half a second Lamp.
+     · anything the model harvested (spiritual_items.source = 'scanned') — 6,257
+       rows of MODEL-inferred significance. Showing those as "what you set apart"
+       is the app asserting significance it decided on. D-016, and it is the
+       whole reason this engine is trustworthy enough to hand a line back at all.
+
+   gift and absence were cut as kinds on 2026-08-26 and are excluded here too.
+
+   NOTE, and it is the one code change this feature needs: remember.ts's
+   DeclaredRow currently only reads /pray and /sense. The product now also has
+   /story, /desire and /learned. Widening it is one line, and it is 19 of the
+   66 passages below.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const SOURCE_OF = {
+  mark: 'mark', quote: 'quote',
+  highlight: 'emphasis', underline: 'emphasis',
+  prayer: 'declared', sense: 'declared', desire: 'declared',
+  learned: 'declared', story: 'declared',
+}
+
+/** remember.ts: MIN_WORDS. 54% of real bold spans are a single word. */
+const MIN_WORDS = 4
+/** remember.ts: MAX_CHARS. Beyond this it is a section, not a passage. */
+const MAX_CHARS = 400
+
+const wordsOf = (s) => s.trim().split(/\s+/).filter(Boolean)
+const keyOf = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+/** Strongest signal first, the way collectPassages orders precedence. */
+const SOURCE_RANK = { mark: 0, quote: 1, declared: 2, emphasis: 3 }
+
+function buildPool() {
+  const out = []
+  for (const e of ENTRIES) {
+    for (let para = 0; para < e.paragraphs.length; para++) {
+      for (const m of e.markings || []) {
+        if (m.para !== para) continue
+        const source = SOURCE_OF[m.kind]
+        if (!source) continue
+        if (wordsOf(m.quote).length < MIN_WORDS) continue
+        if (m.quote.length > MAX_CHARS) continue
+        out.push({ entryId: e.id, date: e.date, para, source, kind: m.kind, text: m.quote, key: keyOf(m.quote) })
+      }
+    }
+  }
+  return out
+}
+
+const POOL = buildPool()
+
+/**
+ * The product's own grounding rule, enforced on the fixture.
+ *
+ * A line handed back that is not a verbatim substring of the page it claims is
+ * the single failure this whole feature exists to avoid — the writer cannot
+ * tell an invented memory from their own past. Loud in the console, always.
+ */
+function validate() {
+  const bad = []
+  for (const p of POOL) {
+    const e = ENTRIES.find((x) => x.id === p.entryId)
+    if (!e || !(e.paragraphs[p.para] || '').includes(p.text)) bad.push(p.date + ': "' + p.text + '"')
+  }
+  if (bad.length) console.error('[afterward] not verbatim:\n' + bad.join('\n'))
+  return bad
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   WHAT SHE HAS ALREADY BEEN HANDED
+
+   A served log is the one piece of state this feature needs, and it is small:
+   a passage key and the day it came back. It is what makes "again" possible and
+   what stops the same line arriving twice by accident. It is not a read
+   receipt and nothing is ever counted from it.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/** Walk order: by the day it was set apart, then down the page. */
+const WALK = [...POOL].sort((a, b) =>
+  a.date < b.date ? -1 : a.date > b.date ? 1 : a.para - b.para)
+
+/** She started this in the spring and is as far as October 2024. */
+const MET_THROUGH = '2024-10-09'
+const MET = new Set(WALK.filter((p) => p.date <= MET_THROUGH).map((p) => p.key))
+/** The last line she was handed — yesterday. */
+const LAST_SERVED = WALK.filter((p) => p.date <= MET_THROUGH).at(-1)
+const LAST_SERVED_ON = '2026-09-14'
+
+/* ────────────────────────────────────────────────────────────────────────────
+   THE THREE RULES
+
+   Each is arithmetic, each is statable to the writer in one sentence, and
+   none of them looks at what a passage SAYS. That is the whole defence: the
+   app is not deciding which of her lines mattered — she already did that when
+   she set it apart — it is only deciding when to be quiet and when to hand one
+   back, on a rule she can read.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
+
+/** Longest run of words appearing in both, in the same order. */
+function longestRun(a, b) {
+  let best = 0, at = -1
+  for (let i = 0; i < a.length; i++) {
+    for (let j = 0; j < b.length; j++) {
+      let n = 0
+      while (i + n < a.length && j + n < b.length && a[i + n] === b[j + n]) n++
+      if (n > best) { best = n; at = i }
+    }
+  }
+  return { n: best, at }
+}
+
+/** How many entries in the whole archive carry this exact run of words. */
+const ARCHIVE_WORDS = ENTRIES.map((e) => norm(e.paragraphs.join(' ')))
+function entriesCarrying(run) {
+  const r = run.split(' ')
+  let n = 0
+  for (const w of ARCHIVE_WORDS) {
+    for (let i = 0; i <= w.length - r.length; i++) {
+      let ok = true
+      for (let j = 0; j < r.length; j++) if (w[i + j] !== r[j]) { ok = false; break }
+      if (ok) { n++; break }
+    }
+  }
+  return n
+}
+
+/** RULE 1 · the walk — the oldest passage she has not been handed yet. */
+function ruleWalk(/* sitting */) {
+  const next = WALK.find((p) => !MET.has(p.key))
+  return next ? { passage: next, because: 'the oldest one you have not met' } : null
+}
+
+const OVERLAP_MIN_RUN = 4
+
+/** RULE 2 · your own words — a passage sharing a run of words with today. */
+function ruleWords(sitting) {
+  const todayWords = sitting.paragraphs.map(norm)
+  const earlier = POOL.filter((p) => p.date < sitting.date)
+  let hit = null
+  for (const p of earlier) {
+    const pw = norm(p.text)
+    for (let i = 0; i < todayWords.length; i++) {
+      const r = longestRun(todayWords[i], pw)
+      if (r.n < OVERLAP_MIN_RUN) continue
+      const run = todayWords[i].slice(r.at, r.at + r.n).join(' ')
+      if (!hit || r.n > hit.n || (r.n === hit.n && p.date < hit.passage.date)) {
+        hit = { passage: p, n: r.n, run, para: i }
+      }
+    }
+  }
+  if (!hit) return null
+  return { ...hit, because: 'you used these words again today' }
+}
+
+const WEEK_WINDOW = 7
+
+const dayOfYear = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 0)) / 86400000)
+}
+/** Around the calendar ring, so late December and early January are near. */
+const ringDistance = (a, b) => { const r = Math.abs(a - b); return Math.min(r, 366 - r) }
+
+/** RULE 3 · the same week — a passage from this week of an earlier year. */
+function ruleWeek(sitting) {
+  const today = dayOfYear(sitting.date)
+  const year = sitting.date.slice(0, 4)
+  const near = POOL
+    .filter((p) => p.date.slice(0, 4) < year && ringDistance(dayOfYear(p.date), today) <= WEEK_WINDOW)
+    // Strongest signal first, then the oldest — the same precedence collectPassages uses.
+    .sort((a, b) => SOURCE_RANK[a.source] - SOURCE_RANK[b.source] || (a.date < b.date ? -1 : 1))
+  if (!near.length) return null
+  const p = near[0]
+  const years = Number(year) - Number(p.date.slice(0, 4))
+  return { passage: p, years, because: years === 1 ? 'a year ago this week' : years + ' years ago this week' }
+}
+
+/* ── How often each rule actually fires, measured on the fixture ─────────── */
+
+function firingRates() {
+  let weekFired = 0, weekEligible = 0, wordsFired = 0
+  for (const e of ENTRIES) {
+    if (e.date.slice(0, 4) !== ENTRIES[0].date.slice(0, 4)) {
+      weekEligible++
+      if (ruleWeek(e)) weekFired++
+    }
+    if (ruleWords(e)) wordsFired++
+  }
+  return {
+    walk: { fires: 'every sitting, ' + POOL.length + ' times', pct: null },
+    words: { fires: wordsFired + ' of ' + ENTRIES.length + ' sittings', pct: Math.round((100 * wordsFired) / ENTRIES.length) },
+    week: { fires: weekFired + ' of ' + weekEligible + ' sittings', pct: Math.round((100 * weekFired) / weekEligible) },
+  }
+}
+
+const RATES = firingRates()
+
+/* ────────────────────────────────────────────────────────────────────────────
+   RENDERING
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+function longDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return MONTHS[m - 1] + ' ' + d + ', ' + y
+}
+function shortDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return MONTHS[m - 1] + ' ' + d
+}
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Light a run of words inside a sentence without touching the sentence. */
+function lightRun(text, run) {
+  if (!run) return esc(text)
+  const want = run.split(' ')
+  const tokens = text.split(/(\s+)/)
+  const isWord = (t) => /[a-z0-9]/i.test(t)
+  const bare = (t) => t.toLowerCase().replace(/[^a-z0-9]/g, '')
+  for (let i = 0; i < tokens.length; i++) {
+    if (!isWord(tokens[i])) continue
+    let k = i, matched = 0
+    while (k < tokens.length && matched < want.length) {
+      if (isWord(tokens[k])) {
+        if (bare(tokens[k]) !== want[matched]) break
+        matched++
+      }
+      k++
+    }
+    if (matched === want.length) {
+      while (k > i && !isWord(tokens[k - 1])) k--
+      const head = tokens.slice(0, i).join('')
+      const mid = tokens.slice(i, k).join('')
+      const tail = tokens.slice(k).join('')
+      return esc(head) + '<span class="lit">' + esc(mid) + '</span>' + esc(tail)
+    }
+  }
+  return esc(text)
+}
+
+const page = (entry, cls) => entry.paragraphs
+  .map((p) => '<p class="her ' + (cls || '') + '">' + esc(p) + '</p>').join('')
+
+/* ── knobs ───────────────────────────────────────────────────────────────── */
+
+const state = { delay: true, show: true, second: true }
+
+function knob(label, name, options) {
+  return '<div class="knob"><span>' + label + '</span>' + options.map(([v, text]) =>
+    '<button type="button" data-knob="' + name + '" data-value="' + v + '" aria-pressed="' +
+    (String(state[name]) === v) + '">' + text + '</button>').join('') + '</div>'
+}
+
+/* ── the screens ─────────────────────────────────────────────────────────── */
+
+function screenWord() {
+  const got = ruleWalk(TODAY)
+  return {
+    head: {
+      title: 'The word',
+      rule: '<b>The rule: the oldest line you set apart and have not met.</b> Nothing is chosen — she is walking forward through her own archive, one line each time she sits down, in the order she wrote them.',
+      measured: 'Fires <b>every sitting</b> until the pool runs out — <span class="n">' + POOL.length + '</span>' +
+        ' lines here, <b class="n">404</b> on the real archive on day one. The only rule of the three that can be the floor.',
+    },
+    knobs: knob('the way out', 'delay', [['true', 'after a beat'], ['false', 'immediately']]),
+    stage: '<div class="stage stage--centre"><div class="stage__body">' +
+      '<p class="word__line">' + esc(got.passage.text) + '</p>' +
+      '<p class="when word__when">' + longDate(got.passage.date) + '</p>' +
+      '<p class="said word__rule">' + got.because + '</p>' +
+      '<p class="word__out' + (state.delay ? '' : ' shown') + '" id="wordout">the page it came from</p>' +
+      '</div></div>',
+    after() {
+      if (!state.delay) return
+      const out = document.getElementById('wordout')
+      if (out) setTimeout(() => out.classList.add('shown'), 4000)
+    },
+  }
+}
+
+function screenHairline() {
+  const got = ruleWords(TODAY)
+  const body = TODAY.paragraphs.map((p, i) =>
+    '<p class="her">' + (i === got.para ? lightRun(p, state.show ? got.run : '') : esc(p)) + '</p>').join('')
+  return {
+    head: {
+      title: 'The hairline',
+      rule: '<b>The rule: a line you set apart that shares a run of words with the page you just closed.</b> ' +
+        'Literal matching, computed in code — the longest run of ' + OVERLAP_MIN_RUN +
+        ' words or more. No model is involved, and the reason it came is on the screen.',
+      measured: 'Fires on <b class="n">' + RATES.words.fires + '</b> (' + RATES.words.pct +
+        '%). The most convincing return in here and by far the rarest — it cannot be the only rule.',
+    },
+    knobs: knob('show its work', 'show', [['true', 'light the words'], ['false', 'say nothing']]),
+    stage: '<div class="stage"><div class="stage__body">' + body +
+      '<hr class="hair">' +
+      '<div class="back">' +
+      '<p class="said">' + (state.show ? got.because : 'from Nov 20, 2025') + '</p>' +
+      '<p class="back__line">' + (state.show ? lightRun(got.passage.text, got.run) : esc(got.passage.text)) + '</p>' +
+      '<p class="when">' + longDate(got.passage.date) + '</p>' +
+      '</div></div></div>',
+  }
+}
+
+function screenFacing() {
+  const got = ruleWeek(TODAY)
+  return {
+    head: {
+      title: 'Facing pages',
+      rule: '<b>The rule: a line you set apart in this same week of an earlier year.</b> The calendar comes ' +
+        'round whether or not she was faithful, and then it leaves. Same arithmetic as the shipped ' +
+        '<code>anniversaries.ts</code>, returning the line instead of the page.',
+      measured: 'At ±' + WEEK_WINDOW + ' days it fires on <b class="n">' + RATES.week.fires + '</b> (' + RATES.week.pct +
+        '%). At the window the wall actually ships — ±3 days — it fires on <b class="n">26%</b>, and returns nothing today.',
+    },
+    stage: '<div class="stage"><div class="stage__body"><div class="facing">' +
+      '<div class="facing__side facing__side--now">' +
+        '<p class="said" style="margin-bottom:18px">today</p>' + page(TODAY) +
+      '</div>' +
+      '<div class="facing__spine"></div>' +
+      '<div class="facing__side facing__side--past">' +
+        '<p class="said" style="margin-bottom:14px">' + got.because + '</p>' +
+        '<p class="back__line" style="font-size:20px">' + esc(got.passage.text) + '</p>' +
+        '<p class="when">' + longDate(got.passage.date) + '</p>' +
+      '</div>' +
+      '</div></div></div>',
+  }
+}
+
+function screenAgain() {
+  const p = LAST_SERVED
+  const first = '<div class="stage stage--centre"><div class="stage__body">' +
+    '<p class="word__line">' + esc(p.text) + '</p>' +
+    '<p class="when word__when">' + longDate(p.date) + '</p>' +
+    '<p class="said word__rule">the oldest one you have not met</p>' +
+    '</div></div>'
+  const second = '<div class="stage stage--centre"><div class="stage__body">' +
+    '<p class="word__line">' + esc(p.text) + '</p>' +
+    '<p class="when word__when">' + longDate(p.date) + '</p>' +
+    '<p class="said word__rule">you met this yesterday</p>' +
+    '</div></div>'
+  return {
+    head: {
+      title: 'Again',
+      rule: '<b>Not a fourth rule — a modifier on any of the three.</b> The Exercises do not advance to new ' +
+        'material; the second and third contemplations repeat the first, and lectio chews one line. Nothing ' +
+        'else in the product re-serves anything.',
+      measured: 'The only thing that changes on the second serving is one line of sans. The line itself gets ' +
+        'no new weight, no badge, and no count — <b>a second meeting is not an achievement.</b>',
+    },
+    knobs: knob('serving', 'second', [['false', 'yesterday'], ['true', 'today, again']]),
+    stage: state.second ? second : first,
+  }
+}
+
+function screenNothing() {
+  return {
+    head: {
+      title: 'Nothing',
+      rule: '<b>The control, and the one screen that has to be here.</b> On a day when the rule returns ' +
+        'nothing, the answer is the blank next page — not a weaker line, not a second rule wheeled in to ' +
+        'cover the gap, and not a prompt.',
+      measured: '<b>Grounded, or silent</b> is the fourth principle, and silence is the half nobody builds. ' +
+        'Falling back to a looser rule when the good one is quiet is how every product of this kind ends up ' +
+        'handing people filler.',
+    },
+    stage: '<div class="stage"><div class="stage__body"><div class="blank"><span class="blank__caret"></span></div></div></div>',
+  }
+}
+
+function screenAll() {
+  const got = [
+    ['the walk', 'the oldest line you have not met', ruleWalk(TODAY), 'every sitting'],
+    ['your own words', 'a line sharing ' + OVERLAP_MIN_RUN + '+ words with today', ruleWords(TODAY), RATES.words.pct + '% of sittings'],
+    ['the same week', 'a line from this week of an earlier year', ruleWeek(TODAY), RATES.week.pct + '% of sittings'],
+  ]
+  const cols = got.map(([name, how, hit, rate]) => '<div class="three__col">' +
+    '<p class="three__name">' + name + '</p>' +
+    '<p class="three__how">' + how + '</p>' +
+    (hit
+      ? '<p class="three__line">' + esc(hit.passage.text) + '</p>' +
+        '<p class="when">' + longDate(hit.passage.date) + '</p>'
+      : '<p class="three__line" style="opacity:.4">— nothing —</p>') +
+    '<div class="three__foot"><p class="said">' + (hit ? hit.because : 'silent today') + '</p>' +
+    '<p class="three__rate">fires ' + rate + '</p></div>' +
+    '</div>').join('')
+  return {
+    head: {
+      title: 'The same day, three rules',
+      rule: 'One sitting — Sept 15, 2026 — put through all three. <b>Three different lines, all hers, all ' +
+        'verbatim, none chosen for what it says.</b> This is the screen to argue over.',
+      measured: 'The finding: <b>no single rule fires often enough to be the whole feature, and the best one ' +
+        'fires least.</b> The walk is the floor; the other two are occasions that interrupt it.',
+    },
+    stage: '<div class="stage"><div class="stage__body"><div class="three">' + cols + '</div></div></div>',
+  }
+}
+
+function screenNotes() {
+  const bad = validate()
+  return {
+    head: {
+      title: 'Notes',
+      rule: 'Facilitator page. Open it before the call, not during it.',
+      measured: 'Verbatim check on load: <b class="n">' + (bad.length ? bad.length + ' FAILURES' : 'clean') + '</b>. ' +
+        'A quote nobody wrote is the one failure this whole surface exists to avoid.',
+    },
+    html: '<div class="notes">' +
+      '<h3>What the pool actually is</h3>' +
+      '<p>' + POOL.length + ' passages from ' + ENTRIES.length + ' entries over four years — ' +
+      'every line Anna set apart by her own hand, and nothing else. Scripture references are excluded ' +
+      'by the engine (the Lamp already ships as “the verses you return to”), and so is everything the ' +
+      'Altar’s model harvested. One fixture line was dropped for being under four words.</p>' +
+      '<div class="tablewrap"><table><thead><tr><th>Rule</th><th>Fires</th><th>What it returns today</th><th>The risk in it</th></tr></thead><tbody>' +
+      '<tr><td>the walk</td><td><b>100%</b></td><td>' + esc(ruleWalk(TODAY).passage.text) + '</td>' +
+      '<td>a position in a walk is progress-shaped. Show the <em>date</em> of the line, never how far along she is.</td></tr>' +
+      '<tr><td>your own words</td><td><b>' + RATES.words.pct + '%</b></td><td>' + esc(ruleWords(TODAY).passage.text) + '</td>' +
+      '<td>four-word runs of English function words are coincidence, not recurrence. Measured below.</td></tr>' +
+      '<tr><td>the same week</td><td><b>' + RATES.week.pct + '%</b></td><td>' + esc(ruleWeek(TODAY).passage.text) + '</td>' +
+      '<td>silent for most of the year on a thin archive, and silent forever in year one.</td></tr>' +
+      '</tbody></table></div>' +
+      '<h3>The overlap rule, measured</h3>' +
+      '<p>Run the rule over every sitting in the fixture and it is either rare and superb or common and junk. ' +
+      'There is no middle:</p>' +
+      '<div class="tablewrap"><table><thead><tr><th>Minimum run</th><th>Fires</th><th>Verdict</th></tr></thead><tbody>' +
+      '<tr><td>3 words</td><td><b>34%</b></td><td>mostly <em>“i keep thinking”</em>, <em>“that i am”</em> — coincidence</td></tr>' +
+      '<tr><td>4 words</td><td><b>13%</b></td><td>two superb hits, four junk ones</td></tr>' +
+      '<tr><td>5 words</td><td><b>4%</b></td><td><em>“roommates who share a calendar”</em> · <em>“i want to be praying about”</em> — both real, ten and eighteen months apart</td></tr>' +
+      '</tbody></table></div>' +
+      '<p>Adding a rarity test — the run must appear in no more than two entries in the whole archive — drops ' +
+      '<em>“i want to be”</em> and <em>“i sat in the”</em> and still lets <em>“did not say it”</em> through, ' +
+      'at 6% firing. <b>The tuning question is open and it is the only hard one in the feature.</b></p>' +
+      '<h3>What this costs to build</h3>' +
+      '<ul>' +
+      '<li>One widening of <code>DeclaredRow</code> in <code>remember.ts</code> so <code>/story</code>, ' +
+      '<code>/desire</code> and <code>/learned</code> count — 19 of these 66 passages.</li>' +
+      '<li>One served log: a passage key and a date. Not a read receipt, and nothing is ever counted from it.</li>' +
+      '<li>No model call. No new interpretation. No migration beyond the log.</li>' +
+      '</ul>' +
+      '<h3>Vocabulary check</h3>' +
+      '<p>Banned across this surface, and absent from it: <em>track, review, insights, score, progress, goal, ' +
+      'dashboard, analytics, journey, inbox, workflow.</em> Nothing accrues, nothing is unread, and there is ' +
+      'nothing here to be behind on.</p>' +
+      '</div>',
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   ROUTER
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const SCREENS = [
+  { id: 'word', key: '1', label: 'the word', build: screenWord },
+  { id: 'hairline', key: '2', label: 'the hairline', build: screenHairline },
+  { id: 'facing', key: '3', label: 'facing pages', build: screenFacing },
+  { id: 'again', key: '4', label: 'again', build: screenAgain },
+  { id: 'nothing', key: '5', label: 'nothing', build: screenNothing },
+  { id: 'all', key: 'c', label: 'all three, one day', build: screenAll },
+  { id: 'notes', key: '?', label: 'notes', build: screenNotes },
+]
+
+function current() {
+  const id = location.hash.replace(/^#/, '')
+  return SCREENS.find((s) => s.id === id) || SCREENS[0]
+}
+
+function renderBar() {
+  const now = current()
+  document.getElementById('bar').innerHTML =
+    SCREENS.map((s) => '<button type="button" data-go="' + s.id + '" aria-current="' + (s.id === now.id) + '">' +
+      '<span class="key">' + s.key + '</span>' + s.label + '</button>').join('') +
+    '<span class="spacer"></span><span class="hint">S hides the chrome</span>'
+}
+
+function render() {
+  const now = current()
+  const built = now.build()
+  const head = '<header><h2>' + built.head.title + '</h2>' +
+    '<p class="rule-line">' + built.head.rule + '</p>' +
+    '<p class="measured">' + built.head.measured + '</p></header>'
+  document.getElementById('main').innerHTML =
+    '<section class="screen">' + head + (built.knobs || '') + (built.stage || built.html || '') + '</section>'
+  renderBar()
+  if (built.after) built.after()
+}
+
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]')
+  if (go) { location.hash = go.dataset.go; return }
+  const k = e.target.closest('[data-knob]')
+  if (k) {
+    const v = k.dataset.value
+    state[k.dataset.knob] = v === 'true' ? true : v === 'false' ? false : v
+    render()
+  }
+})
+
+window.addEventListener('hashchange', render)
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (e.key === 's' || e.key === 'S') { document.body.classList.toggle('bare'); return }
+  const hit = SCREENS.find((s) => s.key === e.key)
+  if (hit) location.hash = hit.id
+})
+
+document.getElementById('poolnote').textContent =
+  POOL.length + ' passages, verbatim-checked on load. '
+
+validate()
+render()
+</script>
