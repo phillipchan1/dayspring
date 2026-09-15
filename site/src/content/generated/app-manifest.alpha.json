@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.335",
+  "appVersion": "1.0.339",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -1152,23 +1152,6 @@
         ]
       },
       {
-        "id": "practice.emotionally-healthy-examen",
-        "name": "Emotionally Healthy Examen",
-        "function": "examine",
-        "rhythm": [
-          "evening"
-        ],
-        "origin": "Peter Scazzero, contemporary",
-        "tradition": "Contemplative",
-        "intention": "An adaptation of the Examen that takes emotional honesty seriously — because you can’t be spiritually mature while emotionally immature.",
-        "quote": "What did I feel today? What did those feelings reveal about what I believe?",
-        "steps": [
-          "Feel",
-          "Reveal",
-          "Encounter"
-        ]
-      },
-      {
         "id": "practice.the-examen-of-consolation",
         "name": "The Examen of Consolation",
         "function": "gratitude",
@@ -1202,24 +1185,6 @@
           "Consolation",
           "Desolation",
           "Hold"
-        ]
-      },
-      {
-        "id": "practice.then-vs-now",
-        "name": "Then vs. Now",
-        "function": "examine",
-        "rhythm": [
-          "anytime"
-        ],
-        "origin": "Adapted from narrative-therapy practice, contemporary",
-        "tradition": "Secular",
-        "intention": "A direct comparison of who you were to who you are — not vague sentiment, but concrete evidence that something has actually changed.",
-        "quote": "What do I believe now that I didn’t a year ago? What’s the proof?",
-        "steps": [
-          "Then",
-          "Now",
-          "Evidence",
-          "Presence"
         ]
       },
       {
@@ -1463,7 +1428,7 @@
     "editor.font-size-default": 24,
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
-    "counts.practices": 15,
+    "counts.practices": 13,
     "counts.themes": 11,
     "counts.voices": 6,
     "counts.slash-commands": 23,
