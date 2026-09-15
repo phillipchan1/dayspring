@@ -43,16 +43,20 @@ export const deepDives = [
     lead: "Not a prompt of the day — contemplative writing forms drawn from two thousand years of the praying church, opened with `/ritual`. Browse the library, read the threshold, and write into a structure that knows where to begin.",
     points: [
       {
-        title: "Nine forms, one library",
-        body: "The Daily Examen, Lectio Divina, SOAP, Psalmic Lament, Wesley's Questions, Prayer of Recollection, Ignatian Discernment, and more — each with its origin, tradition, and intention named before you begin.",
+        title: "Thirteen forms, one library",
+        body: "The Daily Examen, Lectio Divina, The Round, The Morning Offering, Luther's Garland, Psalmic Lament, Ignatian Discernment, and more — each with its origin, tradition, and intention named before you begin.",
+      },
+      {
+        title: "The Round — your own week, walked",
+        body: "A weekly ritual built from what you've already written: one movement for each part of your life Dayspring has noticed — work, family, the things you're carrying — asking only, what's true here this week?",
       },
       {
         title: "Scaffolding, not script",
         body: "Each section renders a label and a guiding question in the editor — display-only. Only what you type is saved. When you're done with the form, dissolve it into plain prose with one click.",
       },
       {
-        title: "Filter by what you need",
-        body: "Examine, encounter, listen, lament, gratitude, form — browse by the contemplative function, not by denomination. The same page holds Ignatius and the Psalter.",
+        title: "Finds you, doesn't wait to be found",
+        body: "Search by name, tradition, or a line that's stuck with you. Or open the library empty-handed — it opens on the morning's rituals at 6am and the evening's at 9pm, and says why.",
       },
     ],
     mock: "practices",
@@ -178,9 +182,10 @@ export const everything = [
   {
     group: "The Rituals library",
     items: [
-      "Nine contemplative forms",
+      "Thirteen contemplative forms",
       "From Ignatius to the Psalter",
-      "Filter by what you need",
+      "The Round — a weekly walk through your own life",
+      "Search, or let the hour choose",
       "Guiding questions, in the editor",
       "Optional previews before you begin",
       "Dissolve a form into plain prose",

@@ -12,13 +12,15 @@ Type `/ritual` and the practice library opens.
 
 These are old forms of prayer, laid out as prompts you write into. The Daily
 Examen. Lectio Divina. Wesley's Questions. SOAP. A psalmic lament for when you
-need one.
+need one. The Round, once a week, walks the domains of your own life one at a
+time — what's true here, this week.
 
 ## Choosing one
 
-Filter by what you want it to do — examine, encounter, listen, lament, give
-thanks, be formed — or by when in the day it suits: morning, midday, evening,
-anytime.
+The library opens on what the hour already suggests — mornings lead with the
+rituals that begin a day, evenings with the ones that close it — and says why
+on screen. Search by name, tradition, or a line that's stuck with you, or just
+browse.
 
 If you're new to this, the **Daily Examen** in the evening is the usual door in.
 

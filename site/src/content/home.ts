@@ -162,8 +162,13 @@ export const writingPage = {
 export const practices = {
   tag: "Rituals",
   heading: "When you don't know where to <em>begin.</em>",
-  lead: "Not a prompt of the day. Nine contemplative forms drawn from two thousand years of the praying church — opened with <em>/ritual</em> and laid over the page as gentle scaffolding that knows where to start without telling you what to say.",
+  lead: "Not a prompt of the day. Thirteen contemplative forms drawn from two thousand years of the praying church — opened with <em>/ritual</em> and laid over the page as gentle scaffolding that knows where to start without telling you what to say.",
   rituals: [
+    {
+      name: "The Round",
+      era: "Benedictine · adapted",
+      note: "Your life, one domain at a time. Once around, once a week.",
+    },
     {
       name: "The Daily Examen",
       era: "Ignatius · 16th c.",
@@ -174,16 +179,26 @@ export const practices = {
       era: "Benedict · 6th c.",
       note: "Read. Meditate. Pray. Contemplate.",
     },
-    {
-      name: "Psalmic Lament",
-      era: "The Psalter",
-      note: "Complain honestly. Ask boldly. Trust anyway.",
-    },
   ],
-  foot: "Nine forms today — Examen, Lectio, SOAP, Wesley's Questions, Psalmic Lament, Prayer of Recollection, and more.",
+  foot: "Thirteen forms today — the Examen, Lectio, Luther's Garland, The Round, Psalmic Lament, and more.",
   // retained for the /features deep dive (PracticeMock)
-  filters: ["All", "Examine", "Encounter", "Listen", "Lament", "Gratitude", "Form"],
+  searchPlaceholder: "lament, ordering my week, a decision to make…",
+  openLine: "It's early — the rituals to begin the day come first.",
   cards: [
+    {
+      function: "Order",
+      name: "The Round",
+      origin: "The Benedictine Rule of Life, adapted",
+      tradition: "Benedictine",
+      quote: "Your life, one domain at a time. Once around, once a week.",
+    },
+    {
+      function: "Order",
+      name: "The Morning Offering",
+      origin: "Ignatius of Loyola — the Suscipe",
+      tradition: "Ignatian",
+      quote: "Empty your head onto the page. Then find the one thing that matters.",
+    },
     {
       function: "Examine",
       name: "The Daily Examen",
@@ -198,37 +213,33 @@ export const practices = {
       tradition: "Benedictine",
       quote: "Read. Meditate. Pray. Contemplate. Let the Word find you.",
     },
-    {
-      function: "Lament",
-      name: "Psalmic Lament",
-      origin: "Ancient — the Hebrew Psalter",
-      tradition: "Hebrew",
-      quote: "Address God. Complain honestly. Ask boldly. Trust anyway.",
-    },
-    {
-      function: "Listen",
-      name: "Ignatian Discernment",
-      origin: "Ignatius of Loyola, 16th century",
-      tradition: "Ignatian",
-      quote: "Which choice brings deeper peace? Not comfort — peace.",
-    },
   ],
   active: {
-    name: "The Daily Examen",
+    name: "The Round",
     prompts: [
       {
-        label: "Gratitude",
-        question: "What am I grateful for from today — even one small thing?",
-        answer: "The conversation with Marcus — it went better than I feared.",
+        label: "Frontier Church",
+        question: "What is true here this week?",
+        answer: "Tired going in, glad I stayed for the whole meeting.",
       },
       {
-        label: "Awareness",
-        question: "Where did I feel most alive? Where most distant from God?",
-        placeholder: "Consolation and desolation, honestly…",
+        label: "Trading",
+        question: "What is true here this week?",
+        placeholder: "Patient, or chasing again…",
       },
     ],
   },
-  note: "Nine forms today — Examen, Lectio, SOAP, lament, recollection, and more.",
+  note: "Thirteen forms today — Examen, Lectio, SOAP, Luther's Garland, The Round, and more.",
+};
+
+// ---- ACT I · A VOICE FROM THE BETA (proof, not a hero claim) ----
+// One real interview quote, used as a testimonial band right after the
+// wedge. Name withheld pending explicit consent to publish it — see the
+// PR notes. Swap `attribution` for her name only once that's confirmed.
+export const testimonial = {
+  quote: "It kind of sparked and brought some things alive — a new way to engage my heart with God.",
+  attribution: "A therapist and spiritual director, using Dayspring in beta",
+  context: "on the rituals and the contemplative forms",
 };
 
 // ---- THE BRIDGE — Act I → Act II ----------------------------

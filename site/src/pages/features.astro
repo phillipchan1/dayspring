@@ -51,7 +51,8 @@ import { slashCommands, lookingBack, altar, practices } from "../content/home";
               )}
               {dive.mock === "practices" && (
                 <PracticeMock
-                  filters={practices.filters}
+                  searchPlaceholder={practices.searchPlaceholder}
+                  openLine={practices.openLine}
                   cards={practices.cards}
                   active={practices.active}
                   note={practices.note}

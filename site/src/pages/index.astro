@@ -4,6 +4,7 @@ import Hero from "../components/Hero.astro";
 import SectionReveal from "../components/SectionReveal.astro";
 import SlashShowcase from "../components/SlashShowcase.astro";
 import RitualsGlimpse from "../components/RitualsGlimpse.astro";
+import TestimonialBand from "../components/TestimonialBand.astro";
 import AscentGlimpse from "../components/AscentGlimpse.astro";
 import ScriptureTeaser from "../components/ScriptureTeaser.astro";
 import AltarMock from "../components/AltarMock.astro";
@@ -23,6 +24,7 @@ import {
   bringHistory,
   privacy,
   pricing,
+  testimonial,
 } from "../content/home";
 ---
 
@@ -48,6 +50,17 @@ import {
       <p>
         {problem.before}<span class="hl">{problem.highlight}</span>{problem.after}
       </p>
+    </SectionReveal>
+  </section>
+
+  {/* one real voice from the beta — proof, placed before we ask you to believe it */}
+  <section class="testimonial-sec">
+    <SectionReveal class="wrap">
+      <TestimonialBand
+        quote={testimonial.quote}
+        attribution={testimonial.attribution}
+        context={testimonial.context}
+      />
     </SectionReveal>
   </section>
 
@@ -291,6 +304,11 @@ import {
   .wedge :global(.hl) {
     color: var(--dawn-2);
     font-style: italic;
+  }
+
+  /* ===== testimonial ===== */
+  .testimonial-sec {
+    padding: 0 0 100px;
   }
 
   /* ===== feature (split) layout ===== */
