@@ -18,14 +18,16 @@ interface Active {
   prompts: Prompt[];
 }
 interface Props {
-  filters: string[];
+  searchPlaceholder: string;
+  openLine: string;
   cards: Card[];
   active: Active;
   note?: string;
   class?: string;
 }
 const {
-  filters,
+  searchPlaceholder,
+  openLine,
   cards,
   active,
   note,
@@ -40,15 +42,11 @@ const {
       <h3 class="lib-title">How will you <em>draw near</em> today?</h3>
     </header>
 
-    <div class="filters" role="tablist" aria-label="Filter practices">
-      {
-        filters.map((f, i) => (
-          <span class:list={["filter", { active: i === 0 }]} role="tab">
-            {f}
-          </span>
-        ))
-      }
+    <div class="search-row" role="search" aria-label="Search rituals">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <span class="search-ph">{searchPlaceholder}</span>
     </div>
+    <p class="open-line">{openLine}</p>
 
     <div class="cards">
       {
@@ -129,25 +127,31 @@ const {
     color: var(--gold);
   }
 
-  .filters {
+  .search-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 16px;
-  }
-  .filter {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.3px;
-    padding: 5px 10px;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
     border-radius: 100px;
     border: 1px solid var(--border);
+    background: var(--surface);
+    margin-bottom: 10px;
+  }
+  .search-icon {
+    font-size: 13px;
     color: var(--muted);
   }
-  .filter.active {
-    color: var(--paper);
-    border-color: rgba(243, 189, 118, 0.35);
-    background: rgba(243, 189, 118, 0.08);
+  .search-ph {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.2px;
+    color: var(--muted);
+  }
+  .open-line {
+    font-size: 11.5px;
+    font-style: italic;
+    color: var(--muted);
+    margin-bottom: 16px;
   }
 
   .cards {
@@ -308,9 +312,6 @@ const {
   @media (max-width: 520px) {
     .cards {
       grid-template-columns: 1fr;
-    }
-    .filters {
-      display: none;
     }
   }
 </style>
