@@ -23,6 +23,38 @@ agenda.
 
 ---
 
+## D-030 — Launch paid acquisition (Facebook, rituals-led) ahead of D-001 closing
+**2026-09-15** · **Status:** Decided · deliberate override of D-001's acquisition-spend gate
+
+**Decision:** Run a paid Facebook campaign built around rituals and contemplative
+practice as the wedge — leading with The Round and the rebalanced library — before
+the five-interview validation D-001 calls for is complete.
+
+**Why:** `POSITIONING.md` says plainly not to spend on acquisition until D-001 (craft
+product vs. remembrance product) is settled, because A and B want different front
+doors. That question is still open — only two of the five interviews the falsifier
+needs exist. But those two are the first real evidence either way, and both cut the
+same direction: Kristi Wollbrink (Strong ICP fit, therapist with spiritual-director
+training) describes Dayspring in relational/devotional terms — *"a new way to engage
+my heart with God"* — not craft terms ("great markdown editor"), and is already an
+organic referral into her spiritual-direction network. Judy Yu (Strong ICP fit)
+independently wants to find entries by life area without tagging, which is what The
+Round answers. Rituals is also the only acquisition angle anywhere in this project
+backed by a real quote rather than a guess. Spending now is a bet that this early,
+thin signal holds under five interviews' worth of weight, not a claim that it already
+carries that weight.
+
+**What would change our mind:** ad-driven signups convert or retain meaningfully
+worse than the existing import-driven path — evidence the front door built for this
+campaign is the wrong one for who's actually clicking it. Or: the remaining three
+interviews describe Dayspring in craft terms, reversing the signal this decision
+leaned on. Either fires before scaling the spend further, not after.
+
+**Cost accepted:** spending acquisition dollars before D-001 formally closes, which
+`POSITIONING.md` named as "the most expensive available mistake." Accepted as a
+bounded, reversible test rather than waiting on interviews with no scheduled date.
+Does not resolve D-001 — that stays OPEN until the full interview script runs.
+
 ## D-029 — Sentiment may be measured; discernment may not
 **2026-09-10** · **Status:** Decided · engine-first · **supersedes the sentiment ban in D-027 / RECALL**
 
@@ -678,6 +710,9 @@ Dayspring in **craft** terms, we're A — go narrow, deep, premium. If they desc
 **remembrance** terms, we're B — and desktop-first/markdown-first is costing us reach.
 **Blocking:** all acquisition spend. A and B need different front doors; building the
 wrong one is the most expensive available mistake.
+**Update 2026-09-15:** the gate was overridden for one bounded campaign — see D-030.
+The two interviews synthesized so far both read as B; this question is not resolved
+by n=2 and stays OPEN.
 
 ## D-002 — The 14-day trial can't demonstrate the core value
 **Status: OPEN.** Value compounds (Principle 5) and we refuse to fake depth — so a
