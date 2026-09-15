@@ -69,7 +69,7 @@ means *God met you here*, never *you did well here*. And — from the abandoned 
 
 | Term | Means |
 |---|---|
-| **The Keeping** | The journal proposing markings in pencil. Internal key stays `noticing` (setting, API route, every call site). Nothing it proposes is a marking until the writer keeps it. Belongs to reading, never to the writing surface (D-026). Renamed from **heartIQ** in D-027 — which is also how the `score` ban below stopped needing an override. |
+| **The Keeping** | The engine that reads a page into movements, subjects, emotional estimates, and grounded ingredients. Internal key remains `noticing` where already shipped. Belongs to reading, never to the writing surface (D-026). Renamed from **heartIQ** in D-027. |
 | **The `+`** | The one insert door in the editor — left gutter, every line, opens the same palette `/` opens. A capture kind picked from it MARKS a line that has words and INSERTS on one that doesn't (D-026). |
 | `/pray` | Marks a prayer inline; feeds Altar |
 | `/sense` | Marks something sensed or discerned; feeds Altar |
@@ -98,15 +98,13 @@ goes. The long version, with the receipts, is in
 
 - **Scripture is a subject, not a marking.** Rom 8:28 persists, recurs, has its
   own surface, and you click it. It behaves like *Mom* and nothing like *prayer*.
-- **Growth is a pattern, not a marking.** `markKinds.ts` already refuses the word:
-  Learned *"is rendered 'Learned' and never 'Growth', and its hand is a flat notch
-  and never an arrow"*, because a rising glyph beside someone's spiritual life is
-  a grade.
-- **Sentiment is neither, and it already exists in its only legal form** — the
-  writer's declared `/sense`, and *"The words you used"* (`readings.ts`), a
-  frequency list of their own vocabulary. A sentiment *kind* does not rescue it:
-  that is Sense with a mood attached, and any arrangement of it over time rebuilds
-  the axis Principle 1 forbids. See the ban on *mood tracking* below.
+- **Growth is a pattern, not a marking.** A page may contain explicit learning or
+  change evidence. Calling that spiritual growth requires comparison and belongs
+  to the writer's discernment, never to the page read.
+- **Sentiment is a measurement, not a marking or a discernment.** The engine may
+  estimate the emotion expressed in a sourced passage, with confidence. It may
+  not infer spiritual meaning, health, maturity, or divine intent from that score.
+  See D-029 and `MOVEMENTS.md`.
 
 ⚠️ **`movement` is triple-booked.** It means a segment of one page here; *"a
 movement traced across entries"* under Arc; and a section of a subject's chapter
@@ -136,11 +134,12 @@ page in RECALL.md. The internal key stays `movement` — say which one you mean.
 - Keep names **non-valent** — nothing that implies better/worse
 
 **Don't:**
-- **Never** *dashboard, analytics, insights (as a noun-blob), score, streak, level,
-  progress, goal, optimize, track*
+- **Never in user-facing spiritual language** *dashboard, analytics, faith score,
+  spiritual score, streak, level, progress, goal, optimize, track*
 - **Never** *journey* — exhausted in this category
 - **Never** productivity register (*inbox, workflow, capture rate, review*)
-- **Never** wellness register (*mindfulness, self-care, mood tracking*) — wrong tradition
+- **Never** wellness register (*mindfulness, self-care, mood tracker*) — wrong tradition.
+  Emotional measurement belongs to attentive rereading, not daily mood logging.
 - **Never** *AI-powered* — an implementation detail, and it frightens this audience
 
 **When renaming a surface:**

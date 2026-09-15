@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { submitFeedback } from '@/lib/feedback'
+import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 
-// Master kill switch — set VITE_BETA_FEEDBACK_ENABLED=true in Vercel to enable
-// the feature at all. Individual users also need is_beta=true on their profile.
-const MASTER_ENABLED = import.meta.env.VITE_BETA_FEEDBACK_ENABLED === 'true'
+// Three gates: internal build, deployment kill switch, and per-user beta flag.
+// The build gate ensures an App Store binary cannot expose this even if the
+// review account has is_beta=true or an environment variable is misconfigured.
+const MASTER_ENABLED =
+  ALLOWS_INTERNAL_UI && import.meta.env.VITE_BETA_FEEDBACK_ENABLED === 'true'
 
 type FeedbackType = 'bug' | 'idea' | 'other'
 type Status = 'idle' | 'submitting' | 'done' | 'error'
@@ -52,7 +55,7 @@ export function FeedbackWidget({ featureFlags }: Props) {
       {open && (
         <div className="feedback-popover" role="dialog" aria-label="Send feedback">
           <div className="feedback-popover__header">
-            <span>beta feedback</span>
+            <span>Send feedback</span>
             <button
               className="feedback-popover__close"
               onClick={() => setOpen(false)}

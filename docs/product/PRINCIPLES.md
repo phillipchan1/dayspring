@@ -13,18 +13,24 @@ Overriding one is allowed, but it requires a row in `DECISIONS.md` saying so out
 
 Dayspring illuminates what happened. It never grades how you're doing.
 
-The Covenant sky already encodes this: a star's brightness is **recency**, its halo is
-**span**. There is deliberately no vertical axis, because a vertical axis would imply
-*better* and *worse*, and the app has no business making that call about a person's
-walk with God.
+An emotional estimate is allowed when it describes language in a sourced passage:
+*"this carries grief."* A spiritual verdict is not: *"this grief means you were far
+from God."* Positive feeling is not growth, painful feeling is not failure, and no
+emotional axis may be presented as a measure of someone's walk with God.
 
-**Forbids:** scores, grades, "spiritual health" metrics, progress bars against a
-notion of maturity, any ranking of entries or seasons by quality, sentiment badges.
+**Forbids:** faith or maturity scores, grades, "spiritual health" metrics, progress
+bars against a notion of maturity, any ranking of entries or seasons by quality,
+and emotional scores presented as better/worse spiritual performance.
 
-**Costs us:** scores are legible and demo well. "Your faith score is up 12%" is a
-screenshot people share. We are giving up a viral mechanic on purpose.
+**Permits, with evidence:** bounded sentiment estimates, confidence, and emotional
+change across comparable writing. Every estimate must point to the passage that
+earned it and remain visibly distinct from discernment.
 
-**Test:** could a user screenshot this UI and feel judged by it? Then it's a verdict.
+**Costs us:** spiritual scores are legible and demo well. "Your faith score is up
+12%" is a screenshot people share. We are giving up a viral mechanic on purpose.
+
+**Test:** does the output describe the writing, or pronounce what the writing means
+about the person's spiritual life? The latter is a verdict.
 
 ---
 
@@ -82,8 +88,8 @@ model picks which true thing to say. A hallucinated memory in a spiritual journa
 isn't a bug, it's a betrayal — the user cannot distinguish it from their own past.
 
 **Forbids:** paraphrasing a user's words back as if quoted, inferred emotions
-presented as fact, invented scripture references, any statement whose source entry
-can't be pointed at.
+presented as certain or without evidence, invented scripture references, any
+statement whose source entry can't be pointed at.
 
 **Costs us:** ungrounded generation is more fluent and more impressive in a demo.
 

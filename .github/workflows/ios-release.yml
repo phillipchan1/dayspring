@@ -1,8 +1,8 @@
-name: iOS TestFlight
+name: iOS App Store
 
 # Builds a signed iOS IPA and uploads it to TestFlight on every push to master.
-# Same alpha channel as release.yml (macOS) — master is Phil only; beta users
-# stay on the `stable` desktop build until an external TestFlight group exists.
+# TestFlight is only the delivery step: this exact IPA may be promoted to App
+# Review, so it must use the production channel and contain no internal UI.
 #
 # One-time Apple + GitHub secrets setup: docs/IOS.md § Automated TestFlight builds.
 #
@@ -170,7 +170,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_BASE_URL: https://dayspring-eosin.vercel.app
-          VITE_RELEASE_CHANNEL: alpha
+          # The TestFlight IPA is the App Store binary if it is promoted in ASC.
+          # Never stamp it as alpha or compile beta-testing UI into it.
+          VITE_RELEASE_CHANNEL: appstore
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
           IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}

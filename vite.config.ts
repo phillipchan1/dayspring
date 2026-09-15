@@ -13,6 +13,23 @@ import { execSync } from 'node:child_process'
 //   2. src-tauri/tauri.conf.json — patched in-place by CI but never committed,
 //      so it reads 0.1.0 in the repo. Used only as an offline fallback.
 function resolveAppVersion(): string {
+  // The App Store version is patched into tauri.conf.json by ios-release.yml.
+  // Never source it from the desktop changelog: that file can legitimately
+  // begin with an `alpha-v…` release and is user-visible in Settings.
+  if (process.env.VITE_RELEASE_CHANNEL === 'appstore') {
+    try {
+      const tauri = JSON.parse(
+        readFileSync(
+          fileURLToPath(new URL('./src-tauri/tauri.conf.json', import.meta.url)),
+          'utf8',
+        ),
+      ) as { version?: string }
+      if (tauri.version) return tauri.version
+    } catch {
+      // Fall through to the normal package/changelog sources.
+    }
+  }
+
   const changelogPath = fileURLToPath(new URL('./public/changelog.json', import.meta.url))
 
   // Auto-generate in dev when the file doesn't exist yet.

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useTouchPrimary } from '@/hooks/useMediaQuery'
 import { PRACTICE_BY_NAME } from './practicesData'
+import { placeholderFor, questionFor } from './usePracticeInsertion'
 import {
   composeRitualMarkdown,
   readRitual,
@@ -161,6 +162,45 @@ export function RitualComposer({
     onCloseRef.current()
   }, [block, blockIndex])
 
+  /**
+   * Write the block back with the untouched movements DROPPED.
+   *
+   * Only for a dynamic ritual, and only on the way out.
+   *
+   * The Round's movements are the writer's own domains, and skipping one is a
+   * legitimate answer — `shape` says so: "a domain you have nothing to say about
+   * this week is a real answer; leave it and move on." But `isRitualComplete`
+   * requires every movement filled, and an incomplete block renders a
+   * **continue** button on the entry, forever. On a four-movement Examen that is
+   * a helpful door back in. On a nine-domain Round deliberately walked past five
+   * of, it is a permanent "you didn't finish" sitting in someone's own journal —
+   * a chore counter, which Principle 2 forbids outright.
+   *
+   * So a domain with nothing said about it this week simply is not in this
+   * week's record, which is also the honest thing for the archive to hold.
+   *
+   * On the way out only: during the ritual the empty movements must stay, or
+   * moving between them would delete the ones ahead.
+   */
+  const commitPruned = useCallback(() => {
+    if (!block || goneRef.current) return false
+    const doc = getDocRef.current()
+    const range = ritualBlockRange(doc, blockIndex)
+    if (!range) return false
+    const kept = block.labels
+      .map((label, n) => ({ label, text: textsRef.current[n] ?? '' }))
+      .filter((m) => m.text.trim() !== '')
+    const next = composeRitualMarkdown(
+      block.name,
+      kept.map((m) => m.label),
+      kept.map((m) => m.text),
+    )
+    if (doc.slice(range.from, range.to) !== next) {
+      replaceRangeRef.current(range.from, range.to, next, { focus: false })
+    }
+    return true
+  }, [block, blockIndex])
+
   const leave = useCallback(() => {
     // An untouched ritual is scaffolding, not a record. Leaving it behind
     // is how "I changed my mind" used to get stuck — ✕ closed the surface
@@ -170,9 +210,16 @@ export function RitualComposer({
       removeBlock()
       return
     }
+    // `goneRef` so the unmount flush below cannot put the dropped movements
+    // back — `commit` rebuilds from the full label list.
+    if (practice?.dynamic && commitPruned()) {
+      goneRef.current = true
+      onCloseRef.current()
+      return
+    }
     commit()
     onCloseRef.current()
-  }, [commit, removeBlock])
+  }, [commit, commitPruned, practice, removeBlock])
 
   useEffect(() => {
     const id = setTimeout(commit, 400)
@@ -321,13 +368,12 @@ export function RitualComposer({
       <div className="rc__viewport" ref={emblaRef}>
         <div className="rc__track">
         {labels.map((label, n) => {
-          const prompt = practice?.prompts.find((p) => p.label === label)
           return (
             <section className="rc__pane" key={label} aria-hidden={n !== i}>
               <div className="rc__inner">
                 <span className="rc__label">{label}</span>
                 <p className="rc__q" data-small={n === i && yielding ? 'true' : undefined}>
-                  {prompt?.question ?? ''}
+                  {questionFor(practice, label)}
                 </p>
                 <textarea
                   className="rc__write"
@@ -335,7 +381,7 @@ export function RitualComposer({
                     paneRefs.current[n] = el
                   }}
                   value={texts[n] ?? ''}
-                  placeholder={prompt?.placeholder ?? ''}
+                  placeholder={placeholderFor(practice, label)}
                   tabIndex={n === i ? 0 : -1}
                   onChange={(e) =>
                     setTexts((prev) => {

@@ -21,6 +21,7 @@ import { DesktopJournal } from '@/features/journal/DesktopJournal'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { editorSlot, journalProps } from './devices'
+import { SCREENSHOT_HOUR } from './mock'
 import type { Shot } from './shots'
 
 /**
@@ -68,11 +69,14 @@ export function renderIpadShot(shot: Shot) {
       return (
         <>
           <DesktopJournal {...journalProps(editorSlot())} />
+          {/* Pinned to dawn, like the iPhone set — the sky follows the clock,
+              so an unpinned capture changes with the hour it ran at. */}
           <PracticeLibrary
             onBegin={noop}
             onClose={noop}
             skipPreview={false}
             onToggleSkipPreview={noop}
+            now={SCREENSHOT_HOUR}
           />
         </>
       )

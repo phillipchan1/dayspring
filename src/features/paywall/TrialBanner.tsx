@@ -3,6 +3,7 @@ import { startCheckout, trialDaysRemaining } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import { isAppleIapAvailable, purchaseApple } from '@/lib/appleIap'
+import { useTapAction } from '@/lib/tapAction'
 import './Paywall.css'
 
 interface Props {
@@ -44,6 +45,7 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   }
 
   const daysLabel = days === 1 ? '1 day' : `${days} days`
+  const subscribeTap = useTapAction(() => void handleSubscribe(), !loading)
 
   return (
     <div className="trial-banner" role="status">
@@ -51,9 +53,11 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
         <span className="trial-banner__days">{daysLabel} left</span> in your trial
       </span>
       <button
+        type="button"
         className="trial-banner__action"
-        onClick={() => void handleSubscribe()}
-        disabled={loading}
+        aria-disabled={loading}
+        aria-busy={loading}
+        {...subscribeTap}
       >
         {loading ? 'Loading…' : 'Subscribe'}
       </button>

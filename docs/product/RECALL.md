@@ -5,6 +5,12 @@
 > `DECISIONS.md` row gets written only after the calls come back, and only if something
 > survives.
 >
+> **Sentiment amendment, 2026-09-10:** D-029 supersedes this document's absolute
+> prohibition on sentiment scoring. Emotional estimates are permitted when sourced,
+> confidence-bearing, and kept separate from spiritual discernment. See
+> [`MOVEMENTS.md`](MOVEMENTS.md). The original argument remains below as historical
+> context.
+>
 > **Spine for the prototype (2026-08-17):** Door 2 — *the things you carry* — with
 > Door 1 (your words are the index) and Door 3 (it comes back after you write) as
 > ways in, not as competing products. Click-through: [`prototypes/recall/`](../prototypes/recall/).

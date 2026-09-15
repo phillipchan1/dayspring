@@ -22,6 +22,7 @@ import { isAppleIapAvailable, manageAppleSubscriptions } from '@/lib/appleIap'
 import { exportEntriesToZip } from '@/lib/export/exportEntries'
 import { openExternal } from '@/lib/openExternal'
 import { appleMayStillCharge, type Subscription } from '@/lib/subscription'
+import { useTapAction } from '@/lib/tapAction'
 
 interface Props {
   /** The account being deleted, named back to the user before they confirm. */
@@ -111,6 +112,8 @@ export function DeleteAccountFlow({ userEmail, subscription, variant = 'danger-z
     setError(null)
   }
 
+  const manageAppleTap = useTapAction(() => void handleManageApple())
+
   if (!open) {
     return (
       <button
@@ -152,7 +155,11 @@ export function DeleteAccountFlow({ userEmail, subscription, variant = 'danger-z
             deleting your account here won’t. Turn off renewal first, or Apple will keep charging
             you for a journal that no longer exists.
           </p>
-          <button type="button" className="btn btn--ghost" onClick={() => void handleManageApple()}>
+          <button
+            type="button"
+            className="btn btn--ghost storekit-tap-target"
+            {...manageAppleTap}
+          >
             Manage in the App Store
           </button>
         </div>

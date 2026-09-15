@@ -5,6 +5,13 @@ enough from the intent that neither of us could see it whole. This is the handof
 
 The engine's name is **The Keeping** (D-027). Internal key stays `noticing`.
 
+> **Sentiment amendment, 2026-09-10:** D-029 supersedes this document's absolute
+> prohibition on sentiment scores. The engine may estimate emotion in sourced
+> language; it still may not perform spiritual discernment. The current direction
+> and evaluation contract live in [`product/MOVEMENTS.md`](product/MOVEMENTS.md).
+> Historical sections below are retained because they explain how the earlier
+> boundary was reached.
+
 **If you are new to this, read [The model](#the-model--what-the-engine-is-allowed-to-notice)
 first.** It is the section that was missing for the whole first session, and
 without it every argument about the engine turns into an argument about

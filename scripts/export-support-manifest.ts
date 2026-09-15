@@ -289,7 +289,10 @@ export async function buildManifest(channel: string): Promise<SupportManifest> {
         }))
 
     // --- practices ---------------------------------------------------------
-    const practiceEntries: ManifestEntry[] = (practices.PRACTICES as any[]).map((p) => ({
+    // SHELF, not PRACTICES: a retired practice still renders on old entries
+    // (PRACTICE_BY_NAME needs it forever) but must not be offered as if it
+    // were still on the shelf — same filter PracticeLibrary itself applies.
+    const practiceEntries: ManifestEntry[] = (practices.SHELF as any[]).map((p) => ({
       id: `practice.${slugify(p.name)}`,
       name: p.name,
       function: p.function,

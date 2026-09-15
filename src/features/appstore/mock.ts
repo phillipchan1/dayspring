@@ -575,3 +575,16 @@ export const MOCK_CANON: ScriptureCanonPage = {
     { osis_ref: 'Isa.43.2', book_osis: 'Isa', count: 7 },
   ],
 }
+
+/**
+ * The hour every listing shot is captured at.
+ *
+ * The Rituals library's sky, greeting and default filter all follow the clock
+ * (see `editor/practices/ritualSky.ts`), so without a pinned time the same shot
+ * ships a night shelf or a morning one depending on when the capture script
+ * happened to run. Dawn, because the morning rituals are the strongest thing on
+ * the shelf and "Good morning" is the frame a stranger should meet first.
+ *
+ * Constructed from local parts, matching how `skyFor` reads the clock.
+ */
+export const SCREENSHOT_HOUR = new Date(2026, 0, 15, 6, 40, 0)

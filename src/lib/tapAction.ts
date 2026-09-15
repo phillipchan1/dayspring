@@ -70,7 +70,9 @@ function fireGuarded(
  * so a lost click cannot stick and swallow the next tap.
  */
 export function useTapAction(action: () => void, enabled = true) {
-  const last = useRef(0)
+  // A page can receive its first tap inside the first 500ms of performance.now().
+  // Start outside the guard window so that first gesture is never discarded.
+  const last = useRef(Number.NEGATIVE_INFINITY)
   const actionRef = useRef(action)
   const enabledRef = useRef(enabled)
   actionRef.current = action

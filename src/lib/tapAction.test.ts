@@ -101,6 +101,16 @@ describe('useTapAction', () => {
     act(() => root.unmount())
   })
 
+  it('does not discard a first tap during the initial guard window', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(10)
+    const { root, btn } = mount()
+    act(() => {
+      firePointer(btn, 'pointerdown', 'touch')
+    })
+    expect(btn.textContent).toBe('1')
+    act(() => root.unmount())
+  })
+
   it('fires on iPadOS mouse pointerup when click never arrives', () => {
     const { root, btn } = mount()
     act(() => {

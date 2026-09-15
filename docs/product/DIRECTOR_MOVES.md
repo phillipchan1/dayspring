@@ -148,67 +148,34 @@ reports. Nothing in the app does this today.
 
 ---
 
-## Sentiment is allowed (D-028)
+## Sentiment is allowed (D-029)
 
-Phil's call, 2026-09-06, overriding the prior reading. On close inspection the prior
-prohibition was narrower than it looked, and three of its four sites already permit
-the legal form.
+Phil's call, 2026-09-10, supersedes both the original prohibition and this
+document's earlier affect-word-only compromise. Dayspring may assign bounded
+sentiment scores to a movement for evaluation and later comparison.
 
-| Site | What it actually forbids | Conflict? |
-|---|---|---|
-| PRINCIPLES §1 | "sentiment **badges**" — a glyph | No. Badges stay forbidden. |
-| GUARDRAILS H2 | a **score**, sentence, emoji, or good/bad colour — and its own **approved** example is *"'Angry' appears in 7 entries this month"* | No. The named, counted form is explicitly sanctioned. |
-| RECALL.md:260 | "Tone **scoring** is an H2 violation and always will be" | No. Still true. |
-| GLOSSARY:107–109 | "a sentiment **kind** does not rescue it … any arrangement of it over time rebuilds the axis" | **Yes.** This is the one site that must change. |
+The boundary is no longer **number versus no number**. It is **emotional
+observation versus spiritual discernment**:
 
-**The GLOSSARY objection, met directly:** arrangement over time rebuilds the axis
-**only if the states are ranked.** `grateful → heavy → grateful → numb` plotted by
-date has no up. The axis appears the moment anything maps those to ±1.
+| Allowed | Forbidden |
+|---|---|
+| "This passage expresses grief with high confidence." | "This grief means you were far from God." |
+| Valence, activation, named emotions, confidence | Faith, maturity, obedience, health, or growth scores |
+| Emotional change joined to a known subject | A verdict on the relationship or what God was doing |
+| Mixed or absent emotion | Positive = spiritually good; negative = spiritually bad |
 
-### The form
+Sentiment is a measurement on a movement, not a marking the writer must maintain.
+It does not require a subject: a movement can express emotion before the engine
+knows what it belongs to. When a known subject is genuinely present, the same read
+joins them.
 
-A sentiment is **the writer's own affect word, as a verbatim span, unordered.** Not a
-polarity, not a scale, not a normalised label.
+Ignatian tradition still supplies the caution rather than the classifier.
+Consolation and desolation cannot be derived from pleasantness: grief may accompany
+love and faithfulness; relief may accompany avoidance. The engine measures felt
+language and stops. The writer discerns direction and meaning.
 
-**It is its own kind, separate from `sense`, because they point in opposite
-directions:**
-
-| | `sense` | `sentiment` |
-|---|---|---|
-| What it is | prophetic sensing — what the writer received | the writer's feeling **toward** something |
-| Direction | *from* God, to the writer | *from* the writer, at a subject |
-| Example | "I sensed the Lord saying wait" | "I'm still angry at my brother" |
-| **Subject** | **must not be required** — the source is God, not a named thing | **required** — a feeling toward nothing is not a sentiment |
-
-> **Rule: subject arity is per kind, and this is where the schema got it wrong
-> before.** `subject` being REQUIRED is exactly what held `prayer` to 13% in a
-> ~90%-prayer archive — a prayer about the writer's own heart had nowhere to go, and
-> 64% of v3's pairs carry no subject at all. `sentiment` is the one kind where
-> requiring a subject is *correct*. Encode arity per kind now rather than discovering
-> it again in the numbers.
-
-Ignatius supplies the reason this is spiritual rather than mood tracking: consolation
-and desolation are **directional, not valenced** — toward God or away from Him.
-Gallagher's central teaching is that desolation can accompany pleasant feelings and
-consolation can accompany grief. Toward/away is not better/worse, which is exactly
-what keeps it clear of Principle 1's vertical axis.
-
-### The four rules
-
-1. **No number.** No scale, no average, no percentage, ever.
-2. **No slope.** Sequence, not trend. Never "improving" or "declining."
-3. **No aggregate glyph.** No colour-coded month, no sentiment on a page thumbnail.
-   A badge is still a badge.
-4. **Verbatim anchored.** Every sentiment points at the sentence that earned it.
-
-> **Falsifier: if any code path assigns a numeric or ordinal value to a sentiment,
-> the guardrail has been breached.** That is the test, and it is greppable.
-
-### What it buys
-
-Move 7 becomes possible at all, and move 6 gets the saliency signal it was missing.
-Both are Ignatian, and between them they are most of what a director does month to
-month.
+Every estimate remains verbatim-anchored, confidence-bearing, correctable, and
+separate from advice. See [`MOVEMENTS.md`](MOVEMENTS.md) for the complete contract.
 
 ---
 
@@ -222,9 +189,9 @@ per the type system that already exists:
 |---|---|
 | `scripture` | **Order 2 — a subject.** It persists, recurs, has its own surface, and you click it. Behaves like "Mom", nothing like "prayer". |
 | `growth` | **Order 3 — a pattern.** `markKinds.ts:16`: "a rising glyph beside someone's spiritual life is a grade." Already shipped as `thenAndNow`. |
-| `struggle` | Redundant once sentiment is allowed — it is a sentiment word. Do not mint a kind for it. |
+| `struggle` | Redundant once sentiment is measured. Do not mint a marking for it. |
 | `sense` | Stays, narrowed: **prophetic sensing**, what the writer received. Not mood. |
-| `sentiment` | Stays as **its own kind** — feeling toward a subject. See D-028. |
+| `sentiment` | **A measurement on a movement, not a marking.** It may join to zero or more subjects. See D-029. |
 | `desire` | Stays. Already in `READ_KINDS`. |
 | `gift` | Cut, and stays cut. Too interpretive. |
 
@@ -251,12 +218,12 @@ Verbatim. If you cannot highlight it, it is not one.
 |---|---|---|
 | `prayer` | addressed to God — an observable speech act | optional |
 | `sense` | prophetic sensing — what the writer received | **never required** |
-| `sentiment` | the writer's feeling toward something | **required** |
 | `desire` | what the writer wants | optional |
 | `learned` | what the writer concluded | optional |
 
-Five. Cut and staying cut: `gift` (too interpretive), `struggle` (a sentiment word),
-`story` (an order-3 episode).
+Four. Sentiment is measured alongside this table rather than captured as a marking.
+Cut and staying cut: `gift` (too interpretive), `struggle` (an emotional
+measurement), `story` (an episode ingredient rather than a maintained kind).
 
 ### Order 2 — subjects: what the movement is *about*
 
@@ -343,8 +310,7 @@ rule of life **annual**.
 ## Open
 
 - **D-027 (The Keeping) is not in DECISIONS.md.** It is referenced in
-  `docs/THE_KEEPING.md` but never logged. D-028 above assumes 027 is taken.
-- GLOSSARY:107–109 needs amending for D-028. Nothing else does.
+  `docs/THE_KEEPING.md` but never logged.
 
 ---
 

@@ -35,6 +35,108 @@
   to { opacity: 1; }
 }
 
+/* ── The sky ────────────────────────────────────────────────────────────────
+ *
+ * THIS IS NOT NEW ART. Every theme already defines --journal-glow: a light
+ * source parked at 50% -30%, just above the top edge, which the journal canvas,
+ * the Altar, Scripture and the Paywall all render. It has simply never moved.
+ * The hour gives that existing light a POSITION and a WARMTH — one extra
+ * gradient laid OVER the theme's glow, never in place of it.
+ *
+ * Composed rather than swapped because the themes are named for the hours
+ * already (dawn, compline, vigil, nocturne) and someone running nocturne chose
+ * pure black on purpose. See ritualSky.ts. It is also the better image: a
+ * nocturne morning is first amber at a black horizon.
+ *
+ * All three layers are inert and sit under .practice-library, which is z-index 1.
+ */
+
+.practice-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* The constant: the theme's own light, untouched. */
+.practice-sky--fixed {
+  background: var(--journal-glow);
+}
+
+/* The only thing the clock controls. Custom properties come from ritualSky.ts. */
+.practice-sky--hour {
+  background: radial-gradient(
+    var(--sky-size, 90% 70%) at var(--sky-pos, 50% -30%),
+    var(--sky-near, transparent) 0%,
+    var(--sky-far, transparent) 45%,
+    transparent 72%
+  );
+  animation: pl-sky-drift 90s ease-in-out infinite alternate;
+}
+
+/* Ninety seconds, and nothing else moves. Anything faster is the app
+   performing at someone who came here to pray. */
+@keyframes pl-sky-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(1.5%, 1.2%, 0) scale(1.05); }
+}
+
+/* NO HORIZON LINE. The prototype drew one for dawn and evening, and in a
+   620px stage it sat below the grid and read as a horizon. At real viewport
+   height it lands mid-grid, and because the cards are translucent a hairline
+   crosses the gaps between them and reads as a rendering seam rather than a
+   sunrise. The gradient alone carries the hour; a rule that looks like a bug
+   costs more than the horizon was worth. */
+
+/* Night only. A STILL sky — anything that twinkles is decoration pretending to
+   be atmosphere. Hidden by default and revealed only when the band asks. */
+.practice-sky--stars {
+  opacity: 0;
+  transition: opacity 1.6s ease;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255, 253, 245, 0.75), transparent),
+    radial-gradient(1px 1px at 28% 9%, rgba(255, 253, 245, 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 46% 23%, rgba(255, 253, 245, 0.6), transparent),
+    radial-gradient(1px 1px at 63% 12%, rgba(255, 253, 245, 0.5), transparent),
+    radial-gradient(1px 1px at 79% 27%, rgba(255, 253, 245, 0.65), transparent),
+    radial-gradient(1px 1px at 91% 15%, rgba(255, 253, 245, 0.4), transparent),
+    radial-gradient(1px 1px at 37% 36%, rgba(255, 253, 245, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 71% 41%, rgba(255, 253, 245, 0.45), transparent),
+    radial-gradient(1px 1px at 19% 44%, rgba(255, 253, 245, 0.3), transparent);
+}
+
+/* Stars need a dark ground to be stars — on a light theme they read as dust on
+   the screen — so the band asking for them is necessary but not sufficient.
+
+   Keyed on [data-appearance], NOT on prefers-color-scheme: the app theme is the
+   writer's own choice and is independent of the OS setting, so someone running
+   `nocturne` under a light OS must still get their night sky. themes.css keys
+   the marking hues the same way, and for the same stated reason — a new dark
+   palette then inherits this without being listed. */
+[data-appearance='dark'] .practice-modal[data-stars='true'] .practice-sky--stars {
+  opacity: 1;
+}
+
+/* ⚠️ EXCEPT VIGIL, which is the one theme this would actually damage.
+   Vigil exists for "a phone at 3am, no other light in the room", and its whole
+   argument is a low ceiling: "the brightest pixel here is #9a9285, not white,
+   [because] peak output matters more to an adapted eye than any contrast
+   ratio." These stars are near-white at 0.75 — brighter than anything that
+   palette permits — and 3am is exactly the hour they would appear.
+
+   So vigil keeps the night sky and loses the stars' glare: dimmed to its own
+   ceiling rather than switched off, which would read as a bug on the one theme
+   whose users are most likely to be looking at a night sky. */
+[data-theme='vigil'] .practice-modal[data-stars='true'] .practice-sky--stars {
+  opacity: 0.34;
+  filter: brightness(0.62);
+}
+
+.practice-library {
+  position: relative;
+  z-index: 1;
+}
+
 /* Sits above both the library and the threshold view, clear of the Dynamic
    Island. 48px square per MOBILE_DESIGN.md's tap-target floor. */
 .practice-modal__close {
@@ -116,28 +218,71 @@
   line-height: 1.6;
 }
 
-.practice-library__filters {
-  padding: 32px 40px 0;
+/* One axis and a search field, where there used to be twelve chips in two rows.
+   Rhythm is the axis that predicts what someone wants; `function` still labels
+   every card and is part of what search matches, so dropping its row costs
+   nothing and buys back a whole band of chrome above the shelf. */
+.practice-library__controls {
+  padding: 30px 40px 0;
   max-width: 880px;
   margin: 0 auto;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  flex-wrap: wrap;
+}
+
+.practice-library__filters {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.practice-library__filters--fn {
-  padding-top: 10px;
+.practice-search {
+  flex: 0 1 232px;
+  min-width: 172px;
 }
 
-.practice-filter--fn {
-  font-size: 11px;
-  padding: 3px 11px;
-  opacity: 0.75;
+.practice-search__input {
+  width: 100%;
+  font-family: var(--pl-body);
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--pl-ink);
+  background: color-mix(in srgb, var(--pl-surface) 70%, transparent);
+  border: 1px solid var(--pl-border);
+  border-radius: 100px;
+  padding: 6px 15px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.practice-filter--fn[data-active='true'] {
-  opacity: 1;
+.practice-search__input::placeholder {
+  color: var(--pl-ghost);
+  font-style: italic;
+}
+
+.practice-search__input:focus {
+  outline: none;
+  border-color: var(--pl-amber);
+  background: var(--pl-surface);
+}
+
+/* Says that search left the filter behind, so a result from another hour isn't
+   read as the filter having broken. */
+.practice-library__searching {
+  max-width: 880px;
+  margin: 12px auto 0;
+  padding: 0 40px;
+  width: 100%;
+  font-family: var(--pl-body);
+  font-size: 12.5px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--pl-muted);
 }
 
 .practice-filter {
@@ -176,7 +321,10 @@
 }
 
 .practice-card {
-  background: var(--pl-surface);
+  /* Translucent so the sky comes THROUGH the shelf. Opaque cards stop the
+     treatment at the margins and it reads as a header image instead of a sky. */
+  background: color-mix(in srgb, var(--pl-surface) 76%, transparent);
+  backdrop-filter: blur(3px);
   border: 1px solid var(--pl-border);
   border-radius: 12px;
   padding: 24px 22px 20px;
@@ -296,6 +444,38 @@
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
+/* A dynamic ritual with nothing to walk yet — The Round on a young journal.
+   The card STAYS ON THE SHELF and says what it needs, rather than vanishing:
+   Principle 5, tell the truth about a surface that needs history. Quieted, not
+   hidden, and it does not lift on hover because there is nowhere to go. */
+.practice-card[data-unready='true'] {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.practice-card[data-unready='true']:hover,
+.practice-card[data-unready='true'][data-active='true'] {
+  border-color: var(--pl-border);
+  transform: none;
+  box-shadow: none;
+}
+
+.practice-card[data-unready='true']:hover::before,
+.practice-card[data-unready='true'][data-active='true']::before {
+  opacity: 0;
+}
+
+.practice-card__needs {
+  font-family: var(--pl-body);
+  font-size: 10.5px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--pl-muted);
+  text-align: right;
+  max-width: 62%;
+  line-height: 1.35;
+}
+
 .practice-card:hover .practice-card__arrow,
 .practice-card[data-active='true'] .practice-card__arrow {
   color: var(--pl-amber);
@@ -322,7 +502,12 @@
 .practice-threshold {
   position: absolute;
   inset: 0;
-  background: var(--pl-parchment);
+  z-index: 2;
+  /* Nearly opaque, not fully: the threshold is a held breath before the ritual,
+     not a different room, and the hour should still be behind you when you
+     cross. Kept high enough that the intention text loses no contrast. */
+  background: color-mix(in srgb, var(--pl-parchment) 93%, transparent);
+  backdrop-filter: blur(9px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -545,10 +730,18 @@
 
 @media (max-width: 480px) {
   .practice-library__header,
-  .practice-library__filters,
+  .practice-library__controls,
+  .practice-library__searching,
   .practice-library__grid {
     padding-left: 20px;
     padding-right: 20px;
+  }
+  /* The field goes full width under the chips rather than competing with them
+     for a phone's width, where 172px of input beside six chips leaves both
+     cramped. */
+  .practice-search {
+    flex: 1 1 100%;
+    min-width: 0;
   }
   /* Clear the Dynamic Island and the ✕ that now floats over this corner. */
   .practice-library__header {
@@ -605,9 +798,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .practice-modal,
-  .practice-card {
+  .practice-card,
+  .practice-sky--hour {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+  .practice-sky--stars {
+    transition: none;
   }
 }
