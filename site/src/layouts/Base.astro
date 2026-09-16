@@ -17,6 +17,9 @@ interface Props {
   bareTitle?: boolean;
   /** Footer style: "full" (closing CTA + links) or "minimal" (links only). */
   footer?: "full" | "minimal";
+  /** Keep this page out of search results and the sitemap (e.g. /start, a
+   *  redirect page with nothing for a search result to land a visitor on). */
+  noindex?: boolean;
 }
 
 const {
@@ -26,6 +29,7 @@ const {
   path,
   bareTitle = false,
   footer = "full",
+  noindex = false,
 } = Astro.props;
 
 const fullTitle = bareTitle ? title : `${site.name} — ${title}`;
@@ -63,6 +67,7 @@ const ogImageUrl = new URL(ogImage, site.url).href;
 
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <meta
       name="google-site-verification"
       content="cOyx9B2iX9EaE-166flnCRf_ARRLQgC641zXic4--h4"
@@ -115,5 +120,16 @@ const ogImageUrl = new URL(ogImage, site.url).href;
       <slot />
     </main>
     <Footer variant={footer} />
+
+    <script>
+      // Entrance instrumentation that has to run on every page, regardless of
+      // which one a visitor lands on. Per-page signals (landing_viewed on the
+      // homepage, start_trial_clicked on /start) live in those pages instead.
+      import { trackPageView } from "../lib/metaPixel";
+      import { wireCtaLinks } from "../lib/siteAnalytics";
+
+      trackPageView();
+      wireCtaLinks();
+    </script>
   </body>
 </html>

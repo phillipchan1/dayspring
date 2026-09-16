@@ -245,6 +245,12 @@ import {
   </section>
 </Base>
 
+<script>
+  // Entrance funnel, step one. See site/src/lib/siteAnalytics.ts.
+  import { trackSite } from "../lib/siteAnalytics";
+  trackSite("landing_viewed");
+</script>
+
 <style>
   /* ===== shared section primitives ===== */
   .tag {

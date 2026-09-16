@@ -76,4 +76,20 @@ export const env = {
   },
   // GitHub PAT (repo scope) for posting beta feedback as issues.
   githubToken: () => need('GITHUB_TOKEN'),
+  // ── Growth instrumentation (api/_lib/growthEvents.ts) ──────────────────────
+  // Same PostHog project the client bundle uses (src/lib/env.ts) — read directly
+  // from process.env since Vercel serverless functions see every project env
+  // var regardless of the VITE_ prefix, which only means something to Vite's
+  // client bundler. Unset → growthEvents.ts skips the PostHog send.
+  posthogKey: () => process.env.VITE_POSTHOG_KEY || null,
+  posthogHost: () => process.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+  // Meta Conversions API — server-side StartTrial/Purchase/Cancel, matched to
+  // the browser Pixel on the marketing site by pixel id. The pixel id itself
+  // isn't secret (it's PUBLIC_META_PIXEL_ID in site/, a separate Vercel
+  // project), but this project needs its own copy since the two projects don't
+  // share env vars. The access token is a real secret: Events Manager →
+  // Settings → Conversions API → Generate access token. Unset (either one) →
+  // growthEvents.ts skips the Meta send.
+  metaPixelId: () => process.env.META_PIXEL_ID || null,
+  metaCapiAccessToken: () => process.env.META_CAPI_ACCESS_TOKEN || null,
 }

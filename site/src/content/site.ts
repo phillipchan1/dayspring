@@ -3,6 +3,13 @@
 // onepager. Edit text here, not in markup.
 // ============================================================
 
+// The live web app — SignIn renders for an unauthenticated visitor, and first
+// sign-in grants the 14-day trial with no card (api/profile/ensure.ts in the
+// app repo). Also mirrored as APP_URL's default in api/_lib/env.ts and
+// DEFAULT_API_BASE in src/lib/env.ts — verified against both before wiring,
+// not invented (see dayspring#45).
+export const APP_URL = "https://dayspring-eosin.vercel.app";
+
 export const site = {
   name: "Dayspring",
   // default per-page <title> tagline & description live in each page;
@@ -61,7 +68,7 @@ export const pricingTiers = [
     note: "14-day free trial · about $5.33 / month",
     desc:
       "The full product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar. The longer you write, the more the map fills in.",
-    cta: { label: "Download for macOS", href: downloads.macos.href, style: "solid" },
+    cta: { label: "Start your 14-day trial", href: "/start", style: "solid" },
     featured: true,
     badge: "Most chosen",
   },
@@ -72,7 +79,7 @@ export const pricingTiers = [
     note: "14-day free trial · cancel anytime",
     desc:
       "Same everything, billed month to month. A gentle way to try it before you commit to the long walk.",
-    cta: { label: "Download for macOS", href: downloads.macos.href, style: "line" },
+    cta: { label: "Start your 14-day trial", href: "/start", style: "line" },
     featured: false,
   },
 ] as const;

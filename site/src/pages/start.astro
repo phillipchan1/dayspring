@@ -1,0 +1,109 @@
+---
+// /start — the Entrance redirect. Every trial door on the site (Hero,
+// PricingTiers, Footer) and any ad creative that lands here directly points
+// at this page. It exists to do three things, in order, before handing off
+// to the app:
+//   1. Preserve whatever UTMs (or fbclid/gclid) arrived on the query string.
+//   2. Fire the client-side conversion signals a redirect straight to the app
+//      would lose — Meta's StartTrial pixel and PostHog's start_trial_clicked.
+//   3. Send the visitor on to sign-in, where first sign-in grants the 14-day
+//      trial with no card (api/profile/ensure.ts in the app repo).
+//
+// Static site (astro.config.mjs: output "static"), so none of this can happen
+// server-side — the query string only exists in the browser. The visible copy
+// and manual link below are the no-JS / slow-JS fallback; noscript users still
+// get where they're going, just without a firing pixel.
+import Base from "../layouts/Base.astro";
+import { APP_URL } from "../content/site";
+---
+
+<Base
+  title="Starting your trial"
+  description="Taking you to Dayspring to start your 14-day trial."
+  path="/start"
+  footer="minimal"
+  noindex
+>
+  <section class="start">
+    <div class="card">
+      <p class="eyebrow mono">Dayspring</p>
+      <h1>Opening your 14-day trial…</h1>
+      <p class="sub">No card. Sign in and it starts.</p>
+      <a href={APP_URL} class="btn btn-primary" data-continue>
+        Continue to Dayspring →
+      </a>
+      <noscript>
+        <p class="noscript-note">
+          JavaScript is off, so we can't carry this along automatically —
+          tap the button above.
+        </p>
+      </noscript>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .start {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 140px 20px 80px;
+  }
+  .card {
+    text-align: center;
+    max-width: 420px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 2.8px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(28px, 4.4vw, 38px);
+    letter-spacing: -0.6px;
+    margin: 0 0 12px;
+  }
+  .sub {
+    color: var(--paper-dim);
+    font-weight: 300;
+    font-size: 16px;
+    margin: 0 0 32px;
+  }
+  .noscript-note {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>
+
+<script>
+  import { trackSite } from "../lib/siteAnalytics";
+  import { trackStartTrial } from "../lib/metaPixel";
+  import { APP_URL } from "../content/site";
+
+  const continueLink = document.querySelector<HTMLAnchorElement>("[data-continue]");
+
+  // Preserve whatever arrived on our own query string onto the app URL — not
+  // consumed there yet, but there for a future attribution join rather than
+  // dropped on the floor. See docs/product/GROWTH_PULSE.md.
+  const search = window.location.search;
+  const target = search ? `${APP_URL}/${search}` : `${APP_URL}/`;
+  if (continueLink) continueLink.href = target;
+
+  trackSite("start_trial_clicked");
+  trackStartTrial();
+
+  // A deliberate, small delay: capture()/fbq() fire an HTTP request that a
+  // same-tab navigation can cancel before it lands if we redirect in the same
+  // tick. This page's entire purpose is those two calls landing, so the trade
+  // (half a second, once, on a redirect page nobody lingers on) is the right
+  // one here — unlike the CTA click on the pages that lead here.
+  window.setTimeout(() => {
+    window.location.replace(target);
+  }, 400);
+</script>

@@ -63,6 +63,7 @@ import { supabase } from './lib/supabase'
 import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 import { initPostHog } from './lib/posthog'
+import { track } from './lib/analytics'
 
 async function bootstrap() {
   // Dev-only App Store previews: render a surface standalone, with no auth and
@@ -177,6 +178,11 @@ async function bootstrap() {
   // Vendor for the anonymous usage events in lib/analytics.ts. No-ops without
   // VITE_POSTHOG_KEY. Gated on Settings → About → "Share anonymous usage".
   initPostHog()
+
+  // One per real bootstrap — the D1/D7 retention signal. Before the auth/
+  // subscription gates below so it counts every launch, not just ones that
+  // reach the journal.
+  track('app_open')
 
   // Neutralize stray file drops so a photo dropped outside a dropzone can't make
   // the WebView navigate to the file and blow away the whole app.

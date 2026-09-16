@@ -23,6 +23,10 @@ const OWNER_SCOPED_FLAGS = [
   // thing that should not outlive them on a shared browser.
   'dayspring.applock',
   SUBSCRIPTION_CACHE_KEY,
+  // The one-shot "have I fired first_entry_created on this device" flag
+  // (lib/firstEntry.ts). Not content, but a fresh owner should get a fresh
+  // shot at the signal rather than silently inheriting the previous owner's.
+  'dayspring.first_entry_tracked',
 ]
 
 /** Scrub all cached journal CONTENT (privacy-sensitive). */

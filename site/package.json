@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
-    "astro": "^5.13.0"
+    "astro": "^5.13.0",
+    "posthog-js": "^1.415.3"
   },
   "devDependencies": {
     "vitest": "^4.1.10"

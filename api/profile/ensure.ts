@@ -18,6 +18,7 @@ import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { env } from '../_lib/env.js'
 import { preflight, withCors } from '../_lib/cors.js'
 import { nameFromAuthMetadata, scheduleAccountContactUpsert } from '../_lib/resendAudience.js'
+import { scheduleLifecycleEvent } from '../_lib/growthEvents.js'
 
 const TRIAL_DAYS = 14
 
@@ -84,6 +85,13 @@ export async function POST(req: Request): Promise<Response> {
       email: user.email,
       ...nameFromAuthMetadata(user.user_metadata),
     })
+  }
+
+  // The reverse trial never touches Stripe or Apple, so it never reaches
+  // updateSubscription.ts's own lifecycle-event call — this is the one and
+  // only place that grant happens.
+  if (grantTrial) {
+    scheduleLifecycleEvent({ userId: user.id, event: 'StartTrial', source: 'reverse-trial' })
   }
 
   return withCors(

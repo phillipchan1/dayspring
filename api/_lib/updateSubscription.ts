@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { isEntitled, type Plan, type PlanSource, type PlanState } from './entitlement.js'
+import { lifecycleEventFor, scheduleLifecycleEvent } from './growthEvents.js'
 
 export interface SubscriptionUpdate {
   plan: Plan
@@ -32,9 +33,12 @@ export interface CurrentPlanRow {
   plan_source: PlanSource | null
   trial_ends_at: string | null
   plan_expires_at: string | null
+  // Only needed to attribute a growth event when the caller looked the row up
+  // by something other than the user id (Stripe customer, Apple original txn).
+  owner?: string
 }
 
-const CURRENT_COLUMNS = 'plan, plan_source, trial_ends_at, plan_expires_at'
+const CURRENT_COLUMNS = 'plan, plan_source, trial_ends_at, plan_expires_at, owner'
 
 /**
  * May a write from `update.source` overwrite `current`?
@@ -137,6 +141,22 @@ function logSkip(key: string, update: SubscriptionUpdate, current: CurrentPlanRo
   )
 }
 
+/** Fire a growth event for this write, if the transition it made is one of the
+ *  three that matter (see growthEvents.ts). Every caller below reaches this
+ *  only after `shouldApplyUpdate` has already cleared the write to land, so
+ *  there is nothing left to guard here except "is there anyone to attribute it
+ *  to" — `userId` is absent only when a Stripe/Apple lookup key matched a row
+ *  with no owner yet, which should not happen but must not throw if it does. */
+function emitLifecycleEvent(
+  userId: string | undefined,
+  current: CurrentPlanRow | null,
+  update: Pick<SubscriptionUpdate, 'plan' | 'source'>,
+): void {
+  if (!userId) return
+  const event = lifecycleEventFor(current?.plan ?? null, update.plan)
+  if (event) scheduleLifecycleEvent({ userId, event, source: update.source })
+}
+
 /** Update plan by Supabase user ID (use on checkout.session.completed and
  *  /api/apple/verify, where we know exactly whose account this is). */
 export async function updateSubscriptionByUserId(
@@ -161,6 +181,7 @@ export async function updateSubscriptionByUserId(
     .from('profiles')
     .upsert({ owner: userId, ...updateColumns(update) }, { onConflict: 'owner' })
     .throwOnError()
+  emitLifecycleEvent(userId, current, update)
   return 'applied'
 }
 
@@ -192,6 +213,7 @@ export async function updateSubscriptionByStripeCustomer(
     .update(updateColumns(update))
     .eq('stripe_customer_id', stripeCustomerId)
     .throwOnError()
+  emitLifecycleEvent(current.owner, current, update)
   return 'applied'
 }
 
@@ -227,5 +249,6 @@ export async function updateSubscriptionByAppleOriginalTxn(
     .update(updateColumns(update))
     .eq('apple_original_txn', originalTransactionId)
     .throwOnError()
+  emitLifecycleEvent(current.owner, current, update)
   return 'applied'
 }

@@ -30,6 +30,7 @@ import {
 } from './entries'
 import * as cache from './db'
 import { syncStore } from './sync'
+import { markFirstEntryIfNeeded } from './firstEntry'
 import { isAuthInvalidation, forceReauth } from './authError'
 import {
   divergedFromBase,
@@ -100,6 +101,7 @@ export async function createEntry(input: NewEntry, id?: string): Promise<Entry> 
   await queueUpsert(entry.id)
   scheduleFlush()
   scheduleCircumstancesSnap(entry.id)
+  markFirstEntryIfNeeded()
   return entry
 }
 
