@@ -1,0 +1,188 @@
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/node_modules/@fontsource/fraunces/files/fraunces-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: italic;
+  font-weight: 400;
+  src: url("/node_modules/@fontsource/fraunces/files/fraunces-latin-400-italic.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/node_modules/@fontsource/newsreader/files/newsreader-latin-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  src: url("/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2")
+    format("woff2");
+}
+
+:root {
+  color-scheme: dark;
+  --ink: #0c0d11;
+  --paper: #ece7dd;
+  --muted: #a6a09a;
+  --dawn-1: #f3bd76;
+  --dawn-2: #e8917c;
+  --dawn-3: #c56a6e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--ink);
+}
+
+/*
+ * Facebook shows this same 1200x630 image two different ways:
+ * desktop crops to a 2.628:1 band (full width, less height), mobile crops
+ * to a 1.778:1 band (full height, less width). Everything essential sits
+ * inside x:[3.3%,96.7%] / y:[13.8%,86.2%] so it survives both crops, and
+ * nothing sits in the bottom-left quarter, which older Page layouts still
+ * overlap with the profile picture.
+ */
+.cover {
+  position: relative;
+  width: 1200px;
+  height: 630px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(197, 106, 110, 0.16), transparent 34%),
+    linear-gradient(160deg, #131015 0%, var(--ink) 45%, #08090c 100%);
+  color: var(--paper);
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.dawn {
+  position: absolute;
+  z-index: 0;
+  border-radius: 999px;
+  filter: blur(90px);
+}
+
+.dawn--right {
+  top: 8%;
+  right: -6%;
+  width: 46%;
+  height: 84%;
+  background: rgba(243, 189, 118, 0.12);
+}
+
+.dawn--left {
+  bottom: -22%;
+  left: -4%;
+  width: 40%;
+  height: 46%;
+  background: rgba(197, 106, 110, 0.1);
+}
+
+.safe {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  padding: 13.8% 3.3%;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex: none;
+  background: linear-gradient(135deg, var(--dawn-1), var(--dawn-2) 55%, var(--dawn-3));
+  box-shadow: 0 0 28px rgba(243, 189, 118, 0.28);
+}
+
+.wordmark {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+.message {
+  max-width: 620px;
+  margin-top: 7.5%;
+}
+
+h1 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 400;
+  font-size: 58px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+
+h1 em {
+  font-style: italic;
+  font-weight: 400;
+  background: linear-gradient(92deg, var(--dawn-1), var(--dawn-2) 55%, var(--dawn-3));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.supporting {
+  margin: 20px 0 0;
+  max-width: 92%;
+  color: #c5beb4;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.proof {
+  margin: 26px 0 0;
+  color: #88838a;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 13px;
+}
+
+.sunrise {
+  position: absolute;
+  right: 7%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 300px;
+  height: 300px;
+  z-index: 2;
+  filter: drop-shadow(0 0 60px rgba(243, 189, 118, 0.22));
+}
