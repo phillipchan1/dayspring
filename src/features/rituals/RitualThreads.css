@@ -1,0 +1,268 @@
+/*
+ * Practices you have walked.
+ *
+ * Rides on `.practice-modal` from PracticeLibrary.css — the shell, the three
+ * sky layers and the close button are all shared, so the hour and the theme
+ * are already right and nothing here re-declares them. Everything below is the
+ * reading column, and it maps to the same `--pl-*` tokens the library defines
+ * so a cloister morning and a nocturne midnight both read correctly.
+ *
+ * Nothing in this file styles a count, a streak, a gap or a progress ring,
+ * because none is rendered. See RitualThreads.tsx.
+ */
+
+.ritual-threads .rt {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rt__pane {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vh, 5rem) 1.5rem 6rem;
+  /* The safe-area inset the rest of the iOS surfaces carry. */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── heads ────────────────────────────────────────────────────────────────── */
+
+.rt__title {
+  font-family: var(--pl-display);
+  font-weight: 400;
+  font-size: clamp(1.7rem, 4.6vw, 2.35rem);
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+  color: var(--pl-ink);
+  margin: 0 0 0.6rem;
+}
+
+.rt__title--practice {
+  margin-bottom: 1.1rem;
+}
+
+.rt__sub {
+  font-family: var(--pl-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--pl-muted);
+  margin: 0 0 1.75rem;
+  max-width: 32rem;
+}
+
+.rt__sub--tight {
+  font-size: 0.86rem;
+  margin-bottom: 2rem;
+}
+
+.rt__empty {
+  font-family: var(--pl-body);
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--pl-muted);
+  border: 1px dashed var(--pl-border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin: 0;
+  max-width: 32rem;
+}
+
+.rt__back {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.82rem;
+  color: var(--pl-muted);
+  cursor: pointer;
+}
+
+.rt__back:hover {
+  color: var(--pl-ink);
+}
+
+/* ── the shelf ────────────────────────────────────────────────────────────── */
+
+.rt__shelf {
+  border-top: 1px solid var(--pl-border);
+}
+
+.rt__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--pl-border);
+  padding: 1.05rem 0.4rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.rt__row:hover,
+.rt__row:focus-visible {
+  background: var(--pl-amber-glow);
+  outline: none;
+}
+
+.rt__row-name {
+  font-family: var(--pl-display);
+  font-size: 1.22rem;
+  font-weight: 400;
+  color: var(--pl-ink);
+}
+
+.rt__row-when {
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.75rem;
+  color: var(--pl-ghost);
+  white-space: nowrap;
+}
+
+/* ── movement rail ────────────────────────────────────────────────────────── */
+
+.rt__rail {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.6rem;
+  border-bottom: 1px solid var(--pl-border);
+}
+
+.rt__rail::-webkit-scrollbar {
+  display: none;
+}
+
+.rt__rail-btn {
+  appearance: none;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.34rem 0.85rem;
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.8rem;
+  color: var(--pl-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rt__rail-btn:hover {
+  color: var(--pl-ink);
+}
+
+.rt__rail-btn[aria-selected='true'] {
+  border-color: var(--pl-amber-glow-strong);
+  background: var(--pl-amber-glow);
+  color: var(--pl-ink);
+}
+
+/* ── the question ─────────────────────────────────────────────────────────── */
+
+.rt__label {
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.7rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--pl-amber);
+  margin: 0 0 0.55rem;
+}
+
+.rt__question {
+  font-family: var(--pl-display);
+  font-weight: 400;
+  font-size: clamp(1.25rem, 3.4vw, 1.6rem);
+  line-height: 1.34;
+  letter-spacing: -0.005em;
+  color: var(--pl-ink);
+  margin: 0 0 0.45rem;
+}
+
+/* ── answers ──────────────────────────────────────────────────────────────── */
+
+.rt__answers {
+  display: flex;
+  flex-direction: column;
+}
+
+.rt__answer {
+  display: block;
+  width: 100%;
+  text-align: left;
+  appearance: none;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--pl-border);
+  padding: 1.1rem 0.75rem 1.1rem 1.15rem;
+  cursor: pointer;
+  position: relative;
+  font-family: var(--pl-body);
+}
+
+/* The one ornament on the surface, and it marks a page rather than a score. */
+.rt__answer::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 1.5rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pl-amber);
+  opacity: 0.5;
+}
+
+.rt__answer:hover,
+.rt__answer:focus-visible {
+  background: var(--pl-amber-glow);
+  outline: none;
+}
+
+.rt__answer:hover::before,
+.rt__answer:focus-visible::before {
+  opacity: 1;
+}
+
+.rt__answer-date {
+  display: block;
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--pl-ghost);
+  margin-bottom: 0.38rem;
+}
+
+.rt__answer-text {
+  display: block;
+  font-size: 1.04rem;
+  line-height: 1.66;
+  color: var(--pl-ink-soft);
+  /* The writer's own line breaks are part of the answer. */
+  white-space: pre-wrap;
+}
+
+.rt__year {
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--pl-ghost);
+  padding: 1.5rem 0 0.45rem 1.15rem;
+  border-left: 1px solid var(--pl-border);
+}
+
+@media (max-width: 480px) {
+  .rt__pane {
+    padding-left: 1.15rem;
+    padding-right: 1.15rem;
+  }
+}

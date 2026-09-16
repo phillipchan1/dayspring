@@ -27,6 +27,18 @@ interface EventProps {
   slash_used: { cmd: SlashCmd }
   /** A ritual's prompts inserted into the entry. */
   ritual_begun: undefined
+  /**
+   * A ritual left, with how much of it got written.
+   *
+   * `ritual_begun` alone could not answer the only question that matters about
+   * the library — whether a practice gets finished or abandoned — which left
+   * MORNING_RITUALS_PLAN §10's own change-our-mind tests unrunnable. Counts
+   * only: how many movements the block held, and how many carried words. No
+   * practice name, because a name is a string and this vocabulary has none.
+   */
+  ritual_finished: { movements: number; answered: number }
+  /** The "practices you have walked" surface opened, and how many it held. */
+  ritual_threads_opened: { practices: number }
   /** A discovery ember lit for a never-visited surface. */
   ember_lit: { surface: ReturnSurface }
   /** A surface first opened while its ember was burning — the nudge worked. */

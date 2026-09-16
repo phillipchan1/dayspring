@@ -1,0 +1,659 @@
+/*
+ * The Ritual Thread — what a practice looks like when it comes back.
+ *
+ * Palette is the running app's own dark ground, measured off themes.css, so the
+ * argument reads as a surface inside Dayspring rather than a pitch deck about
+ * one. #c4913c is the brand amber; a brighter one reads as a warning.
+ *
+ * ── The rule this surface lives under ───────────────────────────────────────
+ * Nothing on screen but the writer's own words and the date they wrote them.
+ * No count, no streak, no gap, no completion ring, no "you've done this 18
+ * times". MORNING_RITUALS_PLAN §5.3 wrote that constraint down before anyone
+ * built this, and Principle 2 is what it is protecting.
+ *
+ * A date on a single answer is a fact about a page. A number over a column is a
+ * verdict about a person. That is the whole line, and it is why `SHOW_COUNTS`
+ * exists in model.ts as a permanently-false constant rather than a setting.
+ */
+
+:root {
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+
+  --bg: #0c0d12;
+  --bg-elevated: #12131a;
+  --bg-input: #191b23;
+  --bg-hover: #1d1f28;
+
+  --border: #262833;
+  --border-subtle: #1a1c24;
+
+  --text: #b7b6c1;
+  --text-bright: #f2f1f6;
+  --text-dim: #71707d;
+  --text-faint: #4a4954;
+
+  --lilac: #b98ce0;
+  --amber: #c4913c;
+  --amber-soft: rgba(196, 145, 60, 0.1);
+  --amber-line: rgba(196, 145, 60, 0.28);
+
+  --glow: radial-gradient(120% 130% at 50% -30%, rgba(196, 145, 60, 0.14), transparent 62%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  background-image: var(--glow);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ── shell ────────────────────────────────────────────────────────────────── */
+
+.shell {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 9rem;
+}
+
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0 1.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.masthead__back {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.masthead__back:hover {
+  color: var(--text-bright);
+}
+
+/* The source toggle. Present on every data screen, because the gap between the
+   two archives is the actual finding and hiding it would be dishonest. */
+.source {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: none;
+}
+
+.source__btn {
+  background: none;
+  border: none;
+  padding: 0.3rem 0.7rem;
+  color: var(--text-faint);
+}
+
+.source__btn[aria-pressed='true'] {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+/* ── type ─────────────────────────────────────────────────────────────────── */
+
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 0.75rem;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.7rem, 5vw, 2.4rem);
+  line-height: 1.16;
+  color: var(--text-bright);
+  margin: 0 0 1rem;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  font-size: 1.08rem;
+  line-height: 1.62;
+  color: var(--text);
+  margin: 0 0 1.1rem;
+  max-width: 34rem;
+}
+
+.lede--dim {
+  color: var(--text-dim);
+  font-size: 1rem;
+}
+
+.cta {
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  margin-top: 1.4rem;
+  padding: 0.62rem 1.15rem;
+  border-radius: 7px;
+  border: 1px solid var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--text-bright);
+}
+
+.cta:hover {
+  background: rgba(196, 145, 60, 0.17);
+}
+
+/* ── the shelf ────────────────────────────────────────────────────────────── */
+
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 1.75rem;
+}
+
+.shelf__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 1.05rem 0.25rem;
+  transition: background 120ms ease;
+}
+
+.shelf__row:hover {
+  background: var(--bg-elevated);
+}
+
+.shelf__name {
+  font-family: var(--font-display);
+  font-size: 1.24rem;
+  font-weight: 400;
+  color: var(--text-bright);
+}
+
+/* Last walked, and nothing else. Not "18 walks", not "4 day streak", not a gap
+   warning. The order already carries recency; saying it twice makes it a score. */
+.shelf__when {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.shelf__note {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin-top: 1.1rem;
+  line-height: 1.55;
+}
+
+/* ── movement rail ────────────────────────────────────────────────────────── */
+
+.rail {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0 0 0.85rem;
+  margin: 0 -1.25rem 1.4rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.rail__btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.34rem 0.8rem;
+  font-family: var(--font-sans);
+  font-size: 0.79rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.rail__btn:hover {
+  color: var(--text-bright);
+}
+
+.rail__btn[aria-pressed='true'] {
+  border-color: var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--text-bright);
+}
+
+/* ── the question ─────────────────────────────────────────────────────────── */
+
+.question {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.3rem, 3.6vw, 1.65rem);
+  line-height: 1.32;
+  color: var(--text-bright);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.005em;
+}
+
+.question__label {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 0.6rem;
+}
+
+.question__sub {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin: 0 0 2rem;
+}
+
+/* ── answers ──────────────────────────────────────────────────────────────── */
+
+.answers {
+  display: flex;
+  flex-direction: column;
+}
+
+.answer {
+  padding: 1.15rem 0 1.15rem 1.15rem;
+  border-left: 1px solid var(--border);
+  position: relative;
+}
+
+/* The tick is the only ornament on the surface, and it marks a page, not a
+   score. Amber because it is lit writing, per the app's own language. */
+.answer::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 1.55rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  opacity: 0.55;
+}
+
+.answer:hover::before {
+  opacity: 1;
+}
+
+.answer__date {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin-bottom: 0.4rem;
+}
+
+.answer__text {
+  font-size: 1.06rem;
+  line-height: 1.66;
+  color: var(--text);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.answer--latest .answer__text {
+  color: var(--text-bright);
+}
+
+.year {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 1.6rem 0 0.5rem 1.15rem;
+  border-left: 1px solid var(--border);
+}
+
+.empty {
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 1.4rem;
+  margin-top: 1rem;
+}
+
+.empty strong {
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+/* ── the composer variant ─────────────────────────────────────────────────── */
+
+.composer {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  margin-top: 1.5rem;
+}
+
+.composer__top {
+  padding: 1.5rem 1.4rem 0;
+}
+
+.composer__label {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 0.55rem;
+}
+
+.composer__q {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.3rem;
+  line-height: 1.34;
+  color: var(--text-bright);
+  margin: 0 0 1.1rem;
+}
+
+.composer__field {
+  min-height: 6.5rem;
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.1rem 1.4rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+.composer__caret {
+  display: inline-block;
+  width: 1px;
+  height: 1.1em;
+  background: var(--amber);
+  vertical-align: text-bottom;
+  animation: blink 1.1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer__caret {
+    animation: none;
+  }
+}
+
+/* The drawer is CLOSED by default and it is a button, not a panel. Principle 3:
+   nothing adds chrome to the writing surface. You go looking for this. */
+.drawer {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.drawer__toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.85rem 1.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.drawer__toggle:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+
+.drawer__chev {
+  color: var(--text-faint);
+}
+
+.drawer__body {
+  padding: 0.25rem 1.4rem 1.3rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.drawer__item {
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.drawer__item:last-child {
+  border-bottom: none;
+}
+
+.drawer__date {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  margin-bottom: 0.25rem;
+}
+
+.drawer__text {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.caution {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  border-left: 2px solid var(--amber-line);
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  margin: 1.8rem 0 0;
+}
+
+.caution strong {
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+/* ── guide footer ─────────────────────────────────────────────────────────── */
+
+.guide-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(12, 13, 18, 0.94);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding: 0.8rem 1.25rem 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+}
+
+.guide-footer__note {
+  max-width: 46rem;
+  margin: 0 auto 0.65rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  font-size: 0.8rem;
+}
+
+.guide-footer__nav {
+  max-width: 46rem;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.guide-footer__step {
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.guide-footer__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.guide-footer__btn {
+  padding: 0.42rem 0.85rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.guide-footer__btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+
+.guide-footer__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.guide-footer__btn--primary {
+  background: var(--amber-soft);
+  border-color: var(--amber-line);
+  color: var(--text-bright);
+}
+
+/* ── feedback ─────────────────────────────────────────────────────────────── */
+
+.prefer__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 1.5rem 0;
+}
+
+.prefer__option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: var(--bg-elevated);
+}
+
+.prefer__option:hover {
+  background: var(--bg-hover);
+}
+
+.prefer__notes {
+  width: 100%;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-bright);
+  padding: 0.8rem;
+  margin-bottom: 0.9rem;
+  min-height: 6rem;
+}
+
+.prefer__submit {
+  width: 100%;
+  padding: 0.7rem;
+  background: var(--amber-soft);
+  border: 1px solid var(--amber-line);
+  color: var(--text-bright);
+  border-radius: 8px;
+  font-family: var(--font-sans);
+}
+
+.prefer__fine {
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+
+.prefer__error {
+  color: #c2707f;
+}
+
+.prefer__thanks {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  text-align: center;
+  padding: 4rem 0;
+  color: var(--text-bright);
+}
+
+@media (max-width: 480px) {
+  .shell {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .rail {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

@@ -82,6 +82,7 @@ async function bootstrap() {
   //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
   //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
   //   ?__preview=topbar             → the Ritual door + status cluster (features/journal/topbarPreview.tsx)
+  //   ?__preview=threads            → practices you have walked (features/rituals/preview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -142,6 +143,11 @@ async function bootstrap() {
     if (preview === 'ritual') {
       const { renderRitualPreview } = await import('./editor/ritualPreview')
       renderRitualPreview()
+      return
+    }
+    if (preview === 'threads') {
+      const { renderRitualThreadsPreview } = await import('./features/rituals/preview')
+      renderRitualThreadsPreview()
       return
     }
     if (preview === 'topbar') {

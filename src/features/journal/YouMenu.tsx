@@ -27,6 +27,17 @@ import './You.css'
 interface Props {
   userEmail: string
   onLifeMap: () => void
+  /**
+   * Open "practices you have walked".
+   *
+   * It sits here because the library's own door is inside the editor, on a
+   * blank page — which is the right place to START a ritual and the wrong
+   * place to read one back. Reading back is something you do when you are not
+   * writing, and this is the menu you can reach from anywhere.
+   */
+  onRitualThreads: () => void
+  /** Hides the row until the archive holds a ritual — never shown as a count. */
+  hasWalkedARitual: boolean
   onOpenSettings: () => void
   /** The Concordance drawer is still flag-gated; hide the row when it is off. */
   concordanceEnabled: boolean
@@ -41,6 +52,8 @@ const initialOf = (email: string) => (email.trim()[0] ?? '·').toUpperCase()
 export function YouMenu({
   userEmail,
   onLifeMap,
+  onRitualThreads,
+  hasWalkedARitual,
   onOpenSettings,
   concordanceEnabled,
   labelsExpanded,
@@ -120,6 +133,17 @@ export function YouMenu({
             Life Map
             <span className="you__gloss">the people and things you return to</span>
           </button>
+          {hasWalkedARitual && (
+            <button
+              type="button"
+              role="menuitem"
+              className="you__item"
+              onClick={pick(onRitualThreads)}
+            >
+              Practices
+              <span className="you__gloss">what you have written in a ritual</span>
+            </button>
+          )}
           {concordanceEnabled && (
             <button
               type="button"

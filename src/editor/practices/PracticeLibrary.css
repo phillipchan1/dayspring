@@ -497,6 +497,33 @@
   line-height: 1.5;
 }
 
+/*
+ * The way back — "practices you have walked".
+ *
+ * Quiet on purpose. The grid is what this surface is for; this is the second
+ * verb, and a button competing with the shelf would make choosing harder at
+ * 6am, which is already the hardest thing about a ritual.
+ */
+.practice-library__walked {
+  appearance: none;
+  background: none;
+  border: none;
+  margin: 14px 0 0;
+  padding: 0;
+  font-family: var(--font-label, sans-serif);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  color: var(--pl-muted);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.practice-library__walked:hover,
+.practice-library__walked:focus-visible {
+  color: var(--pl-amber);
+  outline: none;
+}
+
 /* ── Threshold view ────────────────────────────────────────────────────── */
 
 .practice-threshold {

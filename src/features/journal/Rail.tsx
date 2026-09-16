@@ -30,6 +30,10 @@ interface RailProps {
   scriptureActive: boolean
   onScripture: () => void
   onLifeMap: () => void
+  /** Open "practices you have walked" from the You menu. */
+  onRitualThreads: () => void
+  /** Hides that row until the archive holds a ritual. */
+  hasWalkedARitual: boolean
   onOpenSettings: () => void
   userEmail: string
   /** The Concordance drawer is still flag-gated; the menu hides its row when off. */
@@ -56,6 +60,8 @@ export function Rail({
   scriptureActive,
   onScripture,
   onLifeMap,
+  onRitualThreads,
+  hasWalkedARitual,
   onOpenSettings,
   userEmail,
   concordanceEnabled,
@@ -173,6 +179,8 @@ export function Rail({
         <YouMenu
           userEmail={userEmail}
           onLifeMap={onLifeMap}
+          onRitualThreads={onRitualThreads}
+          hasWalkedARitual={hasWalkedARitual}
           onOpenSettings={onOpenSettings}
           concordanceEnabled={concordanceEnabled}
           labelsExpanded={labelsExpanded}

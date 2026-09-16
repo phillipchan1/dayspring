@@ -48,6 +48,10 @@ export interface JournalViewProps {
   /** Altar is gated behind the `altar` feature flag until it's ready to ship. */
   altarEnabled: boolean
   onLifeMap: () => void
+  /** Open 'practices you have walked' — the way back into a ritual. */
+  onRitualThreads: () => void
+  /** Hides that row until the archive holds a ritual. Never rendered as a number. */
+  hasWalkedARitual: boolean
   /** Gates the Concordance row in the You menu. */
   concordanceEnabled: boolean
   onOpenSettings: () => void

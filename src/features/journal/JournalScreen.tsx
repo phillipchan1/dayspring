@@ -72,6 +72,7 @@ import { InlinePrayPopover } from '@/features/capture/InlinePrayPopover'
 import { InlineSensePopover } from '@/features/capture/InlineSensePopover'
 import { InlineScripturePopover } from '@/features/capture/InlineScripturePopover'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
+import { RitualThreads } from '@/features/rituals/RitualThreads'
 import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
 import { RitualComposer } from '@/editor/practices/RitualComposer'
 import { ritualIndexContaining } from '@/editor/practices/ritualDocument'
@@ -385,6 +386,20 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const [lifeMapDomains, setLifeMapDomains] = useState<string[] | null>(null)
   /** Which ritual block the composer is open on, or null when it is closed. */
   const [composerIndex, setComposerIndex] = useState<number | null>(null)
+  /** "Practices you have walked" — the way back into a ritual. */
+  const [threadsOpen, setThreadsOpen] = useState(false)
+  /**
+   * Does the archive hold any ritual at all?
+   *
+   * Only the token test, not the full parse: this runs on every entries change
+   * (so, every save), and it exists purely to decide whether the library shows
+   * its "walked" link. `RitualThreads` does the real grouping, once, when it
+   * opens — nothing parses the archive while someone is writing.
+   */
+  const hasWalkedARitual = useMemo(
+    () => entries.some((e) => (e.body_markdown ?? '').includes(':name:')),
+    [entries],
+  )
 
   const [slashPaletteOpen, setSlashPaletteOpen] = useState(false)
   const focusOverlaysOpen =
@@ -2163,6 +2178,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onLifeMap: toggleLifeMap,
+    onRitualThreads: () => setThreadsOpen(true),
+    hasWalkedARitual,
     altarEnabled,
     concordanceEnabled,
     onOpenSettings: () => openSettings(),
@@ -2289,6 +2306,21 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           midEntry={ritualOpening?.midEntry ?? false}
           landing={ritualOpening?.landing ?? null}
           domains={lifeMapDomains}
+          hasWalked={hasWalkedARitual}
+          onOpenThreads={() => {
+            closeSlashCapture()
+            setThreadsOpen(true)
+          }}
+        />
+      )}
+      {threadsOpen && (
+        <RitualThreads
+          entries={entries}
+          onClose={() => setThreadsOpen(false)}
+          onOpenEntry={(id: string) => {
+            setThreadsOpen(false)
+            void openEntryById(id)
+          }}
         />
       )}
       {composerIndex !== null && (

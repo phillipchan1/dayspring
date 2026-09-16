@@ -63,6 +63,20 @@ interface Props {
    * Round into its "needs a few domains" state rather than hiding it.
    */
   domains?: readonly string[] | null
+  /**
+   * Open "practices you have walked" — the way back into a ritual.
+   *
+   * The library had three doors IN and none back out, which is why a ritual
+   * was the one thing in the product that never returned. The link sits in the
+   * header rather than the grid because it is a different verb: the grid is
+   * "which will you walk", this is "what have you written".
+   *
+   * Omitted by the App Store surfaces and the `?__preview=` harness, which
+   * have no archive to read; the link simply does not render.
+   */
+  onOpenThreads?: (() => void) | undefined
+  /** Whether the archive holds any walked practice. Gates the link, never shown. */
+  hasWalked?: boolean
 }
 
 type RhythmFilter = PracticeRhythm | 'all'
@@ -104,6 +118,8 @@ export function PracticeLibrary({
   landing = null,
   now,
   domains = null,
+  onOpenThreads,
+  hasWalked = false,
 }: Props) {
   // The sky is decided once, on open. Recomputing it would mean the light
   // shifting under someone who left the library sitting open — and the
@@ -300,6 +316,17 @@ export function PracticeLibrary({
               ? 'Starting from what you’ve written — the need-based practices come first.'
               : sky.because}
           </p>
+          {/* The way back. Only when there is something to go back to —
+              Principle 5, rather than an empty room behind a live link. */}
+          {onOpenThreads && hasWalked && (
+            <button
+              type="button"
+              className="practice-library__walked"
+              onClick={onOpenThreads}
+            >
+              Practices you have walked →
+            </button>
+          )}
         </header>
 
         <div className="practice-library__controls">

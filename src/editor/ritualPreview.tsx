@@ -301,6 +301,10 @@ export function renderRitualPreview(): void {
         midEntry={midEntry}
         landing={describeRitualLanding(doc, doc.length)}
         domains={domains}
+        /* The walked link has nothing behind it in the harness, but it must be
+           visible to be reviewed. */
+        hasWalked
+        onOpenThreads={() => console.log('[preview] open threads')}
         {...now}
       />,
     )

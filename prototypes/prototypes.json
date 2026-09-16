@@ -45,6 +45,15 @@
       "hasFeedback": false,
       "startHash": "wall",
       "description": "The wall, and ten ways of looking back at it. Screen-share walkthrough — not self-guided feedback."
+    },
+    {
+      "slug": "rituals",
+      "title": "The ritual thread",
+      "description": "Rituals are the only surface that never comes back to you. Your own answers to one movement, in order. Screen-share walkthrough — not self-guided feedback.",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": true,
+      "startHash": "intro"
     }
   ]
 }

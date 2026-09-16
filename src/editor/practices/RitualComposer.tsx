@@ -3,6 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react'
 import { createPortal } from 'react-dom'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useTouchPrimary } from '@/hooks/useMediaQuery'
+import { track } from '@/lib/analytics'
 import { PRACTICE_BY_NAME } from './practicesData'
 import { placeholderFor, questionFor } from './usePracticeInsertion'
 import {
@@ -153,8 +154,31 @@ export function RitualComposer({
     replaceRangeRef.current(range.from, range.to, next, { focus: false })
   }, [block, blockIndex])
 
+  /**
+   * How much of the ritual got written, reported once per composer.
+   *
+   * There are TWO ways out — `leave` (✕ / "done") and `removeBlock` ("remove
+   * this ritual from the entry") — and `leave` delegates to `removeBlock` when
+   * nothing was written, so a naive call in each would double-count exactly the
+   * abandonment case this exists to measure. Hence the latch.
+   *
+   * Deliberately removing a ritual is the strongest abandonment signal there
+   * is, so it must report rather than being treated as "never happened".
+   */
+  const reportedRef = useRef(false)
+  const reportFinished = useCallback(() => {
+    if (reportedRef.current) return
+    reportedRef.current = true
+    // Counts only — the analytics vocabulary has no free-text field by design.
+    track('ritual_finished', {
+      movements: textsRef.current.length,
+      answered: textsRef.current.filter((t) => t.trim() !== '').length,
+    })
+  }, [])
+
   const removeBlock = useCallback(() => {
     if (!block || goneRef.current) return
+    reportFinished()
     goneRef.current = true
     const doc = getDocRef.current()
     const range = ritualRemovalRange(doc, blockIndex)
@@ -202,6 +226,10 @@ export function RitualComposer({
   }, [block, blockIndex])
 
   const leave = useCallback(() => {
+    // Before anything else, and latched — the empty branch below exits through
+    // `removeBlock`, which reports too. Without this the library's only event
+    // is `ritual_begun` and "finished or abandoned?" stays unanswerable.
+    reportFinished()
     // An untouched ritual is scaffolding, not a record. Leaving it behind
     // is how "I changed my mind" used to get stuck — ✕ closed the surface
     // and the empty block sat in the entry with no way out but continue.
@@ -219,7 +247,7 @@ export function RitualComposer({
     }
     commit()
     onCloseRef.current()
-  }, [commit, commitPruned, practice, removeBlock])
+  }, [commit, commitPruned, practice, removeBlock, reportFinished])
 
   useEffect(() => {
     const id = setTimeout(commit, 400)

@@ -52,6 +52,11 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
+const tracked = vi.hoisted(() => [] as { event: string; props?: unknown }[])
+vi.mock('@/lib/analytics', () => ({
+  track: (event: string, props?: unknown) => tracked.push({ event, props }),
+}))
+
 // The composer is under test, not the viewport hooks.
 vi.mock('@/hooks/useMediaQuery', () => ({
   useIsMobile: () => true,
@@ -135,6 +140,7 @@ describe('RitualComposer', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     doc = composeRitualMarkdown(examen.name, LABELS, ['', '', '', ''])
     onClose = vi.fn<() => void>()
+    tracked.length = 0
     host = document.createElement('div')
     document.body.appendChild(host)
     root = createRoot(host)
@@ -325,6 +331,45 @@ describe('RitualComposer', () => {
     expect(open.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
     expect(done.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
     expect(done.querySelector('.cm-practice-action--continue')).toBeNull()
+  })
+
+  /**
+   * The composer has two exits and `leave` delegates to `removeBlock` when
+   * nothing was written, so the count is easy to lose entirely or to fire twice
+   * on exactly the abandonment case it exists to measure.
+   */
+  describe('ritual_finished', () => {
+    const finished = () => tracked.filter((t) => t.event === 'ritual_finished')
+
+    it('reports how much was written when the writer leaves', () => {
+      doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', 'Distant.', '', ''])
+      render()
+      act(() => {
+        document.querySelector<HTMLButtonElement>('.rc__x')!.click()
+      })
+      expect(finished()).toHaveLength(1)
+      expect(finished()[0]!.props).toEqual({ movements: 4, answered: 2 })
+    })
+
+    it('reports once, not twice, when leaving an untouched ritual removes it', () => {
+      render()
+      act(() => {
+        document.querySelector<HTMLButtonElement>('.rc__x')!.click()
+      })
+      expect(finished()).toHaveLength(1)
+      expect(finished()[0]!.props).toEqual({ movements: 4, answered: 0 })
+    })
+
+    it('reports when the ritual is deliberately removed', () => {
+      // The strongest abandonment signal there is, and it bypasses `leave`.
+      doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])
+      render()
+      act(() => {
+        document.querySelector<HTMLButtonElement>('.rc__remove')!.click()
+      })
+      expect(finished()).toHaveLength(1)
+      expect(finished()[0]!.props).toEqual({ movements: 4, answered: 1 })
+    })
   })
 
   it('opens on the first movement still waiting', () => {

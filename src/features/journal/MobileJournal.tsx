@@ -35,7 +35,7 @@ export function MobileJournal(props: JournalViewProps) {
   const {
     entries, activeId, words, status, lastSavedAt, saveError,
     onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
-    userEmail, onLifeMap, concordanceEnabled,
+    userEmail, onLifeMap, onRitualThreads, hasWalkedARitual, concordanceEnabled,
     settings, updateSettings, focus,
     onPages, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
@@ -262,6 +262,8 @@ export function MobileJournal(props: JournalViewProps) {
               placement="bar"
               userEmail={userEmail}
               onLifeMap={onLifeMap}
+              onRitualThreads={onRitualThreads}
+              hasWalkedARitual={hasWalkedARitual}
               onOpenSettings={onOpenSettings}
               concordanceEnabled={concordanceEnabled}
               labelsExpanded={false}

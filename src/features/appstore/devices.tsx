@@ -37,6 +37,9 @@ export function journalProps(
 ): JournalViewProps {
   return {
     userEmail: 'you@example.com',
+    onRitualThreads: noop,
+    // The shots photograph the shelf, not the archive behind it.
+    hasWalkedARitual: false,
     entries: MOCK_ENTRIES,
     activeId: MOCK_ACTIVE_ENTRY.id,
     words: MOCK_ACTIVE_ENTRY.word_count,
