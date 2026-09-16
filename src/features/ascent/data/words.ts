@@ -13,7 +13,7 @@ import { listEntriesInWindow } from '@/lib/entries'
 import type { DateWindow } from '@/lib/scripture/query'
 import type { Excerpt, Highlight, Quote, Rollup } from '@/lib/insights'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
-import type { AscentArc, Theme, WordMoment, WordsData } from './types'
+import type { AscentArc, LongLook, Theme, WordMoment, WordsData } from './types'
 
 // ── date helpers (moved here from the old ascentData/summitData) ───────────────
 
@@ -139,7 +139,14 @@ function composeQuarterThemes(monthlies: Rollup[]): Theme[] {
 const MIN_VALLEY_CHARS = 16
 
 /**
- * VALLEY — the TRAILING 7 DAYS. Leads with the week's SYNTHESIS (the highlights /
+ * VALLEY — the CALENDAR WEEK (Mon–Sun), the same week boundary the weekly rollup
+ * is built on. It used to be the trailing seven days, which put the Valley and
+ * its own synthesis on different calendars: citations were keyed by entry id
+ * precisely so a misaligned rollup would contribute nothing rather than lie, and
+ * that mismatch is now gone rather than defended against. It also means "this
+ * week" names the same seven days here as it does on Pages.
+ *
+ * Leads with the week's SYNTHESIS (the highlights /
  * arcs the model surfaced — "what recurred this week") so the view distills rather
  * than dumps, then tucks the raw lines (your own words, in lived order) behind a
  * "show all" disclosure. The synthesis is kept CURRENT by a daily rebuild of the
@@ -230,18 +237,22 @@ export function quarterWords(monthlies: Rollup[]): WordsData | null {
   }
 }
 
-/** SUMMIT — the one line of the year (the yearly refrain), verbatim. */
-export function yearWords(yearly: Rollup | undefined): WordsData | null {
+/**
+ * SUMMIT — the one line of the year (the yearly refrain), verbatim.
+ *
+ * No arcs here, deliberately. Arcs are a MONTHLY shape: `YEARLY_SCHEMA` has no
+ * `arcs` field and `buildYearly` has never written one, so the Summit's old
+ * "thread of the year" block was a branch that could not render — dead by
+ * construction rather than for want of data. The year's threads live in
+ * `reflection.themes` as prose, and they belong to the long look.
+ */
+export function yearWords(yearly: Rollup | undefined | null, year: number): WordsData | null {
   const refrain = yearly?.payload.reflection?.refrain
-  const arcs = arcsOf(yearly)
-  if (!refrain && arcs.length === 0) return null
-  if (!refrain) {
-    return { resolution: 'year', periodLabel: String(yearOf(yearly!.period_start)), arcs, themes: [], moments: [] }
-  }
+  if (!refrain) return null
   return {
     resolution: 'year',
-    periodLabel: String(yearOf(yearly!.period_start)),
-    arcs,
+    periodLabel: String(year),
+    arcs: [],
     themes: [],
     moments: [
       {
@@ -252,4 +263,18 @@ export function yearWords(yearly: Rollup | undefined): WordsData | null {
       },
     ],
   }
+}
+
+/**
+ * The long look — the year's throughline and its threads, both already written
+ * by `buildYearly` and, until now, read by nothing in the app. The welcome flow
+ * promises the reader they will "read the throughline of your own life"; this is
+ * where that stops being a promise the product breaks.
+ */
+export function yearLongLook(yearly: Rollup | undefined | null): LongLook | null {
+  const reflection = yearly?.payload.reflection
+  const throughline = (reflection?.throughline ?? []).map((p) => p.trim()).filter(Boolean)
+  const themes = (reflection?.themes ?? []).map((p) => p.trim()).filter(Boolean)
+  if (throughline.length === 0 && themes.length === 0) return null
+  return { throughline, themes }
 }

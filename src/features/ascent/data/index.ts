@@ -9,12 +9,14 @@
  */
 
 import { assertSameOwner, cacheGeneration, getCache, onCacheCleared, setCache } from '@/lib/asyncCache'
-import { listRollups } from '@/lib/insights'
+import { getRollupForPeriod, listRollups } from '@/lib/insights'
+import { grainWindow } from '@/lib/period'
 import { isListingPreview } from '@/lib/previewMode'
 import { prewarmScripture } from '@/lib/scripture/query'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
+import { yearProgress, yearStones } from './stones'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
-import { loadWeekWords, monthWords, quarterWords, yearWords } from './words'
+import { loadWeekWords, monthWords, quarterWords, yearLongLook, yearWords } from './words'
 
 export type { Windows, VerseDrill }
 export { loadVerseDrill, confirmScriptureRef }
@@ -24,31 +26,17 @@ export interface LoadedAscent extends AscentData {
   windows: Windows
 }
 
-function dayStart(y: number, m: number, d: number): Date {
-  return new Date(Date.UTC(y, m, d, 0, 0, 0))
-}
-function dayEnd(y: number, m: number, d: number): Date {
-  return new Date(Date.UTC(y, m, d, 23, 59, 59))
-}
-
-/** Anchor every altitude's window to TODAY (live), not to the latest rollup. The
- *  Valley is the trailing 7 days — the days you're actually living — so it never
- *  feels stale waiting on a Monday rebuild, and it stays correct for a user whose
- *  rollups haven't been synthesized yet. Month/quarter/year are the current
- *  calendar period to-date. (`Date.UTC` rolls a negative day back across the month
- *  boundary, so a trailing week that spans two months is handled for free.) */
-function deriveWindows(): Windows {
-  const now = new Date()
-  const y = now.getUTCFullYear()
-  const m = now.getUTCMonth()
-  const d = now.getUTCDate()
-  const q = Math.floor(m / 3)
-
+/** Every altitude's window, from the ONE calendar the Remember surfaces share
+ *  (`src/lib/period.ts`). Nothing trailing lives here any more: the Valley is the
+ *  calendar week the weekly rollup is built on, and each altitude nests exactly
+ *  inside the one above it — which is what lets a stone laid in March have an
+ *  unambiguous place on the year's trail. */
+function deriveWindows(now: Date = new Date()): Windows {
   return {
-    week: { from: dayStart(y, m, d - 6), to: dayEnd(y, m, d) },
-    month: { from: dayStart(y, m, 1), to: dayEnd(y, m + 1, 0) },
-    quarter: { from: dayStart(y, q * 3, 1), to: dayEnd(y, q * 3 + 3, 0) },
-    year: { from: dayStart(y, 0, 1), to: dayEnd(y, 11, 31) },
+    week: grainWindow('week', now),
+    month: grainWindow('month', now),
+    quarter: grainWindow('season', now),
+    year: grainWindow('year', now),
   }
 }
 
@@ -123,13 +111,19 @@ async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent>
   // of every rollup ever written stays on the server. The scripture prewarm runs
   // alongside: one pass over the union of the four altitude windows, after which
   // each `loadScripture` below is an in-memory filter rather than its own scan.
+  const yearNum = windows.year.from!.getUTCFullYear()
+
   const [weekly, monthly, yearly] = await Promise.all([
     listRollups('weekly', 1).catch(() => []),
     listRollups('monthly', 3).catch(() => []),
-    listRollups('yearly', 1).catch(() => []),
+    // THIS year by name, not the newest yearly row. `listRollups('yearly', 1)`
+    // returned whichever year was built last — which, with the year only ever
+    // built on Jan 1 for the year just gone, meant the Summit spent all of a
+    // year showing the PREVIOUS year's refrain beside the current year's verse,
+    // under the current year's heading. Two vintages under one roof.
+    getRollupForPeriod('yearly', `${yearNum}-01-01`).catch(() => null),
     prewarmScripture(Object.values(windows), opts),
   ])
-  const yearNum = windows.year.from!.getUTCFullYear()
 
   const [weekWords, scrWeek, scrMonth, scrQuarter, scrYear] = await Promise.all([
     loadWeekWords(weekly[0], windows.week),
@@ -141,7 +135,7 @@ async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent>
 
   const monWords = monthWords(monthly[0])
   const quaWords = quarterWords(monthly)
-  const yeaWords = yearWords(yearly[0])
+  const yeaWords = yearWords(yearly, yearNum)
 
   // Prayer/learning/stones are retired (the converged Ascent reads the rope engine
   // for its content); only the real Words + Scripture dimensions feed the seam now.
@@ -173,7 +167,9 @@ async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent>
     prayer: null,
     learning: null,
     year: yearNum,
-    stones: [],
+    stones: yearStones(yearly, yearNum),
+    longLook: yearLongLook(yearly),
+    progress: yearProgress(),
   }
 
   const climb: LoadedAscent = { week, month, quarter, year, windows }

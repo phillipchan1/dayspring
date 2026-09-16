@@ -179,3 +179,16 @@ export function periodWindow(period: Period): { fromISO: string; toExclusiveISO:
   const toExclusive = addDays(dateStrToUTC(period.end), 1)
   return { fromISO: from.toISOString(), toExclusiveISO: toExclusive.toISOString() }
 }
+
+/** The calendar year containing `now`, as a whole-year period.
+ *
+ *  The Summit is the one altitude that is OPEN — it is the year the writer is
+ *  standing in, not a sealed report — so its rollup is rebuilt against the whole
+ *  year while the year is still running. The period stays Jan 1 → Dec 31 rather
+ *  than Jan 1 → today, which is what keeps the row identity stable: every
+ *  rebuild upserts the SAME row instead of leaving twelve partial years behind.
+ *  Months that haven't happened yet simply contribute no children. */
+export function currentYear(now: Date): Period {
+  const y = now.getUTCFullYear()
+  return { start: `${y}-01-01`, end: `${y}-12-31` }
+}

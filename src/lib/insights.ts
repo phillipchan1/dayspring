@@ -171,6 +171,30 @@ export async function listRollups(type: RollupType, limit?: number): Promise<Rol
 }
 
 /**
+ * The rollup for ONE named period, or null when it hasn't been built yet.
+ *
+ * Distinct from `listRollups(type, 1)`, which takes the newest row of a tier and
+ * is wrong for the Summit: the newest yearly row is whichever year was last
+ * built, so in September it was last year's — the Summit showed last year's
+ * refrain beside this year's verse, under this year's heading. Asking for the
+ * period by name can only ever return that period, or nothing.
+ */
+export async function getRollupForPeriod(
+  type: RollupType,
+  periodStart: string,
+): Promise<Rollup | null> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('insights')
+    .select('id, type, period_start, period_end, source_ids, structured_payload')
+    .eq('type', type)
+    .eq('period_start', periodStart)
+    .maybeSingle()
+  if (error) throw error
+  return data ? toRollup(data as InsightRow) : null
+}
+
+/**
  * Persist the user's Hillside arc edits (rename / dismiss / merge) back onto a
  * monthly rollup. This is the ONE exception to "the client never writes
  * insights": arc names are the user's tentative interpretation to own, not

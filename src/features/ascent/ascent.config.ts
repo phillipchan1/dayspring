@@ -58,7 +58,9 @@ export const ALTITUDES: AltitudeMeta[] = [
   },
   {
     key: 'quarter',
-    label: 'Quarter',
+    // 'Season' out loud, 'quarter' in the schema: the tier is a calendar quarter
+    // and every Remember surface now names that span the same way (src/lib/period.ts).
+    label: 'Season',
     alt: 'RIDGE',
     title: 'The season, distilled.',
     line: 'From the ridge the season distills: the phrases you circled, its anchor passage, the prayer and its first signs. The app holds them up and hands them back.',
@@ -94,7 +96,7 @@ export const EMPTY_COPY: Record<AltitudeKey, { empty: string; insufficient: stri
     insufficient: 'The ridge needs a few months below it before the long view appears.',
   },
   year: {
-    empty: 'The summit forms as you climb. Each entry, prayer, and verse sets a stone on the trail.',
+    empty: 'The trail is the year. It fills as you walk it — each month you write adds to what the summit can show you.',
     insufficient: 'The summit is forming. Come back as the months fill in.',
   },
 }
@@ -108,11 +110,44 @@ export const CONTROLS = {
 }
 
 /** Summit labels — near-silent. The Summit returns the user's own marks; the app
- *  arranges and points, and otherwise goes quiet (no progress, no counts). */
+ *  arranges and points, and otherwise goes quiet (no progress, no counts).
+ *
+ *  Note what is NOT here: nothing names how far through the year you are, how
+ *  many entries it holds, or how long since you last wrote. The trail shows the
+ *  calendar and the stones show your life; neither is ever put into words as a
+ *  measure. */
 export const SUMMIT_COPY = {
-  lookingBack: 'looking back down the year — the trail lit by the ropes you climbed past',
+  lookingBack: 'looking back down the year — the trail so far, and the stones set along it',
   /** The closing question — a question, never a verdict. Yours to name. */
   taught: 'Looking back down the trail — what did He teach you this year?',
+
+  // ── stones ────────────────────────────────────────────────────────────────
+  stonesEyebrow: 'THE STONES OF THE YEAR',
+  stoneLabel: (dateLabel: string) => `A stone set ${dateLabel} — open it`,
+  stoneAsk: 'you asked',
+  stoneLater: 'later, this',
+  stoneClose: 'close',
+  stonesEmpty: 'No stones yet. One is set when something you asked for is met by something you later wrote.',
+  stonesHint: 'tap a stone on the trail',
+
+  // ── the long look (folded: the app is quiet here unless asked) ────────────
+  longLookOpen: 'the long look →',
+  longLookClose: 'the long look ↓',
+  longLookWaiting: 'the long look needs a few months under it',
+  longLookFooter: 'drawn from the months of this year · what it means is yours to name',
+
+  // ── the year's naming (the one edge that runs back into the journal) ──────
+  namingEyebrow: 'WHAT HE TAUGHT YOU THIS YEAR',
+  namingWrite: 'write it →',
+  namingOpen: 'open it →',
+  namingStarted: 'A page is waiting for this.',
+  namingBy: (dateLabel: string) => `you wrote this, ${dateLabel}`,
+  namingHeading: (year: number) => `What He taught me in ${year}`,
+
+  // ── since your last climb (content that arrived, never behaviour) ─────────
+  sinceStone: (month: string) => `since your last climb · a stone set in ${month.toLowerCase()}`,
+  sinceStones: (n: number) => `since your last climb · ${n} stones set`,
+  sinceRefrain: 'since your last climb · a line rose to the top',
 }
 
 // ── DIMENSIONS — the stable four, across every altitude ──────────────────────

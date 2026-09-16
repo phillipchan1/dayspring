@@ -12,7 +12,7 @@ const MONTHS = [
  * Not a preference and not a mode — see `chooseGrain`. The wall picks the grain
  * that keeps its headers smaller than what they introduce.
  */
-export type SectionGrain = 'month' | 'year'
+export type SectionGrain = 'month' | 'season' | 'year'
 
 export interface WallPeriod {
   key: string
@@ -59,6 +59,21 @@ function periodForIso(iso: string, now: Date, grain: SectionGrain): WallPeriod {
     // which is exactly when a third heading helps least. The pages themselves
     // still carry the week's wash.
     return { key: `y${year}`, label: String(year), year, month, currentWeek: false }
+  }
+
+  if (grain === 'season') {
+    // The season heading uses the SAME calendar quarter every other Remember
+    // surface now calls a season (src/lib/period.ts), and names it by its months
+    // rather than "Q3": the reader has never once thought of last autumn as Q3.
+    // Same reasoning as the year grain — no current-week split at this scale.
+    const q = Math.floor(month / 3)
+    return {
+      key: `s${year}-${q}`,
+      label: `${MONTHS[q * 3]} – ${MONTHS[q * 3 + 2]} ${year}`,
+      year,
+      month,
+      currentWeek: false,
+    }
   }
 
   if (isCurrentCalendarWeek(iso, now)) {
@@ -116,7 +131,17 @@ export function chooseGrain(items: WallItem[]): SectionGrain {
     const date = new Date(item.entry.created_at)
     months.add(`${date.getFullYear()}-${date.getMonth()}`)
   }
-  return months.size > 12 && pages / months.size < 3 ? 'year' : 'month'
+  if (months.size <= 12) return 'month'
+  const density = pages / months.size
+  // Three steps rather than two. The measured disaster — a page a month across
+  // eleven years — still goes all the way to years; what the season grain catches
+  // is the band just above it, two pages a month, where month headings are still
+  // mostly headings but a year heading buries two dozen pages in one box. Note
+  // that a month enters the set only by holding a page, so density is never
+  // below 1 and the boundary has to sit above it.
+  if (density >= 3) return 'month'
+  if (density >= 1.5) return 'season'
+  return 'year'
 }
 
 /**

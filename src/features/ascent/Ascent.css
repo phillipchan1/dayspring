@@ -1890,3 +1890,216 @@
   --ascent-rock-top: #171614;
   --ascent-rock-bottom: #0e0d0c;
 }
+
+/* ── Summit: the stones, the long look, and the year's naming ─────────────────
+   Added with the open-loop Summit. The register here is the quietest on the
+   surface: at the Summit the app arranges and otherwise goes silent, so nothing
+   below uses a filled button, a badge, or a colour that competes with the
+   refrain. The gold is spent on the stones and nowhere else. */
+
+/* The pair a stone stands for — an earlier ask, the later moment that met it. */
+.ascent-stone-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  margin: 18px auto 0;
+  padding: 4px 0 4px 18px;
+  border-left: 2px solid var(--ascent-gold);
+  text-align: left;
+  animation: ascent-rise 0.5s both;
+}
+.ascent-stone-pair__part {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ascent-stone-pair__text {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.55;
+  color: rgba(var(--ascent-ink-rgb), 0.88);
+}
+.ascent-stone-pair__text:hover {
+  color: var(--ascent-ink-bright);
+}
+.ascent-stone-pair__close {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--ascent-ink-rgb), 0.35);
+}
+.ascent-stone-pair__close:hover {
+  color: rgba(var(--ascent-ink-rgb), 0.6);
+}
+
+/* The long look — folded by default. The throughline has always been written
+   and never read; this is the door to it, not a banner over it. */
+.ascent-longlook {
+  align-items: center;
+}
+.ascent-longlook__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(var(--ascent-ink-rgb), 0.42);
+}
+.ascent-longlook__toggle:hover:not(:disabled) {
+  color: var(--ascent-gold-soft);
+}
+.ascent-longlook__toggle:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.ascent-longlook__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  margin-top: 14px;
+  text-align: left;
+  animation: ascent-fade 0.5s both;
+}
+.ascent-longlook__para {
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.68;
+  color: rgba(var(--ascent-ink-rgb), 0.8);
+  margin: 0;
+}
+.ascent-longlook__para.is-themes {
+  font-style: italic;
+  color: rgba(var(--ascent-ink-rgb), 0.62);
+}
+
+/* The year's naming — the one thing on this surface the writer supplies. */
+.ascent-naming {
+  align-items: center;
+}
+.ascent-naming__answer {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 21px;
+  font-style: italic;
+  line-height: 1.45;
+  max-width: 540px;
+  color: var(--ascent-ink-bright);
+}
+.ascent-naming__write {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ascent-gold);
+}
+.ascent-naming__write:hover:not(:disabled) {
+  color: var(--ascent-gold-soft);
+}
+.ascent-naming__write:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+/* Since your last climb — the quietest line on the surface, and silent in every
+   month when nothing arrived. It reports CONTENT, never behaviour. */
+.ascent-summit__since {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(var(--ascent-ink-rgb), 0.3);
+  margin: 4px 0 0;
+}
+
+/* An open stone holds still and brightens. The halo's resting state is the
+   `ascent-ring` breath, which animates opacity — so the open state has to turn
+   the animation off rather than set a higher value underneath it. */
+.ascent-stone-ring.is-open {
+  animation: none;
+  opacity: 0.85;
+  transform: scale(1.2);
+  transform-origin: center;
+}
+
+/* The stones are a button on a drawing — give the keyboard somewhere to land. */
+.ascent-stone-g {
+  cursor: pointer;
+}
+/* A focusable <g> picks up the browser default ring on a plain mouse focus,
+   which paints a blue square over the mountain. Keyboard focus keeps its own. */
+.ascent-stone-g:focus {
+  outline: none;
+}
+.ascent-stone-g:focus-visible {
+  outline: 2px solid var(--ascent-gold-soft);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Light (dawn) — the ink inverts; the gold holds. */
+.ascent--light .ascent-stone-pair__text {
+  color: rgba(74, 64, 53, 0.9);
+}
+.ascent--light .ascent-stone-pair__close,
+.ascent--light .ascent-longlook__toggle,
+.ascent--light .ascent-summit__since {
+  color: rgba(74, 64, 53, 0.55);
+}
+.ascent--light .ascent-longlook__para {
+  color: rgba(74, 64, 53, 0.86);
+}
+.ascent--light .ascent-longlook__para.is-themes {
+  color: rgba(74, 64, 53, 0.66);
+}
+.ascent--light .ascent-naming__answer {
+  color: #3a342b;
+  text-shadow: none;
+}
+.ascent--light .ascent-naming__write {
+  color: #a86a26;
+}
+
+@media (max-width: 640px) {
+  .ascent-stone-pair {
+    margin-top: 14px;
+    padding-left: 14px;
+  }
+  .ascent-stone-pair__text {
+    font-size: 16px;
+  }
+  .ascent-naming__answer {
+    font-size: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ascent-stone-pair,
+  .ascent-longlook__body,
+  .ascent-stone-dot,
+  .ascent-stone-ring,
+  .ascent-peak-glow {
+    animation: none;
+  }
+}

@@ -28,8 +28,7 @@ import {
   MOCK_DOC,
   MOCK_ENTRIES,
   SCREENSHOT_HOUR,
-  SUMMIT_SCRIPTURE,
-  SUMMIT_WORDS,
+  SUMMIT_VIEW,
 } from './mock'
 
 const noop = () => {}
@@ -119,7 +118,7 @@ export function renderSurface(shot: Shot) {
             <div className="ascent-air" aria-hidden />
             <div className="ascent-scroll">
               <main className="ascent-main">
-                <Summit words={SUMMIT_WORDS} scripture={SUMMIT_SCRIPTURE} onScriptureDrill={noop} />
+                <Summit view={SUMMIT_VIEW} scripture={SUMMIT_VIEW.scripture} onScriptureDrill={noop} />
               </main>
             </div>
           </div>

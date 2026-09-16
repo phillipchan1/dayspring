@@ -1,9 +1,11 @@
 // Daily Vercel Cron (vercel.json → "0 8 * * *"). One smart endpoint that decides
 // what's due, walking the cascade so each level reads fresh children:
-//   • every Monday        → last week's weekly
-//   • 1st of the month    → that month's weeklies, then the monthly
+//   • every day           → the in-progress week, so the Valley tracks today
+//   • every Monday        → last week's weekly, sealed
+//   • 1st of the month    → that month's weeklies, the monthly, then a rebuild of
+//                           the OPEN current year (the Summit accumulates)
 //   • 1st of the quarter  → last quarter's monthlies (ensured), then the quarterly
-//   • Jan 1               → last year's monthlies (ensured), then the yearly
+//   • Jan 1               → last year's monthlies (ensured), then that year sealed
 // Idempotent (builders upsert), so re-running never duplicates.
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
@@ -18,6 +20,7 @@ import {
   previousMonth,
   previousQuarter,
   previousYear,
+  currentYear,
   weeksOverlappingMonth,
   monthsInPeriod,
 } from '../_lib/dates.js'
@@ -141,6 +144,19 @@ async function synthesizeOwner(
         results.push(await buildWeekly(owner, week))
       }
       results.push(await buildMonthly(owner, month))
+
+      // …and the month that just sealed is a new child for the OPEN year, so
+      // rebuild it. Week, month and season are closed loops — they seal and stop
+      // moving. The year is the one the writer is standing inside, and it was
+      // previously built once, on Jan 1, for the year already gone: the Summit
+      // showed LAST year's refrain beside THIS year's verse, and nothing written
+      // all year could change it. Rebuilding here is what makes it accumulate.
+      //
+      // Runs after the monthly above so the year reads a set of children that
+      // includes the month that just closed. On Jan 1 this is the new year with
+      // no months under it yet, so buildYearly skips it — the year that matters
+      // that morning is sealed by the isFirstOfYear branch below.
+      results.push(await buildYearly(owner, currentYear(now)))
     }
     if (isFirstOfQuarter(now)) {
       const quarter = previousQuarter(now)

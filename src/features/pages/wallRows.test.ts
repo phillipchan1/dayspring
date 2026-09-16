@@ -198,9 +198,19 @@ describe('chooseGrain', () => {
    * The case this exists for. Forty pages that say one name are spread over
    * eleven years, so month headings outnumber the pages they introduce and the
    * wall becomes a list of month names — measured at 12 screens for 137 answers.
+   *
    */
   it('coarsens to years once headings would outweigh the pages', () => {
     expect(chooseGrain(months(40, 1))).toBe('year')
+  })
+
+  /*
+   * The band the season grain exists for: two pages a month over three years is
+   * still mostly headings at month grain, but a year heading would swallow
+   * twenty-four pages into one box and lose WHEN entirely.
+   */
+  it('takes the season for an archive too thin for months and too rich for years', () => {
+    expect(chooseGrain(months(40, 2))).toBe('season')
   })
 
   it('stays on months for a short archive, where one year heading says nothing', () => {
@@ -214,6 +224,16 @@ describe('chooseGrain', () => {
       page,
     ])
     expect(chooseGrain(withSeams)).toBe('year')
+  })
+
+  it('names a season by its months, in the vocabulary every surface shares', () => {
+    const layout = buildWallRows(
+      [item('2026-08-14'), item('2026-07-02')],
+      2,
+      new Date(2026, 8, 20, 12),
+      'season',
+    )
+    expect(layout.rows[0]!.period.label).toBe('July – September 2026')
   })
 
   it('drops the current-week heading at year grain rather than splitting a year', () => {

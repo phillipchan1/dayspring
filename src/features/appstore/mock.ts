@@ -15,7 +15,7 @@
 
 import type { Entry } from '@/lib/types'
 import type { LoadedAscent } from '@/features/ascent/data'
-import type { AltitudeData, SummitView, WordsData, ScriptureData } from '@/features/ascent/data/types'
+import type { AltitudeData, SummitStone, SummitView, WordsData, ScriptureData } from '@/features/ascent/data/types'
 import type { CanonHeat, ScriptureCanonPage } from '@/lib/scripture/query'
 import type { AltarSource } from '@/features/altar/data'
 import type { RawMember, RawThread } from '@/features/threads/data/bands'
@@ -263,16 +263,6 @@ const YEAR_WORDS = words(
 )
 
 /**
- * Shot 01 renders `Summit` on its own, and one idea has to carry the frame: the
- * verbatim line of the year plus a single thread. Three threads and a verse list
- * is a screen you read; one is a screen you *get*.
- */
-export const SUMMIT_WORDS: WordsData = {
-  ...YEAR_WORDS,
-  arcs: [YEAR_WORDS.arcs[0]!],
-}
-
-/**
  * Two verses, not four — and never zero: ScriptureDimension renders an explicit
  * "no scripture surfaced here yet" empty state, which is honest in the app and
  * fatal in a screenshot.
@@ -350,6 +340,44 @@ const QUARTER: AltitudeData = {
   learning: null,
 }
 
+/** Stones for the listing shot — an ask met by a later moment, placed on the
+ *  trail by the date of the ANSWER. Positions are fixed rather than derived from
+ *  today so the screenshot composes the same way whenever it is captured. */
+const YEAR_STONES: SummitStone[] = [
+  {
+    id: 'stone-1',
+    ask: {
+      entryId: MOCK_ENTRIES[3]!.id,
+      date: `${THIS_YEAR}-02-09`,
+      dateLabel: 'Feb 9',
+      text: 'I don’t know how to ask anyone for help without it feeling like an admission that I failed.',
+    },
+    later: {
+      entryId: MOCK_ENTRIES[2]!.id,
+      date: `${THIS_YEAR}-05-21`,
+      dateLabel: 'May 21',
+      text: 'Told Ray the whole thing at lunch. He didn’t flinch. He just asked what Tuesday looks like.',
+    },
+    position: 0.39,
+  },
+  {
+    id: 'stone-2',
+    ask: {
+      entryId: MOCK_ENTRIES[1]!.id,
+      date: `${THIS_YEAR}-06-18`,
+      dateLabel: 'Jun 18',
+      text: 'Give me patience that isn’t just gritted teeth with a nicer face on it.',
+    },
+    later: {
+      entryId: MOCK_ENTRIES[0]!.id,
+      date: `${THIS_YEAR}-09-03`,
+      dateLabel: 'Sep 3',
+      text: 'Caught myself laughing at the mess instead of correcting it. I didn’t decide to do that.',
+    },
+    position: 0.67,
+  },
+]
+
 const YEAR: SummitView = {
   resolution: 'year',
   words: YEAR_WORDS,
@@ -357,7 +385,26 @@ const YEAR: SummitView = {
   prayer: null,
   learning: null,
   year: THIS_YEAR,
-  stones: [],
+  stones: YEAR_STONES,
+  longLook: {
+    throughline: [
+      'A year ago you ended most entries by asking to be taken out of the situation. The asking never stopped — what changed is where it points. By spring you were asking to be steady inside it, and by autumn you had stopped framing it as something to survive.',
+      'You also started naming people. January is almost entirely circumstances. From May on it is the same events, told as relationships.',
+    ],
+    themes: ['Waiting, company, and the difference between being rescued and being accompanied.'],
+  },
+  progress: 0.72,
+}
+
+/**
+ * Shot 01 renders `Summit` on its own, and one idea has to carry the frame: the
+ * verbatim line of the year, one stone on the trail, and the verse. Two stones
+ * and a verse list is a screen you read; one is a screen you *get*.
+ */
+export const SUMMIT_VIEW: SummitView = {
+  ...YEAR,
+  scripture: SUMMIT_SCRIPTURE,
+  stones: [YEAR_STONES[1]!],
 }
 
 function yearWindow(offsetMonths: number, span: number) {

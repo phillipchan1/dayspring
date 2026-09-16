@@ -14,6 +14,8 @@ import {
   type AltarType,
   type SubjectKind,
 } from './data'
+import { spanStartMs, spanWindow, type Span } from '@/lib/period'
+import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import './Altar.css'
@@ -84,18 +86,29 @@ function StrandRow({ s, hero, onOpen }: { s: AltarStrand; hero: boolean; onOpen:
 }
 
 // ── across time: each strand is the span He carried it ────────────────────────
-type Period = 'all' | 'season' | 'year' | '5y' | '10y'
-const PERIODS: { key: Period; label: string; ms: number }[] = [
-  { key: 'season', label: 'season', ms: 86_400_000 * 91 },
-  { key: 'year', label: 'year', ms: 86_400_000 * 365 },
-  { key: '5y', label: '5 years', ms: 86_400_000 * 365 * 5 },
-  { key: '10y', label: '10 years', ms: 86_400_000 * 365 * 10 },
-  { key: 'all', label: 'all', ms: 0 },
+//
+// Calendar periods, from the one shared calendar (`src/lib/period.ts`). These
+// used to be trailing millisecond windows — "season" meant the last 91 days here
+// while it meant a calendar quarter on the Ascent and the last 90 days on the
+// Lamp. Three spans, one word, and no way for a reader to know which they were
+// looking at. A trailing window also cannot be carried between surfaces or
+// nested inside another, which is what the four surfaces need to read as one.
+type Period = Extract<Span, 'all' | 'month' | 'season' | 'year' | '5y' | '10y'>
+const PERIODS: { key: Period; label: string }[] = [
+  { key: 'month', label: 'month' },
+  { key: 'season', label: 'season' },
+  { key: 'year', label: 'year' },
+  { key: '5y', label: '5 years' },
+  { key: '10y', label: '10 years' },
+  { key: 'all', label: 'all' },
 ]
-/** Trailing-window start (ms) for a range — -Infinity is the all-time field. */
-function windowStartFor(period: Period): number {
-  if (period === 'all') return -Infinity
-  return Date.now() - PERIODS.find((p) => p.key === period)!.ms
+
+/** A carried WEEK has no Altar field to show: a strand needs to have been
+ *  returned to, and nobody returns to anything inside seven days. The Altar
+ *  shows the month instead and does NOT write that back — the reader's choice
+ *  stays their choice on the surface where they made it. */
+function altarPeriod(span: Span): Period {
+  return span === 'week' ? 'month' : span
 }
 
 function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period: Period; onOpen: (id: string) => void }) {
@@ -116,8 +129,11 @@ function TimeArcs({ strands, period, onOpen }: { strands: AltarStrand[]; period:
 
   const [viewMin, viewMax] = useMemo((): [number, number] => {
     if (period === 'all') return fullRange
-    const p = PERIODS.find((p) => p.key === period)!
-    return [Date.now() - p.ms, Date.now()]
+    const w = spanWindow(period)
+    // The axis stops at TODAY, not at the end of the calendar period: drawing an
+    // arc into months that haven't happened would leave a third of the season
+    // empty and read as missing data rather than as time not yet lived.
+    return [w.from!.getTime(), Math.min(w.to!.getTime(), Date.now())]
   }, [period, fullRange])
 
   const xMain = (iso: string) => padX + ((Date.parse(iso) - viewMin) / (viewMax - viewMin || 1)) * (W - padX * 2)
@@ -355,7 +371,9 @@ export function AltarView({ onOpenEntry }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
-  const [period, setPeriod] = useState<Period>('year')
+  const [carried, carry] = useCarriedPeriod('year')
+  const period = altarPeriod(carried)
+  const setPeriod = carry
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [detail, setDetail] = useState<AltarStrandDetail | null>(null)
@@ -402,7 +420,7 @@ export function AltarView({ onOpenEntry }: Props) {
   // actually returned to this season, not a subject's whole 15-year life.
   const visible = useMemo(() => {
     if (!source) return []
-    const windowed = buildAltarStrands(source, windowStartFor(period))
+    const windowed = buildAltarStrands(source, spanStartMs(period))
     return lens === 'all' ? windowed : windowed.filter((s) => s.type === lens)
   }, [source, lens, period])
 

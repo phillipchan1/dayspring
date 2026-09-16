@@ -4,7 +4,9 @@ import type { AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
-import { ALTITUDES, CONTROLS } from './ascent.config'
+import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
+import type { Grain } from '@/lib/period'
+import { ALTITUDES, CONTROLS, EMPTY_COPY } from './ascent.config'
 import { loadAscent, readCachedAscent, type LoadedAscent } from './data'
 import { AltitudeBands } from './AltitudeBands'
 import { LensRow } from './LensRow'
@@ -21,6 +23,10 @@ interface Props {
 type Loaded<T> = T | null | undefined
 
 const LAST = ALTITUDES.length - 1
+
+/** Altitude index → the grain it stands for, in the shared vocabulary. The tier
+ *  is still called 'quarter' in the rollup schema; out loud it is the season. */
+const ALTITUDE_GRAIN: Grain[] = ['week', 'month', 'season', 'year']
 
 function clampAltitude(n: number | undefined): number {
   if (typeof n !== 'number' || !Number.isFinite(n)) return 0
@@ -87,9 +93,19 @@ export function AscentView({ onOpenEntry }: Props) {
     }
   }, [reloadKey])
 
+  // Climbing carries the period OUT to the other Remember surfaces: step up to
+  // the Ridge, cross to the Altar, and you are still in that season. It does not
+  // carry IN — altitude here is navigational (history frames, arrow keys, the
+  // climb rail), and letting stored state override a history frame is how a back
+  // button starts lying about where it came from.
+  const [, carry] = useCarriedPeriod('year')
   const setAltitude = useCallback(
-    (next: number) => go({ ascentAltitude: clampAltitude(next) }, { replace: true }),
-    [go],
+    (next: number) => {
+      const clamped = clampAltitude(next)
+      go({ ascentAltitude: clamped }, { replace: true })
+      carry(ALTITUDE_GRAIN[clamped]!)
+    },
+    [go, carry],
   )
   const up = useCallback(() => setAltitude(idx + 1), [idx, setAltitude])
   const down = useCallback(() => setAltitude(idx - 1), [idx, setAltitude])
@@ -192,13 +208,15 @@ export function AscentView({ onOpenEntry }: Props) {
               onScriptureDrill={openScripture}
               onOpenEntry={onOpenEntry}
             />
-          ) : (
+          ) : ascent ? (
             <Summit
-              words={ascent?.year?.words ?? null}
-              scripture={ascent?.year?.scripture ?? null}
+              view={ascent.year}
+              scripture={ascent.year.scripture}
               onScriptureDrill={openScripture}
               onOpenEntry={onOpenEntry}
             />
+          ) : (
+            <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
           )}
         </div>
 
