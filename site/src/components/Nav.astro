@@ -1,6 +1,8 @@
 ---
 // Nav — sticky, transparent over the hero; gains a blurred ink background
-// once scrolled. Text links collapse on mobile; the download pills stay.
+// once scrolled. Text links AND the download pills collapse on mobile — a
+// phone tap must never land on a macOS .dmg (see the phone-width media query
+// below); the web trial is the only door reachable at that width.
 import Mark from "./Mark.astro";
 import { navLinks, downloads, site, releasesRepo } from "../content/site";
 
@@ -186,9 +188,12 @@ const applePath =
     margin-left: 2px;
   }
 
-  /* mobile: collapse the text nav, keep the download pills */
+  /* mobile: collapse the text nav AND the download pills. A phone tap must
+     never be able to land on a macOS .dmg or the iOS "Soon" pill — the web
+     trial (Hero/Footer/Pricing → /start) is the only phone-reachable door. */
   @media (max-width: 680px) {
-    .navlinks a.txt {
+    .navlinks a.txt,
+    .navlinks .dl {
       display: none;
     }
     .navlinks {

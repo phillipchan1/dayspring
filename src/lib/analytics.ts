@@ -21,6 +21,19 @@ type SlashCmd = SlashCommandId
 
 /** The complete vocabulary. Props must stay enum/number/boolean — see above. */
 interface EventProps {
+  /**
+   * The app launched — desktop, web, or the mobile shell. Fired once per real
+   * bootstrap (src/main.tsx), not per component remount, so it stays a clean
+   * D1/D7 retention signal regardless of auth or subscription state.
+   */
+  app_open: undefined
+  /**
+   * This device's first-ever journal entry. One-shot per device (see
+   * lib/firstEntry.ts) — the same "first on this device" semantics as
+   * `surface_opened`'s `first` flag. Joined against trial start on the
+   * Growth Pulse dashboard for the Quality signal: trial + first entry ≤24h.
+   */
+  first_entry_created: undefined
   /** A Return surface opened; `first` = never visited before on this device. */
   surface_opened: { surface: ReturnSurface; first: boolean }
   /** A slash command chosen (palette, accessory bar, or typed `/`). */

@@ -11,7 +11,11 @@ export default defineConfig({
   // means one of them is emitting dead URLs.
   site: 'https://www.usedayspring.app',
   output: 'static',
-  integrations: [sitemap()],
+  integrations: [
+    // /start is a redirect page (see src/pages/start.astro) — nothing for a
+    // search result to land a visitor on, and noindex'd for the same reason.
+    sitemap({ filter: (page) => !page.endsWith('/start/') && !page.endsWith('/start') }),
+  ],
   prefetch: {
     prefetchAll: true,
     defaultStrategy: 'viewport',
