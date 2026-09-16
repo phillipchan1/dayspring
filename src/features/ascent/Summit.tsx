@@ -3,6 +3,7 @@ import { DIMENSION_COPY, EMPTY_COPY, SUMMIT_COPY } from './ascent.config'
 import type { ScriptureData, SummitStone, SummitView } from './data/types'
 import { ScriptureDimension } from './dimensions/ScriptureDimension'
 import { recordClimb, sinceLastClimb } from './lastClimb'
+import { listSummitYears, loadSummitYear } from './data/summitYear'
 import { loadNaming, startNaming, type YearNaming } from './summitNaming'
 import { SummitTrail } from './SummitTrail'
 
@@ -46,9 +47,52 @@ const MONTHS = [
  * the trail with its stones · the refrain · the verse · the long look, folded ·
  * the writer's own naming of the year.
  */
-export function Summit({ view, scripture, onScriptureDrill, onOpenEntry }: Props) {
-  const { year, stones, longLook, progress } = view
-  const refrain = view.words?.moments?.[0] ?? null
+export function Summit({ view: openYear, scripture: openScripture, onScriptureDrill, onOpenEntry }: Props) {
+  // The rail. The open year is what you land on; a sealed year is loaded on
+  // demand, because an archive of fifteen years must not cost fifteen rollup
+  // payloads to open the Ascent.
+  const [years, setYears] = useState<number[]>([openYear.year])
+  const [shownYear, setShownYear] = useState(openYear.year)
+  const [loaded, setLoaded] = useState<SummitView | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    listSummitYears().then(
+      (ys) => alive && setYears(ys),
+      () => {}, // no rail is a quieter failure than a broken one
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (shownYear === openYear.year) {
+      setLoaded(null)
+      return
+    }
+    let alive = true
+    loadSummitYear(shownYear).then(
+      (v) => alive && setLoaded(v),
+      () => alive && setLoaded(null),
+    )
+    return () => {
+      alive = false
+    }
+  }, [shownYear, openYear.year])
+
+  const isOpenYear = shownYear === openYear.year
+  // A year that hasn't landed yet is NOT the open year with its number swapped:
+  // spreading the open year kept its verse and its refrain, which would have put
+  // this year's scripture under 2019's heading. Until it loads there is nothing
+  // to show but the mountain.
+  const view: SummitView | null = isOpenYear ? openYear : loaded
+  const scripture = isOpenYear ? openScripture : (view?.scripture ?? null)
+  const year = view?.year ?? shownYear
+  const stones = view?.stones ?? []
+  const longLook = view?.longLook ?? null
+  const progress = view?.progress ?? (isOpenYear ? openYear.progress : 1)
+  const refrain = view?.words?.moments?.[0] ?? null
 
   const [openStone, setOpenStone] = useState<string | null>(null)
   const [longLookOpen, setLongLookOpen] = useState(false)
@@ -61,14 +105,16 @@ export function Summit({ view, scripture, onScriptureDrill, onOpenEntry }: Props
   const stoneKey = stones.map((s) => s.id).join(',')
   const hasRefrain = refrain !== null
   const since = useMemo(
-    () => sinceLastClimb(year, stones, hasRefrain),
+    () => (isOpenYear ? sinceLastClimb(year, stones, hasRefrain) : { newStones: [], refrainArrived: false }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [year, stoneKey, hasRefrain],
+    [isOpenYear, year, stoneKey, hasRefrain],
   )
   useEffect(() => {
-    recordClimb(year, stones, hasRefrain)
+    // Only the open year has a "since": a sealed one gained nothing while you
+    // were away, and recording a visit to 2019 would silence the real year.
+    if (isOpenYear) recordClimb(year, stones, hasRefrain)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, stoneKey, hasRefrain])
+  }, [isOpenYear, year, stoneKey, hasRefrain])
 
   // The naming is an ordinary entry, so it is read on its own rather than
   // through the climb: writing one must not mean rebuilding the whole Ascent.
@@ -88,8 +134,15 @@ export function Summit({ view, scripture, onScriptureDrill, onOpenEntry }: Props
   if (!hasAnything) {
     return (
       <div className="ascent-summit">
+        <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
         <SummitTrail year={year} progress={progress} stones={[]} selectedId={null} onSelect={() => {}} />
-        <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
+        <p className="ascent-empty">
+          {isOpenYear
+            ? EMPTY_COPY.year.empty
+            : view === null
+              ? SUMMIT_COPY.sealedReading(year)
+              : SUMMIT_COPY.sealedEmpty(year)}
+        </p>
       </div>
     )
   }
@@ -114,6 +167,8 @@ export function Summit({ view, scripture, onScriptureDrill, onOpenEntry }: Props
 
   return (
     <div className="ascent-summit">
+      <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
+
       <SummitTrail
         year={year}
         progress={progress}
@@ -122,7 +177,9 @@ export function Summit({ view, scripture, onScriptureDrill, onOpenEntry }: Props
         onSelect={setOpenStone}
       />
 
-      <p className="ascent-summit__look">{SUMMIT_COPY.lookingBack}</p>
+      <p className="ascent-summit__look">
+        {isOpenYear ? SUMMIT_COPY.lookingBack : SUMMIT_COPY.lookingBackSealed(year)}
+      </p>
 
       {stone ? <StonePair stone={stone} onOpenEntry={onOpenEntry} onClose={() => setOpenStone(null)} /> : null}
 
@@ -183,29 +240,72 @@ export function Summit({ view, scripture, onScriptureDrill, onOpenEntry }: Props
           </section>
         ) : null}
 
-        <section className="ascent-dim ascent-naming">
-          <span className="ascent-dim__eyebrow">{SUMMIT_COPY.namingEyebrow}</span>
-          {naming && naming.text ? (
-            <>
-              <button type="button" className="ascent-naming__answer" onClick={() => onOpenEntry?.(naming.entryId)}>
-                “{naming.text}”
-              </button>
-              <span className="ascent-oneline__date">{SUMMIT_COPY.namingBy(naming.dateLabel)}</span>
-            </>
-          ) : (
-            <>
-              <p className="ascent-summit__ask">{naming ? SUMMIT_COPY.namingStarted : SUMMIT_COPY.taught}</p>
-              <button type="button" className="ascent-naming__write" onClick={onWriteNaming} disabled={starting}>
-                {naming ? SUMMIT_COPY.namingOpen : SUMMIT_COPY.namingWrite}
-              </button>
-            </>
-          )}
-          <p className="ascent-dim__note">{DIMENSION_COPY.learning.note}</p>
-        </section>
+        {naming?.text || isOpenYear ? (
+          <section className="ascent-dim ascent-naming">
+            <span className="ascent-dim__eyebrow">{SUMMIT_COPY.namingEyebrow}</span>
+            {naming && naming.text ? (
+              <>
+                <button type="button" className="ascent-naming__answer" onClick={() => onOpenEntry?.(naming.entryId)}>
+                  “{naming.text}”
+                </button>
+                <span className="ascent-oneline__date">{SUMMIT_COPY.namingBy(naming.dateLabel)}</span>
+              </>
+            ) : (
+              <>
+                <p className="ascent-summit__ask">{naming ? SUMMIT_COPY.namingStarted : SUMMIT_COPY.taught}</p>
+                <button type="button" className="ascent-naming__write" onClick={onWriteNaming} disabled={starting}>
+                  {naming ? SUMMIT_COPY.namingOpen : SUMMIT_COPY.namingWrite}
+                </button>
+              </>
+            )}
+            <p className="ascent-dim__note">{DIMENSION_COPY.learning.note}</p>
+          </section>
+        ) : null}
 
         <SinceLastClimb newStones={since.newStones} refrainArrived={since.refrainArrived} />
       </div>
     </div>
+  )
+}
+
+/**
+ * The years behind you. Newest first, because "last year" is a shorter reach
+ * than 2011 — and the open year sits at the head of it from 1 January, before it
+ * holds anything, because it is the one you are standing in.
+ *
+ * A strip rather than a grid: it is a list of four-character labels, and at
+ * fifteen of them it still reads in one line. It is the only thing on the Summit
+ * allowed to scroll sideways, which is what keeps it from wrapping into a block
+ * that competes with the mountain.
+ */
+function YearRail({
+  years,
+  shown,
+  open,
+  onPick,
+}: {
+  years: number[]
+  shown: number
+  open: number
+  onPick: (year: number) => void
+}) {
+  if (years.length < 2) return null
+  return (
+    <nav className="ascent-years" aria-label={SUMMIT_COPY.yearRailLabel}>
+      {years.map((y) => (
+        <button
+          key={y}
+          type="button"
+          className="ascent-years__year"
+          data-on={y === shown ? 'true' : undefined}
+          data-open={y === open ? 'true' : undefined}
+          aria-current={y === shown ? 'true' : undefined}
+          onClick={() => onPick(y)}
+        >
+          {y}
+        </button>
+      ))}
+    </nav>
   )
 }
 

@@ -2103,3 +2103,73 @@
     animation: none;
   }
 }
+
+/* ── Summit: the years behind you ─────────────────────────────────────────────
+   The rail that turns a fifteen-year archive from a thing the app knows into a
+   thing the reader can walk back into. Deliberately the quietest navigation on
+   the surface: four-character labels in mono, no chips, no borders, no count.
+   The open year is marked, not decorated. */
+.ascent-years {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 0 6px;
+  padding: 2px 4px;
+  /* The one thing on the Summit allowed to scroll sideways — it is a strip of
+     labels, and wrapping it into a block would make it compete with the trail. */
+  -webkit-overflow-scrolling: touch;
+}
+.ascent-years::-webkit-scrollbar {
+  display: none;
+}
+.ascent-years__year {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 4px 9px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--ascent-ink-rgb), 0.3);
+  border-bottom: 1px solid transparent;
+  transition: color 0.18s ease;
+}
+.ascent-years__year:hover {
+  color: rgba(var(--ascent-ink-rgb), 0.62);
+}
+.ascent-years__year[data-on='true'] {
+  color: var(--ascent-gold-soft);
+  border-bottom-color: rgba(232, 184, 115, 0.5);
+}
+/* The year you are standing in keeps a mark even while you are reading another,
+   so the way back is never something you have to remember. */
+.ascent-years__year[data-open='true']:not([data-on='true']) {
+  color: rgba(var(--ascent-ink-rgb), 0.55);
+}
+.ascent-years__year:focus-visible {
+  outline: 2px solid var(--ascent-gold-soft);
+  outline-offset: 2px;
+}
+
+.ascent--light .ascent-years__year {
+  color: rgba(74, 64, 53, 0.42);
+}
+.ascent--light .ascent-years__year:hover,
+.ascent--light .ascent-years__year[data-open='true']:not([data-on='true']) {
+  color: rgba(74, 64, 53, 0.7);
+}
+.ascent--light .ascent-years__year[data-on='true'] {
+  color: #a86a26;
+  border-bottom-color: rgba(168, 106, 38, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ascent-years__year {
+    transition: none;
+  }
+}

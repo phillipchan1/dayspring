@@ -195,6 +195,25 @@ export async function getRollupForPeriod(
 }
 
 /**
+ * Which periods of a tier have been built, newest first — `period_start` only.
+ *
+ * The Summit's year rail needs to know which years exist, and nothing else about
+ * them. `structured_payload` is a fat JSON blob per row, so asking for the whole
+ * rollup of fifteen years to render a list of fifteen numbers would pull a
+ * megabyte down the wire for four characters apiece.
+ */
+export async function listRollupPeriods(type: RollupType): Promise<string[]> {
+  const sb = requireSupabase()
+  const { data, error } = await sb
+    .from('insights')
+    .select('period_start')
+    .eq('type', type)
+    .order('period_start', { ascending: false })
+  if (error) throw error
+  return ((data ?? []) as { period_start: string }[]).map((r) => r.period_start)
+}
+
+/**
  * Persist the user's Hillside arc edits (rename / dismiss / merge) back onto a
  * monthly rollup. This is the ONE exception to "the client never writes
  * insights": arc names are the user's tentative interpretation to own, not

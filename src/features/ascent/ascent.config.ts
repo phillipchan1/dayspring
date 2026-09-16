@@ -121,6 +121,17 @@ export const SUMMIT_COPY = {
   /** The closing question — a question, never a verdict. Yours to name. */
   taught: 'Looking back down the trail — what did He teach you this year?',
 
+  // ── the years behind you ──────────────────────────────────────────────────
+  // A sealed year is not a worse version of the open one: it is the whole thing,
+  // walked. So it says so plainly and drops everything provisional — no "since
+  // your last climb", no invitation to write. Those belong to the year that is
+  // still running.
+  yearRailLabel: 'The years behind you',
+  lookingBackSealed: (year: number) => `${year}, all the way up — and the stones set along it`,
+  sealedReading: (year: number) => `Reading ${year}…`,
+  sealedEmpty: (year: number) =>
+    `${year} has no summit yet. It needs its months built before the year can be read.`,
+
   // ── stones ────────────────────────────────────────────────────────────────
   stonesEyebrow: 'THE STONES OF THE YEAR',
   stoneLabel: (dateLabel: string) => `A stone set ${dateLabel} — open it`,

@@ -4,6 +4,7 @@ import { positionInYear, yearProgress, yearStones } from './data/stones'
 import { yearLongLook, yearWords } from './data/words'
 import { recordClimb, sinceLastClimb } from './lastClimb'
 import { namingMarker } from './summitNaming'
+import { mergeYears, windowForYear } from './data/summitYear'
 import { PEAK, pointOnTrail } from './trailPath'
 import type { SummitStone } from './data/types'
 
@@ -264,5 +265,35 @@ describe('sinceLastClimb / recordClimb', () => {
 describe('namingMarker', () => {
   it('is an HTML comment, so it never shows in the page the writer keeps', () => {
     expect(namingMarker(YEAR)).toBe(`<!-- summit:year:${YEAR} -->`)
+  })
+})
+
+describe('the year rail', () => {
+  it('always holds the year you are standing in, even before it has anything', () => {
+    // 1 January: no yearly rollup for the new year yet, and it is still the one
+    // you are in — the rail would be lying if it started at last year.
+    expect(mergeYears(['2025-01-01', '2024-01-01'], 2026)).toEqual([2026, 2025, 2024])
+  })
+
+  it('reads newest first — "last year" is a shorter reach than 2011', () => {
+    expect(mergeYears(['2011-01-01', '2019-01-01', '2015-01-01'], 2019)).toEqual([
+      2019, 2015, 2011,
+    ])
+  })
+
+  it('never lists a year twice when the current one is already built', () => {
+    expect(mergeYears(['2026-01-01', '2025-01-01'], 2026)).toEqual([2026, 2025])
+  })
+
+  it('drops a period it cannot read rather than rendering NaN', () => {
+    expect(mergeYears(['', 'not-a-date', '2025-01-01'], 2026)).toEqual([2026, 2025])
+  })
+})
+
+describe('windowForYear', () => {
+  it('covers the whole calendar year, whatever the reader timezone', () => {
+    const w = windowForYear(2019)
+    expect(w.from.toISOString()).toBe('2019-01-01T00:00:00.000Z')
+    expect(w.to.toISOString()).toBe('2019-12-31T23:59:59.999Z')
   })
 })
