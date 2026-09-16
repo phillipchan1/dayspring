@@ -1,5 +1,6 @@
 import { useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
+import { track } from '@/lib/analytics'
 import { upsertImportedEntries } from '@/lib/entries'
 import { scanAllForRefs } from '@/lib/scripture/scan'
 import type { ImportParseResult } from '@/lib/import/types'
@@ -342,7 +343,14 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         <h1 className="ob-title">{copy.importBuilding.title}</h1>
         <p className="ob-body">{copy.importBuilding.body}</p>
         <p className="ob-hint">{copy.importBuilding.hint}</p>
-        <button type="button" className="ob-tertiary" onClick={onComplete}>
+        <button
+          type="button"
+          className="ob-tertiary"
+          onClick={() => {
+            track('onboarding_skipped', { step: 'import' })
+            onComplete()
+          }}
+        >
           {copy.importBuilding.skip} →
         </button>
       </div>
@@ -364,7 +372,14 @@ export function ImportFlow({ onComplete, onBack }: Props) {
         </>
       )}
 
-      <button type="button" className="ob-primary" onClick={onComplete}>
+      <button
+        type="button"
+        className="ob-primary"
+        onClick={() => {
+          track('onboarding_step_completed', { step: 'import' })
+          onComplete()
+        }}
+      >
         {copy.reveal.primary}
       </button>
 

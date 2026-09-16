@@ -55,6 +55,20 @@ export function isIOSTauri(): boolean {
   return isAppleTouchDevice()
 }
 
+export type PlatformKind = 'mac' | 'ios' | 'web'
+
+/**
+ * Coarse platform bucket for analytics (src/lib/analytics.ts's `app_open`).
+ * 'mac' also covers a hypothetical future Windows/Linux desktop build:
+ * isDesktopTauri() cannot yet tell them apart, because every desktop Tauri
+ * build today is macOS-only. Revisit this derivation if that changes.
+ */
+export function platformKind(): PlatformKind {
+  if (isIOSTauri()) return 'ios'
+  if (isDesktopTauri()) return 'mac'
+  return 'web'
+}
+
 // Tags <html data-platform="desktop"|"mobile"> inside the native app so CSS can
 // adapt. No-ops in a plain browser. The iOS app must NOT get "desktop" — that
 // would reserve room for macOS traffic lights and mark drag regions.

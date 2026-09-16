@@ -23,10 +23,13 @@ const OWNER_SCOPED_FLAGS = [
   // thing that should not outlive them on a shared browser.
   'dayspring.applock',
   SUBSCRIPTION_CACHE_KEY,
-  // The one-shot "have I fired first_entry_created on this device" flag
+  // The one-shot "have I fired first_entry_created on this device" flag, and
+  // the device-first-seen timestamp minutes_to_first_entry_bucket reads back
   // (lib/firstEntry.ts). Not content, but a fresh owner should get a fresh
-  // shot at the signal rather than silently inheriting the previous owner's.
+  // shot at both signals rather than silently inheriting the previous
+  // owner's clock.
   'dayspring.first_entry_tracked',
+  'dayspring.first_seen_at',
 ]
 
 /** Scrub all cached journal CONTENT (privacy-sensitive). */

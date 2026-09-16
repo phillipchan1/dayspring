@@ -4,6 +4,7 @@
 import { isMobileTauri } from './platform'
 import { apiUrl } from './api'
 import { requireSupabase } from './supabase'
+import { track } from './analytics'
 import type { Product, Purchase } from '@spicavi/tauri-plugin-purchases'
 
 export const APPLE_PRODUCT_IDS = {
@@ -96,28 +97,45 @@ export interface ApplePurchaseResult {
  * Start a StoreKit purchase for a plan. On success, POSTs the JWS to the server
  * so entitlement unlocks immediately; App Store Server Notifications are the
  * backup path that keeps it honest afterwards.
+ *
+ * checkout_started/checkout_failed live here rather than at each of the four
+ * UI call sites, same reasoning as startCheckout() in subscription.ts. Unlike
+ * Stripe, a StoreKit cancel is a real, distinguishable outcome (returned, not
+ * thrown) and 'unowned' is a real thrown AppleVerifyError — see
+ * CheckoutFailReason's comment in lib/analytics.ts.
  */
 export async function purchaseApple(plan: ApplePlan): Promise<ApplePurchaseResult> {
-  if (!isMobileTauri()) throw new Error('Apple IAP is only available on iOS')
+  track('checkout_started', { store: 'apple' })
+  try {
+    if (!isMobileTauri()) throw new Error('Apple IAP is only available on iOS')
 
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session?.user?.id) throw new Error('not authenticated')
+    const sb = requireSupabase()
+    const {
+      data: { session },
+    } = await sb.auth.getSession()
+    if (!session?.user?.id) throw new Error('not authenticated')
 
-  const { purchase } = await import('@spicavi/tauri-plugin-purchases')
-  // StoreKit requires appAccountToken to be a UUID — Supabase user ids are.
-  const result = await purchase(appleProductId(plan), {
-    appAccountToken: session.user.id,
-  })
+    const { purchase } = await import('@spicavi/tauri-plugin-purchases')
+    // StoreKit requires appAccountToken to be a UUID — Supabase user ids are.
+    const result = await purchase(appleProductId(plan), {
+      appAccountToken: session.user.id,
+    })
 
-  let warning: string | null = null
-  if (result.outcome === 'purchased' && result.purchase) {
-    const synced = await syncPurchaseToServer(result.purchase)
-    if (synced.alsoBilledByStripe) warning = DOUBLE_BILLED_WARNING
+    if (result.outcome === 'cancelled') {
+      track('checkout_failed', { store: 'apple', reason: 'cancelled' })
+    }
+
+    let warning: string | null = null
+    if (result.outcome === 'purchased' && result.purchase) {
+      const synced = await syncPurchaseToServer(result.purchase)
+      if (synced.alsoBilledByStripe) warning = DOUBLE_BILLED_WARNING
+    }
+    return { outcome: result.outcome, warning }
+  } catch (e) {
+    const reason = e instanceof AppleVerifyError && e.code === CROSS_ACCOUNT_CODE ? 'unowned' : 'error'
+    track('checkout_failed', { store: 'apple', reason })
+    throw e
   }
-  return { outcome: result.outcome, warning }
 }
 
 /** What a restore actually achieved, in the terms the UI needs to answer
@@ -159,6 +177,7 @@ export interface RestoreOutcome {
  *    them back on the paywall reads as a broken app rather than an expired plan.
  */
 export async function restoreApplePurchases(): Promise<RestoreOutcome> {
+  track('restore_tapped', { store: 'apple' })
   if (!isMobileTauri()) {
     return { found: 0, synced: 0, entitling: false, crossAccount: null, error: null }
   }

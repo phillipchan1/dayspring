@@ -64,6 +64,8 @@ import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 import { initPostHog } from './lib/posthog'
 import { track } from './lib/analytics'
+import { platformKind } from './lib/platform'
+import { markDeviceFirstSeen } from './lib/firstEntry'
 
 async function bootstrap() {
   // Dev-only App Store previews: render a surface standalone, with no auth and
@@ -179,10 +181,25 @@ async function bootstrap() {
   // VITE_POSTHOG_KEY. Gated on Settings → About → "Share anonymous usage".
   initPostHog()
 
+  // Stamp this device's earliest known moment, once — minutes_to_first_entry_
+  // bucket (lib/firstEntry.ts) reads it back later. Before anything else so
+  // it is genuinely the earliest timestamp available.
+  markDeviceFirstSeen()
+
   // One per real bootstrap — the D1/D7 retention signal. Before the auth/
   // subscription gates below so it counts every launch, not just ones that
-  // reach the journal.
-  track('app_open')
+  // reach the journal. __APP_VERSION__ is a plain "x.y.z" string (Vite
+  // `define`, vite.config.ts) — split rather than sent whole, to keep every
+  // prop in the closed vocabulary a number/enum/boolean, never a string.
+  {
+    const parts = __APP_VERSION__.split('.').map((n) => Number(n) || 0)
+    track('app_open', {
+      platform: platformKind(),
+      version_major: parts[0] ?? 0,
+      version_minor: parts[1] ?? 0,
+      version_patch: parts[2] ?? 0,
+    })
+  }
 
   // Neutralize stray file drops so a photo dropped outside a dropzone can't make
   // the WebView navigate to the file and blow away the whole app.

@@ -1491,6 +1491,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     track('surface_opened', { surface: s, first })
   }, [state.surface])
 
+  // A Settings tab becoming visible — the initial open and every later switch
+  // (onTabChange below routes through the same `state.settings.tab`).
+  useEffect(() => {
+    if (state.settings) track('settings_opened', { section: state.settings.tab })
+  }, [state.settings?.tab])
+
   useJournalShortcuts({
     onNew: () => void handleNew(),
     onSave: saveNow,
@@ -1684,6 +1690,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }, [entryId, syncActiveRow])
 
   async function handleNew() {
+    track('entry_started')
     skipAdoptOnCreateRef.current = true
     try {
       await saveNow()

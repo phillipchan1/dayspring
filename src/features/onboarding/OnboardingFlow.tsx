@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { track } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
@@ -37,6 +38,10 @@ export function OnboardingFlow({ onFinish }: Props) {
   const isMobile = useIsMobile()
   const isLight = isLightTheme(useResolvedTheme(settings))
 
+  useEffect(() => {
+    track('onboarding_step_viewed', { step })
+  }, [step])
+
   const toggleTheme = useCallback(() => {
     updateSettings({ appearance: isLight ? 'dark' : 'light' })
   }, [isLight, updateSettings])
@@ -60,6 +65,7 @@ export function OnboardingFlow({ onFinish }: Props) {
   }, [finishing, onFinish, updateSettings])
 
   const startFresh = useCallback(() => {
+    track('onboarding_step_completed', { step: 'fresh' })
     seedRef.current = pickOpeningPrompt()
     void finish()
   }, [finish])
@@ -103,8 +109,16 @@ export function OnboardingFlow({ onFinish }: Props) {
         <WelcomeFlow
           isLight={isLight}
           onToggleTheme={toggleTheme}
-          onClose={() => setStep('fork')}
-          onBegin={() => setStep('fork')}
+          onClose={() => {
+            // Welcome's own Skip button — a genuine skip, distinct from Begin
+            // even though both land on the same next step.
+            track('onboarding_skipped', { step: 'tour' })
+            setStep('fork')
+          }}
+          onBegin={() => {
+            track('onboarding_step_completed', { step: 'tour' })
+            setStep('fork')
+          }}
         />
       )}
 
@@ -113,12 +127,26 @@ export function OnboardingFlow({ onFinish }: Props) {
           <div className="ob-screen ob-fade-in">
             <h1 className="ob-title">{copy.fork.title}</h1>
             <div className="ob-fork">
-              <button type="button" className="ob-card" onClick={() => setStep('import')}>
+              <button
+                type="button"
+                className="ob-card"
+                onClick={() => {
+                  track('onboarding_step_completed', { step: 'fork' })
+                  setStep('import')
+                }}
+              >
                 <span className="ob-card__icon" aria-hidden>❧</span>
                 <span className="ob-card__label">{copy.fork.veteran.label}</span>
                 <span className="ob-card__sub">{copy.fork.veteran.sub}</span>
               </button>
-              <button type="button" className="ob-card" onClick={() => setStep('fresh')}>
+              <button
+                type="button"
+                className="ob-card"
+                onClick={() => {
+                  track('onboarding_step_completed', { step: 'fork' })
+                  setStep('fresh')
+                }}
+              >
                 <span className="ob-card__icon" aria-hidden>✦</span>
                 <span className="ob-card__label">{copy.fork.fresh.label}</span>
                 <span className="ob-card__sub">{copy.fork.fresh.sub}</span>
@@ -142,7 +170,12 @@ export function OnboardingFlow({ onFinish }: Props) {
               <button
                 type="button"
                 className="ob-primary"
-                onClick={() => void finish()}
+                onClick={() => {
+                  // The mobile fallback never offers a real import — this IS
+                  // how the step resolves there, not a skip of it.
+                  track('onboarding_step_completed', { step: 'import' })
+                  void finish()
+                }}
                 disabled={finishing}
               >
                 {copy.importMobile.cta}

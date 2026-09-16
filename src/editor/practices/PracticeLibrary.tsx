@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
+import { track } from '@/lib/analytics'
 import {
   SHELF,
   PRACTICE_FUNCTIONS,
@@ -137,6 +138,12 @@ export function PracticeLibrary({
   const [activeIdx, setActiveIdx] = useState(0)
   const gridRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    track('practice_library_opened', { count: SHELF.length })
+    // Once per mount — same convention as ritual_threads_opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const functionLabel = (fn: PracticeFunction) =>
     PRACTICE_FUNCTIONS.find((f) => f.id === fn)?.label ?? fn

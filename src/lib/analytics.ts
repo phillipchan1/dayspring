@@ -13,11 +13,47 @@
 // Aptabase/PostHog client plugs in without touching any call site.
 
 import { settingsStore } from './settings'
+import type { PlatformKind } from './platform'
+import type { VoiceId } from './voices'
 
 type ReturnSurface = 'reflections' | 'scripture' | 'altar'
 import type { SlashCommandId } from '@/editor/slashDetect'
 
 type SlashCmd = SlashCommandId
+
+/** The real step machine in src/features/onboarding/OnboardingFlow.tsx — the
+ *  welcome carousel, the veteran/fresh-start fork, and the two paths out of
+ *  it. Not a flat wizard: `import` has its own inner phase machine
+ *  (ImportFlow.tsx) that these two events also cover. */
+type OnboardingStep = 'tour' | 'fork' | 'import' | 'fresh'
+
+/** Every sign-in method Dayspring offers (src/lib/auth.ts). No magic link. */
+type AuthMethod = 'apple' | 'google' | 'email'
+
+/** Word-count buckets for a saved entry. See lengthBucket() below — the only
+ *  place the boundaries are allowed to live. */
+type LengthBucket = 'empty' | '1_50' | '51_200' | '201_500' | '500_plus'
+
+/** The three places a subscribe prompt actually renders (src/App.tsx):
+ *  the full-screen picker, the trial-ended/past-due screen, and the
+ *  persistent in-app nudge. */
+type PaywallSurface = 'paywall' | 'locked' | 'trial_banner'
+
+type Store = 'stripe' | 'apple'
+
+/**
+ * Why a checkout attempt didn't finish. Store-asymmetric on purpose:
+ * Stripe's redirect-based Checkout never tells the client a user cancelled
+ * (nothing reads `?checkout=cancelled`, so Stripe only ever reports
+ * 'error') — 'cancelled' and 'unowned' are real, distinguishable outcomes on
+ * the Apple path only (see src/lib/appleIap.ts). 'other' is a defensive
+ * fallback for a thrown value that isn't even an Error.
+ */
+type CheckoutFailReason = 'cancelled' | 'error' | 'unowned' | 'other'
+
+/** The real tab ids (src/lib/appHistory.ts) — there is no separate "account"
+ *  tab; account actions live inside "about". */
+type SettingsSection = 'appearance' | 'writing' | 'import' | 'shortcuts' | 'billing' | 'about'
 
 /** The complete vocabulary. Props must stay enum/number/boolean — see above. */
 interface EventProps {
@@ -26,7 +62,12 @@ interface EventProps {
    * bootstrap (src/main.tsx), not per component remount, so it stays a clean
    * D1/D7 retention signal regardless of auth or subscription state.
    */
-  app_open: undefined
+  app_open: {
+    platform: PlatformKind
+    version_major: number
+    version_minor: number
+    version_patch: number
+  }
   /**
    * This device's first-ever journal entry. One-shot per device (see
    * lib/firstEntry.ts) — the same "first on this device" semantics as
@@ -34,6 +75,15 @@ interface EventProps {
    * Growth Pulse dashboard for the Quality signal: trial + first entry ≤24h.
    */
   first_entry_created: undefined
+  /**
+   * Fired alongside first_entry_created: how long from this device's first
+   * known moment (main.tsx's first bootstrap) to that first entry. A device-
+   * local proxy for "trial start" — there is no cheap, sync way to read the
+   * account's real trial-start time from the offline-first repo layer that
+   * fires first_entry_created (see lib/firstEntry.ts). Absent (not fired) if
+   * the device-first-seen stamp was never written (private mode).
+   */
+  minutes_to_first_entry_bucket: { bucket: '0_5' | '5_30' | '30_1440' | '1440_plus' }
   /** A Return surface opened; `first` = never visited before on this device. */
   surface_opened: { surface: ReturnSurface; first: boolean }
   /** A slash command chosen (palette, accessory bar, or typed `/`). */
@@ -62,6 +112,71 @@ interface EventProps {
   surface_arrival_shown: { surface: ReturnSurface; kind: 'updates' | 'discovery'; count: number }
   /** "See your Ascent →" clicked on the processing-complete banner. */
   processing_cta_clicked: undefined
+
+  // ── Activation / onboarding ────────────────────────────────────────────────
+  /** An onboarding step (or import phase) became visible. */
+  onboarding_step_viewed: { step: OnboardingStep }
+  /** An onboarding step was genuinely finished — moved on, not skipped. */
+  onboarding_step_completed: { step: OnboardingStep }
+  /** An onboarding step was explicitly skipped rather than finished. Only
+   *  'tour' (Welcome's Skip button) and 'import' (the "skip ahead" wait
+   *  screen) actually have a skip path today. */
+  onboarding_skipped: { step: OnboardingStep }
+  /** A sign-in completed — the moment `useSession` sees a real SIGNED_IN
+   *  event, not a restored/refreshed session. */
+  auth_completed: { method: AuthMethod }
+
+  // ── Journal core loop ───────────────────────────────────────────────────────
+  /** "New entry" — the one unambiguous "started composing" moment
+   *  (src/features/journal/JournalScreen.tsx's handleNew). */
+  entry_started: undefined
+  /**
+   * A successful autosave persist — the create AND every subsequent update,
+   * by design (Phase B ships generously; roll up to "last per entry per
+   * session" for a length distribution rather than treating every row as a
+   * distinct save). `had_slash` is reconstructed from the body's own
+   * structural markers (prayer/sense/scripture fences, the ritual comment)
+   * and undercounts /emoji, which leaves no trace of its own — see
+   * docs/GROWTH_PULSE.md.
+   */
+  entry_saved: { length_bucket: LengthBucket; had_ritual: boolean; had_slash: boolean }
+
+  // ── Paywall / money friction ────────────────────────────────────────────────
+  /** A subscribe surface rendered. */
+  paywall_seen: { surface: PaywallSurface }
+  /** A checkout attempt began (Stripe Checkout redirect, or a StoreKit sheet). */
+  checkout_started: { store: Store }
+  /** A checkout attempt did not finish. See `CheckoutFailReason`'s comment for
+   *  which reasons are real on which store. */
+  checkout_failed: { store: Store; reason: CheckoutFailReason }
+  /** "Restore purchases" tapped — Apple-only; there is no Stripe equivalent. */
+  restore_tapped: { store: 'apple' }
+  /** Paid, but the Stripe webhook hasn't landed within ~30s (src/App.tsx). No
+   *  Apple equivalent — that path awaits its own verify() call inline. */
+  entitlement_stalled: undefined
+
+  // ── Navigation / settings ───────────────────────────────────────────────────
+  /** A Settings tab became visible — the initial open and every later switch. */
+  settings_opened: { section: SettingsSection }
+  /** A voice (palette + type pairing) was picked in the Theme tab. */
+  theme_changed: { theme: VoiceId }
+  /** The Stripe billing portal specifically — not Apple's subscription sheet
+   *  or the App Store account page, which are managed at Apple, not us. */
+  billing_portal_opened: undefined
+
+  // ── Library ──────────────────────────────────────────────────────────────
+  /** The Rituals Library (browse-to-begin) opened — distinct from
+   *  `ritual_threads_opened`, which is "practices you have walked" (history). */
+  practice_library_opened: { count: number }
+}
+
+/** The only place the entry_saved word-count boundaries are allowed to live. */
+export function lengthBucket(words: number): LengthBucket {
+  if (words <= 0) return 'empty'
+  if (words <= 50) return '1_50'
+  if (words <= 200) return '51_200'
+  if (words <= 500) return '201_500'
+  return '500_plus'
 }
 
 export type AnalyticsEvent = keyof EventProps

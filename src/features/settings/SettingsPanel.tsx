@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { track } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
@@ -896,6 +897,7 @@ function BillingTab() {
           await openExternal('https://apps.apple.com/account/subscriptions')
           return
         case 'stripe':
+          track('billing_portal_opened')
           await openExternal(await fetchPortalUrl())
           return
       }

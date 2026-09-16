@@ -1,5 +1,6 @@
 import { requireSupabase } from './supabase'
 import { apiUrl } from './api'
+import { track } from './analytics'
 
 export type Plan = 'none' | 'trialing' | 'active' | 'cancelled' | 'past_due'
 
@@ -250,30 +251,45 @@ export async function fetchSubscription(): Promise<Subscription> {
   }
 }
 
-/** POST to /api/stripe/checkout and return the Stripe-hosted checkout URL. */
+/**
+ * POST to /api/stripe/checkout and return the Stripe-hosted checkout URL.
+ *
+ * checkout_started/checkout_failed live here, not at each of the four UI call
+ * sites (Paywall, Locked, TrialBanner, Settings) — one place, so every caller
+ * is covered automatically. Stripe's redirect-based Checkout never tells the
+ * client a user cancelled (nothing reads the `?checkout=cancelled` the server
+ * sets — see api/stripe/checkout.ts), so every failure here is genuinely
+ * `reason: 'error'`; there is no client-visible Stripe 'cancelled'.
+ */
 export async function startCheckout(plan: 'annual' | 'monthly'): Promise<string> {
-  const sb = requireSupabase()
-  const {
-    data: { session },
-  } = await sb.auth.getSession()
-  if (!session) throw new Error('not authenticated')
+  track('checkout_started', { store: 'stripe' })
+  try {
+    const sb = requireSupabase()
+    const {
+      data: { session },
+    } = await sb.auth.getSession()
+    if (!session) throw new Error('not authenticated')
 
-  const res = await fetch(apiUrl('/api/stripe/checkout'), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ plan }),
-  })
+    const res = await fetch(apiUrl('/api/stripe/checkout'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ plan }),
+    })
 
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string }
-    throw new Error(err.error ?? `checkout failed (${res.status})`)
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(err.error ?? `checkout failed (${res.status})`)
+    }
+
+    const { url } = (await res.json()) as { url: string }
+    return url
+  } catch (e) {
+    track('checkout_failed', { store: 'stripe', reason: 'error' })
+    throw e
   }
-
-  const { url } = (await res.json()) as { url: string }
-  return url
 }
 
 /** POST /api/trial/extend — one-time +7 day self-serve extension. */

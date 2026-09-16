@@ -1,6 +1,7 @@
 import type { ThemeId } from '@/lib/resolveTheme'
 import type { Settings } from '@/lib/settings'
 import { VOICES, isNightOnly, type Voice } from '@/lib/voices'
+import { track } from '@/lib/analytics'
 import './ThemePicker.css'
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
  */
 export function ThemePicker({ settings, update, active }: Props) {
   const pick = (v: Voice) => {
+    track('theme_changed', { theme: v.id })
     // `voice` is the choice; settings.reconcileVoice projects it back onto
     // lightTheme / darkTheme / editorFont so a client on the other release
     // channel still finds valid values in the shared settings row.

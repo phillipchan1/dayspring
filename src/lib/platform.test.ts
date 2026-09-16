@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
-import { isAppleTouchDevice } from './platform'
+import { isAppleTouchDevice, platformKind } from './platform'
 
 describe('isAppleTouchDevice', () => {
   it('recognizes an iPhone UA without consulting touch points', () => {
@@ -80,5 +80,53 @@ describe('isIOSTauri / isMobileTauri (runtime UA)', () => {
     expect(isIOSTauri()).toBe(false)
     expect(isMobileTauri()).toBe(false)
     expect(isDesktopTauri()).toBe(true)
+  })
+})
+
+describe('platformKind', () => {
+  const original = {
+    tauri: Object.prototype.hasOwnProperty.call(window, '__TAURI_INTERNALS__'),
+    ua: navigator.userAgent,
+    touch: navigator.maxTouchPoints,
+  }
+
+  afterEach(() => {
+    if (original.tauri) {
+      ;(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {}
+    } else {
+      delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+    }
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value: original.ua })
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      value: original.touch,
+    })
+  })
+
+  it('reports web outside Tauri', () => {
+    delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+    expect(platformKind()).toBe('web')
+  })
+
+  it('reports mac for a Tauri desktop session', () => {
+    ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {}
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)',
+    })
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 0 })
+    expect(platformKind()).toBe('mac')
+  })
+
+  it('reports ios for a Tauri iPad-in-Macintosh session', () => {
+    ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {}
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)',
+    })
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 5 })
+    expect(platformKind()).toBe('ios')
   })
 })

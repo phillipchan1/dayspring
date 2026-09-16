@@ -31,6 +31,7 @@ import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
 import { initApplePurchases, isAppleIapAvailable } from './lib/appleIap'
 import { isMobileTauri } from './lib/platform'
+import { track } from './lib/analytics'
 
 // localStorage key used by useHasSeenWelcome — set before WelcomeProvider
 // mounts so the first-run flow is suppressed for users coming through checkout.
@@ -187,6 +188,7 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
       attempts++
       if (attempts > 15) {
         clearInterval(id)
+        track('entitlement_stalled')
         setCheckoutState('stalled')
         return
       }

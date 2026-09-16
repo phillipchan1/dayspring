@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { startCheckout, trialDaysRemaining } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import { isAppleIapAvailable, purchaseApple } from '@/lib/appleIap'
 import { useTapAction } from '@/lib/tapAction'
+import { track } from '@/lib/analytics'
 import './Paywall.css'
 
 interface Props {
@@ -22,6 +23,11 @@ interface Props {
 export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   const [loading, setLoading] = useState(false)
   const days = trialDaysRemaining(subscription)
+
+  useEffect(() => {
+    track('paywall_seen', { surface: 'trial_banner' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubscribe() {
     setLoading(true)

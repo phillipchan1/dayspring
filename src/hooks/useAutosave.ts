@@ -2,6 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { addBreadcrumb } from '@/lib/crashReport'
 import { createEntry, updateEntryBody } from '@/lib/repo'
+import { wordCount } from '@/lib/entries'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { track, lengthBucket } from '@/lib/analytics'
+
+const RITUAL_MARKER = '<!-- ritual:name:'
+
+/** entry_saved's had_slash is reconstructed from the body's own structural
+ *  markers, not tracked live — it undercounts /emoji, which leaves no trace
+ *  of its own (a plain unicode character indistinguishable from typing one).
+ *  See docs/GROWTH_PULSE.md. */
+function trackEntrySaved(text: string): void {
+  track('entry_saved', {
+    length_bucket: lengthBucket(wordCount(text)),
+    had_ritual: text.includes(RITUAL_MARKER),
+    had_slash: parseSpiritualBlocks(text).length > 0,
+  })
+}
 import {
   decideSave,
   draftSession,
@@ -172,6 +189,7 @@ export function useAutosave({
             await updateEntryBody(d.id, text)
             sessionRef.current = savedSession(sessionRef.current, text)
           }
+          trackEntrySaved(text)
           onAfterSaveRef.current?.(text)
           setStatus('saved')
           setLastSavedAt(Date.now())

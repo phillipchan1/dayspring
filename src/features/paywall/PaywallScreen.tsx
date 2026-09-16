@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Brand } from '@/components/Mark'
+import { track } from '@/lib/analytics'
 import { startCheckout } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import {
@@ -23,6 +24,11 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
   /** Non-failure feedback — e.g. "we found your old subscription, it expired". */
   const [notice, setNotice] = useState<string | null>(null)
   const [products, setProducts] = useState<Product[]>([])
+
+  useEffect(() => {
+    track('paywall_seen', { surface: 'paywall' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!useApple) return

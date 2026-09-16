@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Brand } from '@/components/Mark'
+import { track } from '@/lib/analytics'
 import {
   startCheckout,
   billingDestination,
@@ -57,6 +58,11 @@ export function LockedScreen({
   const [exportPhase, setExportPhase] = useState<'idle' | 'working' | 'done'>('idle')
   const [exportPct, setExportPct] = useState(0)
   const [askOpen, setAskOpen] = useState(false)
+
+  useEffect(() => {
+    track('paywall_seen', { surface: 'locked' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Apple terms + App Store wording apply when we're on an Apple device OR the
   // relationship lives at Apple (a lapsed App Store subscriber on the web still
@@ -158,6 +164,7 @@ export function LockedScreen({
           await openExternal('https://apps.apple.com/account/subscriptions')
           return
         case 'stripe':
+          track('billing_portal_opened')
           await openExternal(await fetchPortalUrl())
           return
       }

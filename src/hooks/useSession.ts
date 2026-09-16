@@ -3,6 +3,14 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { isAuthInvalidation, forceReauth } from '@/lib/authError'
 import { rememberAuthProvider } from '@/lib/lastAuthProvider'
+import { track } from '@/lib/analytics'
+
+/** Narrows the untyped `app_metadata.provider` Supabase reports to the closed
+ *  vocabulary `auth_completed` is allowed to carry. Anything else (a provider
+ *  we don't offer) is dropped rather than forced into a wrong bucket. */
+function authMethodFor(provider: unknown): 'apple' | 'google' | 'email' | null {
+  return provider === 'apple' || provider === 'google' || provider === 'email' ? provider : null
+}
 
 /**
  * Validate a locally-cached session against the server. getSession() only reads
@@ -50,6 +58,14 @@ export function useSession(): SessionState {
       // device next time instead of letting it start a second account.
       // app_metadata.provider is the most recent sign-in's provider.
       if (next) rememberAuthProvider(next.user?.app_metadata?.provider)
+
+      // Only a genuine interactive sign-in, never a restored/refreshed
+      // session — INITIAL_SESSION and TOKEN_REFRESHED are separate event
+      // types, so gating on SIGNED_IN alone can't double-count either.
+      if (event === 'SIGNED_IN' && next) {
+        const method = authMethodFor(next.user?.app_metadata?.provider)
+        if (method) track('auth_completed', { method })
+      }
 
       if (event !== 'INITIAL_SESSION') return
 
