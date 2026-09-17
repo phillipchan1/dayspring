@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { signInWithApple, signInWithEmail, signInWithGoogle } from '@/lib/auth'
+import { signInWithApple, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/auth'
 import { Mark } from '@/components/Mark'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSettings } from '@/hooks/useSettings'
 import { useResolvedTheme } from '@/hooks/useResolvedTheme'
 import { isLightTheme } from '@/lib/resolveTheme'
-import { isIOSTauri, isMobileTauri } from '@/lib/platform'
+import { isIOSTauri, isMobileTauri, isTauri } from '@/lib/platform'
 import { legalUrl } from '@/lib/legal'
 import { openExternal } from '@/lib/openExternal'
 import { PROVIDER_LABEL, readLastAuthProvider } from '@/lib/lastAuthProvider'
@@ -22,9 +22,16 @@ export function SignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [revealPassword, setRevealPassword] = useState(false)
+  // 'signup' is the only door into Dayspring for a visitor with no Google or
+  // Apple account — cold web traffic without either dies on OAuth-only.
+  const [emailMode, setEmailMode] = useState<'signin' | 'signup'>('signin')
+  const [info, setInfo] = useState<string | null>(null)
   const { settings, update } = useSettings()
   const isLight = isLightTheme(useResolvedTheme(settings))
-  const showEmailSignIn = isIOSTauri()
+  // iOS needs this for App Review's demo email+password path. Web needs it as
+  // the only account-creation door when Google/Apple aren't options. Desktop
+  // Tauri is untouched — OAuth via the system browser already works there.
+  const showEmailSignIn = isIOSTauri() || !isTauri()
   // Read once on mount: the value only changes on a successful sign-in, by
   // which point this screen is gone.
   const [lastProvider] = useState(readLastAuthProvider)
@@ -66,17 +73,35 @@ export function SignIn() {
     setError(null)
   }
 
-  async function handleEmailSignIn(e: React.FormEvent) {
+  async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (busy === 'email') return
     setError(null)
+    setInfo(null)
     setBusy('email')
     try {
-      await signInWithEmail(email, password)
+      if (emailMode === 'signup') {
+        const { needsConfirmation } = await signUpWithEmail(email, password)
+        if (needsConfirmation) {
+          setInfo('Check your email to confirm your account, then sign in.')
+          setEmailMode('signin')
+          setBusy(null)
+        }
+        // Otherwise a session was created immediately — useSession picks it
+        // up and this screen unmounts, same as any other sign-in.
+      } else {
+        await signInWithEmail(email, password)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed')
       setBusy(null)
     }
+  }
+
+  function toggleEmailMode() {
+    setError(null)
+    setInfo(null)
+    setEmailMode((m) => (m === 'signin' ? 'signup' : 'signin'))
   }
 
   const appleTap = useTapAction(
@@ -173,7 +198,7 @@ export function SignIn() {
                 Sign in with email
               </button>
             ) : (
-              <form onSubmit={(e) => void handleEmailSignIn(e)} className="signin__form">
+              <form onSubmit={(e) => void handleEmailSubmit(e)} className="signin__form">
                 <input
                   type="email"
                   name="email"
@@ -195,7 +220,7 @@ export function SignIn() {
                   <input
                     type={revealPassword ? 'text' : 'password'}
                     name="password"
-                    autoComplete="current-password"
+                    autoComplete={emailMode === 'signup' ? 'new-password' : 'current-password'}
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
@@ -231,11 +256,33 @@ export function SignIn() {
                   className="signin__btn"
                   disabled={busy === 'email' || !email.trim() || !password}
                 >
-                  {busy === 'email' ? 'Signing in…' : 'Continue with email'}
+                  {busy === 'email'
+                    ? emailMode === 'signup'
+                      ? 'Creating account…'
+                      : 'Signing in…'
+                    : emailMode === 'signup'
+                      ? 'Create account'
+                      : 'Continue with email'}
+                </button>
+                <button
+                  type="button"
+                  className="signin__toggle-mode"
+                  disabled={busy === 'email'}
+                  onClick={toggleEmailMode}
+                >
+                  {emailMode === 'signup'
+                    ? 'Already have an account? Sign in'
+                    : 'New here? Create an account'}
                 </button>
               </form>
             )}
           </div>
+        )}
+
+        {info && (
+          <p className="signin__notice" role="status">
+            {info}
+          </p>
         )}
 
         {oauthBusy && (
