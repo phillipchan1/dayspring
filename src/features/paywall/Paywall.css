@@ -1,16 +1,30 @@
 /* ── Paywall / trial screens ─────────────────────────────────────────────── */
 
+/* Scrolls, and centres WITHOUT justify-content.
+   `justify-content: center` on a flex column is a trap: when the content is
+   taller than the box the overflow spills past the scroll origin, so the top of
+   it can never be reached — and with `overflow: hidden` it could not be reached
+   at all. On an iPhone 17 Pro Max the ended-access screen measured 1089pt of
+   content in a 956pt viewport, which put the wordmark at y=-66 and left the
+   bottom of the panel off-screen with nothing to scroll. That is what App Review
+   saw under Guideline 4.0 on 2026-09-17. `margin-block: auto` on the child
+   centres while there is room and yields honestly when there is not. */
 .paywall {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100dvh;
-  padding: 2rem 1.5rem;
+  max-height: 100dvh;
+  padding: 2rem max(1.5rem, env(safe-area-inset-right)) 2rem max(1.5rem, env(safe-area-inset-left));
+  padding-top: max(2rem, env(safe-area-inset-top));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
   text-align: center;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
   -webkit-app-region: no-drag;
 }
@@ -35,6 +49,8 @@
   gap: 0;
   max-width: 26rem;
   width: 100%;
+  margin-block: auto;
+  flex-shrink: 0;
 }
 
 .paywall__mark {
@@ -179,17 +195,22 @@
 
 /* ── "You're in!" post-checkout screen ──────────────────────────────────── */
 
+/* Same contract as .paywall — see the note there. */
 .trial-welcome {
   position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100dvh;
-  padding: 2rem 1.5rem;
+  padding: 2rem max(1.5rem, env(safe-area-inset-right)) 2rem max(1.5rem, env(safe-area-inset-left));
+  padding-top: max(2rem, env(safe-area-inset-top));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
   text-align: center;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: linear-gradient(180deg, #1a1620 0%, #34262e 55%, #553a35 100%);
   animation: tw-fade 0.7s ease both;
   z-index: 1000;
@@ -254,6 +275,8 @@
   flex-direction: column;
   align-items: center;
   max-width: 24rem;
+  margin-block: auto;
+  flex-shrink: 0;
   animation: tw-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
@@ -423,17 +446,23 @@
 
 /* ── Locked screen (trial ended / past due) ─────────────────────────────── */
 
+/* Same contract as .paywall above — see the note there. */
 .locked-screen {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100dvh;
-  padding: 2rem 1.5rem;
+  max-height: 100dvh;
+  padding: 2rem max(1.5rem, env(safe-area-inset-right)) 2rem max(1.5rem, env(safe-area-inset-left));
+  padding-top: max(2rem, env(safe-area-inset-top));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
   text-align: center;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
   -webkit-app-region: no-drag;
 }
@@ -456,6 +485,9 @@
   align-items: center;
   gap: 0;
   max-width: 22rem;
+  width: 100%;
+  margin-block: auto;
+  flex-shrink: 0;
 }
 
 .locked-screen__headline {
@@ -661,7 +693,7 @@
 
 @media (max-width: 480px) {
   .paywall {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
     padding-top: max(1.5rem, env(safe-area-inset-top));
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
@@ -705,7 +737,7 @@
   }
 
   .trial-welcome {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
     padding-top: max(1.5rem, env(safe-area-inset-top));
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
@@ -719,7 +751,7 @@
   }
 
   .locked-screen {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
     padding-top: max(1.5rem, env(safe-area-inset-top));
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
@@ -734,6 +766,12 @@
 
   .locked-screen__actions {
     max-width: 100%;
+  }
+
+  .paywall__content,
+  .locked-screen__content {
+    padding: 2rem 1.4rem 1.75rem;
+    border-radius: 22px;
   }
 }
 
@@ -843,6 +881,51 @@
   text-decoration-color: rgba(185, 119, 43, 0.5);
 }
 
+/* Tap targets. These are text links by design — quiet, never competing with
+   Subscribe — but a 19pt-tall hit box is a Guideline 4.0 finding whatever it
+   looks like. inline-flex + min-height grows the box, not the type. */
+.locked-soft__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding-inline: 0.2rem;
+}
+
+.locked-soft {
+  /* A little room between hit boxes now that they are 44pt tall and wrapping. */
+  gap: 0.25rem 0.9rem;
+}
+
+.trial-banner__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  touch-action: manipulation;
+}
+
+.locked-screen__refresh,
+.locked-ask__send {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* What tapping a plan does, said at the button. Guideline 3.1.2(c). */
+.locked-screen__charge {
+  margin: 1.1rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(236, 231, 223, 0.8);
+  max-width: 22rem;
+}
+[data-appearance='light'] .locked-screen__charge {
+  color: rgba(74, 64, 53, 0.82);
+}
+
 /* "Ask Phil" — a warm, contained composer. */
 .locked-ask {
   margin-top: 1.1rem;
@@ -948,26 +1031,53 @@
   text-align: center;
 }
 .apple-terms__body {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.6;
-  color: rgba(236, 231, 223, 0.38);
-  margin: 0 0 0.4rem;
+  color: rgba(236, 231, 223, 0.55);
+  margin: 0 0 0.2rem;
 }
 .apple-terms__links {
-  font-size: 0.7rem;
-  color: rgba(236, 231, 223, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: rgba(236, 231, 223, 0.55);
   margin: 0;
 }
 .apple-terms__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.45rem;
   color: inherit;
   text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: rgba(236, 231, 223, 0.22);
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(236, 231, 223, 0.35);
   cursor: pointer;
+  touch-action: manipulation;
 }
 .apple-terms__link:hover { color: rgba(236, 231, 223, 0.7); }
 
 [data-appearance='light'] .apple-terms__body,
-[data-appearance='light'] .apple-terms__links { color: rgba(74, 64, 53, 0.42); }
-[data-appearance='light'] .apple-terms__link { text-decoration-color: rgba(74, 64, 53, 0.24); }
+[data-appearance='light'] .apple-terms__links { color: rgba(74, 64, 53, 0.62); }
+[data-appearance='light'] .apple-terms__link { text-decoration-color: rgba(74, 64, 53, 0.38); }
 [data-appearance='light'] .apple-terms__link:hover { color: rgba(74, 64, 53, 0.75); }
+
+/* Settings renders the same disclosure in a left-aligned column — Guideline
+   3.1.2 wants it on every screen that sells a subscription, and the Billing tab
+   does. Only the alignment changes; the words are the same everywhere. */
+.settings-field .apple-terms {
+  margin-inline: 0;
+  text-align: left;
+}
+.settings-field .apple-terms__links {
+  justify-content: flex-start;
+}
+.settings-field .apple-terms__link:first-child {
+  padding-inline-start: 0;
+}
+.settings-field .apple-terms__body,
+.settings-field .apple-terms__links {
+  color: var(--text-faint);
+}

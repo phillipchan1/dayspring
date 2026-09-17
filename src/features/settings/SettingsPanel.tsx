@@ -28,6 +28,7 @@ import {
 import { openExternal } from '@/lib/openExternal'
 import { useTapAction } from '@/lib/tapAction'
 import { ALLOWS_INTERNAL_UI, IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
+import { usesAppStoreCopy } from '@/lib/storeCopy'
 import {
   describeRestore,
   fetchAppleProducts,
@@ -37,6 +38,7 @@ import {
   restoreApplePurchases,
 } from '@/lib/appleIap'
 import { displayPrice } from '@/features/paywall/prices'
+import { AppleSubscriptionTerms } from '@/features/paywall/AppleSubscriptionTerms'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppLockSettings } from '@/features/applock/AppLockSettings'
@@ -850,6 +852,8 @@ function BillingTab() {
   const [notice, setNotice] = useState<string | null>(null)
 
   const onIos = isAppleIapAvailable()
+  // Name the first 14 days for what the store can back up. See lib/storeCopy.ts.
+  const appStoreWords = usesAppStoreCopy()
   // Two different questions, and conflating them is what stranded lapsed Apple
   // subscribers on the web: where the relationship is *managed* (survives
   // cancellation) vs. where a new purchase has to *go*.
@@ -985,9 +989,18 @@ function BillingTab() {
   const statusInfo: StatusInfo = {
     none:     { label: 'No subscription',  color: 'var(--text-faint)', detail: null },
     trialing: {
-      label:  `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
+      // "Free trial" + "No charge until then" describes an App Store
+      // introductory offer these products do not have — Guideline 3.1.2(c).
+      // Off the App Store it is exactly what Stripe does, so it stays.
+      label: appStoreWords
+        ? `Complimentary access — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`
+        : `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
       color:  'var(--accent)',
-      detail: trialEnd ? `Ends ${trialEnd} · No charge until then.` : null,
+      detail: trialEnd
+        ? appStoreWords
+          ? `Ends ${trialEnd} · Choosing a plan starts your subscription and bills your Apple Account today.`
+          : `Ends ${trialEnd} · No charge until then.`
+        : null,
     },
     active:   {
       label:  'Active',
@@ -1008,7 +1021,20 @@ function BillingTab() {
   // Not just `plan !== 'none'`: the app-managed first-run trial has no card and
   // no customer at either store, so a portal link would 404 on both paths.
   const hasPortal = hasBillingRelationship(subscription)
-  const showPlans = plan === 'none' || plan === 'cancelled'
+  // 'trialing' belongs here for two separate reasons.
+  //
+  // Product: inside the complimentary 14 days the ONLY way to subscribe was the
+  // trial banner, which is dismissible per session. Dismiss it and Settings —
+  // the one place anyone looks for billing — offered no way to pay at all.
+  //
+  // Review: this is also the reviewer's only door. PaywallScreen never renders
+  // on iOS (App.tsx gates it behind !isMobileTauri), LockedScreen needs an
+  // account whose access has already lapsed, and the demo account in our review
+  // notes is deliberately not paywalled. With this hidden there was no in-app
+  // purchase surface an App Review tester could reach on any account they can
+  // actually sign into — and "we were unable to locate the in-app purchases" is
+  // the most common subscription rejection there is.
+  const showPlans = plan === 'none' || plan === 'cancelled' || plan === 'trialing'
   // Never offer Stripe purchase UI on iOS (App Store rules), nor while Apple may
   // still charge this account (double billing).
   const canStripePurchase = route === 'stripe'
@@ -1084,6 +1110,13 @@ function BillingTab() {
           <div className="settings-field">
             <div className="settings-field__head">
               <span className="settings-field__label">Plans</span>
+              {plan === 'trialing' && (
+                <span className="settings-field__hint">
+                  {trialEnd
+                    ? `Subscribe whenever you’re ready. Your complimentary access runs until ${trialEnd}.`
+                    : 'Subscribe whenever you’re ready.'}
+                </span>
+              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
               {[
@@ -1146,6 +1179,14 @@ function BillingTab() {
               >
                 {iapLoading === 'restore' ? 'Restoring…' : 'Restore purchases'}
               </button>
+            )}
+            {onIos && (
+              <>
+                <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)', lineHeight: 1.55 }}>
+                  Your plan starts today and renews automatically until you cancel.
+                </p>
+                <AppleSubscriptionTerms />
+              </>
             )}
             {route === 'apple-elsewhere' && (
               <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>

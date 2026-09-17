@@ -3,6 +3,7 @@ import { startCheckout, trialDaysRemaining } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
 import { isAppleIapAvailable, purchaseApple } from '@/lib/appleIap'
+import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { useTapAction } from '@/lib/tapAction'
 import { track } from '@/lib/analytics'
 import './Paywall.css'
@@ -52,11 +53,14 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
 
   const daysLabel = days === 1 ? '1 day' : `${days} days`
   const subscribeTap = useTapAction(() => void handleSubscribe(), !loading)
+  // Beside a StoreKit sheet, "in your trial" reads as the App Store trial these
+  // products do not carry. See lib/storeCopy.ts.
+  const periodLabel = usesAppStoreCopy() ? 'of complimentary access' : 'in your trial'
 
   return (
     <div className="trial-banner" role="status">
       <span>
-        <span className="trial-banner__days">{daysLabel} left</span> in your trial
+        <span className="trial-banner__days">{daysLabel} left</span> {periodLabel}
       </span>
       <button
         type="button"
