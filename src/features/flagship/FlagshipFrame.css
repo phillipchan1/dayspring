@@ -19,7 +19,7 @@
  */
 
 .flag {
-  --flag-footer-h: 86px;
+  --flag-footer-h: 64px;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -83,7 +83,7 @@
    the app every time a headline changed by a word. */
 .flag__row .flag__caption {
   flex: none;
-  width: 41%;
+  width: 40%;
   padding: 0 0 0 58px;
 }
 
@@ -129,23 +129,13 @@
 
 /* ── the words ───────────────────────────────────────────────────────────── */
 
-.flag__eyebrow {
-  display: block;
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 2.6px;
-  text-transform: uppercase;
-  color: #f3bd76;
-}
-
 .flag__headline {
-  margin: 16px 0 0;
+  margin: 0;
   font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
   font-weight: 300;
-  font-size: 58px;
-  line-height: 1.04;
-  letter-spacing: -1.1px;
+  font-size: 52px;
+  line-height: 1.06;
+  letter-spacing: -1px;
   color: #ece7dd;
   text-wrap: balance;
 }
@@ -321,22 +311,6 @@
   color: #ece7dd;
 }
 
-.flag__offer {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12.5px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #7a7986;
-  /*
-   * Never wrap. At 660px the offer wrapped onto a second line and the second
-   * line ran straight through the wordmark — two pieces of type on top of each
-   * other, which is the single worst thing a generated asset can do quietly.
-   * Refusing to wrap turns that failure into an overflow, which is visible on
-   * the contact sheet; the rule below is what stops it happening at all.
-   */
-  white-space: nowrap;
-}
-
 /* A stacked canvas is barely half the width of the hero, and the footer is the
    one row whose content does not scale with it. */
 .flag[data-layout='stacked'] .flag__footer {
@@ -347,12 +321,7 @@
   font-size: 20px;
 }
 
-.flag[data-layout='stacked'] .flag__offer {
-  font-size: 10.5px;
-  letter-spacing: 0.9px;
-}
-
-/* ── per-canvas type ─────────────────────────────────────────────────────── */
+.flag[data-layout='stacked'] /* ── per-canvas type ─────────────────────────────────────────────────────── */
 
 .flag[data-canvas='og'] .flag__headline {
   font-size: 52px;
@@ -383,7 +352,7 @@
    the set, and the footer gets the room Instagram's own UI would otherwise
    sit on top of. */
 .flag[data-canvas='9x16'] {
-  --flag-footer-h: 132px;
+  --flag-footer-h: 104px;
 }
 
 .flag[data-canvas='9x16'] .flag__caption {

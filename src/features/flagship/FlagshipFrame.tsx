@@ -38,14 +38,15 @@ interface Props {
  * Both are above the 767px mobile breakpoint, so both lay out as the desktop
  * three-column shell. A narrower one would silently render the phone app.
  *
- * The HEIGHT is set by the palette, not by taste. The menu is ~380px tall and
- * opens below the caret at y≈368; a 760px window clips its last row against the
- * window's own edge, which reads as a rendering bug rather than as a list that
- * scrolls. 840 clears it with room to spare in both.
+ * The HEIGHT is set by the palette, not by taste. The menu is ~370pt tall and
+ * opens below the caret — and the caret sits under a title, a sentence and a
+ * scripture block, at about y=490. A shorter window clips the menu's last rows
+ * against the window's own edge, which reads as a rendering bug rather than as
+ * a list that scrolls. 920 clears it.
  */
 const WINDOWS = {
-  wide: { width: 1180, height: 840 },
-  tight: { width: 900, height: 840 },
+  wide: { width: 1180, height: 920 },
+  tight: { width: 900, height: 920 },
 } as const
 
 /** Which window each canvas uses. Landscape has the room; nothing else does. */
@@ -80,11 +81,11 @@ const STACKED_GUTTER = 34
  * is left is scaled up until a stranger can read the word "Scripture" in a
  * feed. The Mac window, chrome and lights, is the landscape hero's job.
  *
- * Measured off a 900x840 render, not guessed:
+ * Measured off a 900x920 render, not guessed:
  *   x 120  — clears the rail (0-72) with air, before the writing measure (150).
  *   width  — to 820, past the longest line's right edge (~805). Narrower and
  *            the crop slices words off the end of the sentence.
- *   top    — past the title block, landing just above the prose (230).
+ *   top    — past the title block, landing just above the prose (235).
  */
 const CARD_CROP = { x: 120, y: 186, width: 700 }
 
@@ -92,12 +93,13 @@ const CARD_CROP = { x: 120, y: 186, width: 700 }
  * The device y that must stay clear of the fade — the foot of `Learned`, the
  * fifth row of the Capture column.
  *
- * The palette runs to ~760 and its own list scrolls, so its last rows are
+ * The palette runs to ~910 and its own list scrolls, so its last rows are
  * already cut off inside the app. Demanding all of it costs more scale than the
  * rows are worth; demanding the first five keeps every word that names what
- * this product captures, and lets the rest fade out as a list that continues.
+ * this product captures — and, above them, the scripture block that shows what
+ * picking one does — while the rest fades out as a list that continues.
  */
-const CARD_CLEAR_TO = 648
+const CARD_CLEAR_TO = 795
 
 /** Breathing room between the foot of the crop and the fade, in frame px. */
 const FADE_CLEAR = 26
@@ -166,9 +168,17 @@ export function FlagshipFrame({ cut, canvas, theme, frame }: Props) {
 
   const caption = cut.bare ? null : (
     <header className="flag__caption">
-      <span className="flag__eyebrow">{cut.eyebrow}</span>
+      {/*
+        The break is hard, not balanced. At this size the two halves are a
+        near-exact fit for the column, so auto-wrapping puts the break wherever
+        the last word lands — "A journal built / for spiritual / growth." — and
+        splitting "built for" reads as a typesetting accident. The lead is one
+        line and the accent is the other, always.
+      */}
       <h1 className="flag__headline">
-        {cut.headline.lead} <em>{cut.headline.accent}</em>
+        {cut.headline.lead}
+        <br />
+        <em>{cut.headline.accent}</em>
       </h1>
       <p className="flag__sub">{cut.sub}</p>
       <div className="flag__rule" aria-hidden />
@@ -256,13 +266,22 @@ export function FlagshipFrame({ cut, canvas, theme, frame }: Props) {
       {cut.bare || fit === 'height' ? null : <div className="flag__fade" aria-hidden />}
       <div className="flag__grain" aria-hidden />
 
+      {/*
+        The mark and the name, and nothing else.
+        
+        The bar used to close on "14-day free trial · no card · usedayspring.app"
+        — three facts in a row of uppercase mono, which is a lot of reading to
+        put at the foot of an image whose argument is the picture. Every one of
+        them is a field Meta gives an ad of its own, set in the reader's own UI
+        where they are read as terms rather than as decoration. Here they were
+        only taking the room.
+      */}
       {cut.bare ? null : (
         <footer className="flag__footer">
           <span className="flag__brand">
             <Mark size={24} style={MARK_ACCENT} />
             <span className="flag__wordmark">Dayspring</span>
           </span>
-          <span className="flag__offer">{cut.offer}</span>
         </footer>
       )}
     </div>

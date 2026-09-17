@@ -1,7 +1,8 @@
 # Flagship
 
-The one picture that carries the whole product: the Mac app, mid-entry, with the
-`/` palette open — the gesture nothing else in the category has.
+The one picture that carries the whole product: the Mac app, mid-entry, with a
+verse set in the page and the `/` palette open under it — the gesture nothing
+else in the category has, and what it puts there.
 
 Everything else we make is a *detail*. A listing shot is one surface at phone
 width; an ad is a fragment under a headline. That is the right shape for someone
@@ -50,3 +51,8 @@ Nothing throws. It is obvious on the sheet.
 and then lands on usedayspring.app should meet the sentence they were promised.
 It lives in `src/features/flagship/flagship.ts`, with the ad and App Store
 registries it deliberately echoes.
+
+**There is no offer line and no eyebrow.** The trial, the price and the domain
+are fields Meta gives an ad of its own, set in the reader's own UI where they
+read as terms rather than as decoration — put them in the body copy, not on the
+picture. The eyebrow went because it printed the headline twice.

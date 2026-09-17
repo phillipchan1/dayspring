@@ -31,34 +31,47 @@ import { journalProps } from '@/features/appstore/devices'
 const noop = () => {}
 
 /**
+ * The fixture ids the two block widgets key off. Fabricated, like everything
+ * else here — they only have to be stable and unique within the document.
+ */
+const SCRIPTURE_ID = '2f6c8e14-5a7b-4d92-b3e0-8c1a9f4d7e63'
+
+/**
  * The entry on screen.
  *
- * Written to three constraints, all of which are load-bearing:
+ * Written to four constraints, all of which are load-bearing:
  *
  *  1. **It has to be a person.** Sample copy that reads like sample copy
  *     ("Today I felt grateful") makes the whole picture read as a mock-up.
  *  2. **It cannot be a real entry.** Fabricated, always — the same rule the ad
  *     and listing fixtures keep. No public asset carries anyone's journal.
- *  3. **It ends on an open line, high up the page.** The palette opens beside
- *     the line the writer is on — and when there is not room for it below, it
- *     flips ABOVE and lands on top of the writing. An eight-line entry produces
- *     a picture of a menu covering a page, which argues the opposite of the
- *     case. Three lines keeps the caret near y=330, where the palette drops
- *     underneath and the prose survives in full.
+ *  3. **The scripture block is in it.** The palette alone shows the menu; the
+ *     block shows what the menu DOES — a passage set in the page, word for
+ *     word, where the sentence was. One frame then carries the whole gesture:
+ *     the line, the verse it reached for, and the door that put it there.
+ *  4. **It ends on an open line, with room under it.** The palette opens beside
+ *     the line the writer is on, and when there is not room below it flips
+ *     ABOVE and lands on top of the writing — a picture of a menu covering a
+ *     page, which argues the opposite of the case. This much content keeps the
+ *     caret near y=480, which is why the window is 920pt tall and not less.
  *
- *     The line above the caret also has to be the kind of sentence after which
- *     reaching for scripture is the obvious next move. That is the whole
- *     argument of the image, made in one sentence.
+ *     The sentence is also one line exactly, and that is worth protecting. A
+ *     word over and it wraps, stranding "it." alone on a line of its own — an
+ *     orphan the eye reads as a mistake in an image this size.
  *
- * No scripture or prayer block above it, though they are the palette's most
- * beautiful output: they cost about 150px, which is exactly the room the menu
- * needs, and showing the output above the menu that produces it asks a stranger
- * to work out the order of events. One gesture, mid-air.
+ * No blank line around the fence: `formatScriptureInsert` inserts a block with
+ * one newline before and none after, so a blank line here stacks the editor's
+ * own block margins on an empty paragraph and opens a gap the app never shows.
+ * The single newline AFTER the closing fence is the caret's line, and is the
+ * one thing in this document that is not what the app would have produced.
  */
 const FLAGSHIP_DOC = `Tuesday
 
-Dad's scan is Thursday. I've been rehearsing the worst version of it all week, and I would like to stop.
-
+Dad's scan is Thursday. I keep rehearsing the worst version.
+\`\`\`dayspring-scripture ${SCRIPTURE_ID}
+And we know that all things work together for good to them that love God
+Romans 8:28
+\`\`\`
 `
 
 /** Mirrors GUTTER_REM in editor/lineMenu.ts — the `+` column's centre. */

@@ -88,7 +88,7 @@ export interface Canvas {
  */
 export const CANVASES = {
   // The hero. Site header, press kit, Product Hunt, a slide in someone's deck.
-  '16x9': { css: { w: 1280, h: 720 }, out: { w: 2560, h: 1440 }, layout: 'beside', fit: 'height', air: 46, use: 'Site hero, press, decks' },
+  '16x9': { css: { w: 1280, h: 720 }, out: { w: 2560, h: 1440 }, layout: 'beside', fit: 'height', air: 30, use: 'Site hero, press, decks' },
   // Open Graph / Twitter card — every link anyone ever pastes.
   /*
    * Height-fitted, unlike its landscape sibling. Scaled to the WIDTH this card
@@ -109,14 +109,18 @@ export type CanvasId = keyof typeof CANVASES
 export interface Cut {
   /** URL key (`?__preview=flagship&cut=<id>`) and output directory stem. */
   id: string
-  /** Mono, uppercase, read first: what kind of thing this is. Never clever. */
-  eyebrow: string
-  /** Fraunces 300. The accent half renders italic in the dawn gradient. */
+  /**
+   * Fraunces 300. The accent half renders italic in the dawn gradient.
+   *
+   * There is no eyebrow above it. The ads carry one — "A journal for spiritual
+   * growth", stating the category before the hook lands — but here the headline
+   * IS that sentence, so the two together printed the same words twice, in two
+   * sizes, one above the other. On an image whose whole argument is the picture,
+   * the first thing to cut is the line that says nothing new.
+   */
   headline: { lead: string; accent: string }
-  /** Newsreader. The gesture, said plainly, so the picture is explained. */
+  /** Newsreader. One line. The gesture, named — the picture does the rest. */
   sub: string
-  /** The offer, in the footer. Web prices — these land on the web. */
-  offer: string
   /** Palette the app is shown in. */
   theme: ThemeId
   /**
@@ -139,37 +143,25 @@ export interface Cut {
   canvases?: CanvasId[]
 }
 
-/** Same line everywhere: the site H1, the ad eyebrow, the welcome carousel. */
-const CATEGORY = 'A journal for spiritual growth'
-
-const OFFER = '14-day free trial · no card · usedayspring.app'
-
 /**
- * Both halves of the promise, in two sentences — and it has to be both.
+ * One line, because the picture now says the rest.
  *
- * The first sentence explains the picture. The image shows a menu with the word
- * "Scripture" in it, which is not the same as a stranger understanding that the
- * passage lands *in the line, from inside the page*. Naming it is the
- * difference between "a journal with a menu" and the only thing here nobody
- * else does.
- *
- * The second sentence is why anyone would keep doing it, and without it this
- * image sells a nice editor. The product is the years, not the session. Said
- * flatly — "a year of those words, read back" — because the moment it promises
- * what the reader will FIND there, it is making a claim about God's work in a
- * stranger's life, which is the one thing we never do (GUARDRAILS H1).
+ * It used to run to three: the gesture, and then the years, because without the
+ * second half the image sold a nice editor. But the frame now holds the block
+ * as well as the menu — the verse set in the page, where the sentence was — so
+ * a reader can see what `/` does instead of being told. What they cannot see is
+ * that they typed one character to get it. That is the sentence worth keeping,
+ * and the years belong in the ad's own body text, where there is room to say
+ * them properly.
  */
-const GESTURE =
-  "Type / and scripture, a prayer, or an ancient practice opens in the line you're writing. And a year of those words, read back, shows you who you're becoming."
+const GESTURE = "Type / and it opens in the line you're writing."
 
 export const CUTS: Cut[] = [
   {
     id: 'write',
-    eyebrow: CATEGORY,
     // The marketing site's H1, verbatim. See the note at the top of this file.
     headline: { lead: 'A journal built for', accent: 'spiritual growth.' },
     sub: GESTURE,
-    offer: OFFER,
     // Dawn, and deliberately: the app's shipped default is ink, but a hero is
     // read in a feed and on a white site, and the cream page is the thing that
     // does not look like every other dark developer tool. The ink cut is
@@ -178,10 +170,8 @@ export const CUTS: Cut[] = [
   },
   {
     id: 'bare',
-    eyebrow: CATEGORY,
     headline: { lead: 'A journal built for', accent: 'spiritual growth.' },
     sub: GESTURE,
-    offer: OFFER,
     theme: 'dawn',
     bare: true,
     canvases: ['16x9'],
