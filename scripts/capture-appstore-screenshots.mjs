@@ -16,6 +16,7 @@
 
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdir, access } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -105,7 +106,35 @@ function capture(chrome, url, outFile) {
   })
 }
 
+/**
+ * True when Chrome already produced exactly what App Store Connect wants.
+ *
+ * It usually does: the viewport above is the output size divided by the scale
+ * factor, and every surface we shoot paints an opaque background, so there is no
+ * alpha to flatten. The PNG header is enough to tell — IHDR carries width and
+ * height at bytes 16..24, and byte 25 is the colour type (2 = RGB, no alpha).
+ */
+function alreadyCorrect(outFile) {
+  const head = readFileSync(outFile).subarray(0, 26)
+  if (head.toString('ascii', 1, 4) !== 'PNG') return false
+  return (
+    head.readUInt32BE(16) === OUTPUT.width &&
+    head.readUInt32BE(20) === OUTPUT.height &&
+    head[25] === 2
+  )
+}
+
 function finalizePng(outFile) {
+  // Pillow is the belt-and-braces path here, not the load-bearing one. It is
+  // absent on plenty of Macs, and on any machine where `python3` is the Xcode
+  // stub it dies asking for a licence agreement — a poor thing to discover the
+  // evening a rejection needs answering. Skip it when there is demonstrably
+  // nothing left to do; still fail loudly if the image really needs the work.
+  if (alreadyCorrect(outFile)) {
+    console.log('    (already ' + OUTPUT.width + 'x' + OUTPUT.height + ' RGB — nothing to convert)')
+    return
+  }
+
   // Guarantee exact Apple dimensions, RGB, no alpha (ASC rejects transparency).
   execFileSync(
     'python3',

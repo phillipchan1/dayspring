@@ -137,16 +137,31 @@ cancel. Following this review we removed the words "free trial" from every
 App Store‑facing surface and from this listing, so nothing claims an
 introductory offer the products do not carry.
 
+WHERE TO FIND THE IN-APP PURCHASES
+The demo account above is inside its complimentary 14 days, so the app is not
+paywalled and you will land straight in the journal. The subscriptions are here:
+
+  Settings (person icon, top right) > Subscription > Plans
+
+Both products are listed with their StoreKit prices and a Subscribe button, with
+the auto-renew disclosure and Restore Purchases directly beneath. Tapping
+Subscribe opens the StoreKit sheet and charges immediately — there is no
+introductory offer to consume first.
+
+A banner at the top of the journal ("N days left of complimentary access") also
+leads to the same purchase. Once the 14 days elapse the app shows a full-screen
+purchase surface with the same two products.
+
 SANDBOX TESTING
 1. Sign in with email (demo credentials above), Apple, or Google.
 2. New accounts receive 14 days of app-granted access (no card, no StoreKit
    introductory offer).
-3. To reach the paywall: use an account whose trial has ended, or shorten
-   trial_ends_at in Supabase on a fresh sandbox account.
+3. Open Settings > Subscription > Plans and tap Subscribe on either product.
 4. Subscribe via StoreKit (dayspring_monthly / dayspring_annual). No
    introductory offer is attached — charging starts immediately at subscribe,
    which matches our web Stripe products.
-5. Restore Purchases is on the paywall and in Settings.
+5. Restore Purchases is under the same Plans section, and on the full-screen
+   purchase surface.
 
 NOTE ON IMPORT
 The description mentions importing from Day One or Diarly. That runs on the Mac
