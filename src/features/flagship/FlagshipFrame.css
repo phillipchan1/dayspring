@@ -1,0 +1,427 @@
+/*
+ * Flagship chrome — the marketing site's "First Light" tokens, hardcoded,
+ * exactly as AdFrame.css and ShotFrame.css hardcode them.
+ *
+ * Deliberately NOT wired to the app's theme variables: the frame is the site/
+ * palette (--ink #0c0d11, warm dawn) while the screen inside it runs the app's
+ * own shipped theme. Amber dawn around a cream page is the site's actual look,
+ * and it is what makes the window read as an object sitting on a ground rather
+ * than as a screenshot pasted onto a slide.
+ *
+ * WHAT IS DIFFERENT FROM AN AD
+ *
+ * An ad is 4:5 or 1:1 and holds a PHONE — a tall object in a tall frame, under
+ * a headline. The flagship's home canvas is 16:9 and holds a DESKTOP WINDOW: a
+ * wide object that cannot be stacked under anything without becoming a strip.
+ * So the primary composition is `beside`, the window is allowed to run off the
+ * right edge, and the type gets a column of its own rather than a band across
+ * the top.
+ */
+
+.flag {
+  --flag-footer-h: 86px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #0c0d11;
+  isolation: isolate;
+}
+
+/* The dawn bloom — DawnGlow.astro's "bloom" variant. On a landscape frame it
+   rises behind the copy column rather than across the whole top: centred, it
+   lights the middle of the window and flattens the thing it is meant to lift. */
+.flag__glow {
+  position: absolute;
+  top: -30%;
+  left: 26%;
+  width: 120%;
+  height: 120%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(243, 189, 118, 0.2) 0%,
+    rgba(232, 145, 124, 0.1) 38%,
+    rgba(197, 106, 110, 0.04) 56%,
+    rgba(197, 106, 110, 0) 70%
+  );
+  filter: blur(30px);
+  z-index: 0;
+}
+
+.flag[data-layout='stacked'] .flag__glow {
+  top: -24%;
+  left: 50%;
+  width: 150%;
+  height: 66%;
+}
+
+.flag__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── composition ─────────────────────────────────────────────────────────── */
+
+.flag__row {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding-bottom: var(--flag-footer-h);
+}
+
+/* The copy column. Fixed share rather than content-sized: the window's scale is
+   measured off what is left, so a column that grows with its text would move
+   the app every time a headline changed by a word. */
+.flag__row .flag__caption {
+  flex: none;
+  width: 41%;
+  padding: 0 0 0 58px;
+}
+
+.flag__row .flag__well {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  /* A window fitted to WIDTH is taller than the well by design; centring it
+     would crop the titlebar off the top to buy room at the bottom nobody sees. */
+  /* The window runs off the right edge. A window with air on all four sides is
+     a picture OF an app; one that leaves the frame is an app you are looking
+     into. The fade and the footer turn the overrun into depth. */
+  justify-content: flex-start;
+  padding-left: 44px;
+  overflow: hidden;
+}
+
+.flag[data-fit='width'] .flag__row .flag__well {
+  align-items: flex-start;
+  padding-top: 40px;
+}
+
+.flag[data-layout='stacked'] .flag__caption {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  padding: 54px 50px 0;
+}
+
+.flag[data-layout='stacked'] .flag__well {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 30px 0 0;
+  overflow: hidden;
+}
+
+/* ── the words ───────────────────────────────────────────────────────────── */
+
+.flag__eyebrow {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: #f3bd76;
+}
+
+.flag__headline {
+  margin: 16px 0 0;
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  font-size: 58px;
+  line-height: 1.04;
+  letter-spacing: -1.1px;
+  color: #ece7dd;
+  text-wrap: balance;
+}
+
+/* The signature: italic, gradient-filled, on the phrase carrying the promise. */
+.flag__headline em {
+  font-style: italic;
+  font-weight: 300;
+  background: linear-gradient(100deg, #f3bd76, #e8917c 60%, #c56a6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.flag__sub {
+  margin: 20px 0 0;
+  max-width: 27rem;
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 1.52;
+  color: #b7b3ab;
+  text-wrap: pretty;
+}
+
+.flag__rule {
+  margin-top: 22px;
+  height: 1px;
+  max-width: 27rem;
+  background: linear-gradient(
+    90deg,
+    rgba(243, 189, 118, 0.3) 0%,
+    rgba(243, 189, 118, 0.28) 62%,
+    rgba(243, 189, 118, 0) 100%
+  );
+}
+
+/* ── the window ──────────────────────────────────────────────────────────── */
+
+/*
+ * A macOS window, not a bare card.
+ *
+ * The same argument AdFrame makes for the phone shell: a flat rectangle of UI
+ * reads as a screenshot of a website, and the two things this product most
+ * needs a stranger to understand in the first half-second are that it is an
+ * app, and that it is a Mac app. A titlebar with three lights says both before
+ * a single word is read.
+ *
+ * Drawn, not photographed — but drawn to the details that give a real window
+ * away: a hairline lighter at the top than at the bottom (a window is lit from
+ * above), concentric inner and outer radii, and a shadow with a long soft throw
+ * plus a tight contact edge.
+ */
+.flag__window {
+  position: relative;
+  flex: none;
+  border-radius: 12px;
+  background: #0c0d11;
+  box-shadow:
+    0 60px 120px -50px rgba(0, 0, 0, 0.95),
+    0 10px 30px -12px rgba(0, 0, 0, 0.55),
+    0 0 90px -40px rgba(243, 189, 118, 0.18),
+    inset 0 0 0 1px rgba(236, 231, 221, 0.12),
+    inset 0 1px 0 0 rgba(236, 231, 221, 0.2);
+  transform-origin: top left;
+  overflow: hidden;
+}
+
+/* A pale page needs a warmer edge than a dark one — a cool hairline on cream
+   reads as a rendering seam rather than as an edge. */
+.flag__window[data-light] {
+  box-shadow:
+    0 60px 120px -50px rgba(0, 0, 0, 0.8),
+    0 10px 30px -12px rgba(0, 0, 0, 0.4),
+    0 0 90px -40px rgba(243, 189, 118, 0.22),
+    inset 0 0 0 1px rgba(74, 64, 53, 0.22),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+}
+
+.flag__titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  /* Tauri's own titlebar height on macOS, so the proportion is the app's. */
+  height: 28px;
+  background: linear-gradient(180deg, #2a2b33 0%, #1d1e25 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+.flag__window[data-light] .flag__titlebar {
+  background: linear-gradient(180deg, #f6f1e7 0%, #e7e0d2 100%);
+  border-bottom: 1px solid rgba(74, 64, 53, 0.16);
+}
+
+.flag__light {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  /* The real ones carry a darker rim; without it they read as flat dots. */
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.22);
+}
+
+.flag__screen {
+  display: block;
+  border: 0;
+  transform-origin: top left;
+}
+
+.flag__crop {
+  position: relative;
+  overflow: hidden;
+}
+
+/*
+ * A stacked cut is a CARD of the page, not a window — see CARD_CROP. No
+ * titlebar, so the top edge is a plain cut, and a tighter radius: a 12px
+ * corner reads as a window that has lost its chrome, while a card is simply a
+ * card. Same shadow language either way, so the two cuts sit in one family.
+ */
+.flag[data-layout='stacked'] .flag__window {
+  border-radius: 14px;
+}
+
+/* The frame-anchored fade, so a window that runs off the bottom edge reads as
+   depth rather than as a crop. Anchored to the frame, not the window, so it
+   lands correctly however far the overrun goes. */
+.flag__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 190px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(12, 13, 17, 0) 0%, rgba(12, 13, 17, 0.92) 68%, #0c0d11 100%);
+}
+
+.flag[data-layout='beside'] .flag__fade {
+  height: 150px;
+}
+
+/* ── footer ──────────────────────────────────────────────────────────────── */
+
+.flag__footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  height: var(--flag-footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 52px;
+  border-top: 1px solid rgba(236, 231, 221, 0.09);
+  background: rgba(12, 13, 17, 0.72);
+}
+
+.flag__brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.flag__wordmark {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: 23px;
+  letter-spacing: -0.2px;
+  color: #ece7dd;
+}
+
+.flag__offer {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #7a7986;
+  /*
+   * Never wrap. At 660px the offer wrapped onto a second line and the second
+   * line ran straight through the wordmark — two pieces of type on top of each
+   * other, which is the single worst thing a generated asset can do quietly.
+   * Refusing to wrap turns that failure into an overflow, which is visible on
+   * the contact sheet; the rule below is what stops it happening at all.
+   */
+  white-space: nowrap;
+}
+
+/* A stacked canvas is barely half the width of the hero, and the footer is the
+   one row whose content does not scale with it. */
+.flag[data-layout='stacked'] .flag__footer {
+  padding: 0 34px;
+}
+
+.flag[data-layout='stacked'] .flag__wordmark {
+  font-size: 20px;
+}
+
+.flag[data-layout='stacked'] .flag__offer {
+  font-size: 10.5px;
+  letter-spacing: 0.9px;
+}
+
+/* ── per-canvas type ─────────────────────────────────────────────────────── */
+
+.flag[data-canvas='og'] .flag__headline {
+  font-size: 52px;
+}
+
+.flag[data-canvas='og'] .flag__sub {
+  font-size: 16px;
+  max-width: 24rem;
+}
+
+.flag[data-canvas='1x1'] .flag__headline,
+.flag[data-canvas='4x5'] .flag__headline {
+  font-size: 46px;
+}
+
+.flag[data-canvas='1x1'] .flag__sub,
+.flag[data-canvas='4x5'] .flag__sub {
+  font-size: 16px;
+  max-width: none;
+}
+
+.flag[data-canvas='1x1'] .flag__rule,
+.flag[data-canvas='4x5'] .flag__rule {
+  max-width: none;
+}
+
+/* A story is held at arm's length and is read past, not read. Biggest type in
+   the set, and the footer gets the room Instagram's own UI would otherwise
+   sit on top of. */
+.flag[data-canvas='9x16'] {
+  --flag-footer-h: 132px;
+}
+
+.flag[data-canvas='9x16'] .flag__caption {
+  padding-top: 132px;
+}
+
+.flag[data-canvas='9x16'] .flag__headline {
+  font-size: 60px;
+}
+
+.flag[data-canvas='9x16'] .flag__sub {
+  font-size: 21px;
+  max-width: none;
+}
+
+.flag[data-canvas='9x16'] .flag__rule {
+  max-width: none;
+}
+
+.flag[data-canvas='9x16'] .flag__footer {
+  padding-bottom: 42px;
+  align-items: flex-end;
+}
+
+/* ── bare ────────────────────────────────────────────────────────────────── */
+
+/*
+ * No words at all — for the places that bring their own. The window then has
+ * the whole frame, so it is centred rather than bled off an edge: the overrun
+ * exists to buy size next to a column of type, and with no type it is simply a
+ * crop.
+ */
+.flag[data-bare] .flag__row {
+  padding-bottom: 0;
+  justify-content: center;
+}
+
+.flag[data-bare] .flag__row .flag__well {
+  justify-content: center;
+  padding: 0;
+}

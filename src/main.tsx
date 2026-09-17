@@ -75,6 +75,7 @@ async function bootstrap() {
   //   ?__preview=locked | paywall   → IAP review shot (capture-appstore-screenshots.mjs)
   //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
   //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
+  //   ?__preview=flagship           → the flagship hero image (capture-flagship.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //   ?__preview=firstlight         → the release-note deck, in any palette (features/firstlight/preview.tsx)
@@ -101,6 +102,11 @@ async function bootstrap() {
     if (preview?.startsWith('ad-')) {
       const { renderAdPreview } = await import('./features/ads/preview')
       renderAdPreview(preview)
+      return
+    }
+    if (preview === 'flagship') {
+      const { renderFlagshipPreview } = await import('./features/flagship/preview')
+      renderFlagshipPreview()
       return
     }
     if (preview?.startsWith('applock')) {
