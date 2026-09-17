@@ -9,18 +9,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const signInWithApple = vi.fn()
 const signInWithGoogle = vi.fn()
 const signInWithEmail = vi.fn()
+const signUpWithEmail = vi.fn()
 
 vi.mock('@/lib/auth', () => ({
   signInWithApple: () => signInWithApple(),
   signInWithGoogle: () => signInWithGoogle(),
   signInWithEmail: (email: string, password: string) => signInWithEmail(email, password),
+  signUpWithEmail: (email: string, password: string) => signUpWithEmail(email, password),
+}))
+
+// vi.hoisted runs before vi.mock's own hoisting, so this object exists before
+// anything (including env.ts's eager, module-load-time isTauri() read) can
+// observe it — a plain `let` above vi.mock would still be in its temporal
+// dead zone at that point. Mutating its fields lets the web-email describe
+// block below flip platform detection without a second module graph.
+const platformMock = vi.hoisted(() => ({
+  isIOSTauri: true,
+  isMobileTauri: true,
+  isTauri: true,
 }))
 
 vi.mock('@/lib/platform', () => ({
-  isIOSTauri: () => true,
-  isMobileTauri: () => true,
-  isTauri: () => true,
-  isDesktopTauri: () => false,
+  isIOSTauri: () => platformMock.isIOSTauri,
+  isMobileTauri: () => platformMock.isMobileTauri,
+  isTauri: () => platformMock.isTauri,
+  isDesktopTauri: () => platformMock.isTauri && !platformMock.isMobileTauri,
 }))
 
 vi.mock('@/lib/openExternal', () => ({
@@ -73,9 +86,11 @@ describe('SignIn (iPad tap)', () => {
     signInWithApple.mockReset()
     signInWithGoogle.mockReset()
     signInWithEmail.mockReset()
+    signUpWithEmail.mockReset()
     signInWithApple.mockReturnValue(new Promise(() => {}))
     signInWithGoogle.mockReturnValue(new Promise(() => {}))
     signInWithEmail.mockReturnValue(new Promise(() => {}))
+    signUpWithEmail.mockReturnValue(new Promise(() => {}))
     host = document.createElement('div')
     document.body.appendChild(host)
     root = createRoot(host)
@@ -290,5 +305,121 @@ describe('SignIn (iPad tap)', () => {
       await Promise.resolve()
     })
     expect(signInWithEmail).toHaveBeenCalledWith('kai.chan.claw@gmail.com', 'review-password')
+  })
+
+  it('toggles to account creation and submits signUpWithEmail', async () => {
+    signUpWithEmail.mockReset()
+    signUpWithEmail.mockResolvedValue({ needsConfirmation: false })
+    mount()
+    act(() => {
+      firePointer(buttonNamed(host, 'Sign in with email'), 'pointerdown', 'touch')
+    })
+    act(() => {
+      buttonNamed(host, 'New here? Create an account').click()
+    })
+    expect(buttonNamed(host, 'Create account')).toBeTruthy()
+    const email = host.querySelector('input[type="email"]') as HTMLInputElement
+    const password = host.querySelector('input[name="password"]') as HTMLInputElement
+    act(() => {
+      nativeInput(email, 'new.visitor@example.com')
+      nativeInput(password, 'a-fresh-password')
+    })
+    await act(async () => {
+      host.querySelector('form')?.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      )
+      await Promise.resolve()
+    })
+    expect(signUpWithEmail).toHaveBeenCalledWith('new.visitor@example.com', 'a-fresh-password')
+  })
+
+  it('surfaces the confirmation notice and returns to sign-in when the project requires it', async () => {
+    signUpWithEmail.mockReset()
+    signUpWithEmail.mockResolvedValue({ needsConfirmation: true })
+    mount()
+    act(() => {
+      firePointer(buttonNamed(host, 'Sign in with email'), 'pointerdown', 'touch')
+    })
+    act(() => {
+      buttonNamed(host, 'New here? Create an account').click()
+    })
+    const email = host.querySelector('input[type="email"]') as HTMLInputElement
+    const password = host.querySelector('input[name="password"]') as HTMLInputElement
+    act(() => {
+      nativeInput(email, 'new.visitor@example.com')
+      nativeInput(password, 'a-fresh-password')
+    })
+    await act(async () => {
+      host.querySelector('form')?.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      )
+      await Promise.resolve()
+    })
+    expect(host.textContent).toContain('Check your email to confirm your account')
+    expect(buttonNamed(host, 'Continue with email')).toBeTruthy()
+  })
+})
+
+describe('SignIn (web email)', () => {
+  let root: Root
+  let host: HTMLDivElement
+
+  beforeEach(() => {
+    platformMock.isIOSTauri = false
+    platformMock.isMobileTauri = false
+    platformMock.isTauri = false
+    signInWithApple.mockReset()
+    signInWithGoogle.mockReset()
+    signInWithEmail.mockReset()
+    signUpWithEmail.mockReset()
+    signInWithApple.mockReturnValue(new Promise(() => {}))
+    signInWithGoogle.mockReturnValue(new Promise(() => {}))
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+  })
+
+  afterEach(() => {
+    platformMock.isIOSTauri = true
+    platformMock.isMobileTauri = true
+    platformMock.isTauri = true
+    vi.restoreAllMocks()
+    act(() => root.unmount())
+    host.remove()
+  })
+
+  function mount() {
+    act(() => {
+      root.render(createElement(SignIn))
+    })
+  }
+
+  it('offers email as the account-creation door when there is no Tauri OAuth shell', () => {
+    mount()
+    expect(buttonNamed(host, 'Sign in with email')).toBeTruthy()
+  })
+
+  it('creates a brand-new account without needing Google or Apple', async () => {
+    signUpWithEmail.mockResolvedValue({ needsConfirmation: false })
+    mount()
+    act(() => {
+      buttonNamed(host, 'Sign in with email').click()
+    })
+    act(() => {
+      buttonNamed(host, 'New here? Create an account').click()
+    })
+    const email = host.querySelector('input[type="email"]') as HTMLInputElement
+    const password = host.querySelector('input[name="password"]') as HTMLInputElement
+    act(() => {
+      nativeInput(email, 'cold.visitor@example.com')
+      nativeInput(password, 'a-fresh-password')
+    })
+    await act(async () => {
+      host.querySelector('form')?.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true }),
+      )
+      await Promise.resolve()
+    })
+    expect(signUpWithEmail).toHaveBeenCalledWith('cold.visitor@example.com', 'a-fresh-password')
   })
 })

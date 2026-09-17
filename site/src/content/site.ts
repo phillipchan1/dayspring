@@ -65,7 +65,7 @@ export const pricingTiers = [
     name: "Dayspring Annual",
     price: "$64",
     unit: " / year",
-    note: "14-day free trial · about $5.33 / month",
+    note: "Complimentary access, starts today · about $5.33 / month",
     desc:
       "The full product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar. The longer you write, the more the map fills in.",
     cta: { label: "Start your 14-day trial", href: "/start", style: "solid" },
@@ -76,7 +76,7 @@ export const pricingTiers = [
     name: "Monthly",
     price: "$7",
     unit: " / month",
-    note: "14-day free trial · cancel anytime",
+    note: "Complimentary access, starts today · cancel anytime",
     desc:
       "Same everything, billed month to month. A gentle way to try it before you commit to the long walk.",
     cta: { label: "Start your 14-day trial", href: "/start", style: "line" },

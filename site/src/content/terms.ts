@@ -52,7 +52,7 @@ export const termsPage = {
       ],
     },
     {
-      heading: "Free trial",
+      heading: "Trial period",
       paragraphs: [
         "New accounts receive a 14-day trial granted in the app, with no payment method required. When the trial ends, your journal remains intact and fully exportable; new writing and the reflective features require a subscription.",
       ],

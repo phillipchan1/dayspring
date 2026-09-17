@@ -451,7 +451,7 @@ export const privacy = {
 export const pricing = {
   tag: "Pricing",
   heading: "Try it for two weeks. <em>Stay for the mirror.</em>",
-  lead: "One premium plan — the editor, every slash command, the Lamp, the Ascent, and the Altar. Start with 14 days free, then $64 a year or $7 a month.",
+  lead: "One premium plan — the editor, every slash command, the Lamp, the Ascent, and the Altar. Complimentary to start, then $64 a year or $7 a month.",
 };
 
 // ---- Formation — retained for reference (not on the home page) ----

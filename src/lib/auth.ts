@@ -130,7 +130,8 @@ export async function signInWithApple(): Promise<OAuthHandoff> {
 /**
  * Email + password sign-in for App Store review and users who registered with
  * email. OAuth remains the primary path; this is the fallback Apple expects when
- * demo credentials are supplied in App Store Connect.
+ * demo credentials are supplied in App Store Connect. Also the returning half
+ * of the web email path — see signUpWithEmail below.
  */
 export async function signInWithEmail(email: string, password: string): Promise<void> {
   const trimmed = email.trim()
@@ -146,6 +147,43 @@ export async function signInWithEmail(email: string, password: string): Promise<
   const sb = requireSupabase()
   const { error } = await sb.auth.signInWithPassword({ email: trimmed, password })
   if (error) throw error
+}
+
+/**
+ * Create a brand-new account with email + password. This is the only path
+ * into Dayspring for a visitor without a Google or Apple account, so it has
+ * to work on its own — not just as an App Review fallback for an account that
+ * already exists (that's signInWithEmail above).
+ *
+ * Whether the returned session is usable immediately depends on a project
+ * setting we don't control from here (Supabase → Auth → Email → "Confirm
+ * email"): with it off, `signUp` returns a live session and the caller can
+ * treat this exactly like a sign-in; with it on, `data.session` is null until
+ * the user clicks the confirmation link, so `needsConfirmation` tells the
+ * caller to say so instead of silently hanging.
+ */
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+): Promise<{ needsConfirmation: boolean }> {
+  const trimmed = email.trim()
+  if (!trimmed || !password) throw new Error('Enter your email and password')
+  if (
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window as unknown as { __DAYSPRING_SIGNIN_PREVIEW__?: boolean }).__DAYSPRING_SIGNIN_PREVIEW__
+  ) {
+    await new Promise((r) => setTimeout(r, 1200))
+    throw new Error('Preview: account creation would complete here')
+  }
+  const sb = requireSupabase()
+  const { data, error } = await sb.auth.signUp({
+    email: trimmed,
+    password,
+    options: { emailRedirectTo: authRedirectUrl() },
+  })
+  if (error) throw error
+  return { needsConfirmation: !data.session }
 }
 
 /**

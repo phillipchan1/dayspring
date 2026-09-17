@@ -1,15 +1,15 @@
 ---
-title: Your free trial
-summary: "{{billing.trial-days}} days, everything unlocked, no card needed. Here's exactly how it works and what happens at the end."
+title: Your trial period
+summary: "{{billing.trial-days}} days of complimentary access, everything unlocked, no card needed. Here's exactly how it works and what happens at the end."
 section: getting-started
 order: 5
 requires: [capability.billing]
-keywords: [trial, free, days, card, credit card, payment, expire, extend]
+keywords: [trial, complimentary, days, card, credit card, payment, expire, extend]
 updated: 2026-08-10
 ---
 
-When you sign in for the first time you get **{{billing.trial-days}} days**,
-with everything switched on.
+When you sign in for the first time you get **{{billing.trial-days}} days** of
+complimentary access, with everything switched on.
 
 No card. No "start trial" button to hunt for. No billing details taken up front
 and quietly charged on day fifteen. You sign in and you're writing.
