@@ -14,8 +14,15 @@ import type { Subscription } from '@/lib/subscription'
  * screenshot silently goes stale every time the paywall changes. This renders
  * the real components, with real styles, from a plain browser.
  *
- * Reached only via `?__preview=locked|paywall` behind `import.meta.env.DEV`, so
- * Vite strips the whole path (and this module) from production bundles.
+ * Reached only via `import.meta.env.DEV`, so Vite strips the whole path (and
+ * this module) from production bundles:
+ *
+ *   ?__preview=paywall       the plan picker
+ *   ?__preview=locked        a cancelled subscriber — the shortest locked state
+ *   ?__preview=locked-ended  access ended, with the extension offer — the
+ *                            TALLEST locked state, and the one Apple cited as
+ *                            crowded on a large iPhone. Open "Questions?" on it
+ *                            to see the screen at its full height.
  *
  * See scripts/capture-appstore-screenshots.mjs.
  */
@@ -28,6 +35,17 @@ const LAPSED_APPLE: Subscription = {
   trial_ends_at: null,
   plan_expires_at: null,
   onboarded_at: null,
+  featureFlags: [],
+}
+
+/** Access granted by the app has run out — nothing has ever been billed. This
+ *  is the state a reviewer reaches by letting the 14 days lapse. */
+const LAPSED_APP_GRANTED: Subscription = {
+  plan: 'none',
+  plan_source: null,
+  trial_ends_at: new Date(Date.now() - 864e5).toISOString(),
+  plan_expires_at: null,
+  onboarded_at: new Date().toISOString(),
   featureFlags: [],
 }
 
@@ -49,6 +67,14 @@ export function renderPaywallPreview(variant: string): void {
   createRoot(el).render(
     variant === 'paywall' ? (
       <PaywallScreen />
+    ) : variant === 'locked-ended' ? (
+      <LockedScreen
+        plan="none"
+        subscription={LAPSED_APP_GRANTED}
+        canExtend
+        userEmail="you@example.com"
+        onRefetch={() => {}}
+      />
     ) : (
       <LockedScreen
         plan="cancelled"

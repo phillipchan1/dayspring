@@ -38,7 +38,7 @@ _ASC: **Distribution → App Store → iOS App** (your version, e.g. 1.0)_
 
 ### Promotional Text _(170 chars, optional — can change without new build)_
 
-You've been writing for years. Dayspring is the first journal that reads it back to you. Start with a 14-day free trial.
+You've been writing for years. Dayspring is the first journal that reads it back to you — your prayers, your scripture, your own words, gathered over time.
 
 ### Description
 
@@ -70,18 +70,21 @@ No streaks, no badges, no verdict on your walk with God.
 
 Dayspring — Luke 1:78, "the dayspring from on high hath visited us." First light, and mercy after darkness.
 
-FREE TRIAL & SUBSCRIPTION
-Every new account begins with a 14-day free trial. No card required to start. After the trial, Dayspring is an auto-renewing subscription:
+SUBSCRIPTION
+Dayspring is an auto-renewing subscription:
 • Monthly: $7.99
 • Annual: $69.99
-Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless auto-renew is turned off at least 24 hours before the end of the current period. Manage or cancel anytime in your Apple Account settings.
+There is no introductory offer attached to these subscriptions. Choosing a plan starts it immediately: payment is charged to your Apple Account at confirmation of purchase, and the subscription renews automatically at the same price unless auto-renew is turned off at least 24 hours before the end of the current period. Manage or cancel anytime in your Apple Account settings.
 
-Privacy Policy: https://usedayspring.app/privacy
-Terms of Use: https://usedayspring.app/terms
+BEFORE YOU SUBSCRIBE
+Every new account gets its first 14 days of full access from us directly — no card, no subscription, nothing to cancel. It is granted by the app, not by the App Store, and it simply ends. Nothing is charged unless you choose a plan.
+
+Privacy Policy: https://dayspring-eosin.vercel.app/privacy
+Terms of Use: https://dayspring-eosin.vercel.app/terms
 
 ### Keywords _(100 chars, comma-separated, no spaces after commas)_
 
-journal,faith,prayer,bible,scripture,devotional,diary,examen,lectio,quiet time,gratitude
+christian,faith,prayer,bible,scripture,devotional,diary,examen,lectio,quiet time,gratitude
 
 ### Support URL
 
@@ -108,9 +111,36 @@ A journal for practicing Christians. Entries are written on the phone; the
 reflection surfaces (Ascent, Altar, Lamp) are generated from the user's own
 entries and are empty until there is history to read.
 
+SIGN-IN (Guideline 4)
+Sign-in and registration stay in-app via ASWebAuthenticationSession (Apple /
+Google OAuth) or email + password on the sign-in screen. Nothing opens the
+system Safari app for authentication.
+
+Demo credentials (App Store Connect):
+  Email: kai.chan.claw@gmail.com
+  Password: walking.DAREN3legends
+Tap "Sign in with email" on the sign-in screen, enter the credentials above,
+and sign in. This account has full feature access (not paywalled).
+
+Alternatively: Continue with Apple or Continue with Google (also in-app).
+
+Account deletion: Settings → About → Delete account (two-step confirm).
+
+SUBSCRIPTIONS (Guideline 3.1.2)
+The two subscriptions have NO introductory offer. Choosing a plan charges the
+Apple Account immediately, and every purchase surface says so before the
+StoreKit sheet opens (paywall, locked screen, Settings > Subscription).
+
+The 14 days of access a new account receives are granted by the app in our own
+database at first sign-in — no card, no StoreKit transaction, nothing to
+cancel. Following this review we removed the words "free trial" from every
+App Store‑facing surface and from this listing, so nothing claims an
+introductory offer the products do not carry.
+
 SANDBOX TESTING
-1. Sign in with Apple or Google.
-2. New accounts receive a 14-day app-managed trial (no card, no StoreKit trial).
+1. Sign in with email (demo credentials above), Apple, or Google.
+2. New accounts receive 14 days of app-granted access (no card, no StoreKit
+   introductory offer).
 3. To reach the paywall: use an account whose trial has ended, or shorten
    trial_ends_at in Supabase on a fresh sandbox account.
 4. Subscribe via StoreKit (dayspring_monthly / dayspring_annual). No
@@ -149,5 +179,5 @@ Info.plist already has `ITSAppUsesNonExemptEncryption = false`.
 | iPhone 6.9\" screenshots | `assets/appstore/listing/6.9/*.png` |
 | iPhone 6.5\" screenshots | `assets/appstore/listing/6.5/*.png` |
 | iPad 13\" screenshots **(required)** | `assets/appstore/listing/ipad-13/*.png` |
-| Build | Attach **1.0.213 (213)** when processing finishes |
+| Build | Attach the newest processed build — the iOS workflow stamps it from the commit count and resolves collisions against App Store Connect |
 | Subscription review screenshot | `assets/appstore/iap-review-screenshot.png` _(already on products)_ |

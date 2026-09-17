@@ -1,5 +1,6 @@
 import { openExternal } from '@/lib/openExternal'
 import { legalUrl } from '@/lib/legal'
+import './Paywall.css'
 
 /**
  * The disclosure Apple requires on any screen that sells a subscription

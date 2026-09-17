@@ -28,6 +28,7 @@ import {
 import { openExternal } from '@/lib/openExternal'
 import { useTapAction } from '@/lib/tapAction'
 import { ALLOWS_INTERNAL_UI, IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
+import { usesAppStoreCopy } from '@/lib/storeCopy'
 import {
   describeRestore,
   fetchAppleProducts,
@@ -37,6 +38,7 @@ import {
   restoreApplePurchases,
 } from '@/lib/appleIap'
 import { displayPrice } from '@/features/paywall/prices'
+import { AppleSubscriptionTerms } from '@/features/paywall/AppleSubscriptionTerms'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppLockSettings } from '@/features/applock/AppLockSettings'
@@ -850,6 +852,8 @@ function BillingTab() {
   const [notice, setNotice] = useState<string | null>(null)
 
   const onIos = isAppleIapAvailable()
+  // Name the first 14 days for what the store can back up. See lib/storeCopy.ts.
+  const appStoreWords = usesAppStoreCopy()
   // Two different questions, and conflating them is what stranded lapsed Apple
   // subscribers on the web: where the relationship is *managed* (survives
   // cancellation) vs. where a new purchase has to *go*.
@@ -985,9 +989,18 @@ function BillingTab() {
   const statusInfo: StatusInfo = {
     none:     { label: 'No subscription',  color: 'var(--text-faint)', detail: null },
     trialing: {
-      label:  `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
+      // "Free trial" + "No charge until then" describes an App Store
+      // introductory offer these products do not have — Guideline 3.1.2(c).
+      // Off the App Store it is exactly what Stripe does, so it stays.
+      label: appStoreWords
+        ? `Complimentary access — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`
+        : `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
       color:  'var(--accent)',
-      detail: trialEnd ? `Ends ${trialEnd} · No charge until then.` : null,
+      detail: trialEnd
+        ? appStoreWords
+          ? `Ends ${trialEnd} · Choosing a plan starts your subscription and bills your Apple Account today.`
+          : `Ends ${trialEnd} · No charge until then.`
+        : null,
     },
     active:   {
       label:  'Active',
@@ -1146,6 +1159,14 @@ function BillingTab() {
               >
                 {iapLoading === 'restore' ? 'Restoring…' : 'Restore purchases'}
               </button>
+            )}
+            {onIos && (
+              <>
+                <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)', lineHeight: 1.55 }}>
+                  Your plan starts today and renews automatically until you cancel.
+                </p>
+                <AppleSubscriptionTerms />
+              </>
             )}
             {route === 'apple-elsewhere' && (
               <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)' }}>

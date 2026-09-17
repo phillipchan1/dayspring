@@ -1,4 +1,5 @@
 import { Brand } from '@/components/Mark'
+import { usesAppStoreCopy } from '@/lib/storeCopy'
 import './Paywall.css'
 
 interface Props {
@@ -8,6 +9,11 @@ interface Props {
 
 export function TrialWelcome({ variant, onDismiss }: Props) {
   const isTrial = variant === 'trial'
+  // The 14 days are real either way — but only off the App Store are they a free
+  // trial *of the subscription*. See lib/storeCopy.ts.
+  const opening = usesAppStoreCopy()
+    ? 'The slow work begins now. Your first 14 days are complimentary — your first entry is waiting.'
+    : 'The slow work begins now. 14 days free — your first entry is waiting.'
 
   return (
     <div className="trial-welcome">
@@ -57,9 +63,7 @@ export function TrialWelcome({ variant, onDismiss }: Props) {
         </h1>
 
         <p className="trial-welcome__body">
-          {isTrial
-            ? 'The slow work begins now. 14 days free — your first entry is waiting.'
-            : "Everything you've written is right where you left it. Welcome home."}
+          {isTrial ? opening : "Everything you've written is right where you left it. Welcome home."}
         </p>
 
         <button className="trial-welcome__cta" onClick={onDismiss}>

@@ -122,7 +122,7 @@ function render(listing) {
     // Required, not optional: the Xcode project sets TARGETED_DEVICE_FAMILY
     // = "1,2", so ASC will not accept a submission with an empty iPad slot.
     '| iPad 13\\" screenshots **(required)** | `assets/appstore/listing/ipad-13/*.png` |',
-    '| Build | Attach **1.0.213 (213)** when processing finishes |',
+    '| Build | Attach the newest processed build — the iOS workflow stamps it from the commit count and resolves collisions against App Store Connect |',
     '| Subscription review screenshot | `assets/appstore/iap-review-screenshot.png` _(already on products)_ |',
     '',
   ]

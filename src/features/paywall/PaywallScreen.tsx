@@ -13,12 +13,17 @@ import {
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { useTapAction } from '@/lib/tapAction'
+import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
 import './Paywall.css'
 
 export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
   const useApple = isAppleIapAvailable()
+  // Routing vs. wording are separate questions. useApple decides where the money
+  // goes; this decides what we are allowed to call the first 14 days, and is the
+  // wider of the two — see lib/storeCopy.ts.
+  const appStoreWords = usesAppStoreCopy()
   const [loading, setLoading] = useState<'annual' | 'monthly' | 'restore' | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** Non-failure feedback — e.g. "we found your old subscription, it expired". */
@@ -113,7 +118,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             Guideline 3.1.2 treats a trial promise that StoreKit won't honour as
             inaccurate pricing — and it would be a broken promise regardless. */}
         <h1 className="paywall__headline">
-          {useApple ? 'Keep your journal going' : 'Begin your 14-day free trial'}
+          {appStoreWords ? 'Keep your journal going' : 'Begin your 14-day free trial'}
         </h1>
 
         <p className="paywall__sub">
@@ -164,8 +169,12 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             "no charge today" on that path would be untrue to the user and
             inaccurate pricing to App Review. */}
         <p className="paywall__trial-note">
-          {useApple ? (
-            <>Your plan starts today and renews automatically. Cancel anytime in Settings.</>
+          {appStoreWords ? (
+            <>
+              Your plan starts <strong>today</strong> and bills your Apple Account at
+              confirmation. It renews automatically until you cancel in your Apple Account
+              settings.
+            </>
           ) : (
             <>
               <strong>14 days free,</strong> no charge today. Choose your plan to start — you can

@@ -27,6 +27,7 @@ import {
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { useTapAction } from '@/lib/tapAction'
 import { IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
+import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
@@ -68,6 +69,10 @@ export function LockedScreen({
   // relationship lives at Apple (a lapsed App Store subscriber on the web still
   // manages it there).
   const useApple = isAppleIapAvailable() || isAppleRelationship(subscription)
+  // Whether the *words* have to be App Store words. Broader than useApple by
+  // build channel, so a TestFlight binary never says "trial" even before
+  // StoreKit answers. See lib/storeCopy.ts.
+  const appStoreWords = usesAppStoreCopy() || useApple
   const isPastDue = plan === 'past_due'
   const isCancelled = plan === 'cancelled'
 
@@ -284,7 +289,11 @@ export function LockedScreen({
         <Brand size={30} wordmarkRem={1.8} />
 
         <h1 className="locked-screen__headline">
-          {isCancelled ? 'Your journal is still here.' : 'Your trial has ended.'}
+          {isCancelled
+            ? 'Your journal is still here.'
+            : appStoreWords
+              ? 'Your complimentary access has ended.'
+              : 'Your trial has ended.'}
         </h1>
 
         {holding && holding.entries > 0 && (
@@ -352,6 +361,16 @@ export function LockedScreen({
             </button>
           )}
         </div>
+
+        {/* 3.1.2(c) wants the charge to be unmistakable *at the button*, not
+            only in the small print underneath. There is no introductory offer on
+            these products, so the plan starts — and bills — today. */}
+        {appStoreWords && (
+          <p className="locked-screen__charge">
+            Choosing a plan starts your subscription today and charges your Apple Account. It
+            renews automatically until you cancel in your Apple Account settings.
+          </p>
+        )}
 
         <p className="locked-screen__reassure">
           Your journal is always yours — export everything, anytime, subscribed or not.
