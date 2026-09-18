@@ -84,9 +84,11 @@ wrote a year ago?"* and **Q11** *"what would you tell a friend this is?"*
 
 ## Open decisions
 
-`DECISIONS.md` carries **7 open items**. The ones that block other work:
+`DECISIONS.md` carries **8 open items**. The ones that block other work:
 
 - **D-001** — craft product or remembrance product? *Blocks all acquisition spend.*
 - **D-002** — the 14-day trial can't demonstrate the core value to fresh-start users
 - **D-003** — instrument the onboarding fork *(cheapest high-value action; unblocks D-002)*
 - **D-007** — crisis content has no handling *(most serious safety gap)*
+- **D-030** — is the Return destination **Remember**, or another verb? Internals stay
+  `keeping` / `movement` either way. *Does not block the engine playground.*

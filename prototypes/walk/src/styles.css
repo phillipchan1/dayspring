@@ -1,0 +1,853 @@
+/*
+ * Lectio, walked — what one ritual looks like from the inside.
+ *
+ * Same ground as the `rituals` prototype (measured off the app's themes.css) so
+ * the two read as halves of one thing: this one is the walk, that one is the
+ * return. #c4913c is the brand amber; a brighter one reads as a warning.
+ *
+ * The composer chrome — bar, spine, footer — is copied from `RitualComposer.css`
+ * on purpose and changes in no way. Only the body between them is being argued
+ * about.
+ */
+
+:root {
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+
+  --bg: #0c0d12;
+  --bg-elevated: #12131a;
+  --bg-input: #191b23;
+
+  --border: #262833;
+  --border-subtle: #1a1c24;
+
+  --text: #b7b6c1;
+  --text-bright: #f2f1f6;
+  --text-dim: #71707d;
+  --text-faint: #4a4954;
+
+  --amber: #c4913c;
+  --amber-soft: rgba(196, 145, 60, 0.1);
+  --amber-line: rgba(196, 145, 60, 0.28);
+  --lilac: #b98ce0;
+
+  --glow: radial-gradient(120% 130% at 50% -30%, rgba(196, 145, 60, 0.14), transparent 62%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  background-image: var(--glow);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.paper {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 9rem;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  color: var(--text-bright);
+}
+
+/* ── Headings ────────────────────────────────────────────────────────────── */
+
+.intro__eyebrow,
+.scene__eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 1rem;
+}
+
+.intro__title,
+.scene__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2rem, 6vw, 2.9rem);
+  color: var(--text-bright);
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.scene__head {
+  margin-bottom: 2rem;
+}
+
+.scene__gesture {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 32rem;
+}
+
+.intro__lede {
+  font-size: 1.35rem;
+  color: var(--text-bright);
+  margin: 0 0 1.75rem;
+}
+
+.intro__lede strong {
+  color: var(--amber);
+  font-weight: 400;
+}
+
+.intro__p {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  max-width: 34rem;
+  margin: 0 0 1.25rem;
+}
+
+.intro__p--quiet {
+  color: var(--text-dim);
+}
+
+.intro__defects {
+  max-width: 34rem;
+  margin: 0 0 1.75rem;
+  padding: 0 0 0 1.1rem;
+  list-style: none;
+}
+
+.intro__defects li {
+  position: relative;
+  line-height: 1.6;
+  margin-bottom: 0.9rem;
+}
+
+.intro__defects li::before {
+  content: '';
+  position: absolute;
+  left: -1.1rem;
+  top: 0.7em;
+  width: 0.4rem;
+  height: 1px;
+  background: var(--amber-line);
+}
+
+.intro__defects strong {
+  color: var(--text-bright);
+  font-weight: 400;
+}
+
+.intro__cta {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--amber);
+  cursor: pointer;
+}
+
+/* ── The phone ───────────────────────────────────────────────────────────── */
+
+.phone {
+  max-width: 24rem;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 38rem;
+}
+
+.rc__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border-subtle);
+  flex: none;
+}
+
+.rc__name {
+  color: var(--text-dim);
+}
+
+.rc__spine {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem 0;
+  flex: none;
+}
+
+.rc__pip {
+  height: 2px;
+  flex: 1;
+  background: var(--border);
+  border-radius: 1px;
+  transition: background 400ms ease;
+}
+
+.rc__pip[data-done] {
+  background: var(--amber-line);
+}
+
+.rc__pip[data-on] {
+  background: var(--amber);
+}
+
+.rc__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  animation: arrive 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Arriving, not sliding. A ritual is a sequence in time and each movement
+   should feel entered rather than paged to. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc__body {
+    animation: none;
+  }
+}
+
+.rc__inner {
+  padding: 1.5rem 1.15rem;
+  min-height: 100%;
+}
+
+.rc__inner--still {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.rc__label {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 0.8rem;
+}
+
+.rc__q {
+  font-size: 1.05rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-bright);
+  margin: 0 0 1.1rem;
+}
+
+.rc__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 0.9rem;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  flex: none;
+}
+
+.rc__back,
+.rc__next,
+.rc__quiet {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.rc__back {
+  color: var(--text-faint);
+}
+
+.rc__next {
+  color: var(--amber);
+}
+
+.rc__next:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.rc__quiet {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Bring ───────────────────────────────────────────────────────────────── */
+
+.field {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0;
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: 0.95rem;
+}
+
+.or {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin: 1.5rem 0 0.7rem;
+}
+
+.marked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.chipbtn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text-bright);
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 160ms ease;
+}
+
+.chipbtn:hover {
+  border-color: var(--amber-line);
+}
+
+.chipbtn__when {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  color: var(--text-faint);
+}
+
+.passage {
+  border-left: 2px solid var(--amber-line);
+  padding-left: 0.9rem;
+  animation: arrive 480ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.passage__ref {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 0.55rem;
+}
+
+.passage__tr {
+  color: var(--text-faint);
+  margin-left: 0.4rem;
+}
+
+.passage__text {
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--text-bright);
+  margin: 0 0 1rem;
+}
+
+.passage__again {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Mark ────────────────────────────────────────────────────────────────── */
+
+.passage__text--live {
+  margin-bottom: 1.1rem;
+}
+
+.word {
+  background: none;
+  border: none;
+  padding: 0.05rem 0.12rem;
+  margin: 0 0.1rem 0 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.word:hover {
+  background: rgba(196, 145, 60, 0.14);
+}
+
+.word[data-on] {
+  background: var(--amber);
+  color: #16120a;
+}
+
+.record {
+  font-size: 1.1rem;
+  color: var(--amber);
+  margin: 0;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.8rem;
+}
+
+.hint {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  margin: 0;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.8rem;
+}
+
+/* ── Carry ───────────────────────────────────────────────────────────────── */
+
+.carried {
+  border-left: 2px solid var(--border);
+  padding-left: 0.85rem;
+  margin-bottom: 1.4rem;
+}
+
+.carried__label {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.5rem;
+}
+
+.carried__text {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* The marked word stays lit in the carried passage — that is what makes the
+   third movement prayed OUT of the second rather than a change of subject. */
+.carried__text span[data-on] {
+  color: var(--amber);
+}
+
+.write {
+  width: 100%;
+  min-height: 7rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.8rem 0 0;
+  color: var(--text-bright);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.65;
+  resize: none;
+}
+
+.write:focus {
+  outline: none;
+}
+
+.write::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Dwell ───────────────────────────────────────────────────────────────── */
+
+.still {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  min-height: 22rem;
+}
+
+.still__mark {
+  width: 5rem;
+  height: 5rem;
+  margin-bottom: 2rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196, 145, 60, 0.3), transparent 68%);
+  animation: breathe 9s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .still__mark {
+    animation: none;
+  }
+}
+
+.still__word {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--amber);
+  margin: 0 0 1.5rem;
+}
+
+.still__line {
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--text-bright);
+  margin: 0 0 0.5rem;
+}
+
+.still__small {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* ── The close ───────────────────────────────────────────────────────────── */
+
+.close__name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  color: var(--text-bright);
+  margin: 0 0 0.4rem;
+}
+
+.close__origin,
+.close__back {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.close__back {
+  margin-top: 1.5rem;
+  color: var(--amber);
+}
+
+/* ── The record ──────────────────────────────────────────────────────────── */
+
+.entry {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-elevated);
+  padding: 1.75rem 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.entry__date {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 1.5rem;
+}
+
+.entry__ritual {
+  border-left: 2px solid var(--amber-line);
+  padding-left: 1.1rem;
+}
+
+.entry__practice {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--text-bright);
+  margin: 0 0 1.25rem;
+}
+
+.entry__label {
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 1.5rem 0 0.6rem;
+}
+
+.entry__scripture {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 8px;
+  background: rgba(196, 145, 60, 0.05);
+  border: 1px solid var(--amber-line);
+}
+
+.entry__scripture p {
+  margin: 0 0 0.6rem;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--text-bright);
+}
+
+.entry__scripture cite {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.entry__tr {
+  color: var(--text-faint);
+}
+
+.entry__word {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.entry__prose {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+  margin: 0;
+}
+
+.entry__rested {
+  font-style: italic;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.raw {
+  margin-bottom: 2.5rem;
+}
+
+.raw__head,
+.decisions__head {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 0.8rem;
+}
+
+.raw__pre {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-input);
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.75;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+}
+
+.decisions {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 1.5rem;
+}
+
+.decision {
+  margin-bottom: 1.75rem;
+}
+
+.decision__q {
+  font-size: 1.05rem;
+  color: var(--text-bright);
+  margin: 0 0 0.5rem;
+}
+
+.decision__a {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 34rem;
+}
+
+.decision__a strong {
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* ── Guide footer ────────────────────────────────────────────────────────── */
+
+.guide-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(12, 13, 18, 0.94);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 0.8rem 1.25rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+}
+
+.guide-footer__note {
+  max-width: 40rem;
+  margin: 0 auto 0.6rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.guide-footer__nav {
+  max-width: 40rem;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.guide-footer__step {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+}
+
+.guide-footer__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.guide-footer__btn {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.guide-footer__btn--primary {
+  border-color: var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+/* ── Feedback ────────────────────────────────────────────────────────────── */
+
+.prefer {
+  max-width: 34rem;
+}
+
+.prefer__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  color: var(--text-bright);
+}
+
+.prefer__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.prefer__option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.prefer__notes,
+.prefer__submit {
+  width: 100%;
+  font-family: inherit;
+  margin-bottom: 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-bright);
+  padding: 0.6rem 0.7rem;
+}
+
+.prefer__submit {
+  border-color: var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--amber);
+  cursor: pointer;
+}
+
+.prefer__error {
+  color: var(--lilac);
+  font-size: 0.85rem;
+}
+
+.prefer__fine,
+.prefer__thanks {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+@media (max-width: 30rem) {
+  .phone {
+    height: 34rem;
+    border-radius: 16px;
+  }
+}

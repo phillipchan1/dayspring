@@ -54,6 +54,15 @@
       "listed": false,
       "hasFeedback": true,
       "startHash": "intro"
+    },
+    {
+      "slug": "walk",
+      "title": "The walk",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": true,
+      "startHash": "intro",
+      "description": "Thirteen practices, one shape. Six movement kinds that let a practice’s form differ — and the five practices that should take none of them. Screen-share walkthrough — not self-guided feedback."
     }
   ]
 }

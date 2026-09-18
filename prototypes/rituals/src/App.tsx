@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { GuideFooter } from './components/GuideFooter'
 import { isSceneId, type SceneId } from './guide'
 import { Intro } from './scenes/Intro'
+import { Landing } from './scenes/Landing'
 import { Shelf } from './scenes/Shelf'
 import { Thread } from './scenes/Thread'
 import { OneQuestion } from './scenes/OneQuestion'
@@ -42,7 +43,24 @@ export function App() {
 
   return (
     <>
-      {scene === 'intro' ? <Intro onNext={() => go('shelf')} /> : null}
+      {scene === 'intro' ? <Intro onNext={() => go('landing')} /> : null}
+
+      {scene === 'landing' ? (
+        <Landing
+          source={source}
+          onSource={setSource}
+          onOpenQuestion={(p, label) => {
+            setPractice(p)
+            setFocus({ practice: p, label })
+            go('one')
+          }}
+          onOpenPractice={(p) => {
+            setPractice(p)
+            go('thread')
+          }}
+          onAllPractices={() => go('shelf')}
+        />
+      ) : null}
 
       {scene === 'shelf' ? (
         <Shelf

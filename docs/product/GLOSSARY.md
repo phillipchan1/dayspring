@@ -22,10 +22,13 @@ name forever.
 | **Concordance** | `concordance` | — | Per-user vocabulary engine. Names and spellings only, never moods. |
 | **Threads & Ropes** | — | — | Surface never shipped; flag deleted 2026-09-07 (D-005). The `features/threads/data/` seam it left behind is live — Altar and the Ascent read warmth bands through it. |
 | **The Keeping** | `noticing` | — | The engine that reads a page into movements, and each movement into what it is about and what the writer did. Named in D-027 — *"the Noticing" was wrong: naming a machine for an act of OBSERVATION, pointed at someone's private spiritual life, reads as surveillance.* Deliberately not on the writing surface (D-026). Was **heartIQ**. |
+| **Remember** *(candidate)* | `keeping` / `noticing` | — | Proposed Return destination: the journal reading a life back (D-030, open). Not the deleted marks-list surface of D-016/D-020. A movement is a unit *inside* Remember, not a synonym for it. |
 
 **Retired:** *Covenant* (Altar, reverted 2026-07-26) · *Reflections* (the old UI Ascent
 replaced; survives only as an internal key) · *heartIQ* and *the Noticing* (both → the
-Keeping, D-027; internal key `noticing` unchanged either time).
+Keeping, D-027; internal key `noticing` unchanged either time) · *Remember* as a
+marks-list surface (D-020). The *word* is a candidate to reclaim for the reading
+destination (D-030).
 
 ---
 
@@ -109,6 +112,8 @@ goes. The long version, with the receipts, is in
 ⚠️ **`movement` is triple-booked.** It means a segment of one page here; *"a
 movement traced across entries"* under Arc; and a section of a subject's chapter
 page in RECALL.md. The internal key stays `movement` — say which one you mean.
+Do not also name the Return destination *Movements* (D-030): that would be a
+fourth booking. The destination is a verb; a movement is a unit inside it.
 
 ---
 

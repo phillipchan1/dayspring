@@ -127,6 +127,22 @@
       ],
       "port": 5190,
       "url": "http://localhost:5190"
+    },
+    {
+      "name": "walk-proto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "prototypes/walk",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5191",
+        "--strictPort"
+      ],
+      "port": 5191,
+      "url": "http://localhost:5191"
     }
   ]
 }

@@ -657,3 +657,171 @@ button {
     padding-right: 1rem;
   }
 }
+
+/* ── the landing ──────────────────────────────────────────────────────────── */
+
+/*
+ * Opens with writing, not navigation. The one descriptive line is Lamp's
+ * `seasonNote` shape — grounded, qualitative, and about the material rather
+ * than about how often the writer showed up. See data/landing.ts.
+ */
+.landing__line {
+  font-size: 1.06rem;
+  line-height: 1.62;
+  color: var(--text);
+  margin: 0 0 2.2rem;
+  max-width: 34rem;
+  padding-left: 0.95rem;
+  border-left: 1px solid var(--amber-line);
+}
+
+.qcard {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.6rem 0.25rem;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  transition: background 120ms ease;
+}
+
+.qcard:hover,
+.qcard:focus-visible {
+  background: var(--bg-elevated);
+  outline: none;
+}
+
+.qcard__eyebrow {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 0.6rem;
+}
+
+.qcard__q {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.24rem;
+  line-height: 1.32;
+  color: var(--text-bright);
+  margin-bottom: 1rem;
+  letter-spacing: -0.005em;
+}
+
+.qcard--hero .qcard__q {
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  margin-bottom: 1.25rem;
+}
+
+.qcard__answer {
+  display: block;
+  font-size: 1.02rem;
+  line-height: 1.64;
+  color: var(--text);
+  margin-bottom: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.qcard--hero .qcard__answer {
+  font-size: 1.1rem;
+}
+
+/*
+ * The second answer is how a card says "there is more here" WITHOUT a number.
+ * A count of how many times you walked a ritual is a frequency, and a frequency
+ * attached to a devotional practice is a streak. More writing, not a tally.
+ */
+.qcard__answer--under {
+  color: var(--text-dim);
+  font-size: 0.98rem;
+}
+
+.qcard--hero .qcard__answer--under {
+  font-size: 1rem;
+}
+
+.qcard__date {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin-bottom: 0.3rem;
+}
+
+.qcard__more {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin-top: 0.3rem;
+}
+
+.qcard:hover .qcard__more {
+  color: var(--amber);
+}
+
+.landing__practices {
+  margin-top: 3.2rem;
+}
+
+.landing__h2 {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 0.4rem;
+  font-weight: 400;
+}
+
+.landing__practices .shelf {
+  margin-top: 0;
+}
+
+.landing__all {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.landing__all:hover {
+  color: var(--amber);
+}
+
+/*
+ * A card shows a taste, not the whole answer.
+ *
+ * Real writing is uneven — one answer in the live archive runs five paragraphs,
+ * and unclamped it made its card three times the height of its neighbours and
+ * buried everything under it. The clamp is what makes "Read all →" mean
+ * something rather than being decoration on an already-complete card.
+ */
+.qcard__answer {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.qcard--hero .qcard__answer {
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+.qcard--hero .qcard__answer--under {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}

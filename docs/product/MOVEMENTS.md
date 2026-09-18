@@ -1,6 +1,8 @@
 # Movements — the journal reading a life back
 
 > **Status:** Product direction, engine-first. Decided 2026-09-10 in D-029.
+> Destination naming is open (D-030): the act may be **Remember**, with movements
+> as units inside it. This filename stays until the word locks.
 > The destination described here is a vision, not a commitment to ship every
 > surface at once. The first gate is whether the entry-reading engine can be
 > measured and made trustworthy.
@@ -106,10 +108,11 @@ reference beside its movement, subjects, emotion, desire, or prayer.
 
 ## The eventual product shape
 
-`Movements` is the candidate primary Return destination. Pages remains the way to
-read without interpretation. Ascent, Lamp, and Altar need not remain separate
-navigation concepts: their season, Scripture, prayer, and encounter capabilities
-can become lenses within one coherent act of returning.
+The candidate primary Return destination is a verb, not the unit. **Remember** is
+the leading word (D-030, still open). Pages remains the way to read without
+interpretation. Ascent, Lamp, and Altar need not remain separate navigation concepts:
+their season, Scripture, prayer, and encounter capabilities can become lenses within
+one coherent act of remembering.
 
 ```text
 WRITE
@@ -117,7 +120,7 @@ WRITE
 
 RETURN
   Pages
-  Movements
+  Remember   ← candidate verb (D-030); movements live inside it
 
 LIFE MAP
   People · Places · Domains · Matters
@@ -129,7 +132,7 @@ observed use, not from the elegance of this document.
 
 ## Pull, push, and tenure
 
-Movements is both available and offered:
+Remember is both available and offered:
 
 1. **Permanent pull:** a destination the writer can enter by life, subject,
    period, story, emotion, or learning. No question must be formulated first.
