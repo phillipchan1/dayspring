@@ -144,24 +144,34 @@ export interface Cut {
 }
 
 /**
- * One line, because the picture now says the rest.
+ * One line, and it names what is in the menu rather than how to open it.
  *
- * It used to run to three: the gesture, and then the years, because without the
- * second half the image sold a nice editor. But the frame now holds the block
- * as well as the menu — the verse set in the page, where the sentence was — so
- * a reader can see what `/` does instead of being told. What they cannot see is
- * that they typed one character to get it. That is the sentence worth keeping,
- * and the years belong in the ad's own body text, where there is room to say
- * them properly.
+ * It used to read "Type / and it opens in the line you're writing", which fails
+ * twice over. "It" has no antecedent — a stranger cannot tell what opens — and
+ * narrating a keystroke is the one job the picture already does perfectly well
+ * on its own. Nobody needs the shortcut explained; they need to know what is
+ * behind it.
+ *
+ * What is behind it is the whole vocabulary of a life with God: scripture, a
+ * prayer, a sense, a desire, something learned, a story, an ancient practice.
+ * That is what the open palette is a picture OF, and saying so is what turns it
+ * from a mysterious menu into the argument of the image.
+ *
+ * "The Christian life" and not "you, a Christian": the first describes this
+ * product, the second asserts something about the reader's religion, and Meta's
+ * personal-attributes policy rejects the second reliably. It is also the first
+ * place any public copy names the audience out loud — deliberate, because Meta
+ * removed religion from targeting in 2022, so the creative has to do the
+ * targeting itself (docs/product/PAID_SOCIAL.md).
  */
-const GESTURE = "Type / and it opens in the line you're writing."
+const SUB = 'Everything the Christian life asks of a page, in one place.'
 
 export const CUTS: Cut[] = [
   {
     id: 'write',
     // The marketing site's H1, verbatim. See the note at the top of this file.
     headline: { lead: 'A journal built for', accent: 'spiritual growth.' },
-    sub: GESTURE,
+    sub: SUB,
     // Dawn, and deliberately: the app's shipped default is ink, but a hero is
     // read in a feed and on a white site, and the cream page is the thing that
     // does not look like every other dark developer tool. The ink cut is
@@ -171,7 +181,7 @@ export const CUTS: Cut[] = [
   {
     id: 'bare',
     headline: { lead: 'A journal built for', accent: 'spiritual growth.' },
-    sub: GESTURE,
+    sub: SUB,
     theme: 'dawn',
     bare: true,
     canvases: ['16x9'],
