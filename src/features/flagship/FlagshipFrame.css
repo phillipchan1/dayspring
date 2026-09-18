@@ -394,3 +394,60 @@
   justify-content: center;
   padding: 0;
 }
+
+/* ── the diptych ─────────────────────────────────────────────────────────── */
+
+/*
+ * The page, and under it what the page becomes. See PANELS in FlagshipFrame.tsx
+ * for why no surface is ever shown on its own.
+ */
+.flag[data-layout='stacked'] .flag__well--pair,
+.flag[data-layout='beside'] .flag__row .flag__well--pair {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 26px;
+  padding-top: 26px;
+  overflow: visible;
+}
+
+.flag[data-layout='stacked'] .flag__well--pair .flag__panel,
+.flag[data-layout='beside'] .flag__well--pair .flag__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+/*
+ * Two words under each panel, and they are what make the pair legible as a
+ * sequence rather than as two screenshots someone stacked. Mono and quiet: the
+ * picture is the argument, this is only the label on it.
+ */
+.flag__panel-label {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: #7a7986;
+}
+
+/* The pair's panels are crops, not windows — no titlebar above them, so the
+   corner is a card's. */
+.flag__well--pair .flag__window {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* The turn between the two. A rule and nothing else: an arrow would be a
+   diagram, and this is a picture. */
+.flag__seam {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  width: 1px;
+  height: 26px;
+  background: linear-gradient(180deg, rgba(243, 189, 118, 0.35), rgba(243, 189, 118, 0));
+}

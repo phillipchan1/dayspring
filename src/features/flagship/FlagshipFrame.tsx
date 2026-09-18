@@ -14,6 +14,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Mark } from '@/components/Mark'
 import { isLightTheme, type ThemeId } from '@/lib/resolveTheme'
 import { CANVASES, type CanvasId, type Cut } from './flagship'
+import type { FlagshipSurface } from './scene'
 import './FlagshipFrame.css'
 
 interface Props {
@@ -105,6 +106,68 @@ const CARD_CLEAR_TO = 795
 const FADE_CLEAR = 26
 
 /**
+ * Frame px each panel spends on things that are not panel: its label, the gap
+ * under it, and the seam below. Subtracted before the stack is fitted.
+ */
+const PAIR_CHROME = 59
+
+/**
+ * THE DIPTYCH — the answer to the only question this image set could not
+ * otherwise answer: *is this a journal?*
+ *
+ * The writing page says so on sight. Nothing else does. Rendered alone the
+ * Ascent is a mountain and a quotation; the Altar is a list of names with
+ * sentences under them; the Lamp is a lit grid. They are pictures of what the
+ * writing BECOMES, and a stranger who has never seen the product has no way to
+ * work backwards from an outcome to the thing that produced it. A feed gives
+ * you one image and about a second, so they scroll.
+ *
+ * So no surface is ever shown alone. Every one of them appears under the page
+ * that fed it, in one frame, in reading order — which turns the problem into
+ * the product's own argument: you write, and later it reads it back to you.
+ *
+ * Crops are in each window's own device px, measured off a 900x920 render.
+ */
+const PANELS: Record<
+  FlagshipSurface,
+  { x: number; y: number; height: number; width?: number; winWidth?: number }
+> = {
+  // The sentence and the verse it reached for. Wide and SHORT, and that is the
+  // governing constraint of the whole pair: two panels and a headline in a 4:5
+  // leaves each panel about 220 frame px, so a tall crop is a small crop, and a
+  // small crop of prose is a picture of text nobody can read. The title is cut
+  // for the same reason — it costs 120pt and says "Tuesday".
+  page: { x: 90, y: 200, height: 280 },
+  // The foot of the mountain, the one line of the year, and its date. The
+  // quoted, dated sentence is doing double duty: it is the surface's own
+  // strongest moment AND the second journal signal in the frame.
+  ascent: { x: 60, y: 210, height: 400 },
+  // Starts under the "lately your prayers have circled around…" line, which
+  // wraps to two at this width — cropped mid-wrap it opens on a stray surname.
+  altar: { x: 105, y: 300, height: 380 },
+  // The title is the hook here — "Where your heart has been leaning" — so
+  // unusually the crop starts at the top of the surface.
+  lamp: { x: 105, y: 30, height: 420 },
+  /*
+   * The wall is the one panel rendered in a WIDER window than the rest.
+   *
+   * Its claim is "ten years of them", and the wall lays pages out in columns
+   * that fit the viewport: at 900pt it draws two, which is a picture of two
+   * pages, not of a decade. At 1500 it draws four and the year rail down the
+   * side starts to mean something. The crop is correspondingly wider, so this
+   * panel's contents render smaller than its neighbour's — which is right. It
+   * is the zoomed-out view.
+   */
+  wall: { x: 40, y: 26, width: 1420, height: 620, winWidth: 1500 },
+  // The library portals over the whole viewport, so its own left margin is the
+  // only gutter there is.
+  rituals: { x: 20, y: 26, height: 420 },
+}
+
+const PANEL_WIDTH = 780
+
+
+/**
  * How far past the well the window is allowed to run, as a share of the well's
  * width. The overrun is what makes the picture read as a window someone is
  * looking INTO rather than a picture OF a window: an object with air on all
@@ -159,12 +222,27 @@ export function FlagshipFrame({ cut, canvas, theme, frame }: Props) {
       // Stacked: as wide as the gutters allow, but never so wide that the fifth
       // row of the menu sinks into the fade. Height is the constraint the eye
       // notices and width is the one it does not, so width yields.
+      if (cut.pair) {
+        // The pair is fitted whole — nothing fades out, because a cropped
+        // second panel would look like the frame ran out of room rather than
+        // like a second thing worth seeing.
+        // Each panel's DRAWN height: its crop height, scaled by how much its own
+        // crop has to shrink to reach the shared panel width.
+        const stack = cut.pair.reduce((h, [s]) => {
+          const p = PANELS[s]
+          return h + p.height * (PANEL_WIDTH / (p.width ?? PANEL_WIDTH))
+        }, 0)
+        const byWidth = (well.clientWidth - STACKED_GUTTER * 2) / PANEL_WIDTH
+        const room = well.clientHeight - footer - PAIR_CHROME * cut.pair.length
+        setScale(Math.min(byWidth, room / stack))
+        return
+      }
       const byWidth = (well.clientWidth - STACKED_GUTTER * 2) / CARD_CROP.width
       const room = well.clientHeight - footer - FADE_CLEAR
       const byPalette = room / (CARD_CLEAR_TO - CARD_CROP.y)
       setScale(Math.min(byWidth, byPalette))
     }
-  }, [frame.width, frame.height, layout, fit, spec.air, cut.bare, win.width, win.height])
+  }, [frame.width, frame.height, layout, fit, spec.air, cut.bare, cut.pair, win.width, win.height])
 
   const caption = cut.bare ? null : (
     <header className="flag__caption">
@@ -196,6 +274,49 @@ export function FlagshipFrame({ cut, canvas, theme, frame }: Props) {
     layout === 'beside'
       ? { x: 0, y: 0, width: win.width, height: win.height }
       : { ...CARD_CROP, height: win.height - CARD_CROP.y }
+
+  /**
+   * Two panels, one above the other, each a crop of a real surface running in
+   * its own iframe. Stacked rather than side by side even where there is width
+   * for both: reading order is the argument — the page first, then what it
+   * became — and side by side at feed sizes gives each panel half a column,
+   * which is not enough to read either.
+   */
+  const diptych = (
+    <div className="flag__well flag__well--pair" ref={wellRef}>
+      {(cut.pair ?? []).map(([s, label], i) => {
+        const panel = PANELS[s]
+        // The panel is drawn at PANEL_WIDTH; a wider crop therefore renders at a
+        // smaller scale of its own, inside the pair's shared scale.
+        const inner = (PANEL_WIDTH / (panel.width ?? PANEL_WIDTH)) * scale
+        return (
+          <div className="flag__panel" key={s}>
+            <span className="flag__panel-label">{label}</span>
+            <div
+              className="flag__window"
+              {...(light ? { 'data-light': '' } : {})}
+              style={{
+                width: PANEL_WIDTH * scale,
+                height: panel.height * inner,
+                visibility: scale ? 'visible' : 'hidden',
+              }}
+            >
+              <iframe
+                className="flag__screen"
+                title={s}
+                src={`/?__preview=flagship&raw=1&theme=${theme}&surface=${s}`}
+                width={panel.winWidth ?? win.width}
+                height={win.height}
+                style={{ transform: `scale(${inner}) translate(${-panel.x}px, ${-panel.y}px)` }}
+                scrolling="no"
+              />
+            </div>
+            {i === 0 ? <div className="flag__seam" aria-hidden /> : null}
+          </div>
+        )
+      })}
+    </div>
+  )
 
   const window_ = (
     <div className="flag__well" ref={wellRef}>
@@ -247,12 +368,12 @@ export function FlagshipFrame({ cut, canvas, theme, frame }: Props) {
       {layout === 'beside' ? (
         <div className="flag__row">
           {caption}
-          {window_}
+          {cut.pair ? diptych : window_}
         </div>
       ) : (
         <>
           {caption}
-          {window_}
+          {cut.pair ? diptych : window_}
         </>
       )}
 
@@ -263,7 +384,7 @@ export function FlagshipFrame({ cut, canvas, theme, frame }: Props) {
         foot of a cream page for no reason, and then ends in a hard edge at the
         window's real bottom, which is the exact artefact it exists to prevent.
       */}
-      {cut.bare || fit === 'height' ? null : <div className="flag__fade" aria-hidden />}
+      {cut.bare || cut.pair || fit === 'height' ? null : <div className="flag__fade" aria-hidden />}
       <div className="flag__grain" aria-hidden />
 
       {/*

@@ -28,7 +28,7 @@ import { AppNavigationProvider } from '@/context/AppNavigation'
 import { FeatureFlagProvider } from '@/features/flags'
 import { EDITOR_FONT_VARS, settingsStore } from '@/lib/settings'
 import { isLightTheme, THEMES, type ThemeId } from '@/lib/resolveTheme'
-import { FlagshipScene } from './scene'
+import { FlagshipScene, type FlagshipSurface } from './scene'
 import { FlagshipFrame } from './FlagshipFrame'
 import { CANVASES, cutById, type CanvasId } from './flagship'
 
@@ -59,6 +59,11 @@ export function renderFlagshipPreview(): void {
   const raw = params.get('raw') === '1'
 
   const cut = cutById(params.get('cut')) ?? cutById('write')!
+  const wanted = params.get('surface')
+  const SURFACES = ['ascent', 'altar', 'lamp', 'wall', 'rituals'] as const
+  const surface: FlagshipSurface = SURFACES.includes(wanted as never)
+    ? (wanted as FlagshipSurface)
+    : 'page'
   const wantedCanvas = params.get('canvas')
   const canvas: CanvasId =
     wantedCanvas && wantedCanvas in CANVASES ? (wantedCanvas as CanvasId) : '16x9'
@@ -100,7 +105,7 @@ export function renderFlagshipPreview(): void {
     raw ? (
       <FeatureFlagProvider flags={[]}>
         <AppNavigationProvider>
-          <FlagshipScene />
+          <FlagshipScene surface={surface} />
         </AppNavigationProvider>
       </FeatureFlagProvider>
     ) : (

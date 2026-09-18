@@ -26,9 +26,30 @@
 import { useEffect, useRef } from 'react'
 import { DesktopJournal } from '@/features/journal/DesktopJournal'
 import { Editor } from '@/editor/Editor'
+import { Summit } from '@/features/ascent/Summit'
+import { ALTITUDES } from '@/features/ascent/ascent.config'
+import '@/features/ascent/Ascent.css'
+import { MOCK_ENTRIES, SCREENSHOT_HOUR, SUMMIT_VIEW } from '@/features/appstore/mock'
+import { AltarView } from '@/features/altar/AltarView'
+import { ScriptureView } from '@/features/scripture/ScriptureView'
+import { PagesView } from '@/features/pages/PagesView'
+import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
+import { useSettings } from '@/hooks/useSettings'
+import { useState } from 'react'
 import { journalProps } from '@/features/appstore/devices'
 
 const noop = () => {}
+
+/**
+ * Which door into the product this scene is standing in.
+ *
+ * `page` is the writing surface — the only one that reads as a journal on
+ * sight. The rest are what the writing BECOMES, and none of them announces the
+ * category: rendered alone, the Ascent is a mountain and a quote, the Altar is
+ * a list of names. That is the whole reason for the diptych (FlagshipFrame),
+ * which never shows one of these without the page beside it.
+ */
+export type FlagshipSurface = 'page' | 'ascent' | 'altar' | 'lamp' | 'wall' | 'rituals'
 
 /**
  * The fixture ids the two block widgets key off. Fabricated, like everything
@@ -127,7 +148,107 @@ function openPaletteOnLastLine(host: HTMLElement, onOpen: () => void): () => voi
  * only wait a guessed number of seconds, and a slow machine ships a picture of
  * an app with no menu open — the one thing this image exists to show.
  */
-export function FlagshipScene() {
+/**
+ * The Summit against fixtures, not `AscentView`.
+ *
+ * AscentView fetches, and in a headless capture it loses the race: the panel
+ * comes out reading "Reading the land…" — a marketing asset showing a spinner,
+ * which nothing throws on and nobody notices until it is live. The App Store
+ * shots made the same call for the same reason. `Summit` is the shipped
+ * component; only the data is a fixture, as every other fixture here is.
+ *
+ * The `.ascent` wrapper is not decoration: it defines --ascent-rock-top and
+ * --ascent-rock-bottom, and without it the mountain's gradient resolves to
+ * nothing and the peak renders as a black triangle.
+ */
+function SummitSlot() {
+  const summit = ALTITUDES[ALTITUDES.length - 1]!
+  return (
+    <div
+      className="ascent"
+      style={{ '--a0': summit.air[0], '--a1': summit.air[1] } as React.CSSProperties}
+    >
+      <div className="ascent-air" aria-hidden />
+      <div className="ascent-scroll">
+        <main className="ascent-main">
+          <Summit view={SUMMIT_VIEW} scripture={SUMMIT_VIEW.scripture} onScriptureDrill={noop} />
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export function FlagshipScene({ surface = 'page' }: { surface?: FlagshipSurface }) {
+  if (surface === 'ascent') {
+    return <DesktopJournal {...journalProps(<SummitSlot />, { reflectionsActive: true })} />
+  }
+  if (surface === 'altar') {
+    return <DesktopJournal {...journalProps(<AltarView onOpenEntry={noop} />, { altarActive: true })} />
+  }
+  if (surface === 'lamp') {
+    return (
+      <DesktopJournal {...journalProps(<ScriptureView onOpenEntry={noop} />, { scriptureActive: true })} />
+    )
+  }
+  if (surface === 'wall') {
+    return <DesktopJournal {...journalProps(<WallSlot />)} pagesActive />
+  }
+  if (surface === 'rituals') {
+    // The library portals full-screen over the shell, exactly as it does in the
+    // app when you reach for /ritual — so inside this iframe it simply fills it.
+    //
+    // `now` is PINNED. The shelf's sky and greeting follow the clock, so an
+    // unpinned capture ships a night shelf or a morning one depending on the
+    // hour the render happened to run at.
+    return (
+      <>
+        <DesktopJournal {...journalProps(<div />)} />
+        <PracticeLibrary
+          onBegin={noop}
+          onClose={noop}
+          skipPreview={false}
+          onToggleSkipPreview={noop}
+          now={SCREENSHOT_HOUR}
+        />
+      </>
+    )
+  }
+  return <WritingScene />
+}
+
+/**
+ * The wall, with its controls actually wired.
+ *
+ * Every control on this surface is a controlled input; handed `noop` they all
+ * render and none of them work, which makes a capture a worse test of the
+ * surface than it looks.
+ */
+function WallSlot() {
+  const { settings, update } = useSettings()
+  const [subjectKey, setSubjectKey] = useState<string | null>(null)
+  const [spreadId, setSpreadId] = useState<string | null>(null)
+  return (
+    <PagesView
+      entries={MOCK_ENTRIES}
+      marks={[]}
+      ready
+      activeId={null}
+      subjectKey={subjectKey}
+      onSubject={setSubjectKey}
+      asked={null}
+      onClearAsked={noop}
+      spreadId={spreadId}
+      onSpread={setSpreadId}
+      onOpenEntry={noop}
+      onEntryMenuAction={noop}
+      onDeleteEntries={noop}
+      settings={settings}
+      updateSettings={update}
+    />
+  )
+}
+
+function WritingScene() {
   const hostRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

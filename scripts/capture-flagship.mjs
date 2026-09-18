@@ -5,6 +5,8 @@
  *   npm run flagship                     # every cut, every canvas, both themes
  *   npm run flagship -- --canvas=16x9    # one canvas, while iterating
  *   npm run flagship -- --cut=write      # one cut
+ *   npm run flagship -- --cut=x-verses   # one of the EXPERIMENTS — see
+ *                                        # flagship.ts; never in a bare run
  *   npm run flagship -- --theme=ink      # one palette
  *
  * Output: assets/flagship/<cut>-<theme>/<canvas>.png, plus CONTACT_SHEET.png
@@ -95,12 +97,17 @@ async function readCuts() {
   const src = await readFile(FLAGSHIP_TS, 'utf8')
   const ids = [...src.matchAll(/^\s{4}id: '([a-z0-9-]+)',$/gm)]
   if (!ids.length) throw new Error(`Parsed no cuts out of ${path.relative(ROOT, FLAGSHIP_TS)}`)
+  // Everything declared after EXPERIMENTS is a combination under test, not part
+  // of the set. A bare `npm run flagship` must not quietly triple in size and
+  // write seven directories of unreviewed pictures; ask for one by name.
+  const experimentsAt = src.indexOf('export const EXPERIMENTS')
   return ids.map((m, i) => {
     // The cut's own span: from its id to the next cut's, or the end of CUTS.
     const span = src.slice(m.index, ids[i + 1]?.index ?? src.length)
     const only = span.match(/canvases: \[([^\]]+)\]/)
     return {
       id: m[1],
+      experiment: experimentsAt !== -1 && m.index > experimentsAt,
       canvases: only ? only[1].split(',').map((c) => c.trim().replace(/'/g, '')) : null,
     }
   })
@@ -240,7 +247,7 @@ async function main() {
 
   const cutArg = pick('cut')
   const allCuts = await readCuts()
-  const cuts = cutArg ? allCuts.filter((c) => c.id === cutArg) : allCuts
+  const cuts = cutArg ? allCuts.filter((c) => c.id === cutArg) : allCuts.filter((c) => !c.experiment)
   if (!cuts.length) {
     throw new Error(`No cut matched "${cutArg}". Have: ${allCuts.map((c) => c.id).join(', ')}`)
   }

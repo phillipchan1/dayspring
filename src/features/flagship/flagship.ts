@@ -28,6 +28,7 @@
  */
 
 import type { ThemeId } from '@/lib/resolveTheme'
+import type { FlagshipSurface } from './scene'
 
 /**
  * How the words and the window are arranged on a given canvas.
@@ -132,6 +133,15 @@ export interface Cut {
    */
   bare?: boolean
   /**
+   * The panels, top to bottom, each with the two or three words printed over it.
+   *
+   * Absent means the page alone — the only surface that announces the category
+   * without help. Set, and the frame renders them stacked in reading order,
+   * which is the argument: this, and then what it becomes. See PANELS in
+   * FlagshipFrame for why no surface is ever shown on its own.
+   */
+  pair?: [FlagshipSurface, string][]
+  /**
    * Render only these canvases. Absent means all five.
    *
    * The bare cut needs this. With no headline above it there is nothing to
@@ -188,6 +198,109 @@ export const CUTS: Cut[] = [
   },
 ]
 
+/**
+ * EXPERIMENTS — combinations under test, not the shipped set.
+ *
+ * The question each of these is trying to answer is the one a single surface
+ * cannot: *is this a journal?* Rendered alone the Ascent is a mountain, the
+ * Altar is a list of names and the Lamp is a lit grid; only the writing page
+ * and the wall of pages say the category on sight. So each experiment pairs a
+ * surface that announces the category with one that carries the promise, and
+ * the variable is which pairing, in which order, with which two words on it.
+ */
+export const EXPERIMENTS: Cut[] = [
+  {
+    // The canonical pair. Write today; a year later it is read back to you.
+    id: 'x-year',
+    headline: { lead: 'See what God has been', accent: 'making of you.' },
+    sub: 'A year of your own words, read back to you.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['page', 'What you write'],
+      ['ascent', 'What it becomes'],
+    ],
+  },
+  {
+    // The strongest emotional claim in the BrandScript: the answers arrive and
+    // go unnoticed because the asking was forgotten.
+    id: 'x-prayers',
+    headline: { lead: 'Your prayers,', accent: 'remembered.' },
+    sub: 'Laid down mid-sentence, and gathered by the people you carry.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['page', 'A prayer, mid-sentence'],
+      ['altar', 'Every prayer, gathered'],
+    ],
+  },
+  {
+    // The only pair where the same object is visibly in both panels: Romans
+    // 8:28 is written into the page on top and lit in the canon below.
+    id: 'x-verses',
+    headline: { lead: 'Find the verses that', accent: 'actually met you.' },
+    sub: 'Every passage you wrote down — by season, by year, by book.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['page', 'A verse in the page'],
+      ['lamp', 'Every verse that met you'],
+    ],
+  },
+  {
+    // Scale, rather than insight: one page, then the pile it belongs to.
+    id: 'x-decade',
+    headline: { lead: 'Ten years of writing.', accent: "One story you've never read." },
+    sub: 'Bring your Day One or Diarly archive across in about a minute.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['page', 'One page'],
+      ['wall', 'Ten years of them'],
+    ],
+  },
+  {
+    // No writing panel at all — the wall carries the category on its own, which
+    // is the thing worth testing here. If it holds, the page is not compulsory.
+    id: 'x-archive',
+    headline: { lead: 'Ten years of writing.', accent: "One story you've never read." },
+    sub: 'A pile of entries is not a story. Scrolling is not remembering.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['wall', 'Ten years of pages'],
+      ['ascent', 'What they add up to'],
+    ],
+  },
+  {
+    // Reversed: the tool first, the writing second. The only pair that argues
+    // forward (here is a way in) rather than backward (here is what came of it).
+    id: 'x-begin',
+    headline: { lead: "When you don't know", accent: 'where to begin.' },
+    sub: 'The Examen, Lectio Divina, lament — laid gently over the page.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['rituals', 'Choose a form'],
+      ['page', 'Write into it'],
+    ],
+  },
+  {
+    // Three panels. Costs each one a third of the height, and tests whether the
+    // whole arc survives at feed size or just becomes three thumbnails.
+    id: 'x-triptych',
+    headline: { lead: 'A journal built for', accent: 'spiritual growth.' },
+    sub: 'Write today. Read the year.',
+    theme: 'ink',
+    canvases: ['4x5'],
+    pair: [
+      ['page', 'Write'],
+      ['wall', 'It gathers'],
+      ['ascent', 'You see the year'],
+    ],
+  },
+]
+
 export function cutById(id: string | null): Cut | undefined {
-  return CUTS.find((c) => c.id === id)
+  return [...CUTS, ...EXPERIMENTS].find((c) => c.id === id)
 }
