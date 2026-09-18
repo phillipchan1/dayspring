@@ -21,7 +21,7 @@ import { bookByOsis } from '../bible/canon'
 import * as cache from '../db'
 import { fetchEntriesByIds } from '../entries'
 import { requireSupabase } from '../supabase'
-import { isListingPreview } from '../previewMode'
+import { isCapturePreview } from '../previewMode'
 import { parseReferences } from './parse'
 
 export interface DateWindow {
@@ -253,10 +253,10 @@ export async function loadScriptureCanonPage(
   window?: DateWindow,
   opts?: { fresh?: boolean },
 ): Promise<ScriptureCanonPage> {
-  // App Store listing preview — see the matching note in features/ascent/data.
+  // Marketing capture preview (App Store shots, ads, the flagship) — see the matching note in features/ascent/data.
   // Seeding asyncCache instead would not be enough: ScriptureView still fires the
   // load, and its rejection sets loadError, which wins the render.
-  if (import.meta.env.DEV && isListingPreview()) {
+  if (import.meta.env.DEV && isCapturePreview()) {
     return (await import('@/features/appstore/mock')).MOCK_CANON
   }
 

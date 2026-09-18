@@ -11,7 +11,7 @@
 import { assertSameOwner, cacheGeneration, getCache, onCacheCleared, setCache } from '@/lib/asyncCache'
 import { getRollupForPeriod, listRollups } from '@/lib/insights'
 import { grainWindow } from '@/lib/period'
-import { isListingPreview } from '@/lib/previewMode'
+import { isCapturePreview } from '@/lib/previewMode'
 import { prewarmScripture } from '@/lib/scripture/query'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import { yearProgress, yearStones } from './stones'
@@ -96,7 +96,7 @@ async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent>
   // drops the branch AND the dynamic import — the fixtures never reach the bundle.
   // Needed because AscentView's load rejection sets loadError, which wins the
   // render and would photograph an error state.
-  if (import.meta.env.DEV && isListingPreview()) {
+  if (import.meta.env.DEV && isCapturePreview()) {
     return (await import('@/features/appstore/mock')).MOCK_ASCENT
   }
 

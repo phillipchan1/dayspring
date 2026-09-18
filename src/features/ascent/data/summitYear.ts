@@ -15,7 +15,7 @@
 import { getCache, setCache } from '@/lib/asyncCache'
 import { getRollupForPeriod, listRollupPeriods } from '@/lib/insights'
 import { grainWindow } from '@/lib/period'
-import { isListingPreview } from '@/lib/previewMode'
+import { isCapturePreview } from '@/lib/previewMode'
 import { loadScripture } from './scripture'
 import { yearProgress, yearStones } from './stones'
 import type { SummitView } from './types'
@@ -37,7 +37,7 @@ export async function listSummitYears(now: Date = new Date()): Promise<number[]>
   // that this is an archive, not a dashboard — so it is served from fixtures
   // rather than left empty. Inline under a literal `import.meta.env.DEV` so Vite
   // drops the branch, exactly as the climb seam does.
-  if (import.meta.env.DEV && isListingPreview()) {
+  if (import.meta.env.DEV && isCapturePreview()) {
     return Array.from({ length: 8 }, (_, i) => thisYear - i)
   }
   const periods = await listRollupPeriods('yearly').catch(() => [])
