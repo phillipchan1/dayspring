@@ -3,6 +3,7 @@ import Base from "../layouts/Base.astro";
 import SectionReveal from "../components/SectionReveal.astro";
 import DawnGlow from "../components/DawnGlow.astro";
 import { maker } from "../content/maker";
+import { releasesRepo } from "../content/site";
 ---
 
 <Base
@@ -33,7 +34,12 @@ import { maker } from "../content/maker";
       </SectionReveal>
       <SectionReveal>
         <div class="cta-wrap">
-          <a href={maker.cta.href} class="btn btn-ghost">{maker.cta.label}</a>
+          <a
+            href={maker.cta.href}
+            class="btn btn-ghost"
+            data-dl-macos
+            data-repo={releasesRepo}
+          >{maker.cta.label}</a>
         </div>
       </SectionReveal>
     </section>
@@ -117,3 +123,8 @@ import { maker } from "../content/maker";
     }
   }
 </style>
+
+<script>
+  import { wireMacDownloads } from "../lib/macDownload";
+  wireMacDownloads();
+</script>

@@ -4,13 +4,15 @@
 // we stack with a soft backdrop so the journal still reads immediately.
 import type { ComponentProps } from "astro/types";
 import AppMock from "./AppMock.astro";
+import DownloadCTA from "./DownloadCTA.astro";
+import { cta } from "../content/site";
 
 interface Props {
   eyebrow: string;
   lines: string[];
   sub: string;
   verse: { text: string; ref: string };
-  primary: { label: string; href: string };
+  /** The one secondary link beside the download cluster. */
   ghost: { label: string; href: string };
   mockCaption?: string;
   appMock?: ComponentProps<typeof AppMock>;
@@ -20,7 +22,6 @@ const {
   lines,
   sub,
   verse,
-  primary,
   ghost,
   mockCaption,
   appMock = {},
@@ -43,8 +44,14 @@ const {
           &ldquo;{verse.text}&rdquo; — {verse.ref}
         </p>
         <div class="actions">
-          <a href={primary.href} class="btn btn-primary">{primary.label}</a>
-          <a href={ghost.href} class="btn btn-ghost">{ghost.label}</a>
+          {/* The web fallback and the one secondary link share a line, so the
+              hero closes on a single quiet row rather than a stack of four. */}
+          <DownloadCTA size="hero" align="left" web={false} />
+          <p class="hero-links">
+            <a href={cta.web.href}>{cta.web.label} →</a>
+            <span aria-hidden="true">·</span>
+            <a href={ghost.href}>{ghost.label}</a>
+          </p>
         </div>
       </div>
 
@@ -224,11 +231,30 @@ const {
   }
   .actions {
     display: flex;
-    gap: 14px;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 18px;
+    align-items: flex-start;
     opacity: 0;
     animation: up 1s ease 1.15s forwards;
+  }
+  .hero-links {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    flex-wrap: wrap;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .hero-links a {
+    color: var(--paper-dim);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 2px;
+    transition: color 0.25s, border-color 0.25s;
+  }
+  .hero-links a:hover {
+    color: var(--paper);
+    border-bottom-color: var(--dawn-1);
   }
 
   .hero-visual {
@@ -346,6 +372,9 @@ const {
     }
 
     .actions {
+      align-items: center;
+    }
+    .hero-links {
       justify-content: center;
     }
 

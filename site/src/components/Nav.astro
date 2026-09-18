@@ -1,8 +1,10 @@
 ---
 // Nav — sticky, transparent over the hero; gains a blurred ink background
-// once scrolled. Text links AND the download pills collapse on mobile — a
-// phone tap must never land on a macOS .dmg (see the phone-width media query
-// below); the web trial is the only door reachable at that width.
+// once scrolled. The text links collapse on mobile and so does the macOS pill
+// — a phone tap must never land on a .dmg. The iPhone "Soon" pill stays: it is
+// a label, not a link, and on a phone it is the one honest thing the nav has
+// to say. The download resolution itself lives in lib/macDownload.ts, shared
+// with <DownloadCTA>.
 import Mark from "./Mark.astro";
 import { navLinks, downloads, site, releasesRepo } from "../content/site";
 
@@ -188,12 +190,12 @@ const applePath =
     margin-left: 2px;
   }
 
-  /* mobile: collapse the text nav AND the download pills. A phone tap must
-     never be able to land on a macOS .dmg or the iOS "Soon" pill — the web
-     trial (Hero/Footer/Pricing → /start) is the only phone-reachable door. */
+  /* mobile: collapse the text nav and the macOS pill — a phone tap must never
+     land on a .dmg. The iOS pill is a <span>, not a link, so it stays and
+     answers the only question a phone visitor has. */
   @media (max-width: 680px) {
     .navlinks a.txt,
-    .navlinks .dl {
+    .navlinks a.dl {
       display: none;
     }
     .navlinks {
@@ -228,6 +230,8 @@ const applePath =
 </style>
 
 <script>
+  import { wireMacDownloads } from "../lib/macDownload";
+
   // Theme toggle — flip the explicit choice, persist it, update theme-color.
   const themeBtn = document.getElementById("theme-toggle");
   if (themeBtn) {
@@ -252,51 +256,6 @@ const applePath =
     addEventListener("scroll", onScroll, { passive: true });
   }
 
-  // macOS download — always resolve the LATEST .dmg from GitHub Releases.
-  // Progressive enhancement: the link's href falls back to the latest-release
-  // page (works with no JS / if the API is unreachable). On hover/focus we
-  // pre-resolve the exact .dmg via the GitHub REST API (CORS-enabled) and
-  // rewrite the href so the click is a direct, instant download.
-  const macBtn = document.querySelector<HTMLAnchorElement>("[data-dl-macos]");
-  if (macBtn) {
-    const repo = macBtn.dataset.repo;
-    let resolved: string | null = null;
-    let pending: Promise<string | null> | null = null;
-
-    const resolve = () => {
-      if (resolved) return Promise.resolve(resolved);
-      if (pending) return pending;
-      pending = fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-        headers: { Accept: "application/vnd.github+json" },
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((rel) => {
-          const assets = (rel && rel.assets) || [];
-          const dmg =
-            assets.find((a: any) => /aarch64.*\.dmg$/i.test(a.name)) ||
-            assets.find((a: any) => /\.dmg$/i.test(a.name));
-          if (dmg) {
-            resolved = dmg.browser_download_url;
-            macBtn.href = resolved;
-          }
-          return resolved;
-        })
-        .catch(() => null);
-      return pending;
-    };
-
-    // Pre-resolve before the click so the download is instant.
-    macBtn.addEventListener("pointerenter", resolve, { once: true });
-    macBtn.addEventListener("focus", resolve, { once: true });
-
-    // If the click lands before we've resolved, fetch then navigate.
-    // The default href (latest-release page) is the safety net.
-    macBtn.addEventListener("click", (e) => {
-      if (resolved) return; // href already points straight at the .dmg
-      e.preventDefault();
-      resolve().then((url) => {
-        window.location.href = url || macBtn.href;
-      });
-    });
-  }
+  // macOS download — resolve the latest .dmg. Shared with <DownloadCTA>.
+  wireMacDownloads();
 </script>

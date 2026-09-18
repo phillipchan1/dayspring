@@ -6,8 +6,9 @@ import AltarMock from "../components/AltarMock.astro";
 import ScriptureTeaser from "../components/ScriptureTeaser.astro";
 import PracticeMock from "../components/PracticeMock.astro";
 import LookingBackMock from "../components/LookingBackMock.astro";
+import PagesShot from "../components/PagesShot.astro";
 import { featuresIntro, deepDives, everythingIntro, everything } from "../content/features";
-import { slashCommands, lookingBack, altar, practices } from "../content/home";
+import { slashCommands, lookingBack, altar, practices, pages } from "../content/home";
 ---
 
 <Base
@@ -25,7 +26,10 @@ import { slashCommands, lookingBack, altar, practices } from "../content/home";
 
   {
     deepDives.map((dive, i) => (
-      <section class:list={["deepdive", { alt: i % 2 === 1 }]} id={dive.id}>
+      <section
+        class:list={["deepdive", { alt: i % 2 === 1, wide: "wide" in dive && dive.wide }]}
+        id={dive.id}
+      >
         <div class="wrap">
           <div class="grid">
             <SectionReveal class="copy">
@@ -73,6 +77,9 @@ import { slashCommands, lookingBack, altar, practices } from "../content/home";
                 />
               )}
               {dive.mock === "scripture" && <ScriptureTeaser />}
+              {dive.mock === "pages" && (
+                <PagesShot alt={pages.shotAlt} />
+              )}
             </SectionReveal>
           </div>
         </div>
@@ -171,6 +178,39 @@ import { slashCommands, lookingBack, altar, practices } from "../content/home";
      so target them with :global through the scoped .grid parent. */
   .deepdive.alt .grid > :global(.copy) {
     order: 2;
+  }
+
+  /* A `wide` dive stacks instead: its visual is a real 1280px screenshot, and
+     in a half column it is a postage stamp. The copy goes two-up above it and
+     the plate takes the full measure. */
+  .deepdive.wide .grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  .deepdive.wide .grid > :global(.copy),
+  .deepdive.wide.alt .grid > :global(.copy) {
+    order: 1;
+  }
+  .deepdive.wide .grid > :global(.visual) {
+    order: 2;
+  }
+  .deepdive.wide h2,
+  .deepdive.wide .lead {
+    max-width: 22ch;
+  }
+  .deepdive.wide .lead {
+    max-width: 62ch;
+  }
+  .deepdive.wide :global(.points) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 26px 48px;
+  }
+  @media (max-width: 760px) {
+    .deepdive.wide :global(.points) {
+      grid-template-columns: 1fr;
+    }
   }
 
   .deepdive .tag {

@@ -36,8 +36,41 @@ Rules:
 
 | Slot key        | Page                 | Where                              | Frame       | Native mock today    | Target file(s)                | Intrinsic size |
 | --------------- | -------------------- | ---------------------------------- | ----------- | -------------------- | ----------------------------- | -------------- |
+| `pages-search`  | `/` (Home)           | The Pages (`<PagesShot>`)          | Mac window  | **real capture**     | see below                     | 1280 × 1020    |
 | `app-editor`    | `/` + `/features`    | Editor showcase (`<AppMock>`)      | app window  | `<AppMock>` (CSS)    | `app-editor.png` / `@2x`      | 860 × ~520     |
 | `home-letter`   | `/` (Home)           | Year-in-review (`<LetterCard>`)    | none/native | `<LetterCard>` (CSS) | optional — intentionally native | —            |
+
+## The one real capture: `pages-search`
+
+The read surface is the only slot on the site filled with a photograph rather
+than a CSS recreation, because the wall's density — a decade of pages, four
+columns, `look for` open over it — IS the claim that section makes, and a
+recreation of it would be smaller than the truth.
+
+It is generated, never hand-edited:
+
+```bash
+npm run screenshots:site        # from the repo root, not site/
+```
+
+`scripts/capture-site-shots.mjs` drives headless Chrome against the app's own
+dev-only preview route (`?__preview=pages`, see `src/features/pages/preview.tsx`)
+and writes eight files into `public/screenshots/`:
+
+| File                             | What                                      |
+| -------------------------------- | ----------------------------------------- |
+| `pages-search-{light,dark}.png`  | the composite — dropdown over the wall     |
+| `…@2x.png`                       | the same at 2560 × 2040                    |
+| `pages-search-{…}-panel.png`     | the dropdown alone, 1280 × 540             |
+| `…-panel@2x.png`                 | the same at 2560 × 1080                    |
+
+Two palettes because the site has a theme toggle, and two crops because a
+1280px desktop surface reduced to a 335px phone column is unreadable — the
+phone gets the panel at native width in a swipeable box instead. `<PagesShot>`
+picks the right one; all four carry explicit `width`/`height`, so nothing
+shifts.
+
+Re-run it whenever the read surface changes. Nothing else needs touching.
 
 > `<AppMock>` is a **native HTML/CSS recreation of the real desktop app**
 > (rail + entries sidebar + editor), so it stays crisp and themed. It's used on

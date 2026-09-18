@@ -40,6 +40,7 @@
     "audit:subjects": "tsx --tsconfig tsconfig.app.json scripts/subjects-audit.ts",
     "verify:pages": "tsx --tsconfig tsconfig.app.json scripts/verify-pages-data.ts",
     "extract:rituals": "tsx --tsconfig tsconfig.app.json scripts/ritual-threads-extract.ts",
+    "screenshots:site": "node scripts/capture-site-shots.mjs",
     "flagship": "node scripts/capture-flagship.mjs"
   },
   "dependencies": {

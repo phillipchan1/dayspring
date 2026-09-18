@@ -62,6 +62,35 @@ export const deepDives = [
     mock: "practices",
   },
   {
+    // `wide` because the visual is a 1280px screenshot: in the half column the
+    // other dives use it would be the same postage stamp the home page's
+    // rituals band used to be.
+    id: "pages",
+    tag: "Your pages",
+    heading: "Everything you've written, and a way <em>back to it.</em>",
+    lead: "Press ⌘1 and there it is — not a list of dates, but every entry laid out as a page. This is where most of the finding happens, so it's where most of the finding tools live.",
+    wide: true,
+    points: [
+      {
+        title: "Zoom from a decade to a line",
+        body: "Continuous, not three fixed sizes. Far out, the shape of your writing life is visible — the dense months, the silences. Close in, the near end reads like an open book. Hit Return on a page to open it two-up, with room in the margin.",
+      },
+      {
+        title: "Filters that combine",
+        body: "Only entries with scripture in them. Only prayers. Only the pages you set apart. A filter you have nothing for never appears, so you're never offered an empty one. There's a plain-English box too — it sets the filters; it doesn't decide what matches.",
+      },
+      {
+        title: "Search on your device, instantly",
+        body: "⌘K searches everything you've written as you type. No network, no spinner — it works offline. Hit Return on a question instead and it goes looking for what you meant, then hands back counts, the span of time, and the sentences you actually wrote.",
+      },
+      {
+        title: "Anniversaries, folded in",
+        body: "As you scroll, pages from this date in earlier years appear in the flow — not as a notification, the way you'd come across an old letter in a drawer.",
+      },
+    ],
+    mock: "pages",
+  },
+  {
     id: "altar",
     tag: "The Altar",
     heading: "A place of <em>remembrance.</em>",
@@ -204,12 +233,20 @@ export const everything = [
     ],
   },
   {
-    group: "Finding & organizing",
+    // The entries list these used to describe is gone — the wall replaced it
+    // (D-018/D-019). Grounded in help/the-pages-wall.md + help/find-and-ask.md.
+    group: "Finding & reading back",
     items: [
-      "List, Month & Year views",
-      "Search every entry",
-      "Entry previews in the list",
-      "Collapsible sidebar",
+      "Every page on one wall",
+      "Zoom from a decade to a line",
+      "Read two-up, like a book",
+      "Filter by scripture, prayer, marks",
+      "Filter in plain English",
+      "Instant search, on your device",
+      "Ask a question, get your own words",
+      "Anniversaries folded into the scroll",
+      "Weather — first page, longest silence",
+      "Select, copy, export, delete in bulk",
     ],
   },
   {
@@ -227,8 +264,9 @@ export const everything = [
   {
     group: "Trust & platform",
     items: [
-      "macOS & web, kept in sync",
+      "A real Mac app, kept in sync",
       "iPhone app — coming soon",
+      "A browser, when it's all you have",
       "Encrypted in transit & at rest",
       "Never sold, never trained on",
       "Zero-retention AI reflection",

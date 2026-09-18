@@ -1,7 +1,11 @@
 ---
 // PricingTiers — Annual (featured) + Monthly. Premium only; 14-day trial on both.
+// Both CTAs are the Mac download: you don't pick a plan on this site, you pick
+// it inside the app, so the button's only job is to get Dayspring installed.
+// Any tier whose href IS the .dmg gets the latest-release resolution that
+// lib/macDownload.ts wires onto `[data-dl-macos]`.
 import DawnGlow from "./DawnGlow.astro";
-import { pricingTiers } from "../content/site";
+import { pricingTiers, downloads, releasesRepo } from "../content/site";
 ---
 
 <div class="tiers">
@@ -28,6 +32,8 @@ import { pricingTiers } from "../content/site";
         <a
           href={tier.cta.href}
           class:list={["pick", tier.cta.style]}
+          data-dl-macos={tier.cta.href === downloads.macos.href ? true : undefined}
+          data-repo={tier.cta.href === downloads.macos.href ? releasesRepo : undefined}
         >
           {tier.cta.label}
         </a>
@@ -172,3 +178,8 @@ import { pricingTiers } from "../content/site";
     }
   }
 </style>
+
+<script>
+  import { wireMacDownloads } from "../lib/macDownload";
+  wireMacDownloads();
+</script>

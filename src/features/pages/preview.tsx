@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { DEFAULT_SETTINGS, type Settings } from '@/lib/settings'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
@@ -21,6 +21,13 @@ import type { MarkingChip } from './facets'
  *   ?__preview=pages&part=sheet&bracket=1 → the sheet with an ERA bracketed
  *   ?__preview=pages&frame=0          → no frame; the window IS the viewport
  *   ?__preview=pages&theme=ink        → any palette; defaults to dawn
+ *   ?__preview=pages&frame=0&chrome=0 → the wall alone, no phone tab bar or FAB
+ *   ?__preview=pages&part=sheet&wide=1&open=1 → the dropdown, already open
+ *
+ * `chrome=0` and `open=1` exist for `scripts/capture-site-shots.mjs`, which
+ * shoots these two surfaces for the marketing site with headless Chrome — it
+ * has no way to click, and the phone tab bar is wrong furniture on a desktop
+ * shot.
  *
  * The frame is an `<iframe>` rather than a fixed-size box on purpose: media
  * queries answer to the viewport, and an iframe has its own. A 390px box in a
@@ -154,7 +161,7 @@ const MARKINGS: MarkingChip[] = (['gift', 'prayer', 'scripture', 'sense', 'learn
   }),
 )
 
-function SurfacePreview() {
+function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [subjectKey, setSubjectKey] = useState<string | null>(null)
   const [spreadId, setSpreadId] = useState<string | null>(null)
@@ -187,17 +194,21 @@ function SurfacePreview() {
       {/* The chrome the surface has to live with: the tab bar, and the accent
           disc the `look for` pill sits opposite. Copies, not the real
           components — only their geometry matters here. */}
-      <button className="mobile-fab" aria-label="New entry">
-        +
-      </button>
-      <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
-        {['Journal', 'Ascent', 'Lamp', 'Settings'].map((label) => (
-          <button key={label} type="button" className="mobile-tab" data-active={label === 'Journal' ? 'true' : undefined}>
-            <span className="mobile-tab__glyph">◦</span>
-            <span className="mobile-tab__label">{label}</span>
+      {chrome ? (
+        <>
+          <button className="mobile-fab" aria-label="New entry">
+            +
           </button>
-        ))}
-      </nav>
+          <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
+            {['Journal', 'Ascent', 'Lamp', 'Settings'].map((label) => (
+              <button key={label} type="button" className="mobile-tab" data-active={label === 'Journal' ? 'true' : undefined}>
+                <span className="mobile-tab__glyph">◦</span>
+                <span className="mobile-tab__label">{label}</span>
+              </button>
+            ))}
+          </nav>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -215,12 +226,31 @@ const BRACKET_INDEX = buildSubjectIndex(
  * Map lists out differently — two-up against stacked — and the grouping is the
  * thing being looked at, so both need to be reachable without a phone.
  */
-function SheetPreview({ wide, bracket }: { wide: boolean; bracket: boolean }) {
+function SheetPreview({
+  wide,
+  bracket,
+  autoOpen,
+}: {
+  wide: boolean
+  bracket: boolean
+  autoOpen: boolean
+}) {
   const [zoom, setZoom] = useState(0)
   const [keys, setKeys] = useState<string[]>(['c:tiffany'])
   const chips = [...KEPT, ...OFFERED]
     .filter((s) => keys.includes(s.key))
     .map((s) => ({ key: s.key, label: s.label, kind: 'subject' as const }))
+
+  // `open` is LookFor's own state with no controlled prop, and the capture
+  // script drives headless Chrome, which cannot click. Pressing the trigger
+  // once on mount is the whole of `open=1`.
+  useEffect(() => {
+    if (!autoOpen) return
+    const id = requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>('.pg-look__open')?.click(),
+    )
+    return () => cancelAnimationFrame(id)
+  }, [autoOpen])
 
   return (
     <div className="pg" style={{ height: '100dvh' }}>
@@ -306,9 +336,13 @@ export function renderPagesPreview(): void {
   if (!el) throw new Error('Root element #root not found')
   createRoot(el).render(
     params.get('part') === 'sheet' ? (
-      <SheetPreview wide={params.get('wide') === '1'} bracket={params.get('bracket') === '1'} />
+      <SheetPreview
+        wide={params.get('wide') === '1'}
+        bracket={params.get('bracket') === '1'}
+        autoOpen={params.get('open') === '1'}
+      />
     ) : (
-      <SurfacePreview />
+      <SurfacePreview chrome={params.get('chrome') !== '0'} />
     ),
   )
 }

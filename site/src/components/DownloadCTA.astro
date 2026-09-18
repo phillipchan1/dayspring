@@ -1,0 +1,212 @@
+---
+// DownloadCTA — the site's one call to action, in one place.
+//
+// Mac first, iPhone next to it as an honest "coming soon", and the web as a
+// text link underneath rather than a button. Dayspring is an app you install;
+// the browser build is the fallback for a borrowed machine, and pointing at it
+// with a button was telling visitors the opposite.
+//
+// A phone can't use a .dmg, so at phone width the Mac button steps back to the
+// secondary style and the iPhone pill leads with a line explaining the wait.
+// The web link stays visible at every width — it's the only door that works
+// from a phone today, it just isn't the one being sold.
+import { cta, releasesRepo } from "../content/site";
+
+interface Props {
+  /** "hero" is larger and left-aligned; "compact" suits a footer or a card. */
+  size?: "hero" | "compact";
+  /** Centre the cluster (footer). Left-aligned otherwise. */
+  align?: "left" | "center";
+  /** Drop the web fallback line — for a page that already carries one. */
+  web?: boolean;
+  class?: string;
+}
+const {
+  size = "hero",
+  align = "left",
+  web = true,
+  class: className = "",
+} = Astro.props;
+
+const applePath =
+  "M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26 2 49.9-11.4 69.5-34.3z";
+---
+
+<div class:list={["dl-cta", `is-${size}`, `al-${align}`, className]}>
+  <div class="dl-row">
+    <a
+      href={cta.mac.href}
+      class="dl-mac"
+      data-dl-macos
+      data-repo={releasesRepo}
+    >
+      <svg viewBox="0 0 384 512" aria-hidden="true"><path d={applePath} /></svg>
+      {cta.mac.label}
+    </a>
+    <span class="dl-ios" role="note">
+      <svg viewBox="0 0 384 512" aria-hidden="true"><path d={applePath} /></svg>
+      {cta.ios.label}
+      <span class="soon">{cta.ios.soon}</span>
+    </span>
+  </div>
+
+  <p class="dl-note">{cta.mac.note}</p>
+  <p class="dl-note dl-note-phone">{cta.ios.phoneNote}</p>
+
+  {
+    web && (
+      <p class="dl-web">
+        <a href={cta.web.href}>{cta.web.label} →</a>
+      </p>
+    )
+  }
+</div>
+
+<style>
+  .dl-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .al-center {
+    align-items: center;
+    text-align: center;
+  }
+  .dl-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .al-center .dl-row {
+    justify-content: center;
+  }
+
+  /* ---- the Mac button (primary) ---- */
+  .dl-mac {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 100px;
+    padding: 14px 28px;
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: 0 0 0 0 rgba(243, 189, 118, 0.5);
+    animation: breathe 4.5s ease-in-out 2s infinite;
+    transition: transform 0.25s, box-shadow 0.35s;
+  }
+  .dl-mac:hover {
+    transform: translateY(-2px);
+  }
+  .dl-mac svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    transform: translateY(-1px);
+  }
+  .is-compact .dl-mac {
+    font-size: 15px;
+    padding: 12px 24px;
+  }
+
+  /* ---- the iPhone pill (not a link — there is nothing to link to yet) ---- */
+  .dl-ios {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 13px 20px 13px 22px;
+    cursor: default;
+  }
+  .dl-ios svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+    transform: translateY(-1px);
+  }
+  .dl-ios .soon {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    border: 1px solid var(--accent-glow);
+    border-radius: 100px;
+    padding: 3px 9px;
+  }
+
+  /* ---- supporting lines ---- */
+  .dl-note {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: -2px 0 0;
+  }
+  /* The phone note replaces the macOS requirements line at phone width. */
+  .dl-note-phone {
+    display: none;
+  }
+  .dl-web a {
+    font-size: 14.5px;
+    color: var(--paper-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-strong);
+    padding-bottom: 2px;
+    transition: color 0.25s, border-color 0.25s;
+  }
+  .dl-web a:hover {
+    color: var(--paper);
+    border-bottom-color: var(--dawn-1);
+  }
+
+  /* A .dmg is dead weight on a phone: the iPhone pill leads, the Mac button
+     stops shouting, and the note explains the wait instead of listing macOS
+     requirements nobody here can meet. */
+  @media (max-width: 640px) {
+    .dl-row {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+    .dl-mac,
+    .dl-ios {
+      justify-content: center;
+    }
+    .dl-mac {
+      background: transparent;
+      color: var(--paper);
+      border: 1px solid var(--border-strong);
+      animation: none;
+      box-shadow: none;
+    }
+    .dl-ios {
+      border-color: var(--border-strong);
+      color: var(--paper);
+      padding-top: 15px;
+      padding-bottom: 15px;
+    }
+    .dl-note {
+      display: none;
+    }
+    .dl-note-phone {
+      display: block;
+      line-height: 1.6;
+      font-family: var(--font-body);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+  }
+</style>
+
+<script>
+  import { wireMacDownloads } from "../lib/macDownload";
+  wireMacDownloads();
+</script>

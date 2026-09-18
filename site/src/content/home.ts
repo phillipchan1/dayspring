@@ -18,9 +18,9 @@ export const hero = {
     text: "…the Dayspring from on high has visited us",
     ref: "Luke 1:78",
   },
-  // Web trial is the phone-safe primary door — a tap can't land on a .dmg.
-  // Mac stays reachable from the nav pill (desktop-only at phone width).
-  primary: { label: "Start your 14-day trial", href: "/start" },
+  // The CTA itself is <DownloadCTA> (Mac, then iPhone-soon, then a quiet web
+  // line) — its copy lives in content/site.ts so every page says it the same
+  // way. Only the one secondary link is the hero's to choose.
   ghost: { label: "Why we built it →", href: "/why" },
   /** Shown beneath the hero app mock — one quiet editor promise. */
   mockCaption: "Type / and the spiritual life is right there in the sentence.",
@@ -254,6 +254,38 @@ export const becoming = {
   tag: "The long view",
   heading: "See who you're <em>becoming.</em>",
   lead: "The growth that matters most is the hardest to feel day to day — patience arriving, prayer deepening, what you believe moving from your head to your heart. So Dayspring reads your own words back to you, and shows you, gently, how far you've been carried.",
+};
+
+// ---- ACT II · THE PAGES (the read surface + finding) --------
+// The first thing you do when you come back is look for something. This is the
+// one section on the page carrying a real screenshot rather than a CSS mock —
+// the wall's density is the argument, and a recreation of it would be smaller
+// than the truth. Nothing here describes a feature the surface doesn't have:
+// see site/src/content/help/the-pages-wall.md and find-and-ask.md, both
+// generated against the shipped app.
+export const pages = {
+  tag: "Your pages",
+  heading: "Everything you've written, and a way <em>back to it.</em>",
+  lead: "Not a list of dates — every entry laid out as a page. Stand back and years fit on one screen; the dense months and the long silences are suddenly visible. Come close and you're simply reading.",
+  shotAlt:
+    "The Dayspring read surface: a wall of journal pages with the 'look for' panel open over it, offering names, places and recurring matters to search by.",
+  caption:
+    "Looking for a name. The panel offers what your own pages actually carry — the number beside each one is how many pages say it.",
+  facts: [
+    {
+      title: "It searches as you type",
+      body: "On your device, over everything you've ever written. No spinner, no network — it works on a plane.",
+    },
+    {
+      title: "Narrow it by what's in the page",
+      body: "Only entries with scripture. Only prayers. Only the ones you set apart. The filters combine, and a filter you have nothing for never appears.",
+    },
+    {
+      title: "Or ask it a question",
+      body: "“What have I been praying about this year?” You get the count, the span of time, and the sentences you actually wrote — quoted, never summarised.",
+    },
+  ],
+  foot: "Nothing is invented. If Dayspring can't point at something you wrote, it says nothing rather than filling the gap.",
 };
 
 // The Lamp (Scripture) — canon heatmap (killer feature)

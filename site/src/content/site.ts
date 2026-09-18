@@ -8,6 +8,12 @@
 // app repo). Also mirrored as APP_URL's default in api/_lib/env.ts and
 // DEFAULT_API_BASE in src/lib/env.ts — verified against both before wiring,
 // not invented (see dayspring#45).
+//
+// NOT a headline door any more. Dayspring is a Mac app that also runs in a
+// browser, not a web app with a Mac build: the web is the fallback for a
+// borrowed machine, so it appears once per page as a quiet line under the
+// download, never as a button. `/start` still exists and still fires the
+// trial pixel — it's simply no longer what we point at.
 export const APP_URL = "https://dayspring-eosin.vercel.app";
 
 export const site = {
@@ -36,6 +42,28 @@ export const downloads = {
   macos: {
     label: "macOS",
     href: `https://github.com/${releasesRepo}/releases/latest/download/Dayspring-aarch64.dmg`,
+  },
+} as const;
+
+// ---- the download cluster (the site's primary CTA everywhere) ----
+// One object so the hero, the footer, the pricing cards and the nav can't drift
+// apart. `web` is deliberately styled as a text link, not a button.
+export const cta = {
+  mac: {
+    label: "Download for Mac",
+    href: downloads.macos.href,
+    /** Rendered under the buttons. The trial offer, without the trial button. */
+    note: "Complimentary access starts today. Apple silicon, macOS 13+.",
+  },
+  ios: {
+    label: "iPhone",
+    soon: "Coming soon",
+    /** Shown on phones, where the .dmg is useless and the pill is the whole CTA. */
+    phoneNote: "The iPhone app is in review. Until then, Dayspring lives on your Mac.",
+  },
+  web: {
+    label: "Or open it in your browser",
+    href: "/start",
   },
 } as const;
 
@@ -68,7 +96,7 @@ export const pricingTiers = [
     note: "Complimentary access, starts today · about $5.33 / month",
     desc:
       "The full product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar. The longer you write, the more the map fills in.",
-    cta: { label: "Start your 14-day trial", href: "/start", style: "solid" },
+    cta: { label: "Download for Mac", href: downloads.macos.href, style: "solid" },
     featured: true,
     badge: "Most chosen",
   },
@@ -79,7 +107,7 @@ export const pricingTiers = [
     note: "Complimentary access, starts today · cancel anytime",
     desc:
       "Same everything, billed month to month. A gentle way to try it before you commit to the long walk.",
-    cta: { label: "Start your 14-day trial", href: "/start", style: "line" },
+    cta: { label: "Download for Mac", href: downloads.macos.href, style: "line" },
     featured: false,
   },
 ] as const;

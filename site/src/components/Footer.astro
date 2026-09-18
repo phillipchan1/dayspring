@@ -1,6 +1,7 @@
 ---
-// Footer — closing line, a single soft CTA, and the link row.
+// Footer — closing line, the download cluster, and the link row.
 import SectionReveal from "./SectionReveal.astro";
+import DownloadCTA from "./DownloadCTA.astro";
 import { footerLinks } from "../content/site";
 
 interface Props {
@@ -11,17 +12,11 @@ interface Props {
   big?: string;
   /** Sub-line under the headline. */
   sub?: string;
-  /** Primary CTA label. */
-  ctaLabel?: string;
-  /** Primary CTA href. */
-  ctaHref?: string;
 }
 const {
   variant = "full",
   big = "Start today. Read the year later.",
   sub = "The page is free to try. The mirror comes with time.",
-  ctaLabel = "Start your 14-day trial",
-  ctaHref = "/start",
 } = Astro.props;
 ---
 
@@ -32,9 +27,7 @@ const {
         <>
           <div class="big">{big}</div>
           <div class="sub2">{sub}</div>
-          <a href={ctaHref} class="btn btn-primary">
-            {ctaLabel}
-          </a>
+          <DownloadCTA align="center" class="footer-cta" />
         </>
       )
     }
@@ -71,6 +64,9 @@ const {
     font-weight: 300;
     font-size: 18px;
     margin-bottom: 34px;
+  }
+  footer :global(.footer-cta) {
+    align-items: center;
   }
   footer .links {
     display: flex;

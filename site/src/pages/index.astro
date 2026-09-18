@@ -8,6 +8,7 @@ import TestimonialBand from "../components/TestimonialBand.astro";
 import AscentGlimpse from "../components/AscentGlimpse.astro";
 import ScriptureTeaser from "../components/ScriptureTeaser.astro";
 import AltarMock from "../components/AltarMock.astro";
+import PagesShot from "../components/PagesShot.astro";
 import PricingTiers from "../components/PricingTiers.astro";
 import { pricingHonest } from "../content/site";
 import {
@@ -18,6 +19,7 @@ import {
   practices,
   bridge,
   becoming,
+  pages,
   scripture,
   lookingBack,
   altar,
@@ -38,7 +40,6 @@ import {
     lines={hero.lines}
     sub={hero.sub}
     verse={hero.verse}
-    primary={hero.primary}
     ghost={hero.ghost}
     mockCaption={hero.mockCaption}
     appMock={hero.appMock}
@@ -82,27 +83,31 @@ import {
     </SectionReveal>
   </section>
 
-  {/* rituals — split, visual left */}
-  <section class="feature rituals-sec">
+  {/* rituals — a full-width band. Three ancient forms sharing a half column
+      squeezed each card to ~165px and wrapped every line five deep; the cards
+      are the point, so they get the whole measure and the copy sits above. */}
+  <section class="rituals-sec">
     <div class="wrap">
-      <div class="grid grid-vl">
-        <SectionReveal class="col-visual">
-          <RitualsGlimpse rituals={practices.rituals} foot={practices.foot} />
-        </SectionReveal>
-        <SectionReveal class="col-copy">
+      <SectionReveal class="sec-head">
+        <div class="head-l">
           <div class="tag">{practices.tag}</div>
           <h2 set:html={practices.heading} />
-          <p class="lead" set:html={practices.lead} />
-        </SectionReveal>
-      </div>
+        </div>
+        <p class="lead" set:html={practices.lead} />
+      </SectionReveal>
+      <SectionReveal>
+        <RitualsGlimpse rituals={practices.rituals} foot={practices.foot} />
+      </SectionReveal>
     </div>
   </section>
 
   {/* the editor — a compact supporting beat (the page itself is a joy) */}
   <section class="craft-sec">
-    <SectionReveal class="wrap craft-head">
-      <div class="tag">{editor.tag}</div>
-      <h2 set:html={editor.heading} />
+    <SectionReveal class="wrap sec-head">
+      <div class="head-l">
+        <div class="tag">{editor.tag}</div>
+        <h2 set:html={editor.heading} />
+      </div>
       <p class="lead">{editor.lead}</p>
     </SectionReveal>
     <SectionReveal class="wrap">
@@ -137,6 +142,39 @@ import {
     </SectionReveal>
   </section>
 
+  {/* the Pages — the read surface, and finding. The one real screenshot on
+      the site, and the widest plate: the wall's density IS the claim. */}
+  <section class="pages-sec">
+    <div class="wrap">
+      <SectionReveal class="sec-head">
+        <div class="head-l">
+          <div class="tag">{pages.tag}</div>
+          <h2 set:html={pages.heading} />
+        </div>
+        <p class="lead">{pages.lead}</p>
+      </SectionReveal>
+    </div>
+    <SectionReveal class="plate-wrap">
+      <PagesShot alt={pages.shotAlt} />
+      <p class="plate-caption">{pages.caption}</p>
+    </SectionReveal>
+    <div class="wrap">
+      <SectionReveal>
+        <ul class="pages-facts">
+          {
+            pages.facts.map((f) => (
+              <li>
+                <span class="c-title">{f.title}</span>
+                <span class="c-body">{f.body}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </SectionReveal>
+      <SectionReveal as="p" class="pages-foot">{pages.foot}</SectionReveal>
+    </div>
+  </section>
+
   {/* the Lamp — split, visual right */}
   <section class="feature scripture-sec">
     <div class="wrap">
@@ -153,25 +191,30 @@ import {
     </div>
   </section>
 
-  {/* the Ascent — centered stage */}
-  <section class="ascent-sec">
-    <SectionReveal class="wrap ascent-head">
-      <div class="tag">{lookingBack.tag}</div>
-      <h2 set:html={lookingBack.heading} />
-      <p class="lead">{lookingBack.lead}</p>
-    </SectionReveal>
-    <SectionReveal class="wrap ascent-stage">
-      <AscentGlimpse
-        altitudes={lookingBack.glimpse.altitudes}
-        activeAlt={lookingBack.glimpse.activeAlt}
-        activeLabel={lookingBack.glimpse.activeLabel}
-        oneLine={lookingBack.glimpse.oneLine}
-        verseRef={lookingBack.glimpse.verseRef}
-        lenses={lookingBack.lenses}
-        hint={lookingBack.glimpse.hint}
-      />
-      <p class="ascent-caption">{lookingBack.caption}</p>
-    </SectionReveal>
+  {/* the Ascent — split, visual right. It was a 560px card centred in a
+      1440px window, which read as a small thing marooned in dead space. */}
+  <section class="feature ascent-sec">
+    <div class="wrap">
+      <div class="grid grid-vr">
+        <SectionReveal class="col-copy">
+          <div class="tag">{lookingBack.tag}</div>
+          <h2 set:html={lookingBack.heading} />
+          <p class="lead">{lookingBack.lead}</p>
+          <p class="ascent-caption">{lookingBack.caption}</p>
+        </SectionReveal>
+        <SectionReveal class="col-visual">
+          <AscentGlimpse
+            altitudes={lookingBack.glimpse.altitudes}
+            activeAlt={lookingBack.glimpse.activeAlt}
+            activeLabel={lookingBack.glimpse.activeLabel}
+            oneLine={lookingBack.glimpse.oneLine}
+            verseRef={lookingBack.glimpse.verseRef}
+            lenses={lookingBack.lenses}
+            hint={lookingBack.glimpse.hint}
+          />
+        </SectionReveal>
+      </div>
+    </div>
   </section>
 
   {/* the Altar — split, visual left (now shipped) */}
@@ -197,23 +240,27 @@ import {
 
   {/* ===================== ACT III — START ===================== */}
 
-  {/* bring your history — centered card */}
-  <section class="import-sec">
-    <SectionReveal class="wrap import-head">
-      <div class="tag">{bringHistory.tag}</div>
-      <h2 set:html={bringHistory.heading} />
-      <p class="lead">{bringHistory.lead}</p>
-    </SectionReveal>
-    <SectionReveal class="wrap">
-      <div class="import-card">
-        <div class="sources">
-          {bringHistory.mock.sources.map((s) => <span class="source mono">{s}</span>)}
-        </div>
-        <div class="import-flow" aria-hidden="true">↓</div>
-        <div class="imported mono">{bringHistory.mock.imported}</div>
-        <div class="ready">{bringHistory.mock.ready}</div>
+  {/* bring your history — split, card right */}
+  <section class="feature import-sec">
+    <div class="wrap">
+      <div class="grid grid-vr">
+        <SectionReveal class="col-copy">
+          <div class="tag">{bringHistory.tag}</div>
+          <h2 set:html={bringHistory.heading} />
+          <p class="lead">{bringHistory.lead}</p>
+        </SectionReveal>
+        <SectionReveal class="col-visual">
+          <div class="import-card">
+            <div class="sources">
+              {bringHistory.mock.sources.map((s) => <span class="source mono">{s}</span>)}
+            </div>
+            <div class="import-flow" aria-hidden="true">↓</div>
+            <div class="imported mono">{bringHistory.mock.imported}</div>
+            <div class="ready">{bringHistory.mock.ready}</div>
+          </div>
+        </SectionReveal>
       </div>
-    </SectionReveal>
+    </div>
   </section>
 
   {/* privacy as stewardship — near-bare, centered */}
@@ -293,6 +340,37 @@ import {
     color: var(--gold);
   }
 
+  /* ===== the asymmetric section head =====
+     Heading left, lead right, both flush left. Almost every section on this
+     page used to be a centred stack, which made a long page read as one
+     unbroken column of centred type — nothing to catch the eye and no sense of
+     where a section began. The contemplative beats (the wedge, the bridge, the
+     privacy line) stay centred on purpose; the feature sections don't. */
+  :global(.sec-head) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 64px;
+    align-items: end;
+    margin-bottom: 44px;
+  }
+  :global(.sec-head) h2 {
+    max-width: 16ch;
+  }
+  :global(.sec-head) .lead {
+    max-width: 46ch;
+    padding-bottom: 6px;
+  }
+  @media (max-width: 860px) {
+    :global(.sec-head) {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    :global(.sec-head) h2 {
+      max-width: none;
+    }
+  }
+
   /* ===== the wedge ===== */
   .wedge {
     padding: 130px 0 110px;
@@ -337,23 +415,22 @@ import {
     grid-template-columns: 0.9fr 1.1fr;
   }
 
+  /* ===== rituals — a full-width band ===== */
+  .rituals-sec {
+    padding: 20px 0 100px;
+  }
+
   /* ===== the editor — compact supporting craft strip ===== */
   .craft-sec {
     padding: 10px 0 100px;
   }
-  .craft-sec :global(.craft-head) {
-    text-align: center;
+  .craft-sec :global(.sec-head) {
     margin-bottom: 36px;
   }
-  .craft-sec :global(.craft-head) h2 {
+  .craft-sec :global(.sec-head) h2 {
     font-size: clamp(28px, 3.6vw, 44px);
-    max-width: 18ch;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .craft-sec :global(.craft-head) .lead {
-    max-width: 50ch;
-    margin: 0 auto;
+    /* Smaller type than the other heads, so 16ch would orphan "to." */
+    max-width: 20ch;
   }
   .craft-row {
     list-style: none;
@@ -445,40 +522,75 @@ import {
 
   /* ===== becoming (Act II banner) ===== */
   .becoming-sec {
-    padding: 60px 0 40px;
-    text-align: center;
+    padding: 60px 0 50px;
   }
   .becoming-sec h2 {
     font-size: clamp(36px, 5.4vw, 64px);
-    max-width: 16ch;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: 14ch;
   }
   .becoming-sec .lead {
     max-width: 54ch;
-    margin: 0 auto;
   }
 
-  /* ===== ascent (centered stage) ===== */
-  .ascent-sec {
-    padding: 70px 0 110px;
+  /* ===== the Pages — the widest thing on the page =====
+     The plate deliberately breaks out past --maxw (1120). The claim is that a
+     decade fits on one screen, and a screenshot of a decade, boxed into the
+     same column as the body copy, argues the opposite. */
+  .pages-sec {
+    padding: 20px 0 110px;
   }
-  .ascent-sec :global(.ascent-head) {
+  .plate-wrap {
+    width: min(1440px, calc(100vw - 48px));
+    margin: 0 auto 20px;
+  }
+  .plate-caption {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(14px, 1.6vw, 17px);
+    color: var(--muted);
+    max-width: 52ch;
+    margin: 18px auto 0;
     text-align: center;
-    margin-bottom: 44px;
+    line-height: 1.5;
   }
-  .ascent-sec :global(.ascent-head) h2 {
-    max-width: 18ch;
-    margin-left: auto;
-    margin-right: auto;
+  .pages-facts {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-top: 46px;
   }
-  .ascent-sec :global(.ascent-head) .lead {
-    max-width: 46ch;
-    margin: 0 auto;
+  .pages-facts li {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding-left: 16px;
+    border-left: 2px solid var(--border-strong);
   }
-  .ascent-sec :global(.ascent-stage) {
-    max-width: 560px;
-    margin: 0 auto;
+  .pages-foot {
+    margin-top: 34px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(16px, 1.9vw, 20px);
+    color: var(--paper-dim);
+    max-width: 56ch;
+    line-height: 1.5;
+  }
+  @media (max-width: 860px) {
+    .plate-wrap {
+      width: calc(100vw - 40px);
+    }
+    .pages-facts {
+      grid-template-columns: 1fr;
+      gap: 22px;
+    }
+  }
+
+  /* ===== ascent ===== */
+  .ascent-sec .grid {
+    grid-template-columns: 1fr 1fr;
   }
   .ascent-caption {
     font-family: var(--font-display);
@@ -486,28 +598,14 @@ import {
     font-weight: 300;
     font-size: clamp(14px, 1.6vw, 17px);
     color: var(--muted);
-    text-align: center;
-    max-width: 44ch;
-    margin: 24px auto 0;
+    max-width: 40ch;
+    margin: 22px 0 0;
     line-height: 1.5;
   }
 
-  /* ===== import (centered card) ===== */
+  /* ===== import ===== */
   .import-sec {
     padding: 30px 0 110px;
-  }
-  .import-sec :global(.import-head) {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-  .import-sec :global(.import-head) h2 {
-    max-width: 18ch;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .import-sec :global(.import-head) .lead {
-    max-width: 52ch;
-    margin: 0 auto;
   }
   .import-card {
     max-width: 460px;
@@ -632,7 +730,8 @@ import {
   @media (max-width: 860px) {
     .feature .grid,
     .feature .grid-vl,
-    .scripture-sec .grid {
+    .scripture-sec .grid,
+    .ascent-sec .grid {
       grid-template-columns: 1fr;
       gap: 40px;
     }
