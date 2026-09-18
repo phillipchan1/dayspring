@@ -2,7 +2,7 @@
 // /terms — Terms of Use.
 //
 // Copy is the live app terms at https://dayspring-eosin.vercel.app/terms
-// (public/legal/terms.html, last updated 30 July 2026). Do not invent or
+// (public/legal/terms.html, last updated 18 September 2026). Do not invent or
 // paraphrase legal language; if the app terms change, update this to match.
 // ============================================================
 
@@ -22,7 +22,7 @@ export const termsPage = {
   title: "Terms of Use",
   description:
     "These terms govern your use of Dayspring, a subscription journalling application. By creating an account or using the app, you agree to them.",
-  updated: "30 July 2026",
+  updated: "18 September 2026",
   intro:
     "These terms govern your use of Dayspring, a subscription journalling application. By creating an account or using the app, you agree to them.",
   sections: [
@@ -52,9 +52,9 @@ export const termsPage = {
       ],
     },
     {
-      heading: "Trial period",
+      heading: "Complimentary access",
       paragraphs: [
-        "New accounts receive a 14-day trial granted in the app, with no payment method required. When the trial ends, your journal remains intact and fully exportable; new writing and the reflective features require a subscription.",
+        "New accounts receive 14 days of complimentary access, granted in the app with no payment method required. When complimentary access ends, your journal remains intact and fully exportable; new writing and the reflective features require a subscription.",
       ],
     },
     {
