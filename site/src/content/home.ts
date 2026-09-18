@@ -482,8 +482,8 @@ export const privacy = {
 // ---- ACT III · PRICING -------------------------------------
 export const pricing = {
   tag: "Pricing",
-  heading: "Try it for two weeks. <em>Stay for the mirror.</em>",
-  lead: "One premium plan — the editor, every slash command, the Lamp, the Ascent, and the Altar. Complimentary to start, then $64 a year or $7 a month.",
+  heading: "Begin with the whole of Dayspring. <em>Stay for the mirror.</em>",
+  lead: "The editor, every slash command, the Lamp, the Ascent, and the Altar are complimentary to begin. No payment method required.",
 };
 
 // ---- Formation — retained for reference (not on the home page) ----
