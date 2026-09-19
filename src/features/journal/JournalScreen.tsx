@@ -1186,6 +1186,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // offline-durable and two fewer round trips while typing. See lib/entryDerive.ts.
     onCreated: (created) => {
       if (!skipAdoptOnCreateRef.current) {
+        // This only adopts the id a fresh draft just earned by its first save —
+        // the writer hasn't navigated anywhere. Without the flag, the docKey
+        // swap this triggers reads as switching entries and yanks the caret to
+        // the document's end, discarding wherever mid-document edit was in
+        // progress (visible any time the first save lands while the caret sits
+        // somewhere other than the very last character — e.g. after cmd-tabbing
+        // away mid-edit and back, once the debounced create has landed).
+        skipEditorAutofocusRef.current = true
         go({ entryId: created.id }, { replace: true })
         setIsNewEntryMode(false)
       }
