@@ -3619,6 +3619,18 @@ button.pg__sense-q:hover {
   position: absolute;
   inset: 0;
   overflow-y: auto;
+  /*
+   * `overflow-y` alone leaves `overflow-x` computed to `auto` too (a lone axis
+   * can't stay `visible` next to a scrolling one), which turns the marginalia
+   * aside — absolutely positioned past the column's own edge — into genuine
+   * horizontal scroll content the moment a trackpad or mouse wheel sends a
+   * deltaX, on any width where the sidebar leaves less room than the margin
+   * needs. `touch-action: pan-y` below only keeps a single-finger touch drag
+   * from being read as a pan; it does nothing for a wheel gesture. Explicit
+   * `hidden` here just clips the margin instead of making the page scrollable —
+   * `.pg__scroll` (the wall) already pairs its axes this way for the same reason.
+   */
+  overflow-x: hidden;
   background: var(--bg);
   /*
    * The two axes, split between the browser and the gesture.

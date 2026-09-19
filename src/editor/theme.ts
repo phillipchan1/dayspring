@@ -16,23 +16,32 @@ export const editorTheme = EditorView.theme({
   '.cm-scroller': {
     fontFamily: 'var(--font-editor)',
     lineHeight: 'var(--editor-line-height)',
-    overflow: 'auto',
+    overflowY: 'auto',
     /*
-     * The two axes, split between the browser and the back-swipe.
+     * Explicit `hidden`, not just "lines wrap so there's nothing to scroll" —
+     * that held for prose but not for every widget CodeMirror can lay out
+     * inline (an image, a scripture block, a ritual's fixed-width chrome), any
+     * of which can push `.cm-content` a few pixels wider than the scroller.
+     * Leaving this axis unset computes it to `auto` too (a lone axis can't stay
+     * `visible` next to a scrolling one), which turns that into real horizontal
+     * scroll the moment a trackpad or mouse sends a deltaX — the writing
+     * surface is never supposed to move sideways at all.
+     */
+    overflowX: 'hidden',
+    /*
+     * The vertical axis, split between the browser and the back-swipe.
      *
-     * A scroller left on `auto` hands WebKit both directions, so it is free to
-     * read the opening pixels of a horizontal drag as a pan — and once it has
-     * claimed the gesture, `touchmove` stops arriving altogether. The shell that
-     * is supposed to be following the finger freezes wherever it got to, and the
-     * only swipes that ever work are the ones fast enough to finish inside the
-     * first few events. Which is exactly what "it only handles a clean swipe"
-     * was.
+     * WebKit is otherwise free to read the opening pixels of a horizontal drag
+     * as a pan — and once it has claimed the gesture, `touchmove` stops
+     * arriving altogether. The shell that is supposed to be following the
+     * finger freezes wherever it got to, and the only swipes that ever work are
+     * the ones fast enough to finish inside the first few events. Which is
+     * exactly what "it only handles a clean swipe" was.
      *
      * `pan-y` gives the browser the vertical axis — scrolling a long entry stays
      * composited, which matters more here than anywhere — and keeps the
-     * horizontal one for MobileJournal's back-swipe. Lines wrap, so there is no
-     * horizontal scrolling to lose. Same division `.pg-read1__slide` makes in
-     * Pages.css, for the same reason.
+     * horizontal one for MobileJournal's back-swipe. Same division
+     * `.pg-read1__slide` makes in Pages.css, for the same reason.
      */
     touchAction: 'pan-y',
   },
