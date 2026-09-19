@@ -123,6 +123,24 @@ function dropPos(view: EditorView, event: DragEvent): number {
 
 export function attachmentDropExtension(): Extension {
   return EditorView.domEventHandlers({
+    // A photo block is the only thing in this editor meant to be dragged
+    // (attachmentImageExtension.ts sets `draggable` on it and tags its own
+    // dragstart). Plain text is editable, and WebKit's default is to let a
+    // press-and-drag on existing text start a native drag of the selection —
+    // exactly the gesture a deliberate tap-to-place-the-caret near the end of
+    // a line can look like on iOS. That native drag feeds CodeMirror's own
+    // dropCursor() (line 675 in Editor.tsx), which draws its indicator on
+    // `dragover` and only removes it on a clean `dragend`/`dragleave`/`drop` —
+    // events iOS does not reliably deliver for a drag that was never really a
+    // drag. The result is a second, frozen, non-interactive caret-looking bar
+    // left behind wherever the gesture started. Block the drag before it can
+    // start for anything that isn't the photo's own handle.
+    dragstart(event) {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('.cm-attachment--interactive')) return false
+      event.preventDefault()
+      return true
+    },
     dragenter(event, view) {
       const dt = event.dataTransfer
       if (!dt || !isFileDrag(dt)) return false
