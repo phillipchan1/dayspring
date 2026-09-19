@@ -54,7 +54,10 @@ objc2 = "0.6"
 objc2-ui-kit = { version = "0.3", default-features = false, features = [
   "std",
   "UIApplication",
+  "UICommand",
   "UIColor",
+  "UIKeyCommand",
+  "UIMenuElement",
   "UIResponder",
   "UIScrollView",
   "UIView",

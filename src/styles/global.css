@@ -2690,11 +2690,6 @@ html[data-focus-mode] .focus-controls {
 .focus-controls__handle:hover {
   color: var(--text-dim);
 }
-.focus-controls__handle-glyph {
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
-  line-height: 1;
-}
 
 /* heartIQ has something in pencil. One dot, graphite, no count — a number
    beside someone's spiritual writing is a score with extra steps. */
@@ -2713,7 +2708,13 @@ html[data-focus-mode] .focus-controls {
   gap: 0;
   border-color: transparent;
   background: transparent;
-  opacity: 0.5;
+  opacity: 0.7;
+}
+/* The handle keeps a chip of its own even collapsed — a bare glyph floating
+   in the corner read as stray punctuation, not a control. */
+.focus-controls[data-collapsed='true'] .focus-controls__handle {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
 }
 .focus-controls[data-collapsed='true'] > :not(.focus-controls__handle) {
   width: 0;

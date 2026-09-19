@@ -140,3 +140,28 @@ export function IconFocus(props: { size?: number }) {
     </NavIcon>
   )
 }
+
+/**
+ * Sliders — three tracks, each with a knob at a different position.
+ *
+ * `WritingControls`' collapsed handle used to be a bare "⋯", which reads as
+ * "there is more text" everywhere else in software, not "controls live here".
+ * The gear (`IconSettings`) was the other candidate and the wrong one: it
+ * already names the app's own Settings surface, and this handle opens
+ * something smaller — appearance, typewriter, dim — not that.
+ */
+export function IconAdjust(props: { size?: number }) {
+  return (
+    <NavIcon {...props}>
+      <path d="M4 6h6" />
+      <path d="M14 6h6" />
+      <circle cx="10" cy="6" r="2" />
+      <path d="M4 12h10" />
+      <path d="M18 12h2" />
+      <circle cx="16" cy="12" r="2" />
+      <path d="M4 18h2" />
+      <path d="M10 18h10" />
+      <circle cx="7" cy="18" r="2" />
+    </NavIcon>
+  )
+}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import type { Settings } from '@/lib/settings'
 import type { FocusMode } from './useFocusMode'
-import { IconFocus } from './navIcons'
+import { IconAdjust, IconFocus } from './navIcons'
 
 interface Props {
   settings: Settings
@@ -59,9 +59,7 @@ export function WritingControls({
           aria-label="Writing controls"
           aria-expanded={expanded}
         >
-          <span className="focus-controls__handle-glyph" aria-hidden>
-            ⋯
-          </span>
+          <IconAdjust size={15} />
         </button>
       )}
       {docked && onEnterFocus && (

@@ -3440,6 +3440,35 @@ button.pg__sense-q:hover {
   margin-inline-start: 0.35rem;
 }
 
+/*
+ * A wide screen with no fine pointer to hover it — an iPad, whether or not it
+ * currently has a trackpad paired. Clicking the page itself does nothing on a
+ * coarse pointer (see the `touch` note in PageReader.tsx), which makes Write
+ * the ONLY way in, and it was styled like the desktop's secondary link: dim
+ * text with no container, correct beside a cursor that can hover it, invisible
+ * beside a finger that cannot. `(min-width: 768px)` is deliberately outside
+ * the `max-width: 767px` block below, which already gives Write this same
+ * weight on a phone — this is the gap in between: wide AND coarse.
+ */
+@media (pointer: coarse) and (min-width: 768px) {
+  .pg__back,
+  .pg__write {
+    min-block-size: 2.6rem;
+    padding-inline: 0.7rem;
+    font-size: 0.86rem;
+    border-color: var(--border);
+    background: var(--bg-elevated);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .pg__write {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+  }
+}
+
 /* Pushed to the end of the row, so the position never moves as chips come and
    go — it is the one thing here you reach for repeatedly. */
 .pg__through-nav {
