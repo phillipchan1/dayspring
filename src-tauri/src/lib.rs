@@ -66,6 +66,106 @@ fn reclaim_ios_viewport(webview: tauri::webview::PlatformWebview) {
   IOS_WK.store(wk as usize, std::sync::atomic::Ordering::SeqCst);
 }
 
+/// Claim ⌘, natively so it opens Dayspring's own Settings instead of iPadOS's
+/// default.
+///
+/// With a hardware keyboard attached, iPadOS resolves ⌘, against the native
+/// UIKit responder chain *before* the keystroke ever reaches the webview — if
+/// nothing in that chain has claimed it, the OS opens Settings.app scoped to
+/// the app instead. That's earlier than `useJournalShortcuts.ts`'s `keydown`
+/// listener ever sees the event, so no JS-side fix is possible; this is why
+/// ⌘, works correctly on macOS and web (nothing intercepts it upstream) but
+/// not on iPad.
+///
+/// The fix is UIKit's sanctioned way to reclaim a shortcut from system
+/// behavior: a `UIKeyCommand` with `wantsPriorityOverSystemBehavior`, added to
+/// the window's root view controller via the public `-addKeyCommand:` API —
+/// no swizzling needed for that half. The one narrow patch is the action
+/// method: a key command's target-action is resolved by selector name up the
+/// responder chain, and none of Tauri's generated view controller class
+/// defines one, so this adds one. Firing it replays the same ⌘, keydown into
+/// the webview that `useJournalShortcuts.ts` already handles, so "what ⌘, does"
+/// stays defined in exactly one place, native or web.
+///
+/// Fallible at every step by design, like the other iOS patches in this file.
+/// If any assumption breaks, ⌘, goes back to opening iOS Settings — no worse
+/// than today.
+#[cfg(target_os = "ios")]
+fn claim_ios_settings_shortcut() {
+  use objc2::ffi::class_addMethod;
+  use objc2::runtime::{AnyClass, AnyObject, Bool, Imp, Sel};
+  use objc2::{msg_send, sel, MainThreadMarker};
+  use objc2_foundation::NSString;
+  use objc2_ui_kit::{UIKeyCommand, UIKeyModifierFlags};
+  use std::sync::atomic::{AtomicBool, Ordering};
+
+  static DONE: AtomicBool = AtomicBool::new(false);
+  if DONE.swap(true, Ordering::SeqCst) {
+    return;
+  }
+
+  let Some(mtm) = MainThreadMarker::new() else {
+    log::warn!("settings shortcut: not on main thread");
+    return;
+  };
+
+  let vc = top_view_controller();
+  if vc.is_null() {
+    log::warn!("settings shortcut: no root view controller");
+    return;
+  }
+
+  extern "C" fn dayspring_open_settings(_this: &AnyObject, _cmd: Sel, _sender: *mut AnyObject) {
+    let wk = IOS_WK.load(Ordering::SeqCst) as *mut AnyObject;
+    if wk.is_null() {
+      return;
+    }
+    let js = NSString::from_str(
+      "window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', metaKey: true, bubbles: true, cancelable: true }))",
+    );
+    // SAFETY: called on the main thread, like every UIKeyCommand action.
+    unsafe {
+      let _: () = msg_send![
+        wk,
+        evaluateJavaScript: &*js,
+        completionHandler: std::ptr::null::<AnyObject>()
+      ];
+    }
+  }
+
+  let action = sel!(dayspringOpenSettings:);
+  // SAFETY: `v@:@` is the standard encoding for a one-argument action method
+  // (`- (void)action:(id)sender`), which is exactly this function's signature.
+  let imp: Imp = unsafe {
+    std::mem::transmute::<extern "C" fn(&AnyObject, Sel, *mut AnyObject), Imp>(
+      dayspring_open_settings,
+    )
+  };
+  let cls: &AnyClass = unsafe { &*vc }.class();
+  let cls_mut = cls as *const AnyClass as *mut AnyClass;
+  let added: Bool = unsafe { class_addMethod(cls_mut, action, imp, c"v@:@".as_ptr()) };
+  if !added.as_bool() {
+    log::warn!("settings shortcut: view controller class already has the action selector");
+    return;
+  }
+
+  // SAFETY: `action` is the selector just added above, on `vc`'s own class.
+  let command = unsafe {
+    UIKeyCommand::keyCommandWithInput_modifierFlags_action(
+      &NSString::from_str(","),
+      UIKeyModifierFlags::Command,
+      action,
+      mtm,
+    )
+  };
+  command.setWantsPriorityOverSystemBehavior(true);
+  command.setDiscoverabilityTitle(Some(&NSString::from_str("Settings")));
+
+  unsafe {
+    let _: () = msg_send![vc, addKeyCommand: &*command];
+  }
+}
+
 /// Hide iOS's own form accessory bar — the grey `^ ⌄ … Done` strip that WebKit
 /// puts above the keyboard on every editor focus.
 ///
@@ -853,6 +953,7 @@ pub fn run() {
             native_typing::enable_writing_tools(webview.inner() as *mut _);
             install_privacy_screen(&webview);
             reclaim_ios_viewport(webview);
+            claim_ios_settings_shortcut();
           });
         }
       }
