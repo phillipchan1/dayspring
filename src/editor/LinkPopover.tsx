@@ -61,17 +61,22 @@ export function LinkPopover({ target, onSubmit, onRemove, onCancel }: Props) {
         onCancel()
       }
     }
-    const onPointer = (e: MouseEvent) => {
+    const onPointer = (e: Event) => {
       if (e.target instanceof Node && panelRef.current?.contains(e.target)) return
       onCancel()
     }
     window.addEventListener('keydown', onKey, true)
     // Defer so the click that opened the popover doesn't immediately close it.
-    const t = window.setTimeout(() => document.addEventListener('mousedown', onPointer, true), 0)
+    // `pointerdown`, not `mousedown` — see src/editor/pointerInput.ts. A tap
+    // that WebKit routes to text selection or a scroll never becomes a mouse
+    // press at all, so on the iPad this panel simply would not close when you
+    // reached past it into the page. Every press produces a pointer event.
+    // Deferred so the press that opened the popover doesn't immediately close it.
+    const t = window.setTimeout(() => document.addEventListener('pointerdown', onPointer, true), 0)
     return () => {
       window.removeEventListener('keydown', onKey, true)
       clearTimeout(t)
-      document.removeEventListener('mousedown', onPointer, true)
+      document.removeEventListener('pointerdown', onPointer, true)
     }
   }, [onCancel])
 

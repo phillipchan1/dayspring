@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
-import { dropCursor, EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
+import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
@@ -670,8 +670,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           attachmentImageExtension((target, point, anchor) =>
             onImageMenuRef.current?.(target, point, anchor),
           ),
-          // Live insertion caret while dragging a file in or reordering a photo.
-          dropCursor(),
+          // Drag-and-drop for photos and files, including the insertion bar that
+          // previews where one will land. That bar used to be CodeMirror's
+          // `dropCursor()`, which draws on any `dragover` and needs a clean
+          // `dragend`/`dragleave`/`drop` to come down — so a gesture WebKit
+          // abandoned mid-way left it stranded, a frozen second caret that
+          // nothing could move. attachmentDropExtension now owns it and can
+          // guarantee it comes down. See the note there.
           Prec.highest(attachmentDropExtension()),
           Prec.high(
             scripturePasteExtension((reference) => onScripturePasteRef.current?.(reference)),

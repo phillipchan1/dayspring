@@ -14,6 +14,7 @@ import {
 } from './inlinePanelAnchor'
 import { MARK_KIND, MARKED_LINE_KINDS } from '@/lib/markKinds'
 import { spiritualBlocksField } from './spiritualBlocksField'
+import { editorTap } from './pointerInput'
 
 /**
  * How a declared marking is drawn.
@@ -428,28 +429,41 @@ function anchorFor(
 }
 
 /**
- * Click a rendered marking to edit it: resolve the block fresh from the live
+ * Tap a rendered marking to edit it: resolve the block fresh from the live
  * document (positions stay correct even after edits above it) and hand the
  * caller its range + contents so it can reopen the matching popover.
  *
- * Uses click-coordinate → document position lookup so that two blocks sharing
+ * Uses press-coordinate → document position lookup so that two blocks sharing
  * the same UUID (e.g. copy-pasted) are each resolved to their own range rather
  * than always resolving to the first occurrence.
+ *
+ * Bound through `editorTap`, so a finger opens the block on release of the
+ * touch itself rather than on WebKit's compatibility replay of it — which on
+ * the iPad arrived a third of a second late, or (if the gesture was read as a
+ * selection or a scroll) never arrived at all.
  */
-function blockClickHandler(
+function blockTapHandler(
   onEdit: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void,
   onOpenChapter?: (target: SpiritualBlockEditTarget, anchor: InlinePanelAnchor) => void,
 ): Extension {
-  return EditorView.domEventHandlers({
-    mousedown(event, view) {
-      const el = event.target as HTMLElement | null
-      const scriptureEl = (el?.closest('.cm-spiritual-block') ?? null) as HTMLElement | null
-      const markLineEl = scriptureEl
-        ? null
-        : ((el?.closest('.cm-mark-line') ?? null) as HTMLElement | null)
-      if (!scriptureEl && !markLineEl) return false
+  const blockElements = (target: EventTarget | null) => {
+    const el = target as HTMLElement | null
+    const scriptureEl = (el?.closest('.cm-spiritual-block') ?? null) as HTMLElement | null
+    const markLineEl = scriptureEl
+      ? null
+      : ((el?.closest('.cm-mark-line') ?? null) as HTMLElement | null)
+    return { el, scriptureEl, markLineEl }
+  }
 
-      // Resolve which block was clicked by position, not by ID — two blocks
+  return editorTap({
+    claims: (ctx) => {
+      const { scriptureEl, markLineEl } = blockElements(ctx.target)
+      return Boolean(scriptureEl || markLineEl)
+    },
+    onTap: (event, view) => {
+      const { el, scriptureEl } = blockElements(event.target)
+
+      // Resolve which block was pressed by position, not by ID — two blocks
       // with the same UUID (copy-paste) must each be independently editable.
       const blocks = view.state.field(spiritualBlocksField)
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
@@ -463,7 +477,6 @@ function blockClickHandler(
       }
       if (!block) return false
 
-      event.preventDefault()
       // Exclude the block's trailing newline so an in-place replace keeps the
       // surrounding paragraph spacing intact.
       const docLen = view.state.doc.length
@@ -520,6 +533,6 @@ export function spiritualBlockExtension(
       }
       return builder.finish()
     }),
-    blockClickHandler(onEdit, onOpenChapter),
+    blockTapHandler(onEdit, onOpenChapter),
   ]
 }

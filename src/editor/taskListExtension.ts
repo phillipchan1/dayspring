@@ -40,7 +40,16 @@ class TaskCheckboxWidget extends WidgetType {
     el.setAttribute('role', 'checkbox')
     el.setAttribute('aria-checked', this.checked ? 'true' : 'false')
     el.setAttribute('aria-label', this.checked ? 'Mark incomplete' : 'Mark complete')
-    el.addEventListener('mousedown', (e) => {
+    // Pointer, not mouse — see pointerInput.ts. A checkbox is the smallest
+    // target on the page and the one most often missed: bound to `mousedown`
+    // a finger's tap was acknowledged a third of a second late, and swallowed
+    // entirely whenever WebKit read the gesture as a caret placement instead.
+    // `pointerdown` is the real press, from every input, with no replay.
+    //
+    // `preventDefault` on the press keeps the caret where it was and stops the
+    // compatibility mouse burst that follows a touch, so the box toggles once.
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return
       e.preventDefault()
       toggleTaskAt(view, this.markerFrom)
     })
@@ -199,7 +208,7 @@ const taskListTheme = EditorView.theme({
   },
 })
 
-/** Task list lines (`[]`, `[x]`, `- [ ]`) with Enter continuation and click-to-check. */
+/** Task list lines (`[]`, `[x]`, `- [ ]`) with Enter continuation and tap-to-check. */
 export function taskListExtension(): Extension {
   return [
     taskListTheme,

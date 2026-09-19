@@ -48,14 +48,18 @@ export function WritingFontPicker({ value, onChange }: Props) {
 
   useEffect(() => {
     if (!open) return
-    const onPointer = (e: MouseEvent) => {
+    const onPointer = (e: Event) => {
       const target = e.target as Node
       if (rootRef.current?.contains(target)) return
       if (menuRef.current?.contains(target)) return
       setOpen(false)
     }
-    document.addEventListener('mousedown', onPointer)
-    return () => document.removeEventListener('mousedown', onPointer)
+    // `pointerdown`, not `mousedown` — see src/editor/pointerInput.ts. A tap
+    // that WebKit routes to text selection or a scroll never becomes a mouse
+    // press at all, so on the iPad this panel simply would not close when you
+    // reached past it into the page. Every press produces a pointer event.
+    document.addEventListener('pointerdown', onPointer)
+    return () => document.removeEventListener('pointerdown', onPointer)
   }, [open])
 
   // The menu is portaled to <body> and positioned in viewport coordinates, so

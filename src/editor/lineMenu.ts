@@ -5,8 +5,9 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view'
-import { Prec, type Extension } from '@codemirror/state'
+import type { Extension } from '@codemirror/state'
 import { posInsideBlock, spiritualBlocksField } from './spiritualBlocksField'
+import { editorTap, type TapContext } from './pointerInput'
 
 /**
  * The `+`, in the left gutter of every line.
@@ -108,13 +109,26 @@ const gutterTheme = EditorView.theme({
    * Hover is the whole line rather than the 14px of the `+`, because a
    * pseudo-element cannot be hovered on its own — a bigger target for free.
    */
-  '.cm-line:hover::after': { opacity: '0.5' },
-  '.cm-line.cm-plus-here::after': { opacity: '0.5' },
-  '.cm-content:hover .cm-line.cm-plus-here::after': { opacity: '0' },
-  '.cm-content:hover .cm-line.cm-plus-here:hover::after': { opacity: '0.5' },
-  '.cm-content.cm-typing .cm-line:hover::after': { opacity: '0' },
-  '.cm-content.cm-typing .cm-line.cm-plus-here::after': { opacity: '0.5' },
-  '.cm-line:hover:hover::after': { color: 'var(--text)' },
+  /*
+   * All of it behind `hover: hover`, because all of it is a hover.
+   *
+   * `:hover` does not mean "the pointer is here" on a touch device — it means
+   * "this is where the last tap landed", and it stays that way until the next
+   * one. Unguarded, every rule below inverted on the iPad: tapping into the
+   * editor latched `:hover` on `.cm-content`, and the third rule then hid the
+   * caret-line `+` for as long as the writer stayed in that entry, while the
+   * first rule left a second `+` glued beside whatever line had been tapped.
+   * A control that appears where you are not and vanishes where you are.
+   */
+  '@media (hover: hover)': {
+    '.cm-line:hover::after': { opacity: '0.5' },
+    '.cm-line.cm-plus-here::after': { opacity: '0.5' },
+    '.cm-content:hover .cm-line.cm-plus-here::after': { opacity: '0' },
+    '.cm-content:hover .cm-line.cm-plus-here:hover::after': { opacity: '0.5' },
+    '.cm-content.cm-typing .cm-line:hover::after': { opacity: '0' },
+    '.cm-content.cm-typing .cm-line.cm-plus-here::after': { opacity: '0.5' },
+    '.cm-line:hover:hover::after': { color: 'var(--text)' },
+  },
   // Never beside a line that is already inside a fence, nor the fence
   // delimiters (spiritualBlockDecoration) — a fence within a fence is not a
   // document anyone can edit back out of. And never beside the title, for the
@@ -129,12 +143,17 @@ const gutterTheme = EditorView.theme({
     '.cm-line::after': { transition: 'none' },
   },
   /*
-   * A phone has no gutter to put this in, and no hover to reveal it with.
-   * Touch keeps the command toolbar above the keyboard, which names the same
-   * commands out loud and is the better affordance there anyway — including
-   * Ritual, which this note used to promise and that bar did not carry.
+   * No hover, no `+` — on a phone and on an iPad alike.
+   *
+   * This was `max-width: 767px`, which is a question about how wide the window
+   * is, and the `+` is not a question about width. It is revealed by hovering,
+   * so a device that cannot hover cannot reveal it, and what was left on the
+   * iPad was an invisible 22px target sitting in the gutter — exactly where a
+   * thumb reaches to put the caret at the start of a line. Touch keeps the
+   * command toolbar above the keyboard, which names the same commands out loud
+   * and is the better affordance there anyway.
    */
-  '@media (max-width: 767px)': {
+  '@media (hover: none)': {
     '.cm-line::after': { content: 'none' },
   },
 })
@@ -175,7 +194,7 @@ export function plusRect(
  */
 export function hitPlus(
   view: EditorView,
-  event: MouseEvent,
+  event: { clientX: number; clientY: number },
 ): { el: HTMLElement; pos: number } | null {
   if (Math.abs(event.clientX - gutterX(view)) > HIT_PX) return null
   const rect = view.contentDOM.getBoundingClientRect()
@@ -256,21 +275,36 @@ export function lineMenuExtension(
     gutterTheme,
     plusHerePlugin(),
     typingPlugin(),
-    // Ahead of the block click handler, which would otherwise read this as a
-    // click on the line's content.
-    Prec.highest(
-      EditorView.domEventHandlers({
-        mousedown(event, view) {
-          const hit = hitPlus(view, event)
-          if (!hit) return false
-          // Cancel the mousedown rather than handling the click: the caret and
-          // any live selection have to survive, since the selection is the
-          // range the palette may be about to mark.
-          event.preventDefault()
-          onPlus(hit.pos, plusRect(view, hit.el))
-          return true
-        },
-      }),
-    ),
+    // Ahead of the block tap handler, which would otherwise read this as a
+    // press on the line's content. `editorTap` cancels the press rather than
+    // handling a click, so the caret and any live selection survive — the
+    // selection is the range the palette may be about to mark.
+    editorTap({
+      claims: (ctx, view) => Boolean(plusTarget(ctx, view)),
+      onTap: (ctx, view) => {
+        const hit = plusTarget(ctx, view)
+        if (!hit) return false
+        onPlus(hit.pos, plusRect(view, hit.el))
+        return true
+      },
+    }),
   ]
+}
+
+/**
+ * The `+` under this press, if it is a press the `+` can answer.
+ *
+ * **Mouse only, and not as a platform exception.** The `+` is drawn at zero
+ * opacity and revealed by hover; a finger cannot hover, so on a touch it is an
+ * invisible 22px target sitting exactly where you reach to put the caret at the
+ * start of a line. Gating on the pointer that is actually pressing — rather
+ * than on what the device is capable of — is also the only test that survives
+ * an iPad with a Magic Keyboard, where the trackpad makes `(pointer: coarse)`
+ * false while the owner keeps writing with a finger. Touch reaches these same
+ * commands through the command toolbar above the keyboard, which names them
+ * out loud.
+ */
+function plusTarget(ctx: TapContext, view: EditorView): { el: HTMLElement; pos: number } | null {
+  if (ctx.pointerType !== 'mouse') return null
+  return hitPlus(view, ctx)
 }

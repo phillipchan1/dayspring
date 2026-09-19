@@ -44,6 +44,13 @@ function buildDecorations(view: EditorView): DecorationSet {
 const dimTheme = EditorView.theme({
   '.cm-line': { transition: 'opacity 160ms ease' },
   '.cm-dim': { opacity: '0.28' },
+  // The whole surface animates on every caret move between paragraphs, and on
+  // a long entry that is a lot of line boxes inside a contenteditable. Honour
+  // the system setting — and give WebKit one less thing to composite while
+  // someone is typing into it.
+  '@media (prefers-reduced-motion: reduce)': {
+    '.cm-line, .cm-practice-prompt, .cm-practice-header': { transition: 'none' },
+  },
   // Scripture renders as a block widget that sits *between* lines, so the
   // line-level `.cm-dim` decoration can't reach it — left alone it would stay at
   // full strength and dominate the dimmed page. Fade it to the same resting
@@ -55,7 +62,6 @@ const dimTheme = EditorView.theme({
   // paragraph — which is the point: a marked paragraph fades and brightens with
   // the writing, because it *is* the writing.
   '.cm-spiritual-block': { opacity: '0.28' },
-  '.cm-spiritual-block:hover': { opacity: '1' },
 
   // Ritual scaffolding is block widgets too, and left alone it produced the
   // exact inversion focus mode exists to prevent: the writer's own answers faded
@@ -73,8 +79,19 @@ const dimTheme = EditorView.theme({
   '.cm-line.cm-dim + .cm-practice-prompt:not(:has(+ .cm-line + .cm-line:not(.cm-dim)))': {
     opacity: '0.28',
   },
-  // Readable on demand, the same bargain the spiritual blocks strike.
-  '.cm-practice-prompt:hover, .cm-practice-header:hover': { opacity: '1' },
+  /*
+   * Readable on demand — where "on demand" is a thing the device can express.
+   *
+   * `:hover` on a touch device means "the last thing tapped", and it latches
+   * there until the next tap. Unguarded, these rules made focus mode do the
+   * opposite of its job on the iPad: tapping anywhere near a scripture block
+   * or a ritual prompt left it burning at full strength over a dimmed page,
+   * for as long as the writer stayed in the entry.
+   */
+  '@media (hover: hover)': {
+    '.cm-spiritual-block:hover': { opacity: '1' },
+    '.cm-practice-prompt:hover, .cm-practice-header:hover': { opacity: '1' },
+  },
 })
 
 const dimPlugin = ViewPlugin.fromClass(

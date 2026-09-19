@@ -84,17 +84,21 @@ export function YouMenu({
 
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: Event) => {
       const t = e.target as Node
       if (!wrap.current?.contains(t) && !menu.current?.contains(t)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
     }
-    document.addEventListener('mousedown', onDown)
+    // `pointerdown`, not `mousedown` — see src/editor/pointerInput.ts. A tap
+    // that WebKit routes to text selection or a scroll never becomes a mouse
+    // press at all, so on the iPad this panel simply would not close when you
+    // reached past it into the page. Every press produces a pointer event.
+    document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
     return () => {
-      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('pointerdown', onDown)
       document.removeEventListener('keydown', onKey)
     }
   }, [open])

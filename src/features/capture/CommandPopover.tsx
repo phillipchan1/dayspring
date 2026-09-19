@@ -72,7 +72,7 @@ export function CommandPopover({
   // that asked for it.
   const openedAt = useRef(Date.now())
   useEffect(() => {
-    const onPointer = (e: MouseEvent | TouchEvent) => {
+    const onPointer = (e: Event) => {
       if (isGhostClick(openedAt.current)) return
       const t = e.target
       if (t instanceof Node && document.querySelector('.command-popover')?.contains(t)) return
@@ -81,12 +81,16 @@ export function CommandPopover({
     const t = window.setTimeout(() => {
       // `mousedown` covers desktop; `touchstart` covers phones where a tap on a
       // non-interactive surface doesn't reliably synthesize a mouse event.
-      document.addEventListener('mousedown', onPointer, true)
+    // `pointerdown`, not `mousedown` — see src/editor/pointerInput.ts. A tap
+    // that WebKit routes to text selection or a scroll never becomes a mouse
+    // press at all, so on the iPad this panel simply would not close when you
+    // reached past it into the page. Every press produces a pointer event.
+      document.addEventListener('pointerdown', onPointer, true)
       document.addEventListener('touchstart', onPointer, true)
     }, GHOST_CLICK_MS)
     return () => {
       clearTimeout(t)
-      document.removeEventListener('mousedown', onPointer, true)
+      document.removeEventListener('pointerdown', onPointer, true)
       document.removeEventListener('touchstart', onPointer, true)
     }
   }, [onDismiss])
