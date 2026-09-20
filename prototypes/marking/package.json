@@ -1,0 +1,10 @@
+{
+  "name": "dayspring-marking-prototype",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && node -e \"const{createServer}=require('node:http'),{readFileSync}=require('node:fs');createServer((q,s)=>{s.setHeader('content-type','text/html');s.end(readFileSync('index.html'))}).listen(5173,()=>console.log('http://localhost:5173/marking/#intro'))\""
+  }
+}

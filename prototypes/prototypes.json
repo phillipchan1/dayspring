@@ -63,6 +63,15 @@
       "hasFeedback": true,
       "startHash": "intro",
       "description": "Thirteen practices, one shape. Six movement kinds that let a practice’s form differ — and the five practices that should take none of them. Screen-share walkthrough — not self-guided feedback."
+    },
+    {
+      "slug": "marking",
+      "title": "Marking Scripture",
+      "description": "A phrase inside a verse, marked. The citation is the door, the words are text. Screen-share walkthrough — not self-guided feedback.",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "intro"
     }
   ]
 }
