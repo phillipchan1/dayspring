@@ -227,8 +227,40 @@
     transition: color 120ms ease, text-decoration-color 120ms ease;
   }
 
-  .block--live .block__ref { cursor: pointer; }
-  .block--live .block__ref:hover { color: var(--text-bright); text-decoration-color: rgba(var(--gold), 0.8); }
+  /*
+   * The door has to be visible at rest, not on hover: there is no hover on a
+   * phone, so a hover-only cue is no cue at all for half the people who meet it.
+   * Two quiet signals, both always present — a hairline under the citation, and
+   * the arrow this product already uses for "continue to the passage" in the
+   * chapter pane's own footer. Neither is floating chrome; both ride the
+   * citation line that was already there.
+   */
+  .block--live .block__ref {
+    cursor: pointer;
+    text-decoration-color: rgba(var(--gold), 0.55);
+    text-decoration-thickness: 1px;
+  }
+
+  .block--live .block__ref::after {
+    content: '→';
+    display: inline-block;
+    margin-left: 0.5em;
+    letter-spacing: 0;
+    color: var(--text-faint);
+    transition: transform 120ms ease, color 120ms ease;
+  }
+
+  .block--live .block__ref:hover,
+  .block--live .block__ref:focus-visible {
+    color: var(--text-bright);
+    text-decoration-color: rgba(var(--gold), 0.95);
+  }
+
+  .block--live .block__ref:hover::after,
+  .block--live .block__ref:focus-visible::after {
+    transform: translateX(2px);
+    color: var(--text-dim);
+  }
 
   .block__menu {
     position: absolute;
@@ -475,6 +507,7 @@
         <p class="eyebrow">Screen 1 of 3 · today</p>
         <h1 style="font-size: clamp(1.5rem, 4vw, 1.9rem);">How it behaves now</h1>
         <p>You pasted James 4:8 this morning. <strong>Draw near to God</strong> is the part that landed. Try to mark just those four words.</p>
+        <p style="color: var(--text-dim); font-size: 0.96rem;">Notice the citation too. Nothing about it says the chapter is one tap away — today that's carried by a tooltip, which needs a mouse and a pause, so on a phone it doesn't exist at all.</p>
       </div>
 
       <div class="paper">
@@ -515,7 +548,7 @@
             <p>Something shifted in small group last night. I kept hearing the same phrase — draw near — and I couldn't shake it.</p>
             <div class="block block--live" id="live-block">
               <p class="block__verse" id="live-verse"></p>
-              <button type="button" class="block__ref" id="live-ref">James 4:8 · ESV</button>
+              <button type="button" class="block__ref" id="live-ref" title="Read James 4" aria-label="Read James 4">James 4:8 · ESV</button>
               <button type="button" class="block__menu" id="live-menu" aria-label="Edit scripture">⋯</button>
             </div>
             <p>I want to sit with the rest of the chapter. What else is there besides the one line I copied?</p>
@@ -557,6 +590,7 @@
       <p>Three things worth saying out loud before any of this gets built:</p>
       <ul class="asks">
         <li>Did you ever click the words expecting the chapter, or the citation expecting a selection? <strong>Which way did you guess wrong?</strong></li>
+        <li>The hairline and the arrow on the citation — <strong>enough, too much, or the wrong shape?</strong> They are the one thing here that adds ink to a pull-quote you see every day.</li>
         <li>Did you want bold — really want it, not just notice it was missing?</li>
         <li>On the phone: did press-and-hold occur to you, or did you have to be told?</li>
       </ul>
@@ -606,7 +640,7 @@
   var NOTES = {
     intro: 'A walkthrough, not the live app. <b>Open it on your phone too.</b>',
     today: 'Try to select <b>Draw near to God</b>. The block is one button, so nothing happens.',
-    mark: 'Same block, one change. The words take a selection; the citation opens the chapter.',
+    mark: 'The words take a selection. The citation — underlined, with an arrow — opens the chapter.',
     back: 'A marked phrase always travels with its reference.',
     take: 'Three questions, then the build order.'
   };
@@ -614,8 +648,8 @@
   var coarse = window.matchMedia('(pointer: coarse)').matches;
 
   document.getElementById('mark-lede').innerHTML = coarse
-    ? 'Tap the verse and the chapter opens, exactly as today. <b>Press and hold</b> the words instead and you get a selection — then one button.'
-    : 'Click the verse and the chapter opens, exactly as today. <b>Drag across</b> the words instead and you get a selection — then one button. Watch the cursor change as you cross from the words onto the citation.';
+    ? 'The citation now carries a hairline and an arrow, so the door is visible without hovering. Tap it — or the verse — and the chapter opens, exactly as today. <b>Press and hold</b> the words instead and you get a selection, then one button.'
+    : 'The citation now carries a hairline and an arrow at rest, so the door is visible before you reach it. Click it — or the verse — and the chapter opens, exactly as today. <b>Drag across</b> the words instead and you get a selection, then one button. Watch the cursor change as you cross from the words onto the citation.';
 
   document.getElementById('live-hint').textContent = coarse
     ? 'Press and hold “Draw near to God”. Tap a mark again to take it off.'
