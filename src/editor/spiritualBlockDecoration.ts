@@ -4,7 +4,14 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view'
-import { RangeSet, RangeSetBuilder, StateField, type Extension, type Text } from '@codemirror/state'
+import {
+  EditorState,
+  RangeSet,
+  RangeSetBuilder,
+  StateField,
+  type Extension,
+  type Text,
+} from '@codemirror/state'
 import { type ParsedSpiritualBlock } from '@/lib/spiritualBlocks'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -503,6 +510,44 @@ function blockTapHandler(
 }
 
 /**
+ * A fence is only a fence at the start of a line — the parser reads line by line.
+ * Lose the line break in front of the opening fence and ```dayspring-scripture
+ * is glued to the end of the paragraph above: the block drops out of the
+ * document's structure, the widget vanishes, and the raw markup, id and all,
+ * spills onto the page.
+ *
+ * That break is reachable from a row the writer can't tell from a blank line. A
+ * rendered block leaves an empty-looking row above it (see cm-block-widget-line-
+ * stubs) and the caret can rest there, at the fence's own `from`. Backspace from
+ * that row means "go up a line", and the line up is exactly this newline. Delete
+ * from the end of the line above, or a selection that runs down onto the row,
+ * swallow it the same way.
+ *
+ * So a change that would delete the newline while leaving text in front of it
+ * loses just that newline; the rest of it (any text deleted above) still lands.
+ * For a lone Backspace nothing is deleted and the caret ends up where the
+ * deletion started — the end of the line above, which is where the writer was
+ * headed. A blank line above the fence, or a deletion that takes the whole line,
+ * leaves the fence at a line start and is left alone, as is removing the block.
+ */
+const keepFenceOnItsOwnLine = EditorState.changeFilter.of((tr) => {
+  if (!tr.docChanged || !(tr.isUserEvent('delete') || tr.isUserEvent('input'))) return true
+  const blocks = tr.startState.field(spiritualBlocksField, false)
+  if (!blocks || blocks.length === 0) return true
+
+  const { doc } = tr.startState
+  const protectedRanges: number[] = []
+  tr.changes.iterChangedRanges((fromA, toA) => {
+    for (const block of blocks) {
+      if (block.from === 0 || toA !== block.from || fromA >= toA) continue
+      // Text stays in front of the fence only if the change starts mid-line.
+      if (fromA > doc.lineAt(fromA).from) protectedRanges.push(block.from - 1, block.from)
+    }
+  })
+  return protectedRanges.length > 0 ? protectedRanges : true
+})
+
+/**
  * Paint Dayspring spiritual fences: every declared kind but scripture as marked
  * lines over the writer's own words, scripture as a set-apart block. Raw
  * ```dayspring-*``` syntax stays in the document for search, sync, and export.
@@ -533,6 +578,7 @@ export function spiritualBlockExtension(
       }
       return builder.finish()
     }),
+    keepFenceOnItsOwnLine,
     blockTapHandler(onEdit, onOpenChapter),
   ]
 }

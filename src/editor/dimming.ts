@@ -1,5 +1,6 @@
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
-import { RangeSetBuilder, type Extension } from '@codemirror/state'
+import { RangeSetBuilder, type EditorState, type Extension } from '@codemirror/state'
+import { spiritualBlocksField } from './spiritualBlocksField'
 
 /**
  * Paragraph dimming: fade every line except the paragraph the cursor is in, so
@@ -8,24 +9,51 @@ import { RangeSetBuilder, type Extension } from '@codemirror/state'
  */
 const dimLine = Decoration.line({ class: 'cm-dim' })
 
-function activeParagraph(view: EditorView): { start: number; end: number } {
-  const { doc } = view.state
-  const head = view.state.selection.main.head
-  const cur = doc.lineAt(head).number
+/**
+ * Line numbers `[first, last]` covered by each scripture block.
+ *
+ * A scripture block is a widget standing in for its fence lines, and those lines
+ * are non-blank — so to a "run of non-blank lines" they look like prose, and the
+ * paragraph above the block, the block, and the paragraph below it all read as
+ * one. Write on the line beneath a verse and the line above the verse stayed lit.
+ * A block is a boundary, the way a blank line is.
+ *
+ * Prayer and sense are not listed: they are the writer's own lines, drawn as
+ * lines, and belong to the paragraph they sit in.
+ */
+function scriptureLineSpans(state: EditorState): Array<[number, number]> {
+  const spans: Array<[number, number]> = []
+  const { doc } = state
+  for (const block of state.field(spiritualBlocksField, false) ?? []) {
+    if (block.type !== 'scripture') continue
+    // `block.to` is past the closing fence's newline, so the last character of
+    // the block is always on the closing fence line (or is its newline).
+    spans.push([doc.lineAt(block.from).number, doc.lineAt(Math.max(block.from, block.to - 1)).number])
+  }
+  return spans
+}
+
+export function activeParagraph(state: EditorState): { start: number; end: number } {
+  const { doc } = state
+  const spans = scriptureLineSpans(state)
+  const isBreak = (n: number) =>
+    doc.line(n).text.trim() === '' || spans.some(([first, last]) => n >= first && n <= last)
+
+  const cur = doc.lineAt(state.selection.main.head).number
 
   let start = cur
   let end = cur
-  // Empty current line → only it is "active".
-  if (doc.line(cur).text.trim() !== '') {
-    while (start > 1 && doc.line(start - 1).text.trim() !== '') start--
-    while (end < doc.lines && doc.line(end + 1).text.trim() !== '') end++
+  // A blank line, or the stub beside a scripture block → only it is "active".
+  if (!isBreak(cur)) {
+    while (start > 1 && !isBreak(start - 1)) start--
+    while (end < doc.lines && !isBreak(end + 1)) end++
   }
   return { start, end }
 }
 
 function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
-  const { start, end } = activeParagraph(view)
+  const { start, end } = activeParagraph(view.state)
   const { doc } = view.state
 
   for (const { from, to } of view.visibleRanges) {

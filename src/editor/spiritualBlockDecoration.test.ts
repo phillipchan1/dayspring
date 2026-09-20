@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { EditorState } from '@codemirror/state'
-import { EditorView, type DecorationSet } from '@codemirror/view'
+import { EditorState, type Transaction } from '@codemirror/state'
+import { deleteCharBackward, deleteCharForward } from '@codemirror/commands'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { EditorView, type Command, type DecorationSet } from '@codemirror/view'
 import { RangeSet } from '@codemirror/state'
 import { spiritualBlocksField } from './spiritualBlocksField'
 import { spiritualBlockExtension } from './spiritualBlockDecoration'
@@ -159,5 +161,68 @@ describe('prayer and sense render as marked lines, not block widgets', () => {
     const widgets = decorations(state).filter((d) => d.widget)
     expect(widgets).toHaveLength(1)
     expect(widgets[0]!.to).toBeGreaterThan(widgets[0]!.from)
+  })
+})
+
+describe('the line break in front of a fence', () => {
+  const ext = [spiritualBlocksField, spiritualBlockExtension(() => {})]
+  const FENCE = '```dayspring-scripture ' + ID + '\nWait for the LORD\nPsalm 27:14 · ESV\n```'
+  const ABOVE = 'Lord i wait on you. i wait on the lord\n'
+
+  /**
+   * Run an editing command against a state, the way a keypress would. The
+   * commands only read `state` and `dispatch`, so a bare pair stands in for a
+   * view — no DOM to mount, nothing to measure.
+   */
+  function press(cmd: Command, doc: string, anchor: number, head = anchor): EditorState {
+    let state = EditorState.create({ doc, selection: { anchor, head }, extensions: ext })
+    cmd({ state, dispatch: (tr: Transaction) => (state = tr.state) } as unknown as EditorView)
+    return state
+  }
+
+  const blockCount = (s: EditorState) => parseSpiritualBlocks(s.doc.toString()).length
+
+  // The reported bug. The caret rests on the empty-looking row above a rendered
+  // block — really the start of the fence line — and Backspace glued the fence
+  // onto the paragraph above, dumping raw ```dayspring-scripture <id> on screen.
+  it('Backspace from the row above a block goes up a line and leaves the fence alone', () => {
+    const doc = ABOVE + FENCE
+    const s = press(deleteCharBackward, doc, ABOVE.length)
+    expect(s.doc.toString()).toBe(doc)
+    expect(blockCount(s)).toBe(1)
+    expect(s.selection.main.head).toBe(ABOVE.length - 1)
+  })
+
+  it('Delete from the end of the line above leaves the fence alone', () => {
+    const doc = ABOVE + FENCE
+    const s = press(deleteCharForward, doc, ABOVE.length - 1)
+    expect(s.doc.toString()).toBe(doc)
+    expect(blockCount(s)).toBe(1)
+  })
+
+  it('a selection running down onto the block deletes the text and keeps the break', () => {
+    const doc = ABOVE + FENCE
+    const s = press(deleteCharBackward, doc, 4, ABOVE.length)
+    expect(s.doc.toString()).toBe('Lord\n' + FENCE)
+    expect(blockCount(s)).toBe(1)
+  })
+
+  it('still lets a whole line go, break and all, since the fence then starts a line', () => {
+    const s = press(deleteCharBackward, ABOVE + FENCE, 0, ABOVE.length)
+    expect(s.doc.toString()).toBe(FENCE)
+    expect(blockCount(s)).toBe(1)
+  })
+
+  it('still removes a blank line above the block', () => {
+    const doc = ABOVE + '\n' + FENCE
+    const s = press(deleteCharBackward, doc, ABOVE.length + 1)
+    expect(s.doc.toString()).toBe(ABOVE + FENCE)
+    expect(blockCount(s)).toBe(1)
+  })
+
+  it('still clears everything when the block goes too', () => {
+    const doc = ABOVE + FENCE
+    const s = press(deleteCharBackward, doc, 0, doc.length)
+    expect(s.doc.toString()).toBe('')
   })
 })
