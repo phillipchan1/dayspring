@@ -23,7 +23,6 @@
   transition: background var(--transition);
 }
 
-.slash-palette__item:hover,
 .slash-palette__item[data-active='true'] {
   background: var(--bg-hover);
 }

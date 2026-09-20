@@ -4872,7 +4872,9 @@ html[data-focus-mode] .focus-controls {
   transition: background var(--transition);
 }
 
-.slash-palette__item:hover,
+/* Highlight follows the palette cursor only (SlashPalette drives it from the
+   keyboard and from *real* pointer movement). A `:hover` rule would light up
+   whatever row the palette opened under a resting pointer. */
 .slash-palette__item[data-active='true'] {
   background: var(--bg-hover);
 }

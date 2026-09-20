@@ -230,7 +230,16 @@ export function SlashPalette({ state, onSelect, onDismiss, onCancel }: Props) {
         onTouchCancel={() => {
           touchStartRow.current = null
         }}
-        onMouseEnter={() => setCursor({ col: colIdx as 0 | 1, row: rowIdx })}
+        // A pointer only counts once it has actually moved. The palette opens
+        // (and arrow keys scroll rows) under a pointer that's resting wherever
+        // it was left, and browsers report that as a mouseenter — which used to
+        // hand the highlight, and so Enter, to whatever row was under it.
+        onMouseMove={(e) => {
+          if (e.movementX === 0 && e.movementY === 0) return
+          setCursor((c) =>
+            c?.col === colIdx && c.row === rowIdx ? c : { col: colIdx as 0 | 1, row: rowIdx },
+          )
+        }}
       >
         <span
           className={`slash-palette__badge${
