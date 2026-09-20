@@ -433,7 +433,7 @@ Phil picked five frames and added the flagship as the sixth. That is the test se
 |---|---|---|---|
 | 1 | `f1-flagship` | `assets/flagship/paid-dawn/4x5.png` | The whole product, in the real app |
 | 2 | `r3-slash-demo` | `DS_A_r3-slash-demo_4x5_dawn.png` | Scripture, prayer and practice in the line |
-| 3 | `r4-harvest` | `DS_B_r4-harvest_4x5_ink.png` | The history comes back |
+| 3 | `r4-harvest` | `DS_B_r4-harvest_4x5_ink.png` | Ten years of journaling, read back |
 | 4 | `r2-notes-graveyard` | `DS_B_r2-notes-graveyard_4x5_ink.png` | The journals that stopped |
 | 5 | `r7-lectio-open` | `DS_C_r7-lectio-open_4x5_ink.png` | A form running in the page |
 | 6 | `r6-shelf-open` | `DS_C_r6-shelf-open_4x5_dawn.png` | **The category claim, earned by thirteen named forms** |
@@ -477,3 +477,25 @@ is that the sentences are shorter and the claims are things you could check.
 **If anything here gets rewritten later, keep two rules.** Never assert the reader's
 faith (§4). Never put the trial, the price or an offer on the art (§9) — the ad text
 is the place for terms, where Meta sets them in the reader's own UI.
+
+
+### r4 failed its own test, and was rebuilt (2026-09-20)
+
+*"Ten years of writing, finally readable"* over a wall of grey bars. Phil: *"it's not
+clear that this is a journal, I have to think about it."* That is the <1s test this
+whole set is built around, failed by the frame that carries the product's most
+distinctive promise.
+
+Two causes. The bars were skeleton lines — at feed size a loading state or a chart,
+with nothing in them that said *written pages*. And the headline never used the word
+*journal*. Density was the wrong instinct: a phone renders a 1080px ad at roughly
+half width, so any wall dense enough to feel like ten years is too small to read.
+
+Rebuilt as `uiArchive`: a window in the same chrome as the editor frames, six dated
+entries at a size a phone can read, fading upward into the past, the newest lit. The
+entries tell the promise without help — *asked, asked again, waited, and then the
+answer*. The headline is now `BRANDSCRIPT.md`'s own tested alternate, verbatim:
+**"Ten years of journaling. One story you've never read."**
+
+The general lesson for anything added here: **legibility beats density.** If an
+element has to be decoded, it is costing the one second the frame has.

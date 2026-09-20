@@ -368,17 +368,25 @@ export const VARIANTS = [
   {
     id: 'r4-harvest',
     track: 'B',
-    layout: 'harvest',
+    // Was `layout: 'harvest'` over a wall of grey skeleton bars, which at feed
+    // size read as a loading state, not a journal. See uiArchive.
+    layout: 'demo',
+    ui: 'archive',
+    uiScale: 1.0,
     recipe: 'R4',
-    onImage: { lead: 'Ten years of writing,', accent: 'finally readable.' },
-    bridge: 'Read yours back, in your own words.',
+    // BRANDSCRIPT.md:159's own tested alternate, verbatim. It says "journaling"
+    // — which the old line ("Ten years of writing, finally readable") never did.
+    onImage: { lead: 'Ten years of journaling.', accent: 'One story you’ve never read.' },
+    // Not "Dayspring reads it back…": the wordmark sits one line below, so the
+    // name landed twice in a row.
+    bridge: 'Read back to you, in your own words.',
     themes: ['ink', 'dawn'],
     formats: ['4x5', '1x1'],
     meta: {
       primaryShort: 'Ten years of journals nobody ever read back. Including you.',
       primary:
         'Ten years of journals nobody ever read back. Including you.\n\nDayspring gathers what you actually wrote and hands it back by season: the prayers, the passages, the thing you said twice without noticing. Every word quoted straight from your own entries, with the dates computed in code.\n\nBring a decade of journals in and read it as one thing.',
-      headline: 'Read yourself becoming',
+      headline: 'Your journals, finally read back',
       description: 'Your words, not ours',
       cta: 'Learn more',
     },

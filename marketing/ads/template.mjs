@@ -697,8 +697,65 @@ const uiRitual = (t, { scale = 1 } = {}) => {
   </div>`;
 };
 
+
+/**
+ * A journal, ten years deep — read in one glance as a journal.
+ *
+ * This replaced a wall of grey skeleton bars under the "ten years" headline.
+ * At feed size those bars read as a loading state or a chart: nothing in them
+ * said *written pages*, and Phil had to stop and think about what he was
+ * looking at (2026-09-20). The fix is legibility, not density. A window in the
+ * same chrome as the editor frames, with dated entries at a size a phone can
+ * actually read, fading upward into the past. Dates plus sentences in an app
+ * window is the fastest "this is a journal" the set has.
+ *
+ * The entries are fabricated and generic, as every sample here is, and they
+ * are ordered to tell the remembrance promise on their own: asked, asked
+ * again, waited, and then — lit — the answer.
+ */
+const uiArchive = (t, { scale = 1 } = {}) => {
+  const px = (n) => Math.round(n * scale);
+  const rows = [
+    ['2015 &middot; jan 12', 'Starting this again. Third notebook this year.', 0.3],
+    ['2016 &middot; mar 3', 'The week everything changed at work.', 0.42],
+    ['2018 &middot; jun 30', 'Asked for patience. Asked again.', 0.55],
+    ['2019 &middot; jul 19', 'Still asking for the same thing.', 0.68],
+    ['2022 &middot; nov 2', 'Still waiting. Still writing.', 0.82],
+    ['2024 &middot; sep 8', 'I think this was the answer.', 1],
+  ];
+  return `
+  <div style="background:${t.bg};border:1px solid ${t.borderStrong};border-radius:${px(20)}px;
+       overflow:hidden;box-shadow:0 ${px(40)}px ${px(90)}px rgba(0,0,0,0.45)">
+    <div style="display:flex;align-items:center;gap:${px(14)}px;padding:${px(22)}px ${px(34)}px;
+         border-bottom:1px solid ${t.border}">
+      <span style="width:${px(11)}px;height:${px(11)}px;border-radius:50%;background:${t.muted};opacity:.5"></span>
+      <span style="font-family:'DS Mono',ui-monospace,Menlo,monospace;font-size:${px(20)}px;
+            letter-spacing:0.12em;text-transform:uppercase;color:${t.muted}">
+        Journal &middot; 2015 &ndash; 2024
+      </span>
+    </div>
+    ${rows
+      .map(
+        ([date, line, op], i, all) => {
+          const lit = i === all.length - 1;
+          return `
+      <div style="display:flex;gap:${px(28)}px;align-items:baseline;padding:${px(21)}px ${px(34)}px;
+           ${i ? `border-top:1px solid ${t.border};` : ''}
+           background:${lit ? 'rgba(232,145,124,0.10)' : 'transparent'}">
+        <span style="font-family:'DS Mono',ui-monospace,Menlo,monospace;font-size:${px(19)}px;
+              letter-spacing:0.06em;color:${lit ? t.gold : t.muted};min-width:${px(200)}px;
+              opacity:${lit ? 1 : Math.max(op, 0.55)}">${date}</span>
+        <span style="font-family:'DS Body',Georgia,serif;font-size:${px(29)}px;line-height:1.35;
+              color:${t.paper};opacity:${op}">${line}</span>
+      </div>`;
+        },
+      )
+      .join('')}
+  </div>`;
+};
+
 /** Which fragment the `demo` layout draws. */
-const RECIPE_UI = { editor: uiEditor, shelf: uiShelf, ritual: uiRitual };
+const RECIPE_UI = { editor: uiEditor, shelf: uiShelf, ritual: uiRitual, archive: uiArchive };
 
 
 // ---- the close ------------------------------------------------------
