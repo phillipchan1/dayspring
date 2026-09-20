@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
-import { formatColophon } from '@/lib/circumstances'
+import { colophonLines, formatColophon } from '@/lib/circumstances'
 import { renderMarkdown } from '@/lib/markdown'
 import { passagesForEntry } from '@/lib/remember'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
@@ -177,7 +177,18 @@ export function PageReader({
     () => renderMarkdown(renderedMarkdown, { asTitle: firstLineTitle }),
     [renderedMarkdown, firstLineTitle],
   )
+  /*
+   * The circumstances, twice over, and deliberately in two shapes.
+   *
+   * `colophon` is still the one-line form, because a photo's verso is one line
+   * (see `hydrateReadAttachments`). `facts` is the same parts as a column, for
+   * the rail — where a dot-joined string wraps at arbitrary places.
+   */
   const colophon = formatColophon(entry.created_at, entry.circumstances)
+  const facts = useMemo(
+    () => colophonLines(entry.created_at, entry.circumstances),
+    [entry.created_at, entry.circumstances],
+  )
 
   /**
    * Light the lit words, after the markdown is on the page.
@@ -393,10 +404,19 @@ export function PageReader({
           {...asButton}
         >
           <header className="pg-read1__head">
+            {/*
+              The date alone.
+
+              Hour, place and weather used to hang under it as a second line.
+              They are the same class of fact as a marking's kind — the only
+              things on the page nobody typed — and the rail is where those go.
+              Under the date they also pushed the first sentence down by a line
+              on every page that had them and not on the ones that didn't, which
+              is the one thing the header's own note says must not happen.
+            */}
             <time className="pg-read1__date" dateTime={entry.created_at}>
               {formatDate(entry.created_at)}
             </time>
-            {colophon ? <p className="pg-read1__colophon">{colophon}</p> : null}
           </header>
 
           <div className="pg-read1__cols">
@@ -405,8 +425,8 @@ export function PageReader({
               className="pg-read1__body markdown-body"
               dangerouslySetInnerHTML={{ __html: html }}
             />
-            {margin.length > 0 ? (
-              <aside className="pg-read1__margin" aria-label="What you set apart on this page">
+            {margin.length > 0 || facts.length > 0 ? (
+              <aside className="pg-read1__margin" aria-label="Beside this page">
                 {margin.map((note, i) => (
                   <p className="pg-read1__note" key={i}>
                     {note.kind ? (
@@ -421,6 +441,29 @@ export function PageReader({
                     {note.text}
                   </p>
                 ))}
+
+                {/*
+                  The circumstances of the writing, last and set apart by a rule.
+
+                  Last because everything above it is the writer's own words and
+                  this is not — it is the room: the hour as a band, the place as
+                  a neighbourhood, the weather as it was. A colophon goes at the
+                  end of a book, not the front of it.
+
+                  Set in the date's face rather than the notes', so nothing here
+                  can be mistaken for something somebody wrote. Each fact on its
+                  own line, and a page with none of them prints none of them —
+                  never "location unknown".
+                */}
+                {facts.length > 0 ? (
+                  <p className="pg-read1__facts">
+                    {facts.map((fact) => (
+                      <span className="pg-read1__fact" key={fact}>
+                        {fact}
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
               </aside>
             ) : null}
           </div>

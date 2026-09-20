@@ -165,6 +165,29 @@ export function formatColophon(
   return parts.length > 0 ? parts.join(' · ') : null
 }
 
+/**
+ * The same facts, one per line, for a column rather than a folio rule.
+ *
+ * `formatColophon` joins with `·` because it prints as a single line under the
+ * date, and under a photo as its verso. An open page's right-hand rail is a
+ * COLUMN — a dot-joined string wraps in it at arbitrary places and reads as one
+ * broken sentence, where three short lines read as three facts. Same parts,
+ * same order, same silence when there is nothing to say.
+ */
+export function colophonLines(
+  createdAt: string,
+  circumstances: EntryCircumstances | undefined | null,
+): string[] {
+  if (!circumstances) return []
+  const lines: string[] = []
+  const hour = formatHourBand(createdAt, circumstances.timezone)
+  if (hour) lines.push(hour)
+  const place = circumstances.location?.label.trim()
+  if (place) lines.push(place)
+  if (circumstances.weather) lines.push(formatWeather(circumstances.weather))
+  return lines
+}
+
 export function weatherFromWmo(code: number): { condition: WeatherCondition; summary: string } {
   if (code === 0 || code === 1) return { condition: 'clear', summary: 'clear' }
   if (code === 2 || code === 3) return { condition: 'cloud', summary: 'cloudy' }

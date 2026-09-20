@@ -4178,12 +4178,58 @@ button.pg__sense-q:hover {
 }
 
 /*
+ * The room the page was written in — hour, place, weather — at the foot of the
+ * rail, under a rule.
+ *
+ * The rule is the whole of the separation, and it is there because everything
+ * above it in this column is the writer's own words and none of this is. Same
+ * face as the date in the header, for the same reason: these are facts about
+ * the page, in the one typeface on this surface that is never used for writing.
+ *
+ * `:first-child` because the rule is between the notes and the facts, and on a
+ * page with no markings there is nothing above to rule off from.
+ */
+.pg-read1__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  margin: 1.4rem 0 0;
+  padding-block-start: 0.85rem;
+  border-block-start: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.pg-read1__facts:first-child {
+  margin-block-start: 0;
+  padding-block-start: 0;
+  border-block-start: none;
+}
+
+/*
  * The kind, on a marking that is not in the prose — a declared block, almost
  * always. Sans, because it is the one word in this margin the writer did not
  * type, and the margin is otherwise entirely theirs.
  */
+/*
+ * A row, not a block — the hand and the word it names sit on one line.
+ *
+ * `display: block` put the glyph in the flow as a bare inline-flex box with
+ * `line-height: 0`, which meant two things went wrong at once. There was no gap
+ * at all, so the drawing touched the first letter: scripture's 2px rule butted
+ * against the S of SCRIPTURE and read as part of it. And an inline box with no
+ * line-height sits on the text baseline by its own bottom edge, so each of the
+ * six hands — an ember 4px tall, a rule 11px, a bracket 13px — landed at a
+ * different height against the same word. A flex row with `align-items: center`
+ * answers both: one gap, one centre line, whatever is being drawn.
+ */
 .pg-read1__kind {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
   margin-block-end: 0.2rem;
   font-family: var(--font-sans);
   font-size: 0.6rem;
@@ -4271,7 +4317,30 @@ button.pg__sense-q:hover {
   }
 }
 
-@media (max-width: 60rem) {
+/*
+ * ── When the rail comes off the side ────────────────────────────────────────
+ *
+ * 72.5rem, and the number is arithmetic rather than taste.
+ *
+ * The page box is centred and capped at the measure plus its own gutters, and
+ * the rail hangs in whatever slack is left over — it takes no part in the
+ * centring, so that opening the editor cannot pull the prose sideways. That
+ * costs something: the slack is `(window − measure − 2 gutters) / 2`, and
+ * nothing was checking it was ever enough. At the old 60rem the rail simply ran
+ * off the right-hand edge — verses cut mid-word from about 960px to 1100px,
+ * which is an ordinary half-screen window.
+ *
+ * The rail needs `2.25rem` of gap, `11rem` of column and a gutter of its own
+ * past the measure, so it fits from `measure + 30.5rem`. At the default 42rem
+ * measure that is 72.5rem. Below it the rail goes under the writing instead.
+ *
+ * KNOWN LIMIT: the measure is the writer's own setting (32–60rem) and a media
+ * query cannot read it, so a measure wider than the default still wants a wider
+ * window than this before the rail truly fits. Making it exact for every
+ * setting means the rail joins the centring and the prose moves — which is the
+ * trade this file has already refused once.
+ */
+@media (max-width: 72.5rem) {
   /*
    * With the margin column gone there is nothing to balance the page against,
    * so the whole block centres instead of hanging at the left edge with a hand
