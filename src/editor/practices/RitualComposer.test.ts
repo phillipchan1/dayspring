@@ -57,11 +57,13 @@ vi.mock('@/lib/analytics', () => ({
   track: (event: string, props?: unknown) => tracked.push({ event, props }),
 }))
 
-// The composer is under test, not the viewport hooks.
+// The composer is under test, not the viewport hooks. A phone unless a test
+// sits down at a desk.
+const viewport = vi.hoisted(() => ({ desk: false }))
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useIsMobile: () => true,
-  useTouchPrimary: () => true,
-  useMediaQuery: () => false,
+  useIsMobile: () => !viewport.desk,
+  useTouchPrimary: () => !viewport.desk,
+  useMediaQuery: () => viewport.desk,
 }))
 
 const examen = PRACTICES.find((p) => p.name === 'The Daily Examen')!
@@ -378,5 +380,76 @@ describe('RitualComposer', () => {
     expect(
       document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
     ).toBe('Examination')
+  })
+
+  describe('at a desk', () => {
+    beforeEach(() => {
+      viewport.desk = true
+    })
+    afterEach(() => {
+      viewport.desk = false
+    })
+
+    const page = () => document.querySelector('.rc__page .rc__label')?.textContent
+    const path = () =>
+      [...document.querySelectorAll<HTMLElement>('.rc__path li')].map((li) => li.dataset.state)
+    const write = () => document.querySelector<HTMLTextAreaElement>('.rc__page .rc__write')!
+
+    it('lays the ritual out as a rail and a page, not a filmstrip', () => {
+      render()
+      expect(document.querySelector('.rc--desk')).toBeTruthy()
+      expect(document.querySelector('.rc__viewport')).toBeNull()
+      expect(page()).toBe('Gratitude')
+    })
+
+    it('names the movements ahead but never asks their questions', () => {
+      render()
+      expect(path()).toEqual(['on', 'ahead', 'ahead', 'ahead'])
+      const text = document.querySelector('.ritual-composer')!.textContent!
+      expect(text).toContain('Awareness')
+      expect(text).not.toContain(examen.prompts[1]!.question)
+    })
+
+    it('shows what was said to a movement behind you, and lets you go back to it', () => {
+      render()
+      act(() => type(write(), 'Bread.'))
+      act(() => document.querySelector<HTMLElement>('.rc__foot .rc__next')!.click())
+      expect(page()).toBe('Awareness')
+      expect(path()).toEqual(['done', 'on', 'ahead', 'ahead'])
+      expect(document.querySelector('.rc__gist')?.textContent).toBe('Bread.')
+      act(() => document.querySelector<HTMLElement>('.rc__path li button')!.click())
+      expect(page()).toBe('Gratitude')
+      // Having walked there, Awareness stays open to come back to.
+      expect(path()).toEqual(['on', 'open', 'ahead', 'ahead'])
+    })
+
+    it('moves on with ⌘↵ and leaves plain Enter to the paragraph', () => {
+      render()
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+      })
+      expect(page()).toBe('Gratitude')
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true }))
+      })
+      expect(page()).toBe('Awareness')
+    })
+
+    it('says where leaving goes, and keeps what was written', () => {
+      render()
+      act(() => type(write(), 'Bread.'))
+      const home = document.querySelector<HTMLButtonElement>('.rc__home')!
+      expect(home.textContent).toContain('Back to your entry')
+      act(() => home.click())
+      expect(onClose).toHaveBeenCalled()
+      expect(doc).toContain('Bread.')
+    })
+
+    it('resumes on the movement still waiting, with what is behind it open', () => {
+      doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', 'Distant.', '', ''])
+      render()
+      expect(page()).toBe('Examination')
+      expect(path()).toEqual(['done', 'done', 'on', 'ahead'])
+    })
   })
 })

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
 import { createPortal } from 'react-dom'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
-import { useTouchPrimary } from '@/hooks/useMediaQuery'
+import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { track } from '@/lib/analytics'
 import { PRACTICE_BY_NAME } from './practicesData'
 import { placeholderFor, questionFor } from './usePracticeInsertion'
@@ -73,6 +73,21 @@ interface Props {
  * text to its own caret and selection recogniser. No library governs that. If a
  * swipe that starts on the writing area is sometimes ignored, this is why — but
  * "ignored" is a recoverable state and "stranded" was not.
+ *
+ * ── At a desk ──────────────────────────────────────────────────────────────
+ *
+ * Everything above is an argument about a phone keyboard, and a desk has none.
+ * There the filmstrip became a nine-line box floating in an empty screen, with
+ * what you wrote a minute ago a swipe away — a form wizard. So on a wide screen
+ * with a fine pointer the same composer lays itself out as a rail and a page
+ * (`DeskLayout` below): the page holds the one question in front of you and
+ * as much room to answer it as the screen has; the rail holds the path — what
+ * you said to each movement behind you, where you are, and the NAMES of the
+ * movements ahead. Never their questions: that is the pacing `ritualPacing.ts`
+ * exists for, and a name does not let you budget an answer. A movement ahead
+ * opens once you have walked to it, or once it has words in it.
+ *
+ * Same state, same writes, same ways out; only the arrangement differs.
  */
 export function RitualComposer({
   blockIndex,
@@ -104,6 +119,19 @@ export function RitualComposer({
   })
   const paneRefs = useRef<(HTMLTextAreaElement | null)[]>([])
   const touch = useTouchPrimary()
+  // The rail wants room beside a reading column; below this the filmstrip is
+  // the better use of the width even with a mouse.
+  const wide = useMediaQuery('(min-width: 900px)')
+  const desk = wide && !touch
+  /**
+   * The furthest movement the writer has walked to — what the rail may name
+   * as reachable. Opening on the movement still waiting counts as having
+   * walked there, so a ritual resumed tomorrow does not re-lock what is behind.
+   */
+  const [reached, setReached] = useState(startAt)
+  useEffect(() => {
+    setReached((r) => Math.max(r, i))
+  }, [i])
   // Not `inset: 0` plus a height: a fixed overlay is anchored to the layout
   // viewport, so once iOS scrolls the page to keep the focused field above the
   // keyboard, the composer rides up under the Dynamic Island and leaves a gap of
@@ -285,6 +313,10 @@ export function RitualComposer({
       setI(n)
       requestAnimationFrame(() => paneRefs.current[n]?.focus({ preventScroll: true }))
     }
+    // The layout can change under an open composer (a window narrowed past
+    // the desk width), and Embla then starts from its `startIndex`, not from
+    // the movement the writer is in.
+    if (embla.selectedScrollSnap() !== iRef.current) embla.scrollTo(iRef.current, true)
     embla.on('select', onSelect)
     return () => {
       embla.off('select', onSelect)
@@ -316,6 +348,13 @@ export function RitualComposer({
         leave()
         return
       }
+      // ⌘↵ is "I'm done with this one" — plain Enter is a new paragraph.
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'Enter') {
+        e.preventDefault()
+        if (i < CLOSE) go(i + 1)
+        else leave()
+        return
+      }
       if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return
       if (e.key === 'ArrowRight') {
         e.preventDefault()
@@ -327,7 +366,7 @@ export function RitualComposer({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [blocked, go, i, leave])
+  }, [CLOSE, blocked, go, i, leave])
 
 
   if (!block) return null
@@ -335,6 +374,38 @@ export function RitualComposer({
   const written = i < total && (texts[i] ?? '').trim().length > 0
   // Only a keyboard makes room worth fighting for; on desktop nothing recedes.
   const yielding = written && touch
+
+  const write = (n: number, value: string) =>
+    setTexts((prev) => {
+      const next = prev.slice()
+      next[n] = value
+      return next
+    })
+
+  if (desk) {
+    return createPortal(
+      <DeskLayout
+        name={block.name}
+        origin={practice?.origin}
+        intention={practice?.intention}
+        labels={labels}
+        texts={texts}
+        i={i}
+        reached={reached}
+        question={(label) => questionFor(practice, label)}
+        placeholder={(label) => placeholderFor(practice, label)}
+        textareaRef={(el) => {
+          if (i < total) paneRefs.current[i] = el
+        }}
+        onWrite={write}
+        go={go}
+        leave={leave}
+        remove={removeBlock}
+        about={() => onAbout(block.name)}
+      />,
+      document.body,
+    )
+  }
 
   return createPortal(
     <div
@@ -411,13 +482,7 @@ export function RitualComposer({
                   value={texts[n] ?? ''}
                   placeholder={placeholderFor(practice, label)}
                   tabIndex={n === i ? 0 : -1}
-                  onChange={(e) =>
-                    setTexts((prev) => {
-                      const next = prev.slice()
-                      next[n] = e.target.value
-                      return next
-                    })
-                  }
+                  onChange={(e) => write(n, e.target.value)}
                 />
               </div>
             </section>
@@ -453,5 +518,151 @@ export function RitualComposer({
       </footer>
     </div>,
     document.body,
+  )
+}
+
+/** ⌘ on Apple hardware, Ctrl everywhere else — the hint must match the key. */
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
+
+interface DeskProps {
+  name: string
+  origin: string | undefined
+  intention: string | undefined
+  labels: string[]
+  texts: string[]
+  i: number
+  reached: number
+  question: (label: string) => string
+  placeholder: (label: string) => string
+  textareaRef: (el: HTMLTextAreaElement | null) => void
+  onWrite: (n: number, value: string) => void
+  go: (n: number) => void
+  leave: () => void
+  remove: () => void
+  about: () => void
+}
+
+/**
+ * The composer at a desk: the path in a rail, one question on a page.
+ *
+ * Stateless on purpose — every decision (what is written, where the writer is,
+ * how leaving works) stays in `RitualComposer`, so the two layouts cannot
+ * disagree about the ritual, only about how it is arranged.
+ */
+function DeskLayout({
+  name,
+  origin,
+  intention,
+  labels,
+  texts,
+  i,
+  reached,
+  question,
+  placeholder,
+  textareaRef,
+  onWrite,
+  go,
+  leave,
+  remove,
+  about,
+}: DeskProps) {
+  const total = labels.length
+  const filled = (n: number) => (texts[n] ?? '').trim() !== ''
+  const reachable = (n: number) => n <= reached || filled(n)
+  const label = labels[i] ?? ''
+
+  return (
+    <div
+      className="ritual-composer rc--desk"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${name} — movement ${Math.min(i + 1, total)} of ${total}`}
+    >
+      <aside className="rc__rail">
+        {/* Not "close" and not "step out": say where it goes, and (below) that
+            nothing is lost by going. */}
+        <button type="button" className="rc__home" onClick={leave}>
+          <span aria-hidden>←</span> Back to your entry
+          <kbd className="rc__kbd">esc</kbd>
+        </button>
+        <h2 className="rc__title">{name}</h2>
+        {origin && <p className="rc__origin">{origin}</p>}
+
+        <ol className="rc__path">
+          {labels.map((l, n) => {
+            const state =
+              n === i ? 'on' : !reachable(n) ? 'ahead' : filled(n) ? 'done' : 'open'
+            return (
+              <li key={l} data-state={state}>
+                <button
+                  type="button"
+                  onClick={() => go(n)}
+                  disabled={state === 'ahead'}
+                  aria-current={n === i ? 'step' : undefined}
+                >
+                  <span className="rc__path-label">{l}</span>
+                  {n !== i && filled(n) && <span className="rc__gist">{texts[n]}</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+
+        {intention && <p className="rc__intent">{intention}</p>}
+        <div className="rc__rail-tools">
+          <button type="button" onClick={about}>
+            About this ritual
+          </button>
+          <button type="button" onClick={remove} aria-label="Remove this ritual from the entry">
+            Remove from entry
+          </button>
+        </div>
+        <p className="rc__saved">Saved to your entry as you write.</p>
+      </aside>
+
+      <main className="rc__desk">
+        {i < total ? (
+          <>
+            {/* Keyed so each movement arrives rather than being swapped in. */}
+            <section className="rc__page" key={label}>
+              <span className="rc__label">{label}</span>
+              <p className="rc__q">{question(label)}</p>
+              <textarea
+                className="rc__write"
+                ref={textareaRef}
+                value={texts[i] ?? ''}
+                placeholder={placeholder(label)}
+                onChange={(e) => onWrite(i, e.target.value)}
+              />
+            </section>
+            <footer className="rc__foot">
+              <button
+                type="button"
+                className="rc__back"
+                onClick={() => go(i - 1)}
+                disabled={i === 0}
+              >
+                {i > 0 ? `← ${labels[i - 1]}` : ''}
+              </button>
+              <span className="rc__foot-go">
+                <kbd className="rc__kbd">{MOD} ↵</kbd>
+                <button type="button" className="rc__next" onClick={() => go(i + 1)}>
+                  {i < total - 1 ? 'Continue' : 'Finish'}
+                </button>
+              </span>
+            </footer>
+          </>
+        ) : (
+          <div className="rc__close">
+            <h2 className="rc__close-name">{name}</h2>
+            {origin && <p className="rc__close-origin">{origin}</p>}
+            <p className="rc__close-origin">It’s in your entry, as you wrote it.</p>
+            <button type="button" className="rc__next" onClick={leave}>
+              Back to your entry
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
   )
 }

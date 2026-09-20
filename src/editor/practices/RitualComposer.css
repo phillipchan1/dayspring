@@ -266,6 +266,222 @@
   .rc__foot { padding: 0.6rem 1.6rem 0.8rem; }
 }
 
+/* ── At a desk: the path in a rail, one question on a page ─────────────────
+   Only rendered on a wide screen with a fine pointer (see `DeskLayout`), so
+   nothing here has to survive a keyboard. Everything is scoped to `.rc--desk`;
+   the filmstrip's rules above stay the phone's. */
+.rc--desk {
+  display: grid;
+  grid-template-columns: 17.5rem minmax(0, 1fr);
+}
+
+.rc__rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.4rem 1.5rem 1.6rem 1.9rem;
+  border-right: 1px solid var(--border-subtle);
+}
+.rc__home {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 2.4rem;
+  padding: 0.3rem 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-family: var(--rc-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.rc__home:hover { color: var(--accent); }
+.rc__home .rc__kbd { opacity: 0; transition: opacity 0.2s ease; }
+.rc__home:hover .rc__kbd, .rc__home:focus-visible .rc__kbd { opacity: 1; }
+.rc__kbd {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.66rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+.rc__title {
+  margin: 0;
+  font-family: var(--rc-body);
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--text-bright);
+}
+.rc__origin {
+  margin: 0.15rem 0 0;
+  font-size: 0.84rem;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+/* The path: a thread with a bead per movement. */
+.rc__path {
+  position: relative;
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+}
+.rc__path::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  width: 1px;
+  background: var(--border-subtle);
+}
+.rc__path button {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0 0.65rem 1.4rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: var(--rc-body);
+  color: inherit;
+  cursor: pointer;
+}
+.rc__path button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.9rem;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--text-faint);
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.rc__path [data-state='done'] button::before {
+  background: color-mix(in srgb, var(--accent) 45%, var(--bg));
+  border-color: transparent;
+}
+.rc__path [data-state='on'] button::before {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.rc__path button:disabled { cursor: default; }
+.rc__path-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.rc__path [data-state='on'] .rc__path-label { color: var(--accent); }
+.rc__path [data-state='ahead'] .rc__path-label { color: var(--text-faint); }
+.rc__path button:not(:disabled):hover .rc__path-label { color: var(--accent); }
+.rc__gist {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.25rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: pre-line;
+}
+.rc__path button:hover .rc__gist { color: var(--text); }
+
+.rc__intent {
+  margin: auto 0 0;
+  padding-top: 2rem;
+  font-size: 0.84rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+.rc__rail-tools {
+  display: flex;
+  gap: 1.1rem;
+  margin-top: 1rem;
+}
+.rc__rail-tools button {
+  flex: 0 0 auto;
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-family: var(--rc-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.rc__rail-tools button:hover { color: var(--accent); }
+.rc__saved {
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+/* The page. */
+.rc__desk {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.rc__page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(44rem, 100%);
+  margin: 0 auto;
+  padding: clamp(2.5rem, 9vh, 5.5rem) 2.5rem 1rem;
+  animation: rc-arrive 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes rc-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.rc--desk .rc__label { color: var(--accent); margin-bottom: 0.6rem; }
+.rc--desk .rc__q {
+  margin: 0 0 1.8rem;
+  font-size: 1.6rem;
+  line-height: 1.35;
+  color: var(--text-bright);
+}
+/* Undo the filmstrip's fixed nine-line box: the page is the answer's to fill. */
+.rc--desk .rc__write {
+  flex: 1;
+  height: auto;
+  min-height: 10rem;
+  line-height: 1.6;
+}
+.rc--desk .rc__foot {
+  width: min(44rem, 100%);
+  margin: 0 auto;
+  padding: 1rem 2.5rem 1.6rem;
+  border-top: none;
+}
+.rc__foot-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.rc--desk .rc__back { font-size: 0.85rem; }
+.rc--desk .rc__back:hover { color: var(--accent); }
+.rc--desk .rc__home:focus-visible, .rc__path button:focus-visible,
+.rc__rail-tools button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ritual-composer, .rc__track, .rc__q, .rc__spine { animation: none; transition: none; }
+  .ritual-composer, .rc__track, .rc__q, .rc__spine, .rc__page { animation: none; transition: none; }
 }
