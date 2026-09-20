@@ -51,6 +51,17 @@ interface Props {
   onMark?: ((view: EditorView) => void) | undefined
   /** The selection is already marked — the button unmarks. */
   marked?: boolean | undefined
+  /**
+   * The selection is inside a scripture quotation, so Mark is the only thing
+   * on offer.
+   *
+   * Bold edits the text; marking is an overlay on it. Borrowed words cannot be
+   * edited — that is what `scriptureReadOnly` enforces — so a bar advertising
+   * B / I / U over a verse would be four buttons that do nothing and one that
+   * works. One button is not a reduced bar here, it is the whole truth about
+   * what you can do to somebody else's sentence.
+   */
+  markOnly?: boolean | undefined
   /** Dismiss a caret-summoned bar (Escape on the last page). */
   onDismiss?: (() => void) | undefined
 }
@@ -101,7 +112,14 @@ function TouchFace({ action, label }: { action: BarAction; label: string }) {
 }
 
 /** Single-line markdown formatter that floats above the current selection. */
-export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDismiss }: Props) {
+export function SelectionFormatBar({
+  anchor,
+  onRequestLink,
+  onMark,
+  marked,
+  markOnly,
+  onDismiss,
+}: Props) {
   const barRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
@@ -213,12 +231,18 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDi
   }, [anchor, page, measureFade])
 
   if (!anchor) return null
+  // Borrowed words with nowhere to hang a mark — an entry that has not been
+  // saved yet, so there is no id for `marks` to key on. The bar would be a
+  // single button that does nothing, and the honest version of that is no bar.
+  if (markOnly && !onMark) return null
 
-  const formatActions = onMark
-    ? [{ ...MARK_BAR_ACTION, sep: true as const }, ...FORMAT_BAR_ACTIONS]
-    : ios
-      ? FORMAT_BAR_ACTIONS.map((a, i) => (i === 0 ? { ...a, sep: true as const } : a))
-      : FORMAT_BAR_ACTIONS
+  const formatActions: { action: BarAction; label: string; title: string; sep?: true }[] = markOnly
+    ? [MARK_BAR_ACTION]
+    : onMark
+      ? [{ ...MARK_BAR_ACTION, sep: true as const }, ...FORMAT_BAR_ACTIONS]
+      : ios
+        ? FORMAT_BAR_ACTIONS.map((a, i) => (i === 0 ? { ...a, sep: true as const } : a))
+        : FORMAT_BAR_ACTIONS
 
   const runSystem = async (action: SystemAction) => {
     const view = anchor.view
@@ -275,7 +299,13 @@ export function SelectionFormatBar({ anchor, onRequestLink, onMark, marked, onDi
   const maxWidth = Math.max(0, viewportWidth - 16)
 
   const face = (action: BarAction, label: string) =>
-    touch ? <TouchFace action={action} label={label} /> : <FormatBarIcon action={action} />
+    // A lone bookmark glyph floating over a verse is a riddle; with only one
+    // action on the bar there is room for the word, and the word is clearer.
+    touch || markOnly ? (
+      <TouchFace action={action} label={label} />
+    ) : (
+      <FormatBarIcon action={action} />
+    )
 
   const shell = (opts: { leading?: ReactNode; trailing?: ReactNode; children: ReactNode }) =>
     createPortal(

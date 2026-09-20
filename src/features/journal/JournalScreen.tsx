@@ -2020,11 +2020,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               initialDoc={content}
               onChange={handleContentChange}
               marks={entryId ? marks.marksFor(entryId) : []}
-              // Marking is a READING act. The button only exists on an entry
-              // written on a previous day — today's page keeps exactly the
-              // formatting bar it has always had, and the writing surface gains
-              // nothing (Principle 3).
-              {...(entryId && isPastEntry
+              // Marking prose is a READING act, so the button only appears on
+              // an entry written on a previous day — today's page keeps exactly
+              // the formatting bar it has always had, and the writing surface
+              // gains nothing (Principle 3).
+              //
+              // A scripture quotation is the one exception, and the Editor
+              // makes it: borrowed words are being read the moment they land,
+              // so a verse carries Mark on any entry. Which is why the handler
+              // is now passed whenever there is an entry to hang a mark on, and
+              // `proseMarking` carries the day-old rule on its own.
+              proseMarking={isPastEntry}
+              {...(entryId
                 ? {
                     onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
                       marks.toggleMark(entryId, quote, charStart, existing),
