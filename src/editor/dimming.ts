@@ -79,17 +79,12 @@ const dimTheme = EditorView.theme({
   '@media (prefers-reduced-motion: reduce)': {
     '.cm-line, .cm-practice-prompt, .cm-practice-header': { transition: 'none' },
   },
-  // Scripture renders as a block widget that sits *between* lines, so the
-  // line-level `.cm-dim` decoration can't reach it — left alone it would stay at
-  // full strength and dominate the dimmed page. Fade it to the same resting
-  // opacity while dimming is active; hovering brings it back to full so it stays
-  // readable on demand.
-  //
-  // Prayer and sense need nothing here. They are the writer's own lines now
-  // (spiritualBlockDecoration.ts), so `.cm-dim` reaches them like any other
-  // paragraph — which is the point: a marked paragraph fades and brightens with
-  // the writing, because it *is* the writing.
-  '.cm-spiritual-block': { opacity: '0.28' },
+  // Scripture needs nothing here any more, and neither do prayer and sense.
+  // All three are ordinary lines now (spiritualBlockDecoration.ts), so `.cm-dim`
+  // reaches them like any other paragraph — which is the point: a quotation
+  // fades and brightens with the writing around it. The rule that used to fade
+  // the scripture widget by hand, and the hover rule that brought it back, are
+  // both gone with the widget.
 
   // Ritual scaffolding is block widgets too, and left alone it produced the
   // exact inversion focus mode exists to prevent: the writer's own answers faded
@@ -111,13 +106,12 @@ const dimTheme = EditorView.theme({
    * Readable on demand — where "on demand" is a thing the device can express.
    *
    * `:hover` on a touch device means "the last thing tapped", and it latches
-   * there until the next tap. Unguarded, these rules made focus mode do the
-   * opposite of its job on the iPad: tapping anywhere near a scripture block
-   * or a ritual prompt left it burning at full strength over a dimmed page,
-   * for as long as the writer stayed in the entry.
+   * there until the next tap. Unguarded, this rule made focus mode do the
+   * opposite of its job on the iPad: tapping anywhere near a ritual prompt left
+   * it burning at full strength over a dimmed page, for as long as the writer
+   * stayed in the entry.
    */
   '@media (hover: hover)': {
-    '.cm-spiritual-block:hover': { opacity: '1' },
     '.cm-practice-prompt:hover, .cm-practice-header:hover': { opacity: '1' },
   },
 })

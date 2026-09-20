@@ -2598,6 +2598,35 @@ html[data-focus-mode] .focus-controls {
   }
 }
 
+/* ── the chapter pane takes the right edge ──────────────────────────────────
+ *
+ * The pane is a flex child of the writing column; this cluster is
+ * `position: fixed` at z-index 50, mounted outside it. So the two both claimed
+ * the top-right corner and the cluster won — landing on the pane's Close button
+ * and making an opened chapter impossible to dismiss. Docked, it landed on the
+ * pane's ESV.org link instead.
+ *
+ * The cluster belongs to the writing column, so that is where it goes. Shifted
+ * by the pane's own width (`flex: 0 0 38%; max-width: 26rem`), measured here
+ * against the viewport rather than the writing column — a few rem wider than
+ * the pane, which errs to the left and so can never re-collide.
+ */
+html[data-chapter-pane] .focus-controls {
+  right: calc(max(0.75rem, env(safe-area-inset-right)) + min(38%, 26rem));
+}
+
+html[data-chapter-pane] .focus-controls--docked {
+  right: calc(max(1.25rem, env(safe-area-inset-right)) + min(38%, 26rem));
+}
+
+/* Stacked, the pane is full width along the bottom and there is no column to
+   step into — so the cluster waits out the read. Close brings it back. */
+@media (max-width: 720px) {
+  html[data-chapter-pane] .focus-controls {
+    display: none;
+  }
+}
+
 .toggle-pill {
   display: inline-flex;
   align-items: center;

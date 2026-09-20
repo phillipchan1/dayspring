@@ -31,7 +31,11 @@ export const marksField = StateField.define<DecorationSet>({
 
 function build(state: EditorState, marks: Mark[]): DecorationSet {
   const body = state.doc.toString()
-  const blocks = state.field(spiritualBlocksField)
+  // Scripture is drawn as ordinary lines now (see spiritualBlockDecoration),
+  // so a mark can land on a verse like it lands on anything else — which is the
+  // whole point of marking a phrase inside one. Every other kind is still an
+  // atomic run whose text a mark has no business covering.
+  const blocks = state.field(spiritualBlocksField).filter((b) => b.type !== 'scripture')
 
   const ranges: { from: number; to: number }[] = []
   for (const m of marks) {
@@ -41,9 +45,9 @@ function build(state: EditorState, marks: Mark[]): DecorationSet {
     if (at == null) continue
     const to = Math.min(at + m.quote.length, state.doc.length)
     if (to <= at) continue
-    // A mark decoration landing anywhere inside a spiritual block (rendered as
-    // an atomic block-replace widget) crashes CodeMirror's measure pass. Same
-    // guard as scriptureRefDecoration — a bug already paid for once.
+    // A mark decoration landing anywhere inside a block-replace widget crashes
+    // CodeMirror's measure pass. Same guard as scriptureRefDecoration — a bug
+    // already paid for once. `blocks` excludes scripture above.
     if (posInsideBlock(blocks, at) || posInsideBlock(blocks, to - 1)) continue
     ranges.push({ from: at, to })
   }

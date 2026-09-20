@@ -53,21 +53,17 @@ const holdTheme = EditorView.theme({
     opacity: '0.32',
     transition: 'opacity 220ms ease',
   },
-  // Scripture and prayer render as block widgets that sit *between* lines, so a
-  // line decoration can't reach them — left alone one would stay at full
-  // strength and dominate a page that has otherwise stepped back. The blank stub
-  // CodeMirror renders for the widget's own line carries the class, so adjacency
-  // reaches it. Same trick `dimming.ts` uses.
-  '.cm-line.cm-ritual-away + .cm-spiritual-block': {
-    opacity: '0.32',
-    transition: 'opacity 220ms ease',
-  },
+  // Scripture and prayer used to render as block widgets sitting *between*
+  // lines, which a line decoration could not reach — so this reached them by
+  // adjacency, through the blank stub CodeMirror rendered for the widget's own
+  // line. All of them are ordinary lines now (spiritualBlockDecoration.ts), so
+  // `.cm-ritual-away` lands on them directly and the adjacency rules are gone.
   // Readable on demand — the same bargain focus mode strikes.
-  '.cm-ritual-away:hover, .cm-line.cm-ritual-away + .cm-spiritual-block:hover': {
+  '.cm-ritual-away:hover': {
     opacity: '1',
   },
   '@media (prefers-reduced-motion: reduce)': {
-    '.cm-ritual-away, .cm-line.cm-ritual-away + .cm-spiritual-block': {
+    '.cm-ritual-away': {
       transition: 'none',
     },
   },

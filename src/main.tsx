@@ -82,6 +82,7 @@ async function bootstrap() {
   //   ?__preview=lifemap            → the Life Map against fixtures (features/lifemap/preview.tsx)
   //   ?__preview=keeping            → authenticated entry-reading engine playground
   //   ?__preview=highlight          → editor highlight wash (editor/highlightPreview.tsx)
+  //   ?__preview=marking            → marking a phrase inside a verse (editor/markingPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
   //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
   //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
@@ -132,6 +133,11 @@ async function bootstrap() {
     if (preview === 'pages') {
       const { renderPagesPreview } = await import('./features/pages/preview')
       renderPagesPreview()
+      return
+    }
+    if (preview === 'marking') {
+      const { renderMarkingPreview } = await import('./editor/markingPreview')
+      renderMarkingPreview()
       return
     }
     if (preview === 'highlight') {

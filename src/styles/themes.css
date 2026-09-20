@@ -1286,12 +1286,32 @@
 
 /* Citations take the voice's label face everywhere they appear, so a tracked
    cap in Cloister is Archivo and in Vellum is a true small cap. */
-.cm-spiritual-block__cite,
+.cm-scripture-cite,
 .markdown-body .spiritual-cite {
   font-family: var(--font-label);
   letter-spacing: var(--label-track);
   text-transform: var(--label-case);
   font-variant-caps: var(--label-caps);
+}
+
+/* ── Scripture's rule — the knobs each voice turns ──────────────────────────
+   A quotation is set apart by a rule down its left, an indent, and the air at
+   the ends of the run. Those were `border-left` overrides on a block widget
+   until the verse became selectable text; a border runs the full height of
+   every line, so two quotations on consecutive lines drew one unbroken bar,
+   and a background image can be sized short of the box.
+
+   The image rather than a colour + style, because "dashed" is not a keyword a
+   gradient has — Plainsong overrides the whole image to get its dashes.
+   `--scripture-air` is PADDING, never margin: CodeMirror measures a line from
+   its bounding rect, which excludes margins, so a margin here would push the
+   DOM down uncounted and drift the coordinate→position map. */
+.cm-content {
+  --scripture-rule: color-mix(in srgb, var(--accent) 32%, transparent);
+  --scripture-rule-image: linear-gradient(var(--scripture-rule), var(--scripture-rule));
+  --scripture-rule-width: 1px;
+  --scripture-indent: 1rem;
+  --scripture-air: 0.3em;
 }
 
 /* ── Dawn — the horizon under the title ─────────────────────────────────────
@@ -1343,15 +1363,15 @@
   color: var(--accent);
   margin: 0.06em 0.09em -0.04em 0;
 }
-[data-theme='vellum'] .cm-spiritual-block__cite,
-[data-theme='ember'] .cm-spiritual-block__cite,
+[data-theme='vellum'] .cm-scripture-cite,
+[data-theme='ember'] .cm-scripture-cite,
 [data-theme='vellum'] .markdown-body .spiritual-cite,
 [data-theme='ember'] .markdown-body .spiritual-cite {
   color: var(--accent);
 }
-[data-theme='vellum'] .cm-spiritual-block--scripture,
-[data-theme='ember'] .cm-spiritual-block--scripture {
-  border-left-color: color-mix(in srgb, var(--accent) 55%, transparent);
+[data-theme='vellum'] .cm-content,
+[data-theme='ember'] .cm-content {
+  --scripture-rule: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 [data-theme='vellum'] .markdown-body h2::before,
 [data-theme='ember'] .markdown-body h2::before {
@@ -1391,11 +1411,13 @@
    "illuminated" stops being a choice and becomes a house style. What Sabbath
    spends instead is space: the leading is already the widest of the six, and
    the seams get room rather than a mark. */
-[data-theme='sabbath'] .cm-spiritual-block--scripture,
-[data-theme='grove'] .cm-spiritual-block--scripture {
-  border-left: 0;
-  padding-left: 0;
-  margin: 1.4em 0;
+[data-theme='sabbath'] .cm-content,
+[data-theme='grove'] .cm-content {
+  --scripture-rule-image: none;
+  --scripture-indent: 0;
+  /* What the bare voice spends instead of a mark. This was `margin: 1.4em 0`
+     on the widget; on a line it has to be padding — see the note above. */
+  --scripture-air: 1.1em;
 }
 [data-theme='sabbath'] .cm-hr,
 [data-theme='grove'] .cm-hr,
@@ -1413,23 +1435,29 @@
 [data-theme='nocturne'] {
   --hr-gap: 1.2em;
 }
-[data-theme='quire'] .cm-spiritual-block__cite::before,
-[data-theme='nocturne'] .cm-spiritual-block__cite::before,
+[data-theme='quire'] .cm-scripture-cite::before,
+[data-theme='nocturne'] .cm-scripture-cite::before,
 [data-theme='quire'] .markdown-body .spiritual-cite::before,
 [data-theme='nocturne'] .markdown-body .spiritual-cite::before {
   content: '[\00a0';
 }
-[data-theme='quire'] .cm-spiritual-block__cite::after,
-[data-theme='nocturne'] .cm-spiritual-block__cite::after,
+[data-theme='quire'] .cm-scripture-cite::after,
+[data-theme='nocturne'] .cm-scripture-cite::after,
 [data-theme='quire'] .markdown-body .spiritual-cite::after,
 [data-theme='nocturne'] .markdown-body .spiritual-cite::after {
   content: '\00a0]';
 }
-[data-theme='quire'] .cm-spiritual-block--scripture,
-[data-theme='nocturne'] .cm-spiritual-block--scripture,
 [data-theme='quire'] .markdown-body blockquote,
 [data-theme='nocturne'] .markdown-body blockquote {
   border-left-style: dashed;
+}
+[data-theme='quire'] .cm-content,
+[data-theme='nocturne'] .cm-content {
+  --scripture-rule-image: repeating-linear-gradient(
+    to bottom,
+    var(--scripture-rule) 0 4px,
+    transparent 4px 9px
+  );
 }
 /* Dates and verse numbers hold their column. */
 [data-theme='quire'] .cm-content,

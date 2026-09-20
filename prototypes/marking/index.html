@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Marking Scripture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-serif: 'Newsreader', Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+    --bg: #fbf6ee;
+    --bg-elevated: #fffdf8;
+    --bg-sunk: #f2ebdf;
+    --border: #e2d7c4;
+    --border-subtle: #ece3d4;
+    --text: #4a4035;
+    --text-bright: #2a2118;
+    --text-dim: #8a7c69;
+    --text-faint: #b4a78f;
+    --accent: #c2683a;
+    --gold: 243, 189, 118;
+    --mark-ground: rgba(194, 145, 60, 0.22);
+    --mark-rule: rgba(194, 145, 60, 0.5);
+    --radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1917;
+      --bg-elevated: #232020;
+      --bg-sunk: #171413;
+      --border: #3a332d;
+      --border-subtle: #2c2724;
+      --text: #d6ccbe;
+      --text-bright: #f2e9dc;
+      --text-dim: #9b8f7e;
+      --text-faint: #6f6557;
+      --accent: #dd8a5b;
+      --mark-ground: rgba(221, 160, 78, 0.26);
+      --mark-rule: rgba(221, 160, 78, 0.55);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #1c1917;
+    --bg-elevated: #232020;
+    --bg-sunk: #171413;
+    --border: #3a332d;
+    --border-subtle: #2c2724;
+    --text: #d6ccbe;
+    --text-bright: #f2e9dc;
+    --text-dim: #9b8f7e;
+    --text-faint: #6f6557;
+    --accent: #dd8a5b;
+    --mark-ground: rgba(221, 160, 78, 0.26);
+    --mark-rule: rgba(221, 160, 78, 0.55);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-serif);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button { font: inherit; cursor: pointer; }
+
+  :focus-visible { outline: 2px solid rgba(var(--gold), 0.9); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* ── shell ─────────────────────────────────────────────── */
+
+  .walk { min-height: 100%; display: flex; flex-direction: column; }
+  .stage { flex: 1; padding-bottom: 7rem; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 0.9rem;
+  }
+
+  /* ── intro & prose scenes ──────────────────────────────── */
+
+  .sheet { max-width: 36rem; margin: 0 auto; padding: 3rem 1.25rem 1rem; }
+
+  .sheet h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    color: var(--text-bright);
+    text-wrap: balance;
+    margin: 0 0 1.1rem;
+  }
+
+  .sheet h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.3rem;
+    color: var(--text-bright);
+    text-wrap: balance;
+    margin: 2.2rem 0 0.7rem;
+  }
+
+  .sheet p { font-size: 1.06rem; line-height: 1.62; margin: 0 0 1rem; }
+  .sheet p.lede { font-size: 1.14rem; }
+  .sheet strong { font-weight: 500; color: var(--text-bright); }
+
+  .asks { margin: 0 0 1.4rem; padding-left: 1.15rem; line-height: 1.55; }
+  .asks li { margin-bottom: 0.6rem; }
+
+  .rule-note {
+    border-left: 2px solid rgba(var(--gold), 0.6);
+    padding: 0.1rem 0 0.1rem 1rem;
+    margin: 1.6rem 0;
+    font-size: 1.06rem;
+    line-height: 1.6;
+    color: var(--text-bright);
+  }
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--bg-sunk);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 0.08em 0.38em;
+    color: var(--text);
+  }
+
+  /* ── journal ───────────────────────────────────────────── */
+
+  .paper {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 62vh;
+  }
+
+  .paper[data-pane="true"] { grid-template-columns: 1fr minmax(280px, 34vw); }
+
+  @media (max-width: 760px) {
+    .paper[data-pane="true"] { grid-template-columns: 1fr; }
+  }
+
+  .journal { max-width: 38rem; width: 100%; margin: 0 auto; padding: 2.4rem 1.25rem 2rem; }
+
+  .journal__date {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 1.4rem;
+  }
+
+  .journal__body { font-size: 1.1rem; line-height: 1.68; }
+  .journal__body > p { margin: 0 0 1.2rem; }
+
+  /* ── the scripture block ───────────────────────────────── */
+
+  .block {
+    position: relative;
+    margin: 0 0 1.2rem;
+    padding: 0.35rem 1.7rem 0.35rem 1rem;
+    border-left: 1px solid rgba(var(--gold), 0.55);
+    border-radius: var(--radius);
+    transition: background 140ms ease, box-shadow 140ms ease;
+  }
+
+  .block:hover { background: rgba(var(--gold), 0.07); }
+
+  /* Today: the whole block is one button. */
+  .block--control { cursor: pointer; }
+  .block--control .block__verse { user-select: none; -webkit-user-select: none; cursor: pointer; }
+  .block--control .block__ref { cursor: pointer; }
+
+  /* Proposed: the words are text, the citation is a door. */
+  .block--live { cursor: pointer; }
+  .block--live .block__verse {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+  }
+
+  .block__verse {
+    margin: 0;
+    font-style: italic;
+    font-size: 0.98em;
+    line-height: 1.66;
+    color: var(--text);
+    -webkit-touch-callout: none;
+  }
+
+  .block__ref {
+    display: inline-block;
+    margin: 0.6em 0 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: var(--font-serif);
+    font-size: 0.68em;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.35em;
+    transition: color 120ms ease, text-decoration-color 120ms ease;
+  }
+
+  /*
+   * The door has to be visible at rest, not on hover: there is no hover on a
+   * phone, so a hover-only cue is no cue at all for half the people who meet it.
+   * Two quiet signals, both always present — a hairline under the citation, and
+   * the arrow this product already uses for "continue to the passage" in the
+   * chapter pane's own footer. Neither is floating chrome; both ride the
+   * citation line that was already there.
+   */
+  .block--live .block__ref {
+    cursor: pointer;
+    text-decoration-color: rgba(var(--gold), 0.55);
+    text-decoration-thickness: 1px;
+  }
+
+  .block--live .block__ref::after {
+    content: '→';
+    display: inline-block;
+    margin-left: 0.5em;
+    letter-spacing: 0;
+    color: var(--text-faint);
+    transition: transform 120ms ease, color 120ms ease;
+  }
+
+  .block--live .block__ref:hover,
+  .block--live .block__ref:focus-visible {
+    color: var(--text-bright);
+    text-decoration-color: rgba(var(--gold), 0.95);
+  }
+
+  .block--live .block__ref:hover::after,
+  .block--live .block__ref:focus-visible::after {
+    transform: translateX(2px);
+    color: var(--text-dim);
+  }
+
+  .block__menu {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.1rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .block:hover .block__menu, .block__menu:focus-visible { opacity: 1; }
+  @media (hover: none) { .block__menu { opacity: 0.5; } }
+
+  /* the mark itself — the same ground prose marks use */
+  .mk {
+    background: var(--mark-ground);
+    box-shadow: 0 1px 0 var(--mark-rule);
+    border-radius: 2px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  ::selection { background: rgba(var(--gold), 0.34); }
+
+  /* ── the one-button bar ────────────────────────────────── */
+
+  .markbar {
+    position: fixed;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.32rem 0.36rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: 0 6px 22px rgba(40, 30, 18, 0.16);
+    animation: bar-in 120ms ease-out;
+  }
+
+  @keyframes bar-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  .markbar button {
+    border: none;
+    background: none;
+    border-radius: 999px;
+    padding: 0.32rem 0.9rem;
+    font-family: var(--font-serif);
+    font-size: 0.92rem;
+    color: var(--text-bright);
+  }
+
+  .markbar button:hover { background: rgba(var(--gold), 0.18); }
+  .markbar button[data-on="true"] { color: var(--accent); }
+
+  .markbar__note {
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    padding-right: 0.55rem;
+  }
+
+  /* ── chapter pane ──────────────────────────────────────── */
+
+  .pane {
+    border-left: 1px solid var(--border);
+    background: var(--bg-elevated);
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+  }
+
+  @media (max-width: 760px) {
+    .pane { border-left: none; border-top: 1px solid var(--border); max-height: 60vh; }
+  }
+
+  .pane__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.1rem 0.7rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .pane__title { font-family: var(--font-display); font-weight: 400; font-size: 1.05rem; color: var(--text-bright); margin: 0; }
+  .pane__label { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); margin: 0.3rem 0 0; }
+
+  .pane__close {
+    border: none; background: none; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em;
+    padding: 0.2rem 0.35rem;
+  }
+  .pane__close:hover { color: var(--text-bright); }
+
+  .pane__body { overflow-y: auto; padding: 0.9rem 1.1rem 1.2rem; }
+
+  .pane__verse { margin: 0 0 0.75rem; font-size: 0.95rem; line-height: 1.62; color: var(--text-dim); }
+  .pane__verse[data-cited="true"] { color: var(--text-bright); }
+  .pane__num { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-faint); margin-right: 0.45rem; vertical-align: 0.3em; }
+
+  .pane__foot {
+    border-top: 1px solid var(--border-subtle);
+    padding: 0.7rem 1.1rem;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.08em; color: var(--text-faint);
+  }
+  .pane__foot a { color: var(--text-dim); }
+
+  /* ── instruments ───────────────────────────────────────── */
+
+  .meter {
+    max-width: 38rem;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+  }
+
+  .meter__inner {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    background: var(--bg-sunk);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  .meter__count { color: var(--accent); font-weight: 500; }
+
+  .hint {
+    max-width: 38rem;
+    margin: 0 auto;
+    padding: 0.2rem 1.25rem 0;
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* ── read-back cards ───────────────────────────────────── */
+
+  .cards { display: grid; gap: 0.9rem; margin: 1.2rem 0 0; }
+
+  .card {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+    padding: 1rem 1.1rem;
+  }
+
+  .card__quote { margin: 0; font-size: 1.02rem; line-height: 1.6; font-style: italic; color: var(--text-bright); }
+  .card__meta {
+    margin: 0.7rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .card__empty { margin: 0; font-size: 0.98rem; color: var(--text-dim); font-style: italic; }
+
+  /* ── guide footer ──────────────────────────────────────── */
+
+  .guide {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 30;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    padding: 0.7rem 1.25rem;
+    padding-bottom: calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .guide__inner {
+    max-width: 38rem; margin: 0 auto;
+    display: flex; align-items: center; gap: 0.9rem;
+  }
+
+  .guide__note {
+    flex: 1;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: var(--text-dim);
+    margin: 0;
+  }
+
+  .guide__note b { font-weight: 500; color: var(--text-bright); }
+
+  .guide__nav { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+
+  .guide__btn {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.86rem;
+    color: var(--text-bright);
+  }
+  .guide__btn:hover { background: var(--bg-sunk); }
+  .guide__btn[disabled] { opacity: 0.4; cursor: default; }
+
+  .guide__dots { display: flex; gap: 0.3rem; padding-right: 0.3rem; }
+  .guide__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
+  .guide__dot[data-on="true"] { background: var(--accent); }
+
+  @media (max-width: 560px) {
+    .guide__inner { flex-direction: column; align-items: stretch; gap: 0.55rem; }
+    .guide__nav { justify-content: space-between; }
+  }
+</style>
+</head>
+<body>
+<div class="walk">
+  <div class="stage">
+
+    <!-- ── 1. intro ─────────────────────────────────────── -->
+    <section id="s-intro" class="sheet">
+      <p class="eyebrow">Dayspring · prototype</p>
+      <h1>Marking a phrase inside a verse</h1>
+      <p class="lede">You can mark a sentence you wrote. You cannot mark a line of scripture — the block is one button, and its words refuse to be selected at all.</p>
+      <p>This walks through a fix. Four screens, a few minutes. <strong>Use it on your phone as well as your laptop</strong> — the two gestures are different and both have to feel obvious.</p>
+
+      <h2>What I'm asking</h2>
+      <ul class="asks">
+        <li>Does it stay clear <strong>which part opens the chapter</strong> and which part takes a mark?</li>
+        <li>Does <strong>one button</strong> feel right, or do you reach for bold?</li>
+        <li>On your phone: does <strong>press-and-hold</strong> arrive where you expect it?</li>
+      </ul>
+      <p style="color: var(--text-dim); font-size: 0.92rem;">Not the live app. Chapter text here is public-domain (WEB) standing in for ESV, same as the scripture prototype.</p>
+    </section>
+
+    <!-- ── 2. today ─────────────────────────────────────── -->
+    <section id="s-today" hidden>
+      <div class="sheet" style="padding-bottom: 0.4rem;">
+        <p class="eyebrow">Screen 1 of 3 · today</p>
+        <h1 style="font-size: clamp(1.5rem, 4vw, 1.9rem);">How it behaves now</h1>
+        <p>You pasted James 4:8 this morning. <strong>Draw near to God</strong> is the part that landed. Try to mark just those four words.</p>
+        <p style="color: var(--text-dim); font-size: 0.96rem;">Notice the citation too. Nothing about it says the chapter is one tap away — today that's carried by a tooltip, which needs a mouse and a pause, so on a phone it doesn't exist at all.</p>
+      </div>
+
+      <div class="paper">
+        <div class="journal">
+          <p class="journal__date">Tuesday, Aug 12</p>
+          <div class="journal__body">
+            <p>Something shifted in small group last night. I kept hearing the same phrase — draw near — and I couldn't shake it.</p>
+            <div class="block block--control" id="ctl-block">
+              <p class="block__verse" id="ctl-verse"></p>
+              <span class="block__ref">James 4:8 · ESV</span>
+              <button type="button" class="block__menu" aria-label="Edit scripture" tabindex="-1">⋯</button>
+            </div>
+            <p>I want to sit with the rest of the chapter. What else is there besides the one line I copied?</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="meter">
+        <div class="meter__inner" id="ctl-meter">
+          Selection attempts on this verse: <span class="meter__count" id="ctl-count">0</span><br>
+          <span id="ctl-msg">Every one is refused, silently, and leaves no trace. That refusal is the thing worth measuring before we build anything.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 3. proposed ──────────────────────────────────── -->
+    <section id="s-mark" hidden>
+      <div class="sheet" style="padding-bottom: 0.4rem;">
+        <p class="eyebrow">Screen 2 of 3 · proposed</p>
+        <h1 style="font-size: clamp(1.5rem, 4vw, 1.9rem);">The citation is the door. The words are text.</h1>
+        <p id="mark-lede"></p>
+      </div>
+
+      <div class="paper" id="live-paper">
+        <div class="journal">
+          <p class="journal__date">Tuesday, Aug 12</p>
+          <div class="journal__body">
+            <p>Something shifted in small group last night. I kept hearing the same phrase — draw near — and I couldn't shake it.</p>
+            <div class="block block--live" id="live-block">
+              <p class="block__verse" id="live-verse"></p>
+              <button type="button" class="block__ref" id="live-ref" title="Read James 4" aria-label="Read James 4">James 4:8 · ESV</button>
+              <button type="button" class="block__menu" id="live-menu" aria-label="Edit scripture">⋯</button>
+            </div>
+            <p>I want to sit with the rest of the chapter. What else is there besides the one line I copied?</p>
+          </div>
+        </div>
+        <aside class="pane" id="live-pane" hidden aria-label="James 4">
+          <header class="pane__head">
+            <div>
+              <h2 class="pane__title">James 4</h2>
+              <p class="pane__label">In this chapter</p>
+            </div>
+            <button type="button" class="pane__close" id="pane-close">Close</button>
+          </header>
+          <div class="pane__body" id="pane-body"></div>
+          <footer class="pane__foot">
+            <span>ESV</span>
+            <a href="https://www.esv.org/James+4/" target="_blank" rel="noopener noreferrer">Continue on ESV.org →</a>
+          </footer>
+        </aside>
+      </div>
+
+      <p class="hint" id="live-hint"></p>
+    </section>
+
+    <!-- ── 4. read-back ─────────────────────────────────── -->
+    <section id="s-back" hidden class="sheet">
+      <p class="eyebrow">Screen 3 of 3 · coming back</p>
+      <h1 style="font-size: clamp(1.5rem, 4vw, 1.9rem);">What you marked, months later</h1>
+      <p>Marks already have a home — Pages, filtered to <strong>Marked</strong>. A phrase from a verse arrives there like any other, with one difference: <strong>it carries its reference</strong>, so a line of scripture can never read as something you wrote.</p>
+      <div class="cards" id="back-cards"></div>
+      <h2>What this does not do</h2>
+      <p>No colours. No bold. Nothing counted, nothing ranked, and the Lamp is unchanged — it still says which verses kept finding you, not which words did. That's a later question, and a bigger one.</p>
+    </section>
+
+    <!-- ── 5. take ──────────────────────────────────────── -->
+    <section id="s-take" hidden class="sheet">
+      <p class="eyebrow">Last screen</p>
+      <h1 style="font-size: clamp(1.5rem, 4vw, 1.9rem);">Your read</h1>
+      <p>Three things worth saying out loud before any of this gets built:</p>
+      <ul class="asks">
+        <li>Did you ever click the words expecting the chapter, or the citation expecting a selection? <strong>Which way did you guess wrong?</strong></li>
+        <li>The hairline and the arrow on the citation — <strong>enough, too much, or the wrong shape?</strong> They are the one thing here that adds ink to a pull-quote you see every day.</li>
+        <li>Did you want bold — really want it, not just notice it was missing?</li>
+        <li>On the phone: did press-and-hold occur to you, or did you have to be told?</li>
+      </ul>
+      <div class="rule-note">
+        If none of it was confusing and you never reached for bold, the rule holds and the next move is the probe: ship the counter from screen 1 into the real app for a week, and see whether anyone is reaching for this at all.
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="guide">
+    <div class="guide__inner">
+      <p class="guide__note" id="guide-note"></p>
+      <div class="guide__nav">
+        <div class="guide__dots" id="guide-dots"></div>
+        <button type="button" class="guide__btn" id="guide-prev">Back</button>
+        <button type="button" class="guide__btn" id="guide-next">Next</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Public-domain WEB text standing in for ESV, matching prototypes/scripture/src/corpus.ts.
+  var VERSE = "Draw near to God, and he will draw near to you. Cleanse your hands, you sinners; and purify your hearts, you double-minded.";
+
+  var CHAPTER = [
+    [1, "Where do wars and fightings among you come from? Don't they come from your pleasures that war in your members?"],
+    [2, "You lust, and don't have. You murder and covet, and can't obtain. You fight and make war. You don't have, because you don't ask."],
+    [3, "You ask, and don't receive, because you ask with wrong motives, so that you may spend it on your pleasures."],
+    [4, "You adulterers and adulteresses, don't you know that friendship with the world is hostility toward God?"],
+    [5, 'Or do you think that the Scripture says in vain, "The Spirit who lives in us yearns jealously"?'],
+    [6, 'But he gives more grace. Therefore it says, "God resists the proud, but gives grace to the humble."'],
+    [7, 'Be subject therefore to God. Resist the devil, and he will flee from you.'],
+    [8, VERSE],
+    [9, 'Lament, mourn, and weep. Let your laughter be turned to mourning, and your joy to gloom.'],
+    [10, 'Humble yourselves in the sight of the Lord, and he will exalt you.'],
+    [11, "Don't speak against one another, brothers. He who speaks against a brother and judges his brother, speaks against the law."],
+    [12, 'Only one is the lawgiver, who is able to save and to destroy. But who are you to judge another?']
+  ];
+
+  var SCENES = ['intro', 'today', 'mark', 'back', 'take'];
+
+  var NOTES = {
+    intro: 'A walkthrough, not the live app. <b>Open it on your phone too.</b>',
+    today: 'Try to select <b>Draw near to God</b>. The block is one button, so nothing happens.',
+    mark: 'The words take a selection. The citation — underlined, with an arrow — opens the chapter.',
+    back: 'A marked phrase always travels with its reference.',
+    take: 'Three questions, then the build order.'
+  };
+
+  var coarse = window.matchMedia('(pointer: coarse)').matches;
+
+  document.getElementById('mark-lede').innerHTML = coarse
+    ? 'The citation now carries a hairline and an arrow, so the door is visible without hovering. Tap it — or the verse — and the chapter opens, exactly as today. <b>Press and hold</b> the words instead and you get a selection, then one button.'
+    : 'The citation now carries a hairline and an arrow at rest, so the door is visible before you reach it. Click it — or the verse — and the chapter opens, exactly as today. <b>Drag across</b> the words instead and you get a selection, then one button. Watch the cursor change as you cross from the words onto the citation.';
+
+  document.getElementById('live-hint').textContent = coarse
+    ? 'Press and hold “Draw near to God”. Tap a mark again to take it off.'
+    : 'Drag across “Draw near to God”. Drag over it again to take it off.';
+
+  // ── marks ───────────────────────────────────────────────
+
+  var marks = [];
+
+  function merged() {
+    var s = marks.slice().sort(function (a, b) { return a.s - b.s; });
+    var out = [];
+    for (var i = 0; i < s.length; i++) {
+      var last = out[out.length - 1];
+      if (last && s[i].s <= last.e) last.e = Math.max(last.e, s[i].e);
+      else out.push({ s: s[i].s, e: s[i].e });
+    }
+    return out;
+  }
+
+  function paint(el) {
+    var ranges = merged();
+    el.textContent = '';
+    var i = 0;
+    for (var k = 0; k < ranges.length; k++) {
+      var r = ranges[k];
+      if (r.s > i) el.appendChild(document.createTextNode(VERSE.slice(i, r.s)));
+      var span = document.createElement('span');
+      span.className = 'mk';
+      span.textContent = VERSE.slice(r.s, r.e);
+      el.appendChild(span);
+      i = r.e;
+    }
+    if (i < VERSE.length) el.appendChild(document.createTextNode(VERSE.slice(i)));
+  }
+
+  // ── selection plumbing ──────────────────────────────────
+
+  function offsetIn(root, node, off) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var n = 0, cur;
+    while ((cur = walker.nextNode())) {
+      if (cur === node) return n + off;
+      n += cur.nodeValue.length;
+    }
+    if (node === root) {
+      // Selection endpoint given as a child index rather than a text offset.
+      var total = 0, w2 = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), t;
+      while ((t = w2.nextNode())) total += t.nodeValue.length;
+      return off === 0 ? 0 : total;
+    }
+    return null;
+  }
+
+  /** Whole words only — a mark reading "raw near to Go" is noise forever. */
+  function snap(s, e) {
+    while (s > 0 && /\S/.test(VERSE.charAt(s - 1))) s--;
+    while (e < VERSE.length && /\S/.test(VERSE.charAt(e))) e++;
+    while (s < e && /\s/.test(VERSE.charAt(s))) s++;
+    while (e > s && /\s/.test(VERSE.charAt(e - 1))) e--;
+    return { s: s, e: e };
+  }
+
+  function readSelection(root) {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    var range = sel.getRangeAt(0);
+    if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
+    var s = offsetIn(root, range.startContainer, range.startOffset);
+    var e = offsetIn(root, range.endContainer, range.endOffset);
+    if (s === null || e === null) return null;
+    if (e < s) { var t = s; s = e; e = t; }
+    var snapped = snap(s, e);
+    if (snapped.e <= snapped.s) return null;
+    return { s: snapped.s, e: snapped.e, rect: range.getBoundingClientRect() };
+  }
+
+  function overlapping(s, e) {
+    return marks.filter(function (m) { return m.s < e && m.e > s; });
+  }
+
+  // ── the one-button bar ──────────────────────────────────
+
+  var bar = null;
+
+  function closeBar() {
+    if (bar) { bar.remove(); bar = null; }
+  }
+
+  function openBar(hit, verseEl) {
+    closeBar();
+    var hits = overlapping(hit.s, hit.e);
+    var on = hits.length > 0;
+
+    bar = document.createElement('div');
+    bar.className = 'markbar';
+    bar.setAttribute('role', 'toolbar');
+
+    var note = document.createElement('span');
+    note.className = 'markbar__note';
+    note.textContent = 'James 4:8';
+    bar.appendChild(note);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = on ? 'Marked' : 'Mark';
+    btn.setAttribute('data-on', on ? 'true' : 'false');
+    btn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+    btn.addEventListener('click', function () {
+      if (on) {
+        marks = marks.filter(function (m) { return !(m.s < hit.e && m.e > hit.s); });
+      } else {
+        marks.push({ s: hit.s, e: hit.e });
+      }
+      paint(verseEl);
+      renderPane();
+      var sel = window.getSelection();
+      if (sel) sel.removeAllRanges();
+      closeBar();
+    });
+    bar.appendChild(btn);
+
+    document.body.appendChild(bar);
+
+    var box = bar.getBoundingClientRect();
+    var pad = 10;
+    var left = hit.rect.left + hit.rect.width / 2 - box.width / 2;
+    left = Math.max(pad, Math.min(left, window.innerWidth - box.width - pad));
+    var top = hit.rect.top - box.height - 10;
+    if (top < pad) top = hit.rect.bottom + 10;
+    bar.style.left = left + 'px';
+    bar.style.top = top + 'px';
+  }
+
+  // ── screen 1: the refusal, counted ──────────────────────
+
+  var ctlVerse = document.getElementById('ctl-verse');
+  ctlVerse.textContent = VERSE;
+
+  var refusals = 0;
+  var down = null;
+
+  document.getElementById('ctl-block').addEventListener('pointerdown', function (ev) {
+    down = { x: ev.clientX, y: ev.clientY };
+  });
+
+  document.getElementById('ctl-block').addEventListener('pointerup', function (ev) {
+    if (!down) return;
+    var moved = Math.abs(ev.clientX - down.x) + Math.abs(ev.clientY - down.y);
+    down = null;
+    if (moved > 14 && ev.target === ctlVerse) {
+      refusals++;
+      document.getElementById('ctl-count').textContent = String(refusals);
+      if (refusals === 1) {
+        document.getElementById('ctl-msg').innerHTML =
+          'Refused. Nothing was selected, nothing was logged, and the app has no idea you tried — which is why <b>every scripture block in the product today reports zero demand for this feature</b>.';
+      }
+    }
+  });
+
+  // ── screen 2: the proposed block ────────────────────────
+
+  var liveVerse = document.getElementById('live-verse');
+  var liveBlock = document.getElementById('live-block');
+  var paper = document.getElementById('live-paper');
+  var pane = document.getElementById('live-pane');
+  paint(liveVerse);
+
+  function openPane() {
+    pane.hidden = false;
+    paper.setAttribute('data-pane', 'true');
+    renderPane();
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      pane.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }
+
+  function closePane() {
+    pane.hidden = true;
+    paper.removeAttribute('data-pane');
+  }
+
+  function renderPane() {
+    if (pane.hidden) return;
+    var body = document.getElementById('pane-body');
+    body.textContent = '';
+    for (var i = 0; i < CHAPTER.length; i++) {
+      var n = CHAPTER[i][0];
+      var text = CHAPTER[i][1];
+      var p = document.createElement('p');
+      p.className = 'pane__verse';
+      if (n === 8) p.setAttribute('data-cited', 'true');
+      var num = document.createElement('span');
+      num.className = 'pane__num';
+      num.textContent = String(n);
+      p.appendChild(num);
+      if (n === 8) {
+        // The marks she made in her entry show here too — reflection, not a second place to work.
+        var holder = document.createElement('span');
+        paint(holder);
+        p.appendChild(holder);
+      } else {
+        p.appendChild(document.createTextNode(text));
+      }
+      body.appendChild(p);
+    }
+  }
+
+  document.getElementById('pane-close').addEventListener('click', closePane);
+  document.getElementById('live-ref').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    closeBar();
+    openPane();
+  });
+  document.getElementById('live-menu').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    closeBar();
+    window.alert('Edit / Remove — the menu acts on the whole block.\n\nMarking acts on the words you selected, which is why it is never in here.');
+  });
+
+  // A click that did not drag is still the chapter, exactly as D-024 decided.
+  var pressed = null;
+  liveBlock.addEventListener('pointerdown', function (ev) {
+    pressed = { x: ev.clientX, y: ev.clientY, onVerse: liveVerse.contains(ev.target) };
+  });
+
+  liveBlock.addEventListener('pointerup', function (ev) {
+    var start = pressed;
+    pressed = null;
+    if (ev.target.closest('.block__ref') || ev.target.closest('.block__menu')) return;
+
+    window.setTimeout(function () {
+      var hit = readSelection(liveVerse);
+      if (hit) { openBar(hit, liveVerse); return; }
+      if (!start) return;
+      var moved = Math.abs(ev.clientX - start.x) + Math.abs(ev.clientY - start.y);
+      if (moved <= 14) { closeBar(); openPane(); }
+    }, 0);
+  });
+
+  // Long-press on touch raises the bar without a pointerup inside the block.
+  document.addEventListener('selectionchange', function () {
+    if (document.getElementById('s-mark').hidden) return;
+    if (!coarse) return;
+    window.clearTimeout(document._markTimer);
+    document._markTimer = window.setTimeout(function () {
+      var hit = readSelection(liveVerse);
+      if (hit) openBar(hit, liveVerse);
+    }, 120);
+  });
+
+  document.addEventListener('pointerdown', function (ev) {
+    if (bar && !bar.contains(ev.target)) closeBar();
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') { closeBar(); closePane(); }
+  });
+
+  // ── screen 3: the read-back ─────────────────────────────
+
+  function renderBack() {
+    var wrap = document.getElementById('back-cards');
+    wrap.textContent = '';
+    var ranges = merged();
+    if (ranges.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'card';
+      var p = document.createElement('p');
+      p.className = 'card__empty';
+      p.textContent = 'Nothing marked yet — go back a screen and take a phrase, then return here.';
+      empty.appendChild(p);
+      wrap.appendChild(empty);
+      return;
+    }
+    for (var i = 0; i < ranges.length; i++) {
+      var card = document.createElement('div');
+      card.className = 'card';
+      var q = document.createElement('p');
+      q.className = 'card__quote';
+      q.textContent = '“' + VERSE.slice(ranges[i].s, ranges[i].e) + '”';
+      var meta = document.createElement('p');
+      meta.className = 'card__meta';
+      meta.textContent = 'James 4:8 · ESV · marked Aug 12';
+      card.appendChild(q);
+      card.appendChild(meta);
+      wrap.appendChild(card);
+    }
+  }
+
+  // ── guide ───────────────────────────────────────────────
+
+  var dots = document.getElementById('guide-dots');
+  for (var i = 0; i < SCENES.length; i++) {
+    var dot = document.createElement('span');
+    dot.className = 'guide__dot';
+    dots.appendChild(dot);
+  }
+
+  function current() {
+    var raw = window.location.hash.replace(/^#/, '');
+    return SCENES.indexOf(raw) >= 0 ? raw : 'intro';
+  }
+
+  function show(id) {
+    for (var i = 0; i < SCENES.length; i++) {
+      document.getElementById('s-' + SCENES[i]).hidden = SCENES[i] !== id;
+      dots.children[i].setAttribute('data-on', SCENES[i] === id ? 'true' : 'false');
+    }
+    document.getElementById('guide-note').innerHTML = NOTES[id];
+    var idx = SCENES.indexOf(id);
+    document.getElementById('guide-prev').disabled = idx === 0;
+    var next = document.getElementById('guide-next');
+    next.disabled = idx === SCENES.length - 1;
+    next.textContent = idx === 0 ? 'Start' : 'Next';
+    closeBar();
+    if (id === 'back') renderBack();
+  }
+
+  function go(id) {
+    if (window.location.hash !== '#' + id) window.location.hash = id;
+    else show(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.getElementById('guide-prev').addEventListener('click', function () {
+    go(SCENES[Math.max(0, SCENES.indexOf(current()) - 1)]);
+  });
+  document.getElementById('guide-next').addEventListener('click', function () {
+    go(SCENES[Math.min(SCENES.length - 1, SCENES.indexOf(current()) + 1)]);
+  });
+
+  window.addEventListener('hashchange', function () { show(current()); });
+  show(current());
+})();
+</script>
+</body>
+</html>

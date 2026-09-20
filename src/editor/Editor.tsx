@@ -42,6 +42,7 @@ import { LinkPopover, type LinkPopoverTarget } from './LinkPopover'
 import { anchorFromView, SelectionFormatBar, type FormatBarAnchor } from './SelectionFormatBar'
 import { commandLineHighlight } from './commandLineHighlight'
 import { scriptureRefDecoration } from './scriptureRefDecoration'
+import { scriptureVerseAt, snapToWords } from './scriptureBody'
 import { applyMarks, marksField } from './markDecoration'
 import { anchorOf, normalizeQuote, type Mark } from '@/lib/marks'
 import { taskListExtension } from './taskListExtension'
@@ -208,6 +209,15 @@ interface EditorProps {
    * the bar it has always had and the writing surface gains nothing.
    */
   onToggleMark?: (quote: string, charStart: number, alreadyMarked: Mark | null) => void
+  /**
+   * Whether marking is offered on the writer's own prose — true for an entry
+   * written on a previous day.
+   *
+   * Scripture ignores this: a quotation is borrowed words being read, not
+   * composed, so the Mark on a verse is there from the moment it lands. See
+   * `canMark`.
+   */
+  proseMarking?: boolean
 }
 
 /**
@@ -243,6 +253,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     skipAutofocusRef,
     marks,
     onToggleMark,
+    proseMarking = false,
   },
   ref,
 ) {
@@ -904,10 +915,29 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     view.focus()
   }
 
-  /** The mark covering the current format target, if the writer already set it aside. */
+  /**
+   * What a Mark would cover.
+   *
+   * Prose keeps `formatTargetRange`, which expands to whole inline spans so a
+   * mark and a bold can share an edge. A verse takes the raw selection snapped
+   * out to whole words instead: borrowed words cannot be edited into shape
+   * afterwards, so a mark reading "raw near to Go" would be permanent.
+   */
+  const markTargetRange = (view: EditorView): { from: number; to: number; scripture: boolean } => {
+    const sel = view.state.selection.main
+    if (!sel.empty) {
+      const verse = scriptureVerseAt(view.state, sel.from, sel.to)
+      if (verse) return { ...snapToWords(view.state.doc, sel.from, sel.to, verse), scripture: true }
+    }
+    return { ...formatTargetRange(view), scripture: false }
+  }
+
+  const markTarget = formatBar ? markTargetRange(formatBar.view) : null
+
+  /** The mark covering the current target, if the writer already set it aside. */
   const selectionMark = (() => {
-    if (!formatBar || !marks?.length) return null
-    const { from, to } = formatTargetRange(formatBar.view)
+    if (!formatBar || !marks?.length || !markTarget) return null
+    const { from, to } = markTarget
     if (from === to) return null
     const body = formatBar.view.state.doc.toString()
     return (
@@ -920,8 +950,19 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     )
   })()
 
+  /**
+   * Marking prose is a READING act and waits for an entry to be a day old.
+   * Marking a verse does not: the block is not the writing surface — it is
+   * borrowed words the writer is already reading rather than composing — and a
+   * phrase that lands the morning it is pasted is exactly the case this exists
+   * for. The exception is scoped to the verse and nothing else, so today's
+   * writing surface is unchanged unless you deliberately drag across a
+   * quotation.
+   */
+  const canMark = Boolean(onToggleMark) && (proseMarking || Boolean(markTarget?.scripture))
+
   const handleToggleMark = (view: EditorView) => {
-    const { from, to } = formatTargetRange(view)
+    const { from, to } = markTargetRange(view)
     if (from === to) return
     onToggleMark?.(normalizeQuote(view.state.sliceDoc(from, to)), from, selectionMark)
     // The bar is transient; dismissing it makes the mark feel committed.
@@ -935,8 +976,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       <SelectionFormatBar
         anchor={linkTarget || slashState ? null : formatBar}
         onRequestLink={(view) => requestLinkRef.current(view)}
-        onMark={onToggleMark ? handleToggleMark : undefined}
+        onMark={canMark ? handleToggleMark : undefined}
         marked={!!selectionMark}
+        markOnly={Boolean(markTarget?.scripture)}
         onDismiss={() => {
           caretFormatRef.current = false
           setFormatBar(null)
