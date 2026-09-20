@@ -349,6 +349,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setChapterOpen(null)
   }, [entryId])
 
+  // The pane is a flex child of the writing column, so it has no way to tell
+  // the app-level floating clusters that the right edge is taken. They are
+  // `position: fixed` and mounted outside `.journal-write` (DesktopJournal /
+  // MobileJournal render them as siblings of <main>), which is how the writing
+  // controls came to sit exactly on top of the pane's Close button — the pane
+  // could be opened and then not dismissed. Same idiom as `data-focus-mode`.
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-chapter-pane', chapterOpen !== null)
+    return () => document.documentElement.removeAttribute('data-chapter-pane')
+  }, [chapterOpen])
+
   const [imageEdit, setImageEdit] = useState<{
     target: AttachmentEditTarget
     anchor: InlinePanelAnchor
@@ -1613,6 +1624,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         return
       }
       if (shouldIgnoreTarget(e.target)) return
+      // The chapter pane is a layer on the entry, so it comes off before the
+      // entry does. Without this, Escape skipped straight past an open pane to
+      // leaveEditorUp() — the one keyboard route out of a covered Close button
+      // threw you out of the entry you were reading in.
+      if (chapterOpen !== null) {
+        e.preventDefault()
+        setChapterOpen(null)
+        return
+      }
       if (state.surface === 'journal') {
         e.preventDefault()
         void leaveEditorUp()
@@ -1643,6 +1663,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     imageEdit,
     imageMenu,
     slashPaletteOpen,
+    chapterOpen,
   ])
 
   // Keep the active entry's list row (title + word count) in sync as you type.
