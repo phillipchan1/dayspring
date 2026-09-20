@@ -388,6 +388,15 @@ Start with the one that holds.               ← the bridge     (variant.bridge)
   transformation                 Mac · iPhone
 ```
 
+**The art is never instructive** (Phil, 2026-09-20). r3's bridge read *"Type / and it
+opens where you are"* — the picture above it already shows the gesture, so the line
+was the image narrating itself. Teach mechanics in the ad text, where a reader who
+wants them can expand; the frame shows, the bridge resolves. r3's bridge is now
+*"Finally, a journal for the Christian life."* and it drops the descriptor
+(`descriptor: false`) so the close does not say "a journal for…" twice. That line is
+also r6's headline — a different position doing a different job, but the two
+creatives now share it, so read their results with that in mind.
+
 `variant.bridge` replaced the old mono `ctaLine`. It is set in body serif, not
 uppercase mono, because it is the next sentence in the story rather than a button
 label. `DESCRIPTOR` lives in one constant in `template.mjs` — change it there and

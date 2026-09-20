@@ -850,9 +850,15 @@ const closeBlock = (t, variant, scale = 1) => {
           <span style="font-family:'DS Display',Georgia,serif;font-size:${px(38)}px;font-weight:500;
                 letter-spacing:-0.012em;color:${t.paper}">Dayspring</span>
         </div>
-        <span style="font-family:'DS Body',Georgia,serif;font-size:${px(27)}px;color:${t.dim}">
+        ${
+          // A variant whose bridge already states the category drops the
+          // descriptor, or the close reads "a journal for…" twice in a row.
+          variant.descriptor === false
+            ? ''
+            : `<span style="font-family:'DS Body',Georgia,serif;font-size:${px(27)}px;color:${t.dim}">
           ${DESCRIPTOR}
-        </span>
+        </span>`
+        }
       </div>
       <div style="display:flex;align-items:center;gap:${px(14)}px;padding-bottom:${px(6)}px">
         ${marks}

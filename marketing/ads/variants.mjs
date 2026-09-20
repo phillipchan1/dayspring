@@ -351,7 +351,17 @@ export const VARIANTS = [
     // actually earn it; here the proof is the capture column, so the headline
     // names the capture column. One headline, one creative.
     onImage: { lead: 'Scripture, prayer and practice,', accent: 'in the line you’re writing.' },
-    bridge: 'Type / and it opens where you are. Nothing leaves the page.',
+    // Phil, 2026-09-20: the art is not the place to be instructive. The
+    // palette already shows the gesture; a line explaining it was the image
+    // narrating itself. The ad TEXT can teach /, the picture should not.
+    //
+    // This is also r6's headline. Different position, different job — here it
+    // is the answer the frame resolves to, not the hook that stops the thumb —
+    // but it does mean r3 and r6 now share a line. Read their results with
+    // that in mind.
+    bridge: 'Finally, a journal for the Christian life.',
+    // The bridge now states the category, so the descriptor would repeat it.
+    descriptor: false,
     themes: ['ink', 'dawn'],
     formats: ['4x5', '1x1'],
     meta: {
