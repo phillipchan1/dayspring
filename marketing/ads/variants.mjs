@@ -340,15 +340,25 @@ export const VARIANTS = [
     track: 'A',
     layout: 'demo',
     recipe: 'R3',
-    onImage: { lead: 'Type / in the sentence', accent: 'you are writing.' },
-    bridge: 'Everything you mark stays findable, years later.',
+    // The old line was "Type / in the sentence you are writing." — which asks a
+    // cold reader to already know what / means, and spends the one line on
+    // something the picture underneath is busy explaining. The headline makes
+    // the category claim; the palette proves it; the bridge teaches the gesture
+    // in the one place it finally has context. Phil's note, 2026-09-20.
+    //
+    // It briefly read "Finally, a journal for the Christian life." That line
+    // moved to r6, where the thirteen forms with their centuries beside them
+    // actually earn it; here the proof is the capture column, so the headline
+    // names the capture column. One headline, one creative.
+    onImage: { lead: 'Scripture, prayer and practice,', accent: 'in the line you’re writing.' },
+    bridge: 'Type / and it opens where you are. Nothing leaves the page.',
     themes: ['ink', 'dawn'],
     formats: ['4x5', '1x1'],
     meta: {
-      primaryShort: 'Type / in the middle of a sentence and Scripture opens right there in the page.',
+      primaryShort: 'Scripture, prayer and thirteen contemplative forms, one keystroke from the line you’re writing.',
       primary:
-        'Type / in the middle of a sentence and Scripture opens right there in the page. Prayer, Sense and Ritual too.\n\nYou never leave the line you were writing. And everything you mark that way stays findable years later, gathered by subject.\n\nA journal for people who take the inner life seriously.',
-      headline: 'Type / in the sentence',
+        'Scripture, prayer and thirteen contemplative forms, one keystroke from the line you’re writing.\n\nMost journalling apps are a text box with a date on it. Dayspring is built for the way the Christian life actually gets written down: type / and Scripture, Prayer, Sense or a contemplative form opens right where you are. No sidebar, no second tab.\n\nEverything you mark that way stays findable years later, gathered by subject.',
+      headline: 'Scripture and prayer, in the page',
       description: 'Scripture, Prayer, Sense, Ritual',
       cta: 'Learn more',
     },
@@ -382,15 +392,20 @@ export const VARIANTS = [
     ui: 'shelf',
     uiScale: 1.0,
     recipe: 'R6',
-    onImage: { lead: 'Thirteen forms,', accent: 'from Benedict to Wesley.' },
-    bridge: 'One keystroke away, in the page you’re writing.',
+    // Phil, 2026-09-20: this is the frame that earns "a journal for the
+    // Christian life", because the thing under it is the church's own
+    // practices with their traditions and centuries printed beside them.
+    // r3 carried this line for a few hours and gave it up — two creatives
+    // with one headline teach nothing about either.
+    onImage: { lead: 'Finally,', accent: 'a journal for the Christian life.' },
+    bridge: 'Centuries of contemplative practice, right in the page you’re writing.',
     themes: ['ink', 'dawn'],
     formats: ['4x5', '1x1'],
     meta: {
       primaryShort: 'Thirteen contemplative forms, one keystroke from the page you’re writing.',
       primary:
         'Thirteen contemplative forms, one keystroke from the page you’re writing.\n\nThe Daily Examen from the Ignatians. Lectio Divina from the Benedictines. Psalmic Lament out of the Psalter. The Prayer of Recollection from Teresa of Ávila.\n\nType /ritual on a morning you sit down with no idea where to start, and write into a structure that already knows where to begin.',
-      headline: 'Thirteen ways into the page',
+      headline: 'A journal for the Christian life',
       description: 'Ignatian, Benedictine, Carmelite',
       cta: 'Learn more',
     },
@@ -463,8 +478,8 @@ export const VARIANTS = [
     id: 'f1-flagship',
     track: 'A',
     recipe: 'FLAGSHIP',
-    external: ['assets/flagship/write-dawn/4x5.png', 'assets/flagship/write-ink/4x5.png',
-               'assets/flagship/write-dawn/1x1.png', 'assets/flagship/write-ink/1x1.png'],
+    external: ['assets/flagship/paid-dawn/4x5.png', 'assets/flagship/paid-ink/4x5.png',
+               'assets/flagship/paid-dawn/1x1.png', 'assets/flagship/paid-ink/1x1.png'],
     onImage: { lead: 'A journal built for', accent: 'spiritual growth.' },
     themes: [],
     formats: [],

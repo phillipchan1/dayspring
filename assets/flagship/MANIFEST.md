@@ -16,6 +16,10 @@
 | `write-ink/1x1.png` | 1080×1080 | Meta feed, anything square |
 | `write-ink/4x5.png` | 1080×1350 | Meta feed (primary paid placement) |
 | `write-ink/9x16.png` | 1080×1920 | Stories, Reels |
+| `paid-dawn/1x1.png` | 1080×1080 | Meta feed, anything square |
+| `paid-dawn/4x5.png` | 1080×1350 | Meta feed (primary paid placement) |
+| `paid-ink/1x1.png` | 1080×1080 | Meta feed, anything square |
+| `paid-ink/4x5.png` | 1080×1350 | Meta feed (primary paid placement) |
 | `bare-dawn/16x9.png` | 2560×1440 | Site hero, press, decks |
 | `bare-ink/16x9.png` | 2560×1440 | Site hero, press, decks |
 

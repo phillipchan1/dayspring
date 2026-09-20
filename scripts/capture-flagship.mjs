@@ -12,6 +12,12 @@
  * Output: assets/flagship/<cut>-<theme>/<canvas>.png, plus CONTACT_SHEET.png
  * and MANIFEST.md beside them.
  *
+ * WATCH THIS WITH A SUBSET RUN. Both MANIFEST.md and CONTACT_SHEET.png are
+ * rebuilt from what THIS run rendered, not from what is on disk — so
+ * `--cut=paid` leaves a manifest claiming the write and bare cuts do not
+ * exist, while their PNGs sit right there. Nothing errors. Finish with a bare
+ * `npm run flagship` before committing, or the index lies about the folder.
+ *
  * Standalone rather than a refactor of capture-ads.mjs, for the reason that
  * script gives for not being a refactor of the listing one: those assets are
  * already uploaded, and sharing helpers would mean regenerating a submitted

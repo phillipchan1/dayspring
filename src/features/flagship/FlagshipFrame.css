@@ -311,6 +311,25 @@
   color: #ece7dd;
 }
 
+.flag__platforms {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: 15px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(236, 231, 221, 0.62);
+  white-space: nowrap;
+}
+
+.flag__platforms svg {
+  width: 17px;
+  height: 17px;
+  fill: rgba(236, 231, 221, 0.72);
+  flex-shrink: 0;
+}
+
 /* A stacked canvas is barely half the width of the hero, and the footer is the
    one row whose content does not scale with it. */
 .flag[data-layout='stacked'] .flag__footer {
@@ -319,6 +338,16 @@
 
 .flag[data-layout='stacked'] .flag__wordmark {
   font-size: 20px;
+}
+
+.flag[data-layout='stacked'] .flag__platforms {
+  font-size: 13px;
+  gap: 7px;
+}
+
+.flag[data-layout='stacked'] .flag__platforms svg {
+  width: 15px;
+  height: 15px;
 }
 
 .flag[data-layout='stacked'] /* ── per-canvas type ─────────────────────────────────────────────────────── */

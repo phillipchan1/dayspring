@@ -133,6 +133,19 @@ Run them together. If d1 is rejected, the concept is still in the auction.
 
 Check every new headline against this before adding it.
 
+**Second twin, 2026-09-20.** `r3`'s headline was *"Type / in the sentence you are
+writing"*, which asks a cold reader to already know what `/` means and spends the
+one line on the thing the picture underneath is busy explaining. It now reads
+**"Finally, a journal for Christians."** — the category claim, with the palette as
+its proof and the gesture moved down to the bridge, where it finally has context.
+
+Naming the audience is normally fine; it describes the product's purpose, not the
+reader. *"Finally,"* is the part worth watching, because it leans on *you have been
+waiting*, which is a step toward asserting the reader's faith. So `r3b-christian-life-safe`
+carries the identical frame with **"a journal for the Christian life"** — the life,
+not the person. Run them together. It is insurance, not a seventh test cell; do not
+read them against each other as a message test.
+
 ---
 
 ## 5. What's in the box
@@ -418,23 +431,33 @@ Phil picked five frames and added the flagship as the sixth. That is the test se
 
 | # | Creative | File (4:5) | What it argues |
 |---|---|---|---|
-| 1 | `f1-flagship` | `assets/flagship/write-dawn/4x5.png` | The whole product, in the real app |
-| 2 | `r3-slash-demo` | `DS_A_r3-slash-demo_4x5_dawn.png` | The gesture |
+| 1 | `f1-flagship` | `assets/flagship/paid-dawn/4x5.png` | The whole product, in the real app |
+| 2 | `r3-slash-demo` | `DS_A_r3-slash-demo_4x5_dawn.png` | Scripture, prayer and practice in the line |
 | 3 | `r4-harvest` | `DS_B_r4-harvest_4x5_ink.png` | The history comes back |
 | 4 | `r2-notes-graveyard` | `DS_B_r2-notes-graveyard_4x5_ink.png` | The journals that stopped |
 | 5 | `r7-lectio-open` | `DS_C_r7-lectio-open_4x5_ink.png` | A form running in the page |
-| 6 | `r6-shelf-open` | `DS_C_r6-shelf-open_4x5_dawn.png` | Thirteen forms, with lineage |
+| 6 | `r6-shelf-open` | `DS_C_r6-shelf-open_4x5_dawn.png` | **The category claim, earned by thirteen named forms** |
 
 The five ad frames were cut to the flagship's grammar so the six read as one
 campaign: headline as a plain lead plus an italic accent line in the dawn colour
 (`headline.lead` / `headline.accent` in `flagship.ts`, now `onImage: {lead, accent}`
 here), a hairline rule under it, the surface below, the wordmark at the foot.
 
-**The flagship stays the odd one out in two ways, deliberately.** It carries no
-platform marks and no descriptor line, because the same file is the site hero and
-the `og:image`, where an Apple mark would be wrong. Giving paid its own cut is a
-~20-line addition to `CUTS` in `flagship.ts` plus a re-run. Worth doing only if the
-mismatch shows once they are side by side in a feed.
+**The flagship now has the footer too (2026-09-20).** `flagship.ts` grew a
+`platforms` flag and a `paid` cut: the same picture and the same words as `write`,
+plus the Apple mark and `Mac · iPhone`. Two cuts rather than one changed footer,
+because `write` is the site hero and the `og:image` — a reader already on the site
+knows it is software, so an Apple mark there is decoration. In a feed it is the
+fastest answer to "can I install this?". The flagship still carries no descriptor
+line, because its headline already is the category sentence.
+
+**Which line goes where, after 2026-09-20.** *"Finally, a journal for the Christian
+life"* lives on `r6`, not `r3`. `r3` wore it for a few hours; the frame that earns
+it is the one showing thirteen named practices with their traditions and centuries
+printed beside them, and two creatives sharing one headline teach nothing about
+either. `r3` names what its own capture column proves instead. The earlier
+`r3b-christian-life-safe` twin was retired the same day: with `r6` naming the *life*
+rather than the *person*, there is nothing left for §4 to catch on.
 
 ### What the research says, and what it changed
 

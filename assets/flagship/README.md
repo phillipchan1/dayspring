@@ -26,10 +26,18 @@ npm run flagship -- --theme=ink      # one palette
 |---|---|
 | Site hero, press, a slide, Product Hunt | `write-dawn/16x9.png` |
 | A link anyone pastes (`og:image`) | `write-dawn/og.png` |
-| Facebook / Instagram feed | `write-dawn/4x5.png`, then `1x1` |
+| Facebook / Instagram feed | `paid-dawn/4x5.png`, then `1x1` |
 | Stories, Reels | `write-dawn/9x16.png` |
 | A dark page, or a dark placement | the matching `write-ink/…` |
 | Somewhere that brings its own words | `bare-dawn/16x9.png` |
+
+`paid` is `write` plus the Apple mark and the platforms in the footer. Two cuts
+rather than one flag on the footer, because the same file is the site hero and
+the `og:image`: a reader already on the site knows it is software and the page
+says where to get it, so an Apple mark there is decoration. In a feed it is the
+fastest way to answer "is this an app I can install?". See `platforms` in
+`flagship.ts` for the trademark note — it is nominative use, not a licensed
+badge, and the App Store badge would be wrong for a Mac app shipped as a .dmg.
 
 ## Things worth knowing
 

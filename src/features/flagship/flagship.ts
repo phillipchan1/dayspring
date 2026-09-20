@@ -142,6 +142,24 @@ export interface Cut {
    */
   pair?: [FlagshipSurface, string][]
   /**
+   * Print the platforms in the footer, beside the wordmark.
+   *
+   * Paid only, and that is the whole reason this is a flag rather than part of
+   * the footer. A cold scroller has one second to work out that the beautiful
+   * cream rectangle is software they can install, and an Apple mark answers it
+   * faster than any sentence. The site hero and the og:image do not have that
+   * problem — a reader is already on the site, the page says where to download
+   * it, and an Apple mark there is decoration at best.
+   *
+   * NOMINATIVE USE, NOT A LICENSED BADGE. Apple's Identity Guidelines reserve
+   * the Apple logo, and the sanctioned "available on" asset is the Download on
+   * the App Store badge — which does not fit: the Mac app ships as a .dmg from
+   * GitHub, not through the Mac App Store, so a store badge beside "Mac" would
+   * be a false claim about where it comes from. Naming the platforms under one
+   * Apple mark is the accurate version. Matches marketing/ads/template.mjs.
+   */
+  platforms?: boolean
+  /**
    * Render only these canvases. Absent means all five.
    *
    * The bare cut needs this. With no headline above it there is nothing to
@@ -187,6 +205,17 @@ export const CUTS: Cut[] = [
     // does not look like every other dark developer tool. The ink cut is
     // rendered alongside it — `--theme=ink` — for dark placements.
     theme: 'dawn',
+  },
+  {
+    // The feed cut. Identical picture and identical words to `write`; the only
+    // difference is the platforms in the footer. Kept as its own cut so the
+    // hero and the og:image — the same file, in `write` — stay clean.
+    id: 'paid',
+    headline: { lead: 'A journal built for', accent: 'spiritual growth.' },
+    sub: SUB,
+    theme: 'dawn',
+    platforms: true,
+    canvases: ['4x5', '1x1'],
   },
   {
     id: 'bare',
