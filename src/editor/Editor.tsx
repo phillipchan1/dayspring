@@ -20,7 +20,8 @@ import {
   type SpiritualBlockEditTarget,
 } from './spiritualBlockDecoration'
 import { spiritualBlocksField } from './spiritualBlocksField'
-import { lineMenuExtension } from './lineMenu'
+import { hitPlus, lineMenuExtension } from './lineMenu'
+import { pressClosesPalette } from './slashDismiss'
 import { scripturePasteExtension } from './scripturePasteExtension'
 import { ensureBlockSeparation, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { wrapLinesInFence } from '@/lib/markSelection'
@@ -809,12 +810,29 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     if (view) applyMarks(view, marks ?? [])
   }, [marks, docKey])
 
+  const slashOpen = slashState !== null
+
+  // Close the palette on a press anywhere but the palette — the line it was
+  // opened from included (see `pressClosesPalette` for why that one needs help).
+  useEffect(() => {
+    if (!slashOpen) return
+    const onPress = (e: PointerEvent) => {
+      if (!pressClosesPalette(e.target)) return
+      // The `+` re-opens the palette from its own mousedown. Closing it here
+      // first would only unmount it and mount it again under the pointer.
+      const view = viewRef.current
+      if (view && hitPlus(view, e)) return
+      setSlashState(null)
+    }
+    document.addEventListener('pointerdown', onPress, true)
+    return () => document.removeEventListener('pointerdown', onPress, true)
+  }, [slashOpen])
+
   // Touch: the palette is a bottom sheet, so it covers the lower half of the
   // editor. Docking it there is what keeps it off the caret — but only if the
   // caret then moves above it, so scroll the line being written clear of the
   // sheet. Measured rather than assumed: the sheet's height depends on how many
   // commands survived the query.
-  const slashOpen = slashState !== null
   useEffect(() => {
     if (!slashOpen) return
     if (!window.matchMedia('(pointer: coarse)').matches) return

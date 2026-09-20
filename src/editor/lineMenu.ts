@@ -32,10 +32,20 @@ import { editorTap, type TapContext } from './pointerInput'
  * the thing they never find.
  */
 
-/** Distance from the writing column's left edge to the `+`, in rem. */
+/** Distance from a line's left edge to the `+`'s centre, in rem. */
 const GUTTER_REM = 1.35
-/** Half-width of the clickable band around it, in px. */
-const HIT_PX = 11
+/**
+ * The `+`'s box, and what is drawn in it, in px.
+ *
+ * 24 is the size of Notion's own button, which is the one these writers have
+ * already learned to reach for; the mark inside is 10 across at 1.5 thick, a
+ * notch heavier than the serif `+` glyph it replaced. Fixed px rather than em:
+ * a control does not grow with the sentence beside it, so a large heading does
+ * not get a large door.
+ */
+const PLUS_BOX = 24
+const PLUS_ARM = 10
+const PLUS_STROKE = 1.5
 
 const plusLine = Decoration.line({ class: 'cm-plus-here' })
 
@@ -71,21 +81,34 @@ const gutterTheme = EditorView.theme({
    * anyway, which is why this only ever showed on the iPad, the phone and the
    * Mac app.) Drawn this way an empty line's DOM is `<br>` and nothing else.
    * One more paint, and no more DOM inside a contenteditable.
+   *
+   * **Two bars, not a `+` character.** A glyph sits wherever its font puts the
+   * math axis, which is not the middle of its em box and differs face to face —
+   * it read as a few pixels high beside the text. Two gradient bars centred in
+   * a box are centred by construction, whatever the font.
+   *
+   * **`0.5lh` is the middle of THIS line's first row.** The old offset was
+   * `0.1em` against a `1.2em` box, which centred the mark on a line exactly as
+   * tall as its font — and lines here are 1.7 times that, so it hung about a
+   * quarter of a line too high. `lh` is the line's own leading, so it stays
+   * right at any line-height setting, and it is the FIRST row's middle because
+   * the box is anchored to the top of a line that may wrap.
+   *
+   * The font-size is left inherited on purpose: `lh` resolves against the
+   * pseudo-element's own metrics, and those have to be the line's.
    */
   '.cm-line::after': {
-    content: '"+"',
+    content: '""',
     position: 'absolute',
-    top: '0.1em',
-    left: `-${GUTTER_REM}rem`,
-    transform: 'translateX(-50%)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '14px',
-    height: '1.2em',
+    top: `calc(0.5lh - ${PLUS_BOX / 2}px)`,
+    left: `calc(-${GUTTER_REM}rem - ${PLUS_BOX / 2}px)`,
+    width: `${PLUS_BOX}px`,
+    height: `${PLUS_BOX}px`,
     color: 'var(--text-faint)',
-    fontSize: '0.78em',
-    lineHeight: '1',
+    backgroundImage: 'linear-gradient(currentColor, currentColor), linear-gradient(currentColor, currentColor)',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+    backgroundSize: `${PLUS_ARM}px ${PLUS_STROKE}px, ${PLUS_STROKE}px ${PLUS_ARM}px`,
     // Invisible until wanted. `opacity` and not `display`, so there is no
     // layout to redo when it appears and nothing shifts beside the text.
     opacity: '0',
@@ -122,11 +145,14 @@ const gutterTheme = EditorView.theme({
    */
   '@media (hover: hover)': {
     '.cm-line:hover::after': { opacity: '0.5' },
-    '.cm-line.cm-plus-here::after': { opacity: '0.5' },
+    // The line you are on, at rest: `--text-faint` at 0.85, roughly 1.9:1
+    // against the page on the light themes. It was 0.5 (about 1.4:1), which is
+    // under what a mark this thin can be found at without hunting for it.
+    '.cm-line.cm-plus-here::after': { opacity: '0.85' },
     '.cm-content:hover .cm-line.cm-plus-here::after': { opacity: '0' },
     '.cm-content:hover .cm-line.cm-plus-here:hover::after': { opacity: '0.5' },
     '.cm-content.cm-typing .cm-line:hover::after': { opacity: '0' },
-    '.cm-content.cm-typing .cm-line.cm-plus-here::after': { opacity: '0.5' },
+    '.cm-content.cm-typing .cm-line.cm-plus-here::after': { opacity: '0.85' },
     '.cm-line:hover:hover::after': { color: 'var(--text)' },
   },
   // Never beside a line that is already inside a fence, nor the fence
@@ -158,55 +184,73 @@ const gutterTheme = EditorView.theme({
   },
 })
 
-/** Horizontal centre of the `+` column, in viewport coordinates. */
-function gutterX(view: EditorView): number {
-  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-  return view.contentDOM.getBoundingClientRect().left - GUTTER_REM * rem
+const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+
+/** The line's own leading, in px. Unset (`normal`) has no number, so use the usual 1.2. */
+function leadingPx(line: HTMLElement): number {
+  const style = getComputedStyle(line)
+  const leading = parseFloat(style.lineHeight)
+  return Number.isFinite(leading) ? leading : 1.2 * (parseFloat(style.fontSize) || 16)
 }
 
 /**
  * Where the `+` is drawn for a line, in viewport coordinates.
  *
  * Read back from the theme rather than measured: a pseudo-element has no rect
- * of its own to ask for. `0.1em` of offset and `1.2em` of height at `0.78em`
- * resolve against the line's own font size, which is the one number to look up.
+ * of its own to ask for. It is the same two numbers the stylesheet uses —
+ * half the line's leading down, and `GUTTER_REM` left of the line's own edge —
+ * and both come from the LINE, not from the editor's content box. Themes that
+ * pad `.cm-content` (Cloister and Compline draw their hairline at its edge and
+ * inset the text) move every line right of that box, and a hit test measured
+ * from the box then sat a whole gutter away from the mark it was testing.
+ *
+ * Takes no view on purpose: nothing here needs one, and it lets the marketing
+ * scene press the same `+` a writer does without reaching for the editor.
  */
-export function plusRect(
-  view: EditorView,
-  line: HTMLElement,
-): { top: number; bottom: number; left: number } {
-  const size = parseFloat(getComputedStyle(line).fontSize) || 16
-  const top = line.getBoundingClientRect().top + 0.1 * 0.78 * size
-  return { top, bottom: top + 1.2 * 0.78 * size, left: gutterX(view) - 7 }
+export function plusRect(line: HTMLElement): {
+  top: number
+  bottom: number
+  left: number
+  right: number
+} {
+  const box = line.getBoundingClientRect()
+  const top = box.top + leadingPx(line) / 2 - PLUS_BOX / 2
+  const left = box.left - GUTTER_REM * remPx() - PLUS_BOX / 2
+  return { top, bottom: top + PLUS_BOX, left, right: left + PLUS_BOX }
 }
 
 /**
  * The `+` was hit, and here is the line it belongs to.
  *
- * **The line is found by Y, not by the event target.** The `+` is drawn in the
- * gutter, which is outside its own line's box — so at that x the target is the
- * scroller, and `closest('.cm-line')` finds nothing. Asking `posAtCoords` at the
- * same height but just inside the text is the reliable question.
+ * **The line is found by Y, not by the event target.** A press on the `+` does
+ * reach this handler — the pseudo-element reports its parent line as the
+ * target — but that line cannot tell a press on the `+` from a press on its own
+ * text, and a wrapped line has one target for every row. Asking `posAtCoords`
+ * at the same height but just inside the text names the row the writer meant.
  *
- * The rest is geometry: inside the gutter's band, and within the small box the
- * `+` is actually drawn in. That last test matters on a wrapped line — the box
- * covers every row of it, but the `+` is only ever beside the first.
+ * The rest is geometry: inside the box the `+` is actually drawn in. That
+ * matters on a wrapped line — the box sits beside the first row only.
  */
 export function hitPlus(
   view: EditorView,
   event: { clientX: number; clientY: number },
 ): { el: HTMLElement; pos: number } | null {
-  if (Math.abs(event.clientX - gutterX(view)) > HIT_PX) return null
   const rect = view.contentDOM.getBoundingClientRect()
-  const pos = view.posAtCoords({ x: rect.left + 4, y: event.clientY }, false)
+  const lineLeft = rect.left + (parseFloat(getComputedStyle(view.contentDOM).paddingLeft) || 0)
+  // Every press in the text comes through here and almost none are on the `+`,
+  // which is always left of the lines.
+  if (event.clientX > lineLeft) return null
+  const pos = view.posAtCoords({ x: lineLeft + 4, y: event.clientY }, false)
   const line = view.state.doc.lineAt(pos)
   const node = view.domAtPos(line.from).node
   const host = node instanceof HTMLElement ? node : node.parentElement
   const el = host?.closest('.cm-line') as HTMLElement | null
   if (!el) return null
   if (NO_PLUS.some((c) => el.classList.contains(c))) return null
-  const { top, bottom } = plusRect(view, el)
-  return event.clientY >= top && event.clientY <= bottom ? { el, pos: line.from } : null
+  const { top, bottom, left, right } = plusRect(el)
+  const inside =
+    event.clientY >= top && event.clientY <= bottom && event.clientX >= left && event.clientX <= right
+  return inside ? { el, pos: line.from } : null
 }
 
 /**
@@ -284,7 +328,7 @@ export function lineMenuExtension(
       onTap: (ctx, view) => {
         const hit = plusTarget(ctx, view)
         if (!hit) return false
-        onPlus(hit.pos, plusRect(view, hit.el))
+        onPlus(hit.pos, plusRect(hit.el))
         return true
       },
     }),

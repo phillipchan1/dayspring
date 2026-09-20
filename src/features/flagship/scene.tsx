@@ -26,6 +26,7 @@
 import { useEffect, useRef } from 'react'
 import { DesktopJournal } from '@/features/journal/DesktopJournal'
 import { Editor } from '@/editor/Editor'
+import { plusRect } from '@/editor/lineMenu'
 import { Summit } from '@/features/ascent/Summit'
 import { ALTITUDES } from '@/features/ascent/ascent.config'
 import '@/features/ascent/Ascent.css'
@@ -95,9 +96,6 @@ Romans 8:28
 \`\`\`
 `
 
-/** Mirrors GUTTER_REM in editor/lineMenu.ts — the `+` column's centre. */
-const GUTTER_REM = 1.35
-
 /**
  * Press the `+` beside the last line, from outside the editor.
  *
@@ -121,17 +119,15 @@ function openPaletteOnLastLine(host: HTMLElement, onOpen: () => void): () => voi
     const lines = content?.querySelectorAll<HTMLElement>('.cm-line')
     const line = lines?.[lines.length - 1]
     if (content && line && line.getBoundingClientRect().height > 0) {
-      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-      const rect = line.getBoundingClientRect()
-      const size = parseFloat(getComputedStyle(line).fontSize) || 16
+      // The middle of the box the `+` is drawn in — the same rect `hitPlus`
+      // tests, from the same function, so this cannot drift from the editor.
+      const at = plusRect(line)
       content.dispatchEvent(
         new MouseEvent('mousedown', {
           bubbles: true,
           cancelable: true,
-          clientX: content.getBoundingClientRect().left - GUTTER_REM * rem,
-          // Half a `+` down from the top of the line — inside the small box the
-          // glyph is actually drawn in, which is what `hitPlus` tests.
-          clientY: rect.top + 0.1 * 0.78 * size + 0.6 * 0.78 * size,
+          clientX: (at.left + at.right) / 2,
+          clientY: (at.top + at.bottom) / 2,
         }),
       )
       if (document.querySelector('.slash-palette')) return onOpen()
