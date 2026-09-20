@@ -81,6 +81,7 @@ export const footerLinks = [
   { label: "Features", href: "/features" },
   { label: "FAQ", href: "/faq" },
   { label: "Help", href: "/help" },
+  { label: "Roadmap", href: "https://dayspring.featurebase.app/roadmap" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
   { label: "A note from the maker", href: "/maker" },

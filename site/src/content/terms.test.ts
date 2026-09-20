@@ -22,6 +22,15 @@ describe("terms of use", () => {
     expect(footerLinks.some((link) => link.href === "/terms")).toBe(true);
   });
 
+  it("links the Featurebase roadmap from the footer near Help", () => {
+    const labels = footerLinks.map((link) => link.label);
+    expect(footerLinks.some((link) => link.href === "https://dayspring.featurebase.app/roadmap")).toBe(
+      true,
+    );
+    expect(labels.indexOf("Roadmap")).toBeGreaterThan(labels.indexOf("Help"));
+    expect(labels.indexOf("Roadmap")).toBeLessThan(labels.indexOf("Privacy"));
+  });
+
   it("closes with the live vercel privacy link", () => {
     expect(termsPage.closing.privacyHref).toBe("/privacy");
   });
