@@ -920,6 +920,11 @@ pub fn run() {
     // Face ID / Touch ID for the optional app lock. Only ever invoked once the
     // user has turned the lock on and opted in; the PIN stays the way in.
     builder = builder.plugin(tauri_plugin_biometric::init());
+    // Location, so the page can carry where it was written. The plugin is here
+    // for the prompt as much as the fix: asked natively, iOS names the app and
+    // reads our own sentence out of Info.ios.plist. Asked through the webview,
+    // it names the origin, which inside the app is "localhost".
+    builder = builder.plugin(tauri_plugin_geolocation::init());
   }
 
   builder
