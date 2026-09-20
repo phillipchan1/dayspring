@@ -1,9 +1,14 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
-  "description": "iOS/Android permissions (StoreKit IAP + biometrics + shared defaults)",
-  "platforms": ["iOS", "android"],
-  "windows": ["main"],
+  "description": "iOS/Android permissions (StoreKit IAP + biometrics + location + shared defaults)",
+  "platforms": [
+    "iOS",
+    "android"
+  ],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "process:default",
@@ -18,6 +23,9 @@
     "opener:default",
     "opener:allow-open-url",
     "purchases:default",
-    "biometric:default"
+    "biometric:default",
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "geolocation:allow-get-current-position"
   ]
 }

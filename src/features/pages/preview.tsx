@@ -4,10 +4,12 @@ import { DEFAULT_SETTINGS, type Settings } from '@/lib/settings'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import type { Entry } from '@/lib/types'
 import { PagesView } from './PagesView'
+import { PageReader } from './PageReader'
 import { LookFor } from './LookFor'
 import { buildSubjectIndex, type Subject } from './subjects'
 import type { KeptSubject } from './keptSubjects'
 import { MARK_KIND } from '@/lib/markKinds'
+import type { PageMarking } from '@/lib/spiritual'
 import type { MarkingChip } from './facets'
 
 /**
@@ -23,6 +25,12 @@ import type { MarkingChip } from './facets'
  *   ?__preview=pages&theme=ink        → any palette; defaults to dawn
  *   ?__preview=pages&frame=0&chrome=0 → the wall alone, no phone tab bar or FAB
  *   ?__preview=pages&part=sheet&wide=1&open=1 → the dropdown, already open
+ *   ?__preview=pages&part=reader     → ONE page, open, with a full right margin
+ *
+ * `part=reader` is the only way to look at an open page's margin without an
+ * account: markings and circumstances both come from tables the surface fetches
+ * on mount, so a fixture archive shows an empty margin and proves nothing about
+ * the column the kinds, the verses and the colophon all share.
  *
  * `chrome=0` and `open=1` exist for `scripts/capture-site-shots.mjs`, which
  * shoots these two surfaces for the marketing site with headless Chrome — it
@@ -294,6 +302,89 @@ function SheetPreview({
   )
 }
 
+/*
+ * ── One page, open ──────────────────────────────────────────────────────────
+ *
+ * A page carrying everything the right-hand column can hold at once: a declared
+ * prayer, a declared scripture, an in-prose marking, and circumstances with all
+ * three of hour, place and weather. That combination is rare in a real archive
+ * and is exactly the one that has to be looked at, because those four things
+ * are the only occupants of that column and they have to sit together.
+ */
+const READ_BODY = [
+  'Down to the water while it was still dark. Just the sound of it, and the cold',
+  'coming up off the stones.',
+  '',
+  'Tiffany called on the way back and we talked the whole way home about nothing',
+  'in particular, which was the point.',
+  '',
+  'Sat the twenty minutes anyway. Nothing came, and I am learning not to read',
+  'that as a verdict.',
+].join('\n')
+
+const READ_PAGE: Entry = {
+  ...page('preview-read', new Date(2026, 8, 4, 6, 20).toISOString(), READ_BODY),
+  circumstances: {
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    source: 'live',
+    location: { lat: 34.14, lon: -118.15, label: 'Bungalow Heaven, Pasadena', locality: 'Pasadena' },
+    weather: { temp_c: 17.5, condition: 'cloud', summary: 'cloudy', observed_at: new Date(2026, 8, 4, 6).toISOString(), source: 'open-meteo' },
+  },
+} as Entry
+
+const READ_MARKINGS: PageMarking[] = [
+  {
+    id: 'm-pray',
+    entryId: 'preview-read',
+    type: 'prayer',
+    content: 'Lord, I need a breakthrough at work.',
+    declared: true,
+  },
+  {
+    id: 'm-scripture',
+    entryId: 'preview-read',
+    type: 'scripture',
+    content: 'Therefore do not throw away your confidence, which has a great reward.',
+    declared: true,
+  },
+  {
+    id: 'm-learned',
+    entryId: 'preview-read',
+    type: 'learned',
+    content: 'The long way home is not a detour.',
+    declared: true,
+  },
+]
+
+function ReaderPreview() {
+  return (
+    <div className="pg" style={{ height: '100dvh' }}>
+      <div className="pg__body">
+        <PageReader
+          bar={
+            <div className="pg__through">
+              <button type="button" className="pg__back">
+                All entries
+              </button>
+            </div>
+          }
+          entry={READ_PAGE}
+          markQuotes={[]}
+          markings={READ_MARKINGS}
+          match={null}
+          firstLineTitle={false}
+          onEdit={() => {}}
+          onBack={() => {}}
+          leaves={false}
+          newer={null}
+          older={null}
+          onTurn={() => {}}
+        />
+      </div>
+    </div>
+  )
+}
+
 /** The phone, so the surface inside it is laid out for a phone's viewport. */
 function frame(src: string): void {
   document.body.style.cssText =
@@ -315,7 +406,7 @@ function isThemeId(value: string | null): value is ThemeId {
 export function renderPagesPreview(): void {
   const params = new URLSearchParams(window.location.search)
 
-  if (params.get('frame') !== '0' && params.get('wide') !== '1') {
+  if (params.get('frame') !== '0' && params.get('wide') !== '1' && params.get('part') !== 'reader') {
     const inner = new URLSearchParams(params)
     inner.set('frame', '0')
     frame(`${window.location.pathname}?${inner.toString()}`)
@@ -335,7 +426,9 @@ export function renderPagesPreview(): void {
   const el = document.getElementById('root')
   if (!el) throw new Error('Root element #root not found')
   createRoot(el).render(
-    params.get('part') === 'sheet' ? (
+    params.get('part') === 'reader' ? (
+      <ReaderPreview />
+    ) : params.get('part') === 'sheet' ? (
       <SheetPreview
         wide={params.get('wide') === '1'}
         bracket={params.get('bracket') === '1'}

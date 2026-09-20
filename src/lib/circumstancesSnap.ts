@@ -6,6 +6,7 @@
 // as timezone-only.
 
 import { apiPost } from './api'
+import { isMobileTauri } from './platform'
 import {
   isLocalToday,
   mergeCircumstances,
@@ -100,7 +101,70 @@ export async function seedCircumstancesFromExif(
   })
 }
 
-function readPosition(): Promise<{ lat: number; lon: number; accuracy?: number } | null> {
+interface Fix {
+  lat: number
+  lon: number
+  accuracy?: number
+}
+
+/**
+ * ── Who is doing the asking ─────────────────────────────────────────────────
+ *
+ * `navigator.geolocation` is a page asking, so whoever puts the permission
+ * dialog on screen labels it with the page's ORIGIN. On the web that origin is
+ * the site, which is what people expect. Inside the Mac and iPhone apps the
+ * page is served out of the app bundle, so the origin is `localhost` — and the
+ * writer, who opened a journal, is asked whether "localhost" may know where
+ * they are. That is not a wording problem. The operating system was never told
+ * Dayspring wanted anything; the sentence we wrote for this exact moment (it is
+ * in `src-tauri/Info.ios.plist`) is never the one shown.
+ *
+ * So in the native apps we do not ask as a page. `getCurrentPosition` below
+ * goes through CoreLocation, which asks in the app's own name and reads that
+ * sentence out. The web keeps the browser path, where the origin is the truth.
+ *
+ * `isMobileTauri()` and not `isTauri()` because the plugin is mobile-only — see
+ * the note in `src-tauri/Cargo.toml`.
+ */
+async function readPosition(): Promise<Fix | null> {
+  // No fallback. A native "no" — declined, or Location Services off — must end
+  // it: falling through to the webview would put the `localhost` dialog in
+  // front of someone who has already answered this question once.
+  if (isMobileTauri()) return readPositionNatively()
+  return readPositionFromWebview()
+}
+
+async function readPositionNatively(): Promise<Fix | null> {
+  try {
+    const geo = await import('@tauri-apps/plugin-geolocation')
+    let status = await geo.checkPermissions()
+    if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
+      status = await geo.requestPermissions(['location'])
+    }
+    if (status.location !== 'granted') return null
+    const pos = await geo.getCurrentPosition({
+      // A page is a neighbourhood, not a pin — the coordinate is rounded to two
+      // places before it ever leaves the device. Asking for GPS would cost
+      // battery and a colder start to buy precision we immediately throw away.
+      enableHighAccuracy: false,
+      maximumAge: 5 * 60 * 1000,
+      timeout: 8000,
+    })
+    const { latitude, longitude, accuracy } = pos.coords
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+    return {
+      lat: latitude,
+      lon: longitude,
+      ...(Number.isFinite(accuracy) ? { accuracy } : {}),
+    }
+  } catch {
+    // An older build of the app has no such plugin registered, and a page that
+    // cannot say where it was written is the normal, quiet case. Fall through.
+    return null
+  }
+}
+
+function readPositionFromWebview(): Promise<Fix | null> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) return Promise.resolve(null)
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(

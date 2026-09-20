@@ -40,6 +40,12 @@ tauri-plugin-purchases = "0.2"
 # plugin has no desktop implementation, and macOS Touch ID would need a
 # hand-written LocalAuthentication command. Mac and web use the PIN.
 tauri-plugin-biometric = "2"
+# Location for the page's circumstances. Mobile-only, and not because desktop
+# doesn't want it: the plugin has no macOS implementation at all. What it buys
+# is the PROMPT — CoreLocation asks in the app's own name, with the sentence in
+# Info.ios.plist, instead of WebKit asking on behalf of an origin called
+# "localhost". See `readPosition` in src/lib/circumstancesSnap.ts.
+tauri-plugin-geolocation = "2"
 
 # Same objc2 major as iOS / wry — used to turn on WKWebView inline predictions
 # before the view is created (see `native_typing.rs`).

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   circumstancesFromDayOne,
   dropLiveSnapshot,
+  colophonLines,
   formatColophon,
   formatHourBand,
   isCircumstances,
@@ -59,6 +60,40 @@ describe('formatColophon', () => {
       location: { lat: 39.74, lon: -104.99, label: '  ' },
     })
     expect(line).toBe('early morning')
+  })
+})
+
+describe('colophonLines', () => {
+  it('says the same things the folio line says, one per line', () => {
+    const at = '2026-01-14T13:14:00.000Z'
+    const circumstances = {
+      timezone: 'America/Denver',
+      source: 'import' as const,
+      location: { lat: 39.74, lon: -104.99, label: 'Denver' },
+      weather: {
+        temp_c: -2.2,
+        condition: 'snow' as const,
+        summary: 'light snow',
+        observed_at: at,
+        source: 'import' as const,
+      },
+    }
+    const lines = colophonLines(at, circumstances)
+    expect(lines.slice(0, 2)).toEqual(['early morning', 'Denver'])
+    expect(lines[2]).toMatch(/^light snow, /)
+    // The rail and the verso must never disagree about what this page carries.
+    expect(lines.join(' · ')).toBe(formatColophon(at, circumstances))
+  })
+
+  it('prints nothing rather than "location unknown"', () => {
+    expect(colophonLines('2026-01-14T13:14:00.000Z', undefined)).toEqual([])
+    expect(
+      colophonLines('2026-01-14T13:14:00.000Z', {
+        timezone: 'America/Denver',
+        source: 'live',
+        location: { lat: 39.74, lon: -104.99, label: '  ' },
+      }),
+    ).toEqual(['early morning'])
   })
 })
 
