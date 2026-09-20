@@ -13,6 +13,8 @@ interface Props {
   match: RegExp | null
   dim: boolean
   active: boolean
+  /** The page you just came back from — warm for a moment, then not. */
+  here?: boolean | undefined
   selected: boolean
   context: boolean
   /** The newest page — the way back to what you were writing. */
@@ -108,6 +110,7 @@ export const PageRow = memo(function PageRow({
   match,
   dim,
   active,
+  here = false,
   selected,
   context,
   today,
@@ -150,6 +153,7 @@ export const PageRow = memo(function PageRow({
       data-entry-id={entryId}
       data-dim={dim ? 'true' : undefined}
       data-active={active ? 'true' : undefined}
+      data-here={here ? 'true' : undefined}
       data-selected={selected ? 'true' : undefined}
       data-context={context ? 'true' : undefined}
       data-today={today ? 'true' : undefined}

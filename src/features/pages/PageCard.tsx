@@ -19,6 +19,8 @@ interface Props {
   dim: boolean
   /** The page currently open in the editor. */
   active: boolean
+  /** The page you just came back from — warm for a moment, then not. */
+  here?: boolean | undefined
   /** Part of the current multi-selection. */
   selected: boolean
   /** The card a context menu is currently pointing at. */
@@ -89,6 +91,7 @@ export const PageCard = memo(function PageCard({
   match,
   dim,
   active,
+  here = false,
   selected,
   context,
   echo,
@@ -118,6 +121,7 @@ export const PageCard = memo(function PageCard({
       data-entry-id={entryId}
       data-dim={dim ? 'true' : undefined}
       data-active={active ? 'true' : undefined}
+      data-here={here ? 'true' : undefined}
       data-selected={selected ? 'true' : undefined}
       data-context={context ? 'true' : undefined}
       data-echo={echo ? 'true' : undefined}
@@ -209,6 +213,7 @@ function propsEqual(prev: Props, next: Props): boolean {
     prev.match === next.match &&
     prev.dim === next.dim &&
     prev.active === next.active &&
+    prev.here === next.here &&
     prev.selected === next.selected &&
     prev.context === next.context &&
     prev.echo === next.echo &&

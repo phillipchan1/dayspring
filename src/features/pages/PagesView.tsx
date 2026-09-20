@@ -1139,6 +1139,7 @@ export function PagesView({
             // arranged, and that zoom is a persisted setting.
             onOpen={onSpread}
             returningId={spreadId ?? lastSpreadRef.current}
+            covered={openPage !== null}
             jumpTarget={wallJump}
             onDensity={setPerScreen}
             onEdit={onOpenEntry}

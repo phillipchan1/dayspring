@@ -820,6 +820,48 @@ button.pg__sense-q:hover {
 }
 
 /*
+ * The page you just closed — "you were here", said once.
+ *
+ * A warm edge that holds for a beat and lets go. Nothing grows or moves (the
+ * wall's rule is that nothing moves under you); it only tells your eye where to
+ * land. Without motion it simply holds, and the wall removes it after the beat.
+ */
+.pgc[data-here='true'] {
+  animation: pg-here 2.4s ease-out both;
+}
+
+.pgr[data-here='true'] {
+  animation: pg-here-row 2.4s ease-out both;
+}
+
+@keyframes pg-here {
+  0%,
+  35% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+}
+
+@keyframes pg-here-row {
+  0%,
+  35% {
+    background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pgc[data-here='true'] {
+    animation: none;
+    border-color: var(--accent);
+  }
+
+  .pgr[data-here='true'] {
+    animation: none;
+    background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+}
+
+/*
  * Selected, and the card a menu is pointing at.
  *
  * Border and wash only. A selected page must not grow, lift, or gain a

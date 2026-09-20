@@ -102,6 +102,12 @@ interface Props {
    * back into the card it grew out of rather than cutting away from it.
    */
   returningId: string | null
+  /**
+   * A page is open over the wall. The wall stays mounted underneath (so it
+   * keeps its place) but nobody can see it, so nothing on it should announce
+   * itself until the page closes.
+   */
+  covered?: boolean | undefined
   /** A density-band month the reader asked to see on the wall. */
   jumpTarget?: WallJumpTarget | null
   /** Double-click, or "Open to write" — leave for the editor. */
@@ -203,6 +209,22 @@ const ROW_COLUMN_GAP = 28
  * a screen, and they never share one again. What's left is a keydown handler
  * scoped to the grid by ordinary event bubbling.
  */
+/**
+ * Where the wall was, across the times it isn't mounted.
+ *
+ * Writing takes Pages off the canvas entirely, so the scroller that knew where
+ * you were is thrown away on the way into the editor. Coming back used to mean
+ * a fresh scroller at the top, then a jump computed from geometry that hadn't
+ * been measured yet — you went in from the top of the wall and came out near
+ * the bottom of it.
+ *
+ * Kept as the PAGE at the top of the viewport plus how far into its row you
+ * were (as a fraction of the row), not as a pixel offset: a pixel is only a place for one zoom, one
+ * window width and one filter. A page is a place in all of them. Module scope,
+ * so it lasts exactly as long as the session and a relaunch starts at now.
+ */
+let wallPlace: { key: string; into: number } | null = null
+
 export function PageWall({
   entries,
   zoom,
@@ -216,6 +238,7 @@ export function PageWall({
   echoes,
   onOpen,
   returningId,
+  covered = false,
   jumpTarget,
   onEdit,
   onNew,
@@ -666,21 +689,94 @@ export function PageWall({
   const openWithTransition = useCallback((entryId: string) => onOpen(entryId), [onOpen])
 
   /**
-   * Bring the page you zoomed to into view.
+   * Keep the wall's place, and bring you back to it.
    *
-   * Opening a page is a zoom, so the wall has to land on it rather than wherever
-   * it happened to be scrolled. Runs on the id, not on every geometry change, so
-   * it doesn't fight ordinary scrolling once you are there.
+   * Nothing here may run before the columns are measured. The first commit
+   * renders one column at zero width, so a page's row computed then is its
+   * index — the fourth page lands four rows down instead of one, and once the
+   * scroll has been spent on that frame the real geometry never corrects it.
+   */
+  const measured = colWidth > 0
+
+  // Remember the page at the top on every scroll, and once more on the way out:
+  // a scroll event is delivered with the next frame, so a jump made just before
+  // leaving would otherwise go unrecorded. A LAYOUT cleanup, because it runs
+  // while the scroller is still in the document — a detached one reads 0.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el || !measured) return
+    const save = () => {
+      const row = Math.floor(el.scrollTop / rowHeight)
+      const idx = rowLayout ? firstItemIndexAtRow(rowLayout, row) : row * cols
+      const item = idx === null ? undefined : itemsRef.current[idx]
+      wallPlace = item ? { key: item.key, into: (el.scrollTop - row * rowHeight) / rowHeight } : null
+    }
+    el.addEventListener('scroll', save, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', save)
+      if (el.isConnected) save()
+    }
+  }, [measured, rowHeight, cols, rowLayout])
+
+  /**
+   * Put the wall back where it was.
+   *
+   * Re-applied on EVERY geometry change, not once on mount. The wall measures
+   * itself twice on the way in — the scrollbar arrives after the first paint,
+   * narrows the columns and shortens every card — and a one-shot restore was a
+   * few rows adrift by the time it settled. The same rule keeps your place
+   * through a window resize, which used to slide the wall out from under you.
+   */
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el || !measured) return
+    const place = wallPlace
+    const at = place ? itemsRef.current.findIndex((it) => it.key === place.key) : -1
+    if (!place || at < 0) return
+    const row = rowLayout?.itemPositions[at]?.row ?? Math.floor(at / cols)
+    el.scrollTop = (row + place.into) * rowHeight
+  }, [measured, cols, rowHeight, rowLayout])
+
+  /**
+   * Bring the page you were in into view — only if it isn't already.
+   *
+   * A third of the way down, so what came before it shows too. It used to pin
+   * that page to the top edge every time a page opened, which moved the wall
+   * under you even when the card you had just tapped was sitting in plain
+   * sight.
    */
   const landedRef = useRef<string | null>(null)
   useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el || !measured) return
+    const rowOf = (idx: number) => rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
     if (!returningId || landedRef.current === returningId) return
-    const idx = itemsRef.current.findIndex((it) => !it.seam && it.entry.id === returningId)
+    const idx = itemsRef.current.findIndex((it) => !it.seam && !it.echo && it.entry.id === returningId)
     if (idx < 0) return
     landedRef.current = returningId
-    const row = rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
-    scrollRef.current?.scrollTo({ top: row * rowHeight, behavior: 'auto' })
-  }, [returningId, cols, rowHeight, rowLayout])
+    const top = rowOf(idx) * rowHeight
+    if (top >= el.scrollTop && top + cardHeight <= el.scrollTop + el.clientHeight) return
+    el.scrollTop = Math.max(0, top - (el.clientHeight - cardHeight) / 3)
+  }, [measured, returningId, cols, rowHeight, cardHeight, rowLayout])
+
+  /**
+   * Where you were, said once.
+   *
+   * Putting the wall back is half of it; the other half is being able to find
+   * the page on it. When a page closes, its card keeps a warm edge for a
+   * moment and lets it go — the wall saying "you were here", not asking you
+   * to hunt a grid of near-identical rectangles for the one you just left.
+   */
+  const [hereId, setHereId] = useState<string | null>(null)
+  const wasCoveredRef = useRef(covered)
+  useEffect(() => {
+    const uncovered = wasCoveredRef.current && !covered
+    wasCoveredRef.current = covered
+    if (!uncovered || !returningId) return
+    setHereId(returningId)
+    const t = window.setTimeout(() => setHereId(null), 2400)
+    return () => window.clearTimeout(t)
+  }, [covered, returningId])
 
   /**
    * A month in the subject band is a map coordinate, not decoration.
@@ -1099,6 +1195,7 @@ export function PageWall({
                   match={match}
                   dim={lit !== null && !lit.has(item.entry.id)}
                   active={item.entry.id === activeId && !item.echo}
+                  here={!item.echo && item.entry.id === hereId}
                   selected={!item.echo && selectedIds.has(item.entry.id)}
                   context={!item.echo && item.entry.id === menuTargetId}
                   today={item.entry.id === newestId}
@@ -1137,6 +1234,7 @@ export function PageWall({
                 match={match}
                 dim={lit !== null && !lit.has(item.entry.id)}
                 active={item.entry.id === activeId && !item.echo}
+                here={!item.echo && item.entry.id === hereId}
                 selected={!item.echo && selectedIds.has(item.entry.id)}
                 context={!item.echo && item.entry.id === menuTargetId}
                 echo={item.echo}
