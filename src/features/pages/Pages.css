@@ -778,6 +778,41 @@ button.pg__sense-q:hover {
 }
 
 
+/*
+ * Pages are objects here, not text.
+ *
+ * A drag across the wall selects PAGES (see useWallMarquee) — without this it
+ * painted a browser text selection through a dozen cards, which is never what
+ * a drag across a grid of your own pages means. Reading and copying happen in
+ * the Spread and the editor, where the words are text again.
+ */
+.pg__scroll {
+  position: relative;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* The drag rectangle. Positioned in content space so it scrolls with the pages
+   it is sweeping; sized per frame from JS, never through React. */
+.pg__marquee {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 2px;
+}
+
+.pg__marquee[hidden] {
+  display: none;
+}
+
+:root[data-wall-marquee] .pg__scroll * {
+  cursor: default;
+}
+
 /* ── one page ── */
 
 .pgc {

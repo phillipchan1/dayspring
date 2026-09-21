@@ -39,6 +39,7 @@ import {
   type WallItem,
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
+import { useWallMarquee } from './useWallMarquee'
 import { cardHeightFor, clampZoom, isRows, specForZoom, wheelZoomDelta } from './zoom'
 import {
   buildWallRows,
@@ -845,6 +846,22 @@ export function PageWall({
     return Boolean(node)
   }, [])
 
+  const marqueeRef = useRef<HTMLDivElement>(null)
+  const marquee = useWallMarquee({
+    scrollRef,
+    marqueeRef,
+    orderIds,
+    selectedIds,
+    setSelectedIds: multi.setSelectedIds,
+    setAnchor,
+    clearSelection,
+    focusCard,
+    onStart: () => {
+      setPhase({ kind: 'closed' })
+      setBulkPhase({ kind: 'closed' })
+    },
+  })
+
   /**
    * Move the roving focus.
    *
@@ -1043,7 +1060,9 @@ export function PageWall({
         case 'Delete': {
           e.preventDefault()
           const bulk = selectedRef.current
-          if (bulk.length > 1) {
+          // Any explicit selection wins over the focused card — after a ⌘-click
+          // deselects, focus stays on a page that is no longer chosen.
+          if (bulk.length >= 1) {
             setBulkPhase({ kind: 'confirm', entries: bulk })
             return
           }
@@ -1080,7 +1099,13 @@ export function PageWall({
 
   return (
     <div className="pg__wall-wrap">
-      <div className="pg__scroll" ref={scrollRef}>
+      <div
+        className="pg__scroll"
+        ref={scrollRef}
+        onPointerDown={marquee.onPointerDown}
+        onClickCapture={marquee.onClickCapture}
+      >
+        <div ref={marqueeRef} className="pg__marquee" hidden aria-hidden />
         <div
           ref={gridRef}
           className="pg__grid"
@@ -1350,7 +1375,7 @@ export function PageWall({
         260px sidebar; here there is room for it to simply be where the pages
         are.
       */}
-      {selectedEntries.length >= 2 ? (
+      {selectedEntries.length >= 1 ? (
         <div className="pg__selection">
           <EntrySelectionBar
             layout="wall"
