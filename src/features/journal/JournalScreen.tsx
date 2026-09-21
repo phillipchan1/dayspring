@@ -128,6 +128,16 @@ function arrivalLabelFor(block: ParsedSpiritualBlock): string {
   return raw.length > 48 ? `${raw.slice(0, 47).trimEnd()}…` : raw
 }
 
+/** How long the veil takes to fade in and out — see `ritualVeil`. */
+const VEIL_FADE_MS = 160
+/** The rail's own fade-in (`rc-in` in RitualComposer.css), plus a frame. */
+const RAIL_IN_MS = 300
+/** Resolves once the veil has faded in, so nothing changes under it half-shown. */
+function veilUp(): Promise<void> {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return new Promise((resolve) => window.setTimeout(resolve, reduced ? 0 : VEIL_FADE_MS))
+}
+
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const { state, go, back, setHistoryPopBarrier, closeSettings } = useAppNavigation()
   const { entryId } = state
@@ -437,6 +447,40 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   /** How to leave once the composer has closed and its last words are in `content`. */
   const pendingRitualLeaveRef = useRef<{ kind: 'up' } | { kind: 'entry'; id: string } | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  /**
+   * A plain veil, in the page's own colour, over everything while a ritual page
+   * is being opened or left.
+   *
+   * Getting into the rail goes through the editor (the rail writes through it),
+   * and getting out goes through a save and a navigation. Without this you saw
+   * all of it: the reader morphing into the editor, the ritual drawn as its
+   * in-entry record, the rail fading in over that, and the same in reverse. The
+   * veil goes up before any of it and lifts only once the destination is on
+   * screen, so the only thing you see is one page giving way to the next.
+   */
+  const [ritualVeil, setRitualVeil] = useState<'on' | 'instant' | 'lifting' | null>(null)
+  const veilTimerRef = useRef<number | undefined>(undefined)
+  const liftVeil = useCallback((after = 0) => {
+    window.clearTimeout(veilTimerRef.current)
+    veilTimerRef.current = window.setTimeout(() => {
+      setRitualVeil((v) => (v ? 'lifting' : v))
+      veilTimerRef.current = window.setTimeout(() => setRitualVeil(null), VEIL_FADE_MS)
+    }, after)
+  }, [])
+  /**
+   * `instant` when the veil takes the place of something opaque in the same
+   * render (the rail closing, the library closing) — a fade there would show
+   * whatever is underneath for its length. Faded in over a page that is
+   * already showing.
+   */
+  const raiseVeil = useCallback((instant = false) => {
+    window.clearTimeout(veilTimerRef.current)
+    setRitualVeil(instant ? 'instant' : 'on')
+    // Never strand a writer behind a blank screen: whatever was meant to lift
+    // it, it lifts.
+    veilTimerRef.current = window.setTimeout(() => liftVeil(), 3000)
+  }, [liftVeil])
+  useEffect(() => () => window.clearTimeout(veilTimerRef.current), [])
   /** "Practices you have walked" — the way back into a ritual. */
   const [threadsOpen, setThreadsOpen] = useState(false)
   /** The practice the thread opens on — from a ritual page's own link — or null for all. */
@@ -879,12 +923,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     const prev = readAppHistoryState()?.entryId ?? entryIdRef.current
+    // The entry you were in gives way to a blank page on the way; don't show it.
+    raiseVeil(true)
     await handleNew()
     setRitualEntry({
       seed,
       ...(prev ? BACK_TO_ENTRY : ritualBackTo(null)),
       returnTo: prev ? { kind: 'entry', id: prev } : { kind: 'up' },
     })
+    liftVeil(RAIL_IN_MS)
   }
   const handleBeginPractice = (practice: Practice, movements: PracticePrompt[]) => {
     void beginRitualEntry(practice, movements)
@@ -902,13 +949,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     pendingRitualRef.current = null
-    if (ritualEntryShape(content).kind !== 'ritual') return
+    if (ritualEntryShape(content).kind !== 'ritual') {
+      liftVeil()
+      return
+    }
     editorRef.current?.blur()
     setRitualEntry({
       ...(pending.startAt === undefined ? {} : { startAt: pending.startAt }),
       ...ritualBackTo(state.entryReturn),
       returnTo: { kind: 'up' },
     })
+    // Under the rail, once its own fade-in has made it opaque.
+    liftVeil(RAIL_IN_MS)
     // `content` is read once, at the moment the entry lands — not a dependency
     // that should reopen anything as the writer types.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -917,6 +969,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   /** Leave the ritual entry, once the composer's last write has reached `content`. */
   function closeRitualEntry() {
     if (!ritualEntry) return
+    // Up in the same render the rail goes, so the editor never shows between.
+    raiseVeil(true)
     pendingRitualLeaveRef.current = ritualEntry.returnTo
     setRitualEntry(null)
   }
@@ -930,16 +984,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         await saveNow()
         if (back) await handleBrowse(back)
         else await leaveEditorUp()
+        requestAnimationFrame(() => liftVeil())
       })()
       return
     }
-    void leaveEditorUp()
+    void leaveEditorUp().then(() => requestAnimationFrame(() => liftVeil()))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ritualEntry])
 
   /** Delete the ritual entry — for a ritual page, the ritual and the page are one. */
   function deleteRitualEntry() {
     const id = readAppHistoryState()?.entryId ?? entryIdRef.current
+    raiseVeil(true)
     setRitualEntry(null)
     if (!id) {
       // Never saved: there is no page to delete, only words to let go of.
@@ -965,6 +1021,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       },
       { replace: true },
     )
+    requestAnimationFrame(() => liftVeil())
     void repo.removeEntries([id]).catch((e) => {
       setLoadError(e instanceof Error ? e.message : 'Failed to delete entry')
     })
@@ -1517,7 +1574,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setFindOpen(false)
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
-    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') openRitualEntryWhenLoaded(entry.id)
+    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') {
+      // From the thread (a full-screen sheet closing this same moment), the
+      // veil has to be there at once; from anywhere else it fades in.
+      raiseVeil(threadsOpen)
+      if (!threadsOpen) await veilUp()
+      openRitualEntryWhenLoaded(entry.id)
+    }
     if (state.surface !== 'journal') {
       // Carry the breadcrumb. This used to hard-code `entryReturn: null`, so
       // ⌘K from a surface dropped you in the editor with no way back to where
@@ -1942,7 +2005,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     if (!entry) return
     // A ritual entry is written in the composer, never in the editor — opened
     // on the answer that was clicked, when one was.
-    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') {
+    const ritualPage = ritualEntryShape(entry.body_markdown).kind === 'ritual'
+    if (ritualPage) {
+      // Veil first, then change surfaces underneath it — see `ritualVeil`.
+      raiseVeil()
+      await veilUp()
       openRitualEntryWhenLoaded(entry.id, startAt)
     }
 
@@ -1970,7 +2037,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const fromOpenPage =
       state.surface === 'pages' &&
       state.pagesSpreadId === entry.id
-    if (!reducedMotion && fromOpenPage && document.startViewTransition) {
+    // No morph into the editor for a ritual page: the editor is not where it
+    // is going, and the veil is already over it.
+    if (!ritualPage && !reducedMotion && fromOpenPage && document.startViewTransition) {
       document.startViewTransition(openEditor)
     } else {
       openEditor()
@@ -2533,6 +2602,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           }}
         />
       )}
+      {ritualVeil && <div className="ritual-veil" data-state={ritualVeil} aria-hidden />}
       {ritualEntry && (
         <RitualComposer
           blockIndex={0}

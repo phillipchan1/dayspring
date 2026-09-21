@@ -569,3 +569,30 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 .rc__write--editor .cm-editor.cm-focused { outline: none; }
 .rc__write--editor .cm-scroller { overflow: visible; }
 .rc__write--editor .cm-content { padding-top: 0; padding-bottom: 2rem; }
+
+/* ── The veil ─────────────────────────────────────────────────────────────
+   Held by JournalScreen (`ritualVeil`) while a ritual page is opened or
+   left, just under the rail. The page's own colour and nothing else, so the
+   editor, the save and the navigation in between are never seen. `backwards`
+   fill, not `both`: a forwards fill would pin opacity at 1 and the lift could
+   never fade. */
+.ritual-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--bg);
+  animation: ritual-veil-in 160ms ease backwards;
+  transition: opacity 160ms ease;
+}
+.ritual-veil[data-state='instant'] { animation: none; }
+.ritual-veil[data-state='lifting'] {
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes ritual-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ritual-veil { animation: none; transition: none; }
+}
