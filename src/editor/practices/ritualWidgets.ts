@@ -55,12 +55,16 @@ export class RitualHeaderWidget extends WidgetType {
     root.append(
       action('about', 'about', 'Why this ritual, how it moves, and a few tips'),
     )
-    // A ritual left part-written needs a door back into the composer, which is
-    // where movements are paced now. A finished one does not: it is a record,
-    // and you edit a record in place like any other text.
-    if (this.unfinished) {
-      root.append(action('continue', 'continue', 'Pick the ritual back up where you left it'))
-    }
+    // Always a door back into the composer. A part-written ritual picks up
+    // where it was left; a finished one opens to be read and written in again.
+    // Finished ones used to get no door on the theory that a record is edited
+    // in place — but then the ritual had two ways to write in it and only one
+    // of them could be found again.
+    root.append(
+      this.unfinished
+        ? action('continue', 'continue', 'Pick the ritual back up where you left it')
+        : action('continue', 'open', 'Open the ritual to read it and write in it again'),
+    )
     root.append(
       action('freewrite', 'free write', 'Remove the prompts and keep only your words'),
       action('remove', 'remove', 'Remove this ritual from the entry'),

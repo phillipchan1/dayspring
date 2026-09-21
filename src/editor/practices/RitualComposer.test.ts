@@ -332,7 +332,22 @@ describe('RitualComposer', () => {
     const done = new RitualHeaderWidget('The Daily Examen', false, false).toDOM()
     expect(open.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
     expect(done.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
-    expect(done.querySelector('.cm-practice-action--continue')).toBeNull()
+  })
+
+  it('always offers a way back into the composer, finished or not', () => {
+    const open = new RitualHeaderWidget('The Daily Examen', true, false).toDOM()
+    const done = new RitualHeaderWidget('The Daily Examen', false, false).toDOM()
+    expect(open.querySelector('.cm-practice-action--continue')?.textContent).toBe('continue')
+    expect(done.querySelector('.cm-practice-action--continue')?.textContent).toBe('open')
+  })
+
+  it('reopens a finished ritual at its beginning, not on the close', () => {
+    doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', 'Distant.', 'Short.', 'Patience.'])
+    render()
+    expect(document.querySelector('.rc__close')?.closest('[aria-hidden="true"]')).toBeTruthy()
+    expect(
+      document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
+    ).toBe('Gratitude')
   })
 
   /**

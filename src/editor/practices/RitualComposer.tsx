@@ -99,11 +99,15 @@ export function RitualComposer({
 }: Props) {
   const seed = useRef(readRitual(getDoc(), blockIndex))
   const block = seed.current
-  /** Open on the movement still waiting, or on the close if there is none. */
+  /**
+   * Open on the movement still waiting. A finished ritual, reopened from the
+   * entry, opens at its beginning — landing on the close would greet someone
+   * who came back to write with "you're done".
+   */
   const startAt = (() => {
     if (!block) return 0
     const firstEmpty = block.texts.findIndex((t) => t.trim() === '')
-    return firstEmpty === -1 ? block.texts.length : firstEmpty
+    return firstEmpty === -1 ? 0 : firstEmpty
   })()
   const [texts, setTexts] = useState<string[]>(block ? block.texts : [])
   const [i, setI] = useState(startAt)
