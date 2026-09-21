@@ -45,8 +45,10 @@ concern seems to require it, raise it with Phil; don't revert this in a PR.
 "trial" itself (not "free trial") on the site.
 
 **Cost accepted:** some residual App Review risk while the iOS app is in review,
-taken knowingly. `terms.ts` still says "complimentary access" — legal text, left for
-Phil to change deliberately.
+taken knowingly. The Terms follow (site `terms.ts` + app `public/legal/terms.html`,
+dated 21 September 2026); there "no payment method required" stays, as a billing fact.
+The in-app trial banner, locked screen and Settings still say "complimentary access" —
+that was the direct App Review fix (0eb9810, 007176d) and is not changed here.
 
 ## D-030 — Launch paid acquisition (Facebook, rituals-led) ahead of D-001 closing
 **2026-09-15** · **Status:** Decided · deliberate override of D-001's acquisition-spend gate

@@ -46,9 +46,13 @@ describe("terms of use", () => {
       "renews automatically unless auto-renew is turned off at least 24 hours",
     );
     expect(text).toContain("manage or cancel the subscription in your Apple Account settings");
-    expect(text).toContain("14 days of complimentary access");
+    // D-031: a trial, never "complimentary" (Phil, 2026-09-21). "No payment
+    // method required" stays HERE — in the legal terms it is a fact about
+    // billing, not marketing chrome — but "free" must never describe it.
+    expect(text).toContain("14-day trial");
     expect(text).toContain("no payment method required");
-    expect(text).not.toContain("14-day trial");
+    expect(text.toLowerCase()).not.toContain("complimentary");
+    expect(text.toLowerCase()).not.toContain("free trial");
     expect(text).toContain("billed by Apple, it can only be changed or cancelled through Apple");
   });
 });
