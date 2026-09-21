@@ -1363,6 +1363,16 @@
   color: var(--accent);
   margin: 0.06em 0.09em -0.04em 0;
 }
+/* The versal is a float, and a float is taller than a one-line opener. It hung
+   out of the bottom of its paragraph, and the NEXT paragraph wrapped around it —
+   indented by the letter's width, for no reason the writer could see. A block
+   formatting context contains its own float, so the opener grows to hold the
+   letter (a little air under a short first line) and everything after it stays
+   flush. */
+[data-theme='vellum'] .markdown-body > p:first-of-type,
+[data-theme='ember'] .markdown-body > p:first-of-type {
+  display: flow-root;
+}
 [data-theme='vellum'] .cm-scripture-cite,
 [data-theme='ember'] .cm-scripture-cite,
 [data-theme='vellum'] .markdown-body .spiritual-cite,

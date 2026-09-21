@@ -49,6 +49,20 @@ import {
   type WallLayoutRow,
 } from './wallRows'
 
+/**
+ * How tall the wall is to the eye.
+ *
+ * `clientHeight` also counts the strip the scroller keeps above the first row so
+ * a hovered card's lift and glow are not clipped (`--pg-wall-inset`, Pages.css).
+ * That strip is pulled out of the layout by an equal negative margin, so every
+ * row ↔ `scrollTop` conversion here stays exact — but a measurement of the box
+ * has to take it back off, or a page of rows is counted a fraction too tall and
+ * the last card scrolls into view a few pixels short.
+ */
+function wallViewportHeight(el: HTMLElement): number {
+  return el.clientHeight - (Number.parseFloat(getComputedStyle(el).paddingTop) || 0)
+}
+
 type VisibleCell =
   | {
       kind: 'item'
@@ -450,7 +464,7 @@ export function PageWall({
     const el = scrollRef.current
     if (!el || !onDensity) return
     const report = () => {
-      const h = el.clientHeight
+      const h = wallViewportHeight(el)
       if (h <= 0 || rowHeight <= 0) return
       const viewportRows = Math.max(1, Math.floor(h / rowHeight))
       const pageCount = rowLayout
@@ -851,8 +865,8 @@ export function PageWall({
       if (el) {
         const top = row * rowHeight
         if (top < el.scrollTop) el.scrollTo({ top, behavior: 'auto' })
-        else if (top + cardHeight > el.scrollTop + el.clientHeight) {
-          el.scrollTo({ top: top + cardHeight - el.clientHeight, behavior: 'auto' })
+        else if (top + cardHeight > el.scrollTop + wallViewportHeight(el)) {
+          el.scrollTo({ top: top + cardHeight - wallViewportHeight(el), behavior: 'auto' })
         }
       }
       const item = list[clamped] ?? null
@@ -963,7 +977,8 @@ export function PageWall({
       const list = itemsRef.current
       const base = list.findIndex((it) => it.key === key)
       if (base < 0) return
-      const visibleRows = Math.max(1, Math.floor((scrollRef.current?.clientHeight ?? 0) / rowHeight))
+      const wall = scrollRef.current
+      const visibleRows = Math.max(1, Math.floor((wall ? wallViewportHeight(wall) : 0) / rowHeight))
 
       const land = (next: number) => {
         e.preventDefault()

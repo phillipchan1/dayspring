@@ -28,6 +28,13 @@
    * disagreement between them cost actual rows rather than just looking wrong.
    */
   --pg-rail-w: clamp(2.8rem, 5vw, 3.8rem);
+  /*
+   * How far the wall's clip edge reaches above its first row — headroom for a
+   * hovered card's 3px lift and the glow over it. Carved out of the header's
+   * own bottom margin (never more than it, or the scroller would sit on the
+   * hairline), so the first row does not move. See `.pg__scroll`.
+   */
+  --pg-wall-inset: 1rem;
 }
 
 .pg__inner {
@@ -433,8 +440,27 @@ button.pg__sense-q:hover {
   min-height: 0;
 }
 
+/*
+ * A scroller clips at its own edge, and the first row used to start ON that
+ * edge — so a hovered card, which lifts 3px and throws a glow, lost its top
+ * border and the glow above it to the clip. The last row's drop shadow (32px
+ * below the card) was cut the same way at the other end.
+ *
+ * The room above is taken from the gap under the header rather than added to
+ * it: the scroller grows UP by `--pg-wall-inset` (negative margin, an equal
+ * height, an equal padding), so the grid is exactly where it was and every
+ * `row * rowHeight` ↔ `scrollTop` conversion in PageWall stays exact. The only
+ * thing that changes is how far the clip reaches. `clientHeight` now counts
+ * that strip too, which is why PageWall measures the wall with
+ * `wallViewportHeight` instead.
+ *
+ * Below there is nothing to give back, so it is plain scroll room.
+ */
 .pg__scroll {
-  height: 100%;
+  height: calc(100% + var(--pg-wall-inset));
+  margin-block-start: calc(var(--pg-wall-inset) * -1);
+  padding-block-start: var(--pg-wall-inset);
+  padding-block-end: 2rem;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -5173,6 +5199,12 @@ button.pg__sense-q:hover {
    */
   .pg[data-reading-page='true'] .pg__head-wrap {
     display: none;
+  }
+
+  /* With the header gone there is no gap to borrow the wall's headroom from, and
+     the wall is not being looked at anyway. */
+  .pg[data-reading-page='true'] {
+    --pg-wall-inset: 0px;
   }
 
   /*
