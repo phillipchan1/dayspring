@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettings } from '@/hooks/useSettings'
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import type { Entry } from '@/lib/types'
 import { computeVolumes, spanName, volumeColour, volumeTitle, type Volume } from '@/features/volumes/volumes'
 import type { LedgerLine, LedgerThread } from './build'
@@ -87,6 +89,14 @@ export function ThreadAcross({
     }
   }, [thread.id, onClose])
 
+  // On a phone this is a pushed view covering the whole screen, and a pushed
+  // view is left by dragging it off to the right — the same gesture the Altar
+  // strand, the Lamp book and the page reader answer to. Without it the only
+  // way back was a 10px "close" in the corner, which is the one place a thumb
+  // never reaches.
+  const isMobile = useIsMobile()
+  const { handlers, dragX, dragging } = useSwipeToDismiss({ onDismiss: onClose, enabled: isMobile })
+
   const t = whole ?? thread
   const volumes = useMemo(() => (entries ? computeVolumes(entries, settings.volumeClosings).volumes : []), [entries, settings.volumeClosings])
   const parts = useMemo(() => chapters(t.lines, volumes), [t.lines, volumes])
@@ -95,7 +105,13 @@ export function ThreadAcross({
   return createPortal(
     <div className="across" role="dialog" aria-modal="true" aria-label={t.label}>
       <button type="button" className="across__scrim" aria-label={LEDGER_COPY.close} onClick={onClose} />
-      <div className="across__sheet">
+      <div
+        className="across__sheet"
+        data-sheet-scroll
+        data-dragging={dragging ? 'true' : undefined}
+        {...handlers}
+        style={dragging ? { transform: `translateX(${dragX}px)` } : undefined}
+      >
         <div className="across__bar">
           <span>A thread, across your volumes</span>
           <button type="button" onClick={onClose}>

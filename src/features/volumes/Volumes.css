@@ -88,9 +88,11 @@
 .vol-view .ledger-quiet { color: var(--text-faint); }
 
 /* ── the closing ────────────────────────────────────────────────────────── */
-.vol-closing { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; }
+/* `dvh` and the safe-area insets — see the note on `.write-sheet` in
+   Ledger.css: `100vh` on iOS is taller than the screen actually shows. */
+.vol-closing { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom)); }
 .vol-closing__scrim { position: absolute; inset: 0; background: rgba(10, 8, 6, 0.5); }
-.vol-closing__card { position: relative; width: min(500px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 34px 32px 26px; border-radius: 18px; background: var(--bg-elevated); color: var(--text); text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3); }
+.vol-closing__card { position: relative; width: min(500px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom)); overflow: auto; overscroll-behavior: contain; padding: 34px 32px 26px; border-radius: 18px; background: var(--bg-elevated); color: var(--text); text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3); }
 .vol-closing__card h2 { margin: 0 0 4px; font-family: var(--font-serif); font-weight: 400; font-style: italic; font-size: 28px; color: var(--text-bright); }
 .vol-closing__sub { margin: 0; color: var(--text-dim); font-size: 14px; }
 .vol-book { position: relative; width: 128px; height: 170px; margin: 0 auto 24px; perspective: 800px; }
@@ -105,14 +107,17 @@
 .vol-closing__name input:focus { border-bottom-color: var(--accent); }
 .vol-closing__carry { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, transparent); text-align: left; }
 .vol-closing__carry p { margin: 6px 0 0; font-family: var(--font-serif); font-size: 16px; color: var(--text); }
-.vol-closing__acts { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
+.vol-closing__acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 22px; }
 .vol-closing__fine { margin: 14px 0 0; font-size: 12px; color: var(--text-faint); }
 
 @media (max-width: 640px) {
   .vol-view__head, .vol-ends, .vol-ran__row { grid-template-columns: 1fr; }
   .vol-view__head { gap: 16px; }
   .vol-view__cover { width: 120px; }
+  .vol-view { padding: 14px 16px 80px; }
+  .vol-view__title { font-size: 30px; }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .vol-book__cover { transition: none; }
 }
@@ -128,3 +133,24 @@
 .vol-shelf__year { margin-top: 26px; }
 .vol-shelf__year:first-of-type { margin-top: 4px; }
 .vol-shelf__yearname { margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: 0.16em; color: var(--text-dim); }
+
+/* ── touch ──────────────────────────────────────────────────────────────
+ * Hit area only, never ink — and last in the file, since a media query adds
+ * no specificity and some of what it overrides is declared below. */
+@media (pointer: coarse) {
+  .vol-btn { min-height: 44px; padding: 11px 18px; }
+  .vol-style button { min-height: 40px; padding: 4px 14px; }
+  /* "← the shelf" is the way back out of a volume, and it was a 12.5px line of
+     text with no padding at all. */
+  .vol-view__back,
+  .vol-view__name,
+  .vol-view__walk {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    margin-left: -8px;
+  }
+  .vol-view__back { margin-bottom: 10px; }
+  .vol-ran__name, .vol-ran__line, .vol-found__row { padding-top: 8px; padding-bottom: 8px; }
+}

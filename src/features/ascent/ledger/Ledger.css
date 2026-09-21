@@ -695,20 +695,40 @@
 .span-write p { margin: 0 0 16px; font-size: 13px; color: rgba(var(--ledger-ink-rgb), 0.55); }
 
 /* the write sheet */
-.write-sheet { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; }
+/* `dvh`, not `vh`: on iOS `100vh` is the viewport with the browser chrome
+   retracted, so a sheet sized against it hangs its footer — the one row with
+   "Start writing" in it — under the bottom bar. The padding takes the safe-area
+   insets for the same reason: a notch and a home indicator both eat into
+   `inset: 0`. */
+.write-sheet {
+  position: fixed;
+  inset: 0;
+  /* Above `.across` (85) and `.vol-closing` (90). The sheet is opened FROM the
+     thread panel ("Write about this"), and both portal to <body> — at 80 it
+     was mounted, laid out and painted behind the panel that opened it, so the
+     tap did nothing you could see. */
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom));
+}
 .write-sheet__scrim { position: absolute; inset: 0; border: 0; background: rgba(8, 10, 16, 0.55); cursor: default; }
 .write-sheet__page {
   position: relative;
   width: min(640px, 100%);
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom));
   overflow: auto;
+  /* Don't let a flick inside the sheet scroll the Ascent underneath it. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 34px clamp(20px, 5vw, 48px) 26px;
   border-radius: 16px;
   background: var(--bg-elevated, #fffdf8);
   color: var(--text, #3a3129);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
 }
-.write-sheet__meta { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 12px; color: var(--text-faint, #b4a78f); }
+.write-sheet__meta { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 20px; font-size: 12px; color: var(--text-faint, #b4a78f); }
 .write-sheet__meta button { border: 0; background: none; cursor: pointer; color: inherit; }
 .write-sheet__title { margin: 0 0 18px; font-family: var(--font-serif); font-weight: 500; font-size: 27px; color: var(--text-bright, #221a12); }
 .write-sheet__quotes blockquote { margin: 0 0 16px; padding: 2px 0 2px 16px; border-left: 2px solid var(--accent, #b0762c); }
@@ -726,7 +746,37 @@
   .story__when { position: static; display: block; width: auto; text-align: left; padding-left: 12px; margin-bottom: 2px; }
   .story__cta { margin-left: 0; }
   .alive__row { grid-template-columns: 1fr; gap: 6px; }
+
+  /* The write sheet rises from the bottom edge, where the thumb already is,
+     instead of floating in the middle of a screen it nearly fills anyway. */
+  .write-sheet { place-items: end center; padding-left: 0; padding-right: 0; padding-bottom: 0; }
+  .write-sheet__page {
+    width: 100%;
+    max-height: calc(100dvh - 56px - var(--safe-top));
+    border-radius: 18px 18px 0 0;
+    padding: 26px 20px calc(22px + var(--safe-bottom));
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .write-sheet__page[data-dragging='true'] { transition: none; }
+  /* A grabbable edge, so the sheet says it can be pulled down. */
+  .write-sheet__page::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    margin-left: -19px;
+    border-radius: 2px;
+    background: var(--border-subtle, #e6dccb);
+  }
+  .write-sheet__title { font-size: 23px; }
+  /* "Start writing" is the point of the sheet; let it take the width rather
+     than sit as a 140px pill beside a line of grey fine print. */
+  .write-sheet__foot .story__write { flex: 1 1 100%; }
+
 }
+
 /* the sheet is portaled out of .ascent, so it brings its own gold */
 .write-sheet { --ascent-gold: var(--accent, #b0762c); }
 
@@ -749,9 +799,30 @@
 /* ── a thread, across volumes (portaled; uses the app's theme tokens) ───── */
 .across { position: fixed; inset: 0; z-index: 85; display: flex; justify-content: flex-end; --ascent-gold: var(--accent, #b0762c); }
 .across__scrim { position: absolute; inset: 0; border: 0; background: rgba(8, 10, 16, 0.45); cursor: default; }
-.across__sheet { position: relative; width: min(640px, 100vw); height: 100%; overflow: auto; padding: 22px clamp(20px, 5vw, 40px) 60px; background: var(--bg-elevated, #fffdf8); color: var(--text, #3a3129); box-shadow: -20px 0 60px rgba(0, 0, 0, 0.2); animation: across-in 0.28s ease both; }
+.across__sheet {
+  position: relative;
+  width: min(640px, 100vw);
+  height: 100%;
+  overflow: auto;
+  /* The insets, not decoration: this panel covers the whole screen on a phone,
+     so its close bar would sit under the status bar and its last line under the
+     home indicator. */
+  padding: calc(22px + var(--safe-top)) clamp(20px, 5vw, 40px) calc(60px + var(--safe-bottom));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* The panel is dragged off to the right to dismiss (useSwipeToDismiss), so
+     WebKit gets the vertical axis and this keeps the horizontal one. */
+  touch-action: pan-y;
+  background: var(--bg-elevated, #fffdf8);
+  color: var(--text, #3a3129);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.2);
+  animation: across-in 0.28s ease both;
+}
 @keyframes across-in { from { transform: translateX(40px); opacity: 0; } }
-.across__bar { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-faint, #b4a78f); margin-bottom: 18px; }
+/* While a finger has hold of it the transform is written inline; the animation
+   would fight it, and the transition would lag a frame behind the thumb. */
+.across__sheet[data-dragging='true'] { animation: none; transition: none; }
+.across__bar { display: flex; align-items: center; gap: 12px; justify-content: space-between; font-size: 12px; color: var(--text-faint, #b4a78f); margin-bottom: 18px; }
 .across__bar button { border: 0; background: none; cursor: pointer; color: inherit; }
 .across__title { margin: 0; font-family: var(--font-serif); font-weight: 400; font-size: 32px; color: var(--text-bright, #221a12); }
 .across__sub { margin: 4px 0 0; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--text-dim, #8a7c69); }
@@ -824,3 +895,105 @@
 .across__whole { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--border-subtle, #e6dccb); font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint, #b4a78f); }
 .pile__open { margin-top: auto; padding-top: 10px; font-family: var(--font-mono); font-size: 10px; color: rgba(var(--ledger-ink-rgb), 0.38); }
 .pile__item:hover .pile__open { color: var(--ascent-gold); }
+
+/* ── the thread panel, on a phone ─────────────────────────────────────────
+ * After the `.across__*` rules above, not with the other narrow-screen block
+ * further up the file: these override the base panel's own padding and width,
+ * and at equal specificity the later rule is the one that lands.
+ */
+@media (max-width: 560px) {
+  .across__sheet {
+    width: 100%;
+    /* The sheet gives up its top padding so the bar below can start flush with
+       the scrollport. A sticky element cannot rise above its containing block,
+       so padding left above it is a band the text scrolls through. */
+    padding-top: 0;
+  }
+  /* A thread that runs through a decade is several screens long, and the only
+     way out of it was a word at the very top. Keep it in view — the bar
+     carries the notch inset and the panel's top padding for it. */
+  .across__bar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 calc(-1 * clamp(20px, 5vw, 40px)) 14px;
+    padding: calc(var(--safe-top) + 14px) clamp(20px, 5vw, 40px) 10px;
+    border-bottom: 1px solid var(--border-subtle, #e6dccb);
+    background: var(--bg-elevated, #fffdf8);
+  }
+  .across__title { font-size: 27px; }
+}
+
+/* ── touch ────────────────────────────────────────────────────────────────
+ * Everything below is a TARGET, not a look. The Ascent's quiet controls are
+ * 10–12px of mono set flush against running text — on a trackpad that is a
+ * deliberate hush, and under a thumb it is a miss. Each rule here grows the
+ * hit area without moving the ink: padding plus an equal negative margin, so
+ * the layout reads exactly as it did.
+ *
+ * `pointer: coarse` rather than a width: an iPad without a trackpad is a thumb
+ * too, and an iPhone with a Bluetooth mouse is not.
+ *
+ * LAST in the file on purpose. A media query adds no specificity, and half of
+ * what this overrides (`.name-it__edit`'s `padding: 0`, `.across__lines
+ * button`'s padding shorthand) is declared further down — from anywhere
+ * higher up, these rules lose the cascade and silently do nothing.
+ */
+@media (pointer: coarse) {
+  /* At 44px tall with room to breathe, six month pills wrap to two rows on
+     every iPhone width — and that is the right answer. Squeezing them onto one
+     line means either targets a thumb misses between or a sideways scroller,
+     and `.ascent-years` is the one place on this surface allowed to hide its
+     options off the side. */
+  .climb__periods { gap: 10px; }
+  .climb__periods button { min-height: 44px; padding: 4px 14px; }
+
+  .story__write { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+
+  /* Inline text links — "+ give it a name", "the whole thread", "more of the
+     year", "close". The negative margin keeps the baseline where it was. */
+  .name-it__edit,
+  .story__whole,
+  .story__name-btn,
+  .ledger__more,
+  .ledger-walk__close,
+  .ledger-walk__more,
+  .across__bar button,
+  .write-sheet__meta button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+  /* `.ledger__more` already carries its own left margin; keep it aligned. */
+  .ledger__more { margin-left: 0; }
+  /* "+ give it a name" follows a title on the same line — pulling it left by
+     the padding closes the one space between them. */
+  .name-it__edit { margin-left: 0; }
+
+  .write-sheet__asks button { min-height: 44px; padding: 8px 14px; }
+
+  /* The rows themselves: a line of the writer's own words is the target. */
+  .ledger-walk__line,
+  .alive__lines button,
+  .across__lines button,
+  .story__line { padding-top: 10px; padding-bottom: 10px; }
+
+  /* A photo's date is behind a hover on a mouse; on a touch screen there is no
+     hover, so the only thing saying which page a thumbnail opens never showed.
+     Not on the year's film strip, though — a cell there is a twelfth of the
+     screen wide, and "Jun 10" laid over it spills across its neighbours. */
+  .span-photo:not(.is-film) .span-photo__date { opacity: 1; }
+  .story__open { opacity: 0.55; }
+
+  /* The year's film strip is twelve cells wide however narrow the screen —
+     that alignment with the months above IS the picture. Give the cells the
+     height a thumb needs rather than a width the strip hasn't got. */
+  .year-now__film { gap: 3px; }
+  /* `aspect-ratio: auto` first: with the ratio still set, a min-height widens
+     the cell to match and twelve of them burst the strip off the screen. The
+     width belongs to the grid track — only the height is ours to give. */
+  .year-now__film > * { aspect-ratio: auto; min-height: 44px; }
+}

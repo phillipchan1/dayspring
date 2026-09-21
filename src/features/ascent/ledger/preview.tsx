@@ -189,9 +189,15 @@ function Harness({ light }: { light: boolean }) {
   const open = (id: string) => console.log('[preview] open entry', id)
   const extras = { photos: photosIn(input.entries, `${Y}-01-01`, `${Y}-12-31`), news: newIn(input.names, input.entries, `${Y}-01-01`, `${Y}-12-31`) }
   return (
-    <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ minHeight: '100vh', overflow: 'auto', background: light ? '#fbf6ee' : '#10141f' }}>
-      <main className="ascent-main is-wide" style={{ padding: '28px 20px 80px' }}>
-        <nav style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+    /* The REAL shell, not an approximation of it: `.ascent` beside its rail,
+       the scroller, and `.ascent-main` taking its padding from Ascent.css. A
+       harness that set its own padding was ~26px wider than the surface it
+       stood for, which is exactly the margin a phone-width layout fails in. */
+    <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ height: '100dvh', background: light ? '#fbf6ee' : '#10141f' }}>
+      <nav className="ascent-rail" aria-hidden />
+      <div className="ascent-scroll">
+      <main className="ascent-main is-wide">
+        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
           {['week', 'month', 'season', 'year', 'dots'].map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(128,128,128,.4)', background: tab === t ? 'rgba(232,184,115,.25)' : 'none', color: 'inherit', cursor: 'pointer' }}>
               {t}
@@ -218,6 +224,7 @@ function Harness({ light }: { light: boolean }) {
           </div>
         </div>
       </main>
+      </div>
     </div>
   )
 }

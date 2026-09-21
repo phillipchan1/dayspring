@@ -1345,6 +1345,7 @@
   }
 }
 
+
 /* ── WARMTH BANDS — the ropes rendered as abstract light up the altitudes ──────
  * Heft = thickness + saturation; glow pools = when it gathered; hue = which parts
  * of life. Soft light on the dark air — never a chart bar, never a count. */
@@ -2215,5 +2216,45 @@
 @media (prefers-reduced-motion: reduce) {
   .ascent-years__year {
     transition: none;
+  }
+}
+
+/* ── touch: the Ascent's own controls ─────────────────────────────────────
+ * See the note on the same block in Ledger.css — hit area only, never ink,
+ * and last in the file so it actually wins the cascade over the base rules
+ * (`.ascent-years__year`'s padding is declared near the bottom of this one). */
+@media (pointer: coarse) {
+  .ascent-ctrl-btn {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+  /* A four-character year in mono is a 26px target on a rail fifteen years
+     long. Widen the row rather than the type. */
+  .ascent-years__year {
+    min-height: 44px;
+    padding: 4px 13px;
+  }
+  .ascent-scrip {
+    min-height: 44px;
+    padding: 9px 16px;
+  }
+  .ascent-scrip__suggested,
+  .ascent-dim__open,
+  .ascent-stone-pair__close,
+  .ascent-longlook__toggle,
+  .ascent-lenses__edit,
+  .ascent-lens__x {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+  /* Under 16px, iOS zooms the whole page in on focus and does not zoom back
+     out — the surface is left scrolled sideways with no way to undo it. */
+  .ascent-lens__input {
+    font-size: 16px;
+    padding: 6px 10px;
   }
 }
