@@ -97,6 +97,7 @@ export const LEDGER_COPY = {
   cameBackNone: 'Nothing came back after a quiet stretch.',
   carriedNone: (prev: string) => `Nothing carried over from ${prev}.`,
   quietNone: 'Nothing went quiet.',
+  pileOpen: 'see the whole thread →',
   notYetNone: (prev: string) => `Everything from ${prev} has come up.`,
   seasonYoung: 'The season is still young — what’s “not yet” here may simply not have come up.',
   hemisphere: 'northern hemisphere',

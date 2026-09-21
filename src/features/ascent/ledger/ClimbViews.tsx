@@ -206,14 +206,15 @@ function Pile({
   what,
   items,
   empty,
-  onOpenEntry,
+  onOpen,
 }: {
   title: string
   /** One line saying what belongs in this pile — a date fact. */
   what: string
   items: MovedItem[]
   empty: string
-  onOpenEntry: Open
+  /** A card stands for every page the thread was on, so it opens the thread. */
+  onOpen: (item: MovedItem, why: string) => void
 }) {
   return (
     <div className="pile">
@@ -226,7 +227,7 @@ function Pile({
       ) : (
         <div className="pile__items">
           {items.map((it) => (
-            <button key={it.thread.id} type="button" className="pile__item" onClick={() => it.line && onOpenEntry?.(it.line.entryId)}>
+            <button key={it.thread.id} type="button" className="pile__item" onClick={() => onOpen(it, what)}>
               <span className="pile__name">{it.thread.label}</span>
               <span className="pile__kind">{LEDGER_COPY.kind[it.thread.kind]}</span>
               {it.line ? (
@@ -234,6 +235,7 @@ function Pile({
                   “{it.line.text}”<small>{fmtDay(it.line.date)}</small>
                 </span>
               ) : null}
+              <span className="pile__open">{LEDGER_COPY.pileOpen}</span>
             </button>
           ))}
         </div>
@@ -258,6 +260,11 @@ export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPer
   const extras = useExtras(season.from, season.to)
   const [given, setGiven] = usePeriodName(`season:${season.key}`)
   useEffect(() => onPeriod?.(season.from, season.to), [season.from, season.to, onPeriod])
+  const [across, setAcross] = useState<{ thread: LedgerThread; focus: { label: string; why: string; lines: LedgerLine[] } } | null>(null)
+  // A card is there because of every page the thread was on this season (for
+  // "went quiet", last season) — so it opens those pages, then its whole life.
+  const openPile = (it: MovedItem, why: string, span: string = season.label) =>
+    setAcross({ thread: it.thread, focus: { label: span, why, lines: it.thread.lines } })
 
   useEffect(() => {
     let alive = true
@@ -307,15 +314,15 @@ export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPer
         ) : (
           <>
             <div className="piles">
-              <Pile title={LEDGER_COPY.began} what={LEDGER_COPY.beganWhat(season.name)} items={m.began} empty={LEDGER_COPY.beganNone} onOpenEntry={onOpenEntry} />
-              <Pile title={LEDGER_COPY.cameBackPile} what={LEDGER_COPY.cameBackWhat(prev.label)} items={m.cameBack} empty={LEDGER_COPY.cameBackNone} onOpenEntry={onOpenEntry} />
-              <Pile title={LEDGER_COPY.carried} what={LEDGER_COPY.carriedWhat(prev.label)} items={m.carried} empty={LEDGER_COPY.carriedNone(prev.label)} onOpenEntry={onOpenEntry} />
+              <Pile title={LEDGER_COPY.began} what={LEDGER_COPY.beganWhat(season.name)} items={m.began} empty={LEDGER_COPY.beganNone} onOpen={openPile} />
+              <Pile title={LEDGER_COPY.cameBackPile} what={LEDGER_COPY.cameBackWhat(prev.label)} items={m.cameBack} empty={LEDGER_COPY.cameBackNone} onOpen={openPile} />
+              <Pile title={LEDGER_COPY.carried} what={LEDGER_COPY.carriedWhat(prev.label)} items={m.carried} empty={LEDGER_COPY.carriedNone(prev.label)} onOpen={openPile} />
               <Pile
                 title={open ? LEDGER_COPY.notYet(season.name) : LEDGER_COPY.quietPile}
                 what={open ? LEDGER_COPY.notYetWhat(prev.label, season.name) : LEDGER_COPY.quietWhat(prev.label)}
                 items={m.quiet}
                 empty={open ? LEDGER_COPY.notYetNone(prev.label) : LEDGER_COPY.quietNone}
-                onOpenEntry={onOpenEntry}
+                onOpen={(it, why) => openPile(it, why, prev.label)}
               />
             </div>
             {open ? <p className="ledger-quiet">{LEDGER_COPY.seasonYoung}</p> : null}
@@ -340,6 +347,7 @@ export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPer
         />
       ) : null}
       {seed ? <WriteSheet seed={seed} onClose={() => setSeed(null)} onOpenEntry={onOpenEntry} /> : null}
+      {across ? <ThreadAcross thread={across.thread} focus={across.focus} onClose={() => setAcross(null)} onOpenEntry={onOpenEntry} /> : null}
     </div>
   )
 }

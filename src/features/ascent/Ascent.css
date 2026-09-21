@@ -1237,6 +1237,33 @@
   color: rgba(74, 64, 53, 0.55);
 }
 
+/* Ascend / descend on the rail itself: it stays in view while the page
+   scrolls, so the way up is always where the climb is drawn. On desktop this
+   replaces the row at the foot of the page; phones keep that sticky row. */
+.ascent-rail__step {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 11px;
+  border: 1px solid rgba(var(--ascent-ink-rgb), 0.16);
+  border-radius: 999px;
+  background: rgba(var(--ascent-ink-rgb), 0.04);
+  color: rgba(var(--ascent-ink-rgb), 0.7);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, opacity 0.2s;
+}
+.ascent-rail__step.is-up { top: 18px; }
+.ascent-rail__step.is-down { bottom: 18px; }
+.ascent-rail__step:hover:not(:disabled) { border-color: var(--ascent-gold); color: var(--ascent-gold); }
+.ascent-rail__step:disabled { opacity: 0; pointer-events: none; }
+@media (min-width: 768px) {
+  .ascent-ctrl { display: none; }
+}
+
 /* ── responsive ─────────────────────────────────────────────────────────── */
 /* 767px, not 640 — this has to fire exactly when useIsMobile() swaps in
    MobileJournal, which is what hides the shell's safe-area-padded header. */
@@ -1255,7 +1282,8 @@
   }
   /* Dots only on narrow screens — the labels would overflow into the content,
    * and the active altitude is already announced in the header. */
-  .ascent-station__label {
+  .ascent-station__label,
+  .ascent-rail__step {
     display: none;
   }
   .ascent-station {

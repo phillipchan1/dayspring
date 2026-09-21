@@ -52,11 +52,15 @@ const PER_CHAPTER = 5
  */
 export function ThreadAcross({
   thread,
+  focus,
   onClose,
   onOpenEntry,
 }: {
   /** The thread as the calling view has it — shown until its whole life loads. */
   thread: LedgerThread
+  /** Opened from a card that stands for many pages: those pages first ("In
+   *  Fall 2026" — why it's on the card), then its whole life below. */
+  focus?: { label: string; why: string; lines: LedgerLine[] } | undefined
   onClose: () => void
   onOpenEntry?: ((entryId: string) => void) | undefined
 }) {
@@ -103,6 +107,24 @@ export function ThreadAcross({
           {LEDGER_COPY.kind[t.kind]}
           {inVolumes > 0 ? ` · runs through ${inVolumes} volume${inVolumes === 1 ? '' : 's'}` : ''}
         </p>
+        {focus && focus.lines.length > 0 ? (
+          <section className="across__focus">
+            <div className="across__chname">In {focus.label}</div>
+            <p className="across__why">{focus.why}</p>
+            <ol className="across__lines">
+              {focus.lines.map((l, j) => (
+                <li key={`${l.entryId}${j}`}>
+                  <button type="button" onClick={() => onOpenEntry?.(l.entryId)}>
+                    <span className="across__when">{fmtDay(l.date)}</span>
+                    <span className="across__text">{l.text}</span>
+                    {l.kind !== 'story' ? <span className="across__kind">{KIND_COPY[l.kind]}</span> : null}
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <div className="across__whole">The whole thread, across your volumes</div>
+          </section>
+        ) : null}
         {inVolumes > 0 ? (
           <div className="across__spines" aria-hidden>
             {volumes.slice(Math.max(0, parts.find((p) => p.type === 'chapter') ? (parts.find((p) => p.type === 'chapter') as { volume: Volume }).volume.n - 3 : 0)).map((v) => (
