@@ -106,10 +106,12 @@ export const onboardingCopy = {
 
   fresh: {
     title: 'Let’s begin.',
-    body: 'Dayspring deepens as you write. Your first weekly reflection arrives at the end of your first week; the year-in-review is the one worth waiting for.',
-    exampleLabel: 'example — a future weekly reflection',
+    body: 'Dayspring deepens as you write. At the end of your first week, the Ascent sets that week’s words in order for you to read back; the view from a whole year is the one worth waiting for.',
+    exampleLabel: 'example — a week, read back',
+    // Grounded, not graded: every clause points at something written. No count
+    // of days written (that's a report card) and no closing verdict on it.
     example:
-      'You wrote on five of seven days this week. The word that kept returning was “wait” — in your prayers, in your frustrations, in the verse you came back to twice. Last week you were asking God to move; this week you were learning to sit with Him while He didn’t. That’s not nothing. That’s the work.',
+      'The word that kept returning was “wait” — in Tuesday’s prayer, in Thursday’s frustration, and in Psalm 27:14, which you came back to twice. On Monday you wrote, “Move, Lord.” By Saturday: “I can sit here with You a while.”',
     primary: 'Begin writing',
     // Opening prompts shown as gentle editor placeholders (not committed text).
     // Pick one for the seeded first entry.

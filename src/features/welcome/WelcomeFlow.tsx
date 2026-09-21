@@ -1,15 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { SpiritualBlockIcon } from '@/editor/spiritualBlockIcons'
+import { IconAltar, IconAscent, IconPages, IconRitual, IconScripture } from '@/features/journal/navIcons'
 import './Welcome.css'
 
 /* ------------------------------------------------------------------ *
  * Dayspring — first-run Welcome flow.
- * Six glassy slides over a living dawn gradient that warms from deep
+ * Seven glassy slides over a living dawn gradient that warms from deep
  * night to gold as you advance. One quiet CSS/SVG motif per slide.
  * Copy lives in the SLIDES block below and is the source of truth.
  * ------------------------------------------------------------------ */
 
-type MotifName = 'sunrise' | 'line' | 'timeline' | 'cairn' | 'lamp' | 'horizon'
+type MotifName = 'sunrise' | 'insert' | 'door' | 'wall' | 'ascent' | 'carry' | 'horizon'
+
+type HintIcon = 'plus' | 'ritual' | 'journal' | 'ascent' | 'lamp' | 'altar'
+
+/** One "where to find it" chip: the real control's icon and/or key, then words. */
+interface Hint {
+  icon?: HintIcon
+  kbd?: string
+  text: string
+}
 
 export interface Slide {
   key: string
@@ -22,10 +33,21 @@ export interface Slide {
   title: string
   body: string
   motif: MotifName
+  /**
+   * Where the thing on this slide actually lives — the rail item, the key, the
+   * button. Touch gets its own list because the doors differ: a phone has a
+   * tab bar and a bar above the keyboard, not a sidebar and ⌘-keys.
+   */
+  find?: { desktop: Hint[]; touch: Hint[] }
   final?: boolean
 }
 
-/** All Welcome copy in one place for easy editing. Wording is final. */
+/**
+ * All Welcome copy in one place for easy editing. The order is the app's own
+ * rail — the one Write act, then the Return surfaces — so the tour is a map of
+ * where things actually are. Rewritten Sept 2026 for Pages (D-025), the `+`
+ * (D-026) and rituals; when a surface is added or renamed, this list goes stale.
+ */
 export const SLIDES: Slide[] = [
   {
     key: 'dawn',
@@ -33,44 +55,91 @@ export const SLIDES: Slide[] = [
     bgLight: ['#f4f7fb', '#eef1f7', '#dde6f2'],
     eyebrow: 'DAYSPRING',
     title: 'A journal for\nspiritual growth.',
-    body: 'Write through your days with God, and watch the long arc of your faith come into view. Dayspring is built for the slow work — the kind you only see when you look back across months and years.',
+    body: 'Write through your days with God, and watch the long arc of your faith come into view.',
     motif: 'sunrise',
   },
   {
     key: 'write',
     bg: ['#0e1118', '#171a26', '#241f2c'],
     bgLight: ['#f5f5f9', '#eeeef4', '#e3e2ee'],
-    eyebrow: 'START HERE',
-    title: 'It begins with\na blank page.',
-    body: "Open a new entry and write — about your day, a prayer, a passage, whatever's on you. It saves as you go. No prompts to answer, no boxes to fill. The writing is the whole practice; everything else is built on top of it.",
-    motif: 'line',
+    eyebrow: 'THE PAGE',
+    title: 'A blank page,\nand everything within reach.',
+    body: 'Write, and it saves as you go. Type / for everything else — a heading, a highlighter, a verse, a prayer.',
+    motif: 'insert',
+    find: {
+      desktop: [
+        { kbd: '/', text: 'type it as you write' },
+        { icon: 'plus', text: 'or the + beside any line' },
+      ],
+      touch: [
+        { kbd: '/', text: 'type it as you write' },
+        { text: 'or the bar above your keyboard' },
+      ],
+    },
   },
   {
-    key: 'time',
+    key: 'rituals',
+    bg: ['#0f1119', '#1a1c2a', '#28222f'],
+    bgLight: ['#f6f5f8', '#efedf3', '#e6e0ed'],
+    eyebrow: 'RITUALS',
+    title: 'When you’d rather\nnot start from nothing.',
+    body: 'Old forms of the praying church — the Examen, Lectio Divina, and more. Each opens as its own page, one quiet question at a time.',
+    motif: 'door',
+    find: {
+      desktop: [
+        { icon: 'ritual', text: 'at the foot of any blank page' },
+        { kbd: '/ritual', text: 'or type it' },
+      ],
+      touch: [
+        { icon: 'ritual', text: 'at the foot of any blank page' },
+        { text: 'or Ritual, above your keyboard' },
+      ],
+    },
+  },
+  {
+    key: 'pages',
     bg: ['#10121c', '#1c1d2e', '#2c2433'],
     bgLight: ['#f7f4f8', '#f0ebf2', '#e9deec'],
-    eyebrow: 'TIME IS THE GIFT',
-    title: "What you write today\nbecomes something you'll\none day weep over.",
-    body: "Your entries don't scroll away. Dayspring keeps them and brings the right ones back — weekly, monthly, across years — and weaves them into reflections that let you read the throughline of your own life.",
-    motif: 'timeline',
+    eyebrow: 'YOUR JOURNAL',
+    title: 'Everything you’ve written,\nand a way back to it.',
+    body: 'Every entry, laid out as a page. Zoom out to see your years, or look for a person or your prayers to see just those.',
+    motif: 'wall',
+    find: {
+      desktop: [{ icon: 'journal', kbd: '⌘2', text: 'Journal, in the sidebar' }],
+      touch: [{ icon: 'journal', text: 'Journal, in the tab bar' }],
+    },
   },
   {
-    key: 'altar',
+    key: 'ascent',
     bg: ['#141420', '#241f2a', '#352838'],
     bgLight: ['#f9f4f4', '#f2eaec', '#efdde2'],
-    eyebrow: 'THE ALTAR',
-    title: 'Not a list of requests.\nA record of where He met you.',
-    body: 'The Altar is where your prayers and senses live. The ones you return to grow into stones you can see. When God moves in one, you mark how — answered, redirected, or simply that He met you there. It becomes a record you can revisit.',
-    motif: 'cairn',
+    eyebrow: 'THE ASCENT',
+    title: "What you write today\nbecomes something you'll\none day weep over.",
+    body: 'Your own words, seen from the week, the month, the season and the year. The higher you climb, the less it says.',
+    motif: 'ascent',
+    find: {
+      desktop: [{ icon: 'ascent', kbd: '⌘3', text: 'Ascent, in the sidebar' }],
+      touch: [{ icon: 'ascent', text: 'Ascent, in the tab bar' }],
+    },
   },
   {
-    key: 'lamp',
+    key: 'carry',
     bg: ['#171520', '#2b2230', '#3d2c33'],
     bgLight: ['#fbf5ef', '#f5eae2', '#f2ddca'],
-    eyebrow: 'THE LAMP',
-    title: 'See where your heart\nhas been leaning.',
-    body: "Every passage you write about lights up its place in Scripture. Over time the Lamp becomes a map of where you've been dwelling — the books, the verses, the seasons your heart kept returning to.",
-    motif: 'lamp',
+    eyebrow: 'THE LAMP & THE ALTAR',
+    title: 'Where your heart leaned.\nWhere He met you.',
+    body: 'The Lamp lights every passage you’ve written about. The Altar gathers your prayers, and the places God met you in them.',
+    motif: 'carry',
+    find: {
+      desktop: [
+        { icon: 'lamp', kbd: '⌘4', text: 'Lamp' },
+        { icon: 'altar', kbd: '⌘5', text: 'Altar' },
+      ],
+      touch: [
+        { icon: 'lamp', text: 'Lamp' },
+        { icon: 'altar', text: 'Altar — both in the tab bar' },
+      ],
+    },
   },
   {
     key: 'promise',
@@ -78,7 +147,7 @@ export const SLIDES: Slide[] = [
     bgLight: ['#fdf8ee', '#f9efdb', '#f5dcab'],
     eyebrow: 'BEFORE YOU BEGIN',
     title: 'Write honestly.\nThe rest takes care\nof itself.',
-    body: 'Dayspring surfaces the connections and brings your words back — but it never grades you or tells you what they mean. And your journal is yours: private by default, never sold, and never used to train AI.',
+    body: 'Dayspring never grades you or tells you what your words mean. Your journal is private, never sold, and never used to train AI.',
     motif: 'horizon',
     final: true,
   },
@@ -124,98 +193,137 @@ function Motif({ name }: { name: MotifName }) {
           ))}
         </svg>
       )
-    case 'line':
+    // The two doors a writer has to be SHOWN, not told about: drawn as the
+    // real controls (the gutter +, the palette's own icons, the Ritual pill)
+    // so the first time they meet them in the app, they've seen them before.
+    case 'insert':
       return (
-        <svg viewBox="0 0 300 120" className="wf-motif wf-motif--line" aria-hidden>
-          <line x1="40" y1="60" x2="260" y2="60" stroke="rgba(232,184,115,.25)" strokeWidth="1" strokeDasharray="2 4" className="wf-write-guide" />
-          <rect x="40" y="55" width="150" height="2.5" rx="1" fill="#e8b873" className="wf-m-write" />
-          <rect
-            x="40"
-            y="72"
-            width="90"
-            height="2.5"
-            rx="1"
-            fill="rgba(232,184,115,.5)"
-            className="wf-m-write wf-m-write--soft"
-            style={{ animationDelay: '0.5s' }}
-          />
-          <circle cx="194" cy="56" r="2.5" fill="#f4cd8a" className="wf-m-caret" />
+        <div className="wf-demo wf-demo--slash" aria-hidden>
+          <div className="wf-demo__line wf-demo__line--dim">Sat with Psalm 27 again this morning.</div>
+          <div className="wf-demo__line">
+            <span className="wf-demo__plus wf-demo__plus--quiet">+</span>
+            Lord, teach me to wait <span className="wf-demo__slash">/</span>
+          </div>
+          {/* The real palette's two columns, a few rows of each. */}
+          <div className="wf-demo__menu wf-demo__menu--palette">
+            <div className="wf-demo__col">
+              <div className="wf-demo__head">Format</div>
+              <div className="wf-demo__item">
+                <span className="wf-demo__badge">#</span>Heading
+              </div>
+              <div className="wf-demo__item">
+                <span className="wf-demo__badge wf-demo__badge--bold">B</span>Bold
+              </div>
+              <div className="wf-demo__item">
+                <span className="wf-demo__badge wf-demo__badge--italic">I</span>Italic
+              </div>
+              <div className="wf-demo__item">
+                <span className="wf-demo__badge">▮</span>
+                <span className="wf-demo__wash">Highlight</span>
+              </div>
+            </div>
+            <div className="wf-demo__col">
+              <div className="wf-demo__head">Capture</div>
+              <div className="wf-demo__item">
+                <SpiritualBlockIcon id="scripture" />
+                Scripture
+              </div>
+              <div className="wf-demo__item wf-demo__item--on">
+                <SpiritualBlockIcon id="pray" />
+                Prayer
+              </div>
+              <div className="wf-demo__item">
+                <SpiritualBlockIcon id="sense" />
+                Sense
+              </div>
+              <div className="wf-demo__item">
+                <SpiritualBlockIcon id="ritual" />
+                Ritual
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    case 'door':
+      // The shelf at the foot of a blank page (RitualShelf): the page itself
+      // stays empty; three practices for the hour wait below it.
+      return (
+        <div className="wf-demo wf-demo--door" aria-hidden>
+          <div className="wf-demo__line wf-demo__line--dim">What’s stirring in you today?</div>
+          <div className="wf-demo__shelf">
+            <span className="wf-demo__shelf-lead">Or begin with a ritual</span>
+            <span className="wf-demo__shelf-pick wf-demo__shelf-pick--on">The Daily Examen</span>
+            <span className="wf-demo__shelf-pick">Lectio Divina</span>
+            <span className="wf-demo__shelf-pick">Wesley’s Questions</span>
+            <span className="wf-demo__shelf-all">All rituals →</span>
+          </div>
+        </div>
+      )
+    case 'wall': {
+      // Four of eighteen pages answer the "look for" — the rest stay, dimmer.
+      const found = new Set([3, 8, 10, 15])
+      return (
+        <svg viewBox="0 0 250 150" className="wf-motif wf-motif--wall" aria-hidden>
+          {Array.from({ length: 18 }).map((_, k) => {
+            const r = Math.floor(k / 6)
+            const c = k % 6
+            const x = 14 + c * 38
+            const y = 8 + r * 47
+            const on = found.has(k)
+            return (
+              <g
+                key={k}
+                className={on ? 'wf-m-page lit' : 'wf-m-page'}
+                style={{ animationDelay: `${(r + c) * 0.06}s` }}
+              >
+                <rect x={x} y={y} width="30" height="40" rx="3" className="wf-m-page__leaf" />
+                <rect x={x + 6} y={y + 9} width="18" height="1.6" rx="0.8" className="wf-m-page__text" />
+                <rect x={x + 6} y={y + 15} width="14" height="1.6" rx="0.8" className="wf-m-page__text" />
+                <rect x={x + 6} y={y + 21} width="16" height="1.6" rx="0.8" className="wf-m-page__text" />
+              </g>
+            )
+          })}
         </svg>
       )
-    case 'timeline':
+    }
+    case 'ascent':
       return (
-        <svg viewBox="0 0 300 140" className="wf-motif wf-motif--timeline" aria-hidden>
-          <line x1="30" y1="110" x2="270" y2="110" stroke="rgba(150,165,190,.25)" strokeWidth="1" className="wf-tl-base" />
-          {[60, 110, 160, 210, 250].map((x, i) => (
-            <circle
-              key={i}
-              cx={x}
-              cy="110"
-              r={i === 4 ? 4 : 2.5}
-              fill={i === 4 ? '#e8b873' : 'rgba(150,165,190,.5)'}
-              className={i === 4 ? 'wf-m-node wf-m-node--on' : 'wf-m-node'}
-              style={{ animationDelay: `${i * 0.18}s` }}
-            />
-          ))}
-          {[60, 110, 160, 210].map((x, i) => (
-            <path
-              key={i}
-              d={`M250 110 Q ${(x + 250) / 2} ${70 - i * 8} ${x} 110`}
-              fill="none"
-              stroke="url(#wf-tl)"
-              strokeWidth="1"
-              opacity="0.5"
-              className="wf-m-arc"
-              style={{ animationDelay: `${0.4 + i * 0.2}s` }}
-            />
-          ))}
-          <defs>
-            <linearGradient id="wf-tl" x1="0" x2="1">
-              <stop offset="0" stopColor="#e8b873" />
-              <stop offset="1" stopColor="rgba(150,165,190,.3)" />
-            </linearGradient>
-          </defs>
-        </svg>
-      )
-    case 'cairn':
-      return (
-        <svg viewBox="0 0 200 180" className="wf-motif wf-motif--cairn" aria-hidden>
-          <ellipse cx="100" cy="166" rx="46" ry="7" fill="rgba(0,0,0,.35)" className="wf-cairn-shadow" />
+        <svg viewBox="0 50 300 100" className="wf-motif wf-motif--ascent" aria-hidden>
+          {/* Valley, Hillside, Ridge, Summit — one terrain, four heights. */}
           {[
-            { w: 64, y: 132, fill: '#2a3242', dx: 0 },
-            { w: 54, y: 104, fill: '#2d2535', dx: -6 },
-            { w: 46, y: 80, fill: '#322a3a', dx: 5 },
-            { w: 38, y: 58, fill: '#3a2f3c', dx: -3 },
-          ].map((stone, i) => (
-            <rect
-              key={i}
-              x={100 - stone.w / 2 + stone.dx}
-              y={stone.y}
-              width={stone.w}
-              height="26"
-              rx="12"
-              fill={stone.fill}
-              className="wf-m-stone"
-              style={{ animationDelay: `${i * 0.15}s` }}
+            'M20 140H280',
+            'M40 140Q150 100 260 140',
+            'M70 140Q150 52 230 140',
+            'M100 140Q150 -4 200 140',
+          ].map((d, k) => (
+            <path
+              key={k}
+              d={d}
+              fill="none"
+              stroke="#e8b873"
+              strokeWidth="1.2"
+              strokeOpacity={0.22 + k * 0.18}
+              className="wf-m-contour"
+              style={{ animationDelay: `${0.2 + k * 0.25}s` }}
             />
           ))}
-          <ellipse cx="100" cy="46" rx="17" ry="13" fill="#f0c587" className="wf-m-capstone" />
+          <circle cx="150" cy="68" r="4" fill="#f4cd8a" className="wf-m-summit" />
         </svg>
       )
-    case 'lamp': {
+    case 'carry': {
       const lit = [
-        [2, 3], [2, 4], [3, 4], [3, 5], [4, 4], [4, 5], [4, 6], [5, 5], [2, 6], [3, 6], [1, 4],
+        [1, 1], [1, 2], [2, 2], [2, 3], [3, 2], [0, 4], [3, 4],
       ]
       return (
-        <svg viewBox="0 0 220 160" className="wf-motif wf-motif--lamp" aria-hidden>
-          {Array.from({ length: 7 }).map((_, r) =>
-            Array.from({ length: 11 }).map((_, c) => {
+        <svg viewBox="0 30 232 130" className="wf-motif wf-motif--carry" aria-hidden>
+          {Array.from({ length: 5 }).map((_, r) =>
+            Array.from({ length: 6 }).map((_, c) => {
               const on = lit.some(([rr, cc]) => rr === r && cc === c)
               return (
                 <rect
                   key={`${r}-${c}`}
-                  x={20 + c * 17}
-                  y={14 + r * 17}
+                  x={8 + c * 17}
+                  y={38 + r * 17}
                   width="12"
                   height="12"
                   rx="3"
@@ -226,6 +334,26 @@ function Motif({ name }: { name: MotifName }) {
               )
             }),
           )}
+          <ellipse cx="190" cy="150" rx="34" ry="5" fill="rgba(0,0,0,.35)" className="wf-cairn-shadow" />
+          {[
+            { w: 48, y: 124, fill: '#3a4356', dx: 0 },
+            { w: 40, y: 103, fill: '#3e3549', dx: -4 },
+            { w: 34, y: 85, fill: '#453b4d', dx: 4 },
+            { w: 28, y: 69, fill: '#4d404f', dx: -2 },
+          ].map((stone, k) => (
+            <rect
+              key={k}
+              x={190 - stone.w / 2 + stone.dx}
+              y={stone.y}
+              width={stone.w}
+              height="20"
+              rx="9"
+              fill={stone.fill}
+              className="wf-m-stone"
+              style={{ animationDelay: `${0.3 + k * 0.15}s` }}
+            />
+          ))}
+          <ellipse cx="190" cy="60" rx="13" ry="10" fill="#f0c587" className="wf-m-capstone" />
         </svg>
       )
     }
@@ -254,6 +382,41 @@ function Motif({ name }: { name: MotifName }) {
         </svg>
       )
   }
+}
+
+function HintGlyph({ icon }: { icon: HintIcon }): ReactNode {
+  switch (icon) {
+    case 'plus':
+      return <span className="wf-hint__plus">+</span>
+    case 'ritual':
+      return <IconRitual size={15} />
+    case 'journal':
+      return <IconPages size={15} />
+    case 'ascent':
+      return <IconAscent size={15} />
+    case 'lamp':
+      return <IconScripture size={15} />
+    case 'altar':
+      return <IconAltar size={15} />
+  }
+}
+
+function FindIt({ hints }: { hints: Hint[] }) {
+  return (
+    <ul className="welcome-flow__find" aria-label="Where to find it">
+      {hints.map((h) => (
+        <li className="wf-hint" key={`${h.icon ?? ''}${h.kbd ?? ''}${h.text}`}>
+          {h.icon ? (
+            <span className="wf-hint__icon">
+              <HintGlyph icon={h.icon} />
+            </span>
+          ) : null}
+          {h.kbd ? <kbd className="wf-hint__kbd">{h.kbd}</kbd> : null}
+          <span>{h.text}</span>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 interface WelcomeFlowProps {
@@ -293,6 +456,12 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
   const slide = SLIDES[i]!
   const palette = (s: Slide) => (isLight ? s.bgLight : s.bg)
   const isLast = i === SLIDES.length - 1
+  // Which doors to point at. Coarse pointer = a phone/tablet, where the doors
+  // are the tab bar and the bar above the keyboard.
+  const isTouch = useMemo(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches,
+    [],
+  )
   const rootRef = useRef<HTMLDivElement>(null)
 
   // Track the slide we're leaving so the outgoing gradient can fade out over the
@@ -460,9 +629,14 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
       <div className="welcome-flow__stage">
         <div className="welcome-flow__glass" key={slide.key}>
           <div className="welcome-flow__glow" aria-hidden />
-          <div className="welcome-flow__motif-wrap">
+          <div
+            className={`welcome-flow__motif-wrap${
+              slide.motif === 'insert' || slide.motif === 'door' ? ' welcome-flow__motif-wrap--demo' : ''
+            }`}
+          >
             <Motif name={slide.motif} />
           </div>
+          <div className="welcome-flow__copy">
           <span className="welcome-flow__eyebrow">{slide.eyebrow}</span>
           <h1 className="welcome-flow__title">
             {slide.title.split('\n').map((lineText, k) => (
@@ -473,6 +647,8 @@ export function WelcomeFlow({ onClose, onBegin, isLight = false, onToggleTheme }
             ))}
           </h1>
           <p className="welcome-flow__body">{slide.body}</p>
+          {slide.find ? <FindIt hints={isTouch ? slide.find.touch : slide.find.desktop} /> : null}
+          </div>
         </div>
       </div>
 
