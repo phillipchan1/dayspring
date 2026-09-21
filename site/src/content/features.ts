@@ -155,19 +155,19 @@ export const deepDives = [
     id: "looking-back",
     tag: "The Ascent",
     heading: "See who you're <em>becoming.</em>",
-    lead: "The Lamp shows where your heart leaned; the Ascent shows who you're becoming — not a stack of reports, but elevation over one terrain, climbed from the Valley of the week to the Summit of the year.",
+    lead: "The Lamp shows where your heart leaned; the Ascent shows who you're becoming — not a stack of reports, but the same pages seen from further back: the week, the month, the season, the year.",
     points: [
       {
-        title: "Four altitudes, one terrain",
-        body: "Week, month, quarter, and year aren't four summaries. They're heights over the same landscape — the lines you wrote, the verse you reached for, the prayer you kept — each resolving at a longer range as you climb.",
+        title: "Week, month, season, year",
+        body: "They aren't four summaries. They're the same pages seen from further back — the lines you wrote, the verse you reached for, the prayer you kept — each resolving at a longer range as you step back.",
       },
       {
-        title: "The higher you go, the less it says",
-        body: "In the Valley it only puts your words in order. On the Hillside it names a pattern — as a question. At the Summit it goes nearly silent and hands back your own marks. No verdicts, no scores, no streaks.",
+        title: "The further back, the less it says",
+        body: "At the week it only puts your words in order. At the month it names a pattern — as a question. At the year it goes nearly silent and hands back your own marks. No verdicts, no scores, no streaks.",
       },
       {
         title: "Watching this season",
-        body: "Keep a row of lenses in view — gain, gratitude, scripture, work, family — so the climb stays anchored to what you're actually paying attention to right now.",
+        body: "Keep a row of lenses in view — gain, gratitude, scripture, work, family — so the view stays anchored to what you're actually paying attention to right now.",
       },
     ],
     mock: "letter",
@@ -184,7 +184,7 @@ export const everythingIntro = {
   tag: "Everything in Dayspring",
   heading: "The small things, <em>all the way down.</em>",
   lead: "One premium plan, and a great deal of care. Here's the whole of it — the page, the tools in the sentence, the long view, and everything underneath.",
-  valueLine: "All of it, one plan — <strong>$64 a year</strong>. Complimentary access starts today, with no payment method required.",
+  valueLine: "All of it, one plan — <strong>$64 a year</strong>, after a 14-day trial.",
 };
 
 export const everything = [

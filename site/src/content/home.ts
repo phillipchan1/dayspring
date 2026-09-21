@@ -291,27 +291,28 @@ export const scripture = {
   lead: "Every passage you write lights up the whole Bible — not a reading plan, not a coverage score. Warmth where you've lived; quiet, never guilt, where you haven't. Scrub by season, and watch the hard year look nothing like spring.",
 };
 
-// The Ascent — not four reports, but elevation over one terrain. The stable
-// dimensions persist as you climb Valley → Summit and only change resolution.
-// The higher you go, the less the app interprets.
+// The Ascent — not four reports: the same pages seen from further back. Named
+// by the calendar (Week / Month / Season / Year), as the app is — the old
+// Valley / Hillside / Ridge / Summit words are gone from the UI (see the app's
+// src/features/ascent/ascent.config.ts). The further back, the less it says.
 export const lookingBack = {
   tag: "The Ascent",
-  heading: "The same terrain, from four <em>altitudes.</em>",
-  lead: "Not four reports — elevation over one landscape. Your words, the verses you reached for, the prayers you kept. Climb from Valley to Summit, and the higher you go, the less Dayspring says — it arranges, then asks, then goes quiet and hands you back your own words.",
+  heading: "Your week, month, season, <em>and year.</em>",
+  lead: "Not four reports — the same pages, seen from further back. Your words, the verses you reached for, the prayers you kept. Step back from the week to the year, and the further you go, the less Dayspring says — it arranges, then asks, then goes quiet and hands you back your own words.",
   caption:
     "Looking back down the year — the trail lit by the ropes you climbed past.",
   glimpse: {
     altitudes: [
-      { label: "Week", alt: "Valley" },
-      { label: "Month", alt: "Hillside" },
-      { label: "Quarter", alt: "Ridge" },
-      { label: "Year", alt: "Summit" },
+      { label: "Week", alt: "Week" },
+      { label: "Month", alt: "Month" },
+      { label: "Season", alt: "Season" },
+      { label: "Year", alt: "Year" },
     ],
-    activeAlt: "Summit",
+    activeAlt: "Year",
     activeLabel: "Year",
     oneLine: "I went in defensive and left grateful.",
     verseRef: "James 1:19",
-    hint: "In the app — climb week to year",
+    hint: "In the app — step back from week to year",
   },
   // the persistent "watching this season" attention row, shown above every altitude
   lenses: ["gain", "gratitude", "scripture", "work", "family"],
@@ -319,7 +320,7 @@ export const lookingBack = {
     {
       id: "week",
       label: "Week",
-      alt: "Valley",
+      alt: "Week",
       title: "Standing in the days.",
       line: "Close to the ground — your own words, in the order you lived them. The app only arranges.",
       dimensions: [
@@ -339,7 +340,7 @@ export const lookingBack = {
     {
       id: "month",
       label: "Month",
-      alt: "Hillside",
+      alt: "Month",
       title: "What you kept returning to.",
       line: "Step back, and the same dimensions resolve at month scale — named only as a question.",
       dimensions: [
@@ -361,10 +362,10 @@ export const lookingBack = {
     },
     {
       id: "quarter",
-      label: "Quarter",
-      alt: "Ridge",
+      label: "Season",
+      alt: "Season",
       title: "The season, distilled.",
-      line: "From the ridge the season distills — and the app holds it up and hands it back.",
+      line: "Step back to the season, and it distills — the app holds it up and hands it back.",
       dimensions: [
         {
           eyebrow: "The phrases you circled",
@@ -391,7 +392,7 @@ export const lookingBack = {
     {
       id: "year",
       label: "Year",
-      alt: "Summit",
+      alt: "Year",
       title: "Looking back down the year.",
       line: "The quietest ground — your own words and the stones you set. The app nearly disappears.",
       dimensions: [
@@ -479,7 +480,7 @@ export const privacy = {
 export const pricing = {
   tag: "Pricing",
   heading: "Begin with the whole of Dayspring. <em>Stay for the mirror.</em>",
-  lead: "The editor, every slash command, the Lamp, the Ascent, and the Altar are complimentary to begin. No payment method required.",
+  lead: "One plan — the editor, every slash command, the Lamp, the Ascent, and the Altar. Start with a 14-day trial, then $64 a year or $7 a month.",
 };
 
 // ---- Formation — retained for reference (not on the home page) ----

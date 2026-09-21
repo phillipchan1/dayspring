@@ -7,7 +7,7 @@
 //   2. Fire the client-side conversion signals a redirect straight to the app
 //      would lose — Meta's StartTrial pixel and PostHog's start_trial_clicked.
 //   3. Send the visitor on to sign-in, where first sign-in grants
-//      complimentary access with no card (api/profile/ensure.ts in the app repo).
+//      14-day trial with no card (api/profile/ensure.ts in the app repo).
 //
 // Static site (astro.config.mjs: output "static"), so none of this can happen
 // server-side — the query string only exists in the browser. The visible copy
@@ -19,7 +19,7 @@ import { APP_URL } from "../content/site";
 
 <Base
   title="Almost there"
-  description="Taking you to Dayspring — complimentary access starts today."
+  description="Taking you to Dayspring — your 14-day trial starts today."
   path="/start"
   footer="minimal"
   noindex
@@ -28,7 +28,7 @@ import { APP_URL } from "../content/site";
     <div class="card">
       <p class="eyebrow mono">Dayspring</p>
       <h1>Opening Dayspring…</h1>
-      <p class="sub">Complimentary access starts today. No payment method required.</p>
+      <p class="sub">Your 14-day trial starts today. Cancel anytime.</p>
       <a href={APP_URL} class="btn btn-primary" data-continue>
         Continue to Dayspring →
       </a>

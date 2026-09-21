@@ -1,7 +1,7 @@
 ---
-// LookingBackMock — the Ascent. Not four reports: elevation over one terrain.
-// Pick an altitude (Valley → Summit); the same dimensions re-resolve, and the
-// higher you climb the less the app says. Mirrors the in-app altitude config.
+// LookingBackMock — the Ascent. Not four reports: the same pages from further
+// back. Pick Week, Month, Season or Year; the same dimensions re-resolve, and
+// the further back the less the app says. Mirrors the app's ascent.config.ts.
 interface Dimension {
   eyebrow: string;
   body?: string;
@@ -70,7 +70,7 @@ const defaultId = horizons[0]?.id ?? "week";
           aria-labelledby={`lb-kicker-${h.id}`}
         >
           <p class="kicker mono" id={`lb-kicker-${h.id}`}>
-            {h.alt} · {h.label}
+            {h.label}
           </p>
           <h3>{h.title}</h3>
           <p class="alt-line">{h.line}</p>

@@ -10,15 +10,15 @@ updated: 2026-08-10
 
 Press <kbd>⌘2</kbd>.
 
-The Ascent is your journal seen from four heights:
+The Ascent is your journal seen from four distances:
 
-- **Valley** — a week. Close enough to remember the days.
-- **Hillside** — a month.
-- **Ridge** — a quarter. Far enough that a season starts to have edges.
-- **Summit** — a year.
+- **Week** — close enough to remember the days.
+- **Month**.
+- **Season** — a quarter of the year. Far enough that a season starts to have edges.
+- **Year**.
 
-Move between them and the same life resolves differently, the way a landscape
-does as you climb.
+Move between them and the same life resolves differently, the further back you
+stand.
 
 ## What you'll find at each height
 
@@ -45,5 +45,5 @@ height looks thin, it's usually because there isn't much there yet rather than
 because something is broken.
 
 If you've [imported an old journal](/help/bring-your-journal), your history gets
-processed in the background after the import — so the higher altitudes may take
+processed in the background after the import — so the longer views may take
 a little while to fill in the first time. It carries on without you.

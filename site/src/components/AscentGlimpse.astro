@@ -27,7 +27,7 @@ const {
 ---
 
 <div class:list={["ascent-glimpse", className]} aria-hidden="true">
-  <nav class="climb" aria-label="Altitudes">
+  <nav class="climb" aria-label="Week, month, season, year">
     {
       altitudes.map((a, i) => (
         <span
@@ -37,7 +37,6 @@ const {
             { past: i < altitudes.findIndex((x) => x.alt === activeAlt) },
           ]}
         >
-          <span class="step-alt mono">{a.alt}</span>
           <span class="step-label">{a.label}</span>
         </span>
       ))
@@ -56,7 +55,7 @@ const {
   }
 
   <div class="summit">
-    <p class="summit-kicker mono">{activeAlt} · {activeLabel}</p>
+    <p class="summit-kicker mono">{activeLabel}</p>
     <p class="summit-eyebrow mono">The one line of the year</p>
     <p class="summit-line">&ldquo;{oneLine}&rdquo;</p>
     <p class="summit-verse mono">{verseRef}</p>

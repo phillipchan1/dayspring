@@ -51,7 +51,7 @@ export const faqs = [
   },
   {
     q: "What if Dayspring just isn't for me?",
-    a: "Start with <strong>complimentary access</strong>, with no payment method required. See whether it's a page you actually want to open, and go month-to-month if you'd rather not commit to a year. Nothing about leaving is designed to trap you.",
+    a: "Start with a <strong>14-day trial</strong>. See whether it's a page you actually want to open, and go month-to-month if you'd rather not commit to a year. Nothing about leaving is designed to trap you.",
   },
   {
     q: "What happens to my journal if Dayspring ever goes away?",

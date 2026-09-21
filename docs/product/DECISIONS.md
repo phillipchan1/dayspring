@@ -23,6 +23,31 @@ agenda.
 
 ---
 
+## D-031 — The introductory period is a trial, never "complimentary" or "free"
+**2026-09-21** · **Status:** Decided (Phil — third time; supersedes #108, #109, #116)
+
+**Decision:** Every marketing surface calls the first 14 days a **14-day trial**.
+Never "complimentary access" — it conveys *free*, and Dayspring isn't given away.
+Never "free trial" either, and no "no payment method required" / "no card" line
+(ruled excessive). `site/src/content/marketingCopy.test.ts` enforces all of it.
+
+**Why:** Phil's words: "Complimentary conveys free, which this is not." The
+"complimentary" framing came from #108/#109, which scrubbed "trial" after App Review
+rejected 1.0.767 under 3.1.2(c) for marketing a free trial the App Store
+subscriptions don't carry. #116 then re-imposed it over Phil's 2026-09-20 call. What
+App Review actually objected to is the word *free*, so that stays banned — the ban
+on "trial" itself was broader than the rejection required.
+
+**For agents:** do not "restore" complimentary copy. If an App Review or policy
+concern seems to require it, raise it with Phil; don't revert this in a PR.
+
+**What would change our mind:** a new App Review rejection that cites the word
+"trial" itself (not "free trial") on the site.
+
+**Cost accepted:** some residual App Review risk while the iOS app is in review,
+taken knowingly. `terms.ts` still says "complimentary access" — legal text, left for
+Phil to change deliberately.
+
 ## D-030 — Launch paid acquisition (Facebook, rituals-led) ahead of D-001 closing
 **2026-09-15** · **Status:** Decided · deliberate override of D-001's acquisition-spend gate
 
