@@ -16,8 +16,13 @@
  */
 import { createRoot } from 'react-dom/client'
 import type { Subject } from '@/features/pages/subjects'
+import { useState } from 'react'
 import { buildYearLedger, type EncounterInput, type LedgerInput, type MatterInput, type RefInput } from './build'
 import { YearThreads } from './YearThreads'
+import { YearStory } from './YearStory'
+import { MonthView, SeasonView } from './ClimbViews'
+import { newIn, photosIn } from './extras'
+import { setLedgerPreviewInput } from './load'
 import '@/styles/themes.css'
 import '../Ascent.css'
 
@@ -102,6 +107,12 @@ function iso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00Z`
 }
 
+// The synthetic writer's year is THIS year, seen today — so the month and
+// season views (which read the calendar) have a present to stand in.
+const Y = new Date().getUTCFullYear()
+const TODAY = new Date().toISOString().slice(0, 10)
+const PHOTO = (seed: string) => `\n\n![](attachment:${seed.repeat(64).slice(0, 64)}.jpg?size=f)`
+
 function synthetic(): LedgerInput {
   const entries: LedgerInput['entries'] = []
   const members = new Map<string, MatterInput['members']>()
@@ -111,7 +122,7 @@ function synthetic(): LedgerInput {
     const id = `e${++n}`
     entries.push({ id, created_at: at, body_markdown: body, word_count: body.split(/\s+/).length * 12 })
     if (MATTERS[subject]) {
-      const text = body.replace(/^##[^\n]*\n/, '')
+      const text = body.replace(/^##[^\n]*\n/, '').replace(/\s*!\[[^\]]*\]\([^)]*\)/g, '')
       const list = members.get(subject) ?? []
       list.push({ itemId: `i${n}`, entryId: id, content: text, type: kind })
       members.set(subject, list)
@@ -130,8 +141,15 @@ function synthetic(): LedgerInput {
     add('maya', iso(y, 5, 5), 'Maya grew an inch.', 'story')
   }
   const ids: Record<string, string> = {}
-  for (const [s, m, d, text, kind] of LINES) ids[`${s}:${m}:${d}`] = add(s, iso(2025, m, d), text, kind)
-  for (const [s, m, d, text] of BULK) add(s, iso(2025, m, d), text, 'story')
+  const past = (m: number, d: number) => iso(Y, m, d).slice(0, 10) <= TODAY
+  const withPhoto = new Set(['dad:2:19', 'work:5:10', 'lisbon:6:8', 'group:8:7', 'ps131:5:17'])
+  for (const [s, m, d, text, kind] of LINES) {
+    if (!past(m, d)) continue
+    const k = `${s}:${m}:${d}`
+    ids[k] = add(s, iso(Y, m, d), withPhoto.has(k) ? text + PHOTO(String(m % 10)) : text, kind)
+  }
+  for (const [s, m, d, text] of BULK) if (past(m, d)) add(s, iso(Y, m, d), text, 'story')
+  if (past(2, 14)) add('alvarez', iso(Y, 2, 14), 'Met Dr. Alvarez. Kind eyes, talks fast, drew the whole thing on a napkin for Dad.', 'story')
 
   const matters: MatterInput[] = Object.entries(MATTERS).map(([id, label]) => ({
     id,
@@ -140,17 +158,52 @@ function synthetic(): LedgerInput {
   }))
   const names: Subject[] = [
     { key: 'c:maya', label: 'Maya', terms: ['Maya'], kind: 'person' },
-    { key: 'c:ruth', label: 'Grandma Ruth', terms: ['Ruth', 'Grandma Ruth'], kind: 'person' },
+    { key: 'c:ruth', label: 'Grandma Ruth', terms: ['Ruth', 'Grandma Ruth'], kind: 'person', firstSeen: iso(Y, 7, 4) },
+    { key: 'c:alvarez', label: 'Dr. Alvarez', terms: ['Dr. Alvarez', 'Alvarez'], kind: 'person', firstSeen: iso(Y, 2, 14) },
+    { key: 'c:group', label: 'The small group', terms: ['small group'], kind: 'org', firstSeen: iso(Y, 8, 7) },
     { key: 'c:lisbon', label: 'Lisbon', terms: ['Lisbon'], kind: 'place' },
     { key: 'c:dad', label: 'Dad', terms: ['Dad'], kind: 'person' },
     { key: 'c:tom', label: 'Tom', terms: ['Tom'], kind: 'person' },
     { key: 'c:god', label: 'God', terms: ['God'], kind: 'person' },
   ]
   const encounters: EncounterInput[] = [
-    { threadId: 'dad', movement: 'answered', namedAt: iso(2025, 9, 9), sourceEntryId: ids['dad:9:9']!, reflection: null },
-    { threadId: 'debt', movement: 'answered', namedAt: iso(2025, 4, 13), sourceEntryId: ids['debt:4:13']!, reflection: null },
+    ...(ids['dad:9:9'] ? [{ threadId: 'dad', movement: 'answered', namedAt: iso(Y, 9, 9), sourceEntryId: ids['dad:9:9'], reflection: null }] : []),
+    ...(ids['debt:4:13'] ? [{ threadId: 'debt', movement: 'answered', namedAt: iso(Y, 4, 13), sourceEntryId: ids['debt:4:13'], reflection: null }] : []),
   ]
   return { entries, matters, names, refs, markings: [], encounters }
+}
+
+function Harness({ light }: { light: boolean }) {
+  const input = synthetic()
+  setLedgerPreviewInput(input)
+  const params = new URLSearchParams(window.location.search)
+  const [tab, setTab] = useState(params.get('tab') ?? 'year')
+  const through = new Date().getUTCMonth() + 1
+  const ledger = buildYearLedger(input, Y, through)
+  ;(window as unknown as { __ledger: unknown }).__ledger = ledger
+  const open = (id: string) => console.log('[preview] open entry', id)
+  const extras = { photos: photosIn(input.entries, `${Y}-01-01`, `${Y}-12-31`), news: newIn(input.names, input.entries, `${Y}-01-01`, `${Y}-12-31`) }
+  return (
+    <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ minHeight: '100vh', overflow: 'auto', background: light ? '#fbf6ee' : '#10141f' }}>
+      <main style={{ maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', width: '100%' }}>
+        <nav style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+          {['month', 'season', 'year', 'dots'].map((t) => (
+            <button key={t} type="button" onClick={() => setTab(t)} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(128,128,128,.4)', background: tab === t ? 'rgba(232,184,115,.25)' : 'none', color: 'inherit', cursor: 'pointer' }}>
+              {t}
+            </button>
+          ))}
+        </nav>
+        <div className="ascent-summit">
+          <div className="ascent-stack ascent-stack--summit">
+            {tab === 'month' ? <MonthView onOpenEntry={open} /> : null}
+            {tab === 'season' ? <SeasonView onOpenEntry={open} /> : null}
+            {tab === 'year' ? <YearStory ledger={ledger} extras={extras} open onOpenEntry={open} /> : null}
+            {tab === 'dots' ? <YearThreads ledger={ledger} onOpenEntry={open} /> : null}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
 }
 
 export function renderLedgerPreview(): void {
@@ -160,21 +213,5 @@ export function renderLedgerPreview(): void {
   const light = params.get('light') === '1'
   document.documentElement.dataset.theme = light ? 'dawn' : 'ink'
   document.documentElement.dataset.appearance = light ? 'light' : 'dark'
-  const through = Math.min(12, Math.max(1, Number(params.get('through') ?? 12) || 12))
-  const ledger = buildYearLedger(synthetic(), 2025, through)
-  ;(window as unknown as { __ledger: unknown }).__ledger = ledger
-  createRoot(host).render(
-    <div
-      className={`ascent${light ? ' ascent--light' : ''}`}
-      style={{ minHeight: '100vh', overflow: 'auto', background: light ? '#fbf6ee' : '#10141f' }}
-    >
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 80px', width: '100%' }}>
-        <div className="ascent-summit">
-          <div className="ascent-stack ascent-stack--summit">
-            <YearThreads ledger={ledger} onOpenEntry={(id) => console.log('[preview] open entry', id)} />
-          </div>
-        </div>
-      </main>
-    </div>,
-  )
+  createRoot(host).render(<Harness light={light} />)
 }

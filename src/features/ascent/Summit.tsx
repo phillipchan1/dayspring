@@ -9,7 +9,8 @@ import { SummitTrail } from './SummitTrail'
 import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { loadYearLedger } from './ledger/load'
-import { YearThreads } from './ledger/YearThreads'
+import { YearStory } from './ledger/YearStory'
+import { loadSpanExtras, type SpanExtras } from './ledger/load'
 import type { YearLedger } from './ledger/build'
 import { positionInYear } from './data/stones'
 import { fmtDay } from './data/words'
@@ -116,6 +117,19 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
         console.error('[ledger]', e instanceof Error ? e.message : e)
         if (alive) setLedger(null)
       },
+    )
+    return () => {
+      alive = false
+    }
+  }, [ledgerOn, shownYear])
+  const [yearExtras, setYearExtras] = useState<SpanExtras | null>(null)
+  useEffect(() => {
+    if (!ledgerOn) return
+    let alive = true
+    setYearExtras(null)
+    loadSpanExtras(`${shownYear}-01-01`, `${shownYear}-12-31`).then(
+      (x) => alive && setYearExtras(x),
+      () => alive && setYearExtras({ photos: [], news: [] }),
     )
     return () => {
       alive = false
@@ -237,87 +251,12 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
         ) : null}
 
         <div className="ascent-stack ascent-stack--summit">
-          {refrain ? (
-            <section className="ascent-dim ascent-dim--words is-year">
-              <span className="ascent-dim__eyebrow">{DIMENSION_COPY.words.year}</span>
-              <button type="button" className="ascent-oneline" onClick={() => onOpenEntry?.(refrain.entryId)}>
-                “{refrain.text}”
-              </button>
-              <span className="ascent-oneline__date">{refrain.dateLabel}</span>
-            </section>
-          ) : null}
-
-          {trailStones.length > 0 && !trailStone ? (
-            <section className="ascent-dim">
-              <span className="ascent-dim__eyebrow">{SUMMIT_COPY.stonesEyebrow}</span>
-              <p className="ascent-dim__note">{SUMMIT_COPY.stonesHint}</p>
-            </section>
-          ) : null}
-
           {ledgerView ? (
-            <YearThreads key={shownYear} ledger={{ ...ledgerView, stones: [] }} onOpenEntry={onOpenEntry} />
+            <YearStory key={shownYear} ledger={ledgerView} extras={yearExtras} open={isOpenYear} onOpenEntry={onOpenEntry} />
           ) : (
             <p className="ascent-dim__note">{SUMMIT_COPY.sealedReading(shownYear)}</p>
           )}
-
           <ScriptureDimension data={scripture} onDrill={onScriptureDrill} />
-
-          {longLook ? (
-            <section className="ascent-dim ascent-longlook">
-              <button
-                type="button"
-                className="ascent-longlook__toggle"
-                onClick={() => setLongLookOpen((v) => !v)}
-                aria-expanded={longLookOpen}
-                disabled={!longLookReady}
-              >
-                {!longLookReady
-                  ? SUMMIT_COPY.longLookWaiting
-                  : longLookOpen
-                    ? SUMMIT_COPY.longLookClose
-                    : SUMMIT_COPY.longLookOpen}
-              </button>
-              {longLookOpen && longLookReady ? (
-                <div className="ascent-longlook__body">
-                  {longLook.throughline.map((p, i) => (
-                    <p key={`t${i}`} className="ascent-longlook__para">
-                      {p}
-                    </p>
-                  ))}
-                  {longLook.themes.map((p, i) => (
-                    <p key={`h${i}`} className="ascent-longlook__para is-themes">
-                      {p}
-                    </p>
-                  ))}
-                  <p className="ascent-dim__note">{SUMMIT_COPY.longLookFooter}</p>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {naming?.text || isOpenYear ? (
-            <section className="ascent-dim ascent-naming">
-              <span className="ascent-dim__eyebrow">{SUMMIT_COPY.namingEyebrow}</span>
-              {naming && naming.text ? (
-                <>
-                  <button type="button" className="ascent-naming__answer" onClick={() => onOpenEntry?.(naming.entryId)}>
-                    “{naming.text}”
-                  </button>
-                  <span className="ascent-oneline__date">{SUMMIT_COPY.namingBy(naming.dateLabel)}</span>
-                </>
-              ) : (
-                <>
-                  <p className="ascent-summit__ask">{naming ? SUMMIT_COPY.namingStarted : SUMMIT_COPY.taught}</p>
-                  <button type="button" className="ascent-naming__write" onClick={onWriteNaming} disabled={starting}>
-                    {naming ? SUMMIT_COPY.namingOpen : SUMMIT_COPY.namingWrite}
-                  </button>
-                </>
-              )}
-              <p className="ascent-dim__note">{DIMENSION_COPY.learning.note}</p>
-            </section>
-          ) : null}
-
-          <SinceLastClimb newStones={since.newStones} refrainArrived={since.refrainArrived} />
         </div>
       </div>
     )

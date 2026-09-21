@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>The year, told back</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   THE YEAR, TOLD BACK (v2) — the Summit as something you read, then answer.
+
+   Not production code. Synthetic writer, 2026, seen on September 21 — the
+   year is still being written, and the page says so.
+
+     Read   each thread as a short passage of the writer's own lines, in order,
+            the quiet stretches left as white space. Every line opens its page.
+            The app adds no interpretation: no "turned", no "answered" — only
+            the writer's own markings (prayed, sensed…) and dates.
+     Write  "Write about this" opens a new page — an ordinary entry — with the
+            thread's lines above one question. The only new words are theirs.
+   ─────────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+:root {
+  --bg: #fbf6ee; --panel: #fffdf8; --border: #e6dccb;
+  --ink: #3a3129; --ink-bright: #221a12; --dim: #8a7c69; --faint: #b4a78f;
+  --gold: #b0762c; --gold-soft: rgba(176,118,44,.12); --hl: rgba(232,184,115,.35);
+  --sky0: #f6ead6; --sky1: #fbf6ee; --rock0: #cbbfae; --rock1: #b3a794;
+  --shade: rgba(34,26,18,.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151f; --panel: #1a1f2c; --border: #2a3040;
+    --ink: #ddd6ca; --ink-bright: #f3ecdf; --dim: #9a9282; --faint: #5d5a55;
+    --gold: #e8b873; --gold-soft: rgba(232,184,115,.12); --hl: rgba(232,184,115,.22);
+    --sky0: #0d1018; --sky1: #141a28; --rock0: #2a2436; --rock1: #171520; --shade: rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151f; --panel: #1a1f2c; --border: #2a3040;
+  --ink: #ddd6ca; --ink-bright: #f3ecdf; --dim: #9a9282; --faint: #5d5a55;
+  --gold: #e8b873; --gold-soft: rgba(232,184,115,.12); --hl: rgba(232,184,115,.22);
+  --sky0: #0d1018; --sky1: #141a28; --rock0: #2a2436; --rock1: #171520; --shade: rgba(0,0,0,.5);
+}
+body { background: var(--bg); color: var(--ink); font-family: 'Newsreader', Georgia, serif; font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+button, textarea { font: inherit; color: inherit; }
+.ui { font-family: Inter, system-ui, sans-serif; font-size: 12.5px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.eyebrow { font: 400 10.5px 'JetBrains Mono', monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+
+/* chrome (prototype only) */
+#bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: .4rem .8rem; flex-wrap: wrap;
+  padding: .55rem 1rem; border-bottom: 1px solid var(--border); background: var(--panel); }
+#bar .t { color: var(--dim); }
+#bar .grp { display: flex; gap: .15rem; align-items: center; }
+#bar .grp span { color: var(--faint); margin-right: .2rem; }
+#bar .grp button { border: 1px solid transparent; background: none; border-radius: 999px; padding: .3rem .75rem; cursor: pointer; color: var(--dim); }
+#bar .grp button[aria-pressed='true'] { border-color: var(--border); color: var(--ink-bright); background: var(--bg); }
+#bar .sp { flex: 1; }
+
+main { max-width: 700px; margin: 0 auto; padding: 0 20px 120px; transition: max-width .3s ease; }
+body.wide main { max-width: 1080px; }
+section[hidden] { display: none; }
+
+/* ── the sky, the mountain, and where we are in the year ──────────────── */
+.sky { margin: 0 -20px; padding: 36px 20px 8px; background: linear-gradient(180deg, var(--sky0), var(--sky1)); text-align: center; }
+.sky h1 { font-weight: 400; font-style: italic; font-size: 34px; margin: 8px 0 6px; color: var(--ink-bright); }
+.sky p { margin: 0 auto; max-width: 32rem; color: var(--dim); font-style: italic; }
+.sky svg { width: 100%; max-width: 560px; height: auto; display: block; margin: 12px auto 0; }
+
+.year { max-width: 560px; margin: 18px auto 0; }
+.months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.months span { height: 4px; border-radius: 2px; background: var(--gold); }
+.months span.future { background: transparent; border: 1px dashed color-mix(in srgb, var(--gold) 45%, transparent); height: 4px; }
+.months span.now { position: relative; background: linear-gradient(90deg, var(--gold) 70%, color-mix(in srgb, var(--gold) 25%, transparent)); }
+.months span.now::after { content: ''; position: absolute; right: 26%; top: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 22%, transparent); animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--gold) 8%, transparent); } }
+.mlabels { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin-top: 8px; font: 400 9.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.mlabels span.on { color: var(--dim); }
+.mlabels span.now { color: var(--gold); }
+.yearnote { margin-top: 12px; color: var(--dim); font-style: italic; font-size: 15px; }
+.yearnote b { font-weight: 400; color: var(--ink-bright); font-style: normal; }
+
+.refrain { text-align: center; margin: 44px 0 10px; }
+.refrain q { display: block; margin-top: 12px; font-size: 26px; font-style: italic; line-height: 1.4; color: var(--ink-bright); quotes: '“' '”'; cursor: pointer; }
+.refrain q:hover { text-decoration: underline; text-decoration-color: var(--hl); text-underline-offset: 6px; }
+.refrain .d { margin-top: 8px; color: var(--faint); }
+
+.intro { margin: 52px 0 0; color: var(--dim); font-style: italic; text-align: center; }
+
+/* ── passages ─────────────────────────────────────────────────────────── */
+.passage { margin: 64px 0 0; }
+.passage .head h2 { font-weight: 400; font-size: 26px; margin: 0; color: var(--ink-bright); }
+.passage .head .span { color: var(--dim); font-style: italic; margin-top: 2px; }
+.passage .head .status { margin-top: 10px; display: inline-flex; align-items: center; gap: 7px; color: var(--dim); }
+.passage .head .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); display: inline-block; }
+.passage .head .status.still i { animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.passage .head .status.rest i { background: transparent; border: 1px solid var(--faint); }
+.passage .body { margin-top: 20px; }
+body.wide .passage { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 40px; margin-top: 72px; }
+body.wide .passage .head { position: sticky; top: 76px; align-self: start; padding-top: 6px; }
+body.wide .passage .body { margin-top: 0; }
+
+.lines { position: relative; padding-left: 86px; }
+.line, .quiet, .tail { position: relative; }
+.line { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 12px 8px 12px; margin-left: -12px; border-radius: 10px; cursor: pointer; transition: background .15s; }
+.line:hover, .line:focus-visible { background: var(--gold-soft); outline: none; }
+.line .when { position: absolute; left: -74px; top: 13px; width: 60px; text-align: right; font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.line::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--gold); opacity: .5; }
+.line .knot { position: absolute; left: -4px; top: 17px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--bg); }
+.line.first::before { top: 18px; }
+.line .tx { display: block; padding-left: 12px; font-size: 19px; line-height: 1.5; color: var(--ink-bright); }
+.line .meta { display: flex; gap: 12px; padding-left: 12px; margin-top: 3px; font: 400 10.5px 'JetBrains Mono', monospace; letter-spacing: .03em; color: var(--dim); }
+.line .open { opacity: 0; color: var(--gold); transition: opacity .15s; }
+.line:hover .open, .line:focus-visible .open { opacity: 1; }
+.quiet { margin-left: -12px; padding: 14px 0 14px 24px; color: var(--faint); font-style: italic; font-size: 15px; }
+.quiet::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: repeating-linear-gradient(180deg, var(--gold) 0 2px, transparent 2px 8px); opacity: .45; }
+.tail { margin-left: -12px; padding: 12px 0 4px 24px; font-size: 15px; font-style: italic; color: var(--dim); }
+.tail::before { content: ''; position: absolute; left: 0; top: 0; height: 30px; width: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 50%, transparent), transparent); }
+.tail.rest::before { display: none; }
+
+.cta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 18px 0 0 86px; }
+.write { border: 1px solid var(--gold); background: transparent; color: var(--gold); border-radius: 999px; padding: 8px 16px; cursor: pointer; transition: all .15s; }
+.write:hover { background: var(--gold); color: var(--bg); }
+.cta small { color: var(--faint); }
+
+.close-year { margin: 88px 0 0; padding: 36px 24px; text-align: center; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.close-year h3 { margin: 0 0 6px; font-weight: 400; font-style: italic; font-size: 24px; color: var(--ink-bright); }
+.close-year p { margin: 0 0 18px; color: var(--dim); }
+.write.big { background: var(--gold); color: var(--bg); padding: 11px 22px; }
+.write.big:hover { filter: brightness(1.05); }
+.more { text-align: center; margin-top: 30px; }
+.more button { border: 0; background: none; cursor: pointer; color: var(--gold); }
+
+/* ── the entry, opened from a line ────────────────────────────────────── */
+.shade { position: fixed; inset: 0; background: var(--shade); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50; }
+.shade.on { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); z-index: 51; background: var(--panel); border-left: 1px solid var(--border);
+  transform: translateX(102%); transition: transform .3s ease; display: flex; flex-direction: column; }
+.drawer.on { transform: none; }
+.drawer .dh { display: flex; justify-content: space-between; align-items: center; padding: 14px 22px; border-bottom: 1px solid var(--border); color: var(--dim); }
+.drawer .dh button { border: 0; background: none; cursor: pointer; color: var(--dim); }
+.drawer .db { padding: 30px 34px 40px; overflow: auto; flex: 1; }
+.drawer .db .date { color: var(--faint); margin-bottom: 18px; }
+.drawer .db p { font-size: 18.5px; line-height: 1.65; margin: 0 0 16px; color: var(--ink-bright); }
+.drawer .db mark { background: var(--hl); color: inherit; border-radius: 3px; padding: 1px 2px; }
+.drawer .db .from { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--dim); }
+.drawer .df { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.btn { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 8px 15px; cursor: pointer; color: var(--ink); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+
+/* ── write ────────────────────────────────────────────────────────────── */
+.page { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; margin: 36px auto 0; max-width: 700px; padding: 44px clamp(20px, 6vw, 64px) 36px; }
+.page .meta { display: flex; justify-content: space-between; color: var(--faint); margin-bottom: 26px; }
+.page h1 { font-weight: 500; font-size: 30px; margin: 0 0 22px; color: var(--ink-bright); }
+.page blockquote { margin: 0 0 22px; padding: 2px 0 2px 18px; border-left: 2px solid var(--gold); }
+.page blockquote .of { font: 400 10px 'JetBrains Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.page blockquote p { margin: 4px 0; font-style: italic; color: var(--ink); }
+.page blockquote p .d { font: 400 10.5px 'JetBrains Mono', monospace; font-style: normal; color: var(--faint); margin-left: 6px; }
+.page .ask { margin: 30px 0 8px; color: var(--dim); font-style: italic; }
+.asks { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.asks button { border: 1px solid var(--border); background: none; border-radius: 999px; padding: 4px 11px; cursor: pointer; color: var(--dim); }
+.asks button[aria-pressed='true'] { color: var(--ink-bright); border-color: var(--gold); }
+.page textarea { width: 100%; min-height: 220px; border: 0; outline: 0; resize: vertical; background: transparent; font-family: 'Newsreader', Georgia, serif; font-size: 19px; line-height: 1.6; color: var(--ink-bright); }
+.page .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--faint); }
+.back { display: inline-block; margin-top: 26px; border: 0; background: none; cursor: pointer; color: var(--dim); }
+
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink-bright); color: var(--bg); padding: 9px 16px; border-radius: 999px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 60; }
+.toast.on { opacity: 1; }
+
+#note { position: fixed; right: 1rem; bottom: 1rem; width: 310px; max-width: calc(100vw - 2rem); z-index: 40;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem .9rem; color: var(--dim); line-height: 1.55; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+#note h4 { margin: 0; font-size: 12.5px; color: var(--ink-bright); font-weight: 500; cursor: pointer; }
+#note p { margin: .45rem 0 0; }
+#note b { color: var(--ink); font-weight: 500; }
+#note.min p { display: none; }
+
+@media (max-width: 640px) {
+  .lines { padding-left: 0; }
+  .line .when { position: static; display: block; width: auto; text-align: left; padding-left: 12px; margin-bottom: 2px; }
+  .cta { margin-left: 0; }
+  body.wide .passage { display: block; }
+}
+</style>
+</head>
+<body>
+
+<div id="bar" class="ui">
+  <span class="t">The year, told back · v2</span>
+  <div class="grp"><button data-view="read" aria-pressed="true">Read</button><button data-view="write" aria-pressed="false">Write</button></div>
+  <div class="grp"><span>Width</span><button data-width="ascent" aria-pressed="true">Ascent column</button><button data-width="wide" aria-pressed="false">Wide</button></div>
+  <span class="sp"></span>
+  <button class="grp" id="theme" style="border:1px solid var(--border);background:none;border-radius:999px;padding:.3rem .7rem;cursor:pointer;color:var(--dim)">Theme</button>
+</div>
+
+<main>
+  <section id="v-read">
+    <div class="sky">
+      <div class="eyebrow">Summit · 2026</div>
+      <h1>Looking back down the year.</h1>
+      <p>What you kept coming back to, in your own words. Tap any line to open the page it's from.</p>
+      <svg viewBox="0 0 600 190" aria-hidden="true">
+        <defs><linearGradient id="rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--rock0)"/><stop offset="1" stop-color="var(--rock1)"/></linearGradient></defs>
+        <path d="M0 190 L120 120 L190 150 L300 30 L400 120 L460 95 L600 190 Z" fill="url(#rock)" opacity=".9"/>
+        <path d="M60 182 C140 170 170 150 210 140 C250 128 262 100 280 80 C292 64 296 44 300 30" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="2 5" opacity=".35"/>
+        <path d="M60 182 C140 170 170 150 210 140 C250 128 262 100 272 90" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="272" cy="90" r="5" fill="var(--gold)"/>
+      </svg>
+      <div class="year">
+        <div class="months" id="months"></div>
+        <div class="mlabels" id="mlabels"></div>
+        <div class="yearnote">It's <b>September</b>. The year is still being written — what's here will keep filling in through December.</div>
+      </div>
+    </div>
+
+    <div class="refrain">
+      <div class="eyebrow">The one line of the year, so far</div>
+      <q data-open="ps131:1">Back in Psalm 131 again. Quieted. Weaned. Not there, but closer than February.</q>
+      <div class="d mono ui">Jun 17 · Psalm 131</div>
+    </div>
+
+    <p class="intro">What the year has kept returning to —</p>
+    <div id="passages"></div>
+    <div class="more ui"><button id="more">three more ↓</button></div>
+
+    <div class="close-year">
+      <h3>The year so far, in one page</h3>
+      <p class="ui">A new page with a line from each of these above it, and one question. It goes in your journal like any other entry.</p>
+      <button class="write big ui" data-write="year">Write about the year so far →</button>
+    </div>
+  </section>
+
+  <section id="v-write" hidden>
+    <div class="page">
+      <div class="meta ui"><span>New page · September 21, 2026</span><span>private · in your journal</span></div>
+      <h1 id="w-title"></h1>
+      <div id="w-quotes"></div>
+      <p class="ask" id="w-ask"></p>
+      <div class="asks ui" id="w-asks"></div>
+      <textarea id="w-text" placeholder="Write here…"></textarea>
+      <div class="foot ui">
+        <span>An ordinary entry. The lines above are kept exactly as you wrote them.</span>
+        <button class="btn primary" data-toast="Saved to your journal.">Done</button>
+      </div>
+    </div>
+    <div style="text-align:center"><button class="back ui" id="back">← back to the year</button></div>
+  </section>
+</main>
+
+<div class="shade" id="shade"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dh ui"><span id="d-of"></span><button id="d-close">close ✕</button></div>
+  <div class="db" id="d-body"></div>
+  <div class="df ui"><button class="btn" id="d-write">Write about this thread</button><button class="btn primary" data-toast="Would open this page in the editor.">Open in journal →</button></div>
+</aside>
+<div class="toast ui" id="toast"></div>
+
+<aside id="note" class="ui">
+  <h4 id="note-h">What changed in v2 ▾</h4>
+  <p><b>One clear action:</b> "Write about this →" opens a new page with the thread's lines above one question. At the end, the same for the whole year so far.</p>
+  <p><b>Where we are:</b> it's September — the year strip, the mountain and each thread say what's still going.</p>
+  <p><b>No interpretation.</b> No "turned", no "answered". Only dates and the writer's own markings.</p>
+  <p><b>Every line opens its page.</b> Try the Width toggle to compare with the Ascent column.</p>
+</aside>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const NOW = 8 // September
+
+// Each line: date, verbatim text, the writer's own marking (if any), and the
+// page around it (before/after) for when it's opened. `q` = the quiet stretch
+// before it, in plain words.
+const THREADS = [
+  { id: 'dad', name: "Dad's diagnosis", span: 'March – September', last: 8, lines: [
+    { d: 'Mar 6', t: 'Dad called. They found something on the scan. More tests next week.',
+      b: 'Weird Friday.', a: "Didn't tell the kids yet. Sat in the car in the driveway for a while before going in." },
+    { d: 'Mar 12', t: "Pray for Dad's tests.", m: 'prayed',
+      b: 'Short one. Long day at work, J. had the late shift.', a: 'That’s all I have tonight.' },
+    { d: 'Mar 19', t: 'Isaiah 43:2 this morning over Dad. When you pass through the waters I will be with you.', m: 'sensed · Isaiah 43:2',
+      b: 'Up early. Coffee on the porch before anyone else.', a: 'Holding on to the when, not the if.' },
+    { d: 'Jun 29', t: "Asked God for Dad to sleep through the night. That's all. Just that.", m: 'prayed',
+      b: 'Second round of treatment this week. Mum says he’s up most nights.', a: '' },
+    { d: 'Jul 22', t: "Dad says he feels peace about it. I'm trying to borrow his.", m: 'sensed',
+      b: 'Called Dad on the drive home.', a: 'He laughed at something I said. First time in a while.' },
+    { d: 'Sep 16', t: "Pray for Dad. Scan's in October.", m: 'prayed',
+      b: 'Busy week. Small group tomorrow.', a: '' },
+  ]},
+  { id: 'tom', name: 'Tom and the elders', span: 'January – September', last: 8, lines: [
+    { d: 'Jan 9', t: "Still angry about how the elders handled Tom. I don't know what to do with it.",
+      b: 'Board meeting ran late again.', a: 'Going to sleep on it. Probably won’t sleep.' },
+    { d: 'Jan 18', t: "Lord, I don't want to carry Tom into another year. Show me what's mine in it.", m: 'prayed',
+      b: 'Sabbath-ish. Mostly quiet.', a: '' },
+    { d: 'Feb 23', t: "Ephesians 4 again. Be angry and do not sin. With Tom I'm doing the first half very well.", m: 'sensed · Ephesians 4',
+      b: '', a: 'Laughed at myself, which is something.' },
+    { d: 'Sep 14', t: "Saw Tom at the grocery store. Didn't feel the heat I expected to.", m: 'sensed', q: 'quiet from March to August — then you came back to it',
+      b: 'Errands after church.', a: 'We talked about his kids for five minutes. That was it. That was a lot.' },
+  ]},
+  { id: 'firm', name: 'Leaving the firm', span: 'April – August', last: 7, lines: [
+    { d: 'Apr 3', t: "I think I'm done at the firm. I don't know how to say that out loud yet.", m: 'wanted',
+      b: 'Another quarter-end.', a: 'Writing it here first.' },
+    { d: 'Apr 24', t: "Lord, if leaving the firm is you, make it plain. If it's me, make it hard.", m: 'prayed', b: '', a: '' },
+    { d: 'Jun 10', t: 'Gave notice at the firm today. My hands were shaking and I felt more like myself than I have in two years.',
+      b: 'Did it.', a: 'J. made pancakes for dinner. We didn’t talk about money.' },
+    { d: 'Aug 19', t: 'What I learned leaving the firm: I had made the job the thing that told me I was okay.', m: 'learned',
+      b: 'Last week at the old desk is behind me now.', a: '' },
+  ]},
+  { id: 'ps131', name: 'Psalm 131', span: 'February – June', last: 5, lines: [
+    { d: 'Feb 4', t: 'I have calmed and quieted my soul, like a weaned child. I want that more than answers.', m: 'wanted · Psalm 131:2',
+      b: 'Read Psalm 131 three times this morning.', a: '' },
+    { d: 'Jun 17', t: 'Back in Psalm 131 again. Quieted. Weaned. Not there, but closer than February.', m: 'sensed', q: 'quiet through the spring',
+      b: 'Found my old bookmark still in it.', a: '' },
+  ]},
+  { id: 'ruth', name: 'Grandma Ruth', span: 'August – September', last: 8, lines: [
+    { d: 'Aug 4', t: 'Grandma Ruth died this morning. She prayed for me every day of my life.',
+      b: 'Mum called at six.', a: 'I keep thinking about her hands.' },
+    { d: 'Aug 11', t: 'Her Bible had my name written in the margin of Psalm 91.', b: 'The funeral.', a: 'I asked if I could keep it. They said yes.' },
+    { d: 'Sep 3', t: 'Still reaching for the phone to call her on Sundays.', b: '', a: '' },
+  ]},
+  { id: 'group', name: 'The small group', span: 'September', last: 8, isNew: true, lines: [
+    { d: 'Sep 7', t: "Went to the new small group. Six people, bad coffee, I think I'll go back.", b: 'Almost didn’t go.', a: '' },
+    { d: 'Sep 17', t: 'Second week at small group. Someone remembered my name.', b: '', a: 'It’s a small thing. It isn’t.' },
+  ]},
+]
+const SHOW_FIRST = 3
+const ASKS = [
+  "Reading these back — what do you see now that you couldn't see then?",
+  'What is being made of you, in this?',
+  'If you could say one thing to yourself back at the start of this, what would it be?',
+]
+
+let SHOWN = SHOW_FIRST, WRITE_FOR = null, ASK = 0
+const $ = id => document.getElementById(id)
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]))
+const BY = Object.fromEntries(THREADS.map(t => [t.id, t]))
+
+function renderYear() {
+  $('months').innerHTML = MONTHS.map((m, i) => `<span class="${i < NOW ? '' : i === NOW ? 'now' : 'future'}"></span>`).join('')
+  $('mlabels').innerHTML = MONTHS.map((m, i) => `<span class="${i < NOW ? 'on' : i === NOW ? 'now' : ''}">${i === NOW ? 'now' : m}</span>`).join('')
+}
+
+function status(th) {
+  if (th.isNew) return `<div class="status still ui"><i></i>new this month</div>`
+  if (th.last >= NOW) return `<div class="status still ui"><i></i>still going</div>`
+  return `<div class="status rest ui"><i></i>last written in ${['January','February','March','April','May','June','July','August'][th.last]}</div>`
+}
+function tail(th) {
+  const lastLine = th.lines[th.lines.length - 1]
+  if (th.last >= NOW) return `<div class="tail">…still being written. Last on ${lastLine.d}.</div>`
+  return `<div class="tail rest">Quiet since ${lastLine.d}.</div>`
+}
+
+function renderRead() {
+  $('passages').innerHTML = THREADS.slice(0, SHOWN).map(th => `
+    <article class="passage">
+      <div class="head"><h2>${th.name}</h2><div class="span">${th.span}</div>${status(th)}</div>
+      <div class="body">
+        <div class="lines">
+          ${th.lines.map((l, i) => `
+            ${l.q ? `<div class="quiet">${l.q}</div>` : ''}
+            <button class="line ${i === 0 ? 'first' : ''}" data-open="${th.id}:${i}">
+              <span class="when">${l.d}</span><span class="knot"></span>
+              <span class="tx">${esc(l.t)}</span>
+              <span class="meta">${l.m ? `<span>${l.m}</span>` : ''}<span class="open">open page →</span></span>
+            </button>`).join('')}
+          ${tail(th)}
+        </div>
+        <div class="cta ui">
+          <button class="write" data-write="${th.id}">Write about this →</button>
+          <small>a new page, with these lines above it</small>
+        </div>
+      </div>
+    </article>`).join('')
+  $('more').parentElement.hidden = SHOWN >= THREADS.length
+}
+
+function openEntry(key) {
+  const [id, i] = key.split(':'); const th = BY[id]; const l = th.lines[+i]
+  $('d-of').textContent = th.name
+  const paras = [l.b, `<mark>${esc(l.t)}</mark>${l.a ? ' ' + esc(l.a) : ''}`].filter(Boolean)
+  $('d-body').innerHTML = `<div class="date mono ui">${l.d}, 2026</div>${paras.map(p => `<p>${p.startsWith('<mark>') ? p : esc(p)}</p>`).join('')}
+    <div class="from ui">This line is part of <b>${th.name}</b> on the Summit${l.m ? ` · you marked it ${l.m.split(' · ')[0]}` : ''}.</div>`
+  $('d-write').dataset.write = id
+  $('drawer').classList.add('on'); $('shade').classList.add('on'); $('drawer').setAttribute('aria-hidden', 'false')
+}
+function closeEntry() { $('drawer').classList.remove('on'); $('shade').classList.remove('on'); $('drawer').setAttribute('aria-hidden', 'true') }
+
+function renderWrite() {
+  const ths = WRITE_FOR === 'year' || !WRITE_FOR ? THREADS : [BY[WRITE_FOR]]
+  const year = WRITE_FOR === 'year' || !WRITE_FOR
+  $('w-title').textContent = year ? 'The year so far — September 2026' : ths[0].name
+  $('w-quotes').innerHTML = ths.map(th => {
+    const ls = year ? [th.lines[th.lines.length - 1]] : th.lines
+    return `<blockquote><div class="of">${th.name} · ${th.span}</div>${ls.map(l => `<p>${esc(l.t)}<span class="d">${l.d}</span></p>`).join('')}</blockquote>`
+  }).join('')
+  $('w-ask').textContent = ASKS[ASK]
+  $('w-asks').innerHTML = ['What you see now', 'What is being made', 'To yourself, back then']
+    .map((a, i) => `<button data-ask="${i}" aria-pressed="${i === ASK}">${a}</button>`).join('')
+}
+
+function go(view) {
+  $('v-read').hidden = view !== 'read'; $('v-write').hidden = view !== 'write'
+  document.querySelectorAll('#bar [data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)))
+  if (view === 'write') renderWrite()
+  window.scrollTo({ top: 0 })
+}
+
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-open]'); if (o) return openEntry(o.dataset.open)
+  const w = e.target.closest('[data-write]'); if (w) { closeEntry(); WRITE_FOR = w.dataset.write; $('w-text').value = ''; return go('write') }
+  const a = e.target.closest('[data-ask]'); if (a) { ASK = +a.dataset.ask; return renderWrite() }
+  const v = e.target.closest('[data-view]'); if (v) return go(v.dataset.view)
+  const wd = e.target.closest('[data-width]')
+  if (wd) { document.body.classList.toggle('wide', wd.dataset.width === 'wide'); document.querySelectorAll('[data-width]').forEach(b => b.setAttribute('aria-pressed', String(b === wd))); return }
+  const t = e.target.closest('[data-toast]')
+  if (t) { $('toast').textContent = t.dataset.toast; $('toast').classList.add('on'); setTimeout(() => $('toast').classList.remove('on'), 2000) }
+})
+$('shade').addEventListener('click', closeEntry)
+$('d-close').addEventListener('click', closeEntry)
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEntry() })
+$('more').addEventListener('click', () => { SHOWN = THREADS.length; renderRead() })
+$('back').addEventListener('click', () => go('read'))
+$('theme').addEventListener('click', () => {
+  const r = document.documentElement
+  const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+  r.dataset.theme = dark ? 'light' : 'dark'
+})
+$('note-h').addEventListener('click', () => $('note').classList.toggle('min'))
+
+renderYear(); renderRead()
+</script>
+</body>
+</html>

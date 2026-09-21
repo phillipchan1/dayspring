@@ -10,19 +10,27 @@
  * because it is the one still moving.
  */
 
-import { assertSameOwner, cacheGeneration, getCache, setCache } from '@/lib/asyncCache'
-import { listEntries } from '@/lib/repo'
+import { assertSameOwner, cacheGeneration, getCache, onCacheCleared, setCache } from '@/lib/asyncCache'
+import { listEntries, onLocalEntryChange } from '@/lib/repo'
+import type { Entry } from '@/lib/types'
 import { markingsForEntries } from '@/lib/spiritual'
 import { requireSupabase } from '@/lib/supabase'
 import { allSubjects, type Subject } from '@/features/pages/subjects'
 import { listKeptSubjects, withVocabulary } from '@/features/pages/keptSubjects'
 import {
+  buildLedger,
   buildYearLedger,
   type EncounterInput,
+  type LedgerInput,
+  type LedgerOptions,
   type MatterInput,
+  type RangeLedger,
   type RefInput,
   type YearLedger,
 } from './build'
+import { whatMoved, type Moved } from './moved'
+import { newIn, photosIn, type NewName, type SpanPhoto } from './extras'
+import { previousSeason, type Season } from './seasons'
 
 const PAGE = 1000
 const THREAD_IN_CHUNK = 80
@@ -187,6 +195,117 @@ function dayKey(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+// ── the archive, once, refreshed when the writer writes ─────────────────────
+// One array per version so the builder's all-years index (a WeakMap on this
+// array) is built once and reused by every span. A local edit drops it, so a
+// page written this morning is in this month's ledger this morning.
+let entriesVersion = 0
+let entriesPromise: Promise<Entry[]> | null = null
+onLocalEntryChange(() => {
+  entriesVersion++
+  entriesPromise = null
+})
+onCacheCleared(() => {
+  entriesVersion++
+  entriesPromise = null
+})
+function loadEntries(): Promise<Entry[]> {
+  entriesPromise ??= listEntries()
+  return entriesPromise
+}
+
+// ── dev harness (?__preview=ledger) ─────────────────────────────────────────
+// Lets the preview feed the real loaders a synthetic archive, so the month,
+// season and year views can be seen without an account. Never set in a build.
+let previewInput: LedgerInput | null = null
+export function setLedgerPreviewInput(input: LedgerInput): void {
+  if (!import.meta.env.DEV) return
+  previewInput = input
+  entriesPromise = Promise.resolve(input.entries as Entry[])
+}
+
+/** Everything the builder needs for a span: the owner-wide sources, and the
+ *  markings for just the pages inside the span. */
+async function inputFor(from: string, to: string): Promise<LedgerInput> {
+  if (import.meta.env.DEV && previewInput) return previewInput
+  const [entries, matters, names, refs, encounters] = await Promise.all([
+    loadEntries(),
+    loadMatters(),
+    loadNames(),
+    loadRefs(),
+    loadEncounters(),
+  ])
+  const ids = entries.filter((e) => e.created_at.slice(0, 10) >= from && e.created_at.slice(0, 10) <= to).map((e) => e.id)
+  const markings = await once(`ledger:markings:${from}:${to}:${entriesVersion}`, () => markingsForEntries(ids), [])
+  return {
+    entries,
+    matters,
+    names,
+    refs,
+    markings: markings.map((m) => ({ entryId: m.entryId, type: m.type, content: m.content })),
+    encounters,
+  }
+}
+
+/** A ledger over any span, cached for the life of this version of the archive. */
+export async function loadRangeLedger(from: string, to: string, opts: LedgerOptions = {}): Promise<RangeLedger> {
+  const key = `ledger:range:${from}:${to}:${opts.keep ?? ''}:${opts.minMentions ?? ''}:${entriesVersion}`
+  const hit = getCache<RangeLedger>(key)
+  if (hit) return hit
+  const gen = cacheGeneration()
+  const ledger = buildLedger(await inputFor(from, to), { from, to }, opts)
+  assertSameOwner(gen)
+  setCache(key, ledger)
+  return ledger
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/** A month (YYYY-MM): what was alive in it. A month is short, so one page is
+ *  enough to count — a thread you wrote about once this month was alive. */
+export function loadMonthLedger(ym: string, end: string): Promise<RangeLedger> {
+  const to = end < today() ? end : today()
+  return loadRangeLedger(`${ym}-01`, to, { keep: 8, minMentions: 1 })
+}
+
+export interface SpanExtras {
+  photos: SpanPhoto[]
+  news: NewName[]
+}
+
+/** The photos on a span's pages, and who first appeared in them. */
+export async function loadSpanExtras(from: string, to: string): Promise<SpanExtras> {
+  const [entries, names] = await Promise.all([
+    loadEntries(),
+    import.meta.env.DEV && previewInput ? Promise.resolve(previewInput.names) : loadNames(),
+  ])
+  return { photos: photosIn(entries, from, to), news: newIn(names, entries, from, to) }
+}
+
+export interface SeasonView {
+  ledger: RangeLedger
+  moved: Moved
+}
+
+/** A season: what moved in it, against the season before and the year before that. */
+export async function loadSeasonView(season: Season): Promise<SeasonView> {
+  const to = season.to < today() ? season.to : today()
+  const all = { keep: Infinity, minMentions: 1 }
+  const prev = previousSeason(season)
+  const earlier: Season[] = [previousSeason(prev)]
+  while (earlier.length < 3) earlier.push(previousSeason(earlier[earlier.length - 1]!))
+  const [ledger, full, previous, ...before] = await Promise.all([
+    loadRangeLedger(season.from, to, { keep: 12, minMentions: 1 }),
+    loadRangeLedger(season.from, to, all),
+    loadRangeLedger(prev.from, prev.to, all),
+    ...earlier.map((s) => loadRangeLedger(s.from, s.to, all)),
+  ])
+  const earlierIds = new Set(before.flatMap((l) => l.threads.map((t) => t.id)))
+  return { ledger, moved: whatMoved(full, previous, earlierIds) }
+}
+
 /**
  * The ledger for one year. `now` decides whether it is the open year (built
  * through the current month) or sealed (all twelve).
@@ -199,7 +318,7 @@ export async function loadYearLedger(year: number, now: Date = new Date()): Prom
 
   const gen = cacheGeneration()
   const [entries, matters, names, refs, encounters] = await Promise.all([
-    listEntries(),
+    loadEntries(),
     loadMatters(),
     loadNames(),
     loadRefs(),

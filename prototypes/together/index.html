@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Volumes and threads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   VOLUMES AND THREADS, TOGETHER — how the pieces sit across the app.
+
+   Not production code. Synthetic writer (journaling since 2011), seen on
+   September 21, 2026. Two ideas, one engine underneath:
+
+     VOLUMES   time you lived — a notebook's worth of pages, closed when full
+               (you never see how full). They are the sections of Pages, and
+               standing far enough back from the wall turns them into a shelf.
+     THREADS   what ran through that time — subjects the ledger finds. On the
+               wall they LIGHT pages; on the shelf they are RIBBONS out of the
+               spines they're in; in Ascent they are told back, chaptered by
+               the volumes they ran through.
+
+   Pages holds the pages. Ascent tells them back. Every telling ends in the
+   same place: a new page, with your own lines above one question.
+   ─────────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+:root {
+  --bg: #fbf6ee; --panel: #fffdf8; --card: #fffdf8; --border: #e6dccb; --ink: #3a3129; --ink-bright: #221a12;
+  --dim: #8a7c69; --faint: #b4a78f; --gold: #b0762c; --gold-soft: rgba(176,118,44,.12); --hl: rgba(232,184,115,.35);
+  --wall: #f1e8da; --wood: #c4ae8c; --sky0: #f6ead6; --sky1: #fbf6ee; --rock0: #cbbfae; --rock1: #b3a794; --shade: rgba(34,26,18,.35);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151f; --panel: #1a1f2c; --card: #1c2230; --border: #2a3040; --ink: #ddd6ca; --ink-bright: #f3ecdf;
+  --dim: #9a9282; --faint: #5d5a55; --gold: #e8b873; --gold-soft: rgba(232,184,115,.12); --hl: rgba(232,184,115,.22);
+  --wall: #151a26; --wood: #2e251d; --sky0: #0d1018; --sky1: #141a28; --rock0: #2a2436; --rock1: #171520; --shade: rgba(0,0,0,.55); } }
+:root[data-theme="dark"] {
+  --bg: #11151f; --panel: #1a1f2c; --card: #1c2230; --border: #2a3040; --ink: #ddd6ca; --ink-bright: #f3ecdf;
+  --dim: #9a9282; --faint: #5d5a55; --gold: #e8b873; --gold-soft: rgba(232,184,115,.12); --hl: rgba(232,184,115,.22);
+  --wall: #151a26; --wood: #2e251d; --sky0: #0d1018; --sky1: #141a28; --rock0: #2a2436; --rock1: #171520; --shade: rgba(0,0,0,.55); }
+body { background: var(--bg); color: var(--ink); font-family: 'Newsreader', Georgia, serif; font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+button, input, textarea { font: inherit; color: inherit; }
+.ui { font-family: Inter, system-ui, sans-serif; font-size: 12.5px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.eyebrow { font: 400 10.5px 'JetBrains Mono', monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+h1.t { font-weight: 400; font-style: italic; font-size: 32px; margin: 4px 0 4px; color: var(--ink-bright); }
+.lede { color: var(--dim); font-style: italic; margin: 0; }
+
+/* prototype chrome */
+#bar { position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--border); background: var(--panel); }
+#bar .t { color: var(--dim); }
+#bar .sp { flex: 1; }
+.pill { border: 1px solid var(--border); background: none; border-radius: 999px; padding: 5px 12px; cursor: pointer; color: var(--dim); }
+.pill.hot { border-color: var(--gold); color: var(--gold); }
+
+/* app shell */
+.app { position: fixed; inset: 44px 0 0 0; display: grid; grid-template-columns: 76px 1fr; }
+.rail { border-right: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 6px; }
+.rail button { width: 60px; border: 0; background: none; border-radius: 12px; padding: 10px 0 8px; cursor: pointer; color: var(--dim); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10.5px; }
+.rail button svg { width: 20px; height: 20px; }
+.rail button[aria-current="true"] { background: var(--gold-soft); color: var(--ink-bright); }
+.stage { overflow: auto; position: relative; }
+.view { max-width: 1060px; margin: 0 auto; padding: 28px 28px 120px; }
+.view[hidden] { display: none; }
+.crumb { border: 0; background: none; cursor: pointer; color: var(--dim); padding: 0; margin-bottom: 14px; }
+
+/* ── PAGES ─────────────────────────────────────────────────────────────── */
+.phead { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.tools { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.lookfor { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lookfor span { color: var(--faint); margin-right: 2px; }
+.chip { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 4px 11px; cursor: pointer; color: var(--dim); }
+.chip[aria-pressed="true"] { border-color: var(--gold); color: var(--ink-bright); background: var(--gold-soft); }
+.zoom { display: flex; align-items: center; gap: 8px; color: var(--faint); }
+.zoom input { width: 150px; accent-color: #b0762c; }
+.zoom b { font-weight: 400; color: var(--dim); min-width: 44px; }
+
+.section { margin-top: 34px; }
+.cover { display: grid; grid-template-columns: 14px 1fr auto; gap: 14px; align-items: center; padding: 12px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+.cover i { width: 14px; height: 44px; border-radius: 2px; background: var(--c); display: block; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.cover .vn { font-family: "Newsreader", Georgia, serif; font-size: 20px; color: var(--ink-bright); }
+.cover .vn em { font-style: italic; color: var(--dim); }
+.cover .vd { font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.cover .carried { margin-top: 4px; color: var(--dim); font-size: 12px; }
+.cover .carried b { font-weight: 500; color: var(--ink); }
+.cover .go { border: 1px solid var(--gold); background: none; color: var(--gold); border-radius: 999px; padding: 6px 13px; cursor: pointer; white-space: nowrap; }
+.cover .go:hover { background: var(--gold); color: var(--bg); }
+.cover .writing { color: var(--gold); display: inline-flex; align-items: center; gap: 6px; }
+.cover .writing::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.grid { display: grid; gap: 10px; margin-top: 12px; }
+.grid.cards { grid-template-columns: repeat(auto-fill, minmax(var(--cw, 200px), 1fr)); }
+.grid.rows { grid-template-columns: 1fr 1fr; gap: 2px 18px; }
+.pg { text-align: left; border: 1px solid var(--border); background: var(--card); border-radius: 10px; padding: 12px 14px 14px; cursor: pointer; transition: opacity .25s, border-color .15s, transform .15s; }
+.pg:hover { border-color: var(--gold); }
+.pg .d { font: 400 10px 'JetBrains Mono', monospace; color: var(--faint); }
+.pg .x { margin-top: 5px; font-size: 15px; line-height: 1.45; color: var(--ink-bright); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.grid.rows .pg { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: baseline; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 6px 4px; background: none; }
+.grid.rows .pg .x { margin: 0; -webkit-line-clamp: 1; font-size: 14.5px; }
+.wall.looking .pg { opacity: .22; }
+.wall.looking .pg.lit { opacity: 1; border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.grid.rows .pg.lit { background: var(--gold-soft); }
+.olderhint { margin-top: 30px; text-align: center; color: var(--faint); }
+
+/* shelf zoom */
+.shelfwrap { background: var(--wall); border-radius: 14px; padding: 16px 20px 6px; margin-top: 8px; }
+.srow { display: flex; align-items: flex-end; gap: 4px; padding: 58px 12px 0; border-bottom: 10px solid var(--wood); box-shadow: 0 12px 16px -12px rgba(0,0,0,.35); margin-bottom: 26px; }
+.spine { position: relative; width: 50px; border: 0; padding: 0; cursor: pointer; border-radius: 3px 3px 1px 1px; flex: 0 0 auto;
+  background: linear-gradient(90deg, rgba(0,0,0,.18), rgba(255,255,255,.08) 18%, rgba(0,0,0,0) 40%, rgba(0,0,0,.12)), var(--c);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); transition: transform .2s ease, opacity .25s; }
+.spine:hover { transform: translateY(-6px); }
+.spine .num { position: absolute; top: 12px; left: 0; right: 0; text-align: center; font: 500 10.5px 'Newsreader', serif; color: rgba(255,248,235,.9); white-space: nowrap; }
+.spine .band { position: absolute; left: 0; right: 0; height: 2px; background: rgba(255,230,190,.45); }
+.spine .lbl { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%) rotate(180deg); writing-mode: vertical-rl; white-space: nowrap; font: 400 9.5px 'JetBrains Mono', monospace; color: rgba(255,248,235,.82); }
+.spine .lbl em { font: italic 400 11.5px 'Newsreader', serif; letter-spacing: .02em; }
+.spine.open { outline: 2px solid var(--gold); outline-offset: 3px; transform: rotate(4deg) translateY(-8px); margin-left: 10px; }
+.spine .ribbon { position: absolute; top: -26px; width: 7px; height: 34px; background: #b8433a; border-radius: 1px; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%); }
+.shelfwrap.looking .spine:not(.has) { opacity: .45; }
+.shelfnote { color: var(--dim); margin: 0 0 10px; }
+
+/* the closing, on the wall */
+.shade { position: fixed; inset: 0; background: var(--shade); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 60; }
+.shade.on { opacity: 1; pointer-events: auto; }
+.closing { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -46%); opacity: 0; pointer-events: none; transition: all .4s; z-index: 61; width: min(520px, 92vw);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 34px 34px 28px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,.25); }
+.closing.on { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%); }
+.book { width: 130px; height: 170px; margin: 0 auto 22px; perspective: 800px; position: relative; }
+.book .back, .book .cv { position: absolute; inset: 0; border-radius: 3px 7px 7px 3px; }
+.book .back { background: #f7f0e1; box-shadow: 0 18px 30px rgba(40,25,10,.25); }
+.book .back::before { content: ''; position: absolute; inset: 8px 10px 8px 12px; background: repeating-linear-gradient(180deg, transparent 0 11px, rgba(120,100,70,.18) 11px 12px); }
+.book .cv { background: linear-gradient(90deg, rgba(0,0,0,.25), rgba(0,0,0,0) 12%), var(--c); transform-origin: left center; transform: rotateY(-150deg); transition: transform 1.5s cubic-bezier(.4,.1,.2,1); display: flex; flex-direction: column; justify-content: center; align-items: center; color: rgba(255,246,230,.92); backface-visibility: hidden; }
+.closing.on .book .cv { transform: rotateY(0); }
+.book .cv .n { font-size: 24px; letter-spacing: .06em; }
+.book .cv .dd { font: 400 9px 'JetBrains Mono', monospace; margin-top: 8px; }
+.closing h2 { font-family: 'Newsreader', Georgia, serif; font-weight: 400; font-style: italic; font-size: 28px; margin: 0 0 4px; color: var(--ink-bright); }
+.closing .sub { color: var(--dim); }
+.book .cv .n { font-family: 'Newsreader', Georgia, serif; }
+.closing .name { margin: 20px auto 0; text-align: left; }
+.closing .name label { display: block; color: var(--dim); margin-bottom: 6px; }
+.closing .name input { width: 100%; border: 0; border-bottom: 1px solid var(--border); background: none; padding: 6px 0; font-family: 'Newsreader', serif; font-size: 20px; font-style: italic; outline: none; color: var(--ink-bright); }
+.closing .carry { margin-top: 20px; text-align: left; padding: 12px 14px; border-radius: 10px; background: var(--gold-soft); }
+.closing .carry .eyebrow { display: block; margin-bottom: 6px; }
+.closing .carry div { color: var(--ink); }
+.closing .acts { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+.btn { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 9px 16px; cursor: pointer; color: var(--ink); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+.closing .fine { margin-top: 14px; color: var(--faint); }
+
+/* ── A VOLUME, READ BACK ───────────────────────────────────────────────── */
+.vband { display: grid; grid-template-columns: 130px 1fr; gap: 28px; align-items: center; margin-bottom: 30px; }
+.mini { height: 176px; border-radius: 3px 7px 7px 3px; background: linear-gradient(90deg, rgba(0,0,0,.25), rgba(0,0,0,0) 12%), var(--c); box-shadow: 0 16px 28px rgba(40,25,10,.22); display: flex; flex-direction: column; justify-content: center; align-items: center; color: rgba(255,246,230,.92); text-align: center; padding: 8px; }
+.mini .n { font-size: 22px; letter-spacing: .06em; }
+.mini .nm { font: italic 400 13px 'Newsreader', serif; margin-top: 6px; }
+.mod { margin-top: 44px; }
+.mod > .eyebrow { display: block; margin-bottom: 12px; }
+.ends { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.endcard, .newcard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; cursor: pointer; text-align: left; }
+.endcard:hover, .newcard:hover { border-color: var(--gold); }
+.endcard .k { font: 400 10px 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.endcard .d, .newcard .f { font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); margin: 3px 0 8px; }
+.endcard p { margin: 0 0 6px; font-size: 16.5px; color: var(--ink-bright); }
+.photos { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.photo { aspect-ratio: 4/3; border: 0; padding: 0; border-radius: 8px; overflow: hidden; cursor: pointer; background: #ccc; }
+.photo svg { width: 100%; height: 100%; display: block; }
+.news { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.newcard .nm { font-size: 20px; color: var(--ink-bright); }
+.newcard p { margin: 0; font-style: italic; font-size: 15.5px; }
+.ran .rr { display: grid; grid-template-columns: 210px 1fr auto; gap: 18px; align-items: baseline; padding: 13px 0; border-top: 1px solid var(--border); }
+.ran .rr .rn { font-size: 19px; color: var(--ink-bright); }
+.ran .rr .rs { font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.ran .rr p { margin: 0; font-style: italic; }
+.ran .rr button { border: 0; background: none; color: var(--gold); cursor: pointer; white-space: nowrap; }
+.writecta { margin-top: 56px; padding: 30px 24px; text-align: center; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.writecta h3 { margin: 0 0 6px; font-weight: 400; font-style: italic; font-size: 23px; color: var(--ink-bright); }
+.writecta p { margin: 0 0 16px; color: var(--dim); }
+
+/* ── A THREAD, ACROSS VOLUMES ──────────────────────────────────────────── */
+.tview { max-width: 760px; }
+.tstrip { display: flex; gap: 6px; align-items: flex-end; margin: 16px 0 6px; }
+.tstrip .s { width: 22px; height: 62px; border-radius: 2px; background: var(--c); opacity: .3; position: relative; border: 0; cursor: pointer; }
+.tstrip .s.on { opacity: 1; }
+.tstrip .s.on::after { content: ''; position: absolute; top: -14px; left: 7px; width: 7px; height: 20px; background: #b8433a; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
+.tstrip .lab { font: 400 9px 'JetBrains Mono', monospace; color: var(--faint); text-align: center; margin-top: 4px; }
+.chapter { margin-top: 40px; }
+.chapter .ch { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.chapter .ch i { width: 10px; height: 32px; border-radius: 2px; background: var(--c); display: block; }
+.chapter .ch .cn { font-size: 20px; color: var(--ink-bright); }
+.chapter .ch .cn em { color: var(--dim); }
+.chapter .ch .cd { font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.lines { padding-left: 84px; position: relative; }
+.line { position: relative; display: block; width: 100%; text-align: left; background: none; border: 0; padding: 7px 12px; margin-left: -12px; border-radius: 10px; cursor: pointer; }
+.line:hover { background: var(--gold-soft); }
+.line::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--c); opacity: .7; }
+.line .knot { position: absolute; left: -4px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--bg); }
+.line .when { position: absolute; left: -72px; top: 12px; width: 58px; text-align: right; font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.line .tx { display: block; padding-left: 12px; font-size: 18.5px; line-height: 1.5; color: var(--ink-bright); }
+.line .m { display: block; padding-left: 12px; font: 400 10.5px 'JetBrains Mono', monospace; color: var(--dim); }
+.gapnote { margin: 22px 0 0 84px; color: var(--faint); font-style: italic; font-size: 15px; }
+.still { margin: 8px 0 0 84px; color: var(--dim); font-style: italic; font-size: 15px; }
+
+/* ── SUMMIT ─────────────────────────────────────────────────────────────── */
+.sky { margin: -28px -28px 0; padding: 30px 28px 18px; background: linear-gradient(180deg, var(--sky0), var(--sky1)); text-align: center; }
+.sky svg.mtn { width: 100%; max-width: 520px; height: auto; display: block; margin: 8px auto 0; }
+.ygrid { max-width: 780px; margin: 14px auto 0; }
+.months, .mlabels, .film { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
+.months span { height: 4px; border-radius: 2px; background: var(--gold); }
+.months span.future { background: transparent; border: 1px dashed color-mix(in srgb, var(--gold) 45%, transparent); }
+.mlabels { margin-top: 6px; font: 400 9.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.mlabels .now { color: var(--gold); }
+.film { margin-top: 10px; }
+.film .photo { aspect-ratio: 3/4; border-radius: 5px; }
+.film .empty { aspect-ratio: 3/4; border-radius: 5px; border: 1px dashed color-mix(in srgb, var(--faint) 60%, transparent); }
+.yvols { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.yv { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px 8px 8px; cursor: pointer; text-align: left; }
+.yv:hover { border-color: var(--gold); }
+.yv i { width: 12px; height: 38px; border-radius: 2px; background: var(--c); display: block; }
+.yv .n { color: var(--ink-bright); }
+.yv .d { font: 400 10px 'JetBrains Mono', monospace; color: var(--faint); }
+.threads .tr { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.threads .tr:hover .tn { color: var(--gold); }
+.threads .tn { font-size: 21px; color: var(--ink-bright); }
+.threads .tvols { display: flex; gap: 3px; margin-top: 6px; }
+.threads .tvols i { width: 8px; height: 22px; border-radius: 1px; background: var(--c); display: block; }
+.threads .tq { font-style: italic; }
+.threads .tq small { display: block; font: 400 10.5px 'JetBrains Mono', monospace; font-style: normal; color: var(--faint); margin-top: 4px; }
+.center { text-align: center; }
+
+/* ── WRITE ─────────────────────────────────────────────────────────────── */
+.page { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; max-width: 700px; margin: 0 auto; padding: 40px clamp(20px, 6vw, 60px) 32px; }
+.page .meta { display: flex; justify-content: space-between; color: var(--faint); margin-bottom: 22px; }
+.page h1 { font-weight: 500; font-size: 28px; margin: 0 0 20px; color: var(--ink-bright); }
+.page blockquote { margin: 0 0 18px; padding: 2px 0 2px 16px; border-left: 2px solid var(--c, var(--gold)); }
+.page blockquote .of { font: 400 10px 'JetBrains Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.page blockquote p { margin: 3px 0; font-style: italic; }
+.page blockquote p span { font: 400 10.5px 'JetBrains Mono', monospace; font-style: normal; color: var(--faint); margin-left: 6px; }
+.asks { display: flex; gap: 6px; flex-wrap: wrap; margin: 24px 0 10px; }
+.asks button { border: 1px solid var(--border); background: none; border-radius: 999px; padding: 4px 11px; cursor: pointer; color: var(--dim); }
+.asks button[aria-pressed="true"] { color: var(--ink-bright); border-color: var(--gold); }
+.page .ask { color: var(--dim); font-style: italic; margin: 0 0 8px; }
+.page textarea { width: 100%; min-height: 180px; border: 0; outline: 0; resize: vertical; background: transparent; font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.6; color: var(--ink-bright); }
+
+
+/* journal styles */
+.styleseg { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 999px; padding: 3px 3px 3px 12px; }
+.styleseg span { color: var(--faint); margin-right: 6px; }
+.styleseg button { border: 0; background: none; border-radius: 999px; padding: 4px 10px; cursor: pointer; color: var(--dim); }
+.styleseg button[aria-pressed="true"] { background: var(--gold-soft); color: var(--ink-bright); }
+.cvgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 22px 16px; padding: 30px 6px 10px; }
+.cvcard { position: relative; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; transition: transform .2s, opacity .25s; }
+.cvcard:hover { transform: translateY(-4px); }
+.cvcard .art { position: relative; aspect-ratio: 3/4; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 22px rgba(30,20,10,.16), inset 0 0 0 1px rgba(0,0,0,.06); }
+.cvcard .art svg { width: 100%; height: 100%; display: block; }
+.cvcard .art .over { position: absolute; left: 10px; right: 10px; bottom: 10px; color: #fff; font: 500 11px Inter, system-ui, sans-serif; letter-spacing: .02em; text-shadow: 0 1px 8px rgba(0,0,0,.45); }
+.cvcard .art .over b { display: block; font: 400 15px 'Newsreader', serif; font-style: italic; letter-spacing: 0; }
+.cvcard .cm { margin-top: 8px; font: 500 12px Inter, system-ui, sans-serif; color: var(--ink-bright); }
+.cvcard .cd { font: 400 10px 'JetBrains Mono', monospace; color: var(--faint); margin-top: 1px; }
+.cvcard.open .art { outline: 2px solid var(--gold); outline-offset: 3px; }
+.cvcard.open .cm::after { content: ' · being written'; color: var(--gold); font-weight: 400; }
+.cvcard .tab { position: absolute; top: -12px; right: 14px; width: 12px; height: 26px; background: #b8433a; border-radius: 2px 2px 0 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); z-index: 2; }
+.shelfwrap.looking .cvcard:not(.has) { opacity: .4; }
+.shelfwrap.covers { background: transparent; padding: 0; }
+.spine.flat { border-radius: 7px; background: var(--c); box-shadow: none; }
+.spine.flat .band { display: none; }
+.spine.flat::after { content: ''; position: absolute; top: 0; bottom: 0; right: 9px; width: 3px; background: rgba(0,0,0,.22); }
+.spine.flat .num { font: 500 10px Inter, system-ui, sans-serif; letter-spacing: .08em; top: 14px; }
+.spine.flat .lbl { font-family: Inter, system-ui, sans-serif; font-size: 10px; }
+.spine.flat .lbl em { font: 500 10.5px Inter, system-ui, sans-serif; font-style: normal; }
+.shelfwrap.flat .srow { border-bottom-width: 4px; box-shadow: none; }
+.thumb { position: relative; overflow: hidden; }
+.thumb svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.thumb .tl { position: absolute; left: 8px; right: 8px; bottom: 8px; color: #fff; font: 500 10px Inter, system-ui, sans-serif; text-shadow: 0 1px 6px rgba(0,0,0,.5); text-align: left; }
+.thumb .tl b { display: block; font: italic 400 14px 'Newsreader', serif; }
+.thumb.flatc { background: var(--c); }
+.thumb.flatc::after { content: ''; position: absolute; top: 0; bottom: 0; right: 16%; width: 4px; background: rgba(0,0,0,.22); }
+.thumb.classic { background: linear-gradient(90deg, rgba(0,0,0,.25), rgba(0,0,0,0) 12%), var(--c); }
+.thumb.flatc .tl, .thumb.classic .tl { text-shadow: none; }
+
+/* the climb */
+.alts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 26px; }
+.alts button { border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 7px 14px 8px; cursor: pointer; text-align: left; color: var(--dim); }
+.alts button b { display: block; font: 400 16px 'Newsreader', serif; color: var(--ink-bright); }
+.alts button[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-soft); }
+.althead { margin-bottom: 8px; }
+.althead h1 { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.althead h1 em { font-size: 22px; color: var(--dim); }
+.named { border: 0; background: none; color: var(--gold); cursor: pointer; padding: 0; }
+.nameinput { border: 0; border-bottom: 1px solid var(--gold); background: none; font: italic 400 22px 'Newsreader', serif; color: var(--ink-bright); outline: none; width: 280px; }
+.periodnav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0 4px; }
+.periodnav button { border: 1px solid var(--border); background: none; border-radius: 999px; padding: 4px 11px; cursor: pointer; color: var(--dim); }
+.periodnav button[aria-pressed="true"] { border-color: var(--gold); color: var(--ink-bright); background: var(--gold-soft); }
+.periodnav .hemi { margin-left: 8px; color: var(--faint); }
+.status { display: inline-flex; align-items: center; gap: 6px; color: var(--gold); }
+.status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); animation: pulse 2.4s ease-in-out infinite; }
+.alive .al { padding: 18px 0; border-top: 1px solid var(--border); display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+.alive .an { font-size: 20px; color: var(--ink-bright); cursor: pointer; }
+.alive .an:hover { color: var(--gold); }
+.alive .as { font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); }
+.alive .ls button { display: grid; grid-template-columns: 50px 1fr; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 5px 8px; margin-left: -8px; border-radius: 8px; cursor: pointer; }
+.alive .ls button:hover { background: var(--gold-soft); }
+.alive .ls .w { font: 400 10.5px 'JetBrains Mono', monospace; color: var(--faint); padding-top: 4px; }
+.alive .ls .t { font-size: 17.5px; color: var(--ink-bright); }
+.moved { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.mv { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.mv h4 { margin: 0 0 10px; font: 400 10.5px 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.mv .it { padding: 8px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.mv .it:first-of-type { border-top: 0; }
+.mv .it .n { font-size: 17px; color: var(--ink-bright); }
+.mv .it .q { font-style: italic; font-size: 14.5px; color: var(--ink); }
+.mv .it .q small { display: block; font: 400 10px 'JetBrains Mono', monospace; font-style: normal; color: var(--faint); margin-top: 2px; }
+.mv .none { font-style: italic; color: var(--faint); font-size: 14.5px; }
+.volmoments { display: flex; gap: 10px; flex-wrap: wrap; }
+.vm { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.vm .thumb { width: 26px; height: 34px; border-radius: 4px; }
+.vm .t { font-size: 15px; color: var(--ink-bright); }
+.vm .d { font: 400 10px 'JetBrains Mono', monospace; color: var(--faint); }
+.phrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.weekcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.quietnote { color: var(--faint); font-style: italic; margin-top: 18px; }
+
+/* drawer + toast + note */
+.drawer { position: fixed; top: 44px; right: 0; bottom: 0; width: min(480px, 100vw); z-index: 62; background: var(--panel); border-left: 1px solid var(--border); transform: translateX(102%); transition: transform .3s; display: flex; flex-direction: column; }
+.drawer.on { transform: none; }
+.drawer .dh { display: flex; justify-content: space-between; padding: 14px 22px; border-bottom: 1px solid var(--border); color: var(--dim); }
+.drawer .dh button { border: 0; background: none; cursor: pointer; color: var(--dim); }
+.drawer .db { padding: 26px 30px; overflow: auto; flex: 1; }
+.drawer .db p { font-size: 18px; line-height: 1.65; margin: 0 0 14px; color: var(--ink-bright); }
+.drawer .db mark { background: var(--hl); color: inherit; border-radius: 3px; padding: 0 2px; }
+.drawer .db .ph { border-radius: 10px; overflow: hidden; aspect-ratio: 4/3; margin-bottom: 16px; }
+.drawer .db .ph svg { width: 100%; height: 100%; display: block; }
+.drawer .df { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink-bright); color: var(--bg); padding: 9px 16px; border-radius: 999px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 70; }
+.toast.on { opacity: 1; }
+#note { position: fixed; right: 14px; bottom: 14px; width: 320px; max-width: calc(100vw - 28px); z-index: 45; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: .8rem 1rem .9rem; color: var(--dim); line-height: 1.55; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+#note h4 { margin: 0; font-size: 12.5px; color: var(--ink-bright); font-weight: 500; cursor: pointer; }
+#note p { margin: .45rem 0 0; }
+#note b { color: var(--ink); font-weight: 500; }
+#note.min p { display: none; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; } .rail { display: none; }
+  .ends, .vband { grid-template-columns: 1fr; } .photos { grid-template-columns: repeat(3, 1fr); }
+  .grid.rows { grid-template-columns: 1fr; } .threads .tr, .ran .rr { grid-template-columns: 1fr; gap: 4px; }
+  .lines { padding-left: 0; } .line .when { position: static; display: block; text-align: left; padding-left: 12px; width: auto; }
+}
+</style>
+</head>
+<body>
+
+<div id="bar" class="ui">
+  <span class="t">Volumes &amp; threads, together · prototype</span>
+  <span class="sp"></span>
+  <div class="styleseg ui" id="styleseg"><span>Journals look like</span><button data-style="covers" aria-pressed="true">Covers</button><button data-style="flat" aria-pressed="false">Flat notebooks</button><button data-style="spines" aria-pressed="false">Classic</button></div>
+  <button class="pill hot" id="simulate">▶ Simulate: Volume XXIV fills</button>
+  <button class="pill" id="theme">Theme</button>
+</div>
+
+<div class="app">
+  <nav class="rail ui">
+    <button data-nav="pages" aria-current="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="7" height="8" rx="1"/><rect x="13" y="3" width="7" height="8" rx="1"/><rect x="4" y="13" width="7" height="8" rx="1"/><rect x="13" y="13" width="7" height="8" rx="1"/></svg>Pages</button>
+    <button data-nav="summit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 20 L10 8 L14 14 L17 10 L21 20 Z"/></svg>Ascent</button>
+  </nav>
+  <div class="stage" id="stage">
+    <section class="view" id="v-pages"></section>
+    <section class="view" id="v-volume" hidden></section>
+    <section class="view tview" id="v-thread" hidden></section>
+    <section class="view" id="v-summit" hidden></section>
+    <section class="view" id="v-write" hidden></section>
+  </div>
+</div>
+
+<div class="shade" id="shade"></div>
+<div class="closing ui" id="closing"></div>
+<aside class="drawer" id="drawer"><div class="dh ui"><span id="d-of"></span><button id="d-close">close ✕</button></div><div class="db" id="d-body"></div><div class="df ui" id="d-foot"></div></aside>
+<div class="toast ui" id="toast"></div>
+
+<aside id="note" class="ui">
+  <h4 id="note-h">How it fits together ▾</h4>
+  <p><b>Pages:</b> sections are volumes. Drag <b>zoom</b> all the way back and the pages fold into spines — the shelf. <b>Look for</b> a subject: up close it lights pages; on the shelf it puts a <b>ribbon</b> in every volume it runs through.</p>
+  <p><b>Read it back</b> on a volume, or tap a thread, to see it told. Threads are chaptered by the volumes they ran through.</p>
+  <p><b>Ascent</b> is the climb: <b>This week</b> (just pages) · <b>September</b> (what's alive) · <b>Fall 2026</b> (what moved — real seasons) · <b>2026</b> (told back). Names are calendar-only unless you give one.</p>
+  <p><b>Journals look like</b> (top bar) switches covers, flat notebooks, and the classic spines everywhere.</p>
+  <p>Try <b>Simulate: Volume XXIV fills</b> — it closes on the wall, you can name it, and what's still going is carried into XXV.</p>
+</aside>
+
+<script>
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const CLOTH = ['#7a3b2e','#2f4a5e','#3d5a45','#9a6b2f','#5b5566','#6d2f3a','#2e3b36','#8a4f33','#4a4f6b','#6b6247','#3c2f4d','#7d5a3c']
+const ROMAN = n => { const m = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let s = ''; for (const [v, r] of m) while (n >= v) { s += r; n -= v } return s }
+
+// ── volumes (closed when full) ─────────────────────────────────────────────
+const RANGES = [
+  ['Jan 2011','Sep 2011'],['Sep 2011','Apr 2012'],['Apr 2012','Jan 2013'],['Jan 2013','Nov 2013'],['Nov 2013','Oct 2014'],
+  ['Oct 2014','Dec 2015'],['Dec 2015','Mar 2017'],['Mar 2017','Jan 2018'],['Jan 2018','Sep 2018'],['Sep 2018','Apr 2019'],
+  ['Apr 2019','Dec 2019'],['Dec 2019','Jun 2020'],['Jun 2020','Nov 2020'],['Nov 2020','May 2021'],['May 2021','Jan 2022'],
+  ['Jan 2022','Aug 2022'],['Aug 2022','Apr 2023'],['Apr 2023','Dec 2023'],['Dec 2023','Jul 2024'],['Jul 2024','Feb 2025'],
+  ['2025-02-10','2025-10-04'],['2025-10-05','2026-03-02'],['2026-03-03','2026-06-19'],['2026-06-20', null],
+]
+const NAMES = { 7: 'The move', 12: 'Lockdown', 18: 'Maya', 22: 'Winter of the board', 23: 'The waiting room' }
+let VOLS = RANGES.map(([from, to], i) => ({ n: i + 1, from, to, c: i === 22 ? '#7a3b2e' : CLOTH[i % CLOTH.length], h: 214 + ((i * 37) % 24), name: NAMES[i + 1] || '' }))
+
+function fmtRange(v) {
+  const f = s => /^\d{4}-/.test(s) ? `${MON[+s.slice(5, 7) - 1]} ${+s.slice(8, 10)}, ${s.slice(0, 4)}` : s
+  return `${f(v.from)} – ${v.to ? f(v.to) : 'now'}`
+}
+
+// ── threads: verbatim lines, each on a page ──────────────────────────────────
+const THREADS = {
+  dad:   { name: "Dad's diagnosis", lines: [
+    ['2026-03-06','Dad called. They found something on the scan. More tests next week.',''],
+    ['2026-03-12',"Pray for Dad's tests.",'prayed'],
+    ['2026-03-19','Isaiah 43:2 this morning over Dad. When you pass through the waters I will be with you.','sensed · Isaiah 43:2'],
+    ['2026-06-11',"Asked God for Dad to sleep through the night. That's all. Just that.",'prayed'],
+    ['2026-07-22',"Dad says he feels peace about it. I'm trying to borrow his.",'sensed'],
+    ['2026-09-16',"Pray for Dad. Scan's in October.",'prayed'],
+  ]},
+  tom:   { name: 'Tom and the elders', lines: [
+    ['2025-09-02','The elders meeting about Tom went badly. I said too much, then nothing.',''],
+    ['2026-01-09',"Still angry about how the elders handled Tom. I don't know what to do with it.",''],
+    ['2026-01-18',"Lord, I don't want to carry Tom into another year. Show me what's mine in it.",'prayed'],
+    ['2026-02-23',"Ephesians 4 again. Be angry and do not sin. With Tom I'm doing the first half very well.",'sensed · Ephesians 4'],
+    ['2026-09-14',"Saw Tom at the grocery store. Didn't feel the heat I expected to.",'sensed'],
+  ]},
+  firm:  { name: 'Leaving the firm', lines: [
+    ['2026-04-03',"I think I'm done at the firm. I don't know how to say that out loud yet.",'wanted'],
+    ['2026-04-24',"Lord, if leaving the firm is you, make it plain. If it's me, make it hard.",'prayed'],
+    ['2026-06-10','Gave notice at the firm today. My hands were shaking and I felt more like myself than I have in two years.',''],
+    ['2026-08-19','What I learned leaving the firm: I had made the job the thing that told me I was okay.','learned'],
+  ]},
+  ps131: { name: 'Psalm 131', old: [9, 16], lines: [
+    ['2025-08-21','Psalm 131 in the car at a red light. Calmed and quieted. Not me, not today.','sensed · Psalm 131'],
+    ['2026-02-04','I have calmed and quieted my soul, like a weaned child. I want that more than answers.','wanted · Psalm 131:2'],
+    ['2026-06-17','Back in Psalm 131 again. Quieted. Weaned. Not there, but closer than February.','sensed'],
+  ]},
+  group: { name: 'The small group', lines: [
+    ['2026-09-07',"Went to the new small group. Six people, bad coffee, I think I'll go back.",''],
+    ['2026-09-17','Second week at small group. Someone remembered my name.',''],
+  ]},
+}
+const FILLER = [
+  'Slow morning. Coffee, the window, the neighbour’s dog again.', 'Busy week. Not much to say except thank you for the ordinary.',
+  'J. and I walked after dinner. Talked about nothing, which was the point.', 'Tired. Grateful. In that order.',
+  'Read a chapter of Luke before anyone was up.', 'Rain all day. Stayed in and cleaned the study.',
+  'The kids were loud and I was short with them. Sorry about that.', 'Good Sunday. The sermon was on Jonah. I laughed at the gourd.',
+  'Long drive to see Mum. Podcasts and silence.', 'Nothing big. Wanted to write anyway.', 'Early. The birds are back.',
+  'Finished the book J. lent me. Didn’t love the ending.', 'Sabbath. No laptop. It helped.', 'A hard conversation at work that went better than I feared.',
+]
+
+// Pages: thread lines + filler, spread through each of the last four volumes.
+function isoDay(d) { return d.toISOString().slice(0, 10) }
+const PAGES = []
+for (const [id, th] of Object.entries(THREADS)) for (const [date, text, mark] of th.lines) PAGES.push({ date, text, mark, t: id })
+;[[21, '2025-02-10', '2025-10-04', 14], [22, '2025-10-05', '2026-03-02', 14], [23, '2026-03-03', '2026-06-19', 16], [24, '2026-06-20', '2026-09-21', 16]].forEach(([n, a, b, k], vi) => {
+  const A = Date.parse(a), B = Date.parse(b)
+  for (let i = 0; i < k; i++) PAGES.push({ date: isoDay(new Date(A + (B - A) * ((i + .5) / k))), text: FILLER[(i * 5 + vi * 3) % FILLER.length], mark: '', t: null })
+})
+PAGES.sort((x, y) => y.date.localeCompare(x.date))
+PAGES.forEach((p, i) => { p.id = 'p' + i })
+function volOf(date) { return VOLS.find(v => /^\d{4}-/.test(v.from) && date >= v.from && (!v.to || date <= v.to))?.n }
+PAGES.forEach(p => { p.v = volOf(p.date) })
+const fmtDay = iso => `${MON[+iso.slice(5, 7) - 1]} ${+iso.slice(8, 10)}`
+const fmtFull = iso => `${MONL[+iso.slice(5, 7) - 1]} ${+iso.slice(8, 10)}, ${iso.slice(0, 4)}`
+function threadVols(id) { const s = new Set(THREADS[id].lines.map(l => volOf(l[0]))); (THREADS[id].old || []).forEach(n => s.add(n)); return [...s].sort((a, b) => a - b) }
+
+// drawn photo placeholders
+const SC = { porch: ['#f3c98b','#e08e5a','#5b4636','sun'], window: ['#dfe8ee','#b9c8d3','#6d7f8c','win'], candle: ['#2a2230','#553a3a','#f2c46b','can'], hills: ['#cfe0d0','#9bb89c','#4f6b53','hill'], table: ['#efe3cf','#c9a57c','#6b4a2f','cup'], bible: ['#e8dcc4','#b88e5c','#5a3d24','book'], sea: ['#9cc3d9','#e9d7b8','#3e6a86','sea'], dusk: ['#f0b27a','#8f5f8a','#2f2f4f','hill'], snow: ['#eef2f5','#d3dce3','#8093a3','hill'] }
+function scene(n) {
+  const [a, b, c, k] = SC[n]
+  const x = { sun: `<circle cx="120" cy="70" r="26" fill="${c}" opacity=".25"/><rect y="118" width="200" height="32" fill="${c}" opacity=".5"/>`,
+    win: `<rect x="50" y="24" width="100" height="90" fill="#fff" opacity=".55"/><rect x="98" y="24" width="4" height="90" fill="${c}"/><rect x="50" y="66" width="100" height="4" fill="${c}"/>`,
+    can: `<rect x="92" y="80" width="16" height="50" fill="#efe6d6"/><ellipse cx="100" cy="72" rx="6" ry="11" fill="${c}"/><circle cx="100" cy="74" r="40" fill="${c}" opacity=".12"/>`,
+    hill: `<path d="M0 110 Q50 70 100 100 T200 90 V150 H0Z" fill="${c}"/>`, sea: `<rect y="90" width="200" height="60" fill="${c}"/><circle cx="150" cy="60" r="14" fill="#fff" opacity=".7"/>`,
+    cup: `<rect y="100" width="200" height="50" fill="${c}" opacity=".5"/><rect x="80" y="70" width="40" height="34" rx="4" fill="#fff"/>`,
+    book: `<rect x="40" y="40" width="120" height="80" fill="#f7efe0"/><rect x="98" y="40" width="4" height="80" fill="${c}" opacity=".5"/>` }[k]
+  return `<svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="200" height="150" fill="url(#g${n})"/>${x}</svg>`
+}
+const V23 = {
+  photos: [['porch','Mar 19','Coffee on the porch before anyone else. Isaiah 43 open on my knee.'],['window','Apr 9',"Waiting room. Dad's biopsy."],['candle','Apr 20','Easter vigil.'],['hills','May 11','Walked the ridge trail with J.'],['table','Jun 10','Pancakes for dinner the day I gave notice.'],['bible','Jun 17','My old bookmark, still in Psalm 131.']],
+  news: [['Dr. Alvarez','first on Mar 14','Met Dr. Alvarez. Kind eyes, talks fast, drew the whole thing on a napkin for Dad.'],['Pastor Kim','first on Apr 20','Pastor Kim prayed for Dad by name at the vigil.'],['Hartwell & Co.','first on May 28','Second interview at Hartwell. They asked what I wanted, not what I’d done.']],
+}
+
+
+const PHOTOS = [
+  ['2025-12-24','candle','Christmas Eve. The last candle, the kids asleep on the pew.'],
+  ['2026-01-15','snow','First snow. Maya made us all go out in pyjamas.'],
+  ['2026-02-04','bible','Psalm 131, three times this morning.'],
+  ['2026-03-19','porch','Coffee on the porch before anyone else. Isaiah 43 open on my knee.'],
+  ['2026-04-09','window',"Waiting room. Dad's biopsy. The window was the only thing to look at."],
+  ['2026-04-20','candle','Easter vigil.'],
+  ['2026-05-11','hills','Walked the ridge trail with J. Didn’t talk about work once.'],
+  ['2026-06-10','table','Pancakes for dinner the day I gave notice.'],
+  ['2026-06-17','bible','My old bookmark, still in Psalm 131.'],
+  ['2026-07-08','sea','Coast weekend. Nobody checked a phone until Sunday.'],
+  ['2026-08-24','dusk','Last warm evening on the step.'],
+  ['2026-09-07','table','Small group. Bad coffee, good people.'],
+]
+const NEWS = [
+  ['Coach Reyes','2026-01-20',"Coach Reyes kept Maya after practice to tell her she's got a good eye."],
+  ['Dr. Alvarez','2026-03-14','Met Dr. Alvarez. Kind eyes, talks fast, drew the whole thing on a napkin for Dad.'],
+  ['Pastor Kim','2026-04-20','Pastor Kim prayed for Dad by name at the vigil. I didn’t know he knew.'],
+  ['Hartwell & Co.','2026-05-28','Second interview at Hartwell. They asked what I wanted, not what I’d done.'],
+  ['Anna','2026-07-02',"J.'s sister Anna flew in. She and Maya built a fort that took over the lounge."],
+  ['The small group','2026-09-07',"Went to the new small group. Six people, bad coffee, I think I'll go back."],
+]
+// Names only the WRITER gives. The app names by calendar and number, never more.
+const GIVEN = { '2026-06': 'The month I gave notice' }
+const COVER_SCENE = { 21: 'sea', 22: 'snow', 23: 'porch', 24: 'dusk', 25: 'hills' }
+let STYLE = 'covers'
+
+// Real seasons (northern hemisphere). Winter crosses the new year.
+function seasonKeyOf(iso) {
+  const y = +iso.slice(0, 4), m = +iso.slice(5, 7)
+  if (m === 12) return `winter-${y}`
+  if (m <= 2) return `winter-${y - 1}`
+  if (m <= 5) return `spring-${y}`
+  if (m <= 8) return `summer-${y}`
+  return `fall-${y}`
+}
+function seasonInfo(key) {
+  const [name, ys] = key.split('-'); const y = +ys
+  const r = { winter: [`${y}-12-01`, `${y + 1}-02-28`], spring: [`${y}-03-01`, `${y}-05-31`], summer: [`${y}-06-01`, `${y}-08-31`], fall: [`${y}-09-01`, `${y}-11-30`] }[name]
+  const label = name === 'winter' ? `Winter ${y}–${String(y + 1).slice(2)}` : `${name[0].toUpperCase()}${name.slice(1)} ${y}`
+  const months = name === 'winter' ? 'December – February' : { spring: 'March – May', summer: 'June – August', fall: 'September – November' }[name]
+  return { key, from: r[0], to: r[1], label, months }
+}
+function prevSeason(key) {
+  const [name, ys] = key.split('-'); const y = +ys
+  return { spring: `winter-${y - 1}`, summer: `spring-${y}`, fall: `summer-${y}`, winter: `fall-${y}` }[name]
+}
+const SEASONS = ['winter-2025', 'spring-2026', 'summer-2026', 'fall-2026']
+const TODAY = '2026-09-21'
+let ALT = 'season', MONTH = '2026-09', SEASON = 'fall-2026', NAMING = null
+
+// ── state ──────────────────────────────────────────────────────────────────
+let ZOOM = 72, LOOK = null, CUR = 'pages', FILLED = false, LASTVOL = 23, LASTTHREAD = 'tom'
+const $ = id => document.getElementById(id)
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]))
+const vol = n => VOLS[n - 1]
+const vname = v => `Volume ${ROMAN(v.n)}${v.name ? ` · <em>${esc(v.name)}</em>` : ''}`
+function carriedInto(n) { // threads still going when volume n closed
+  return Object.entries(THREADS).filter(([id, th]) => {
+    const vs = th.lines.map(l => volOf(l[0])); return vs.includes(n) && vs.some(x => x > n)
+  }).map(([, th]) => th.name)
+}
+function stillOpen(n) { return Object.entries(THREADS).filter(([, th]) => th.lines.some(l => volOf(l[0]) === n) && th.lines[th.lines.length - 1][0] >= '2026-09-01').map(([id]) => id) }
+
+
+// ── how a journal looks — one switch, used everywhere a volume appears ───────
+function coverArt(v) {
+  if (COVER_SCENE[v.n]) return scene(COVER_SCENE[v.n])
+  const r = k => (((v.n * 9301 + k * 49297) % 233280) + 233280) % 233280 / 233280
+  let dots = ''
+  for (let i = 0; i < 20; i++) { const x = 30 + (i % 4) * 47, y = 36 + Math.floor(i / 4) * 44; dots += `<circle cx="${x}" cy="${y}" r="${2 + r(i) * 10}" fill="#fff" opacity="${(0.1 + r(i + 50) * 0.28).toFixed(2)}"/>` }
+  return `<svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMid slice"><rect width="200" height="260" fill="${v.c}"/>${dots}</svg>`
+}
+function vtitle(v) { return v.name || `Volume ${ROMAN(v.n)}` }
+function thumb(v, w, h, label = true) {
+  const tl = label ? `<span class="tl">${v.name ? `<b>${esc(v.name)}</b>Vol. ${ROMAN(v.n)}` : `<b>${ROMAN(v.n)}</b>`}</span>` : ''
+  if (STYLE === 'covers') return `<div class="thumb" style="width:${w};height:${h};border-radius:8px">${coverArt(v)}${tl}</div>`
+  if (STYLE === 'flat') return `<div class="thumb flatc" style="--c:${v.c};width:${w};height:${h};border-radius:8px">${tl}</div>`
+  return `<div class="thumb classic" style="--c:${v.c};width:${w};height:${h};border-radius:3px 7px 7px 3px">${tl}</div>`
+}
+function shelfHTML(has) {
+  if (STYLE === 'covers') return `<div class="shelfwrap covers ${LOOK ? 'looking' : ''}"><div class="cvgrid">${VOLS.slice().reverse().map(v => `
+    <button class="cvcard ${v.to ? '' : 'open'} ${has.has(v.n) ? 'has' : ''}" data-spine="${v.n}">
+      ${has.has(v.n) ? '<span class="tab"></span>' : ''}
+      <div class="art">${coverArt(v)}<div class="over">${ROMAN(v.n)}</div></div>
+      <div class="cm">${esc(vtitle(v))}</div><div class="cd">${fmtRange(v)}</div></button>`).join('')}</div></div>`
+  const rows = []; for (let i = 0; i < VOLS.length; i += 12) rows.push(VOLS.slice(i, i + 12))
+  const flat = STYLE === 'flat'
+  return `<div class="shelfwrap ${flat ? 'flat' : ''} ${LOOK ? 'looking' : ''}">${rows.map(r => `<div class="srow">${r.map(v => `
+    <button class="spine ${flat ? 'flat' : ''} ${v.to ? '' : 'open'} ${has.has(v.n) ? 'has' : ''}" style="--c:${v.c};height:${v.h}px" data-spine="${v.n}" title="${fmtRange(v)}">
+      ${has.has(v.n) ? `<span class="ribbon" style="left:${14 + (v.n * 7) % 20}px"></span>` : ''}
+      <span class="band" style="top:34px"></span><span class="num">${ROMAN(v.n)}</span>
+      <span class="lbl">${v.name ? `<em>${esc(v.name)}</em>` : fmtRange(v).replace(/, 20(\d\d)/g, " '$1")}</span><span class="band" style="bottom:6px"></span></button>`).join('')}</div>`).join('')}</div>`
+}
+
+// ── PAGES ──────────────────────────────────────────────────────────────────
+function renderPages() {
+  const mode = ZOOM >= 55 ? 'cards' : ZOOM >= 25 ? 'rows' : 'shelf'
+  const looks = Object.entries(THREADS).map(([id, th]) => `<button class="chip" data-look="${id}" aria-pressed="${LOOK === id}">${th.name}</button>`).join('')
+  let body = ''
+  if (mode === 'shelf') {
+    const has = LOOK ? new Set(threadVols(LOOK)) : new Set()
+    body = `<p class="shelfnote ui">${LOOK ? `<b style="font-weight:500;color:var(--ink)">${THREADS[LOOK].name}</b> — marked in every volume it runs through. Tap one to walk into it.` : 'Every volume since 2011, newest first. Tap one to walk into its pages — or look for something to see which volumes it runs through.'}</p>${shelfHTML(has)}`
+  } else {
+    const shownVols = [24, 23, 22, 21].concat(FILLED ? [] : []).filter(n => vol(n))
+    const order = FILLED ? [25, 24, 23, 22, 21] : shownVols
+    body = `<div class="wall ${LOOK ? 'looking' : ''}">${order.map(n => {
+      const v = vol(n); const pages = PAGES.filter(p => p.v === n)
+      const open = !v.to
+      const cin = n > 1 ? carriedInto(n - 1) : []
+      return `<div class="section" id="sec-${n}">
+        <div class="cover ui" style="--c:${v.c};grid-template-columns:auto 1fr auto">${thumb(v, '34px', '46px', false)}
+          <div><div class="vn">${vname(v)}</div><div class="vd">${fmtRange(v)}</div>
+            ${cin.length && n >= 22 ? `<div class="carried">carried in from Volume ${ROMAN(n - 1)}: <b>${cin.join(' · ')}</b></div>` : ''}</div>
+          ${open ? `<span class="writing">being written</span>` : `<button class="go" data-readvol="${n}">Read it back →</button>`}</div>
+        <div class="grid ${mode}" style="--cw:${160 + (ZOOM - 55) * 3}px">${pages.length ? pages.map(p => `
+          <button class="pg ${LOOK && p.t === LOOK ? 'lit' : ''}" data-page="${p.id}"><div class="d">${fmtDay(p.date)}</div><div class="x">${esc(p.text)}</div></button>`).join('') : `<p class="ui" style="color:var(--faint);margin:6px 2px">A new volume. Its first page is waiting.</p>`}</div></div>`
+    }).join('')}</div>
+    <p class="olderhint ui">Volumes XX and earlier continue below — or zoom all the way back to see the shelf.</p>`
+  }
+  $('v-pages').innerHTML = `
+    <div class="phead"><div><div class="eyebrow">Journal</div><h1 class="t">Pages</h1></div>
+      <div class="tools ui"><div class="lookfor"><span>look for</span>${looks}</div>
+        <label class="zoom">closer <input type="range" min="0" max="100" value="${ZOOM}" id="zoom"> further <b>${mode === 'shelf' ? 'shelf' : mode}</b></label></div></div>
+    ${body}`
+  $('zoom').addEventListener('input', e => { ZOOM = 100 - +e.target.value; renderPages() })
+  $('zoom').value = 100 - ZOOM
+}
+
+// ── A VOLUME, READ BACK ─────────────────────────────────────────────────────
+function renderVolume(n) {
+  const v = vol(n); const pages = PAGES.filter(p => p.v === n).slice().sort((a, b) => a.date.localeCompare(b.date))
+  const first = pages[0], last = pages[pages.length - 1]
+  const ran = Object.entries(THREADS).filter(([, th]) => th.lines.some(l => volOf(l[0]) === n))
+  const cin = n > 1 ? carriedInto(n - 1) : [], cout = carriedInto(n)
+  const rich = n === 23
+  $('v-volume').innerHTML = `
+    <button class="crumb ui" data-nav="pages">← Pages</button>
+    <div class="vband">${thumb(v, '130px', '176px')}
+      <div><div class="eyebrow">${v.to ? 'Closed when it was full' : 'Being written'}</div><h1 class="t" style="font-size:38px">${v.name ? esc(v.name) : 'Volume ' + ROMAN(n)}</h1><p class="lede">${v.name ? 'Volume ' + ROMAN(n) + ' · ' : ''}${fmtRange(v)}</p>
+      ${cin.length ? `<p class="ui" style="color:var(--dim);margin-top:10px">Opened carrying: ${cin.join(' · ')}</p>` : ''}</div></div>
+    ${first ? `<div class="mod"><span class="eyebrow">Its first page, and its last</span><div class="ends">
+      <button class="endcard" data-page="${first.id}"><div class="k">The first page</div><div class="d">${fmtFull(first.date)}</div><p>${esc(first.text)}</p></button>
+      <button class="endcard" data-page="${last.id}"><div class="k">${v.to ? 'The last page' : 'The latest page'}</div><div class="d">${fmtFull(last.date)}</div><p>${esc(last.text)}</p></button></div></div>` : ''}
+    ${rich ? `<div class="mod"><span class="eyebrow">Photos from these pages</span><div class="photos">${V23.photos.map((p, i) => `<button class="photo" data-photo="${i}">${scene(p[0])}</button>`).join('')}</div></div>
+    <div class="mod"><span class="eyebrow">New in these pages</span><div class="news ui">${V23.news.map(x => `<button class="newcard"><div class="nm" style="font-family:Newsreader,serif">${x[0]}</div><div class="f">${x[1]}</div><p style="font-family:Newsreader,serif">${esc(x[2])}</p></button>`).join('')}</div></div>` : ''}
+    <div class="mod"><span class="eyebrow">What ran through it</span><div class="ran">${ran.map(([id, th]) => {
+      const ls = th.lines.filter(l => volOf(l[0]) === n); const l = ls[ls.length - 1]
+      const span = threadVols(id)
+      return `<div class="rr"><div><div class="rn">${th.name}</div><div class="rs">${span.length > 1 ? `in volumes ${span.map(ROMAN).join(', ')}` : 'only in this volume'}</div></div><p>“${esc(l[1])}”</p><button class="ui" data-thread="${id}">the whole thread →</button></div>`
+    }).join('')}</div></div>
+    ${cout.length ? `<div class="mod"><span class="eyebrow">Carried into Volume ${ROMAN(n + 1)}</span><p style="margin:0;font-style:italic">${cout.join(' · ')}</p></div>` : ''}
+    <div class="writecta"><h3>Read it back, then write</h3><p class="ui">A new page with this volume's first and last lines above it, and a question you choose.</p>
+      <button class="btn primary ui" data-write="vol:${n}">Write about ${v.name ? esc(v.name) : 'Volume ' + ROMAN(n)} →</button></div>`
+}
+
+// ── A THREAD, ACROSS VOLUMES ────────────────────────────────────────────────
+function renderThread(id) {
+  const th = THREADS[id]; const span = threadVols(id)
+  const byVol = {}; th.lines.forEach(l => { const n = volOf(l[0]); (byVol[n] ||= []).push(l) })
+  const recentVols = Object.keys(byVol).map(Number).sort((a, b) => a - b)
+  const lastDate = th.lines[th.lines.length - 1][0]
+  const going = lastDate >= '2026-09-01'
+  const stripVols = VOLS.slice(Math.max(0, recentVols[0] - 3))
+  let prev = null, out = ''
+  for (const n of recentVols) {
+    if (prev && n - prev > 1) out += `<p class="gapnote">— not in ${n - prev === 2 ? 'Volume ' + ROMAN(prev + 1) : `Volumes ${ROMAN(prev + 1)}–${ROMAN(n - 1)}`}; then you came back to it —</p>`
+    const v = vol(n)
+    out += `<div class="chapter" style="--c:${v.c}"><div class="ch"><i></i><div><div class="cn">In ${vname(v)}</div><div class="cd">${fmtRange(v)}</div></div></div>
+      <div class="lines">${byVol[n].map(l => `<button class="line" data-tline="${id}|${l[0]}"><span class="when">${fmtDay(l[0])}</span><span class="knot"></span><span class="tx">${esc(l[1])}</span>${l[2] ? `<span class="m">${l[2]}</span>` : ''}</button>`).join('')}</div></div>`
+    prev = n
+  }
+  $('v-thread').innerHTML = `
+    <button class="crumb ui" data-nav="summit">← Ascent</button>
+    <div class="eyebrow">A thread</div><h1 class="t" style="font-style:normal;font-size:36px">${th.name}</h1>
+    <p class="lede">${going ? 'still going' : 'quiet since ' + fmtFull(lastDate)} · runs through ${span.length} volume${span.length > 1 ? 's' : ''}</p>
+    <div class="tstrip">${stripVols.map(v => `<div><button class="s ${span.includes(v.n) ? 'on' : ''}" style="--c:${v.c}" data-spine="${v.n}" title="Volume ${ROMAN(v.n)}"></button><div class="lab">${ROMAN(v.n)}</div></div>`).join('')}</div>
+    ${th.old ? `<p class="gapnote" style="margin-left:0">Earlier, in Volumes ${th.old.map(ROMAN).join(' and ')} — years before this.</p>` : ''}
+    ${out}
+    ${going ? `<p class="still">…still being written, in Volume ${ROMAN(VOLS[VOLS.length - 1].n)}.</p>` : ''}
+    <div class="writecta"><h3>${th.name}</h3><p class="ui">A new page with these lines above it, and one question.</p><button class="btn primary ui" data-write="thread:${id}">Write about this →</button></div>`
+}
+
+
+// ── THE CLIMB — one engine, four ranges of dates, one job each ──────────────
+function linesIn(from, to) {
+  const out = {}
+  for (const [id, th] of Object.entries(THREADS)) { const ls = th.lines.filter(l => l[0] >= from && l[0] <= to); if (ls.length) out[id] = ls }
+  return out
+}
+function newsHTML(list) {
+  if (!list.length) return `<p class="quietnote">No one new came into your pages.</p>`
+  return `<div class="news ui">${list.map(x => `<button class="newcard" data-newsline="${esc(x[1])}|${esc(x[0])}"><div class="nm" style="font-family:Newsreader,serif">${esc(x[0])}</div><div class="f">first on ${fmtDay(x[1])}</div><p style="font-family:Newsreader,serif">${esc(x[2])}</p></button>`).join('')}</div>`
+}
+function photosHTML(list) {
+  if (!list.length) return `<p class="quietnote">No photos in these pages.</p>`
+  return `<div class="phrow">${list.map(p => `<button class="photo" data-scene="${p[1]}|${fmtDay(p[0])}">${scene(p[1])}</button>`).join('')}</div>`
+}
+function monthLabel(ym) { return `${MONL[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}` }
+function monthEnd(ym) { const [y, m] = ym.split('-').map(Number); return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}` }
+function givenName(key) {
+  if (NAMING === key) return `<input class="nameinput" id="nameinput" placeholder="call it something — or leave it" value="${esc(GIVEN[key] || '')}">`
+  return GIVEN[key] ? `<em>· ${esc(GIVEN[key])}</em> <button class="named ui" data-name="${key}">edit</button>` : `<button class="named ui" data-name="${key}">+ give it a name</button>`
+}
+
+function renderAscent() {
+  const tabs = [
+    ['week', 'This week', 'Valley'],
+    ['month', monthLabel(MONTH).replace(' 2026', ''), 'Hillside'],
+    ['season', seasonInfo(SEASON).label, 'Ridge'],
+    ['year', '2026', 'Summit'],
+  ]
+  $('v-summit').innerHTML = `<div class="alts ui">${tabs.map(([k, t, alt]) => `<button data-alt="${k}" aria-pressed="${ALT === k}"><span>${alt}</span><b>${t}</b></button>`).join('')}</div><div id="alt-body"></div>`
+  if (ALT === 'week') renderWeek()
+  if (ALT === 'month') renderMonth()
+  if (ALT === 'season') renderSeason()
+  if (ALT === 'year') renderSummit()
+  const ni = $('nameinput'); if (ni) { ni.focus(); ni.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') { const val = ni.value.trim(); if (val) GIVEN[NAMING] = val; else delete GIVEN[NAMING] } NAMING = null; renderAscent() } }) }
+}
+
+function renderWeek() {
+  const from = '2026-09-15', to = TODAY
+  const pages = PAGES.filter(p => p.date >= from && p.date <= to).sort((a, b) => a.date.localeCompare(b.date))
+  const v = vol(volOf(TODAY))
+  $('alt-body').innerHTML = `
+    <div class="althead"><div class="eyebrow">Valley</div><h1 class="t">This week</h1>
+      <p class="lede">September 15 – 21 · in ${vtitle(v)}</p></div>
+    <div class="mod"><div class="weekcards">${pages.map(p => `<button class="pg" data-page="${p.id}"><div class="d">${fmtDay(p.date)}</div><div class="x">${esc(p.text)}</div></button>`).join('')}</div>
+      <p class="quietnote">Nothing is told back at this height — it's still this week. Just your pages.</p></div>`
+}
+
+function renderMonth() {
+  const from = `${MONTH}-01`, to = monthEnd(MONTH)
+  const open = TODAY <= to
+  const alive = linesIn(from, to)
+  const months = ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09']
+  $('alt-body').innerHTML = `
+    <div class="althead"><div class="eyebrow">Hillside</div>
+      <h1 class="t" style="font-style:normal">${monthLabel(MONTH)} ${givenName(MONTH)}</h1>
+      <div class="periodnav ui">${months.map(m => `<button data-month="${m}" aria-pressed="${m === MONTH}">${MON[+m.slice(5, 7) - 1]}</button>`).join('')}
+        ${open ? '<span class="status" style="margin-left:10px">still being written</span>' : ''}</div></div>
+    <div class="mod"><span class="eyebrow">What's alive this month</span>
+      ${Object.keys(alive).length ? `<div class="alive">${Object.entries(alive).map(([id, ls]) => `<div class="al"><div><div class="an" data-thread="${id}">${THREADS[id].name}</div><div class="as">${THREADS[id].lines[0][0] >= from ? 'new this month' : 'since ' + fmtDay(THREADS[id].lines[0][0]) + (THREADS[id].lines[0][0].slice(0, 4) !== MONTH.slice(0, 4) ? ' ' + THREADS[id].lines[0][0].slice(0, 4) : '')}</div></div>
+        <div class="ls">${ls.map(l => `<button data-tline="${id}|${l[0]}"><span class="w">${fmtDay(l[0])}</span><span class="t">${esc(l[1])}</span></button>`).join('')}</div></div>`).join('')}</div>` : `<p class="quietnote">Only your pages this month — nothing you've been carrying came up.</p>`}</div>
+    <div class="mod"><span class="eyebrow">New in your pages</span>${newsHTML(NEWS.filter(x => x[1] >= from && x[1] <= to))}</div>
+    <div class="mod"><span class="eyebrow">Photos</span>${photosHTML(PHOTOS.filter(p => p[0] >= from && p[0] <= to))}</div>
+    <div class="writecta"><h3>${monthLabel(MONTH)}${open ? ', so far' : ''}</h3><p class="ui">A new page with this month's lines above it, and a question you choose.</p>
+      <button class="btn primary ui" data-write="month:${MONTH}">Write about ${MONL[+MONTH.slice(5, 7) - 1]} →</button></div>`
+}
+
+function renderSeason() {
+  const S = seasonInfo(SEASON), P = seasonInfo(prevSeason(SEASON))
+  const open = TODAY <= S.to && TODAY >= S.from
+  const inS = linesIn(S.from, S.to), inP = linesIn(P.from, P.to)
+  const began = [], back = [], through = [], quiet = []
+  for (const [id, th] of Object.entries(THREADS)) {
+    const before = th.lines.filter(l => l[0] < S.from)
+    if (inS[id]) {
+      if (!before.length) began.push([id, inS[id][0]])
+      else if (!inP[id]) back.push([id, inS[id][0]])
+      else through.push([id, inS[id][inS[id].length - 1]])
+    } else if (inP[id]) quiet.push([id, inP[id][inP[id].length - 1]])
+  }
+  const col = (title, list, empty) => `<div class="mv"><h4>${title}</h4>${list.length ? list.map(([id, l]) => `<div class="it" data-thread="${id}"><div class="n">${THREADS[id].name}</div><div class="q">“${esc(l[1])}”<small>${fmtDay(l[0])}</small></div></div>`).join('') : `<div class="none">${empty}</div>`}</div>`
+  const moments = []
+  VOLS.forEach(v => {
+    if (/^\d{4}-/.test(v.from) && v.from >= S.from && v.from <= S.to) moments.push([v, `began ${fmtDay(v.from)}`])
+    if (v.to && /^\d{4}-/.test(v.to) && v.to >= S.from && v.to <= S.to) moments.push([v, `closed ${fmtDay(v.to)}`])
+  })
+  $('alt-body').innerHTML = `
+    <div class="althead"><div class="eyebrow">Ridge</div>
+      <h1 class="t" style="font-style:normal">${S.label} ${givenName(SEASON)}</h1>
+      <p class="lede">${S.months}${open ? ' · three weeks in' : ''}</p>
+      <div class="periodnav ui">${SEASONS.map(k => `<button data-season="${k}" aria-pressed="${k === SEASON}">${seasonInfo(k).label}</button>`).join('')}
+        <span class="hemi">northern hemisphere · <u style="cursor:pointer" data-toast="Would flip to southern-hemisphere seasons (December is summer).">change</u></span></div></div>
+    <div class="mod"><span class="eyebrow">What moved this ${S.key.split('-')[0]}</span>
+      <div class="moved">
+        ${col('Began', began, 'Nothing new began.')}
+        ${col('Came back', back, 'Nothing came back after a quiet stretch.')}
+        ${col('Carried through', through, 'Nothing carried over from ' + P.label + '.')}
+        ${col(open ? 'Not yet this ' + S.key.split('-')[0] : 'Went quiet', quiet, open ? 'Everything from ' + P.label + ' has come up.' : 'Nothing went quiet.')}
+      </div>
+      ${open ? `<p class="quietnote">The season has barely started — what's "not yet" here may simply not have come up yet.</p>` : ''}</div>
+    ${moments.length ? `<div class="mod"><span class="eyebrow">Your volumes this ${S.key.split('-')[0]}</span><div class="volmoments ui">${moments.map(([v, t]) => `<button class="vm" data-readvol="${v.n}">${thumb(v, '26px', '34px', false)}<span><span class="t">${esc(vtitle(v))}</span><br><span class="d">${t}</span></span></button>`).join('')}</div></div>` : ''}
+    <div class="mod"><span class="eyebrow">New in your pages</span>${newsHTML(NEWS.filter(x => x[1] >= S.from && x[1] <= S.to))}</div>
+    <div class="mod"><span class="eyebrow">Photos</span>${photosHTML(PHOTOS.filter(p => p[0] >= S.from && p[0] <= S.to))}</div>
+    <div class="writecta"><h3>${S.label}${open ? ', so far' : ''}</h3><p class="ui">A new page with a line from each of these above it, and a question you choose.</p>
+      <button class="btn primary ui" data-write="season:${SEASON}">Write about ${S.label} →</button></div>`
+}
+
+// ── SUMMIT ──────────────────────────────────────────────────────────────────
+function renderSummit() {
+  const NOW = 8
+  const film = {}; PHOTOS.filter(p => p[0].startsWith('2026')).forEach(p => { const m = +p[0].slice(5, 7) - 1; if (!(m in film)) film[m] = p[1] })
+  const iso = x => /^\d{4}-/.test(x || '')
+  const yv = VOLS.filter(v => !v.to || (iso(v.to) && v.to >= '2026'))
+  $('alt-body').innerHTML = `
+    <div class="sky" style="margin-top:0;border-radius:14px"><div class="eyebrow">Summit · 2026</div><h1 class="t">Looking back down the year.</h1>
+      <svg class="mtn" viewBox="0 0 600 190"><defs><linearGradient id="rk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--rock0)"/><stop offset="1" stop-color="var(--rock1)"/></linearGradient></defs>
+        <path d="M0 190 L120 120 L190 150 L300 30 L400 120 L460 95 L600 190 Z" fill="url(#rk)" opacity=".9"/>
+        <path d="M60 182 C140 170 170 150 210 140 C250 128 262 100 280 80 C292 64 296 44 300 30" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="2 5" opacity=".35"/>
+        <path d="M60 182 C140 170 170 150 210 140 C250 128 262 100 272 90" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round"/><circle cx="272" cy="90" r="5" fill="var(--gold)"/></svg>
+      <div class="ygrid"><div class="months">${MON.map((m, i) => `<span class="${i <= NOW ? '' : 'future'}"></span>`).join('')}</div>
+        <div class="mlabels">${MON.map((m, i) => `<span class="${i === NOW ? 'now' : ''}">${i === NOW ? 'now' : m}</span>`).join('')}</div>
+        <div class="film">${MON.map((m, i) => i > NOW || !film[i] ? '<div class="empty"></div>' : `<button class="photo" data-scene="${film[i]}|${m}">${scene(film[i])}</button>`).join('')}</div>
+        <p class="lede ui" style="margin-top:10px">It's September. The year is still being written.</p></div></div>
+    <div class="mod center"><span class="eyebrow">The volumes this year holds</span>
+      <div class="yvols ui">${yv.map(v => `<button class="yv" data-readvol="${v.n}">${thumb(v, '28px', '38px', false)}<span><span class="n">${v.name ? esc(v.name) : 'Volume ' + ROMAN(v.n)}</span><br><span class="d">${v.name ? 'Vol. ' + ROMAN(v.n) + ' · ' : ''}${fmtRange(v).replace(/, 2026/g, '')}</span></span></button>`).join('')}</div></div>
+    <div class="mod"><span class="eyebrow">What the year kept returning to</span><div class="threads">${['dad','tom','firm','ps131','group'].map(id => {
+      const th = THREADS[id]; const ls = th.lines.filter(l => l[0] >= '2026'); const l = ls[ls.length - 1]
+      return `<div class="tr" data-thread="${id}"><div><div class="tn">${th.name}</div><div class="tvols">${threadVols(id).filter(n => n >= 20).map(n => `<i style="--c:${vol(n).c}" title="Volume ${ROMAN(n)}"></i>`).join('')}</div></div>
+        <div class="tq">“${esc(l[1])}”<small>${fmtDay(l[0])} · ${l[0] >= '2026-09-01' ? 'still going' : 'quiet since then'}</small></div></div>`
+    }).join('')}</div></div>
+    <div class="mod"><span class="eyebrow">New in your pages this year</span>${newsHTML(NEWS.filter(x => x[1].startsWith('2026')))}</div>
+    <div class="writecta"><h3>The year so far, in one page</h3><p class="ui">A line from each thread above it, and a question you choose.</p><button class="btn primary ui" data-write="year">Write about the year so far →</button></div>`
+}
+
+// ── WRITE ───────────────────────────────────────────────────────────────────
+const ASKS = ["What do you see now that you couldn't see then?", 'What is being made of you, in this?', 'What did He teach you in these pages?', 'What would you say to yourself back at the start of it?']
+let ASK = 0, WRITE = 'year'
+function renderWrite() {
+  let title = 'The year so far', quotes = ''
+  const bq = (of, c, ls) => `<blockquote style="--c:${c}"><div class="of">${of}</div>${ls.map(l => `<p>${esc(l[1])}<span>${fmtDay(l[0])}</span></p>`).join('')}</blockquote>`
+  if (WRITE.startsWith('thread:')) { const id = WRITE.slice(7); const th = THREADS[id]; title = th.name; quotes = bq(th.name, 'var(--gold)', th.lines) }
+  else if (WRITE.startsWith('vol:')) { const n = +WRITE.slice(4); const v = vol(n); title = v.name || 'Volume ' + ROMAN(n)
+    const ps = PAGES.filter(p => p.v === n).sort((a, b) => a.date.localeCompare(b.date)); quotes = bq('The first page', v.c, [[ps[0].date, ps[0].text]]) + bq(v.to ? 'The last page' : 'The latest page', v.c, [[ps.at(-1).date, ps.at(-1).text]]) }
+  else if (WRITE.startsWith('month:')) { const m = WRITE.slice(6); title = monthLabel(m) + (GIVEN[m] ? ' · ' + GIVEN[m] : ''); quotes = Object.entries(linesIn(`${m}-01`, monthEnd(m))).map(([id, ls]) => bq(THREADS[id].name, 'var(--gold)', ls)).join('') }
+  else if (WRITE.startsWith('season:')) { const S = seasonInfo(WRITE.slice(7)); title = S.label + (GIVEN[S.key] ? ' · ' + GIVEN[S.key] : ''); quotes = Object.entries(linesIn(S.from, S.to)).map(([id, ls]) => bq(THREADS[id].name, 'var(--gold)', [ls[0], ...(ls.length > 1 ? [ls[ls.length - 1]] : [])])).join('') }
+  else quotes = Object.values(THREADS).map(th => { const l = th.lines[th.lines.length - 1]; return bq(th.name, 'var(--gold)', [l]) }).join('')
+  $('v-write').innerHTML = `<div class="page"><div class="meta ui"><span>New page · September 21, 2026 · Volume ${ROMAN(VOLS.at(-1).n)}</span><span>private</span></div>
+    <h1>${esc(title)}</h1>${quotes}
+    <div class="asks ui">${['What you see now','What is being made','What He taught you','To yourself, back then'].map((a, i) => `<button data-ask="${i}" aria-pressed="${i === ASK}">${a}</button>`).join('')}</div>
+    <p class="ask">${ASKS[ASK]}</p><textarea placeholder="Write here…"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px" class="ui"><span style="color:var(--faint)">An ordinary entry — it goes in your journal, in the volume you're writing now.</span><button class="btn primary" data-toast="Saved to your journal.">Done</button></div></div>`
+}
+
+// ── the closing, on the wall ───────────────────────────────────────────────
+function simulateClose() {
+  if (FILLED) return toast('Already closed — reload to replay.')
+  go('pages')
+  const v = vol(24)
+  const open = stillOpen(24).map(id => THREADS[id].name)
+  $('closing').innerHTML = `
+    <div class="book" style="--c:${v.c}"><div class="back"></div><div class="cv" style="${STYLE === 'covers' ? 'background:none' : STYLE === 'flat' ? 'background:var(--c);border-radius:8px' : ''}">${STYLE === 'covers' ? `<div style="position:absolute;inset:0;border-radius:8px;overflow:hidden">${coverArt(v)}</div>` : ''}<div class="n" style="position:relative">XXIV</div><div class="dd" style="position:relative">JUN 20 — SEP 21 · 2026</div></div></div>
+    <h2>This volume is full.</h2><div class="sub">Volume XXIV · June 20 – September 21, 2026. You wrote its last page this morning.</div>
+    <div class="name"><label>What would you call this one? <span style="color:var(--faint)">(optional — it goes on the spine)</span></label><input id="vname" placeholder="Summer of letting go"></div>
+    <div class="carry"><span class="eyebrow">Still going as it closes — carried into Volume XXV</span><div style="font-family:Newsreader,serif;font-size:16px">${open.join(' · ')}</div></div>
+    <div class="acts"><button class="btn primary" id="c-read">Read it back</button><button class="btn" id="c-shelf">Back to writing</button></div>
+    <div class="fine">Nothing changes where you write. Your next page begins Volume XXV.</div>`
+  let live = true
+  $('shade').classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => { if (live) $('closing').classList.add('on') }))
+  const finish = to => {
+    live = false
+    const nm = $('vname').value.trim(); v.name = nm || v.name; v.to = '2026-09-21'
+    VOLS.push({ n: 25, from: '2026-09-22', to: null, c: CLOTH[0], h: 222, name: '' }); FILLED = true
+    $('closing').classList.remove('on'); $('shade').classList.remove('on')
+    if (to === 'read') go('volume', 24); else go('pages')
+  }
+  $('c-read').onclick = () => finish('read'); $('c-shelf').onclick = () => finish('pages')
+}
+
+// ── nav + wiring ────────────────────────────────────────────────────────────
+function go(view, arg) {
+  CUR = view
+  ;['pages','volume','thread','summit','write'].forEach(v => { $('v-' + v).hidden = v !== view })
+  document.querySelectorAll('.rail [data-nav]').forEach(b => b.setAttribute('aria-current', String(b.dataset.nav === (view === 'pages' || view === 'volume' ? 'pages' : view === 'write' ? '' : 'summit'))))
+  if (view === 'pages') renderPages()
+  if (view === 'volume') { LASTVOL = arg || LASTVOL; renderVolume(LASTVOL) }
+  if (view === 'thread') { LASTTHREAD = arg || LASTTHREAD; renderThread(LASTTHREAD) }
+  if (view === 'summit') renderAscent()
+  if (view === 'write') renderWrite()
+  $('stage').scrollTop = 0
+}
+function openDrawer(of, html, foot) { $('d-of').textContent = of; $('d-body').innerHTML = html; $('d-foot').innerHTML = foot || `<button class="btn primary ui" data-toast="Would open this page in the editor.">Open in journal →</button>`; $('drawer').classList.add('on') }
+function closeDrawer() { $('drawer').classList.remove('on') }
+function toast(t) { $('toast').textContent = t; $('toast').classList.add('on'); setTimeout(() => $('toast').classList.remove('on'), 2000) }
+
+document.addEventListener('click', e => {
+  const t = e.target
+  const nav = t.closest('[data-nav]'); if (nav) return go(nav.dataset.nav)
+  const st = t.closest('[data-style]'); if (st) { STYLE = st.dataset.style; document.querySelectorAll('[data-style]').forEach(b => b.setAttribute('aria-pressed', String(b === st))); return go(CUR, CUR === 'volume' ? LASTVOL : CUR === 'thread' ? LASTTHREAD : undefined) }
+  const al = t.closest('[data-alt]'); if (al) { ALT = al.dataset.alt; NAMING = null; return renderAscent() }
+  const mo = t.closest('[data-month]'); if (mo) { MONTH = mo.dataset.month; return renderAscent() }
+  const se = t.closest('[data-season]'); if (se) { SEASON = se.dataset.season; return renderAscent() }
+  const nm = t.closest('[data-name]'); if (nm) { NAMING = nm.dataset.name; return renderAscent() }
+  const nl = t.closest('[data-newsline]'); if (nl) { const [d, who] = nl.dataset.newsline.split('|'); const x = NEWS.find(n => n[0] === who); return openDrawer(fmtFull(d), `<p class="ui" style="color:var(--faint);margin-bottom:14px">the first time ${esc(who)} appears in your pages</p><p><mark>${esc(x[2])}</mark></p>`) }
+  const lk = t.closest('[data-look]'); if (lk) { LOOK = LOOK === lk.dataset.look ? null : lk.dataset.look; return renderPages() }
+  const sp = t.closest('[data-spine]'); if (sp) { const n = +sp.dataset.spine; if (n < 21) return toast(`Volume ${ROMAN(n)} — only the last four are filled in here.`); ZOOM = 72; go('pages'); setTimeout(() => $('sec-' + n)?.scrollIntoView({ behavior: 'smooth' }), 30); return }
+  const rv = t.closest('[data-readvol]'); if (rv) return go('volume', +rv.dataset.readvol)
+  const th = t.closest('[data-thread]'); if (th) { closeDrawer(); return go('thread', th.dataset.thread) }
+  const w = t.closest('[data-write]'); if (w) { WRITE = w.dataset.write; closeDrawer(); return go('write') }
+  const a = t.closest('[data-ask]'); if (a) { ASK = +a.dataset.ask; return renderWrite() }
+  const pg = t.closest('[data-page]'); if (pg) { const p = PAGES.find(x => x.id === pg.dataset.page); const v = vol(p.v)
+    return openDrawer(fmtFull(p.date), `<p class="ui" style="color:var(--faint);margin-bottom:16px">Volume ${ROMAN(v.n)}${v.name ? ' · ' + esc(v.name) : ''}</p><p>${p.t ? `<mark>${esc(p.text)}</mark>` : esc(p.text)}</p>${p.t ? `<p class="ui" style="color:var(--dim);margin-top:20px">Part of <b>${THREADS[p.t].name}</b>.</p>` : ''}`,
+      `${p.t ? `<button class="btn ui" data-thread="${p.t}">The whole thread</button>` : ''}<button class="btn primary ui" data-toast="Would open this page in the editor.">Open in journal →</button>`) }
+  const tl = t.closest('[data-tline]'); if (tl) { const [id, d] = tl.dataset.tline.split('|'); const l = THREADS[id].lines.find(x => x[0] === d); const v = vol(volOf(d))
+    return openDrawer(fmtFull(d), `<p class="ui" style="color:var(--faint);margin-bottom:16px">Volume ${ROMAN(v.n)}${v.name ? ' · ' + esc(v.name) : ''}</p><p><mark>${esc(l[1])}</mark></p>`) }
+  const ph = t.closest('[data-photo]'); if (ph) { const p = V23.photos[+ph.dataset.photo]; return openDrawer(p[1] + ', 2026', `<div class="ph">${scene(p[0])}</div><p>${esc(p[2])}</p>`) }
+  const sc = t.closest('[data-scene]'); if (sc) { const [s, m] = sc.dataset.scene.split('|'); return openDrawer(m + ' 2026', `<div class="ph">${scene(s)}</div><p class="ui" style="color:var(--dim)">(The page this photo is on would open here.)</p>`) }
+  const ts = t.closest('[data-toast]'); if (ts) return toast(ts.dataset.toast)
+})
+$('d-close').addEventListener('click', closeDrawer)
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer() })
+$('simulate').addEventListener('click', simulateClose)
+$('theme').addEventListener('click', () => { const r = document.documentElement; const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark ? 'light' : 'dark' })
+$('note-h').addEventListener('click', () => $('note').classList.toggle('min'))
+go((location.hash || '').slice(1) === 'pages' ? 'pages' : 'summit')
+</script>
+</body>
+</html>

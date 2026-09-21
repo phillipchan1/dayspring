@@ -6,7 +6,12 @@ import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
 import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
 import type { Grain } from '@/lib/period'
-import { ALTITUDES, CONTROLS, EMPTY_COPY } from './ascent.config'
+import { ALTITUDES, CONTROLS, EMPTY_COPY, LEDGER_ALTITUDES } from './ascent.config'
+import { useFeatureFlag } from '@/features/flags'
+import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
+import { MonthView, SeasonView, todayIso } from './ledger/ClimbViews'
+import { MONTH_LONG } from './ledger/copy'
+import { seasonOf } from './ledger/seasons'
 import { loadAscent, readCachedAscent, type LoadedAscent } from './data'
 import { AltitudeBands } from './AltitudeBands'
 import { LensRow } from './LensRow'
@@ -130,7 +135,16 @@ export function AscentView({ onOpenEntry }: Props) {
   // (a swipe to read further down also jumped altitude, which felt inverted).
   // The fixed climb rail and the sticky ascend/descend controls own altitude now.
 
+  // The year's ledger (alpha): the climb told back, named by the calendar.
+  const ledgerOn = useFeatureFlag('yearLedger') || ALLOWS_INTERNAL_UI
+  const today = todayIso()
+  const railNames = ledgerOn
+    ? ['This week', MONTH_LONG[+today.slice(5, 7) - 1]!, seasonOf(today).label, today.slice(0, 4)]
+    : null
+  const told = ledgerOn && idx > 0
+
   const L = ALTITUDES[idx]!
+  const head = ledgerOn ? LEDGER_ALTITUDES[L.key] : { title: L.title, line: L.line }
   const loading = ascent === undefined
   const air = light ? L.airLight : L.air
 
@@ -150,7 +164,7 @@ export function AscentView({ onOpenEntry }: Props) {
   const { byKind } = useProcessingJobs()
   const reflectionsJob = byKind.reflections
   const altitudeEmpty = !altitude || (!altitude.words && !altitude.scripture)
-  const backfilling = !!reflectionsJob && isActive(reflectionsJob.status) && altitudeEmpty
+  const backfilling = !told && !!reflectionsJob && isActive(reflectionsJob.status) && altitudeEmpty
 
   // Fill in live: when the reflections backfill finishes, reload so the built
   // rollups appear without the user having to leave and come back.
@@ -173,15 +187,15 @@ export function AscentView({ onOpenEntry }: Props) {
         {L.alt} — {L.label}
       </div>
 
-      <ClimbRail idx={idx} setIdx={setAltitude} />
+      <ClimbRail idx={idx} setIdx={setAltitude} names={railNames} />
 
       <div className="ascent-scroll">
       <main className="ascent-main">
         <header className="ascent-head" key={`${L.key}-h`}>
           <span className="ascent-eyebrow">{L.alt}</span>
-          <h1 className="ascent-title">{L.title}</h1>
-          <p className="ascent-line">{L.line}</p>
-          {altitude?.words?.periodLabel ? (
+          <h1 className="ascent-title">{head.title}</h1>
+          <p className="ascent-line">{head.line}</p>
+          {!told && altitude?.words?.periodLabel ? (
             <p className="ascent-period">
               {altitude.words.periodLabel}
               {idx === 0 ? ' · refreshed daily' : ''}
@@ -194,7 +208,11 @@ export function AscentView({ onOpenEntry }: Props) {
         <LensRow />
 
         <div className="ascent-terrain" key={`${L.key}-t`}>
-          {loading ? (
+          {told && idx === 1 ? (
+            <MonthView onOpenEntry={onOpenEntry} />
+          ) : told && idx === 2 ? (
+            <SeasonView onOpenEntry={onOpenEntry} />
+          ) : loading ? (
             <SurfaceLoader label="Reading the land…" />
           ) : backfilling ? (
             <SurfaceLoader
@@ -254,7 +272,16 @@ export function AscentView({ onOpenEntry }: Props) {
   )
 }
 
-function ClimbRail({ idx, setIdx }: { idx: number; setIdx: (i: number) => void }) {
+function ClimbRail({
+  idx,
+  setIdx,
+  names,
+}: {
+  idx: number
+  setIdx: (i: number) => void
+  /** Real names for the stations ("September", "Fall 2026") — the ledger's climb. */
+  names: string[] | null
+}) {
   return (
     <nav className="ascent-rail" aria-label="Altitude">
       <div className="ascent-rail__track">
@@ -267,12 +294,12 @@ function ClimbRail({ idx, setIdx }: { idx: number; setIdx: (i: number) => void }
             style={{ bottom: `${(i / LAST) * 100}%` }}
             onClick={() => setIdx(i)}
             aria-current={i === idx ? 'true' : undefined}
-            aria-label={`${l.alt} — ${l.label}`}
+            aria-label={`${l.alt} — ${names?.[i] ?? l.label}`}
           >
             <span className="ascent-station__dot" aria-hidden />
             <span className="ascent-station__label">
               <em>{l.alt}</em>
-              {l.label}
+              {names?.[i] ?? l.label}
             </span>
           </button>
         ))}

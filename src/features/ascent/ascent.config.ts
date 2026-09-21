@@ -81,6 +81,30 @@ export const ALTITUDES: AltitudeMeta[] = [
   },
 ]
 
+/**
+ * The climb, told back (alpha — the year's ledger). Each altitude has ONE job,
+ * and each is named by the calendar, never by the app: "This week",
+ * "September", "Fall 2026", "2026". Titles say what the altitude is for.
+ */
+export const LEDGER_ALTITUDES: Record<AltitudeKey, { title: string; line: string }> = {
+  week: {
+    title: 'Standing in the days.',
+    line: 'Just your pages, in the order you lived them. Nothing is told back at this height.',
+  },
+  month: {
+    title: 'What’s alive right now.',
+    line: 'Step back a month: what you’ve been carrying, who was new, the photos. Your own lines — nothing named for you.',
+  },
+  quarter: {
+    title: 'What moved this season.',
+    line: 'From the ridge: what began, what came back, what carried through, what went quiet. Dates, not meanings.',
+  },
+  year: {
+    title: 'Looking back down the year.',
+    line: 'The threads you kept returning to, in your own words — and then a page of your own about them.',
+  },
+}
+
 /** Per-altitude empty / insufficient copy (derivable client-side, no infra). */
 export const EMPTY_COPY: Record<AltitudeKey, { empty: string; insufficient: string }> = {
   week: {

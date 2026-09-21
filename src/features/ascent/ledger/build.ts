@@ -134,6 +134,31 @@ export interface LedgerStone {
   later: LedgerStoneMark
 }
 
+/** A ledger over any span of dates — a month, a season, a year. */
+export interface LedgerRange {
+  /** YYYY-MM-DD, inclusive. */
+  from: string
+  /** YYYY-MM-DD, inclusive. Pass today for a span that's still running. */
+  to: string
+}
+
+export interface LedgerOptions {
+  /** Threads kept after ranking. Infinity keeps every thread present. */
+  keep?: number
+  /** Pages a subject needs in the span to count as a thread at all. */
+  minMentions?: number
+  weights?: Weights
+}
+
+export interface RangeLedger {
+  from: string
+  to: string
+  /** YYYY-MM keys the span covers, in order. `perMonth` and `month` index into it. */
+  months: string[]
+  threads: LedgerThread[]
+  stones: LedgerStone[]
+}
+
 export interface YearLedger {
   year: number
   /** Months of the year the ledger covers (12 for a sealed year). */
@@ -169,9 +194,6 @@ const MOVEMENT_LABEL: Record<string, string> = {
 
 export function dayOf(iso: string): string {
   return iso.slice(0, 10)
-}
-function monthOf(iso: string): number {
-  return Number(iso.slice(5, 7)) - 1
 }
 function yearOf(iso: string): number {
   return Number(iso.slice(0, 4))
@@ -247,13 +269,74 @@ interface Draft {
   prior: number
 }
 
+/** YYYY-MM keys from `from` to `to`, inclusive. */
+export function monthsBetween(from: string, to: string): string[] {
+  const out: string[] = []
+  let y = +from.slice(0, 4)
+  let m = +from.slice(5, 7)
+  const endY = +to.slice(0, 4)
+  const endM = +to.slice(5, 7)
+  while (y < endY || (y === endY && m <= endM)) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`)
+    m++
+    if (m > 12) {
+      m = 1
+      y++
+    }
+  }
+  return out
+}
+
+/** Last day of a YYYY-MM month, as YYYY-MM-DD. */
+export function monthEnd(ym: string): string {
+  const y = +ym.slice(0, 4)
+  const m = +ym.slice(5, 7)
+  return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`
+}
+
+/**
+ * The all-years subject index is the one costly read (every page flattened),
+ * and a climb builds several spans from the same archive — so it is kept per
+ * entries array and reused.
+ */
+const fullIndexCache = new WeakMap<object, SubjectIndex>()
+function fullIndexFor(entries: LedgerInput['entries']): SubjectIndex {
+  let idx = fullIndexCache.get(entries)
+  if (!idx) {
+    idx = buildSubjectIndex(entries as unknown as Entry[], haystackFor)
+    fullIndexCache.set(entries, idx)
+  }
+  return idx
+}
+
+/** The year, as it always was: January through `throughMonth`, twelve slots. */
 export function buildYearLedger(
   input: LedgerInput,
   year: number,
   throughMonth = 12,
   weights: Weights = DEFAULT_WEIGHTS,
 ): YearLedger {
-  const inYear = (iso: string) => yearOf(iso) === year && monthOf(iso) < throughMonth
+  const from = `${year}-01-01`
+  const to = monthEnd(`${year}-${String(throughMonth).padStart(2, '0')}`)
+  const r = buildLedger(input, { from, to }, { weights })
+  const pad = (a: number[]) => [...a, ...Array.from({ length: 12 - a.length }, () => 0)]
+  return {
+    year,
+    throughMonth,
+    threads: r.threads.map((t) => ({ ...t, perMonth: pad(t.perMonth) })),
+    stones: r.stones,
+  }
+}
+
+export function buildLedger(input: LedgerInput, range: LedgerRange, opts: LedgerOptions = {}): RangeLedger {
+  const weights = opts.weights ?? DEFAULT_WEIGHTS
+  const keep = opts.keep ?? KEEP
+  const minMentions = opts.minMentions ?? MIN_MENTIONS
+  const months = monthsBetween(range.from, range.to)
+  const monthIx = (iso: string) => months.indexOf(iso.slice(0, 7))
+  const year = yearOf(range.from)
+  const inYear = (iso: string) => dayOf(iso) >= range.from && dayOf(iso) <= range.to
+  const monthOf = monthIx
   const entryById = new Map(input.entries.map((e) => [e.id, e]))
   const yearEntries = input.entries.filter((e) => inYear(e.created_at))
   const yearIds = new Set(yearEntries.map((e) => e.id))
@@ -320,12 +403,11 @@ export function buildYearLedger(
   for (const s of input.names) {
     if (isAddressee(s.label)) continue
     const hits = matchSubject(yearIndex, s)
-    if (hits.size < MIN_MENTIONS) continue
-    const months = new Set([...hits].map((id) => monthOf(entryById.get(id)!.created_at))).size
-    candidates.push({ s, hits, months })
+    if (hits.size < minMentions) continue
+    const present = new Set([...hits].map((id) => entryById.get(id)!.created_at.slice(0, 7))).size
+    candidates.push({ s, hits, months: present })
   }
   candidates.sort((a, b) => b.months - a.months || b.hits.size - a.hits.size)
-  let fullIndex: SubjectIndex | null = null
   for (const { s, hits } of candidates.slice(0, NAME_CANDIDATES)) {
     const re = subjectMatcher([s])
     const byEntry: Draft['byEntry'] = new Map()
@@ -368,9 +450,8 @@ export function buildYearLedger(
       for (const [id, lines] of byEntry) if (!folded.byEntry.has(id)) folded.byEntry.set(id, lines)
       continue
     }
-    fullIndex ??= buildSubjectIndex(input.entries as unknown as Entry[], haystackFor)
     const yearsPresent = new Set<number>()
-    for (const id of matchSubject(fullIndex, s)) {
+    for (const id of matchSubject(fullIndexFor(input.entries), s)) {
       const e = entryById.get(id)
       if (e) yearsPresent.add(yearOf(e.created_at))
     }
@@ -397,7 +478,7 @@ export function buildYearLedger(
   }
   for (const [key, c] of chapters) {
     const ids = new Set(c.refs.map((r) => r.entryId))
-    if (ids.size < MIN_MENTIONS) continue
+    if (ids.size < minMentions) continue
     const byEntry: Draft['byEntry'] = new Map()
     for (const id of ids) {
       const e = entryById.get(id)!
@@ -500,7 +581,7 @@ export function buildYearLedger(
   // 5 · SCORE + RANK.
   const scored = drafts
     .map((d) => {
-      const perMonth = Array.from({ length: 12 }, () => 0)
+      const perMonth = Array.from({ length: months.length }, () => 0)
       const marked = new Set<number>()
       let markedCount = 0
       for (const id of d.byEntry.keys()) {
@@ -512,13 +593,13 @@ export function buildYearLedger(
           marked.add(m)
         }
       }
-      const p = presence(perMonth, throughMonth)
+      const p = presence(perMonth, months.length)
       const s = score({ ...p, movement: d.events.length, marked: markedCount }, d.prior, weights)
       return { d, perMonth, marked, markedCount, p, s }
     })
-    .filter((x) => x.p.mentions >= MIN_MENTIONS)
+    .filter((x) => x.p.mentions >= minMentions)
     .sort((a, b) => b.s - a.s || b.p.mentions - a.p.mentions || a.d.label.localeCompare(b.d.label))
-    .slice(0, KEEP)
+    .slice(0, keep)
 
   // Which kept threads share an entry — "shared a page with".
   const threadsByEntry = new Map<string, string[]>()
@@ -565,8 +646,9 @@ export function buildYearLedger(
 
   const kept = new Set(threads.map((t) => t.id))
   return {
-    year,
-    throughMonth,
+    from: range.from,
+    to: range.to,
+    months,
     threads,
     stones: stones.filter((st) => kept.has(st.threadId)).sort((a, b) => a.later.date.localeCompare(b.later.date)),
   }
