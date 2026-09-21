@@ -97,7 +97,10 @@ function useExtras(from: string, to: string): SpanExtras | null {
  * from this month; who was new; the month's photos. The month is named by the
  * calendar — never by the app.
  */
-export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
+/** The period a climb view has selected — so the mountain above can frame it. */
+type OnPeriod = ((from: string, to: string) => void) | undefined
+
+export function MonthView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeriod?: OnPeriod }) {
   const today = todayIso()
   const months = useMemo(() => recentMonths(today, 6), [today])
   const [ym, setYm] = useState(months[months.length - 1]!)
@@ -108,6 +111,7 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
   const extras = useExtras(`${ym}-01`, end)
   const [given, setGiven] = usePeriodName(`month:${ym}`)
   const [across, setAcross] = useState<LedgerThread | null>(null)
+  useEffect(() => onPeriod?.(`${ym}-01`, end), [ym, end, onPeriod])
 
   useEffect(() => {
     let alive = true
@@ -242,7 +246,7 @@ function Pile({
  * What moved this season — began, came back, carried through, went quiet.
  * Dates, not meanings. Real seasons: "Fall 2026", "Winter 2025–26".
  */
-export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
+export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeriod?: OnPeriod }) {
   const today = todayIso()
   const seasons = useMemo(() => recentSeasons(today, 4), [today])
   const [key, setKey] = useState(seasons[seasons.length - 1]!.key)
@@ -253,6 +257,7 @@ export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
   const [seed, setSeed] = useState<Seed | null>(null)
   const extras = useExtras(season.from, season.to)
   const [given, setGiven] = usePeriodName(`season:${season.key}`)
+  useEffect(() => onPeriod?.(season.from, season.to), [season.from, season.to, onPeriod])
 
   useEffect(() => {
     let alive = true

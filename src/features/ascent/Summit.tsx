@@ -9,12 +9,9 @@ import { SummitTrail } from './SummitTrail'
 import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { loadYearLedger } from './ledger/load'
-import { YearRidge } from './ledger/NowStrip'
 import { YearStory } from './ledger/YearStory'
 import { loadSpanExtras, type SpanExtras } from './ledger/load'
 import type { YearLedger } from './ledger/build'
-import { positionInYear } from './data/stones'
-import { fmtDay } from './data/words'
 
 interface Props {
   /** The whole Summit: the refrain, the stones, the long look, the year. */
@@ -23,6 +20,8 @@ interface Props {
   scripture: ScriptureData | null
   onScriptureDrill: (osisRef: string) => void
   onOpenEntry?: ((entryId: string) => void) | undefined
+  /** The year on show, for the mountain above to frame. */
+  onYearShown?: ((year: number) => void) | undefined
 }
 
 /** A stone is only worth a long look after a few months are under it. Below
@@ -56,7 +55,7 @@ const MONTHS = [
  * the trail with its stones · the refrain · the verse · the long look, folded ·
  * the writer's own naming of the year.
  */
-export function Summit({ view: openYear, scripture: openScripture, onScriptureDrill, onOpenEntry }: Props) {
+export function Summit({ view: openYear, scripture: openScripture, onScriptureDrill, onOpenEntry, onYearShown }: Props) {
   // The rail. The open year is what you land on; a sealed year is loaded on
   // demand, because an archive of fifteen years must not cost fifteen rollup
   // payloads to open the Ascent.
@@ -91,6 +90,7 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   }, [shownYear, openYear.year])
 
   const isOpenYear = shownYear === openYear.year
+  useEffect(() => onYearShown?.(shownYear), [shownYear, onYearShown])
   // A year that hasn't landed yet is NOT the open year with its number swapped:
   // spreading the open year kept its verse and its refrain, which would have put
   // this year's scripture under 2019's heading. Until it loads there is nothing
@@ -217,44 +217,16 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   }
 
   if (ledgerView || ledgerReading) {
-    // Ledger mode. The mountain is laid on its side as the year's ridge and
-    // sits on the month strip, so the climb IS the timeline rather than a
-    // picture above it. Its stones come from answered Altar prayers when the
-    // ledger found any, else from the yearly rollup.
-    const trailStones: SummitStone[] =
-      ledgerView && ledgerView.stones.length > 0
-        ? ledgerView.stones.map((st) => ({
-            id: st.id,
-            ask: { ...st.ask, dateLabel: fmtDay(st.ask.date) },
-            later: { ...st.later, dateLabel: fmtDay(st.later.date) },
-            position: positionInYear(st.later.date, year),
-          }))
-        : stones
-    const trailStone = trailStones.find((st) => st.id === openStone) ?? null
+    // Ledger mode. The mountain lives above, in the Ascent itself — one
+    // mountain every altitude zooms on — so the Summit is the year's strip
+    // and its telling.
     return (
       <div className="ascent-summit">
         <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
 
         <div className="ascent-stack ascent-stack--summit">
           {ledgerView ? (
-            <YearStory
-              key={shownYear}
-              ledger={ledgerView}
-              extras={yearExtras}
-              open={isOpenYear}
-              onOpenEntry={onOpenEntry}
-              ridge={
-                <YearRidge
-                  progress={progress}
-                  stones={trailStones.map((st) => ({ id: st.id, position: st.position, label: SUMMIT_COPY.stoneLabel(st.later.dateLabel) }))}
-                  selectedId={openStone}
-                  onSelect={setOpenStone}
-                />
-              }
-              below={
-                trailStone ? <StonePair stone={trailStone} onOpenEntry={onOpenEntry} onClose={() => setOpenStone(null)} /> : null
-              }
-            />
+            <YearStory key={shownYear} ledger={ledgerView} extras={yearExtras} open={isOpenYear} onOpenEntry={onOpenEntry} />
           ) : (
             <p className="ascent-dim__note">{SUMMIT_COPY.sealedReading(shownYear)}</p>
           )}

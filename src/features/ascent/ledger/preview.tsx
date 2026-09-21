@@ -21,8 +21,11 @@ import { buildYearLedger, type EncounterInput, type LedgerInput, type MatterInpu
 import { YearThreads } from './YearThreads'
 import { YearStory } from './YearStory'
 import { MonthView, SeasonView, todayIso } from './ClimbViews'
-import { NowStrip, YearRidge } from './NowStrip'
-import { weekStrip } from './strips'
+import { NowStrip } from './NowStrip'
+import { weekStart, weekStrip } from './strips'
+import { ClimbMountain } from './ClimbMountain'
+import { monthEnd } from './build'
+import { seasonOf } from './seasons'
 import { newIn, photosIn } from './extras'
 import { setLedgerPreviewInput } from './load'
 import '@/styles/themes.css'
@@ -195,20 +198,22 @@ function Harness({ light }: { light: boolean }) {
             </button>
           ))}
         </nav>
+        {tab !== 'dots' ? (
+          <ClimbMountain
+            level={tab as 'week' | 'month' | 'season' | 'year'}
+            from={tab === 'week' ? weekStart(todayIso()) : tab === 'month' ? `${todayIso().slice(0, 7)}-01` : tab === 'season' ? seasonOf(todayIso()).from : `${Y}-01-01`}
+            to={tab === 'week' ? weekStrip(todayIso()).cells[6]!.key : tab === 'month' ? monthEnd(todayIso().slice(0, 7)) : tab === 'season' ? seasonOf(todayIso()).to : `${Y}-12-31`}
+            today={todayIso()}
+            stones={ledger.stones}
+            onOpenEntry={open}
+          />
+        ) : null}
         <div className="ascent-summit">
           <div className="ascent-stack ascent-stack--summit">
             {tab === 'week' ? <NowStrip strip={weekStrip(todayIso())} /> : null}
             {tab === 'month' ? <MonthView onOpenEntry={open} /> : null}
             {tab === 'season' ? <SeasonView onOpenEntry={open} /> : null}
-            {tab === 'year' ? (
-              <YearStory
-                ledger={ledger}
-                extras={extras}
-                open
-                onOpenEntry={open}
-                ridge={<YearRidge progress={(Date.now() - Date.UTC(Y, 0, 1)) / (365 * 864e5)} stones={ledger.stones.map((st) => ({ id: st.id, position: (+st.later.date.slice(5, 7) - 0.5) / 12, label: st.later.date }))} selectedId={null} onSelect={() => {}} />}
-              />
-            ) : null}
+            {tab === 'year' ? <YearStory ledger={ledger} extras={extras} open onOpenEntry={open} /> : null}
             {tab === 'dots' ? <YearThreads ledger={ledger} onOpenEntry={open} /> : null}
           </div>
         </div>

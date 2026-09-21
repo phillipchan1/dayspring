@@ -11,7 +11,11 @@ import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { MonthView, SeasonView, todayIso } from './ledger/ClimbViews'
 import { NowStrip } from './ledger/NowStrip'
-import { weekLabel, weekStrip } from './ledger/strips'
+import { weekLabel, weekStart, weekStrip } from './ledger/strips'
+import { ClimbMountain } from './ledger/ClimbMountain'
+import { monthEnd, type LedgerStone } from './ledger/build'
+import { loadYearLedger } from './ledger/load'
+import type { Level } from './ledger/mountain'
 import { MONTH_LONG } from './ledger/copy'
 import { seasonOf } from './ledger/seasons'
 import { loadAscent, readCachedAscent, type LoadedAscent } from './data'
@@ -145,6 +149,38 @@ export function AscentView({ onOpenEntry }: Props) {
     : null
   const told = ledgerOn && idx > 0
 
+  // ONE MOUNTAIN over the whole climb: it stays mounted across altitudes, so
+  // stepping up the rail zooms the camera out rather than swapping the page.
+  // Each view reports the period it has selected (a past month, last winter,
+  // 2024) and the camera follows it.
+  const [picked, setPicked] = useState<{ month?: [string, string]; season?: [string, string]; year?: number }>({})
+  const onMonth = useCallback((from: string, to: string) => setPicked((p) => ({ ...p, month: [from, to] })), [])
+  const onSeason = useCallback((from: string, to: string) => setPicked((p) => ({ ...p, season: [from, to] })), [])
+  const onYear = useCallback((year: number) => setPicked((p) => ({ ...p, year })), [])
+  const level: Level = (['week', 'month', 'season', 'year'] as const)[idx]!
+  const nowSeason = seasonOf(today)
+  const [mFrom, mTo]: [string, string] =
+    level === 'week'
+      ? [weekStart(today), weekStrip(today).cells[6]!.key]
+      : level === 'month'
+        ? (picked.month ?? [`${today.slice(0, 7)}-01`, monthEnd(today.slice(0, 7))])
+        : level === 'season'
+          ? (picked.season ?? [nowSeason.from, nowSeason.to])
+          : [`${picked.year ?? +today.slice(0, 4)}-01-01`, `${picked.year ?? +today.slice(0, 4)}-12-31`]
+  const mountainYear = +mTo.slice(0, 4)
+  const [ledgerStones, setLedgerStones] = useState<{ year: number; stones: LedgerStone[] } | null>(null)
+  useEffect(() => {
+    if (!ledgerOn) return
+    let alive = true
+    loadYearLedger(mountainYear).then(
+      (l) => alive && setLedgerStones({ year: mountainYear, stones: l.stones }),
+      () => alive && setLedgerStones({ year: mountainYear, stones: [] }),
+    )
+    return () => {
+      alive = false
+    }
+  }, [ledgerOn, mountainYear])
+
   const L = ALTITUDES[idx]!
   const head = ledgerOn ? LEDGER_ALTITUDES[L.key] : { title: L.title, line: L.line }
   const loading = ascent === undefined
@@ -158,6 +194,13 @@ export function AscentView({ onOpenEntry }: Props) {
   // Drill-ins close themselves on Esc / scrim / Back (DrillSheet owns Escape and
   // stops it propagating). closeDrill pops the one pushed history frame.
   const closeDrill = useCallback(() => back(), [back])
+
+  const mountainStones: LedgerStone[] =
+    ledgerStones && ledgerStones.year === mountainYear && ledgerStones.stones.length > 0
+      ? ledgerStones.stones
+      : ascent && ascent.year.year === mountainYear
+        ? ascent.year.stones.map((st) => ({ ...st, threadId: '' }))
+        : []
 
   const altitude = ascent ? [ascent.week, ascent.month, ascent.quarter, ascent.year][idx]! : null
 
@@ -205,6 +248,9 @@ export function AscentView({ onOpenEntry }: Props) {
           ) : null}
         </header>
 
+        {ledgerOn ? (
+          <ClimbMountain level={level} from={mFrom} to={mTo} today={today} stones={mountainStones} onOpenEntry={onOpenEntry} />
+        ) : null}
         {ledgerOn && idx === 0 ? <NowStrip strip={weekStrip(today)} /> : null}
 
         <SurfaceArrival surface="reflections" />
@@ -215,9 +261,9 @@ export function AscentView({ onOpenEntry }: Props) {
 
         <div className="ascent-terrain" key={`${L.key}-t`}>
           {told && idx === 1 ? (
-            <MonthView onOpenEntry={onOpenEntry} />
+            <MonthView onOpenEntry={onOpenEntry} onPeriod={onMonth} />
           ) : told && idx === 2 ? (
-            <SeasonView onOpenEntry={onOpenEntry} />
+            <SeasonView onOpenEntry={onOpenEntry} onPeriod={onSeason} />
           ) : loading ? (
             <SurfaceLoader label="Reading the land…" />
           ) : backfilling ? (
@@ -238,6 +284,7 @@ export function AscentView({ onOpenEntry }: Props) {
               scripture={ascent.year.scripture}
               onScriptureDrill={openScripture}
               onOpenEntry={onOpenEntry}
+              onYearShown={onYear}
             />
           ) : (
             <p className="ascent-empty">{EMPTY_COPY.year.empty}</p>
