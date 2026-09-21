@@ -642,17 +642,22 @@
 .alive__when { padding-top: 4px; font-family: var(--font-mono); font-size: 10.5px; color: rgba(var(--ledger-ink-rgb), 0.42); }
 .alive__text { font-family: var(--font-serif); font-size: 17px; line-height: 1.5; color: var(--story-quote); }
 
-/* season: what moved */
-.piles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
-.pile { padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(var(--ledger-ink-rgb), 0.12); background: var(--story-card); }
-.pile h4 { margin: 0 0 8px; font-family: var(--font-mono); font-weight: 400; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ascent-gold); }
-.pile__none { margin: 0; font-style: italic; font-size: 14px; color: rgba(var(--ledger-ink-rgb), 0.42); }
-.pile__item { display: block; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid rgba(var(--ledger-ink-rgb), 0.08); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.pile__item:first-of-type { border-top: 0; }
-.pile__item:hover .pile__name { color: var(--ascent-gold); }
-.pile__name { display: block; font-family: var(--font-serif); font-size: 17px; color: var(--story-ink); }
-.pile__line { display: block; font-family: var(--font-serif); font-style: italic; font-size: 14.5px; line-height: 1.45; color: rgba(var(--ledger-ink-rgb), 0.8); }
-.pile__line small { display: block; font-family: var(--font-mono); font-style: normal; font-size: 10px; color: rgba(var(--ledger-ink-rgb), 0.42); margin-top: 2px; }
+/* season: what moved — one full-width row per pile */
+.piles { display: flex; flex-direction: column; }
+.pile { display: grid; grid-template-columns: 200px 1fr; gap: 24px; padding: 22px 0; border-top: 1px solid rgba(var(--ledger-ink-rgb), 0.12); }
+.pile__head h4 { margin: 0 0 6px; font-family: var(--font-mono); font-weight: 400; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ascent-gold); }
+.pile__head p { margin: 0; font-style: italic; font-size: 14px; line-height: 1.45; color: rgba(var(--ledger-ink-rgb), 0.55); }
+.pile__none { margin: 0; align-self: center; font-style: italic; font-size: 14.5px; color: rgba(var(--ledger-ink-rgb), 0.42); }
+.pile__items { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.pile__item { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(var(--ledger-ink-rgb), 0.12); background: var(--story-card); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pile__item:hover { border-color: var(--ascent-gold); }
+.pile__name { font-family: var(--font-serif); font-size: 18px; color: var(--story-ink); }
+.pile__kind, .alive__kind, .story__kind { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em; color: rgba(var(--ledger-ink-rgb), 0.42); }
+.pile__line { margin-top: 8px; font-family: var(--font-serif); font-style: italic; font-size: 15px; line-height: 1.45; color: rgba(var(--ledger-ink-rgb), 0.82); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.pile__line small { display: block; font-family: var(--font-mono); font-style: normal; font-size: 10px; color: rgba(var(--ledger-ink-rgb), 0.42); margin-top: 4px; }
+@media (max-width: 760px) {
+  .pile { grid-template-columns: 1fr; gap: 12px; }
+}
 
 /* who's new */
 .new-names { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
@@ -724,3 +729,13 @@
 }
 /* the sheet is portaled out of .ascent, so it brings its own gold */
 .write-sheet { --ascent-gold: var(--accent, #b0762c); }
+
+/* ── full width (the told-back climb): threads read beside their names ──── */
+.ascent-main.is-wide { max-width: 1120px; }
+@media (min-width: 900px) {
+  .is-wide .story { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 36px; margin-top: 44px; }
+  .is-wide .story__head { position: sticky; top: 24px; align-self: start; margin-bottom: 0; padding-top: 6px; }
+  .is-wide .climb__mod > .ascent-dim__eyebrow { margin-bottom: 4px; }
+  .is-wide .alive__row { grid-template-columns: 240px minmax(0, 1fr); gap: 36px; }
+  .is-wide .pile { grid-template-columns: 240px 1fr; gap: 36px; }
+}

@@ -111,6 +111,13 @@ describe('buildYearLedger', () => {
     expect(dad.lines.find((l) => l.flag === 'turn')!.text).toBe('Dad again today.')
   })
 
+  it('shows one thread for one subject, even when two sources name it alike', () => {
+    const twice = fixture()
+    twice.matters.push({ id: 'dad2', label: "dad's health", members: [{ itemId: 'x', entryId: twice.ids.d1!, content: 'Dad called about the scan.', type: 'story' }] })
+    const labels = buildYearLedger(twice, 2025).threads.map((t) => t.label.toLowerCase())
+    expect(labels.filter((l) => l === "dad's health")).toHaveLength(1)
+  })
+
   it('keeps every line verbatim', () => {
     const all = input.entries.map((e) => e.body_markdown).join('\n')
     for (const t of ledger.threads) for (const l of t.lines) expect(all).toContain(l.text)

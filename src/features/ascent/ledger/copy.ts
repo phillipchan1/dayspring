@@ -33,7 +33,9 @@ export const LEDGER_COPY = {
   eyebrow: 'WHAT THIS YEAR KEPT RETURNING TO',
   caption:
     'A dot for each month you wrote about it. Dotted where you went quiet and came back. Tap one to walk it through the year.',
-  kind: { matter: 'from the Altar', name: 'a name', verse: 'scripture' },
+  // What sort of thread it is — said plainly, because a prayer you've been
+  // carrying and a name that keeps appearing are different things side by side.
+  kind: { matter: 'from your Altar', name: 'a name in your pages', verse: 'scripture' },
   more: 'more of the year',
   fewer: 'fewer',
   close: 'close',
@@ -85,6 +87,11 @@ export const LEDGER_COPY = {
   carried: 'Carried through',
   quietPile: 'Went quiet',
   notYet: (season: string) => `Not yet this ${season}`,
+  beganWhat: (season: string) => `First written about this ${season}.`,
+  cameBackWhat: (prev: string) => `Here after going quiet through ${prev}.`,
+  carriedWhat: (prev: string) => `Here in ${prev}, and still here.`,
+  quietWhat: (prev: string) => `Here in ${prev} — quiet since.`,
+  notYetWhat: (prev: string, season: string) => `Here in ${prev} — not yet this ${season}.`,
   beganNone: 'Nothing new began.',
   cameBackNone: 'Nothing came back after a quiet stretch.',
   carriedNone: (prev: string) => `Nothing carried over from ${prev}.`,

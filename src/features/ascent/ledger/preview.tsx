@@ -185,7 +185,7 @@ function Harness({ light }: { light: boolean }) {
   const extras = { photos: photosIn(input.entries, `${Y}-01-01`, `${Y}-12-31`), news: newIn(input.names, input.entries, `${Y}-01-01`, `${Y}-12-31`) }
   return (
     <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ minHeight: '100vh', overflow: 'auto', background: light ? '#fbf6ee' : '#10141f' }}>
-      <main style={{ maxWidth: 760, margin: '0 auto', padding: '28px 20px 80px', width: '100%' }}>
+      <main className="ascent-main is-wide" style={{ padding: '28px 20px 80px' }}>
         <nav style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
           {['month', 'season', 'year', 'dots'].map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(128,128,128,.4)', background: tab === t ? 'rgba(232,184,115,.25)' : 'none', color: 'inherit', cursor: 'pointer' }}>

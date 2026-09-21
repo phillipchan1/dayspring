@@ -578,8 +578,30 @@ export function buildLedger(input: LedgerInput, range: LedgerRange, opts: Ledger
     }
   }
 
+  // One subject, one thread: two sources can arrive at the same label (an
+  // Altar thread and a name, or two Altar threads the writer named alike).
+  // Fold them together rather than show "Drove" twice.
+  const byLabel = new Map<string, Draft>()
+  const merged: Draft[] = []
+  for (const d of drafts) {
+    const key = displayLabel(d.label).toLowerCase()
+    const into = byLabel.get(key)
+    if (!into) {
+      byLabel.set(key, d)
+      merged.push(d)
+      continue
+    }
+    for (const [id, lines] of d.byEntry) {
+      const have = into.byEntry.get(id)
+      if (!have) into.byEntry.set(id, lines)
+      else for (const l of lines) if (!have.some((x) => x.text === l.text)) have.push(l)
+    }
+    into.events.push(...d.events)
+    into.prior = Math.max(into.prior, d.prior)
+  }
+
   // 5 · SCORE + RANK.
-  const scored = drafts
+  const scored = merged
     .map((d) => {
       const perMonth = Array.from({ length: months.length }, () => 0)
       const marked = new Set<number>()

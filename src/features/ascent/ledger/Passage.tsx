@@ -85,6 +85,7 @@ export function Passage({ thread, months, today, open, onOpenEntry, onWrite }: P
     <article className="story">
       <header className="story__head">
         <h3 className="story__name">{thread.label}</h3>
+        <div className="story__kind">{LEDGER_COPY.kind[thread.kind]}</div>
         {first && status.last ? (
           <div className="story__span">
             {monthName(first.slice(0, 7))}

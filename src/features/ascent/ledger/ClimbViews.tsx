@@ -143,7 +143,10 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
           <div className="alive">
             {ledger.threads.map((t) => (
               <div key={t.id} className="alive__row">
-                <div className="alive__name">{t.label}</div>
+                <div>
+                  <div className="alive__name">{t.label}</div>
+                  <div className="alive__kind">{LEDGER_COPY.kind[t.kind]}</div>
+                </div>
                 <div className="alive__lines">
                   {t.lines.slice(-3).map((l, i) => (
                     <button key={`${l.entryId}${i}`} type="button" onClick={() => onOpenEntry?.(l.entryId)}>
@@ -181,23 +184,42 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
 
 // ── RIDGE: a season ─────────────────────────────────────────────────────────
 
-function Pile({ title, items, empty, onOpenEntry }: { title: string; items: MovedItem[]; empty: string; onOpenEntry: Open }) {
+function Pile({
+  title,
+  what,
+  items,
+  empty,
+  onOpenEntry,
+}: {
+  title: string
+  /** One line saying what belongs in this pile — a date fact. */
+  what: string
+  items: MovedItem[]
+  empty: string
+  onOpenEntry: Open
+}) {
   return (
     <div className="pile">
-      <h4>{title}</h4>
+      <div className="pile__head">
+        <h4>{title}</h4>
+        <p>{what}</p>
+      </div>
       {items.length === 0 ? (
         <p className="pile__none">{empty}</p>
       ) : (
-        items.map((it) => (
-          <button key={it.thread.id} type="button" className="pile__item" onClick={() => it.line && onOpenEntry?.(it.line.entryId)}>
-            <span className="pile__name">{it.thread.label}</span>
-            {it.line ? (
-              <span className="pile__line">
-                “{it.line.text}”<small>{fmtDay(it.line.date)}</small>
-              </span>
-            ) : null}
-          </button>
-        ))
+        <div className="pile__items">
+          {items.map((it) => (
+            <button key={it.thread.id} type="button" className="pile__item" onClick={() => it.line && onOpenEntry?.(it.line.entryId)}>
+              <span className="pile__name">{it.thread.label}</span>
+              <span className="pile__kind">{LEDGER_COPY.kind[it.thread.kind]}</span>
+              {it.line ? (
+                <span className="pile__line">
+                  “{it.line.text}”<small>{fmtDay(it.line.date)}</small>
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )
@@ -266,11 +288,12 @@ export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
         ) : (
           <>
             <div className="piles">
-              <Pile title={LEDGER_COPY.began} items={m.began} empty={LEDGER_COPY.beganNone} onOpenEntry={onOpenEntry} />
-              <Pile title={LEDGER_COPY.cameBackPile} items={m.cameBack} empty={LEDGER_COPY.cameBackNone} onOpenEntry={onOpenEntry} />
-              <Pile title={LEDGER_COPY.carried} items={m.carried} empty={LEDGER_COPY.carriedNone(prev.label)} onOpenEntry={onOpenEntry} />
+              <Pile title={LEDGER_COPY.began} what={LEDGER_COPY.beganWhat(season.name)} items={m.began} empty={LEDGER_COPY.beganNone} onOpenEntry={onOpenEntry} />
+              <Pile title={LEDGER_COPY.cameBackPile} what={LEDGER_COPY.cameBackWhat(prev.label)} items={m.cameBack} empty={LEDGER_COPY.cameBackNone} onOpenEntry={onOpenEntry} />
+              <Pile title={LEDGER_COPY.carried} what={LEDGER_COPY.carriedWhat(prev.label)} items={m.carried} empty={LEDGER_COPY.carriedNone(prev.label)} onOpenEntry={onOpenEntry} />
               <Pile
                 title={open ? LEDGER_COPY.notYet(season.name) : LEDGER_COPY.quietPile}
+                what={open ? LEDGER_COPY.notYetWhat(prev.label, season.name) : LEDGER_COPY.quietWhat(prev.label)}
                 items={m.quiet}
                 empty={open ? LEDGER_COPY.notYetNone(prev.label) : LEDGER_COPY.quietNone}
                 onOpenEntry={onOpenEntry}

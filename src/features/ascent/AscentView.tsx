@@ -190,7 +190,7 @@ export function AscentView({ onOpenEntry }: Props) {
       <ClimbRail idx={idx} setIdx={setAltitude} names={railNames} />
 
       <div className="ascent-scroll">
-      <main className="ascent-main">
+      <main className={`ascent-main${told ? ' is-wide' : ''}`}>
         <header className="ascent-head" key={`${L.key}-h`}>
           <span className="ascent-eyebrow">{L.alt}</span>
           <h1 className="ascent-title">{head.title}</h1>
@@ -205,7 +205,9 @@ export function AscentView({ onOpenEntry }: Props) {
 
         <SurfaceArrival surface="reflections" />
 
-        <LensRow />
+        {/* "Watching this season" belonged to the rollup lenses; the told-back
+            climb reads its own threads, so the bar only confused the page. */}
+        {ledgerOn ? null : <LensRow />}
 
         <div className="ascent-terrain" key={`${L.key}-t`}>
           {told && idx === 1 ? (

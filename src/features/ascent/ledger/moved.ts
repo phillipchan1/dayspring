@@ -31,11 +31,25 @@ export interface Moved {
 
 const PER_PILE = 4
 
+/** Words in a line. */
+const words = (s: string) => s.split(/\s+/).filter(Boolean).length
+
+/**
+ * The line that shows a thread: nearest the chosen end, but one with enough
+ * words to say something — a page whose only mention is the bare word
+ * "dayspring" tells you nothing. Falls back to the end line itself.
+ */
+export function substantive(lines: LedgerLine[], end: 'first' | 'last', min = 5): LedgerLine | null {
+  if (lines.length === 0) return null
+  const ordered = end === 'first' ? lines : lines.slice().reverse()
+  return ordered.find((l) => words(l.text) >= min) ?? ordered[0]!
+}
+
 export function whatMoved(season: RangeLedger, previous: RangeLedger, earlierIds: ReadonlySet<string>): Moved {
   const prevIds = new Set(previous.threads.map((t) => t.id))
   const nowIds = new Set(season.threads.map((t) => t.id))
-  const first = (t: LedgerThread) => t.lines[0] ?? null
-  const last = (t: LedgerThread) => t.lines[t.lines.length - 1] ?? null
+  const first = (t: LedgerThread) => substantive(t.lines, 'first')
+  const last = (t: LedgerThread) => substantive(t.lines, 'last')
 
   const began: MovedItem[] = []
   const cameBack: MovedItem[] = []
