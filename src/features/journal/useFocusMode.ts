@@ -12,7 +12,10 @@ export interface FocusMode {
  * Focus mode hides journal chrome so the writing canvas fills the window.
  * No OS/browser fullscreen — that broke the WebView and caused layout loops.
  *
- * Shortcuts: ⌘/Ctrl+Enter toggles, Esc exits (when no overlay is open).
+ * Shortcuts: ⌘/Ctrl+Enter toggles, Esc exits — both only when no overlay is
+ * open. An overlay owns the keyboard: the ritual composer uses ⌘↵ for
+ * "continue", and when this also toggled, every movement you finished flipped
+ * focus mode underneath the ritual where you could not see it.
  */
 export function useFocusMode(blockExitOnEsc = false): FocusMode {
   const [active, setActive] = useState(false)
@@ -43,6 +46,7 @@ export function useFocusMode(blockExitOnEsc = false): FocusMode {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        if (blockExitRef.current) return
         e.preventDefault()
         toggle()
         return

@@ -450,7 +450,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     slashCapture !== null ||
     imageEdit !== null ||
     imageMenu !== null ||
-    slashPaletteOpen
+    slashPaletteOpen ||
+    // The ritual surfaces own the keyboard too — ⌘↵ is "continue" in the rail.
+    ritualEntry !== null ||
+    composerIndex !== null ||
+    libraryOpen ||
+    threadsOpen
   const focus = useFocusMode(focusOverlaysOpen)
 
   useEffect(() => {
