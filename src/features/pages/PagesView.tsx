@@ -9,7 +9,13 @@ import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
 import { deriveTitle } from '@/lib/entryLabels'
 import { PageWall, type WallJumpTarget } from './PageWall'
-import { clampZoom, densityLabel } from './zoom'
+import { clampZoom, densityLabel, PAGES_ZOOM_DEFAULT } from './zoom'
+import { useFeatureFlag } from '@/features/flags'
+import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
+import { computeVolumes, type Volume } from '@/features/volumes/volumes'
+import { Shelf } from '@/features/volumes/Shelf'
+import { VolumeView } from '@/features/volumes/VolumeView'
+import { ClosingMoment } from '@/features/volumes/ClosingMoment'
 import { floorFor } from '@/features/lifemap/lifeMap'
 import {
   allSubjects,
@@ -205,6 +211,53 @@ export function PagesView({
   const narrow = useIsMobile()
   const zoom = settings.pagesZoom
   const setZoom = (next: number) => updateSettings({ pagesZoom: clampZoom(next) })
+
+  /*
+   * VOLUMES (alpha) — the pages, divided into notebooks that closed when they
+   * were full (src/features/volumes/volumes.ts). Standing far enough back from
+   * the wall turns it into the shelf; a closed volume can be picked up and read
+   * back; a volume that has just filled closes here, on arriving in Pages —
+   * never in the editor.
+   */
+  const volumesOn = useFeatureFlag('yearLedger') || ALLOWS_INTERNAL_UI
+  const { volumes, closings } = useMemo(
+    () => (volumesOn && ready ? computeVolumes(entries, settings.volumeClosings) : { volumes: [] as Volume[], closings: [] as string[] }),
+    [volumesOn, ready, entries, settings.volumeClosings],
+  )
+  const closedCount = closings.length
+  // Record a closing the moment it happens, so an edit to an old page can
+  // never reopen a volume that has already gone on the shelf.
+  useEffect(() => {
+    if (!volumesOn || !ready) return
+    const recorded = settings.volumeClosings ?? []
+    const grew = closings.length > recorded.length && recorded.every((id, i) => closings[i] === id)
+    const patch: Partial<Settings> = {}
+    if (grew || (recorded.length === 0 && closings.length > 0)) patch.volumeClosings = closings
+    // First time volumes exist for this writer: every volume already full is
+    // simply on the shelf. Only a volume that fills from here on closes on screen.
+    if (settings.volumeSeen === undefined && entries.length > 0) patch.volumeSeen = closings.length
+    if (Object.keys(patch).length > 0) updateSettings(patch)
+  }, [volumesOn, ready, closings, settings.volumeClosings, settings.volumeSeen, entries.length, updateSettings])
+  const [openVolume, setOpenVolume] = useState<number | null>(null)
+  const SHELF_ZOOM = 0.05
+  const onShelf = volumesOn && !narrow && zoom < SHELF_ZOOM
+  const closingVolume =
+    volumesOn && settings.volumeSeen !== undefined && closedCount > settings.volumeSeen
+      ? volumes.filter((v) => v.closed)[closedCount - 1]
+      : undefined
+  const nameVolume = (v: Volume, name: string) => {
+    const names = { ...(settings.volumeNames ?? {}) }
+    if (name.trim()) names[v.firstId] = name.trim()
+    else delete names[v.firstId]
+    updateSettings({ volumeNames: names })
+  }
+  const walkVolume = (v: Volume) => {
+    setOpenVolume(null)
+    setReading('order')
+    if (zoom < SHELF_ZOOM) setZoom(PAGES_ZOOM_DEFAULT)
+    const d = new Date(`${v.from}T12:00:00Z`)
+    setWallJump({ year: d.getUTCFullYear(), month: d.getUTCMonth(), entryId: v.firstId, request: ++wallJumpRequest.current })
+  }
 
   // Concordance chips are a convenience, not a requirement: the surface is fully
   // usable offline with typed words, so a failed read is silence, not an error.
@@ -968,7 +1021,7 @@ export function PagesView({
               zoom={zoom}
               onZoom={setZoom}
               narrow={narrow}
-              standLabel={densityLabel(perScreen)}
+              standLabel={onShelf ? 'the shelf' : densityLabel(perScreen)}
               reading={reading}
               onReading={setReading}
               chips={chips}
@@ -1122,6 +1175,31 @@ export function PagesView({
               onOpen={onSpread}
             />
           </div>
+        ) : volumesOn && openVolume !== null && volumes[openVolume - 1] ? (
+          <div className="pg__inner pg__inner--read">
+            <VolumeView
+              volume={volumes[openVolume - 1]!}
+              prev={volumes[openVolume - 2]}
+              next={volumes[openVolume]}
+              entries={entries}
+              names={settings.volumeNames}
+              onClose={() => setOpenVolume(null)}
+              onOpenPage={(id) => onSpread(id)}
+              onWalk={walkVolume}
+              onOpenEntry={(id) => onOpenEntry(id)}
+              onName={nameVolume}
+            />
+          </div>
+        ) : onShelf ? (
+          <div className="pg__inner pg__inner--read">
+            <Shelf
+              volumes={volumes}
+              entries={entries}
+              names={settings.volumeNames}
+              lit={onlyLit ? null : lit}
+              onOpen={setOpenVolume}
+            />
+          </div>
         ) : (
           <PageWall
             entries={wallEntries}
@@ -1162,6 +1240,19 @@ export function PagesView({
           the wall behind is made inert so nothing under the page can be tabbed
           into or clicked through to.
         */}
+        {closingVolume && !openPage ? (
+          <ClosingMoment
+            volume={closingVolume}
+            entries={entries}
+            onName={(name) => nameVolume(closingVolume, name)}
+            onRead={() => {
+              updateSettings({ volumeSeen: closedCount })
+              setOpenVolume(closingVolume.n)
+            }}
+            onDone={() => updateSettings({ volumeSeen: closedCount })}
+          />
+        ) : null}
+
         {openPage ? (
           <PageReader
             bar={narrow ? readerBar : null}

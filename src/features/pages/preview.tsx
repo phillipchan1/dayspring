@@ -169,8 +169,18 @@ const MARKINGS: MarkingChip[] = (['gift', 'prayer', 'scripture', 'sense', 'learn
   }),
 )
 
+// `&volumes=1` inflates word counts so this small archive fills a few volumes
+// (src/features/volumes); `&zoom=0` stands all the way back, at the shelf;
+// `&closing=1` pretends the latest volume just filled.
+const PARAMS = new URLSearchParams(window.location.search)
+const VOLUME_ENTRIES: Entry[] = PARAMS.get('volumes') === '1' ? ENTRIES.map((e) => ({ ...e, word_count: (e.word_count ?? 0) * 180 })) : ENTRIES
+
 function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [settings, setSettings] = useState<Settings>(() => ({
+    ...DEFAULT_SETTINGS,
+    ...(PARAMS.get('zoom') ? { pagesZoom: Number(PARAMS.get('zoom')) } : {}),
+    ...(PARAMS.get('closing') === '1' ? { volumeSeen: 0 } : {}),
+  }))
   const [subjectKey, setSubjectKey] = useState<string | null>(null)
   const [spreadId, setSpreadId] = useState<string | null>(null)
 
@@ -179,7 +189,7 @@ function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
       <div className="journal-canvas journal-canvas--reflections" style={{ flex: 1, minHeight: 0 }}>
         <div className="journal-canvas__content" style={{ padding: 0, overflow: 'hidden' }}>
           <PagesView
-            entries={ENTRIES}
+            entries={VOLUME_ENTRIES}
             marks={[]}
             ready
             activeId={null}

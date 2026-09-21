@@ -170,6 +170,19 @@ export interface Settings {
    * switches the lock off.
    */
   lastSeenRelease?: string
+  /**
+   * VOLUMES (alpha) — the last page of every volume that has closed, oldest
+   * first. A volume closes when about a notebook's worth has been written
+   * (`src/features/volumes/volumes.ts`); once closed, its boundary is kept
+   * here so editing an old page can never reopen a volume that already went
+   * on the shelf. Losing a write is harmless: the boundaries are recomputed
+   * the same way from the same pages.
+   */
+  volumeClosings?: string[]
+  /** Names the writer gave volumes, keyed by the volume's FIRST page id. Never app-given. */
+  volumeNames?: Record<string, string>
+  /** How many closed volumes the writer has been shown closing. Undefined = never counted. */
+  volumeSeen?: number
 }
 
 const DEFAULTS: Settings = {
