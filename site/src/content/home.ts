@@ -475,21 +475,6 @@ export const privacy = {
   line: "It's just between you and God.",
 };
 
-// ---- WHO MADE THIS -----------------------------------------
-// BRANDSCRIPT.md: the guide needs authority, and the honest kind we have is a
-// person — not user counts or endorsements we don't have. A published book on
-// faith practices is exactly the credential for a journal built around them.
-// Kept to two sentences; the long version is /maker.
-export const madeBy = {
-  tag: "Who made this",
-  lineBefore: "Dayspring is made by Phil Chan, author of ",
-  book: "Rhythms of Resilience: Faith Practices to Thrive in Chaos",
-  bookHref: "https://www.amazon.com/dp/1957321105",
-  lineAfter: " — and he's kept a journal for twenty-five years. He built Dayspring for himself first.",
-  noteLabel: "Read his note →",
-  noteHref: "/maker",
-};
-
 // ---- PRICING -------------------------------------
 export const pricing = {
   tag: "Pricing",

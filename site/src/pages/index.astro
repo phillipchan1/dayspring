@@ -24,7 +24,6 @@ import {
   bringHistory,
   pricing,
   testimonial,
-  madeBy,
 } from "../content/home";
 ---
 
@@ -233,17 +232,6 @@ import {
     </div>
   </section>
 
-
-  {/* who made this — the guide's authority, stated once and plainly */}
-  <section class="madeby-sec">
-    <SectionReveal class="wrap madeby">
-      <p class="tag">{madeBy.tag}</p>
-      <p class="madeby-line">
-        {madeBy.lineBefore}<a href={madeBy.bookHref} rel="noopener" target="_blank"><em>{madeBy.book}</em></a>{madeBy.lineAfter}
-      </p>
-      <a class="madeby-note" href={madeBy.noteHref}>{madeBy.noteLabel}</a>
-    </SectionReveal>
-  </section>
 
   {/* pricing */}
   <section class="pricing">
@@ -588,43 +576,6 @@ import {
     font-style: italic;
     font-size: 21px;
     color: var(--paper);
-  }
-
-  /* ===== who made this ===== */
-  .madeby-sec {
-    padding: 10px 0 100px;
-  }
-  :global(.madeby) {
-    max-width: 760px;
-    border-top: 1px solid var(--border);
-    padding-top: 40px;
-  }
-  .madeby-line {
-    font-family: var(--font-display);
-    font-weight: 300;
-    font-size: clamp(22px, 2.6vw, 30px);
-    line-height: 1.35;
-    letter-spacing: -0.3px;
-    color: var(--paper);
-    margin-bottom: 20px;
-  }
-  .madeby-line a {
-    color: var(--gold);
-    text-decoration: none;
-    border-bottom: 1px solid var(--accent-glow);
-    transition: border-color 0.25s;
-  }
-  .madeby-line a:hover {
-    border-bottom-color: var(--gold);
-  }
-  .madeby-note {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--dawn-1);
-    text-decoration: none;
-  }
-  .madeby-note:hover {
-    text-decoration: underline;
   }
 
   /* ===== pricing ===== */
