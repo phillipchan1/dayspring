@@ -479,7 +479,7 @@ export const privacy = {
 export const pricing = {
   tag: "Pricing",
   heading: "Begin with the whole of Dayspring. <em>Stay for the mirror.</em>",
-  lead: "One premium plan — the editor, every slash command, the Lamp, the Ascent, and the Altar. Start with a 14-day trial, then $64 a year or $7 a month.",
+  lead: "The editor, every slash command, the Lamp, the Ascent, and the Altar are complimentary to begin. No payment method required.",
 };
 
 // ---- Formation — retained for reference (not on the home page) ----
