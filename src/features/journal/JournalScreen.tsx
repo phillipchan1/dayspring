@@ -2531,11 +2531,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             backTo: ritualEntry.backTo,
             backShort: ritualEntry.backShort,
             onDelete: deleteRitualEntry,
-            onFreeWrite: () => {
-              // Now an ordinary page: stay on it, in the editor.
-              setRitualEntry(null)
-              requestAnimationFrame(() => editorRef.current?.focus())
-            },
           }}
         />
       )}

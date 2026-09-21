@@ -471,7 +471,6 @@ describe('RitualComposer', () => {
     })
 
     const onDelete = vi.fn<() => void>()
-    const onFreeWrite = vi.fn<() => void>()
     const renderEntry = (seed = true) => {
       act(() => {
         root.render(
@@ -488,7 +487,6 @@ describe('RitualComposer', () => {
               backTo: 'your journal',
               backShort: 'Journal',
               onDelete,
-              onFreeWrite,
             },
           }),
         )
@@ -551,17 +549,11 @@ describe('RitualComposer', () => {
       expect(onDelete).not.toHaveBeenCalled()
     })
 
-    it('free write keeps every word and drops the questions', () => {
-      doc = `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', 'Short.', ''])}\n\nLater.`
+    it('offers no free write — After is where free writing goes', () => {
+      doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])
       renderEntry(false)
-      const tool = [...document.querySelectorAll<HTMLButtonElement>('.rc__rail-tools button')].find(
-        (b) => b.textContent === 'Free write',
-      )!
-      act(() => tool.click())
-      expect(tool.textContent).toBe('Make it an ordinary page?')
-      act(() => tool.click())
-      expect(doc).toBe('Bread.\n\nShort.\n\nLater.')
-      expect(onFreeWrite).toHaveBeenCalled()
+      const tools = [...document.querySelectorAll('.rc__rail-tools button')].map((b) => b.textContent)
+      expect(tools).toEqual(['About this ritual', 'Delete page'])
     })
 
     it('deletes the page, after asking', () => {

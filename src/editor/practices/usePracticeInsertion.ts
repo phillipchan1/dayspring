@@ -539,7 +539,6 @@ const practiceTheme = EditorView.theme({
 // know — plus undo as a fearless safety net:
 //   • Pick it back up → the header's "continue" action (opens the composer)
 //   • Skip a prompt   → Backspace on its empty line (deletePracticeSection)
-//   • Free write      → the header's "free write" action (dissolvePracticeBlockAt)
 //   • Remove          → the header's "remove" action (the whole block, gone)
 //   • Swap / add      → run /ritual again (smart replace/append in the hook)
 
@@ -641,39 +640,6 @@ export function dissolvePracticeProse(lines: string[]): string {
   return groups.join('\n\n')
 }
 
-/** Strip the practice block containing `pos`, keeping the writer's words as prose. */
-function dissolvePracticeBlockAt(view: EditorView, pos: number): void {
-  const { doc } = view.state
-  const posLine = doc.lineAt(pos).number
-  let startLine = -1
-  for (let n = posLine; n >= 1; n--) {
-    if (PRACTICE_NAME_RE.test(doc.line(n).text)) {
-      startLine = n
-      break
-    }
-  }
-  if (startLine === -1) return
-  let endLine = doc.lines
-  for (let n = startLine + 1; n <= doc.lines; n++) {
-    if (PRACTICE_NAME_RE.test(doc.line(n).text)) {
-      endLine = n - 1
-      break
-    }
-  }
-
-  const lines: string[] = []
-  for (let n = startLine; n <= endLine; n++) lines.push(doc.line(n).text)
-  const prose = dissolvePracticeProse(lines)
-
-  const from = doc.line(startLine).from
-  const to = doc.line(endLine).to
-  view.dispatch({
-    changes: { from, to, insert: prose },
-    selection: { anchor: from + prose.length },
-  })
-  view.focus()
-}
-
 /** Take the whole ritual out of the entry — prompts and words together. */
 function removePracticeBlockAt(view: EditorView, pos: number): void {
   const doc = view.state.doc.toString()
@@ -697,7 +663,7 @@ const RECORD_SELECTOR =
  *
  * Only transactions carrying a user event are judged (typing, deleting,
  * pasting, dropping); undo/redo pass, and so does everything the app dispatches
- * itself — the composer writing back, free write, remove, sync. The decision
+ * itself — the composer writing back, remove, sync. The decision
  * per change is `judgeRitualEdit`'s.
  */
 const ritualRecordGuard = EditorState.transactionFilter.of(
@@ -780,12 +746,6 @@ export function practicePromptExtension(
   EditorView.domEventHandlers({
     mousedown(event, view) {
       const node = event.target as HTMLElement | null
-      const freewrite = node?.closest('.cm-practice-action--freewrite')
-      if (freewrite) {
-        event.preventDefault()
-        dissolvePracticeBlockAt(view, view.posAtDOM(freewrite))
-        return true
-      }
       const remove = node?.closest('.cm-practice-action--remove')
       if (remove) {
         event.preventDefault()

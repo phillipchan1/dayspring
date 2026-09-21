@@ -336,10 +336,6 @@ function BlankHarness({ now }: { now?: Date }) {
               setOpen(null)
               setLeft('Deleted.')
             },
-            onFreeWrite: () => {
-              setOpen(null)
-              setLeft('An ordinary page now.')
-            },
           }}
         />
       )}

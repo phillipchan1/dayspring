@@ -55,8 +55,7 @@ export class RitualHeaderWidget extends WidgetType {
     // One door, and nothing else. The record is read-only and the whole of it
     // opens the composer (see ritualRecordGuard.ts); this just says so. About
     // and Remove live in the composer now — a masthead of four small verbs
-    // was a second, lesser toolbar for the same ritual. (Free write is only
-    // offered for a ritual that is its own page.)
+    // was a second, lesser toolbar for the same ritual.
     root.append(
       this.unfinished
         ? action('continue', 'continue →', 'Pick the ritual back up where you left it')

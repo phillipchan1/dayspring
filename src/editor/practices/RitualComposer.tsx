@@ -62,12 +62,6 @@ export interface RitualEntryMode {
   backShort: string
   /** Delete the whole page — for a ritual entry, the ritual and the page are one. */
   onDelete: () => void
-  /**
-   * The page has just become an ordinary one (free write). The composer has
-   * already written the prose; the parent closes it and stays on the page, in
-   * the editor — unlike leaving, which goes back to where you came from.
-   */
-  onFreeWrite: () => void
   /** Open on this movement (a click on one answer in the reader). */
   startAt?: number
 }
@@ -335,25 +329,6 @@ export function RitualComposer({
   }, [block, blockIndex, reportFinished])
 
   /**
-   * Free write — a ritual entry becomes an ordinary page.
-   *
-   * The questions go and every word stays: the answers in order as
-   * paragraphs, then the After. Not as `##` headings — in Domains a heading
-   * IS a domain, and a movement's name is not one.
-   */
-  const freeWrite = useCallback(() => {
-    if (!block || goneRef.current || !entryRef.current) return
-    reportFinished()
-    goneRef.current = true
-    const prose = [...textsRef.current, afterRef.current]
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .join('\n\n')
-    writeWhole(prose)
-    entryRef.current.onFreeWrite()
-  }, [block, reportFinished, writeWhole])
-
-  /**
    * Write the block back with the untouched movements DROPPED.
    *
    * Only for a dynamic ritual, and only on the way out.
@@ -568,7 +543,7 @@ export function RitualComposer({
         go={go}
         leave={leave}
         remove={removeBlock}
-        freeWrite={entry ? freeWrite : undefined}
+        entryMode={Boolean(entry)}
         about={() => onAbout(block.name)}
         backTo={entry?.backTo ?? 'your entry'}
         saved={
@@ -624,11 +599,7 @@ export function RitualComposer({
         <span className="rc__name">{block.name}</span>
         <div className="rc__tools">
           {entry ? (
-            <MoreMenu
-              about={() => onAbout(block.name)}
-              freeWrite={freeWrite}
-              remove={removeBlock}
-            />
+            <MoreMenu about={() => onAbout(block.name)} remove={removeBlock} />
           ) : (
             <button
               type="button"
@@ -744,8 +715,8 @@ interface DeskProps {
   go: (n: number) => void
   leave: () => void
   remove: () => void
-  /** Present only for a ritual entry — an older in-entry ritual has none. */
-  freeWrite: (() => void) | undefined
+  /** A ritual entry (its own page) rather than a ritual inside an older entry. */
+  entryMode: boolean
   about: () => void
   /** Where leaving goes: "your journal", "your entry", "the page". */
   backTo: string
@@ -759,15 +730,7 @@ interface DeskProps {
  * The phone's tools for a ritual entry, behind one ⋯ so the practice's name
  * keeps the masthead to itself.
  */
-function MoreMenu({
-  about,
-  freeWrite,
-  remove,
-}: {
-  about: () => void
-  freeWrite: () => void
-  remove: () => void
-}) {
+function MoreMenu({ about, remove }: { about: () => void; remove: () => void }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="rc__more">
@@ -786,7 +749,6 @@ function MoreMenu({
           <button type="button" role="menuitem" onClick={() => { setOpen(false); about() }}>
             About this ritual
           </button>
-          <ConfirmButton label="Free write" ask="Make it an ordinary page?" onConfirm={freeWrite} />
           <ConfirmButton label="Delete page" ask="Delete this page?" onConfirm={remove} />
         </div>
       )}
@@ -847,7 +809,7 @@ function DeskLayout({
   go,
   leave,
   remove,
-  freeWrite,
+  entryMode,
   about,
   afterIndex,
   backTo,
@@ -912,15 +874,8 @@ function DeskLayout({
           <button type="button" onClick={about}>
             About this ritual
           </button>
-          {freeWrite ? (
-            <>
-              <ConfirmButton
-                label="Free write"
-                ask="Make it an ordinary page?"
-                onConfirm={freeWrite}
-              />
-              <ConfirmButton label="Delete page" ask="Delete this page?" onConfirm={remove} />
-            </>
+          {entryMode ? (
+            <ConfirmButton label="Delete page" ask="Delete this page?" onConfirm={remove} />
           ) : (
             <button type="button" onClick={remove} aria-label="Remove this ritual from the entry">
               Remove from entry

@@ -12,7 +12,7 @@
  * writer is trying to make, is it allowed, refused, or reshaped? Only
  * WRITER-originated changes (those carrying a user-event annotation — typing,
  * deleting, pasting, dropping) are judged. The composer writing back, the
- * header's free write / remove, sync and undo all dispatch programmatically and
+ * header's remove, sync and undo all dispatch programmatically and
  * pass untouched.
  */
 
