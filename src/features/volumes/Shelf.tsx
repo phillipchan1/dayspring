@@ -58,11 +58,7 @@ export function Shelf({
     <div className={`vol-shelf${ribboned ? ' is-looking' : ''}`}>
       <div className="vol-shelf__top">
       <p className="vol-shelf__note">
-        {ribboned
-          ? ribboned.size > 0
-            ? 'A ribbon in every volume it runs through.'
-            : 'None of your volumes carry it.'
-          : 'Every volume you’ve filled. Each closed when it was full, the way a notebook does.'}
+        {ribboned ? (ribboned.size > 0 ? 'A ribbon in every volume it runs through.' : 'None of your volumes carry it.') : ''}
       </p>
       <CoverStyle />
       </div>
@@ -82,10 +78,9 @@ export function Shelf({
                 <CoverArt volume={v} photo={photos.get(v.n) ?? null} />
                 <span className="vol-card__n">{v.n}</span>
               </span>
-              <span className="vol-card__title">{volumeTitle(v, names)}</span>
+              <span className="vol-card__title">{volumeTitle(v, names, volumes)}</span>
               <span className="vol-card__dates">
-                {fmtVolumeRange(v)}
-                {v.closed ? '' : ' · being written'}
+                {names?.[v.firstId]?.trim() ? fmtVolumeRange(v) : v.closed ? '' : 'being written'}
               </span>
             </button>
           ))}

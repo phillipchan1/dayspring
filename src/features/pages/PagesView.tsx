@@ -1200,7 +1200,7 @@ export function PagesView({
             />
           </div>
         ) : volumesOn && openVolume !== null && volumes[openVolume - 1] ? (
-          <div className="pg__inner pg__inner--read">
+          <div className="pg__inner pg__inner--read pg__inner--scroll">
             <VolumeView
               volume={volumes[openVolume - 1]!}
               prev={volumes[openVolume - 2]}
@@ -1212,10 +1212,12 @@ export function PagesView({
               onWalk={walkVolume}
               onOpenEntry={(id) => onOpenEntry(id)}
               onName={nameVolume}
+              lit={lit}
+              looking={subjects.length > 0 ? subjects.map((x) => x.label).join(' + ') : undefined}
             />
           </div>
         ) : onShelf ? (
-          <div className="pg__inner pg__inner--read">
+          <div className="pg__inner pg__inner--read pg__inner--scroll">
             <Shelf
               volumes={volumes}
               entries={entries}

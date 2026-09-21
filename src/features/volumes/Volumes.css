@@ -116,3 +116,10 @@
 @media (prefers-reduced-motion: reduce) {
   .vol-book__cover { transition: none; }
 }
+
+/* the filter, reaching into a volume */
+.vol-found__list { display: flex; flex-direction: column; border-left: 1px solid var(--border-subtle); padding-left: 14px; }
+.vol-found__row { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.vol-found__row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.vol-found__d { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); padding-top: 3px; }
+.vol-found__t { font-family: var(--font-serif); font-size: 16px; color: var(--text); }

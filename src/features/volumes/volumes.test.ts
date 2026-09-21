@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeVolumes, volumeTitle } from './volumes'
+import { computeVolumes, spanName, volumeTitle } from './volumes'
 
 const page = (id: string, date: string, words: number) => ({ id, created_at: `${date}T12:00:00Z`, word_count: words })
 
@@ -37,9 +37,22 @@ describe('computeVolumes', () => {
     expect(volumes[0]!.ids).toEqual(['a', 'c', 'd'])
   })
 
-  it('never names a volume itself', () => {
+  it('names a volume by its dates unless the writer named it', () => {
     const { volumes } = computeVolumes(pages, [], 1000)
-    expect(volumeTitle(volumes[0]!, undefined)).toBe('Volume 1')
+    expect(volumeTitle(volumes[0]!, undefined)).toBe('January 2026')
+    expect(volumeTitle(volumes[1]!, undefined)).toBe('February – March 2026')
+    expect(volumeTitle(volumes[2]!, undefined)).toBe('April 2026 – now')
     expect(volumeTitle(volumes[0]!, { a: 'The waiting room' })).toBe('The waiting room')
+    expect(spanName('2024-11-03', '2025-02-10')).toBe('November 2024 – February 2025')
+  })
+
+  it('names volumes to the day when they share a month', () => {
+    const busy = [page('a', '2026-08-01', 600), page('b', '2026-08-17', 600), page('c', '2026-08-18', 600), page('d', '2026-09-09', 600), page('e', '2026-10-02', 10)]
+    const { volumes } = computeVolumes(busy, [], 1000)
+    expect(volumes.map((v) => volumeTitle(v, undefined, volumes))).toEqual([
+      'August 1 – 17, 2026',
+      'August 18 – September 9, 2026',
+      'October 2026 – now',
+    ])
   })
 })

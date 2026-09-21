@@ -99,9 +99,41 @@ export function volumeOf(volumes: Volume[], entryId: string): Volume | undefined
   return volumes.find((v) => v.ids.includes(entryId))
 }
 
-/** "Volume 23", or the name the writer gave it. */
-export function volumeTitle(v: Volume, names: Record<string, string> | undefined): string {
-  return names?.[v.firstId]?.trim() || `Volume ${v.n}`
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+/** A stretch of the calendar said the way people say it: "March 2025",
+ *  "March – June 2025", "November 2024 – February 2025", "March 2025 – now". */
+export function spanName(from: string, to: string, open = false): string {
+  const m = (d: string) => MONTHS[+d.slice(5, 7) - 1]!
+  const y = (d: string) => d.slice(0, 4)
+  if (open) return `${m(from)} ${y(from)} – now`
+  if (from.slice(0, 7) === to.slice(0, 7)) return `${m(from)} ${y(from)}`
+  if (y(from) === y(to)) return `${m(from)} – ${m(to)} ${y(to)}`
+  return `${m(from)} ${y(from)} – ${m(to)} ${y(to)}`
+}
+
+/** The same stretch to the day — for volumes that share a month with a
+ *  neighbour: "August 1 – 17, 2026", "August 18 – September 9, 2026". */
+export function daySpanName(from: string, to: string, open = false): string {
+  const md = (d: string) => `${MONTHS[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}`
+  const y = (d: string) => d.slice(0, 4)
+  if (open) return `${md(from)}, ${y(from)} – now`
+  if (y(from) !== y(to)) return `${md(from)}, ${y(from)} – ${md(to)}, ${y(to)}`
+  if (from.slice(0, 7) === to.slice(0, 7)) return from === to ? `${md(from)}, ${y(from)}` : `${md(from)} – ${+to.slice(8, 10)}, ${y(to)}`
+  return `${md(from)} – ${md(to)}, ${y(to)}`
+}
+
+/** The name the writer gave it, else its dates — "March – June 2025". The
+ *  number is a shelf position, not a name, so it is never the title. When a
+ *  neighbour shares its first or last month (a full season can fill two in
+ *  one August), both are named to the day so no two read the same. */
+export function volumeTitle(v: Volume, names: Record<string, string> | undefined, all?: readonly Volume[]): string {
+  const given = names?.[v.firstId]?.trim()
+  if (given) return given
+  const prev = all?.[v.n - 2]
+  const next = all?.[v.n]
+  const shares = (prev && prev.to.slice(0, 7) === v.from.slice(0, 7)) || (next && next.from.slice(0, 7) === v.to.slice(0, 7))
+  return shares ? daySpanName(v.from, v.to, !v.closed) : spanName(v.from, v.to, !v.closed)
 }
 
 /** A cloth colour per volume — stable, never meaningful. */

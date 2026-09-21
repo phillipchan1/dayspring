@@ -235,7 +235,7 @@ export function AscentView({ onOpenEntry }: Props) {
       <ClimbRail idx={idx} setIdx={setAltitude} names={railNames} />
 
       <div className="ascent-scroll">
-      <main className={`ascent-main${told ? ' is-wide' : ''}`}>
+      <main className={`ascent-main${ledgerOn ? ' is-wide' : ''}`}>
         <header className="ascent-head" key={`${L.key}-h`}>
           <span className="ascent-eyebrow">{L.alt}</span>
           <h1 className="ascent-title">{head.title}</h1>
@@ -251,7 +251,14 @@ export function AscentView({ onOpenEntry }: Props) {
         {ledgerOn ? (
           <ClimbMountain level={level} from={mFrom} to={mTo} today={today} stones={mountainStones} onOpenEntry={onOpenEntry} />
         ) : null}
-        {ledgerOn && idx === 0 ? <NowStrip strip={weekStrip(today)} /> : null}
+        {ledgerOn && idx === 0 ? (
+          // The week gets what the month and season have: its name, then
+          // where we stand in it and when it closes.
+          <div className="climb">
+            <h2 className="climb__title">{weekLabel(today)}</h2>
+            <NowStrip strip={weekStrip(today)} />
+          </div>
+        ) : null}
 
         <SurfaceArrival surface="reflections" />
 

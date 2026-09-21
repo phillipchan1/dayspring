@@ -27,6 +27,13 @@ export function firstLine(e: Entry | undefined): string {
   return l ? clip(l) : ''
 }
 
+/** Neighbours placed at their shelf positions, for volumeTitle's lookup. */
+function spread(vs: Volume[]): Volume[] {
+  const out: Volume[] = []
+  for (const v of vs) out[v.n - 1] = v
+  return out
+}
+
 const EMPTY: RangeLedger = { from: '', to: '', months: [], threads: [], stones: [] }
 
 /**
@@ -46,8 +53,14 @@ export function VolumeView({
   onWalk,
   onOpenEntry,
   onName,
+  lit,
+  looking,
 }: {
   volume: Volume
+  /** Pages lit by the filter above, if one is set. */
+  lit?: Set<string> | null | undefined
+  /** What the filter is looking for, said plainly ("Meghan + prayer"). */
+  looking?: string | undefined
   prev: Volume | undefined
   next: Volume | undefined
   entries: Entry[]
@@ -72,7 +85,13 @@ export function VolumeView({
   const [seed, setSeed] = useState<Seed | null>(null)
   const [naming, setNaming] = useState(false)
   const [across, setAcross] = useState<LedgerThread | null>(null)
-  const title = volumeTitle(volume, names)
+  const around = [prev, volume, next].filter((v): v is Volume => !!v)
+  const title = volumeTitle(volume, names, spread(around))
+  // The filter above reaches into the volume: the pages in it that match.
+  const found = useMemo(
+    () => (lit ? volume.ids.filter((id) => lit.has(id)).map((id) => byId.get(id)).filter((e): e is Entry => !!e) : []),
+    [lit, volume, byId],
+  )
 
   useEffect(() => {
     let alive = true
@@ -154,8 +173,7 @@ export function VolumeView({
             <h2 className="vol-view__title">{title}</h2>
           )}
           <p className="vol-view__range">
-            {names?.[volume.firstId] ? `Volume ${volume.n} · ` : ''}
-            {fmtVolumeRange(volume)}
+            {names?.[volume.firstId] ? fmtVolumeRange(volume) : ''}
             {!naming ? (
               <button type="button" className="vol-view__name" onClick={() => setNaming(true)}>
                 {names?.[volume.firstId] ? 'rename' : '+ give it a name'}
@@ -170,6 +188,24 @@ export function VolumeView({
           </button>
         </div>
       </header>
+
+      {lit ? (
+        <section className="vol-mod vol-found">
+          <span className="vol-eyebrow">{looking ? `${looking} — in these pages` : 'What you’re looking for — in these pages'}</span>
+          {found.length === 0 ? (
+            <p className="vol-quiet">Not in this one.</p>
+          ) : (
+            <div className="vol-found__list">
+              {found.map((e) => (
+                <button key={e.id} type="button" className="vol-found__row" onClick={() => onOpenPage(e.id)}>
+                  <span className="vol-found__d">{fmtDay(e.created_at.slice(0, 10))}</span>
+                  <span className="vol-found__t">{firstLine(e)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="vol-mod">
         <span className="vol-eyebrow">Its first page, and its {volume.closed ? 'last' : 'latest'}</span>
@@ -239,7 +275,7 @@ export function VolumeView({
 
       {carriedOut.length > 0 && next ? (
         <section className="vol-mod">
-          <span className="vol-eyebrow">Carried into {volumeTitle(next, names)}</span>
+          <span className="vol-eyebrow">Carried into {volumeTitle(next, names, spread(around))}</span>
           <p className="vol-view__carriedout">{carriedOut.map((t) => t.label).join(' · ')}</p>
         </section>
       ) : null}

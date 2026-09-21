@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSettings } from '@/hooks/useSettings'
 import type { Entry } from '@/lib/types'
-import { computeVolumes, volumeColour, volumeTitle, type Volume } from '@/features/volumes/volumes'
+import { computeVolumes, spanName, volumeColour, volumeTitle, type Volume } from '@/features/volumes/volumes'
 import type { LedgerLine, LedgerThread } from './build'
 import { KIND_COPY, LEDGER_COPY } from './copy'
 import { loadArchive, loadThreadAcross } from './load'
@@ -132,7 +132,7 @@ export function ThreadAcross({
                 key={v.firstId}
                 className={`across__spine${parts.some((p) => p.type === 'chapter' && p.volume.n === v.n) ? ' is-on' : ''}`}
                 style={{ background: volumeColour(v) }}
-                title={volumeTitle(v, settings.volumeNames)}
+                title={volumeTitle(v, settings.volumeNames, volumes)}
               />
             ))}
           </div>
@@ -143,14 +143,14 @@ export function ThreadAcross({
         {parts.map((p, i) =>
           p.type === 'gap' ? (
             <p key={`gap${i}`} className="across__gap">
-              — not in {p.from.n === p.to.n ? volumeTitle(p.from, settings.volumeNames) : `Volumes ${p.from.n}–${p.to.n}`}; then you came back to it —
+              — not in {p.from.n === p.to.n ? volumeTitle(p.from, settings.volumeNames, volumes) : spanName(p.from.from, p.to.to)}; then you came back to it —
             </p>
           ) : (
             <section key={p.volume.firstId} className="across__chapter">
               <div className="across__ch">
                 <i style={{ background: volumeColour(p.volume) }} />
                 <div>
-                  <div className="across__chname">In {volumeTitle(p.volume, settings.volumeNames)}</div>
+                  <div className="across__chname">In {volumeTitle(p.volume, settings.volumeNames, volumes)}</div>
                   <div className="across__chdates">{range(p.volume)}</div>
                 </div>
               </div>
@@ -183,7 +183,7 @@ export function ThreadAcross({
                   .filter((p): p is Extract<Chapter, { type: 'chapter' }> => p.type === 'chapter')
                   .slice(-3)
                   .map((p) => ({
-                    label: `In ${volumeTitle(p.volume, settings.volumeNames)}`,
+                    label: `In ${volumeTitle(p.volume, settings.volumeNames, volumes)}`,
                     lines: [p.lines[0]!, ...(p.lines.length > 1 ? [p.lines[p.lines.length - 1]!] : [])].map((l) => ({ date: l.date, text: l.text })),
                   })),
               })

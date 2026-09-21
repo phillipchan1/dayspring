@@ -2870,6 +2870,13 @@ button.pg__sense-q:hover {
   flex: 1;
   min-block-size: 0;
 }
+/* The shelf and a volume read back are pages of their own, not the reader
+   (which scrolls inside itself) — so they scroll here. */
+.pg__inner--scroll {
+  display: block;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 /* A control, not a finding — so it is plain. */
 .pg-read__split {
