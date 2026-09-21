@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Subject } from '@/features/pages/subjects'
-import { buildYearLedger, clip, displayLabel, isMarkedEntry, type LedgerInput } from './build'
+import { buildYearLedger, clip, displayLabel, isMarkedEntry, readable, type LedgerInput } from './build'
 import { presence, score, DEFAULT_WEIGHTS } from './score'
 
 let n = 0
@@ -146,5 +146,19 @@ describe('helpers', () => {
     expect(displayLabel('trading')).toBe('Trading')
     expect(displayLabel('SCE')).toBe('SCE')
     expect(displayLabel('Dennis')).toBe('Dennis')
+  })
+})
+
+describe('readable', () => {
+  it('drops a spiritual fence and its id from mid-line, keeping the words', () => {
+    expect(readable('i felt you say ```dayspring-sense 6d9ca6fb-37f8-402f-9fd6-4afde2f085c3 i put favor and blessing in your hands ```')).toBe(
+      'i felt you say i put favor and blessing in your hands',
+    )
+  })
+  it('unwraps emphasis the page shows as styling', () => {
+    expect(readable('this week i am *not* working on Nuvo. **really** _so_ good.')).toBe('this week i am not working on Nuvo. really so good.')
+  })
+  it('leaves arithmetic and lone asterisks alone', () => {
+    expect(readable('2 * 3 is six')).toBe('2 * 3 is six')
   })
 })

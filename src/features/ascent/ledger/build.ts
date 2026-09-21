@@ -203,9 +203,25 @@ export function toLineKind(type: string): LineKind {
   return type === 'prayer' || type === 'sense' || type === 'learned' || type === 'desire' ? type : 'story'
 }
 
+/**
+ * A line as the writer reads it on the page. Marking content arrives raw from
+ * the store — a block fence can sit mid-line (```dayspring-sense <id> …```) and
+ * emphasis is still markdown (*not*) — so every line is unwrapped here, the one
+ * step all of them pass through. Words are kept verbatim; only syntax goes.
+ */
+export function readable(text: string): string {
+  const unfenced = text
+    .replace(/`{3,}\s*dayspring-[\w-]+(?:\s+[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?/gi, ' ')
+    .replace(/`{3,}/g, ' ')
+  return stripMarkdownMarkers(unfenced)
+    .replace(/(^|\s)[*_]{1,3}(?=\S)([^*_\n]+?)(?<=\S)[*_]{1,3}(?=[\s.,;:!?)]|$)/g, '$1$2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 /** One verbatim line, trimmed to the sentence that holds the match when long. */
 export function clip(text: string, match?: RegExp | null): string {
-  const t = text.replace(/\s+/g, ' ').trim()
+  const t = readable(text)
   if (t.length <= MAX_LINE) return t
   const sentences = t.split(/(?<=[.!?])\s+/)
   if (match) {
