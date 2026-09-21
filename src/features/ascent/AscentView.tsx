@@ -342,28 +342,30 @@ function ClimbRail({
   /** Real names for the stations ("September", "Fall 2026") — the ledger's climb. */
   names: string[] | null
 }) {
-  // Up and down live ON the rail — it stays in view while you read, where the
-  // ascend/descend row at the foot of the page was only found by scrolling.
+  // Up and down live ON the rail, together at its foot — it stays in view
+  // while you read, so the way up and down is always in the same place.
   return (
     <nav className="ascent-rail" aria-label="Altitude">
-      <button
-        type="button"
-        className="ascent-rail__step is-up"
-        onClick={() => setIdx(idx + 1)}
-        disabled={idx === LAST}
-        title="Ascend (↑)"
-      >
-        ↑ {idx < LAST ? ALTITUDES[idx + 1]!.label : ''}
-      </button>
-      <button
-        type="button"
-        className="ascent-rail__step is-down"
-        onClick={() => setIdx(idx - 1)}
-        disabled={idx === 0}
-        title="Descend (↓)"
-      >
-        ↓ {idx > 0 ? ALTITUDES[idx - 1]!.label : ''}
-      </button>
+      <div className="ascent-rail__steps">
+        <button
+          type="button"
+          className="ascent-rail__step"
+          onClick={() => setIdx(idx + 1)}
+          disabled={idx === LAST}
+          title="Ascend (↑)"
+        >
+          ↑ {idx < LAST ? ALTITUDES[idx + 1]!.label : ALTITUDES[LAST]!.label}
+        </button>
+        <button
+          type="button"
+          className="ascent-rail__step"
+          onClick={() => setIdx(idx - 1)}
+          disabled={idx === 0}
+          title="Descend (↓)"
+        >
+          ↓ {idx > 0 ? ALTITUDES[idx - 1]!.label : ALTITUDES[0]!.label}
+        </button>
+      </div>
       <div className="ascent-rail__track">
         <div className="ascent-rail__fill" style={{ height: `${(idx / LAST) * 100}%` }} aria-hidden />
         {ALTITUDES.map((l, i) => (

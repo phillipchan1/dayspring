@@ -1240,11 +1240,18 @@
 /* Ascend / descend on the rail itself: it stays in view while the page
    scrolls, so the way up is always where the climb is drawn. On desktop this
    replaces the row at the foot of the page; phones keep that sticky row. */
-.ascent-rail__step {
+.ascent-rail__steps {
   position: absolute;
   left: 50%;
+  bottom: 18px;
   transform: translateX(-50%);
-  padding: 5px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 104px;
+}
+.ascent-rail__step {
+  padding: 6px 10px;
   border: 1px solid rgba(var(--ascent-ink-rgb), 0.16);
   border-radius: 999px;
   background: rgba(var(--ascent-ink-rgb), 0.04);
@@ -1256,10 +1263,12 @@
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s, opacity 0.2s;
 }
-.ascent-rail__step.is-up { top: 18px; }
-.ascent-rail__step.is-down { bottom: 18px; }
 .ascent-rail__step:hover:not(:disabled) { border-color: var(--ascent-gold); color: var(--ascent-gold); }
-.ascent-rail__step:disabled { opacity: 0; pointer-events: none; }
+.ascent-rail__step:disabled { opacity: 0.3; cursor: default; }
+@media (min-width: 768px) {
+  /* Room at the foot of the rail for the two steps, under the Week station. */
+  .ascent-rail { padding-bottom: 104px; }
+}
 /* --ascent-ink-rgb is the night ink and daybreak never redefines it, so the
    light palette names its own — without this the steps were white on dawn. */
 .ascent--light .ascent-rail__step {
@@ -1290,7 +1299,7 @@
   /* Dots only on narrow screens — the labels would overflow into the content,
    * and the active altitude is already announced in the header. */
   .ascent-station__label,
-  .ascent-rail__step {
+  .ascent-rail__steps {
     display: none;
   }
   .ascent-station {
