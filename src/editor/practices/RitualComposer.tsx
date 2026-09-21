@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { track } from '@/lib/analytics'
+import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
 import { PRACTICE_BY_NAME } from './practicesData'
 import { placeholderFor, questionFor } from './usePracticeInsertion'
 import {
@@ -43,6 +44,15 @@ interface Props {
    */
   blocked?: boolean
   /**
+   * The real editor, for an answer — so `/`, the `+` and formatting work in a
+   * ritual the way they do on any page.
+   *
+   * Supplied by the journal, which owns what those do (its capture panels,
+   * scripture, images). Absent — tests, previews, the phone's filmstrip — an
+   * answer is a plain text box.
+   */
+  renderAnswer?: (answer: AnswerSlot) => React.ReactNode
+  /**
    * The ritual IS the entry — one entry, one ritual.
    *
    * Absent, the composer owns one block inside a larger entry (an older, mixed
@@ -51,6 +61,22 @@ interface Props {
    * block as ordinary prose, so the stored format does not change.
    */
   entry?: RitualEntryMode
+}
+
+/** Anything an answer is written in that can take the caret. */
+export interface Focusable {
+  focus: (opts?: FocusOptions) => void
+}
+
+/** What the journal needs to render one answer's editor. */
+export interface AnswerSlot {
+  /** Stable per movement, so each movement has its own editor. */
+  key: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  /** Hand back something that takes the caret, or null on unmount. */
+  register: (handle: Focusable | null) => void
 }
 
 export interface RitualEntryMode {
@@ -150,6 +176,7 @@ export function RitualComposer({
   onAbout,
   blocked = false,
   entry,
+  renderAnswer,
 }: Props) {
   const seed = useRef(readSeed(getDoc(), blockIndex, entry))
   const block = seed.current?.block ?? null
@@ -183,7 +210,7 @@ export function RitualComposer({
     duration: 26,
     startIndex: startAt,
   })
-  const paneRefs = useRef<(HTMLTextAreaElement | null)[]>([])
+  const paneRefs = useRef<(Focusable | null)[]>([])
   const touch = useTouchPrimary()
   // The rail wants room beside a reading column; below this the filmstrip is
   // the better use of the width even with a mouse.
@@ -266,7 +293,9 @@ export function RitualComposer({
         names = kept.map((m) => m.label)
         answers = kept.map((m) => m.text)
       }
-      const out = composeRitualMarkdown(block.name, names, answers)
+      // Closed by the end token, so the last movement keeps every paragraph
+      // written into it rather than losing the second one to After.
+      const out = `${composeRitualMarkdown(block.name, names, answers)}\n${RITUAL_END_TOKEN}`
       return a ? `${out}\n\n${a}` : out
     },
     [block],
@@ -463,8 +492,10 @@ export function RitualComposer({
   }, [blocked])
 
   // ── Keys ─────────────────────────────────────────────────────────────────
-  // Plain arrows belong to the caret, and ⌘←/⌥← are start-of-line and
-  // previous-word, so the shift chord is what is left.
+  // ⌥↵ is "continue". Not ⌘↵ — that is focus mode everywhere else in the app,
+  // and one key meaning two things gave mixed signals. Not the ⌘⇧←/→ chord
+  // this used to answer to either: on a Mac those select to the line's
+  // start and end, and a writer's own text selection must not be taken.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // The sheet over us owns the keyboard while it is open.
@@ -475,20 +506,13 @@ export function RitualComposer({
         leave()
         return
       }
-      // ⌘↵ is "I'm done with this one" — plain Enter is a new paragraph.
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'Enter') {
+      // Plain Enter is a new paragraph; ⌥↵ is "I'm done with this one". Stopped
+      // here, in the capture phase, so the answer's editor never sees it.
+      if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.key === 'Enter') {
         e.preventDefault()
+        e.stopPropagation()
         if (i < CLOSE) go(i + 1)
         else leave()
-        return
-      }
-      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return
-      if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        go(i + 1)
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        go(i - 1)
       }
     }
     window.addEventListener('keydown', onKey, true)
@@ -539,6 +563,7 @@ export function RitualComposer({
         textareaRef={(el) => {
           if (i < CLOSE) paneRefs.current[i] = el
         }}
+        renderAnswer={renderAnswer}
         onWrite={write}
         go={go}
         leave={leave}
@@ -694,8 +719,8 @@ export function RitualComposer({
   )
 }
 
-/** ⌘ on Apple hardware, Ctrl everywhere else — the hint must match the key. */
-const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
+/** ⌥ on Apple hardware, Alt everywhere else — the hint must match the key. */
+const ALT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌥' : 'Alt'
 
 interface DeskProps {
   name: string
@@ -710,7 +735,8 @@ interface DeskProps {
   reached: number
   question: (n: number) => string
   placeholder: (n: number) => string
-  textareaRef: (el: HTMLTextAreaElement | null) => void
+  textareaRef: (el: Focusable | null) => void
+  renderAnswer: ((answer: AnswerSlot) => React.ReactNode) | undefined
   onWrite: (n: number, value: string) => void
   go: (n: number) => void
   leave: () => void
@@ -805,6 +831,7 @@ function DeskLayout({
   question,
   placeholder,
   textareaRef,
+  renderAnswer,
   onWrite,
   go,
   leave,
@@ -897,13 +924,25 @@ function DeskLayout({
             >
               <span className="rc__label">{label}</span>
               {i === afterIndex ? null : <p className="rc__q">{question(i)}</p>}
-              <textarea
-                className="rc__write"
-                ref={textareaRef}
-                value={texts[i] ?? ''}
-                placeholder={placeholder(i)}
-                onChange={(e) => onWrite(i, e.target.value)}
-              />
+              {renderAnswer ? (
+                <div className="rc__write rc__write--editor">
+                  {renderAnswer({
+                    key: i === afterIndex ? '__after' : label,
+                    value: texts[i] ?? '',
+                    onChange: (value) => onWrite(i, value),
+                    placeholder: placeholder(i),
+                    register: textareaRef,
+                  })}
+                </div>
+              ) : (
+                <textarea
+                  className="rc__write"
+                  ref={textareaRef}
+                  value={texts[i] ?? ''}
+                  placeholder={placeholder(i)}
+                  onChange={(e) => onWrite(i, e.target.value)}
+                />
+              )}
             </section>
             <footer className="rc__foot">
               <button
@@ -915,7 +954,7 @@ function DeskLayout({
                 {i > 0 ? `← ${labels[i - 1]}` : ''}
               </button>
               <span className="rc__foot-go">
-                <kbd className="rc__kbd">{MOD} ↵</kbd>
+                <kbd className="rc__kbd">{ALT} ↵</kbd>
                 <button type="button" className="rc__next" onClick={() => go(i + 1)}>
                   {i < total - 1 ? 'Continue' : 'Finish'}
                 </button>

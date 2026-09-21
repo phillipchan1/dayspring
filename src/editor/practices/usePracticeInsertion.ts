@@ -16,6 +16,7 @@ import {
 import type { EditorHandle } from '../Editor'
 import { PRACTICE_BY_NAME, type Practice, type PracticePrompt } from './practicesData'
 import {
+  PRACTICE_END_RE,
   PRACTICE_NAME_RE,
   PRACTICE_SECTION_RE,
   practiceNameFromLine,
@@ -283,6 +284,14 @@ function buildDecorations(state: EditorState): PracticeDecorations {
       }
     }
 
+    // A ritual entry's end token: markup, never shown — collapsed like the
+    // other token lines, its text hidden.
+    const endLine = doc.line(block.endLine)
+    if (PRACTICE_END_RE.test(endLine.text)) {
+      ranges.push(tokenLineDeco.range(endLine.from))
+      if (endLine.to > endLine.from) ranges.push(Decoration.replace({}).range(endLine.from, endLine.to))
+    }
+
     // The dismissal. Placed at the END of the block's last written line, so it
     // renders BELOW the caret — finishing the final movement must never reflow
     // anything above the line being written.
@@ -543,7 +552,7 @@ const practiceTheme = EditorView.theme({
 //   • Swap / add      → run /ritual again (smart replace/append in the hook)
 
 const isTokenLine = (text: string) =>
-  PRACTICE_NAME_RE.test(text) || PRACTICE_SECTION_RE.test(text)
+  PRACTICE_NAME_RE.test(text) || PRACTICE_SECTION_RE.test(text) || PRACTICE_END_RE.test(text)
 
 /** The practice block (name → last section) containing `pos`, or null. */
 export interface PracticeBlock {

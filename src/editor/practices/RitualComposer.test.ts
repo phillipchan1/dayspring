@@ -432,15 +432,17 @@ describe('RitualComposer', () => {
       expect(path()).toEqual(['on', 'open', 'ahead', 'ahead'])
     })
 
-    it('moves on with ⌘↵ and leaves plain Enter to the paragraph', () => {
+    it('moves on with ⌥↵, and leaves ⌘↵ (focus mode) and plain Enter alone', () => {
       render()
-      act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
-      })
+      const key = (init: KeyboardEventInit) =>
+        act(() => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ...init }))
+        })
+      key({})
       expect(page()).toBe('Gratitude')
-      act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true }))
-      })
+      key({ metaKey: true })
+      expect(page()).toBe('Gratitude')
+      key({ altKey: true })
       expect(page()).toBe('Awareness')
     })
 
@@ -508,7 +510,9 @@ describe('RitualComposer', () => {
       act(() => {
         vi.advanceTimersByTime(500)
       })
-      expect(doc).toBe(composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', '']))
+      expect(doc).toBe(
+        `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])}\n<!-- ritual:end -->`,
+      )
       expect(document.querySelector('.rc__saved')?.textContent).toBe('Saved as you write.')
     })
 
@@ -522,7 +526,7 @@ describe('RitualComposer', () => {
       act(() => type(write(), 'A quiet evening.'))
       act(() => document.querySelector<HTMLElement>('.rc__home')!.click())
       expect(doc).toBe(
-        `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])}\n\nA quiet evening.`,
+        `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])}\n<!-- ritual:end -->\n\nA quiet evening.`,
       )
       expect(onClose).toHaveBeenCalled()
     })

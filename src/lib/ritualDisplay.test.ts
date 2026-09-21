@@ -35,6 +35,14 @@ describe('revealRitualsForDisplay', () => {
     expect(out).not.toContain('<script>')
   })
 
+  it('never shows the end token, and never labels an unanswered last movement for it', () => {
+    const out = revealRitualsForDisplay(
+      '<!-- ritual:name:The Daily Examen -->\n<!-- ritual:section:Prayer -->\n<!-- ritual:end -->\n',
+    )
+    expect(out).not.toContain('Prayer')
+    expect(out).not.toContain('ritual:end')
+  })
+
   it('leaves ordinary prose alone', () => {
     expect(revealRitualsForDisplay('just a morning')).toBe('just a morning')
   })

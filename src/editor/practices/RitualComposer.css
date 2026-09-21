@@ -546,3 +546,26 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 @media (prefers-reduced-motion: reduce) {
   .ritual-composer, .rc__track, .rc__q, .rc__spine, .rc__page { animation: none; transition: none; }
 }
+
+/* ── The answer, in the real editor ──────────────────────────────────────
+   The desk's answers are written in the app's own editor so `/`, the `+`
+   and formatting work in a ritual. It must look exactly like the page it
+   replaced: no box, the writer's face and size, and room to fill the page. */
+.rc__write--editor {
+  flex: 1;
+  min-height: 10rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  /* The editor's `+` sits in a left gutter; give it room inside the page. */
+  margin-left: -2.2rem;
+  padding-left: 2.2rem;
+}
+.rc__write--editor > * { flex: 1; min-height: 0; }
+.rc__write--editor .cm-editor {
+  height: 100%;
+  background: transparent;
+}
+.rc__write--editor .cm-editor.cm-focused { outline: none; }
+.rc__write--editor .cm-scroller { overflow: visible; }
+.rc__write--editor .cm-content { padding-top: 0; padding-bottom: 2rem; }

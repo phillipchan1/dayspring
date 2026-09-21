@@ -143,6 +143,27 @@ describe('ritualEntryShape', () => {
     expect(shape.kind === 'ritual' && shape.after).toBe('Later.')
   })
 
+  it('keeps every paragraph of the last movement when the block is closed', () => {
+    const doc = [
+      '<!-- ritual:name:The Daily Examen -->',
+      '<!-- ritual:section:Gratitude -->',
+      'Bread.',
+      '<!-- ritual:section:Prayer -->',
+      'Patience.',
+      '',
+      'And a second breath.',
+      '<!-- ritual:end -->',
+      '',
+      'Later.',
+    ].join('\n')
+    const shape = ritualEntryShape(doc)
+    expect(shape.kind === 'ritual' && shape.contents.texts).toEqual([
+      'Bread.',
+      'Patience.\n\nAnd a second breath.',
+    ])
+    expect(shape.kind === 'ritual' && shape.after).toBe('Later.')
+  })
+
   it('tolerates blank lines above the ritual', () => {
     expect(ritualEntryShape(`\n\n${block}`).kind).toBe('ritual')
   })

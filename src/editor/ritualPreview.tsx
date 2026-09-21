@@ -6,7 +6,7 @@ import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
 import { PRACTICES, resolveMovements } from './practices/practicesData'
 import { PracticeLibrary } from './practices/PracticeLibrary'
-import { RitualComposer } from './practices/RitualComposer'
+import { RitualComposer, type AnswerSlot } from './practices/RitualComposer'
 import { PracticeAboutSheet } from './practices/PracticeAboutSheet'
 import { PRACTICE_BY_NAME, type Practice } from './practices/practicesData'
 import { EDITOR_FONT_VARS, type EditorFont } from '@/lib/settings'
@@ -187,6 +187,28 @@ function TouchLog() {
   )
 }
 
+/**
+ * The answer editor, as the journal supplies it — minus the journal's own
+ * panels, which the preview has no journal to host. `/` and `+` still open
+ * the palette; choosing from it logs.
+ */
+function previewAnswer(slot: AnswerSlot) {
+  return (
+    <Editor
+      key={slot.key}
+      ref={(handle) => slot.register(handle)}
+      docKey={`preview-answer-${slot.key}`}
+      initialDoc={slot.value}
+      onChange={slot.onChange}
+      placeholder={slot.placeholder}
+      autofocus={false}
+      titleStyling={false}
+      slashEnabled
+      onSlashCommand={(cmd) => console.log('[preview] slash', cmd)}
+    />
+  )
+}
+
 /** Holds the document the composer reads and writes, the way JournalScreen does. */
 function ComposerHarness({ seedDoc }: { seedDoc: string }) {
   const [doc, setDoc] = useState(seedDoc)
@@ -204,6 +226,7 @@ function ComposerHarness({ seedDoc }: { seedDoc: string }) {
         onAbout={(name) => setAbout(PRACTICE_BY_NAME.get(name) ?? null)}
         onClose={() => {}}
         blocked={about !== null}
+        renderAnswer={previewAnswer}
       />
       {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
       {new URLSearchParams(window.location.search).get('debug') === '1' && (
@@ -264,6 +287,7 @@ function EntryHarness({ initialDoc }: { initialDoc: string }) {
           onAbout={(name) => setAbout(PRACTICE_BY_NAME.get(name) ?? null)}
           onClose={() => setComposerIndex(null)}
           blocked={about !== null}
+        renderAnswer={previewAnswer}
         />
       )}
       {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
@@ -327,6 +351,7 @@ function BlankHarness({ now }: { now?: Date }) {
             setLeft('Left the ritual — back to your journal.')
           }}
           blocked={about !== null}
+        renderAnswer={previewAnswer}
           entry={{
             seed: { name: open.name, labels: open.prompts.map((m) => m.label) },
             backTo: 'your journal',

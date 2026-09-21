@@ -18,7 +18,7 @@
  * where each movement starts, which of them have words in them, and which one
  * the writer is still standing in.
  */
-import { PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
+import { PRACTICE_END_RE, PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
 
 export interface RitualMovement {
   /** Position within the block, 0-based. */
@@ -69,7 +69,7 @@ export function parseRitualBlocks(lines: string[]): RitualBlock[] {
   let current: RitualBlock | null = null
 
   const isToken = (text: string) =>
-    PRACTICE_NAME_RE.test(text) || PRACTICE_SECTION_RE.test(text)
+    PRACTICE_NAME_RE.test(text) || PRACTICE_SECTION_RE.test(text) || PRACTICE_END_RE.test(text)
 
   // Token lines first: a movement needs to know where the next one begins, and
   // whether it is the last of its block, before it can bound its own writing.
@@ -81,6 +81,13 @@ export function parseRitualBlocks(lines: string[]): RitualBlock[] {
   for (let i = 0; i < lines.length; i++) {
     const text = lines[i] ?? ''
     const lineNo = i + 1
+
+    // An end token closes the block it belongs to; it has already been
+    // counted as the block's last line by the movement above it.
+    if (PRACTICE_END_RE.test(text)) {
+      current = null
+      continue
+    }
 
     const name = PRACTICE_NAME_RE.exec(text)
     if (name) {
@@ -100,8 +107,12 @@ export function parseRitualBlocks(lines: string[]): RitualBlock[] {
     const nextToken = tokenLines.find((n) => n > lineNo) ?? lines.length + 1
     // The next token is another movement of this block only when it is a
     // section; a name token starts a new ritual and closes this one.
+    // An end token bounds the last movement the way the next section bounds
+    // any other, so it keeps every paragraph written into it.
+    const endsAtToken = PRACTICE_END_RE.test(lines[nextToken - 1] ?? '')
     const lastOfBlock =
-      nextToken > lines.length || !PRACTICE_SECTION_RE.test(lines[nextToken - 1] ?? '')
+      !endsAtToken &&
+      (nextToken > lines.length || !PRACTICE_SECTION_RE.test(lines[nextToken - 1] ?? ''))
 
     const answerLine = lineNo + 1 <= lines.length ? lineNo + 1 : lineNo
     let contentEnd = answerLine
@@ -128,7 +139,7 @@ export function parseRitualBlocks(lines: string[]): RitualBlock[] {
       contentEnd,
       filled,
     })
-    current.endLine = contentEnd
+    current.endLine = endsAtToken ? nextToken : contentEnd
   }
 
   return blocks

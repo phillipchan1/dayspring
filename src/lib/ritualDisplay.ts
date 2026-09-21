@@ -1,4 +1,4 @@
-import { PRACTICE_SECTION_RE, practiceNameFromLine } from './practiceTokens'
+import { PRACTICE_END_RE, PRACTICE_SECTION_RE, practiceNameFromLine } from './practiceTokens'
 
 /**
  * How a ritual is read back, once it is no longer being prayed.
@@ -28,6 +28,10 @@ export function revealRitualsForDisplay(markdown: string): string {
       // asterisks). Its own paragraph is also what lets the reader tell which
       // answer was clicked (`readerRitual.ts`).
       out.push(`<p class="read-ritual-name">${escapeHtml(name)}</p>`, '')
+      continue
+    }
+    if (PRACTICE_END_RE.test(trimmed)) {
+      pendingLabel = null
       continue
     }
     const section = PRACTICE_SECTION_RE.exec(trimmed)

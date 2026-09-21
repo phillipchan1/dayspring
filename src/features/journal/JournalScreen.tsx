@@ -280,6 +280,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   // Slash command modals
   const editorRef = useRef<EditorHandle>(null)
+  /**
+   * A ritual answer's editor, while the rail has one open.
+   *
+   * A ritual answer is written in the real editor, so `/`, the `+` and
+   * formatting work there too — and the panels those open (scripture, prayer,
+   * images, emoji) insert into whichever editor asked. The entry's own editor
+   * still holds the whole ritual; the rail writes it back there.
+   */
+  const answerEditorRef = useRef<EditorHandle | null>(null)
+  /** The editor the writer is typing in right now. */
+  const inputEditor = () => answerEditorRef.current ?? editorRef.current
 
   // Insert dictated/recovered text at `pos`, padding so it reads as prose rather
   // than running into the previous word.
@@ -502,6 +513,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     if (cmd === 'ritual') {
+      // Already inside a ritual: a ritual inside a ritual is not a thing.
+      if (answerEditorRef.current) return
       // A ritual is a page of its own now, never a block at the caret — so
       // `/ritual` (and the `+` and the phone's toolbar, which reach it through
       // here) opens the library, and beginning decides the page.
@@ -520,7 +533,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * empty and opens the popover.
    */
   function lineHasWords(pos: number): boolean {
-    const doc = editorRef.current?.getDoc()
+    const doc = inputEditor()?.getDoc()
     if (doc === undefined) return false
     const start = doc.lastIndexOf('\n', Math.max(0, pos - 1)) + 1
     const nl = doc.indexOf('\n', pos)
@@ -537,7 +550,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * then let the command read the selection.
    */
   const caretForCommand = useCallback((): number | null => {
-    const ed = editorRef.current
+    const ed = inputEditor()
     if (!ed) return null
     const doc = ed.getDoc()
     let at = doc.length
@@ -553,7 +566,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const runCommandAtCaret = useCallback(
     (cmd: SlashCommandId) => {
       if (caretForCommand() === null) return
-      editorRef.current?.triggerCommand(cmd)
+      inputEditor()?.triggerCommand(cmd)
     },
     [caretForCommand],
   )
@@ -604,7 +617,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    */
   const markLineAs = useCallback((kind: SpiritualItemType) => {
     const id = crypto.randomUUID()
-    const content = editorRef.current?.markLines(kind, id)
+    const content = inputEditor()?.markLines(kind, id)
     if (!content) return
     track('slash_used', { cmd: MARK_KIND[kind].command as SlashCommandId })
     void createSpiritualItem({ id, entry_id: entryIdRef.current, type: kind, content }).catch(() => {
@@ -650,7 +663,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   const closeImageMenu = useCallback(() => {
     setImageMenu((current) => {
-      if (current) requestAnimationFrame(() => editorRef.current?.focusAt(current.target.from))
+      if (current) requestAnimationFrame(() => inputEditor()?.focusAt(current.target.from))
       return null
     })
   }, [])
@@ -675,7 +688,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       const takenAt = takenAtFromFile(file)
       const ownerId = (await supabase.auth.getUser()).data.user?.id
       if (!ownerId) return
-      editorRef.current?.replaceRange(
+      inputEditor()?.replaceRange(
         target.from,
         target.to,
         formatPendingAttachmentMarkdown(pendingId, alt),
@@ -691,14 +704,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         )
         // null → queued offline; the placeholder stays and resolves on reconnect.
         if (ref) {
-          editorRef.current?.replacePendingAttachment(pendingId, ref.hash, ref.ext, alt, target.size)
+          inputEditor()?.replacePendingAttachment(pendingId, ref.hash, ref.ext, alt, target.size)
         }
       } catch (e) {
         // The replacement will never upload. Put the ORIGINAL photo back — this
         // used to remove the placeholder outright, which destroyed a photo that
         // was already safely in storage just because its replacement failed.
         console.warn('[images] replace upload rejected', e)
-        editorRef.current?.replacePendingAttachment(
+        inputEditor()?.replacePendingAttachment(
           pendingId,
           target.hash,
           target.ext,
@@ -712,19 +725,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
   /** Set a photo's rendered size (Small/Medium/Full) — persists in the ref. */
   const handleSetImageSize = useCallback((target: AttachmentEditTarget, size: ImageSize) => {
-    editorRef.current?.replaceRange(
+    inputEditor()?.replaceRange(
       target.from,
       target.to,
       formatAttachmentMarkdown(target.hash, target.ext, target.alt, size),
     )
     setImageMenu(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(target.from))
+    requestAnimationFrame(() => inputEditor()?.focusAt(target.from))
   }, [])
 
   const closeImageEdit = useCallback(() => {
     setImageEdit((current) => {
       if (current) {
-        requestAnimationFrame(() => editorRef.current?.focusAt(current.target.from))
+        requestAnimationFrame(() => inputEditor()?.focusAt(current.target.from))
       }
       return null
     })
@@ -734,15 +747,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const edit = imageEditRef.current
     if (!edit) return
     const { hash, ext, from, to, size } = edit.target
-    editorRef.current?.replaceRange(from, to, formatAttachmentMarkdown(hash, ext, alt, size))
+    inputEditor()?.replaceRange(from, to, formatAttachmentMarkdown(hash, ext, alt, size))
     setImageEdit(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+    requestAnimationFrame(() => inputEditor()?.focusAt(from))
   }, [])
 
   const handleRemoveImage = useCallback((target: AttachmentEditTarget) => {
-    editorRef.current?.replaceRange(target.from, target.to, '')
+    inputEditor()?.replaceRange(target.from, target.to, '')
     setImageMenu(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(target.from))
+    requestAnimationFrame(() => inputEditor()?.focusAt(target.from))
   }, [])
 
   /** Insert at the slash position (or replace an edited block), then refocus. */
@@ -780,10 +793,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         from = live.from
         to = live.to > live.from && liveDoc[live.to - 1] === '\n' ? live.to - 1 : live.to
       }
-      editorRef.current?.replaceRange(from, to, text)
+      inputEditor()?.replaceRange(from, to, text)
       const after = from + text.length
       setSlashCapture(null)
-      requestAnimationFrame(() => editorRef.current?.focusAt(after))
+      requestAnimationFrame(() => inputEditor()?.focusAt(after))
       return
     }
     // Guarantee an editable line below the block: a block is atomic, so if it
@@ -791,10 +804,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // end of the doc) there's nowhere to place the caret to keep writing. Append
     // a newline and drop the caret on the line that follows the block.
     const withTrailingLine = text.endsWith('\n') ? text : `${text}\n`
-    editorRef.current?.insertAt(cap.insertAt, withTrailingLine)
+    inputEditor()?.insertAt(cap.insertAt, withTrailingLine)
     const after = cap.insertAt + withTrailingLine.length
     setSlashCapture(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(after))
+    requestAnimationFrame(() => inputEditor()?.focusAt(after))
   }, [])
 
   /**
@@ -807,10 +820,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const cap = slashCaptureRef.current
     if (!cap) return
     slashCaptureRef.current = null
-    editorRef.current?.insertAt(cap.insertAt, char)
+    inputEditor()?.insertAt(cap.insertAt, char)
     const after = cap.insertAt + char.length
     setSlashCapture(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(after))
+    requestAnimationFrame(() => inputEditor()?.focusAt(after))
   }, [])
 
   // Fetch the domains the first time the library opens, and keep them.
@@ -2529,7 +2542,39 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           }
           onAbout={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
           onClose={closeRitualEntry}
-          blocked={aboutPractice !== null}
+          // Anything open over an answer — a palette, a panel, the About sheet —
+          // owns the keyboard, so Escape closes it rather than the ritual.
+          blocked={
+            aboutPractice !== null ||
+            slashCapture !== null ||
+            slashPaletteOpen ||
+            imageEdit !== null ||
+            imageMenu !== null
+          }
+          renderAnswer={(slot) => (
+            <Editor
+              key={slot.key}
+              ref={(handle) => {
+                answerEditorRef.current = handle
+                slot.register(handle)
+              }}
+              docKey={`ritual-answer-${slot.key}`}
+              initialDoc={slot.value}
+              onChange={slot.onChange}
+              placeholder={slot.placeholder}
+              autofocus={false}
+              titleStyling={false}
+              showMarkdownSyntax={settings.showMarkdownSyntax}
+              slashEnabled
+              commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
+              onSlashCommand={handleSlashCommand}
+              onEditBlock={handleEditBlock}
+              onOpenChapter={handleOpenChapter}
+              onScripturePaste={handleScripturePaste}
+              onImageMenu={handleImageMenu}
+              onSlashPaletteChange={setSlashPaletteOpen}
+            />
+          )}
           entry={{
             ...(ritualEntry.seed ? { seed: ritualEntry.seed } : {}),
             ...(ritualEntry.startAt === undefined ? {} : { startAt: ritualEntry.startAt }),
@@ -2548,7 +2593,39 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           }
           onAbout={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
           onClose={() => setComposerIndex(null)}
-          blocked={aboutPractice !== null}
+          // Anything open over an answer — a palette, a panel, the About sheet —
+          // owns the keyboard, so Escape closes it rather than the ritual.
+          blocked={
+            aboutPractice !== null ||
+            slashCapture !== null ||
+            slashPaletteOpen ||
+            imageEdit !== null ||
+            imageMenu !== null
+          }
+          renderAnswer={(slot) => (
+            <Editor
+              key={slot.key}
+              ref={(handle) => {
+                answerEditorRef.current = handle
+                slot.register(handle)
+              }}
+              docKey={`ritual-answer-${slot.key}`}
+              initialDoc={slot.value}
+              onChange={slot.onChange}
+              placeholder={slot.placeholder}
+              autofocus={false}
+              titleStyling={false}
+              showMarkdownSyntax={settings.showMarkdownSyntax}
+              slashEnabled
+              commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
+              onSlashCommand={handleSlashCommand}
+              onEditBlock={handleEditBlock}
+              onOpenChapter={handleOpenChapter}
+              onScripturePaste={handleScripturePaste}
+              onImageMenu={handleImageMenu}
+              onSlashPaletteChange={setSlashPaletteOpen}
+            />
+          )}
         />
       )}
       {aboutPractice && (
@@ -2595,15 +2672,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             // picker returns, which clears slashCapture before onChange fires).
             setSlashCapture(null)
             const after =
-              editorRef.current?.insertBlockPendingAttachment(capturedInsertAt, pendingId, alt) ??
+              inputEditor()?.insertBlockPendingAttachment(capturedInsertAt, pendingId, alt) ??
               capturedInsertAt
-            requestAnimationFrame(() => editorRef.current?.focusAt(after))
+            requestAnimationFrame(() => inputEditor()?.focusAt(after))
           })(slashCapture.insertAt)}
           onUploadComplete={(pendingId, hash, ext, alt) => {
-            editorRef.current?.replacePendingAttachment(pendingId, hash, ext, alt)
+            inputEditor()?.replacePendingAttachment(pendingId, hash, ext, alt)
           }}
           onUploadFailed={(pendingId) => {
-            editorRef.current?.removePendingAttachment(pendingId)
+            inputEditor()?.removePendingAttachment(pendingId)
           }}
           onClose={closeSlashCapture}
         />
