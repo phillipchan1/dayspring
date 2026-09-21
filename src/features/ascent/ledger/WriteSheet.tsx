@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { LEDGER_COPY } from './copy'
 import { fmtDay } from './Passage'
 import { QUESTIONS, startReflection, type QuestionKey, type Seed } from './write'
@@ -19,6 +21,10 @@ export function WriteSheet({
 }) {
   const [question, setQuestion] = useState<QuestionKey>('now')
   const [busy, setBusy] = useState(false)
+  // On a phone this rises from the bottom edge, so it goes back down the same
+  // way. Esc is the desktop half of the same thing; a phone has no Esc.
+  const isMobile = useIsMobile()
+  const { handlers: dragHandlers, dragY, dragging } = useSheetDismiss({ onDismiss: onClose, enabled: isMobile })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -42,7 +48,13 @@ export function WriteSheet({
   return createPortal(
     <div className="write-sheet" role="dialog" aria-modal="true" aria-label={seed.title}>
       <button type="button" className="write-sheet__scrim" aria-label={LEDGER_COPY.close} onClick={onClose} />
-      <div className="write-sheet__page">
+      <div
+        className="write-sheet__page"
+        data-sheet-scroll
+        data-dragging={dragging ? 'true' : undefined}
+        {...dragHandlers}
+        style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
+      >
         <div className="write-sheet__meta">
           <span>{LEDGER_COPY.newPage}</span>
           <button type="button" onClick={onClose}>
