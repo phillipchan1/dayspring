@@ -2385,10 +2385,11 @@ a {
    because the Mac and the web report 0. On iPadOS the shell draws under a 24pt
    status bar (viewport-fit=cover), and App Review cited text overlapping it
    under Guideline 4.0 on 2026-09-21 (iPad Air 11" M3). The phone layout pads
-   its own header, so this stays out of its way. 0px everywhere else. */
+   its own header, so this stays out of its way. 0px everywhere else.
+   --trial-banner-h is the strip TrialBanner occupies while it is showing. */
 @media (min-width: 768px) {
   .app-shell {
-    padding-top: var(--safe-top);
+    padding-top: calc(var(--safe-top) + var(--trial-banner-h, 0px));
   }
 }
 

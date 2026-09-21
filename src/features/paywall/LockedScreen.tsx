@@ -237,8 +237,15 @@ export function LockedScreen({
 
   const busy = loading !== null
   const manageTap = useTapAction(() => void handleManage(), !busy)
-  const annualTap = useTapAction(() => void handleResubscribe('annual'), !busy)
-  const monthlyTap = useTapAction(() => void handleResubscribe('monthly'), !busy)
+  // No billed amount, no purchase — see PaywallScreen.
+  const annualTap = useTapAction(
+    () => void handleResubscribe('annual'),
+    !busy && annualPrice !== null,
+  )
+  const monthlyTap = useTapAction(
+    () => void handleResubscribe('monthly'),
+    !busy && monthlyPrice !== null,
+  )
   const restoreTap = useTapAction(() => void handleRestore(), !busy)
 
   // ── Past-due: simpler "fix your card" screen ──────────────────────────────
@@ -327,7 +334,7 @@ export function LockedScreen({
           <button
             type="button"
             className="btn locked-plan"
-            aria-disabled={busy}
+            aria-disabled={busy || annualPrice === null}
             aria-busy={loading === 'annual'}
             aria-label={annualPrice ? `Subscribe yearly — ${annualPrice} per year` : undefined}
             {...annualTap}
@@ -343,7 +350,7 @@ export function LockedScreen({
           <button
             type="button"
             className="btn btn--ghost locked-plan"
-            aria-disabled={busy}
+            aria-disabled={busy || monthlyPrice === null}
             aria-busy={loading === 'monthly'}
             aria-label={monthlyPrice ? `Subscribe monthly — ${monthlyPrice} per month` : undefined}
             {...monthlyTap}

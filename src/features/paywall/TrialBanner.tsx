@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { startCheckout, trialDaysRemaining } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
 import { openExternal } from '@/lib/openExternal'
-import { isAppleIapAvailable, purchaseApple } from '@/lib/appleIap'
+import { fetchAppleProducts, isAppleIapAvailable, purchaseApple } from '@/lib/appleIap'
+import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { useTapAction } from '@/lib/tapAction'
 import { track } from '@/lib/analytics'
+import { displayPrice } from './prices'
 import './Paywall.css'
 
 interface Props {
@@ -25,15 +27,47 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   const [loading, setLoading] = useState(false)
   const days = trialDaysRemaining(subscription)
 
+  const useApple = isAppleIapAvailable()
+  const [products, setProducts] = useState<Product[]>([])
+
   useEffect(() => {
     track('paywall_seen', { surface: 'trial_banner' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!useApple) return
+    let alive = true
+    fetchAppleProducts().then(
+      (list) => alive && setProducts(list),
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [useApple])
+
+  // The banner takes real space in the wide layout rather than floating over
+  // the journal's top bar — App Review (4.0, 2026-09-21) saw it collide with
+  // the date and word count on iPad. The attribute lets the shell make room.
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.trialBanner = ''
+    return () => {
+      delete root.dataset.trialBanner
+    }
+  }, [])
+
+  // Subscribe here buys the ANNUAL plan in one tap, so the amount it bills must
+  // stand beside it — a price-less Subscribe is what Guideline 3.1.2(c) cited
+  // on 2026-09-21. Until StoreKit answers there is no honest figure to show,
+  // so there is no button either.
+  const annualPrice = displayPrice('annual', { useApple, products })
+
   async function handleSubscribe() {
     setLoading(true)
     try {
-      if (isAppleIapAvailable()) {
+      if (useApple) {
         const { outcome } = await purchaseApple('annual')
         // A double-billing warning is deliberately not surfaced here: the banner
         // has no room for it, and this path is unreachable for a Stripe
@@ -62,15 +96,24 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
       <span>
         <span className="trial-banner__days">{daysLabel} left</span> {periodLabel}
       </span>
-      <button
-        type="button"
-        className="trial-banner__action"
-        aria-disabled={loading}
-        aria-busy={loading}
-        {...subscribeTap}
-      >
-        {loading ? 'Loading…' : 'Subscribe'}
-      </button>
+      {annualPrice && (
+        <>
+          <span className="trial-banner__price">
+            {annualPrice}
+            <span className="trial-banner__cadence"> / year</span>
+          </span>
+          <button
+            type="button"
+            className="trial-banner__action"
+            aria-disabled={loading}
+            aria-busy={loading}
+            aria-label={`Subscribe yearly — ${annualPrice} per year`}
+            {...subscribeTap}
+          >
+            {loading ? 'Loading…' : 'Subscribe'}
+          </button>
+        </>
+      )}
       <button
         className="trial-banner__dismiss"
         aria-label="Dismiss"

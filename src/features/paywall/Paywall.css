@@ -1169,3 +1169,57 @@
 .locked-holding__num {
   font-size: clamp(1.3rem, 4vw, 1.5rem);
 }
+
+/* ── Trial banner placement + price ──────────────────────────────────────────
+   App Review 4.0, 2026-09-21 (iPad Air 11"): the floating pill sat on top of
+   the journal's top bar — date, word count, focus — right under the status
+   bar. A floating pill has no place at the top of a layout whose top edge is
+   already chrome, so:
+     • wide layout: a full-width strip directly under the status bar, and the
+       shell moves down by its height (global.css reads --trial-banner-h);
+     • phone: the pill floats above the tab bar, well away from both the
+       status bar and the header. */
+html[data-trial-banner] {
+  --trial-banner-h: 2.9rem;
+}
+
+@media (min-width: 768px) {
+  .trial-banner {
+    top: var(--safe-top);
+    left: 0;
+    right: 0;
+    transform: none;
+    height: var(--trial-banner-h);
+    max-width: none;
+    justify-content: center;
+    padding: 0 1rem;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .trial-banner {
+    top: auto;
+    bottom: calc(var(--mobile-chrome-h) + 0.5rem);
+  }
+}
+
+/* 3.1.2(c): the billed amount is the most conspicuous thing in the banner —
+   larger and brighter than the days-left line and the Subscribe label. */
+.trial-banner__price {
+  font-family: var(--font-display, var(--font-serif));
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.trial-banner__cadence {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: 0;
+}

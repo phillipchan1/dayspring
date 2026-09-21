@@ -98,8 +98,13 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
   // pricing is .99-tiered ($7.99, not $7) and localised per storefront.
   const annualPrice = displayPrice('annual', { useApple, products })
   const monthlyPrice = displayPrice('monthly', { useApple, products })
-  const annualTap = useTapAction(() => void handleSelect('annual'), !busy)
-  const monthlyTap = useTapAction(() => void handleSelect('monthly'), !busy)
+  // No billed amount, no purchase: until StoreKit answers, a tile would be a
+  // price-less buy button, which Guideline 3.1.2(c) does not allow.
+  const annualTap = useTapAction(() => void handleSelect('annual'), !busy && annualPrice !== null)
+  const monthlyTap = useTapAction(
+    () => void handleSelect('monthly'),
+    !busy && monthlyPrice !== null,
+  )
   const restoreTap = useTapAction(() => void handleRestore(), !busy)
 
   return (
@@ -124,7 +129,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           <button
             type="button"
             className="paywall__plan"
-            aria-disabled={busy}
+            aria-disabled={busy || annualPrice === null}
             aria-busy={loading === 'annual'}
             {...annualTap}
             aria-label={`Start annual plan${annualPrice ? ` — ${annualPrice} per year` : ''}`}
@@ -136,7 +141,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           <button
             type="button"
             className="paywall__plan"
-            aria-disabled={busy}
+            aria-disabled={busy || monthlyPrice === null}
             aria-busy={loading === 'monthly'}
             {...monthlyTap}
             aria-label={`Start monthly plan${monthlyPrice ? ` — ${monthlyPrice} per month` : ''}`}
