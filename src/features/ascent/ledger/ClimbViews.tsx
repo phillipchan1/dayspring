@@ -10,6 +10,8 @@ import { fmtDay, Passage } from './Passage'
 import { previousSeason, recentSeasons, seasonOf, type Season } from './seasons'
 import { SpanPhotos } from './SpanPhotos'
 import { WriteSheet } from './WriteSheet'
+import { NameIt, usePeriodName } from './NameIt'
+import { ThreadAcross } from './ThreadAcross'
 import type { Seed } from './write'
 import './Ledger.css'
 
@@ -100,6 +102,8 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
   const [ledger, setLedger] = useState<RangeLedger | null>(null)
   const [seed, setSeed] = useState<Seed | null>(null)
   const extras = useExtras(`${ym}-01`, end)
+  const [given, setGiven] = usePeriodName(`month:${ym}`)
+  const [across, setAcross] = useState<LedgerThread | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -116,7 +120,7 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
   function writeMonth() {
     if (!ledger) return
     setSeed({
-      title: monthLabel(ym),
+      title: given ? `${monthLabel(ym)} · ${given}` : monthLabel(ym),
       groups: ledger.threads.map((t) => ({ label: t.label, lines: t.lines.slice(-3).map((l) => ({ date: l.date, text: l.text })) })),
     })
   }
@@ -131,7 +135,9 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
         ))}
         {open ? <span className="climb__live">{LEDGER_COPY.stillBeingWrittenShort}</span> : null}
       </nav>
-      <h2 className="climb__title">{monthLabel(ym)}</h2>
+      <h2 className="climb__title">
+        {monthLabel(ym)} <NameIt key={ym} name={given} onName={setGiven} />
+      </h2>
 
       <section className="climb__mod">
         <span className="ascent-dim__eyebrow">{LEDGER_COPY.alive}</span>
@@ -144,7 +150,9 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
             {ledger.threads.map((t) => (
               <div key={t.id} className="alive__row">
                 <div>
-                  <div className="alive__name">{t.label}</div>
+                  <button type="button" className="story__name-btn alive__name" onClick={() => setAcross(t)} title={LEDGER_COPY.wholeThread}>
+                    {t.label}
+                  </button>
                   <div className="alive__kind">{LEDGER_COPY.kind[t.kind]}</div>
                 </div>
                 <div className="alive__lines">
@@ -178,6 +186,7 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
         />
       ) : null}
       {seed ? <WriteSheet seed={seed} onClose={() => setSeed(null)} onOpenEntry={onOpenEntry} /> : null}
+      {across ? <ThreadAcross thread={across} onClose={() => setAcross(null)} onOpenEntry={onOpenEntry} /> : null}
     </div>
   )
 }
@@ -239,6 +248,7 @@ export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
   const [view, setView] = useState<SeasonView | null>(null)
   const [seed, setSeed] = useState<Seed | null>(null)
   const extras = useExtras(season.from, season.to)
+  const [given, setGiven] = usePeriodName(`season:${season.key}`)
 
   useEffect(() => {
     let alive = true
@@ -257,7 +267,7 @@ export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
     if (!view) return
     const items = [...view.moved.began, ...view.moved.cameBack, ...view.moved.carried]
     setSeed({
-      title: season.label,
+      title: given ? `${season.label} · ${given}` : season.label,
       groups: items
         .filter((it) => it.line)
         .map((it) => ({ label: it.thread.label, lines: [{ date: it.line!.date, text: it.line!.text }] })),
@@ -275,7 +285,9 @@ export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
         ))}
         <span className="climb__hemi">{LEDGER_COPY.hemisphere}</span>
       </nav>
-      <h2 className="climb__title">{season.label}</h2>
+      <h2 className="climb__title">
+        {season.label} <NameIt key={season.key} name={given} onName={setGiven} />
+      </h2>
       <p className="climb__sub">
         {season.months}
         {open ? ` · ${LEDGER_COPY.stillBeingWrittenShort}` : ''}

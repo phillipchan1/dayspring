@@ -61,6 +61,7 @@ export const LEDGER_COPY = {
   openPage: 'open page →',
   stillBeingWritten: (day: string) => `…still being written. Last on ${day}.`,
   writeAbout: 'Write about this →',
+  wholeThread: 'the whole thread, across your volumes →',
   writeHint: 'a new page, with these lines above it',
 
   // ── the write sheet ────────────────────────────────────────────────────

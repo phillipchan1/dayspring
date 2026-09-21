@@ -67,6 +67,8 @@ interface Props {
   open: boolean
   onOpenEntry?: ((entryId: string) => void) | undefined
   onWrite: (thread: LedgerThread, lines: LedgerLine[]) => void
+  /** Open the thread's whole life, across volumes. */
+  onWhole?: ((thread: LedgerThread) => void) | undefined
 }
 
 /**
@@ -74,7 +76,7 @@ interface Props {
  * with the quiet stretches left as white space. No dots, no counts, no
  * "turned", no "answered": dates, their words, and the markings they made.
  */
-export function Passage({ thread, months, today, open, onOpenEntry, onWrite }: Props) {
+export function Passage({ thread, months, today, open, onOpenEntry, onWrite, onWhole }: Props) {
   const items = passageItems(thread, months)
   const status = threadStatus(thread, today)
   const first = thread.lines[0]?.date
@@ -96,6 +98,13 @@ export function Passage({ thread, months, today, open, onOpenEntry, onWrite }: P
           <i aria-hidden />
           {going ? LEDGER_COPY.stillGoing : status.last ? LEDGER_COPY.lastWritten(monthName(status.last.slice(0, 7))) : ''}
         </div>
+        {onWhole ? (
+          <div>
+            <button type="button" className="story__whole" onClick={() => onWhole(thread)}>
+              {LEDGER_COPY.wholeThread}
+            </button>
+          </div>
+        ) : null}
       </header>
       <div className="story__body">
         <ol className="story__lines">

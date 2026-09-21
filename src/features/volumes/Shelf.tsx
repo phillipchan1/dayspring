@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { Entry } from '@/lib/types'
 import { photosIn, type SpanPhoto } from '@/features/ascent/ledger/extras'
-import { CoverArt } from './Cover'
+import { CoverArt, CoverStyle } from './Cover'
 import { volumeTitle, type Volume } from './volumes'
 import './Volumes.css'
 
@@ -56,6 +56,7 @@ export function Shelf({
 
   return (
     <div className={`vol-shelf${ribboned ? ' is-looking' : ''}`}>
+      <div className="vol-shelf__top">
       <p className="vol-shelf__note">
         {ribboned
           ? ribboned.size > 0
@@ -63,6 +64,8 @@ export function Shelf({
             : 'None of your volumes carry it.'
           : 'Every volume you’ve filled. Each closed when it was full, the way a notebook does.'}
       </p>
+      <CoverStyle />
+      </div>
       <div className="vol-shelf__grid">
         {volumes
           .slice()

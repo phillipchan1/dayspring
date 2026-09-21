@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { resolveAttachmentDisplayUrl } from '@/lib/attachments'
 import { supabase } from '@/lib/supabase'
+import { useSettings } from '@/hooks/useSettings'
 import type { SpanPhoto } from '@/features/ascent/ledger/extras'
 import { volumeColour, type Volume } from './volumes'
 
@@ -31,9 +32,10 @@ function Pattern({ v }: { v: Pick<Volume, 'n'> }) {
  * notebook, not an old encyclopedia spine.
  */
 export function CoverArt({ volume, photo }: { volume: Pick<Volume, 'n'>; photo: SpanPhoto | null }) {
+  const style = useSettings().settings.volumeStyle ?? 'covers'
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
-    if (!photo) return
+    if (!photo || style !== 'covers') return
     let alive = true
     void owner().then((id) => {
       if (!id || !supabase) return null
@@ -44,11 +46,44 @@ export function CoverArt({ volume, photo }: { volume: Pick<Volume, 'n'>; photo: 
     return () => {
       alive = false
     }
-  }, [photo])
+  }, [photo, style])
+  if (style === 'flat') {
+    // A plain notebook: matte colour and the elastic band. Nothing printed.
+    return <span className="vol-art is-flat" style={{ background: volumeColour(volume) }} />
+  }
+  if (style === 'classic') {
+    // Cloth and gilt — the encyclopedia, for those who want it.
+    return (
+      <span className="vol-art is-classic" style={{ background: volumeColour(volume) }}>
+        <span className="vol-art__band" style={{ top: '14%' }} />
+        <span className="vol-art__band" style={{ bottom: '10%' }} />
+      </span>
+    )
+  }
   return (
     <span className="vol-art">
       <Pattern v={volume} />
       {url ? <img src={url} alt="" loading="lazy" /> : null}
     </span>
+  )
+}
+
+/** The choice of how volumes look — on the shelf, and everywhere a volume appears. */
+export function CoverStyle() {
+  const { settings, update } = useSettings()
+  const current = settings.volumeStyle ?? 'covers'
+  const options: [NonNullable<typeof settings.volumeStyle>, string][] = [
+    ['covers', 'Covers'],
+    ['flat', 'Flat'],
+    ['classic', 'Classic'],
+  ]
+  return (
+    <div className="vol-style" role="radiogroup" aria-label="How your volumes look">
+      {options.map(([k, label]) => (
+        <button key={k} type="button" role="radio" aria-checked={current === k} onClick={() => update({ volumeStyle: k })}>
+          {label}
+        </button>
+      ))}
+    </div>
   )
 }

@@ -239,8 +239,20 @@ export function PagesView({
     if (Object.keys(patch).length > 0) updateSettings(patch)
   }, [volumesOn, ready, closings, settings.volumeClosings, settings.volumeSeen, entries.length, updateSettings])
   const [openVolume, setOpenVolume] = useState<number | null>(null)
+  // The shelf is the furthest zoom on a pointer, and a button everywhere — a
+  // phone has no zoom, and the far end of a slider is a place nobody finds.
+  const [shelfPinned, setShelfPinned] = useState(false)
   const SHELF_ZOOM = 0.05
-  const onShelf = volumesOn && !narrow && zoom < SHELF_ZOOM
+  const onShelf = volumesOn && volumes.length > 0 && (shelfPinned || (!narrow && zoom < SHELF_ZOOM))
+  const toggleShelf = () => {
+    if (onShelf) {
+      setShelfPinned(false)
+      setOpenVolume(null)
+      if (zoom < SHELF_ZOOM) setZoom(PAGES_ZOOM_DEFAULT)
+    } else {
+      setShelfPinned(true)
+    }
+  }
   const closingVolume =
     volumesOn && settings.volumeSeen !== undefined && closedCount > settings.volumeSeen
       ? volumes.filter((v) => v.closed)[closedCount - 1]
@@ -263,6 +275,7 @@ export function PagesView({
   const volumeByLast = useMemo(() => new Map(volumes.map((v) => [v.lastId, v.n])), [volumes])
   const walkVolume = (v: Volume) => {
     setOpenVolume(null)
+    setShelfPinned(false)
     setReading('order')
     if (zoom < SHELF_ZOOM) setZoom(PAGES_ZOOM_DEFAULT)
     const d = new Date(`${v.from}T12:00:00Z`)
@@ -1032,6 +1045,7 @@ export function PagesView({
               onZoom={setZoom}
               narrow={narrow}
               standLabel={onShelf ? 'the shelf' : densityLabel(perScreen)}
+              shelf={volumesOn && volumes.length > 0 ? { on: onShelf || openVolume !== null, onToggle: toggleShelf } : undefined}
               reading={reading}
               onReading={setReading}
               chips={chips}

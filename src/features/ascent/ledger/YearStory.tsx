@@ -6,6 +6,7 @@ import type { SpanExtras } from './load'
 import { Passage } from './Passage'
 import { SpanPhotoTile } from './SpanPhotos'
 import { WriteSheet } from './WriteSheet'
+import { ThreadAcross } from './ThreadAcross'
 import { threadSeed, todayIso } from './ClimbViews'
 import type { Seed } from './write'
 import './Ledger.css'
@@ -32,6 +33,7 @@ export function YearStory({
 }) {
   const [all, setAll] = useState(false)
   const [seed, setSeed] = useState<Seed | null>(null)
+  const [across, setAcross] = useState<LedgerThread | null>(null)
   const today = todayIso()
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => `${ledger.year}-${String(i + 1).padStart(2, '0')}`), [ledger.year])
   const nowIx = open ? ledger.throughMonth - 1 : 12
@@ -91,6 +93,7 @@ export function YearStory({
             open={open}
             onOpenEntry={onOpenEntry}
             onWrite={(th, lines) => setSeed(threadSeed(th, lines))}
+            onWhole={setAcross}
           />
         ))}
         {ledger.threads.length > SHOWN && !all ? (
@@ -126,6 +129,7 @@ export function YearStory({
       </section>
 
       {seed ? <WriteSheet seed={seed} onClose={() => setSeed(null)} onOpenEntry={onOpenEntry} /> : null}
+      {across ? <ThreadAcross thread={across} onClose={() => setAcross(null)} onOpenEntry={onOpenEntry} /> : null}
     </div>
   )
 }

@@ -23,6 +23,7 @@ import {
   type EncounterInput,
   type LedgerInput,
   type LedgerOptions,
+  type LedgerThread,
   type MatterInput,
   type RangeLedger,
   type RefInput,
@@ -212,6 +213,25 @@ onCacheCleared(() => {
 function loadEntries(): Promise<Entry[]> {
   entriesPromise ??= listEntries()
   return entriesPromise
+}
+
+/** The whole archive, as the ledger reads it (shared cache). */
+export function loadArchive(): Promise<Entry[]> {
+  return loadEntries()
+}
+
+/**
+ * One thread's whole life — every line it has, across the archive. Built over
+ * the full span with nothing cut, then the one thread picked out. Null when
+ * the thread only exists at a narrower grain (a name that ranks for one year
+ * but not across fifteen) — the caller falls back to the lines it has.
+ */
+export async function loadThreadAcross(threadId: string): Promise<LedgerThread | null> {
+  const entries = await loadEntries()
+  if (entries.length === 0) return null
+  const first = entries.reduce((a, e) => (e.created_at < a ? e.created_at : a), entries[0]!.created_at).slice(0, 10)
+  const ledger = await loadRangeLedger(first, today(), { keep: Infinity, minMentions: 1 })
+  return ledger.threads.find((t) => t.id === threadId) ?? null
 }
 
 // ── dev harness (?__preview=ledger) ─────────────────────────────────────────

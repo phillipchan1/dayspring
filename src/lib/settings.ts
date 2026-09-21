@@ -183,6 +183,14 @@ export interface Settings {
   volumeNames?: Record<string, string>
   /** How many closed volumes the writer has been shown closing. Undefined = never counted. */
   volumeSeen?: number
+  /**
+   * Names the writer gave a month or a season on the Ascent — "month:2026-06",
+   * "season:fall-2026". The app only ever names by the calendar; these are the
+   * writer's, shown beside the calendar name, never instead of it.
+   */
+  periodNames?: Record<string, string>
+  /** How volumes look on the shelf: covers facing out (default), flat notebooks, or classic spines. */
+  volumeStyle?: 'covers' | 'flat' | 'classic'
 }
 
 const DEFAULTS: Settings = {

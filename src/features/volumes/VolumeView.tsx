@@ -8,6 +8,7 @@ import { loadRangeLedger, loadSpanExtras } from '@/features/ascent/ledger/load'
 import { fmtDay } from '@/features/ascent/ledger/Passage'
 import { SpanPhotos } from '@/features/ascent/ledger/SpanPhotos'
 import { WriteSheet } from '@/features/ascent/ledger/WriteSheet'
+import { ThreadAcross } from '@/features/ascent/ledger/ThreadAcross'
 import type { Seed } from '@/features/ascent/ledger/write'
 import { CoverArt } from './Cover'
 import { coverPhotos, fmtVolumeRange } from './Shelf'
@@ -70,6 +71,7 @@ export function VolumeView({
   const [extras, setExtras] = useState<SpanExtras | null>(null)
   const [seed, setSeed] = useState<Seed | null>(null)
   const [naming, setNaming] = useState(false)
+  const [across, setAcross] = useState<LedgerThread | null>(null)
   const title = volumeTitle(volume, names)
 
   useEffect(() => {
@@ -220,7 +222,9 @@ export function VolumeView({
               const l = t.lines[t.lines.length - 1]
               return (
                 <div key={t.id} className="vol-ran__row">
-                  <span className="vol-ran__name">{t.label}</span>
+                  <button type="button" className="vol-ran__name" onClick={() => setAcross(t)} title="The whole thread, across your volumes">
+                    {t.label}
+                  </button>
                   {l ? (
                     <button type="button" className="vol-ran__line" onClick={() => onOpenPage(l.entryId)}>
                       “{l.text}”<small>{fmtDay(l.date)}</small>
@@ -249,6 +253,7 @@ export function VolumeView({
       </section>
 
       {seed ? <WriteSheet seed={seed} onClose={() => setSeed(null)} onOpenEntry={onOpenEntry} /> : null}
+      {across ? <ThreadAcross thread={across} onClose={() => setAcross(null)} onOpenEntry={onOpenPage} /> : null}
     </div>
   )
 }

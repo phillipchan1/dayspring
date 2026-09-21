@@ -5453,3 +5453,21 @@ button.pg__sense-q:hover {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* VOLUMES (alpha): the way onto the shelf */
+.pg-volumes {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-family: var(--font-sans, system-ui);
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pg-volumes:hover { color: var(--text-bright); border-color: var(--accent); }
+.pg-volumes[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
