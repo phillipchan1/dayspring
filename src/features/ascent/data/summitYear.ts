@@ -19,6 +19,7 @@ import { isCapturePreview } from '@/lib/previewMode'
 import { loadScripture } from './scripture'
 import { yearProgress, yearStones } from './stones'
 import type { SummitView } from './types'
+import { withCheckedRefrain } from './refrainCheck'
 import { yearLongLook, yearWords } from './words'
 
 /** The calendar window of a whole year, in the shared calendar's terms. */
@@ -75,7 +76,7 @@ export async function loadSummitYear(year: number, now: Date = new Date()): Prom
     loadScripture('year', window).catch(() => null),
   ])
 
-  const words = yearWords(rollup, year)
+  const words = await withCheckedRefrain(yearWords(rollup, year))
   const view: SummitView = {
     resolution: 'year',
     words,

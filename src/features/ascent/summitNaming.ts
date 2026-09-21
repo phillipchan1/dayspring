@@ -10,10 +10,14 @@
  *
  * Deliberately no new column and no new table. The naming is a page in the
  * journal, findable in Pages, editable in the editor, searchable, exportable;
- * the only thing that marks it is an HTML comment, the same convention the
- * ritual and practice surfaces already use (`src/lib/practiceTokens.ts`). A
- * marker in the body means a writer who deletes the line still owns the page,
- * and an account that never opens the Summit again loses nothing.
+ * what marks it is its own heading — "What He taught me in 2026" — which the
+ * writer can read.
+ *
+ * It used to be an HTML comment (`<!-- summit:year:2026 -->`) on the first
+ * line, the convention rituals use. The editor only knows how to hide RITUAL
+ * tokens, so this one rendered as a raw comment set as the page's title. Pages
+ * written that way are still found (and the line is skipped in titles and
+ * previews); new pages don't write it.
  */
 
 import { createEntry } from '@/lib/entries'
@@ -39,6 +43,11 @@ interface NamingRow {
   body_markdown: string
 }
 
+/** The heading a naming page opens with — and how the Summit finds it. */
+export function namingHeadingLine(year: number): string {
+  return `## ${SUMMIT_COPY.namingHeading(year)}`
+}
+
 /** Everything but the writer's own prose: the marker, the question we seeded,
  *  and any leading blank lines left behind by stripping them. */
 function namingText(body: string, year: number): string {
@@ -62,14 +71,24 @@ function namingText(body: string, year: number): string {
  */
 export async function loadNaming(year: number): Promise<YearNaming | null> {
   const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('entries')
-    .select('id, created_at, body_markdown')
-    .like('body_markdown', `%${namingMarker(year)}%`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-  if (error) throw error
-  const row = (data ?? [])[0] as NamingRow | undefined
+  // Two plain LIKEs rather than one `.or()`: the patterns carry spaces, colons
+  // and `<!--`, which PostgREST's or-syntax would need quoting for.
+  const find = (pattern: string) =>
+    sb
+      .from('entries')
+      .select('id, created_at, body_markdown')
+      .like('body_markdown', pattern)
+      .order('created_at', { ascending: false })
+      .limit(1)
+  const [byHeading, byMarker] = await Promise.all([
+    find(`${namingHeadingLine(year)}%`),
+    find(`%${namingMarker(year)}%`),
+  ])
+  if (byHeading.error) throw byHeading.error
+  if (byMarker.error) throw byMarker.error
+  const row = [...((byHeading.data ?? []) as NamingRow[]), ...((byMarker.data ?? []) as NamingRow[])].sort((x, y) =>
+    y.created_at.localeCompare(x.created_at),
+  )[0]
   if (!row) return null
   return {
     entryId: row.id,
@@ -92,7 +111,7 @@ export async function loadNaming(year: number): Promise<YearNaming | null> {
  * a pre-allocated row id is the only safe way to hand the editor a new page.
  */
 export async function startNaming(year: number): Promise<string> {
-  const body = `${namingMarker(year)}\n## ${SUMMIT_COPY.namingHeading(year)}\n\n`
+  const body = `${namingHeadingLine(year)}\n\n`
   const entry = await createEntry({ body_markdown: body })
   return entry.id
 }

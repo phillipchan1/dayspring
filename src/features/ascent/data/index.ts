@@ -16,6 +16,7 @@ import { prewarmScripture } from '@/lib/scripture/query'
 import { confirmScriptureRef, loadScripture, loadVerseDrill, type Windows, type VerseDrill } from './scripture'
 import { yearProgress, yearStones } from './stones'
 import type { AltitudeData, AscentData, Resolution, ScriptureData, SummitView } from './types'
+import { withCheckedRefrain } from './refrainCheck'
 import { loadWeekWords, monthWords, quarterWords, yearLongLook, yearWords } from './words'
 
 export type { Windows, VerseDrill }
@@ -135,7 +136,7 @@ async function loadAscentOnce(opts?: { fresh?: boolean }): Promise<LoadedAscent>
 
   const monWords = monthWords(monthly[0])
   const quaWords = quarterWords(monthly)
-  const yeaWords = yearWords(yearly, yearNum)
+  const yeaWords = await withCheckedRefrain(yearWords(yearly, yearNum))
 
   // Prayer/learning/stones are retired (the converged Ascent reads the rope engine
   // for its content); only the real Words + Scripture dimensions feed the seam now.

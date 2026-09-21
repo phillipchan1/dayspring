@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Subject } from '@/features/pages/subjects'
-import { buildYearLedger, clip, isMarkedEntry, type LedgerInput } from './build'
+import { buildYearLedger, clip, displayLabel, isMarkedEntry, type LedgerInput } from './build'
 import { presence, score, DEFAULT_WEIGHTS } from './score'
 
 let n = 0
@@ -129,10 +129,15 @@ describe('helpers', () => {
     const long = `${'Filler words here. '.repeat(20)}Dad is home. ${'More filler. '.repeat(10)}`
     expect(clip(long, /dad/gi)).toBe('Dad is home.')
   })
-  it('knows an entry the writer set apart', () => {
-    expect(isMarkedEntry('## Grandma', 50, 100)).toBe(true)
-    expect(isMarkedEntry('a ==kept line== here', 50, 100)).toBe(true)
-    expect(isMarkedEntry('plain', 50, 100)).toBe(false)
-    expect(isMarkedEntry('plain', 400, 100)).toBe(true)
+  it('knows an entry the writer set apart — on purpose, not by filing or length', () => {
+    expect(isMarkedEntry('a ==kept line== here')).toBe(true)
+    expect(isMarkedEntry('an ++underlined++ line')).toBe(true)
+    expect(isMarkedEntry('## Work\nfiled under a heading')).toBe(false)
+    expect(isMarkedEntry('plain '.repeat(900))).toBe(false)
+  })
+  it('capitalises an Altar label, leaves names and acronyms alone', () => {
+    expect(displayLabel('trading')).toBe('Trading')
+    expect(displayLabel('SCE')).toBe('SCE')
+    expect(displayLabel('Dennis')).toBe('Dennis')
   })
 })

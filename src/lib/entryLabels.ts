@@ -44,6 +44,9 @@ export function entryContentLines(markdown: string | null | undefined): string[]
     const trimmed = raw.trim()
     if (!trimmed) continue
     if (isPracticeTokenLine(trimmed)) continue
+    // The Summit's old year-naming marker (`<!-- summit:year:2026 -->`) — never
+    // prose, and never a title. New naming pages don't write it.
+    if (/^<!-- summit:year:\d{4} -->$/.test(trimmed)) continue
     // Defensive: stripSpiritualBlocks removes well-formed fences, but skip any
     // stray opener (e.g. an unclosed block) so the `dayspring-*` token can't leak.
     if (isSpiritualFenceLine(trimmed)) continue

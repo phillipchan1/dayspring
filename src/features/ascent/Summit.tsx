@@ -10,7 +10,9 @@ import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { loadYearLedger } from './ledger/load'
 import { YearThreads } from './ledger/YearThreads'
-import type { LedgerStone, YearLedger } from './ledger/build'
+import type { YearLedger } from './ledger/build'
+import { positionInYear } from './data/stones'
+import { fmtDay } from './data/words'
 
 interface Props {
   /** The whole Summit: the refrain, the stones, the long look, the year. */
@@ -200,20 +202,40 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   }
 
   if (ledgerView || ledgerReading) {
-    // Ledger mode. The refrain leads (the writer's own line, set large), then the
-    // year's threads with its stones; the rest of the Summit follows unchanged.
-    const ledgerStones: LedgerStone[] =
+    // Ledger mode. The mountain stays — it is the Summit — and the stones on
+    // its trail come from answered Altar prayers when the ledger found any,
+    // else from the yearly rollup. Below it: the refrain (checked against its
+    // page), then the year's threads, then the rest of the Summit unchanged.
+    const trailStones: SummitStone[] =
       ledgerView && ledgerView.stones.length > 0
-        ? ledgerView.stones
-        : stones.map((s) => ({
-            id: s.id,
-            threadId: '',
-            ask: { entryId: s.ask.entryId, date: s.ask.date, text: s.ask.text },
-            later: { entryId: s.later.entryId, date: s.later.date, text: s.later.text },
+        ? ledgerView.stones.map((st) => ({
+            id: st.id,
+            ask: { ...st.ask, dateLabel: fmtDay(st.ask.date) },
+            later: { ...st.later, dateLabel: fmtDay(st.later.date) },
+            position: positionInYear(st.later.date, year),
           }))
+        : stones
+    const trailStone = trailStones.find((st) => st.id === openStone) ?? null
     return (
       <div className="ascent-summit">
         <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
+
+        <SummitTrail
+          year={year}
+          progress={progress}
+          stones={trailStones}
+          selectedId={openStone}
+          onSelect={setOpenStone}
+        />
+
+        <p className="ascent-summit__look">
+          {isOpenYear ? SUMMIT_COPY.lookingBack : SUMMIT_COPY.lookingBackSealed(year)}
+        </p>
+
+        {trailStone ? (
+          <StonePair stone={trailStone} onOpenEntry={onOpenEntry} onClose={() => setOpenStone(null)} />
+        ) : null}
+
         <div className="ascent-stack ascent-stack--summit">
           {refrain ? (
             <section className="ascent-dim ascent-dim--words is-year">
@@ -225,8 +247,15 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
             </section>
           ) : null}
 
+          {trailStones.length > 0 && !trailStone ? (
+            <section className="ascent-dim">
+              <span className="ascent-dim__eyebrow">{SUMMIT_COPY.stonesEyebrow}</span>
+              <p className="ascent-dim__note">{SUMMIT_COPY.stonesHint}</p>
+            </section>
+          ) : null}
+
           {ledgerView ? (
-            <YearThreads key={shownYear} ledger={{ ...ledgerView, stones: ledgerStones }} onOpenEntry={onOpenEntry} />
+            <YearThreads key={shownYear} ledger={{ ...ledgerView, stones: [] }} onOpenEntry={onOpenEntry} />
           ) : (
             <p className="ascent-dim__note">{SUMMIT_COPY.sealedReading(shownYear)}</p>
           )}

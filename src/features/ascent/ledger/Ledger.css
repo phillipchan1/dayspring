@@ -416,7 +416,15 @@
 .ledger-walk__line:hover {
   background: rgba(var(--ascent-glow-rgb), 0.07);
 }
-.ledger-walk__line .ledger__date {
+.ledger-walk__line .ledger-walk__why {
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: rgba(var(--ledger-ink-rgb), 0.35);
+}
+
+.ledger__date {
   padding-top: 3px;
 }
 .ledger-walk__text {

@@ -115,8 +115,10 @@ export interface LedgerThread {
   markedMonths: number[]
   /** Came back after two or more quiet months. */
   returned: boolean
-  /** Never shown. Decides order only. */
+  /** Never shown to the writer. Decides order only. */
   score: number
+  /** What the score was made of — for tuning (alpha only), never shown as a measure. */
+  facts: { months: number; mentions: number; returns: number; movement: number; marked: number; prior: number }
 }
 
 export interface LedgerStoneMark {
@@ -201,19 +203,24 @@ function plainLines(body: string): string[] {
     .filter((l) => l.length > 0)
 }
 
-/** The writer set this entry apart: a heading, a highlight, an underline, a ritual. */
-export function isMarkedEntry(body: string, wordCount: number, medianWords: number): boolean {
-  if (/^#{2,3}\s+\S/m.test(body)) return true
+/**
+ * The writer set this entry apart: a highlight, an underline, a ritual.
+ *
+ * Deliberately NOT headings or length. On a real archive `##` headings are how
+ * the writer files a page (Domains), and length is how they write on a full
+ * morning — both were true of almost every entry, so every dot wore a ring and
+ * the signal meant nothing. What's left is a gesture made on purpose.
+ */
+export function isMarkedEntry(body: string): boolean {
   if (/==(?:\{[^}]*\})?\S[^=\n]*==/.test(body)) return true
   if (/\+\+\S[^+\n]*\+\+/.test(body)) return true
-  if (ritualNamesIn(body).length > 0) return true
-  return medianWords > 0 && wordCount > medianWords * 2.5
+  return ritualNamesIn(body).length > 0
 }
 
-function median(xs: number[]): number {
-  if (xs.length === 0) return 0
-  const s = xs.slice().sort((a, b) => a - b)
-  return s[Math.floor(s.length / 2)]!
+/** Altar labels arrive lowercase ("trading"); names and acronyms keep theirs. */
+export function displayLabel(label: string): string {
+  const t = label.trim()
+  return t.length > 0 && t[0] === t[0]!.toLowerCase() ? t[0]!.toUpperCase() + t.slice(1) : t
 }
 
 /** Share of the writer's EARLIER years (that hold any writing) a subject was in. */
@@ -251,10 +258,7 @@ export function buildYearLedger(
   const yearEntries = input.entries.filter((e) => inYear(e.created_at))
   const yearIds = new Set(yearEntries.map((e) => e.id))
   const writtenYears = new Set(input.entries.map((e) => yearOf(e.created_at)))
-  const medianWords = median(yearEntries.map((e) => e.word_count ?? 0))
-  const markedEntries = new Set(
-    yearEntries.filter((e) => isMarkedEntry(e.body_markdown, e.word_count ?? 0, medianWords)).map((e) => e.id),
-  )
+  const markedEntries = new Set(yearEntries.filter((e) => isMarkedEntry(e.body_markdown)).map((e) => e.id))
 
   const markingsByEntry = new Map<string, MarkingInput[]>()
   for (const m of input.markings) {
@@ -510,7 +514,7 @@ export function buildYearLedger(
       }
       const p = presence(perMonth, throughMonth)
       const s = score({ ...p, movement: d.events.length, marked: markedCount }, d.prior, weights)
-      return { d, perMonth, marked, p, s }
+      return { d, perMonth, marked, markedCount, p, s }
     })
     .filter((x) => x.p.mentions >= MIN_MENTIONS)
     .sort((a, b) => b.s - a.s || b.p.mentions - a.p.mentions || a.d.label.localeCompare(b.d.label))
@@ -526,7 +530,7 @@ export function buildYearLedger(
     }
   }
 
-  const threads: LedgerThread[] = scored.map(({ d, perMonth, marked, p, s }) => {
+  const threads: LedgerThread[] = scored.map(({ d, perMonth, marked, markedCount, p, s }) => {
     const lines: LedgerLine[] = []
     const ordered = [...d.byEntry.entries()]
       .map(([id, ls]) => ({ e: entryById.get(id)!, ls }))
@@ -547,7 +551,7 @@ export function buildYearLedger(
     }
     return {
       id: d.id,
-      label: d.label,
+      label: displayLabel(d.label),
       kind: d.kind,
       perMonth,
       lines,
@@ -555,6 +559,7 @@ export function buildYearLedger(
       markedMonths: [...marked].sort((a, b) => a - b),
       returned: p.returns > 0,
       score: s,
+      facts: { ...p, movement: d.events.length, marked: markedCount, prior: d.prior },
     }
   })
 

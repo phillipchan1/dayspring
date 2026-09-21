@@ -1,3 +1,4 @@
+import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { LEDGER_COPY, KIND_COPY, MONTH_LONG, MONTH_SHORT } from './copy'
 import type { LedgerLine, LedgerThread } from './build'
 
@@ -202,6 +203,16 @@ export function ThreadWalk({ thread, throughMonth, labels, onOpenThread, onOpenE
           ),
         )}
       </ol>
+
+      {ALLOWS_INTERNAL_UI || import.meta.env.DEV ? (
+        // Alpha only: what the order was made of, so the weights can be tuned on
+        // a real year. The writer-facing Summit never prints a count.
+        <p className="ledger-walk__why">
+          why here · {thread.facts.months} months · {thread.facts.mentions} pages · back after quiet{' '}
+          {thread.facts.returns} · moved {thread.facts.movement} · set apart {thread.facts.marked} · in{' '}
+          {Math.round(thread.facts.prior * 100)}% of earlier years · score {thread.score.toFixed(1)}
+        </p>
+      ) : null}
     </div>
   )
 }
