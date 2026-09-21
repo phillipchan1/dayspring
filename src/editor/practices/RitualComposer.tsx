@@ -578,7 +578,10 @@ function DeskLayout({
       aria-modal="true"
       aria-label={`${name} — movement ${Math.min(i + 1, total)} of ${total}`}
     >
-      <aside className="rc__rail">
+      {/* The composer covers the whole window in the Mac app, so the rail's
+          empty space is what moves it (Tauri drags only on the element that
+          carries the attribute, not its children). */}
+      <aside className="rc__rail" data-tauri-drag-region>
         {/* Not "close" and not "step out": say where it goes, and (below) that
             nothing is lost by going. */}
         <button type="button" className="rc__home" onClick={leave}>
@@ -587,6 +590,9 @@ function DeskLayout({
         </button>
         <h2 className="rc__title">{name}</h2>
         {origin && <p className="rc__origin">{origin}</p>}
+        {/* What the practice is for sits with its name, as a dek — not stranded
+            at the foot of the rail with a screen of nothing above it. */}
+        {intention && <p className="rc__intent">{intention}</p>}
 
         <ol className="rc__path">
           {labels.map((l, n) => {
@@ -608,7 +614,7 @@ function DeskLayout({
           })}
         </ol>
 
-        {intention && <p className="rc__intent">{intention}</p>}
+        <footer className="rc__rail-foot">
         <div className="rc__rail-tools">
           <button type="button" onClick={about}>
             About this ritual
@@ -618,6 +624,7 @@ function DeskLayout({
           </button>
         </div>
         <p className="rc__saved">Saved to your entry as you write.</p>
+        </footer>
       </aside>
 
       <main className="rc__desk">

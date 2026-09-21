@@ -272,7 +272,7 @@
    the filmstrip's rules above stay the phone's. */
 .rc--desk {
   display: grid;
-  grid-template-columns: 17.5rem minmax(0, 1fr);
+  grid-template-columns: 19rem minmax(0, 1fr);
 }
 
 .rc__rail {
@@ -280,15 +280,18 @@
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
-  padding: 1.4rem 1.5rem 1.6rem 1.9rem;
+  padding: 1.4rem 1.6rem 1.4rem 1.9rem;
   border-right: 1px solid var(--border-subtle);
 }
+/* The Mac app's overlay title bar puts the traffic lights over this corner —
+   the same clearance the journal's own rail keeps (MAC_TRAFFIC_INSET.railTop). */
+html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 .rc__home {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 2.4rem;
+  margin: 0 0 2rem;
   padding: 0.3rem 0;
   border: none;
   background: none;
@@ -326,7 +329,7 @@
 .rc__path {
   position: relative;
   list-style: none;
-  margin: 2rem 0 0;
+  margin: 2rem 0 2rem;
   padding: 0;
 }
 .rc__path::before {
@@ -397,22 +400,27 @@
 .rc__path button:hover .rc__gist { color: var(--text); }
 
 .rc__intent {
-  margin: auto 0 0;
-  padding-top: 2rem;
-  font-size: 0.84rem;
+  margin: 0.9rem 0 0;
+  font-size: 0.82rem;
   font-style: italic;
   line-height: 1.5;
   color: var(--text-faint);
 }
+/* Pinned to the foot of the rail; wraps rather than clipping, because a
+   writer's monospace voice runs half again as wide as the serif. */
+.rc__rail-foot {
+  margin-top: auto;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border-subtle);
+}
 .rc__rail-tools {
   display: flex;
-  gap: 1.1rem;
-  margin-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.1rem;
 }
 .rc__rail-tools button {
   flex: 0 0 auto;
   padding: 0.25rem 0;
-  white-space: nowrap;
   text-align: left;
   border: none;
   background: none;
