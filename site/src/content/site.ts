@@ -4,7 +4,7 @@
 // ============================================================
 
 // The live web app — SignIn renders for an unauthenticated visitor, and first
-// sign-in grants the 14-day trial with no card (api/profile/ensure.ts in the
+// sign-in grants complimentary access with no card (api/profile/ensure.ts in the
 // app repo). Also mirrored as APP_URL's default in api/_lib/env.ts and
 // DEFAULT_API_BASE in src/lib/env.ts — verified against both before wiring,
 // not invented (see dayspring#45).
@@ -50,9 +50,9 @@ export const cta = {
   mac: {
     label: "Download for Mac",
     href: downloads.macos.href,
-    /** Rendered under the buttons. The trial offer, without the trial button. */
+    /** Rendered under the buttons. Complimentary access, without a second button. */
     // No hardware line: "Apple silicon, macOS 13+" wasn't true of the build.
-    note: "Start with a 14-day trial.",
+    note: "Complimentary access starts today. No payment method required.",
   },
   ios: {
     label: "iPhone",
@@ -91,7 +91,7 @@ export const pricingTiers = [
     name: "Dayspring Annual",
     price: "$64",
     unit: " / year",
-    note: "14-day trial · about $5.33 / month",
+    note: "Complimentary access · no payment method required",
     desc:
       "The full product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar. The longer you write, the more the map fills in.",
     cta: { label: "Download for Mac", href: downloads.macos.href, style: "solid" },
@@ -102,7 +102,7 @@ export const pricingTiers = [
     name: "Monthly",
     price: "$7",
     unit: " / month",
-    note: "14-day trial · cancel anytime",
+    note: "Complimentary access · no payment method required",
     desc:
       "Same everything, billed month to month. Choose it when a year at a time is more than you want.",
     cta: { label: "Download for Mac", href: downloads.macos.href, style: "line" },

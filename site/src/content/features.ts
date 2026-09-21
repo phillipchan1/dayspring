@@ -184,7 +184,7 @@ export const everythingIntro = {
   tag: "Everything in Dayspring",
   heading: "The small things, <em>all the way down.</em>",
   lead: "One premium plan, and a great deal of care. Here's the whole of it — the page, the tools in the sentence, the long view, and everything underneath.",
-  valueLine: "All of it, one plan — <strong>$64 a year</strong>, after a 14-day trial.",
+  valueLine: "All of it, one plan — <strong>$64 a year</strong>. Complimentary access starts today, with no payment method required.",
 };
 
 export const everything = [
