@@ -108,11 +108,11 @@ if any, just happened. Called from:
   touches a store webhook at all. This is the only place that trial start fires
   for the default (card-free) onboarding model.
 
-| Event | Meta CAPI name | `source` prop |
-|---|---|---|
-| `trial_started` | `StartTrial` | `stripe` \| `apple` \| `reverse-trial` |
-| `subscription_purchased` | `Purchase` | `stripe` \| `apple` \| `reverse-trial` |
-| `subscription_cancelled` | `Cancel` | `stripe` \| `apple` \| `reverse-trial` |
+| Event | Meta CAPI name | `source` prop | Person `$set` |
+|---|---|---|---|
+| `trial_started` | `StartTrial` | `stripe` \| `apple` \| `reverse-trial` | `plan=trialing`, `store` = source |
+| `subscription_purchased` | `Purchase` | `stripe` \| `apple` \| `reverse-trial` | `plan=active`, `store` = source |
+| `subscription_cancelled` | `Cancel` | `stripe` \| `apple` \| `reverse-trial` | `plan=cancelled`, `store` = source |
 
 Transition rules (`lifecycleEventFor` in `growthEvents.ts`, unit-tested in
 `growthEvents.test.ts`): StartTrial fires entering `trialing` from anything but
@@ -122,27 +122,39 @@ only from a plan that was actually live (`active`/`trialing`/`past_due`) — a
 duplicate or already-lapsed cancellation is silent. `shouldApplyUpdate`'s
 cross-store guard runs first, so a dropped stale write never reaches this at all.
 
-## The distinct-ID caveat — read this before building the Exit funnel
+## Distinct IDs — how the three funnels join
 
-Client-side events (site **and** app) are fully anonymous — nothing calls
-`posthog.identify()` anywhere, by design (the app's "Share anonymous usage"
-toggle and closed vocabulary exist precisely so analytics can never carry
-identity or content). Server-side Exit events use the Supabase user id as
-`distinct_id`.
+Server-side Exit events use the Supabase user id as `distinct_id`. The app
+now calls `posthog.identify(supabaseUserId)` on an authenticated session
+(`applyAuthAnalytics` in `src/hooks/useSession.ts`, through the identity
+transport in `src/lib/analytics.ts` → `src/lib/posthog.ts`). That aliases
+this device's anonymous person to the same account id Exit already uses.
+
+Identify is gated on Settings → About → "Share anonymous usage"
+(`shareUsage`). Opted-out sessions stay anonymous; opting in later flushes
+the remembered user id. Sign-out calls `reset()`. Autocapture, pageviews,
+and session recording stay off — identify does not widen what can be sent.
 
 That means:
 
-- **Entrance** (site) and **Use** (app) are each internally consistent —
-  events within a surface share a real anonymous device id.
-- **Exit alone is a real, joinable funnel** — `trial_started` →
-  `subscription_purchased` share the same user-id `distinct_id`, so **Trial →
-  Paid works today** as a straight PostHog funnel.
-- **Entrance → Use → Exit as one continuous cross-surface funnel does not join
-  today.** An anonymous site visitor's device id is never linked to the account
-  they later sign into. Fixing that means calling `posthog.identify(supabaseUserId)`
-  client-side after sign-in — a deliberate de-anonymization of the app's own
-  analytics that this pass does not make unilaterally. Flag it as an open
-  product decision, not a bug, if/when someone wants the full cross-surface view.
+- **Use → Exit is a real, joinable funnel.** App events after identify (and
+  the anonymous events on that same device from before it, via alias) share
+  `distinct_id` with `trial_started` / `subscription_purchased` /
+  `subscription_cancelled`. **Trial → Paid** and the **Quality** signal
+  (`trial_started` → `first_entry_created` within 24h) are live PostHog
+  insights, not export jobs.
+- **Filter paying people with person property `plan=active`.** Lifecycle
+  capture `$set`s `plan` (`trialing` / `active` / `cancelled`) and `store`
+  (`stripe` / `apple` / `reverse-trial`) on the person. `store` is the same
+  value as the event's `source` prop.
+- **Entrance (the marketing site) is still its own anonymous person.**
+  `www.usedayspring.app` and the app (`dayspring-eosin.vercel.app`, desktop,
+  iOS) do not share a PostHog cookie, so a site visitor's device id is not
+  aliased by app identify. Build Entrance as its own funnel (break down by
+  `utm_source` / `utm_campaign` / `utm_content`); join it to Use/Exit by
+  campaign, not by person. Passing the site `distinct_id` across that hop
+  is a later attribution pass — `/start` already forwards the query string
+  onto the app URL.
 
 ## Dashboards to build (PostHog UI — not code)
 
@@ -158,15 +170,16 @@ That means:
    That *is* what "D1/D7" means once the insight is built; no extra event
    needed. Break down by the `platform` prop to compare mac/iOS/web.
 3. **Trial → Paid** — `trial_started` → `subscription_purchased`, both
-   server-side (see distinct-ID note above — this one is real). Suggested
-   conversion window: 16 days (14-day trial + a couple of grace days).
-4. **Quality signal** — not a funnel, a computed rate: of accounts with a
-   `trial_started`, what fraction have a `first_entry_created` within 24h?
-   PostHog can't join these two automatically yet (see the distinct-ID caveat —
-   one is server/user-id-keyed, the other is client/anonymous-device-keyed).
-   Until `identify()` is wired, compute this by export rather than as a live
-   PostHog insight. `minutes_to_first_entry_bucket`'s distribution (device-
-   local, no join needed) is a usable interim proxy for the same question.
+   server-side, same `distinct_id`. Suggested conversion window: 16 days
+   (14-day trial + a couple of grace days). Filter the funnel to people
+   with person property `plan=active` when you want converters who are
+   still paying (excludes later cancels). Break down by `store` or by
+   `utm_content` on the Entrance events that share a campaign.
+4. **Quality signal** — of accounts with a `trial_started`, what fraction
+   have a `first_entry_created` within 24h? Identify joins these two (server
+   user-id and client device events on the same account). Build it as a
+   PostHog funnel or insight; `minutes_to_first_entry_bucket` remains a
+   device-local distribution for the same question without a join.
 5. **Activation funnel** — `onboarding_step_viewed` (`step='tour'`) →
    `onboarding_step_completed` (`step='tour'`) → `onboarding_step_viewed`
    (`step='fork'`) → `onboarding_step_completed` (any step) → `entry_started`.
@@ -210,10 +223,13 @@ project.
   / `Purchase` / `Cancel` land in the same tool (they arrive as `system_generated`
   action-source events, distinguishable from the browser ones).
 - **PostHog**: Activity → **Live events**, filter by event name. Site events
-  show up with `utm_*` props (or none, for direct traffic); app events show up
-  with the account's real (but never content-bearing) props; server Exit events
-  show up with `source: stripe|apple|reverse-trial` and a `distinct_id` equal to
-  the Supabase user id.
+  show up with `utm_*` props (or none, for direct traffic); app events after
+  sign-in show up on the Supabase user id (Persons → that id, if "Share
+  anonymous usage" is on); server Exit events show up with
+  `source: stripe|apple|reverse-trial`, the same `distinct_id`, and person
+  properties `plan` / `store` from `$set`. A restored session should
+  identify without a new `auth_completed` (that event is still SIGNED_IN
+  only).
 
 ## Known limitations / explicitly out of scope for this pass
 

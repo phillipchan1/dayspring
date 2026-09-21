@@ -193,6 +193,66 @@ export function setAnalyticsTransport(t: Transport | null) {
   transport = t
 }
 
+type IdentityTransport = {
+  identify: (userId: string) => void
+  reset: () => void
+}
+
+let identityTransport: IdentityTransport | null = null
+/** Last signed-in user id, kept so a later opt-in can identify without another
+ *  auth event. Cleared on sign-out. Never sent while shareUsage is off. */
+let knownUserId: string | null = null
+
+/** Vendor seam for person-identity (PostHog identify / reset). Separate from
+ *  the event transport so identify cannot widen the closed event vocabulary. */
+export function setIdentityTransport(t: IdentityTransport | null) {
+  identityTransport = t
+}
+
+/**
+ * Join this device's anonymous person to the signed-in account.
+ * Gated on "Share anonymous usage" — opted-out sessions stay anonymous.
+ * The user id is remembered so a later opt-in can identify without another
+ * auth event. `userId` is the Supabase account id, never a name or email.
+ */
+export function identifyUser(userId: string): void {
+  knownUserId = userId
+  if (!settingsStore.get().shareUsage) return
+  try {
+    identityTransport?.identify(userId)
+  } catch {
+    // Analytics must never break the app.
+  }
+}
+
+/** Drop the account join — sign-out only. Does not fire on a cold boot with
+ *  no session; that would mint a new anonymous id after `app_open` and
+ *  orphan the launch event from the later identify. */
+export function resetAnalyticsUser(): void {
+  knownUserId = null
+  try {
+    identityTransport?.reset()
+  } catch {
+    // Analytics must never break the app.
+  }
+}
+
+/** Re-apply a remembered identify after the consent toggle flips on. */
+export function flushAnalyticsIdentity(): void {
+  if (!knownUserId) return
+  identifyUser(knownUserId)
+}
+
+/**
+ * Auth-session seam used by `useSession`. Identify on any signed-in user
+ * (restored `INITIAL_SESSION` included, so Use events join Exit); reset
+ * only on an explicit sign-out.
+ */
+export function applyAuthAnalytics(userId: string | null, signedOut = false): void {
+  if (userId) identifyUser(userId)
+  else if (signedOut) resetAnalyticsUser()
+}
+
 export function track<E extends AnalyticsEvent>(
   event: E,
   ...args: EventProps[E] extends undefined ? [] : [EventProps[E]]
