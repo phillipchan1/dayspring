@@ -2,15 +2,16 @@ import { useCallback, type RefObject } from 'react'
 import {
   Decoration,
   EditorView,
-  keymap,
   type DecorationSet,
 } from '@codemirror/view'
 import {
-  Prec,
+  EditorState,
   StateField,
-  type EditorState,
+  Transaction,
+  type ChangeSpec,
   type Extension,
   type Range,
+  type TransactionSpec,
 } from '@codemirror/state'
 import type { EditorHandle } from '../Editor'
 import { PRACTICE_BY_NAME, type Practice, type PracticePrompt } from './practicesData'
@@ -23,10 +24,10 @@ import {
   currentMovementIndex,
   isRitualComplete,
   parseRitualBlocks,
-  ritualBlockAtLine,
   type RitualBlock,
 } from './ritualPacing'
 import { ritualIndexContaining, ritualRemovalRange } from './ritualDocument'
+import { judgeRitualEdit, type BlockRange } from './ritualRecordGuard'
 import {
   RitualColophonWidget,
   RitualHeaderWidget,
@@ -203,17 +204,14 @@ function buildDecorations(state: EditorState): PracticeDecorations {
   if (!hasRituals || blocks.length === 0) return EMPTY
 
   const { doc } = state
-  const caretLine = doc.lineAt(state.selection.main.head).number
-  const liveBlock = ritualBlockAtLine(blocks, caretLine)
+  // Nothing is ever "held" any more: the caret cannot enter a record (it is
+  // atomic, and read-only — see ritualRecordGuard.ts), so the hold that lit a
+  // ritual and let the rest of the entry recede while you wrote in it would
+  // only ever fire with the caret parked on a record's edge.
 
   const ranges: Range<Decoration>[] = []
   const atomicRanges: Range<Decoration>[] = []
 
-  /** Keep a token line's markup atomic so the caret arrows straight past it. */
-  const makeAtomic = (from: number, to: number) => {
-    const atomicTo = Math.min(to + 1, doc.length)
-    if (atomicTo > from) atomicRanges.push(atomicMark.range(from, atomicTo))
-  }
 
   for (const block of blocks) {
     const nameLine = doc.line(block.nameLine)
@@ -222,8 +220,14 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     // so the app's example phrasing never sits on several of the writer's lines
     // at once.
     const waiting = currentMovementIndex(block)
-    const held = liveBlock === block
+    const held = false
     const practice = PRACTICE_BY_NAME.get(block.name)
+
+    // The whole block is one atom: a record you open, not text you step
+    // through. The caret arrows straight past it and can only rest on its
+    // edges — see `ritualRecordGuard.ts` for what typing there does.
+    const endTo = doc.line(block.endLine).to
+    if (endTo > nameLine.from) atomicRanges.push(atomicMark.range(nameLine.from, endTo))
 
     // The spine: one line decoration across the whole block, so the ritual reads
     // as a container rather than as questions floating in the entry.
@@ -233,7 +237,6 @@ function buildDecorations(state: EditorState): PracticeDecorations {
 
     // The masthead.
     ranges.push(tokenLineDeco.range(nameLine.from))
-    makeAtomic(nameLine.from, nameLine.to)
     ranges.push(
       Decoration.replace({
         widget: new RitualHeaderWidget(block.name, !complete, held),
@@ -245,7 +248,6 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     for (const movement of block.movements) {
       const tokenLine = doc.line(movement.tokenLine)
       ranges.push(tokenLineDeco.range(tokenLine.from))
-      makeAtomic(tokenLine.from, tokenLine.to)
 
       ranges.push(
         Decoration.replace({
@@ -295,14 +297,11 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     }
   }
 
-  const live = liveBlock
-    ? { from: doc.line(liveBlock.nameLine).from, to: doc.line(liveBlock.endLine).to }
-    : null
 
   return {
     deco: Decoration.set(ranges, true),
     atomic: Decoration.set(atomicRanges, true),
-    live,
+    live: null,
   }
 }
 
@@ -370,6 +369,8 @@ const practiceTheme = EditorView.theme({
   // between those lines, so the rule runs unbroken from masthead to colophon.
   // Without it a ritual is questions floating in the entry with nothing to say
   // they belong together.
+  // The record is a door, so it points like one.
+  '.cm-ritual-body, .cm-practice-prompt, .cm-ritual-colophon': { cursor: 'pointer' },
   '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
     {
       borderLeft: '1px solid color-mix(in srgb, var(--text-faint) 30%, transparent)',
@@ -620,32 +621,6 @@ export function describeRitualLanding(doc: string, insertAt: number): string | n
 }
 
 /**
- * Backspace at the start of an empty answer line removes that one prompt — like
- * deleting an empty list item. Only fires in that exact case; otherwise the
- * normal Backspace runs.
- */
-function deletePracticeSection(view: EditorView): boolean {
-  const { state } = view
-  const sel = state.selection.main
-  if (!sel.empty) return false
-  const line = state.doc.lineAt(sel.head)
-  if (sel.head !== line.from || line.text.trim() !== '' || line.number === 1) return false
-  const prev = state.doc.line(line.number - 1)
-  if (!PRACTICE_SECTION_RE.test(prev.text)) return false
-
-  const from = prev.from
-  const to = Math.min(line.to + 1, state.doc.length)
-  // Land the caret at the end of the previous section's writing, when there is one.
-  let caret = from
-  if (prev.number - 1 >= 1) {
-    const above = state.doc.line(prev.number - 1)
-    if (!isTokenLine(above.text)) caret = above.to
-  }
-  view.dispatch({ changes: { from, to, insert: '' }, selection: { anchor: caret } })
-  return true
-}
-
-/**
  * Drop the scaffolding token lines, keeping each section's written lines and
  * separating the surviving answers with a blank line so they read as plain
  * paragraphs. Pure so it can be unit-tested without an editor.
@@ -713,6 +688,64 @@ function removePracticeBlockAt(view: EditorView, pos: number): void {
   view.focus()
 }
 
+/** Every element a ritual record renders as, in the entry. */
+const RECORD_SELECTOR =
+  '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon'
+
+/**
+ * Keep the writer's keystrokes out of a ritual record.
+ *
+ * Only transactions carrying a user event are judged (typing, deleting,
+ * pasting, dropping); undo/redo pass, and so does everything the app dispatches
+ * itself — the composer writing back, free write, remove, sync. The decision
+ * per change is `judgeRitualEdit`'s.
+ */
+const ritualRecordGuard = EditorState.transactionFilter.of(
+  (tr): Transaction | readonly TransactionSpec[] => {
+    if (!tr.docChanged) return tr
+    const event = tr.annotation(Transaction.userEvent)
+    if (!event || event.startsWith('undo') || event.startsWith('redo')) return tr
+    const { blocks, hasRituals } = tr.startState.field(ritualDocField)
+    if (!hasRituals || blocks.length === 0) return tr
+
+    const doc = tr.startState.doc
+    const ranges: BlockRange[] = blocks.map((b) => ({
+      from: doc.line(b.nameLine).from,
+      to: doc.line(b.endLine).to,
+    }))
+
+    // A selection means the writer chose what to take; an empty one means a
+    // single keystroke, which atomic ranges may have widened.
+    const selected = tr.startState.selection.ranges.some((r) => !r.empty)
+    let refused = false
+    let reshaped = false
+    const changes: ChangeSpec[] = []
+    let caret = -1
+    tr.changes.iterChanges((fromA, toA, _fromB, _toB, ins) => {
+      const text = ins.toString()
+      const verdict = judgeRitualEdit(ranges, fromA, toA, text, selected)
+      if (verdict.kind === 'refuse') refused = true
+      else if (verdict.kind === 'reshape') {
+        reshaped = true
+        changes.push({ from: fromA, to: toA, insert: verdict.insert })
+        // After the typed text either way — before the newline added below
+        // it, or after the newline added above it.
+        caret = verdict.insert.startsWith('\n') ? fromA + verdict.insert.length : fromA + text.length
+      } else changes.push({ from: fromA, to: toA, insert: text })
+    })
+    if (refused) return []
+    if (!reshaped) return tr
+    return [
+      {
+        changes,
+        selection: { anchor: caret },
+        userEvent: event,
+        scrollIntoView: true,
+      },
+    ]
+  },
+)
+
 /**
  * Paint hidden `ritual:*` tokens as their prompts — the ritual as a *record*.
  *
@@ -721,6 +754,9 @@ function removePracticeBlockAt(view: EditorView, pos: number): void {
  * what you wrote and what you were asked, not be walked through it again.
  * Display-only either way — the markdown tokens stay in the document so the
  * structure survives save/sync, but no prompt text is ever persisted.
+ *
+ * And read-only: the composer is the one place a ritual is written. A click
+ * anywhere on the record opens it there (see `ritualRecordGuard.ts` for why).
  *
  * @param onAbout Open the practice's "about" sheet (by practice name).
  * @param onContinue Reopen the composer on the ritual block at a document position.
@@ -735,13 +771,12 @@ export function practicePromptExtension(
   // decorations. A field can only read one registered before it.
   ritualDocField,
   practiceField,
-  // Treat the hidden token lines as atoms so the caret skips them and a
-  // backspace from a blank answer line removes the whole prompt in one stroke.
+  // Each ritual is one atom, so the caret skips the record entirely.
   EditorView.atomicRanges.of((view) => view.state.field(practiceField).atomic),
-  // Backspace on an empty movement line removes that single prompt.
-  Prec.high(keymap.of([{ key: 'Backspace', run: deletePracticeSection }])),
-  // The header's actions act on the whole block; clicking a prompt drops the
-  // caret into that prompt's answer line.
+  // And the writer's own keystrokes cannot reach into it.
+  ritualRecordGuard,
+  // The header's actions act on the whole block; a click anywhere else on the
+  // record opens it in the composer.
   EditorView.domEventHandlers({
     mousedown(event, view) {
       const node = event.target as HTMLElement | null
@@ -772,24 +807,14 @@ export function practicePromptExtension(
         onContinue(view.posAtDOM(cont))
         return true
       }
-      // A prompt is a contenteditable=false block widget with no editable target
-      // of its own. The last prompt has only open space below it (no following
-      // prompt to bound its answer line), so a click there otherwise lands on the
-      // widget and no caret appears. Redirect into the answer line — found by the
-      // prompt's own label rather than posAtDOM, which on a block widget can
-      // resolve past the answer line and drop the caret a line or two too low.
-      const prompt = node?.closest('.cm-practice-prompt')
-      if (prompt) {
-        const label = prompt.querySelector('.cm-practice-prompt__label')?.textContent ?? ''
-        const doc = view.state.doc
-        for (let n = 1; n < doc.lines; n++) {
-          const match = PRACTICE_SECTION_RE.exec(doc.line(n).text)
-          if (match && match[1] === label) {
-            event.preventDefault()
-            view.dispatch({ selection: { anchor: doc.line(n + 1).from }, scrollIntoView: true })
-            view.focus()
-            return true
-          }
+      // Anywhere else on the record — a question, an answer, the colophon —
+      // opens it. One door, and the whole ritual is it.
+      if (event.button === 0) {
+        const record = node?.closest(RECORD_SELECTOR)
+        if (record) {
+          event.preventDefault()
+          onContinue(view.posAtDOM(record))
+          return true
         }
       }
       return false

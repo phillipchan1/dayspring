@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
-import { Editor } from './Editor'
+import { Editor, type EditorHandle } from './Editor'
+import { ritualIndexContaining } from './practices/ritualDocument'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
 import { PRACTICES, resolveMovements } from './practices/practicesData'
@@ -221,6 +222,54 @@ function ComposerHarness({ seedDoc }: { seedDoc: string }) {
   )
 }
 
+/**
+ * The entry with a ritual in it, wired the way JournalScreen wires it: a click
+ * on the record (or its continue / open) opens the composer over the entry, and
+ * the composer writes back through the editor.
+ */
+function EntryHarness({ initialDoc }: { initialDoc: string }) {
+  const editorRef = useRef<EditorHandle | null>(null)
+  const [composerIndex, setComposerIndex] = useState<number | null>(null)
+  const [about, setAbout] = useState<Practice | null>(null)
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--bg)',
+        color: 'var(--text)',
+        padding: '6vh 1.5rem 30vh',
+      }}
+    >
+      <div className="journal-write" style={{ maxWidth: '42rem', margin: '0 auto' }}>
+        <Editor
+          ref={editorRef}
+          docKey="ritual-preview"
+          initialDoc={initialDoc}
+          onChange={() => {}}
+          autofocus={false}
+          onContinueRitual={(pos) => {
+            const index = ritualIndexContaining(editorRef.current?.getDoc() ?? '', pos)
+            if (index >= 0) setComposerIndex(index)
+          }}
+        />
+      </div>
+      {composerIndex !== null && (
+        <RitualComposer
+          blockIndex={composerIndex}
+          getDoc={() => editorRef.current?.getDoc() ?? ''}
+          replaceRange={(from, to, text, opts) =>
+            editorRef.current?.replaceRange(from, to, text, opts)
+          }
+          onAbout={(name) => setAbout(PRACTICE_BY_NAME.get(name) ?? null)}
+          onClose={() => setComposerIndex(null)}
+          blocked={about !== null}
+        />
+      )}
+      {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
+    </div>
+  )
+}
+
 export function renderRitualPreview(): void {
   const params = new URLSearchParams(window.location.search)
   const wanted = params.get('theme')
@@ -312,25 +361,11 @@ export function renderRitualPreview(): void {
   }
 
   createRoot(el).render(
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        color: 'var(--text)',
-        padding: '6vh 1.5rem 30vh',
-      }}
-    >
-      <div className="journal-write" style={{ maxWidth: '42rem', margin: '0 auto' }}>
-        <Editor
-          docKey="ritual-preview"
-          // Exactly one blank line between the ritual and the prose below it —
-          // the separation `buildPracticeBlock` writes, and the one that tells
-          // the parser the writer has stepped back out of the practice.
-          initialDoc={`${ABOVE}${block.replace(/\n+$/, '')}\n\n${BELOW.trim()}\n`}
-          onChange={() => {}}
-          autofocus={false}
-        />
-      </div>
-    </div>,
+    <EntryHarness
+      // Exactly one blank line between the ritual and the prose below it —
+      // the separation `buildPracticeBlock` writes, and the one that tells
+      // the parser the writer has stepped back out of the practice.
+      initialDoc={`${ABOVE}${block.replace(/\n+$/, '')}\n\n${BELOW.trim()}\n`}
+    />,
   )
 }
