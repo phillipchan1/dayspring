@@ -136,6 +136,29 @@
   background: color-mix(in srgb, var(--accent) 14%, var(--bg));
 }
 
+/* ── The climb glyph ── */
+.firstlight__climb {
+  display: block;
+  width: 176px;
+  height: 52px;
+  margin: 0 0 18px;
+  overflow: visible;
+}
+.firstlight__climb polyline {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.firstlight__climb circle {
+  fill: var(--bg);
+  stroke: var(--text-dim);
+  stroke-width: 1.2;
+}
+.firstlight__climb circle.lit {
+  fill: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  stroke: var(--accent);
+}
+
 /* ── The keycap row ── */
 .firstlight__keys {
   display: flex;

@@ -39,7 +39,7 @@
  */
 
 /** A small inline glyph above the title. Purely decorative; never load-bearing. */
-export type CardArt = 'wall' | 'keys'
+export type CardArt = 'wall' | 'keys' | 'climb'
 
 export interface Card {
   /** Small caps line above the title. Two or three words. */
@@ -60,7 +60,7 @@ export interface Release {
   major?: boolean
   cards: Card[]
   /** Where the final button sends them. Omitted → the button just closes. */
-  land?: 'pages'
+  land?: 'pages' | 'reflections'
   /** Label for the final button. Defaults to "Done". */
   landLabel?: string
 }
@@ -103,7 +103,52 @@ export const RELEASES: Release[] = [
       },
     ],
   },
+  {
+    // Shipped with the year ledger, the told-back climb and volumes — the
+    // commit that graduated `yearLedger` (features/flags.tsx).
+    id: '2026-09-ascent',
+    major: true,
+    land: 'reflections',
+    landLabel: 'Open the Ascent',
+    cards: [
+      {
+        kicker: 'What changed',
+        art: 'climb',
+        title: 'A new Ascent',
+        body: [
+          'The climb is one mountain now. The week, the month, the season and the year are four heights on it, each named by the calendar, with the trail lit to today and the day that chapter closes.',
+          'Each height tells your pages back in your own words — what came back, what went quiet, and the threads the year kept returning to.',
+        ],
+      },
+      {
+        kicker: 'Also new',
+        title: 'Volumes',
+        body: [
+          'A paper journal runs out of pages. Now yours does too: when about a notebook’s worth has been written, it closes on its own and goes on the shelf. Volumes, at the top of Pages, holds every one — each to be read back, first page to last.',
+        ],
+      },
+      {
+        kicker: 'Also new',
+        title: 'Write about this',
+        body: [
+          'Anywhere on the climb, Write about this opens a new page with those lines already above it, and a question you choose.',
+        ],
+      },
+    ],
+  },
 ]
+
+/**
+ * WRITTEN, NOT YET RELEASED. pickCards() never reads this array, and nothing in
+ * it can be stamped as seen — which is the whole point. A release sitting in
+ * RELEASES becomes CURRENT_RELEASE_ID, so anyone closing an older deck (or
+ * finishing onboarding) would be marked as having seen it before it existed,
+ * and it would never show them. Web serves master, so that happens on push.
+ *
+ * To release: move the entry into RELEASES, in the same commit that makes what
+ * it describes visible to everyone. Preview with `?__preview=firstlight&draft=1`.
+ */
+export const DRAFTS: Release[] = []
 
 /**
  * The id stamped on someone who should see nothing — a brand-new account at the

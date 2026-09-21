@@ -25,7 +25,7 @@ const FLAG_ENV: Record<string, string> = {
  * Flags that have graduated — shipped to everyone, gate retained only so the
  * `useFeatureFlag('x')` call sites don't have to be torn out at once.
  */
-const GRADUATED = new Set<string>(['altar'])
+const GRADUATED = new Set<string>(['altar', 'yearLedger'])
 
 /**
  * Resolve a feature flag for a given user.

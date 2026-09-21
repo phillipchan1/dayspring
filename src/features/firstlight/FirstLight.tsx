@@ -81,8 +81,8 @@ export function FirstLight() {
 
   useEffect(
     () =>
-      onOpenFirstLight(() => {
-        setManual(latestDeck())
+      onOpenFirstLight((deck) => {
+        setManual(deck ?? latestDeck())
         setAt(0)
         setOpen(true)
       }),
@@ -186,6 +186,24 @@ export function FirstLight() {
 
 /** Decorative only — never the carrier of anything the card needs to say. */
 function Art({ kind }: { kind: CardArt }) {
+  if (kind === 'climb') {
+    // Four heights on one rail, rising — week, month, season, year. The top
+    // one is lit because the mountain is still there.
+    const at = [
+      [10, 44],
+      [62, 32],
+      [114, 20],
+      [166, 8],
+    ]
+    return (
+      <svg className="firstlight__climb" viewBox="0 0 176 52" aria-hidden="true">
+        <polyline points={at.map(([x, y]) => `${x},${y}`).join(' ')} />
+        {at.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={i === at.length - 1 ? 5 : 3.5} className={i === at.length - 1 ? 'lit' : undefined} />
+        ))}
+      </svg>
+    )
+  }
   if (kind === 'wall') {
     // The wall, from far enough away to see its shape. Lit cells stand for the
     // pages a subject touches — dimming, never filtering (D-017).

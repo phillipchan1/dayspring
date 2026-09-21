@@ -4,6 +4,8 @@ import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { AppNavigationProvider } from '@/context/AppNavigation'
 import { FirstLight } from './FirstLight'
 import { openFirstLight } from './open'
+import { latestDeck } from './pickCards'
+import { DRAFTS } from './releases'
 
 /**
  * Dev-only: `?__preview=firstlight` mounts the release-note deck with no
@@ -11,12 +13,16 @@ import { openFirstLight } from './open'
  *
  *   ?__preview=firstlight              → the deck, in Dawn
  *   ?__preview=firstlight&theme=vigil  → any of the nine palettes
+ *   ?__preview=firstlight&draft=1      → the newest unreleased draft instead
  *
  * A palette strip sits behind the deck: this surface has to hold in all nine,
  * and the dark ones are where a hand-picked colour would show. Nothing here is
  * mocked — it renders the shipped component against the real registry, so what
  * is reviewed is what users get.
  */
+const wantsDraft = new URLSearchParams(window.location.search).has('draft')
+const reopen = () => openFirstLight(wantsDraft ? (latestDeck(DRAFTS.slice(-1)) ?? undefined) : undefined)
+
 function Harness({ initial }: { initial: ThemeId }) {
   const [theme, setTheme] = useState<ThemeId>(initial)
 
@@ -27,7 +33,7 @@ function Harness({ initial }: { initial: ThemeId }) {
   // The deck marks itself seen on close; re-open it from the strip rather than
   // clearing storage by hand.
   useEffect(() => {
-    openFirstLight()
+    reopen()
   }, [])
 
   return (
@@ -47,7 +53,7 @@ function Harness({ initial }: { initial: ThemeId }) {
             {t.label}
           </button>
         ))}
-        <button type="button" className="fl-preview__reopen" onClick={() => openFirstLight()}>
+        <button type="button" className="fl-preview__reopen" onClick={reopen}>
           Re-open
         </button>
       </div>

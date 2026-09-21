@@ -10,14 +10,19 @@
  * sits in a different part of the tree, and threading a callback through would
  * couple two surfaces that otherwise know nothing about each other.
  */
-const listeners = new Set<() => void>()
+import type { Deck } from './pickCards'
 
-/** Open the most recent announcement, whether or not it has been seen. */
-export function openFirstLight(): void {
-  for (const l of listeners) l()
+const listeners = new Set<(deck?: Deck) => void>()
+
+/**
+ * Open the most recent announcement, whether or not it has been seen. A deck
+ * passed in is shown instead — the preview harness uses this for DRAFTS.
+ */
+export function openFirstLight(deck?: Deck): void {
+  for (const l of listeners) l(deck)
 }
 
-export function onOpenFirstLight(fn: () => void): () => void {
+export function onOpenFirstLight(fn: (deck?: Deck) => void): () => void {
   listeners.add(fn)
   return () => {
     listeners.delete(fn)
