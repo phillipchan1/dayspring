@@ -2288,7 +2288,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               dimming={focus.active && focusEditorReady && settings.dimming}
               titleStyling={settings.firstLineTitle}
               showMarkdownSyntax={settings.showMarkdownSyntax}
-              slashEnabled
+              // Settings (⌘,) and Find (⌘K) open from the keyboard, so the
+              // palette's press-outside listener never hears them; without this
+              // it stayed up over the top of both.
+              slashEnabled={!settingsOpen && !helpOpen && !findOpen}
               // Only band the line for a fresh /command; editing a block targets an
               // atomic widget line, where a line decoration collides with the block.
               commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}

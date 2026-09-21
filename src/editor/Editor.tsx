@@ -169,6 +169,10 @@ interface EditorProps {
   showMarkdownSyntax?: boolean
   /** Placeholder shown on the first body line (line 2) when a title exists but no body has been written. */
   bodyPlaceholder?: string
+  /**
+   * Whether `/` and the gutter `+` may open the palette. Turning it off also
+   * closes a palette that is already open.
+   */
   slashEnabled?: boolean
   /** Highlight the line at this doc position while a command popover is open. */
   commandLinePos?: number | null
@@ -822,6 +826,14 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   }, [marks, docKey])
 
   const slashOpen = slashState !== null
+
+  // Slash going off means something else has the screen (Settings, Find). Drop
+  // the palette rather than just hiding it: it would come back when they close,
+  // and while it's mounted its window-level key handler keeps taking Enter, Tab
+  // and the arrows away from whatever is now in front.
+  useEffect(() => {
+    if (!slashEnabled) setSlashState(null)
+  }, [slashEnabled])
 
   // Close the palette on a press anywhere but the palette — the line it was
   // opened from included (see `pressClosesPalette` for why that one needs help).
