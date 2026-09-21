@@ -3931,6 +3931,30 @@ button.pg__sense-q:hover {
   pointer-events: none;
 }
 
+/*
+ * ...and not visible past the page's own edge either.
+ *
+ * `.pg__scroll` reaches `--pg-wall-inset` ABOVE its wrapper so a hovered card is
+ * not clipped at the top. The reader is laid over the wrapper, so it stops where
+ * the wrapper does — and that strip of the wall, the top 1rem of whichever row
+ * was scrolled there, showed between the header and the open page: a sliver of
+ * other entries above the one you were reading. It only shows once the wall is
+ * scrolled, because at the very top the strip is just empty padding.
+ *
+ * Clipped rather than zeroed (the phone rule below zeroes the variable) because
+ * changing the inset resizes the scroller, and everything in PageWall that
+ * places the wall answers to its size. This moves nothing; it only stops the
+ * paint at the box the reader covers.
+ *
+ * Two pixels inside that box, not on it: the wrapper's edge lands on a
+ * fractional pixel, and a clip and the page's own top edge meeting on the same
+ * anti-aliased row let a hairline of the wall through — a row of specks right
+ * at the seam. The page covers those two pixels anyway.
+ */
+.pg[data-reading-page='true'] .pg__wall-wrap {
+  clip-path: inset(2px 0 0 0);
+}
+
 .pg-read1__page {
   display: block;
   inline-size: 100%;
