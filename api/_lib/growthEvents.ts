@@ -73,6 +73,40 @@ export interface LifecycleParams {
   source: 'stripe' | 'apple' | 'reverse-trial'
 }
 
+/** Plan after the transition that produced `event`. These three events are
+ *  defined by `lifecycleEventFor` as entering exactly one of these plans. */
+const PLAN_AFTER: Record<LifecycleEvent, 'trialing' | 'active' | 'cancelled'> = {
+  StartTrial: 'trialing',
+  Purchase: 'active',
+  Cancel: 'cancelled',
+}
+
+/**
+ * Person properties stamped on every Exit event via PostHog `$set`.
+ * Insights filter `plan=active` and break down by `store` from these, not
+ * from the event props — they persist on the person after the event.
+ */
+export function personPropertiesFor(
+  event: LifecycleEvent,
+  source: LifecycleParams['source'],
+): { plan: 'trialing' | 'active' | 'cancelled'; store: LifecycleParams['source'] } {
+  return { plan: PLAN_AFTER[event], store: source }
+}
+
+/** Capture properties for the PostHog `/capture/` body — event props plus
+ *  `$set` so the person record stays in step with the lifecycle write. */
+export function postHogLifecycleProperties(params: LifecycleParams): {
+  source: LifecycleParams['source']
+  $lib: 'dayspring-server'
+  $set: ReturnType<typeof personPropertiesFor>
+} {
+  return {
+    source: params.source,
+    $lib: 'dayspring-server',
+    $set: personPropertiesFor(params.event, params.source),
+  }
+}
+
 // ── PostHog ──────────────────────────────────────────────────────────────────
 
 export type PostHogTransport = (body: Record<string, unknown>) => Promise<void>
@@ -147,7 +181,7 @@ async function sendLifecycleEvent(
       postHog({
         event: POSTHOG_EVENT[params.event],
         distinct_id: params.userId,
-        properties: { source: params.source, $lib: 'dayspring-server' },
+        properties: postHogLifecycleProperties(params),
         timestamp: new Date(eventTimeSec * 1000).toISOString(),
       }),
     )

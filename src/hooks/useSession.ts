@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { isAuthInvalidation, forceReauth } from '@/lib/authError'
 import { rememberAuthProvider } from '@/lib/lastAuthProvider'
-import { track } from '@/lib/analytics'
+import { applyAuthAnalytics, track } from '@/lib/analytics'
 
 /** Narrows the untyped `app_metadata.provider` Supabase reports to the closed
  *  vocabulary `auth_completed` is allowed to carry. Anything else (a provider
@@ -59,6 +59,12 @@ export function useSession(): SessionState {
       // app_metadata.provider is the most recent sign-in's provider.
       if (next) rememberAuthProvider(next.user?.app_metadata?.provider)
 
+      // Join this device's anonymous PostHog person to the account so Use
+      // events share distinct_id with server Exit events. Restored sessions
+      // count (INITIAL_SESSION); only an explicit sign-out resets. Gated on
+      // shareUsage inside applyAuthAnalytics / identifyUser.
+      applyAuthAnalytics(next?.user?.id ?? null, event === 'SIGNED_OUT')
+
       // Only a genuine interactive sign-in, never a restored/refreshed
       // session — INITIAL_SESSION and TOKEN_REFRESHED are separate event
       // types, so gating on SIGNED_IN alone can't double-count either.
@@ -78,14 +84,20 @@ export function useSession(): SessionState {
       // Stored refresh token may still be valid even when access session is empty.
       void sb.auth.refreshSession().then(({ data: { session: refreshed } }) => {
         settle(refreshed)
-        if (refreshed) validateUser(sb)
+        if (refreshed) {
+          applyAuthAnalytics(refreshed.user?.id ?? null)
+          validateUser(sb)
+        }
       })
     })
 
     // Safety net if INITIAL_SESSION never fires (shouldn't happen on current auth-js).
     const fallback = window.setTimeout(() => {
       if (settled) return
-      void sb.auth.getSession().then(({ data: { session: s } }) => settle(s))
+      void sb.auth.getSession().then(({ data: { session: s } }) => {
+        settle(s)
+        if (s?.user?.id) applyAuthAnalytics(s.user.id)
+      })
     }, 5000)
 
     return () => {
