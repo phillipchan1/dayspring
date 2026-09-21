@@ -1018,6 +1018,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         settings: null,
         help: false,
         pagesSpreadId: null,
+        pagesVolume: null,
+        pagesVolumeFrom: null,
       },
       { replace: true },
     )
@@ -1512,8 +1514,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // to: pressing Pages later re-entered whatever you last read INSTEAD of
       // the wall, and Back out of that landed on whichever surface happened to
       // be underneath. "I cannot get to all entries at all" was this — not a
-      // broken button, a stale id nothing ever cleared.
+      // broken button, a stale id nothing ever cleared. Same for a volume.
       pagesSpreadId: null,
+      pagesVolume: null,
+      pagesVolumeFrom: null,
       ...next,
     })
   }
@@ -2403,6 +2407,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // per chip would make Back walk every word you looked at.
       onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}
       spreadId={state.pagesSpreadId}
+      // The shelf and a volume are frames of their own: stepping in pushes (so
+      // Back steps out, and a page opened from a volume returns to it); the
+      // way up is Back when we stepped in, else a replace.
+      volumeAt={state.pagesVolume}
+      volumeFrom={state.pagesVolumeFrom}
+      onVolumeAt={(next, how, from) => {
+        if (how === 'in') go({ pagesVolume: next, pagesVolumeFrom: from ?? 'wall', pagesSpreadId: null })
+        else if (how === 'up' && state.pagesVolumeFrom) back()
+        else go({ pagesVolume: next, pagesVolumeFrom: null, pagesSpreadId: null }, { replace: true })
+      }}
       /*
        * Opening a page pushes a frame, so system Back closes it. Turning pages
        * replaces, so Back never walks every page you read.

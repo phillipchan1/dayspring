@@ -116,8 +116,8 @@ interface Props {
    * the screen with the keyboard below it rather than across it.
    */
   narrow: boolean
-  /** VOLUMES (alpha): the way onto the shelf, when volumes exist. */
-  shelf?: { on: boolean; onToggle: () => void } | undefined
+  /** VOLUMES: Pages | Volumes, when volumes exist. `on` = on the shelf or in a volume. */
+  shelf?: { on: boolean; onPages: () => void; onVolumes: () => void } | undefined
   standLabel: string
   reading: Reading
   onReading: (r: Reading) => void
@@ -497,20 +497,15 @@ export function LookFor({
           worse than no slider — it says this view has a setting it does not.
         */}
         {shelf && reading === 'order' ? (
-          <button
-            type="button"
-            className="pg-volumes"
-            aria-pressed={shelf.on}
-            onClick={shelf.onToggle}
-            title={shelf.on ? 'Back to the pages' : 'Your volumes — every notebook you’ve filled'}
-          >
-            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
-              <rect x="3" y="4" width="3.2" height="12" rx="0.8" />
-              <rect x="7.4" y="3" width="3.2" height="13" rx="0.8" />
-              <rect x="11.8" y="5.2" width="3.2" height="11" rx="0.8" transform="rotate(-8 13.4 10.7)" />
-            </svg>
-            <span>{shelf.on ? 'Pages' : 'Volumes'}</span>
-          </button>
+          // Two sides, one lit: where you ARE, not where a tap would take you.
+          <div className="pg-volumes" role="radiogroup" aria-label="Pages or volumes">
+            <button type="button" role="radio" aria-checked={!shelf.on} onClick={shelf.onPages}>
+              Pages
+            </button>
+            <button type="button" role="radio" aria-checked={shelf.on} onClick={shelf.onVolumes} title="Every notebook you’ve filled">
+              Volumes
+            </button>
+          </div>
         ) : null}
         {narrow || reading !== 'order' ? null : (
           <label className="pg-stand">

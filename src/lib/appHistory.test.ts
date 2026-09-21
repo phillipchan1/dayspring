@@ -59,3 +59,13 @@ describe('appHistoryEqual', () => {
     expect(appHistoryEqual(wall, spread)).toBe(false)
   })
 })
+
+describe('pagesVolume', () => {
+  it('keeps the shelf or an open volume on the frame, and on the ticket out of it', () => {
+    const at = normalizeAppHistory({ ...DEFAULT_APP_HISTORY, surface: 'pages', pagesVolume: 7, pagesVolumeFrom: 'shelf' })
+    expect(at.pagesVolume).toBe(7)
+    expect(at.pagesVolumeFrom).toBe('shelf')
+    expect(entryReturnFromState(at)?.pagesVolume).toBe(7)
+    expect(normalizeAppHistory({ ...DEFAULT_APP_HISTORY, pagesVolume: -1 as number, pagesVolumeFrom: 'x' as 'wall' }).pagesVolume).toBeNull()
+  })
+})

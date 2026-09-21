@@ -123,3 +123,8 @@
 .vol-found__row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .vol-found__d { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); padding-top: 3px; }
 .vol-found__t { font-family: var(--font-serif); font-size: 16px; color: var(--text); }
+
+/* the shelf, on the calendar — a row per year */
+.vol-shelf__year { margin-top: 26px; }
+.vol-shelf__year:first-of-type { margin-top: 4px; }
+.vol-shelf__yearname { margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: 0.16em; color: var(--text-dim); }

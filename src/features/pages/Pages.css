@@ -5464,17 +5464,24 @@ button.pg__sense-q:hover {
 /* VOLUMES (alpha): the way onto the shelf */
 .pg-volumes {
   display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  padding: 2px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  color: var(--text-dim);
   border-radius: 999px;
-  padding: 0.28rem 0.7rem;
-  font-family: var(--font-sans, system-ui);
-  font-size: 0.75rem;
-  cursor: pointer;
+  background: var(--bg-elevated);
   white-space: nowrap;
 }
-.pg-volumes:hover { color: var(--text-bright); border-color: var(--accent); }
-.pg-volumes[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.pg-volumes button {
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  padding: 0.24rem 0.75rem;
+  font-family: var(--font-sans, system-ui);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.pg-volumes button:hover { color: var(--text-bright); }
+.pg-volumes button[aria-checked='true'] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text-bright);
+}

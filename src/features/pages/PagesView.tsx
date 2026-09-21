@@ -107,6 +107,14 @@ interface Props {
    */
   spreadId: string | null
   onSpread: (entryId: string | null) => void
+  /** Volumes: null = the wall, 0 = the shelf, n = volume n. Lives on the
+   *  history frame so Back steps volume → shelf → wall. */
+  volumeAt?: number | null | undefined
+  /** Where this shelf / volume was stepped into from (null = reached sideways). */
+  volumeFrom?: 'wall' | 'shelf' | null | undefined
+  /** in = a step in (Back returns here); up = the way out (Back, if stepped
+   *  in); to = go straight there without a new frame. */
+  onVolumeAt?: ((next: number | null, how: 'in' | 'up' | 'to', from?: 'wall' | 'shelf') => void) | undefined
   /** Leave Pages for the editor — or, for a ritual page, the rail, on `startAt`. */
   onOpenEntry: (entryId: string, startAt?: number) => void
   /** Open the thread of every answer given to one practice. */
@@ -153,6 +161,9 @@ export function PagesView({
   onClearAsked,
   spreadId,
   onSpread,
+  volumeAt = null,
+  volumeFrom = null,
+  onVolumeAt = () => {},
   onOpenEntry,
   onRitualThread,
   onNew,
@@ -238,20 +249,33 @@ export function PagesView({
     if (settings.volumeSeen === undefined && entries.length > 0) patch.volumeSeen = closings.length
     if (Object.keys(patch).length > 0) updateSettings(patch)
   }, [volumesOn, ready, closings, settings.volumeClosings, settings.volumeSeen, entries.length, updateSettings])
-  const [openVolume, setOpenVolume] = useState<number | null>(null)
-  // The shelf is the furthest zoom on a pointer, and a button everywhere — a
+  // The shelf is the furthest zoom on a pointer, and a door everywhere — a
   // phone has no zoom, and the far end of a slider is a place nobody finds.
-  const [shelfPinned, setShelfPinned] = useState(false)
+  // Where you are (wall / shelf / a volume) is on the history frame, so Back
+  // walks it and a page opened from a volume comes back to the volume.
+  const openVolume = volumesOn && volumeAt !== null && volumeAt > 0 ? volumeAt : null
   const SHELF_ZOOM = 0.05
-  const onShelf = volumesOn && volumes.length > 0 && (shelfPinned || (!narrow && zoom < SHELF_ZOOM))
-  const toggleShelf = () => {
-    if (onShelf) {
-      setShelfPinned(false)
-      setOpenVolume(null)
-      if (zoom < SHELF_ZOOM) setZoom(PAGES_ZOOM_DEFAULT)
-    } else {
-      setShelfPinned(true)
-    }
+  const onShelf = volumesOn && volumes.length > 0 && openVolume === null && (volumeAt === 0 || (!narrow && zoom < SHELF_ZOOM))
+  const setOpenVolume = (n: number | null) => {
+    if (n === null) return onVolumeAt(volumeFrom === 'wall' ? null : 0, 'up')
+    onVolumeAt(n, 'in', onShelf ? 'shelf' : 'wall')
+  }
+  const toPages = () => {
+    if (zoom < SHELF_ZOOM) setZoom(PAGES_ZOOM_DEFAULT)
+    if (volumeAt === 0 && volumeFrom === 'wall') onVolumeAt(null, 'up')
+    else if (volumeAt !== null) onVolumeAt(null, 'to')
+  }
+  const toShelf = () => {
+    if (openVolume !== null) return onVolumeAt(0, volumeFrom === 'shelf' ? 'up' : 'to')
+    if (!onShelf) onVolumeAt(0, 'in', 'wall')
+  }
+  // The slider and the dates reach the shelf and the volume: the shelf is the
+  // far end of the zoom, so moving the slider off it walks back into pages;
+  // bracketing dates narrows the shelf, and from inside a volume takes you to
+  // the pages of those dates.
+  const onZoomAnywhere = (z: number) => {
+    if (volumeAt !== null && z >= SHELF_ZOOM) toPages()
+    setZoom(z)
   }
   const closingVolume =
     volumesOn && settings.volumeSeen !== undefined && closedCount > settings.volumeSeen
@@ -274,8 +298,7 @@ export function PagesView({
   }, [volumesOn, volumes, settings.volumeNames])
   const volumeByLast = useMemo(() => new Map(volumes.map((v) => [v.lastId, v.n])), [volumes])
   const walkVolume = (v: Volume) => {
-    setOpenVolume(null)
-    setShelfPinned(false)
+    toPages()
     setReading('order')
     if (zoom < SHELF_ZOOM) setZoom(PAGES_ZOOM_DEFAULT)
     const d = new Date(`${v.from}T12:00:00Z`)
@@ -524,6 +547,24 @@ export function PagesView({
     () => (span ? spanBounds(span, months) : null),
     [span, months],
   )
+
+  // A volume's months on the strip, so the dates say where it sits.
+  const volumeSpan = useMemo(() => {
+    const v = openVolume !== null ? volumes[openVolume - 1] : undefined
+    if (!v) return null
+    const at = (d: string) => months.findIndex((m) => m.year === +d.slice(0, 4) && m.month === +d.slice(5, 7) - 1)
+    const from = at(v.from)
+    const to = at(v.to)
+    return from >= 0 && to >= 0 ? { from, to } : null
+  }, [openVolume, volumes, months])
+  // The shelf holds the volumes that overlap the dates you bracketed.
+  const shelfVolumes = useMemo(() => {
+    const w = subjectWindow
+    if (!w) return volumes
+    const start = w.start.slice(0, 10)
+    const end = w.end.slice(0, 10)
+    return volumes.filter((v) => v.to >= start && v.from < end)
+  }, [volumes, subjectWindow])
 
   const held = useMemo(() => withVocabulary(kept, vocabulary), [kept, vocabulary])
   const offered = useMemo(() => partitionKept(vocabulary, held).offered, [vocabulary, held])
@@ -873,7 +914,8 @@ export function PagesView({
               strokeLinejoin="round"
             />
           </svg>
-          All entries
+          {/* It says where it goes: a page opened from a volume closes back into it. */}
+          {openVolume !== null ? 'The volume' : onShelf ? 'The shelf' : 'All entries'}
         </button>
 
         {chips.length > 0 ? (
@@ -1041,11 +1083,11 @@ export function PagesView({
               floor={subjectFloor}
               window={subjectWindow}
               markings={markPills}
-              zoom={zoom}
-              onZoom={setZoom}
+              zoom={onShelf || openVolume !== null ? Math.min(zoom, SHELF_ZOOM / 2) : zoom}
+              onZoom={onZoomAnywhere}
               narrow={narrow}
-              standLabel={onShelf ? 'the shelf' : densityLabel(perScreen)}
-              shelf={volumesOn && volumes.length > 0 ? { on: onShelf || openVolume !== null, onToggle: toggleShelf } : undefined}
+              standLabel={openVolume !== null ? 'a volume' : onShelf ? 'the shelf' : densityLabel(perScreen)}
+              shelf={volumesOn && volumes.length > 0 ? { on: onShelf || openVolume !== null, onPages: toPages, onVolumes: toShelf } : undefined}
               reading={reading}
               onReading={setReading}
               chips={chips}
@@ -1112,8 +1154,13 @@ export function PagesView({
             <Stretch
               entries={entries}
               months={months}
-              span={span}
-              onSpan={setSpan}
+              span={openVolume !== null ? (volumeSpan ?? span) : span}
+              onSpan={(next) => {
+                // Inside a volume the strip shows the volume's own months;
+                // bracketing other dates walks out to the pages of those dates.
+                if (openVolume !== null) toPages()
+                setSpan(next)
+              }}
               caption={`${facts.count.toLocaleString()} ${facts.count === 1 ? 'page' : 'pages'}`}
             />
           )}
@@ -1208,6 +1255,7 @@ export function PagesView({
               entries={entries}
               names={settings.volumeNames}
               onClose={() => setOpenVolume(null)}
+              backLabel={volumeFrom === 'wall' ? '← the pages' : '← the shelf'}
               onOpenPage={(id) => onSpread(id)}
               onWalk={walkVolume}
               onOpenEntry={(id) => onOpenEntry(id)}
@@ -1219,7 +1267,9 @@ export function PagesView({
         ) : onShelf ? (
           <div className="pg__inner pg__inner--read pg__inner--scroll">
             <Shelf
-              volumes={volumes}
+              volumes={shelfVolumes}
+              all={volumes}
+              bracketed={subjectWindow !== null}
               entries={entries}
               names={settings.volumeNames}
               lit={onlyLit ? null : lit}
@@ -1254,7 +1304,15 @@ export function PagesView({
             offerBlank={offerBlank}
             onMenuAction={onEntryMenuAction}
             onDeleteEntries={onDeleteEntries}
-            {...(volumeMarks ? { volumeMarks, onVolumeMark: (id: string) => setOpenVolume(volumeByLast.get(id) ?? null) } : {})}
+            {...(volumeMarks
+              ? {
+                  volumeMarks,
+                  onVolumeMark: (id: string) => {
+                    const n = volumeByLast.get(id)
+                    if (n) setOpenVolume(n)
+                  },
+                }
+              : {})}
           />
         )}
 

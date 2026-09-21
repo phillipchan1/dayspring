@@ -182,6 +182,8 @@ function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
     ...(PARAMS.get('closing') === '1' ? { volumeSeen: 0 } : {}),
   }))
   const [subjectKey, setSubjectKey] = useState<string | null>(null)
+  const [volStack, setVolStack] = useState<{ at: number | null; from: 'wall' | 'shelf' | null }[]>([{ at: null, from: null }])
+  ;(window as unknown as { __volBack: () => void }).__volBack = () => setVolStack((st) => (st.length > 1 ? st.slice(0, -1) : st))
   const [spreadId, setSpreadId] = useState<string | null>(null)
 
   return (
@@ -199,6 +201,19 @@ function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
             onClearAsked={() => {}}
             spreadId={spreadId}
             onSpread={setSpreadId}
+            // A small stand-in for the app's history: a stack of frames, so the
+            // harness walks shelf → volume → Back the way the app does.
+            volumeAt={volStack[volStack.length - 1]!.at}
+            volumeFrom={volStack[volStack.length - 1]!.from}
+            onVolumeAt={(next, how, from) =>
+              setVolStack((st) =>
+                how === 'in'
+                  ? [...st, { at: next, from: from ?? 'wall' }]
+                  : how === 'up' && st[st.length - 1]!.from && st.length > 1
+                    ? st.slice(0, -1)
+                    : [...st.slice(0, -1), { at: next, from: null }],
+              )
+            }
             onOpenEntry={() => window.alert('This is where the editor would open.')}
             onNew={() => window.alert('This is where a new entry would open.')}
             onEntryMenuAction={() => {}}

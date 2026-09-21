@@ -21,6 +21,8 @@ export interface EntryReturnContext {
   /** Pages lighting and open reader — so Back lands on the page you left, not the wall. */
   pagesSubject: string | null
   pagesSpreadId: string | null
+  /** The shelf or volume open in Pages (see AppHistoryState.pagesVolume). */
+  pagesVolume?: number | null
 }
 
 export const ENTRY_RETURN_LABEL: Record<EntryReturnSurface, string> = {
@@ -66,6 +68,14 @@ export interface AppHistoryState {
   /** Entry open in the Pages Spread. Its own frame, so Esc/Back close the reader
    *  and leave you on the wall rather than the editor. */
   pagesSpreadId: string | null
+  /** Volumes in Pages: null = the wall, 0 = the shelf, n = volume n read back.
+   *  Its own frame, like the reader, so Back steps volume → shelf → wall and a
+   *  page opened from a volume comes back to the volume. */
+  pagesVolume: number | null
+  /** Where the shelf / volume was stepped into from ('wall' or 'shelf'), so
+   *  its way up is Back to that frame and can say where it goes. null = not
+   *  stepped into (reached sideways), so the way up replaces instead. */
+  pagesVolumeFrom: 'wall' | 'shelf' | null
 }
 
 export const DEFAULT_APP_HISTORY: AppHistoryState = {
@@ -82,6 +92,8 @@ export const DEFAULT_APP_HISTORY: AppHistoryState = {
   ascentDrill: null,
   pagesSubject: null,
   pagesSpreadId: null,
+  pagesVolume: null,
+  pagesVolumeFrom: null,
 }
 
 export function isAppHistoryState(value: unknown): value is AppHistoryState {
@@ -141,6 +153,7 @@ function normalizeEntryReturn(value: unknown): EntryReturnContext | null {
     ascentDrill: normalizeAscentDrill(r.ascentDrill),
     pagesSubject: typeof r.pagesSubject === 'string' ? r.pagesSubject : null,
     pagesSpreadId: typeof r.pagesSpreadId === 'string' ? r.pagesSpreadId : null,
+    ...(normalizePagesVolume(r.pagesVolume) !== null ? { pagesVolume: normalizePagesVolume(r.pagesVolume) } : {}),
   }
 }
 
@@ -161,7 +174,13 @@ export function normalizeAppHistory(state: AppHistoryState): AppHistoryState {
     ascentDrill: normalizeAscentDrill(state.ascentDrill),
     pagesSubject: typeof state.pagesSubject === 'string' ? state.pagesSubject : null,
     pagesSpreadId: typeof state.pagesSpreadId === 'string' ? state.pagesSpreadId : null,
+    pagesVolume: normalizePagesVolume(state.pagesVolume),
+    pagesVolumeFrom: state.pagesVolumeFrom === 'wall' || state.pagesVolumeFrom === 'shelf' ? state.pagesVolumeFrom : null,
   }
+}
+
+function normalizePagesVolume(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null
 }
 
 export function readAppHistoryState(): AppHistoryState | null {
@@ -190,6 +209,8 @@ export function appHistoryEqual(a: AppHistoryState, b: AppHistoryState): boolean
     a.ascentAltitude === b.ascentAltitude &&
     a.pagesSubject === b.pagesSubject &&
     a.pagesSpreadId === b.pagesSpreadId &&
+    a.pagesVolume === b.pagesVolume &&
+    a.pagesVolumeFrom === b.pagesVolumeFrom &&
     JSON.stringify(a.ascentDrill) === JSON.stringify(b.ascentDrill) &&
     JSON.stringify(a.settings) === JSON.stringify(b.settings)
   )
@@ -327,6 +348,7 @@ export function entryReturnFromState(state: AppHistoryState): EntryReturnContext
       ascentDrill: null,
       pagesSubject: state.pagesSubject,
       pagesSpreadId: state.pagesSpreadId,
+      ...(state.pagesVolume !== null ? { pagesVolume: state.pagesVolume } : {}),
     }
   }
   return null

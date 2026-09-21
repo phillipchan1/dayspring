@@ -55,7 +55,10 @@ export function VolumeView({
   onName,
   lit,
   looking,
+  backLabel = '← the shelf',
 }: {
+  /** Says where the way up goes — the shelf, or the pages it was opened from. */
+  backLabel?: string | undefined
   volume: Volume
   /** Pages lit by the filter above, if one is set. */
   lit?: Set<string> | null | undefined
@@ -141,7 +144,7 @@ export function VolumeView({
   return (
     <div className="vol-view">
       <button type="button" className="vol-view__back" onClick={onClose}>
-        ← the shelf
+        {backLabel}
       </button>
 
       <header className="vol-view__head">
