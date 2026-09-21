@@ -142,6 +142,13 @@ interface Props {
   onMenuAction: (action: EntryMenuAction, entry: Entry) => void
   onDeleteEntries: (ids: string[], focusAfterId?: string | null) => void
   /**
+   * VOLUMES (alpha): where each volume begins in wall order — its NEWEST page,
+   * which is where you meet it scrolling down — mapped to its label. Drawn as
+   * a rule in the gutter like the month marks, so it costs no row.
+   */
+  volumeMarks?: Map<string, string>
+  onVolumeMark?: (entryId: string) => void
+  /**
    * How many pages the viewport currently holds.
    *
    * Reported up rather than derived beside the slider, because the honest
@@ -260,6 +267,8 @@ export function PageWall({
   offerBlank = false,
   onMenuAction,
   onDeleteEntries,
+  volumeMarks,
+  onVolumeMark,
   onDensity,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -536,12 +545,32 @@ export function PageWall({
     () => (rowLayout ? [] : monthMarks(items, cols)),
     [rowLayout, items, cols],
   )
+  // Volume starts, as rows. Same overlay idea as the months, and a volume
+  // mark wins its row — "Volume 23" already says where you are.
+  const volumes = useMemo(() => {
+    if (!volumeMarks || volumeMarks.size === 0) return []
+    const out: { row: number; label: string; id: string }[] = []
+    items.forEach((item, i) => {
+      if (item.echo || item.blank) return
+      const label = volumeMarks.get(item.entry.id)
+      if (!label) return
+      out.push({ row: rowLayout?.itemPositions[i]?.row ?? Math.floor(i / cols), label, id: item.entry.id })
+    })
+    return out
+  }, [volumeMarks, items, cols, rowLayout])
+  const visibleVolumes = useMemo(
+    () => volumes.filter((m) => m.row > virtual.start && m.row < virtual.end),
+    [volumes, virtual.start, virtual.end],
+  )
   const visibleMonths = useMemo(
     // Row 0 is deliberately skipped: its rule would be drawn in the gap ABOVE
     // the first row, which doesn't exist. The sticky label already says which
     // month you're at when you're at the top.
-    () => months.filter((m) => m.row > virtual.start && m.row < virtual.end),
-    [months, virtual.start, virtual.end],
+    () => {
+      const taken = new Set(volumes.map((v) => v.row))
+      return months.filter((m) => m.row > virtual.start && m.row < virtual.end && !taken.has(m.row))
+    },
+    [months, volumes, virtual.start, virtual.end],
   )
 
   // The year of whatever is at the top of the viewport.
@@ -1143,6 +1172,13 @@ export function PageWall({
             A label drawn through someone's sentence to repeat what the sentence
             is sitting next to is worse than no label.
           */}
+          {(narrow ? [] : visibleVolumes).map((m) => (
+            <span key={`vol-${m.id}`} className="pg__volume-rule" style={{ top: `${(m.row - virtual.start) * rowHeight}px` }}>
+              <button type="button" onClick={() => onVolumeMark?.(m.id)}>
+                {m.label}
+              </button>
+            </span>
+          ))}
           {(narrow ? [] : visibleMonths).map((m) => (
             <span
               key={`${m.year}-${m.month}`}

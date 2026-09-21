@@ -251,6 +251,16 @@ export function PagesView({
     else delete names[v.firstId]
     updateSettings({ volumeNames: names })
   }
+  const volumeMarks = useMemo(() => {
+    if (!volumesOn) return undefined
+    const m = new Map<string, string>()
+    for (const v of volumes) {
+      const name = settings.volumeNames?.[v.firstId]
+      m.set(v.lastId, `Volume ${v.n}${name ? ` · ${name}` : ''}${v.closed ? '' : ' · being written'}`)
+    }
+    return m
+  }, [volumesOn, volumes, settings.volumeNames])
+  const volumeByLast = useMemo(() => new Map(volumes.map((v) => [v.lastId, v.n])), [volumes])
   const walkVolume = (v: Volume) => {
     setOpenVolume(null)
     setReading('order')
@@ -1228,6 +1238,7 @@ export function PagesView({
             offerBlank={offerBlank}
             onMenuAction={onEntryMenuAction}
             onDeleteEntries={onDeleteEntries}
+            {...(volumeMarks ? { volumeMarks, onVolumeMark: (id: string) => setOpenVolume(volumeByLast.get(id) ?? null) } : {})}
           />
         )}
 

@@ -573,6 +573,40 @@ button.pg__sense-q:hover {
 }
 
 /* The hairline that makes it read as a division rather than a stray word. */
+.pg__volume-rule {
+  position: absolute;
+  inset-inline: clamp(1rem, 3vw, 2rem) clamp(2.5rem, 5vw, 4.5rem);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateY(-0.9rem);
+  pointer-events: none;
+  z-index: 2;
+}
+.pg__volume-rule::after {
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.pg__volume-rule button {
+  pointer-events: auto;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--bg);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pg__volume-rule button:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
 .pg__month-rule::after {
   content: '';
   flex: 1;
