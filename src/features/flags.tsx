@@ -8,6 +8,10 @@ const FLAG_ENV: Record<string, string> = {
   // engine populates silently; this only exposes the inspect/curate UI. Enable
   // per-user via profiles.feature_flags or VITE_FF_CONCORDANCE=true.
   concordance: 'VITE_FF_CONCORDANCE',
+  // The year's ledger on the Summit (threads across the months + the walk
+  // through one). Always on in the alpha desktop build (see Summit.tsx);
+  // elsewhere per-user via profiles.feature_flags or VITE_FF_YEAR_LEDGER=true.
+  yearLedger: 'VITE_FF_YEAR_LEDGER',
   // Remember (what you've set apart, and ask the rest). Off by default while it
   // proves out. Hiding the flag hides only the nav affordances — the mobile tab
   // and the desktop rail button. The ⌘K Find palette and the route itself are

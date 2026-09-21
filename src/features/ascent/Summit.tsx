@@ -6,6 +6,11 @@ import { recordClimb, sinceLastClimb } from './lastClimb'
 import { listSummitYears, loadSummitYear } from './data/summitYear'
 import { loadNaming, startNaming, type YearNaming } from './summitNaming'
 import { SummitTrail } from './SummitTrail'
+import { useFeatureFlag } from '@/features/flags'
+import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
+import { loadYearLedger } from './ledger/load'
+import { YearThreads } from './ledger/YearThreads'
+import type { LedgerStone, YearLedger } from './ledger/build'
 
 interface Props {
   /** The whole Summit: the refrain, the stones, the long look, the year. */
@@ -94,6 +99,29 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   const progress = view?.progress ?? (isOpenYear ? openYear.progress : 1)
   const refrain = view?.words?.moments?.[0] ?? null
 
+  // THE YEAR'S LEDGER (alpha): the year read as the threads the writer kept
+  // returning to, in place of the calendar trail. undefined = reading, null =
+  // nothing to show (or it failed) — both fall back to the trail, never blank.
+  const ledgerOn = useFeatureFlag('yearLedger') || ALLOWS_INTERNAL_UI
+  const [ledger, setLedger] = useState<YearLedger | null | undefined>(undefined)
+  useEffect(() => {
+    if (!ledgerOn) return
+    let alive = true
+    setLedger(undefined)
+    loadYearLedger(shownYear).then(
+      (l) => alive && setLedger(l.threads.length > 0 ? l : null),
+      (e) => {
+        console.error('[ledger]', e instanceof Error ? e.message : e)
+        if (alive) setLedger(null)
+      },
+    )
+    return () => {
+      alive = false
+    }
+  }, [ledgerOn, shownYear])
+  const ledgerView = ledgerOn && ledger && ledger.year === shownYear ? ledger : null
+  const ledgerReading = ledgerOn && ledger === undefined
+
   const [openStone, setOpenStone] = useState<string | null>(null)
   const [longLookOpen, setLongLookOpen] = useState(false)
   const [naming, setNaming] = useState<YearNaming | null>(null)
@@ -130,12 +158,18 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   }, [year])
 
   const hasAnything =
-    refrain !== null || stones.length > 0 || (scripture?.refs.length ?? 0) > 0 || longLook !== null
+    refrain !== null ||
+    stones.length > 0 ||
+    (scripture?.refs.length ?? 0) > 0 ||
+    longLook !== null ||
+    ledgerView !== null
   if (!hasAnything) {
     return (
       <div className="ascent-summit">
         <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
-        <SummitTrail year={year} progress={progress} stones={[]} selectedId={null} onSelect={() => {}} />
+        {ledgerReading ? null : (
+          <SummitTrail year={year} progress={progress} stones={[]} selectedId={null} onSelect={() => {}} />
+        )}
         <p className="ascent-empty">
           {isOpenYear
             ? EMPTY_COPY.year.empty
@@ -163,6 +197,101 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
     } finally {
       setStarting(false)
     }
+  }
+
+  if (ledgerView || ledgerReading) {
+    // Ledger mode. The refrain leads (the writer's own line, set large), then the
+    // year's threads with its stones; the rest of the Summit follows unchanged.
+    const ledgerStones: LedgerStone[] =
+      ledgerView && ledgerView.stones.length > 0
+        ? ledgerView.stones
+        : stones.map((s) => ({
+            id: s.id,
+            threadId: '',
+            ask: { entryId: s.ask.entryId, date: s.ask.date, text: s.ask.text },
+            later: { entryId: s.later.entryId, date: s.later.date, text: s.later.text },
+          }))
+    return (
+      <div className="ascent-summit">
+        <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
+        <div className="ascent-stack ascent-stack--summit">
+          {refrain ? (
+            <section className="ascent-dim ascent-dim--words is-year">
+              <span className="ascent-dim__eyebrow">{DIMENSION_COPY.words.year}</span>
+              <button type="button" className="ascent-oneline" onClick={() => onOpenEntry?.(refrain.entryId)}>
+                “{refrain.text}”
+              </button>
+              <span className="ascent-oneline__date">{refrain.dateLabel}</span>
+            </section>
+          ) : null}
+
+          {ledgerView ? (
+            <YearThreads key={shownYear} ledger={{ ...ledgerView, stones: ledgerStones }} onOpenEntry={onOpenEntry} />
+          ) : (
+            <p className="ascent-dim__note">{SUMMIT_COPY.sealedReading(shownYear)}</p>
+          )}
+
+          <ScriptureDimension data={scripture} onDrill={onScriptureDrill} />
+
+          {longLook ? (
+            <section className="ascent-dim ascent-longlook">
+              <button
+                type="button"
+                className="ascent-longlook__toggle"
+                onClick={() => setLongLookOpen((v) => !v)}
+                aria-expanded={longLookOpen}
+                disabled={!longLookReady}
+              >
+                {!longLookReady
+                  ? SUMMIT_COPY.longLookWaiting
+                  : longLookOpen
+                    ? SUMMIT_COPY.longLookClose
+                    : SUMMIT_COPY.longLookOpen}
+              </button>
+              {longLookOpen && longLookReady ? (
+                <div className="ascent-longlook__body">
+                  {longLook.throughline.map((p, i) => (
+                    <p key={`t${i}`} className="ascent-longlook__para">
+                      {p}
+                    </p>
+                  ))}
+                  {longLook.themes.map((p, i) => (
+                    <p key={`h${i}`} className="ascent-longlook__para is-themes">
+                      {p}
+                    </p>
+                  ))}
+                  <p className="ascent-dim__note">{SUMMIT_COPY.longLookFooter}</p>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {naming?.text || isOpenYear ? (
+            <section className="ascent-dim ascent-naming">
+              <span className="ascent-dim__eyebrow">{SUMMIT_COPY.namingEyebrow}</span>
+              {naming && naming.text ? (
+                <>
+                  <button type="button" className="ascent-naming__answer" onClick={() => onOpenEntry?.(naming.entryId)}>
+                    “{naming.text}”
+                  </button>
+                  <span className="ascent-oneline__date">{SUMMIT_COPY.namingBy(naming.dateLabel)}</span>
+                </>
+              ) : (
+                <>
+                  <p className="ascent-summit__ask">{naming ? SUMMIT_COPY.namingStarted : SUMMIT_COPY.taught}</p>
+                  <button type="button" className="ascent-naming__write" onClick={onWriteNaming} disabled={starting}>
+                    {naming ? SUMMIT_COPY.namingOpen : SUMMIT_COPY.namingWrite}
+                  </button>
+                </>
+              )}
+              <p className="ascent-dim__note">{DIMENSION_COPY.learning.note}</p>
+            </section>
+          ) : null}
+
+          <SinceLastClimb newStones={since.newStones} refrainArrived={since.refrainArrived} />
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -89,6 +89,7 @@ async function bootstrap() {
   //   ?__preview=topbar             → the Ritual door + status cluster (features/journal/topbarPreview.tsx)
   //   ?__preview=welcome            → the first-run tour (features/welcome/preview.tsx)
   //   ?__preview=threads            → practices you have walked (features/rituals/preview.tsx)
+  //   ?__preview=ledger             → the Summit's year ledger (features/ascent/ledger/preview.tsx)
   //
   // Must run BEFORE the awaits below — a headless capture otherwise fires while
   // bootstrap is still waiting on the Supabase session and photographs a blank
@@ -129,6 +130,11 @@ async function bootstrap() {
     if (preview === 'keeping') {
       const { renderKeepingPreview } = await import('./features/keeping/preview')
       renderKeepingPreview()
+      return
+    }
+    if (preview === 'ledger') {
+      const { renderLedgerPreview } = await import('./features/ascent/ledger/preview')
+      renderLedgerPreview()
       return
     }
     if (preview === 'pages') {
