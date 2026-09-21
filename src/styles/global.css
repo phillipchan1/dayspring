@@ -2379,6 +2379,19 @@ a {
   overflow: hidden;
 }
 
+/* The wide layout clears the status bar at the shell, once.
+   An iPad is wider than the 767px breakpoint, so it gets the desktop layout —
+   rail, top bar, Pages header — none of which had ever needed a top inset,
+   because the Mac and the web report 0. On iPadOS the shell draws under a 24pt
+   status bar (viewport-fit=cover), and App Review cited text overlapping it
+   under Guideline 4.0 on 2026-09-21 (iPad Air 11" M3). The phone layout pads
+   its own header, so this stays out of its way. 0px everywhere else. */
+@media (min-width: 768px) {
+  .app-shell {
+    padding-top: var(--safe-top);
+  }
+}
+
 /*
  * The back-swipe out of an entry (MobileJournal → `back`).
  *

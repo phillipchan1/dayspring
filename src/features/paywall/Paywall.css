@@ -913,19 +913,6 @@
   touch-action: manipulation;
 }
 
-/* What tapping a plan does, said at the button. Guideline 3.1.2(c). */
-.locked-screen__charge {
-  margin: 1.1rem 0 0;
-  font-family: var(--font-sans);
-  font-size: 0.82rem;
-  line-height: 1.55;
-  color: rgba(236, 231, 223, 0.8);
-  max-width: 22rem;
-}
-[data-appearance='light'] .locked-screen__charge {
-  color: rgba(74, 64, 53, 0.82);
-}
-
 /* "Ask Phil" — a warm, contained composer. */
 .locked-ask {
   margin-top: 1.1rem;
@@ -1030,10 +1017,12 @@
   margin: 1rem auto 0;
   text-align: center;
 }
+/* Now the only place a purchase surface states the charge, so it reads at
+   body-copy contrast — still well under the price in size and weight. */
 .apple-terms__body {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   line-height: 1.6;
-  color: rgba(236, 231, 223, 0.55);
+  color: rgba(236, 231, 223, 0.74);
   margin: 0 0 0.2rem;
 }
 .apple-terms__links {
@@ -1080,4 +1069,103 @@
 .settings-field .apple-terms__body,
 .settings-field .apple-terms__links {
   color: var(--text-faint);
+}
+
+/* ── Status-bar clearance ────────────────────────────────────────────────────
+   Guideline 4.0, 2026-09-21: "text overlapping on the status bar" on an iPad
+   Air 11" (M3). These screens already padded for the inset — but padding sits
+   INSIDE a scroll container and scrolls away with the content, so the moment
+   the panel is taller than the screen (the ended-access screen is, on an iPad
+   in landscape) the headline and the price scroll up under the clock.
+
+   A border does not scroll. Moving the insets from padding to transparent
+   borders keeps the gradient painting edge to edge (background-origin:
+   border-box, or the tiled gradient seams at the top) while the content is
+   clipped at the padding box — it can never enter the status bar, at rest or
+   mid-scroll. Uses the --safe-* tokens so a browser can emulate an inset.
+   Appended so it wins over every padding rule above, the phone block included. */
+.paywall,
+.locked-screen,
+.trial-welcome {
+  border-top: var(--safe-top) solid transparent;
+  border-bottom: var(--safe-bottom) solid transparent;
+  background-origin: border-box;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+@media (max-width: 480px) {
+  .paywall,
+  .locked-screen,
+  .trial-welcome {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* ── The billed amount leads ─────────────────────────────────────────────────
+   Guideline 3.1.2(c), 2026-09-21: "the billed amount is not clearly and
+   conspicuously displayed". Apple's test is relative — font, size, colour,
+   position — so the StoreKit price has to out-rank every other figure on the
+   screen: the headline's neighbours, the "Dayspring is holding" counts, and
+   anything that reads as a calculated price. */
+
+/* Paywall tiles: the price is the largest type on the screen, headline included. */
+.paywall__plan-price {
+  font-size: 2rem;
+}
+.paywall__plan-cadence {
+  font-size: 0.9rem;
+  color: rgba(236, 231, 223, 0.86);
+}
+[data-appearance='light'] .paywall__plan-cadence {
+  color: rgba(34, 26, 18, 0.82);
+}
+@media (max-width: 480px) {
+  .paywall__plan-price {
+    font-size: 1.8rem;
+  }
+  .paywall__plan-cadence {
+    font-size: 0.85rem;
+  }
+}
+
+/* Locked screen plan buttons: amount on top and largest, action beneath. */
+.locked-screen .btn.locked-plan {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 4.25rem;
+  padding: 0.7rem 1rem;
+}
+.locked-plan__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.locked-plan__price {
+  font-family: var(--font-display, var(--font-serif));
+  font-size: clamp(1.6rem, 5vw, 2rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.locked-plan__cadence {
+  font-size: 0.55em;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.locked-plan__action {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* The holding counts are the user's own words, not a price — keep them from
+   out-sizing the amount they would be billed. */
+.locked-holding__num {
+  font-size: clamp(1.3rem, 4vw, 1.5rem);
 }

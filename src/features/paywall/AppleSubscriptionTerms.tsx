@@ -23,10 +23,14 @@ import './Paywall.css'
 export function AppleSubscriptionTerms() {
   return (
     <div className="apple-terms">
+      {/* "Starts today" leads because there is no introductory offer: the plan
+          bills at confirmation (Guideline 3.1.2(c), 2026-09-17 and -21). This
+          is the one place a purchase surface says it, and it stays short:
+          Apple needs length, price, auto-renewal and how to cancel, no more. */}
       <p className="apple-terms__body">
-        Payment is charged to your Apple Account at confirmation. The subscription renews
-        automatically unless you turn off auto-renew at least 24 hours before the period ends.
-        Manage or cancel anytime in your Apple Account settings.
+        Starts today, billed to your Apple Account at confirmation. Renews automatically unless
+        cancelled at least 24 hours before the period ends. Cancel anytime in Apple Account
+        settings.
       </p>
       <p className="apple-terms__links">
         <TermsLink href={legalUrl('terms')} label="Terms of Use" />
