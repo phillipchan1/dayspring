@@ -356,9 +356,33 @@ const READ_MARKINGS: PageMarking[] = [
   },
 ]
 
-function ReaderPreview() {
+/** `&ritual=1`: a ritual page, with an After, to walk the click-an-answer door. */
+const READ_RITUAL: Entry = page(
+  'preview-read-ritual',
+  new Date(Date.UTC(2026, 8, 19, 3)).toISOString(),
+  [
+    '<!-- ritual:name:The Daily Examen -->',
+    '<!-- ritual:section:Gratitude -->',
+    'The long walk after dinner, and that the rain held off for it.',
+    '<!-- ritual:section:Awareness -->',
+    'Most alive on the walk. Most distant reading email at 9pm.',
+    '<!-- ritual:section:Examination -->',
+    '<!-- ritual:section:Prayer -->',
+    'Patience for the first hour.',
+    '',
+    'A quiet evening after all. Mom called.',
+  ].join('\n'),
+)
+
+function ReaderPreview({ ritual }: { ritual: boolean }) {
+  const [said, setSaid] = useState<string | null>(null)
   return (
     <div className="pg" style={{ height: '100dvh' }}>
+      {said ? (
+        <p data-testid="said" style={{ position: 'fixed', top: 8, right: 12, zIndex: 9, color: 'var(--accent)' }}>
+          {said}
+        </p>
+      ) : null}
       <div className="pg__body">
         <PageReader
           bar={
@@ -368,12 +392,13 @@ function ReaderPreview() {
               </button>
             </div>
           }
-          entry={READ_PAGE}
+          entry={ritual ? READ_RITUAL : READ_PAGE}
           markQuotes={[]}
-          markings={READ_MARKINGS}
+          markings={ritual ? [] : READ_MARKINGS}
           match={null}
           firstLineTitle={false}
-          onEdit={() => {}}
+          onEdit={(id, startAt) => setSaid(`edit ${id} at ${startAt ?? 'first open'}`)}
+          onRitualThread={(name) => setSaid(`thread: ${name}`)}
           onBack={() => {}}
           leaves={false}
           newer={null}
@@ -427,7 +452,7 @@ export function renderPagesPreview(): void {
   if (!el) throw new Error('Root element #root not found')
   createRoot(el).render(
     params.get('part') === 'reader' ? (
-      <ReaderPreview />
+      <ReaderPreview ritual={params.get('ritual') === '1'} />
     ) : params.get('part') === 'sheet' ? (
       <SheetPreview
         wide={params.get('wide') === '1'}

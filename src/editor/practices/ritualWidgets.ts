@@ -52,22 +52,15 @@ export class RitualHeaderWidget extends WidgetType {
       return button
     }
 
-    root.append(
-      action('about', 'about', 'Why this ritual, how it moves, and a few tips'),
-    )
-    // Always a door back into the composer. A part-written ritual picks up
-    // where it was left; a finished one opens to be read and written in again.
-    // Finished ones used to get no door on the theory that a record is edited
-    // in place — but then the ritual had two ways to write in it and only one
-    // of them could be found again.
+    // One door, and nothing else. The record is read-only and the whole of it
+    // opens the composer (see ritualRecordGuard.ts); this just says so. About
+    // and Remove live in the composer now — a masthead of four small verbs
+    // was a second, lesser toolbar for the same ritual. (Free write is only
+    // offered for a ritual that is its own page.)
     root.append(
       this.unfinished
-        ? action('continue', 'continue', 'Pick the ritual back up where you left it')
-        : action('continue', 'open', 'Open the ritual to read it and write in it again'),
-    )
-    root.append(
-      action('freewrite', 'free write', 'Remove the prompts and keep only your words'),
-      action('remove', 'remove', 'Remove this ritual from the entry'),
+        ? action('continue', 'continue →', 'Pick the ritual back up where you left it')
+        : action('continue', 'open to change →', 'Open the ritual to read it and write in it again'),
     )
     return root
   }

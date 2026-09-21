@@ -172,7 +172,8 @@ export function RitualComposer({
   const startAt = (() => {
     if (!block) return 0
     const asked = entry?.startAt
-    if (asked !== undefined && asked >= 0 && asked < block.labels.length) return asked
+    // `labels.length` is After — a click on the After in the reader.
+    if (asked !== undefined && asked >= 0 && asked <= block.labels.length) return asked
     const firstEmpty = block.texts.findIndex((t) => t.trim() === '')
     return firstEmpty === -1 ? 0 : firstEmpty
   })()

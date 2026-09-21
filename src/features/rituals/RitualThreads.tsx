@@ -68,13 +68,15 @@ interface Props {
   onClose: () => void
   /** Open the page an answer was written on. */
   onOpenEntry: (entryId: string) => void
+  /** Open straight on one practice's thread — from that ritual page's own link. */
+  initialPractice?: string
   /** Injected for the `?__preview=` harness and App Store shots; the app omits it. */
   now?: Date
 }
 
-export function RitualThreads({ entries, onClose, onOpenEntry, now }: Props) {
+export function RitualThreads({ entries, onClose, onOpenEntry, initialPractice, now }: Props) {
   const threads = useMemo(() => buildRitualThreads(entries), [entries])
-  const [openPractice, setOpenPractice] = useState<string | null>(null)
+  const [openPractice, setOpenPractice] = useState<string | null>(initialPractice ?? null)
   const [openLabel, setOpenLabel] = useState<string | null>(null)
   const sky = useMemo(() => skyFor(now ?? new Date()), [now])
 

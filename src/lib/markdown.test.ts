@@ -68,6 +68,17 @@ describe('renderMarkdown — ritual', () => {
     expect(html).not.toContain('ritual:name')
     expect(html).not.toContain('Reveal')
   })
+
+  it('gives each answer a paragraph of its own, with its markdown rendered', () => {
+    const html = render(
+      [
+        '<!-- ritual:name:The Daily Examen -->',
+        '<!-- ritual:section:Gratitude -->',
+        'The **walk** after dinner.',
+      ].join('\n'),
+    )
+    expect(html).toMatch(/<p>The <strong>walk<\/strong> after dinner\.<\/p>/)
+  })
 })
 
 describe('renderMarkdown — thematic break', () => {

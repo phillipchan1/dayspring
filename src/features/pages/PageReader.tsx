@@ -15,6 +15,8 @@ import { drawMarkings, flatten, sortMarkings } from './pageMarkings'
 import { pageExcerpt } from './pageExcerpt'
 import { hydrateReadAttachments } from './readAttachments'
 import { swipeTurn } from './swipeTurn'
+import { ritualMovementAt } from './readerRitual'
+import { ritualEntryShape } from '@/editor/practices/ritualDocument'
 
 /** The neighbour's date — short, because it is read at a glance and side-on. */
 function shortDate(iso: string): string {
@@ -74,6 +76,7 @@ export function PageReader({
   match,
   firstLineTitle,
   onEdit,
+  onRitualThread,
   onBack,
   newer,
   older,
@@ -111,7 +114,13 @@ export function PageReader({
    */
   match: RegExp | null
   firstLineTitle: boolean
-  onEdit: (entryId: string) => void
+  /**
+   * Open the page to write on. For a ritual page, `startAt` is the movement
+   * whose answer was clicked, so the rail opens right there.
+   */
+  onEdit: (entryId: string, startAt?: number) => void
+  /** Every answer given to this ritual — the thread. Absent in previews. */
+  onRitualThread?: (practice: string) => void
   /** Back to the list this page was opened from. */
   onBack: () => void
   /**
@@ -258,10 +267,18 @@ export function PageReader({
    * to do and it must not be hijacked. On touch nothing here writes: see the
    * note on `touch` above.
    */
-  const write = () => {
+  const ritual = useMemo(() => ritualEntryShape(entry.body_markdown), [entry.body_markdown])
+  const write = (e?: React.MouseEvent) => {
     const sel = window.getSelection()
     if (sel && !sel.isCollapsed) return
-    onEdit(entry.id)
+    // On a ritual page, the answer you clicked is the one you meant to change.
+    const body = bodyRef.current
+    const startAt =
+      ritual.kind === 'ritual' && e && body
+        ? ritualMovementAt(e.target as Element, body, ritual.contents.labels)
+        : undefined
+    if (startAt === undefined) onEdit(entry.id)
+    else onEdit(entry.id, startAt)
   }
 
   /**
@@ -467,6 +484,19 @@ export function PageReader({
               </aside>
             ) : null}
           </div>
+          {ritual.kind === 'ritual' && onRitualThread ? (
+            <button
+              type="button"
+              className="pg-read1__thread"
+              onClick={(e) => {
+                // The page itself is a button to write on; this is a way out of it.
+                e.stopPropagation()
+                onRitualThread(ritual.contents.name)
+              }}
+            >
+              Every answer you have given {ritual.contents.name} →
+            </button>
+          ) : null}
         </article>
       </div>
     </div>

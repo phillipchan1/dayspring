@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { syncStore } from '@/lib/sync'
 import { StatusCluster } from './StatusCluster'
-import { IconRitual } from './navIcons'
 import type { SaveStatus } from '@/hooks/useAutosave'
 
 /**
@@ -42,15 +41,11 @@ function Preview() {
       <div style={{ maxWidth: '52rem', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         <div>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>
-            The door — blank page only
+            The bar on a blank page — the ritual door is the shelf at the page's foot now
           </p>
           <header className="journal-topbar" style={{ marginTop: '0.6rem' }}>
             <div className="journal-topbar__lead">
               <span className="journal-topbar__label">New entry</span>
-              <button type="button" className="journal-topbar__ritual" title="Practices for the inner life">
-                <IconRitual />
-                Ritual
-              </button>
             </div>
             <div className="journal-topbar__actions">
               <StatusCluster

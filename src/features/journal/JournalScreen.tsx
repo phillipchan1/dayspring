@@ -428,6 +428,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const [libraryOpen, setLibraryOpen] = useState(false)
   /** "Practices you have walked" — the way back into a ritual. */
   const [threadsOpen, setThreadsOpen] = useState(false)
+  /** The practice the thread opens on — from a ritual page's own link — or null for all. */
+  const [threadsPractice, setThreadsPractice] = useState<string | null>(null)
   /**
    * Does the archive hold any ritual at all?
    *
@@ -1907,7 +1909,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     if (touchFirst) requestAnimationFrame(() => editorRef.current?.focus())
   }
 
-  async function handleOpenReflectionEntry(id: string) {
+  async function handleOpenReflectionEntry(id: string, startAt?: number) {
     // The Scripture map and Altar reference entries spanning years; the one we
     // want may be older than the locally-cached ~500-entry window, so fall back
     // to the cache and then to the server.
@@ -1920,8 +1922,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       }
     }
     if (!entry) return
-    // A ritual entry is written in the composer, never in the editor.
-    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') openRitualEntryWhenLoaded(entry.id)
+    // A ritual entry is written in the composer, never in the editor — opened
+    // on the answer that was clicked, when one was.
+    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') {
+      openRitualEntryWhenLoaded(entry.id, startAt)
+    }
 
     const returnCtx = entryReturnFromState(state)
     skipEditorAutofocusRef.current = true
@@ -2316,7 +2321,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         else if (state.pagesSpreadId) go({ pagesSpreadId: id }, { replace: true })
         else go({ pagesSpreadId: id })
       }}
-      onOpenEntry={handleOpenReflectionEntry}
+      onOpenEntry={(id, startAt) => void handleOpenReflectionEntry(id, startAt)}
+      onRitualThread={(practice) => {
+        setThreadsPractice(practice)
+        setThreadsOpen(true)
+      }}
       onNew={() => void handleNew()}
       onEntryMenuAction={handleEntryMenuAction}
       onDeleteEntries={handleDeleteEntries}
@@ -2489,7 +2498,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {threadsOpen && (
         <RitualThreads
           entries={entries}
-          onClose={() => setThreadsOpen(false)}
+          {...(threadsPractice ? { initialPractice: threadsPractice } : {})}
+          onClose={() => {
+            setThreadsOpen(false)
+            setThreadsPractice(null)
+          }}
           onOpenEntry={(id: string) => {
             setThreadsOpen(false)
             void openEntryById(id)

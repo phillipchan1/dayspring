@@ -21,7 +21,13 @@ export function revealRitualsForDisplay(markdown: string): string {
     const name = practiceNameFromLine(trimmed)
     if (name) {
       pendingLabel = null
-      out.push(`<p class="read-ritual-name">${escapeHtml(name)}</p>`)
+      // The blank line after each tag is load-bearing: markdown reads an HTML
+      // line as a raw block that runs to the next blank line, so without it
+      // the answer below was swallowed into the tag's block — bare text, no
+      // paragraph of its own, and no markdown (a bolded word showed its
+      // asterisks). Its own paragraph is also what lets the reader tell which
+      // answer was clicked (`readerRitual.ts`).
+      out.push(`<p class="read-ritual-name">${escapeHtml(name)}</p>`, '')
       continue
     }
     const section = PRACTICE_SECTION_RE.exec(trimmed)
@@ -30,7 +36,7 @@ export function revealRitualsForDisplay(markdown: string): string {
       continue
     }
     if (pendingLabel && trimmed) {
-      out.push(`<p class="read-ritual-label">${escapeHtml(pendingLabel)}</p>`)
+      out.push(`<p class="read-ritual-label">${escapeHtml(pendingLabel)}</p>`, '')
       pendingLabel = null
     }
     out.push(line)

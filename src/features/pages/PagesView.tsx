@@ -101,8 +101,10 @@ interface Props {
    */
   spreadId: string | null
   onSpread: (entryId: string | null) => void
-  /** Leave Pages for the editor. */
-  onOpenEntry: (entryId: string) => void
+  /** Leave Pages for the editor — or, for a ritual page, the rail, on `startAt`. */
+  onOpenEntry: (entryId: string, startAt?: number) => void
+  /** Open the thread of every answer given to one practice. */
+  onRitualThread?: (practice: string) => void
   /**
    * The unwritten next page at the front of the wall. Optional: previews and
    * listing shots mount this surface with no editor to go to.
@@ -146,6 +148,7 @@ export function PagesView({
   spreadId,
   onSpread,
   onOpenEntry,
+  onRitualThread,
   onNew,
   onEntryMenuAction,
   onDeleteEntries,
@@ -1168,6 +1171,7 @@ export function PagesView({
             match={match}
             firstLineTitle={settings.firstLineTitle}
             onEdit={onOpenEntry}
+            {...(onRitualThread ? { onRitualThread } : {})}
             onBack={() => onSpread(null)}
             leaves={settings.readerLeaves}
             newer={neighbours.newer}

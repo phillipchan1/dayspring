@@ -327,18 +327,12 @@ describe('RitualComposer', () => {
     })
   })
 
-  it('offers remove on the in-entry masthead, finished or not', () => {
+  it('gives the in-entry masthead one door back into the composer, and nothing else', () => {
     const open = new RitualHeaderWidget('The Daily Examen', true, false).toDOM()
     const done = new RitualHeaderWidget('The Daily Examen', false, false).toDOM()
-    expect(open.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
-    expect(done.querySelector('.cm-practice-action--remove')?.textContent).toBe('remove')
-  })
-
-  it('always offers a way back into the composer, finished or not', () => {
-    const open = new RitualHeaderWidget('The Daily Examen', true, false).toDOM()
-    const done = new RitualHeaderWidget('The Daily Examen', false, false).toDOM()
-    expect(open.querySelector('.cm-practice-action--continue')?.textContent).toBe('continue')
-    expect(done.querySelector('.cm-practice-action--continue')?.textContent).toBe('open')
+    expect(open.querySelector('.cm-practice-action--continue')?.textContent).toBe('continue →')
+    expect(done.querySelector('.cm-practice-action--continue')?.textContent).toBe('open to change →')
+    expect(done.querySelectorAll('.cm-practice-action')).toHaveLength(1)
   })
 
   it('reopens a finished ritual at its beginning, not on the close', () => {
