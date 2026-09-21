@@ -98,8 +98,13 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
   // pricing is .99-tiered ($7.99, not $7) and localised per storefront.
   const annualPrice = displayPrice('annual', { useApple, products })
   const monthlyPrice = displayPrice('monthly', { useApple, products })
-  const annualTap = useTapAction(() => void handleSelect('annual'), !busy)
-  const monthlyTap = useTapAction(() => void handleSelect('monthly'), !busy)
+  // No billed amount, no purchase: until StoreKit answers, a tile would be a
+  // price-less buy button, which Guideline 3.1.2(c) does not allow.
+  const annualTap = useTapAction(() => void handleSelect('annual'), !busy && annualPrice !== null)
+  const monthlyTap = useTapAction(
+    () => void handleSelect('monthly'),
+    !busy && monthlyPrice !== null,
+  )
   const restoreTap = useTapAction(() => void handleRestore(), !busy)
 
   return (
@@ -110,78 +115,47 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           <Brand size={34} wordmarkRem={2} />
         </div>
 
-        <p className="paywall__tagline">the dayspring from on high.</p>
-
-        {/* The headline must not promise a free trial on the Apple path: the
-            14 days were already granted in-app, and the App Store products
-            carry no introductory offer, so choosing a plan here charges today.
-            Guideline 3.1.2 treats a trial promise that StoreKit won't honour as
-            inaccurate pricing — and it would be a broken promise regardless. */}
+        {/* One layout on every platform (2026-09-21): headline, the two billed
+            amounts, the disclosure. Guideline 3.1.2(c) wants the billed amount
+            to be the most conspicuous pricing element, so nothing sits beside it
+            — no "Best value" pill, no per-month equivalent. The only thing that
+            differs by platform is whether the first 14 days are a trial of the
+            purchase (web) or already granted in-app (App Store, no intro offer). */}
         <h1 className="paywall__headline">
           {appStoreWords ? 'Keep your journal going' : 'Begin your 14-day free trial'}
         </h1>
-
-        <p className="paywall__sub">
-          Your journal history is the whole point — everything compounds over time.
-        </p>
 
         <div className="paywall__plans">
           <button
             type="button"
             className="paywall__plan"
-            data-recommended="true"
-            aria-disabled={busy}
+            aria-disabled={busy || annualPrice === null}
             aria-busy={loading === 'annual'}
             {...annualTap}
             aria-label={`Start annual plan${annualPrice ? ` — ${annualPrice} per year` : ''}`}
           >
-            <span className="paywall__plan-badge">Best value</span>
             <span className="paywall__plan-price">{annualPrice ?? 'Yearly'}</span>
             <span className="paywall__plan-cadence">per year</span>
-            {/* The "~$5.33 / month" breakdown is derived from the US price. When
-                StoreKit supplies the price it may be in any storefront currency,
-                and a hardcoded dollar figure beside it would be simply wrong —
-                which Apple treats as inaccurate pricing, not a rounding quibble. */}
-            <span className="paywall__plan-note">
-              {useApple
-                ? 'Value compounds over time'
-                : '~$5.33 / month · value compounds over time'}
-            </span>
           </button>
 
           <button
             type="button"
             className="paywall__plan"
-            aria-disabled={busy}
+            aria-disabled={busy || monthlyPrice === null}
             aria-busy={loading === 'monthly'}
             {...monthlyTap}
             aria-label={`Start monthly plan${monthlyPrice ? ` — ${monthlyPrice} per month` : ''}`}
           >
             <span className="paywall__plan-price">{monthlyPrice ?? 'Monthly'}</span>
             <span className="paywall__plan-cadence">per month</span>
-            <span className="paywall__plan-note">Cancel anytime</span>
           </button>
         </div>
 
-        {/* On Apple the 14-day trial has ALREADY been granted in-app (the
-            app-managed reverse trial), so unless a StoreKit introductory offer
-            is configured, choosing a plan here charges immediately. Promising
-            "no charge today" on that path would be untrue to the user and
-            inaccurate pricing to App Review. */}
-        <p className="paywall__trial-note">
-          {appStoreWords ? (
-            <>
-              Your plan starts <strong>today</strong> and bills your Apple Account at
-              confirmation. It renews automatically until you cancel in your Apple Account
-              settings.
-            </>
-          ) : (
-            <>
-              <strong>14 days free,</strong> no charge today. Choose your plan to start — you can
-              switch or cancel before the trial ends.
-            </>
-          )}
-        </p>
+        {!appStoreWords && (
+          <p className="paywall__trial-note">No charge for 14 days. Cancel anytime.</p>
+        )}
+
+        {useApple && <AppleSubscriptionTerms />}
 
         {useApple && (
           <button
@@ -204,8 +178,6 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
 
         {notice && <p className="paywall__trial-note">{notice}</p>}
         {error && <p className="paywall__error">{error}</p>}
-
-        {useApple && <AppleSubscriptionTerms />}
       </div>
     </div>
   )

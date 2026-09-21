@@ -1126,12 +1126,14 @@ function BillingTab() {
                   // are .99-based and localised, so the Stripe figure would be
                   // wrong. Fall back to the plan cadence, never a stale price.
                   price: onIos ? (applePrices.annual ?? 'Yearly') : '$64 / yr',
+                  billed: applePrices.annual,
                   note: onIos ? 'Billed yearly' : '~$5.33 / mo',
                   plan: 'annual' as const,
                 },
                 {
                   label: 'Monthly',
                   price: onIos ? (applePrices.monthly ?? 'Monthly') : '$7 / mo',
+                  billed: applePrices.monthly,
                   note: 'Cancel anytime',
                   plan: 'monthly' as const,
                 },
@@ -1149,7 +1151,10 @@ function BillingTab() {
                       cancelled subscriber opening Settings saw two prices and no
                       way to pay. Both routes get a Subscribe button now; which
                       one is decided by purchaseRoute, not by the device alone. */}
-                  {(onIos || canStripePurchase) && (
+                  {/* On iOS a Subscribe button only exists beside the StoreKit
+                      price it will charge — never a price-less one while the
+                      App Store is still answering (Guideline 3.1.2(c)). */}
+                  {(onIos ? p.billed !== null : canStripePurchase) && (
                     <button
                       type="button"
                       className="btn storekit-tap-target"
@@ -1182,9 +1187,6 @@ function BillingTab() {
             )}
             {onIos && (
               <>
-                <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)', lineHeight: 1.55 }}>
-                  Your plan starts today and renews automatically until you cancel.
-                </p>
                 <AppleSubscriptionTerms />
               </>
             )}

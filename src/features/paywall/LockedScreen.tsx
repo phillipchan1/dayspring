@@ -237,8 +237,15 @@ export function LockedScreen({
 
   const busy = loading !== null
   const manageTap = useTapAction(() => void handleManage(), !busy)
-  const annualTap = useTapAction(() => void handleResubscribe('annual'), !busy)
-  const monthlyTap = useTapAction(() => void handleResubscribe('monthly'), !busy)
+  // No billed amount, no purchase — see PaywallScreen.
+  const annualTap = useTapAction(
+    () => void handleResubscribe('annual'),
+    !busy && annualPrice !== null,
+  )
+  const monthlyTap = useTapAction(
+    () => void handleResubscribe('monthly'),
+    !busy && monthlyPrice !== null,
+  )
   const restoreTap = useTapAction(() => void handleRestore(), !busy)
 
   // ── Past-due: simpler "fix your card" screen ──────────────────────────────
@@ -314,40 +321,47 @@ export function LockedScreen({
 
         <p className="locked-screen__body">
           {isCancelled
-            ? 'You cancelled, but everything you wrote is still here. Come back whenever you\'re ready.'
-            : 'Every word you wrote is saved. Subscribe to keep the slow work going — new reflections, your altar, the scripture map, all still gathering.'}
+            ? 'Everything you wrote is still here, whenever you\'re ready.'
+            : 'Every word you wrote is saved. Subscribe to keep going.'}
         </p>
 
         <div className="locked-screen__actions">
+          {/* Guideline 3.1.2(c), 2026-09-21: the billed amount must be the most
+              conspicuous pricing element. It used to sit mid-sentence in button
+              text ("Continue — $59.99 / year"), the same size as the words
+              around it and smaller than the headline. Now the amount IS the
+              button's largest line, and what tapping does sits under it. */}
           <button
             type="button"
-            className="btn"
-            aria-disabled={busy}
+            className="btn locked-plan"
+            aria-disabled={busy || annualPrice === null}
             aria-busy={loading === 'annual'}
+            aria-label={annualPrice ? `Subscribe yearly — ${annualPrice} per year` : undefined}
             {...annualTap}
           >
-            {loading === 'annual'
-              ? isAppleIapAvailable()
-                ? 'Confirming…'
-                : 'Redirecting…'
-              : annualPrice
-                ? `Continue — ${annualPrice} / year`
-                : 'Continue yearly'}
+            {loading === 'annual' ? (
+              isAppleIapAvailable() ? 'Confirming…' : 'Redirecting…'
+            ) : annualPrice ? (
+              <PlanLabel price={annualPrice} cadence="year" action="Subscribe yearly" />
+            ) : (
+              'Continue yearly'
+            )}
           </button>
           <button
             type="button"
-            className="btn btn--ghost"
-            aria-disabled={busy}
+            className="btn btn--ghost locked-plan"
+            aria-disabled={busy || monthlyPrice === null}
             aria-busy={loading === 'monthly'}
+            aria-label={monthlyPrice ? `Subscribe monthly — ${monthlyPrice} per month` : undefined}
             {...monthlyTap}
           >
-            {loading === 'monthly'
-              ? isAppleIapAvailable()
-                ? 'Confirming…'
-                : 'Redirecting…'
-              : monthlyPrice
-                ? `Monthly — ${monthlyPrice} / month`
-                : 'Monthly'}
+            {loading === 'monthly' ? (
+              isAppleIapAvailable() ? 'Confirming…' : 'Redirecting…'
+            ) : monthlyPrice ? (
+              <PlanLabel price={monthlyPrice} cadence="month" action="Subscribe monthly" />
+            ) : (
+              'Monthly'
+            )}
           </button>
           {isAppleIapAvailable() && (
             <button
@@ -363,20 +377,11 @@ export function LockedScreen({
         </div>
 
         {/* 3.1.2(c) wants the charge to be unmistakable *at the button*, not
-            only in the small print underneath. There is no introductory offer on
-            these products, so the plan starts — and bills — today. */}
-        {appStoreWords && (
-          <p className="locked-screen__charge">
-            Choosing a plan starts your subscription today and charges your Apple Account. It
-            renews automatically until you cancel in your Apple Account settings.
-          </p>
-        )}
-
-        <p className="locked-screen__reassure">
-          Your journal is always yours — export everything, anytime, subscribed or not.
-        </p>
-
-        {useApple && <AppleSubscriptionTerms />}
+            only in the small print further down. There is no introductory offer
+            on these products, so the plan starts — and bills — today. The terms
+            block says exactly that, so it sits directly under the buttons rather
+            than being preceded by a second paragraph saying it again. */}
+        {appStoreWords && <AppleSubscriptionTerms />}
 
         <div className="locked-soft">
           {canExtend && !IS_APP_STORE_RELEASE && (
@@ -420,6 +425,19 @@ export function LockedScreen({
         {error && <p className="paywall__error">{error}</p>}
       </div>
     </div>
+  )
+}
+
+/** The billed amount first and largest, the action beneath it. */
+function PlanLabel({ price, cadence, action }: { price: string; cadence: string; action: string }) {
+  return (
+    <span className="locked-plan__label">
+      <span className="locked-plan__price">
+        {price}
+        <span className="locked-plan__cadence"> / {cadence}</span>
+      </span>
+      <span className="locked-plan__action">{action}</span>
+    </span>
   )
 }
 
