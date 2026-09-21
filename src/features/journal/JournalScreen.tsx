@@ -2451,9 +2451,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onLifeMap: toggleLifeMap,
-    // You → Rituals opens the library, which is the way into a ritual from
-    // anywhere; what you have walked is one link inside it.
-    onRitualThreads: openLibrary,
+    // You → Rituals is where you read back what you have walked. Beginning one
+    // has its own doors: the shelf on a blank page, `/ritual`, All rituals.
+    onRitualThreads: () => setThreadsOpen(true),
     hasWalkedARitual,
     altarEnabled,
     concordanceEnabled,

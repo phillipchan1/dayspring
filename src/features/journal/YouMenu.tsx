@@ -37,7 +37,8 @@ interface Props {
    */
   onRitualThreads: () => void
   /** Hides the row until the archive holds a ritual — never shown as a count. */
-  hasWalkedARitual: boolean
+  /** Unused since the item became always-present; kept so callers need not change. */
+  hasWalkedARitual?: boolean
   onOpenSettings: () => void
   /** The Concordance drawer is still flag-gated; hide the row when it is off. */
   concordanceEnabled: boolean
@@ -53,7 +54,6 @@ export function YouMenu({
   userEmail,
   onLifeMap,
   onRitualThreads,
-  hasWalkedARitual,
   onOpenSettings,
   concordanceEnabled,
   labelsExpanded,
@@ -137,8 +137,8 @@ export function YouMenu({
             Life Map
             <span className="you__gloss">the people and things you return to</span>
           </button>
-          {/* Always here: the library is the way into a ritual from anywhere,
-              and what you have walked is a link inside it. */}
+          {/* Always here — your rituals, read back. Before the first one the
+              thread says so honestly rather than hiding the door. */}
           <button
             type="button"
             role="menuitem"
@@ -146,9 +146,7 @@ export function YouMenu({
             onClick={pick(onRitualThreads)}
           >
             Rituals
-            <span className="you__gloss">
-              {hasWalkedARitual ? 'practices to walk, and what you wrote in them' : 'practices to walk'}
-            </span>
+            <span className="you__gloss">what you have written in them</span>
           </button>
           {concordanceEnabled && (
             <button
