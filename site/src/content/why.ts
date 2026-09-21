@@ -29,7 +29,7 @@ export const why = {
     {
       name: "Ignatius",
       feature: "The compounding rollup",
-      body: "gave the church the examen — a daily look at where you met God and where you turned from Him, gathered over time into something larger than any one evening. Dayspring is, in a sense, an examen that remembers: each day's reflection folding into the week, the week into the month, the month into the year.",
+      body: "gave the church the <a href=\"/rituals\">examen</a> — a daily look at where you met God and where you turned from Him, gathered over time into something larger than any one evening. Dayspring is, in a sense, an examen that remembers: each day's reflection folding into the week, the week into the month, the month into the year.",
     },
     {
       name: "Brother Lawrence",
@@ -43,6 +43,18 @@ export const why = {
       body: "described the whole Christian life as a long obedience in the same direction. That's the bet behind everything here. Not a streak. Not a quick win. A long walk, written down, that one day you get to read back.",
     },
   ],
+
+  // the person — after the four figures, before the close. The manifesto is
+  // "we", so this is said plainly in the third person; /maker is the first-
+  // person version. Every claim here is on /maker or the book's own cover.
+  maker: {
+    label: "Who built it",
+    body: [
+      'Dayspring is made by Phil Chan. He\'s kept a journal for twenty-five years, and he wrote <a href="https://www.amazon.com/dp/1957321105" rel="noopener" target="_blank"><em>Rhythms of Resilience: Faith Practices to Thrive in Chaos</em></a>.',
+      "Years of entries, and no way to see what they added up to — so he built the journal he wanted for himself first, and then for the people he most wanted to hand it to.",
+    ],
+    link: { label: "Read his note →", href: "/maker" },
+  },
 
   // closing
   close: [

@@ -5,15 +5,12 @@
 import type { ComponentProps } from "astro/types";
 import AppMock from "./AppMock.astro";
 import DownloadCTA from "./DownloadCTA.astro";
-import { cta } from "../content/site";
 
 interface Props {
-  eyebrow: string;
+  /** Optional — the home hero has none. */
+  eyebrow?: string;
   lines: string[];
   sub: string;
-  verse: { text: string; ref: string };
-  /** The one secondary link beside the download cluster. */
-  ghost: { label: string; href: string };
   mockCaption?: string;
   appMock?: ComponentProps<typeof AppMock>;
 }
@@ -21,8 +18,6 @@ const {
   eyebrow,
   lines,
   sub,
-  verse,
-  ghost,
   mockCaption,
   appMock = {},
 } = Astro.props;
@@ -35,23 +30,14 @@ const {
   <div class="hero-shell">
     <div class="hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">{eyebrow}</p>
+        {eyebrow && <p class="eyebrow">{eyebrow}</p>}
         <h1>
           {lines.map((line) => <span class="l" set:html={line} />)}
         </h1>
         <p class="sub">{sub}</p>
-        <p class="verse mono">
-          &ldquo;{verse.text}&rdquo; — {verse.ref}
-        </p>
         <div class="actions">
-          {/* The web fallback and the one secondary link share a line, so the
-              hero closes on a single quiet row rather than a stack of four. */}
-          <DownloadCTA size="hero" align="left" web={false} />
-          <p class="hero-links">
-            <a href={cta.web.href}>{cta.web.label} →</a>
-            <span aria-hidden="true">·</span>
-            <a href={ghost.href}>{ghost.label}</a>
-          </p>
+          {/* Just the download — Mac, and iPhone when it's out. */}
+          <DownloadCTA size="hero" align="left" />
         </div>
       </div>
 
@@ -214,21 +200,13 @@ const {
     font-size: clamp(15px, 1.5vw, 18px);
     color: var(--paper-dim);
     max-width: 42ch;
-    margin: 0 0 22px;
+    margin: 0 0 30px;
     font-weight: 300;
     line-height: 1.55;
     opacity: 0;
     animation: up 1s ease 0.85s forwards;
   }
 
-  .verse {
-    font-size: 12.5px;
-    color: var(--muted);
-    margin-bottom: 28px;
-    opacity: 0;
-    animation: up 1s ease 1s forwards;
-    letter-spacing: 0.2px;
-  }
   .actions {
     display: flex;
     flex-direction: column;
@@ -237,26 +215,6 @@ const {
     opacity: 0;
     animation: up 1s ease 1.15s forwards;
   }
-  .hero-links {
-    display: flex;
-    gap: 12px;
-    align-items: baseline;
-    flex-wrap: wrap;
-    font-size: 14.5px;
-    color: var(--muted);
-  }
-  .hero-links a {
-    color: var(--paper-dim);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    padding-bottom: 2px;
-    transition: color 0.25s, border-color 0.25s;
-  }
-  .hero-links a:hover {
-    color: var(--paper);
-    border-bottom-color: var(--dawn-1);
-  }
-
   .hero-visual {
     position: relative;
     min-width: 0;
@@ -374,9 +332,6 @@ const {
     .actions {
       align-items: center;
     }
-    .hero-links {
-      justify-content: center;
-    }
 
     .hero-visual {
       margin: 0 auto;
@@ -431,7 +386,6 @@ const {
     h1,
     h1 .l,
     .sub,
-    .verse,
     .actions,
     .hero-mock,
     .mock-caption,

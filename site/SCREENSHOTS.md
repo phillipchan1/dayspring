@@ -36,7 +36,7 @@ Rules:
 
 | Slot key        | Page                 | Where                              | Frame       | Native mock today    | Target file(s)                | Intrinsic size |
 | --------------- | -------------------- | ---------------------------------- | ----------- | -------------------- | ----------------------------- | -------------- |
-| `pages-search`  | `/` (Home)           | The Pages (`<PagesShot>`)          | Mac window  | **real capture**     | see below                     | 1280 × 1020    |
+| `pages-search`  | `/` (Home)           | The Pages (`<ProductShot>`)          | Mac window  | **real capture**     | see below                     | 1280 × 1020    |
 | `app-editor`    | `/` + `/features`    | Editor showcase (`<AppMock>`)      | app window  | `<AppMock>` (CSS)    | `app-editor.png` / `@2x`      | 860 × ~520     |
 | `home-letter`   | `/` (Home)           | Year-in-review (`<LetterCard>`)    | none/native | `<LetterCard>` (CSS) | optional — intentionally native | —            |
 
@@ -66,11 +66,24 @@ and writes eight files into `public/screenshots/`:
 
 Two palettes because the site has a theme toggle, and two crops because a
 1280px desktop surface reduced to a 335px phone column is unreadable — the
-phone gets the panel at native width in a swipeable box instead. `<PagesShot>`
+phone gets the panel at native width in a swipeable box instead. `<ProductShot>`
 picks the right one; all four carry explicit `width`/`height`, so nothing
 shifts.
 
 Re-run it whenever the read surface changes. Nothing else needs touching.
+
+## The other real captures
+
+The same script also writes:
+
+| Files | Used by | Source route |
+| --- | --- | --- |
+| `rituals-library-{light,dark}` | `/rituals` (`<ProductShot>`) | `?__preview=listing-rituals&raw=1` — locked to fixtures by `previewMode.ts` |
+| `voice-<voice>-<mode>` (11) | `/features` editor dive (`<VoicePicker>`) | `?__preview=voices&voice=…&mode=…&bare=1` |
+
+`/rituals` and the voice picker copy their names from the app
+(`practicesData.ts`, `voices.ts`); `rituals.test.ts` and `voices.test.ts` fail
+the site build if either drifts.
 
 > `<AppMock>` is a **native HTML/CSS recreation of the real desktop app**
 > (rail + entries sidebar + editor), so it stays crisp and themed. It's used on

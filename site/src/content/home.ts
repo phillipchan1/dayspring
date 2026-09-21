@@ -1,8 +1,6 @@
 // ============================================================
-// Home page copy. Two acts that mirror the app's own IA:
-//   Act I — WRITE: the daily practice (editor + slash commands)
-//   Act II — RETURN: the long view ("See who you're becoming"),
-//            wrapping the Lamp, the Ascent, and the Altar.
+// Home page copy (D-001 → B). "A journal built for spiritual growth": the hero, then what you can do in the page (slash), then the
+// villain (forgetting) and the way back — the wall, the Lamp, the Ascent, the Altar.
 // Umbrella positioning: a journal built for spiritual growth.
 // Edit prose here; index.astro stays structural.
 // Inline <em>…</em> marks accented (italic/gold) phrases.
@@ -11,17 +9,12 @@
 // ============================================================
 
 export const hero = {
-  eyebrow: "A journal for the inner life",
+  // No eyebrow — the hero was asking for too much reading. Headline reverted to
+  // "A journal built for spiritual growth" after trying "Finally, a journal for
+  // the Christian life" (Phil, 2026-09-20). "Everything a Christian needs for
+  // the inner life" is the story's next beat — the slash showcase heading.
   lines: ["A journal built for", "<em>spiritual growth.</em>"],
-  sub: "Scripture, prayer, and the contemplative practices of the church — built right into the page. Write each day, and a year of your own words will show you who you're becoming.",
-  verse: {
-    text: "…the Dayspring from on high has visited us",
-    ref: "Luke 1:78",
-  },
-  // The CTA itself is <DownloadCTA> (Mac, then iPhone-soon, then a quiet web
-  // line) — its copy lives in content/site.ts so every page says it the same
-  // way. Only the one secondary link is the hero's to choose.
-  ghost: { label: "Why we built it →", href: "/why" },
+  sub: "Scripture, prayer, and the practices of the church — right in the page you're writing, and everything you write kept and found again.",
   /** Shown beneath the hero app mock — one quiet editor promise. */
   mockCaption: "Type / and the spiritual life is right there in the sentence.",
   /** Hero mock — the editor mid-sentence with the slash palette open, so a
@@ -43,16 +36,17 @@ export const hero = {
   },
 };
 
-// the wedge — one line. `today` is highlighted in rose italic.
-// Owns the category: built for the inner life, not for today.
+// the wedge — names the villain. BRANDSCRIPT.md: the enemy is not busyness,
+// it's forgetting — and Scripture treats forgetting as the recurring failure of
+// God's people. Stated once, gently; never weaponized.
 export const problem = {
-  before: "Most journals are built for ",
-  highlight: "today",
-  after: ". Dayspring is built for the inner life — the slow work a single day is too small to hold.",
+  before: "You've written for years and never gone back. Not because you didn't care — because there was no way in. And what we never reread, we ",
+  highlight: "forget",
+  after: ".",
 };
 
-// ---- ACT I · THE EDITOR -------------------------------------
-// Proof it isn't lame — the page has to be a joy first.
+// ---- THE EDITOR — /features only (off the home page 2026-09-20) ----
+// Still exported: the tour's editor dive says the same three things.
 export const editor = {
   tag: "The editor",
   heading: "A page worth <em>returning to.</em>",
@@ -73,14 +67,17 @@ export const editor = {
   ],
 };
 
-// ---- ACT I · SLASH COMMANDS (the signature moment) ----------
+// ---- SLASH COMMANDS (the signature moment) ----------
 // Show, don't tell: the spiritual life captured in the sentence.
 export const slashCommands = {
   tag: "Slash commands",
-  heading: "The spiritual life, captured <em>where it happens.</em>",
+  // Item 2, straight after the hero: the story's first promise — the whole of
+  // the inner life has a place in the sentence you're writing.
+  heading: "Everything a Christian needs for <em>the inner life.</em>",
   lead: "Scripture, a prayer, a fleeting impression, an ancient practice — type <em>/</em> and it opens right in the line you're writing. No sidebar, no leaving the page.",
+  // Now follows the long view rather than preceding it, so it points back.
   bridge:
-    "None of it is busywork. Every verse, prayer, and practice is quietly gathered — and over time, it shows you something.",
+    "None of it is busywork. Every verse, prayer, and practice you plant here is what the Lamp, the Ascent, and the Altar are made of.",
   commands: [
     {
       id: "scripture",
@@ -158,7 +155,7 @@ export const writingPage = {
   },
 };
 
-// ---- ACT I · RITUALS (/ritual) ------------------------------
+// ---- RITUALS (/ritual) ------------------------------
 export const practices = {
   tag: "Rituals",
   heading: "When you don't know where to <em>begin.</em>",
@@ -232,13 +229,13 @@ export const practices = {
   note: "Thirteen forms today — Examen, Lectio, SOAP, Luther's Garland, The Round, and more.",
 };
 
-// ---- ACT I · A VOICE FROM THE BETA (proof, not a hero claim) ----
+// ---- A VOICE FROM THE BETA (proof, not a hero claim) ----
 // One real interview quote, used as a testimonial band right after the
 // wedge. Name withheld pending explicit consent to publish it — see the
 // PR notes. Swap `attribution` for her name only once that's confirmed.
 export const testimonial = {
   quote: "It kind of sparked and brought some things alive — a new way to engage my heart with God.",
-  attribution: "A therapist and spiritual director, using Dayspring in beta",
+  attribution: "A therapist and spiritual director",
   context: "on the rituals and the contemplative forms",
 };
 
@@ -248,15 +245,15 @@ export const bridge = {
   line: "A day is too small to hold a pattern. <em>A year is a mirror.</em>",
 };
 
-// ---- ACT II · BANNER ("See who you're becoming") ------------
-// Frames the three RETURN features as one arc.
+// ---- "See who you're becoming" — retained, not on the home page ----
+// Was the Act II banner; removed from the home page 2026-09-20 (Phil).
 export const becoming = {
   tag: "The long view",
   heading: "See who you're <em>becoming.</em>",
   lead: "The growth that matters most is the hardest to feel day to day — patience arriving, prayer deepening, what you believe moving from your head to your heart. So Dayspring reads your own words back to you, and shows you, gently, how far you've been carried.",
 };
 
-// ---- ACT II · THE PAGES (the read surface + finding) --------
+// ---- THE PAGES (the read surface + finding) --------
 // The first thing you do when you come back is look for something. This is the
 // one section on the page carrying a real screenshot rather than a CSS mock —
 // the wall's density is the argument, and a recreation of it would be smaller
@@ -285,7 +282,6 @@ export const pages = {
       body: "“What have I been praying about this year?” You get the count, the span of time, and the sentences you actually wrote — quoted, never summarised.",
     },
   ],
-  foot: "Nothing is invented. If Dayspring can't point at something you wrote, it says nothing rather than filling the gap.",
 };
 
 // The Lamp (Scripture) — canon heatmap (killer feature)
@@ -417,7 +413,7 @@ export const lookingBack = {
   ],
 };
 
-// ---- ACT II · THE ALTAR (shipped — "a place of remembrance") ----
+// ---- THE ALTAR (shipped — "a place of remembrance") ----
 // The prayers and senses you plant gather here, grouped by subject. When God
 // meets you in one, you mark it. NOT a coming-soon teaser anymore.
 export const altar = {
@@ -458,7 +454,7 @@ export const altar = {
   },
 };
 
-// ---- ACT III · BRING YOUR HISTORY (cold-start killer) -------
+// ---- BRING YOUR HISTORY (cold-start killer) -------
 export const bringHistory = {
   tag: "Bring your history",
   heading: "Years of journaling, <em>brought with you.</em>",
@@ -470,7 +466,7 @@ export const bringHistory = {
   },
 };
 
-// ---- ACT III · PRIVACY AS STEWARDSHIP ----------------------
+// ---- PRIVACY AS STEWARDSHIP ----------------------
 // Carries the single unmistakable faith line.
 export const privacy = {
   tag: "Privacy as stewardship",
@@ -479,11 +475,26 @@ export const privacy = {
   line: "It's just between you and God.",
 };
 
-// ---- ACT III · PRICING -------------------------------------
+// ---- WHO MADE THIS -----------------------------------------
+// BRANDSCRIPT.md: the guide needs authority, and the honest kind we have is a
+// person — not user counts or endorsements we don't have. A published book on
+// faith practices is exactly the credential for a journal built around them.
+// Kept to two sentences; the long version is /maker.
+export const madeBy = {
+  tag: "Who made this",
+  lineBefore: "Dayspring is made by Phil Chan, author of ",
+  book: "Rhythms of Resilience: Faith Practices to Thrive in Chaos",
+  bookHref: "https://www.amazon.com/dp/1957321105",
+  lineAfter: " — and he's kept a journal for twenty-five years. He built Dayspring for himself first.",
+  noteLabel: "Read his note →",
+  noteHref: "/maker",
+};
+
+// ---- PRICING -------------------------------------
 export const pricing = {
   tag: "Pricing",
   heading: "Begin with the whole of Dayspring. <em>Stay for the mirror.</em>",
-  lead: "The editor, every slash command, the Lamp, the Ascent, and the Altar are complimentary to begin. No payment method required.",
+  lead: "One premium plan — the editor, every slash command, the Lamp, the Ascent, and the Altar. Start with a 14-day trial, then $64 a year or $7 a month.",
 };
 
 // ---- Formation — retained for reference (not on the home page) ----

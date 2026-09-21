@@ -701,7 +701,21 @@ is why it is written here and cross-referenced from `weather.ts`.
 # OPEN — the live agenda
 
 ## D-001 — "Obsidian for Christians" or "the journal that shows you God's faithfulness"?
-**Status: OPEN — the most important unresolved question in the product.**
+**Status: DECIDED 2026-09-20 → B, "the journal that shows you God's faithfulness."**
+Phil's call, made on the marketing-site audit: drop the "Obsidian for Christians"
+framing. The front door is **"A journal built for spiritual growth,"** and its first
+story beat is **"everything a Christian needs for the inner life"** — scripture, prayer,
+the practices of the church, in the page. ("Finally, a journal for the Christian life"
+was tried as the headline the same day and reverted.) Reading your history back (the wall and search, the Lamp, Ascent and Altar) is
+one promise *inside* that, not the headline — Phil corrected an intermediate draft that
+led with read-back. The slash commands open the story (item 2, straight after the hero);
+rituals got their own page, `/rituals`. The editor's craft (focus mode, faces, latency)
+is a `/features` detail, not the pitch.
+This closes the question on thin evidence — n=2 interviews, both reading B (see the
+2026-09-15 update below and D-030) — so the falsifier below stays live: if the
+remaining interviews describe Dayspring in craft terms, reopen it.
+
+*Original entry:*
 **The fork:** Dayspring's *surface area* is built for A (Tauri, CodeMirror, markdown,
 shortcuts, no iOS) but its *soul* and best surfaces serve B (a near-universal emotional
 job). Current implicit bet: **acquire A, deliver B.**

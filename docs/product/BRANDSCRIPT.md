@@ -169,10 +169,16 @@ A caveman lands on the page. In five seconds, can he grunt:
    forgetting what He's done.
 3. **What do I do to buy it?** Start a free trial. *(Button, above the fold, repeated.)*
 
-**Current site status: unassessed.** Run this test against the live marketing page and
-record the result here — a failed grunt test at #2 is the most common and most costly
-failure mode, and "what God has been making of you" is beautiful but may not survive
-five seconds cold.
+**Assessed 2026-09-20** against the home page:
+
+| | Before | After (headline kept; sub + slash heading rewritten) |
+|---|---|---|
+| 1. What do you offer? | Pass, weakly — "a journaling app"; *Christian* only arrived in the sub | Pass, weakly — the headline still doesn't say *Christian*; the next beat ("Everything a Christian needs for the inner life") does. "Finally, a journal for the Christian life" named the audience outright and was reverted by preference — worth a cold test against this one |
+| 2. How will it make my life better? | **Fail** — buried in the back half of a 38-word sub | Pass, pending real eyes — "everything the inner life needs, in the page, and everything you write found again"; the wedge names forgetting |
+| 3. What do I do to buy it? | Pass — Download for Mac, above the fold | Pass |
+
+The "after" column is our own read, not a stranger's. Re-run it cold on someone who has
+never seen the site before believing it.
 
 ---
 

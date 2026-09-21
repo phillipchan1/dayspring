@@ -55,6 +55,15 @@ import { releasesRepo } from "../content/site";
       }
     </section>
 
+    {/* the person who built it */}
+    <SectionReveal>
+      <div class="figure maker">
+        <p class="feature mono">{why.maker.label}</p>
+        {why.maker.body.map((p) => <p class="prose" set:html={p} />)}
+        <a class="maker-link mono" href={why.maker.link.href}>{why.maker.link.label}</a>
+      </div>
+    </SectionReveal>
+
     <div class="rule" aria-hidden="true"></div>
 
     {/* closing */}
@@ -225,6 +234,30 @@ import { releasesRepo } from "../content/site";
     .pull {
       padding-left: 18px;
     }
+  }
+  /* links inside the manifesto prose — the examen → /rituals, the book */
+  .prose :global(a) {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-strong);
+    transition: border-color 0.25s, color 0.25s;
+  }
+  .prose :global(a:hover) {
+    color: var(--paper);
+    border-bottom-color: var(--dawn-1);
+  }
+  .maker .prose + .prose {
+    margin-top: 14px;
+  }
+  .maker-link {
+    display: inline-block;
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--dawn-1);
+    text-decoration: none;
+  }
+  .maker-link:hover {
+    text-decoration: underline;
   }
 </style>
 

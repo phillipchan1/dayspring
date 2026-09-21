@@ -6,9 +6,10 @@ import AltarMock from "../components/AltarMock.astro";
 import ScriptureTeaser from "../components/ScriptureTeaser.astro";
 import PracticeMock from "../components/PracticeMock.astro";
 import LookingBackMock from "../components/LookingBackMock.astro";
-import PagesShot from "../components/PagesShot.astro";
+import ProductShot from "../components/ProductShot.astro";
+import VoicePicker from "../components/VoicePicker.astro";
 import { featuresIntro, deepDives, everythingIntro, everything } from "../content/features";
-import { slashCommands, lookingBack, altar, practices, pages } from "../content/home";
+import { slashCommands, lookingBack, altar, practices, pages, privacy } from "../content/home";
 ---
 
 <Base
@@ -44,6 +45,9 @@ import { slashCommands, lookingBack, altar, practices, pages } from "../content/
                   </li>
                 ))}
               </ul>
+              {"more" in dive && dive.more && (
+                <a class="dive-more mono" href={dive.more.href}>{dive.more.label}</a>
+              )}
             </SectionReveal>
 
             <SectionReveal class="visual">
@@ -77,8 +81,14 @@ import { slashCommands, lookingBack, altar, practices, pages } from "../content/
                 />
               )}
               {dive.mock === "scripture" && <ScriptureTeaser />}
+              {dive.mock === "voices" && <VoicePicker />}
               {dive.mock === "pages" && (
-                <PagesShot alt={pages.shotAlt} />
+                <ProductShot
+        name="pages-search"
+        size={{ w: 1280, h: 1020 }}
+        panel={{ w: 1280, h: 540 }}
+        alt={pages.shotAlt}
+      />
               )}
             </SectionReveal>
           </div>
@@ -86,6 +96,17 @@ import { slashCommands, lookingBack, altar, practices, pages } from "../content/
       </section>
     ))
   }
+
+  {/* privacy as stewardship — moved here from the home page (2026-09-20);
+      the home page tells the story, the tour answers the questions. */}
+  <section class="privacy-sec">
+    <SectionReveal class="wrap">
+      <p class="tag mono">{privacy.tag}</p>
+      <h2 set:html={privacy.heading} />
+      <p class="body">{privacy.body}</p>
+      <p class="line">{privacy.line}</p>
+    </SectionReveal>
+  </section>
 
   {/* the exhaustive list — show how much is actually here */}
   <section class="everything" id="everything">
@@ -161,6 +182,66 @@ import { slashCommands, lookingBack, altar, practices, pages } from "../content/
     line-height: 1.6;
     max-width: 52ch;
     margin: 0 auto;
+  }
+
+  /* ===== privacy ===== */
+  .privacy-sec {
+    padding: 90px 0 90px;
+    text-align: center;
+  }
+  .privacy-sec h2 {
+    max-width: 20ch;
+    margin: 0 auto 24px;
+    font-size: clamp(28px, 4.4vw, 50px);
+    line-height: 1.14;
+  }
+  .privacy-sec .body {
+    font-size: 18px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.62;
+    max-width: 52ch;
+    margin: 0 auto 28px;
+  }
+  .privacy-sec .line {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-style: italic;
+    font-size: clamp(22px, 3vw, 32px);
+    letter-spacing: -0.3px;
+    color: var(--gold);
+    max-width: 24ch;
+    margin: 0 auto;
+  }
+
+  .privacy-sec .tag {
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 18px;
+  }
+  .privacy-sec h2 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -1px;
+  }
+  .privacy-sec h2 :global(em) {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .dive-more {
+    display: inline-block;
+    margin-top: 26px;
+    font-size: 13px;
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.25s;
+  }
+  .dive-more:hover {
+    border-bottom-color: var(--dawn-1);
   }
 
   /* ---- deep dives ---- */

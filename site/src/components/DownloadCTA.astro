@@ -1,15 +1,12 @@
 ---
 // DownloadCTA — the site's one call to action, in one place.
 //
-// Mac first, iPhone next to it as an honest "coming soon", and the web as a
-// text link underneath rather than a button. Dayspring is an app you install;
-// the browser build is the fallback for a borrowed machine, and pointing at it
-// with a button was telling visitors the opposite.
+// Mac first, iPhone next to it as an honest "coming soon" — and nothing else.
+// Dayspring is an app you install; the browser build exists but is not offered
+// here (Phil, 2026-09-20).
 //
 // A phone can't use a .dmg, so at phone width the Mac button steps back to the
 // secondary style and the iPhone pill leads with a line explaining the wait.
-// The web link stays visible at every width — it's the only door that works
-// from a phone today, it just isn't the one being sold.
 import { cta, releasesRepo } from "../content/site";
 
 interface Props {
@@ -17,14 +14,11 @@ interface Props {
   size?: "hero" | "compact";
   /** Centre the cluster (footer). Left-aligned otherwise. */
   align?: "left" | "center";
-  /** Drop the web fallback line — for a page that already carries one. */
-  web?: boolean;
   class?: string;
 }
 const {
   size = "hero",
   align = "left",
-  web = true,
   class: className = "",
 } = Astro.props;
 
@@ -52,14 +46,6 @@ const applePath =
 
   <p class="dl-note">{cta.mac.note}</p>
   <p class="dl-note dl-note-phone">{cta.ios.phoneNote}</p>
-
-  {
-    web && (
-      <p class="dl-web">
-        <a href={cta.web.href}>{cta.web.label} →</a>
-      </p>
-    )
-  }
 </div>
 
 <style>
@@ -151,26 +137,12 @@ const applePath =
     color: var(--muted);
     margin: -2px 0 0;
   }
-  /* The phone note replaces the macOS requirements line at phone width. */
+  /* The phone note replaces the trial line at phone width. */
   .dl-note-phone {
     display: none;
   }
-  .dl-web a {
-    font-size: 14.5px;
-    color: var(--paper-dim);
-    text-decoration: none;
-    border-bottom: 1px solid var(--border-strong);
-    padding-bottom: 2px;
-    transition: color 0.25s, border-color 0.25s;
-  }
-  .dl-web a:hover {
-    color: var(--paper);
-    border-bottom-color: var(--dawn-1);
-  }
-
   /* A .dmg is dead weight on a phone: the iPhone pill leads, the Mac button
-     stops shouting, and the note explains the wait instead of listing macOS
-     requirements nobody here can meet. */
+     stops shouting, and the note explains the wait. */
   @media (max-width: 640px) {
     .dl-row {
       flex-direction: column-reverse;

@@ -1,85 +1,59 @@
 ---
-// PagesShot — a real screenshot of the read surface, in a Mac window frame.
+// ProductShot — a real screenshot of a shipped surface, in a Mac window frame.
 //
-// The only photographic asset on the site; every other product visual here is
-// a CSS recreation (see SCREENSHOTS.md). This one earns it: the wall's density
-// — a decade of pages at four columns, with `look for` open over it — is the
-// whole argument, and no honest recreation of it would be smaller than the
-// capture.
+// The site's other product visuals are CSS recreations (see SCREENSHOTS.md).
+// These earn a photograph because density is the argument — a decade of pages,
+// a whole shelf of practices — and no honest recreation is smaller than the
+// capture. All of them come from `npm run screenshots:site`, never by hand.
 //
 // Both palettes are captured, because the site has a theme toggle and a
 // parchment screenshot on an ink page reads as a bug.
 //
-// And both CROPS are captured, because a 1280px desktop surface reduced to a
-// 335px phone column is a grey smudge — the point of the section becomes
-// invisible exactly where most visitors are. So a phone gets the `look for`
-// panel at its native width inside a swipeable box: fewer pixels of the app,
-// but every one of them legible. `scripts/capture-site-shots.mjs` writes all
-// eight files; re-run it when the surface changes.
+// A phone can't read a 1280px surface scaled into a 335px column. With a
+// `panel` crop, the phone gets that crop instead; without one, it gets the
+// full capture at native width. Either way it sits in a swipeable box at 1 CSS
+// px per captured px — fewer pixels of the app, all of them legible.
 interface Props {
+  /** File stem in /screenshots, e.g. "pages-search" → pages-search-{light,dark}.png */
+  name: string;
+  /** Intrinsic CSS size of the capture, so the box reserves its space. */
+  size: { w: number; h: number };
+  /** Optional phone crop, written as <name>-{light,dark}-panel.png. */
+  panel?: { w: number; h: number };
   alt: string;
   /** Mono hint under the phone crop, telling a thumb the box moves. */
   swipeHint?: string;
   class?: string;
 }
 const {
+  name,
+  size,
+  panel,
   alt,
   swipeHint = "swipe to read across →",
   class: className = "",
 } = Astro.props;
 
-// Intrinsic sizes of the two captures — passed through so each box reserves
-// its space and nothing shifts when the image lands.
-const FULL = { w: 1280, h: 1020 };
-const PANEL = { w: 1280, h: 540 };
+const src = (theme: "light" | "dark", suffix = "") => ({
+  src: `/screenshots/${name}-${theme}${suffix}.png`,
+  srcset: `/screenshots/${name}-${theme}${suffix}.png 1x, /screenshots/${name}-${theme}${suffix}@2x.png 2x`,
+});
 ---
 
 <figure class:list={["shot", className]}>
   <div class="chrome" aria-hidden="true"><i></i><i></i><i></i></div>
 
-  <div class="rail">
-    <img
-      class="shot-img is-full is-dark"
-      src="/screenshots/pages-search-dark.png"
-      srcset="/screenshots/pages-search-dark.png 1x, /screenshots/pages-search-dark@2x.png 2x"
-      width={FULL.w}
-      height={FULL.h}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-    />
-    <img
-      class="shot-img is-full is-light"
-      src="/screenshots/pages-search-light.png"
-      srcset="/screenshots/pages-search-light.png 1x, /screenshots/pages-search-light@2x.png 2x"
-      width={FULL.w}
-      height={FULL.h}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      decoding="async"
-    />
-    <img
-      class="shot-img is-panel is-dark"
-      src="/screenshots/pages-search-dark-panel.png"
-      srcset="/screenshots/pages-search-dark-panel.png 1x, /screenshots/pages-search-dark-panel@2x.png 2x"
-      width={PANEL.w}
-      height={PANEL.h}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-    />
-    <img
-      class="shot-img is-panel is-light"
-      src="/screenshots/pages-search-light-panel.png"
-      srcset="/screenshots/pages-search-light-panel.png 1x, /screenshots/pages-search-light-panel@2x.png 2x"
-      width={PANEL.w}
-      height={PANEL.h}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      decoding="async"
-    />
+  <div class:list={["rail", { "has-panel": !!panel }]}>
+    <img class="shot-img is-full is-dark" {...src("dark")} width={size.w} height={size.h} alt={alt} loading="lazy" decoding="async" />
+    <img class="shot-img is-full is-light" {...src("light")} width={size.w} height={size.h} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+    {
+      panel && (
+        <>
+          <img class="shot-img is-panel is-dark" {...src("dark", "-panel")} width={panel.w} height={panel.h} alt={alt} loading="lazy" decoding="async" />
+          <img class="shot-img is-panel is-light" {...src("light", "-panel")} width={panel.w} height={panel.h} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+        </>
+      )
+    }
   </div>
 </figure>
 <p class="swipe-hint mono" aria-hidden="true">{swipeHint}</p>
@@ -153,8 +127,10 @@ const PANEL = { w: 1280, h: 540 };
     display: none;
   }
 
-  /* Phone: the panel, at 1 CSS px per captured px, in a scroller. Anything
-     that fits the whole surface into the column is too small to read. */
+  /* Phone: 1 CSS px per captured px, in a scroller — the panel crop if there
+     is one, the whole capture otherwise. The width/height attributes carry the
+     intrinsic size, so `width: auto` lands on exactly that. Anything that fits
+     the whole surface into the column is too small to read. */
   @media (max-width: 760px) {
     .rail {
       overflow-x: auto;
@@ -166,20 +142,20 @@ const PANEL = { w: 1280, h: 540 };
       display: none;
     }
     .shot-img {
-      width: 1280px;
+      width: auto;
       max-width: none;
     }
-    .shot-img.is-full.is-dark,
-    :global([data-theme="light"]) .shot-img.is-full.is-light {
+    .has-panel .shot-img.is-full.is-dark,
+    :global([data-theme="light"]) .has-panel .shot-img.is-full.is-light {
       display: none;
     }
-    .shot-img.is-panel.is-dark {
+    .has-panel .shot-img.is-panel.is-dark {
       display: block;
     }
-    :global([data-theme="light"]) .shot-img.is-panel.is-dark {
+    :global([data-theme="light"]) .has-panel .shot-img.is-panel.is-dark {
       display: none;
     }
-    :global([data-theme="light"]) .shot-img.is-panel.is-light {
+    :global([data-theme="light"]) .has-panel .shot-img.is-panel.is-light {
       display: block;
     }
 

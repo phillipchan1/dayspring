@@ -7,17 +7,19 @@
  *   npm run screenshots:site
  *
  * Output, per palette:
- *   <name>.png / @2x          the composite — the dropdown over the wall
- *   <name>-panel.png / @2x    the dropdown alone
+ *   pages-search-*.png / @2x          the composite — the dropdown over the wall
+ *   pages-search-*-panel.png / @2x    the dropdown alone
+ *   rituals-library-*.png / @2x       the practice library, morning shelf
+ *   voice-<voice>-<mode>.png / @2x    the editor in each voice (11 palettes)
  *
  * The panel is not a spare: a 1280px-wide desktop surface scaled into a 335px
  * phone column is unreadable at any crop, so on a phone the site shows the
  * panel at its NATIVE width in a swipeable box instead. Cropping the composite
  * in CSS would keep the wall's 1020px height for no benefit there.
  *
- * Today that is one subject, in both palettes: the read surface — the wall of
- * pages, with `look for` open over it. It's a composite of two captures of the
- * same fixture archive, not a mock-up:
+ * Two subjects, both palettes. The rituals library (see SINGLES) is a plain
+ * capture. The read surface — the wall of pages, with `look for` open over it —
+ * is a composite of two captures of the same fixture archive, not a mock-up:
  *
  *   1. `?__preview=pages&frame=0&chrome=0`      the wall
  *   2. `?__preview=pages&part=sheet&wide=1&open=1`  the dropdown
@@ -80,6 +82,45 @@ const WALL = { width: 1280, height: 1020 }
  */
 const SHEET_KEEP = 540
 
+/**
+ * Single-capture shots: one URL, one image, no composite. The rituals library
+ * is the whole of /rituals' visual — the shipped PracticeLibrary, through the
+ * App Store listing's `listing-rituals` route, which src/lib/previewMode.ts
+ * already locks to fixtures (so, unlike the Pages shot, its privacy guarantee is
+ * the switch, not the absence of a session). The library pins its own clock to
+ * the morning shelf, so the capture doesn't change with the hour it's run at.
+ * 740 tall because the six morning cards end at ~700; more is empty sky.
+ */
+const SINGLES = [
+  { name: 'rituals-library-light', url: '?__preview=listing-rituals&raw=1&theme=dawn', css: { width: 1280, height: 740 } },
+  { name: 'rituals-library-dark', url: '?__preview=listing-rituals&raw=1&theme=ink', css: { width: 1280, height: 740 } },
+]
+
+/**
+ * The editor in each of its six voices, light and dark where the voice has
+ * both (Vigil is dark only) — eleven palettes, for /features' voice picker.
+ * `?__preview=voices&bare=1` mounts the REAL editor on one document carrying a
+ * title, a subhead, a highlight and a quote, with the harness's debug label
+ * and card stripped. Its content is a fixture in the preview module, so there
+ * is no account data to leak. 800 wide because the writing measure is 42rem;
+ * wider is empty page.
+ */
+const VOICE_MODES = [
+  ['dawn', 'light'], ['dawn', 'dark'],
+  ['vellum', 'light'], ['vellum', 'dark'],
+  ['cloister', 'light'], ['cloister', 'dark'],
+  ['sabbath', 'light'], ['sabbath', 'dark'],
+  ['plainsong', 'light'], ['plainsong', 'dark'],
+  ['vigil', 'dark'],
+]
+for (const [voice, mode] of VOICE_MODES) {
+  SINGLES.push({
+    name: `voice-${voice}-${mode}`,
+    url: `?__preview=voices&voice=${voice}&mode=${mode}&bare=1`,
+    css: { width: 800, height: 700 },
+  })
+}
+
 /** `dawn` and `ink` are the app's shipped light and dark defaults. */
 const SHOTS = [
   { name: 'pages-search-light', theme: 'dawn' },
@@ -122,9 +163,6 @@ function capture(chrome, url, outFile, css) {
       // Old --headless lays out at its own default width regardless of
       // --window-size. It must be the new headless.
       '--headless=new',
-      // An empty, throwaway profile — see the PRIVACY note at the top. Without
-      // it Chrome may reach for the real one, and a signed-in profile would
-      // composite the developer's own archive into a published image.
       '--disable-gpu',
       '--hide-scrollbars',
       // Fonts, the dynamic import of the preview module, and — for the sheet —
@@ -140,6 +178,26 @@ function capture(chrome, url, outFile, css) {
     proc.on('error', reject)
     proc.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`chrome exited ${code}`))))
   })
+}
+
+/** Write a single capture as-is, 1x + @2x. */
+function finalize(png, outBase, cssWidth) {
+  execFileSync(
+    'python3',
+    [
+      '-c',
+      `
+from PIL import Image
+im = Image.open(${JSON.stringify(png)}).convert('RGB')
+scale = im.width / ${cssWidth}
+im.save(${JSON.stringify(outBase)} + '@2x.png', 'PNG')
+one = im.resize((round(im.width / scale), round(im.height / scale)), Image.LANCZOS)
+one.save(${JSON.stringify(outBase)} + '.png', 'PNG')
+print('   ', one.size, '+ @2x', im.size)
+`.trim(),
+    ],
+    { stdio: 'inherit' },
+  )
 }
 
 /** Paste the dropdown over the wall; write the composite and the panel, 1x + @2x. */
@@ -195,6 +253,12 @@ async function main() {
         height: SHEET_KEEP,
       })
       compose(wallPng, sheetPng, path.join(OUT_DIR, shot.name))
+    }
+    for (const shot of SINGLES) {
+      console.log(`\n${shot.name}`)
+      const png = path.join(TMP_DIR, `${shot.name}.png`)
+      await capture(chrome, `http://localhost:${PORT}/${shot.url}`, png, shot.css)
+      finalize(png, path.join(OUT_DIR, shot.name), shot.css.width)
     }
     console.log(`\nDone → ${path.relative(ROOT, OUT_DIR)}`)
   } finally {

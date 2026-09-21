@@ -31,7 +31,7 @@ export const faqs = [
   },
   {
     q: "I'm not a good writer — I never know where to start.",
-    a: "You don't have to be. Type <strong>/</strong> for a verse, a prayer, or a <strong>/ritual</strong> — an ancient form like the Daily Examen or Lectio Divina that gives you somewhere to begin without telling you what to say. The blank page is the thing we worked hardest to solve.",
+    a: "You don't have to be. Type <strong>/</strong> for a verse, a prayer, or a <strong>/ritual</strong> — an ancient form like the Daily Examen or Lectio Divina that gives you somewhere to begin without telling you what to say. The blank page is the thing we worked hardest to solve. <a href=\"/rituals\">See the whole library of rituals →</a>",
   },
   {
     q: "Will it preach at me? Do I have to be religious?",
@@ -42,8 +42,8 @@ export const faqs = [
     a: "No — it's a journal, not a therapist-bot, and we deliberately stay out of that lane. Reflection is occasional and gentle: it arranges your <em>own</em> words and asks honest questions, never diagnoses or scores you. It runs under a zero-retention agreement — your entries are read, reflected on, and gone, never stored on their end, never used to train any model.",
   },
   {
-    q: "It's only on Mac and the web — what about my phone?",
-    a: "A real macOS app with deep margins and full-screen focus, plus the full journal in any browser, synced across both. The web app is built thumb-reachable and keyboard-aware so you can write on your phone today; a native iPhone app is what we're building next.",
+    q: "It's only on Mac right now — what about my phone?",
+    a: "The iPhone app is in App Store review now. Until it's out, Dayspring lives on your Mac — a real macOS app with deep margins and full-screen focus — and everything you write there will be waiting on your phone the day it arrives.",
   },
   {
     q: "Is it really worth $64 a year?",
@@ -51,7 +51,7 @@ export const faqs = [
   },
   {
     q: "What if Dayspring just isn't for me?",
-    a: "Start with <strong>complimentary access</strong>, with no payment method required. See whether it's a page you actually want to open, and go month-to-month if you'd rather not commit to a year. Nothing about leaving is designed to trap you.",
+    a: "Start with a <strong>14-day trial</strong> — see whether it's a page you actually want to open. Cancel anytime, and go month-to-month if you'd rather not commit to a year. Nothing about leaving is designed to trap you.",
   },
   {
     q: "What happens to my journal if Dayspring ever goes away?",

@@ -22,20 +22,25 @@ const marketingCopy = [
   startSource,
 ].join("\n");
 
+// Phil, 2026-09-20: the introductory period is a TRIAL, not "complimentary
+// access" — Dayspring isn't given away. This replaces #109's rule, which banned
+// "14-day trial" and required "no payment method required" on every surface.
+//
+// What survives is the part App Review actually objected to under 3.1.2(c):
+// calling it FREE. The iOS App Store subscriptions carry no free trial, so the
+// site must never promise one. "14-day trial" is allowed; "free trial" is not.
+// And no "no card / no payment method" line — Phil called it excessive.
 describe("cold marketing access copy", () => {
-  it.each([
-    "14-day trial",
-    "free trial",
-    "free to try",
-    "try it for two weeks",
-  ])("does not describe complimentary access as %s", (phrase) => {
-    expect(marketingCopy.toLowerCase()).not.toContain(phrase);
-  });
+  it.each(["free trial", "free to try", "try it for two weeks", "complimentary"])(
+    "never describes the introductory period as %s",
+    (phrase) => {
+      expect(marketingCopy.toLowerCase()).not.toContain(phrase);
+    },
+  );
 
-  it("states that complimentary access needs no payment method", () => {
-    expect(home.pricing.lead).toContain("No payment method required");
-    expect(footerSource).toContain("No payment method required");
-    expect(startSource).toContain("No payment method required");
-    expect(pricingTiers.every((tier) => tier.note.includes("no payment method required"))).toBe(true);
+  it("calls it a 14-day trial where it names it", () => {
+    expect(home.pricing.lead).toContain("14-day trial");
+    expect(cta.mac.note).toContain("14-day trial");
+    expect(pricingTiers.every((tier) => tier.note.includes("14-day trial"))).toBe(true);
   });
 });

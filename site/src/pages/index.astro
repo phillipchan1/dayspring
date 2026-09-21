@@ -8,69 +8,42 @@ import TestimonialBand from "../components/TestimonialBand.astro";
 import AscentGlimpse from "../components/AscentGlimpse.astro";
 import ScriptureTeaser from "../components/ScriptureTeaser.astro";
 import AltarMock from "../components/AltarMock.astro";
-import PagesShot from "../components/PagesShot.astro";
+import ProductShot from "../components/ProductShot.astro";
 import PricingTiers from "../components/PricingTiers.astro";
 import { pricingHonest } from "../content/site";
 import {
   hero,
   problem,
-  editor,
   slashCommands,
   practices,
   bridge,
-  becoming,
   pages,
   scripture,
   lookingBack,
   altar,
   bringHistory,
-  privacy,
   pricing,
   testimonial,
+  madeBy,
 } from "../content/home";
 ---
 
 <Base
   title="A journal built for spiritual growth"
-  description="Dayspring is a journal built for spiritual growth — scripture, prayer, and contemplative practice right on the page, and a year of your own words that shows you who you're becoming."
+  description="A journal built for spiritual growth — scripture, prayer, and the practices of the church right in the page you're writing, and everything you write kept and found again."
   path="/"
 >
   <Hero
-    eyebrow={hero.eyebrow}
     lines={hero.lines}
     sub={hero.sub}
-    verse={hero.verse}
-    ghost={hero.ghost}
     mockCaption={hero.mockCaption}
     appMock={hero.appMock}
   />
 
-  {/* the wedge — one line that names the category */}
-  <section class="wedge">
-    <SectionReveal class="wrap">
-      <p>
-        {problem.before}<span class="hl">{problem.highlight}</span>{problem.after}
-      </p>
-    </SectionReveal>
-  </section>
-
-  {/* one real voice from the beta — proof, placed before we ask you to believe it */}
-  <section class="testimonial-sec">
-    <SectionReveal class="wrap">
-      <TestimonialBand
-        quote={testimonial.quote}
-        attribution={testimonial.attribution}
-        context={testimonial.context}
-      />
-    </SectionReveal>
-  </section>
-
-  {/* ===================== ACT I — WRITE ===================== */}
-
-  {/* slash commands — the signature, leads Act I */}
+  {/* slash commands — item 2: everything a Christian needs for the inner
+      life, in the line you're writing. */}
   <section class="slash-sec">
     <SectionReveal class="wrap slash-head">
-      <div class="act-eyebrow mono">Ⅰ · The practice</div>
       <div class="tag">{slashCommands.tag}</div>
       <h2 set:html={slashCommands.heading} />
       <p class="lead" set:html={slashCommands.lead} />
@@ -83,62 +56,17 @@ import {
     </SectionReveal>
   </section>
 
-  {/* rituals — a full-width band. Three ancient forms sharing a half column
-      squeezed each card to ~165px and wrapped every line five deep; the cards
-      are the point, so they get the whole measure and the copy sits above. */}
-  <section class="rituals-sec">
-    <div class="wrap">
-      <SectionReveal class="sec-head">
-        <div class="head-l">
-          <div class="tag">{practices.tag}</div>
-          <h2 set:html={practices.heading} />
-        </div>
-        <p class="lead" set:html={practices.lead} />
-      </SectionReveal>
-      <SectionReveal>
-        <RitualsGlimpse rituals={practices.rituals} foot={practices.foot} />
-      </SectionReveal>
-    </div>
-  </section>
-
-  {/* the editor — a compact supporting beat (the page itself is a joy) */}
-  <section class="craft-sec">
-    <SectionReveal class="wrap sec-head">
-      <div class="head-l">
-        <div class="tag">{editor.tag}</div>
-        <h2 set:html={editor.heading} />
-      </div>
-      <p class="lead">{editor.lead}</p>
-    </SectionReveal>
+  {/* The story, in order (D-001 → B, 2026-09-20). "A journal built for
+      spiritual growth": after the slash showcase (everything a Christian needs,
+      in the page) it names the villain — forgetting — and shows the way back:
+      the wall and search, then what it makes visible over time. Anything deeper
+      lives on /features, which is the tour; this is the story. */}
+  {/* the wedge — names the villain: forgetting */}
+  <section class="wedge">
     <SectionReveal class="wrap">
-      <ul class="craft-row">
-        {
-          editor.highlights.map((h) => (
-            <li>
-              <span class="c-title">{h.title}</span>
-              <span class="c-body">{h.body}</span>
-            </li>
-          ))
-        }
-      </ul>
-    </SectionReveal>
-  </section>
-
-  {/* the bridge — a quiet band, the turn into the long view */}
-  <section class="bridge-band">
-    <SectionReveal class="wrap">
-      <p set:html={bridge.line} />
-    </SectionReveal>
-  </section>
-
-  {/* ===================== ACT II — RETURN ===================== */}
-
-  {/* becoming — Act II banner */}
-  <section class="becoming-sec">
-    <SectionReveal class="wrap">
-      <div class="act-eyebrow mono">Ⅱ · {becoming.tag}</div>
-      <h2 set:html={becoming.heading} />
-      <p class="lead">{becoming.lead}</p>
+      <p>
+        {problem.before}<span class="hl">{problem.highlight}</span>{problem.after}
+      </p>
     </SectionReveal>
   </section>
 
@@ -155,7 +83,12 @@ import {
       </SectionReveal>
     </div>
     <SectionReveal class="plate-wrap">
-      <PagesShot alt={pages.shotAlt} />
+      <ProductShot
+        name="pages-search"
+        size={{ w: 1280, h: 1020 }}
+        panel={{ w: 1280, h: 540 }}
+        alt={pages.shotAlt}
+      />
       <p class="plate-caption">{pages.caption}</p>
     </SectionReveal>
     <div class="wrap">
@@ -171,8 +104,14 @@ import {
           }
         </ul>
       </SectionReveal>
-      <SectionReveal as="p" class="pages-foot">{pages.foot}</SectionReveal>
     </div>
+  </section>
+
+  {/* the bridge — the turn from finding to the long view */}
+  <section class="bridge-band">
+    <SectionReveal class="wrap">
+      <p set:html={bridge.line} />
+    </SectionReveal>
   </section>
 
   {/* the Lamp — split, visual right */}
@@ -221,7 +160,7 @@ import {
   <section class="feature altar-sec">
     <div class="wrap">
       <div class="grid grid-vl">
-        <SectionReveal class="col-visual">
+        <SectionReveal class="col-visual altar-clip">
           <AltarMock
             subtitle={altar.mock.subtitle}
             intro={altar.mock.intro}
@@ -238,7 +177,38 @@ import {
     </div>
   </section>
 
-  {/* ===================== ACT III — START ===================== */}
+
+  {/* rituals — a full-width band. Three ancient forms sharing a half column
+      squeezed each card to ~165px and wrapped every line five deep; the cards
+      are the point, so they get the whole measure and the copy sits above. */}
+  <section class="rituals-sec">
+    <div class="wrap">
+      <SectionReveal class="sec-head">
+        <div class="head-l">
+          <div class="tag">{practices.tag}</div>
+          <h2 set:html={practices.heading} />
+        </div>
+        <p class="lead" set:html={practices.lead} />
+      </SectionReveal>
+      <SectionReveal>
+        <RitualsGlimpse rituals={practices.rituals} foot={practices.foot} />
+      </SectionReveal>
+      <SectionReveal as="p" class="rituals-more">
+        <a href="/rituals">See the whole library →</a>
+      </SectionReveal>
+    </div>
+  </section>
+
+  {/* one real voice from the beta — it's about the rituals, so it follows them */}
+  <section class="testimonial-sec">
+    <SectionReveal class="wrap">
+      <TestimonialBand
+        quote={testimonial.quote}
+        attribution={testimonial.attribution}
+        context={testimonial.context}
+      />
+    </SectionReveal>
+  </section>
 
   {/* bring your history — split, card right */}
   <section class="feature import-sec">
@@ -263,13 +233,15 @@ import {
     </div>
   </section>
 
-  {/* privacy as stewardship — near-bare, centered */}
-  <section class="privacy-sec">
-    <SectionReveal class="wrap">
-      <div class="tag">{privacy.tag}</div>
-      <h2 set:html={privacy.heading} />
-      <p class="body">{privacy.body}</p>
-      <p class="line">{privacy.line}</p>
+
+  {/* who made this — the guide's authority, stated once and plainly */}
+  <section class="madeby-sec">
+    <SectionReveal class="wrap madeby">
+      <p class="tag">{madeBy.tag}</p>
+      <p class="madeby-line">
+        {madeBy.lineBefore}<a href={madeBy.bookHref} rel="noopener" target="_blank"><em>{madeBy.book}</em></a>{madeBy.lineAfter}
+      </p>
+      <a class="madeby-note" href={madeBy.noteHref}>{madeBy.noteLabel}</a>
     </SectionReveal>
   </section>
 
@@ -307,13 +279,6 @@ import {
     text-transform: uppercase;
     color: var(--dawn-1);
     margin-bottom: 18px;
-  }
-  .act-eyebrow {
-    font-size: 11px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 26px;
   }
   h2 {
     font-family: var(--font-display);
@@ -381,7 +346,9 @@ import {
     font-weight: 300;
     font-size: clamp(26px, 4vw, 46px);
     line-height: 1.3;
-    max-width: 22ch;
+    /* 26ch, not 22: the line now names the villain in three clauses, and at
+       22 it stacked five deep in display type. */
+    max-width: 26ch;
     margin: 0 auto;
     letter-spacing: -0.5px;
   }
@@ -420,50 +387,20 @@ import {
     padding: 20px 0 100px;
   }
 
-  /* ===== the editor — compact supporting craft strip ===== */
-  .craft-sec {
-    padding: 10px 0 100px;
+  :global(.rituals-more) {
+    margin-top: 22px;
+    text-align: center;
   }
-  .craft-sec :global(.sec-head) {
-    margin-bottom: 36px;
+  :global(.rituals-more) a {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--dawn-1);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.25s;
   }
-  .craft-sec :global(.sec-head) h2 {
-    font-size: clamp(28px, 3.6vw, 44px);
-    /* Smaller type than the other heads, so 16ch would orphan "to." */
-    max-width: 20ch;
-  }
-  .craft-row {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 28px;
-    max-width: 920px;
-    margin: 0 auto;
-  }
-  .craft-row li {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding-left: 16px;
-    border-left: 2px solid var(--border-strong);
-  }
-  .c-title {
-    font-family: var(--font-display);
-    font-size: 17px;
-    color: var(--paper);
-  }
-  .c-body {
-    font-size: 14.5px;
-    line-height: 1.55;
-    color: var(--paper-dim);
-    font-weight: 300;
-  }
-  @media (max-width: 760px) {
-    .craft-row {
-      grid-template-columns: 1fr;
-      max-width: 440px;
-      gap: 20px;
-    }
+  :global(.rituals-more) a:hover {
+    border-bottom-color: var(--dawn-1);
   }
 
   /* ===== slash showcase (full-width) ===== */
@@ -520,18 +457,6 @@ import {
     color: var(--gold);
   }
 
-  /* ===== becoming (Act II banner) ===== */
-  .becoming-sec {
-    padding: 60px 0 50px;
-  }
-  .becoming-sec h2 {
-    font-size: clamp(36px, 5.4vw, 64px);
-    max-width: 14ch;
-  }
-  .becoming-sec .lead {
-    max-width: 54ch;
-  }
-
   /* ===== the Pages — the widest thing on the page =====
      The plate deliberately breaks out past --maxw (1120). The claim is that a
      decade fits on one screen, and a screenshot of a decade, boxed into the
@@ -568,15 +493,16 @@ import {
     padding-left: 16px;
     border-left: 2px solid var(--border-strong);
   }
-  .pages-foot {
-    margin-top: 34px;
+  .c-title {
     font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 300;
-    font-size: clamp(16px, 1.9vw, 20px);
+    font-size: 17px;
+    color: var(--paper);
+  }
+  .c-body {
+    font-size: 14.5px;
+    line-height: 1.55;
     color: var(--paper-dim);
-    max-width: 56ch;
-    line-height: 1.5;
+    font-weight: 300;
   }
   @media (max-width: 860px) {
     .plate-wrap {
@@ -601,6 +527,17 @@ import {
     max-width: 40ch;
     margin: 22px 0 0;
     line-height: 1.5;
+  }
+
+  /* ===== altar — a preview, not the whole surface =====
+     The full mock ran 1,100px, the tallest thing on the page after the wall.
+     Its first two groups make the point; the fade says there's more, and
+     /features#altar has the rest. */
+  :global(.altar-clip) {
+    max-height: 540px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);
+    mask-image: linear-gradient(to bottom, #000 72%, transparent);
   }
 
   /* ===== import ===== */
@@ -653,34 +590,41 @@ import {
     color: var(--paper);
   }
 
-  /* ===== privacy ===== */
-  .privacy-sec {
-    padding: 20px 0 110px;
-    text-align: center;
+  /* ===== who made this ===== */
+  .madeby-sec {
+    padding: 10px 0 100px;
   }
-  .privacy-sec h2 {
-    max-width: 20ch;
-    margin: 0 auto 24px;
-    font-size: clamp(28px, 4.4vw, 50px);
-    line-height: 1.14;
+  :global(.madeby) {
+    max-width: 760px;
+    border-top: 1px solid var(--border);
+    padding-top: 40px;
   }
-  .privacy-sec .body {
-    font-size: 18px;
-    color: var(--paper-dim);
-    font-weight: 300;
-    line-height: 1.62;
-    max-width: 52ch;
-    margin: 0 auto 28px;
-  }
-  .privacy-sec .line {
+  .madeby-line {
     font-family: var(--font-display);
     font-weight: 300;
-    font-style: italic;
-    font-size: clamp(22px, 3vw, 32px);
+    font-size: clamp(22px, 2.6vw, 30px);
+    line-height: 1.35;
     letter-spacing: -0.3px;
+    color: var(--paper);
+    margin-bottom: 20px;
+  }
+  .madeby-line a {
     color: var(--gold);
-    max-width: 24ch;
-    margin: 0 auto;
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent-glow);
+    transition: border-color 0.25s;
+  }
+  .madeby-line a:hover {
+    border-bottom-color: var(--gold);
+  }
+  .madeby-note {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--dawn-1);
+    text-decoration: none;
+  }
+  .madeby-note:hover {
+    text-decoration: underline;
   }
 
   /* ===== pricing ===== */

@@ -12,6 +12,11 @@ import { formatSpiritualBlock } from '@/lib/spiritualBlocks'
  *   ?__preview=voices                       the six voices, light where they have one
  *   ?__preview=voices&voice=vellum          one voice, full width
  *   ?__preview=voices&voice=vellum&mode=dark
+ *   ?__preview=voices&voice=vellum&bare=1   no label, no card — the page alone
+ *
+ * `bare=1` exists for scripts/capture-site-shots.mjs, which photographs each
+ * voice for the marketing site's editor preview: the "Vellum · vellum · light"
+ * line is a label for us, and on the site it would read as debug text.
  *
  * The document below is one entry carrying every element a voice touches: a
  * title, a subhead, a scripture block, a marking, a thematic break, a quote and
@@ -63,7 +68,7 @@ function stamp(theme: ThemeId): void {
 
 /** One voice on its own ground. `<App/>` is not mounting, so the panel stamps
  *  data-theme itself — same as features/applock/preview.tsx. */
-function Panel({ voice, mode }: { voice: VoiceId; mode: 'light' | 'dark' }) {
+function Panel({ voice, mode, bare = false }: { voice: VoiceId; mode: 'light' | 'dark'; bare?: boolean }) {
   const v = getVoice(voice)
   const theme = (mode === 'light' ? v.light : v.dark) ?? v.dark
   const family = THEMES.find((t) => t.id === theme)?.family ?? 'light'
@@ -75,13 +80,13 @@ function Panel({ voice, mode }: { voice: VoiceId; mode: 'light' | 'dark' }) {
         background: 'var(--bg)',
         color: 'var(--text)',
         colorScheme: family,
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '2.5rem 2rem 3rem',
+        border: bare ? 'none' : '1px solid var(--border)',
+        borderRadius: bare ? 0 : 'var(--radius-lg)',
+        padding: bare ? '3.25rem 3.5rem 3rem' : '2.5rem 2rem 3rem',
         overflow: 'hidden',
       }}
     >
-      <div
+      {bare ? null : <div
         style={{
           fontFamily: 'var(--font-label)',
           fontSize: '0.6rem',
@@ -92,7 +97,7 @@ function Panel({ voice, mode }: { voice: VoiceId; mode: 'light' | 'dark' }) {
         }}
       >
         {v.label} · {theme} · {mode}
-      </div>
+      </div>}
       <div className="journal-write">
         <Editor
           docKey={`voices-${voice}-${mode}`}
@@ -110,6 +115,7 @@ export function renderVoicesPreview(): void {
   const wanted = params.get('voice')
   const one = VOICES.find((v) => v.id === wanted)
   const mode: 'light' | 'dark' = params.get('mode') === 'dark' ? 'dark' : 'light'
+  const bare = one !== undefined && params.get('bare') === '1'
 
   // The page's own chrome has to sit on something; use the voice being shown,
   // or Dawn for the contact sheet.
@@ -128,18 +134,18 @@ export function renderVoicesPreview(): void {
       )
 
   createRoot(el).render(
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '3rem 1.5rem 8rem' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: bare ? 0 : '3rem 1.5rem 8rem' }}>
       <div
         style={{
           display: 'grid',
           gap: '1.5rem',
           gridTemplateColumns: one ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 34rem), 1fr))',
-          maxWidth: one ? '46rem' : '96rem',
+          maxWidth: bare ? 'none' : one ? '46rem' : '96rem',
           margin: '0 auto',
         }}
       >
         {panels.map((p) => (
-          <Panel key={`${p.voice}-${p.mode}`} voice={p.voice} mode={p.mode} />
+          <Panel key={`${p.voice}-${p.mode}`} voice={p.voice} mode={p.mode} bare={bare} />
         ))}
       </div>
     </div>,

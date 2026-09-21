@@ -9,6 +9,19 @@ export const featuresIntro = {
   lead: "A journal built for spiritual growth — slash commands and contemplative rituals right in the sentence, the Lamp to show where your heart has been leaning across the whole Bible, the Ascent to climb the long view of your seasons, and the Altar to gather the prayers you keep carrying.",
 };
 
+// ---- the six voices — /features' editor preview ----------------
+// Copied from the app's src/lib/voices.ts (labels, blurbs, swatches, which
+// modes each voice has); voices.test.ts fails the build if they drift. Each
+// voice/mode pair is a real capture of the editor from `npm run screenshots:site`.
+export const voices = [
+  { id: "dawn", label: "Dawn", blurb: "Sunrise on paper. The one that welcomes.", modes: ["light", "dark"], swatch: "#c2683a" },
+  { id: "vellum", label: "Vellum", blurb: "Aged paper, ink that bites. The manuscript.", modes: ["light", "dark"], swatch: "#8a5324" },
+  { id: "cloister", label: "Cloister", blurb: "Cool stone, north light. The institution.", modes: ["light", "dark"], swatch: "#3d6d8f" },
+  { id: "sabbath", label: "Sabbath", blurb: "Sage and pine. The quiet one.", modes: ["light", "dark"], swatch: "#3f7d6a" },
+  { id: "plainsong", label: "Plainsong", blurb: "One line, unadorned. The plaintext voice.", modes: ["light", "dark"], swatch: "#a06a1e" },
+  { id: "vigil", label: "Vigil", blurb: "Dimmed all the way down, for dark rooms.", modes: ["dark"], swatch: "#8a7f6a" },
+] as const;
+
 // each deep dive renders with a live app-element mock (not a screenshot)
 export const deepDives = [
   {
@@ -26,15 +39,19 @@ export const deepDives = [
         body: "Everything but your words disappears. Typewriter scrolling keeps the line you're writing at eye level; the lines above quietly dim. Just you and the page.",
       },
       {
-        title: "Light, dark, and your own hand",
-        body: "A light or dark surface, set to follow your system. Then choose your writing face — Serif, Literary, Typewriter, Mono, Sans, or Readable — and set your own size, line height, and measure.",
+        title: "Six voices, light and dark",
+        body: "A voice is the whole page, not a colour swap — its own typeface, its own paper, its own headings. Each comes in light and dark and follows your system; Vigil is dimmed all the way down for dark rooms. Then set your own size, line height, and measure.",
       },
       {
         title: "Nothing between thought and word",
         body: "Markdown-first, with no perceptible input lag and continuous autosave. Keyboard-first throughout. You'll never lose a keystroke, and you'll never wait for one.",
       },
     ],
-    mock: "slash",
+    // `wide` + the voice picker: a real capture of the editor in each voice,
+    // which says "beautiful" better than any list of settings. The slash
+    // showcase this dive used to carry is item 2 on the home page.
+    wide: true,
+    mock: "voices",
   },
   {
     id: "practices",
@@ -59,6 +76,8 @@ export const deepDives = [
         body: "Search by name, tradition, or a line that's stuck with you. Or open the library empty-handed — it opens on the morning's rituals at 6am and the evening's at 9pm, and says why.",
       },
     ],
+    // The full library, by hour and by century, is its own page now.
+    more: { label: "See the whole library →", href: "/rituals" },
     mock: "practices",
   },
   {
@@ -165,7 +184,7 @@ export const everythingIntro = {
   tag: "Everything in Dayspring",
   heading: "The small things, <em>all the way down.</em>",
   lead: "One premium plan, and a great deal of care. Here's the whole of it — the page, the tools in the sentence, the long view, and everything underneath.",
-  valueLine: "All of it, one plan — <strong>$64 a year</strong>. Complimentary access starts today, with no payment method required.",
+  valueLine: "All of it, one plan — <strong>$64 a year</strong>, after a 14-day trial.",
 };
 
 export const everything = [
@@ -266,7 +285,6 @@ export const everything = [
     items: [
       "A real Mac app, kept in sync",
       "iPhone app — coming soon",
-      "A browser, when it's all you have",
       "Encrypted in transit & at rest",
       "Never sold, never trained on",
       "Zero-retention AI reflection",

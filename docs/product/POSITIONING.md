@@ -115,7 +115,13 @@ distasteful), app-store search (no iOS app), churches as an institutional channe
 
 ---
 
-## The unresolved question
+## The question — resolved 2026-09-20 → B
+
+> **Decided (D-001):** B. The home page is *"A journal built for spiritual growth,"*
+> told as everything a Christian needs for the inner life, in the page. Note this narrows the
+> "we're a read surface" one-move summary above: reading back is part of the promise,
+> not the front of it. What follows is kept as the reasoning,
+> and as the falsifier: if the remaining interviews come back in craft terms, reopen.
 
 **Dayspring's surface area is built for one person and its soul is built for another.**
 

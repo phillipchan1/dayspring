@@ -17,6 +17,10 @@ interface Props {
   bareTitle?: boolean;
   /** Footer style: "full" (closing CTA + links) or "minimal" (links only). */
   footer?: "full" | "minimal";
+  /** Page-specific closing line for the full footer — so a page can end on
+   *  its own note without stacking a second download block above the footer's. */
+  footerBig?: string;
+  footerSub?: string;
   /** Keep this page out of search results and the sitemap (e.g. /start, a
    *  redirect page with nothing for a search result to land a visitor on). */
   noindex?: boolean;
@@ -29,6 +33,8 @@ const {
   path,
   bareTitle = false,
   footer = "full",
+  footerBig,
+  footerSub,
   noindex = false,
 } = Astro.props;
 
@@ -119,7 +125,7 @@ const ogImageUrl = new URL(ogImage, site.url).href;
     <main id="main">
       <slot />
     </main>
-    <Footer variant={footer} />
+    <Footer variant={footer} big={footerBig} sub={footerSub} />
 
     <script>
       // Entrance instrumentation that has to run on every page, regardless of

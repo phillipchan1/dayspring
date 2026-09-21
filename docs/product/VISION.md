@@ -120,9 +120,10 @@ The reflection surfaces you have already built — the Ascent, the Covenant sky 
 **B features**. The editor and the theming are **A features**. Today the product is A
 in its surface area and B in its soul.
 
-This does not need to be resolved today, but it must be resolved before any
-significant acquisition spend, because A and B want different front doors. Carried as
-the top open question in `POSITIONING.md`.
+**Resolved 2026-09-20 → B** (D-001). The front door says *"A journal built for
+spiritual growth"* and tells the story as everything a Christian needs for the inner
+life, in the page — with reading your history back as one promise inside it. The editor's craft is a tour-page detail, not
+the pitch. Decided on n=2 interviews, so the falsifier in `DECISIONS.md` stays live.
 
 ---
 

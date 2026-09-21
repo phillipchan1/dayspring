@@ -9,11 +9,9 @@
 // DEFAULT_API_BASE in src/lib/env.ts — verified against both before wiring,
 // not invented (see dayspring#45).
 //
-// NOT a headline door any more. Dayspring is a Mac app that also runs in a
-// browser, not a web app with a Mac build: the web is the fallback for a
-// borrowed machine, so it appears once per page as a quiet line under the
-// download, never as a button. `/start` still exists and still fires the
-// trial pixel — it's simply no longer what we point at.
+// NOT offered anywhere on the site (Phil, 2026-09-20): people get Mac or
+// iPhone, nothing else. The web app still exists for existing users, and
+// `/start` still redirects to it — it's simply not a door this site shows.
 export const APP_URL = "https://dayspring-eosin.vercel.app";
 
 export const site = {
@@ -47,13 +45,14 @@ export const downloads = {
 
 // ---- the download cluster (the site's primary CTA everywhere) ----
 // One object so the hero, the footer, the pricing cards and the nav can't drift
-// apart. `web` is deliberately styled as a text link, not a button.
+// apart. Mac and iPhone only — the browser is deliberately not offered.
 export const cta = {
   mac: {
     label: "Download for Mac",
     href: downloads.macos.href,
     /** Rendered under the buttons. The trial offer, without the trial button. */
-    note: "Complimentary access starts today. Apple silicon, macOS 13+.",
+    // No hardware line: "Apple silicon, macOS 13+" wasn't true of the build.
+    note: "Start with a 14-day trial.",
   },
   ios: {
     label: "iPhone",
@@ -61,16 +60,13 @@ export const cta = {
     /** Shown on phones, where the .dmg is useless and the pill is the whole CTA. */
     phoneNote: "The iPhone app is in review. Until then, Dayspring lives on your Mac.",
   },
-  web: {
-    label: "Or open it in your browser",
-    href: "/start",
-  },
 } as const;
 
 // primary nav links (text collapses on mobile; pills stay)
 export const navLinks = [
   { label: "Why we built it", href: "/why" },
   { label: "Features", href: "/features" },
+  { label: "Rituals", href: "/rituals" },
   { label: "FAQ", href: "/faq" },
   { label: "Help", href: "/help" },
 ] as const;
@@ -79,6 +75,7 @@ export const navLinks = [
 export const footerLinks = [
   { label: "Why we built it", href: "/why" },
   { label: "Features", href: "/features" },
+  { label: "Rituals", href: "/rituals" },
   { label: "FAQ", href: "/faq" },
   { label: "Help", href: "/help" },
   { label: "Roadmap", href: "https://dayspring.featurebase.app/roadmap" },
@@ -94,7 +91,7 @@ export const pricingTiers = [
     name: "Dayspring Annual",
     price: "$64",
     unit: " / year",
-    note: "Complimentary access · no payment method required",
+    note: "14-day trial · about $5.33 / month",
     desc:
       "The full product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar. The longer you write, the more the map fills in.",
     cta: { label: "Download for Mac", href: downloads.macos.href, style: "solid" },
@@ -105,7 +102,7 @@ export const pricingTiers = [
     name: "Monthly",
     price: "$7",
     unit: " / month",
-    note: "Complimentary access · no payment method required",
+    note: "14-day trial · cancel anytime",
     desc:
       "Same everything, billed month to month. Choose it when a year at a time is more than you want.",
     cta: { label: "Download for Mac", href: downloads.macos.href, style: "line" },

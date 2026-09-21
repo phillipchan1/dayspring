@@ -1,0 +1,429 @@
+---
+// /rituals — the practice library, as its own page.
+// Copy and data: src/content/rituals.ts (pinned to the app's shelf by a test).
+// Visual: a real capture of the shipped library, via `npm run screenshots:site`.
+import Base from "../layouts/Base.astro";
+import SectionReveal from "../components/SectionReveal.astro";
+import ProductShot from "../components/ProductShot.astro";
+import TestimonialBand from "../components/TestimonialBand.astro";
+import {
+  intro,
+  grounded,
+  eras,
+  easy,
+  shelf,
+  shelves,
+  rituals,
+  close,
+} from "../content/rituals";
+import { testimonial } from "../content/home";
+
+const byEra = (id: string) => rituals.filter((r) => r.era === id);
+const byRhythm = (r: string) => rituals.filter((x) => x.rhythm === r);
+---
+
+<Base
+  title="Rituals"
+  description="Thirteen contemplative forms from the praying church — the Examen, Lectio Divina, Luther's Garland, Psalmic Lament and more — opened right in the page you're writing, with a few modern forms beside them."
+  path="/rituals"
+  footerBig={close.heading}
+  footerSub={close.sub}
+>
+  {/* intro + the shelf itself */}
+  <section class="r-intro">
+    <SectionReveal class="wrap intro-head">
+      <p class="eyebrow mono">{intro.eyebrow}</p>
+      <h1 set:html={intro.heading} />
+      <p class="lead" set:html={intro.lead} />
+    </SectionReveal>
+    <SectionReveal class="plate-wrap">
+      <ProductShot
+        name="rituals-library"
+        size={{ w: 1280, h: 740 }}
+        alt={intro.shotAlt}
+      />
+      <p class="plate-caption">{intro.caption}</p>
+    </SectionReveal>
+  </section>
+
+  {/* grounded — the forms on a line through time */}
+  <section class="r-grounded">
+    <div class="wrap">
+      <SectionReveal class="sec-head">
+        <div>
+          <p class="tag mono">{grounded.tag}</p>
+          <h2 set:html={grounded.heading} />
+        </div>
+        <p class="lead">{grounded.lead}</p>
+      </SectionReveal>
+      <SectionReveal>
+        <ol class="timeline">
+          {
+            eras.map((era) => (
+              <li class="era">
+                <span class="era-label mono">{era.label}</span>
+                <span class="era-when">{era.when}</span>
+                <ul class="era-forms">
+                  {byEra(era.id).map((r) => (
+                    <li>{r.name}</li>
+                  ))}
+                </ul>
+              </li>
+            ))
+          }
+        </ol>
+      </SectionReveal>
+    </div>
+  </section>
+
+  {/* easy — three steps */}
+  <section class="r-easy">
+    <div class="wrap">
+      <SectionReveal>
+        <p class="tag mono">{easy.tag}</p>
+        <h2 set:html={easy.heading} />
+      </SectionReveal>
+      <SectionReveal>
+        <ol class="steps">
+          {
+            easy.steps.map((step, i) => (
+              <li>
+                <span class="step-n mono">{String(i + 1).padStart(2, "0")}</span>
+                <span class="step-title">{step.title}</span>
+                <span class="step-body">{step.body}</span>
+              </li>
+            ))
+          }
+        </ol>
+      </SectionReveal>
+    </div>
+  </section>
+
+  {/* the whole library, by hour */}
+  <section class="r-shelf">
+    <div class="wrap">
+      <SectionReveal class="sec-head">
+        <div>
+          <p class="tag mono">{shelf.tag}</p>
+          <h2 set:html={shelf.heading} />
+        </div>
+        <p class="lead">{shelf.lead}</p>
+      </SectionReveal>
+      {
+        shelves.map((s) => (
+          <SectionReveal class="shelf">
+            <div class="shelf-head">
+              <h3>{s.label}</h3>
+              <span class="shelf-note">{s.note}</span>
+            </div>
+            <ul class="cards">
+              {byRhythm(s.rhythm).map((r) => (
+                <li class="card">
+                  <span class="card-name">{r.name}</span>
+                  <span class="card-origin">{r.origin}</span>
+                  <span class="card-quote">{r.quote}</span>
+                  <span class="card-pill mono">{r.tradition}</span>
+                </li>
+              ))}
+            </ul>
+          </SectionReveal>
+        ))
+      }
+    </div>
+  </section>
+
+  {/* the one real voice — and it was about exactly this */}
+  <section class="r-voice">
+    <SectionReveal class="wrap">
+      <TestimonialBand
+        quote={testimonial.quote}
+        attribution={testimonial.attribution}
+        context={testimonial.context}
+      />
+    </SectionReveal>
+  </section>
+</Base>
+
+<style>
+  .eyebrow,
+  .tag {
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+    margin-bottom: 18px;
+  }
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -1px;
+    line-height: 1.04;
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-size: clamp(40px, 6vw, 72px);
+    max-width: 14ch;
+  }
+  h2 {
+    font-size: clamp(32px, 4.6vw, 54px);
+    max-width: 16ch;
+  }
+  h1 :global(em),
+  h2 :global(em) {
+    font-style: italic;
+    color: var(--gold);
+  }
+  .lead {
+    font-size: 19px;
+    color: var(--paper-dim);
+    font-weight: 300;
+    line-height: 1.55;
+    max-width: 52ch;
+  }
+  .lead :global(em) {
+    font-style: normal;
+    font-family: var(--font-mono);
+    color: var(--gold);
+  }
+
+  /* heading left, lead right — same pattern as the home page */
+  :global(.sec-head) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 64px;
+    align-items: end;
+    margin-bottom: 44px;
+  }
+  :global(.sec-head) .lead {
+    max-width: 46ch;
+    padding-bottom: 6px;
+  }
+
+  /* ---- intro ---- */
+  .r-intro {
+    padding: 150px 0 90px;
+  }
+  :global(.intro-head) {
+    margin-bottom: 48px;
+  }
+  :global(.plate-wrap) {
+    width: min(1280px, calc(100vw - 48px));
+    margin: 0 auto;
+  }
+  .plate-caption {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(14px, 1.6vw, 17px);
+    color: var(--muted);
+    max-width: 52ch;
+    margin: 18px auto 0;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* ---- grounded: a line through time ---- */
+  .r-grounded {
+    padding: 60px 0 100px;
+  }
+  .timeline {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border-top: 1px solid var(--border-strong);
+  }
+  .era {
+    position: relative;
+    padding: 26px 18px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  /* the dot where each era meets the line */
+  .era::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--dawn-1);
+    box-shadow: 0 0 0 4px var(--ink);
+  }
+  .era-label {
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--dawn-1);
+  }
+  .era-when {
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .era-forms {
+    list-style: none;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .era-forms li {
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 1.25;
+    color: var(--paper);
+  }
+
+  /* ---- easy: three steps ---- */
+  .r-easy {
+    padding: 40px 0 100px;
+  }
+  .steps {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    margin-top: 36px;
+  }
+  .steps li {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 26px 24px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card-grad);
+  }
+  .step-n {
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    color: var(--dawn-1);
+  }
+  .step-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--paper);
+  }
+  .step-body {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--paper-dim);
+    font-weight: 300;
+  }
+
+  /* ---- the shelf, by hour ---- */
+  .r-shelf {
+    padding: 40px 0 90px;
+  }
+  :global(.shelf) {
+    margin-bottom: 42px;
+  }
+  .shelf-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .shelf-head h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 24px;
+    color: var(--paper);
+  }
+  .shelf-note {
+    font-size: 14px;
+    font-style: italic;
+    color: var(--muted);
+  }
+  .cards {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 22px 22px 20px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card-grad);
+  }
+  .card-name {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--paper);
+  }
+  .card-origin {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .card-quote {
+    font-size: 15px;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--paper-dim);
+    padding-left: 12px;
+    border-left: 1px solid var(--border-strong);
+    margin: 4px 0 6px;
+    flex: 1;
+  }
+  .card-pill {
+    align-self: flex-start;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: var(--paper-dim);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px 10px;
+  }
+
+  /* ---- voice + close ---- */
+  .r-voice {
+    padding: 30px 0 40px;
+  }
+  @media (max-width: 860px) {
+    :global(.sec-head) {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .timeline {
+      grid-template-columns: 1fr;
+      border-top: 0;
+      border-left: 1px solid var(--border-strong);
+      margin-left: 4px;
+    }
+    .era {
+      padding: 0 0 30px 26px;
+    }
+    .era::before {
+      top: 4px;
+      left: -5px;
+    }
+    .steps,
+    .cards {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (min-width: 861px) and (max-width: 1060px) {
+    .cards {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 640px) {
+    .r-intro {
+      padding-top: 120px;
+    }
+  }
+</style>

@@ -15,6 +15,9 @@ Examen. Lectio Divina. Wesley's Questions. SOAP. A psalmic lament for when you
 need one. The Round, once a week, walks the domains of your own life one at a
 time — what's true here, this week.
 
+Every form in the library, with where it comes from, is on the
+[Rituals page](/rituals).
+
 ## Choosing one
 
 The library opens on what the hour already suggests — mornings lead with the
