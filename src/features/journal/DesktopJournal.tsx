@@ -2,7 +2,6 @@ import { isTauri, MAC_TRAFFIC_INSET } from '@/lib/platform'
 import { Rail } from './Rail'
 import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
-import { IconRitual } from './navIcons'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import type { JournalViewProps } from './journalViewProps'
 
@@ -15,16 +14,11 @@ function formatBreadcrumb(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
 }
 
-/**
- * The door into the rituals, for people who don't know `/` exists.
- *
- * **Only rituals, and only here** (and the matching blank-page control on
- * mobile). Scripture and prayer are things you reach for mid-sentence, about
- * the line you are on — they belong on the `+` beside that line and on the
- * keyboard bar. A ritual is not about a line; it is a shape for the whole page,
- * chosen before there is a page. That is why this one sits up top beside the
- * date, and why the row that briefly sat here offering `/scripture` and `/pray`
- * was putting three different scopes in one place.
+/*
+ * The door into the rituals no longer lives up here. A ritual is a shape for
+ * the whole page, chosen before there is a page, so its door is now the shelf
+ * at the foot of a blank page itself (`RitualShelf.tsx`) — the one place a
+ * page is unmistakably blank.
  */
 
 /**
@@ -46,7 +40,6 @@ export function DesktopJournal(props: JournalViewProps) {
     reflectionsActive, altarActive, scriptureActive, pagesActive, lifeMapActive, bulkActive, bulkCount, rangeSelectActive,
     userEmail, concordanceEnabled,
     entryReturn, onReturnFromEntry,
-    onCommand,
   } = props
   const focused = focus.active
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -64,8 +57,6 @@ export function DesktopJournal(props: JournalViewProps) {
   const canvasTaken =
     reflectionsActive || altarActive || scriptureActive || pagesActive || lifeMapActive
   const journalChrome = !canvasTaken
-  // Nothing written yet — either a brand-new entry, or one that's been emptied.
-  const blankPage = !bulkActive && !rangeSelectActive && (isNewEntry || words === 0)
 
   return (
     <div className="app-shell">
@@ -114,20 +105,6 @@ export function DesktopJournal(props: JournalViewProps) {
                 </button>
               ) : null}
               <span className="journal-topbar__label">{topbarLabel}</span>
-              {/* Only on a page nobody has written on yet — the same discipline
-                  bodyLinePlaceholder already keeps. It is a starting affordance,
-                  not a toolbar, and it retires itself at the first word. */}
-              {blankPage && (
-                <button
-                  type="button"
-                  className="journal-topbar__ritual"
-                  onClick={() => onCommand('ritual')}
-                  title="Practices for the inner life"
-                >
-                  <IconRitual />
-                  Ritual
-                </button>
-              )}
             </div>
             <div className="journal-topbar__actions">
               <StatusCluster

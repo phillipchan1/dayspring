@@ -1,0 +1,74 @@
+/*
+ * The shelf sits at the foot of the writing canvas, never in the writing
+ * column: the page stays empty. It is out of the way of the caret and fades
+ * (without moving anything) the moment there are words.
+ */
+.ritual-shelf {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3rem 1.3rem;
+  padding: 1.2rem 2rem calc(env(safe-area-inset-bottom, 0px) + 1.6rem);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.ritual-shelf[data-visible='true'] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.ritual-shelf__lead {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.ritual-shelf__pick,
+.ritual-shelf__all {
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.ritual-shelf__pick {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+.ritual-shelf__all {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+.ritual-shelf__pick:hover,
+.ritual-shelf__all:hover { color: var(--accent); }
+.ritual-shelf__pick:focus-visible,
+.ritual-shelf__all:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+@media (max-width: 767px) {
+  .ritual-shelf { padding: 1rem 1.2rem calc(env(safe-area-inset-bottom, 0px) + 1.4rem); gap: 0.35rem 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ritual-shelf { transition: none; }
+}

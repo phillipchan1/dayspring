@@ -467,4 +467,119 @@ describe('RitualComposer', () => {
       expect(path()).toEqual(['done', 'done', 'on', 'ahead'])
     })
   })
+
+  describe('as a ritual entry — one entry, one ritual', () => {
+    beforeEach(() => {
+      viewport.desk = true
+    })
+    afterEach(() => {
+      viewport.desk = false
+    })
+
+    const onDelete = vi.fn<() => void>()
+    const onFreeWrite = vi.fn<() => void>()
+    const renderEntry = (seed = true) => {
+      act(() => {
+        root.render(
+          createElement(RitualComposer, {
+            blockIndex: 0,
+            getDoc: () => doc,
+            replaceRange: (from: number, to: number, text: string) => {
+              doc = doc.slice(0, from) + text + doc.slice(to)
+            },
+            onClose,
+            onAbout: () => {},
+            entry: {
+              ...(seed ? { seed: { name: examen.name, labels: LABELS } } : {}),
+              backTo: 'your journal',
+              backShort: 'Journal',
+              onDelete,
+              onFreeWrite,
+            },
+          }),
+        )
+      })
+    }
+    const write = () => document.querySelector<HTMLTextAreaElement>('.rc__page .rc__write')!
+    const page = () => document.querySelector('.rc__page .rc__label')?.textContent
+    const next = () => act(() => document.querySelector<HTMLElement>('.rc__foot .rc__next')!.click())
+
+    it('keeps nothing until something is written', () => {
+      doc = ''
+      renderEntry()
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+      expect(doc).toBe('')
+      expect(document.querySelector('.rc__saved')?.textContent).toBe('Nothing is kept until you write.')
+      act(() => type(write(), 'Bread.'))
+      act(() => {
+        vi.advanceTimersByTime(500)
+      })
+      expect(doc).toBe(composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', '']))
+      expect(document.querySelector('.rc__saved')?.textContent).toBe('Saved as you write.')
+    })
+
+    it('ends on After, written below the ritual as ordinary prose', () => {
+      doc = ''
+      renderEntry()
+      act(() => type(write(), 'Bread.'))
+      for (let n = 0; n < 4; n++) next()
+      expect(page()).toBe('After')
+      expect(document.querySelector('.rc__page .rc__q')).toBeNull()
+      act(() => type(write(), 'A quiet evening.'))
+      act(() => document.querySelector<HTMLElement>('.rc__home')!.click())
+      expect(doc).toBe(
+        `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])}\n\nA quiet evening.`,
+      )
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('says where leaving goes', () => {
+      doc = ''
+      renderEntry()
+      expect(document.querySelector('.rc__home')?.textContent).toContain('Back to your journal')
+    })
+
+    it('reopens an existing ritual entry with its After', () => {
+      doc = `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', 'Far.', 'Short.', 'Patience.'])}\n\nLater.`
+      renderEntry(false)
+      expect(page()).toBe('Gratitude')
+      for (let n = 0; n < 4; n++) next()
+      expect(write().value).toBe('Later.')
+    })
+
+    it('leaves no page behind when nothing was written', () => {
+      doc = ''
+      renderEntry()
+      act(() => document.querySelector<HTMLElement>('.rc__home')!.click())
+      expect(doc).toBe('')
+      expect(onDelete).not.toHaveBeenCalled()
+    })
+
+    it('free write keeps every word and drops the questions', () => {
+      doc = `${composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', 'Short.', ''])}\n\nLater.`
+      renderEntry(false)
+      const tool = [...document.querySelectorAll<HTMLButtonElement>('.rc__rail-tools button')].find(
+        (b) => b.textContent === 'Free write',
+      )!
+      act(() => tool.click())
+      expect(tool.textContent).toBe('Make it an ordinary page?')
+      act(() => tool.click())
+      expect(doc).toBe('Bread.\n\nShort.\n\nLater.')
+      expect(onFreeWrite).toHaveBeenCalled()
+    })
+
+    it('deletes the page, after asking', () => {
+      doc = composeRitualMarkdown(examen.name, LABELS, ['Bread.', '', '', ''])
+      renderEntry(false)
+      const tool = [...document.querySelectorAll<HTMLButtonElement>('.rc__rail-tools button')].find(
+        (b) => b.textContent === 'Delete page',
+      )!
+      act(() => tool.click())
+      expect(onDelete).not.toHaveBeenCalled()
+      act(() => tool.click())
+      expect(onDelete).toHaveBeenCalled()
+    })
+  })
 })

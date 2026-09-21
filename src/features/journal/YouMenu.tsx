@@ -137,17 +137,19 @@ export function YouMenu({
             Life Map
             <span className="you__gloss">the people and things you return to</span>
           </button>
-          {hasWalkedARitual && (
-            <button
-              type="button"
-              role="menuitem"
-              className="you__item"
-              onClick={pick(onRitualThreads)}
-            >
-              Practices
-              <span className="you__gloss">what you have written in a ritual</span>
-            </button>
-          )}
+          {/* Always here: the library is the way into a ritual from anywhere,
+              and what you have walked is a link inside it. */}
+          <button
+            type="button"
+            role="menuitem"
+            className="you__item"
+            onClick={pick(onRitualThreads)}
+          >
+            Rituals
+            <span className="you__gloss">
+              {hasWalkedARitual ? 'practices to walk, and what you wrote in them' : 'practices to walk'}
+            </span>
+          </button>
           {concordanceEnabled && (
             <button
               type="button"

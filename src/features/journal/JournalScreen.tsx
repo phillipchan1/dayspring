@@ -75,11 +75,9 @@ import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { RitualThreads } from '@/features/rituals/RitualThreads'
 import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
 import { RitualComposer } from '@/editor/practices/RitualComposer'
-import { ritualIndexContaining } from '@/editor/practices/ritualDocument'
-import {
-  describeRitualLanding,
-  usePracticeInsertion,
-} from '@/editor/practices/usePracticeInsertion'
+import { ritualEntryShape, ritualIndexContaining } from '@/editor/practices/ritualDocument'
+import { RitualShelf } from './RitualShelf'
+import { BACK_TO_ENTRY, ritualBackTo, ritualLanding } from './ritualEntryNav'
 import {
   PRACTICE_BY_NAME,
   type Practice,
@@ -395,8 +393,39 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * while the query is still in flight.
    */
   const [lifeMapDomains, setLifeMapDomains] = useState<string[] | null>(null)
-  /** Which ritual block the composer is open on, or null when it is closed. */
+  /**
+   * Which ritual block the composer is open on, or null when it is closed.
+   *
+   * Only for an older, MIXED entry — a ritual inside other writing. A ritual
+   * entry (one entry, one ritual) is `ritualEntry` below.
+   */
   const [composerIndex, setComposerIndex] = useState<number | null>(null)
+  /**
+   * The ritual entry being written: the composer owns the whole page.
+   *
+   * One entry, one ritual — a ritual is a kind of page, not a block dropped
+   * into one. It is never shown in the editor: opening one to write opens this.
+   * `seed` is set for a ritual begun on a blank page, which has nothing in its
+   * document yet; `returnTo` is where leaving goes.
+   */
+  const [ritualEntry, setRitualEntry] = useState<{
+    seed?: { name: string; labels: string[] }
+    startAt?: number
+    backTo: string
+    backShort: string
+    returnTo: { kind: 'up' } | { kind: 'entry'; id: string }
+  } | null>(null)
+  /**
+   * A ritual entry asked to be opened for writing, waiting for the editor to
+   * have actually loaded it. The composer writes through the live editor, so
+   * mounting it a render early would write the ritual into whatever entry was
+   * on screen before.
+   */
+  const pendingRitualRef = useRef<{ entryId: string; startAt?: number } | null>(null)
+  const [pendingRitualTick, setPendingRitualTick] = useState(0)
+  /** How to leave once the composer has closed and its last words are in `content`. */
+  const pendingRitualLeaveRef = useRef<{ kind: 'up' } | { kind: 'entry'; id: string } | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   /** "Practices you have walked" — the way back into a ritual. */
   const [threadsOpen, setThreadsOpen] = useState(false)
   /**
@@ -465,22 +494,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       markLineAs(kind)
       return
     }
-    setSlashCapture({ cmd, insertAt, anchor })
-    // Ritual is a full-screen library. The blank-page door parks the caret
-    // first (so Begin writing lands in the body, not the title), which would
-    // leave the keyboard covering half the page — drop it for this command.
     if (cmd === 'ritual') {
-      // Read the entry's shape once, here, while the caret position that opened
-      // the library is still the live one. The library orders itself by whether
-      // there is writing to start from, and its threshold says where the ritual
-      // will land.
-      const doc = editorRef.current?.getDoc() ?? contentRef.current
-      setRitualOpening({
-        midEntry: doc.trim().length > 0,
-        landing: describeRitualLanding(doc, insertAt),
-      })
-      editorRef.current?.blur()
+      // A ritual is a page of its own now, never a block at the caret — so
+      // `/ritual` (and the `+` and the phone's toolbar, which reach it through
+      // here) opens the library, and beginning decides the page.
+      openLibrary()
+      return
     }
+    setSlashCapture({ cmd, insertAt, anchor })
   }
 
   /**
@@ -790,7 +811,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // should see: The Round simply stays in its "needs a few domains" state, and
   // every other ritual is unaffected.
   useEffect(() => {
-    if (slashCapture?.cmd !== 'ritual' || lifeMapDomains !== null) return
+    if (!libraryOpen || lifeMapDomains !== null) return
     let cancelled = false
     loadLifeMap()
       .then((map) => {
@@ -808,29 +829,126 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     return () => {
       cancelled = true
     }
-  }, [slashCapture?.cmd, lifeMapDomains])
+  }, [libraryOpen, lifeMapDomains])
 
-  /** Write a ritual's scaffolding into the entry, then open the composer on it. */
-  const beginPractice = usePracticeInsertion(editorRef)
-  const handleBeginPractice = useCallback(
-    (practice: Practice, movements: PracticePrompt[]) => {
-      const cap = slashCaptureRef.current
-      if (!cap) return
-      setSlashCapture(null)
-      track('ritual_begun')
-      // Use the editor's live document, not React `content`, which can still
-      // hold the just-removed "/ritual" trigger text — stale positions would
-      // insert the ritual in the wrong place and orphan the slash.
-      const doc = editorRef.current?.getDoc() ?? contentRef.current
-      const caret = beginPractice(practice, cap.insertAt, doc, movements)
-      // The block has to be found in the document *after* the insert, because
-      // that is the only place its real position exists.
-      const after = editorRef.current?.getDoc() ?? ''
-      const index = ritualIndexContaining(after, caret)
-      if (index >= 0) setComposerIndex(index)
-    },
-    [beginPractice],
-  )
+  /** The Rituals library — from the shelf's "All rituals", `/ritual`, or You. */
+  function openLibrary() {
+    const doc = editorRef.current?.getDoc() ?? contentRef.current
+    setRitualOpening({ midEntry: false, landing: ritualLanding(doc.trim().length > 0) })
+    editorRef.current?.blur()
+    setLibraryOpen(true)
+  }
+
+  /**
+   * Begin a ritual — one entry, one ritual.
+   *
+   * On a blank page, THIS page becomes the ritual: nothing is created, and
+   * nothing is saved until the first word (the composer keeps the document
+   * blank until then). With writing already on the page, the ritual gets a
+   * page of its own and the entry stays exactly as it is; leaving the ritual
+   * comes back to it.
+   */
+  async function beginRitualEntry(practice: Practice, movements: readonly PracticePrompt[]) {
+    setLibraryOpen(false)
+    track('ritual_begun')
+    const seed = { name: practice.name, labels: movements.map((m) => m.label) }
+    const doc = editorRef.current?.getDoc() ?? contentRef.current
+    editorRef.current?.blur()
+    if (!doc.trim()) {
+      setRitualEntry({ seed, ...ritualBackTo(state.entryReturn), returnTo: { kind: 'up' } })
+      return
+    }
+    const prev = readAppHistoryState()?.entryId ?? entryIdRef.current
+    await handleNew()
+    setRitualEntry({
+      seed,
+      ...(prev ? BACK_TO_ENTRY : ritualBackTo(null)),
+      returnTo: prev ? { kind: 'entry', id: prev } : { kind: 'up' },
+    })
+  }
+  const handleBeginPractice = (practice: Practice, movements: PracticePrompt[]) => {
+    void beginRitualEntry(practice, movements)
+  }
+
+  /** Ask for a ritual entry to open for writing once the editor holds it. */
+  function openRitualEntryWhenLoaded(id: string, startAt?: number) {
+    pendingRitualRef.current = startAt === undefined ? { entryId: id } : { entryId: id, startAt }
+    setPendingRitualTick((t) => t + 1)
+  }
+
+  useEffect(() => {
+    const pending = pendingRitualRef.current
+    if (!pending || entryId !== pending.entryId || loadedEntryIdRef.current !== pending.entryId) {
+      return
+    }
+    pendingRitualRef.current = null
+    if (ritualEntryShape(content).kind !== 'ritual') return
+    editorRef.current?.blur()
+    setRitualEntry({
+      ...(pending.startAt === undefined ? {} : { startAt: pending.startAt }),
+      ...ritualBackTo(state.entryReturn),
+      returnTo: { kind: 'up' },
+    })
+    // `content` is read once, at the moment the entry lands — not a dependency
+    // that should reopen anything as the writer types.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryId, pendingRitualTick, state.entryReturn, content])
+
+  /** Leave the ritual entry, once the composer's last write has reached `content`. */
+  function closeRitualEntry() {
+    if (!ritualEntry) return
+    pendingRitualLeaveRef.current = ritualEntry.returnTo
+    setRitualEntry(null)
+  }
+  useEffect(() => {
+    const leave = pendingRitualLeaveRef.current
+    if (!leave || ritualEntry) return
+    pendingRitualLeaveRef.current = null
+    if (leave.kind === 'entry') {
+      const back = entriesRef.current.find((e) => e.id === leave.id)
+      void (async () => {
+        await saveNow()
+        if (back) await handleBrowse(back)
+        else await leaveEditorUp()
+      })()
+      return
+    }
+    void leaveEditorUp()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ritualEntry])
+
+  /** Delete the ritual entry — for a ritual page, the ritual and the page are one. */
+  function deleteRitualEntry() {
+    const id = readAppHistoryState()?.entryId ?? entryIdRef.current
+    setRitualEntry(null)
+    if (!id) {
+      // Never saved: there is no page to delete, only words to let go of.
+      const doc = editorRef.current?.getDoc() ?? ''
+      editorRef.current?.replaceRange(0, doc.length, '', { focus: false })
+      pendingRitualLeaveRef.current = { kind: 'up' }
+      return
+    }
+    // The editor's text is left alone on purpose: clearing it would queue an
+    // autosave UPDATE of the very row being deleted.
+    setEntries((prev) => prev.filter((e) => e.id !== id))
+    skipEntrySyncRef.current = true
+    loadedEntryIdRef.current = null
+    go(
+      {
+        surface: 'pages',
+        entryId: null,
+        entryReturn: null,
+        ascentDrill: null,
+        settings: null,
+        help: false,
+        pagesSpreadId: null,
+      },
+      { replace: true },
+    )
+    void repo.removeEntries([id]).catch((e) => {
+      setLoadError(e instanceof Error ? e.message : 'Failed to delete entry')
+    })
+  }
 
   /** Reopen the composer on a ritual already in the entry (the "continue" action). */
   const handleContinueRitual = useCallback((pos: number) => {
@@ -1379,6 +1497,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setFindOpen(false)
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
+    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') openRitualEntryWhenLoaded(entry.id)
     if (state.surface !== 'journal') {
       // Carry the breadcrumb. This used to hard-code `entryReturn: null`, so
       // ⌘K from a surface dropped you in the editor with no way back to where
@@ -1801,6 +1920,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       }
     }
     if (!entry) return
+    // A ritual entry is written in the composer, never in the editor.
+    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') openRitualEntryWhenLoaded(entry.id)
 
     const returnCtx = entryReturnFromState(state)
     skipEditorAutofocusRef.current = true
@@ -2083,6 +2204,13 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               onSlashPaletteChange={setSlashPaletteOpen}
             />
           ) : null}
+          {entriesReady && (
+            <RitualShelf
+              visible={!content.trim() && !ritualEntry && !libraryOpen && !focus.active}
+              onPick={(practice) => void beginRitualEntry(practice, practice.prompts)}
+              onAll={openLibrary}
+            />
+          )}
         </div>
       {showCommandBar && !focus.active && (
         <CommandToolbar
@@ -2221,7 +2349,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onScripture: toggleScripture,
     onAltar: toggleAltar,
     onLifeMap: toggleLifeMap,
-    onRitualThreads: () => setThreadsOpen(true),
+    // You → Rituals opens the library, which is the way into a ritual from
+    // anywhere; what you have walked is one link inside it.
+    onRitualThreads: openLibrary,
     hasWalkedARitual,
     altarEnabled,
     concordanceEnabled,
@@ -2340,10 +2470,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onClose={closeSlashCapture}
         />
       )}
-      {slashCapture?.cmd === 'ritual' && (
+      {libraryOpen && (
         <PracticeLibrary
           onBegin={handleBeginPractice}
-          onClose={closeSlashCapture}
+          onClose={() => setLibraryOpen(false)}
           skipPreview={settings.skipRitualPreview}
           onToggleSkipPreview={(v) => updateSettings({ skipRitualPreview: v })}
           midEntry={ritualOpening?.midEntry ?? false}
@@ -2351,7 +2481,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           domains={lifeMapDomains}
           hasWalked={hasWalkedARitual}
           onOpenThreads={() => {
-            closeSlashCapture()
+            setLibraryOpen(false)
             setThreadsOpen(true)
           }}
         />
@@ -2363,6 +2493,30 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onOpenEntry={(id: string) => {
             setThreadsOpen(false)
             void openEntryById(id)
+          }}
+        />
+      )}
+      {ritualEntry && (
+        <RitualComposer
+          blockIndex={0}
+          getDoc={() => editorRef.current?.getDoc() ?? ''}
+          replaceRange={(from, to, text, opts) =>
+            editorRef.current?.replaceRange(from, to, text, opts)
+          }
+          onAbout={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
+          onClose={closeRitualEntry}
+          blocked={aboutPractice !== null}
+          entry={{
+            ...(ritualEntry.seed ? { seed: ritualEntry.seed } : {}),
+            ...(ritualEntry.startAt === undefined ? {} : { startAt: ritualEntry.startAt }),
+            backTo: ritualEntry.backTo,
+            backShort: ritualEntry.backShort,
+            onDelete: deleteRitualEntry,
+            onFreeWrite: () => {
+              // Now an ordinary page: stay on it, in the editor.
+              setRitualEntry(null)
+              requestAnimationFrame(() => editorRef.current?.focus())
+            },
           }}
         />
       )}
@@ -2388,7 +2542,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             // raise the soft keyboard against the wrong surface and leave the
             // caret in the entry instead of the movement. The composer takes
             // its own focus back when `blocked` lifts.
-            if (composerIndex === null) editorRef.current?.focus()
+            if (composerIndex === null && !ritualEntry) editorRef.current?.focus()
           }}
         />
       )}

@@ -384,6 +384,59 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   color: var(--text-dim);
 }
 .rc__path [data-state='on'] .rc__path-label { color: var(--accent); }
+/* After is a page, not a movement: a hollow, dashed bead and a plain italic name. */
+.rc__path [data-after='true'] button::before {
+  background: var(--bg);
+  border-style: dashed;
+}
+.rc__path [data-after='true'][data-state='done'] button::before {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.rc__path [data-after='true'] .rc__path-label {
+  font-size: 0.86rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.rc__page[data-after='true'] .rc__label { margin-bottom: 1.4rem; }
+.rc__rail-tools [data-asking='true'], .rc__tools [data-asking='true'] { color: var(--accent); }
+.rc__pip[data-after='true'] { width: 6px; border-radius: 999px; height: 6px; margin-top: -2px; }
+.rc__more { position: relative; }
+.rc__more-toggle { font-size: 1.1rem; letter-spacing: 0; }
+.rc__more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 13rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-elevated, var(--bg));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+.rc__more-menu button {
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: var(--rc-body);
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.rc__more-menu [data-asking='true'] { color: var(--accent); }
+.rc__x--back {
+  width: auto;
+  padding: 0 0.9rem;
+  font-family: var(--rc-body);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
 .rc__path [data-state='ahead'] .rc__path-label { color: var(--text-faint); }
 .rc__path button:not(:disabled):hover .rc__path-label { color: var(--accent); }
 .rc__gist {

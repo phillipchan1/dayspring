@@ -14,7 +14,6 @@ import {
   IconAscent,
   IconPages,
   IconNew,
-  IconRitual,
   IconScripture,
 } from './navIcons'
 import type { ReactNode } from 'react'
@@ -33,14 +32,13 @@ import { YouMenu } from './YouMenu'
  */
 export function MobileJournal(props: JournalViewProps) {
   const {
-    entries, activeId, words, status, lastSavedAt, saveError,
-    onNew, isNewEntry, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
+    entries, activeId, status, lastSavedAt, saveError,
+    onNew, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     userEmail, onLifeMap, onRitualThreads, hasWalkedARitual, concordanceEnabled,
     settings, updateSettings, focus,
     onPages, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
-    onCommand,
   } = props
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
@@ -102,10 +100,6 @@ export function MobileJournal(props: JournalViewProps) {
       : activeEntry
         ? deriveTitle(activeEntry.body_markdown) || 'Untitled'
         : 'New entry'
-  // Same blank-page door as desktop: a ritual is a shape for the whole page,
-  // chosen before there is a page. Gone at the first word; `/` and `+` still
-  // reach it while writing.
-  const blankPage = !bulkActive && !rangeSelectActive && (isNewEntry || words === 0)
 
   return (
     <div
@@ -160,17 +154,6 @@ export function MobileJournal(props: JournalViewProps) {
           >
             {heading}
           </span>
-          {blankPage && (
-            <button
-              type="button"
-              className="journal-topbar__ritual"
-              onClick={() => onCommand('ritual')}
-              title="Practices for the inner life"
-            >
-              <IconRitual />
-              Ritual
-            </button>
-          )}
           <StatusCluster
             status={status}
             lastSavedAt={lastSavedAt}

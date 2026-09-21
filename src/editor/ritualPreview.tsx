@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import { Editor, type EditorHandle } from './Editor'
 import { ritualIndexContaining } from './practices/ritualDocument'
+import { RitualShelf } from '@/features/journal/RitualShelf'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
 import { PRACTICES, resolveMovements } from './practices/practicesData'
@@ -270,6 +271,83 @@ function EntryHarness({ initialDoc }: { initialDoc: string }) {
   )
 }
 
+/**
+ * `?__preview=ritual&blank=1` — one entry, one ritual, from a blank page.
+ *
+ * The real editor on an empty page with the shelf at its foot; picking a
+ * practice opens the composer as a ritual ENTRY (the page becomes the
+ * ritual). The document below is what the entry would save — blank until the
+ * first word. `&hour=N` pins the clock the shelf picks by.
+ */
+function BlankHarness({ now }: { now?: Date }) {
+  const editorRef = useRef<EditorHandle | null>(null)
+  const [doc, setDoc] = useState('')
+  const [open, setOpen] = useState<Practice | null>(null)
+  const [about, setAbout] = useState<Practice | null>(null)
+  const [left, setLeft] = useState<string | null>(null)
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)' }}>
+      <div className="journal-write__canvas" style={{ flex: 1, position: 'relative', padding: '6vh 1.5rem 0' }}>
+        <div className="journal-write" style={{ maxWidth: '42rem', margin: '0 auto', height: 'auto' }}>
+          <Editor
+            ref={editorRef}
+            docKey="ritual-blank"
+            initialDoc=""
+            onChange={setDoc}
+            autofocus={false}
+            placeholder="Write…"
+          />
+        </div>
+        <RitualShelf
+          visible={!doc.trim() && !open}
+          onPick={(p) => {
+            setLeft(null)
+            setOpen(p)
+          }}
+          onAll={() => console.log('[preview] all rituals')}
+          {...(now ? { now } : {})}
+        />
+      </div>
+      {left && (
+        <p data-testid="left" style={{ textAlign: 'center', color: 'var(--text-faint)', fontStyle: 'italic' }}>
+          {left}
+        </p>
+      )}
+      <pre data-testid="doc" style={{ position: 'fixed', inset: 'auto 0 0 0', opacity: 0, pointerEvents: 'none' }}>
+        {doc}
+      </pre>
+      {open && (
+        <RitualComposer
+          blockIndex={0}
+          getDoc={() => editorRef.current?.getDoc() ?? ''}
+          replaceRange={(from, to, text, opts) => editorRef.current?.replaceRange(from, to, text, opts)}
+          onAbout={(name) => setAbout(PRACTICE_BY_NAME.get(name) ?? null)}
+          onClose={() => {
+            setOpen(null)
+            setLeft('Left the ritual — back to your journal.')
+          }}
+          blocked={about !== null}
+          entry={{
+            seed: { name: open.name, labels: open.prompts.map((m) => m.label) },
+            backTo: 'your journal',
+            backShort: 'Journal',
+            onDelete: () => {
+              editorRef.current?.replaceRange(0, editorRef.current.getDoc().length, '', { focus: false })
+              setOpen(null)
+              setLeft('Deleted.')
+            },
+            onFreeWrite: () => {
+              setOpen(null)
+              setLeft('An ordinary page now.')
+            },
+          }}
+        />
+      )}
+      {about && <PracticeAboutSheet practice={about} onClose={() => setAbout(null)} />}
+    </div>
+  )
+}
+
 export function renderRitualPreview(): void {
   const params = new URLSearchParams(window.location.search)
   const wanted = params.get('theme')
@@ -316,6 +394,14 @@ export function renderRitualPreview(): void {
 
   const el = document.getElementById('root')
   if (!el) throw new Error('Root element #root not found')
+
+  if (params.get('blank') === '1') {
+    const hour = params.get('hour')
+    createRoot(el).render(
+      <BlankHarness {...(hour === null ? {} : { now: new Date(2026, 0, 15, Number(hour), 30) })} />,
+    )
+    return
+  }
 
   if (params.get('composer') === '1') {
     const font = (params.get('font') ?? 'serif') as EditorFont

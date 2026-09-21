@@ -134,6 +134,15 @@ describe('ritualEntryShape', () => {
     expect(shape.kind === 'ritual' && shape.after).toBe('A long quiet evening.')
   })
 
+  it('reads the After back when the last movement was left empty', () => {
+    // What the composer writes: the block (ending on an empty answer line),
+    // then a blank line, then the After.
+    const doc = `${composeRitualMarkdown(examen.name, labels, ['Bread.', '', '', ''])}\n\nLater.`
+    const shape = ritualEntryShape(doc)
+    expect(shape.kind === 'ritual' && shape.contents.texts).toEqual(['Bread.', '', '', ''])
+    expect(shape.kind === 'ritual' && shape.after).toBe('Later.')
+  })
+
   it('tolerates blank lines above the ritual', () => {
     expect(ritualEntryShape(`\n\n${block}`).kind).toBe('ritual')
   })

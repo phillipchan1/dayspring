@@ -10,7 +10,9 @@ import {
   composeRitualMarkdown,
   readRitual,
   ritualBlockRange,
+  ritualEntryShape,
   ritualRemovalRange,
+  type RitualContents,
 } from './ritualDocument'
 import './RitualComposer.css'
 
@@ -40,6 +42,63 @@ interface Props {
    * returns the caret to the movement rather than to the entry underneath.
    */
   blocked?: boolean
+  /**
+   * The ritual IS the entry — one entry, one ritual.
+   *
+   * Absent, the composer owns one block inside a larger entry (an older, mixed
+   * page), exactly as before. Present, it owns the whole document: the block,
+   * then an unprompted last page — After — whose words are saved below the
+   * block as ordinary prose, so the stored format does not change.
+   */
+  entry?: RitualEntryMode
+}
+
+export interface RitualEntryMode {
+  /** A ritual begun on a blank page: nothing is in the document yet. */
+  seed?: { name: string; labels: readonly string[] }
+  /** Where leaving goes, said plainly — "your journal", "the page". */
+  backTo: string
+  /** The same place in one word, for the phone's back button. */
+  backShort: string
+  /** Delete the whole page — for a ritual entry, the ritual and the page are one. */
+  onDelete: () => void
+  /**
+   * The page has just become an ordinary one (free write). The composer has
+   * already written the prose; the parent closes it and stays on the page, in
+   * the editor — unlike leaving, which goes back to where you came from.
+   */
+  onFreeWrite: () => void
+  /** Open on this movement (a click on one answer in the reader). */
+  startAt?: number
+}
+
+/** After is a page, not a movement: no question, just room. */
+const AFTER_LABEL = 'After'
+const AFTER_PLACEHOLDER = 'Anything else, in your own words…'
+
+/** What the composer opens with: the ritual, and (for a ritual entry) its After. */
+function readSeed(
+  doc: string,
+  blockIndex: number,
+  entry: RitualEntryMode | undefined,
+): { block: RitualContents; after: string } | null {
+  if (!entry) {
+    const block = readRitual(doc, blockIndex)
+    return block ? { block, after: '' } : null
+  }
+  const shape = ritualEntryShape(doc)
+  if (shape.kind === 'ritual') return { block: shape.contents, after: shape.after }
+  if (entry.seed) {
+    return {
+      block: {
+        name: entry.seed.name,
+        labels: [...entry.seed.labels],
+        texts: entry.seed.labels.map(() => ''),
+      },
+      after: '',
+    }
+  }
+  return null
 }
 
 /**
@@ -96,9 +155,15 @@ export function RitualComposer({
   onClose,
   onAbout,
   blocked = false,
+  entry,
 }: Props) {
-  const seed = useRef(readRitual(getDoc(), blockIndex))
-  const block = seed.current
+  const seed = useRef(readSeed(getDoc(), blockIndex, entry))
+  const block = seed.current?.block ?? null
+  const [after, setAfter] = useState(seed.current?.after ?? '')
+  const afterRef = useRef(after)
+  afterRef.current = after
+  const entryRef = useRef(entry)
+  entryRef.current = entry
   /**
    * Open on the movement still waiting. A finished ritual, reopened from the
    * entry, opens at its beginning — landing on the close would greet someone
@@ -106,6 +171,8 @@ export function RitualComposer({
    */
   const startAt = (() => {
     if (!block) return 0
+    const asked = entry?.startAt
+    if (asked !== undefined && asked >= 0 && asked < block.labels.length) return asked
     const firstEmpty = block.texts.findIndex((t) => t.trim() === '')
     return firstEmpty === -1 ? 0 : firstEmpty
   })()
@@ -146,8 +213,10 @@ export function RitualComposer({
   const practice = block ? PRACTICE_BY_NAME.get(block.name) : undefined
   const labels = block?.labels ?? []
   const total = labels.length
-  /** The pane past the last movement: the close. */
-  const CLOSE = total
+  /** The After page, for a ritual entry — one past the last movement. */
+  const AFTER = entry ? total : -1
+  /** The pane past everything that can be written: the close. */
+  const CLOSE = entry ? total + 1 : total
 
   // ── Writing back ─────────────────────────────────────────────────────────
   // Debounced while typing, immediate on any move and on the way out, so the
@@ -173,8 +242,47 @@ export function RitualComposer({
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
+  /** Replace the whole document — a ritual entry's composer owns all of it. */
+  const writeWhole = useCallback((next: string) => {
+    const doc = getDocRef.current()
+    if (doc === next) return
+    replaceRangeRef.current(0, doc.length, next, { focus: false })
+  }, [])
+
+  /**
+   * A ritual entry's whole document.
+   *
+   * Nothing at all until something is written: a begun ritual with no words is
+   * scaffolding, and the autosave session only refuses to create a row for a
+   * BLANK document — markers alone would mint a page of nothing.
+   */
+  const composeEntry = useCallback(
+    (prune: boolean) => {
+      if (!block) return ''
+      const t = textsRef.current
+      const a = afterRef.current.replace(/^\n+/, '').replace(/\s+$/, '')
+      if (t.every((x) => x.trim() === '') && !a) return ''
+      let names = block.labels
+      let answers = t
+      if (prune) {
+        const kept = block.labels
+          .map((label, n) => ({ label, text: t[n] ?? '' }))
+          .filter((m) => m.text.trim() !== '')
+        names = kept.map((m) => m.label)
+        answers = kept.map((m) => m.text)
+      }
+      const out = composeRitualMarkdown(block.name, names, answers)
+      return a ? `${out}\n\n${a}` : out
+    },
+    [block],
+  )
+
   const commit = useCallback(() => {
     if (!block || goneRef.current) return
+    if (entryRef.current) {
+      writeWhole(composeEntry(false))
+      return
+    }
     const doc = getDocRef.current()
     const range = ritualBlockRange(doc, blockIndex)
     if (!range) return
@@ -184,7 +292,7 @@ export function RitualComposer({
     // here is the bug: the debounce fires, the entry underneath takes the
     // caret, and the movement the writer is looking at goes dead.
     replaceRangeRef.current(range.from, range.to, next, { focus: false })
-  }, [block, blockIndex])
+  }, [block, blockIndex, composeEntry, writeWhole])
 
   /**
    * How much of the ritual got written, reported once per composer.
@@ -212,11 +320,37 @@ export function RitualComposer({
     if (!block || goneRef.current) return
     reportFinished()
     goneRef.current = true
+    if (entryRef.current) {
+      // The ritual and the page are one: delete the page.
+      const { onDelete } = entryRef.current
+      onCloseRef.current()
+      onDelete()
+      return
+    }
     const doc = getDocRef.current()
     const range = ritualRemovalRange(doc, blockIndex)
     if (range) replaceRangeRef.current(range.from, range.to, '')
     onCloseRef.current()
-  }, [block, blockIndex])
+  }, [block, blockIndex, reportFinished])
+
+  /**
+   * Free write — a ritual entry becomes an ordinary page.
+   *
+   * The questions go and every word stays: the answers in order as
+   * paragraphs, then the After. Not as `##` headings — in Domains a heading
+   * IS a domain, and a movement's name is not one.
+   */
+  const freeWrite = useCallback(() => {
+    if (!block || goneRef.current || !entryRef.current) return
+    reportFinished()
+    goneRef.current = true
+    const prose = [...textsRef.current, afterRef.current]
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .join('\n\n')
+    writeWhole(prose)
+    entryRef.current.onFreeWrite()
+  }, [block, reportFinished, writeWhole])
 
   /**
    * Write the block back with the untouched movements DROPPED.
@@ -240,6 +374,10 @@ export function RitualComposer({
    */
   const commitPruned = useCallback(() => {
     if (!block || goneRef.current) return false
+    if (entryRef.current) {
+      writeWhole(composeEntry(true))
+      return true
+    }
     const doc = getDocRef.current()
     const range = ritualBlockRange(doc, blockIndex)
     if (!range) return false
@@ -255,7 +393,7 @@ export function RitualComposer({
       replaceRangeRef.current(range.from, range.to, next, { focus: false })
     }
     return true
-  }, [block, blockIndex])
+  }, [block, blockIndex, composeEntry, writeWhole])
 
   const leave = useCallback(() => {
     // Before anything else, and latched — the empty branch below exits through
@@ -265,8 +403,17 @@ export function RitualComposer({
     // An untouched ritual is scaffolding, not a record. Leaving it behind
     // is how "I changed my mind" used to get stuck — ✕ closed the surface
     // and the empty block sat in the entry with no way out but continue.
-    const empty = textsRef.current.every((t) => t.trim() === '')
+    const empty =
+      textsRef.current.every((t) => t.trim() === '') && afterRef.current.trim() === ''
     if (empty) {
+      if (entryRef.current) {
+        // Nothing written, so nothing is kept — not a page of markers, and
+        // not a deletion either: there was never a page to delete.
+        writeWhole('')
+        goneRef.current = true
+        onCloseRef.current()
+        return
+      }
       removeBlock()
       return
     }
@@ -279,12 +426,12 @@ export function RitualComposer({
     }
     commit()
     onCloseRef.current()
-  }, [commit, commitPruned, practice, removeBlock, reportFinished])
+  }, [commit, commitPruned, practice, removeBlock, reportFinished, writeWhole])
 
   useEffect(() => {
     const id = setTimeout(commit, 400)
     return () => clearTimeout(id)
-  }, [texts, commit])
+  }, [texts, after, commit])
   // Leaving — by the ✕, by Escape, or because the entry closed under us.
   useEffect(() => () => commit(), [commit])
 
@@ -375,16 +522,30 @@ export function RitualComposer({
 
   if (!block) return null
 
-  const written = i < total && (texts[i] ?? '').trim().length > 0
+  // What the writer walks through: the movements, then — for a ritual entry —
+  // After. Everything below renders panes, so After needs no layout of its own.
+  const paneLabels = entry ? [...labels, AFTER_LABEL] : labels
+  const paneTexts = entry ? [...texts, after] : texts
+  const paneQuestion = (n: number) => (n === AFTER ? '' : questionFor(practice, labels[n] ?? ''))
+  const panePlaceholder = (n: number) =>
+    n === AFTER ? AFTER_PLACEHOLDER : placeholderFor(practice, labels[n] ?? '')
+  const nothingWritten = paneTexts.every((t) => t.trim() === '')
+
+  const written = i < CLOSE && (paneTexts[i] ?? '').trim().length > 0
   // Only a keyboard makes room worth fighting for; on desktop nothing recedes.
   const yielding = written && touch
 
-  const write = (n: number, value: string) =>
+  const write = (n: number, value: string) => {
+    if (n === AFTER) {
+      setAfter(value)
+      return
+    }
     setTexts((prev) => {
       const next = prev.slice()
       next[n] = value
       return next
     })
+  }
 
   if (desk) {
     return createPortal(
@@ -392,20 +553,31 @@ export function RitualComposer({
         name={block.name}
         origin={practice?.origin}
         intention={practice?.intention}
-        labels={labels}
-        texts={texts}
+        labels={paneLabels}
+        texts={paneTexts}
+        afterIndex={AFTER}
         i={i}
         reached={reached}
-        question={(label) => questionFor(practice, label)}
-        placeholder={(label) => placeholderFor(practice, label)}
+        question={paneQuestion}
+        placeholder={panePlaceholder}
         textareaRef={(el) => {
-          if (i < total) paneRefs.current[i] = el
+          if (i < CLOSE) paneRefs.current[i] = el
         }}
         onWrite={write}
         go={go}
         leave={leave}
         remove={removeBlock}
+        freeWrite={entry ? freeWrite : undefined}
         about={() => onAbout(block.name)}
+        backTo={entry?.backTo ?? 'your entry'}
+        saved={
+          entry
+            ? nothingWritten
+              ? 'Nothing is kept until you write.'
+              : 'Saved as you write.'
+            : 'Saved to your entry as you write.'
+        }
+        landed={entry ? 'It’s on your journal page, as you wrote it.' : 'It’s in your entry, as you wrote it.'}
       />,
       document.body,
     )
@@ -424,67 +596,92 @@ export function RitualComposer({
       }
     >
       <header className="rc__bar">
-        <button
-          type="button"
-          className="rc__x"
-          onClick={leave}
-          aria-label={
-            texts.every((t) => t.trim() === '')
-              ? 'Remove the ritual'
-              : 'Leave the ritual'
-          }
-        >
-          ✕
-        </button>
+        {entry ? (
+          // Say where it goes, the way the desk's back link does.
+          <button
+            type="button"
+            className="rc__x rc__x--back"
+            onClick={leave}
+            aria-label={`Back to ${entry.backTo}`}
+          >
+            ‹ {entry.backShort}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="rc__x"
+            onClick={leave}
+            aria-label={
+              texts.every((t) => t.trim() === '')
+                ? 'Remove the ritual'
+                : 'Leave the ritual'
+            }
+          >
+            ✕
+          </button>
+        )}
         <span className="rc__name">{block.name}</span>
         <div className="rc__tools">
-          <button
-            type="button"
-            className="rc__remove"
-            onClick={removeBlock}
-            aria-label="Remove this ritual from the entry"
-          >
-            remove
-          </button>
-          <button
-            type="button"
-            className="rc__about"
-            onClick={() => onAbout(block.name)}
-            aria-label={`About ${block.name}`}
-          >
-            about
-          </button>
+          {entry ? (
+            <MoreMenu
+              about={() => onAbout(block.name)}
+              freeWrite={freeWrite}
+              remove={removeBlock}
+            />
+          ) : (
+            <button
+              type="button"
+              className="rc__remove"
+              onClick={removeBlock}
+              aria-label="Remove this ritual from the entry"
+            >
+              remove
+            </button>
+          )}
+          {entry ? null : (
+            <button
+              type="button"
+              className="rc__about"
+              onClick={() => onAbout(block.name)}
+              aria-label={`About ${block.name}`}
+            >
+              about
+            </button>
+          )}
         </div>
       </header>
 
       <div className="rc__spine" data-yield={yielding ? 'true' : undefined} aria-hidden>
-        {labels.map((label, n) => (
+        {paneLabels.map((label, n) => (
           <span
-            key={label}
+            key={n === AFTER ? '__after' : label}
             className="rc__pip"
+            data-after={n === AFTER ? 'true' : undefined}
             data-on={n === i ? 'true' : undefined}
-            data-done={(texts[n] ?? '').trim() && n !== i ? 'true' : undefined}
+            data-done={(paneTexts[n] ?? '').trim() && n !== i ? 'true' : undefined}
           />
         ))}
       </div>
 
       <div className="rc__viewport" ref={emblaRef}>
         <div className="rc__track">
-        {labels.map((label, n) => {
+        {paneLabels.map((label, n) => {
           return (
-            <section className="rc__pane" key={label} aria-hidden={n !== i}>
+            <section className="rc__pane" key={n === AFTER ? '__after' : label} aria-hidden={n !== i}>
               <div className="rc__inner">
                 <span className="rc__label">{label}</span>
-                <p className="rc__q" data-small={n === i && yielding ? 'true' : undefined}>
-                  {questionFor(practice, label)}
-                </p>
+                {n === AFTER ? null : (
+                  <p className="rc__q" data-small={n === i && yielding ? 'true' : undefined}>
+                    {paneQuestion(n)}
+                  </p>
+                )}
                 <textarea
                   className="rc__write"
                   ref={(el) => {
                     paneRefs.current[n] = el
                   }}
-                  value={texts[n] ?? ''}
-                  placeholder={placeholderFor(practice, label)}
+                  value={paneTexts[n] ?? ''}
+                  placeholder={panePlaceholder(n)}
                   tabIndex={n === i ? 0 : -1}
                   onChange={(e) => write(n, e.target.value)}
                 />
@@ -498,7 +695,7 @@ export function RitualComposer({
               <h2 className="rc__close-name">{block.name}</h2>
               <p className="rc__close-origin">{practice?.origin ?? ''}</p>
               <button type="button" className="rc__next" onClick={leave}>
-                Back to your entry
+                Back to {entry?.backTo ?? 'your entry'}
               </button>
             </div>
           </section>
@@ -512,11 +709,11 @@ export function RitualComposer({
           onClick={() => go(i - 1)}
           disabled={i === 0}
         >
-          {i > 0 && i <= total ? `‹ ${labels[i - 1]}` : ''}
+          {i > 0 && i < CLOSE + 1 ? `‹ ${paneLabels[i - 1] ?? ''}` : ''}
         </button>
         {i < CLOSE && (
           <button type="button" className="rc__next" onClick={() => go(i + 1)}>
-            {i < total - 1 ? `Next: ${labels[i + 1]}` : 'Close the ritual'}
+            {i < CLOSE - 1 ? `Next: ${paneLabels[i + 1]}` : 'Close the ritual'}
           </button>
         )}
       </footer>
@@ -532,18 +729,99 @@ interface DeskProps {
   name: string
   origin: string | undefined
   intention: string | undefined
+  /** Every page walked, in order — the movements, then After for a ritual entry. */
   labels: string[]
   texts: string[]
+  /** Which of `labels` is After, or -1. */
+  afterIndex: number
   i: number
   reached: number
-  question: (label: string) => string
-  placeholder: (label: string) => string
+  question: (n: number) => string
+  placeholder: (n: number) => string
   textareaRef: (el: HTMLTextAreaElement | null) => void
   onWrite: (n: number, value: string) => void
   go: (n: number) => void
   leave: () => void
   remove: () => void
+  /** Present only for a ritual entry — an older in-entry ritual has none. */
+  freeWrite: (() => void) | undefined
   about: () => void
+  /** Where leaving goes: "your journal", "your entry", "the page". */
+  backTo: string
+  /** The rail's foot line — saved, or not yet. */
+  saved: string
+  /** What the close says about where the writing now is. */
+  landed: string
+}
+
+/**
+ * The phone's tools for a ritual entry, behind one ⋯ so the practice's name
+ * keeps the masthead to itself.
+ */
+function MoreMenu({
+  about,
+  freeWrite,
+  remove,
+}: {
+  about: () => void
+  freeWrite: () => void
+  remove: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="rc__more">
+      <button
+        type="button"
+        className="rc__about rc__more-toggle"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="More"
+        onClick={() => setOpen((o) => !o)}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className="rc__more-menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); about() }}>
+            About this ritual
+          </button>
+          <ConfirmButton label="Free write" ask="Make it an ordinary page?" onConfirm={freeWrite} />
+          <ConfirmButton label="Delete page" ask="Delete this page?" onConfirm={remove} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A tool that asks once before it does something that cannot be walked back
+ * from here: the first press turns it into its own question, the second
+ * answers it, and moving away lets the question go.
+ */
+function ConfirmButton({
+  className,
+  label,
+  ask,
+  onConfirm,
+}: {
+  className?: string
+  label: string
+  ask: string
+  onConfirm: () => void
+}) {
+  const [asking, setAsking] = useState(false)
+  return (
+    <button
+      type="button"
+      className={className}
+      data-asking={asking ? 'true' : undefined}
+      onClick={() => (asking ? onConfirm() : setAsking(true))}
+      onBlur={() => setAsking(false)}
+      onMouseLeave={() => setAsking(false)}
+    >
+      {asking ? ask : label}
+    </button>
+  )
 }
 
 /**
@@ -568,7 +846,12 @@ function DeskLayout({
   go,
   leave,
   remove,
+  freeWrite,
   about,
+  afterIndex,
+  backTo,
+  saved,
+  landed,
 }: DeskProps) {
   const total = labels.length
   const filled = (n: number) => (texts[n] ?? '').trim() !== ''
@@ -589,7 +872,7 @@ function DeskLayout({
         {/* Not "close" and not "step out": say where it goes, and (below) that
             nothing is lost by going. */}
         <button type="button" className="rc__home" onClick={leave}>
-          <span aria-hidden>←</span> Back to your entry
+          <span aria-hidden>←</span> Back to {backTo}
           <kbd className="rc__kbd">esc</kbd>
         </button>
         <h2 className="rc__title">{name}</h2>
@@ -603,7 +886,12 @@ function DeskLayout({
             const state =
               n === i ? 'on' : !reachable(n) ? 'ahead' : filled(n) ? 'done' : 'open'
             return (
-              <li key={l} data-state={state}>
+              <li
+                key={n === afterIndex ? '__after' : l}
+                data-state={state}
+                // After is not a movement: no small caps, a hollow bead.
+                data-after={n === afterIndex ? 'true' : undefined}
+              >
                 <button
                   type="button"
                   onClick={() => go(n)}
@@ -623,11 +911,22 @@ function DeskLayout({
           <button type="button" onClick={about}>
             About this ritual
           </button>
-          <button type="button" onClick={remove} aria-label="Remove this ritual from the entry">
-            Remove from entry
-          </button>
+          {freeWrite ? (
+            <>
+              <ConfirmButton
+                label="Free write"
+                ask="Make it an ordinary page?"
+                onConfirm={freeWrite}
+              />
+              <ConfirmButton label="Delete page" ask="Delete this page?" onConfirm={remove} />
+            </>
+          ) : (
+            <button type="button" onClick={remove} aria-label="Remove this ritual from the entry">
+              Remove from entry
+            </button>
+          )}
         </div>
-        <p className="rc__saved">Saved to your entry as you write.</p>
+        <p className="rc__saved">{saved}</p>
         </footer>
       </aside>
 
@@ -635,14 +934,18 @@ function DeskLayout({
         {i < total ? (
           <>
             {/* Keyed so each movement arrives rather than being swapped in. */}
-            <section className="rc__page" key={label}>
+            <section
+              className="rc__page"
+              key={i === afterIndex ? '__after' : label}
+              data-after={i === afterIndex ? 'true' : undefined}
+            >
               <span className="rc__label">{label}</span>
-              <p className="rc__q">{question(label)}</p>
+              {i === afterIndex ? null : <p className="rc__q">{question(i)}</p>}
               <textarea
                 className="rc__write"
                 ref={textareaRef}
                 value={texts[i] ?? ''}
-                placeholder={placeholder(label)}
+                placeholder={placeholder(i)}
                 onChange={(e) => onWrite(i, e.target.value)}
               />
             </section>
@@ -667,9 +970,9 @@ function DeskLayout({
           <div className="rc__close">
             <h2 className="rc__close-name">{name}</h2>
             {origin && <p className="rc__close-origin">{origin}</p>}
-            <p className="rc__close-origin">It’s in your entry, as you wrote it.</p>
+            <p className="rc__close-origin">{landed}</p>
             <button type="button" className="rc__next" onClick={leave}>
-              Back to your entry
+              Back to {backTo}
             </button>
           </div>
         )}
