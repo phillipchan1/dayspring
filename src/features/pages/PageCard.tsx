@@ -168,6 +168,7 @@ export const PageCard = memo(function PageCard({
               data-set={line.set ? 'true' : undefined}
               data-hit={line.hit ? 'true' : undefined}
             >
+              {line.label ? <span className="pgc__movement">{line.label}</span> : null}
               {/* Odd indices are the matched runs — see splitOnMatch. */}
               {line.hit
                 ? splitOnMatch(line.text, match).map((run, j) =>

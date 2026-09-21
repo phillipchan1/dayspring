@@ -134,3 +134,47 @@ export function ritualIndexContaining(doc: string, pos: number): number {
   }
   return -1
 }
+
+/**
+ * What kind of page an entry is, as far as rituals go.
+ *
+ * A ritual is its own kind of entry now — one entry, one ritual — rather than
+ * a block dropped into the middle of one. That needs no new column and no
+ * migration: it is read straight off the markdown.
+ *
+ * - `ritual`: the page OPENS with a ritual (its first non-blank line is the
+ *   name token) and holds exactly one. Anything written after the block is
+ *   the ritual's After — the writer's own words once the movements were done.
+ *   An old entry that happens to begin with its ritual and go on in prose
+ *   reads correctly this way too, which is why none has to be rewritten.
+ * - `mixed`: a ritual inside other writing, or several rituals — entries from
+ *   before this change. They keep the in-entry record.
+ * - `plain`: no ritual at all.
+ */
+export type RitualEntryShape =
+  | { kind: 'plain' }
+  | { kind: 'mixed' }
+  | {
+      kind: 'ritual'
+      contents: RitualContents
+      /** The writing after the block, trimmed; '' when there is none. */
+      after: string
+    }
+
+export function ritualEntryShape(markdown: string | null | undefined): RitualEntryShape {
+  const doc = markdown ?? ''
+  if (!doc.includes('<!-- ritual:') && !doc.includes('<!-- practice:')) return { kind: 'plain' }
+  const lines = doc.split('\n')
+  const blocks = parseRitualBlocks(lines)
+  if (blocks.length === 0) return { kind: 'plain' }
+  const first = lines.findIndex((l) => l.trim() !== '')
+  const block = blocks[0]!
+  if (blocks.length !== 1 || first !== block.nameLine - 1) return { kind: 'mixed' }
+  const contents = readRitual(doc, 0)
+  if (!contents) return { kind: 'mixed' }
+  return {
+    kind: 'ritual',
+    contents,
+    after: lines.slice(block.endLine).join('\n').trim(),
+  }
+}

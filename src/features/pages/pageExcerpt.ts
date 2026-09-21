@@ -10,6 +10,7 @@ import { entryContentLines } from '@/lib/entryLabels'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import { ATTACHMENT_REF_RE } from '@/lib/attachments'
 import { ritualNamesIn } from '@/lib/ritualDisplay'
+import { ritualEntryShape } from '@/editor/practices/ritualDocument'
 import { EXCERPT_MAX_LINES } from './zoom'
 import { passageKey, passagesForEntry } from '@/lib/remember'
 import type { Entry } from '@/lib/types'
@@ -21,6 +22,15 @@ export interface ExcerptLine {
   set: boolean
   /** Carries a lit subject — this is why the page lit up. */
   hit?: boolean
+  /**
+   * On a ritual page, the movement this line OPENS the answer to.
+   *
+   * The writer's own structure, not a summary — the practice's label, run in
+   * ahead of the first line of each answer so a card of an Examen reads as an
+   * Examen, not as four unmarked sentences. Only the first line of an answer
+   * carries it.
+   */
+  label?: string
 }
 
 export interface PageExcerpt {
@@ -115,11 +125,34 @@ export function pageExcerpt(
   match: RegExp | null = null,
 ): PageExcerpt {
   const rituals = ritualNamesIn(entry.body_markdown)
-  const raw = entryContentLines(entry.body_markdown)
   const prose: string[] = []
-  for (const line of raw) {
-    const text = display(line)
-    if (text) prose.push(text)
+  /** Label per prose index — only on a ritual page, only on an answer's first line. */
+  const labels = new Map<number, string>()
+  const shape = ritualEntryShape(entry.body_markdown)
+  if (shape.kind === 'ritual') {
+    // The answers in order, each opened by its movement's name, then the
+    // After as ordinary prose. An unanswered movement says nothing: a card
+    // never shows how much of a ritual was walked (Principle 2).
+    const { labels: names, texts } = shape.contents
+    texts.forEach((answer, i) => {
+      let first = true
+      for (const line of entryContentLines(answer)) {
+        const text = display(line)
+        if (!text) continue
+        if (first) labels.set(prose.length, names[i] ?? '')
+        first = false
+        prose.push(text)
+      }
+    })
+    for (const line of entryContentLines(shape.after)) {
+      const text = display(line)
+      if (text) prose.push(text)
+    }
+  } else {
+    for (const line of entryContentLines(entry.body_markdown)) {
+      const text = display(line)
+      if (text) prose.push(text)
+    }
   }
 
   // The wall stays text-only, but a page containing a photo is not blank.
@@ -137,21 +170,22 @@ export function pageExcerpt(
 
   // Matching lines first, in their original order, then the rest. Stable on
   // both halves, so a page's excerpt never shuffles as you scroll past it.
-  let ordered = prose
+  let ordered = prose.map((text, i) => ({ text, label: labels.get(i) }))
   if (match) {
-    const hits: string[] = []
-    const rest: string[] = []
-    for (const text of prose) {
+    const hits: typeof ordered = []
+    const rest: typeof ordered = []
+    for (const p of ordered) {
       match.lastIndex = 0
-      ;(match.test(text) ? hits : rest).push(text)
+      ;(match.test(p.text) ? hits : rest).push(p)
     }
     if (hits.length > 0) ordered = [...hits, ...rest]
   }
 
-  const lines: ExcerptLine[] = ordered.slice(0, maxLines).map((text) => {
+  const lines: ExcerptLine[] = ordered.slice(0, maxLines).map(({ text, label }) => {
     if (match) match.lastIndex = 0
     const hit = match ? match.test(text) : false
     const line: ExcerptLine = { text, set: isSetApart(passageKey(text), keys) }
+    if (label) line.label = label
     return hit ? { ...line, hit: true } : line
   })
 

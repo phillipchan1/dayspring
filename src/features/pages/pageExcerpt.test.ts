@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { pageExcerpt, pageFill, splitOnMatch } from './pageExcerpt'
 import { EXCERPT_MAX_LINES } from './zoom'
+import { composeRitualMarkdown } from '@/editor/practices/ritualDocument'
 
 const entry = (body: string) => ({
   id: 'e1',
@@ -208,5 +209,29 @@ describe('splitOnMatch', () => {
   // A zero-width pattern would otherwise spin forever on one index.
   it('terminates on a pattern that can match nothing', () => {
     expect(splitOnMatch('abc', /x*/g).join('')).toBe('abc')
+  })
+})
+
+describe('pageExcerpt on a ritual page', () => {
+  const block = composeRitualMarkdown(
+    'The Daily Examen',
+    ['Gratitude', 'Awareness', 'Examination', 'Prayer'],
+    ['The walk after dinner.\nAnd the rain holding off.', '', 'Short with Hannah.', ''],
+  )
+
+  it('opens each answer with its movement, and says nothing for an unanswered one', () => {
+    const x = pageExcerpt(entry(`${block}\n\nA quiet evening after all.`))
+    expect(x.rituals).toEqual(['The Daily Examen'])
+    expect(x.lines.map((l) => [l.label ?? null, l.text])).toEqual([
+      ['Gratitude', 'The walk after dinner.'],
+      [null, 'And the rain holding off.'],
+      ['Examination', 'Short with Hannah.'],
+      [null, 'A quiet evening after all.'],
+    ])
+  })
+
+  it('leaves a ritual inside other writing exactly as it was', () => {
+    const x = pageExcerpt(entry(`Morning first.\n\n${block}`))
+    expect(x.lines.every((l) => l.label === undefined)).toBe(true)
   })
 })

@@ -924,6 +924,17 @@ button.pg__sense-q:hover {
   color: var(--accent);
   margin: 0 0 0.45rem;
 }
+/* A ritual page's movement name, run in ahead of the answer it opens — the
+   writer's own structure, in the app's small-caps voice, never a heading. */
+.pgc__movement {
+  margin-right: 0.5em;
+  font-family: var(--font-serif);
+  font-size: 0.62em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
 .pgc__line {
   font-family: var(--font-editor);
   font-size: 0.79rem;

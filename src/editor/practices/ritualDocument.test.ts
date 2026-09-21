@@ -4,6 +4,7 @@ import {
   readRitual,
   ritualBlockRange,
   ritualIndexAt,
+  ritualEntryShape,
   ritualRemovalRange,
 } from './ritualDocument'
 import { buildPracticeBlock } from './usePracticeInsertion'
@@ -113,5 +114,37 @@ describe('ritualRemovalRange', () => {
     const next = source.slice(0, range.from) + source.slice(range.to)
     expect(readRitual(next, 0)!.texts[0]).toBe('second')
     expect(readRitual(next, 1)).toBeNull()
+  })
+})
+
+describe('ritualEntryShape', () => {
+  const labels = examen.prompts.map((p) => p.label)
+  const block = composeRitualMarkdown(examen.name, labels, ['Bread.', '', 'Short.', ''])
+
+  it('reads a page that opens with its one ritual as a ritual entry', () => {
+    const shape = ritualEntryShape(block)
+    expect(shape.kind).toBe('ritual')
+    if (shape.kind !== 'ritual') return
+    expect(shape.contents.texts).toEqual(['Bread.', '', 'Short.', ''])
+    expect(shape.after).toBe('')
+  })
+
+  it('keeps what follows the block as the After', () => {
+    const shape = ritualEntryShape(`${block}\n\nA long quiet evening.`)
+    expect(shape.kind === 'ritual' && shape.after).toBe('A long quiet evening.')
+  })
+
+  it('tolerates blank lines above the ritual', () => {
+    expect(ritualEntryShape(`\n\n${block}`).kind).toBe('ritual')
+  })
+
+  it('calls a ritual inside other writing, or two rituals, mixed', () => {
+    expect(ritualEntryShape(`Morning.\n\n${block}`).kind).toBe('mixed')
+    expect(ritualEntryShape(`${block}\n\n${block}`).kind).toBe('mixed')
+  })
+
+  it('calls a page without one plain', () => {
+    expect(ritualEntryShape('Just a day.').kind).toBe('plain')
+    expect(ritualEntryShape(null).kind).toBe('plain')
   })
 })
