@@ -20,7 +20,9 @@ import { useState } from 'react'
 import { buildYearLedger, type EncounterInput, type LedgerInput, type MatterInput, type RefInput } from './build'
 import { YearThreads } from './YearThreads'
 import { YearStory } from './YearStory'
-import { MonthView, SeasonView } from './ClimbViews'
+import { MonthView, SeasonView, todayIso } from './ClimbViews'
+import { NowStrip, YearRidge } from './NowStrip'
+import { weekStrip } from './strips'
 import { newIn, photosIn } from './extras'
 import { setLedgerPreviewInput } from './load'
 import '@/styles/themes.css'
@@ -187,7 +189,7 @@ function Harness({ light }: { light: boolean }) {
     <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ minHeight: '100vh', overflow: 'auto', background: light ? '#fbf6ee' : '#10141f' }}>
       <main className="ascent-main is-wide" style={{ padding: '28px 20px 80px' }}>
         <nav style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
-          {['month', 'season', 'year', 'dots'].map((t) => (
+          {['week', 'month', 'season', 'year', 'dots'].map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(128,128,128,.4)', background: tab === t ? 'rgba(232,184,115,.25)' : 'none', color: 'inherit', cursor: 'pointer' }}>
               {t}
             </button>
@@ -195,9 +197,18 @@ function Harness({ light }: { light: boolean }) {
         </nav>
         <div className="ascent-summit">
           <div className="ascent-stack ascent-stack--summit">
+            {tab === 'week' ? <NowStrip strip={weekStrip(todayIso())} /> : null}
             {tab === 'month' ? <MonthView onOpenEntry={open} /> : null}
             {tab === 'season' ? <SeasonView onOpenEntry={open} /> : null}
-            {tab === 'year' ? <YearStory ledger={ledger} extras={extras} open onOpenEntry={open} /> : null}
+            {tab === 'year' ? (
+              <YearStory
+                ledger={ledger}
+                extras={extras}
+                open
+                onOpenEntry={open}
+                ridge={<YearRidge progress={(Date.now() - Date.UTC(Y, 0, 1)) / (365 * 864e5)} stones={ledger.stones.map((st) => ({ id: st.id, position: (+st.later.date.slice(5, 7) - 0.5) / 12, label: st.later.date }))} selectedId={null} onSelect={() => {}} />}
+              />
+            ) : null}
             {tab === 'dots' ? <YearThreads ledger={ledger} onOpenEntry={open} /> : null}
           </div>
         </div>

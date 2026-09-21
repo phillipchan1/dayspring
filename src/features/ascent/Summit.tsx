@@ -9,6 +9,7 @@ import { SummitTrail } from './SummitTrail'
 import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { loadYearLedger } from './ledger/load'
+import { YearRidge } from './ledger/NowStrip'
 import { YearStory } from './ledger/YearStory'
 import { loadSpanExtras, type SpanExtras } from './ledger/load'
 import type { YearLedger } from './ledger/build'
@@ -216,10 +217,10 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
   }
 
   if (ledgerView || ledgerReading) {
-    // Ledger mode. The mountain stays — it is the Summit — and the stones on
-    // its trail come from answered Altar prayers when the ledger found any,
-    // else from the yearly rollup. Below it: the refrain (checked against its
-    // page), then the year's threads, then the rest of the Summit unchanged.
+    // Ledger mode. The mountain is laid on its side as the year's ridge and
+    // sits on the month strip, so the climb IS the timeline rather than a
+    // picture above it. Its stones come from answered Altar prayers when the
+    // ledger found any, else from the yearly rollup.
     const trailStones: SummitStone[] =
       ledgerView && ledgerView.stones.length > 0
         ? ledgerView.stones.map((st) => ({
@@ -234,25 +235,26 @@ export function Summit({ view: openYear, scripture: openScripture, onScriptureDr
       <div className="ascent-summit">
         <YearRail years={years} shown={shownYear} open={openYear.year} onPick={setShownYear} />
 
-        <SummitTrail
-          year={year}
-          progress={progress}
-          stones={trailStones}
-          selectedId={openStone}
-          onSelect={setOpenStone}
-        />
-
-        <p className="ascent-summit__look">
-          {isOpenYear ? SUMMIT_COPY.lookingBack : SUMMIT_COPY.lookingBackSealed(year)}
-        </p>
-
-        {trailStone ? (
-          <StonePair stone={trailStone} onOpenEntry={onOpenEntry} onClose={() => setOpenStone(null)} />
-        ) : null}
-
         <div className="ascent-stack ascent-stack--summit">
           {ledgerView ? (
-            <YearStory key={shownYear} ledger={ledgerView} extras={yearExtras} open={isOpenYear} onOpenEntry={onOpenEntry} />
+            <YearStory
+              key={shownYear}
+              ledger={ledgerView}
+              extras={yearExtras}
+              open={isOpenYear}
+              onOpenEntry={onOpenEntry}
+              ridge={
+                <YearRidge
+                  progress={progress}
+                  stones={trailStones.map((st) => ({ id: st.id, position: st.position, label: SUMMIT_COPY.stoneLabel(st.later.dateLabel) }))}
+                  selectedId={openStone}
+                  onSelect={setOpenStone}
+                />
+              }
+              below={
+                trailStone ? <StonePair stone={trailStone} onOpenEntry={onOpenEntry} onClose={() => setOpenStone(null)} /> : null
+              }
+            />
           ) : (
             <p className="ascent-dim__note">{SUMMIT_COPY.sealedReading(shownYear)}</p>
           )}

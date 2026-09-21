@@ -10,6 +10,8 @@ import { ALTITUDES, CONTROLS, EMPTY_COPY, LEDGER_ALTITUDES } from './ascent.conf
 import { useFeatureFlag } from '@/features/flags'
 import { ALLOWS_INTERNAL_UI } from '@/lib/releaseChannel'
 import { MonthView, SeasonView, todayIso } from './ledger/ClimbViews'
+import { NowStrip } from './ledger/NowStrip'
+import { weekLabel, weekStrip } from './ledger/strips'
 import { MONTH_LONG } from './ledger/copy'
 import { seasonOf } from './ledger/seasons'
 import { loadAscent, readCachedAscent, type LoadedAscent } from './data'
@@ -62,7 +64,7 @@ function useIsLightTheme(): boolean {
 
 /**
  * THE ASCENT — Looking Back as elevation over one terrain. Four altitudes
- * (Valley → Hillside → Ridge → Summit) on one mountain; the SAME four dimensions
+ * (week → month → season → year) on one mountain; the SAME four dimensions
  * persist and only change resolution. The volume INVERTS as you climb: the
  * higher you go, the more it is the user's own words and the less the app speaks.
  */
@@ -139,7 +141,7 @@ export function AscentView({ onOpenEntry }: Props) {
   const ledgerOn = useFeatureFlag('yearLedger') || ALLOWS_INTERNAL_UI
   const today = todayIso()
   const railNames = ledgerOn
-    ? ['This week', MONTH_LONG[+today.slice(5, 7) - 1]!, seasonOf(today).label, today.slice(0, 4)]
+    ? [weekLabel(today), MONTH_LONG[+today.slice(5, 7) - 1]!, seasonOf(today).label, today.slice(0, 4)]
     : null
   const told = ledgerOn && idx > 0
 
@@ -195,13 +197,15 @@ export function AscentView({ onOpenEntry }: Props) {
           <span className="ascent-eyebrow">{L.alt}</span>
           <h1 className="ascent-title">{head.title}</h1>
           <p className="ascent-line">{head.line}</p>
-          {!told && altitude?.words?.periodLabel ? (
+          {!ledgerOn && altitude?.words?.periodLabel ? (
             <p className="ascent-period">
               {altitude.words.periodLabel}
               {idx === 0 ? ' · refreshed daily' : ''}
             </p>
           ) : null}
         </header>
+
+        {ledgerOn && idx === 0 ? <NowStrip strip={weekStrip(today)} /> : null}
 
         <SurfaceArrival surface="reflections" />
 

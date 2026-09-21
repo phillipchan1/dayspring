@@ -2,7 +2,8 @@
  * THE ASCENT — the single editable CONSTANTS block (copy + per-altitude config).
  *
  * Looking Back is not four reports; it is ELEVATION over one terrain. Week /
- * Month / Quarter / Year are four ALTITUDES — Valley, Hillside, Ridge, Summit.
+ * Month / Season / Year are four ALTITUDES, named by the calendar (the old
+ * Valley / Hillside / Ridge / Summit were internal words and are gone from the UI).
  * The higher you climb, the LESS the app interprets: it arranges, then names
  * tentatively, then only asks, then goes nearly silent and returns your own
  * marks. All user-facing copy lives here so the voice stays in one place.
@@ -38,7 +39,7 @@ export const ALTITUDES: AltitudeMeta[] = [
   {
     key: 'week',
     label: 'Week',
-    alt: 'VALLEY',
+    alt: 'WEEK',
     title: 'Standing in the days.',
     line: 'Close to the ground — your own words and what you reached for, in the order you lived them. The app only arranges.',
     air: ['#0d1018', '#141a28'],
@@ -49,7 +50,7 @@ export const ALTITUDES: AltitudeMeta[] = [
   {
     key: 'month',
     label: 'Month',
-    alt: 'HILLSIDE',
+    alt: 'MONTH',
     title: 'What you kept returning to.',
     line: 'Step back and the same dimensions resolve at month scale — the lines you kept, the verse you returned to. Named only as a question.',
     air: ['#10131e', '#1d1f30'],
@@ -61,9 +62,9 @@ export const ALTITUDES: AltitudeMeta[] = [
     // 'Season' out loud, 'quarter' in the schema: the tier is a calendar quarter
     // and every Remember surface now names that span the same way (src/lib/period.ts).
     label: 'Season',
-    alt: 'RIDGE',
+    alt: 'SEASON',
     title: 'The season, distilled.',
-    line: 'From the ridge the season distills: the phrases you circled, its anchor passage, the prayer and its first signs. The app holds them up and hands them back.',
+    line: 'Step back to the season: the phrases you circled, its anchor passage, the prayer and its first signs. The app holds them up and hands them back.',
     air: ['#15131f', '#2a2233'],
     airLight: ['#f3eef2', '#faeede'],
     voice: '↑ the app asks; it never answers. These go back to you, and to God — not to a verdict.',
@@ -72,7 +73,7 @@ export const ALTITUDES: AltitudeMeta[] = [
   {
     key: 'year',
     label: 'Year',
-    alt: 'SUMMIT',
+    alt: 'YEAR',
     title: 'Looking back down the year.',
     line: 'The quietest ground. Your own words and the stones you set — looking back down the trail you climbed. The app nearly disappears.',
     air: ['#1b1620', '#4a352f'],
@@ -97,7 +98,7 @@ export const LEDGER_ALTITUDES: Record<AltitudeKey, { title: string; line: string
   },
   quarter: {
     title: 'What moved this season.',
-    line: 'From the ridge: what began, what came back, what carried through, what went quiet. Dates, not meanings.',
+    line: 'Step back to the season: what began, what came back, what carried through, what went quiet. Dates, not meanings.',
   },
   year: {
     title: 'Looking back down the year.',
@@ -108,20 +109,20 @@ export const LEDGER_ALTITUDES: Record<AltitudeKey, { title: string; line: string
 /** Per-altitude empty / insufficient copy (derivable client-side, no infra). */
 export const EMPTY_COPY: Record<AltitudeKey, { empty: string; insufficient: string }> = {
   week: {
-    empty: 'Nothing written here yet. The valley fills as you do — start with today.',
+    empty: 'Nothing written here yet. The week fills as you do — start with today.',
     insufficient: 'A day or two in. Keep writing — the week takes shape as you live it.',
   },
   month: {
-    empty: 'No hillside yet. After a few weeks of writing, the recurring threads appear here.',
-    insufficient: 'Your first hillside forms once a month of writing is behind you.',
+    empty: 'Nothing here yet. After a few weeks of writing, the recurring threads appear here.',
+    insufficient: 'The month takes shape once a few weeks of writing are behind you.',
   },
   quarter: {
-    empty: 'No ridge yet. The tensions you circle surface after a season of entries.',
-    insufficient: 'The ridge needs a few months below it before the long view appears.',
+    empty: 'Nothing here yet. What you circle surfaces after a season of entries.',
+    insufficient: 'The season needs a few months of writing before the long view appears.',
   },
   year: {
-    empty: 'The trail is the year. It fills as you walk it — each month you write adds to what the summit can show you.',
-    insufficient: 'The summit is forming. Come back as the months fill in.',
+    empty: 'The trail is the year. It fills as you walk it — each month you write adds to what the year can show you.',
+    insufficient: 'The year is forming. Come back as the months fill in.',
   },
 }
 
@@ -129,7 +130,7 @@ export const EMPTY_COPY: Record<AltitudeKey, { empty: string; insufficient: stri
 export const CONTROLS = {
   descend: '↓ descend',
   ascend: 'ascend ↑',
-  atSummit: 'at the summit',
+  atSummit: 'the whole year',
   toNext: (label: string) => `climb to see the ${label.toLowerCase()}`,
 }
 
@@ -154,7 +155,7 @@ export const SUMMIT_COPY = {
   lookingBackSealed: (year: number) => `${year}, all the way up — and the stones set along it`,
   sealedReading: (year: number) => `Reading ${year}…`,
   sealedEmpty: (year: number) =>
-    `${year} has no summit yet. It needs its months built before the year can be read.`,
+    `${year} can’t be read yet. It needs its months built before the year can be read.`,
 
   // ── stones ────────────────────────────────────────────────────────────────
   stonesEyebrow: 'THE STONES OF THE YEAR',

@@ -107,7 +107,7 @@ export const LEDGER_COPY = {
   yearWriteHint: 'A new page with a line from each of these above it, and a question you choose.',
   yearWriteCta: 'Write about the year so far →',
   yearWriteCtaSealed: (year: number) => `Write about ${year} →`,
-  nowNote: (month: string) => `It’s ${month}. The year is still being written.`,
+  nowNote: (month: string, year: number) => `It’s ${month}. ${year} is still being written — it closes Dec 31.`,
   moreThreads: 'more of the year ↓',
 
   youAsked: 'you asked',

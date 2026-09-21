@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { LedgerThread, YearLedger } from './build'
 import { LEDGER_COPY, MONTH_LONG, MONTH_SHORT } from './copy'
 import { onePerMonth } from './extras'
@@ -24,9 +24,15 @@ export function YearStory({
   ledger,
   extras,
   open,
+  ridge,
+  below,
   onOpenEntry,
 }: {
   ledger: YearLedger
+  /** The year's ridge, laid over the months. */
+  ridge?: ReactNode
+  /** What opens under the strip (a stone, once tapped). */
+  below?: ReactNode
   extras: SpanExtras | null
   open: boolean
   onOpenEntry?: ((entryId: string) => void) | undefined
@@ -53,6 +59,7 @@ export function YearStory({
   return (
     <div className="year-story">
       <div className="year-now">
+        {ridge}
         <div className="year-now__months">
           {months.map((m, i) => (
             <span key={m} className={i < nowIx ? 'is-past' : i === nowIx ? 'is-now' : 'is-future'} />
@@ -79,7 +86,8 @@ export function YearStory({
             })}
           </div>
         ) : null}
-        {open ? <p className="year-now__note">{LEDGER_COPY.nowNote(MONTH_LONG[nowIx]!)}</p> : null}
+        {open ? <p className="year-now__note">{LEDGER_COPY.nowNote(MONTH_LONG[nowIx]!, ledger.year)}</p> : null}
+        {below}
       </div>
 
       <section className="climb__mod">

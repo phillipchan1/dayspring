@@ -12,13 +12,17 @@ import { SpanPhotos } from './SpanPhotos'
 import { WriteSheet } from './WriteSheet'
 import { NameIt, usePeriodName } from './NameIt'
 import { ThreadAcross } from './ThreadAcross'
+import { NowStrip } from './NowStrip'
+import { monthStrip, seasonStrip } from './strips'
 import type { Seed } from './write'
 import './Ledger.css'
 
 type Open = ((entryId: string) => void) | undefined
 
+/** Today on the writer's clock — "it's Monday" must be their Monday, not UTC's. */
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 export function monthLabel(ym: string): string {
   return `${MONTH_LONG[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`
@@ -133,11 +137,11 @@ export function MonthView({ onOpenEntry }: { onOpenEntry: Open }) {
             {MONTH_SHORT[+m.slice(5, 7) - 1]}
           </button>
         ))}
-        {open ? <span className="climb__live">{LEDGER_COPY.stillBeingWrittenShort}</span> : null}
       </nav>
       <h2 className="climb__title">
         {monthLabel(ym)} <NameIt key={ym} name={given} onName={setGiven} />
       </h2>
+      <NowStrip strip={monthStrip(ym, today)} />
 
       <section className="climb__mod">
         <span className="ascent-dim__eyebrow">{LEDGER_COPY.alive}</span>
@@ -288,10 +292,8 @@ export function SeasonView({ onOpenEntry }: { onOpenEntry: Open }) {
       <h2 className="climb__title">
         {season.label} <NameIt key={season.key} name={given} onName={setGiven} />
       </h2>
-      <p className="climb__sub">
-        {season.months}
-        {open ? ` · ${LEDGER_COPY.stillBeingWrittenShort}` : ''}
-      </p>
+      <p className="climb__sub">{season.months}</p>
+      <NowStrip strip={seasonStrip(season, today)} />
 
       <section className="climb__mod">
         <span className="ascent-dim__eyebrow">{LEDGER_COPY.movedSeason(season.name)}</span>
