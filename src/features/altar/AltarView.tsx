@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { getCache, setCache } from '@/lib/asyncCache'
+import { CacheOwnerChangedError, getCache, setCache } from '@/lib/asyncCache'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
@@ -366,8 +366,7 @@ function PanelWarmth({ heft, lenses, pools }: { heft: number; lenses: string[]; 
 }
 
 export function AltarView({ onOpenEntry }: Props) {
-  const cached = getCache<AltarSource>(FIELD_CACHE)
-  const [source, setSource] = useState<AltarSource | null>(cached ?? null)
+  const [source, setSource] = useState<AltarSource | null>(() => getCache<AltarSource>(FIELD_CACHE) ?? null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lens, setLens] = useState<Lens>('all')
   const [tab, setTab] = useState<Tab>('field')
@@ -379,10 +378,16 @@ export function AltarView({ onOpenEntry }: Props) {
   const [detail, setDetail] = useState<AltarStrandDetail | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const reqId = useRef(0)
+  // Mirror of `source` for the load effect, which must not re-run when it lands.
+  const shownRef = useRef(source !== null)
+  shownRef.current = source !== null
 
   useEffect(() => {
     const id = ++reqId.current
     let cancelled = false
+    // Content already on screen → revalidate behind it. Nothing on screen → the
+    // wait is what's visible, and a failure has an error state to show.
+    const warm = shownRef.current
     loadAltarSource()
       .then((data) => {
         if (cancelled || id !== reqId.current) return
@@ -391,7 +396,11 @@ export function AltarView({ onOpenEntry }: Props) {
         setLoadError(null)
       })
       .catch((e) => {
-        if (!cancelled && id === reqId.current) setLoadError(e instanceof Error ? e.message : 'Could not load')
+        if (cancelled || id !== reqId.current) return
+        if (e instanceof CacheOwnerChangedError) return
+        // A failed revalidate must not blank an altar the reader is already on.
+        if (warm) return
+        setLoadError(e instanceof Error ? e.message : 'Could not load')
       })
     return () => {
       cancelled = true
@@ -452,14 +461,7 @@ export function AltarView({ onOpenEntry }: Props) {
     wasBackfillingRef.current = altarBackfilling
   }, [altarBackfilling])
 
-  if (loadError) return <p className="altar__error">{loadError}</p>
-  if (source === null)
-    return (
-      <div className="altar">
-        <div className="altar__bg" aria-hidden />
-        <SurfaceLoader label="Preparing your altar…" />
-      </div>
-    )
+  const loading = source === null && !loadError
 
   const topNames = visible.filter((s) => s.subjectKind === 'person').slice(0, 3).map((s) => s.label)
   const fieldVoice =
@@ -519,7 +521,11 @@ export function AltarView({ onOpenEntry }: Props) {
             </div>
           </div>
 
-          {tab === 'field' && (
+          {loadError ? (
+            <p className="altar__error">{loadError}</p>
+          ) : loading ? (
+            <SurfaceLoader label="Preparing your altar…" />
+          ) : tab === 'field' ? (
             <>
               <p className="altar-voice">{fieldVoice}</p>
               {visible.length === 0 &&
@@ -568,9 +574,9 @@ export function AltarView({ onOpenEntry }: Props) {
                 )
               })}
             </>
+          ) : (
+            <TimeArcs strands={visible} period={period} onOpen={openStrand} />
           )}
-
-          {tab === 'time' && <TimeArcs strands={visible} period={period} onOpen={openStrand} />}
         </div>
       </div>
 
