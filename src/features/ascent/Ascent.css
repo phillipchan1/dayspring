@@ -1260,6 +1260,13 @@
 .ascent-rail__step.is-down { bottom: 18px; }
 .ascent-rail__step:hover:not(:disabled) { border-color: var(--ascent-gold); color: var(--ascent-gold); }
 .ascent-rail__step:disabled { opacity: 0; pointer-events: none; }
+/* --ascent-ink-rgb is the night ink and daybreak never redefines it, so the
+   light palette names its own — without this the steps were white on dawn. */
+.ascent--light .ascent-rail__step {
+  border-color: rgba(74, 64, 53, 0.22);
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(74, 64, 53, 0.78);
+}
 @media (min-width: 768px) {
   .ascent-ctrl { display: none; }
 }
