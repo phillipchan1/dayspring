@@ -28,7 +28,7 @@ import { MobileJournal } from './MobileJournal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { ShortcutsOverlay } from '@/features/shortcuts/ShortcutsOverlay'
 import { hasEditorSelection, isInEditor, shouldIgnoreTarget } from './keyboard'
-import { nextEntryIdAfterDelete } from './entryFocusAfterDelete'
+import { deleteLanding, nextEntryIdAfterDelete } from './entryFocusAfterDelete'
 import { EntryBulkCanvas } from './EntryBulkCanvas'
 import { copyEntriesMarkdown, copyEntriesText, exportEntriesZip } from './entryBulkActions'
 import {
@@ -2038,10 +2038,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
 
     // UI first — list + editor update synchronously so keyboard nav stays instant.
     setEntries(remaining)
-    if (focusAfterId !== undefined) {
+    const landing = deleteLanding({
+      onWall: pagesActive,
+      focusAfterId,
+      openEntryId: entryId,
+      deletedIds: ids,
+    })
+    if (landing.action === 'open') {
       skipEntrySyncRef.current = true
-      if (focusAfterId) {
-        const next = remaining.find((e) => e.id === focusAfterId)
+      if (landing.entryId) {
+        const next = remaining.find((e) => e.id === landing.entryId)
         if (next) {
           go({ surface: 'journal', entryId: next.id })
           setContent(asEntryMarkdown(next.body_markdown))
@@ -2052,7 +2058,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         setContent('')
         loadedEntryIdRef.current = null
       }
-    } else if (entryId && idSet.has(entryId)) {
+    } else if (landing.action === 'away') {
       navigateAwayFromDeletedEntry(remaining, ids)
     }
 

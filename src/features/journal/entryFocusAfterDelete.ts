@@ -1,3 +1,34 @@
+export type DeleteLanding =
+  /** Nothing moves. The surface you are on is still there. */
+  | { action: 'stay' }
+  /** The editor opens on `entryId`; null is a blank draft. */
+  | { action: 'open'; entryId: string | null }
+  /** The entry being written was deleted from under the editor — pick a neighbour. */
+  | { action: 'away' }
+
+/**
+ * Where a delete leaves you.
+ *
+ * The wall names a survivor (`focusAfterId`) so it can keep the focus ring in
+ * step with the card that slid into the gap. That id was written when the list
+ * sat beside the editor, where "focus the survivor" meant "open the survivor" —
+ * so it also carried the editor to it. With the wall taking the whole canvas
+ * (D-025) that same call threw you out of the surface you were deleting from and
+ * into a page you never chose, with the wall gone behind it. On the wall a
+ * delete stays on the wall; the wall moves its own focus.
+ */
+export function deleteLanding(opts: {
+  onWall: boolean
+  focusAfterId: string | null | undefined
+  openEntryId: string | null
+  deletedIds: readonly string[]
+}): DeleteLanding {
+  if (opts.onWall) return { action: 'stay' }
+  if (opts.focusAfterId !== undefined) return { action: 'open', entryId: opts.focusAfterId }
+  if (opts.openEntryId && opts.deletedIds.includes(opts.openEntryId)) return { action: 'away' }
+  return { action: 'stay' }
+}
+
 /**
  * Where the focus lands after a delete: the page directly after the first
  * deleted one, or the page before if there is none (Finder-style) — the card

@@ -1,7 +1,56 @@
 import { describe, expect, it } from 'vitest'
-import { nextEntryIdAfterDelete } from './entryFocusAfterDelete'
+import { deleteLanding, nextEntryIdAfterDelete } from './entryFocusAfterDelete'
 
 const order = ['a', 'b', 'c', 'd'] as const
+
+describe('deleteLanding', () => {
+  it('stays on the wall when a page is deleted from it', () => {
+    // The regression: the wall passes the survivor so it can move its focus, and
+    // that used to open the survivor in the editor.
+    expect(
+      deleteLanding({ onWall: true, focusAfterId: 'c', openEntryId: null, deletedIds: ['b'] }),
+    ).toEqual({ action: 'stay' })
+  })
+
+  it('stays on the wall when the last page is deleted', () => {
+    expect(
+      deleteLanding({ onWall: true, focusAfterId: null, openEntryId: null, deletedIds: ['a'] }),
+    ).toEqual({ action: 'stay' })
+  })
+
+  it('stays on the wall even if an entry id is still open underneath', () => {
+    expect(
+      deleteLanding({ onWall: true, focusAfterId: undefined, openEntryId: 'b', deletedIds: ['b'] }),
+    ).toEqual({ action: 'stay' })
+  })
+
+  it('opens the named survivor when a caller off the wall asks for one', () => {
+    expect(
+      deleteLanding({ onWall: false, focusAfterId: 'c', openEntryId: 'b', deletedIds: ['b'] }),
+    ).toEqual({ action: 'open', entryId: 'c' })
+  })
+
+  it('opens a blank draft when that caller names no survivor', () => {
+    expect(
+      deleteLanding({ onWall: false, focusAfterId: null, openEntryId: 'a', deletedIds: ['a'] }),
+    ).toEqual({ action: 'open', entryId: null })
+  })
+
+  it('moves off an entry that was deleted while it was open', () => {
+    expect(
+      deleteLanding({ onWall: false, focusAfterId: undefined, openEntryId: 'b', deletedIds: ['b'] }),
+    ).toEqual({ action: 'away' })
+  })
+
+  it('leaves the editor alone when the deleted pages are not the open one', () => {
+    expect(
+      deleteLanding({ onWall: false, focusAfterId: undefined, openEntryId: 'a', deletedIds: ['b'] }),
+    ).toEqual({ action: 'stay' })
+    expect(
+      deleteLanding({ onWall: false, focusAfterId: undefined, openEntryId: null, deletedIds: ['b'] }),
+    ).toEqual({ action: 'stay' })
+  })
+})
 
 describe('nextEntryIdAfterDelete', () => {
   describe('Finder-style: the remaining id after the first deleted, else the one before', () => {
