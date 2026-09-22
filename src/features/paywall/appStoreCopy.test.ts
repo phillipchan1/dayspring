@@ -56,15 +56,12 @@ function stripComments(source: string): string {
 
 /** True-branch string literals of `gate ? 'App Store' : 'web'`. */
 function appStoreBranches(code: string): string[] {
-    const out: string[] = []
-    const re =
+  const re =
     /(?:usesAppStoreCopy\(\)|appStoreWords)\s*\?\s*(`(?:\\[\s\S]|[^`\\])*`|'(?:\\[\s\S]|[^'\\])*'|"(?:\\[\s\S]|[^"\\])*")/g
-    let m: RegExpExecArray | null
-    while ((m = re.exec(code))) {
-      const branch = m[1]
-      if (branch) out.push(branch)
-    }
-    return out
+  // Capture groups are `string | undefined` under noUncheckedIndexedAccess.
+  return [...code.matchAll(re)]
+    .map((match) => match[1])
+    .filter((branch): branch is string => typeof branch === 'string')
 }
 
 describe('App Store copy', () => {
