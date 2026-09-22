@@ -133,8 +133,7 @@ StoreKit sheet opens (paywall, locked screen, Settings > Subscription).
 
 The 14 days of access a new account receives are granted by the app in our own
 database at first sign-in — no card, no StoreKit transaction, nothing to
-cancel. App Store-facing surfaces do not market a free trial or an
-introductory offer. They name what a subscription buys: ongoing access
+cancel. App Store-facing surfaces do not market an introductory offer. They name what a subscription buys: ongoing access
 to the journal and reflections (Ascent, Altar, Lamp). Choosing a plan
 charges the Apple Account immediately.
 

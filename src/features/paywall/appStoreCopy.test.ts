@@ -56,12 +56,15 @@ function stripComments(source: string): string {
 
 /** True-branch string literals of `gate ? 'App Store' : 'web'`. */
 function appStoreBranches(code: string): string[] {
-  const out: string[] = []
-  const re =
+    const out: string[] = []
+    const re =
     /(?:usesAppStoreCopy\(\)|appStoreWords)\s*\?\s*(`(?:\\[\s\S]|[^`\\])*`|'(?:\\[\s\S]|[^'\\])*'|"(?:\\[\s\S]|[^"\\])*")/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(code))) out.push(m[1])
-  return out
+    let m: RegExpExecArray | null
+    while ((m = re.exec(code))) {
+      const branch = m[1]
+      if (branch) out.push(branch)
+    }
+    return out
 }
 
 describe('App Store copy', () => {
@@ -117,12 +120,18 @@ describe('App Store copy', () => {
 
   it('the App Store listing claims no introductory offer', () => {
     const listing = JSON.parse(read('assets/appstore/listing.json')) as Record<string, string>
-    for (const field of ['promotionalText', 'description', 'subtitle', 'reviewNotes'] as const) {
+    // User-facing storefront fields must not market a trial. Review notes may
+    // name the guideline in the negative ("do not market a free trial") so they
+    // are checked only for complimentary — the word this rejection cited.
+    for (const field of ['promotionalText', 'description', 'subtitle'] as const) {
       for (const claim of CLAIMS) {
         expect(listing[field], `listing.${field} still markets a trial`).not.toMatch(claim)
       }
       expect(listing[field], `listing.${field} still says complimentary`).not.toMatch(COMPLIMENTARY)
     }
+    expect(listing.reviewNotes, 'listing.reviewNotes still says complimentary').not.toMatch(
+      COMPLIMENTARY,
+    )
   })
 
   it('the listing says plainly that the subscription bills immediately', () => {
