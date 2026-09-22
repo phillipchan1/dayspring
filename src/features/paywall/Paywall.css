@@ -390,8 +390,8 @@
   transform: translateX(-50%);
   z-index: 40;
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.05rem;
   padding: 0.3rem 0.5rem 0.3rem 0.85rem;
   background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-elevated));
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
@@ -416,6 +416,24 @@
 }
 .trial-banner__dismiss:hover {
   color: var(--text);
+}
+
+/* The row the pill used to be. The banner itself is now a column so the value
+   line (3.1.2(c)) can sit under the price without pushing it off-centre. */
+.trial-banner__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* What the subscription includes. Deliberately quieter and smaller than
+   .trial-banner__price — the billed amount stays the most conspicuous pricing
+   element (3.1.2(c), #121), this only has to be readable. */
+.trial-banner__value {
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--text-faint);
+  padding-right: 1.6rem;
 }
 
 .trial-banner__days {
@@ -1183,6 +1201,14 @@ html[data-trial-banner] {
   --trial-banner-h: 2.9rem;
 }
 
+/* The App Store path carries a second line naming what the subscription
+   includes, so the strip is taller and the shell must move down further. If
+   these drift apart the banner overlaps the journal header again — which is
+   exactly what Guideline 4.0 cited on the iPad on 2026-09-21. */
+html[data-trial-banner='value'] {
+  --trial-banner-h: 3.9rem;
+}
+
 @media (min-width: 768px) {
   .trial-banner {
     top: var(--safe-top);
@@ -1192,10 +1218,17 @@ html[data-trial-banner] {
     height: var(--trial-banner-h);
     max-width: none;
     justify-content: center;
+    align-items: center;
     padding: 0 1rem;
     border-width: 0 0 1px;
     border-radius: 0;
     box-shadow: none;
+  }
+  /* Centred as a strip, so the value line needs no room reserved for the
+     dismiss button the way the floating pill does. */
+  .trial-banner__value {
+    padding-right: 0;
+    text-align: center;
   }
 }
 

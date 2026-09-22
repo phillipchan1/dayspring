@@ -31,6 +31,7 @@ import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
+import { FULL_ACCESS_SENTENCE } from './valueCopy'
 import './Paywall.css'
 
 interface Props {
@@ -327,7 +328,7 @@ export function LockedScreen({
         <p className="locked-screen__body">
           {isCancelled
             ? 'Everything you wrote is still here, whenever you\'re ready.'
-            : 'Every word you wrote is saved. Subscribing keeps full access to Dayspring — writing, the Ascent, the Altar, the Lamp, and the Rituals, on iPhone, Mac, and the web.'}
+            : `Every word you wrote is saved. Subscribing keeps it all: ${FULL_ACCESS_SENTENCE}`}
         </p>
 
         <div className="locked-screen__actions">
@@ -336,38 +337,51 @@ export function LockedScreen({
               text ("Continue — $59.99 / year"), the same size as the words
               around it and smaller than the headline. Now the amount IS the
               button's largest line, and what tapping does sits under it. */}
-          <button
-            type="button"
-            className="btn locked-plan"
-            aria-disabled={busy || annualPrice === null}
-            aria-busy={loading === 'annual'}
-            aria-label={annualPrice ? `Subscribe yearly — ${annualPrice} per year` : undefined}
-            {...annualTap}
-          >
-            {loading === 'annual' ? (
-              isAppleIapAvailable() ? 'Confirming…' : 'Redirecting…'
-            ) : annualPrice ? (
-              <PlanLabel price={annualPrice} cadence="year" action="Subscribe yearly" />
-            ) : (
-              'Continue yearly'
-            )}
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost locked-plan"
-            aria-disabled={busy || monthlyPrice === null}
-            aria-busy={loading === 'monthly'}
-            aria-label={monthlyPrice ? `Subscribe monthly — ${monthlyPrice} per month` : undefined}
-            {...monthlyTap}
-          >
-            {loading === 'monthly' ? (
-              isAppleIapAvailable() ? 'Confirming…' : 'Redirecting…'
-            ) : monthlyPrice ? (
-              <PlanLabel price={monthlyPrice} cadence="month" action="Subscribe monthly" />
-            ) : (
-              'Monthly'
-            )}
-          </button>
+          {/* No price, no buy button — not a disabled one. "Continue yearly"
+              with nothing beside it is a purchase CTA with no billed amount,
+              which is the shape 3.1.2(c) cited on 2026-09-21, and aria-disabled
+              does not undo that: it still renders, still reads as the offer.
+              The banner and Settings have always gated on displayPrice; this
+              screen was the one that only greyed out. On the web displayPrice
+              returns the Stripe figure synchronously, so nothing waits there —
+              this only ever holds back the StoreKit path. */}
+          {annualPrice && (
+            <button
+              type="button"
+              className="btn locked-plan"
+              aria-disabled={busy}
+              aria-busy={loading === 'annual'}
+              aria-label={`Subscribe yearly — ${annualPrice} per year`}
+              {...annualTap}
+            >
+              {loading === 'annual' ? (
+                isAppleIapAvailable() ? 'Confirming…' : 'Redirecting…'
+              ) : (
+                <PlanLabel price={annualPrice} cadence="year" action="Subscribe yearly" />
+              )}
+            </button>
+          )}
+          {monthlyPrice && (
+            <button
+              type="button"
+              className="btn btn--ghost locked-plan"
+              aria-disabled={busy}
+              aria-busy={loading === 'monthly'}
+              aria-label={`Subscribe monthly — ${monthlyPrice} per month`}
+              {...monthlyTap}
+            >
+              {loading === 'monthly' ? (
+                isAppleIapAvailable() ? 'Confirming…' : 'Redirecting…'
+              ) : (
+                <PlanLabel price={monthlyPrice} cadence="month" action="Subscribe monthly" />
+              )}
+            </button>
+          )}
+          {/* Restore stays whatever StoreKit is doing: someone who already paid
+              needs it most when the plans have not loaded. */}
+          {annualPrice === null && monthlyPrice === null && (
+            <p className="locked-screen__reassure">Loading plans…</p>
+          )}
           {isAppleIapAvailable() && (
             <button
               type="button"
