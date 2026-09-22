@@ -16,6 +16,7 @@ import { useTapAction } from '@/lib/tapAction'
 import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
+import { FULL_ACCESS_SENTENCE } from './valueCopy'
 import './Paywall.css'
 
 export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
@@ -159,10 +160,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             about what they buy. It sits under the tiles, in the small note
             style, so the billed amount stays the largest pricing element. */}
         {appStoreWords && (
-          <p className="paywall__trial-note">
-            Either plan is full access to Dayspring — writing, the Ascent, the Altar, the Lamp,
-            and the Rituals.
-          </p>
+          <p className="paywall__trial-note">Either plan is {FULL_ACCESS_SENTENCE}</p>
         )}
 
         {useApple && <AppleSubscriptionTerms />}

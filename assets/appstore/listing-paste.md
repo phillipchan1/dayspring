@@ -74,10 +74,11 @@ SUBSCRIPTION
 Dayspring is an auto-renewing subscription:
 • Monthly: $7.99
 • Annual: $69.99
+Either plan is full access to Dayspring — writing, the Ascent, the Altar, the Lamp, and the Rituals, on iPhone, Mac, and the web.
 There is no introductory offer attached to these subscriptions. Choosing a plan starts it immediately: payment is charged to your Apple Account at confirmation of purchase, and the subscription renews automatically at the same price unless auto-renew is turned off at least 24 hours before the end of the current period. Manage or cancel anytime in your Apple Account settings.
 
-BEFORE YOU SUBSCRIBE
-Every new account gets its first 14 days of full access from us directly — no card, no subscription, nothing to cancel. It is granted by the app, not by the App Store, and it simply ends. Nothing is charged unless you choose a plan.
+ABOUT THE FIRST 14 DAYS
+New accounts begin with 14 days of access that Dayspring grants in its own database. It is not an App Store introductory offer and is not part of either subscription above — those carry no introductory offer and bill at confirmation of purchase. The 14 days end on their own, and choosing a plan is what continues the full access described above.
 
 Privacy Policy: https://dayspring-eosin.vercel.app/privacy
 Terms of Use: https://dayspring-eosin.vercel.app/terms
@@ -132,10 +133,12 @@ Apple Account immediately, and every purchase surface says so before the
 StoreKit sheet opens (paywall, locked screen, Settings > Subscription).
 
 The 14 days of access a new account receives are granted by the app in our own
-database at first sign-in — no card, no StoreKit transaction, nothing to
-cancel. Following the 2026-09-17 review we removed the words "free trial" from
-every App Store‑facing surface and from this listing, so nothing claims an
-introductory offer the products do not carry.
+database at first sign-in. There is no StoreKit transaction involved, so there
+is no introductory offer to consume and nothing for the App Store to cancel.
+Following the 2026-09-17 review we removed the words "free trial" from every
+App Store‑facing surface and from this listing, so nothing claims an
+introductory offer the products do not carry; the description now states the
+mechanism plainly rather than presenting it as an offer.
 
 Following the 2026-09-21 review of build 1.0.930.930, which found that the
 subscriptions did not clearly describe what the user receives for the price
@@ -159,10 +162,16 @@ Both plans buy the same thing — full access to Dayspring (writing, the Ascent,
 the Altar, the Lamp and the Rituals, on iPhone, Mac and the web) — and the
 Plans section says so in a line above the two prices.
 
-A banner at the top of the journal ("N days left of full access") also leads to
-the same purchase. Once the 14 days elapse the app shows a full-screen purchase
-surface with the same two products, which names the same full access beneath
-the prices.
+A banner at the top of the journal also leads to the same purchase. It shows
+the days remaining and the StoreKit annual price on its first line, and on its
+second line what a plan provides: writing, the Ascent, the Altar, the Lamp and
+the Rituals. Once the 14 days elapse the app shows a full-screen purchase
+surface with the same two products, naming the same full access beneath the
+prices.
+
+On every purchase surface a Subscribe button appears only once StoreKit has
+returned that product's price, so a plan is never offered without the amount it
+will charge.
 
 SANDBOX TESTING
 1. Sign in with email (demo credentials above), Apple, or Google.

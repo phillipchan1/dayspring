@@ -7,6 +7,7 @@ import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
+import { FEATURE_LIST, FULL_ACCESS_SENTENCE } from '@/features/paywall/valueCopy'
 import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
 import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
@@ -1003,7 +1004,7 @@ function BillingTab() {
       color:  'var(--accent)',
       detail: trialEnd
         ? appStoreWords
-          ? `Ends ${trialEnd} · Choosing a plan keeps your full access to Dayspring and bills your Apple Account today.`
+          ? `Ends ${trialEnd} · Choosing a plan keeps ${FEATURE_LIST}, and bills your Apple Account today.`
           : `Ends ${trialEnd} · No charge until then.`
         : null,
     },
@@ -1129,10 +1130,7 @@ function BillingTab() {
                   review notes), and it showed two prices without ever saying
                   what they bought. Both plans buy the identical thing, so it is
                   one line above the tiles rather than a bullet list on each. */}
-              <span className="settings-field__hint">
-                Either plan is full access to Dayspring — writing, the Ascent, the Altar, the
-                Lamp, and the Rituals, on iPhone, Mac, and the web.
-              </span>
+              <span className="settings-field__hint">Either plan is {FULL_ACCESS_SENTENCE}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
               {[
