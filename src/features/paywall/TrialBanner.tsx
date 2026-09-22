@@ -88,8 +88,12 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   const daysLabel = days === 1 ? '1 day' : `${days} days`
   const subscribeTap = useTapAction(() => void handleSubscribe(), !loading)
   // Beside a StoreKit sheet, "in your trial" reads as the App Store trial these
-  // products do not carry. See lib/storeCopy.ts.
-  const periodLabel = usesAppStoreCopy() ? 'of complimentary access' : 'in your trial'
+  // products do not carry. See lib/storeCopy.ts. "Complimentary access" was the
+  // first attempt at saying that, and Guideline 3.1.2(c) named the phrase itself
+  // on 2026-09-21 (build 930): it says what the days cost, never what they are.
+  // Name the thing instead — the access is what the subscription sells too, so
+  // the banner now says the same words on both sides of the price.
+  const periodLabel = usesAppStoreCopy() ? 'of full access' : 'in your trial'
 
   return (
     <div className="trial-banner" role="status">
@@ -107,7 +111,7 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
             className="trial-banner__action"
             aria-disabled={loading}
             aria-busy={loading}
-            aria-label={`Subscribe yearly — ${annualPrice} per year`}
+            aria-label={`Subscribe yearly — ${annualPrice} per year for full access to Dayspring`}
             {...subscribeTap}
           >
             {loading ? 'Loading…' : 'Subscribe'}

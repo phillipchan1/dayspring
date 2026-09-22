@@ -47,8 +47,25 @@ concern seems to require it, raise it with Phil; don't revert this in a PR.
 **Cost accepted:** some residual App Review risk while the iOS app is in review,
 taken knowingly. The Terms follow (site `terms.ts` + app `public/legal/terms.html`,
 dated 21 September 2026); there "no payment method required" stays, as a billing fact.
-The in-app trial banner, locked screen and Settings still say "complimentary access" —
-that was the direct App Review fix (0eb9810, 007176d) and is not changed here.
+
+**Update 2026-09-22 — the in-app carve-out is closed.** This entry used to end by
+noting that the in-app trial banner, locked screen and Settings still said
+"complimentary access", because that was the direct App Review fix (0eb9810,
+007176d). App Review then rejected build 1.0.930.930 on 2026-09-21 under 3.1.2(c),
+quoting that exact phrase: the subscription "does not clearly describe what the user
+will receive for the price". So the carve-out was not protecting the submission, it
+was the submission's one remaining problem, and the in-app App Store surfaces now
+follow D-031 with the rest.
+
+They do not say "trial" either, though — not because "trial" is banned, but because
+beside a StoreKit sheet it names an introductory offer these products do not carry
+(the original 2026-09-17 rejection). On the App Store path the 14 days are **"full
+access"**, matching the App Store listing description, and every purchase surface
+names what the subscription provides — full access to Dayspring — beside the
+StoreKit price. Off the App Store nothing changes: the site and the web app still
+say **14-day trial**, per this decision. `src/features/paywall/appStoreCopy.test.ts`
+now fails on the word "complimentary" anywhere it could render, alongside
+`site/src/content/marketingCopy.test.ts`.
 
 ## D-030 — Launch paid acquisition (Facebook, rituals-led) ahead of D-001 closing
 **2026-09-15** · **Status:** Decided · deliberate override of D-001's acquisition-spend gate
