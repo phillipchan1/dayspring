@@ -10,9 +10,11 @@ interface Props {
 export function TrialWelcome({ variant, onDismiss }: Props) {
   const isTrial = variant === 'trial'
   // The 14 days are real either way — but only off the App Store are they a free
-  // trial *of the subscription*. See lib/storeCopy.ts.
+  // trial *of the subscription*. See lib/storeCopy.ts. On the App Store side,
+  // say what the days give rather than what they cost: "complimentary" was cited
+  // by Guideline 3.1.2(c) on 2026-09-21 for describing the price and not the thing.
   const opening = usesAppStoreCopy()
-    ? 'The slow work begins now. Your first 14 days are complimentary — your first entry is waiting.'
+    ? 'The slow work begins now. You have 14 days of full access — your first entry is waiting.'
     : 'The slow work begins now. 14 days free — your first entry is waiting.'
 
   return (

@@ -295,11 +295,16 @@ export function LockedScreen({
       <div className="locked-screen__content">
         <Brand size={30} wordmarkRem={1.8} />
 
+        {/* Guideline 3.1.2(c), 2026-09-21 (build 930): "complimentary access"
+            was cited by name. It priced the first 14 days without ever saying
+            what they were, and then the buttons below asked for money for a
+            thing the screen had not named. Say the period plainly here, and let
+            the body name what subscribing keeps. */}
         <h1 className="locked-screen__headline">
           {isCancelled
             ? 'Your journal is still here.'
             : appStoreWords
-              ? 'Your complimentary access has ended.'
+              ? 'Your first 14 days have ended.'
               : 'Your trial has ended.'}
         </h1>
 
@@ -322,7 +327,7 @@ export function LockedScreen({
         <p className="locked-screen__body">
           {isCancelled
             ? 'Everything you wrote is still here, whenever you\'re ready.'
-            : 'Every word you wrote is saved. Subscribe to keep going.'}
+            : 'Every word you wrote is saved. Subscribing keeps full access to Dayspring — writing, the Ascent, the Altar, the Lamp, and the Rituals, on iPhone, Mac, and the web.'}
         </p>
 
         <div className="locked-screen__actions">

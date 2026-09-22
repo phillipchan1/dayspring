@@ -992,13 +992,18 @@ function BillingTab() {
       // "Free trial" + "No charge until then" describes an App Store
       // introductory offer these products do not have — Guideline 3.1.2(c).
       // Off the App Store it is exactly what Stripe does, so it stays.
+      //
+      // The App Store half said "Complimentary access" until 3.1.2(c) cited that
+      // phrase by name on 2026-09-21 (build 930): it named the price of the 14
+      // days and never the thing, so nothing on the surface said what the money
+      // buys. "Full access" is the same wording the listing already uses.
       label: appStoreWords
-        ? `Complimentary access — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`
+        ? `Full access — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`
         : `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
       color:  'var(--accent)',
       detail: trialEnd
         ? appStoreWords
-          ? `Ends ${trialEnd} · Choosing a plan starts your subscription and bills your Apple Account today.`
+          ? `Ends ${trialEnd} · Choosing a plan keeps your full access to Dayspring and bills your Apple Account today.`
           : `Ends ${trialEnd} · No charge until then.`
         : null,
     },
@@ -1023,7 +1028,7 @@ function BillingTab() {
   const hasPortal = hasBillingRelationship(subscription)
   // 'trialing' belongs here for two separate reasons.
   //
-  // Product: inside the complimentary 14 days the ONLY way to subscribe was the
+  // Product: inside the first 14 days the ONLY way to subscribe was the
   // trial banner, which is dismissible per session. Dismiss it and Settings —
   // the one place anyone looks for billing — offered no way to pay at all.
   //
@@ -1113,10 +1118,21 @@ function BillingTab() {
               {plan === 'trialing' && (
                 <span className="settings-field__hint">
                   {trialEnd
-                    ? `Subscribe whenever you’re ready. Your complimentary access runs until ${trialEnd}.`
+                    ? appStoreWords
+                      ? `Subscribe whenever you’re ready. Your full access runs until ${trialEnd}.`
+                      : `Subscribe whenever you’re ready. Your trial runs until ${trialEnd}.`
                     : 'Subscribe whenever you’re ready.'}
                 </span>
               )}
+              {/* Guideline 3.1.2(c), 2026-09-21 (build 930): this is the
+                  reviewer's purchase surface (see assets/appstore/listing.json
+                  review notes), and it showed two prices without ever saying
+                  what they bought. Both plans buy the identical thing, so it is
+                  one line above the tiles rather than a bullet list on each. */}
+              <span className="settings-field__hint">
+                Either plan is full access to Dayspring — writing, the Ascent, the Altar, the
+                Lamp, and the Rituals, on iPhone, Mac, and the web.
+              </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
               {[

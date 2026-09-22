@@ -155,6 +155,16 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
           <p className="paywall__trial-note">No charge for 14 days. Cancel anytime.</p>
         )}
 
+        {/* Guideline 3.1.2(c), 2026-09-21 (build 930): two amounts and no word
+            about what they buy. It sits under the tiles, in the small note
+            style, so the billed amount stays the largest pricing element. */}
+        {appStoreWords && (
+          <p className="paywall__trial-note">
+            Either plan is full access to Dayspring — writing, the Ascent, the Altar, the Lamp,
+            and the Rituals.
+          </p>
+        )}
+
         {useApple && <AppleSubscriptionTerms />}
 
         {useApple && (

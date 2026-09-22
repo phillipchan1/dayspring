@@ -133,13 +133,20 @@ StoreKit sheet opens (paywall, locked screen, Settings > Subscription).
 
 The 14 days of access a new account receives are granted by the app in our own
 database at first sign-in — no card, no StoreKit transaction, nothing to
-cancel. Following this review we removed the words "free trial" from every
-App Store‑facing surface and from this listing, so nothing claims an
+cancel. Following the 2026-09-17 review we removed the words "free trial" from
+every App Store‑facing surface and from this listing, so nothing claims an
 introductory offer the products do not carry.
 
+Following the 2026-09-21 review of build 1.0.930.930, which found that the
+subscriptions did not clearly describe what the user receives for the price
+(3.1.2(c)), every purchase surface now names what the subscription provides —
+full access to Dayspring — beside the StoreKit price. The wording that review
+quoted has been removed from the app and from these notes.
+
 WHERE TO FIND THE IN-APP PURCHASES
-The demo account above is inside its complimentary 14 days, so the app is not
-paywalled and you will land straight in the journal. The subscriptions are here:
+The demo account above is inside its first 14 days of app-granted full access,
+so the app is not paywalled and you will land straight in the journal. The
+subscriptions are here:
 
   Settings (person icon, top right) > Subscription > Plans
 
@@ -148,9 +155,14 @@ the auto-renew disclosure and Restore Purchases directly beneath. Tapping
 Subscribe opens the StoreKit sheet and charges immediately — there is no
 introductory offer to consume first.
 
-A banner at the top of the journal ("N days left of complimentary access") also
-leads to the same purchase. Once the 14 days elapse the app shows a full-screen
-purchase surface with the same two products.
+Both plans buy the same thing — full access to Dayspring (writing, the Ascent,
+the Altar, the Lamp and the Rituals, on iPhone, Mac and the web) — and the
+Plans section says so in a line above the two prices.
+
+A banner at the top of the journal ("N days left of full access") also leads to
+the same purchase. Once the 14 days elapse the app shows a full-screen purchase
+surface with the same two products, which names the same full access beneath
+the prices.
 
 SANDBOX TESTING
 1. Sign in with email (demo credentials above), Apple, or Google.
