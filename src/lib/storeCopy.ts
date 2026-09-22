@@ -15,8 +15,10 @@ import { IS_APP_STORE_RELEASE } from './releaseChannel'
  * trial" beside a StoreKit sheet describes an offer the subscription does not
  * have — which is what App Review cited under Guideline 3.1.2(c) on 2026-09-17:
  * "the app markets a free trial, but the submitted subscriptions have no free
- * trial". The fix is to stop naming it one on these surfaces, not to bolt an
- * introductory offer onto products that are priced to match the web.
+ * trial". "Complimentary access" failed the same guideline on 2026-09-21
+ * (build 1.0.930): it does not say what the user receives for the price. The
+ * fix is to name the thing being sold, not to bolt an introductory offer onto
+ * products that are priced to match the web.
  *
  * Both halves matter and neither is redundant:
  *  • IS_APP_STORE_RELEASE is a build-time constant — every iOS binary sets
@@ -28,4 +30,14 @@ import { IS_APP_STORE_RELEASE } from './releaseChannel'
  */
 export function usesAppStoreCopy(): boolean {
   return IS_APP_STORE_RELEASE || isAppleIapAvailable()
+}
+
+/** What choosing a plan buys — a noun phrase, so a surface can finish the
+ *  sentence. Said next to StoreKit prices so the billed amount is never beside
+ *  an empty synonym ("complimentary access"). */
+export const APP_STORE_WHAT_YOU_GET =
+  'ongoing access to your journal and reflections — Ascent, Altar, and Lamp'
+
+export function appStoreWhatYouGetSentence(): string {
+  return `${APP_STORE_WHAT_YOU_GET.charAt(0).toUpperCase()}${APP_STORE_WHAT_YOU_GET.slice(1)}.`
 }

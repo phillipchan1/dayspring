@@ -88,13 +88,15 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   const daysLabel = days === 1 ? '1 day' : `${days} days`
   const subscribeTap = useTapAction(() => void handleSubscribe(), !loading)
   // Beside a StoreKit sheet, "in your trial" reads as the App Store trial these
-  // products do not carry. See lib/storeCopy.ts.
-  const periodLabel = usesAppStoreCopy() ? 'of complimentary access' : 'in your trial'
+  // products do not carry, and "complimentary access" does not say what the
+  // days are of. See lib/storeCopy.ts.
+  const periodLabel = usesAppStoreCopy() ? null : 'in your trial'
 
   return (
     <div className="trial-banner" role="status">
       <span>
-        <span className="trial-banner__days">{daysLabel} left</span> {periodLabel}
+        <span className="trial-banner__days">{daysLabel} left</span>
+        {periodLabel ? ` ${periodLabel}` : ''}
       </span>
       {annualPrice && (
         <>

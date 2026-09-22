@@ -28,7 +28,7 @@ import {
 import { openExternal } from '@/lib/openExternal'
 import { useTapAction } from '@/lib/tapAction'
 import { ALLOWS_INTERNAL_UI, IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
-import { usesAppStoreCopy } from '@/lib/storeCopy'
+import { appStoreWhatYouGetSentence, usesAppStoreCopy } from '@/lib/storeCopy'
 import {
   describeRestore,
   fetchAppleProducts,
@@ -993,12 +993,12 @@ function BillingTab() {
       // introductory offer these products do not have — Guideline 3.1.2(c).
       // Off the App Store it is exactly what Stripe does, so it stays.
       label: appStoreWords
-        ? `Complimentary access — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`
+        ? `${trialDays} ${trialDays === 1 ? 'day' : 'days'} left`
         : `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
       color:  'var(--accent)',
       detail: trialEnd
         ? appStoreWords
-          ? `Ends ${trialEnd} · Choosing a plan starts your subscription and bills your Apple Account today.`
+          ? `Full access ends ${trialEnd} · Choosing a plan starts your subscription and bills your Apple Account today.`
           : `Ends ${trialEnd} · No charge until then.`
         : null,
     },
@@ -1023,7 +1023,7 @@ function BillingTab() {
   const hasPortal = hasBillingRelationship(subscription)
   // 'trialing' belongs here for two separate reasons.
   //
-  // Product: inside the complimentary 14 days the ONLY way to subscribe was the
+  // Product: inside the first 14 days the ONLY way to subscribe was the
   // trial banner, which is dismissible per session. Dismiss it and Settings —
   // the one place anyone looks for billing — offered no way to pay at all.
   //
@@ -1110,12 +1110,19 @@ function BillingTab() {
           <div className="settings-field">
             <div className="settings-field__head">
               <span className="settings-field__label">Plans</span>
-              {plan === 'trialing' && (
+              {appStoreWords ? (
                 <span className="settings-field__hint">
-                  {trialEnd
-                    ? `Subscribe whenever you’re ready. Your complimentary access runs until ${trialEnd}.`
-                    : 'Subscribe whenever you’re ready.'}
+                  {appStoreWhatYouGetSentence()}
+                  {plan === 'trialing' && trialEnd ? ` Full access ends on ${trialEnd}.` : ''}
                 </span>
+              ) : (
+                plan === 'trialing' && (
+                  <span className="settings-field__hint">
+                    {trialEnd
+                      ? `Subscribe whenever you’re ready. Your trial runs until ${trialEnd}.`
+                      : 'Subscribe whenever you’re ready.'}
+                  </span>
+                )
               )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>

@@ -27,7 +27,7 @@ import {
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { useTapAction } from '@/lib/tapAction'
 import { IS_APP_STORE_RELEASE } from '@/lib/releaseChannel'
-import { usesAppStoreCopy } from '@/lib/storeCopy'
+import { APP_STORE_WHAT_YOU_GET, usesAppStoreCopy } from '@/lib/storeCopy'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
@@ -299,7 +299,7 @@ export function LockedScreen({
           {isCancelled
             ? 'Your journal is still here.'
             : appStoreWords
-              ? 'Your complimentary access has ended.'
+              ? 'Full access has ended.'
               : 'Your trial has ended.'}
         </h1>
 
@@ -322,7 +322,9 @@ export function LockedScreen({
         <p className="locked-screen__body">
           {isCancelled
             ? 'Everything you wrote is still here, whenever you\'re ready.'
-            : 'Every word you wrote is saved. Subscribe to keep going.'}
+            : appStoreWords
+              ? `Every word you wrote is saved. Subscribe for ${APP_STORE_WHAT_YOU_GET}.`
+              : 'Every word you wrote is saved. Subscribe to keep going.'}
         </p>
 
         <div className="locked-screen__actions">

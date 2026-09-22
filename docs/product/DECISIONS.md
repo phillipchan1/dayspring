@@ -47,8 +47,14 @@ concern seems to require it, raise it with Phil; don't revert this in a PR.
 **Cost accepted:** some residual App Review risk while the iOS app is in review,
 taken knowingly. The Terms follow (site `terms.ts` + app `public/legal/terms.html`,
 dated 21 September 2026); there "no payment method required" stays, as a billing fact.
-The in-app trial banner, locked screen and Settings still say "complimentary access" —
-that was the direct App Review fix (0eb9810, 007176d) and is not changed here.
+
+App Review rejected build 1.0.930 on 2026-09-21 under **Guideline 3.1.2(c) only**
+for the phrase "complimentary access" — it did not describe what the user receives
+for the price (Guideline 4.0 was not cited). App Store-gated UI now says what the
+subscription buys (journal + Ascent/Altar/Lamp reflections) and uses "N days left",
+"included", and "full access ends…". It still must not say "free trial",
+"14-day free", "no charge today", or "complimentary". Web/Stripe may still say
+trial. See `src/lib/storeCopy.ts` and `src/features/paywall/appStoreCopy.test.ts`.
 
 ## D-030 — Launch paid acquisition (Facebook, rituals-led) ahead of D-001 closing
 **2026-09-15** · **Status:** Decided · deliberate override of D-001's acquisition-spend gate

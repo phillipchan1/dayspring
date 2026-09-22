@@ -12,7 +12,7 @@ export function TrialWelcome({ variant, onDismiss }: Props) {
   // The 14 days are real either way — but only off the App Store are they a free
   // trial *of the subscription*. See lib/storeCopy.ts.
   const opening = usesAppStoreCopy()
-    ? 'The slow work begins now. Your first 14 days are complimentary — your first entry is waiting.'
+    ? 'The slow work begins now. Your first 14 days are included — your first entry is waiting.'
     : 'The slow work begins now. 14 days free — your first entry is waiting.'
 
   return (

@@ -13,7 +13,7 @@ import {
 } from '@/lib/appleIap'
 import type { Product } from '@spicavi/tauri-plugin-purchases'
 import { useTapAction } from '@/lib/tapAction'
-import { usesAppStoreCopy } from '@/lib/storeCopy'
+import { appStoreWhatYouGetSentence, usesAppStoreCopy } from '@/lib/storeCopy'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
 import './Paywall.css'
@@ -124,6 +124,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
         <h1 className="paywall__headline">
           {appStoreWords ? 'Keep your journal going' : 'Begin your 14-day free trial'}
         </h1>
+        {appStoreWords && <p className="paywall__sub">{appStoreWhatYouGetSentence()}</p>}
 
         <div className="paywall__plans">
           <button

@@ -133,12 +133,13 @@ StoreKit sheet opens (paywall, locked screen, Settings > Subscription).
 
 The 14 days of access a new account receives are granted by the app in our own
 database at first sign-in — no card, no StoreKit transaction, nothing to
-cancel. Following this review we removed the words "free trial" from every
-App Store‑facing surface and from this listing, so nothing claims an
-introductory offer the products do not carry.
+cancel. App Store-facing surfaces do not market a free trial or an
+introductory offer. They name what a subscription buys: ongoing access
+to the journal and reflections (Ascent, Altar, Lamp). Choosing a plan
+charges the Apple Account immediately.
 
 WHERE TO FIND THE IN-APP PURCHASES
-The demo account above is inside its complimentary 14 days, so the app is not
+The demo account above is inside its first 14 days of full access, so the app is not
 paywalled and you will land straight in the journal. The subscriptions are here:
 
   Settings (person icon, top right) > Subscription > Plans
@@ -148,7 +149,7 @@ the auto-renew disclosure and Restore Purchases directly beneath. Tapping
 Subscribe opens the StoreKit sheet and charges immediately — there is no
 introductory offer to consume first.
 
-A banner at the top of the journal ("N days left of complimentary access") also
+A banner at the top of the journal ("N days left") also
 leads to the same purchase. Once the 14 days elapse the app shows a full-screen
 purchase surface with the same two products.
 
