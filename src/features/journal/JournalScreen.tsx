@@ -1092,6 +1092,15 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const index = ritualIndexContaining(doc, pos)
     if (index < 0) return
     editorRef.current?.blur()
+    // A ritual PAGE can still land in the editor — the sidebar, the latest
+    // page opened on arrival, a restored session — and its record is the door
+    // back in. The block composer has no After, so whatever was written there
+    // became unreachable; a ritual page always opens as one.
+    const id = entryIdRef.current
+    if (ritualEntryShape(doc).kind === 'ritual' && id) {
+      setRitualEntry({ ...BACK_TO_ENTRY, returnTo: { kind: 'entry', id } })
+      return
+    }
     setComposerIndex(index)
   }, [])
 
