@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { swallowClickThrough } from '@/lib/ghostClick'
 import type { Entry } from '@/lib/types'
 import { EntryMenuIcon } from './entryMenuIcons'
 
@@ -64,6 +65,7 @@ export function EntryBulkMenu({ phase, onClose, onAction, onRequestDelete }: Pro
         const dialog = document.querySelector('.entry-confirm')
         if (dialog?.contains(target)) return
       }
+      swallowClickThrough()
       onClose()
     }
     const onKey = (e: KeyboardEvent) => {

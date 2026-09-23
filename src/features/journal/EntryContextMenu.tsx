@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { swallowClickThrough } from '@/lib/ghostClick'
 import type { Entry } from '@/lib/types'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { deriveTitle } from './deriveTitle'
@@ -102,6 +103,7 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete, sh
         const dialog = document.querySelector('.entry-confirm')
         if (dialog?.contains(target)) return
       }
+      swallowClickThrough()
       onClose()
     }
 

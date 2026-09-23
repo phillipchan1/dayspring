@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { AttachmentEditTarget } from '@/editor/attachmentInsert'
 import type { ImageMenuPoint } from '@/editor/attachmentImageExtension'
 import type { ImageSize } from '@/lib/attachments'
+import { swallowClickThrough } from '@/lib/ghostClick'
 
 const SIZE_OPTIONS: ReadonlyArray<{ value: ImageSize; label: string }> = [
   { value: 's', label: 'Small' },
@@ -119,6 +120,7 @@ export function ImageContextMenu({
 
     const onPointerDown = (e: PointerEvent) => {
       if (menuRef.current?.contains(e.target as Node)) return
+      swallowClickThrough()
       onClose()
     }
     const onKey = (e: KeyboardEvent) => {
