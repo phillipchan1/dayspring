@@ -235,7 +235,7 @@ async function bootstrap() {
   // the WebView navigate to the file and blow away the whole app.
   installDropGuard()
 
-  // Desktop: start listening for the dayspring:// OAuth callback before anything
+  // Native: start listening for dayspring:// (OAuth + open) before anything
   // else, so a cold launch via the deep link is captured. No-op on web.
   void initDeepLinkAuth()
 
