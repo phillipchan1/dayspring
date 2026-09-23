@@ -357,7 +357,24 @@ export function PageWall({
 
   // Entries arrive newest first, so today's page is the first one — and it is
   // the only thing on a row that is not simply the page itself.
-  const newestId = entries[0]?.id ?? null
+  /*
+   * Today's page, and only if there is one.
+   *
+   * This was simply the newest page, so a journal last opened three weeks ago
+   * still wore TODAY on its top row — the one fact on the wall that is about
+   * the reader's day rather than the page's.
+   */
+  const todayId = useMemo(() => {
+    const newest = entries[0]
+    if (!newest) return null
+    const d = new Date(newest.created_at)
+    const now = new Date()
+    return d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+      ? newest.id
+      : null
+  }, [entries])
 
   /**
    * What the grid lays out. One cell per page, always.
@@ -638,6 +655,39 @@ export function PageWall({
   const scrubbingRef = useRef(false)
   const [scrubbing, setScrubbing] = useState(false)
   const scrubbedTo = useRef<string | null>(null)
+
+  /*
+   * Awake while the wall is moving, and for a beat after.
+   *
+   * On a phone the rail no longer keeps a column of its own — it cost a sixth
+   * of the width, for ticks, beside every sentence. It lies over the rows'
+   * right edge instead and shows itself the way Photos' scrubber does: when you
+   * scroll, which is exactly when you might want to go further than a thumb
+   * flick will take you. At rest it is not drawn and takes no taps.
+   */
+  const [railAwake, setRailAwake] = useState(false)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !narrow) return
+    let timer: number | undefined
+    let awake = false
+    const wake = () => {
+      if (!awake) {
+        awake = true
+        setRailAwake(true)
+      }
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        awake = false
+        setRailAwake(false)
+      }, 1400)
+    }
+    el.addEventListener('scroll', wake, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', wake)
+      window.clearTimeout(timer)
+    }
+  }, [narrow])
 
   const scrubAt = useCallback(
     (clientY: number) => {
@@ -1281,7 +1331,7 @@ export function PageWall({
                   here={!item.echo && item.entry.id === hereId}
                   selected={!item.echo && selectedIds.has(item.entry.id)}
                   context={!item.echo && item.entry.id === menuTargetId}
-                  today={item.entry.id === newestId}
+                  today={item.entry.id === todayId}
                   currentWeek={currentWeek}
                   echo={item.echo}
                   markings={rowMarkings.get(item.entry.id) ?? EMPTY_KINDS}
@@ -1353,6 +1403,7 @@ export function PageWall({
           ref={scrubRef}
           aria-label="Jump to a year"
           data-scrubbing={scrubbing ? 'true' : undefined}
+          data-awake={railAwake || scrubbing ? 'true' : undefined}
           // Pointer events, not touch: one path serves a thumb, a mouse drag and
           // a stylus, and pointer capture is what keeps the gesture alive when
           // the thumb wanders off the rail — which on a 40px-wide strip it does

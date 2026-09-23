@@ -5496,3 +5496,213 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--text-bright);
 }
+
+/*
+ * ══ The phone wall, read as one list (Sept 23 2026) ══════════════════════════
+ *
+ * A review of the phone wall found it had no unit. The header stacked five ways
+ * through time above the first page, and below it the same row looked like a
+ * card in one place (the week's wash, butted together 1px apart with twenty
+ * pixels of air inside each) and like loose prose in another. Whether something
+ * looked tappable had come to mean "this week". What follows makes the row the
+ * one unit: no fill at rest, a hairline between, the date always at the same
+ * height, and a press that shows.
+ */
+
+/* The periods' chips never shrink. `flex: none` sat on the <button>, but the
+   flex item is the <li> around it — so the li shrank and every chip wrapped to
+   "2011 – / 2013", and the row that was meant to scroll never had to. */
+.pg-stretch__eras > li {
+  flex: none;
+}
+
+.pg-stretch__era {
+  white-space: nowrap;
+}
+
+/*
+ * WHEN, as the first group of the look-for sheet (phone only — see
+ * `StretchPeriods`). In a sheet there is room to wrap, so the periods wrap
+ * rather than scroll, and the presets say what they are.
+ */
+.pg-sheet .pg-stretch--periods {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.pg-sheet .pg-stretch--periods .pg-stretch__eras {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+/* The same pill as every other option in the sheet — at the chips' old size
+   and faint ink they read as disabled beside "in order". */
+.pg-sheet .pg-stretch--periods .pg-stretch__era,
+.pg-sheet .pg-stretch--periods .pg-stretch__preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-block-size: 2.5rem;
+  padding: 0 0.95rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 85%, transparent);
+  border-radius: var(--radius-full);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.pg-sheet .pg-stretch--periods .pg-stretch__era i {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+}
+
+.pg-sheet .pg-stretch--periods .pg-stretch__era[data-on='true'],
+.pg-sheet .pg-stretch--periods .pg-stretch__preset[data-on='true'] {
+  color: var(--accent);
+}
+
+.pg-sheet .pg-stretch--periods .pg-stretch__preset[data-on='true'] {
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.pg-sheet .pg-stretch--periods .pg-stretch__presets {
+  gap: 0.4rem;
+}
+
+.pg-sheet .pg-stretch--periods .pg-stretch__presets::before {
+  content: 'the last';
+  margin-inline-end: 0.15rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text-faint);
+}
+
+@media (max-width: 767px) {
+  /* The count joins the two years it sits between: all three are facts about
+     the archive, and facts are set in mono everywhere else on this surface. */
+  .pg-stretch__count {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+  }
+
+  /*
+   * ── The rail lies over the rows, and wakes when they move ─────────────────
+   *
+   * It kept a column of its own — 3.4rem plus a gap, a sixth of the phone, for
+   * ticks — beside every sentence. Now the rows run to the gutter and the rail
+   * appears over their right edge only while the wall scrolls (`railAwake` in
+   * PageWall), the way Photos' scrubber does. At rest it is not drawn and takes
+   * no taps, so the edge of a row is the row.
+   */
+  .pg__grid {
+    padding-right: clamp(1rem, 3vw, 2rem);
+  }
+
+  .pg__scrub {
+    z-index: 3;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+
+  .pg__scrub[data-awake='true'] {
+    opacity: 1;
+    pointer-events: auto;
+    background: linear-gradient(to left, var(--bg) 45%, transparent);
+  }
+
+  /*
+   * ── A row: no fill at rest, a hairline between, a press that shows ─────────
+   *
+   * The date sits at the same height in every row (start, not centre), so the
+   * eye can run down the left edge; the air between rows is now about four
+   * times the air inside one, which is what lets a list chunk at all.
+   */
+  .pgr {
+    position: relative;
+    align-content: start;
+    padding-block: 0.6rem 0;
+  }
+
+  .pgr:not([data-active], [data-selected], [data-context]),
+  .pgr:not([data-active], [data-selected], [data-context]):hover {
+    background: none;
+  }
+
+  .pgr:not([data-selected]):active {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+
+  .pgr::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0.4rem;
+    inset-block-end: 0;
+    block-size: 1px;
+    background: var(--border-subtle);
+    pointer-events: none;
+  }
+
+  /* A section heading draws its own rule; a hairline right above it is two. */
+  .pgr:has(+ .pg__section)::after,
+  .pg__cell:has(+ .pg__section) .pgr::after {
+    display: none;
+  }
+
+  /* The heading belongs to what follows it: set at the foot of its row, and on
+     the same left edge as the dates under it. */
+  .pg__section {
+    align-items: flex-end;
+    padding-block-end: 0.5rem;
+    padding-inline: 0.4rem;
+  }
+
+  /* The opening and the sentence after it, with a breath between — a short
+     opening ("2026, so far") otherwise read as one phrase with the next. */
+  .pgr__next {
+    margin-inline-start: 0.3em;
+  }
+
+  /*
+   * Markings as ribbons hanging from the top of the row, not dots.
+   *
+   * Three dots in a row at the right edge is the one shape every phone user
+   * knows as "more" — a menu — and these open nothing. A ribbon is what you
+   * leave in a page you mean to come back to.
+   */
+  .pgr__margin {
+    align-self: start;
+    gap: 3px;
+    margin-block-start: -0.6rem;
+  }
+
+  .pgr__mark {
+    inline-size: 3px;
+    block-size: 0.75rem;
+    border-radius: 0 0 1.5px 1.5px;
+    opacity: 0.85;
+  }
+
+  /* An echo: the year is on the date already, so the eyebrow keeps "15 years
+     earlier" and lets "· the same week" go — and reads at full strength. */
+  .pgr[data-echo='true'] .pgr__date {
+    color: rgb(var(--scripture-gold));
+  }
+
+  .pgr__echo {
+    color: rgba(var(--scripture-gold), 0.9);
+  }
+
+  .pgr__echo-same {
+    display: none;
+  }
+}

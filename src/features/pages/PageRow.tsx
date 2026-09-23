@@ -181,7 +181,7 @@ export const PageRow = memo(function PageRow({
       <time className="pgr__date" dateTime={dateIso}>
         {formatDate(dateIso, Boolean(echo))}
       </time>
-      {echo ? <span className="pgr__echo">{echo}</span> : null}
+      {echo ? <span className="pgr__echo">{echoParts(echo)}</span> : null}
       <span className="pgr__line">
         {ritual ? <span className="pgr__ritual">{ritual}</span> : null}
         {line ? (match ? paint(line, match) : line) : ritual ? null : ''}
@@ -200,6 +200,22 @@ export const PageRow = memo(function PageRow({
 })
 
 /** The lit words, painted in place — the same treatment the cards give them. */
+/*
+ * "15 years earlier · the same week", in two parts, so a phone can keep the
+ * first and let the second go. On a phone the date line already carries the
+ * year ("AUG 31, 2011"), and the whole eyebrow ran off the edge mid-word.
+ */
+function echoParts(echo: string): React.ReactNode {
+  const at = echo.indexOf(' · ')
+  if (at < 0) return echo
+  return (
+    <>
+      {echo.slice(0, at)}
+      <span className="pgr__echo-same">{echo.slice(at)}</span>
+    </>
+  )
+}
+
 function paint(text: string, match: RegExp): React.ReactNode {
   const runs = splitOnMatch(text, match)
   if (runs.length === 1) return text

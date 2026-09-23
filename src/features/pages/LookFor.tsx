@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import type { MarkingChip } from './facets'
@@ -142,6 +142,15 @@ interface Props {
    * surface with no app around it to navigate.
    */
   onTend?: (() => void) | undefined
+  /**
+   * WHEN, on a phone — the Stretch's periods and presets, handed in whole.
+   *
+   * Above the wall they were a second and third row of time controls under the
+   * band, on a screen that also has the year rail; the header ran to a fifth of
+   * the phone before the first page. Here they sit first in the sheet, because
+   * a bracket changes the count beside every subject below it.
+   */
+  when?: ReactNode
 }
 
 /**
@@ -182,6 +191,7 @@ export function LookFor({
   onlyLit,
   onOnlyLit,
   onTend,
+  when,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState('')
@@ -572,6 +582,16 @@ export function LookFor({
               onChange={(e) => setTyped(e.target.value)}
             />
           </div>
+
+          {when && !searching ? (
+            <section className="pg-sheet__g pg-sheet__g--when">
+              <h3>
+                when
+                <span>a stretch of your pages</span>
+              </h3>
+              {when}
+            </section>
+          ) : null}
 
           <section className="pg-sheet__g">
             <h3>

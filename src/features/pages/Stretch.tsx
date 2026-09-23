@@ -48,6 +48,7 @@ export function Stretch({
   span,
   onSpan,
   caption,
+  periods = true,
 }: {
   /** The whole archive — the band always spans it, bracket or no bracket. */
   entries: Entry[]
@@ -64,21 +65,20 @@ export function Stretch({
    * of chrome for it.
    */
   caption: string
+  /**
+   * Whether the periods and the 1m/6m/1y presets sit under the band.
+   *
+   * Off on a phone. There the header was five ways through time stacked above
+   * the first page — band, periods, presets, the rail, Pages|Volumes — and the
+   * periods wrapped to two lines each. On a phone they live in the `look for`
+   * sheet as its "when" group (see `StretchPeriods`), which is where a thumb
+   * already goes to narrow the wall, and the band keeps its own end labels
+   * directly under it.
+   */
+  periods?: boolean
 }) {
   const band = useMemo(() => bandFor('all', 'your pages', entries, months), [entries, months])
 
-  /*
-   * The periods worth one press — `bursts` from `readings.ts`, projected onto
-   * this band's months. See `eras.ts` for why it borrows that rule rather than
-   * inventing a silence of its own.
-   *
-   * WHY THIS EXISTS: dragging a hundred and eighty cells to land on "that
-   * winter" is a fine gesture once you know it is there, and an invisible one
-   * until then — and on a phone the band is about two pixels a month, so the
-   * drag is not really available at all. These are the same brackets a drag
-   * makes, at the places the writing itself already breaks.
-   */
-  const eras = useMemo(() => erasFrom(entries, months), [entries, months])
   /*
    * The anchor a drag started on, in a ref rather than state.
    *
@@ -155,86 +155,13 @@ export function Stretch({
         ))}
       </ol>
 
-      {/*
-        THE APP PROPOSES; THE WRITER NAMES.
-
-        Progoff's Stepping Stones by way of DIRECTOR_MOVES move 2, and the rule
-        travels with it: `bursts` produces the candidate set, the writer names
-        them. So a chip carries two dates and a count — facts about the archive —
-        and never a word about what the period WAS. "Your hardest season" is a
-        machine narrating somebody's life back at them from a page count, which
-        is a verdict wearing a label (Principle 1).
-
-        The rule that produced them is stated, the same as the subject floor, and
-        it is overruled the same way: by dragging the band yourself.
-      */}
-      {eras.length > 0 ? (
-        <ol
-          className="pg-stretch__eras"
-          aria-label="Periods, split where you stopped writing for a while"
-        >
-          {eras.map((era) => {
-            const next = spanFrom(era.from, era.to, months.length)
-            const on =
-              next !== null && span !== null && span.from === next.from && span.to === next.to
-            const label = eraLabel(era, months)
-            return (
-              <li key={`${era.from}-${era.to}`}>
-                <button
-                  type="button"
-                  className="pg-stretch__era"
-                  data-on={on ? 'true' : undefined}
-                  aria-pressed={on}
-                  title={`${spanText({ from: era.from, to: era.to }, months)} — ${era.pages.toLocaleString()} ${era.pages === 1 ? 'page' : 'pages'}`}
-                  onClick={() => onSpan(on ? null : next)}
-                >
-                  {label}
-                  <i>{era.pages.toLocaleString()}</i>
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-      ) : null}
+      {periods ? <Periods entries={entries} months={months} span={span} onSpan={onSpan} /> : null}
 
       <p className="pg-stretch__ends">
         <span className="pg-stretch__year">{months[0] ? months[0].year : ''}</span>
 
         <span className="pg-stretch__mid">
-          {/*
-            RELATIVE TIME, beside the bracket it sets.
-
-            Dragging the band has always bracketed a span, and nothing said so —
-            a control you have to discover by trying to drag a decoration is a
-            control most people never find. These set the same span a drag sets,
-            so there is one time filter with two ways in, and putting them here
-            teaches the drag by sitting next to it.
-
-            Relative and not named periods: "the last six months" is the
-            question people actually ask of a journal, and it keeps meaning the
-            same thing next month. Nothing here ranks or scores a span — it only
-            changes which months are counted (see the note at the top).
-          */}
-          <span className="pg-stretch__presets">
-            {RECENT.map((p) => {
-              const next = spanFrom(months.length - p.months, months.length - 1, months.length)
-              const on =
-                next !== null && span !== null && span.from === next.from && span.to === next.to
-              return (
-                <button
-                  type="button"
-                  key={p.label}
-                  className="pg-stretch__preset"
-                  data-on={on ? 'true' : undefined}
-                  aria-pressed={on}
-                  disabled={months.length <= p.months}
-                  onClick={() => onSpan(on ? null : next)}
-                >
-                  {p.label}
-                </button>
-              )
-            })}
-          </span>
+          {periods ? <Presets months={months} span={span} onSpan={onSpan} /> : null}
 
           {/*
             What is bracketed, and the way out of it — beside the count, so the
@@ -264,6 +191,120 @@ export function Stretch({
 
         <span className="pg-stretch__year">{months.at(-1)?.year ?? ''}</span>
       </p>
+    </div>
+  )
+}
+
+type PeriodProps = {
+  entries: Entry[]
+  months: { year: number; month: number }[]
+  span: Span | null
+  onSpan: (next: Span | null) => void
+}
+
+/*
+ * THE APP PROPOSES; THE WRITER NAMES.
+ *
+ * Progoff's Stepping Stones by way of DIRECTOR_MOVES move 2, and the rule
+ * travels with it: `bursts` produces the candidate set, the writer names them.
+ * So a chip carries two dates and a count — facts about the archive — and never
+ * a word about what the period WAS. "Your hardest season" is a machine
+ * narrating somebody's life back at them from a page count, which is a verdict
+ * wearing a label (Principle 1).
+ *
+ * The rule that produced them is stated, the same as the subject floor, and it
+ * is overruled the same way: by dragging the band yourself.
+ */
+function Periods({ entries, months, span, onSpan }: PeriodProps) {
+  /*
+   * The periods worth one press — `bursts` from `readings.ts`, projected onto
+   * this band's months. See `eras.ts` for why it borrows that rule rather than
+   * inventing a silence of its own.
+   *
+   * WHY THIS EXISTS: dragging a hundred and eighty cells to land on "that
+   * winter" is a fine gesture once you know it is there, and an invisible one
+   * until then — and on a phone the band is about two pixels a month, so the
+   * drag is not really available at all. These are the same brackets a drag
+   * makes, at the places the writing itself already breaks.
+   */
+  const eras = useMemo(() => erasFrom(entries, months), [entries, months])
+  if (eras.length === 0) return null
+
+  return (
+    <ol className="pg-stretch__eras" aria-label="Periods, split where you stopped writing for a while">
+      {eras.map((era) => {
+        const next = spanFrom(era.from, era.to, months.length)
+        const on = next !== null && span !== null && span.from === next.from && span.to === next.to
+        const label = eraLabel(era, months)
+        return (
+          <li key={`${era.from}-${era.to}`}>
+            <button
+              type="button"
+              className="pg-stretch__era"
+              data-on={on ? 'true' : undefined}
+              aria-pressed={on}
+              title={`${spanText({ from: era.from, to: era.to }, months)} — ${era.pages.toLocaleString()} ${era.pages === 1 ? 'page' : 'pages'}`}
+              onClick={() => onSpan(on ? null : next)}
+            >
+              {label}
+              <i>{era.pages.toLocaleString()}</i>
+            </button>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/*
+ * RELATIVE TIME, beside the bracket it sets.
+ *
+ * Dragging the band has always bracketed a span, and nothing said so — a
+ * control you have to discover by trying to drag a decoration is a control most
+ * people never find. These set the same span a drag sets, so there is one time
+ * filter with two ways in, and putting them here teaches the drag by sitting
+ * next to it.
+ *
+ * Relative and not named periods: "the last six months" is the question people
+ * actually ask of a journal, and it keeps meaning the same thing next month.
+ * Nothing here ranks or scores a span — it only changes which months are
+ * counted (see the note at the top).
+ */
+function Presets({ months, span, onSpan }: Omit<PeriodProps, 'entries'>) {
+  return (
+    <span className="pg-stretch__presets">
+      {RECENT.map((p) => {
+        const next = spanFrom(months.length - p.months, months.length - 1, months.length)
+        const on = next !== null && span !== null && span.from === next.from && span.to === next.to
+        return (
+          <button
+            type="button"
+            key={p.label}
+            className="pg-stretch__preset"
+            data-on={on ? 'true' : undefined}
+            aria-pressed={on}
+            disabled={months.length <= p.months}
+            onClick={() => onSpan(on ? null : next)}
+          >
+            {p.label}
+          </button>
+        )
+      })}
+    </span>
+  )
+}
+
+/**
+ * The periods and the presets on their own — the phone's "when" group in the
+ * `look for` sheet. The same brackets the band's drag makes, so the band above
+ * the wall lights to match whichever one is pressed here.
+ */
+export function StretchPeriods(props: PeriodProps) {
+  if (props.months.length < 2) return null
+  return (
+    <div className="pg-stretch pg-stretch--periods">
+      <Periods {...props} />
+      <Presets months={props.months} span={props.span} onSpan={props.onSpan} />
     </div>
   )
 }

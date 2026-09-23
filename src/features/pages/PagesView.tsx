@@ -31,7 +31,7 @@ import { LookFor } from './LookFor'
 import { LitChips, type LookChip } from './LitChips'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
-import { Stretch } from './Stretch'
+import { Stretch, StretchPeriods } from './Stretch'
 import { inSpan, monthsAcross, spanBounds, type Span } from './band'
 import { localNoonIso } from './wallItems'
 import { PageReader } from './PageReader'
@@ -273,6 +273,13 @@ export function PagesView({
   // far end of the zoom, so moving the slider off it walks back into pages;
   // bracketing dates narrows the shelf, and from inside a volume takes you to
   // the pages of those dates.
+  // Inside a volume the strip shows the volume's own months; bracketing other
+  // dates walks out to the pages of those dates. Shared by the band and, on a
+  // phone, the "when" group in the look-for sheet.
+  const onStretchSpan = (next: Span | null) => {
+    if (openVolume !== null) toPages()
+    setSpan(next)
+  }
   const onZoomAnywhere = (z: number) => {
     if (volumeAt !== null && z >= SHELF_ZOOM) toPages()
     setZoom(z)
@@ -625,8 +632,11 @@ export function PagesView({
   /**
    * The unwritten next page belongs on the archive, not on a question.
    * A stretch that excludes today is also a question ("what about then").
+   *
+   * Never on a phone: the + button floats over this wall there, and a second
+   * door dressed as a row read as one more page rather than as an action.
    */
-  const offerBlank = !anyLit && (span === null || inSpan(localNoonIso(), span, months))
+  const offerBlank = !narrow && !anyLit && (span === null || inSpan(localNoonIso(), span, months))
   /** The declared kinds currently lit, for the sentence the surface says. */
   const litMarkings = useMemo(
     () => markPills.filter((p) => keys.includes(p.key)).map((p) => p.kind),
@@ -1107,6 +1117,16 @@ export function PagesView({
               onlyLit={onlyLit}
               onOnlyLit={setOnlyLit}
               onTend={onTendSubjects}
+              when={
+                narrow ? (
+                  <StretchPeriods
+                    entries={entries}
+                    months={months}
+                    span={openVolume !== null ? (volumeSpan ?? span) : span}
+                    onSpan={onStretchSpan}
+                  />
+                ) : undefined
+              }
             />
             {/*
               A door, not a headline.
@@ -1155,12 +1175,8 @@ export function PagesView({
               entries={entries}
               months={months}
               span={openVolume !== null ? (volumeSpan ?? span) : span}
-              onSpan={(next) => {
-                // Inside a volume the strip shows the volume's own months;
-                // bracketing other dates walks out to the pages of those dates.
-                if (openVolume !== null) toPages()
-                setSpan(next)
-              }}
+              onSpan={onStretchSpan}
+              periods={!narrow}
               caption={`${facts.count.toLocaleString()} ${facts.count === 1 ? 'page' : 'pages'}`}
             />
           )}
