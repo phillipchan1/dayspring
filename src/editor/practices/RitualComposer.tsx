@@ -453,10 +453,15 @@ export function RitualComposer({
       const clamped = Math.max(0, Math.min(CLOSE, next))
       commit()
       setI(clamped)
+      // On the filmstrip the caret waits for the slide to land — see `onSettle`.
+      if (!desk && embla && embla.selectedScrollSnap() !== clamped) {
+        embla.scrollTo(clamped)
+        return
+      }
       embla?.scrollTo(clamped)
       requestAnimationFrame(() => paneRefs.current[clamped]?.focus({ preventScroll: true }))
     },
-    [CLOSE, commit, embla],
+    [CLOSE, commit, desk, embla],
   )
 
   useEffect(() => {
@@ -472,18 +477,35 @@ export function RitualComposer({
     // already placed it on screen. Without `preventScroll` this reproduced on
     // 2/2 tries; with it, 0/3. Not yet confirmed on a physical device.
     const onSelect = () => {
-      const n = embla.selectedScrollSnap()
       commit()
-      setI(n)
-      requestAnimationFrame(() => paneRefs.current[n]?.focus({ preventScroll: true }))
+      setI(embla.selectedScrollSnap())
+    }
+    // Focus waits for the track to stop. Focusing on `select` — or a frame
+    // after `scrollTo` — hands iOS a textarea that is still sliding in under a
+    // transformed track, and WebKit draws the caret where the field was at that
+    // instant and leaves it there: the next movement opened with its caret
+    // stranded two-thirds of the way across, beside the placeholder rather
+    // than at its start. Until the slide lands the previous movement keeps
+    // focus (the footer buttons refuse to take it), so the keyboard never drops.
+    const onSettle = () => {
+      const el = paneRefs.current[embla.selectedScrollSnap()]
+      if (el) {
+        if ((document.activeElement as unknown) !== el) el.focus({ preventScroll: true })
+        return
+      }
+      // The close has nothing to write in; let the keyboard go.
+      const active = document.activeElement
+      if (active instanceof HTMLElement && active.closest('.ritual-composer')) active.blur()
     }
     // The layout can change under an open composer (a window narrowed past
     // the desk width), and Embla then starts from its `startIndex`, not from
     // the movement the writer is in.
     if (embla.selectedScrollSnap() !== iRef.current) embla.scrollTo(iRef.current, true)
     embla.on('select', onSelect)
+    embla.on('settle', onSettle)
     return () => {
       embla.off('select', onSelect)
+      embla.off('settle', onSettle)
     }
   }, [embla, commit])
 
@@ -709,16 +731,24 @@ export function RitualComposer({
       </div>
 
       <footer className="rc__foot">
+        {/* `preventDefault` on mousedown keeps focus in the movement being
+            left, so the keyboard stays up while the next one slides in. */}
         <button
           type="button"
           className="rc__back"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => go(i - 1)}
           disabled={i === 0}
         >
           {i > 0 && i < CLOSE + 1 ? `‹ ${paneLabels[i - 1] ?? ''}` : ''}
         </button>
         {i < CLOSE && (
-          <button type="button" className="rc__next" onClick={() => go(i + 1)}>
+          <button
+            type="button"
+            className="rc__next"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => go(i + 1)}
+          >
             {i < CLOSE - 1 ? `Next: ${paneLabels[i + 1]}` : 'Close the ritual'}
           </button>
         )}
