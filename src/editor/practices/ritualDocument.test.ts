@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  answerOffset,
   composeRitualMarkdown,
   readRitual,
   ritualBlockRange,
@@ -9,6 +10,7 @@ import {
 } from './ritualDocument'
 import { buildPracticeBlock } from './usePracticeInsertion'
 import { PRACTICES } from './practicesData'
+import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
 
 const examen = PRACTICES.find((p) => p.name === 'The Daily Examen')!
 const LABELS = examen.prompts.map((p) => p.label)
@@ -176,5 +178,39 @@ describe('ritualEntryShape', () => {
   it('calls a page without one plain', () => {
     expect(ritualEntryShape('Just a day.').kind).toBe('plain')
     expect(ritualEntryShape(null).kind).toBe('plain')
+  })
+})
+
+describe('answerOffset', () => {
+  const verse = '```dayspring-scripture 8c1f3a2e-4b5d-4e6f-9a7b-1c2d3e4f5a6b\nHis mercies are new.\nLamentations 3:23 · ESV\n```'
+  const answers = [`Held onto this.\n\n${verse}`, 'Distant.', '', 'Patience.']
+  const block = composeRitualMarkdown(examen.name, LABELS, answers)
+
+  it('points at the first character of each movement’s writing', () => {
+    // A mark made inside an answer is stored against the entry; these are the
+    // two positions it has to agree on.
+    const doc = `Morning.\n\n${block}\n\nAfter the walk.`
+    answers.forEach((text, n) => {
+      if (!text) return
+      const at = answerOffset(doc, 0, n)!
+      expect(doc.slice(at, at + text.length)).toBe(text)
+    })
+  })
+
+  it('places a verse quoted in an answer where the entry holds it', () => {
+    const doc = `Morning.\n\n${block}`
+    const inAnswer = answers[0]!.indexOf('His mercies')
+    expect(answerOffset(doc, 0, 0)! + inAnswer).toBe(doc.indexOf('His mercies'))
+  })
+
+  it('finds a ritual entry’s After below the closed block', () => {
+    const doc = `${block}\n${RITUAL_END_TOKEN}\n\nAnything else.`
+    const at = answerOffset(doc, 0, LABELS.length)!
+    expect(doc.slice(at)).toBe('Anything else.')
+  })
+
+  it('returns null for a block or movement that is not there', () => {
+    expect(answerOffset(block, 1, 0)).toBeNull()
+    expect(answerOffset(block, 0, LABELS.length + 1)).toBeNull()
   })
 })

@@ -1,5 +1,9 @@
 import { createRoot } from 'react-dom/client'
 import { Editor, type EditorHandle } from './Editor'
+import { ChapterPane } from '@/features/scripture/ChapterPane'
+import { chapterFromCitation } from '@/lib/scripture/citation'
+import { formatSpiritualBlock } from '@/lib/spiritualBlocks'
+import type { Mark } from '@/lib/marks'
 import { ritualIndexContaining } from './practices/ritualDocument'
 import { RitualShelf } from '@/features/journal/RitualShelf'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
@@ -193,19 +197,53 @@ function TouchLog() {
  * the palette; choosing from it logs.
  */
 function previewAnswer(slot: AnswerSlot) {
+  return <PreviewAnswer slot={slot} />
+}
+
+/**
+ * An answer's editor with the scripture wiring JournalScreen gives it: a click
+ * on a verse's reference opens the chapter pane (floating, over the composer),
+ * and a drag across a verse offers Mark. Marks live in memory here; the doc
+ * offset they would be stored at is logged so it can be checked by eye.
+ */
+function PreviewAnswer({ slot }: { slot: AnswerSlot }) {
+  const [chapter, setChapter] = useState<ReturnType<typeof chapterFromCitation>>(null)
+  const [marks, setMarks] = useState<Mark[]>([])
   return (
-    <Editor
-      key={slot.key}
-      ref={(handle) => slot.register(handle)}
-      docKey={`preview-answer-${slot.key}`}
-      initialDoc={slot.value}
-      onChange={slot.onChange}
-      placeholder={slot.placeholder}
-      autofocus={false}
-      titleStyling={false}
-      slashEnabled
-      onSlashCommand={(cmd) => console.log('[preview] slash', cmd)}
-    />
+    <>
+      <Editor
+        key={slot.key}
+        ref={(handle) => slot.register(handle)}
+        docKey={`preview-answer-${slot.key}`}
+        initialDoc={slot.value}
+        onChange={slot.onChange}
+        placeholder={slot.placeholder}
+        autofocus={false}
+        titleStyling={false}
+        slashEnabled
+        onSlashCommand={(cmd) => console.log('[preview] slash', cmd)}
+        onOpenChapter={(target) => setChapter(chapterFromCitation(target.reference))}
+        marks={marks}
+        onToggleMark={(quote, charStart, existing) => {
+          console.log('[preview] mark', quote, 'entry offset', charStart + (slot.offset() ?? 0))
+          setMarks((prev) =>
+            existing
+              ? prev.filter((m) => m.id !== existing.id)
+              : [...prev, { id: crypto.randomUUID(), entryId: 'preview', quote, charStart, noticedAt: '' }],
+          )
+        }}
+      />
+      {chapter && (
+        <ChapterPane
+          floating
+          book={chapter.book}
+          chapter={chapter.chapter}
+          highlightVerse={chapter.verse}
+          highlightVerseEnd={chapter.verseEnd}
+          onClose={() => setChapter(null)}
+        />
+      )}
+    </>
   )
 }
 
@@ -406,6 +444,20 @@ export function renderRitualPreview(): void {
       seen++
     }
     block = lines.join('\n')
+  }
+  // `&verse=1` puts a quoted verse in the first answer, to try marking and
+  // opening scripture from inside a ritual.
+  if (params.get('verse') === '1') {
+    const verse = formatSpiritualBlock(
+      'scripture',
+      '8c1f3a2e-4b5d-4e6f-9a7b-1c2d3e4f5a6b',
+      'The steadfast love of the LORD never ceases; his mercies never come to an end; they are new every morning; great is your faithfulness.',
+      'Lamentations 3:22–23 · ESV',
+    )
+    block = block.replace(/(<!-- ritual:section:[^\n]*-->\n)/, `$1Held onto this all day.\n\n${verse}\n\nAnd the walk after dinner.\n`)
+    // …and a prayer in the last movement, for the marked kinds' rule.
+    const prayer = formatSpiritualBlock('prayer', '2d4e6f80-1a3b-4c5d-8e7f-9a0b1c2d3e4f', 'Give me patience for the first hour.')
+    block = block.replace(/(<!-- ritual:section:Prayer -->\n)/, `$1${prayer}\n`)
   }
 
   const root = document.documentElement

@@ -85,6 +85,29 @@ export function readRitual(doc: string, index: number): RitualContents | null {
 }
 
 /**
+ * Where movement `n`'s writing begins in the entry, or null when it can't be found.
+ *
+ * An answer is edited in an editor of its own, so every position it knows is
+ * relative to the answer. A mark made on a verse inside a ritual is stored
+ * against the ENTRY, and this is the offset between the two. `n` one past the
+ * last movement is a ritual entry's After: the prose below the block.
+ */
+export function answerOffset(doc: string, index: number, n: number): number | null {
+  const lines = doc.split('\n')
+  const block = parseRitualBlocks(lines)[index]
+  if (!block) return null
+  const starts = lineStarts(doc)
+  const movement = block.movements[n]
+  if (movement) return starts[movement.answerLine - 1] ?? null
+  if (n !== block.movements.length) return null
+  // After: the first line that carries anything below the block.
+  for (let line = block.endLine; line < lines.length; line++) {
+    if ((lines[line] ?? '').trim() !== '') return starts[line] ?? null
+  }
+  return null
+}
+
+/**
  * Rebuild a block's markdown from the composer's state.
  *
  * Byte-identical in shape to what `buildPracticeBlock` writes, so a ritual

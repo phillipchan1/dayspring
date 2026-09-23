@@ -74,7 +74,7 @@ import { InlineScripturePopover } from '@/features/capture/InlineScripturePopove
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { RitualThreads } from '@/features/rituals/RitualThreads'
 import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
-import { RitualComposer } from '@/editor/practices/RitualComposer'
+import { RitualComposer, type AnswerSlot } from '@/editor/practices/RitualComposer'
 import { ritualEntryShape, ritualIndexContaining } from '@/editor/practices/ritualDocument'
 import { RitualShelf } from './RitualShelf'
 import { BACK_TO_ENTRY, ritualBackTo, ritualLanding } from './ritualEntryNav'
@@ -228,6 +228,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       d.getDate() !== now.getDate()
     )
   }, [entryId, entries])
+  /**
+   * The entry's marks, for an answer inside a ritual.
+   *
+   * An answer is edited in an editor of its own, so a mark's `charStart` (an
+   * ENTRY position) means nothing there. Dropped, the editor finds each mark by
+   * its words instead — which is how every mark is found once text has moved.
+   */
+  const answerMarks = useMemo(
+    () => (entryId ? marks.marksFor(entryId).map((m) => ({ ...m, charStart: null })) : []),
+    [entryId, marks],
+  )
   /** ⌘K — Find (instant, local), or Ask, which lights the wall with what it found. */
   const [findOpen, setFindOpen] = useState(false)
   const [findSeed, setFindSeed] = useState('')
@@ -705,6 +716,50 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     [],
   )
 
+  /**
+   * One movement's answer, written in the real editor — so `/`, the `+`, the
+   * format bar and every marking work inside a ritual the way they do on a page.
+   *
+   * Everything the capture flows touch goes through `inputEditor()`, which is
+   * this editor while it is mounted. Marks are the one thing stored against the
+   * ENTRY rather than the editor, so a new one is shifted by where the answer
+   * begins.
+   */
+  function renderRitualAnswer(slot: AnswerSlot) {
+    return (
+      <Editor
+        key={slot.key}
+        ref={(handle) => {
+          answerEditorRef.current = handle
+          slot.register(handle)
+        }}
+        docKey={`ritual-answer-${slot.key}`}
+        initialDoc={slot.value}
+        onChange={slot.onChange}
+        placeholder={slot.placeholder}
+        autofocus={false}
+        titleStyling={false}
+        showMarkdownSyntax={settings.showMarkdownSyntax}
+        slashEnabled
+        commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
+        onSlashCommand={handleSlashCommand}
+        onEditBlock={handleEditBlock}
+        onOpenChapter={handleOpenChapter}
+        onScripturePaste={handleScripturePaste}
+        onImageMenu={handleImageMenu}
+        onSlashPaletteChange={setSlashPaletteOpen}
+        marks={answerMarks}
+        proseMarking={isPastEntry}
+        {...(entryId
+          ? {
+              onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
+                marks.toggleMark(entryId, quote, charStart + (slot.offset() ?? 0), existing),
+            }
+          : {})}
+      />
+    )
+  }
+
   const closeImageMenu = useCallback(() => {
     setImageMenu((current) => {
       if (current) requestAnimationFrame(() => inputEditor()?.focusAt(current.target.from))
@@ -831,7 +886,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // while inserting the edited copy elsewhere (the duplication bug).
       let from = cap.edit.from
       let to = cap.edit.to
-      const liveDoc = contentRef.current
+      // In the doc of the editor the block lives in — inside a ritual that is
+      // the answer's own editor, whose positions are not the entry's.
+      const liveDoc = inputEditor()?.getDoc() ?? contentRef.current
       const live = parseSpiritualBlocks(liveDoc).find((b) => b.id === cap.edit!.id)
       if (live) {
         from = live.from
@@ -1043,9 +1100,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const cap = slashCaptureRef.current
     if (!cap?.edit) return
     const { id, from, to } = cap.edit
-    editorRef.current?.replaceRange(from, to, '')
+    inputEditor()?.replaceRange(from, to, '')
     setSlashCapture(null)
-    requestAnimationFrame(() => editorRef.current?.focusAt(from))
+    requestAnimationFrame(() => inputEditor()?.focusAt(from))
     void deleteSpiritualItem(id).catch(() => {
       // Non-fatal — save-time reconciliation will prune the orphan
     })
@@ -1055,7 +1112,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setSlashCapture((current) => {
       if (current) {
         const pos = current.insertAt
-        requestAnimationFrame(() => editorRef.current?.focusAt(pos))
+        requestAnimationFrame(() => inputEditor()?.focusAt(pos))
       }
       return null
     })
@@ -2367,6 +2424,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       </div>
       {chapterOpen && (
         <ChapterPane
+          // A ritual's composer covers the writing column the pane lives in.
+          floating={composerIndex !== null || ritualEntry !== null}
           book={chapterOpen.book}
           chapter={chapterOpen.chapter}
           highlightVerse={chapterOpen.verse}
@@ -2636,32 +2695,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             slashCapture !== null ||
             slashPaletteOpen ||
             imageEdit !== null ||
-            imageMenu !== null
+            imageMenu !== null ||
+            chapterOpen !== null
           }
-          renderAnswer={(slot) => (
-            <Editor
-              key={slot.key}
-              ref={(handle) => {
-                answerEditorRef.current = handle
-                slot.register(handle)
-              }}
-              docKey={`ritual-answer-${slot.key}`}
-              initialDoc={slot.value}
-              onChange={slot.onChange}
-              placeholder={slot.placeholder}
-              autofocus={false}
-              titleStyling={false}
-              showMarkdownSyntax={settings.showMarkdownSyntax}
-              slashEnabled
-              commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
-              onSlashCommand={handleSlashCommand}
-              onEditBlock={handleEditBlock}
-              onOpenChapter={handleOpenChapter}
-              onScripturePaste={handleScripturePaste}
-              onImageMenu={handleImageMenu}
-              onSlashPaletteChange={setSlashPaletteOpen}
-            />
-          )}
+          renderAnswer={renderRitualAnswer}
           entry={{
             ...(ritualEntry.seed ? { seed: ritualEntry.seed } : {}),
             ...(ritualEntry.startAt === undefined ? {} : { startAt: ritualEntry.startAt }),
@@ -2687,32 +2724,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             slashCapture !== null ||
             slashPaletteOpen ||
             imageEdit !== null ||
-            imageMenu !== null
+            imageMenu !== null ||
+            chapterOpen !== null
           }
-          renderAnswer={(slot) => (
-            <Editor
-              key={slot.key}
-              ref={(handle) => {
-                answerEditorRef.current = handle
-                slot.register(handle)
-              }}
-              docKey={`ritual-answer-${slot.key}`}
-              initialDoc={slot.value}
-              onChange={slot.onChange}
-              placeholder={slot.placeholder}
-              autofocus={false}
-              titleStyling={false}
-              showMarkdownSyntax={settings.showMarkdownSyntax}
-              slashEnabled
-              commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
-              onSlashCommand={handleSlashCommand}
-              onEditBlock={handleEditBlock}
-              onOpenChapter={handleOpenChapter}
-              onScripturePaste={handleScripturePaste}
-              onImageMenu={handleImageMenu}
-              onSlashPaletteChange={setSlashPaletteOpen}
-            />
-          )}
+          renderAnswer={renderRitualAnswer}
         />
       )}
       {aboutPractice && (

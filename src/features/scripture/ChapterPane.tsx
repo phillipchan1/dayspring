@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { fetchScriptureChapter, type ChapterVerse } from '@/lib/spiritual'
 import {
   citedVerseEdge,
@@ -15,6 +16,15 @@ export interface ChapterPaneProps {
   highlightVerseEnd?: number | null
   onClose: () => void
   onEdit?: () => void
+  /**
+   * Stand over the page instead of beside it.
+   *
+   * The pane is normally a column of the writing surface, which is exactly
+   * where a ritual's composer is not: it covers the whole window, so a verse
+   * clicked inside a ritual opened a pane nobody could see. Floating, it rides
+   * above the composer on the right, the same side it always opens on.
+   */
+  floating?: boolean
 }
 
 export function ChapterPane({
@@ -24,6 +34,7 @@ export function ChapterPane({
   highlightVerseEnd,
   onClose,
   onEdit,
+  floating = false,
 }: ChapterPaneProps) {
   const [verses, setVerses] = useState<ChapterVerse[] | null>(null)
   const [failed, setFailed] = useState(false)
@@ -85,10 +96,10 @@ export function ChapterPane({
     }
   }, [book, chapter, highlightVerse, highlightVerseEnd, verses])
 
-  return (
+  const pane = (
     <aside
       ref={paneRef}
-      className="chapter-pane"
+      className={floating ? 'chapter-pane chapter-pane--floating' : 'chapter-pane'}
       data-focused={focused ? 'true' : undefined}
       aria-label={heading}
     >
@@ -138,4 +149,5 @@ export function ChapterPane({
       </footer>
     </aside>
   )
+  return floating ? createPortal(pane, document.body) : pane
 }

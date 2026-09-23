@@ -246,6 +246,32 @@
   color: var(--text-bright);
 }
 
+/* Over a ritual. The composer covers the window, so the pane stands above it
+   on the right rather than taking a column of a surface that isn't showing. */
+.chapter-pane--floating {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  width: min(26rem, 100vw);
+  max-width: none;
+  background: var(--bg-elevated);
+  box-shadow: -18px 0 48px -24px rgba(0, 0, 0, 0.35);
+  animation: chapter-pane-float-in 0.22s cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+
+@keyframes chapter-pane-float-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (max-width: 720px) {
   .journal-write--with-pane {
     flex-direction: column;
@@ -269,6 +295,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chapter-pane--floating {
+    animation: none;
+  }
+
   .chapter-pane {
     --chapter-here-flash: 0ms;
     --chapter-here-glow: none;

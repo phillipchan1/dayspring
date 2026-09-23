@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RitualComposer } from './RitualComposer'
+import { RitualComposer, gistOf } from './RitualComposer'
 import { composeRitualMarkdown } from './ritualDocument'
 import { RitualHeaderWidget } from './ritualWidgets'
 import { PRACTICES } from './practicesData'
@@ -571,5 +571,19 @@ describe('RitualComposer', () => {
       act(() => tool.click())
       expect(onDelete).toHaveBeenCalled()
     })
+  })
+})
+
+describe('the rail’s gist of a walked movement', () => {
+  it('says what a marking holds, never its fence', () => {
+    const verse =
+      '```dayspring-scripture 8c1f3a2e-4b5d-4e6f-9a7b-1c2d3e4f5a6b\nHis mercies are new.\nLamentations 3:23 · ESV\n```'
+    const prayer = '```dayspring-pray 2d4e6f80-1a3b-4c5d-8e7f-9a0b1c2d3e4f\nGive me patience.\n```'
+    expect(gistOf(`${verse}\n\nHeld onto it.`)).toBe('Lamentations 3:23 · ESV Held onto it.')
+    expect(gistOf(prayer)).toBe('Give me patience.')
+  })
+
+  it('leaves plain writing as it was, on one line', () => {
+    expect(gistOf('Bread.\n\nAnd rain.')).toBe('Bread. And rain.')
   })
 })

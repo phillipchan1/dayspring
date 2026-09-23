@@ -368,6 +368,33 @@ export function liveRitualRange(state: EditorState): { from: number; to: number 
 // face turned a two-line question into three and pushed the writing line off a
 // phone screen entirely. The given voice having its own face fixes both, and
 // says the right thing besides: this sentence is not yours.
+/** The record's inset, in the ems of an answer line. */
+const RITUAL_INSET_EM = 1.15
+
+/**
+ * Marked lines inside a record, moved in by the record's inset.
+ *
+ * Each entry is a line class and its font size relative to an answer (see
+ * spiritualBlockDecoration.ts): the rule moves by the inset, and the indent
+ * becomes the inset plus the marking's own.
+ */
+function insetMarkedLines(): Record<string, Record<string, string>> {
+  const lines: [cls: string, size: number, indent: string][] = [
+    ['cm-scripture-line', 0.9, 'var(--scripture-indent, 1rem)'],
+    ['cm-scripture-cite', 0.66, 'var(--scripture-indent, 1rem)'],
+    ['cm-mark-line', 1, '0.85rem'],
+  ]
+  const rules: Record<string, Record<string, string>> = {}
+  for (const [cls, size, indent] of lines) {
+    const inset = `${+(RITUAL_INSET_EM / size).toFixed(4)}em`
+    rules[`.cm-line.cm-ritual-body.${cls}`] = {
+      paddingLeft: `calc(${inset} + ${indent})`,
+      backgroundPositionX: inset,
+    }
+  }
+  return rules
+}
+
 const practiceTheme = EditorView.theme({
   // Writing line beneath a prompt — a generous, obvious target to click into.
   '.cm-practice-answer': {
@@ -383,9 +410,16 @@ const practiceTheme = EditorView.theme({
   '.cm-ritual-body, .cm-practice-header, .cm-practice-prompt, .cm-ritual-colophon':
     {
       borderLeft: '1px solid color-mix(in srgb, var(--text-faint) 30%, transparent)',
-      paddingLeft: '1.15em',
+      paddingLeft: `${RITUAL_INSET_EM}em`,
       transition: 'border-color 220ms ease, background-color 220ms ease',
     },
+  // A marking inside an answer — a verse, a prayer — draws its own rule as a
+  // background at x=0 and sets its own indent, which threw away the record's:
+  // the verse's rule landed on the spine and its words sat left of every other
+  // answer. Shift both in by the record's inset. The inset is 1.15em of the
+  // ANSWER's size, so a line set smaller (a verse at 0.9em, its citation at
+  // 0.66em) needs the same distance in its own ems.
+  ...insetMarkedLines(),
   // Standing inside the practice lights its spine and lays down the faintest
   // ground. Stepping out lets go of both.
   '.cm-ritual-body--held, .cm-practice-header[data-held], .cm-practice-prompt[data-held], .cm-ritual-colophon[data-held]':

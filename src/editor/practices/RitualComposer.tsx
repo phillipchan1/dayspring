@@ -5,9 +5,11 @@ import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { track } from '@/lib/analytics'
 import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { PRACTICE_BY_NAME } from './practicesData'
 import { placeholderFor, questionFor } from './usePracticeInsertion'
 import {
+  answerOffset,
   composeRitualMarkdown,
   readRitual,
   ritualBlockRange,
@@ -77,6 +79,12 @@ export interface AnswerSlot {
   placeholder: string
   /** Hand back something that takes the caret, or null on unmount. */
   register: (handle: Focusable | null) => void
+  /**
+   * Where this answer begins in the entry, read at the moment of asking.
+   * Positions inside the answer's editor are the answer's own; anything stored
+   * against the entry (a mark on a verse) needs them shifted by this.
+   */
+  offset: () => number | null
 }
 
 export interface RitualEntryMode {
@@ -564,6 +572,7 @@ export function RitualComposer({
           if (i < CLOSE) paneRefs.current[i] = el
         }}
         renderAnswer={renderAnswer}
+        answerOffset={(n) => answerOffset(getDocRef.current(), blockIndex, n)}
         onWrite={write}
         go={go}
         leave={leave}
@@ -722,6 +731,25 @@ export function RitualComposer({
 /** ⌥ on Apple hardware, Alt everywhere else — the hint must match the key. */
 const ALT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌥' : 'Alt'
 
+/**
+ * A walked movement's words, as the rail says them back.
+ *
+ * An answer can hold a marking, and a marking is a fence — so a movement that
+ * opened with a verse or a prayer showed its markup and id in the rail. Each
+ * fence says what it holds instead: a verse its reference, anything else the
+ * writer's own words.
+ */
+export function gistOf(text: string): string {
+  const blocks = parseSpiritualBlocks(text)
+  let out = text
+  for (let n = blocks.length - 1; n >= 0; n--) {
+    const b = blocks[n]!
+    const said = (b.type === 'scripture' && b.reference) || b.content
+    out = out.slice(0, b.from) + said + out.slice(b.to)
+  }
+  return out.replace(/\s+/g, ' ').trim()
+}
+
 interface DeskProps {
   name: string
   origin: string | undefined
@@ -737,6 +765,7 @@ interface DeskProps {
   placeholder: (n: number) => string
   textareaRef: (el: Focusable | null) => void
   renderAnswer: ((answer: AnswerSlot) => React.ReactNode) | undefined
+  answerOffset: (n: number) => number | null
   onWrite: (n: number, value: string) => void
   go: (n: number) => void
   leave: () => void
@@ -832,6 +861,7 @@ function DeskLayout({
   placeholder,
   textareaRef,
   renderAnswer,
+  answerOffset,
   onWrite,
   go,
   leave,
@@ -889,7 +919,7 @@ function DeskLayout({
                   aria-current={n === i ? 'step' : undefined}
                 >
                   <span className="rc__path-label">{l}</span>
-                  {n !== i && filled(n) && <span className="rc__gist">{texts[n]}</span>}
+                  {n !== i && filled(n) && <span className="rc__gist">{gistOf(texts[n] ?? '')}</span>}
                 </button>
               </li>
             )
@@ -932,6 +962,7 @@ function DeskLayout({
                     onChange: (value) => onWrite(i, value),
                     placeholder: placeholder(i),
                     register: textareaRef,
+                    offset: () => answerOffset(i),
                   })}
                 </div>
               ) : (

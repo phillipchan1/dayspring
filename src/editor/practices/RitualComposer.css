@@ -599,3 +599,25 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 @media (prefers-reduced-motion: reduce) {
   .ritual-veil { animation: none; transition: none; }
 }
+
+/* ── The editor's own overlays, over a ritual ─────────────────────────────
+   An answer is written in the real editor, whose floating pieces — the format
+   bar (Mark, B/I/U, colour), the link popover, a photo's menu — were layered
+   for a page, at 198–209. The composer covers the window at 1000, so inside a
+   ritual every one of them opened underneath it: a drag across a verse showed
+   nothing, and Mark could not be reached at all. Lifted only while a composer
+   is mounted, so the order everywhere else is untouched. (The slash palette
+   and the capture popovers already sit far above.) */
+html:has(.ritual-composer) .format-bar { z-index: 1010; }
+html:has(.ritual-composer) .link-popover { z-index: 1011; }
+html:has(.ritual-composer) .entry-context-backdrop { z-index: 1011; }
+html:has(.ritual-composer) .entry-context-menu { z-index: 1012; }
+html:has(.ritual-composer) .entry-context-backdrop--confirm { z-index: 1019; }
+
+/* A verse's chapter, opened from an answer, floats over the right of the
+   window (ChapterPane `floating`). The page steps aside for it — the same
+   side-by-side the entry gets — so the verse you clicked stays in view. */
+html:has(.chapter-pane--floating) .rc--desk .rc__desk {
+  margin-right: min(26rem, 100vw);
+  transition: margin-right 0.22s cubic-bezier(0.22, 0.68, 0.36, 1);
+}
