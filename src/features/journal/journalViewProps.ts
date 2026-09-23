@@ -6,6 +6,7 @@ import type { EntryReturnContext } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
 import type { SaveStatus } from '@/hooks/useAutosave'
 import type { SlashCommandId } from '@/editor/slashDetect'
+import type { TabSurface } from './tabRoot'
 
 export interface FocusApi {
   active: boolean
@@ -74,10 +75,10 @@ export interface JournalViewProps {
   /** ⌘1 / rail "Pages" / mobile tab — the archive itself. */
   onPages: () => void
   /**
-   * The phone's Journal tab, tapped while already on Pages: close an open page
-   * back to the wall. False when there was nothing open to close.
+   * A phone tab tapped while already on its surface: close whatever is open over
+   * the surface's root (a page, a book, a drill-in). False when already there.
    */
-  onPagesToWall: () => boolean
+  onTabRoot: (tab: TabSurface) => boolean
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
   /** True when Looking back fills the main canvas. */

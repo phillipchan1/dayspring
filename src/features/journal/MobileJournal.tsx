@@ -20,6 +20,7 @@ import { useRef, type ReactNode } from 'react'
 import type { JournalViewProps } from './journalViewProps'
 import { YouMenu } from './YouMenu'
 import { scrollToTop } from './scrollToTop'
+import type { TabSurface } from './tabRoot'
 
 /**
  * Mobile: a single, full-width column. Controls live in a thumb-reachable
@@ -37,7 +38,7 @@ export function MobileJournal(props: JournalViewProps) {
     onNew, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     userEmail, onLifeMap, onRitualThreads, hasWalkedARitual, concordanceEnabled,
     settings, updateSettings, focus,
-    onPages, onPagesToWall, mainSlot,
+    onPages, onTabRoot, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
@@ -103,22 +104,23 @@ export function MobileJournal(props: JournalViewProps) {
   const journalChrome = !canvasTaken
 
   /*
-   * The Journal tab is a tab, not a toggle.
+   * The bar holds tabs, not toggles.
    *
-   * It used to share ⌘1's "press again to come back" — on the wall, a second
-   * tap popped you back to whatever you had left, so tapping it twice flipped
-   * between the wall and the page. A tab bar never does that: tapping the tab
-   * you are on keeps you there — an open page closes to the wall, and on the
-   * wall it goes back to the top. The desktop rail and ⌘1 keep their toggle;
-   * this is the phone's bar only.
+   * Each used to share its shortcut's "press again to come back" (⌘1 and the
+   * rest) — a second tap popped you back to whatever you had left, so tapping
+   * Journal twice flipped between the wall and the page. A tab bar never does
+   * that: tapping the tab you are on keeps you there. Whatever is open over the
+   * surface (a page, a book, a drill-in) closes; at the root, it goes back to
+   * the top. The desktop rail and the shortcuts keep their toggle; this is the
+   * phone's bar only.
    */
   const canvasRef = useRef<HTMLDivElement>(null)
-  const onJournalTab = () => {
-    if (!pagesActive) {
-      onPages()
+  const tab = (surface: TabSurface, active: boolean, open: () => void) => () => {
+    if (!active) {
+      open()
       return
     }
-    if (onPagesToWall()) return
+    if (onTabRoot(surface)) return
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     scrollToTop(canvasRef.current, !reduce)
   }
@@ -240,20 +242,20 @@ export function MobileJournal(props: JournalViewProps) {
           <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
             <MobileTab
               label="Journal"
-              onClick={onJournalTab}
+              onClick={tab('pages', pagesActive, onPages)}
               active={pagesActive}
               icon={<IconPages size={22} />}
             />
             <MobileTab
               label="Ascent"
-              onClick={onLookBack}
+              onClick={tab('reflections', reflectionsActive, onLookBack)}
               active={reflectionsActive}
               ember={dot.reflections && !reflectionsActive}
               icon={<IconAscent size={22} />}
             />
             <MobileTab
               label="Lamp"
-              onClick={onScripture}
+              onClick={tab('scripture', scriptureActive, onScripture)}
               active={scriptureActive}
               ember={dot.scripture && !scriptureActive}
               icon={<IconScripture size={22} />}
@@ -261,7 +263,7 @@ export function MobileJournal(props: JournalViewProps) {
             {altarEnabled && (
               <MobileTab
                 label="Altar"
-                onClick={onAltar}
+                onClick={tab('altar', altarActive, onAltar)}
                 active={altarActive}
                 ember={dot.altar && !altarActive}
                 icon={<IconAltar size={22} />}

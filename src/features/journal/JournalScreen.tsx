@@ -51,6 +51,7 @@ import type { EntryMenuAction } from './EntryContextMenu'
 import { EntryEditDateModal } from './EntryEditDateModal'
 import { isEntryRowTarget } from './useSuppressNativeContextMenu'
 import type { JournalViewProps } from './journalViewProps'
+import { tabRootPatch } from './tabRoot'
 import { MARK_KIND, kindForCommand } from '@/lib/markKinds'
 import { canMarkExistingLines } from '@/lib/markSelection'
 import { InlineDeclaredPopover } from '@/features/capture/InlineDeclaredPopover'
@@ -2561,10 +2562,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     updateSettings,
     focus,
     onPages: goToPages,
-    onPagesToWall: () => {
-      // The reader's own "All entries" close — a destination, never `back()`.
-      if (!pagesActive || !state.pagesSpreadId) return false
-      go({ pagesSpreadId: null }, { replace: true })
+    onTabRoot: (tab) => {
+      const patch = tabRootPatch(state, tab)
+      if (!patch) return false
+      go(patch, { replace: true })
       return true
     },
     onDrawerNavigated: consumeDrawerFrame,
