@@ -50,7 +50,7 @@
  * 50 pages on a 900px viewport — still denser than the panel this replaced,
  * with enough rhythm to browse rather than merely count.
  */
-const ROWS = { minWidth: 420, cardHeight: 31, gap: 3, maxCols: 2, lines: 1 }
+const ROWS = { minWidth: 420, cardHeight: 31, gap: 3, maxCols: 2, lines: 1, textRem: 0.79 }
 
 /**
  * A phone gets ONE rendering, and no slider at all.
@@ -102,10 +102,16 @@ const ROWS = { minWidth: 420, cardHeight: 31, gap: 3, maxCols: 2, lines: 1 }
  * `.pgr` clips on narrow so that even a reader who has scaled past the slack
  * gets a tidy row rather than one bleeding into the next.
  */
-const NARROW_ROWS = { minWidth: 260, cardHeight: 76, gap: 1, maxCols: 1, lines: 2 }
+const NARROW_ROWS = { minWidth: 260, cardHeight: 76, gap: 1, maxCols: 1, lines: 2, textRem: 0.79 }
 
-/** Far end: many pages at once. You read shape, dates, and where your marks fall. */
-const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, lines: 6 }
+/**
+ * Far end: many pages at once. You read shape, dates, and where your marks fall.
+ *
+ * The type here is the size the wall has always used, and it goes no smaller:
+ * at this distance the prose is texture you recognise rather than read, but it
+ * must still be legible the moment you look at one card.
+ */
+const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, textRem: 0.79 }
 /**
  * Near end: the largest a card gets, and still a card.
  *
@@ -115,19 +121,25 @@ const FAR = { minWidth: 150, cardHeight: 190, gap: 12, maxCols: 8, lines: 6 }
  * its first, but a short page's neighbour is a different day entirely, so half
  * of what you were reading was someone else's morning.
  *
- * Three across at this end, holding twenty lines of prose — enough to read a
- * page's substance and decide, which is what the near end of a WALL is for. To
- * read the whole of one, open it.
+ * Three across at this end, holding enough prose to read a page's substance and
+ * decide, which is what the near end of a WALL is for. To read the whole of one,
+ * open it.
  *
- * `lines` is not a taste call at either end: a card is `colWidth × 4/3` tall,
- * its body is what the date and padding leave, and a line of `.pgc__line` costs
- * `0.79rem × 1.5` plus `0.4rem` of margin — about 25px. FAR's card is ~200px
- * tall and holds six; NEAR's is ~575 and holds twenty. Ask for fewer and every
- * card carries a band of empty paper; ask for more and the overflow clips under
- * the fade, which reads as "there is more here" and is true. So it errs high
- * rather than low.
+ * ── The type comes closer too ───────────────────────────────────────────────
+ *
+ * Standing closer to a wall makes the writing on it bigger. For a long time this
+ * one didn't: every card set its prose at 0.79rem, so the near end was the far
+ * end with larger boxes — more lines of the same small type, which is reflow,
+ * not zoom. So the prose grows with the card, across a deliberately narrow
+ * range: the far end is for shape and must not shrink below legible, and the
+ * near end stays under the open page's own size, so opening one still reads as
+ * stepping in. 1rem across a ~450px card is also a better measure (~55–60
+ * characters) than the ~70 the old size gave.
+ *
+ * Only the prose. Dates, markings and the ritual label are facts about the page
+ * set in the app's small mono voice, and they stay put.
  */
-const NEAR = { minWidth: 320, cardHeight: 430, gap: 20, maxCols: 3, lines: 20 }
+const NEAR = { minWidth: 320, cardHeight: 430, gap: 20, maxCols: 3, textRem: 1 }
 
 /**
  * Where a card stops being a card and becomes a row.
@@ -170,6 +182,46 @@ export function densityLabel(perScreen: number): string {
  * budget changes on every frame of a pinch and rebuilding 3,500 excerpts at
  * 60fps is the one thing that would make this surface feel slow.
  */
+export const EXCERPT_MAX_LINES = 20
+
+/**
+ * What a card spends on everything that is not prose, in px: 0.85rem + 0.7rem
+ * of padding, the 1px border, and the date line with its 0.5rem margin.
+ * Measured on the wall (card height minus `.pgc__body`), not added up.
+ */
+export const CARD_CHROME_PX = 47
+
+/**
+ * One line of `.pgc__line` at `textRem`, in px: a 1.5 line-height plus a
+ * 0.5em margin. The margin is in em so the rhythm scales with the type; at the
+ * far end it is the 0.4rem it always was.
+ */
+export function cardLineCostPx(textRem: number): number {
+  return textRem * 16 * (1.5 + 0.5)
+}
+
+/**
+ * How many lines a card of `cardHeight` holds at `textRem`.
+ *
+ * An excerpt line is a paragraph, and a paragraph wraps — so this is a ceiling
+ * computed as if every line were one row. That makes it the budget that never
+ * leaves empty paper; a page of long paragraphs still runs under the fade.
+ *
+ * Not a taste call: the body is what the chrome leaves, divided by what a line
+ * costs. Rounded UP — ask for fewer and every card carries a band of empty
+ * paper; ask for one more and it clips under the fade, which reads as "there is
+ * more here" and is true. So it errs high by at most a line.
+ *
+ * Computed from the card's REAL height, which is `colWidth × 4/3` and so depends
+ * on the window, not from the spec's nominal one. A fixed budget per zoom level
+ * could only ever be right on one width of display.
+ */
+export function cardLinesFor(textRem: number, cardHeight: number): number {
+  const body = cardHeight - CARD_CHROME_PX
+  const lines = Math.ceil(body / cardLineCostPx(textRem))
+  return Math.max(1, Math.min(EXCERPT_MAX_LINES, lines))
+}
+
 /**
  * A card is a portrait: `colWidth × 4/3` is what makes it read as a page rather
  * than a tile.
@@ -183,8 +235,6 @@ export function cardHeightFor(spec: ZoomSpec, colWidth: number): number {
   return Math.round((colWidth * 4) / 3)
 }
 
-export const EXCERPT_MAX_LINES = NEAR.lines
-
 export interface ZoomSpec {
   /** Narrowest a page may get before dropping a column. */
   minWidth: number
@@ -192,8 +242,13 @@ export interface ZoomSpec {
   gap: number
   /** Never more than this many columns, however wide the screen. */
   maxCols: number
-  /** Excerpt lines this size can hold. A budget, not a promise. */
+  /**
+   * Excerpt lines this size can hold at its nominal height. A budget, not a
+   * promise — the wall asks `cardLinesFor` with the card's measured height.
+   */
   lines: number
+  /** The prose size, in rem. Rows keep their own CSS and ignore it. */
+  textRem: number
 }
 
 /**
@@ -233,12 +288,17 @@ export function specForZoom(zoom: number, narrow = false): ZoomSpec {
   // The card bands own what is left of the slider, renormalised — otherwise
   // adding a band at the bottom would silently shift every card size above it.
   const t = (z - ROWS_ZOOM) / (ZOOM_MAX - ROWS_ZOOM)
+  const cardHeight = lerp(far.cardHeight, near.cardHeight, t)
+  // Hundredths of a rem: fine enough to glide under a pinch, coarse enough that
+  // neighbouring notches don't each restyle the wall for an invisible change.
+  const textRem = Math.round((far.textRem + (near.textRem - far.textRem) * t) * 100) / 100
   return {
     minWidth: lerp(far.minWidth, near.minWidth, t),
-    cardHeight: lerp(far.cardHeight, near.cardHeight, t),
+    cardHeight,
     gap: lerp(far.gap, near.gap, t),
     maxCols: lerp(far.maxCols, near.maxCols, t),
-    lines: lerp(far.lines, near.lines, t),
+    lines: cardLinesFor(textRem, cardHeight),
+    textRem,
   }
 }
 

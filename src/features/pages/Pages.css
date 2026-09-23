@@ -1030,12 +1030,16 @@ button.pg__sense-q:hover {
   text-transform: uppercase;
   color: var(--text-faint);
 }
+/* The size comes from the zoom spec (`textRem`, zoom.ts): the prose grows as you
+   stand closer, and the line budget is computed from this same number and this
+   same 1.5 + 0.5em rhythm. Change one without the other and cards either clip
+   mid-thought or carry a band of empty paper. */
 .pgc__line {
   font-family: var(--font-editor);
-  font-size: 0.79rem;
+  font-size: var(--pg-card-text, 0.79rem);
   line-height: 1.5;
   color: var(--text);
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.5em;
   overflow-wrap: anywhere;
 }
 
@@ -4494,6 +4498,7 @@ button.pg__sense-q:hover {
     inline-size: auto;
     vertical-align: -0.15em;
   }
+
 }
 
 /*

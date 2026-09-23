@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CARD_CHROME_PX,
   cardHeightFor,
+  cardLineCostPx,
+  cardLinesFor,
   clampZoom,
   densityLabel,
   EXCERPT_MAX_LINES,
@@ -14,6 +17,7 @@ import {
 } from './zoom'
 
 const FIELDS = ['minWidth', 'cardHeight', 'gap', 'lines'] as const
+const GROWS = [...FIELDS, 'textRem'] as const
 
 describe('specForZoom', () => {
   /**
@@ -37,7 +41,7 @@ describe('specForZoom', () => {
     let prev = specForZoom(ROWS_ZOOM)
     for (let z = ROWS_ZOOM + 0.01; z <= 1.0001; z += 0.01) {
       const spec = specForZoom(z)
-      for (const k of FIELDS) expect(spec[k]).toBeGreaterThanOrEqual(prev[k])
+      for (const k of GROWS) expect(spec[k]).toBeGreaterThanOrEqual(prev[k])
       // Columns go the other way: closer means fewer pages across.
       expect(spec.maxCols).toBeLessThanOrEqual(prev.maxCols)
       prev = spec
@@ -48,8 +52,13 @@ describe('specForZoom', () => {
     const far = specForZoom(ROWS_ZOOM)
     const near = specForZoom(ZOOM_MAX)
     expect(near.cardHeight).toBeGreaterThan(far.cardHeight * 2)
-    expect(near.lines).toBeGreaterThan(far.lines * 2)
     expect(far.maxCols).toBeGreaterThan(near.maxCols)
+    // Measured on the cards a 1440px wall actually lays out, not the nominal
+    // heights: bigger type costs lines, and the near end must still hold
+    // more than twice what the far end does.
+    const far1440 = cardAt(ROWS_ZOOM, 1440)
+    const near1440 = cardAt(ZOOM_MAX, 1440)
+    expect(near1440.lines).toBeGreaterThan(far1440.lines * 2)
   })
 
   // Excerpts are built once at this ceiling and sliced per card, so the ceiling
@@ -57,13 +66,64 @@ describe('specForZoom', () => {
   it('never asks for more lines than an excerpt is built with', () => {
     for (let z = 0; z <= 1.0001; z += 0.01) {
       expect(specForZoom(z).lines).toBeLessThanOrEqual(EXCERPT_MAX_LINES)
+      for (const w of [900, 1440, 2560, 3840]) {
+        expect(cardAt(z, w).lines).toBeLessThanOrEqual(EXCERPT_MAX_LINES)
+      }
     }
-    expect(specForZoom(ZOOM_MAX).lines).toBe(EXCERPT_MAX_LINES)
+    // A tall enough card reaches the ceiling rather than stopping short of it.
+    expect(cardAt(ZOOM_MAX, 3840).lines).toBe(EXCERPT_MAX_LINES)
   })
 
   it('treats out-of-range input as the nearest end rather than throwing', () => {
     expect(specForZoom(-5)).toEqual(specForZoom(ZOOM_MIN))
     expect(specForZoom(99)).toEqual(specForZoom(ZOOM_MAX))
+  })
+})
+
+describe('the type comes closer too', () => {
+  /*
+   * Standing closer to a wall makes the writing bigger. For a long time only
+   * the boxes grew — the near end was the far end with more lines of the same
+   * 0.79rem prose. This is the guard against sliding back to that.
+   */
+  it('sets the prose larger at the near end than the far end', () => {
+    expect(specForZoom(ZOOM_MAX).textRem).toBeGreaterThan(specForZoom(ROWS_ZOOM).textRem * 1.2)
+  })
+
+  // The far end is for shape, but a card you glance at must still be legible.
+  it('never sets the prose smaller than the wall always has', () => {
+    for (let z = ROWS_ZOOM; z <= 1.0001; z += 0.01) {
+      expect(specForZoom(z).textRem).toBeGreaterThanOrEqual(0.79)
+    }
+  })
+
+  // The open page is set at the editor's size (~1.05rem and up). A card that
+  // matched it would make opening a page stop feeling like stepping in.
+  it('stays under the size of an open page', () => {
+    expect(specForZoom(ZOOM_MAX).textRem).toBeLessThanOrEqual(1)
+  })
+
+  /*
+   * The line budget and the CSS read the same number, so a card is handed the
+   * lines it has room for: never a band of empty paper, and never more than
+   * one line spilling under the fade.
+   */
+  it('asks for the lines a card has room for, erring high by at most one', () => {
+    for (let z = ROWS_ZOOM; z <= 1.0001; z += 0.05) {
+      for (const w of [900, 1440, 1920]) {
+        const { spec, height, lines } = cardAt(z, w)
+        const body = height - CARD_CHROME_PX
+        const cost = cardLineCostPx(spec.textRem)
+        if (lines === EXCERPT_MAX_LINES) continue
+        expect(lines * cost).toBeGreaterThanOrEqual(body)
+        expect((lines - 1) * cost).toBeLessThan(body)
+      }
+    }
+  })
+
+  it('never hands a card zero lines, however small', () => {
+    expect(cardLinesFor(0.79, 0)).toBe(1)
+    expect(cardLinesFor(1, 20)).toBe(1)
   })
 })
 
@@ -202,6 +262,15 @@ function perScreen(zoom: number, width: number, height: number, narrow: boolean)
   const colWidth = Math.floor((width - spec.gap * (cols - 1)) / cols)
   const h = isRows(zoom, narrow) ? spec.cardHeight : cardHeightFor(spec, colWidth)
   return Math.max(1, Math.floor(height / (h + spec.gap)) * cols)
+}
+
+/** The card the wall lays out at `zoom` on a `width` px wall, and what it holds. */
+function cardAt(zoom: number, width: number) {
+  const spec = specForZoom(zoom)
+  const cols = Math.max(1, Math.min(spec.maxCols, Math.floor((width + spec.gap) / (spec.minWidth + spec.gap))))
+  const colWidth = Math.floor((width - spec.gap * (cols - 1)) / cols)
+  const height = isRows(zoom) ? spec.cardHeight : cardHeightFor(spec, colWidth)
+  return { spec, height, lines: cardLinesFor(spec.textRem, height) }
 }
 
 const PHONE = { w: 335, h: 700 }

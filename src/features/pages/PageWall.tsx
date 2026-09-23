@@ -40,7 +40,7 @@ import {
 } from './wallItems'
 import { pageExcerpt, type PageExcerpt } from './pageExcerpt'
 import { useWallMarquee } from './useWallMarquee'
-import { cardHeightFor, clampZoom, isRows, specForZoom, wheelZoomDelta } from './zoom'
+import { cardHeightFor, cardLinesFor, clampZoom, isRows, specForZoom, wheelZoomDelta } from './zoom'
 import {
   buildWallRows,
   chooseGrain,
@@ -460,6 +460,10 @@ export function PageWall({
    */
   const cardHeight = rows ? spec.cardHeight : cardHeightFor(spec, colWidth)
   const rowHeight = cardHeight + spec.gap
+  // What this card actually holds, at the size its prose is actually set in —
+  // from the measured height, so a wide display gets the lines its taller cards
+  // have room for rather than the nominal budget for some other width.
+  const cardLines = cardLinesFor(spec.textRem, cardHeight)
   const virtual = useVirtualRange(scrollRef, rowCount, rowCount > 6, rowHeight)
 
   /**
@@ -1156,6 +1160,9 @@ export function PageWall({
             // CSS reads the card height from here so the windowing math above
             // stays the only definition of it.
             ['--pg-card-h' as string]: `${cardHeight}px`,
+            // And the prose size, from the same spec as the line budget, so the
+            // lines a card is handed are the lines it has room for.
+            ['--pg-card-text' as string]: `${spec.textRem}rem`,
             // The spine between two open pages is drawn from the gutter.
             ['--pg-gutter' as string]: `${spec.gap}px`,
           }}
@@ -1306,7 +1313,7 @@ export function PageWall({
                 entryId={item.entry.id}
                 dateIso={item.entry.created_at}
                 excerpt={excerptFor(item.entry)}
-                maxLines={spec.lines}
+                maxLines={cardLines}
                 match={match}
                 dim={lit !== null && !lit.has(item.entry.id)}
                 active={item.entry.id === activeId && !item.echo}
