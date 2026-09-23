@@ -32,6 +32,7 @@ import path from 'node:path'
 
 export const ASSET_BASE = 'https://www.usedayspring.app/email/welcome/'
 export const APP_URL = 'https://dayspring-eosin.vercel.app'
+export const OPEN_APP = 'dayspring://open'
 export const MAC_DOWNLOAD =
   'https://github.com/phillipchan1/dayspring-releases/releases/latest/download/Dayspring-aarch64.dmg'
 export const UNSUBSCRIBE = '{{{RESEND_UNSUBSCRIBE_URL}}}'
@@ -39,8 +40,17 @@ export const UNSUBSCRIBE = '{{{RESEND_UNSUBSCRIBE_URL}}}'
 /** The one custom variable. Resend reserves FIRST_NAME inside Templates. */
 export const VARIABLES = [{ key: 'NAME', type: 'string', fallback_value: 'there' }]
 
+/** Day 13 trial only. Days 0–9 open the installed app, not the Vercel web URL. */
 const appLink = (campaign) =>
   `${APP_URL}/?utm_source=email&utm_medium=welcome&utm_campaign=${campaign}`
+
+const MAC_ALSO = {
+  preface: 'Don’t have the app?',
+  label: 'Download for Mac',
+  href: MAC_DOWNLOAD,
+}
+
+const openApp = (label) => ({ label, href: OPEN_APP, also: MAC_ALSO })
 
 /**
  * Block grammar — deliberately tiny, so the HTML stays email-safe:
@@ -50,7 +60,7 @@ const appLink = (campaign) =>
  *   ['img', {src, alt}]      full-bleed 600px still
  *   ['gif', {src, alt}]      inset 560px, rounded, for a screen recording
  *   ['pair', [img, img]]     side by side; stacks under 620px
- *   ['cta', {label, href, also?: {label, href}}]
+ *   ['cta', {label, href, also?: {preface, label, href}}]
  *   ['sign']
  */
 export const EMAILS = [
@@ -66,8 +76,8 @@ export const EMAILS = [
       ['p', 'You don’t need a system to begin. Open a page and write one honest line: what’s on your mind, what you’re carrying, what you’re thankful for. It saves as you go.'],
       ['img', { src: 'page.jpg', alt: 'The Dayspring app on a quiet first page, with the sidebar down its left edge' }],
       ['p', 'Over the next two weeks we’ll send a handful of short notes, one thing at a time, so you can find your way around without reading a manual.'],
-      ['p', 'Dayspring works in your browser and as a Mac app, and both open the same journal.'],
-      ['cta', { label: 'Open Dayspring →', href: appLink('welcome'), also: { label: 'download the Mac app', href: MAC_DOWNLOAD } }],
+      ['p', 'Dayspring is a Mac and iPhone app — open it to pick up where you left off.'],
+      ['cta', openApp('Open Dayspring →')],
       ['p', 'If anything is confusing, or you can’t find something, just reply to this email. A real person reads every one.'],
       ['sign'],
     ],
@@ -91,7 +101,7 @@ export const EMAILS = [
       ['p', 'Keep typing to narrow it (`/pray`, `/scripture`, `/highlight`), then press Enter.'],
       ['p', 'Prefer the mouse? The **+** beside any line opens the same menu.'],
       ['p', 'Whatever you add this way is kept together, which is what lets Dayspring gather your prayers and verses later on. More about that next week.'],
-      ['cta', { label: 'Write a page →', href: appLink('slash') }],
+      ['cta', openApp('Write a page →')],
       ['sign'],
     ],
   },
@@ -117,7 +127,7 @@ export const EMAILS = [
             ['p', '**Kept a journal somewhere else?** Bring it with you. Dayspring imports Day One and Diarly exports in about a minute. Your original dates are kept, and every Scripture reference you ever wrote is found along the way. Open **Settings → Import & backup**.'],
           ]
         : []),
-      ['cta', { label: 'Open your Journal →', href: appLink('journal') }],
+      ['cta', openApp('Open your Journal →')],
       ['sign'],
     ],
   })),
@@ -134,7 +144,7 @@ export const EMAILS = [
       ['img', { src: 'rituals.jpg', alt: 'The ritual library: The Morning Offering and New Every Morning, each with its tradition and first line' }],
       ['p', 'To begin one, open a blank page and look at the foot of it, or type `/ritual`.'],
       ['p', 'If you’ve never tried one, start with *New Every Morning*. It’s three short questions and takes about three minutes.'],
-      ['cta', { label: 'Try a ritual →', href: appLink('rituals') }],
+      ['cta', openApp('Try a ritual →')],
       ['sign'],
     ],
   },
@@ -157,7 +167,7 @@ export const EMAILS = [
       ['p', '**The Altar.** Your prayers, gathered by the people and things you keep bringing to God.'],
       ['p', 'All three fill in as you write, so if they look quiet right now, that’s expected. They’re made for the long view.'],
       ['find', 'Find them: Ascent, Lamp and Altar in the sidebar (⌘3, ⌘4, ⌘5).'],
-      ['cta', { label: 'See your Ascent →', href: appLink('told-back') }],
+      ['cta', openApp('See your Ascent →')],
       ['sign'],
     ],
   },
@@ -238,7 +248,7 @@ function blockHtml([type, arg]) {
       // The secondary link gets its own line: a second table cell beside the
       // button can't be made to wrap reliably across mail clients.
       const also = arg.also
-        ? `<p style="margin:14px 0 0;font-family:${SERIF};font-size:15px;line-height:1.5;color:${MUTED};">or <a href="${esc(arg.also.href)}" style="color:${RUST};">${esc(arg.also.label)}</a></p>`
+        ? `<p style="margin:14px 0 0;font-family:${SERIF};font-size:15px;line-height:1.5;color:${MUTED};">${esc(arg.also.preface)} <a href="${esc(arg.also.href)}" style="color:${RUST};">${esc(arg.also.label)}</a></p>`
         : ''
       return `<tr><td class="px" style="${TEXT_TD}padding-top:6px;padding-bottom:22px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:${RUST};border-radius:999px;"><a href="${esc(arg.href)}" style="display:inline-block;padding:13px 26px;font-family:${SERIF};font-size:16px;color:#fffaf2;text-decoration:none;white-space:nowrap;">${esc(arg.label)}</a></td></tr></table>${also}</td></tr>`
     }
@@ -261,7 +271,10 @@ function blockText([type, arg]) {
     case 'pair':
       return null
     case 'cta':
-      return [`${arg.label.replace(/ →$/, '')}: ${arg.href}`, arg.also && `Or ${arg.also.label}: ${arg.also.href}`]
+      return [
+        `${arg.label.replace(/ →$/, '')}: ${arg.href}`,
+        arg.also && `${arg.also.preface} ${arg.also.label}: ${arg.also.href}`,
+      ]
         .filter(Boolean)
         .join('\n')
     case 'sign':

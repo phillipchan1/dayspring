@@ -14,7 +14,8 @@ Prefer the mouse? The + beside any line opens the same menu.
 
 Whatever you add this way is kept together, which is what lets Dayspring gather your prayers and verses later on. More about that next week.
 
-Write a page: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=slash
+Write a page: dayspring://open
+Don’t have the app? Download for Mac: https://github.com/phillipchan1/dayspring-releases/releases/latest/download/Dayspring-aarch64.dmg
 
 The Dayspring team
 
