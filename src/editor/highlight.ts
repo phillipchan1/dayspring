@@ -10,16 +10,10 @@ import { tags as t } from '@lezer/highlight'
  * Colors come from the One Dark token set in themes.css (via var(--…)).
  */
 export const markdownHighlight = HighlightStyle.define([
-  // Headings — the voice's display face, at the scale that voice sets.
-  //
-  // These used to be the BODY face at a hardcoded 1.6em/700 with no family at
-  // all, which is why every palette set headings identically and why a 600 on
-  // heading3 silently rounded under a 400/700-only writing face. The family and
-  // the weights now travel together: a voice that asks for 500 also ships 500.
-  { tag: t.heading1, fontFamily: 'var(--font-display)', fontSize: 'var(--h1-size)', fontWeight: 'var(--h1-weight)', letterSpacing: 'var(--h1-track)', color: 'var(--md-heading)', lineHeight: 'var(--h1-lh)' },
-  { tag: t.heading2, fontFamily: 'var(--font-display)', fontSize: 'var(--h2-size)', fontWeight: 'var(--h2-weight)', letterSpacing: 'var(--h1-track)', color: 'var(--md-heading)', lineHeight: '1.3' },
-  { tag: t.heading3, fontFamily: 'var(--font-display)', fontSize: 'var(--h3-size)', fontWeight: 'var(--h3-weight)', letterSpacing: 'var(--h1-track)', color: 'var(--md-heading)' },
-  { tag: [t.heading4, t.heading5, t.heading6], fontFamily: 'var(--font-display)', fontSize: '1.05em', fontWeight: 'var(--h3-weight)', color: 'var(--md-heading)' },
+  // Headings and quotes are NOT here. They're line decorations — see
+  // blockLineStyles in proseHighlighting.ts — so they can paint on the line
+  // being typed without splitting its text (Safari autocorrect), and so their
+  // `em` sizes can't compound with a mark nested inside the line.
 
   // Inline emphasis.
   { tag: t.strong, fontWeight: '700', color: 'var(--text-bright)' },
@@ -44,9 +38,6 @@ export const markdownHighlight = HighlightStyle.define([
   // Links.
   { tag: t.link, color: 'var(--md-link)', textDecoration: 'underline' },
   { tag: t.url, color: 'var(--md-link)' },
-
-  // Quotes.
-  { tag: t.quote, fontStyle: 'italic', color: 'var(--md-quote)' },
 
   // List markers fade via t.processingInstruction below — the grammar tags
   // ListMark with it. Deliberately NO t.list rule: the markdown grammar applies

@@ -1,6 +1,14 @@
 import { syntaxTree } from '@codemirror/language'
-import type { EditorSelection, Range, Text } from '@codemirror/state'
-import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
+import { Prec, type EditorSelection, type EditorState, type Range, type Text } from '@codemirror/state'
+import {
+  Decoration,
+  EditorView,
+  keymap,
+  ViewPlugin,
+  type Command,
+  type DecorationSet,
+  type ViewUpdate,
+} from '@codemirror/view'
 import { posInsideBlock, spiritualBlocksField } from './spiritualBlocksField'
 import { isPracticeTokenLine } from '@/lib/practiceTokens'
 
@@ -59,13 +67,17 @@ const SPAN_OF_MARK: Record<string, true> = {
   Underline: true,
   Link: true,
   Image: true,
-  ATXHeading1: true,
-  ATXHeading2: true,
-  ATXHeading3: true,
-  ATXHeading4: true,
-  ATXHeading5: true,
-  ATXHeading6: true,
 }
+
+/*
+ * Headings are deliberately NOT in SPAN_OF_MARK. A heading is a whole line, so
+ * "reveal while the caret touches it" meant the `## ` stayed on screen the
+ * entire time you typed the heading and only vanished on Enter. Instead the
+ * leading hashes hide the moment `## ` is complete and stay hidden while you
+ * write; they come back only with the caret at the very start of the line
+ * (Home, or arrowing left past the text). Backspace and Enter at the start of
+ * the text are handled below so neither lands on an invisible character.
+ */
 
 const hidden = Decoration.replace({})
 
@@ -83,6 +95,77 @@ function touched(sel: EditorSelection, from: number, to: number): boolean {
     if (r.from <= to && r.to >= from) return true
   }
   return false
+}
+
+/**
+ * The leading `## ` (hashes + space, `[from, to)`) shows only when a selection
+ * reaches into it — the caret at the line start, or a range that starts before
+ * the text. A caret at `to`, the start of the heading text, keeps it hidden:
+ * that's where the caret sits the moment the space is typed.
+ */
+function revealsLeadingMark(sel: EditorSelection, from: number, to: number): boolean {
+  for (const r of sel.ranges) {
+    if (r.from < to && r.to >= from) return true
+  }
+  return false
+}
+
+/**
+ * The hidden leading `## ` of the heading on the caret's line, when the caret
+ * sits exactly where the heading text starts. Null otherwise.
+ */
+function hiddenHeadingMarkAtCaret(state: EditorState): { from: number; to: number } | null {
+  const sel = state.selection.main
+  if (!sel.empty || state.selection.ranges.length > 1) return null
+  const line = state.doc.lineAt(sel.head)
+  const m = /^ {0,3}#{1,6} /.exec(line.text)
+  if (!m || sel.head !== line.from + m[0].length) return null
+  // Confirm with the tree — inside a fence, `## ` is not a heading.
+  const node = syntaxTree(state).resolveInner(line.from + m[0].length - 1, -1)
+  for (let n: typeof node | null = node; n; n = n.parent) {
+    if (/^ATXHeading[1-6]$/.test(n.name)) return { from: line.from, to: sel.head }
+  }
+  return null
+}
+
+/**
+ * Backspace at the start of the heading text: the character before the caret
+ * is the hidden space, and deleting it alone would leave `##title` — no longer
+ * a heading, hashes suddenly back. Remove the whole marker instead, turning the
+ * heading back into a paragraph. (What Notion, Bear and Pages all do.)
+ */
+const demoteHeading: Command = ({ state, dispatch }) => {
+  const mark = hiddenHeadingMarkAtCaret(state)
+  if (!mark) return false
+  dispatch(
+    state.update({
+      changes: { from: mark.from, to: mark.to },
+      selection: { anchor: mark.from },
+      userEvent: 'delete.backward',
+      scrollIntoView: true,
+    }),
+  )
+  return true
+}
+
+/**
+ * Enter at the start of non-empty heading text: split there and the text below
+ * becomes a plain paragraph, leaving an empty heading behind. The writer meant
+ * "give me a line above", so open one and keep the heading whole.
+ */
+const openLineAboveHeading: Command = ({ state, dispatch }) => {
+  const mark = hiddenHeadingMarkAtCaret(state)
+  if (!mark) return false
+  if (state.doc.lineAt(mark.to).to === mark.to) return false // empty heading: default Enter
+  dispatch(
+    state.update({
+      changes: { from: mark.from, insert: '\n' },
+      selection: { anchor: mark.to + 1 },
+      userEvent: 'input',
+      scrollIntoView: true,
+    }),
+  )
+  return true
 }
 
 export function concealMarkersExtension() {
@@ -119,6 +202,14 @@ export function concealMarkersExtension() {
     // because the reveal predicate is inclusive: a touched span stops being
     // decorated, and so stops being atomic, before the caret can be trapped.
     EditorView.atomicRanges.of((view) => view.plugin(plugin)?.decorations ?? Decoration.none),
+    // Above the markdown keymap (Prec.high), which would otherwise split the
+    // heading or delete the invisible space.
+    Prec.highest(
+      keymap.of([
+        { key: 'Backspace', run: demoteHeading },
+        { key: 'Enter', run: openLineAboveHeading },
+      ]),
+    ),
   ]
 }
 
@@ -167,7 +258,21 @@ function build(view: EditorView): DecorationSet {
         if (node.name === 'CodeMark' && node.node.parent?.name !== 'InlineCode') return
 
         let { from: f, to: t } = node
-        if (node.name === 'HeaderMark') ({ from: f, to: t } = widenHeaderMark(doc, f, t))
+        if (node.name === 'HeaderMark') {
+          ;({ from: f, to: t } = widenHeaderMark(doc, f, t))
+          const heading = node.node.parent
+          if (!heading) return
+          if (node.from === heading.from) {
+            // Leading hashes. Until the space is typed this is still just
+            // characters being typed — keep them visible.
+            if (t === node.to) {
+              if (touched(sel, heading.from, heading.to)) return
+            } else if (revealsLeadingMark(sel, f, t)) return
+          } else if (touched(sel, heading.from, heading.to)) {
+            // Closing `##` — rare; shown whenever the caret is in the heading.
+            return
+          }
+        }
         if (f >= t) return
 
         // Never decorate inside a spiritual block or a hidden practice token

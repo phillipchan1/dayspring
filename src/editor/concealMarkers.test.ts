@@ -137,7 +137,20 @@ describe('concealMarkers — the reveal rule', () => {
     expect(concealed(multi, sel)).toEqual([])
   })
 
-  it('reveals a heading hash from anywhere on its line', () => {
-    expect(concealed('# Title\n\nbody', { anchor: 4 })).toEqual([])
+  it('keeps a heading hash hidden while the caret is in the heading text', () => {
+    // Revealing it from anywhere on the line kept `## ` on screen the whole
+    // time a heading was typed. Backspace/Enter at the text start are handled
+    // by the keymap instead (liveFormatting.test.ts).
+    expect(concealed('# Title\n\nbody', { anchor: 4 })).toEqual(['# '])
+    expect(concealed('# Title\n\nbody', { anchor: 2 })).toEqual(['# '])
+  })
+
+  it('reveals a heading hash with the caret at the line start, or a selection into it', () => {
+    expect(concealed('# Title\n\nbody', { anchor: 0 })).toEqual([])
+    expect(concealed('# Title\n\nbody', { anchor: 0, head: 4 })).toEqual([])
+  })
+
+  it('keeps hashes with no space yet visible while they are being typed', () => {
+    expect(concealed('##', { anchor: 2 })).toEqual([])
   })
 })

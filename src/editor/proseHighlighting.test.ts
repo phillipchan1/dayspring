@@ -51,9 +51,10 @@ describe('proseHighlighting', () => {
     expect(markdownHighlight.module).not.toBeNull()
   })
 
-  it('leaves a heading unmarked while the caret is still on that line', () => {
+  it('leaves the heading text unmarked while the caret is on it — the heading is a line class', () => {
     const onTitle = highlightRanges(doc, 2)
-    expect(onTitle.filter((r) => r.from < 7)).toEqual([])
+    // Only the line decoration (a point at 0), never a mark splitting the text.
+    expect(onTitle.filter((r) => r.from < 7)).toEqual([{ from: 0, to: 0 }])
   })
 
   it('still paints finished lines once the caret has left them', () => {
