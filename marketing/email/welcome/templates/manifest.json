@@ -1,0 +1,121 @@
+[
+  {
+    "key": "welcome",
+    "name": "Welcome series · 1 · Welcome",
+    "day": 0,
+    "sendTo": "everyone",
+    "subject": "Welcome to Dayspring",
+    "preview": "One honest line is enough to begin.",
+    "html": "welcome.html",
+    "text": "welcome.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  },
+  {
+    "key": "slash",
+    "name": "Welcome series · 2 · Type /",
+    "day": 1,
+    "sendTo": "everyone",
+    "subject": "The one key worth knowing",
+    "preview": "Type / on any line for a verse, a prayer, a highlight or a heading.",
+    "html": "slash.html",
+    "text": "slash.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  },
+  {
+    "key": "journal",
+    "name": "Welcome series · 3 · Journal",
+    "day": 3,
+    "sendTo": "people who have already imported (contact.properties.imported = \"yes\")",
+    "subject": "Everything you’ve written, and a way back to it",
+    "preview": "Every entry laid out as a page, and a way to find the one you’re thinking of.",
+    "html": "journal.html",
+    "text": "journal.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  },
+  {
+    "key": "journal-import",
+    "name": "Welcome series · 3 · Journal (with import)",
+    "day": 3,
+    "sendTo": "everyone else — the default branch",
+    "subject": "Everything you’ve written, and a way back to it",
+    "preview": "Every entry laid out as a page, and a way to find the one you’re thinking of.",
+    "html": "journal-import.html",
+    "text": "journal-import.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  },
+  {
+    "key": "rituals",
+    "name": "Welcome series · 4 · Rituals",
+    "day": 5,
+    "sendTo": "people who have not walked a ritual (skip if contact.properties.walked_ritual = \"yes\")",
+    "subject": "When you don’t know where to begin",
+    "preview": "The Examen, Lectio Divina and other old forms of prayer, one question at a time.",
+    "html": "rituals.html",
+    "text": "rituals.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  },
+  {
+    "key": "told-back",
+    "name": "Welcome series · 5 · Told back",
+    "day": 9,
+    "sendTo": "everyone",
+    "subject": "What you’ve written, told back to you",
+    "preview": "Your own words, gathered in three places. Nothing is invented.",
+    "html": "told-back.html",
+    "text": "told-back.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  },
+  {
+    "key": "trial",
+    "name": "Welcome series · 6 · Trial ends",
+    "day": 13,
+    "sendTo": "only people still on the trial (contact.properties.plan = \"trialing\")",
+    "subject": "Your Dayspring trial ends tomorrow",
+    "preview": "Nothing happens automatically. Here’s what to expect.",
+    "html": "trial.html",
+    "text": "trial.txt",
+    "variables": [
+      {
+        "key": "NAME",
+        "type": "string",
+        "fallback_value": "there"
+      }
+    ]
+  }
+]

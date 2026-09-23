@@ -1,0 +1,20 @@
+Hi {{{NAME}}},
+
+A quick note: your Dayspring trial ends tomorrow.
+
+We never asked for a card, so nothing will be charged. When the trial ends, Dayspring will ask whether you’d like to subscribe:
+
+- $7 a month, or
+- $64 a year, about $5.33 a month
+
+Either way, every word you’ve written stays saved, and you can export all of it anytime, whether you subscribe or not.
+
+If Dayspring has been good for your writing, we’d love for you to stay. If it hasn’t, we’d honestly like to know why. Just reply.
+
+Keep writing: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=trial
+
+The Dayspring team
+
+--
+You're getting this because you started a Dayspring account.
+Stop these emails: {{{RESEND_UNSUBSCRIBE_URL}}}

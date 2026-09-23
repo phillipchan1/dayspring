@@ -1,0 +1,21 @@
+Hi {{{NAME}}},
+
+Write for a while and patterns start to show that you’d never notice one page at a time. Dayspring gathers them in three places, and all of it is in your own words.
+
+The Ascent. Your week, month, season and year, told back from what you actually wrote: what kept coming back and what went quiet. Every line is quoted exactly. If you didn’t write it, it isn’t there.
+
+The Lamp. Every passage of Scripture you’ve written about, laid across the whole Bible, so you can see where your heart has been leaning.
+
+The Altar. Your prayers, gathered by the people and things you keep bringing to God.
+
+All three fill in as you write, so if they look quiet right now, that’s expected. They’re made for the long view.
+
+Find them: Ascent, Lamp and Altar in the sidebar (⌘3, ⌘4, ⌘5).
+
+See your Ascent: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=told-back
+
+The Dayspring team
+
+--
+You're getting this because you started a Dayspring account.
+Stop these emails: {{{RESEND_UNSUBSCRIBE_URL}}}

@@ -1,0 +1,23 @@
+Hi {{{NAME}}},
+
+If you learn one thing in Dayspring, make it this: type / on any line.
+
+A menu opens with everything a page can hold. On one side is formatting: headings, bold, a highlighter. On the other are the things a journal for the Christian life needs:
+
+- Scripture: find a passage and set it on the page
+- Prayer: write it down so you can find it again
+- Sense: a word or impression you don’t want to lose
+
+Keep typing to narrow it (/pray, /scripture, /highlight), then press Enter.
+
+Prefer the mouse? The + beside any line opens the same menu.
+
+Whatever you add this way is kept together, which is what lets Dayspring gather your prayers and verses later on. More about that next week.
+
+Write a page: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=slash
+
+The Dayspring team
+
+--
+You're getting this because you started a Dayspring account.
+Stop these emails: {{{RESEND_UNSUBSCRIBE_URL}}}

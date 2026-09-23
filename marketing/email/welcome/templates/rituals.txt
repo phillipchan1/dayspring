@@ -1,0 +1,17 @@
+Hi {{{NAME}}},
+
+Some days the blank page is the hardest part.
+
+For those days there are rituals: old forms of prayer the church has used for centuries, like the Examen and Lectio Divina. Each is laid out one quiet question at a time. Answer as much or as little as you like, and it becomes its own page in your journal.
+
+To begin one, open a blank page and look at the foot of it, or type /ritual.
+
+If you’ve never tried one, start with New Every Morning. It’s three short questions and takes about three minutes.
+
+Try a ritual: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=rituals
+
+The Dayspring team
+
+--
+You're getting this because you started a Dayspring account.
+Stop these emails: {{{RESEND_UNSUBSCRIBE_URL}}}

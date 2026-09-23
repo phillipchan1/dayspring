@@ -1,0 +1,19 @@
+Hi {{{NAME}}},
+
+Most of what we write, we never read again. That isn’t because it didn’t matter. There was just no way back in.
+
+In Dayspring, Journal is that way back in. Every entry is laid out as a page, newest first. Step back to see months at a glance, or open any page to read it.
+
+The part worth knowing is Look for. Type a name or a word you carry, like Dad, work or Psalm 23, and only the pages that mention it stay lit. Choose prayer and you’ll see every page where you prayed.
+
+On the Mac, ⌘K finds any word from anywhere in the app.
+
+Find it: Journal, in the sidebar (⌘2).
+
+Open your Journal: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=journal
+
+The Dayspring team
+
+--
+You're getting this because you started a Dayspring account.
+Stop these emails: {{{RESEND_UNSUBSCRIBE_URL}}}

@@ -1,0 +1,97 @@
+<!doctype html>
+<!--
+  The Journal / Look for CONCEPT for the welcome series (email 3).
+
+  Not the shipped wall: at inbox width the real one is a mass of tiny cards,
+  and the idea is the point — type a name, and only the pages that carry it
+  stay lit. It keeps the real "Look for" label and the real "prayed" marking so
+  the control is recognisable in the app. Entries are fabricated.
+
+  Driven by scripts/capture-welcome-emails.mjs through `window.scene(typed, p)`:
+  `typed` is what's in the field, `p` is 0→1 through the dimming. No CSS
+  transitions, so every captured frame is exactly the state asked for.
+-->
+<html><head><meta charset="utf-8"><style>
+@font-face{font-family:Fraunces;font-weight:300;src:url(../../node_modules/@fontsource/fraunces/files/fraunces-latin-300-normal.woff2)}
+@font-face{font-family:Fraunces;font-weight:300;font-style:italic;src:url(../../marketing/ads/fonts/fraunces-300-italic.woff2)}
+@font-face{font-family:Newsreader;font-weight:400;src:url(../../marketing/ads/fonts/newsreader-400.woff2)}
+@font-face{font-family:Newsreader;font-weight:400;font-style:italic;src:url(../../marketing/ads/fonts/newsreader-300-italic.woff2)}
+@font-face{font-family:Mono;src:url(../../marketing/ads/fonts/mono-400.woff2)}
+html,body{margin:0;background:#12131a}
+.frame{width:600px;box-sizing:border-box;padding:34px 36px 0;overflow:hidden;
+  background:radial-gradient(120% 70% at 18% -8%,rgba(196,145,60,.30),rgba(196,145,60,0) 60%),linear-gradient(180deg,#1a1812 0%,#12131a 46%);
+  color:#f3ece0;font-family:Fraunces,Georgia,serif}
+.eyebrow{font-family:Mono,monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#d9a35a;margin:0 0 12px}
+h1{font-weight:300;font-size:38px;line-height:1.08;margin:0 0 26px;letter-spacing:-.01em}
+h1 em{font-style:italic;background:linear-gradient(90deg,#e7b673,#c4913c 70%);-webkit-background-clip:text;color:transparent}
+.wall{background:#171922;border-radius:14px 14px 0 0;padding:16px 16px 24px;box-shadow:0 -1px 0 rgba(255,255,255,.08),0 24px 60px rgba(0,0,0,.55)}
+.bar{display:flex;align-items:center;gap:12px;margin:0 0 14px;height:34px}
+.look{display:inline-flex;align-items:center;gap:8px;border:1px solid #3a3d4a;border-radius:999px;padding:0 14px;height:32px;font:13px Mono,monospace;color:#cfc8bb;min-width:92px}
+.look.on{border-color:#c4913c;background:#221d16;min-width:150px}
+.look svg{width:14px;height:14px}
+.q{color:#f3ece0}
+.caret{width:1px;height:15px;background:#e7b673;display:none}
+.look.on .caret{display:block}
+.count{font:12px Mono,monospace;color:#d9a35a}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pg{background:#1f2230;border:1px solid #2b2e3c;border-radius:8px;padding:10px 11px 12px;min-height:92px;box-sizing:border-box}
+.d{font:10px Mono,monospace;color:#7d8190;letter-spacing:.06em;text-transform:uppercase}
+.t{font:15px/1.25 Newsreader,Georgia,serif;color:#ece6db;margin:4px 0 5px}
+.s{font:italic 12px/1.35 Newsreader,Georgia,serif;color:#9ba0ad;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.m{display:inline-block;font:10px Mono,monospace;color:#c98a6a;margin-top:4px;letter-spacing:.06em}
+mark{background:transparent;color:inherit;border-radius:3px;padding:0 1px}
+</style></head><body>
+<div class="frame" id="frame">
+  <p class="eyebrow">Your journal</p>
+  <h1>Look for a name, <em>and there it is.</em></h1>
+  <div class="wall">
+    <div class="bar">
+      <span class="look" id="look">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+        <span id="label">Look for</span><span class="q" id="q"></span><span class="caret"></span>
+      </span>
+      <span class="count" id="count">4 pages</span>
+    </div>
+    <div class="grid" id="grid">
+      <div class="pg" data-hit><div class="d">Sep 23</div><div class="t">Tuesday</div><div class="s">Woke before the alarm with the same knot about <mark>Dad</mark>'s scan on Thursday.</div></div>
+      <div class="pg"><div class="d">Sep 19</div><div class="t">The long way home</div><div class="s">Took the long way home from Elena's so I could keep thinking.</div></div>
+      <div class="pg" data-hit><div class="d">Sep 6</div><div class="t"><mark>Dad</mark> called</div><div class="s">They found something on the scan. More tests next week.</div></div>
+      <div class="pg"><div class="d">Aug 30</div><div class="t">Marcus called</div><div class="s">He asked how I was and I gave the short answer, then called him back.</div></div>
+      <div class="pg"><div class="d">Aug 14</div><div class="t">Early service</div><div class="s">Sat at the back. Sang about half of it.</div></div>
+      <div class="pg" data-hit><div class="d">Jul 2</div><div class="t">Pray for <mark>Dad</mark></div><div class="s">Lord, give him sleep tonight. That's all.</div><span class="m">prayed</span></div>
+      <div class="pg"><div class="d">Jun 11</div><div class="t">Something Elena said</div><div class="s">"You keep apologising for being tired." She's right.</div></div>
+      <div class="pg" data-hit><div class="d">May 27</div><div class="t"><mark>Dad</mark>'s birthday</div><div class="s">Seventy-one. He told the crane story again and I let him.</div></div>
+      <div class="pg"><div class="d">Feb 2</div><div class="t">Rain all week</div><div class="s">Third grey day. Wrote nothing worth keeping and that was fine.</div></div>
+    </div>
+  </div>
+</div>
+<script>
+  // typed: the field's text ('' = the idle pill). p: 0 → 1 through the dimming.
+  window.scene = function (typed, p) {
+    const look = document.getElementById('look')
+    const on = typed !== null && typed !== undefined && typed !== false
+    look.classList.toggle('on', on)
+    document.getElementById('label').style.display = on ? 'none' : ''
+    document.getElementById('q').textContent = on ? typed : ''
+    document.getElementById('count').style.opacity = p
+    for (const pg of document.querySelectorAll('.pg')) {
+      const hit = pg.hasAttribute('data-hit')
+      pg.style.opacity = hit ? 1 : 1 - 0.86 * p
+      pg.style.borderColor = hit ? mix('#2b2e3c', '#c4913c', p) : '#2b2e3c'
+      pg.style.boxShadow = hit
+        ? `0 0 0 1px rgba(196,145,60,${0.35 * p}),0 0 26px rgba(196,145,60,${0.18 * p})`
+        : 'none'
+      for (const m of pg.querySelectorAll('mark')) {
+        m.style.background = `rgba(196,145,60,${0.28 * p})`
+        m.style.color = mix('#ece6db', '#f6d9a8', p)
+      }
+    }
+  }
+  function mix(a, b, t) {
+    const h = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16))
+    const [x, y] = [h(a), h(b)]
+    return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})`
+  }
+  window.scene(null, 0)
+</script>
+</body></html>

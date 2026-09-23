@@ -1,0 +1,20 @@
+Hi {{{NAME}}},
+
+Welcome to Dayspring. We’re glad you’re here.
+
+You don’t need a system to begin. Open a page and write one honest line: what’s on your mind, what you’re carrying, what you’re thankful for. It saves as you go.
+
+Over the next two weeks we’ll send a handful of short notes, one thing at a time, so you can find your way around without reading a manual.
+
+Dayspring works in your browser and as a Mac app, and both open the same journal.
+
+Open Dayspring: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=welcome
+Or download the Mac app: https://github.com/phillipchan1/dayspring-releases/releases/latest/download/Dayspring-aarch64.dmg
+
+If anything is confusing, or you can’t find something, just reply to this email. A real person reads every one.
+
+The Dayspring team
+
+--
+You're getting this because you started a Dayspring account.
+Stop these emails: {{{RESEND_UNSUBSCRIBE_URL}}}

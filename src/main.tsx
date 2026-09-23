@@ -76,6 +76,7 @@ async function bootstrap() {
   //   ?__preview=listing-*          → marketing listing shots (capture-listing-screenshots.mjs)
   //   ?__preview=ad-*               → paid-social ad creative (capture-ads.mjs)
   //   ?__preview=flagship           → the flagship hero image (capture-flagship.mjs)
+  //   ?__preview=email-*            → welcome-email GIF scenes (capture-welcome-emails.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //   ?__preview=firstlight         → the release-note deck, in any palette (features/firstlight/preview.tsx)
@@ -105,6 +106,11 @@ async function bootstrap() {
     if (preview?.startsWith('ad-')) {
       const { renderAdPreview } = await import('./features/ads/preview')
       renderAdPreview(preview)
+      return
+    }
+    if (preview?.startsWith('email-')) {
+      const { renderEmailPreview } = await import('./features/email/preview')
+      renderEmailPreview(preview)
       return
     }
     if (preview === 'flagship') {
