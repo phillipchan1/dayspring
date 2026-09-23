@@ -2883,6 +2883,54 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text-faint);
   margin: 1.15em 0 0.35em;
 }
+/*
+ * A marking block, read back where it was written (lib/markingDisplay.ts).
+ *
+ * Scripture is set apart the way the editor sets it apart — the verse in
+ * italic a size down, the voice's rule down its left, the citation in the
+ * voice's label face (`.spiritual-cite` in themes.css). The knobs are the same
+ * `--scripture-*` properties each voice already turns for the editor, so a
+ * verse cannot look one way while written and another while read.
+ *
+ * A prayer, a sense, a desire is the writer's own sentence and is left as
+ * prose. It is marked the way the editor marks it: a rule in the kind's tone
+ * down its left (the reader sets `--mark-tone` when it hangs the hand), with no
+ * restyling of the words themselves.
+ */
+.markdown-body .read-scripture {
+  margin: 0 0 1em;
+  padding: var(--scripture-air, 0.3em) 0 var(--scripture-air, 0.3em)
+    var(--scripture-indent, 1rem);
+  background-image: var(--scripture-rule-image, none);
+  background-size: var(--scripture-rule-width, 1px)
+    calc(100% - 2 * var(--scripture-air, 0.3em));
+  background-position: 0 var(--scripture-air, 0.3em);
+  background-repeat: no-repeat;
+}
+.markdown-body .read-scripture p {
+  margin: 0;
+  font-size: 0.9em;
+  font-style: italic;
+  letter-spacing: 0.005em;
+  color: var(--text);
+}
+.markdown-body .read-scripture__cite {
+  margin-top: 0.5em;
+  font-size: 0.66em;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+.markdown-body .read-mark {
+  margin: 0 0 1em;
+  padding-left: 0.85rem;
+  background-image: linear-gradient(
+    var(--mark-tone, var(--accent)),
+    var(--mark-tone, var(--accent))
+  );
+  background-size: 3px 100%;
+  background-repeat: no-repeat;
+}
+.markdown-body .read-mark > :last-child { margin-bottom: 0; }
 .markdown-body strong { color: var(--text-bright); }
 .markdown-body em { color: var(--md-emphasis); }
 .markdown-body a { color: var(--md-link); }

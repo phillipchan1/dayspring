@@ -2,6 +2,7 @@ import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 import { markdownForDisplay, type DisplayOptions } from './entryMarkdown'
 import { revealRitualsForDisplay } from './ritualDisplay'
+import { revealMarkingsForDisplay } from './markingDisplay'
 import { isHighlightColor, NAMED_COLOR_PATTERN, type HighlightColor } from './highlightColors'
 
 marked.setOptions({
@@ -77,7 +78,10 @@ marked.use({
 
 /** Render markdown to sanitized HTML for the read-only reading view. */
 export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
-  const raw = marked.parse(markdownForDisplay(revealRitualsForDisplay(md), opts), {
+  // Markings first: they are found by character offset, which the ritual pass
+  // would shift.
+  const shown = revealRitualsForDisplay(revealMarkingsForDisplay(md))
+  const raw = marked.parse(markdownForDisplay(shown, opts), {
     async: false,
   })
   return DOMPurify.sanitize(raw, {

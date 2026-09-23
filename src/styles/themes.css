@@ -1305,8 +1305,12 @@
    gradient has — Plainsong overrides the whole image to get its dashes.
    `--scripture-air` is PADDING, never margin: CodeMirror measures a line from
    its bounding rect, which excludes margins, so a margin here would push the
-   DOM down uncounted and drift the coordinate→position map. */
-.cm-content {
+   DOM down uncounted and drift the coordinate→position map.
+
+   `.markdown-body` too, so a verse read back on an open page is set apart
+   exactly as it was while it was being written (`.read-scripture`). */
+.cm-content,
+.markdown-body {
   --scripture-rule: color-mix(in srgb, var(--accent) 32%, transparent);
   --scripture-rule-image: linear-gradient(var(--scripture-rule), var(--scripture-rule));
   --scripture-rule-width: 1px;
@@ -1380,7 +1384,9 @@
   color: var(--accent);
 }
 [data-theme='vellum'] .cm-content,
-[data-theme='ember'] .cm-content {
+[data-theme='ember'] .cm-content,
+[data-theme='vellum'] .markdown-body,
+[data-theme='ember'] .markdown-body {
   --scripture-rule: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 [data-theme='vellum'] .markdown-body h2::before,
@@ -1422,7 +1428,9 @@
    spends instead is space: the leading is already the widest of the six, and
    the seams get room rather than a mark. */
 [data-theme='sabbath'] .cm-content,
-[data-theme='grove'] .cm-content {
+[data-theme='grove'] .cm-content,
+[data-theme='sabbath'] .markdown-body,
+[data-theme='grove'] .markdown-body {
   --scripture-rule-image: none;
   --scripture-indent: 0;
   /* What the bare voice spends instead of a mark. This was `margin: 1.4em 0`
@@ -1462,7 +1470,9 @@
   border-left-style: dashed;
 }
 [data-theme='quire'] .cm-content,
-[data-theme='nocturne'] .cm-content {
+[data-theme='nocturne'] .cm-content,
+[data-theme='quire'] .markdown-body,
+[data-theme='nocturne'] .markdown-body {
   --scripture-rule-image: repeating-linear-gradient(
     to bottom,
     var(--scripture-rule) 0 4px,

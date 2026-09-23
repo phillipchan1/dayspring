@@ -4499,6 +4499,12 @@ button.pg__sense-q:hover {
     vertical-align: -0.15em;
   }
 
+  /* A declared prayer or verse is a block, so an inline hand would get a line
+     to itself above it. The block is already marked by its rule, which is
+     what the editor shows at this width too. */
+  .pg-read1__body [data-kind] > .pg-read1__hand {
+    display: none;
+  }
 }
 
 /*

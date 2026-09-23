@@ -330,25 +330,34 @@ function SheetPreview({
 /*
  * ── One page, open ──────────────────────────────────────────────────────────
  *
- * A page carrying everything the right-hand column can hold at once: a declared
- * prayer, a declared scripture, an in-prose marking, and circumstances with all
- * three of hour, place and weather. That combination is rare in a real archive
- * and is exactly the one that has to be looked at, because those four things
- * are the only occupants of that column and they have to sit together.
+ * A page carrying everything an open page can hold at once: a declared prayer
+ * and a declared scripture, read back where they were written; a marking the
+ * page does not say, which is the only kind left for the margin; and
+ * circumstances with all three of hour, place and weather, above the page's
+ * length and the day it was last returned to. That combination is rare in a
+ * real archive and is exactly the one that has to be looked at.
  */
 const READ_BODY = [
   'Down to the water while it was still dark. Just the sound of it, and the cold',
   'coming up off the stones.',
   '',
+  '```dayspring-scripture 0f1e2d3c-0000-4000-8000-000000000001',
+  'Therefore do not throw away your confidence, which has a great reward.',
+  'Hebrews 10:35 · ESV',
+  '```',
   'Tiffany called on the way back and we talked the whole way home about nothing',
   'in particular, which was the point.',
   '',
+  '```dayspring-pray 0f1e2d3c-0000-4000-8000-000000000002',
+  'Lord, I need a breakthrough at work.',
+  '```',
   'Sat the twenty minutes anyway. Nothing came, and I am learning not to read',
   'that as a verdict.',
 ].join('\n')
 
 const READ_PAGE: Entry = {
   ...page('preview-read', new Date(2026, 8, 4, 6, 20).toISOString(), READ_BODY),
+  updated_at: new Date(2026, 8, 6, 21, 5).toISOString(),
   circumstances: {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     source: 'live',
@@ -359,14 +368,14 @@ const READ_PAGE: Entry = {
 
 const READ_MARKINGS: PageMarking[] = [
   {
-    id: 'm-pray',
+    id: '0f1e2d3c-0000-4000-8000-000000000002',
     entryId: 'preview-read',
     type: 'prayer',
     content: 'Lord, I need a breakthrough at work.',
     declared: true,
   },
   {
-    id: 'm-scripture',
+    id: '0f1e2d3c-0000-4000-8000-000000000001',
     entryId: 'preview-read',
     type: 'scripture',
     content: 'Therefore do not throw away your confidence, which has a great reward.',
@@ -377,11 +386,15 @@ const READ_MARKINGS: PageMarking[] = [
     entryId: 'preview-read',
     type: 'learned',
     content: 'The long way home is not a detour.',
-    declared: true,
+    declared: false,
   },
 ]
 
-/** `&ritual=1`: a ritual page, with an After, to walk the click-an-answer door. */
+/**
+ * `&ritual=1`: a ritual page, with an After, to walk the click-an-answer door.
+ * Its scripture sits in the After, which is where one went missing in the
+ * reader before marking blocks were read back in place.
+ */
 const READ_RITUAL: Entry = page(
   'preview-read-ritual',
   new Date(Date.UTC(2026, 8, 19, 3)).toISOString(),
@@ -396,6 +409,13 @@ const READ_RITUAL: Entry = page(
     'Patience for the first hour.',
     '',
     'A quiet evening after all. Mom called.',
+    '',
+    '```dayspring-scripture 0f1e2d3c-0000-4000-8000-000000000003',
+    'The steadfast love of the LORD never ceases; his mercies never come to an end;',
+    'they are new every morning; great is your faithfulness.',
+    'Lamentations 3:22–23 · ESV',
+    '```',
+    'New every morning. Let me be that for them tomorrow.',
   ].join('\n'),
 )
 

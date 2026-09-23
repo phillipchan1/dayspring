@@ -91,18 +91,35 @@ const BLOCKS = 'p, li, blockquote, h1, h2, h3, h4, h5, h6'
  * Returns the ids it managed to place, so a caller can tell the difference
  * between "not in the prose" (already known) and "in the prose but the
  * rendering broke it across elements" (worth not silently swallowing).
+ *
+ * A declared block (a `/pray`, a `/scripture`) arrives already drawn and
+ * already naming its kind in `data-kind` (see `revealMarkingsForDisplay`).
+ * It is marked from that, with no text match and no wait for the marking
+ * rows. A marking found inside one is filed on the block itself rather than on
+ * the paragraph within it, so one prayer never grows two hands.
  */
 export function drawMarkings(root: HTMLElement, markings: readonly PageMarking[]): Set<string> {
   const placed = new Set<string>()
-  if (markings.length === 0) return placed
+  const kindsOn = new Map<HTMLElement, string[]>()
+  const file = (el: HTMLElement, kind: string) => {
+    const held = kindsOn.get(el)
+    if (held) {
+      if (!held.includes(kind)) held.push(kind)
+    } else {
+      kindsOn.set(el, [kind])
+    }
+  }
+
+  for (const el of root.querySelectorAll<HTMLElement>('[data-kind]')) {
+    const kind = el.dataset.kind
+    if (kind) file(el, kind)
+  }
 
   const blocks = [...root.querySelectorAll<HTMLElement>(BLOCKS)].map((el) => ({
     el,
     text: flatten(el.textContent ?? ''),
   }))
-  if (blocks.length === 0) return placed
 
-  const kindsOn = new Map<HTMLElement, string[]>()
   for (const m of markings) {
     const needle = flatten(m.content)
     if (needle.length < MIN_LOCATABLE) continue
@@ -113,12 +130,8 @@ export function drawMarkings(root: HTMLElement, markings: readonly PageMarking[]
     }
     if (!best) continue
     placed.add(m.id)
-    const held = kindsOn.get(best.el)
-    if (held) {
-      if (!held.includes(m.type)) held.push(m.type)
-    } else {
-      kindsOn.set(best.el, [m.type])
-    }
+    const declared = best.el.closest<HTMLElement>('[data-kind]')
+    file(declared && root.contains(declared) ? declared : best.el, m.type)
   }
 
   for (const [el, kinds] of kindsOn) {

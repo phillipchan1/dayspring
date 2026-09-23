@@ -140,6 +140,29 @@ describe('drawMarkings', () => {
     expect(el.querySelectorAll('.pg-read1__hand')).toHaveLength(1)
   })
 
+  // A /pray or /scripture arrives already drawn and naming its kind; it needs
+  // no row and no text match to be marked.
+  it('marks a declared block from its own data-kind, with no marking rows', () => {
+    const el = page(
+      '<div class="read-mark" data-kind="prayer"><p>Help me.</p></div>' +
+        '<figure data-kind="scripture"><p>Be still.</p></figure>',
+    )
+    drawMarkings(el, [])
+    expect(el.querySelector('div')!.getAttribute('data-marking')).toBe('prayer')
+    expect(el.querySelector('figure')!.getAttribute('data-marking')).toBe('scripture')
+    expect(el.querySelectorAll('.pg-read1__hand')).toHaveLength(2)
+  })
+
+  it('files a marking found inside a declared block on the block, not its paragraph', () => {
+    const line = 'I asked Him to make the way plain.'
+    const el = page(`<div data-kind="prayer"><p>${line}</p></div>`)
+    const m = marking(line, 'desire')
+    expect(drawMarkings(el, [m]).has(m.id)).toBe(true)
+    expect(el.querySelector('p')!.hasAttribute('data-marking')).toBe(false)
+    expect(el.querySelector('div')!.getAttribute('data-marking')).toBe('prayer desire')
+    expect(el.querySelectorAll('.pg-read1__hand')).toHaveLength(1)
+  })
+
   it('places nothing, and breaks nothing, when the sentence is not there', () => {
     const el = page('<p>Nothing here.</p>')
     const before = el.innerHTML

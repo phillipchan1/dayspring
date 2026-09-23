@@ -35,6 +35,19 @@ ${rules}
     color: #888;
     margin: 1em 0 0.3em;
   }
+  .read-scripture {
+    margin: 0 0 1em;
+    padding-left: 1em;
+    border-left: 1px solid #ccc;
+  }
+  .read-scripture p { margin: 0; font-style: italic; }
+  .read-scripture__cite {
+    margin-top: 0.4em;
+    font-size: 0.68em;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #888;
+  }
   hr {
     border: 0;
     height: 2.2em;

@@ -3,6 +3,7 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import type { PageMarking } from '@/lib/spiritual'
 import type { Entry } from '@/lib/types'
 import { PageReader } from './PageReader'
 
@@ -56,7 +57,7 @@ afterEach(() => {
   hydrate.mockClear()
 })
 
-function renderReader(onEdit = vi.fn()) {
+function renderReader(onEdit = vi.fn(), markings: PageMarking[] = []) {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
@@ -66,7 +67,7 @@ function renderReader(onEdit = vi.fn()) {
         bar: null,
         entry,
         markQuotes: ['A sentence I marked for later.'],
-        markings: [],
+        markings,
         match: null,
         firstLineTitle: false,
         onEdit,
@@ -109,6 +110,40 @@ describe('PageReader', () => {
     expect(body.querySelector('.read-ritual-label')?.textContent).toBe('Feel')
     expect(body.textContent).toContain('i felt happy that we are going ot be off this project')
     expect(body.textContent).not.toContain('ritual:')
+  })
+
+  it('reads a scripture back where it was written, not in the margin', () => {
+    const previous = entry.body_markdown
+    entry.body_markdown = [
+      'thank you for your promises',
+      '```dayspring-scripture a5ffae34-0420-4263-9780-19b843e7ffc5',
+      'The steadfast love of the LORD never ceases.',
+      'Lamentations 3:22–23 · ESV',
+      '```',
+      'your mercies are new every morning.',
+    ].join('\n')
+    renderReader(vi.fn(), [
+      {
+        id: 'a5ffae34-0420-4263-9780-19b843e7ffc5',
+        entryId: entry.id,
+        type: 'scripture',
+        content: 'The steadfast love of the LORD never ceases.',
+        declared: true,
+      },
+    ])
+    entry.body_markdown = previous
+    const body = host!.querySelector<HTMLElement>('.pg-read1__body')!
+    const fig = body.querySelector('figure.read-scripture')!
+    expect(fig.textContent).toContain('The steadfast love of the LORD')
+    expect(fig.querySelector('figcaption')!.textContent).toBe('Lamentations 3:22–23 · ESV')
+    expect(fig.getAttribute('data-marking')).toBe('scripture')
+    const margin = host!.querySelector('.pg-read1__margin')
+    expect(margin?.textContent ?? '').not.toContain('steadfast')
+  })
+
+  it('puts the page’s length at the foot of the rail', () => {
+    renderReader()
+    expect(host!.querySelector('.pg-read1__facts')?.textContent).toContain('8 words')
   })
 
   it('opens the same entry for writing on pointer devices', () => {

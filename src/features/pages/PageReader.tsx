@@ -4,7 +4,7 @@ import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { colophonLines, formatColophon } from '@/lib/circumstances'
 import { renderMarkdown } from '@/lib/markdown'
 import { passagesForEntry } from '@/lib/remember'
-import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { MarkGlyph } from '@/components/MarkGlyph'
 import { MARK_KIND } from '@/lib/markKinds'
 import type { PageMarking } from '@/lib/spiritual'
@@ -13,6 +13,7 @@ import { paintMatches } from './paintMatches'
 import { paintQuotes } from './paintQuotes'
 import { drawMarkings, flatten, sortMarkings } from './pageMarkings'
 import { pageExcerpt } from './pageExcerpt'
+import { pageFacts } from './pageFacts'
 import { hydrateReadAttachments } from './readAttachments'
 import { swipeTurn } from './swipeTurn'
 import { ritualMovementAt } from './readerRitual'
@@ -175,13 +176,13 @@ export function PageReader({
     exit: true,
   })
   /*
-   * Spiritual blocks are their own rendering elsewhere; here they would arrive
-   * as raw fenced code, which is markup rather than writing.
+   * The whole page, marking blocks included. `renderMarkdown` draws each
+   * fence where it was written — the verse set apart with its citation, a
+   * prayer as the writer's own lines — rather than as raw fenced code. They
+   * used to be stripped here, which left a scripture in a ritual's After
+   * looking like it had vanished (see `revealMarkingsForDisplay`).
    */
-  const renderedMarkdown = useMemo(
-    () => stripSpiritualBlocks(entry.body_markdown ?? ''),
-    [entry.body_markdown],
-  )
+  const renderedMarkdown = entry.body_markdown ?? ''
   const html = useMemo(
     () => renderMarkdown(renderedMarkdown, { asTitle: firstLineTitle }),
     [renderedMarkdown, firstLineTitle],
@@ -195,8 +196,8 @@ export function PageReader({
    */
   const colophon = formatColophon(entry.created_at, entry.circumstances)
   const facts = useMemo(
-    () => colophonLines(entry.created_at, entry.circumstances),
-    [entry.created_at, entry.circumstances],
+    () => [...colophonLines(entry.created_at, entry.circumstances), ...pageFacts(entry)],
+    [entry],
   )
 
   /**
@@ -215,14 +216,27 @@ export function PageReader({
   /**
    * The markings this page says out loud, and the ones it doesn't.
    *
-   * A declared `/pray` is stripped from both the prose and the rendered page,
-   * so it is correctly never found — it is not missing, it is its own thing,
-   * and the margin is where it goes.
+   * A declared `/pray` or `/scripture` is on the page where it was written, so
+   * it never belongs in the margin, whether or not its row has arrived yet,
+   * or exists at all. Nor does a sentence harvested from inside one: the
+   * block already carries it, and the rail would only say it twice.
    */
-  const { inProse, loose } = useMemo(
-    () => sortMarkings(entry.body_markdown, markings),
-    [entry.body_markdown, markings],
-  )
+  const { inProse, loose } = useMemo(() => {
+    const declared = parseSpiritualBlocks(entry.body_markdown ?? '')
+    const ids = new Set(declared.map((b) => b.id))
+    const said = declared.map((b) => flatten(b.content)).filter(Boolean)
+    const sorted = sortMarkings(
+      entry.body_markdown,
+      markings.filter((m) => !ids.has(m.id)),
+    )
+    return {
+      inProse: sorted.inProse,
+      loose: sorted.loose.filter((m) => {
+        const key = flatten(m.content)
+        return !said.some((s) => s.includes(key))
+      }),
+    }
+  }, [entry.body_markdown, markings])
 
   const bodyRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
