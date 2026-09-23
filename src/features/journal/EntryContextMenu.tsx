@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Entry } from '@/lib/types'
+import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { deriveTitle } from './deriveTitle'
+import { canShareEntry } from './entryActions'
 import { EntryMenuIcon, type EntryMenuIconName } from './entryMenuIcons'
 
 export type EntryMenuPhase =
@@ -13,6 +15,7 @@ export type EntryMenuAction =
   | 'copy-text'
   | 'copy-markdown'
   | 'export-markdown'
+  | 'share'
   | 'duplicate'
   | 'print'
   | 'edit-date'
@@ -23,6 +26,28 @@ interface Props {
   onClose: () => void
   onAction: (action: EntryMenuAction, entry: Entry) => void
   onRequestDelete: (entry: Entry) => void
+  /**
+   * Phone width: a bottom sheet instead of a menu at the finger.
+   *
+   * A desktop menu opened by a long-press landed wherever the thumb happened
+   * to be — often the top third, out of reach — over the very page it was
+   * about, with rows a third shorter than a finger. The sheet always comes up
+   * in the thumb's half, full width, and carries fewer, larger rows.
+   */
+  sheet?: boolean
+}
+
+/** "Tue, Aug 26" — with the year only when it isn't this one. */
+function sheetDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
 }
 
 function MenuItem({
@@ -58,12 +83,13 @@ function MenuSep() {
 }
 
 /** Portaled entry context menu with backdrop dismiss (desktop-grade). */
-export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: Props) {
+export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete, sheet = false }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
   const deleteBtnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
 
   const open = phase.kind !== 'closed'
+  const drag = useSheetDismiss({ onDismiss: onClose, enabled: sheet && phase.kind === 'menu' })
 
   // Dismiss on outside pointer down (deferred so the opening click doesn't close).
   useEffect(() => {
@@ -116,6 +142,12 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
       return
     }
     if (phase.kind !== 'menu' || !menuRef.current) return
+    // The sheet has no position to find, and no row to pre-focus: a highlighted
+    // first row under a thumb reads as a choice already made.
+    if (sheet) {
+      menuRef.current.focus({ preventScroll: true })
+      return
+    }
     const pad = 8
     const rect = menuRef.current.getBoundingClientRect()
     const x = Math.min(phase.x, window.innerWidth - rect.width - pad)
@@ -123,7 +155,7 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
     setPos({ x: Math.max(pad, x), y: Math.max(pad, y) })
     const first = menuRef.current.querySelector<HTMLButtonElement>('[role="menuitem"]')
     first?.focus()
-  }, [phase])
+  }, [phase, sheet])
 
   if (phase.kind === 'closed') return null
 
@@ -179,6 +211,51 @@ export function EntryContextMenu({ phase, onClose, onAction, onRequestDelete }: 
   const act = (action: EntryMenuAction) => {
     onAction(action, entry)
     onClose()
+  }
+
+  if (sheet) {
+    const date = sheetDate(entry.created_at)
+    return createPortal(
+      <>
+        <div
+          className="entry-context-backdrop entry-context-backdrop--sheet"
+          role="presentation"
+          aria-hidden
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) onClose()
+          }}
+        />
+        <div
+          ref={menuRef}
+          className="entry-context-menu entry-context-menu--sheet"
+          role="menu"
+          tabIndex={-1}
+          aria-label={`Actions for ${headTitle}`}
+          data-dragging={drag.dragging ? 'true' : undefined}
+          style={drag.dragY ? { translate: `0 ${drag.dragY}px` } : undefined}
+          onPointerDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+          {...drag.handlers}
+        >
+          <span className="entry-context-menu__grab" aria-hidden />
+          <div className="entry-context-menu__head">
+            {date ? <span className="entry-context-menu__head-date">{date}</span> : null}
+            <span className="entry-context-menu__head-title">{headTitle}</span>
+          </div>
+          <MenuItem label="Copy text" icon="copy-text" onClick={() => act('copy-text')} />
+          {canShareEntry() ? (
+            <MenuItem label="Share…" icon="share" onClick={() => act('share')} />
+          ) : (
+            <MenuItem label="Export Markdown…" icon="export" onClick={() => act('export-markdown')} />
+          )}
+          <MenuItem label="Change date…" icon="edit-date" onClick={() => act('edit-date')} />
+          <MenuItem label="Duplicate" icon="duplicate" onClick={() => act('duplicate')} />
+          <MenuSep />
+          <MenuItem label="Delete entry…" icon="delete" danger onClick={() => onRequestDelete(entry)} />
+        </div>
+      </>,
+      document.body,
+    )
   }
 
   return createPortal(

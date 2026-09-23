@@ -1002,6 +1002,119 @@ a {
   );
 }
 
+/*
+ * The same menu, as a bottom sheet on a phone.
+ *
+ * Opened by a long-press, the desktop menu landed wherever the thumb was —
+ * often out of its reach, over the page it was about — with 34px rows. Here it
+ * always rises from the bottom edge, full width, with rows a finger can find.
+ * `translate` for the drag, not `transform`: the entrance animation owns
+ * `transform` (see `.pg-sheet`, which this matches).
+ */
+.entry-context-backdrop--sheet {
+  background: rgba(8, 10, 14, 0.4);
+  animation: entry-sheet-scrim-in 0.2s ease both;
+}
+.entry-context-menu--sheet {
+  inset: auto 0 0 0;
+  min-width: 0;
+  max-width: none;
+  padding: 0.55rem 0.75rem calc(0.75rem + var(--safe-bottom));
+  border-inline: none;
+  border-block-end: none;
+  border-radius: 20px 20px 0 0;
+  outline: none;
+  box-shadow:
+    0 -24px 60px -30px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 var(--glass-edge);
+  animation: entry-sheet-in 0.26s cubic-bezier(0.22, 0.68, 0.36, 1) both;
+  transition: translate 190ms cubic-bezier(0.22, 0.68, 0.36, 1);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.entry-context-menu--sheet[data-dragging='true'] {
+  transition: none;
+}
+@keyframes entry-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes entry-sheet-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+.entry-context-menu__grab {
+  display: block;
+  inline-size: 2.5rem;
+  block-size: 4px;
+  margin: 0 auto 0.7rem;
+  background: var(--border);
+  border-radius: 2px;
+}
+/* Which page this is about — its date and its own first line, in the voice of
+   the page rather than the mono label the desktop menu can afford. */
+.entry-context-menu--sheet .entry-context-menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0 0.6rem 0.75rem;
+  margin-bottom: 0.3rem;
+}
+.entry-context-menu__head-date {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+.entry-context-menu--sheet .entry-context-menu__head-title {
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}
+.entry-context-menu--sheet .entry-context-menu__item {
+  gap: 0.85rem;
+  min-height: 3.25rem;
+  padding: 0 0.6rem;
+  border-radius: 12px;
+  font-size: 1.02rem;
+}
+/* No hover on glass under a finger — the press is the only feedback. */
+.entry-context-menu--sheet .entry-context-menu__item:hover {
+  background: transparent;
+  color: var(--text);
+}
+.entry-context-menu--sheet .entry-context-menu__item:active {
+  background: var(--bg-hover);
+  transform: none;
+}
+.entry-context-menu--sheet .entry-context-menu__item--danger,
+.entry-context-menu--sheet .entry-context-menu__item--danger:hover {
+  color: var(--danger);
+}
+.entry-context-menu--sheet .entry-context-menu__item--danger:active {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.entry-context-menu--sheet .entry-context-menu__icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+}
+.entry-context-menu--sheet .entry-context-menu__sep {
+  margin: 0.3rem 0.6rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry-context-menu--sheet,
+  .entry-context-backdrop--sheet {
+    animation: none;
+  }
+}
+
 /* Photo size segmented control inside the image context menu. */
 .image-context-menu__size {
   display: flex;

@@ -45,6 +45,7 @@ import {
   copyEntryText,
   downloadEntryMarkdown,
   printEntry,
+  shareEntry,
 } from './entryActions'
 import type { EntryMenuAction } from './EntryContextMenu'
 import { EntryEditDateModal } from './EntryEditDateModal'
@@ -2164,6 +2165,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             break
           case 'export-markdown':
             downloadEntryMarkdown(entry, settings.firstLineTitle)
+            break
+          case 'share':
+            await shareEntry(entry)
             break
           case 'duplicate':
             await handleDuplicate(entry)

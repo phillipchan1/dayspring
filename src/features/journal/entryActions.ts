@@ -107,6 +107,32 @@ export function downloadEntryMarkdown(entry: Entry, asTitle = true): void {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Whether this browser can hand text to the system share sheet.
+ *
+ * On a phone, Share replaces both Export and Print: the iOS sheet already
+ * holds Save to Files, Print, Mail and Messages, and a download link or a
+ * `window.print()` inside the app's webview does nothing a person can see.
+ */
+export function canShareEntry(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+}
+
+/**
+ * Opens the system share sheet with the entry's words.
+ *
+ * Dismissing the sheet rejects with `AbortError`; that is someone changing
+ * their mind, not a failure, so it resolves quietly.
+ */
+export async function shareEntry(entry: Entry): Promise<void> {
+  try {
+    await navigator.share({ title: entryTitle(entry), text: entry.body_markdown })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') return
+    throw e
+  }
+}
+
 /** Opens a minimal print view for the entry body. */
 export function printEntry(entry: Entry, asTitle = true): void {
   const title = entryTitle(entry)

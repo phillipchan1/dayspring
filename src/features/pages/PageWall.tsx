@@ -1488,6 +1488,7 @@ export function PageWall({
         onClose={closeMenu}
         onAction={handleMenuAction}
         onRequestDelete={(entry) => setPhase({ kind: 'confirm', entry })}
+        sheet={narrow}
       />
       <EntryBulkMenu
         phase={bulkPhase}

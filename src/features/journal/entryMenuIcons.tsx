@@ -4,6 +4,7 @@ export type EntryMenuIconName =
   | 'copy-text'
   | 'copy-markdown'
   | 'export'
+  | 'share'
   | 'duplicate'
   | 'print'
   | 'edit-date'
@@ -50,6 +51,15 @@ const paths: Record<EntryMenuIconName, ReactNode> = {
       <path d="M12 3v10" />
       <path d="M8 9l4-4 4 4" />
       <path d="M5 21h14" />
+    </>
+  ),
+  // The iOS share glyph — a tray with an arrow leaving it — because on a phone
+  // this row opens the system share sheet and should look like the door to it.
+  share: (
+    <>
+      <path d="M12 3v12" />
+      <path d="M8 7l4-4 4 4" />
+      <path d="M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2" />
     </>
   ),
   duplicate: (
