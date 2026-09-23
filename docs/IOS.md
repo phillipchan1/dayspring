@@ -92,6 +92,22 @@ It prevents the split; it cannot merge two accounts that already hold entries.
 Ownership is spread across ~20 tables plus Stripe and a unique
 `apple_original_txn`, so there is deliberately no merge path — prevention only.
 
+The native apps (iOS + Mac) register the `dayspring` custom scheme — iOS via
+`Info.ios.plist` `CFBundleURLSchemes`, both via `tauri.conf.json`
+`plugins.deep-link`. `@tauri-apps/plugin-deep-link` delivers the URL to
+`initDeepLinkAuth` (`src/lib/auth.ts`): `onOpenUrl` while the process is
+already running, `getCurrent` when the link cold-launched the app.
+
+| URL | Effect |
+|---|---|
+| `dayspring://auth-callback?code=…` | Finish OAuth. Highest priority if a batch also contains `open`. |
+| `dayspring://open` | Open the installed app. Trailing slash / empty query are fine. No navigation (not the paywall). |
+
+On Mac a warm `open` shows, unminimizes, and focuses the main window (the same
+APIs as the Dock-reopen path, so a ⌘W-hidden window comes back). On iOS the OS
+activates the app when it delivers the scheme; the listener only has to ignore
+OAuth. Web ignores these URLs. Universal links / AASA are out of scope.
+
 ### A4. Vercel environment variables
 
 | Variable | Purpose |

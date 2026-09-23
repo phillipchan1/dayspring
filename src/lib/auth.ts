@@ -1,9 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
 import { requireSupabase } from './supabase'
-import { isIOSTauri, isTauri } from './platform'
+import { isDesktopTauri, isIOSTauri, isTauri } from './platform'
 import { purgeOnSignOut } from './localData'
 import { beginExternalTrip } from './appLockSuppress'
 import { SIGN_IN_PROVIDERS, type AuthProvider } from './lastAuthProvider'
+import { selectDayspringDeepLink } from './deepLink'
 
 // Hosted HTTPS page that forwards the PKCE code to the dayspring:// deep-link
 // and shows a "you can close this tab" message to the user. Using an HTTPS URL
@@ -230,24 +231,36 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Native apps (desktop + iOS): listen for the dayspring://auth-callback deep
- * link and finish sign-in. Supabase (PKCE) returns a `code` we exchange for a
- * session — which then persists via the origin-independent Tauri store. Also
- * handles the case where the app was launched cold by the deep link. No-ops on
- * web.
+ * Native apps (desktop + iOS): listen for dayspring:// deep links.
+ *
+ * `dayspring://auth-callback` finishes OAuth (Supabase PKCE `code` → session
+ * via the origin-independent Tauri store). Highest priority when a batch
+ * also contains `open`.
+ *
+ * `dayspring://open` brings the installed app forward — Mac focuses the main
+ * window (including after ⌘W hid it); iOS is already becoming active because
+ * the OS delivered the custom-scheme open. No navigation; same shell as a
+ * normal launch. Trailing slash / empty query are accepted.
+ *
+ * Cold launch: `getCurrent()` returns the URL that started the process;
+ * `open` is a no-op besides the focus call, so bootstrap continues into
+ * journal or sign-in as usual. Web: no-op.
  *
  * On iOS, ASWebAuthenticationSession usually completes inline; this listener
- * remains the fallback when the app is cold-started by the deep link.
+ * remains the fallback when the app is cold-started by the OAuth deep link.
  */
 export async function initDeepLinkAuth(): Promise<void> {
   if (!isTauri()) return
 
-  const complete = async (urls: string[] | null) => {
-    if (!urls?.length) return
-    const cb = urls.find((u) => u.startsWith('dayspring://'))
-    if (!cb) return
+  const handle = async (urls: string[] | null) => {
+    const picked = selectDayspringDeepLink(urls)
+    if (!picked) return
+    if (picked.kind === 'open') {
+      await bringAppToForeground()
+      return
+    }
     try {
-      await completeOAuthCallback(cb)
+      await completeOAuthCallback(picked.url)
     } catch (err) {
       console.error('[auth] deep-link exchange failed', err)
     }
@@ -255,11 +268,25 @@ export async function initDeepLinkAuth(): Promise<void> {
 
   try {
     const { onOpenUrl, getCurrent } = await import('@tauri-apps/plugin-deep-link')
-    // App already running: callback arrives as an event.
-    await onOpenUrl((urls) => void complete(urls))
+    // App already running: URL arrives as an event.
+    await onOpenUrl((urls) => void handle(urls))
     // App launched by the deep link: pick up the initial URL.
-    await complete(await getCurrent())
+    await handle(await getCurrent())
   } catch (err) {
     console.error('[auth] deep-link init failed', err)
+  }
+}
+
+/** Mac: show + focus the main window. iOS activation is OS-owned. */
+async function bringAppToForeground(): Promise<void> {
+  if (!isDesktopTauri()) return
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const win = getCurrentWindow()
+    await win.unminimize()
+    await win.show()
+    await win.setFocus()
+  } catch (err) {
+    console.error('[auth] deep-link focus failed', err)
   }
 }
