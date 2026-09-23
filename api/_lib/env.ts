@@ -34,6 +34,13 @@ export const env = {
   // unset, the sync finds or creates a segment named resendSegmentName().
   resendSegmentId: () => process.env.RESEND_SEGMENT_ID ?? null,
   resendSegmentName: () => process.env.RESEND_SEGMENT_NAME || 'Dayspring accounts',
+  // Welcome drip (api/_lib/welcomeDrip.ts). Default OFF — merging the PR must
+  // not start mailing. Enroll still writes; only Resend sends are gated.
+  welcomeDripSendsEnabled: () =>
+    (process.env.WELCOME_DRIP_SENDS_ENABLED ?? 'false').toLowerCase() === 'true',
+  welcomeDripFrom: () =>
+    process.env.WELCOME_DRIP_FROM || 'The Dayspring team <hello@usedayspring.app>',
+
   appUrl: () => process.env.APP_URL ?? 'https://dayspring-eosin.vercel.app',
   // Onboarding trial model. Default (false): app-managed reverse trial — the
   // trial is granted in-app at first sign-in (no Stripe object, no card), and
