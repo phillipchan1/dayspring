@@ -12,7 +12,8 @@ Find it: Journal, in the sidebar (⌘2).
 
 Kept a journal somewhere else? Bring it with you. Dayspring imports Day One and Diarly exports in about a minute. Your original dates are kept, and every Scripture reference you ever wrote is found along the way. Open Settings → Import & backup.
 
-Open your Journal: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=journal
+Open your Journal: dayspring://open
+Don’t have the app? Download for Mac: https://github.com/phillipchan1/dayspring-releases/releases/latest/download/Dayspring-aarch64.dmg
 
 The Dayspring team
 

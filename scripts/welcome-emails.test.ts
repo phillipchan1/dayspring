@@ -7,8 +7,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  APP_URL,
   ASSET_BASE,
   EMAILS,
+  MAC_DOWNLOAD,
+  OPEN_APP,
   TEMPLATES_DIR,
   VARIABLES,
   manifest,
@@ -79,6 +82,37 @@ describe('welcome series templates', () => {
       }
       expect(html, `${email.key}: every image needs alt text`).not.toMatch(/alt=""/)
     }
+  })
+
+  it('opens the installed app on Days 0–9 and leaves the trial on the web URL', () => {
+    for (const { email, html, text } of rendered) {
+      if (email.key === 'trial') {
+        expect(html, email.key).toContain(
+          `href="${APP_URL}/?utm_source=email&amp;utm_medium=welcome&amp;utm_campaign=trial"`,
+        )
+        expect(text, email.key).toContain(
+          `${APP_URL}/?utm_source=email&utm_medium=welcome&utm_campaign=trial`,
+        )
+        expect(html, email.key).not.toContain(OPEN_APP)
+        expect(text, email.key).not.toContain(OPEN_APP)
+        expect(html, email.key).not.toContain('Don’t have the app?')
+        continue
+      }
+      expect(html, email.key).toContain(`href="${OPEN_APP}"`)
+      expect(text, email.key).toContain(OPEN_APP)
+      expect(html, email.key).not.toContain(APP_URL)
+      expect(text, email.key).not.toContain(APP_URL)
+      expect(html, email.key).toContain(`Don’t have the app? <a href="${MAC_DOWNLOAD}"`)
+      expect(html, email.key).toContain('>Download for Mac</a>')
+      expect(text, email.key).toContain(`Don’t have the app? Download for Mac: ${MAC_DOWNLOAD}`)
+    }
+  })
+
+  it('describes Dayspring as a Mac and iPhone app, not a browser product', () => {
+    const welcome = rendered.find(({ email }) => email.key === 'welcome')
+    expect(welcome.text).toContain('Dayspring is a Mac and iPhone app — open it to pick up where you left off.')
+    expect(welcome.text).not.toMatch(/browser/i)
+    expect(welcome.html).not.toMatch(/browser/i)
   })
 
   it('has committed templates/ that match the source (run npm run email:welcome)', async () => {
