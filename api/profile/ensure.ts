@@ -19,6 +19,8 @@ import { env } from '../_lib/env.js'
 import { preflight, withCors } from '../_lib/cors.js'
 import { nameFromAuthMetadata, scheduleAccountContactUpsert } from '../_lib/resendAudience.js'
 import { scheduleLifecycleEvent } from '../_lib/growthEvents.js'
+import { enrollUser, liveWelcomeDripDeps, sendDueForEnrollment } from '../_lib/welcomeDripRun.js'
+import { waitUntil } from '@vercel/functions'
 
 const TRIAL_DAYS = 14
 
@@ -85,6 +87,37 @@ export async function POST(req: Request): Promise<Response> {
       email: user.email,
       ...nameFromAuthMetadata(user.user_metadata),
     })
+  }
+
+  // First profile row = a new account. Enroll into the welcome series.
+  // Existing profiles are left for the one-shot backfill (feature-discovery,
+  // not a fake day-0). Enroll is awaited so a missed waitUntil cannot drop it;
+  // the optional day-0 send is fire-and-forget and no-ops while the kill
+  // switch is off.
+  if (!existing) {
+    try {
+      const deps = liveWelcomeDripDeps()
+      const { enrollment } = await enrollUser(deps.sb, {
+        owner: user.id,
+        source: 'signup',
+        now: deps.now,
+      })
+      const names = nameFromAuthMetadata(user.user_metadata)
+      const send = sendDueForEnrollment(deps, enrollment, {
+        id: user.id,
+        email: user.email ?? null,
+        firstName: names.firstName,
+      }).catch((e) => {
+        console.error('[welcome-drip] day-0 send failed', e)
+      })
+      try {
+        waitUntil(send)
+      } catch {
+        // waitUntil is only valid inside a request.
+      }
+    } catch (e) {
+      console.error('[welcome-drip] enroll failed', e)
+    }
   }
 
   // The reverse trial never touches Stripe or Apple, so it never reaches

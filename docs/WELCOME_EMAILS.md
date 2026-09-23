@@ -1,6 +1,6 @@
 # Welcome emails: implementation spec
 
-Six short emails over a new account's first two weeks, each teaching one thing.
+Five short emails over a new account's first two weeks, each teaching one thing.
 Everything a person reads is finished and committed. This doc says how to wire
 it up. It's written so someone who wasn't in the conversation (human or agent)
 can build it from here.
@@ -12,6 +12,10 @@ can build it from here.
 | `site/public/email/welcome/` | The images. Served at `https://www.usedayspring.app/email/welcome/…` by the marketing site |
 | `scripts/welcome-emails.test.ts` | Fails if a template breaks Resend's variable rules, loses its unsubscribe link, points at a missing image, or drifts from the source |
 | `scripts/capture-welcome-emails.mjs` | Re-shoots the images from the real app (`npm run email:welcome:assets`) |
+| `api/_lib/welcomeDrip.ts` | Enroll map, day-offset math, skip rules. Day 13 is not here |
+| `api/_lib/welcomeDripRun.ts` | Supabase ledger + Resend send |
+| `api/cron/welcome-drip.ts` | Daily send pass |
+| `api/admin/welcome-drip-backfill.ts` | One-shot enroll of every auth user (dry-run default) |
 
 Change copy in the source, then run `npm run email:welcome` and commit the regenerated `templates/`.
 
@@ -22,116 +26,126 @@ Change copy in the source, then run `npm run email:welcome` and commit the regen
   exactly what's forbidden).
 - **Never put journal content in an email.** No quotes, counts, names or subjects from
   their entries. Email isn't private enough.
-- **Only new accounts.** Existing accounts never enter the series.
+- **Day 13 `trial` stays out of the enroll map.** The template is uploaded in Resend and
+  listed in the manifest for copy, but it is not enrolled, not cron'd, and not backfilled
+  (Product ASC hold).
 - **Unsubscribe works on every email** and is respected by broadcasts too.
+- **Default is silent.** `WELCOME_DRIP_SENDS_ENABLED` is off unless someone turns it on.
+  Merging this code cannot start mailing production.
 
-## Architecture: Resend Automations
+## Architecture: enroll + cron (not Resend Automations)
 
-Resend runs the sequence (delays, branches and sends) as an **Automation** triggered by
-a custom event. There's no cron, no send ledger and no custom unsubscribe endpoint. The
-app only does two things:
+The app owns the sequence. Resend only receives `emails.send` with a published
+`template.id`. There is no Automation, no custom event, and no contact-property
+branch in Resend.
 
-1. **Sends one event** when a new account is created.
-2. **Keeps three contact properties current**, which the Automation branches on.
+1. **Enrollment store** — `welcome_drip_enrollments` (Supabase). One row per user:
+   `owner`, `enrolled_at` (UTC date, the day-offset anchor), `source`
+   (`signup` | `backfill`), `status`, `steps` (which keys were sent or skipped).
+2. **Enroll on signup** — `api/profile/ensure.ts` inserts a `signup` row the first
+   time a profile is created. Idempotent. Day 0 is offered immediately; it still
+   no-ops while the kill switch is off.
+3. **Daily cron** — `GET /api/cron/welcome-drip` at 09:30 UTC (after
+   `sync-resend`). For each active enrollment, any unrecorded step whose day
+   offset has arrived is skip-evaluated, then sent or recorded skipped.
+4. **Backfill** — `POST /api/admin/welcome-drip-backfill` enrolls every current
+   `auth.users` row as **feature-discovery** (`source=backfill`), not a fake
+   day-0. Skip-if-already-done is applied immediately. Default `dry_run=true`.
 
-### The sequence
+### The sequence (enroll map)
 
-| Day | Template key | Sent to |
+| Day | Template key | Resend template id | Sent to |
+|---|---|---|---|
+| 0 | `welcome` | `d798aca4-20ea-4967-8c67-072aa56fcef8` | new signups who have not written an entry. **Skipped on backfill.** |
+| 1 | `slash` | `12e1146a-7ef7-4110-aa42-061b672d1550` | everyone who has not typed a `/` command |
+| 3 | `journal` | `eefadd0c-50ed-4628-932c-2a21ace53d61` | people who have imported (`entries.source <> 'native'`) |
+| 3 | `journal-import` | `650e248b-cfad-419a-9e2b-be4ff3ee3392` | everyone else — the default branch |
+| 5 | `rituals` | `0396e918-c1ab-43e6-8257-60064a2c960d` | skipped if they have walked a ritual |
+| 9 | `told-back` | `bcca64a9-693b-4c47-a953-9e3d95e27fe5` | everyone |
+| 13 | `trial` | `4eef3200-a6f7-4c2f-b031-7aac3b3221d9` | **not enrolled** |
+
+From: `The Dayspring team <hello@usedayspring.app>`. Variable `NAME` ← first
+name from auth metadata, fallback `"there"`.
+
+Every send:
+
+```
+POST https://api.resend.com/emails
+{
+  "from": "The Dayspring team <hello@usedayspring.app>",
+  "to": ["<email>"],
+  "reply_to": "hello@usedayspring.app",
+  "template": { "id": "<uuid>", "variables": { "NAME": "Ada" } }
+}
+```
+
+### Skip rules (real Supabase signals)
+
+| Step | Skip when | Signal |
 |---|---|---|
-| 0 | `welcome` | everyone |
-| 1 | `slash` | everyone |
-| 3 | `journal-import` / `journal` | `journal` if `contact.properties.imported` = `"yes"`, otherwise `journal-import` (adds the "bring your old journal" paragraph) |
-| 5 | `rituals` | skipped if `contact.properties.walked_ritual` = `"yes"` |
-| 9 | `told-back` | everyone |
-| 13 | `trial` | only if `contact.properties.plan` = `"trialing"`. Its subject says "ends tomorrow", which is exact because the trial is 14 days from the same moment |
+| `welcome` | backfill, or they already wrote | `source='backfill'` **or** any `entries` row |
+| `slash` | they already used `/` | `spiritual_items.source = 'command'` |
+| `journal` / `journal-import` | the other branch | `entries.source <> 'native'` → `journal`, else `journal-import` |
+| `rituals` | they already walked a ritual | `entries.body_markdown` contains `<!-- ritual:` or the legacy `<!-- practice:name:` |
+| `told-back` | never | manifest `sendTo: everyone`. There is no persisted "opened Ascent / Themes" flag |
 
-### Automation layout ("Welcome series")
+Skips are recorded on the enrollment row so a step never double-sends. A failed
+Resend call is **not** recorded — the next cron retries.
 
+### Kill switch and env
+
+| Var | Default | Role |
+|---|---|---|
+| `WELCOME_DRIP_SENDS_ENABLED` | **false** (unset = false) | Only `true` calls Resend. Enroll + skip evaluation still run. |
+| `WELCOME_DRIP_FROM` | `The Dayspring team <hello@usedayspring.app>` | Override the From line |
+| `RESEND_API_KEY` | unset | Required to actually deliver. Without it, due sends are held. |
+| `CRON_SECRET` | required | Guards `/api/cron/welcome-drip` and `/api/admin/welcome-drip-backfill` |
+
+`WELCOME_SERIES_ENABLED` from an earlier Automation draft is **not** read.
+
+### Backfill: Vera dry-run on a throwaway
+
+Against a preview or a throwaway Vercel project (kill switch still off):
+
+```bash
+# Counts only — no writes, no Resend.
+curl -X POST "$URL/api/admin/welcome-drip-backfill" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Same, explicit.
+curl -X POST "$URL/api/admin/welcome-drip-backfill?dry_run=true" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run":true}'
 ```
-trigger  dayspring.signed_up
-  → send_email   welcome
-  → delay        1 day
-  → send_email   slash
-  → delay        2 days
-  → condition    contact.properties.imported eq "yes"
-        met      → send_email journal
-        not met  → send_email journal-import
-  → delay        2 days
-  → condition    contact.properties.walked_ritual eq "yes"
-        met      → (nothing)
-        not met  → send_email rituals
-  → delay        4 days
-  → send_email   told-back
-  → delay        4 days
-  → condition    contact.properties.plan eq "trialing"
-        met      → send_email trial
+
+Response shape:
+
+```json
+{
+  "dry_run": true,
+  "sends_enabled": false,
+  "would_enroll": 12,
+  "already_enrolled": 0,
+  "would_send": { "welcome": 0, "slash": 8, "journal": 3, "journal-import": 9, "rituals": 7, "told-back": 12 },
+  "would_skip": { "welcome": 12, "slash": 4, "journal": 9, "journal-import": 3, "rituals": 5, "told-back": 0 },
+  "would_hold": { "welcome": 0, "slash": 0, "journal": 0, "journal-import": 0, "rituals": 0, "told-back": 0 }
+}
 ```
 
-If the workflow editor can't join two branches back into one step, duplicate the
-downstream steps under each branch. The day numbers must stay the same either way.
+`would_send` / `would_skip` are the feature-discovery plan (what would go out
+once the kill switch is on). A write (`dry_run: false`) still only inserts
+enrollments and records skips — it does not send. The daily cron is what mails,
+and only after `WELCOME_DRIP_SENDS_ENABLED=true`.
 
-Every `send_email` step:
+There is **no** "launch day onward only" gate. Backfill is every current auth user.
 
-- **Template:** the published template for that key.
-- **Variables:** `{ "NAME": { "var": "contact.first_name" } }`.
-- **From:** `The Dayspring team <hello@usedayspring.app>`, or whichever address is verified.
-- **Reply-to:** an inbox a person reads. Several emails say "just reply", and those replies
-  are the point.
+### Before switching sends on (dashboard work, needs Phil)
 
-### Templates: upload rules (these are why the files look the way they do)
-
-For each entry in `templates/manifest.json`, create a Resend Template:
-
-- **name:** the manifest's `name`.
-- **subject:** the manifest's `subject`, plain text.
-- **html / text:** the `.html` and `.txt` files.
-- **variables:** `[{ "key": "NAME", "type": "string", "fallback_value": "there" }]`.
-- **preview text:** already embedded as a hidden preheader in the HTML. Set the Template's
-  preview field to the manifest's `preview` too if the editor asks.
-
-Then **publish** each one; Automations only send published Templates.
-
-- Variables are **triple-brace** (`{{{NAME}}}`). Fallbacks are declared on the Template,
-  **not** inline: the `{{{FIRST_NAME|there}}}` form the Ascent broadcast used is Broadcast
-  syntax and doesn't apply here.
-- `FIRST_NAME`, `LAST_NAME`, `EMAIL`, `UNSUBSCRIBE_URL`, `contact` and `this` are
-  **reserved** in Templates. That's why the greeting is `{{{NAME}}}`.
-- `{{{RESEND_UNSUBSCRIBE_URL}}}` is **not** added automatically in Automations. Every
-  template already carries it in its footer, in both HTML and text.
-- No variables in subjects.
-
-### App code to write
-
-1. **Signup event.** In `api/profile/ensure.ts`, when the profile row is created for the
-   first time (no `existing` row), after the contact upsert has finished:
-   `POST https://api.resend.com/events/send` with
-   `{ "event": "dayspring.signed_up", "email": user.email }`.
-   - Use `waitUntil`, and never fail or delay `ensure`. Follow
-     `scheduleAccountContactUpsert` in `api/_lib/resendAudience.ts`.
-   - Chain the event **after** that upsert resolves, so the contact exists with its first
-     name before the Automation's first step runs.
-   - Gate it behind an env flag (e.g. `WELCOME_SERIES_ENABLED=true`) so it can ship dark.
-2. **Contact properties.** Create `imported`, `walked_ritual` and `plan` in Resend
-   (strings, default `"no"` / `"no"` / `""`). Then keep them current:
-   - `imported` → `"yes"` in `api/processing/enqueue.ts`, which the client calls when an
-     import finishes.
-   - `plan` → on every plan write in `api/_lib/updateSubscription.ts` (and the trial grant
-     in `ensure.ts`).
-   - **Daily reconcile** in `api/cron/sync-resend.ts`, extended to set all three for every
-     account:
-     - `imported`: any `entries.source <> 'native'`
-     - `walked_ritual`: any `entries.body_markdown` containing `<!-- ritual:`
-     - `plan`: `profiles.plan`
-
-     This covers anything a live hook misses. `walked_ritual` can rely on the daily
-     reconcile alone.
-   - Never write `unsubscribed` from these updates. `resendAudience.ts` already guarantees
-     an opt-out stays an opt-out.
-3. **Deletion** already removes the contact (`scheduleAccountContactRemoval`). Check that a
-   running Automation stops for a deleted contact.
-
-### Before switching it on (dashboard work, needs Phil)
-
+- [ ] Apply `supabase/migrations/20260923120000_welcome_drip.sql` on the project
+      the cron will hit.
 - [ ] A verified sending domain in Resend (usedayspring.app) and the From address.
 - [ ] **Sign in with Apple relay.** Register the sending domain, Resend's return-path
   subdomain (`send.usedayspring.app`) and the From address in the Apple Developer portal
@@ -139,15 +153,15 @@ Then **publish** each one; Automations only send published Templates.
   Without this, every `@privaterelay.appleid.com` user bounces.
 - [ ] Send each Template to yourself with the Template's "Test email". Include one test to
   a contact with **no first name** and confirm it reads "Hi there,".
-- [ ] Duplicate the Automation with minute-long delays, run one test account through it
-  end to end, then delete the duplicate.
-- [ ] Turn on `WELCOME_SERIES_ENABLED` last.
+- [ ] Dry-run the backfill on a throwaway. Read `would_skip` / `would_hold`.
+- [ ] Turn on `WELCOME_DRIP_SENDS_ENABLED` last, and only where you mean to mail.
 
 ### Known trade-offs
 
-- **Send time.** Delays count from the signup moment, so each email lands at roughly the
-  time of day the person signed up. The original plan (7am in the writer's timezone)
-  needs a custom sender and isn't worth it for now.
+- **Send time.** Offsets are UTC calendar days from `enrolled_at`. The daily cron
+  is 09:30 UTC, so a signup after that hour gets day 0 on the next pass (or
+  immediately from `ensure` once sends are on). The original plan (7am in the
+  writer's timezone) needs a custom sender and isn't worth it for now.
 - **iPhone.** The site lists iOS as "Soon", so no email links to an iPhone app. When the
   App Store listing is live, add it to `welcome` and the "find it" lines.
 - **Measuring.** Every app link carries `utm_medium=welcome&utm_campaign=<key>`. Judge the

@@ -71,7 +71,8 @@ cascade`, so `auth.admin.deleteUser()` takes all of it in one statement:
 `scripture_refs` · `prayer_threads` · `encounters` · `altar_candidates` ·
 `altar_candidate_dismissals` · `item_subjects` · `threads` · `thread_members` ·
 `ropes` · `processing_jobs` · `concordance` · `concordance_occurrences` ·
-`concordance_events` · `concordance_shadow` · `marks`
+`concordance_events` · `concordance_shadow` · `marks` ·
+`welcome_drip_enrollments`
 
 In user terms: the entries and their photos, and everything built from them — the
 Ascent, the Altar, the Lamp, the Concordance, the marks.

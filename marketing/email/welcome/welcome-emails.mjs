@@ -15,9 +15,9 @@
  *     Template declares each variable with its own fallback_value, so the
  *     manifest carries them.
  *   • FIRST_NAME, LAST_NAME, EMAIL, UNSUBSCRIBE_URL, contact and this are
- *     reserved in Templates. The greeting is {{{NAME}}}, mapped to the
- *     contact's first name by the Automation step (docs/WELCOME_EMAILS.md).
- *   • {{{RESEND_UNSUBSCRIBE_URL}}} is never added for us in an Automation; it
+ *     reserved in Templates. The greeting is {{{NAME}}}, filled from the
+ *     contact's first name by api/_lib/welcomeDrip.ts (docs/WELCOME_EMAILS.md).
+ *   • {{{RESEND_UNSUBSCRIBE_URL}}} is never added for us on template sends; it
  *     must be in the Template itself.
  *   • Subjects stay plain text — no variables in them.
  *
