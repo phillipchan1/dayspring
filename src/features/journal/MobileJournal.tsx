@@ -43,6 +43,8 @@ export function MobileJournal(props: JournalViewProps) {
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
   const touch = useMediaQuery('(pointer: coarse)')
+  // Every Return destination replaces the journal outright now, Pages included.
+  const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
   /*
    * The way back out of an entry, as a gesture.
    *
@@ -65,10 +67,19 @@ export function MobileJournal(props: JournalViewProps) {
    * `touch-action: pan-y` (editor/theme.ts). Without it WebKit is free to read
    * the start of a horizontal drag as a pan of the editor, and once it has, the
    * touchmoves stop arriving and the shell freezes wherever it got to.
+   *
+   * ONLY while the editor is on screen. `entryReturn` is never null any more —
+   * a draft with no ticket is given Pages as its way out — so gating on it alone
+   * armed this on every surface: on the wall, on Lamp, and on top of the page
+   * reader's and the side panels' own back-swipes. One drag then moved two
+   * layers (the page at twice the finger's speed), and the shell came back in
+   * from the right carrying the wall — a way back that ended by playing a way
+   * forward. A surface that takes the canvas owns its own exit.
    */
+  const pushed = !!entryReturn && !canvasTaken
   const back = useSwipeToDismiss({
     onDismiss: onReturnFromEntry,
-    enabled: touch && !!entryReturn,
+    enabled: touch && pushed,
     threshold: 72,
     exit: true,
     // Dragging a selection handle is a horizontal gesture too, and pulling a
@@ -88,8 +99,6 @@ export function MobileJournal(props: JournalViewProps) {
     altar: embers.altar || updates.altar.length > 0,
   }
   const focused = focus.active
-  // Every Return destination replaces the journal outright now, Pages included.
-  const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
   const journalChrome = !canvasTaken
 
   const activeEntry = entries.find((e) => e.id === activeId)
@@ -105,7 +114,7 @@ export function MobileJournal(props: JournalViewProps) {
     <div
       className="app-shell"
       {...back.handlers}
-      data-back-swipe={entryReturn ? 'true' : undefined}
+      data-back-swipe={pushed ? 'true' : undefined}
       data-dragging={back.dragging ? 'true' : undefined}
       data-leaving={back.leaving ? 'true' : undefined}
       // Fill the full screen with 100dvh (reaches the bottom edge on iOS

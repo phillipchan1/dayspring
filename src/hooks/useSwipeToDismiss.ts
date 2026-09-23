@@ -313,10 +313,35 @@ export function useSwipeToDismiss({
     }
     setLeaving(true)
     timer.current = setTimeout(() => {
-      setLeaving(false)
+      /*
+       * Gone, and it STAYS gone — `leaving` is not cleared here.
+       *
+       * It used to be, in the same tick as `onDismiss`. But neither parent
+       * changes the screen in that tick: the reader closes through a history
+       * frame, the editor saves before it goes. So the surface re-rendered at
+       * home first, its transition carried it back in FROM THE RIGHT, and only
+       * then did what was underneath arrive — a back-swipe that finished by
+       * playing a forward push. Whatever replaces it clears this: unmounting
+       * (the reader), or `enabled` going false (the shell, below).
+       */
       onDismiss()
+      timer.current = setTimeout(() => setLeaving(false), STRANDED_MS)
     }, EXIT_MS)
   }
+
+  /*
+   * The surface this gesture belonged to has gone — say so without motion.
+   *
+   * The shell is never unmounted; it just stops being a pushed view when the
+   * surface under it changes, and `enabled` is how it finds out. The same
+   * render drops `data-back-swipe`, so there is no transition rule left to
+   * animate the return to zero with: it is simply home, wearing the new surface.
+   */
+  useEffect(() => {
+    if (enabled || !leaving) return
+    if (timer.current) clearTimeout(timer.current)
+    setLeaving(false)
+  }, [enabled, leaving])
 
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0]
@@ -494,3 +519,13 @@ export function useSwipeToDismiss({
  * for the other.
  */
 export const EXIT_MS = 220
+
+/**
+ * How long a dismissed surface waits to be replaced before coming back.
+ *
+ * Only a failure path — a save that never resolves, a dismissal the parent
+ * refused. Without it the surface would sit off the screen for good, and ignore
+ * every touch (`onTouchStart` declines while leaving). Returning is the honest
+ * answer to "you didn't actually go anywhere".
+ */
+const STRANDED_MS = 1500
