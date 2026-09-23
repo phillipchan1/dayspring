@@ -66,6 +66,7 @@ export function journalProps(
     updateSettings: noop,
     focus: { active: false, enter: noop, exit: noop, toggle: noop },
     onPages: noop,
+    onPagesToWall: () => false,
     sidebarOpen: false,
     onToggleSidebar: noop,
     onDrawerNavigated: noop,

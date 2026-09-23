@@ -2561,6 +2561,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     updateSettings,
     focus,
     onPages: goToPages,
+    onPagesToWall: () => {
+      // The reader's own "All entries" close — a destination, never `back()`.
+      if (!pagesActive || !state.pagesSpreadId) return false
+      go({ pagesSpreadId: null }, { replace: true })
+      return true
+    },
     onDrawerNavigated: consumeDrawerFrame,
     sidebarOpen: state.sidebar,
     onToggleSidebar: () => (state.sidebar ? back() : go({ sidebar: true })),

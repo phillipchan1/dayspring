@@ -16,9 +16,10 @@ import {
   IconNew,
   IconScripture,
 } from './navIcons'
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import type { JournalViewProps } from './journalViewProps'
 import { YouMenu } from './YouMenu'
+import { scrollToTop } from './scrollToTop'
 
 /**
  * Mobile: a single, full-width column. Controls live in a thumb-reachable
@@ -36,7 +37,7 @@ export function MobileJournal(props: JournalViewProps) {
     onNew, onLookBack, onScripture, onAltar, altarEnabled, onOpenSettings, onSync,
     userEmail, onLifeMap, onRitualThreads, hasWalkedARitual, concordanceEnabled,
     settings, updateSettings, focus,
-    onPages, mainSlot,
+    onPages, onPagesToWall, mainSlot,
     reflectionsActive, altarActive, scriptureActive, pagesActive, bulkActive, bulkCount, rangeSelectActive,
     entryReturn, onReturnFromEntry,
   } = props
@@ -100,6 +101,27 @@ export function MobileJournal(props: JournalViewProps) {
   }
   const focused = focus.active
   const journalChrome = !canvasTaken
+
+  /*
+   * The Journal tab is a tab, not a toggle.
+   *
+   * It used to share ⌘1's "press again to come back" — on the wall, a second
+   * tap popped you back to whatever you had left, so tapping it twice flipped
+   * between the wall and the page. A tab bar never does that: tapping the tab
+   * you are on keeps you there — an open page closes to the wall, and on the
+   * wall it goes back to the top. The desktop rail and ⌘1 keep their toggle;
+   * this is the phone's bar only.
+   */
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const onJournalTab = () => {
+    if (!pagesActive) {
+      onPages()
+      return
+    }
+    if (onPagesToWall()) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    scrollToTop(canvasRef.current, !reduce)
+  }
 
   const activeEntry = entries.find((e) => e.id === activeId)
   const heading = bulkActive
@@ -183,6 +205,7 @@ export function MobileJournal(props: JournalViewProps) {
           </>
         )}
         <div
+          ref={canvasRef}
           className="journal-canvas__content"
           style={{
             padding: focused ? '0 1rem' : canvasTaken ? '0' : '2.5rem 1rem 1.25rem',
@@ -217,7 +240,7 @@ export function MobileJournal(props: JournalViewProps) {
           <nav className="mobile-bar mobile-bar--tabs" aria-label="Primary">
             <MobileTab
               label="Journal"
-              onClick={onPages}
+              onClick={onJournalTab}
               active={pagesActive}
               icon={<IconPages size={22} />}
             />

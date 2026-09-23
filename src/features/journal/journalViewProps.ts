@@ -73,6 +73,11 @@ export interface JournalViewProps {
   onDrawerNavigated: () => void
   /** ⌘1 / rail "Pages" / mobile tab — the archive itself. */
   onPages: () => void
+  /**
+   * The phone's Journal tab, tapped while already on Pages: close an open page
+   * back to the wall. False when there was nothing open to close.
+   */
+  onPagesToWall: () => boolean
   /** The editor surface for the active entry. */
   mainSlot: ReactNode
   /** True when Looking back fills the main canvas. */
