@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The Mac's location prompt (see src/mac_location.rs). Tauri merges this
+	     file into the macOS bundle and embeds it in dev builds. iOS reads its
+	     own copy of the sentence from Info.ios.plist. Keep the two the same. -->
+	<key>NSLocationUsageDescription</key>
+	<string>Dayspring can remember where you were writing — the place and the weather — so a page can bring a morning back. You can turn this off.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Dayspring can remember where you were writing — the place and the weather — so a page can bring a morning back. You can turn this off.</string>
+</dict>
+</plist>

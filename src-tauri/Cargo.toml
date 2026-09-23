@@ -51,6 +51,21 @@ tauri-plugin-geolocation = "2"
 # before the view is created (see `native_typing.rs`).
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
+# CoreLocation for the page's circumstances on the Mac, where the geolocation
+# plugin has no implementation (see `mac_location.rs`). Versions match what the
+# lockfile already resolves.
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSError",
+  "NSObject",
+] }
+objc2-core-location = { version = "0.3", default-features = false, features = [
+  "std",
+  "CLLocation",
+  "CLLocationManager",
+  "CLLocationManagerDelegate",
+] }
 
 # Raw UIKit/ObjC access so the iOS webview can be told to stop insetting itself
 # (see `reclaim_ios_viewport` in src/lib.rs). Versions match what wry 0.55.1

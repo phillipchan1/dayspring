@@ -13,6 +13,10 @@ mod native_typing;
 // so the front end can invoke it without a platform check (src/lib/auth.ts:83).
 mod ios_oauth;
 
+// Compiles everywhere for the same reason: the command is always registered,
+// and answers "no position" off the Mac.
+mod mac_location;
+
 /// Open the web inspector (devtools). Gated by the `devtools` Cargo feature so
 /// it works in both debug and release builds when the user enables dev mode.
 #[tauri::command]
@@ -905,6 +909,7 @@ pub fn run() {
       set_privacy_screen,
       ios_selection_action,
       ios_oauth::start_oauth_session,
+      mac_location::mac_current_position,
     ]);
 
   // The updater plugin is desktop-only.

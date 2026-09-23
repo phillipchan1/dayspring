@@ -6,7 +6,7 @@
 // as timezone-only.
 
 import { apiPost } from './api'
-import { isMobileTauri } from './platform'
+import { isDesktopTauri, isMobileTauri } from './platform'
 import {
   isLocalToday,
   mergeCircumstances,
@@ -125,13 +125,33 @@ interface Fix {
  *
  * `isMobileTauri()` and not `isTauri()` because the plugin is mobile-only — see
  * the note in `src-tauri/Cargo.toml`.
+ *
+ * The Mac asks CoreLocation too, through a command of its own
+ * (`src-tauri/src/mac_location.rs`). It could not use the webview: a WKWebView
+ * on macOS turns every geolocation request down unless its UI delegate says
+ * otherwise, so for months every page written on the Mac was saved with its
+ * hour and no place and no weather, and nothing ever prompted.
  */
 async function readPosition(): Promise<Fix | null> {
   // No fallback. A native "no" — declined, or Location Services off — must end
   // it: falling through to the webview would put the `localhost` dialog in
   // front of someone who has already answered this question once.
   if (isMobileTauri()) return readPositionNatively()
+  if (isDesktopTauri()) return readPositionOnMac()
   return readPositionFromWebview()
+}
+
+async function readPositionOnMac(): Promise<Fix | null> {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const fix = await invoke<Fix | null>('mac_current_position')
+    if (!fix || !Number.isFinite(fix.lat) || !Number.isFinite(fix.lon)) return null
+    return fix
+  } catch {
+    // A build from before the command existed. The webview would only say no,
+    // so there is nothing to fall back to.
+    return null
+  }
 }
 
 async function readPositionNatively(): Promise<Fix | null> {
