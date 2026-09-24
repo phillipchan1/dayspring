@@ -182,7 +182,11 @@ export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
       <ThemeToggle
         isLight={isLight}
         onToggle={() => update({ appearance: isLight ? 'dark' : 'light' })}
-        className="theme-toggle--fixed"
+        className={
+          onDismiss
+            ? 'theme-toggle--fixed theme-toggle--fixed-end'
+            : 'theme-toggle--fixed'
+        }
       />
 
       <div className="signin__glow" aria-hidden />
