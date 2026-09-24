@@ -52,7 +52,8 @@ export const editorTheme = EditorView.theme({
     paddingLeft: '0',
     paddingRight: '0',
     // Scroll-past-end breathing room. Typewriter theme overrides this with its
-    // dynamic 45% padding when active (it's registered later in the ext array).
+    // dynamic 45% padding when active — by `Prec.high`, since CodeMirror ranks
+    // themes by extension precedence and the EARLIER one wins.
     paddingBottom: '40vh',
     maxWidth: 'var(--editor-max-width)',
     margin: '0 auto',
