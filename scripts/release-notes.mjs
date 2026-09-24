@@ -10,7 +10,7 @@
 
 import process from 'node:process'
 
-const MODEL = process.env.OPENAI_MODEL || 'gpt-5.4-nano'
+const MODEL = process.env.OPENAI_MODEL || 'gpt-6-luna'
 const KEY = process.env.OPENAI_API_KEY
 
 async function readStdin(stream) {
@@ -39,7 +39,7 @@ if (!raw || !KEY) {
   process.exit(0)
 }
 
-// System: a strict transformer, NOT a chat assistant. Small models (gpt-5.4-nano)
+// System: a strict transformer, NOT a chat assistant. Small models
 // will otherwise reply conversationally ("Sure thing — paste the commits…") and
 // that text leaks into a release. Forbid questions/addressing the reader outright.
 const system =
@@ -83,9 +83,9 @@ try {
       { role: 'user', content: instructions },
     ],
   }
-  // gpt-5/o-series/nano are reasoning models: cap hidden reasoning so the token
-  // budget goes to the actual notes (matches api/_lib/openai.ts conventions).
-  if (/nano|gpt-5|^o\d/i.test(MODEL)) body.reasoning_effort = 'low'
+  // gpt-5/gpt-6/o-series/nano are reasoning models: cap hidden reasoning so the
+  // token budget goes to the actual notes (matches api/_lib/openai.ts conventions).
+  if (/nano|gpt-5|gpt-6|luna|^o\d/i.test(MODEL)) body.reasoning_effort = 'low'
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
