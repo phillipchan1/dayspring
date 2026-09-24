@@ -115,6 +115,16 @@ describe('SignIn (iPad tap)', () => {
     expect(buttonNamed(host, 'Sign in with email')).toBeTruthy()
   })
 
+  it('lets a guest dismiss the overlay and return to the journal', () => {
+    const onDismiss = vi.fn()
+    act(() => {
+      root.render(createElement(SignIn, { onDismiss, reason: 'account' }))
+    })
+    expect(host.textContent).toMatch(/sync this journal/i)
+    buttonNamed(host, 'Back to journal').click()
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps brand copy and both auth stacks in the same card', () => {
     mount()
     const card = host.querySelector('.signin__card')

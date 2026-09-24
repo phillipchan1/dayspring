@@ -100,7 +100,7 @@ export function TrialBanner({ subscription, onDismiss, onPurchased }: Props) {
   // on 2026-09-21 (build 930): it says what the days cost, never what they are.
   // Name the thing instead — the access is what the subscription sells too, so
   // the banner now says the same words on both sides of the price.
-  const periodLabel = appStoreWords ? 'of full access' : 'in your trial'
+  const periodLabel = appStoreWords ? 'of subscription services' : 'in your trial'
 
   return (
     <div className="trial-banner" role="status">

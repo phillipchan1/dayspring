@@ -1,6 +1,7 @@
 import { IMPORT_SOURCES, type ImportSourceDef } from '@/lib/import/sources'
 import { useScriptureScan } from '@/features/scripture/useScriptureScan'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useGuestMode } from '@/context/GuestMode'
 import { ImportRunner } from './ImportRunner'
 import { ExportPanel } from './ExportPanel'
 
@@ -13,7 +14,22 @@ interface Props {
 /** Settings → Import & backup: migrate in, download a zip, or restore. */
 export function ImportPanel({ selectedId, onSelectSource, onBack }: Props) {
   const isMobile = useIsMobile()
+  const { isGuest, requestSignIn } = useGuestMode()
   const selected = selectedId ? IMPORT_SOURCES.find((s) => s.id === selectedId) ?? null : null
+
+  if (isGuest) {
+    return (
+      <div>
+        <p className="settings-section__intro">
+          Writing on this device stays here. Sign in to import a journal or keep a cloud backup.
+        </p>
+        <button type="button" className="btn" onClick={requestSignIn}>
+          Sign in to import or sync
+        </button>
+        <ExportPanel localOnly />
+      </div>
+    )
+  }
 
   // Importing means picking a multi-hundred-MB zip and parsing it in memory —
   // impractical and memory-risky on phones. Direct to desktop rather than offer

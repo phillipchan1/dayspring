@@ -1,5 +1,6 @@
 import { cacheClearAll, dictationCount, outboxCount, pendingUploadCount } from './db'
 import { clearAllCache } from './asyncCache'
+import { isGuestOwnerId } from './guestOwner'
 import { SUBSCRIPTION_CACHE_KEY } from './subscription'
 
 // Privacy fence for a shared browser. The IndexedDB cache + outbox and the
@@ -69,36 +70,75 @@ function writeCacheOwner(ownerId: string): void {
 }
 
 /**
+ * What fencing should do. Extracted so guest → account, account → account, and
+ * first-load can be tested without IndexedDB.
+ *
+ * A guest id (`local:…`) is unpublished work on this device, not another
+ * tenant. Signing in claims that cache for the account. Two different auth
+ * UUIDs are tenants — never mix them.
+ */
+export type FencePlan =
+  | { action: 'noop' }
+  | { action: 'claim-guest' }
+  | { action: 'purge-all' }
+  | { action: 'purge-content-if-idle' }
+
+export function planFence(stored: string | null, ownerId: string): FencePlan {
+  if (stored === ownerId) return { action: 'noop' }
+  if (stored && isGuestOwnerId(stored) && !isGuestOwnerId(ownerId)) {
+    return { action: 'claim-guest' }
+  }
+  if (stored && stored !== ownerId) return { action: 'purge-all' }
+  return { action: 'purge-content-if-idle' }
+}
+
+/**
  * Ensure the local cache belongs to `ownerId`. Same owner → fast no-op. Unknown
  * owner (first load / pre-fence rollout) → scrub content only (re-syncs from the
  * server; keeps the user's onboarding flags). Confirmed different owner → scrub
- * content AND reset flags. Call this on boot before any cache read.
+ * content AND reset flags. Guest → account → keep the journal, drop only the
+ * subscription cache. Call this on boot before any cache read.
  */
 export async function fenceCacheToOwner(ownerId: string): Promise<void> {
   const stored = readCacheOwner()
-  if (stored === ownerId) return // same owner — fast path, nothing to do
+  const plan = planFence(stored, ownerId)
 
-  if (stored && stored !== ownerId) {
-    // Confirmed different user took over this browser → full scrub + flag reset.
-    await purgeContent()
-    purgeFlags()
-  } else {
-    // Unknown prior owner (first load, or pre-fence rollout). Scrub the read
-    // cache only when there is no unsynced work to lose — never drop a real
-    // user's own data during the upgrade. Sign-out already scrubs content, so
-    // anything queued here is almost always the current user's.
-    //
-    // Counts all three queues, not just the outbox: purgeContent() clears the
-    // dictation and pending-upload stores too, and those hold the ONLY copy of
-    // an un-transcribed recording or a photo added offline.
-    const pending = await Promise.all([
-      outboxCount().catch(() => 0),
-      dictationCount().catch(() => 0),
-      pendingUploadCount().catch(() => 0),
-    ])
-    if (pending.every((n) => n === 0)) await purgeContent()
+  switch (plan.action) {
+    case 'noop':
+      return
+    case 'claim-guest':
+      // Same person, first account. Keep entries / settings / welcome; the
+      // subscription cache belongs to nobody yet and must not look entitled.
+      try {
+        localStorage.removeItem(SUBSCRIPTION_CACHE_KEY)
+      } catch {
+        /* ignore */
+      }
+      writeCacheOwner(ownerId)
+      return
+    case 'purge-all':
+      await purgeContent()
+      purgeFlags()
+      writeCacheOwner(ownerId)
+      return
+    case 'purge-content-if-idle': {
+      // Unknown prior owner (first load, or pre-fence rollout). Scrub the read
+      // cache only when there is no unsynced work to lose — never drop a real
+      // user's own data during the upgrade. Sign-out already scrubs content, so
+      // anything queued here is almost always the current user's.
+      //
+      // Counts all three queues, not just the outbox: purgeContent() clears the
+      // dictation and pending-upload stores too, and those hold the ONLY copy of
+      // an un-transcribed recording or a photo added offline.
+      const pending = await Promise.all([
+        outboxCount().catch(() => 0),
+        dictationCount().catch(() => 0),
+        pendingUploadCount().catch(() => 0),
+      ])
+      if (pending.every((n) => n === 0)) await purgeContent()
+      writeCacheOwner(ownerId)
+    }
   }
-  writeCacheOwner(ownerId)
 }
 
 /** On sign-out: scrub content and forget the owner so the next login re-fences. */

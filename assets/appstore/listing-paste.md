@@ -55,7 +55,9 @@ WHAT YOU'LL SEE
 • The Ascent — the threads of a season and the one line of the year, lifted verbatim from your own entries.
 • The Altar — the people, places, and matters you keep bringing to God, gathered from the prayers you laid down while writing.
 • The Lamp — every passage you've written, lit across the whole Bible, so you can find the verses that actually met you.
-• Rituals — nine contemplative forms, among them the Daily Examen, Lectio Divina, and the Prayer of Recollection, laid over the page as scaffolding and never as a script.
+• Rituals — an expanding library of contemplative forms, among them the Daily Examen, Lectio Divina, and The Round, laid over the page as scaffolding and never as a script. New rituals are added through the year.
+
+Writing on this device does not require an account. Sign in when you want sync, cloud backup, or the subscription services below.
 
 Mac, iPhone, and the web, synced without you thinking about it. Eight themes, four writing faces, and a focus mode with nothing between you and the words.
 
@@ -71,14 +73,16 @@ No streaks, no badges, no verdict on your walk with God.
 Dayspring — Luke 1:78, "the dayspring from on high hath visited us." First light, and mercy after darkness.
 
 SUBSCRIPTION
-Dayspring is an auto-renewing subscription:
-• Monthly: $7.99
-• Annual: $69.99
-Either plan is full access to Dayspring — writing, the Ascent, the Altar, the Lamp, and the Rituals, on iPhone, Mac, and the web.
+Dayspring is an auto-renewing subscription. Writing on this device is free. Either plan continues these services:
+• Sync across iPhone, Mac, and the web
+• Cloud backup of everything you write
+• The expanding rituals library — new forms through the year
+Monthly: $7.99
+Annual: $69.99
 There is no introductory offer attached to these subscriptions. Choosing a plan starts it immediately: payment is charged to your Apple Account at confirmation of purchase, and the subscription renews automatically at the same price unless auto-renew is turned off at least 24 hours before the end of the current period. Manage or cancel anytime in your Apple Account settings.
 
 ABOUT THE FIRST 14 DAYS
-New accounts begin with 14 days of access that Dayspring grants in its own database. It is not an App Store introductory offer and is not part of either subscription above — those carry no introductory offer and bill at confirmation of purchase. The 14 days end on their own, and choosing a plan is what continues the full access described above.
+New accounts begin with 14 days of subscription services that Dayspring grants in its own database. It is not an App Store introductory offer and is not part of either subscription above — those carry no introductory offer and bill at confirmation of purchase. The 14 days end on their own, and choosing a plan is what continues sync, backup, and the expanding rituals library described above.
 
 Privacy Policy: https://dayspring-eosin.vercel.app/privacy
 Terms of Use: https://dayspring-eosin.vercel.app/terms
@@ -108,87 +112,67 @@ _ASC: same version page, scroll to **App Review Information**_
 ### Notes
 
 WHAT THE APP IS
-A journal for practicing Christians. Entries are written on the phone; the
-reflection surfaces (Ascent, Altar, Lamp) are generated from the user's own
-entries and are empty until there is history to read.
+A journal for practicing Christians. Writing on this device does not require an
+account. Reflection surfaces (Ascent, Altar, Lamp) and sync are account-based
+and generated from the user's own entries.
 
-SIGN-IN (Guideline 4)
-Sign-in and registration stay in-app via ASWebAuthenticationSession (Apple /
-Google OAuth) or email + password on the sign-in screen. Nothing opens the
-system Safari app for authentication.
+GUEST VS ACCOUNT (Guideline 5.1.1(v))
+Cold launch opens the journal. Tap the page and write — no sign-in wall.
+Sign-in is asked only for sync, cloud backup, multi-device, subscribe, restore,
+and the server-backed surfaces (Ascent, Altar, Lamp).
 
-Demo credentials (App Store Connect):
+To journal without an account: launch the app and write. Settings (person icon)
+is available; Billing describes the subscription without requiring sign-in.
+
+To sign in later: Settings → About → Sign in, or tap Ascent / Altar / Lamp /
+Billing → Sign in to subscribe. A "Back to journal" control returns to writing.
+
+Demo credentials (App Store Connect) — fill on Friday if this account is used:
   Email: kai.chan.claw@gmail.com
   Password: walking.DAREN3legends
-Tap "Sign in with email" on the sign-in screen, enter the credentials above,
-and sign in. This account has full feature access (not paywalled).
+Tap Settings → About → Sign in, then "Sign in with email".
+Alternatively: Continue with Apple or Continue with Google (in-app).
 
-Alternatively: Continue with Apple or Continue with Google (also in-app).
-
-Account deletion: Settings → About → Delete account (two-step confirm).
+Account deletion (signed-in): Settings → About → Delete account.
 
 SUBSCRIPTIONS (Guideline 3.1.2)
-The two subscriptions have NO introductory offer. Choosing a plan charges the
-Apple Account immediately, and every purchase surface says so before the
-StoreKit sheet opens (paywall, locked screen, Settings > Subscription).
+Auto-renewing subscriptions. They are not a one-time unlock of named modules.
+Each period renews:
+  • Sync across iPhone, Mac, and the web
+  • Cloud backup
+  • The expanding rituals library (new forms through the year)
 
-The 14 days of access a new account receives are granted by the app in our own
-database at first sign-in. There is no StoreKit transaction involved, so there
-is no introductory offer to consume and nothing for the App Store to cancel.
-Following the 2026-09-17 review we removed the words "free trial" from every
-App Store‑facing surface and from this listing, so nothing claims an
-introductory offer the products do not carry; the description now states the
-mechanism plainly rather than presenting it as an offer.
+No introductory offer. Choosing a plan charges the Apple Account immediately.
 
-Following the 2026-09-21 review of build 1.0.930.930, which found that the
-subscriptions did not clearly describe what the user receives for the price
-(3.1.2(c)), every purchase surface now names what the subscription provides —
-full access to Dayspring — beside the StoreKit price. The wording that review
-quoted has been removed from the app and from these notes.
+WHERE TO SEE ONGOING VALUE
+  • Rituals library: in the journal, open Rituals (/ or the Rituals control).
+    The header shows the shelf count and "last added" month. Recent cards
+    carry a New mark. This is the growing library the subscription continues.
+  • Sync / backup value: Settings → Billing. Service bullets name sync,
+    backup, and the expanding rituals library beside the StoreKit prices.
+  • Guest Billing shows the same value without signing in. Subscribe / Restore
+    then ask for an account (those are account-based).
 
 WHERE TO FIND THE IN-APP PURCHASES
-The demo account above is inside its first 14 days of app-granted full access,
-so the app is not paywalled and you will land straight in the journal. The
-subscriptions are here:
+  Settings (person icon) > Billing > Plans
 
-  Settings (person icon, top right) > Subscription > Plans
-
-Both products are listed with their StoreKit prices and a Subscribe button, with
-the auto-renew disclosure and Restore Purchases directly beneath. Tapping
-Subscribe opens the StoreKit sheet and charges immediately — there is no
-introductory offer to consume first.
-
-Both plans buy the same thing — full access to Dayspring (writing, the Ascent,
-the Altar, the Lamp and the Rituals, on iPhone, Mac and the web) — and the
-Plans section says so in a line above the two prices.
-
-A banner at the top of the journal also leads to the same purchase. It shows
-the days remaining and the StoreKit annual price on its first line, and on its
-second line what a plan provides: writing, the Ascent, the Altar, the Lamp and
-the Rituals. Once the 14 days elapse the app shows a full-screen purchase
-surface with the same two products, naming the same full access beneath the
-prices.
+Both products list StoreKit prices, auto-renew disclosure, and Restore.
+Subscribe charges immediately — no introductory offer.
 
 On every purchase surface a Subscribe button appears only once StoreKit has
-returned that product's price, so a plan is never offered without the amount it
-will charge.
+returned that product's price.
 
 SANDBOX TESTING
-1. Sign in with email (demo credentials above), Apple, or Google.
-2. New accounts receive 14 days of app-granted access (no card, no StoreKit
-   introductory offer).
-3. Open Settings > Subscription > Plans and tap Subscribe on either product.
-4. Subscribe via StoreKit (dayspring_monthly / dayspring_annual). No
-   introductory offer is attached — charging starts immediately at subscribe,
-   which matches our web Stripe products.
-5. Restore Purchases is under the same Plans section, and on the full-screen
-   purchase surface.
+1. Launch without signing in and write an entry (guest / local journal).
+2. Open Settings > Billing to read what a plan continues.
+3. Sign in with email (demo credentials above), Apple, or Google to subscribe
+   or restore.
+4. Subscribe via StoreKit (dayspring_monthly / dayspring_annual).
+5. Restore Purchases is under the same Plans section.
 
 NOTE ON IMPORT
-The description mentions importing from Day One or Diarly. That runs on the Mac
-app and the web app only — archives are several hundred MB and parse best on a
-computer. On iPhone, Settings > Import shows a note directing to desktop.
-Imported entries sync to the phone and appear in the journal normally.
+Import from Day One or Diarly runs on Mac and the web. On iPhone, Settings >
+Import directs to desktop. Imported entries sync to the phone.
 
 Contact: phillipchan1@gmail.com
 

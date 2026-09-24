@@ -218,6 +218,30 @@
   line-height: 1.6;
 }
 
+.practice-library__growth {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--pl-body);
+  font-size: 13px;
+  color: var(--pl-ink-soft);
+}
+
+.practice-library__cadence {
+  font-style: italic;
+  color: var(--pl-muted);
+}
+
+.practice-card__new {
+  margin-left: 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pl-amber);
+  font-weight: 500;
+}
+
 /* One axis and a search field, where there used to be twelve chips in two rows.
    Rhythm is the axis that predicts what someone wants; `function` still labels
    every card and is part of what search matches, so dropping its row costs

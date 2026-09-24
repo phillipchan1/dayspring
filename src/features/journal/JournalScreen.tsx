@@ -21,6 +21,7 @@ import { cacheGet, cachePut, dictationList, dictationPrune, type PendingDictatio
 import { syncStore } from '@/lib/sync'
 import type { Entry, PrayerType, SpiritualItemType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
+import { useGuestMode } from '@/context/GuestMode'
 import { useFocusMode } from './useFocusMode'
 import { useJournalShortcuts } from './useJournalShortcuts'
 import { DesktopJournal } from './DesktopJournal'
@@ -142,6 +143,7 @@ function veilUp(): Promise<void> {
 
 export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const { state, go, back, setHistoryPopBarrier, closeSettings } = useAppNavigation()
+  const { isGuest, requestSignIn } = useGuestMode()
   const { entryId } = state
 
   const [entries, setEntries] = useState<Entry[]>([])
@@ -1267,7 +1269,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       }
     })()
 
-    if (!isSupabaseConfigured) return () => {
+    if (!isSupabaseConfigured || isGuest) return () => {
       cancelled = true
     }
 
@@ -1297,6 +1299,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // current while open, so this stays cheap. Reconnecting (`online`) does a full
   // reconcile, since realtime was down while offline and may have missed deletes.
   useEffect(() => {
+    if (isGuest) return
     const resyncFull = () => {
       void repo.sync(preserveEditingId()).then((list) => {
         if (list) applySyncedList(list)
@@ -1354,7 +1357,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   // onReconnect triggers a full reconcile when the WebSocket re-establishes
   // after a drop — catches any events missed during the outage.
   useEffect(() => {
-    if (!isSupabaseConfigured) return
+    if (!isSupabaseConfigured || isGuest) return
 
     return subscribeEntryChanges({
       onBatch: (events) => {
@@ -1591,6 +1594,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   async function toggleLookBack() {
+    if (isGuest) {
+      requestSignIn()
+      return
+    }
     if (state.entryReturn?.surface === 'reflections') {
       returnFromEntryOrigin()
       return
@@ -1600,6 +1607,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   async function toggleScripture() {
+    if (isGuest) {
+      requestSignIn()
+      return
+    }
     if (state.entryReturn?.surface === 'scripture') {
       returnFromEntryOrigin()
       return
@@ -1625,6 +1636,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * arrives as a chip you can pull off like any other filter.
    */
   async function askQuestion(question: string) {
+    if (isGuest) {
+      setFindOpen(false)
+      requestSignIn()
+      return
+    }
     setFindOpen(false)
     setAsking(question)
     await leaveForSurface({ surface: 'pages' })
@@ -1717,11 +1733,19 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   async function toggleLifeMap() {
+    if (isGuest) {
+      requestSignIn()
+      return
+    }
     if (lifeMapActive) back()
     else await leaveForSurface({ surface: 'lifemap' })
   }
 
   async function toggleAltar() {
+    if (isGuest) {
+      requestSignIn()
+      return
+    }
     if (!altarEnabled) return
     if (state.entryReturn?.surface === 'altar') {
       returnFromEntryOrigin()

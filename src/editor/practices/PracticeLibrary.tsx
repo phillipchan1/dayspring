@@ -5,6 +5,9 @@ import {
   SHELF,
   PRACTICE_FUNCTIONS,
   PRACTICE_RHYTHMS,
+  LIBRARY_CADENCE,
+  formatLibraryGrowth,
+  isRecentlyAdded,
   resolveMovements,
   type Practice,
   type PracticeFunction,
@@ -316,6 +319,10 @@ export function PracticeLibrary({
             Tried and true rituals for the inner life — gathered from two thousand
             years of faithful writing.
           </p>
+          <p className="practice-library__growth" data-testid="ritual-library-growth">
+            <span>{formatLibraryGrowth()}</span>
+            <span className="practice-library__cadence">{LIBRARY_CADENCE}</span>
+          </p>
           {/* One line, why the shelf opens where it does. Mid-entry keeps
               priority: it knows something the clock doesn't. */}
           <p className="practice-library__because">
@@ -396,6 +403,9 @@ export function PracticeLibrary({
             >
               <span className="practice-card__function">
                 {functionLabel(practice.function)}
+                {isRecentlyAdded(practice.name) && (
+                  <span className="practice-card__new">New</span>
+                )}
               </span>
               <span className="practice-card__name">{practice.name}</span>
               <span className="practice-card__origin">{practice.origin}</span>
