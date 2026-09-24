@@ -1326,6 +1326,13 @@
    the `+` insert door (lineMenu.ts) with a whole opacity system behind it, and
    `::before` would sit above the text rather than under it — so this borrows
    the technique the marking rules already use, which needs neither.
+
+   Positioned from the CONTENT box, below it, into the line's bottom padding.
+   That padding only exists once a body line follows (`--spaced`); measured
+   from the padding box, a title with nothing under it yet had the hairline
+   struck through its lowercase letters. From the content box it can never
+   touch the text — with no padding it falls outside the box and is clipped,
+   and it appears, in place, the moment the writer presses Enter.
    ────────────────────────────────────────────────────────────────────────── */
 [data-theme='dawn'] .cm-line.cm-entry-title,
 [data-theme='ink'] .cm-line.cm-entry-title,
@@ -1333,7 +1340,9 @@
 [data-theme='ink'] .cm-line.cm-entry-title-explicit {
   background-image: linear-gradient(90deg, var(--journal-horizon), transparent);
   background-repeat: no-repeat;
-  background-position: left bottom 0.42em;
+  background-origin: content-box;
+  background-clip: border-box;
+  background-position: left bottom -0.43em;
   background-size: 62% 1px;
 }
 [data-theme='dawn'] .markdown-body h1::after,
