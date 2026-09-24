@@ -29,7 +29,7 @@ type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
  * billed at the (much pricier) output rate, so it is the first thing to look at
  * when a nano bill is bigger than it should be. Counts only, never text (§8).
  *
- *   [tokens] name=weekly model=gpt-5.4-nano in=2431 cached=0 out=812 reasoning=640 attempt=0
+ *   [tokens] name=weekly model=gpt-6-luna in=2431 cached=0 out=812 reasoning=640 attempt=0
  *
  * Grep Vercel logs for `[tokens]` to total a day by name.
  */
