@@ -31,7 +31,8 @@ import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { DeleteAccountFlow } from '@/features/account/DeleteAccountFlow'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
-import { FULL_ACCESS_SENTENCE } from './valueCopy'
+import { FULL_ACCESS_SENTENCE, SERVICE_BULLETS } from './valueCopy'
+import { RitualLibraryGrowth } from './RitualLibraryGrowth'
 import './Paywall.css'
 
 interface Props {
@@ -328,8 +329,18 @@ export function LockedScreen({
         <p className="locked-screen__body">
           {isCancelled
             ? 'Everything you wrote is still here, whenever you\'re ready.'
-            : `Every word you wrote is saved. Subscribing keeps it all: ${FULL_ACCESS_SENTENCE}`}
+            : `Every word you wrote stays on this device. A subscription keeps ${FULL_ACCESS_SENTENCE}`}
         </p>
+        {!isCancelled && (
+          <>
+            <ul className="paywall__services">
+              {SERVICE_BULLETS.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <RitualLibraryGrowth />
+          </>
+        )}
 
         <div className="locked-screen__actions">
           {/* Guideline 3.1.2(c), 2026-09-21: the billed amount must be the most

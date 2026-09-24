@@ -7,7 +7,15 @@ import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
 import { useAppUpdate } from '@/hooks/useAppUpdate'
 import { loadChangelog, isMinor, type ChangelogEntry } from '@/lib/changelog'
 import { useSubscription } from '@/hooks/useSubscription'
-import { FEATURE_LIST, FULL_ACCESS_SENTENCE } from '@/features/paywall/valueCopy'
+import {
+  FEATURE_LIST,
+  FULL_ACCESS_SENTENCE,
+  SERVICE_BULLETS,
+  shouldShowGrantedCountdown,
+} from '@/features/paywall/valueCopy'
+import { RitualLibraryGrowth } from '@/features/paywall/RitualLibraryGrowth'
+import '@/features/paywall/RitualLibraryGrowth.css'
+import { useGuestMode } from '@/context/GuestMode'
 import { linkProvider, listSignInMethods, signOut } from '@/lib/auth'
 import { PROVIDER_LABEL, SIGN_IN_PROVIDERS, type AuthProvider } from '@/lib/lastAuthProvider'
 import { isDesktopTauri, isTauri } from '@/lib/platform'
@@ -344,6 +352,7 @@ function ShortcutsTab() {
 }
 
 function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onClose: () => void; featureFlags: string[] }) {
+  const { isGuest, requestSignIn } = useGuestMode()
   const { replay } = useWelcome()
   const { settings, update } = useSettings()
   // Only for the delete flow, which has to warn an App Store subscriber before
@@ -373,7 +382,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
           </div>
           <div>
             <dt>Storage</dt>
-            <dd>Private to you · synced</dd>
+            <dd>{isGuest ? 'On this device' : 'Private to you · synced'}</dd>
           </div>
         </dl>
       </div>
@@ -441,11 +450,22 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
       <div className="settings-about__section">
         <div className="settings-about__section-title">Account</div>
         <div className="settings-about__group">
-          <div className="settings-about__row">
-            <span className="settings-field__label">Email</span>
-            {userEmail && <span className="settings-field__value">{userEmail}</span>}
-          </div>
-          <SignInMethods />
+          {isGuest ? (
+            <div className="settings-about__row">
+              <span className="settings-field__label">Account</span>
+              <button type="button" className="btn" onClick={requestSignIn}>
+                Sign in
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="settings-about__row">
+                <span className="settings-field__label">Email</span>
+                {userEmail && <span className="settings-field__value">{userEmail}</span>}
+              </div>
+              <SignInMethods />
+            </>
+          )}
           <div className="settings-about__row">
             <span className="settings-field__label">Welcome</span>
             <button
@@ -491,7 +511,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
           {/* Optional app lock. Owns its own state (profiles.app_lock, not
               settings — a whole-object settings push from a stale device would
               turn the lock back off), so it takes no props from here. */}
-          <AppLockSettings />
+          {!isGuest && <AppLockSettings />}
           <div className="settings-about__row-toggle">
             <Toggle
               label="Remember where you write"
@@ -514,7 +534,11 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
       {/* Danger zone: account actions */}
       <div className="settings-about__danger">
         <div className="settings-about__danger-title">Account Actions</div>
-        {confirmSignOut ? (
+        {isGuest ? (
+          <p className="settings-field__hint" style={{ marginBottom: '0.75rem' }}>
+            Writing stays on this device until you sign in.
+          </p>
+        ) : confirmSignOut ? (
           <div className="settings-about__confirm">
             <span className="settings-about__confirm-text">Sign out of {userEmail}?</span>
             <div className="settings-about__confirm-actions">
@@ -534,7 +558,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
         <button className="btn btn--ghost" onClick={() => settingsStore.reset()}>
           Reset all settings to defaults
         </button>
-        <DeleteAccountFlow userEmail={userEmail} subscription={subscription} />
+        {!isGuest && <DeleteAccountFlow userEmail={userEmail} subscription={subscription} />}
       </div>
     </div>
   )
@@ -844,6 +868,7 @@ function Toggle({
 }
 
 function BillingTab() {
+  const { isGuest, requestSignIn } = useGuestMode()
   const { subscription, loading, refetch } = useSubscription()
   const [syncing, setSyncing] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
@@ -974,6 +999,10 @@ function BillingTab() {
   )
   const restoreTap = useTapAction(() => void handleAppleRestore(), iapLoading === null)
 
+  if (isGuest) {
+    return <GuestBilling onSignIn={requestSignIn} />
+  }
+
   if (loading) {
     return <p style={{ color: 'var(--text-faint)', fontFamily: 'var(--font-sans)', fontSize: '0.88rem' }}>Loading…</p>
   }
@@ -994,19 +1023,22 @@ function BillingTab() {
       // introductory offer these products do not have — Guideline 3.1.2(c).
       // Off the App Store it is exactly what Stripe does, so it stays.
       //
-      // The App Store half said "Complimentary access" until 3.1.2(c) cited that
-      // phrase by name on 2026-09-21 (build 930): it named the price of the 14
-      // days and never the thing, so nothing on the surface said what the money
-      // buys. "Full access" is the same wording the listing already uses.
+      // A leftover year-long trial_ends_at used to print "Full access — 359
+      // days remaining", which reads as complimentary lifetime (3.1.2, build
+      // 942). Cap the countdown; a long leftover window is just "Active".
       label: appStoreWords
-        ? `Full access — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`
+        ? shouldShowGrantedCountdown(trialDays)
+          ? `${trialDays} ${trialDays === 1 ? 'day' : 'days'} of subscription services remaining`
+          : 'Active'
         : `Free trial — ${trialDays} ${trialDays === 1 ? 'day' : 'days'} remaining`,
       color:  'var(--accent)',
-      detail: trialEnd
+      detail: trialEnd && shouldShowGrantedCountdown(trialDays)
         ? appStoreWords
-          ? `Ends ${trialEnd} · Choosing a plan keeps ${FEATURE_LIST}, and bills your Apple Account today.`
+          ? `Ends ${trialEnd} · Choosing a plan continues ${FEATURE_LIST}, and bills your Apple Account today.`
           : `Ends ${trialEnd} · No charge until then.`
-        : null,
+        : appStoreWords
+          ? `A plan continues ${FEATURE_LIST}, and bills your Apple Account today.`
+          : null,
     },
     active:   {
       label:  'Active',
@@ -1116,21 +1148,25 @@ function BillingTab() {
           <div className="settings-field">
             <div className="settings-field__head">
               <span className="settings-field__label">Plans</span>
-              {plan === 'trialing' && (
+              {plan === 'trialing' && shouldShowGrantedCountdown(trialDays) && (
                 <span className="settings-field__hint">
                   {trialEnd
                     ? appStoreWords
-                      ? `Subscribe whenever you’re ready. Your full access runs until ${trialEnd}.`
+                      ? `Subscribe whenever you’re ready. Subscription services on this account run until ${trialEnd}.`
                       : `Subscribe whenever you’re ready. Your trial runs until ${trialEnd}.`
                     : 'Subscribe whenever you’re ready.'}
                 </span>
               )}
-              {/* Guideline 3.1.2(c), 2026-09-21 (build 930): this is the
-                  reviewer's purchase surface (see assets/appstore/listing.json
-                  review notes), and it showed two prices without ever saying
-                  what they bought. Both plans buy the identical thing, so it is
-                  one line above the tiles rather than a bullet list on each. */}
+              {/* Guideline 3.1.2, 2026-09-24 (build 942): name the ongoing
+                  services, not a module-unlock list. Same nouns as the other
+                  purchase surfaces (valueCopy.ts). */}
               <span className="settings-field__hint">Either plan is {FULL_ACCESS_SENTENCE}</span>
+              <ul className="service-bullets" style={{ textAlign: 'left', marginTop: '0.45rem' }}>
+                {SERVICE_BULLETS.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <RitualLibraryGrowth />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
               {[
@@ -1222,6 +1258,114 @@ function BillingTab() {
         </>
       )}
 
+    </div>
+  )
+}
+
+/**
+ * Guest Billing. Writing is free on this device; the plans describe the
+ * ongoing services a subscription renews. Subscribe / Restore ask for an
+ * account — those are account-based. A reviewer can read the value without
+ * signing in (Guideline 5.1.1(v) + 3.1.2).
+ */
+function GuestBilling({ onSignIn }: { onSignIn: () => void }) {
+  const onIos = isAppleIapAvailable()
+  const [applePrices, setApplePrices] = useState<{ annual: string | null; monthly: string | null }>({
+    annual: null,
+    monthly: null,
+  })
+
+  useEffect(() => {
+    if (!onIos) return
+    let alive = true
+    fetchAppleProducts().then(
+      (list) => {
+        if (!alive) return
+        setApplePrices({
+          annual: displayPrice('annual', { useApple: true, products: list }),
+          monthly: displayPrice('monthly', { useApple: true, products: list }),
+        })
+      },
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [onIos])
+
+  return (
+    <div className="settings-stack">
+      <div className="settings-field">
+        <div className="settings-field__head settings-field__head--row">
+          <span className="settings-field__label">Status</span>
+          <span className="settings-field__value">Writing on this device</span>
+        </div>
+        <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: 'var(--text-faint)', lineHeight: 1.55 }}>
+          Sign in to sync across devices, back up, restore purchases, or subscribe.
+        </p>
+      </div>
+
+      <div className="settings-divider" />
+      <div className="settings-field">
+        <div className="settings-field__head">
+          <span className="settings-field__label">Plans</span>
+          <span className="settings-field__hint">Either plan is {FULL_ACCESS_SENTENCE}</span>
+          <ul className="service-bullets" style={{ textAlign: 'left', marginTop: '0.45rem' }}>
+            {SERVICE_BULLETS.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <RitualLibraryGrowth />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+          {[
+            {
+              label: 'Annual',
+              price: onIos ? (applePrices.annual ?? 'Yearly') : '$64 / yr',
+              note: onIos ? 'Billed yearly' : '~$5.33 / mo',
+            },
+            {
+              label: 'Monthly',
+              price: onIos ? (applePrices.monthly ?? 'Monthly') : '$7 / mo',
+              note: 'Cancel anytime',
+            },
+          ].map((p) => (
+            <div
+              key={p.label}
+              style={{
+                padding: '0.7rem 0.8rem',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius)',
+              }}
+            >
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: '0.15rem' }}>
+                {p.label}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-bright)', letterSpacing: '-0.02em' }}>
+                {p.price}
+              </div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.72rem', color: 'var(--text-faint)', marginTop: '0.1rem' }}>
+                {p.note}
+              </div>
+            </div>
+          ))}
+        </div>
+        <button type="button" className="btn" style={{ marginTop: '0.75rem', width: '100%' }} onClick={onSignIn}>
+          Sign in to subscribe
+        </button>
+        {onIos && (
+          <button
+            type="button"
+            className="btn btn--ghost storekit-tap-target"
+            style={{ marginTop: '0.5rem', width: '100%' }}
+            onClick={onSignIn}
+          >
+            Restore purchases
+          </button>
+        )}
+        {onIos && <AppleSubscriptionTerms />}
+      </div>
     </div>
   )
 }

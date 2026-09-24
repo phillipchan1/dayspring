@@ -16,7 +16,8 @@ import { useTapAction } from '@/lib/tapAction'
 import { usesAppStoreCopy } from '@/lib/storeCopy'
 import { AppleSubscriptionTerms } from './AppleSubscriptionTerms'
 import { displayPrice } from './prices'
-import { FULL_ACCESS_SENTENCE } from './valueCopy'
+import { FULL_ACCESS_SENTENCE, SERVICE_BULLETS } from './valueCopy'
+import { RitualLibraryGrowth } from './RitualLibraryGrowth'
 import './Paywall.css'
 
 export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}) {
@@ -123,7 +124,7 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             differs by platform is whether the first 14 days are a trial of the
             purchase (web) or already granted in-app (App Store, no intro offer). */}
         <h1 className="paywall__headline">
-          {appStoreWords ? 'Keep your journal going' : 'Begin your 14-day free trial'}
+          {appStoreWords ? 'Keep your journal with you' : 'Begin your 14-day free trial'}
         </h1>
 
         <div className="paywall__plans">
@@ -160,7 +161,15 @@ export function PaywallScreen({ onPurchased }: { onPurchased?: () => void } = {}
             about what they buy. It sits under the tiles, in the small note
             style, so the billed amount stays the largest pricing element. */}
         {appStoreWords && (
-          <p className="paywall__trial-note">Either plan is {FULL_ACCESS_SENTENCE}</p>
+          <>
+            <p className="paywall__trial-note">Either plan is {FULL_ACCESS_SENTENCE}</p>
+            <ul className="paywall__services">
+              {SERVICE_BULLETS.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <RitualLibraryGrowth />
+          </>
         )}
 
         {useApple && <AppleSubscriptionTerms />}

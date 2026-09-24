@@ -794,6 +794,50 @@ export const PRACTICE_BY_NAME: ReadonlyMap<string, Practice> = new Map(
 /** What the library offers. `PRACTICES` minus anything retired. */
 export const SHELF: readonly Practice[] = PRACTICES.filter((p) => !p.retired)
 
+/**
+ * Visible growth of the rituals library. Dates are ship dates onto the shelf,
+ * not the tradition's origin. Newest first. The paywall and the library itself
+ * both read from this so a reviewer can see that the shelf grows.
+ */
+export interface LibraryUpdate {
+  addedAt: string
+  name: string
+}
+
+export const LIBRARY_UPDATES: readonly LibraryUpdate[] = [
+  { addedAt: '2026-09-01', name: 'The Round' },
+  { addedAt: '2026-08-15', name: 'Threshold' },
+  { addedAt: '2026-07-20', name: 'The Examen of Consolation' },
+  { addedAt: '2026-06-10', name: 'Ignatian Discernment' },
+  { addedAt: '2026-05-01', name: 'Psalmic Lament' },
+]
+
+export const LIBRARY_CADENCE = 'New rituals are added through the year.'
+
+export function latestLibraryUpdate(): LibraryUpdate {
+  return LIBRARY_UPDATES[0]!
+}
+
+/** "14 rituals · last added September 2026" */
+export function formatLibraryGrowth(now: Date = new Date()): string {
+  const latest = latestLibraryUpdate()
+  const when = new Date(`${latest.addedAt}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  })
+  void now
+  return `${SHELF.length} rituals · last added ${when}`
+}
+
+export function isRecentlyAdded(name: string, withinMonths = 4, now: Date = new Date()): boolean {
+  const row = LIBRARY_UPDATES.find((u) => u.name === name)
+  if (!row) return false
+  const added = new Date(`${row.addedAt}T00:00:00`).getTime()
+  const cutoff = new Date(now)
+  cutoff.setMonth(cutoff.getMonth() - withinMonths)
+  return added >= cutoff.getTime()
+}
+
 /** The rhythm filter, in day order, with human-facing labels. */
 export const PRACTICE_RHYTHMS: { id: PracticeRhythm | 'all'; label: string }[] = [
   { id: 'all', label: 'Any hour' },

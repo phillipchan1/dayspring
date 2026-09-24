@@ -14,6 +14,7 @@ import { UpdateToast } from './components/UpdateToast'
 import { FeedbackWidget } from './components/FeedbackWidget'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AppNavigationProvider, useAppNavigation } from './context/AppNavigation'
+import { GuestModeProvider } from './context/GuestMode'
 import { WelcomeProvider } from './features/welcome/WelcomeProvider'
 import { PaywallScreen } from './features/paywall/PaywallScreen'
 import { LockedScreen } from './features/paywall/LockedScreen'
@@ -23,15 +24,18 @@ import { OnboardingFlow } from './features/onboarding/OnboardingFlow'
 import { FirstLight } from './features/firstlight/FirstLight'
 import { AppLockGate } from './features/applock/AppLockGate'
 import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
-import { shouldHoldForProfile } from './lib/subscription'
+import { shouldHoldForProfile, trialDaysRemaining } from './lib/subscription'
+import { APP_GRANTED_DISPLAY_CAP } from './features/paywall/valueCopy'
 import { ensureProfile } from './lib/onboarding'
 import { fenceCacheToOwner } from './lib/localData'
+import { getOrCreateGuestOwnerId } from './lib/guestOwner'
 import { registerEntryDerive } from './lib/entryDerive'
 import { maybeBackfillOnLoad } from './lib/processingClient'
 import { SurfaceLoader } from './components/SurfaceLoader'
 import { initApplePurchases, isAppleIapAvailable } from './lib/appleIap'
 import { isMobileTauri } from './lib/platform'
 import { track } from './lib/analytics'
+import { setLocalOnlySync } from './lib/repo'
 
 // localStorage key used by useHasSeenWelcome — set before WelcomeProvider
 // mounts so the first-run flow is suppressed for users coming through checkout.
@@ -84,7 +88,16 @@ export function App() {
     return <div className="app-shell"><SurfaceLoader /></div>
   }
 
-  if (!session) return <SignIn />
+  if (!session) {
+    // Guideline 5.1.1(v): writing is not account-based. Cold launch without a
+    // session reaches the journal on this device. Sign-in is asked only for
+    // sync, backup, subscribe, restore, and the server-backed surfaces.
+    return (
+      <AppNavigationProvider>
+        <GuestApp />
+      </AppNavigationProvider>
+    )
+  }
 
   // The optional app lock. Above AuthenticatedApp on purpose: it needs the owner
   // id to know whose PIN to ask for, the theme effect above has already run so it
@@ -98,6 +111,64 @@ export function App() {
         <AuthenticatedApp userEmail={session.user.email ?? ''} ownerId={session.user.id} />
       </AppNavigationProvider>
     </AppLockGate>
+  )
+}
+
+/**
+ * Local-only journal. No paywall, no LockedScreen, no onboarding, no profile
+ * fetch. The guest owner id is device-stable and prefixed so fencing a later
+ * sign-in claims this cache instead of mixing it with another account.
+ */
+function GuestApp() {
+  const [initReady, setInitReady] = useState(false)
+  const [signInOpen, setSignInOpen] = useState(false)
+  const ownerId = getOrCreateGuestOwnerId()
+
+  useEffect(() => {
+    let alive = true
+    registerEntryDerive()
+    setLocalOnlySync(true)
+    try {
+      localStorage.setItem(LS_WELCOME_KEY, 'true')
+    } catch {
+      /* ignore */
+    }
+    void (async () => {
+      try {
+        await fenceCacheToOwner(ownerId)
+      } catch {
+        /* idb unavailable — proceed */
+      }
+      if (alive) setInitReady(true)
+    })()
+    return () => {
+      alive = false
+      setLocalOnlySync(false)
+    }
+  }, [ownerId])
+
+  if (!initReady) {
+    return (
+      <div className="app-shell">
+        <SurfaceLoader />
+      </div>
+    )
+  }
+
+  return (
+    <GuestModeProvider requestSignIn={() => setSignInOpen(true)}>
+      <WelcomeProvider>
+        <SurfaceErrorBoundary>
+          <JournalScreen userEmail="" featureFlags={[]} />
+        </SurfaceErrorBoundary>
+        {signInOpen && (
+          <SignIn
+            onDismiss={() => setSignInOpen(false)}
+            reason="account"
+          />
+        )}
+      </WelcomeProvider>
+    </GuestModeProvider>
   )
 }
 
@@ -126,9 +197,11 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
     let alive = true
     // Before anything can flush: `derive` ops drain as no-ops without this.
     registerEntryDerive()
+    setLocalOnlySync(false)
     void (async () => {
       // Privacy fence FIRST — scrub any other owner's cached content before the
-      // journal (and its sync) ever reads the cache.
+      // journal (and its sync) ever reads the cache. A prior guest journal on
+      // this device is claimed (not purged) — see planFence.
       try {
         await fenceCacheToOwner(ownerId)
       } catch { /* idb unavailable — proceed */ }
@@ -303,7 +376,11 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
 
   // Full app — WelcomeProvider only mounts once the user is entitled. The trial
   // banner appears ONLY here (never during onboarding), dismissible per session.
-  const showTrialBanner = subscription.plan === 'trialing' && !bannerDismissed
+  // A leftover year-long trial_ends_at must not paint "359 days remaining".
+  const showTrialBanner =
+    subscription.plan === 'trialing' &&
+    !bannerDismissed &&
+    trialDaysRemaining(subscription) <= APP_GRANTED_DISPLAY_CAP
   return (
     <WelcomeProvider>
       {showTrialBanner && (

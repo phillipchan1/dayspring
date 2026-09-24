@@ -21,6 +21,29 @@
   user-select: none;
 }
 
+/* Overlay on the guest journal — same screen, but it can be dismissed so
+   writing is never trapped behind an account wall (Guideline 5.1.1(v)). */
+.signin--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg);
+}
+
+.signin__dismiss {
+  position: absolute;
+  top: max(0.85rem, env(safe-area-inset-top));
+  left: max(0.85rem, env(safe-area-inset-left));
+  z-index: 3;
+  border: 0;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  padding: 0.4rem 0.15rem;
+  cursor: pointer;
+}
+
 .signin__glow {
   position: fixed;
   width: 500px;
