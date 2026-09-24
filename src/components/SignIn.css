@@ -30,6 +30,7 @@
   background: var(--bg);
 }
 
+/* Top-left only. Overlay ThemeToggle uses `.theme-toggle--fixed-end` (right). */
 .signin__dismiss {
   position: absolute;
   top: max(0.85rem, env(safe-area-inset-top));

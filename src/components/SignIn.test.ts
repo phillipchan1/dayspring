@@ -125,6 +125,25 @@ describe('SignIn (iPad tap)', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 
+  it('pins Back to journal and the theme toggle to opposite corners on the overlay', () => {
+    act(() => {
+      root.render(createElement(SignIn, { onDismiss: vi.fn(), reason: 'account' }))
+    })
+    const dismiss = host.querySelector('.signin__dismiss')
+    const toggle = host.querySelector('.theme-toggle')
+    expect(dismiss).toBeTruthy()
+    expect(toggle?.classList.contains('theme-toggle--fixed')).toBe(true)
+    expect(toggle?.classList.contains('theme-toggle--fixed-end')).toBe(true)
+  })
+
+  it('keeps the hard SignIn theme toggle top-left', () => {
+    mount()
+    expect(host.querySelector('.signin__dismiss')).toBeNull()
+    const toggle = host.querySelector('.theme-toggle')
+    expect(toggle?.classList.contains('theme-toggle--fixed')).toBe(true)
+    expect(toggle?.classList.contains('theme-toggle--fixed-end')).toBe(false)
+  })
+
   it('keeps brand copy and both auth stacks in the same card', () => {
     mount()
     const card = host.querySelector('.signin__card')
