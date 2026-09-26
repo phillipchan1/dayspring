@@ -74,6 +74,43 @@ describe('validateQuotes', () => {
   })
 })
 
+describe('validateQuotes — the writer\'s words, never the verse (Guardrail H3)', () => {
+  // A SOAP page carries a passage (the fence) and a verse quoted into an answer
+  // (the `>` line). Both are in the body; neither is the writer's. The model may
+  // propose either — the gate must drop them and keep the writer's own line.
+  const soap = new Map([
+    [
+      'e4',
+      [
+        {
+          date: '2026-03-03',
+          text: [
+            '<!-- ritual:name:SOAP -->',
+            '<!-- ritual:section:Scripture -->',
+            '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+            'Remain in me, and I in you.',
+            'John 15:4 · ESV',
+            '```',
+            '<!-- ritual:section:Observation -->',
+            '> Remain in me, and I in you (v. 4)',
+            '',
+            'He says remain before he says bear fruit.',
+            '<!-- ritual:end -->',
+          ].join('\n'),
+        },
+      ],
+    ],
+  ])
+
+  it('drops the passage and the quoted verse, keeps the writer\'s line', () => {
+    expect(validateQuotes([quote('e4', 'Remain in me, and I in you')], soap)).toEqual([])
+    expect(validateQuotes([quote('e4', 'John 15:4')], soap)).toEqual([])
+    expect(validateQuotes([quote('e4', 'He says remain before he says bear fruit.')], soap)).toEqual([
+      { entry_id: 'e4', date: '2026-03-03', text: 'He says remain before he says bear fruit.' },
+    ])
+  })
+})
+
 describe('validateTopics', () => {
   const valid = new Set(['e1', 'e2'])
 

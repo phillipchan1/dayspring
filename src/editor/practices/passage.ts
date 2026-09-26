@@ -120,11 +120,11 @@ export function canWalkWithPassage(firstAnswer: string): boolean {
 
 const CAUGHT_LINE = /^> ?(.*)$/
 
-/** The phrase a `mark` answer opens with, or null. */
+/** The phrase a `mark` answer opens with, or null. A verse tail is not part of it. */
 export function caughtOf(answer: string): string | null {
   const first = answer.split('\n', 1)[0] ?? ''
   const m = first.match(CAUGHT_LINE)
-  const phrase = m?.[1]?.trim()
+  const phrase = m?.[1]?.replace(VERSE_TAIL, '').trim()
   return phrase ? phrase : null
 }
 
@@ -172,16 +172,158 @@ export function findPhrase(
   return null
 }
 
-/** A verse brought into an answer: its words, and its number. */
+// ── Quotes drawn from the passage ───────────────────────────────────────────
+//
+// A phrase brought into an answer is a quote line of its own, carrying its
+// verse: `> Remain in me, and I in you (v. 4)`, with a blank line after it so
+// markdown cannot pull the writer's next sentence into the quote. The
+// highlight in the passage and the line between them are DRAWN from this
+// line — nothing else is stored, so moving, cutting or undoing a quote moves
+// its highlight with it. `writerWords` keeps these lines out of anything that
+// speaks of "your words" (Guardrail H3).
+
+/** `(v. 4)`, `(vv. 4–5)` at the end of a quote line. */
+const VERSE_TAIL = /\s*\(\s*vv?\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?\s*\)\s*$/
+
+export interface DrawnQuote {
+  /** The words, without the `>` or the verse. */
+  text: string
+  /** The verse it came from, when it says. */
+  v: number | null
+  /** The last verse, when it runs across more than one. */
+  vEnd: number | null
+  /** Which line of the answer holds it, 0-based. */
+  line: number
+}
+
+/** Every quote line in an answer, in the order they were written. */
+export function quotesIn(answer: string): DrawnQuote[] {
+  const out: DrawnQuote[] = []
+  answer.split('\n').forEach((raw, line) => {
+    const m = raw.match(/^\s*>\s?(.*)$/)
+    if (!m) return
+    const tail = m[1]!.match(VERSE_TAIL)
+    const text = m[1]!.replace(VERSE_TAIL, '').trim()
+    if (text) {
+      out.push({
+        text,
+        v: tail ? Number(tail[1]) : null,
+        vEnd: tail?.[2] ? Number(tail[2]) : null,
+        line,
+      })
+    }
+  })
+  return out
+}
+
+/** The quote line for a phrase: `(v. 4)`, or `(vv. 4–5)` across verses. */
+export function formatQuote(text: string, v: number | null, vEnd: number | null = null): string {
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (v == null) return `> ${t}`
+  return vEnd != null && vEnd !== v ? `> ${t} (vv. ${v}–${vEnd})` : `> ${t} (v. ${v})`
+}
+
+/**
+ * Where a quote goes in an answer: on its own line at the caret — after the
+ * line the caret is on, or in place of an empty one — with a blank line on each
+ * side. Returns the insertion and where the caret should land after it.
+ */
+export function placeQuote(doc: string, caret: number, quote: string): { at: number; text: string; caret: number } {
+  const at0 = Math.max(0, Math.min(caret, doc.length))
+  const lineStart = doc.lastIndexOf('\n', at0 - 1) + 1
+  let lineEnd = doc.indexOf('\n', at0)
+  if (lineEnd === -1) lineEnd = doc.length
+  const lineIsEmpty = doc.slice(lineStart, lineEnd).trim() === ''
+  const at = lineIsEmpty ? lineStart : lineEnd
+  const before = doc.slice(0, at)
+  const after = doc.slice(at)
+  const lead = before === '' || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n'
+  const trail = after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n'
+  const text = `${lead}${quote}${trail}`
+  // At the end of the answer the caret waits on a fresh line below the quote;
+  // otherwise it lands where the writing already continues.
+  return { at, text, caret: at + text.length }
+}
+
+/**
+ * Where a quote sits in the passage, so it stays lit — matched as text, in its
+ * own verse when it says which. Change the passage and it simply stops
+ * matching: the quote stays in the writer's page and goes dark in the text.
+ */
+export function findQuote(
+  verses: readonly Verse[],
+  text: string,
+  v: number | null,
+  vEnd: number | null = null,
+): { n: number; start: number; end: number }[] | null {
+  const needle = fold(text)
+  if (!needle) return null
+  const clean = verses.map((x) => ({ n: x.n, text: x.text.replace(/\s+/g, ' ').trim() }))
+  // Search the verses as one run of text, so a quote that crosses a verse
+  // break is found; then say back which part of which verse it covers.
+  const tryRun = (run: typeof clean) => {
+    let joined = ''
+    const starts: number[] = []
+    for (const x of run) {
+      if (joined) joined += ' '
+      starts.push(joined.length)
+      joined += x.text
+    }
+    const at = fold(joined).indexOf(needle)
+    if (at === -1) return null
+    const end = at + needle.length
+    const out: { n: number; start: number; end: number }[] = []
+    run.forEach((x, k) => {
+      const s0 = starts[k]!
+      const s1 = s0 + x.text.length
+      if (end > s0 && at < s1) out.push({ n: x.n, start: Math.max(0, at - s0), end: Math.min(x.text.length, end - s0) })
+    })
+    return out
+  }
+  if (v != null) {
+    const last = vEnd ?? v
+    const hit = tryRun(clean.filter((x) => x.n >= v && x.n <= last))
+    if (hit) return hit
+  }
+  // No verse given, or one that no longer fits (a changed passage): the words
+  // alone, anywhere in it.
+  return tryRun(clean)
+}
+
+/** A whole verse, as a quote. */
 export function quoteVerse(text: string, n: number): string {
-  // The verse's own quotation marks nest inside ours as single quotes.
-  const inner = text.trim().replace(/“/g, '‘').replace(/”/g, '’')
-  return `“${inner}” (v. ${n})`
+  // A whole verse keeps its own quotation marks; only a closing stop goes.
+  return formatQuote(text.trim().replace(/[.,;:]+$/, ''), n)
 }
 
 /** The verse numbers an answer has quoted, so the leaf can show them. */
 export function citedVerses(answer: string): number[] {
-  return [...answer.matchAll(/\(v\. (\d+)\)/g)].map((m) => Number(m[1]))
+  return quotesIn(answer).flatMap((q) => (q.v == null ? [] : [q.v]))
+}
+
+/**
+ * The words a selection in the passage covers, snapped out to whole words and
+ * read back as text: `from`/`to` are (verse, character) points, in order.
+ */
+export function spanText(
+  verses: readonly Verse[],
+  from: { n: number; offset: number },
+  to: { n: number; offset: number },
+): { text: string; v: number; vEnd: number } | null {
+  const clean = verses.map((x) => ({ n: x.n, text: x.text.replace(/\s+/g, ' ').trim() }))
+  const inRun = clean.filter((x) => x.n >= from.n && x.n <= to.n)
+  if (inRun.length === 0) return null
+  const parts: string[] = []
+  inRun.forEach((x, k) => {
+    let a = k === 0 ? from.offset : 0
+    let b = k === inRun.length - 1 ? to.offset : x.text.length
+    // Snap out to whole words: a drag that clips a word takes all of it.
+    while (a > 0 && /\S/.test(x.text[a - 1]!)) a--
+    while (b < x.text.length && /\S/.test(x.text[b]!)) b++
+    if (b > a) parts.push(x.text.slice(a, b))
+  })
+  const text = trimPhrase(parts.join(' '))
+  return text ? { text, v: inRun[0]!.n, vEnd: inRun[inRun.length - 1]!.n } : null
 }
 
 // ── Choosing a passage ──────────────────────────────────────────────────────

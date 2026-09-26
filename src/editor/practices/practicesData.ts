@@ -544,6 +544,40 @@ export const PRACTICES: Practice[] = [
     ],
   },
   {
+    name: 'Open Reading',
+    function: 'encounter',
+    rhythm: ['morning', 'anytime'],
+    origin: 'No framework — a passage, and a page',
+    tradition: 'Any',
+    intention:
+      'Open the Bible and see what happens. No questions in order — read, then write whatever comes, bringing in the words that catch you.',
+    quote: 'Read it. Then write whatever comes.',
+    why:
+      'Most people who journal with Scripture have always done it this way: the Bible open on one side, a page on the other, and a pen that goes back and forth between them. Frameworks help on some mornings. On others the passage is enough, and a method gets in the way.',
+    shape:
+      'Two movements: read the passage slowly, then one open page. Drag across any phrase in the passage to bring it into what you are writing; a line keeps it tied to where it came from.',
+    tips: [
+      'Choose a passage you can read twice without hurrying.',
+      'Bring in only the words that stop you. Three is plenty.',
+      'You do not have to finish a thought. Leave it where it stops.',
+    ],
+    passage: { size: 'few', hint: 'Any passage. A few verses, or a whole chapter.' },
+    prompts: [
+      {
+        label: 'Read',
+        question: 'Read it slowly. There is nothing to do yet.',
+        placeholder: '',
+        kind: 'read',
+      },
+      {
+        label: 'Reflect',
+        question: 'Write whatever comes. Bring in any words that catch you.',
+        placeholder: 'Anything at all…',
+        kind: 'cite',
+      },
+    ],
+  },
+  {
     name: 'Psalmic Lament',
     function: 'lament',
     rhythm: ['anytime'],
@@ -915,6 +949,7 @@ export interface LibraryUpdate {
 }
 
 export const LIBRARY_UPDATES: readonly LibraryUpdate[] = [
+  { addedAt: '2026-09-26', name: 'Open Reading' },
   { addedAt: '2026-09-26', name: 'Discovery Bible Study' },
   { addedAt: '2026-09-01', name: 'The Round' },
   { addedAt: '2026-08-15', name: 'Threshold' },

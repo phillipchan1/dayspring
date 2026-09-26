@@ -34,6 +34,7 @@ import { skyFor } from '@/editor/practices/ritualSky'
 import type { Entry } from '@/lib/types'
 import { track } from '@/lib/analytics'
 import {
+  answerParts,
   buildRitualThreads,
   openingMovement,
   type RitualMovementThread,
@@ -60,6 +61,24 @@ const MONTHS = [
 function longDate(iso: string): string {
   const d = new Date(iso)
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+/**
+ * An answer as the writer reads it. A Scripture passage shows only as its
+ * reference, and a `>` line as a quotation — in a scripture ritual those are
+ * the Bible's words, and nothing here may present them as the writer's own
+ * (Guardrail H3). Spans, not blocks: this sits inside the answer's button.
+ */
+function AnswerText({ text }: { text: string }) {
+  return (
+    <span className="rt__answer-text">
+      {answerParts(text).map((p, i) => (
+        <span key={i} className={`rt__part rt__part--${p.kind}`}>
+          {p.text}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 interface Props {
@@ -264,7 +283,7 @@ function ThreadView({
                 title="Open this page"
               >
                 <span className="rt__answer-date">{longDate(a.at)}</span>
-                <span className="rt__answer-text">{a.text}</span>
+                <AnswerText text={a.text} />
               </button>
             </div>
           )

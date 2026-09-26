@@ -250,6 +250,31 @@
   white-space: pre-wrap;
 }
 
+/* An answer's pieces: the writer's text, a quotation, a passage's reference.
+   A quote is set apart the way a verse is (italic, amber rule) so a line from
+   Scripture never reads as the writer's own — Guardrail H3. */
+.rt__part {
+  display: block;
+}
+
+.rt__part + .rt__part {
+  margin-top: 0.55rem;
+}
+
+.rt__part--quote {
+  font-style: italic;
+  border-left: 2px solid var(--pl-amber);
+  padding-left: 0.75rem;
+  color: var(--pl-muted);
+}
+
+.rt__part--passage {
+  font-family: var(--font-label, sans-serif);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: var(--pl-ghost);
+}
+
 .rt__year {
   font-family: var(--font-label, sans-serif);
   font-size: 0.68rem;

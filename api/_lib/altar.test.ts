@@ -17,8 +17,12 @@
 //   prayer-cue-false-positive / prayer-distractor — cue fires, no prayer
 //   ordinary                 — no prayer, and the cue should stay quiet
 
-import { describe, expect, it } from 'vitest'
-import { HARVEST_CUE, isVerbatim } from './altar.js'
+import { describe, expect, it, vi } from 'vitest'
+import { HARVEST_CUE, harvestBatch, isVerbatim } from './altar.js'
+import { callModel } from './openai.js'
+
+// Only harvestBatch's test drives the model; everything else here is pure.
+vi.mock('./openai.js', () => ({ callModel: vi.fn() }))
 import { CORPUS, corpusFor } from '../../src/lib/recognition/corpus/index.js'
 import { scoreCuePrefilter } from '../../src/lib/recognition/score.js'
 
@@ -116,5 +120,39 @@ describe('isVerbatim', () => {
       (e.passages ?? []).filter((p) => !isVerbatim(e.body, p.text)).map((p) => `${e.id}: ${p.text.slice(0, 50)}`),
     )
     expect(broken).toEqual([])
+  })
+})
+
+describe('harvestBatch — the writer\'s words, never the verse (Guardrail H3)', () => {
+  it('drops a quoted verse the model proposes as a prayer, keeps the writer\'s own', async () => {
+    const body = [
+      '<!-- ritual:name:Lectio Divina -->',
+      '<!-- ritual:section:Read -->',
+      '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+      'Father, glorify your name.',
+      'John 12:28 · ESV',
+      '```',
+      '<!-- ritual:section:Meditate -->',
+      '> Father, glorify your name',
+      '',
+      'Lord, glorify it in me today, even here.',
+      '<!-- ritual:end -->',
+    ].join('\n')
+    vi.mocked(callModel).mockResolvedValueOnce({
+      entries: [
+        {
+          id: 'e1',
+          prayers: [
+            { type: 'prayer', text: 'Father, glorify your name' },
+            { type: 'prayer', text: 'Lord, glorify it in me today, even here.' },
+          ],
+        },
+      ],
+    })
+    const out = await harvestBatch([{ id: 'e1', body }])
+    expect(out?.get('e1')).toEqual([{ type: 'prayer', text: 'Lord, glorify it in me today, even here.' }])
+    // …and the model was never shown the passage in the first place.
+    const sent = JSON.stringify(vi.mocked(callModel).mock.calls[0]?.[1])
+    expect(sent).not.toContain('glorify your name')
   })
 })

@@ -23,6 +23,7 @@ import { fetchEntriesByIds } from '../entries'
 import { requireSupabase } from '../supabase'
 import { isCapturePreview } from '../previewMode'
 import { parseReferences } from './parse'
+import { writerWords } from '../writerWords'
 
 export interface DateWindow {
   from?: Date
@@ -563,7 +564,20 @@ function excerptAround(body: string, charStart: number | null): string {
   const at = charStart ?? 0
   const start = Math.max(0, at - EXCERPT_RADIUS)
   const end = Math.min(body.length, at + EXCERPT_RADIUS)
-  let slice = body.slice(start, end).replace(/\s+/g, ' ').trim()
+  // The window is shown as what she wrote around the verse, so it keeps only
+  // her own lines (Guardrail H3): a line that writerWords drops — the passage,
+  // a verse quoted into a scripture ritual, a ritual token — is left out.
+  const own = new Set(writerWords(body).split('\n'))
+  const parts: string[] = []
+  let pos = 0
+  for (const line of body.split('\n')) {
+    const lineEnd = pos + line.length
+    if (lineEnd >= start && pos < end && own.has(line)) {
+      parts.push(line.slice(Math.max(0, start - pos), end - pos))
+    }
+    pos = lineEnd + 1
+  }
+  let slice = parts.join(' ').replace(/\s+/g, ' ').trim()
   if (start > 0) slice = `…${slice}`
   if (end < body.length) slice = `${slice}…`
   return slice

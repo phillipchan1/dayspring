@@ -1,6 +1,7 @@
 import { isCircumstances } from './circumstances'
 import { stripSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
+import { writerWords } from './writerWords'
 import type { Entry, EntrySource, NewEntry } from './types'
 
 // Explicit column list = every Entry field EXCEPT the server-only `embedding`
@@ -10,8 +11,10 @@ import type { Entry, EntrySource, NewEntry } from './types'
 const ENTRY_COLUMNS =
   'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances'
 
+/** Words the writer wrote — via writerWords (Guardrail H3), so ritual tokens and
+ *  the verses quoted into a scripture ritual never count as theirs. */
 export function wordCount(markdown: string): number {
-  const trimmed = stripSpiritualBlocks(markdown).trim()
+  const trimmed = stripSpiritualBlocks(writerWords(markdown)).trim()
   if (!trimmed) return 0
   return trimmed.split(/\s+/).length
 }

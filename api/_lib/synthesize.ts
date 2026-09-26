@@ -21,6 +21,7 @@ import {
 } from './prompts.js'
 import { addDays, dateStrToUTC, periodWindow, toDateStr, type Period } from './dates.js'
 import { deriveTitle, humanizeObservationText, labelsFromEntries } from './entryLabels.js'
+import { writerWords } from './writerWords.js'
 import type {
   Arc,
   EbenezerPair,
@@ -76,6 +77,16 @@ interface Source {
   text: string
 }
 
+/** Whether `text` is verbatim in the source AND in the writer's own words of it.
+ *  Guardrail H3: a page can carry a Scripture passage and verses quoted into a
+ *  ritual answer — words that are in the body but are not the writer's. Checking
+ *  the projection (writerWords) means a verse can never pass this gate as
+ *  "theirs", whatever the model proposes; checking the raw body too keeps a quote
+ *  from stitching across a line the projection removed. */
+function sourceHas(source: Source, text: string): boolean {
+  return source.text.includes(text) && writerWords(source.text).includes(text)
+}
+
 /** Keep only quotes that exact-match (as a substring) a real source we passed. */
 export function validateQuotes(quotes: Quote[], sources: Map<string, Source[]>): Quote[] {
   const out: Quote[] = []
@@ -85,7 +96,7 @@ export function validateQuotes(quotes: Quote[], sources: Map<string, Source[]>):
     if (!text) continue
     const candidates = sources.get(q.entry_id)
     if (!candidates) continue
-    const match = candidates.find((c) => c.text.includes(text))
+    const match = candidates.find((c) => sourceHas(c, text))
     if (!match) continue
     const key = `${q.entry_id} ${text}`
     if (seen.has(key)) continue
@@ -180,7 +191,7 @@ function matchExcerpt(e: RawExcerpt | undefined, sources: Map<string, Source[]>)
   if (!e || !text) return null
   const cands = sources.get(e.entry_id)
   if (!cands) return null
-  const m = cands.find((c) => c.text.includes(text))
+  const m = cands.find((c) => sourceHas(c, text))
   if (!m) return null
   return { entry_id: e.entry_id, date: m.date, text }
 }
@@ -476,11 +487,13 @@ export async function buildWeekly(
 
   // Token diet: the model only needs enough text to pick quotes + read themes.
   // Validation below uses the FULL body, so quotes stay verbatim regardless.
+  // The model reads only the writer's own words (Guardrail H3) — a verse it never
+  // sees is a verse it cannot offer back as theirs; sourceHas is the real gate.
   const input = entries.map((e) => ({
     id: e.id,
     date: e.created_at.slice(0, 10),
     title: deriveTitle(e.body_markdown) || 'Untitled',
-    text: e.body_markdown.slice(0, MAX_ENTRY_CHARS),
+    text: writerWords(e.body_markdown).slice(0, MAX_ENTRY_CHARS),
   }))
 
   const sources = new Map<string, Source[]>()

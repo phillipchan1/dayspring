@@ -234,4 +234,29 @@ describe('pageExcerpt on a ritual page', () => {
     const x = pageExcerpt(entry(`Morning first.\n\n${block}`))
     expect(x.lines.every((l) => l.label === undefined)).toBe(true)
   })
+
+  it('opens a scripture ritual on her own line, never on the verse she quoted (Guardrail H3)', () => {
+    const soap = [
+      '<!-- ritual:name:SOAP -->',
+      '<!-- ritual:section:Scripture -->',
+      '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+      'Remain in me, and I in you.',
+      'John 15:4 · ESV',
+      '```',
+      '<!-- ritual:section:Observation -->',
+      '> Remain in me, and I in you (v. 4)',
+      '',
+      'He says remain before he says bear fruit.',
+      '<!-- ritual:section:Prayer -->',
+      '> I am the vine',
+      '',
+      'Teach me to stay.',
+      '<!-- ritual:end -->',
+    ].join('\n')
+    const x = pageExcerpt(entry(soap))
+    expect(x.lines.map((l) => [l.label ?? null, l.text])).toEqual([
+      ['Observation', 'He says remain before he says bear fruit.'],
+      ['Prayer', 'Teach me to stay.'],
+    ])
+  })
 })

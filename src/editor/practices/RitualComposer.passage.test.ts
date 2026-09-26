@@ -130,7 +130,11 @@ describe('a scripture ritual with its passage', () => {
     open([PASSAGE])
     await flush()
     const vine = [...document.querySelectorAll('.rc__leaf-text .psg__w')].find((w) => w.textContent === 'vine.')!
-    act(() => (vine as HTMLElement).click())
+    // A press and release on one word, with nothing selected, takes the word.
+    act(() => {
+      vine.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+      vine.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
+    })
     await act(async () => {
       await new Promise((r) => setTimeout(r, 450))
     })
@@ -184,5 +188,97 @@ describe('the rail’s gist', () => {
   it('says a caught word as a quote, and a passage by its reference', () => {
     expect(gistOf('> Remain in me\n\nIt keeps coming back.')).toBe('“Remain in me” — It keeps coming back.')
     expect(gistOf(PASSAGE)).toBe('John 15:4–5 · ESV')
+  })
+})
+
+const SOAP = ['Scripture', 'Observation', 'Application', 'Prayer']
+function openSoap(answers: string[]) {
+  doc = composeRitualMarkdown('SOAP', SOAP, answers)
+  act(() => {
+    root.render(
+      createElement(RitualComposer, {
+        blockIndex: 0,
+        getDoc: () => doc,
+        replaceRange: (from: number, to: number, text: string) => {
+          doc = doc.slice(0, from) + text + doc.slice(to)
+        },
+        onClose: () => {},
+        onAbout: () => {},
+      }),
+    )
+  })
+}
+/** Select from one word to another in the leaf, the way a drag would. */
+function select(fromWord: string, toWord: string) {
+  const words = [...document.querySelectorAll<HTMLElement>('.rc__leaf-text .psg__w')]
+  const a = words.find((w) => w.textContent === fromWord)!
+  const b = words.find((w) => w.textContent === toWord)!
+  const r = document.createRange()
+  r.setStart(a.firstChild!, 0)
+  r.setEnd(b.firstChild!, b.textContent!.length)
+  const sel = window.getSelection()!
+  sel.removeAllRanges()
+  sel.addRange(r)
+  act(() => {
+    a.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+    b.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
+  })
+}
+
+describe('drawing a line from the passage', () => {
+  it('shows where the words will land, and brings them in on Enter as a quote line', async () => {
+    openSoap([PASSAGE, 'He keeps saying remain.'])
+    await flush()
+    expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Application')
+    // Back to Observation, where something is already written.
+    act(() => ([...document.querySelectorAll<HTMLButtonElement>('.rc__path button')][1]!).click())
+    await flush()
+    select('Remain', 'you.')
+    expect(document.querySelector('.rc__ghost')?.textContent).toContain('Remain in me, and I in you')
+    expect(document.querySelector('.rc__chip')).not.toBeNull()
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 450))
+    })
+    expect(doc).toContain('He keeps saying remain.\n\n> Remain in me, and I in you (v. 4)\n')
+    // The words stay lit in the passage, drawn from the quote.
+    const lit = [...document.querySelectorAll('.rc__leaf-text .psg__w[data-hl]')].map((w) => w.textContent)
+    expect(lit).toEqual(['Remain', 'in', 'me,', 'and', 'I', 'in', 'you.'])
+  })
+
+  it('runs across a verse break', async () => {
+    openSoap([PASSAGE, ''])
+    await flush()
+    select('you.', 'vine.')
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    })
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 450))
+    })
+    expect(doc).toContain('> you. I am the vine (vv. 4–5)')
+  })
+
+  it('lets go on Escape without leaving the ritual', async () => {
+    openSoap([PASSAGE, ''])
+    await flush()
+    select('Remain', 'me,')
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    })
+    expect(document.querySelector('.rc__chip')).toBeNull()
+    expect(document.querySelector('.ritual-composer')).not.toBeNull()
+  })
+
+  it('takes a whole verse by its number', async () => {
+    openSoap([PASSAGE, ''])
+    await flush()
+    act(() => (document.querySelector<HTMLButtonElement>('.psg__n--cite')!).click())
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 450))
+    })
+    expect(doc).toContain('> Remain in me, and I in you (v. 4)')
   })
 })

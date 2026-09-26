@@ -49,11 +49,23 @@
 .pf__reading[data-has-sel='true'] .psg__v[data-sel='true'] { background: var(--psg-wash); }
 .pf__reading[data-has-sel='true'] .psg__v[data-sel='true'] .psg__w { opacity: 1; }
 
-/* mark: words are the targets */
-.psg[data-mode='mark'] { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.psg[data-mode='mark'] .psg__w { cursor: pointer; }
-.psg[data-mode='mark'] .psg__w:hover,
-.psg__w[data-pending='true'] { background: var(--psg-wash); box-shadow: 0 1.5px 0 var(--psg-lit); }
+/* mark / quote: the words are text you select — the browser's own
+   selection, in the passage's gold, snapped to whole words when it settles. */
+.psg[data-selecting='true'] { cursor: text; user-select: text; -webkit-user-select: text; }
+.psg[data-selecting='true'] ::selection { background: var(--psg-lit); color: var(--text-bright); }
+/* Resting on a word: it underlines, so you know it is a target. */
+.psg[data-selecting='true'] .psg__w:hover { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 70%, transparent); }
+/* Chosen, not yet brought in: one band, not a row of tiles. */
+.psg__w[data-pending='true'] { background: var(--psg-lit); box-shadow: 0.3em 0 0 var(--psg-lit); }
+
+/* Quoted phrases. This movement's in gold; earlier movements' as an underline
+   that stays out of the way; where quotes overlap, deeper. */
+.psg__w[data-hl='here'] { background: var(--psg-lit); box-shadow: 0.3em 0 0 var(--psg-lit); border-radius: 3px; }
+.psg__w[data-hl='deep'] { background: color-mix(in srgb, var(--psg-gold) 42%, transparent); box-shadow: 0.3em 0 0 color-mix(in srgb, var(--psg-gold) 42%, transparent); border-radius: 3px; }
+.psg__w[data-hl='past'] { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 40%, transparent); background: color-mix(in srgb, var(--psg-gold) 7%, transparent); }
+.psg__w[data-lit='true'] { background: color-mix(in srgb, var(--psg-gold) 48%, transparent); }
+.psg__w[data-hl] { cursor: help; }
+.psg[data-selecting='true'] .psg__w[data-hl] { cursor: text; }
 
 /* carry / cite / plain: on view, the caught word ahead of the rest */
 .psg[data-mode='carry'] .psg__w:not([data-on='true']),
@@ -559,3 +571,50 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   cursor: pointer;
 }
 .rc__ask-tools .rc__ask-go { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }
+
+/* ── Drawn lines ──────────────────────────────────────────────────────── */
+.rc__tethers { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1001; overflow: visible; }
+.rc__tethers path { fill: none; stroke-linecap: round; }
+@media (max-width: 899px) { .rc__tethers { display: none; } }
+.rc__page { position: relative; }
+.rc__ghost {
+  position: absolute; left: 0; right: 0; z-index: 2;
+  margin: 0; padding: 0.35rem 0.9rem 0.4rem 1rem;
+  border: 1.5px dashed color-mix(in srgb, rgb(var(--scripture-gold, 196, 145, 60)) 70%, transparent);
+  border-left-width: 2px; border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--bg) 88%, rgb(var(--scripture-gold, 196, 145, 60)));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-family: var(--rc-body); font-size: 1.02rem; font-style: italic; line-height: 1.55; color: var(--text-dim);
+  pointer-events: none; animation: rc-ghost 0.18s ease both;
+}
+.rc__ghost:not([style]) { position: static; margin: 0 0 1rem; }
+.rc__ghost-v { margin-left: 0.5rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__ghost-lands { display: block; margin-top: 0.15rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; letter-spacing: 0.03em; color: var(--text-faint); }
+@keyframes rc-ghost { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.rc__chip { position: fixed; z-index: 1003; display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--text-bright); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18); animation: rc-ghost 0.16s ease both; }
+.rc__chip button { border: none; background: none; color: var(--bg); font-family: var(--rc-body, var(--font-serif)); font-size: 0.92rem; cursor: pointer; border-radius: 999px; }
+.rc__chip-go { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.8rem; }
+.rc__chip-go kbd { font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; opacity: 0.7; border: 1px solid color-mix(in srgb, var(--bg) 35%, transparent); border-radius: 4px; padding: 0 4px; }
+.rc__chip-x { padding: 0.3rem 0.6rem; opacity: 0.7; }
+.rc__chip button:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
+.rc__card { position: fixed; z-index: 1003; max-width: 300px; padding: 0.65rem 0.8rem 0.7rem; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-elevated); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12); font-family: var(--font-serif, 'Newsreader', Georgia, serif); font-size: 0.9rem; line-height: 1.45; color: var(--text); pointer-events: none; }
+.rc__card-row + .rc__card-row { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle); }
+.rc__card-mv { display: block; font-size: 0.58rem; font-weight: 500; letter-spacing: 0.17em; text-transform: uppercase; color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__card-mv[data-tone='1'] { color: var(--accent); }
+.rc__card-mv[data-tone='2'] { color: color-mix(in srgb, #8a74c0 80%, var(--text-dim)); }
+.rc__card-said { display: -webkit-box; margin-top: 0.15rem; font-style: italic; color: var(--text-dim); -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rc__card-foot { display: block; margin-top: 0.45rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: var(--text-faint); }
+.rc__bring { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.6rem; }
+.rc__bring button { border: none; background: none; font-family: var(--rc-body); font-size: 0.9rem; color: var(--text-dim); cursor: pointer; }
+.rc__bring .rc__bring-go { padding: 0.45rem 0.9rem; border-radius: 999px; background: var(--text-bright); color: var(--bg); font-style: italic; }
+/* The close: every line drawn, movement by movement. */
+.rc__drawn { width: 100%; max-width: 36rem; margin: 2.4rem auto 0; text-align: left; }
+.rc__drawn-head { margin: 0 0 1.2rem; font-style: italic; color: var(--text-dim); }
+.rc__drawn-mv { margin-bottom: 1.4rem; --rc-tone: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__drawn-mv[data-tone='1'] { --rc-tone: var(--accent); }
+.rc__drawn-mv[data-tone='2'] { --rc-tone: color-mix(in srgb, #8a74c0 80%, var(--text-dim)); }
+.rc__drawn-label { display: block; margin-bottom: 0.4rem; font-size: 0.62rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rc-tone); }
+.rc__drawn-q blockquote { margin: 0.2rem 0 0.35rem; padding: 0.3rem 0.8rem; border-left: 2px solid var(--rc-tone); border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--rc-tone) 9%, transparent); font-style: italic; color: var(--text-bright); }
+.rc__drawn-v { margin-left: 0.5rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: var(--rc-tone); }
+.rc__drawn-q p { margin: 0 0 0.8rem; font-size: 0.98rem; line-height: 1.6; color: var(--text); }
+.rc--facing .rc__close { overflow-y: auto; }

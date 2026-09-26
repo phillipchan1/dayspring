@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  spanText,
+  findQuote,
+  formatQuote,
+  placeQuote,
+  quotesIn,
   bodyOf,
   canWalkWithPassage,
   caughtOf,
@@ -88,9 +93,8 @@ describe('the word that caught you', () => {
 })
 
 describe('quoting a verse into an answer', () => {
-  it('writes the words and the number, nesting the verse’s own quotes', () => {
-    expect(quoteVerse('He said, “Peace! Be still!”', 39)).toBe('“He said, ‘Peace! Be still!’” (v. 39)')
-    expect(citedVerses('He is not asleep. “…” (v. 39) and (v. 41)')).toEqual([39, 41])
+  it('brings a whole verse in as a quote line', () => {
+    expect(quoteVerse('He said, “Peace! Be still!”', 39)).toBe('> He said, “Peace! Be still!” (v. 39)')
   })
 })
 
@@ -140,9 +144,9 @@ describe('the soft line about length', () => {
 })
 
 describe('the practices', () => {
-  it('give Lectio, SOAP and Discovery a passage, and no one else', () => {
+  it('give Lectio, SOAP, Discovery and Open Reading a passage, and no one else', () => {
     const withPassage = [...PRACTICE_BY_NAME.values()].filter((p) => p.passage).map((p) => p.name)
-    expect(withPassage.sort()).toEqual(['Discovery Bible Study', 'Lectio Divina', 'SOAP'])
+    expect(withPassage.sort()).toEqual(['Discovery Bible Study', 'Lectio Divina', 'Open Reading', 'SOAP'])
   })
 
   it('open every scripture ritual with the passage itself', () => {
@@ -178,5 +182,79 @@ describe('rest with nothing written', () => {
   it('is a finished Lectio, not one waiting to be continued', () => {
     expect(isRitualComplete(block([true, true, true, false]))).toBe(true)
     expect(currentMovementIndex(block([true, false, false, false]))).toBe(1)
+  })
+})
+
+describe('quotes drawn from the passage', () => {
+  it('reads every quote line, with its verse', () => {
+    const a = '> Remain in me (v. 4)\n\nHe says remain.\n\n> I am the vine\n\nAnd so on.'
+    expect(quotesIn(a)).toEqual([
+      { text: 'Remain in me', v: 4, vEnd: null, line: 0 },
+      { text: 'I am the vine', v: null, vEnd: null, line: 4 },
+    ])
+    expect(citedVerses(a)).toEqual([4])
+  })
+
+  it('keeps the verse out of a caught word', () => {
+    expect(caughtOf('> Remain in me (v. 4)\n\nbody')).toBe('Remain in me')
+  })
+
+  it('writes a quote on its own line, with a blank line each side', () => {
+    const q = formatQuote('Remain in me', 4)
+    expect(q).toBe('> Remain in me (v. 4)')
+    // Caret at the end of a line of writing: the quote goes under it.
+    const doc = 'He says remain.'
+    const p = placeQuote(doc, doc.length, q)
+    expect(doc.slice(0, p.at) + p.text + doc.slice(p.at)).toBe('He says remain.\n\n> Remain in me (v. 4)\n\n')
+    // Caret on an empty answer: the quote is the first line.
+    const e = placeQuote('', 0, q)
+    expect(e.text).toBe('> Remain in me (v. 4)\n\n')
+    // Caret mid-paragraph: the quote goes after that paragraph's line, not inside it.
+    const mid = 'First line here.\nMore.'
+    const m = placeQuote(mid, 5, q)
+    expect(mid.slice(0, m.at) + m.text + mid.slice(m.at)).toBe('First line here.\n\n> Remain in me (v. 4)\n\nMore.')
+  })
+
+  it('finds a quote in its own verse first, then anywhere', () => {
+    const vs = [
+      { n: 4, text: 'Remain in me, and I in you.' },
+      { n: 5, text: 'He who remains in me, and I in him.' },
+    ]
+    expect(findQuote(vs, 'and I in', 5)).toEqual([{ n: 5, start: 22, end: 30 }])
+    expect(findQuote(vs, 'and I in', null)).toEqual([{ n: 4, start: 14, end: 22 }])
+    expect(findQuote(vs, 'and I in', 9)?.[0]?.n).toBe(4)
+    expect(findQuote(vs, 'the vine', null)).toBeNull()
+  })
+
+  it('follows a quote across a verse break', () => {
+    const vs = [
+      { n: 4, text: 'so neither can you, unless you remain in me.' },
+      { n: 5, text: 'I am the vine. You are the branches.' },
+    ]
+    const q = formatQuote('unless you remain in me. I am the vine', 4, 5)
+    expect(q).toBe('> unless you remain in me. I am the vine (vv. 4–5)')
+    const [parsed] = quotesIn(q)
+    expect(parsed).toMatchObject({ v: 4, vEnd: 5 })
+    expect(findQuote(vs, parsed!.text, 4, 5)).toEqual([
+      { n: 4, start: 20, end: 44 },
+      { n: 5, start: 0, end: 13 },
+    ])
+  })
+
+  it('snaps a selection out to whole words, across verses', () => {
+    const vs = [
+      { n: 4, text: 'so neither can you, unless you remain in me.' },
+      { n: 5, text: 'I am the vine. You are the branches.' },
+    ]
+    // Started mid-"unless", ended mid-"vine".
+    expect(spanText(vs, { n: 4, offset: 22 }, { n: 5, offset: 11 })).toEqual({
+      text: 'unless you remain in me. I am the vine',
+      v: 4,
+      vEnd: 5,
+    })
+  })
+
+  it('makes a whole verse a quote', () => {
+    expect(quoteVerse('Remain in me, and I in you.', 4)).toBe('> Remain in me, and I in you (v. 4)')
   })
 })

@@ -13,6 +13,10 @@ import {
   canWalkWithPassage,
   caughtOf,
   citedVerses,
+  findQuote,
+  formatQuote,
+  placeQuote,
+  quotesIn,
   quoteVerse,
   readPassage,
   versesIn,
@@ -21,9 +25,11 @@ import {
   type PassageRef,
   type Verse,
 } from './passage'
+import type { Highlight, WordSpan } from './PassageText'
+import { Tethers, type TetherKey } from './Tethers'
 import { loadChapter } from './passageSource'
 import { PassageFinder } from './PassageFinder'
-import { CaughtLine, DwellView, PassageBody, PassageStrip } from './PassageViews'
+import { CaughtLine, DwellView, DrawnCard, PassageBody, PassageStrip, QuoteChip, QuoteGhost } from './PassageViews'
 import {
   answerOffset,
   composeRitualMarkdown,
@@ -91,6 +97,7 @@ export interface Focusable {
   getCursor?: () => number
   getDoc?: () => string
   insertAt?: (pos: number, text: string) => void
+  focusAt?: (pos?: number) => void
 }
 
 /** What the journal needs to render one answer's editor. */
@@ -321,6 +328,40 @@ export function RitualComposer({
   const markIndex =
     passageMode && block ? block.labels.findIndex((l) => movementKind(block.name, l) === 'mark') : -1
   const caught = markIndex >= 0 ? caughtOf(texts[markIndex] ?? '') : null
+
+  // ── Drawn lines ──────────────────────────────────────────────────────────
+  /**
+   * Every writing movement of a scripture ritual can bring words in from the
+   * passage: select them, and they land in the answer as a quote line, with a
+   * line drawn back to where they came from. Lectio's Meditatio keeps its own
+   * single catch; Read and Rest have nothing to write in.
+   */
+  const drawsAt = (n: number) => {
+    if (!passageMode || n < 0 || n >= total) return false
+    const k = kindAt(n)
+    return k !== 'read' && k !== 'dwell' && k !== 'mark'
+  }
+  /** Every quote in the ritual, keyed `movement:index`, in each answer's order. */
+  const drawn = passageMode
+    ? labels.flatMap((_, n) => {
+        const k = kindAt(n)
+        if (k === 'read' || k === 'dwell') return []
+        return quotesIn(texts[n] ?? '').map((q, idx) => ({ key: `${n}:${idx}`, n, idx, ...q }))
+      })
+    : []
+  /** Words chosen in the passage and not yet brought in. */
+  const [pending, setPending] = useState<WordSpan | null>(null)
+  const pendingRef = useRef(pending)
+  pendingRef.current = pending
+  const bringInRef = useRef<() => void>(() => {})
+  const [rest, setRest] = useState<{ n: number; offset: number } | null>(null)
+  const [hovered, setHovered] = useState<{ keys: string[]; el: HTMLElement } | null>(null)
+  const [pageLit, setPageLit] = useState<string | null>(null)
+  useEffect(() => {
+    setPending(null)
+    setHovered(null)
+    setPageLit(null)
+  }, [i])
   useEffect(() => {
     if (!widen) return
     const id = setTimeout(() => setWiden(false), 1000)
@@ -610,6 +651,22 @@ export function RitualComposer({
       // The sheet over us owns the keyboard while it is open — and so does the
       // finder, which answers Escape one level at a time on its own.
       if (blocked || choosing) return
+      // Words chosen in the passage: Enter brings them in, Escape lets them go
+      // (before Escape can mean "leave the ritual").
+      if (pendingRef.current && !e.altKey && !e.metaKey && !e.ctrlKey) {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.stopPropagation()
+          bringInRef.current()
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          setPending(null)
+          return
+        }
+      }
       if (askChange) {
         if (e.key === 'Escape') {
           e.preventDefault()
@@ -701,32 +758,108 @@ export function RitualComposer({
       return next
     })
   }
-  /** A verse, quoted into the answer being written — at the caret. */
-  const citeVerse = (vn: number) => {
-    const v = passageVerses?.find((x) => x.n === vn)
-    if (!v) return
-    const quote = quoteVerse(v.text, vn)
-    const handle = paneRefs.current[iRef.current]
-    if (handle?.insertAt && handle.getCursor) {
-      const at = handle.getCursor()
-      const before = (handle.getDoc?.() ?? '').slice(0, at)
-      handle.insertAt(at, `${before && !/\s$/.test(before) ? ' ' : ''}${quote} `)
-      handle.focus()
+  /**
+   * A quote, into the answer being written: on its own line at the caret, with
+   * a blank line either side so markdown never folds the writer's next
+   * sentence into it — which would show their words as Scripture.
+   */
+  const insertQuote = (quote: string) => {
+    const n = iRef.current
+    const handle = paneRefs.current[n]
+    if (handle?.insertAt && handle.getCursor && handle.getDoc) {
+      const p = placeQuote(handle.getDoc(), handle.getCursor(), quote)
+      handle.insertAt(p.at, p.text)
+      if (handle.focusAt) handle.focusAt(p.caret)
+      else handle.focus()
       return
     }
-    const n = iRef.current
     const current = paneTexts[n] ?? ''
     const box = handle instanceof HTMLTextAreaElement ? handle : null
-    const at = box ? box.selectionStart : current.length
-    const before = current.slice(0, at)
-    const insert = `${before && !/\s$/.test(before) ? ' ' : ''}${quote} `
-    write(n, before + insert + current.slice(at))
+    const p = placeQuote(current, box ? box.selectionStart : current.length, quote)
+    write(n, current.slice(0, p.at) + p.text + current.slice(p.at))
     if (box) {
       requestAnimationFrame(() => {
         box.focus()
-        box.setSelectionRange(at + insert.length, at + insert.length)
+        box.setSelectionRange(p.caret, p.caret)
       })
     }
+  }
+  const bringIn = () => {
+    const span = pendingRef.current
+    if (!span) return
+    insertQuote(formatQuote(span.text, span.v, span.vEnd))
+    setPending(null)
+  }
+  bringInRef.current = bringIn
+  /** A whole verse, by its number. */
+  const citeVerse = (vn: number) => {
+    const v = passageVerses?.find((x) => x.n === vn)
+    if (!v) return
+    insertQuote(quoteVerse(v.text, vn))
+    setPending(null)
+  }
+  const atClose = i >= CLOSE
+  /** Where each quote's words are in the passage — drawn from the quotes, never stored. */
+  const highlights: Highlight[] = passageVerses
+    ? drawn.flatMap((q) =>
+        (findQuote(passageVerses, q.text, q.v, q.vEnd) ?? []).map((r) => ({
+          key: q.key,
+          n: r.n,
+          start: r.start,
+          end: r.end,
+          here: atClose || q.n === i,
+        })),
+      )
+    : []
+  /** Which writing movement a quote came from, as a tone at the close. */
+  const toneOf = (n: number) => labels.slice(0, n).filter((_, m) => kindAt(m) !== 'read' && kindAt(m) !== 'dwell').length
+  const tetherKeys: TetherKey[] = atClose
+    ? drawn.map((q) => ({ key: q.key, tone: toneOf(q.n) }))
+    : drawn.filter((q) => q.n === i).map((q) => ({ key: q.key, tone: null }))
+  const lit =
+    pageLit ??
+    (hovered ? (hovered.keys.find((k) => k.startsWith(`${i}:`)) ?? hovered.keys[0] ?? null) : null)
+  /** What a movement said right after it quoted — for the card on a highlight. */
+  const saidAfter = (key: string): string => {
+    const q = drawn.find((d) => d.key === key)
+    if (!q) return ''
+    const lines = (texts[q.n] ?? '').split('\n')
+    for (let l = q.line + 1; l < lines.length; l++) {
+      const t = lines[l]!.trim()
+      if (!t) continue
+      if (t.startsWith('>')) return ''
+      return t
+    }
+    return ''
+  }
+  /** Where each quote sits on the right-hand page, for its line. */
+  const tetherTargets = (): Map<string, HTMLElement> => {
+    const out = new Map<string, HTMLElement>()
+    if (atClose) {
+      document.querySelectorAll<HTMLElement>('.rc__drawn [data-qkey]').forEach((el) => out.set(el.dataset.qkey!, el))
+      return out
+    }
+    const page = document.querySelector<HTMLElement>('.rc--facing .rc__page')
+    if (!page) return out
+    const mine = drawn.filter((q) => q.n === i)
+    let k = 0
+    const caughtEl = kindAt(i) === 'mark' ? page.querySelector<HTMLElement>('.rc__caught') : null
+    if (caughtEl && mine[0]) out.set(mine[k++]!.key, caughtEl)
+    page.querySelectorAll<HTMLElement>('.cm-line').forEach((line) => {
+      if (!/^\s*>/.test(line.textContent ?? '')) return
+      const q = mine[k++]
+      if (q) out.set(q.key, line)
+    })
+    return out
+  }
+  /** Following a quote from the page side: which one is under the pointer. */
+  const onPageHover = (e: React.MouseEvent) => {
+    const line = (e.target as HTMLElement).closest<HTMLElement>('.cm-line, .rc__caught, [data-qkey]')
+    let key: string | null = null
+    if (line) {
+      for (const [k, el] of tetherTargets()) if (el === line) key = k
+    }
+    if (key !== pageLit) setPageLit(key)
   }
 
   if (choosing && practice) {
@@ -747,7 +880,7 @@ export function RitualComposer({
   const own = passage?.own ?? false
   const where = desk ? 'on the left' : 'above'
   /** The passage, however this movement uses it. */
-  const passageBody = (mode: MovementKind | 'plain', opts: { slowly?: boolean } = {}) =>
+  const passageBody = (mode: MovementKind | 'plain' | 'quote', opts: { slowly?: boolean } = {}) =>
     passage ? (
       <PassageBody
         key={opts.slowly ? `slow-${slow}` : 'still'}
@@ -755,9 +888,20 @@ export function RitualComposer({
         verses={passageVerses}
         mode={mode}
         caught={caught}
-        cited={mode === 'cite' ? citedVerses(texts[i] ?? '') : []}
+        cited={mode === 'quote' || mode === 'cite' ? citedVerses(texts[i] ?? '') : []}
+        highlights={highlights}
+        lit={lit}
+        pending={pending}
         {...(mode === 'mark' ? { onCatch: (p: string) => setCaught(p) } : {})}
-        {...(mode === 'cite' ? { onCite: citeVerse } : {})}
+        {...(mode === 'quote' || mode === 'cite'
+          ? {
+              onCite: citeVerse,
+              onChoosing: setPending,
+              onChosen: setPending,
+              onRest: setRest,
+            }
+          : {})}
+        onHoverHighlight={(keys, el) => setHovered(keys && el ? { keys, el } : null)}
         slow={Boolean(opts.slowly && slow > 0)}
       />
     ) : null
@@ -781,11 +925,25 @@ export function RitualComposer({
         <p className="rc__await">Touch a word {where}, or {desk ? 'drag across' : 'tap two'} for a phrase.</p>
       )
     }
-    if (k === 'carry' && caught) return <CaughtLine phrase={caught} small />
-    if (k === 'cite' && !own && desk) {
-      return <p className="rc__await">Touch a verse number {where} to bring its words into your answer.</p>
-    }
-    return null
+    const said = k === 'carry' && caught ? <CaughtLine phrase={caught} small /> : null
+    // Said once, until the first quote is in: after that the gesture is known.
+    const hint =
+      drawsAt(n) && !own && quotesIn(texts[n] ?? '').length === 0 ? (
+        <p className="rc__await">
+          {desk ? 'Select any words on the left to bring them in.' : 'Open the passage and select words to bring them in.'}
+        </p>
+      ) : null
+    const ghost =
+      desk && n === i && pending ? (
+        <QuoteGhost span={pending} locate={() => caretLine(paneRefs.current[n])} />
+      ) : null
+    return said || hint || ghost ? (
+      <>
+        {said}
+        {hint}
+        {ghost}
+      </>
+    ) : null
   }
   /** A movement with nothing to write in: the passage is the answer, or rest is. */
   const instead = (n: number): React.ReactNode | undefined => {
@@ -831,7 +989,40 @@ export function RitualComposer({
   ) : null
 
   if (desk) {
-    const leafMode: MovementKind | 'plain' = kind && kind !== 'read' ? kind : kind === 'read' ? 'read' : 'plain'
+    const leafMode: MovementKind | 'plain' | 'quote' =
+      kind === 'read' || kind === 'mark' || kind === 'dwell' ? kind : drawsAt(i) ? 'quote' : 'plain'
+    /** At the close: every line drawn, movement by movement. */
+    const drawnRecord =
+      passage && drawn.length > 0 ? (
+        <section className="rc__drawn" aria-label={`What you drew from ${passage.reference}`}>
+          <p className="rc__drawn-head">What you drew from {passage.reference}</p>
+          {labels.map((label, n) => {
+            const mine = drawn.filter((q) => q.n === n)
+            if (mine.length === 0) return null
+            return (
+              <div key={label} className="rc__drawn-mv" data-tone={toneOf(n) % 3}>
+                <span className="rc__drawn-label">{label}</span>
+                {mine.map((q) => {
+                  const after = saidAfter(q.key)
+                  return (
+                    <div key={q.key} className="rc__drawn-q">
+                      <blockquote data-qkey={q.key}>
+                        {q.text}
+                        {q.v != null && (
+                          <span className="rc__drawn-v">
+                            {q.vEnd != null && q.vEnd !== q.v ? `vv. ${q.v}–${q.vEnd}` : `v. ${q.v}`}
+                          </span>
+                        )}
+                      </blockquote>
+                      {after && <p>{after}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </section>
+      ) : null
     return createPortal(
       <>
       <DeskLayout
@@ -858,6 +1049,8 @@ export function RitualComposer({
           ) : undefined
         }
         widen={widen}
+        closeExtra={drawnRecord}
+        onPageHover={passage ? onPageHover : undefined}
         lead={lead}
         instead={instead}
         nextLabel={nextLabel}
@@ -896,6 +1089,18 @@ export function RitualComposer({
         }
         landed={entry ? 'It’s on your journal page, as you wrote it.' : 'It’s in your entry, as you wrote it.'}
       />
+      {passage && !own && <Tethers keys={tetherKeys} targets={tetherTargets} lit={lit} rest={drawsAt(i) ? rest : null} />}
+      {pending && drawsAt(i) && <QuoteChip span={pending} onBring={bringIn} onLetGo={() => setPending(null)} />}
+      {hovered && !pending && (
+        <DrawnCard
+          el={hovered.el}
+          rows={hovered.keys.flatMap((k) => {
+            const q = drawn.find((d) => d.key === k)
+            return q ? [{ key: k, label: q.n === i ? 'In this answer' : (labels[q.n] ?? ''), said: saidAfter(k), tone: toneOf(q.n) % 3 }] : []
+          })}
+          foot={drawsAt(i) && hovered.keys.every((k) => !k.startsWith(`${i}:`)) ? 'Select it to bring it in here too' : null}
+        />
+      )}
       {askChangeDialog}
       </>,
       document.body,
@@ -997,7 +1202,19 @@ export function RitualComposer({
                   onToggle={() => setOpenStrip((o) => (o === n ? null : n))}
                 />
                 {openStrip === n && (
-                  <div className="rc__psg-top">{passageBody(k === 'cite' ? 'cite' : 'plain')}</div>
+                  <div className="rc__psg-top">
+                    {passageBody(drawsAt(n) ? 'quote' : 'plain')}
+                    {pending && n === i && (
+                      <div className="rc__bring">
+                        <button type="button" className="rc__bring-go" onMouseDown={(e) => e.preventDefault()} onClick={bringIn}>
+                          Reflect on “{pending.text.length > 40 ? `${pending.text.slice(0, 40)}…` : pending.text}”
+                        </button>
+                        <button type="button" onClick={() => setPending(null)}>
+                          Let go
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             )
@@ -1083,6 +1300,14 @@ export function RitualComposer({
   )
 }
 
+/** Which line of an answer the caret is on, and whether it is empty — where a quote will land. */
+function caretLine(h: Focusable | null | undefined): { line: number; empty: boolean } | null {
+  if (!h?.getDoc || !h.getCursor) return null
+  const doc = h.getDoc()
+  const line = doc.slice(0, h.getCursor()).split('\n').length - 1
+  return { line, empty: (doc.split('\n')[line] ?? '').trim() === '' }
+}
+
 /** ⌥ on Apple hardware, Alt everywhere else — the hint must match the key. */
 const ALT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌥' : 'Alt'
 
@@ -1152,6 +1377,10 @@ interface DeskProps {
   nextLabel?: (n: number) => string | undefined
   filledAt?: (n: number) => boolean
   gistAt?: (n: number) => string
+  /** More for the close — the lines a scripture ritual drew. */
+  closeExtra?: React.ReactNode
+  /** Pointer over the page, to follow a quote's line from its end. */
+  onPageHover?: ((e: React.MouseEvent) => void) | undefined
 }
 
 /**
@@ -1252,6 +1481,8 @@ function DeskLayout({
   nextLabel,
   filledAt,
   gistAt,
+  closeExtra,
+  onPageHover,
 }: DeskProps) {
   const total = labels.length
   const filled = filledAt ?? ((n: number) => (texts[n] ?? '').trim() !== '')
@@ -1348,6 +1579,7 @@ function DeskLayout({
 
       <main
         className="rc__desk"
+        onMouseOver={onPageHover}
         onKeyDown={
           facing
             ? (e) => {
@@ -1419,6 +1651,7 @@ function DeskLayout({
             <button type="button" className="rc__next" onClick={leave}>
               Back to {backTo}
             </button>
+            {closeExtra}
           </div>
         )}
       </main>

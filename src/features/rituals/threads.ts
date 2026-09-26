@@ -36,6 +36,7 @@
  */
 import { parseRitualBlocks } from '@/editor/practices/ritualPacing'
 import { PRACTICE_BY_NAME } from '@/editor/practices/practicesData'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import type { Entry } from '@/lib/types'
 
 export interface RitualAnswer {
@@ -188,3 +189,60 @@ export function openingMovement(thread: RitualThread): RitualMovementThread | nu
 export function threadDepth(thread: RitualThread): number {
   return thread.movements.reduce((n, m) => n + m.answers.length, 0)
 }
+
+/**
+ * One piece of an answer, as the thread shows it.
+ *
+ * - `text`    — what the writer wrote, line breaks kept.
+ * - `quote`   — a `>` line, its marker taken off. In a scripture ritual this is
+ *               a verse, the Bible's words, so it must never read as the
+ *               writer's own (Guardrail H3; see writerWords) — it renders as a
+ *               quotation, set apart.
+ * - `passage` — a Scripture fence, shown only by its reference ("John 15:4–5"):
+ *               the passage is not an answer, and the raw fence line and its
+ *               translation are never shown as one.
+ *
+ * A prayer or sense fence in an answer is the writer's own words in a block, so
+ * its content comes back as `text`.
+ */
+export interface AnswerPart {
+  kind: 'text' | 'quote' | 'passage'
+  text: string
+}
+
+/** An answer split for display — see `AnswerPart`. Pure; order preserved. */
+export function answerParts(answer: string): AnswerPart[] {
+  const parts: AnswerPart[] = []
+  const add = (kind: AnswerPart['kind'], line: string) => {
+    const last = parts[parts.length - 1]
+    if (last && last.kind === kind && kind !== 'passage') last.text += `\n${line}`
+    else parts.push({ kind, text: line })
+  }
+  const prose = (chunk: string) => {
+    for (const line of chunk.split('\n')) {
+      const quote = line.match(/^\s{0,3}>\s?(.*)$/)
+      if (quote) add('quote', quote[1]!)
+      // A blank line ends a quote but stays inside the writer's text.
+      else if (line.trim() || parts[parts.length - 1]?.kind === 'text') add('text', line)
+    }
+  }
+
+  let at = 0
+  for (const block of parseSpiritualBlocks(answer)) {
+    prose(answer.slice(at, block.from))
+    if (block.type === 'scripture') {
+      // "John 15:4–5 · ESV" — the citation, without the translation.
+      const reference = (block.reference ?? '').split('·')[0]!.trim()
+      if (reference) parts.push({ kind: 'passage', text: reference })
+    } else {
+      for (const line of block.content.split('\n')) add('text', line)
+    }
+    at = block.to
+  }
+  prose(answer.slice(at))
+
+  return parts
+    .map((p) => ({ ...p, text: p.text.trim() }))
+    .filter((p) => p.text.length > 0)
+}
+

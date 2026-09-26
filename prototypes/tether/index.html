@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Drawn lines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   DRAWN LINES — highlight a phrase in the passage while you write a movement;
+   it lands in your answer as a quote, and a thread ties the two together.
+   At the close, every thread you drew, at once.
+
+   Not production code. Built on the facing leaf that shipped in 7ff701a.
+   Verse text: World English Bible (public domain), never model memory (H3).
+   ─────────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+:root {
+  --bg: #fbf6ee; --bg-elevated: #fffdf8; --leaf: #f6efe2; --border-subtle: #ece3d4;
+  --text: #4a4035; --text-bright: #2a2118; --text-dim: #8a7c69; --text-faint: #b4a78f;
+  --accent: #c2683a; --accent-soft: rgba(194,104,58,.12);
+  --gold: #b07a22; --gold-soft: rgba(214,160,64,.26); --gold-wash: rgba(214,160,64,.13);
+  --m1: #b07a22; --m2: #c2683a; --m3: #7f6aa3;
+  --shadow: rgba(60,40,10,.10);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) {
+  --bg: #16130f; --bg-elevated: #1e1a15; --leaf: #1b1712; --border-subtle: #2e2820;
+  --text: #d9cdbb; --text-bright: #f2e9da; --text-dim: #9a8b76; --text-faint: #5f5446;
+  --accent: #dba85c; --accent-soft: rgba(219,168,92,.12);
+  --gold: #f3bd76; --gold-soft: rgba(243,189,118,.24); --gold-wash: rgba(243,189,118,.10);
+  --m1: #f3bd76; --m2: #e0885a; --m3: #b3a0d8; --shadow: rgba(0,0,0,.35);
+} }
+:root[data-theme='dark'] {
+  --bg: #16130f; --bg-elevated: #1e1a15; --leaf: #1b1712; --border-subtle: #2e2820;
+  --text: #d9cdbb; --text-bright: #f2e9da; --text-dim: #9a8b76; --text-faint: #5f5446;
+  --accent: #dba85c; --accent-soft: rgba(219,168,92,.12);
+  --gold: #f3bd76; --gold-soft: rgba(243,189,118,.24); --gold-wash: rgba(243,189,118,.10);
+  --m1: #f3bd76; --m2: #e0885a; --m3: #b3a0d8; --shadow: rgba(0,0,0,.35);
+}
+body { background: var(--bg); color: var(--text); font-family: 'Newsreader', Georgia, serif; -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; }
+button { font: inherit; color: inherit; }
+.kbd { font-family: Inter, system-ui, sans-serif; font-size: 11px; color: var(--text-faint); border: 1px solid var(--border-subtle); border-radius: 5px; padding: 1px 5px; font-style: normal; }
+.lbl { font-size: .64rem; font-weight: 500; letter-spacing: .19em; text-transform: uppercase; color: var(--accent); }
+.link { border: 0; background: none; cursor: pointer; color: var(--text-dim); font-size: .9rem; padding: .2rem 0; }
+.link:hover { color: var(--accent); }
+
+/* ── prototype chrome ── */
+#bar { flex: 0 0 auto; display: flex; align-items: center; gap: .2rem; flex-wrap: wrap; padding: .5rem .9rem; border-bottom: 1px solid var(--border-subtle); font-family: Inter, system-ui, sans-serif; font-size: 12.5px; background: var(--bg-elevated); position: relative; z-index: 30; }
+#bar .t { color: var(--text-dim); margin-right: .6rem; }
+#bar a, #bar button { border: 1px solid transparent; background: none; border-radius: 999px; padding: .3rem .7rem; cursor: pointer; color: var(--text-dim); text-decoration: none; }
+#bar a:hover, #bar button:hover { color: var(--text-bright); }
+#bar .on, #bar [aria-pressed='true'] { border-color: var(--border-subtle); color: var(--text-bright); background: var(--bg); }
+#bar .grp { display: inline-flex; align-items: center; gap: .1rem; padding-left: .6rem; margin-left: .4rem; border-left: 1px solid var(--border-subtle); }
+#bar .grp span { color: var(--text-faint); margin-right: .25rem; }
+#bar .sp { flex: 1; }
+#stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+#note { position: fixed; left: 1rem; bottom: 1rem; width: 330px; z-index: 40; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 12px; padding: .8rem 1rem .9rem; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; line-height: 1.55; color: var(--text-dim); box-shadow: 0 10px 30px var(--shadow); }
+#note h4 { margin: 0; font-size: 12.5px; color: var(--text-bright); font-weight: 500; cursor: pointer; padding-right: 1.4rem; }
+#note .body p { margin: .45rem 0 0; }
+#note b { color: var(--text); font-weight: 500; }
+#note[data-min='true'] { width: auto; }
+#note[data-min='true'] .body { display: none; }
+#note .x { position: absolute; top: .55rem; right: .75rem; border: 0; background: none; cursor: pointer; color: var(--text-faint); }
+
+/* ── the tethers ── */
+#tethers { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: visible; }
+#tethers path { fill: none; stroke-linecap: round; transition: opacity .25s ease, stroke-width .2s ease; }
+#tethers circle { transition: opacity .25s ease; }
+
+/* ═══ WALK — the facing leaf, as shipped, plus highlights ═══════════════ */
+.v-face { height: 100%; display: grid; grid-template-columns: max(24rem, 45%) minmax(0, 1fr); }
+.leaf { background: var(--leaf); border-right: 1px solid var(--border-subtle); min-height: 0; overflow-y: auto; padding: 2.4rem 2.6rem 1.6rem 2.8rem; display: flex; flex-direction: column; position: relative; }
+.home { align-self: flex-start; border: 0; background: none; cursor: pointer; color: var(--text-dim); font-size: .9rem; padding: .2rem 0; margin-bottom: 1.4rem; }
+.home:hover { color: var(--accent); }
+.leaf h1 { font-weight: 400; font-size: 1.25rem; margin: 0; color: var(--text-bright); }
+.leaf .origin { font-style: italic; color: var(--text-faint); font-size: .85rem; }
+.path { display: flex; gap: .1rem .95rem; flex-wrap: wrap; list-style: none; margin: 1rem 0 1.8rem; padding: 0; }
+.path li { display: flex; align-items: center; gap: .4rem; font-size: .58rem; letter-spacing: .17em; text-transform: uppercase; color: var(--text-faint); cursor: pointer; }
+.path li i { width: 7px; height: 7px; border-radius: 99px; border: 1px solid var(--text-faint); background: var(--bg); }
+.path li.done { color: var(--text-dim); } .path li.done i { background: color-mix(in srgb, var(--accent) 45%, var(--bg)); border-color: transparent; }
+.path li.on { color: var(--accent); } .path li.on i { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.path li:hover { color: var(--accent); }
+.refline { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .8rem; }
+.refline .ref { font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 500; }
+.refline .tip { font-family: Inter, sans-serif; font-size: 11px; color: var(--text-faint); }
+.psg { font-size: 1.22rem; line-height: 1.95; color: var(--text-bright); user-select: none; -webkit-user-select: none; }
+.psg .n { font-family: Inter, sans-serif; font-size: .56rem; font-weight: 500; color: var(--gold); vertical-align: .55em; margin: 0 .2em 0 .1em; }
+.psg .w { cursor: text; border-radius: 3px; }
+.psg[data-live='true'] .w:hover { background: var(--gold-wash); }
+.psg .w.pending { background: var(--gold-soft); }
+/* one continuous band while choosing, not a row of tiles */
+.psg .w.pending:not(.plast) { box-shadow: .3em 0 0 var(--gold-soft); border-radius: 3px 0 0 3px; }
+.psg .w.pending.plast { border-radius: 0 3px 3px 0; }
+.psg .w.pending.pfirst.plast { border-radius: 3px; }
+/* resting over a word: it underlines, so you know it's a target */
+.psg[data-live='true'] .w.hov { background: none; box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--gold) 70%, transparent); }
+.psg[data-live='true'] .w:hover { background: none; }
+.psg[data-live='true'] .vs.hovv { background: color-mix(in srgb, var(--gold) 5%, transparent); border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.psg[data-live='true'] { cursor: text; }
+#hint { position: fixed; z-index: 36; pointer-events: none; font-family: Inter, sans-serif; font-size: 11.5px; color: var(--text-dim); background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 999px; padding: .25rem .65rem; box-shadow: 0 6px 18px var(--shadow); opacity: 0; transform: translateY(3px); transition: opacity .18s ease, transform .18s ease; white-space: nowrap; }
+#hint.on { opacity: 1; transform: none; }
+#hint b { color: var(--text-bright); font-weight: 500; }
+/* where it will land */
+.q-ghost { display: block; margin: .3rem 0 .8rem -1.1rem; padding: .35rem .9rem .4rem 1.1rem; border: 1.5px dashed color-mix(in srgb, var(--gold) 70%, transparent); border-left-width: 2px; border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--gold) 6%, transparent); font-size: 1.02rem; line-height: 1.55; font-style: italic; color: var(--text-dim); user-select: none; animation: ghost .2s ease both; }
+.q-ghost .v { font-style: normal; font-family: Inter, sans-serif; font-size: 10.5px; color: var(--gold); margin-left: .5rem; }
+.q-ghost .lands { display: block; font-style: normal; font-family: Inter, sans-serif; font-size: 10.5px; letter-spacing: .04em; color: var(--text-faint); margin-top: .2rem; }
+@keyframes ghost { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+/* a highlight you already drew: what it holds */
+.hcard { position: fixed; z-index: 37; max-width: 300px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 12px; padding: .65rem .8rem .7rem; box-shadow: 0 12px 30px var(--shadow); font-size: .9rem; line-height: 1.45; color: var(--text); pointer-events: none; animation: pop .15s ease both; }
+.hcard .row + .row { margin-top: .55rem; padding-top: .55rem; border-top: 1px solid var(--border-subtle); }
+.hcard .mv { font-size: .58rem; letter-spacing: .17em; text-transform: uppercase; font-weight: 500; }
+.hcard .said { display: block; font-style: italic; color: var(--text-dim); margin-top: .15rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hcard .foot { display: block; margin-top: .5rem; font-family: Inter, sans-serif; font-size: 10.5px; color: var(--text-faint); }
+/* reordering a quote */
+.q-block .grip { position: absolute; left: -1.9rem; top: .35rem; width: 1.2rem; height: 1.4rem; border: 0; background: none; cursor: grab; color: var(--text-faint); opacity: 0; transition: opacity .15s; font-style: normal; font-size: .8rem; letter-spacing: -.15em; }
+.q-block:hover .grip, .q-block.moving .grip { opacity: 1; }
+.q-block.moving { opacity: .45; }
+.q-drop { height: 2px; margin: -1px 0; background: var(--gold); border-radius: 2px; box-shadow: 0 0 0 3px var(--gold-wash); }
+body.dragging-q, body.dragging-q * { cursor: grabbing !important; }
+.psg mark { background: none; color: inherit; border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: .06em .08em; margin: 0 -.08em; transition: background .25s ease, box-shadow .25s ease; position: relative; }
+.psg mark.cur { background: var(--gold-soft); }
+.psg mark.past { background: color-mix(in srgb, var(--gold) 9%, transparent); box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--gold) 35%, transparent); }
+.psg mark.lit { background: color-mix(in srgb, var(--gold) 38%, transparent); }
+.psg mark[data-n]::after { content: attr(data-n); position: absolute; top: -.55em; right: -.5em; font-family: Inter, sans-serif; font-size: .52rem; font-weight: 500; color: var(--bg); background: var(--gold); border-radius: 99px; min-width: 1.35em; height: 1.35em; line-height: 1.35em; text-align: center; padding: 0 .2em; }
+.psg[data-mode='all'] mark.m1 { background: color-mix(in srgb, var(--m1) 22%, transparent); }
+.psg[data-mode='all'] mark.m2 { background: color-mix(in srgb, var(--m2) 20%, transparent); }
+.psg[data-mode='all'] mark.m3 { background: color-mix(in srgb, var(--m3) 22%, transparent); }
+.psg[data-mode='all'] mark.multi { background: color-mix(in srgb, var(--gold) 30%, transparent); }
+.leaf .foot { margin-top: auto; padding-top: 1.6rem; display: flex; gap: 1rem; font-size: .85rem; color: var(--text-dim); }
+.chip {
+  position: fixed; z-index: 35; display: inline-flex; align-items: center; gap: .55rem;
+  background: var(--text-bright); color: var(--bg); border: 0; border-radius: 999px; padding: .45rem .9rem .45rem .8rem;
+  font-size: .92rem; cursor: pointer; box-shadow: 0 10px 28px var(--shadow); animation: pop .18s ease both;
+}
+.chip .kbd { color: color-mix(in srgb, var(--bg) 70%, transparent); border-color: color-mix(in srgb, var(--bg) 35%, transparent); }
+@keyframes pop { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
+
+.pagewrap { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.page { flex: 1; max-width: 44rem; width: 100%; margin: 0 auto; padding: 4.6rem 2.8rem 2rem 3.2rem; display: flex; flex-direction: column; }
+.page .q { font-style: italic; font-size: 1.62rem; line-height: 1.35; color: var(--text-bright); margin: .5rem 0 1.4rem; font-weight: 300; }
+.await { display: flex; align-items: center; gap: .6rem; margin: -.4rem 0 1.4rem; color: var(--text-faint); font-style: italic; font-size: 1rem; }
+.await::before { content: ''; width: 22px; height: 1px; background: var(--gold); opacity: .6; }
+.ans { flex: 1; min-height: 12rem; outline: none; font-size: 20px; line-height: 1.7; color: var(--text-bright); }
+.ans p { margin: 0 0 .6rem; min-height: 1.7em; }
+.ans:empty::before, .ans.empty::before { content: attr(data-ph); color: var(--text-faint); font-style: italic; pointer-events: none; }
+.ans.empty > p:first-child:only-child::before { content: attr(data-ph); color: var(--text-faint); font-style: italic; position: absolute; pointer-events: none; }
+.q-block {
+  position: relative; display: block; margin: .3rem 0 .8rem -1.1rem; padding: .35rem .9rem .4rem 1.1rem;
+  border-left: 2px solid var(--gold); background: var(--gold-wash); border-radius: 0 8px 8px 0;
+  font-size: 1.02rem; line-height: 1.55; color: var(--text-bright); font-style: italic; user-select: none; cursor: default;
+  transition: background .2s ease;
+}
+.q-block .v { font-style: normal; font-family: Inter, sans-serif; font-size: 10.5px; letter-spacing: .06em; color: var(--gold); margin-left: .5rem; }
+.q-block .x { position: absolute; top: .25rem; right: .4rem; border: 0; background: none; color: var(--text-faint); cursor: pointer; font-size: .95rem; opacity: 0; transition: opacity .15s; font-style: normal; }
+.q-block:hover .x { opacity: 1; }
+.q-block.lit { background: color-mix(in srgb, var(--gold) 22%, transparent); }
+.q-block[data-n]::before { content: attr(data-n); position: absolute; left: -.72rem; top: .5rem; font-family: Inter, sans-serif; font-size: .55rem; font-weight: 500; color: var(--bg); background: var(--gold); border-radius: 99px; min-width: 1.3rem; height: 1.3rem; line-height: 1.3rem; text-align: center; font-style: normal; }
+.pfoot { display: flex; justify-content: space-between; align-items: center; max-width: 44rem; width: 100%; margin: 0 auto; padding: 1rem 2.8rem 2rem 3.2rem; }
+.btn { border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--bg-elevated); padding: .55rem 1.3rem; cursor: pointer; color: var(--text-bright); display: inline-flex; gap: .6rem; align-items: center; }
+.btn.primary { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }
+.btn.primary .kbd { color: color-mix(in srgb, var(--bg) 70%, transparent); border-color: color-mix(in srgb, var(--bg) 30%, transparent); }
+
+/* ═══ THE WEAVE — every thread you drew ═══════════════════════════════ */
+.v-weave { height: 100%; display: grid; grid-template-columns: max(24rem, 45%) minmax(0, 1fr); }
+.v-weave .page { padding-top: 3.4rem; }
+.weave-head h2 { font-weight: 300; font-size: 2rem; margin: .4rem 0 .3rem; color: var(--text-bright); }
+.weave-head p { font-style: italic; color: var(--text-dim); margin: 0 0 1.4rem; }
+.legend[hidden] { display: none; }
+.legend { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.8rem; }
+.legend button { display: inline-flex; align-items: center; gap: .45rem; border: 1px solid var(--border-subtle); border-radius: 999px; background: none; padding: .3rem .75rem; cursor: pointer; font-size: .85rem; color: var(--text-dim); }
+.legend button[aria-pressed='true'] { color: var(--text-bright); border-color: var(--text-dim); }
+.legend i { width: 16px; height: 2px; border-radius: 2px; }
+.rec-mv { margin-bottom: 1.8rem; transition: opacity .25s ease; }
+.rec-mv .lbl { display: block; margin-bottom: .35rem; }
+.rec-mv p { margin: 0 0 .5rem; font-size: 1.05rem; line-height: 1.65; color: var(--text-bright); }
+.rec-mv .q-block { font-size: .95rem; }
+.rec-mv.dim { opacity: .3; }
+.rec-mv[data-mv='1'] .q-block { border-left-color: var(--m1); background: color-mix(in srgb, var(--m1) 10%, transparent); }
+.rec-mv[data-mv='2'] .q-block { border-left-color: var(--m2); background: color-mix(in srgb, var(--m2) 9%, transparent); }
+.rec-mv[data-mv='3'] .q-block { border-left-color: var(--m3); background: color-mix(in srgb, var(--m3) 10%, transparent); }
+.rec-mv .empty { color: var(--text-faint); font-style: italic; }
+.md { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 10px; padding: .9rem 1rem; color: var(--text); margin: 0 0 2rem; }
+.md b { color: var(--gold); font-weight: 400; }
+
+/* ═══ INTRO / PHONE ═══════════════════════════════════════════════════ */
+.v-doc { height: 100%; overflow-y: auto; }
+.v-doc .col { max-width: 46rem; margin: 0 auto; padding: 4rem 2rem 8rem; }
+.v-doc h1 { font-weight: 300; font-size: 2.4rem; line-height: 1.15; margin: .6rem 0 1.1rem; color: var(--text-bright); }
+.v-doc p { font-size: 1.1rem; line-height: 1.7; margin: 0 0 1rem; }
+.v-doc h2 { font-weight: 400; font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 2.4rem 0 .8rem; }
+.v-doc ol, .v-doc ul { padding-left: 1.2rem; } .v-doc li { font-size: 1.02rem; line-height: 1.6; margin-bottom: .7rem; }
+.v-doc li b { font-weight: 500; color: var(--text-bright); }
+.v-doc .mono, .mono { font-family: ui-monospace, Menlo, monospace; font-size: .85em; }
+.ecs { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: .9rem; }
+.ec { border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1rem 1.1rem .9rem; background: var(--bg-elevated); }
+.ec.try { border-color: color-mix(in srgb, var(--gold) 35%, var(--border-subtle)); }
+.ec h3 { font-weight: 400; font-size: 1.08rem; margin: 0 0 .4rem; color: var(--text-bright); display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; }
+.ec .tag { font-family: Inter, sans-serif; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+.ec p { font-size: .95rem !important; line-height: 1.55 !important; margin: 0 0 .4rem !important; }
+.ec .when { font-style: italic; color: var(--text-dim); }
+.sev { display: grid; grid-template-columns: 7rem 1fr; gap: .4rem 1rem; border-top: 1px solid var(--border-subtle); padding: .8rem 0; }
+.sev .k { font-family: Inter, sans-serif; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding-top: .2rem; }
+.sev .k.b { color: #c0392b; } .sev .k.m { color: var(--accent); } .sev .k.c { color: var(--text-dim); } .sev .k.f { color: var(--text-faint); }
+.sev h4 { margin: 0; font-weight: 400; font-size: 1.02rem; color: var(--text-bright); }
+.sev p { margin: .2rem 0 0 !important; font-size: .95rem !important; line-height: 1.55 !important; color: var(--text); }
+.sev .fix { color: var(--text-dim); font-style: italic; } .v-doc li i.lean { display: block; color: var(--text-dim); font-size: .96rem; }
+.cta { display: flex; gap: .7rem; flex-wrap: wrap; margin: 1.6rem 0 0; }
+.cta a { text-decoration: none; }
+.phones { display: flex; gap: 1.6rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem; }
+.pw { width: 290px; display: flex; flex-direction: column; gap: .7rem; align-items: center; }
+.pw .cap { text-align: center; font-style: italic; color: var(--text-dim); font-size: .95rem; line-height: 1.45; }
+.pw .cap b { display: block; font-style: normal; font-weight: 400; color: var(--text-bright); }
+.phone { width: 290px; height: 600px; border-radius: 40px; border: 9px solid #1c1813; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 18px 50px var(--shadow); position: relative; }
+:root[data-theme='dark'] .phone { border-color: #3a3229; }
+.phone .sb { height: 36px; }
+.phone .top { display: flex; justify-content: space-between; padding: 0 1rem .5rem; font-family: Inter, sans-serif; font-size: 11px; color: var(--text-dim); }
+.phone .bd { flex: 1; padding: 0 1rem; overflow: hidden; display: flex; flex-direction: column; }
+.phone .psg { font-size: .95rem; line-height: 1.7; }
+.phone .half { border-bottom: 1px solid var(--border-subtle); padding-bottom: .7rem; margin-bottom: .8rem; }
+.phone .q { font-style: italic; font-size: 1rem; margin: .2rem 0 .6rem; color: var(--text-bright); }
+.phone .q-block { font-size: .88rem; margin-left: 0; }
+.phone .ta { font-size: .98rem; line-height: 1.55; color: var(--text-bright); }
+.phone .strip { display: flex; align-items: center; gap: .5rem; padding: .5rem .8rem; margin: 0 .8rem .6rem; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--leaf); font-size: .85rem; color: var(--text-dim); }
+.phone .strip b { font-size: .55rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); font-weight: 500; }
+.phone .pchip { align-self: flex-start; background: var(--text-bright); color: var(--bg); border-radius: 999px; padding: .35rem .8rem; font-size: .82rem; margin: .4rem 0 0; }
+.phone .flash mark { background: color-mix(in srgb, var(--gold) 45%, transparent); box-shadow: 0 0 0 4px var(--gold-wash); }
+@media (max-width: 900px) { .v-face, .v-weave { display: block; overflow-y: auto; } #note { display: none; } #tethers { display: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="stage"></div>
+<svg id="tethers" aria-hidden="true"></svg>
+<aside id="note"></aside>
+<script>
+/* John 15:1–11, World English Bible (public domain), from bible-api.com — never model memory. */
+const VERSES = [[1, "“I am the true vine, and my Father is the farmer."], [2, "Every branch in me that doesn’t bear fruit, he takes away. Every branch that bears fruit, he prunes, that it may bear more fruit."], [3, "You are already pruned clean because of the word which I have spoken to you."], [4, "Remain in me, and I in you. As the branch can’t bear fruit by itself, unless it remains in the vine, so neither can you, unless you remain in me."], [5, "I am the vine. You are the branches. He who remains in me, and I in him, the same bears much fruit, for apart from me you can do nothing."], [6, "If a man doesn’t remain in me, he is thrown out as a branch, and is withered; and they gather them, throw them into the fire, and they are burned."], [7, "If you remain in me, and my words remain in you, you will ask whatever you desire, and it will be done for you."], [8, "“In this is my Father glorified, that you bear much fruit; and so you will be my disciples."], [9, "Even as the Father has loved me, I also have loved you. Remain in my love."], [10, "If you keep my commandments, you will remain in my love; even as I have kept my Father’s commandments, and remain in his love."], [11, "I have spoken these things to you, that my joy may remain in you, and that your joy may be made full."]];
+const REF = 'John 15:1–11';
+/*
+ * Two practices on the same leaf: SOAP, a framework, and Open Reading — no
+ * framework at all. Crack the passage open, read, then one page to write on,
+ * drawing in whatever words catch you.
+ */
+const PRACTICES = {
+  soap: {
+    name: 'SOAP', origin: 'Wayne Cordeiro, contemporary',
+    moves: [
+      { label: 'Scripture', kind: 'read', q: 'Read it through, slowly.' },
+      { label: 'Observation', kind: 'write', q: 'What do you observe — context, repetitions, what stands out?', ph: 'What does the text actually say…', tone: 'm1' },
+      { label: 'Application', kind: 'write', q: 'What does this mean for your life, concretely, today?', ph: 'One specific thing, not a general principle…', tone: 'm2' },
+      { label: 'Prayer', kind: 'write', q: 'Turn your application into a prayer.', ph: 'Speak it directly to God…', tone: 'm3' },
+    ],
+  },
+  open: {
+    name: 'Open Reading', origin: 'No framework — the passage, and a page',
+    moves: [
+      { label: 'Read', kind: 'read', q: 'Read it slowly. There’s nothing to do yet.' },
+      { label: 'Reflect', kind: 'write', q: 'Write whatever comes. Bring in any words that catch you.', ph: 'Anything at all…', tone: 'm1' },
+    ],
+  },
+};
+let MOVES = PRACTICES.soap.moves;
+let WRITE = [1, 2, 3];
+function setPractice(k) {
+  MOVES = PRACTICES[k].moves;
+  WRITE = MOVES.map((m, i) => (m.kind === 'write' ? i : -1)).filter((i) => i >= 0);
+}
+const PNAME = () => PRACTICES[S.practice].name;
+
+/* ── state ── */
+const KEY = 'dayspring.tether.v1';
+const fresh = () => ({ step: 1, mode: 'live', answers: {}, quotes: {}, seq: 0, noteMin: false, theme: null, iso: null, practice: 'soap', stash: {} });
+let S; try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { S = fresh(); }
+if (!PRACTICES[S.practice]) S.practice = 'soap';
+setPractice(S.practice);
+/** Each practice keeps its own page; switching sets one aside and picks the other up. */
+function switchPractice(k) {
+  if (k === S.practice) return;
+  persistAnswer();
+  S.stash[S.practice] = { answers: S.answers, quotes: S.quotes, seq: S.seq, step: S.step };
+  const next = S.stash[k] || { answers: {}, quotes: {}, seq: 0, step: 1 };
+  Object.assign(S, next, { practice: k, iso: null });
+  setPractice(k); save(); render();
+}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+let ui = { pending: null, drag: null, hover: null, savedRange: null, hoverWord: null, move: null };
+
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const wordsOf = (v) => VERSES.find(([n]) => n === v)[1].split(' ');
+const trim = (s) => s.replace(/^[“”‘’"'(]+/, '').replace(/[“”‘’"',.;:)]+$/, '');
+const quoteText = (q) => trim(wordsOf(q.v).slice(q.a, q.b + 1).join(' '));
+
+/** Quotes that still exist: a quote deleted from its answer takes its highlight with it. */
+function liveQuotes() {
+  const html = Object.values(S.answers).join(' ');
+  return Object.entries(S.quotes).filter(([id]) => html.includes(`data-q="${id}"`)).map(([id, q]) => ({ id, ...q }));
+}
+
+/* ── passage ── */
+function passageHTML({ mode, curMv, interactive, numbered }) {
+  const qs = liveQuotes();
+  const order = numbering(qs, curMv);
+  let out = '';
+  for (const [v, text] of VERSES) {
+    const words = text.split(' ');
+    const cover = words.map((_, i) => qs.filter((q) => q.v === v && i >= q.a && i <= q.b));
+    out += `<span class="vs"><sup class="n">${v}</sup>`;
+    let i = 0;
+    while (i < words.length) {
+      const key = cover[i].map((q) => q.id).sort().join(' ');
+      let j = i;
+      while (j + 1 < words.length && cover[j + 1].map((q) => q.id).sort().join(' ') === key) j++;
+      const span = words.slice(i, j + 1).map((w, k) => `<span class="w" data-v="${v}" data-i="${i + k}">${esc(w)}</span>`).join(' ');
+      if (key) {
+        const ids = cover[i];
+        const mvs = [...new Set(ids.map((q) => q.mv))];
+        let cls = mode === 'all' ? (mvs.length > 1 ? 'multi' : MOVES[mvs[0]].tone) : ids.some((q) => q.mv === curMv) ? 'cur' : 'past';
+        const n = numbered ? ids.filter((q) => order[q.id]).map((q) => order[q.id]).join('·') : '';
+        // the number rides on the LAST run of a quote only
+        const lastRun = ids.some((q) => q.b === j);
+        out += `<mark class="${cls}" data-qs="${key}"${n && lastRun ? ` data-n="${n}"` : ''}>${span}</mark>`;
+      } else out += span;
+      out += j + 1 < words.length ? ' ' : '';
+      i = j + 1;
+    }
+    out += '</span> ';
+  }
+  return `<div class="psg" data-live="${interactive}" data-mode="${mode}">${out}</div>`;
+}
+function numbering(qs, curMv) {
+  const o = {}; let n = 0;
+  qs.filter((q) => curMv == null || q.mv === curMv).sort((a, b) => a.seq - b.seq).forEach((q) => { o[q.id] = ++n; });
+  return o;
+}
+
+/* ── scenes ── */
+const SCENES = [['intro', 'The idea'], ['walk', '1 · Draw lines while you write'], ['weave', '2 · Every line you drew'], ['phone', '3 · On a phone'], ['edges', '4 · Edge cases'], ['touch', '5 · What it touches'], ['decide', '6 · Decisions']];
+const scene = () => location.hash.slice(1) || 'intro';
+function isDark() { return S.theme ? S.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+
+function renderBar() {
+  const sc = scene();
+  let h = `<span class="t">Drawn lines</span>` + SCENES.map(([k, l]) => `<a href="#${k}" class="${sc === k ? 'on' : ''}">${l}</a>`).join('');
+  if (sc === 'walk' || sc === 'weave') h += `<span class="grp"><span>Practice</span>${[['soap', 'SOAP'], ['open', 'Open Reading']].map(([k, l]) => `<button data-act="practice" data-v="${k}" aria-pressed="${S.practice === k}">${l}</button>`).join('')}</span>`;
+  if (sc === 'walk') h += `<span class="grp"><span>Lines</span>${[['live', 'Always'], ['hover', 'On hover'], ['markers', 'Numbers, no lines']].map(([k, l]) => `<button data-act="mode" data-v="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join('')}</span>`;
+  h += `<span class="sp"></span><button data-act="example">Fill an example</button><button data-act="theme">${isDark() ? 'Light' : 'Dark'}</button><button data-act="reset">Start over</button>`;
+  $('#bar').innerHTML = h;
+}
+const NOTES = {
+  intro: ['What this is', '<p>Built on the facing leaf that shipped. Start with <b>1</b>, or press <b>Fill an example</b> to see a finished SOAP first.</p>'],
+  walk: ['Drag across words in the passage', '<p>Drag across any phrase on the left (a click takes one word), then <b>Reflect on this</b> or <span class="kbd">↵</span>. It lands in your answer at the caret as a quote, and a line ties it back.</p><p>Hover a quote or a highlight to follow its line. Delete a quote and its highlight goes with it.</p><p>Lines only show for <b>this</b> movement; earlier highlights stay as a faint underline. Compare the three line modes in the bar.</p>'],
+  weave: ['The close', '<p>Every line from every movement, at once, each movement in its own tone. Hover a legend chip or a quote to follow one thread; where two movements drew from the same words, the highlight goes deeper.</p>'],
+  phone: ['No room for lines', '<p>On a phone the passage and the answer are never on screen together, so the line becomes a <b>round trip</b>: tap a quote and the passage opens at it.</p>'],
+  edges: ['Edge cases', '<p>Grouped by what the writer is doing. The ones marked <b>try it</b> are live in scene 1.</p>'],
+  touch: ['Downstream', '<p>Everything that reads what a ritual writes, and what a quoted verse would do to it.</p>'],
+  decide: ['Open questions', '<p>What would have to be true to ship it, and the calls only you can make.</p>'],
+};
+function renderNote() {
+  const n = NOTES[scene()]; const el = $('#note');
+  el.dataset.min = S.noteMin;
+  el.innerHTML = `<h4 data-act="note">${n[0]}</h4><button class="x" data-act="note">${S.noteMin ? '+' : '–'}</button><div class="body">${n[1]}</div>`;
+}
+
+function vIntro() {
+  return `<div class="v-doc"><div class="col">
+    <span class="lbl">Scripture rituals · drawn lines</span>
+    <h1>Highlight what you’re reflecting on, and keep the line back to it.</h1>
+    <p>In a SOAP Observation you notice a line and want to write about it. Today you’d copy it out, or remember it. Here you drag across it in the passage. It lands in your answer as a quote, and a thin line runs from the words on the left to the quote on the right, so the passage and what you made of it stay attached.</p>
+    <p>At the close you see every line you drew: which words carried Observation, which carried Application, and where you kept coming back to the same phrase.</p>
+    <h2>What stays the same</h2>
+    <ul>
+      <li><b>No new storage.</b> A quote is a <span style="font-family:monospace">&gt;</span> line in the answer with its verse, the same markdown Lectio’s caught word already uses. The highlights are <i>derived</i>: the passage lights wherever an answer quotes it. Delete the quote, the highlight goes.</li>
+      <li><b>Lectio’s “catch a word” becomes one case of this.</b> Meditatio is a movement that asks for exactly one line.</li>
+    </ul>
+    <h2>And a ritual with no framework</h2>
+    <p><b>Open Reading</b>: choose a passage, read it, then one open page. No Observation, no Application, no questions to answer in order. Just the passage on the left and your words on the right, with a line to every phrase you bring in. For the mornings you want to crack it open and see what happens. Switch to it in the bar in scenes 1 and 2.</p>
+    <div class="cta"><a class="btn primary" href="#walk">Try it →</a><button class="btn" data-act="example-go">See a finished one</button></div>
+  </div></div>`;
+}
+
+function leafHTML(curMv, { interactive, mode, numbered, title }) {
+  return `<section class="leaf" id="leaf">
+    <button class="home">← Back to today’s entry</button>
+    <h1>${PNAME()}</h1><div class="origin">${PRACTICES[S.practice].origin}</div>
+    <ol class="path">${MOVES.map((m, i) => `<li class="${i === curMv ? 'on' : i < curMv || scene() === 'weave' ? 'done' : ''}" data-act="goto" data-v="${i}"><i></i>${m.label}</li>`).join('')}</ol>
+    <div class="refline"><span class="ref">${REF}</span><span class="tip">${title || ''}</span></div>
+    ${passageHTML({ mode, curMv, interactive, numbered })}
+    <div class="foot"><span>About this ritual</span><span>Delete page</span></div>
+  </section>`;
+}
+
+function vWalk() {
+  const m = MOVES[S.step];
+  const writing = m.kind === 'write';
+  const last = S.step === MOVES.length - 1;
+  return `<div class="v-face">
+    ${leafHTML(S.step, { interactive: writing, mode: 'cur', numbered: S.mode === 'markers', title: writing ? 'drag across words to reflect on them' : '' })}
+    <main class="pagewrap" id="pagewrap">
+      <div class="page">
+        <span class="lbl">${m.label}</span>
+        <div class="q">${esc(m.q)}</div>
+        ${writing
+          ? `<p class="await">Drag across words on the left to bring them in.</p><div class="ans" id="ans" contenteditable="true" data-ph="${esc(m.ph)}" spellcheck="false">${S.answers[S.step] || '<p><br></p>'}</div>`
+          : `<p class="await">The passage is on the left. Take your time.</p>`}
+      </div>
+      <div class="pfoot"><span>${S.step > 0 ? `<button class="link" data-act="goto" data-v="${S.step - 1}">← ${MOVES[S.step - 1].label}</button>` : ''}</span>
+        <button class="btn primary" data-act="next">${m.kind === 'read' ? 'I’ve read it' : last ? 'Finish' : 'Continue'} <span class="kbd">⌥↵</span></button></div>
+    </main>
+  </div>`;
+}
+
+function answerToRecord(html) {
+  const d = document.createElement('div'); d.innerHTML = html || '';
+  return [...d.children].map((el) => el.matches('.q-block') ? el.outerHTML.replace(/<button[^>]*>.*?<\/button>/, '') : el.textContent.trim() ? `<p>${esc(el.textContent)}</p>` : '').join('');
+}
+function vWeave() {
+  const qs = liveQuotes();
+  return `<div class="v-weave">
+    ${leafHTML(4, { interactive: false, mode: 'all', numbered: false, title: qs.length ? '' : 'nothing drawn yet' })}
+    <main class="pagewrap" id="pagewrap"><div class="page">
+      <div class="weave-head"><span class="lbl">${PNAME()} · Friday</span><h2>Amen.</h2><p>What you drew from ${REF}.</p></div>
+      <div class="legend"${WRITE.length < 2 ? ' hidden' : ''}>${WRITE.map((i) => `<button data-act="iso" data-v="${i}" aria-pressed="${S.iso === i}"><i style="background:var(--${MOVES[i].tone})"></i>${MOVES[i].label}</button>`).join('')}</div>
+      ${WRITE.map((i) => { const rec = answerToRecord(S.answers[i]); return `<section class="rec-mv${S.iso != null && S.iso !== i ? ' dim' : ''}" data-mv="${i}"><span class="lbl" style="color:var(--${MOVES[i].tone})">${MOVES[i].label}</span>${rec || '<p class="empty">—</p>'}</section>`; }).join('')}
+      <span class="lbl" style="color:var(--text-faint)">What the page saves</span>
+      <pre class="md">${esc(recordMarkdown())}</pre>
+    </div></main>
+  </div>`;
+}
+function recordMarkdown() {
+  let md = `<!-- ritual:name:${PNAME()} -->\n<!-- ritual:section:${MOVES[0].label} -->\n\`\`\`dayspring-scripture 7c1e…\n${VERSES.map(([, t]) => t).join(' ').slice(0, 60)}…\n${REF} · ESV\n\`\`\`\n`;
+  for (const i of WRITE) {
+    md += `<!-- ritual:section:${MOVES[i].label} -->\n`;
+    const d = document.createElement('div'); d.innerHTML = S.answers[i] || '';
+    for (const el of d.children) {
+      if (el.matches('.q-block')) { const q = S.quotes[el.dataset.q]; if (q) md += `> ${quoteText(q)} (v. ${q.v})\n\n`; }
+      else if (el.textContent.trim()) md += `${el.textContent.trim()}\n\n`;
+    }
+  }
+  return md + '<!-- ritual:end -->';
+}
+
+function vPhone() {
+  const mk = (v, a, b, cls = 'cur') => { const w = wordsOf(v); return `<sup class="n">${v}</sup>${w.slice(0, a).join(' ')} <mark class="${cls}">${w.slice(a, b + 1).join(' ')}</mark> ${w.slice(b + 1).join(' ')}`; };
+  const top = (t) => `<div class="sb"></div><div class="top"><span>‹ Journal</span><span class="lbl" style="font-size:.55rem">SOAP</span><span>⋯</span></div>`;
+  return `<div class="v-doc"><div class="col" style="max-width:64rem">
+    <span class="lbl">On a phone</span><h1>No room for a line, so it’s a round trip.</h1>
+    <p>The passage and the answer are never on screen together once the keyboard is up. So the phone keeps the gesture and swaps the line for a return: tap a quote in your answer and the passage opens at those words, lit.</p>
+    <div class="phones">
+      <div class="pw"><div class="phone">${top()}<div class="bd"><div class="half"><span class="lbl" style="color:var(--gold)">${REF}</span><div class="psg" style="margin-top:.3rem">${mk(4, 0, 2, 'cur')}</div><span class="pchip">Reflect on this</span></div><span class="lbl">Observation</span><div class="q">What do you observe?</div></div></div><div class="cap"><b>Tap the first word, then the last</b>The same two-tap gesture as Lectio’s catch, and one chip.</div></div>
+      <div class="pw"><div class="phone">${top()}<div class="strip"><b>${REF}</b> <i style="color:var(--text-bright)">Remain in me</i> <span style="margin-left:auto">▾</span></div><div class="bd"><span class="lbl">Observation</span><div class="q">What do you observe?</div><div class="q-block">Remain in me <span class="v">v. 4</span></div><div class="ta">He says remain before he says bear fruit. The order matters.</div></div></div><div class="cap"><b>It lands at the caret</b>With the keyboard up, the passage folds to its strip.</div></div>
+      <div class="pw"><div class="phone">${top()}<div class="bd"><div class="half flash"><span class="lbl" style="color:var(--gold)">${REF}</span><div class="psg" style="margin-top:.3rem">${mk(4, 0, 2, 'cur')}</div></div><div class="q-block" style="box-shadow:0 0 0 2px var(--gold-soft)">Remain in me <span class="v">v. 4</span></div><div class="ta" style="color:var(--text-dim)">He says remain before…</div></div></div><div class="cap"><b>Tap a quote, and you’re back at the words</b>The passage opens scrolled to them and they pulse once.</div></div>
+    </div>
+  </div></div>`;
+}
+function ecard(title, when, then, tag) {
+  return `<div class="ec${tag === 'try' ? ' try' : ''}"><h3>${title}${tag === 'try' ? '<span class="tag">try it</span>' : ''}</h3><p class="when">${when}</p><p>${then}</p></div>`;
+}
+function vEdges() {
+  const grp = (t, cards) => `<h2>${t}</h2><div class="ecs">${cards.join('')}</div>`;
+  return `<div class="v-doc"><div class="col" style="max-width:68rem">
+    <span class="lbl">Edge cases</span><h1>What happens when…</h1>
+    <p>One rule settles most of these: <b>the quote in the answer is the truth, and the highlight is drawn from it.</b> Nothing is stored against a position, so anything that moves text keeps working, and anything that deletes a quote takes its highlight with it.</p>
+    ${grp('Reordering', [
+      ecard('Moving a quote within an answer', 'You want the second thing you noticed first.', 'Drag the quote by its grip; the line follows. In the real editor it is also cut and paste, since a quote is just a line. Lines can cross when quotes and verses are in different orders; that is the order you thought in, and it stays.', 'try'),
+      ecard('Moving a quote to another movement', 'An Observation turns out to be an Application.', 'Cut and paste it. Its highlight takes the new movement’s tone at the close, because the tone comes from where the quote sits, not from when it was made.'),
+      ecard('Walking back to an earlier movement', 'In Prayer, you go back to Observation.', 'Its lines come back and Prayer’s go to underlines. Only one movement’s lines are ever live.', 'try'),
+      ecard('The movements themselves', 'Could the steps be reordered?', 'No: a practice’s order is the practice. Only quotes move.'),
+    ])}
+    ${grp('Choosing words', [
+      ecard('One word', 'Just “remain”.', 'A click takes one word. Common words are fine: the verse number decides which “the” you meant.', 'try'),
+      ecard('Across two verses', '“…unless you remain in me. I am the vine.”', 'The prototype keeps a drag inside one verse. Build: allow it, write <span class="mono">(vv. 4–5)</span>, and match across the verse break.'),
+      ecard('The same words, twice in the passage', '“remain in me” is in verse 4 and verse 5.', 'This is why the quote carries its verse number: it matches inside verse 4 only.'),
+      ecard('Overlapping highlights', 'A phrase inside a phrase you already quoted.', 'Both stay; where they overlap the gold goes deeper, and hovering it names both.', 'try'),
+      ecard('Quoting the same words again', 'Observation and Prayer both hold “Remain in me”.', 'One highlight, two lines. At the close it is the deepest gold on the page. That is the point.', 'try'),
+      ecard('Changing your mind mid-drag', 'You dragged too far.', 'Nothing lands until Reflect on this or ↵. Esc, or a click anywhere else, lets it go, and the ghost goes with it.', 'try'),
+    ])}
+    ${grp('Editing', [
+      ecard('Deleting a quote', 'You quoted the wrong line.', 'Delete it like a line of text, or with its ×. Its highlight goes. Undo brings both back, because the highlight is drawn from the quote.', 'try'),
+      ecard('Editing a quote’s words', 'You try to fix a word inside the quote.', 'You can’t: a quote is Scripture, so it is one block (like a verse block today). Delete and quote again. Otherwise it would stop matching, and worse, a verse would say something it doesn’t.'),
+      ecard('Typing a quote by hand', '<span class="mono">&gt; Remain in me (v. 4)</span> typed out.', 'If the words match, it lights like any other. If they don’t (a paraphrase), it is your own quote line and no line is drawn. Grounded, or silent.'),
+    ])}
+    ${grp('The passage', [
+      ecard('Changing the passage after quoting', 'John 15 → John 14.', 'Quotes stay in your words. Any quote not found in the new passage loses its line and shows a quiet “not in this passage”. The confirm that already asks before a change says so.'),
+      ecard('Widening the passage', '15:4–5 → 15:1–11.', 'Every quote still matches. Nothing to do.'),
+      ecard('Your own Bible', 'Reference only, no words on screen.', 'Nothing to drag, so no lines. Type the phrase; it is saved the same way, and lights if the text is ever loaded.'),
+      ecard('Offline', 'The chapter won’t load.', 'The leaf shows the words saved in the passage block, without verse numbers. Quotes still find their words in it; the verse number is checked when the chapter comes back.'),
+    ])}
+    ${grp('Seeing it', [
+      ecard('The words are scrolled away', 'You quote verse 11, then scroll up to verse 2.', 'Its line runs to the edge of the leaf, dashed, pointing off-screen. Clicking the quote scrolls the passage back to it.'),
+      ecard('Many quotes', 'Nine lines in one Observation.', 'Brackets share the margin in three lanes; beyond that they stack. Lines past the first few thin out. The close is where many lines are meant to be seen.'),
+      ecard('A narrow window', 'Under 900px, or a phone.', 'No lines. A quote is a round trip: tap it, and the passage opens at the words.'),
+      ecard('Keyboard only', 'No mouse.', 'Tab into the passage, arrows move word by word, shift-arrows extend, ↵ quotes. Screen readers hear “Quoted from verse 4”.'),
+    ])}
+  </div></div>`;
+}
+function vTouch() {
+  const row = (k, cls, title, what, fix) => `<div class="sev"><span class="k ${cls}">${k}</span><div><h4>${title}</h4><p>${what}</p>${fix ? `<p class="fix">${fix}</p>` : ''}</div></div>`;
+  return `<div class="v-doc"><div class="col" style="max-width:60rem">
+    <span class="lbl">Downstream</span><h1>What a quoted verse touches.</h1>
+    <p>Every reader of a page, swept. The headline: <b>nothing downstream knows a <span class="mono">&gt;</span> line inside a scripture ritual is the Bible’s words, not the writer’s.</b> The passage block itself is mostly handled (it is a fence), but the AI paths read the raw page, fences included. Drawn lines would multiply the problem, because short quoted lines are exactly what “pick the lines worth rereading” picks.</p>
+
+    <h2>Is a highlight a marking?</h2>
+    <p>Yes, in the product’s own sense (GLOSSARY: “a marking is a verbatim span of this page”), and the editor can already mark a phrase inside a verse. But the <span class="mono">marks</span> table reaches only three places (the editor, the wall glow, the reader’s paint), isn’t exported, and is matched by quote across the <i>whole</i> page, so marking “Remain in me” would also light the writer’s own sentence if they write those words. <b>Recommendation: store it once, as the quote line, and treat it as a marking when reading.</b> One source of truth, survives export, and every surface that shows markings can show it as one: with quotation marks and the reference, never as the writer’s line.</p>
+
+    <h2>Breaks: a verse shown as the writer’s own words (Guardrail H3)</h2>
+    ${row('Breaks', 'b', 'Looking Back / the Ascent', 'The weekly rollup reads the raw page and checks a quote is “verbatim” against it, so a verse passes as the writer’s words, then climbs to monthly, quarterly and the year’s refrain. The Ascent shows it under “Your words”.', 'Fix: one shared “writer’s words” reading (client and server) that drops fences and scripture-quote lines; validate every quote against it.')}
+    ${row('Breaks', 'b', 'Echoes', 'Built from those rollup quotes and sent back as “something you wrote”.', 'Fixed by the same projection upstream.')}
+    ${row('Breaks', 'b', 'Ask', 'Its excerpts and beat check use a stripped body that still contains verse text; a verse can be arranged as “their own journal entry”.', 'Same projection.')}
+    ${row('Breaks', 'b', 'The Altar harvest', 'Psalm-shaped verses (“Search me, O God…”) in a quote or passage block can be harvested as the writer’s prayers, then appear in Altar threads, the reader margin and the Ascent.', 'Same projection, before harvesting.')}
+    ${row('Breaks', 'b', 'The ritual thread (shipped today)', 'Under “Your answers”, a SOAP or Lectio Read movement shows the raw passage block line with its id, and Meditatio shows a raw <span class="mono">&gt;</span>.', 'Fix now: render answers through markdown, or leave the Read movement out of the thread.')}
+
+    <h2>Misleads: a verse reads as the writer’s line</h2>
+    ${row('Misleads', 'm', 'Titles (shipped today)', 'A SOAP or Lectio page with nothing above the ritual gets its title from the first quote: “Remain in me”. Sidebar, Pages, the download filename.', 'Fix: titles skip quote lines (the rest of the app already refuses them as titles). The server’s title reads the ritual’s name token as the title: an older bug, same fix.')}
+    ${row('Misleads', 'm', 'Wall cards', 'On a ritual page the first line under “Observation” is the quote with its <span class="mono">&gt;</span> stripped, so it reads as the writer’s opening sentence, and it gets the set-apart glow.', 'Fix: keep the quotation marks and the verse, or open the card on the first line the writer wrote.')}
+    ${row('Misleads', 'm', 'Search, Pages subjects, the ledger', 'These already drop passage blocks as “the Bible’s words”, but quote lines count. Look for shows a verse as a found passage; “Peter” in a quoted verse lights Peter; “who was new” can be a name from Scripture.', 'Fix: the same projection.')}
+    ${row('Misleads', 'm', 'The Concordance', 'Learns names and spellings from the raw page, so biblical names from passages and quotes become the writer’s vocabulary.', 'Fix: read the projection.')}
+    ${row('Misleads', 'm', 'The reader’s margin', 'Lists what the writer set apart, verbatim: quoted verses appear there with no quotation marks or reference.', 'Fix: show them as quotes, with the reference.')}
+    ${row('Misleads', 'm', 'Markdown’s lazy quote', 'If a quote is followed by the writer’s sentence with no blank line between, markdown pulls the sentence into the quote: the writer’s words shown as Scripture.', 'Fix: inserting a quote always writes a blank line after it.')}
+
+    <h2>Cosmetic</h2>
+    ${row('Cosmetic', 'c', 'Word counts', 'Count quoted verse words (and the ritual tokens). Feeds “words written”.', 'Count the projection.')}
+    ${row('Cosmetic', 'c', 'Find (⌘K), Ascent drill-in, share/copy', 'Snippets can show the passage block’s opener and the ritual tokens.', '')}
+    ${row('Cosmetic', 'c', 'Clicking an answer in the reader', 'On a last movement with several quotes, a click on a later paragraph opens After instead of that movement.', 'Update the rule to respect the ritual’s end token.')}
+
+    <h2>Fine</h2>
+    ${row('Fine', 'f', 'The Scripture surface', '<span class="mono">(v. 4)</span> can’t create a reference (it has no book), so the passage lights once, from its block, exactly as intended.', '')}
+    ${row('Fine', 'f', 'Sync, export, import', 'Quote lines are plain markdown and round-trip untouched.', '')}
+    ${row('Fine', 'f', 'The in-entry record', 'Read-only and atomic; a quote shows as a quote.', '')}
+
+    <h2>So the build is</h2>
+    <ol>
+      <li><b>Now, for what shipped:</b> the ritual thread and titles.</li>
+      <li><b>Before drawn lines ship:</b> the shared “writer’s words” projection, used by the rollups, echoes, Ask, the Altar harvest, the Concordance, search, subjects, titles and word counts; quotes validated against it; one fixture test where a verse is proposed as the writer’s and dropped.</li>
+      <li><b>With drawn lines:</b> several quotes per answer (today’s helpers assume one at the top), a blank line after every quote, quotes shown as quotes on the wall and in the margin.</li>
+    </ol>
+  </div></div>`;
+}
+function vDecide() {
+  return `<div class="v-doc"><div class="col">
+    <span class="lbl">Decisions</span><h1>What it would take, and what’s yours to call.</h1>
+    <ol>
+      <li><b>How loud are the lines while writing?</b> <i class="lean">Lean: “Always”, but only for this movement’s quotes, 1.25px at 60%, earlier highlights as an underline with no line. The close is where every line shows. Compare in 1 with the Lines toggle.</i></li>
+      <li><b>Is the close enough of a payoff, or should the lines live on the page afterwards?</b> <i class="lean">Lean: the close, plus the reader: open the finished page and hover a quote to see its line again. The wall card stays plain.</i></li>
+      <li><b>One colour, or a tone per movement at the close?</b> <i class="lean">Lean: tones at the close only. While writing everything is the Scripture surface’s gold.</i></li>
+      <li><b>Does SOAP’s Observation keep verse-number quoting (shipped) as well?</b> <i class="lean">Lean: yes. A verse number brings the whole verse; a drag brings a phrase. Same quote block, same line.</i></li>
+      <li><b>Open Reading as its own ritual on the shelf?</b> <i class="lean">Lean: yes. It is the simplest thing drawn lines make possible, and the one most people already do on paper. Two movements: Read, then Reflect (one page, no prompt beyond “write whatever comes”). The name is a placeholder: “Open Reading”, “A Passage, Open”, “Sit with a Passage”.</i></li>
+      <li><b>Does Lectio’s Meditatio become this?</b> <i class="lean">Lean: yes, visually: its caught word gets the same line to the caught quote. The format is already identical.</i></li>
+    </ol>
+    <h2>What it costs</h2>
+    <ul>
+      <li><b>Storage:</b> none. <span style="font-family:monospace">&gt; phrase (v. N)</span> in the answer; highlights are derived by matching text in the passage. Needs <span style="font-family:monospace">passage.ts</span> to read several quote lines per answer, not just one at the top.</li>
+      <li><b>The lines:</b> one SVG overlay over the composer, redrawn on scroll, resize and edit. They clip to each column and point off-screen when the words are scrolled away.</li>
+      <li><b>The editor:</b> the real answer editor needs a quote to render as a block and to know it was quoted (for the hover and the line). That’s a CodeMirror decoration on <span style="font-family:monospace">&gt; … (v. N)</span> lines; the ritual rail’s <span style="font-family:monospace">insertAt</span> already inserts at the caret.</li>
+    </ul>
+  </div></div>`;
+}
+
+/* ── the lines ── */
+function tone(q) { return `var(--${MOVES[q.mv].tone})`; }
+function drawTethers() {
+  const svg = $('#tethers');
+  const sc = scene();
+  if (sc !== 'walk' && sc !== 'weave') { svg.innerHTML = ''; return; }
+  if (sc === 'walk' && MOVES[S.step].kind !== 'write') { svg.innerHTML = ''; return; }
+  const leaf = $('#leaf'), page = $('#pagewrap');
+  if (!leaf || !page) return;
+  const lr = leaf.getBoundingClientRect(), pr = page.getBoundingClientRect();
+  const blocks = [...document.querySelectorAll('#pagewrap .q-block[data-q]')];
+  let paths = '';
+  let drawn = 0;
+  for (const b of blocks) {
+    const id = b.dataset.q; const q = S.quotes[id]; if (!q) continue;
+    if (sc === 'walk' && S.mode === 'hover' && ui.hover !== id) continue;
+    if (sc === 'walk' && S.mode === 'markers') continue;
+    const marks = [...document.querySelectorAll(`#leaf mark[data-qs~="${id}"]`)];
+    if (!marks.length) continue;
+    const rects = marks.flatMap((m) => [...m.getClientRects()]);
+    // A bracket in the leaf's right margin spans the lines the words sit on,
+    // and the line leaves from the bracket — so it never crosses the text.
+    const top = Math.min(...rects.map((r) => r.top)) + 3;
+    const bot = Math.max(...rects.map((r) => r.bottom)) - 3;
+    const lane = (drawn++ % 3) * 5;
+    let x1 = lr.right - 20 - lane, y1 = (top + bot) / 2;
+    const br = b.getBoundingClientRect();
+    let x2 = br.left - 5, y2 = br.top + 14;
+    // Clip to what each column shows; point off-screen when scrolled away.
+    let off1 = y1 < lr.top + 8 ? 'up' : y1 > lr.bottom - 8 ? 'down' : null;
+    let off2 = y2 < pr.top + 8 ? 'up' : y2 > pr.bottom - 8 ? 'down' : null;
+    if (off1) { y1 = off1 === 'up' ? lr.top + 10 : lr.bottom - 10; x1 = lr.right - 18; }
+    if (off2) { y2 = off2 === 'up' ? pr.top + 10 : pr.bottom - 10; x2 = pr.left + 18; }
+    const iso = sc === 'weave' && S.iso != null && S.iso !== q.mv;
+    const lit = ui.hover === id;
+    const faded = (ui.hover && !lit) || iso;
+    const op = faded ? 0.14 : lit ? 1 : sc === 'weave' ? 0.75 : 0.6;
+    const w = lit ? 2.2 : 1.3;
+    const color = sc === 'weave' ? tone(q) : 'var(--gold)';
+    if (!off1) {
+      const t = Math.max(top, lr.top + 4), bb = Math.min(bot, lr.bottom - 4);
+      if (bb > t) paths += `<path d="M${x1},${t} L${x1},${bb}" stroke="${color}" stroke-width="${lit ? 3 : 2}" opacity="${op}"/>`;
+    }
+    const dx2 = Math.max(50, (x2 - x1) * 0.5);
+    paths += `<path d="M${x1},${y1} C${x1 + dx2},${y1} ${x2 - dx2},${y2} ${x2},${y2}" stroke="${color}" stroke-width="${w}" opacity="${op}" ${off1 || off2 ? 'stroke-dasharray="3 4"' : ''}/>`;
+    paths += `<circle cx="${x2}" cy="${y2}" r="${lit ? 3.2 : 2.4}" fill="${color}" opacity="${op}"/>`;
+  }
+  // The line-to-be: dashed, from the words being chosen to where they will land.
+  const pend = [...document.querySelectorAll('#leaf .w.pending')];
+  const ghost = $('#ans .q-ghost');
+  if (pend.length) {
+    const rs = pend.flatMap((w) => [...w.getClientRects()]);
+    const top = Math.min(...rs.map((r) => r.top)) + 3, bot = Math.max(...rs.map((r) => r.bottom)) - 3;
+    const x1 = lr.right - 20, y1 = (top + bot) / 2;
+    paths += `<path d="M${x1},${top} L${x1},${bot}" stroke="var(--gold)" stroke-width="2" opacity=".9"/>`;
+    if (ghost) {
+      const gr = ghost.getBoundingClientRect();
+      const x2 = gr.left - 5, y2 = Math.min(Math.max(gr.top + 14, pr.top + 10), pr.bottom - 10);
+      const dx = Math.max(50, (x2 - x1) * 0.5);
+      paths += `<path d="M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}" stroke="var(--gold)" stroke-width="1.4" opacity=".85" stroke-dasharray="4 5"/>`;
+    }
+  } else if (ui.hoverWord && sc === 'walk') {
+    // Resting on a word: a faint bracket in the margin, where a line would leave from.
+    const w = $(`#leaf .w[data-v="${ui.hoverWord.v}"][data-i="${ui.hoverWord.i}"]`);
+    if (w) {
+      const r = w.getBoundingClientRect();
+      paths += `<path d="M${lr.right - 20},${r.top + 4} L${lr.right - 20},${r.bottom - 4}" stroke="var(--gold)" stroke-width="2" opacity=".35" stroke-dasharray="2 3"/>`;
+    }
+  }
+  svg.innerHTML = paths;
+}
+let raf = 0;
+const redraw = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawTethers); };
+
+function lightHover() {
+  document.querySelectorAll('mark.lit, .q-block.lit').forEach((e) => e.classList.remove('lit'));
+  if (!ui.hover) return;
+  document.querySelectorAll(`#leaf mark[data-qs~="${ui.hover}"]`).forEach((m) => m.classList.add('lit'));
+  document.querySelectorAll(`.q-block[data-q="${ui.hover}"]`).forEach((m) => m.classList.add('lit'));
+}
+
+/* ── render ── */
+function render() {
+  if (S.theme) document.documentElement.dataset.theme = S.theme; else delete document.documentElement.dataset.theme;
+  renderBar(); renderNote();
+  const sc = scene();
+  $('#stage').innerHTML = sc === 'walk' ? vWalk() : sc === 'weave' ? vWeave() : sc === 'phone' ? vPhone() : sc === 'decide' ? vDecide() : sc === 'edges' ? vEdges() : sc === 'touch' ? vTouch() : vIntro();
+  removeChip();
+  const ans = $('#ans');
+  if (ans) { numberBlocks(); markEmpty(ans); }
+  if (sc === 'weave' || sc === 'walk') {
+    $('#leaf')?.addEventListener('scroll', redraw, { passive: true });
+    $('#pagewrap')?.addEventListener('scroll', redraw, { passive: true });
+  }
+  redraw();
+}
+function numberBlocks() {
+  const numbered = S.mode === 'markers';
+  const order = numbering(liveQuotes(), S.step);
+  document.querySelectorAll('#ans .q-block').forEach((b) => { if (numbered && order[b.dataset.q]) b.dataset.n = order[b.dataset.q]; else delete b.dataset.n; });
+}
+function markEmpty(ans) { ans.classList.toggle('empty', !ans.textContent.trim() && !ans.querySelector('.q-block')); }
+function persistAnswer() {
+  const ans = $('#ans'); if (!ans) return;
+  const c = ans.cloneNode(true);
+  c.querySelectorAll('.q-ghost, .q-drop').forEach((g) => g.remove());
+  c.querySelectorAll('.q-block.moving').forEach((g) => g.classList.remove('moving'));
+  S.answers[S.step] = c.innerHTML; save(); markEmpty(ans);
+}
+function refreshPassage() {
+  const psg = $('#leaf .psg'); if (!psg) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = passageHTML({ mode: 'cur', curMv: S.step, interactive: MOVES[S.step].kind === 'write', numbered: S.mode === 'markers' });
+  psg.replaceWith(tmp.firstElementChild);
+  numberBlocks(); lightHover(); redraw();
+}
+
+function blockInner(id) {
+  const q = S.quotes[id];
+  return `<button class="grip" data-grip="${id}" title="Drag to move" tabindex="-1">⋮⋮</button>${esc(quoteText(q))}<span class="v">v. ${q.v}</span><button class="x" data-act="unquote" data-v="${id}" title="Remove">×</button>`;
+}
+/** What a movement said right after it quoted — for the card on a highlight. */
+function saidAfter(mv, id) {
+  const d = document.createElement('div'); d.innerHTML = (mv === S.step && $('#ans')) ? $('#ans').innerHTML : (S.answers[mv] || '');
+  const b = d.querySelector(`.q-block[data-q="${id}"]`); if (!b) return '';
+  let n = b.nextElementSibling;
+  while (n && (n.matches('.q-block, .q-ghost') || !n.textContent.trim())) { if (n.matches('.q-block')) return ''; n = n.nextElementSibling; }
+  return n ? n.textContent.trim() : '';
+}
+
+/* ── the chip ── */
+function removeChip() {
+  $('.chip')?.remove();
+  document.querySelectorAll('.w.pending').forEach((w) => w.classList.remove('pending', 'pfirst', 'plast'));
+  document.querySelectorAll('.q-ghost').forEach((g) => g.remove());
+  redraw();
+}
+function paintPending(sel) {
+  document.querySelectorAll('#leaf .w.pending').forEach((x) => x.classList.remove('pending', 'pfirst', 'plast'));
+  const words = [...document.querySelectorAll(`#leaf .w[data-v="${sel.v}"]`)].filter((w) => +w.dataset.i >= sel.a && +w.dataset.i <= sel.b);
+  words.forEach((w) => w.classList.add('pending'));
+  words[0]?.classList.add('pfirst'); words[words.length - 1]?.classList.add('plast');
+  return words;
+}
+/**
+ * The quote-to-be, shown where it will land before you commit to it: at the
+ * caret if the caret is in the answer, otherwise at the end.
+ */
+function placeGhost(sel) {
+  const ans = $('#ans'); if (!ans) return;
+  let g = ans.querySelector('.q-ghost');
+  const text = trim(wordsOf(sel.v).slice(sel.a, sel.b + 1).join(' '));
+  if (!g) {
+    g = document.createElement('div'); g.className = 'q-ghost'; g.contentEditable = 'false';
+    const r = ui.savedRange;
+    let anchor = null;
+    if (r && ans.contains(r.startContainer)) { let n = r.startContainer; while (n && n.parentNode !== ans) n = n.parentNode; anchor = n; }
+    if (anchor) { if (!anchor.textContent.trim() && !anchor.matches?.('.q-block')) ans.insertBefore(g, anchor); else anchor.after(g); }
+    else { const last = ans.lastElementChild; if (last && !last.textContent.trim() && !last.matches('.q-block')) ans.insertBefore(g, last); else ans.appendChild(g); }
+  }
+  g.innerHTML = `${esc(text)}<span class="v">v. ${sel.v}</span><span class="lands">lands here</span>`;
+  markEmpty(ans);
+}
+function showChip(sel) {
+  $('.chip')?.remove();
+  ui.pending = sel;
+  const words = paintPending(sel);
+  placeGhost(sel);
+  redraw();
+  const r = words[words.length - 1].getBoundingClientRect();
+  const chip = document.createElement('button');
+  chip.className = 'chip'; chip.dataset.act = 'reflect';
+  chip.innerHTML = `Reflect on this <span class="kbd">↵</span>`;
+  chip.style.left = `${Math.min(r.right + 8, innerWidth - 200)}px`;
+  chip.style.top = `${r.bottom + 6}px`;
+  document.body.appendChild(chip);
+}
+function reflect() {
+  const sel = ui.pending; if (!sel) return;
+  const ans = $('#ans'); if (!ans) return;
+  const id = `q${++S.seq}`;
+  S.quotes[id] = { v: sel.v, a: sel.a, b: sel.b, mv: S.step, seq: S.seq };
+  const block = document.createElement('blockquote');
+  block.className = 'q-block'; block.contentEditable = 'false'; block.dataset.q = id;
+  block.innerHTML = blockInner(id);
+  const after = document.createElement('p'); after.innerHTML = '<br>';
+  // The ghost already stands where it lands; the quote takes its place.
+  const ghost = ans.querySelector('.q-ghost');
+  if (ghost) ghost.replaceWith(block); else ans.appendChild(block);
+  const nextEl = block.nextElementSibling;
+  if (!nextEl || nextEl.matches('.q-block')) block.after(after);
+  const caretIn = block.nextElementSibling;
+  const range = document.createRange(); range.setStart(caretIn, 0); range.collapse(true);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(range); ans.focus();
+  ui.pending = null; S.learned = true; $('.chip')?.remove();
+  document.querySelectorAll('.w.pending').forEach((w) => w.classList.remove('pending', 'pfirst', 'plast'));
+  persistAnswer(); refreshPassage();
+}
+
+/* ── events ── */
+window.addEventListener('hashchange', () => { ui.hover = null; hideCard(); hideHint(); render(); });
+window.addEventListener('resize', redraw);
+document.addEventListener('selectionchange', () => {
+  const s = getSelection(); const ans = $('#ans');
+  if (s.rangeCount && ans && ans.contains(s.getRangeAt(0).startContainer)) ui.savedRange = s.getRangeAt(0).cloneRange();
+});
+document.addEventListener('input', (e) => { if (e.target.id === 'ans') { persistAnswer(); redraw(); } });
+document.addEventListener('keyup', (e) => { if (e.target.id === 'ans' && (e.key === 'Backspace' || e.key === 'Delete')) { persistAnswer(); refreshPassage(); } });
+
+/* The hint that follows a resting pointer, and the card on a drawn highlight. */
+const hint = document.createElement('div'); hint.id = 'hint'; document.body.appendChild(hint);
+let hintTimer = 0;
+function showHint(x, y, html) { hint.innerHTML = html; hint.style.left = `${x + 14}px`; hint.style.top = `${y + 18}px`; clearTimeout(hintTimer); hintTimer = setTimeout(() => hint.classList.add('on'), 380); }
+function hideHint() { clearTimeout(hintTimer); hint.classList.remove('on'); }
+function clearHoverWord() {
+  document.querySelectorAll('#leaf .w.hov').forEach((w) => w.classList.remove('hov'));
+  document.querySelectorAll('#leaf .vs.hovv').forEach((w) => w.classList.remove('hovv'));
+  if (ui.hoverWord) { ui.hoverWord = null; redraw(); }
+}
+function showCard(mark) {
+  hideCard();
+  const ids = mark.dataset.qs.split(' ');
+  const rows = ids.map((id) => S.quotes[id]).filter(Boolean).sort((a, b) => a.mv - b.mv).map((q) => {
+    const id = Object.keys(S.quotes).find((k) => S.quotes[k] === q);
+    const here = q.mv === S.step && scene() === 'walk';
+    const said = saidAfter(q.mv, id);
+    return `<div class="row"><span class="mv" style="color:var(--${MOVES[q.mv].tone})">${here ? 'In this answer' : MOVES[q.mv].label}</span>${said ? `<span class="said">“${esc(said.slice(0, 140))}”</span>` : ''}</div>`;
+  });
+  if (!rows.length) return;
+  const card = document.createElement('div'); card.className = 'hcard';
+  const others = ids.every((id) => S.quotes[id]?.mv !== S.step);
+  card.innerHTML = rows.join('') + (scene() === 'walk' && MOVES[S.step].kind === 'write' ? `<span class="foot">${others ? 'Drag across it to quote it here too' : 'Follow the line to it'}</span>` : '');
+  document.body.appendChild(card);
+  const r = mark.getClientRects()[0];
+  card.style.left = `${Math.max(12, Math.min(r.left, innerWidth - 320))}px`;
+  card.style.top = `${r.top - card.offsetHeight - 10 < 50 ? r.bottom + 10 : r.top - card.offsetHeight - 10}px`;
+}
+function hideCard() { document.querySelectorAll('.hcard').forEach((c) => c.remove()); }
+
+document.addEventListener('pointerdown', (e) => {
+  // Reordering a quote by its grip.
+  const grip = e.target.closest('.grip');
+  if (grip) {
+    e.preventDefault();
+    const block = grip.closest('.q-block');
+    ui.move = { block }; block.classList.add('moving'); document.body.classList.add('dragging-q');
+    return;
+  }
+  const w = e.target.closest('#leaf .psg[data-live="true"] .w');
+  if (!w) { if (!e.target.closest('.chip')) { removeChip(); ui.pending = null; } return; }
+  e.preventDefault();
+  hideHint(); hideCard(); clearHoverWord();
+  ui.drag = { v: +w.dataset.v, a: +w.dataset.i, b: +w.dataset.i };
+  $('.chip')?.remove();
+  paintPending({ v: ui.drag.v, a: ui.drag.a, b: ui.drag.b });
+  placeGhost({ v: ui.drag.v, a: ui.drag.a, b: ui.drag.b });
+  redraw();
+});
+document.addEventListener('pointermove', (e) => {
+  if (ui.move) {
+    const ans = $('#ans'); if (!ans) return;
+    $('#ans .q-drop')?.remove();
+    const kids = [...ans.children].filter((k) => k !== ui.move.block);
+    let before = null;
+    for (const k of kids) { const r = k.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { before = k; break; } }
+    const line = document.createElement('div'); line.className = 'q-drop';
+    if (before) ans.insertBefore(line, before); else ans.appendChild(line);
+    ui.move.before = before; redraw();
+    return;
+  }
+  if (ui.drag) {
+    const w = document.elementFromPoint(e.clientX, e.clientY)?.closest('#leaf .w');
+    if (w && +w.dataset.v === ui.drag.v && +w.dataset.i !== ui.drag.b) {
+      ui.drag.b = +w.dataset.i;
+      const sel = { v: ui.drag.v, a: Math.min(ui.drag.a, ui.drag.b), b: Math.max(ui.drag.a, ui.drag.b) };
+      paintPending(sel); placeGhost(sel); redraw();
+    }
+    return;
+  }
+  // Resting on the passage in a movement you can quote into.
+  const live = e.target.closest('#leaf .psg[data-live="true"]');
+  const w = live && e.target.closest('.w');
+  const mark = e.target.closest('#leaf mark[data-qs]');
+  if (w && !ui.pending) {
+    const key = `${w.dataset.v}:${w.dataset.i}`;
+    if (!ui.hoverWord || `${ui.hoverWord.v}:${ui.hoverWord.i}` !== key) {
+      clearHoverWord();
+      w.classList.add('hov'); w.closest('.vs')?.classList.add('hovv');
+      ui.hoverWord = { v: +w.dataset.v, i: +w.dataset.i }; redraw();
+    }
+    if (!mark) showHint(e.clientX, e.clientY, S.learned ? '<b>Drag</b> to quote' : '<b>Drag</b> across words to quote them · <b>click</b> for one');
+    else hideHint();
+  } else if (!w) { clearHoverWord(); hideHint(); }
+});
+document.addEventListener('pointerover', (e) => {
+  if (ui.drag || ui.move) return;
+  const mark = e.target.closest('#leaf mark[data-qs]');
+  if (mark) showCard(mark); else if (!e.target.closest('#leaf .psg')) hideCard();
+  if (!mark && e.target.closest('#leaf .psg')) hideCard();
+  const t = e.target.closest('#leaf mark[data-qs], .q-block[data-q]');
+  const id = t ? (t.dataset.q || t.dataset.qs.split(' ').find((x) => document.querySelector(`#pagewrap .q-block[data-q="${x}"]`)) || t.dataset.qs.split(' ')[0]) : null;
+  if (id !== ui.hover) { ui.hover = id; lightHover(); redraw(); }
+});
+document.addEventListener('pointerup', () => {
+  if (ui.move) {
+    const { block, before } = ui.move; ui.move = null;
+    document.body.classList.remove('dragging-q'); block.classList.remove('moving');
+    $('#ans .q-drop')?.remove();
+    const ans = $('#ans');
+    if (ans) { if (before) ans.insertBefore(block, before); else ans.appendChild(block); persistAnswer(); redraw(); }
+    return;
+  }
+  if (!ui.drag) return;
+  const d = ui.drag; ui.drag = null;
+  showChip({ v: d.v, a: Math.min(d.a, d.b), b: Math.max(d.a, d.b) });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && $('.chip') && e.target.id !== 'ans') { e.preventDefault(); reflect(); return; }
+  if (e.key === 'Escape') { removeChip(); ui.pending = null; }
+  if (ui.pending && !$('.chip') ) ui.pending = null;
+  if (e.key === 'Enter' && e.altKey && scene() === 'walk') { e.preventDefault(); next(); }
+});
+function next() {
+  persistAnswer();
+  if (S.step >= MOVES.length - 1) { save(); location.hash = 'weave'; return; }
+  S.step++; save(); render();
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act, v = a.dataset.v;
+  if (act === 'reflect') reflect();
+  else if (act === 'next') next();
+  else if (act === 'goto') { persistAnswer(); S.step = +v; save(); if (scene() !== 'walk') location.hash = 'walk'; else render(); }
+  else if (act === 'mode') { S.mode = v; save(); render(); }
+  else if (act === 'practice') switchPractice(v);
+  else if (act === 'iso') { S.iso = S.iso === +v ? null : +v; save(); render(); }
+  else if (act === 'unquote') { a.closest('.q-block').remove(); persistAnswer(); refreshPassage(); }
+  else if (act === 'note') { S.noteMin = !S.noteMin; save(); renderNote(); }
+  else if (act === 'theme') { S.theme = isDark() ? 'light' : 'dark'; save(); render(); }
+  else if (act === 'reset') { const t = S.theme, p = S.practice; S = fresh(); S.theme = t; S.practice = p; setPractice(p); save(); location.hash = 'walk'; render(); }
+  else if (act === 'example' || act === 'example-go') { seed(); location.hash = act === 'example-go' ? 'weave' : scene(); render(); }
+});
+
+/* A finished page of the practice in view, for seeing the close without writing one. */
+function seed() {
+  const keep = { theme: S.theme, practice: S.practice, stash: S.stash, mode: S.mode };
+  S = Object.assign(fresh(), keep); setPractice(S.practice);
+  const qb = (id, q) => { S.quotes[id] = q; return `<blockquote class="q-block" contenteditable="false" data-q="${id}">${blockInner(id)}</blockquote>`; };
+  if (S.practice === 'open') {
+    S.answers[1] = `<p>I came in tired and not wanting a method today.</p>${qb('q1', { v: 4, a: 0, b: 6, mv: 1, seq: 1 })}<p>It keeps saying remain. Nine times in eleven verses. I thought this passage was about fruit.</p>${qb('q2', { v: 7, a: 6, b: 10, mv: 1, seq: 2 })}<p>Not just me in him. His words in me — which means actually reading them, like this, slowly.</p>${qb('q3', { v: 9, a: 7, b: 11, mv: 1, seq: 3 })}${qb('q4', { v: 9, a: 12, b: 15, mv: 1, seq: 4 })}<p>Loved first, then told to remain in it. The order again. It isn’t a task; it’s a place.</p>`;
+    S.seq = 4; S.step = 1; save(); return;
+  }
+  S.answers[1] = `${qb('q1', { v: 4, a: 0, b: 6, mv: 1, seq: 1 })}<p>He says remain before he says bear fruit. The order is the whole point.</p>${qb('q2', { v: 5, a: 0, b: 7, mv: 1, seq: 2 })}<p>He isn’t asking me to be the vine. I keep acting like I’m the vine.</p>${qb('q3', { v: 2, a: 11, b: 17, mv: 1, seq: 3 })}<p>Pruning happens to the branches that <i>are</i> bearing.</p>`;
+  S.answers[2] = `${qb('q4', { v: 5, a: 23, b: 29, mv: 2, seq: 4 })}<p>This week: stop starting the day with the inbox. Ten minutes in this passage first, before the phone.</p>`;
+  S.answers[3] = `${qb('q5', { v: 4, a: 0, b: 6, mv: 3, seq: 5 })}<p>Lord, I’d rather produce than remain. Teach me to stay.</p>${qb('q6', { v: 11, a: 8, b: 13, mv: 3, seq: 6 })}<p>Let this be about joy and not another thing I have to get right.</p>`;
+  S.seq = 6; S.step = 1; save();
+}
+
+render();
+</script>
+</body>
+</html>

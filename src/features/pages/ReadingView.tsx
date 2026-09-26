@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { entryContentLines } from '@/lib/entryLabels'
+import { writerWords } from '@/lib/writerWords'
 import { MarkGlyph } from '@/components/MarkGlyph'
 import { MARK_KIND } from '@/lib/markKinds'
 import type { PageMarking } from '@/lib/spiritual'
@@ -375,9 +376,10 @@ function WordColumn({
   )
 }
 
-/** One page: its date, and the line it opens with. Nothing we invented. */
+/** One page: its date, and the line it opens with. Nothing we invented — and
+ *  nothing it quoted: writerWords keeps a verse from opening it (Guardrail H3). */
 function PageLine({ entry, onOpen }: { entry: Entry; onOpen: (id: string) => void }) {
-  const line = entryContentLines(entry.body_markdown)[0] ?? ''
+  const line = entryContentLines(writerWords(entry.body_markdown))[0] ?? ''
   return (
     <li>
       <button type="button" className="pg-read__page" onClick={() => onOpen(entry.id)}>

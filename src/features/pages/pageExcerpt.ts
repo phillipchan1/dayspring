@@ -7,6 +7,7 @@
 // has stopped being a read surface (Principle 4).
 
 import { entryContentLines } from '@/lib/entryLabels'
+import { isScriptureQuoteLine, SCRIPTURE_RITUALS, writerWords } from '@/lib/writerWords'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import { ATTACHMENT_REF_RE } from '@/lib/attachments'
 import { ritualNamesIn } from '@/lib/ritualDisplay'
@@ -134,9 +135,14 @@ export function pageExcerpt(
     // After as ordinary prose. An unanswered movement says nothing: a card
     // never shows how much of a ritual was walked (Principle 2).
     const { labels: names, texts } = shape.contents
+    // In a scripture ritual every `>` line is a verse quoted from its passage —
+    // the Bible's words, not hers (Guardrail H3; see writerWords). Passed over,
+    // so the card opens on the first line she wrote, never on the verse.
+    const scripture = SCRIPTURE_RITUALS.includes(shape.contents.name)
     texts.forEach((answer, i) => {
       let first = true
       for (const line of entryContentLines(answer)) {
+        if (isScriptureQuoteLine(line, scripture)) continue
         const text = display(line)
         if (!text) continue
         if (first) labels.set(prose.length, names[i] ?? '')
@@ -149,7 +155,8 @@ export function pageExcerpt(
       if (text) prose.push(text)
     }
   } else {
-    for (const line of entryContentLines(entry.body_markdown)) {
+    // writerWords: a ritual inside prose still quotes its verses (Guardrail H3).
+    for (const line of entryContentLines(writerWords(entry.body_markdown))) {
       const text = display(line)
       if (text) prose.push(text)
     }

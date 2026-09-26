@@ -13,6 +13,7 @@ import { listEntriesInWindow } from '@/lib/entries'
 import type { DateWindow } from '@/lib/scripture/query'
 import type { Excerpt, Highlight, Quote, Rollup } from '@/lib/insights'
 import { stripSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { writerWords } from '@/lib/writerWords'
 import type { AscentArc, LongLook, Theme, WordMoment, WordsData } from './types'
 
 // ── date helpers (moved here from the old ascentData/summitData) ───────────────
@@ -46,7 +47,9 @@ function yearOf(periodStart: string): number {
 const EXCERPT_MAX = 200
 
 export function entryExcerpt(bodyMarkdown: string): string {
-  const plain = stripSpiritualBlocks(bodyMarkdown)
+  // From writerWords (Guardrail H3): the Valley shows this as her words, so the
+  // verses quoted into a scripture ritual go with the passage they came from.
+  const plain = stripSpiritualBlocks(writerWords(bodyMarkdown))
     .replace(/<!--[\s\S]*?-->/g, ' ') // ritual/practice markers + any HTML comment
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^>\s?/gm, '')
