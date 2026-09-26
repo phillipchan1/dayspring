@@ -53,7 +53,7 @@ function purgeFlags(): void {
   }
 }
 
-function readCacheOwner(): string | null {
+export function readCacheOwner(): string | null {
   try {
     return localStorage.getItem(CACHE_OWNER_KEY)
   } catch {

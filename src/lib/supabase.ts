@@ -3,7 +3,7 @@ import { env, isSupabaseConfigured } from './env'
 import { authStorage } from './authStorage'
 
 /** True when the URL is an OAuth / magic-link callback (not a normal app launch). */
-function hasAuthCallbackInUrl(): boolean {
+export function hasAuthCallbackInUrl(): boolean {
   if (typeof window === 'undefined') return false
   const { hash, search } = window.location
   return (

@@ -183,6 +183,36 @@ export function isEntitled(sub: Subscription | null, now: number = Date.now()): 
 }
 
 /**
+ * How long a plan read from this device's cache keeps the journal open while
+ * the server can't be reached. A product call, like GRACE_DAYS.
+ *
+ * The cache only knows the dates billing reported last time we were online. A
+ * Stripe or App Store renewal that lands while the device is offline can't
+ * reach it, so without this a paying subscriber on a trip would be told their
+ * plan ended on the day it quietly renewed. Bounded rather than open-ended so
+ * an offline device is never a free-forever device.
+ */
+export const OFFLINE_GRACE_DAYS = 14
+const OFFLINE_GRACE_MS = OFFLINE_GRACE_DAYS * 86_400_000
+
+/**
+ * Entitlement as the UI should act on it, given how fresh the answer is.
+ *
+ * `verified` means the server answered this session: its word governs, exactly
+ * as isEntitled says. Otherwise all we have is the cache, and only the server
+ * can take the journal away — so the cached plan is judged as of
+ * OFFLINE_GRACE_DAYS ago. A cache that already said "cancelled" or "none" is
+ * still the server's own answer and still locks.
+ */
+export function isEntitledNow(
+  sub: Subscription | null,
+  { verified, now = Date.now() }: { verified: boolean; now?: number },
+): boolean {
+  if (verified) return isEntitled(sub, now)
+  return isEntitled(sub, now - OFFLINE_GRACE_MS)
+}
+
+/**
  * True when the app must keep the loader up instead of showing paywall /
  * locked / onboarding. A subscribed user whose profile row isn't readable on
  * the first tick (RLS not yet attached, or ensureProfile still creating it)
