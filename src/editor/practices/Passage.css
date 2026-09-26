@@ -1,0 +1,561 @@
+/*
+ * A scripture ritual's passage: the finder that chooses it, the text it is
+ * read in, and the leaf the composer's rail widens into to hold it.
+ *
+ * Every colour is a theme token, and the passage's own light is the Scripture
+ * surface's gold (`--scripture-gold`, an `r, g, b` triple — wrap it in rgb()).
+ */
+
+/* ── The text ─────────────────────────────────────────────────────────── */
+.psg {
+  --psg-gold: rgb(var(--scripture-gold, 196, 145, 60));
+  --psg-wash: color-mix(in srgb, var(--psg-gold) 14%, transparent);
+  --psg-lit: color-mix(in srgb, var(--psg-gold) 30%, transparent);
+  position: relative;
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  font-size: 1.2rem;
+  line-height: 1.85;
+  color: var(--text-bright);
+  overflow-wrap: break-word;
+}
+.psg__v { transition: opacity 0.4s ease; }
+.psg__n {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: var(--psg-gold);
+  vertical-align: 0.55em;
+  margin: 0 0.22em 0 0.1em;
+  line-height: 1;
+}
+.psg__w { border-radius: 3px; transition: background 0.2s ease, opacity 0.5s ease; }
+.psg__w[data-on='true'] {
+  background: var(--psg-lit);
+  box-shadow: 0 0 0 0.12em var(--psg-lit);
+  color: var(--text-bright);
+}
+
+/* choose: verses are the targets. The wash sits on the verse, not on each
+   word, so a chosen verse reads as one band rather than a row of tiles. */
+.psg[data-mode='choose'] .psg__v {
+  cursor: pointer;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background 0.2s ease;
+}
+.psg[data-mode='choose'] .psg__v:hover { background: var(--psg-wash); }
+.pf__reading[data-has-sel='true'] .psg__v .psg__w { opacity: 0.4; }
+.pf__reading[data-has-sel='true'] .psg__v[data-sel='true'] { background: var(--psg-wash); }
+.pf__reading[data-has-sel='true'] .psg__v[data-sel='true'] .psg__w { opacity: 1; }
+
+/* mark: words are the targets */
+.psg[data-mode='mark'] { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.psg[data-mode='mark'] .psg__w { cursor: pointer; }
+.psg[data-mode='mark'] .psg__w:hover,
+.psg__w[data-pending='true'] { background: var(--psg-wash); box-shadow: 0 1.5px 0 var(--psg-lit); }
+
+/* carry / cite / plain: on view, the caught word ahead of the rest */
+.psg[data-mode='carry'] .psg__w:not([data-on='true']),
+.psg[data-mode='plain'] .psg__w:not([data-on='true']),
+.psg[data-mode='cite'] .psg__w:not([data-on='true']) { opacity: 0.58; }
+.psg[data-mode='cite'] .psg__v:hover .psg__w { opacity: 1; }
+.psg__n--cite {
+  font: inherit;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--psg-gold);
+  vertical-align: 0.45em;
+  margin: 0 0.25em 0 0.1em;
+  padding: 0.1em 0.45em;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+}
+.psg__n--cite:hover,
+.psg__n--cite:focus-visible { border-color: var(--psg-lit); background: var(--psg-wash); outline: none; }
+.psg__v[data-cited='true'] .psg__n--cite { background: var(--psg-lit); color: var(--text-bright); }
+
+/* dwell: everything rests but the word */
+.psg[data-mode='dwell'] .psg__w:not([data-on='true']),
+.psg[data-mode='dwell'] .psg__n { animation: psg-rest 3.2s ease both; }
+.psg[data-mode='dwell'] .psg__w[data-on='true'] { box-shadow: 0 0 34px 6px var(--psg-lit); transition: box-shadow 1.2s ease; }
+@keyframes psg-rest { from { opacity: 1; } to { opacity: 0.13; } }
+
+/* read again, slowly */
+.psg[data-slow='true'] .psg__v { animation: psg-slow 1.6s ease both; }
+@keyframes psg-slow { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: none; } }
+
+/* ── The finder ───────────────────────────────────────────────────────── */
+.passage-finder {
+  --pf-gold: rgb(var(--scripture-gold, 196, 145, 60));
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--pf-gold) 12%, transparent), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  animation: rc-in 0.28s ease;
+}
+.pf__back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 1.2rem);
+  left: 1.6rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+}
+html[data-platform='desktop'] .pf__back { top: 2.6rem; }
+.pf__back:hover { color: var(--accent); }
+.pf__back .rc__kbd { opacity: 0; transition: opacity 0.2s ease; }
+.pf__back:hover .rc__kbd { opacity: 1; }
+.pf__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.pf__col {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 5rem) 1.5rem 8rem;
+}
+.pf__eyebrow { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.pf__name {
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pf__origin { font-style: italic; color: var(--text-faint); font-size: 0.9rem; }
+.pf__title {
+  margin: 0.5rem 0 1.3rem;
+  font-weight: 300;
+  font-size: clamp(1.8rem, 5vw, 2.35rem);
+  color: var(--text-bright);
+}
+.pf__input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  outline: none;
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: clamp(1.35rem, 4vw, 1.7rem);
+  font-weight: 300;
+  padding: 0.35rem 0 0.6rem;
+  border-radius: 0;
+  transition: border-color 0.3s ease;
+}
+.pf__input:focus { border-bottom-color: color-mix(in srgb, var(--pf-gold) 55%, var(--border-subtle)); }
+.pf__input::placeholder { color: var(--text-faint); font-style: italic; }
+.pf__hint { margin: 0.6rem 0 0; font-style: italic; color: var(--text-dim); font-size: 0.95rem; }
+.pf__sec { margin-top: 2.3rem; }
+.pf__h {
+  margin: 0 0 0.8rem;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pf__src {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pf__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pf__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  padding: 0.45rem 0.95rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.pf__chip:hover { border-color: color-mix(in srgb, var(--pf-gold) 45%, var(--border-subtle)); }
+.pf__glow { width: 7px; height: 7px; border-radius: 99px; background: var(--pf-gold); box-shadow: 0 0 8px var(--pf-gold); }
+.pf__canon { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem 2rem; }
+.pf__testament {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.5rem;
+}
+.pf__books { display: flex; flex-wrap: wrap; gap: 0.1rem 0.15rem; line-height: 1.3; }
+.pf__book {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0.14rem 0.3rem;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-faint);
+}
+.pf__book[data-lit='true'] {
+  color: color-mix(in srgb, var(--pf-gold) calc(40% + var(--h) * 60%), var(--text-dim));
+  text-shadow: 0 0 calc(var(--h) * 14px) color-mix(in srgb, var(--pf-gold) 60%, transparent);
+}
+.pf__book:hover { background: color-mix(in srgb, var(--pf-gold) 12%, transparent); color: var(--text-bright); }
+.pf__chapters { display: flex; flex-wrap: wrap; gap: 5px; }
+.pf__ch {
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.pf__ch[data-lit='true'] {
+  background: color-mix(in srgb, var(--pf-gold) calc(12% + var(--h) * 30%), var(--bg-elevated));
+  box-shadow: 0 0 12px -3px var(--pf-gold);
+  color: var(--text-bright);
+}
+.pf__ch:hover { border-color: var(--pf-gold); color: var(--text-bright); }
+.pf__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 1rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: none;
+  cursor: pointer;
+  padding: 0.9rem 0.3rem;
+  font: inherit;
+  color: inherit;
+}
+.pf__row:last-child { border-bottom: 1px solid var(--border-subtle); }
+.pf__row[data-kb='true'] { background: color-mix(in srgb, var(--pf-gold) 10%, transparent); }
+.pf__row:hover .pf__row-ref, .pf__row[data-kb='true'] .pf__row-ref { color: var(--accent); }
+.pf__row-ref { font-size: 1.15rem; color: var(--text-bright); }
+.pf__row-meta { font-family: var(--font-sans, system-ui, sans-serif); font-size: 11.5px; color: var(--text-faint); }
+.pf__row-text {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pf__soft { color: var(--text-dim); font-style: italic; font-size: 1rem; line-height: 1.55; margin: 1rem 0 0; }
+.pf__soft p { margin: 0 0 0.4rem; }
+.pf__loading { animation: pf-breathe 1.6s ease-in-out infinite; }
+@keyframes pf-breathe { 50% { opacity: 0.45; } }
+.pf__link {
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  font: inherit;
+  font-style: normal;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.pf__link:hover { color: var(--accent); }
+.pf__reader-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 2.1rem 0 0.2rem; flex-wrap: wrap; }
+.pf__chapter { margin: 0; font-weight: 400; font-size: 1.6rem; color: var(--text-bright); }
+.pf__nav { display: inline-flex; gap: 0.9rem; }
+.pf__hint-line { margin: 0 0 1rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; color: var(--text-faint); }
+.pf__bar {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
+  z-index: 2;
+  margin-top: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.7rem 0.65rem 1.2rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+}
+.pf__bar-ref { font-size: 1.1rem; color: var(--text-bright); }
+.pf__bar-count { font-family: var(--font-sans, system-ui, sans-serif); font-size: 11.5px; color: var(--text-faint); }
+.pf__bar-sp { flex: 1; }
+.pf__begin {
+  border: 1px solid var(--text-bright);
+  border-radius: 999px;
+  background: var(--text-bright);
+  color: var(--bg);
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.5rem 1.3rem;
+  cursor: pointer;
+}
+.pf__begin:disabled { opacity: 0.4; cursor: default; }
+
+@media (max-width: 640px) {
+  .pf__canon { grid-template-columns: 1fr; }
+  .pf__col { padding-top: calc(env(safe-area-inset-top, 0px) + 4.2rem); }
+  .pf__bar { border-radius: 18px; }
+  .pf__bar .pf__link { order: 5; width: 100%; text-align: left; }
+}
+
+/* ── The leaf: the rail, widened to hold the passage ──────────────────── */
+/* Doubled class: RitualComposer.css may load after this sheet, and its
+   `.rc--desk` column rule must not win. */
+.rc--desk.rc--facing {
+  grid-template-columns: max(24rem, 45%) minmax(0, 1fr);
+}
+.rc--desk.rc--facing[data-widen='true'] { animation: rc-widen 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+@keyframes rc-widen {
+  from { grid-template-columns: 19rem minmax(0, 1fr); }
+  to { grid-template-columns: max(24rem, 45%) minmax(0, 1fr); }
+}
+.rc--facing .rc__rail {
+  padding-left: 2.6rem;
+  padding-right: 2.4rem;
+  background: color-mix(in srgb, var(--bg-elevated) 55%, var(--bg));
+  box-shadow: inset -30px 0 40px -40px rgba(0, 0, 0, 0.25);
+}
+.rc--facing[data-widen='true'] .rc__leaf-text { animation: rc-in 0.8s 0.45s ease both; }
+.rc--facing .rc__home { margin-bottom: 1.6rem; }
+.rc--facing .rc__intent { max-width: 34rem; }
+/* The path, laid on one line: same beads, same states, less height. */
+.rc__path--row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.9rem;
+  margin: 1.1rem 0 2rem;
+}
+.rc__path--row::before { display: none; }
+.rc__path--row button { padding: 0.3rem 0 0.3rem 1rem; width: auto; }
+.rc__path--row button::before { top: 0.52rem; width: 7px; height: 7px; }
+.rc__path--row [data-state='on'] button::before { box-shadow: 0 0 0 3px var(--accent-soft); }
+.rc__path--row .rc__path-label { font-size: 0.58rem; }
+.rc__path--row .rc__gist { display: none; }
+.rc__leaf-ref {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.rc__leaf-ref span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(var(--scripture-gold, 196, 145, 60));
+}
+.rc__leaf-ref button,
+.rc__leaf-under button {
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  font-family: var(--rc-body);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.rc__leaf-ref button:hover,
+.rc__leaf-under button:hover { color: var(--accent); }
+.rc__leaf-text .psg { font-size: 1.28rem; line-height: 1.9; }
+.rc__leaf-under { margin-top: 1rem; display: flex; gap: 1.1rem; }
+.rc__leaf-own {
+  border: 1px dashed var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.3rem 1.3rem 1.2rem;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.6;
+}
+.rc__leaf-own b { display: block; font-style: normal; font-weight: 400; font-size: 1.35rem; color: var(--text-bright); margin-bottom: 0.35rem; }
+.rc__leaf-loading { color: var(--text-faint); font-style: italic; animation: pf-breathe 1.6s ease-in-out infinite; }
+.rc__leaf-fallback { font-size: 1.15rem; line-height: 1.8; color: var(--text-bright); margin: 0; }
+
+/* Focus: while the writer types, the leaf keeps only the passage. */
+.rc--facing .rc__chrome { transition: opacity 0.6s ease; }
+.rc--facing[data-typing='true'] .rc__chrome { opacity: 0.12; }
+.rc--facing[data-typing='true'] .rc__foot { opacity: 0.35; transition: opacity 0.6s ease; }
+
+/* ── The page, beside the leaf ────────────────────────────────────────── */
+.rc__await {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: -0.8rem 0 1.4rem;
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: 1.02rem;
+}
+.rc__await::before { content: ''; width: 22px; height: 1px; background: rgb(var(--scripture-gold, 196, 145, 60)); opacity: 0.6; }
+.rc__caught {
+  margin: -0.6rem 0 1.4rem;
+  font-family: var(--rc-body);
+  font-size: 1.45rem;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--text-bright);
+}
+.rc__caught q::before, .rc__caught q::after { color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__caught q { quotes: '“' '”'; }
+.rc__caught button {
+  margin-left: 0.6rem;
+  border: none;
+  background: none;
+  font-family: var(--rc-body);
+  font-size: 0.82rem;
+  font-style: normal;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.rc__caught button:hover { color: var(--accent); }
+.rc__caught[data-small='true'] { font-size: 1.12rem; }
+.rc__typein {
+  width: 100%;
+  margin: -0.6rem 0 1.4rem;
+  padding: 0.2rem 0 0.4rem;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  outline: none;
+  background: none;
+  font-family: var(--rc-body);
+  font-size: 1.35rem;
+  font-style: italic;
+  color: var(--text-bright);
+  border-radius: 0;
+}
+.rc__dwell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+.rc__dwell-word {
+  font-family: var(--rc-body);
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text-bright);
+  max-width: 30rem;
+  animation: rc-breathe 7s ease-in-out infinite;
+}
+@keyframes rc-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+.rc__dwell p { margin: 0; color: var(--text-dim); font-style: italic; }
+
+/* ── On a phone: the passage in the pane, or folded to a strip ────────── */
+.rc__psg-pane { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 1rem; }
+.rc__psg-pane .psg { font-size: 1.1rem; line-height: 1.8; }
+.rc__psg-top {
+  max-height: 38vh;
+  overflow-y: auto;
+  margin: 0 0 0.9rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.rc__psg-top .psg { font-size: 1.02rem; line-height: 1.7; }
+.rc__strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0 0 0.7rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elevated) 70%, var(--bg));
+  font-family: var(--rc-body);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  text-align: left;
+  cursor: pointer;
+}
+.rc__strip-ref {
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--scripture-gold, 196, 145, 60));
+  white-space: nowrap;
+}
+.rc__strip-word {
+  font-style: italic;
+  color: var(--text-bright);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rc__strip-chev { margin-left: auto; color: var(--text-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rc--facing[data-widen='true'],
+  .rc--facing[data-widen='true'] .rc__leaf-text,
+  .psg[data-mode='dwell'] .psg__w,
+  .psg[data-slow='true'] .psg__v,
+  .rc__dwell-word { animation: none; }
+}
+
+/* ── Reading another passage, after writing under this one ─────────────── */
+.rc__ask {
+  position: fixed;
+  inset: 0;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.rc__ask-box {
+  max-width: 30rem;
+  padding: 1.5rem 1.7rem 1.3rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+}
+.rc__ask-box h3 { margin: 0 0 0.6rem; font-weight: 400; font-size: 1.3rem; color: var(--text-bright); }
+.rc__ask-box p { margin: 0 0 1.2rem; line-height: 1.6; color: var(--text); }
+.rc__ask-tools { display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap; }
+.rc__ask-tools button {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: none;
+  padding: 0.5rem 1.1rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.rc__ask-tools .rc__ask-go { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }

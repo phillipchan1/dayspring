@@ -43,6 +43,37 @@ export interface PracticePrompt {
   question: string
   /** Example phrasing shown on the empty answer line until the writer begins. */
   placeholder: string
+  /**
+   * What this movement does with the practice's passage. Absent — every
+   * movement of every practice without a `passage` — means today's movement:
+   * a question and room to answer it.
+   *
+   * Only a scripture ritual declares any, and none of them changes what is
+   * stored: the passage is an ordinary scripture fence written as the `read`
+   * movement's answer, the caught word a `>` line at the head of the `mark`
+   * movement's, a quoted verse plain text. See `passage.ts`.
+   */
+  kind?: MovementKind
+}
+
+/**
+ * - `read`  — the passage IS the answer. No box; the page says where to look.
+ * - `mark`  — touch the word or phrase that caught you; it stays lit after.
+ * - `carry` — the caught word rides above the question.
+ * - `dwell` — nothing to write. Walking past it counts as having done it.
+ * - `cite`  — a verse number drops that verse into the answer.
+ */
+export type MovementKind = 'read' | 'mark' | 'carry' | 'dwell' | 'cite'
+
+/**
+ * A ritual that begins with a passage the writer chooses — the finder, then the
+ * passage open beside every movement (the rail widens into it on a desk).
+ */
+export interface PracticePassage {
+  /** A few verses (Lectio, SOAP) or one whole story (Discovery). */
+  size: 'few' | 'story'
+  /** One line, said where the passage is chosen and in About. */
+  hint: string
 }
 
 /**
@@ -116,6 +147,8 @@ export interface Practice {
   retired?: boolean
   /** Movements come from the writer's own data. See `PracticeDynamic`. */
   dynamic?: PracticeDynamic
+  /** Begins with a passage the writer chooses. See `PracticePassage`. */
+  passage?: PracticePassage
 }
 
 export const PRACTICES: Practice[] = [
@@ -341,28 +374,33 @@ export const PRACTICES: Practice[] = [
       'Read it twice, slowly; the second time aloud if you can.',
       'When a word snags you, stop and stay there rather than reading on.',
     ],
+    passage: { size: 'few', hint: 'Lectio stays with a few verses. One is enough.' },
     prompts: [
       {
+        // The labels are the archive's keys and never change. The questions
+        // do: this one used to ask the writer to type the passage out.
         label: 'Lectio — Read',
-        question:
-          'What passage are you bringing? Read it slowly, twice. What word or phrase caught you?',
+        question: 'Read it slowly, twice. The second time, aloud if you can.',
         placeholder: 'Write the passage, then the word that found you…',
+        kind: 'read',
       },
       {
         label: 'Meditatio — Meditate',
-        question:
-          'Repeat that word or phrase. Let it move around in you. What does it surface?',
+        question: 'Which word or phrase caught you? Stay there. What does it surface?',
         placeholder: 'Don’t analyze yet — just notice…',
+        kind: 'mark',
       },
       {
         label: 'Oratio — Pray',
         question: 'What does this word prompt you to say to God?',
         placeholder: 'Speak it honestly, in your own words…',
+        kind: 'carry',
       },
       {
         label: 'Contemplatio — Rest',
-        question: 'What do you want to simply receive and hold from this time?',
+        question: 'Stay with the word. There is nothing to write.',
         placeholder: 'A posture, a phrase, an image — whatever remains…',
+        kind: 'dwell',
       },
     ],
   },
@@ -415,22 +453,25 @@ export const PRACTICES: Practice[] = [
     why:
       'SOAP keeps daily Bible reading from staying abstract. Its discipline is the move from observation to one concrete application — turning what the text says into something you’ll actually live today, and then into prayer.',
     shape:
-      'Four steps over a passage: write the Scripture, observe what it says, apply it specifically to today, and pray it back. Simple enough to keep daily for years.',
+      'Four steps over a passage: read the Scripture, observe what it says, apply it specifically to today, and pray it back. Simple enough to keep daily for years.',
     tips: [
       'Keep the passage short so application stays focused.',
       'Make the application specific and doable today — not a general principle.',
       'Let the prayer flow directly out of your application.',
     ],
+    passage: { size: 'few', hint: 'Keep the passage short, so the application stays focused.' },
     prompts: [
       {
         label: 'Scripture',
-        question: 'What passage are you reading today?',
+        question: 'Read it through, slowly.',
         placeholder: 'Write the reference, or copy the text…',
+        kind: 'read',
       },
       {
         label: 'Observation',
         question: 'What do you observe — context, repetitions, what stands out?',
         placeholder: 'What does the text actually say…',
+        kind: 'cite',
       },
       {
         label: 'Application',
@@ -441,6 +482,64 @@ export const PRACTICES: Practice[] = [
         label: 'Prayer',
         question: 'Turn your application into a prayer.',
         placeholder: 'Speak it directly to God…',
+      },
+    ],
+  },
+  {
+    name: 'Discovery Bible Study',
+    function: 'encounter',
+    rhythm: ['morning', 'weekly'],
+    origin: 'Disciple-making movements, 20th century',
+    tradition: 'Missional',
+    intention:
+      'Read one passage, say what it says, and ask what it shows you about God and about us — then decide one thing you will do.',
+    quote: 'What does it say? What does it show us about God, and about us? What will I do?',
+    why:
+      'Discovery Bible Study lets the text lead. Instead of someone explaining the passage, you ask it the same plain questions every time and let it answer. The questions end in obedience — one thing you will actually do — and in telling someone else.',
+    shape:
+      'One story or paragraph, read twice. Say what it says in your own words, then what it shows about God and about people, then one “I will”, and who needs to hear it.',
+    tips: [
+      'Choose a whole story, not a single verse.',
+      'Stay with what the passage says before what it means.',
+      'Make the “I will” small enough to do this week.',
+    ],
+    passage: {
+      size: 'story',
+      hint: 'Discovery works on one whole story or paragraph — from its first verse to its last.',
+    },
+    prompts: [
+      {
+        label: 'Read',
+        question: 'Read it twice. The second time, notice who does what.',
+        placeholder: '',
+        kind: 'read',
+      },
+      {
+        label: 'What it says',
+        question: 'What does this passage say? Put it in your own words.',
+        placeholder: 'It starts when…',
+      },
+      {
+        label: 'About God',
+        question: 'What does this passage show you about God?',
+        placeholder: 'Touch a verse number to bring its words in…',
+        kind: 'cite',
+      },
+      {
+        label: 'About us',
+        question: 'What does it show you about people — about you?',
+        placeholder: 'We…',
+        kind: 'cite',
+      },
+      {
+        label: 'I will',
+        question: 'What are you going to do about it?',
+        placeholder: 'I will…',
+      },
+      {
+        label: 'Who to tell',
+        question: 'Who needs to hear this story this week?',
+        placeholder: 'A name, and when…',
       },
     ],
   },
@@ -791,6 +890,17 @@ export const PRACTICE_BY_NAME: ReadonlyMap<string, Practice> = new Map(
   PRACTICES.map((p) => [p.name, p]),
 )
 
+/**
+ * What a movement does with its practice's passage — `undefined` for every
+ * movement that has none to do anything with. Looked up by label, like the
+ * question, so an entry written before a practice had a passage reads the same.
+ */
+export function movementKind(practiceName: string, label: string): MovementKind | undefined {
+  const practice = PRACTICE_BY_NAME.get(practiceName)
+  if (!practice?.passage) return undefined
+  return practice.prompts.find((p) => p.label === label)?.kind
+}
+
 /** What the library offers. `PRACTICES` minus anything retired. */
 export const SHELF: readonly Practice[] = PRACTICES.filter((p) => !p.retired)
 
@@ -805,6 +915,7 @@ export interface LibraryUpdate {
 }
 
 export const LIBRARY_UPDATES: readonly LibraryUpdate[] = [
+  { addedAt: '2026-09-26', name: 'Discovery Bible Study' },
   { addedAt: '2026-09-01', name: 'The Round' },
   { addedAt: '2026-08-15', name: 'Threshold' },
   { addedAt: '2026-07-20', name: 'The Examen of Consolation' },

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { PRACTICE_FUNCTIONS, type Practice } from './practicesData'
+import { ScriptureMark } from './ScriptureMark'
 import './PracticeAboutSheet.css'
 
 interface Props {
@@ -63,6 +64,15 @@ export function PracticeAboutSheet({ practice, onClose }: Props) {
 
         <div className="practice-sheet__divider" aria-hidden />
         <p className="practice-sheet__lead">{practice.intention}</p>
+
+        {practice.passage && (
+          <p className="practice-sheet__passage">
+            <ScriptureMark />
+            <span>
+              <b>With Scripture.</b> {practice.passage.hint}
+            </span>
+          </p>
+        )}
 
         <section className="practice-sheet__section">
           <h3 className="practice-sheet__heading">Why</h3>

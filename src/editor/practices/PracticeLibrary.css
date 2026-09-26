@@ -859,3 +859,56 @@
     transition: none;
   }
 }
+
+/* ── With Scripture ─────────────────────────────────────────────────────
+   The rituals that begin with a passage. Marked in the Scripture surface's own
+   gold, quietly: a card's mark says what the ritual does, never how often. */
+.practice-modal {
+  --pl-scripture: rgb(var(--scripture-gold, 196, 145, 60));
+}
+.practice-filter__divider {
+  align-self: center;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--pl-border);
+}
+.practice-filter--scripture {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.practice-filter--scripture[data-active='true'] {
+  color: var(--pl-scripture);
+  border-color: var(--pl-scripture);
+  background: color-mix(in srgb, var(--pl-scripture) 12%, transparent);
+}
+.practice-card__scripture {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 6px;
+  font-family: var(--pl-body);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--pl-scripture);
+}
+.practice-threshold__passage {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 36ch;
+  margin: 0 auto 22px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--pl-scripture, #c4913c) 32%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pl-scripture, #c4913c) 8%, transparent);
+  font-family: var(--pl-body);
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--pl-muted);
+  text-align: left;
+}
+.practice-threshold__passage .scripture-mark { flex: 0 0 auto; margin-top: 2px; color: var(--pl-scripture, #c4913c); }
+.practice-threshold__passage b { font-weight: 500; color: var(--pl-ink); }

@@ -174,3 +174,20 @@
     width: 100%;
   }
 }
+
+/* A ritual that begins with a passage says so, in the Scripture surface's gold. */
+.practice-sheet__passage {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 1.2rem;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, rgb(var(--scripture-gold, 196, 145, 60)) 32%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, rgb(var(--scripture-gold, 196, 145, 60)) 8%, transparent);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.practice-sheet__passage .scripture-mark { flex: 0 0 auto; margin-top: 3px; color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.practice-sheet__passage b { font-weight: 500; color: var(--text-bright); }
