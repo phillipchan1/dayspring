@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppNavigation } from '@/context/AppNavigation'
-import type { AscentDrill } from '@/lib/appHistory'
+import { ENTRY_RETURN_LABEL, type AscentDrill } from '@/lib/appHistory'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { SurfaceArrival } from '@/features/journal/SurfaceArrival'
 import { useProcessingJobs, isActive } from '@/hooks/useProcessingJobs'
@@ -24,6 +24,7 @@ import { LensRow } from './LensRow'
 import { Summit } from './Summit'
 import { BandDrillIn } from './drilldowns/BandDrillIn'
 import { ScriptureDrillIn } from './drilldowns/ScriptureDrillIn'
+import { SurfaceBar } from '@/components/SurfaceBar'
 import './Ascent.css'
 
 interface Props {
@@ -222,11 +223,16 @@ export function AscentView({ onOpenEntry }: Props) {
 
   return (
     <div
-      className={`ascent${light ? ' ascent--light' : ''}`}
+      // `framed`: laid out as a grid so the frame's bar can run over both the
+      // altitude rail and the climb (see `.ascent--framed`). The other places
+      // that draw the Ascent (store shots, the flagship) have no bar and keep
+      // the plain row.
+      className={`ascent ascent--framed${light ? ' ascent--light' : ''}`}
       style={{ '--a0': air[0], '--a1': air[1] } as React.CSSProperties}
     >
       <div className="ascent-air" key={L.key} aria-hidden />
       <div className="ascent-stars" style={{ opacity: 1 - idx / LAST }} aria-hidden />
+      <SurfaceBar label={ENTRY_RETURN_LABEL.reflections} />
 
       <div className="ascent-sr" aria-live="polite">
         {L.alt} — {L.label}

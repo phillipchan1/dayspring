@@ -3,11 +3,12 @@ import { Rail } from './Rail'
 import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
 import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
+import { BackChevron } from '@/components/BackChevron'
 import type { JournalViewProps } from './journalViewProps'
 
 // In the native macOS app the title bar is transparent (overlay style), so the
 // traffic-light buttons float over our content. The rail owns the top-left now,
-// so it carries the clearance; the top bar only needs a little extra height.
+// so it carries the clearance; the top bar's extra height is `--frame-bar-top`.
 const NATIVE = isTauri()
 
 function formatBreadcrumb(iso: string): string {
@@ -87,12 +88,15 @@ export function DesktopJournal(props: JournalViewProps) {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {!focused && journalChrome && (
           <header
-            className="journal-topbar"
+            // In the frame Pages uses, so the way back from a page you are
+            // writing sits exactly where the way back from a page you are
+            // reading does (see `--frame-*` in global.css). The Mac clearance
+            // comes from `--frame-bar-top` now, not an inline style.
+            className="journal-topbar journal-topbar--frame"
             // No native title bar (overlay style), so the top bar doubles as the
             // window drag handle. Buttons/inputs inside lack the attribute, so
             // they stay clickable — Tauri only drags when the target itself has it.
             data-tauri-drag-region
-            style={NATIVE ? { paddingTop: MAC_TRAFFIC_INSET.mainTop } : undefined}
           >
             <div className="journal-topbar__lead" data-tauri-drag-region>
               {entryReturn ? (
@@ -101,7 +105,8 @@ export function DesktopJournal(props: JournalViewProps) {
                   className="journal-topbar__back"
                   onClick={onReturnFromEntry}
                 >
-                  ← {ENTRY_RETURN_LABEL[entryReturn.surface]}
+                  <BackChevron />
+                  {ENTRY_RETURN_LABEL[entryReturn.surface]}
                 </button>
               ) : null}
               <span className="journal-topbar__label">{topbarLabel}</span>

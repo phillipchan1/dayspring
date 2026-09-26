@@ -53,6 +53,7 @@ import {
   type PageMarking,
 } from '@/lib/spiritual'
 import { litSentence } from './litSentence'
+import { BackChevron } from '@/components/BackChevron'
 import './Pages.css'
 
 /** The chip that stands for a question, since a question has no key of its own. */
@@ -942,15 +943,7 @@ export function PagesView({
     spreadId === null ? null : (
       <div className="pg__through">
         <button type="button" className="pg__back" onClick={() => onSpread(null)}>
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" aria-hidden>
-            <path
-              d="M10 3 5 8l5 5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <BackChevron />
           {/* It says where it goes: a page opened from a volume closes back into it. */}
           {openVolume !== null ? 'The volume' : onShelf ? 'The shelf' : 'All entries'}
         </button>

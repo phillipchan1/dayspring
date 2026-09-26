@@ -37,11 +37,13 @@
   --pg-wall-inset: 1rem;
 }
 
+/* The frame every desktop top bar shares (`--frame-*` in global.css) — the
+   editor's bar lines its contents up on these same two edges. */
 .pg__inner {
-  max-width: 96rem;
+  max-width: var(--frame-max);
   margin: 0 auto;
   width: 100%;
-  padding: 0 clamp(1rem, 3vw, 2rem);
+  padding: 0 var(--frame-pad);
 }
 
 /*
@@ -51,8 +53,10 @@
  * someone who had just pressed the button labelled Entries. A read surface
  * should open on the reading; the controls are enough to say where you are.
  */
+/* The first row starts where the editor's bar does, so going from the wall to
+   a page to writing on it never moves the top of the screen. */
 .pg__inner--head {
-  padding-top: clamp(0.9rem, 2.5vw, 1.4rem);
+  padding-top: var(--frame-bar-top);
 }
 
 /*
@@ -3692,10 +3696,26 @@ button.pg__sense-q:hover {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.4rem 0.6rem;
+  min-block-size: var(--frame-bar-row);
   margin-block-end: 0.15rem;
 }
 
+/*
+ * An open page's header is only this row, and it is the same bar the editor
+ * shows when you press Write: same top, same row, same floor at the same
+ * height (`.journal-topbar--frame`). Reading and writing a page are one
+ * container, so the way back does not move between them.
+ */
+.pg[data-reading-page='true'] .pg__head-wrap {
+  padding-bottom: var(--frame-bar-floor);
+}
+
+.pg[data-reading-page='true'] .pg__through {
+  margin-block-end: 0;
+}
+
 .pg__through .pg__back {
+  align-self: center;
   margin-block-end: 0;
 }
 
