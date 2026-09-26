@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.437",
+  "appVersion": "1.0.439",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -1183,6 +1183,23 @@
         ]
       },
       {
+        "id": "practice.open-reading",
+        "name": "Open Reading",
+        "function": "encounter",
+        "rhythm": [
+          "morning",
+          "anytime"
+        ],
+        "origin": "No framework — a passage, and a page",
+        "tradition": "Any",
+        "intention": "Open the Bible and see what happens. No questions in order — read, then write whatever comes, bringing in the words that catch you.",
+        "quote": "Read it. Then write whatever comes.",
+        "steps": [
+          "Read",
+          "Reflect"
+        ]
+      },
+      {
         "id": "practice.psalmic-lament",
         "name": "Psalmic Lament",
         "function": "lament",
@@ -1495,7 +1512,7 @@
     "editor.font-size-default": 24,
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
-    "counts.practices": 14,
+    "counts.practices": 15,
     "counts.themes": 11,
     "counts.voices": 6,
     "counts.slash-commands": 23,
