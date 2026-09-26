@@ -19,6 +19,8 @@ import { peekSurfaceUpdates } from '@/features/journal/surfaceUpdates'
 import { ScriptureBookView, type BookTarget } from './ScriptureBookView'
 import { heatColor, intensity, useHeatRamp } from './heat'
 import { useScriptureScan } from './useScriptureScan'
+import { SurfaceBar } from '@/components/SurfaceBar'
+import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import './Scripture.css'
 
 interface Props {
@@ -259,6 +261,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
   return (
     <div className="scripture">
       <div className="scripture__bg" aria-hidden />
+      <SurfaceBar label={ENTRY_RETURN_LABEL.scripture} />
       <div className="scripture__scroll" data-dim={bookTarget ? 'true' : undefined}>
         <div className="scripture__column">
           <header className="scripture__header">

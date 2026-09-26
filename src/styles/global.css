@@ -20,6 +20,26 @@
      cards, so content stops above it too. */
   --mobile-bar-h: calc(var(--safe-bottom) + 3.6rem);
   --mobile-chrome-h: calc(var(--mobile-bar-h) + 4rem);
+
+  /*
+   * THE FRAME — one top bar for the page you read and the page you write.
+   *
+   * The editor's bar ran edge to edge beside the rail while Pages' bar sat in
+   * its own 96rem column, so on a wide window "← Pages" and "All entries" — two
+   * presses of the same Back, one after the other — were ~190px apart. Two
+   * containers for one journal. Every desktop top bar now takes its edges, its
+   * first row and its floor from here: `.pg__inner` (the wall and the reader),
+   * `.journal-topbar--frame` (the editor) and `.frame-bar` (Lamp, Altar and the
+   * Ascent — see SurfaceBar.tsx).
+   *
+   * `--frame-bar-top` is the traffic-light clearance in the Mac app (set on
+   * <html> by `applyPlatformClass`) and a small gap on the web.
+   */
+  --frame-max: 96rem;
+  --frame-pad: clamp(1rem, 3vw, 2rem);
+  --frame-bar-top: var(--mac-traffic-main-top, 0.75rem);
+  --frame-bar-row: 2rem;
+  --frame-bar-floor: 0.6rem;
 }
 
 *,
@@ -2338,6 +2358,115 @@ a {
   gap: 0.15rem;
 }
 
+/*
+ * The desktop bar, in the frame (see `--frame-*` on :root).
+ *
+ * The header itself stays edge to edge — it is the Mac window's drag handle —
+ * but its CONTENTS sit on `.pg__inner`'s edges: the frame's gutter, or, once
+ * the canvas is wider than the frame, the gutter of the centred 96rem column.
+ * `100%` in padding is the width of <main>, which is also the width Pages
+ * centres its column in, so the two land on the same pixel.
+ *
+ * The floor is Pages' fading hairline rather than a rule and a shadow: the
+ * same floor at the same height, so the bar does not change containers when
+ * you go from reading a page to writing on it.
+ */
+.journal-topbar--frame,
+.frame-bar {
+  position: relative;
+  min-height: calc(var(--frame-bar-top) + var(--frame-bar-row) + var(--frame-bar-floor));
+  padding-block: var(--frame-bar-top) var(--frame-bar-floor);
+  padding-inline: max(
+    var(--frame-pad),
+    calc((100% - var(--frame-max)) / 2 + var(--frame-pad))
+  );
+  border-bottom: none;
+  box-shadow: none;
+}
+.journal-topbar--frame::after,
+.frame-bar::after {
+  content: '';
+  position: absolute;
+  inset-inline: clamp(1rem, 6vw, 5rem);
+  inset-block-end: 0;
+  block-size: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--border-subtle) 12%,
+    var(--border-subtle) 88%,
+    transparent
+  );
+  pointer-events: none;
+}
+.journal-topbar--frame .journal-topbar__lead,
+.journal-topbar--frame .journal-topbar__actions,
+.frame-bar__lead,
+.frame-bar__actions {
+  min-height: var(--frame-bar-row);
+}
+
+/*
+ * The same bar with no editor behind it. `.journal-topbar`'s row, lead and
+ * label restated rather than borrowed, so a surface can wear the frame
+ * without taking on the editor's class (and every rule that answers to it).
+ * `flex: none` because each surface lays it over a flex column or a grid.
+ */
+.frame-bar {
+  z-index: 3;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.frame-bar__lead {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  color: var(--text-dim);
+}
+.frame-bar__label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.frame-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+/* The same way out as the reader's (`.pg__back`), glyph and all — so the two
+   Backs you press in a row are one control in one place, not two lookalikes. */
+.journal-topbar--frame .journal-topbar__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.6rem 0.28rem 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: normal;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  transition: color var(--transition), border-color var(--transition),
+    background-color var(--transition);
+}
+.journal-topbar--frame .journal-topbar__back:hover {
+  color: var(--text-bright);
+  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.journal-topbar--frame .journal-topbar__back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .select-wrap {
   position: relative;
   width: 100%;
@@ -2572,6 +2701,7 @@ html[data-platform='desktop'] .format-bar {
 
 html[data-platform='desktop'] .rail,
 html[data-platform='desktop'] .journal-topbar,
+html[data-platform='desktop'] .frame-bar,
 html[data-platform='desktop'] .entry-list__head,
 html[data-platform='desktop'] .entries-panel,
 html[data-platform='desktop'] .settings-nav,

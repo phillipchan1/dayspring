@@ -2258,3 +2258,46 @@
     padding: 6px 10px;
   }
 }
+
+/* ── the frame's bar, over the rail and the climb ─────────────────────────────
+ *
+ * The same bar the editor and Pages wear (SurfaceBar, `--frame-*`), so coming
+ * back from a page you wrote lands with "Ascent" where "‹ Ascent" was. The
+ * surface is a row — rail, then climb — so it becomes a two-row grid here with
+ * the bar across both columns; `.ascent--framed` is only set by AscentView, and
+ * the bar is desktop-only, so the phone and the store shots keep the plain row.
+ *
+ * On the night sky the theme's dim ink and hairline vanish, so both take the
+ * Ascent's own ink; the dawn sky is drawn in the theme's inks already. */
+@media (min-width: 768px) {
+  .ascent--framed {
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .ascent--framed > .frame-bar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .ascent--framed > .ascent-rail {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+  }
+  .ascent--framed > .ascent-scroll {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .ascent--framed:not(.ascent--light) .frame-bar__lead {
+    color: rgba(var(--ascent-ink-rgb), 0.55);
+  }
+  .ascent--framed:not(.ascent--light) .frame-bar::after {
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(var(--ascent-ink-rgb), 0.12) 12%,
+      rgba(var(--ascent-ink-rgb), 0.12) 88%,
+      transparent
+    );
+  }
+}

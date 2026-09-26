@@ -18,6 +18,8 @@ import { spanStartMs, spanWindow, type Span } from '@/lib/period'
 import { useCarriedPeriod } from '@/hooks/useCarriedPeriod'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
+import { SurfaceBar } from '@/components/SurfaceBar'
+import { ENTRY_RETURN_LABEL } from '@/lib/appHistory'
 import './Altar.css'
 
 interface Props {
@@ -472,6 +474,7 @@ export function AltarView({ onOpenEntry }: Props) {
   return (
     <div className="altar">
       <div className="altar__bg" aria-hidden />
+      <SurfaceBar label={ENTRY_RETURN_LABEL.altar} />
       <div className="altar__scroll" data-dim={openId ? 'true' : undefined}>
         <div className="altar__column">
           <header className="altar__header">
