@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.431",
+  "appVersion": "1.0.435",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -242,6 +242,52 @@
         ],
         "mac": "⌘K",
         "pc": "Ctrl + K"
+      },
+      {
+        "id": "shortcut.search-your-pages",
+        "group": "Navigation",
+        "label": "Search your pages",
+        "when": "anywhere",
+        "keys": [
+          "Mod",
+          "F"
+        ],
+        "mac": "⌘F",
+        "pc": "Ctrl + F"
+      },
+      {
+        "id": "shortcut.search-from-the-wall",
+        "group": "Navigation",
+        "label": "Search from the wall",
+        "when": "on the Pages wall",
+        "keys": [
+          "/"
+        ],
+        "mac": "/",
+        "pc": "/"
+      },
+      {
+        "id": "shortcut.move-through-what-you-found",
+        "group": "Navigation",
+        "label": "Move through what you found",
+        "when": "in Look for",
+        "keys": [
+          "↑",
+          "↓"
+        ],
+        "mac": "↑↓",
+        "pc": "↑ + ↓"
+      },
+      {
+        "id": "shortcut.clear-the-search",
+        "group": "Navigation",
+        "label": "Clear the search",
+        "when": "in the Look for field",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
       },
       {
         "id": "shortcut.toggle-sidebar-labels",
