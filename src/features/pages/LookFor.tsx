@@ -7,6 +7,7 @@ import { searchSubjects, withCounts, wordSubject, type Subject, type SubjectInde
 import { aboveFloor, aliveIn, groupSubjects, type Window } from './lookGroups'
 import { READINGS, type Reading } from './readings'
 import { MarkGlyph } from '@/components/MarkGlyph'
+import { renderKey } from '@/features/shortcuts/shortcuts'
 import { Glyph } from '@/features/lifemap/Glyph'
 import { LitChips, type LookChip } from './LitChips'
 import { findSubject, passageFor, searchPages, type Found, type PageSearch } from './textSearch'
@@ -165,6 +166,13 @@ interface Props {
   archiveIndex?: SubjectIndex | undefined
   /** Take the bracket off. */
   onWholeArchive?: (() => void) | undefined
+  /**
+   * ⌘F, from anywhere in the app: open, put the caret in the field, and — when
+   * it came from a selection in the editor — start with those words typed.
+   * One-shot: handled, then handed back through `onOpenRequestHandled`.
+   */
+  openRequest?: { seq: number; seed: string } | null | undefined
+  onOpenRequestHandled?: (() => void) | undefined
 }
 
 /**
@@ -210,10 +218,56 @@ export function LookFor({
   onOpenFound,
   archiveIndex,
   onWholeArchive,
+  openRequest,
+  onOpenRequestHandled,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState('')
   const box = useRef<HTMLDivElement>(null)
+  const field = useRef<HTMLInputElement>(null)
+
+  /** Open with the caret in the field and whatever is there selected. */
+  const openToType = (seed?: string) => {
+    setOpen(true)
+    if (seed) setTyped(seed)
+    // After the sheet has rendered — it may not exist yet.
+    requestAnimationFrame(() => {
+      field.current?.focus()
+      field.current?.select()
+    })
+  }
+
+  /** Shut from the keyboard, and put focus back where it can find the sheet again. */
+  const closeToButton = () => {
+    setOpen(false)
+    box.current?.querySelector<HTMLButtonElement>('.pg-look__open')?.focus()
+  }
+
+  useEffect(() => {
+    if (!openRequest) return
+    openToType(openRequest.seed)
+    onOpenRequestHandled?.()
+  }, [openRequest])
+
+  /*
+   * `/` — the find key of every keyboard-first reading surface (Gmail, GitHub,
+   * Slack), and free here: the wall has no text to type into. Never while
+   * something is being typed, never with a modifier, and never under a dialog.
+   */
+  useEffect(() => {
+    if (open) return
+    const slash = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(?:INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      if (document.querySelector('[aria-modal="true"]')) return
+      e.preventDefault()
+      openToType()
+    }
+    // `document`, not `window` — the prop called `window` (the bracket) shadows it here.
+    document.addEventListener('keydown', slash)
+    return () => document.removeEventListener('keydown', slash)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -229,7 +283,7 @@ export function LookFor({
       if (box.current && !box.current.contains(e.target as Node)) setOpen(false)
     }
     const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') closeToButton()
     }
     document.addEventListener('pointerdown', away)
     document.addEventListener('keydown', esc)
@@ -417,6 +471,8 @@ export function LookFor({
           // the accessible name falls back to the count, and "3" is not a
           // control anyone can find in a rotor.
           aria-label={chips.length > 0 ? `Look for — ${chips.length} on` : 'Look for'}
+          aria-keyshortcuts="Meta+F /"
+          title={narrow ? undefined : `Look for (${renderKey('Mod')}F)`}
           onClick={() => setOpen((v) => !v)}
         >
           {/*
@@ -623,12 +679,32 @@ export function LookFor({
               keyboard, at the moment that is what was asked for.
             */}
             <input
+              ref={field}
               autoFocus={!narrow}
               value={typed}
               placeholder="a name, a word, or something you wrote"
               aria-label="Search your pages"
               onChange={(e) => setTyped(e.target.value)}
               onKeyDown={(e) => {
+                // Down walks into the passages; the list takes it from there.
+                if (e.key === 'ArrowDown') {
+                  const first = e.currentTarget
+                    .closest('.pg-sheet')
+                    ?.querySelector<HTMLElement>('[data-found-nav]')
+                  if (first) {
+                    e.preventDefault()
+                    first.focus()
+                  }
+                  return
+                }
+                // Esc empties the field before it shuts the sheet: the words
+                // are the thing most often being given up on, not the sheet.
+                if (e.key === 'Escape' && typed) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setTyped('')
+                  return
+                }
                 // Enter lights what was found — type, press return, read.
                 if (e.key !== 'Enter' || !light) return
                 e.preventDefault()
@@ -1112,15 +1188,32 @@ function FoundPages({
   const one = search.words.length === 1
   const visible = search.found.slice(0, shown)
 
+  /*
+   * ↑ ↓ through the passages, and ↑ off the top back into the field — so a
+   * search is type, arrow, return, without the hand leaving the keys. Real
+   * focus rather than a highlighted row: Enter and Space are then the buttons'
+   * own, and a screen reader follows along for free.
+   */
+  const walk = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    const stops = [...e.currentTarget.querySelectorAll<HTMLElement>('[data-found-nav]')]
+    const at = stops.indexOf(document.activeElement as HTMLElement)
+    if (at < 0) return
+    e.preventDefault()
+    if (e.key === 'ArrowDown') stops[Math.min(stops.length - 1, at + 1)]?.focus()
+    else if (at > 0) stops[at - 1]?.focus()
+    else e.currentTarget.closest('.pg-sheet')?.querySelector<HTMLInputElement>('.pg-sheet__find input')?.focus()
+  }
+
   if (search.found.length === 0) {
     return (
-      <section className="pg-sheet__g pg-found">
+      <section className="pg-sheet__g pg-found" onKeyDown={walk}>
         <h3>in your pages</h3>
         <p className="pg-found__none">
           {bracketed ? 'Nothing in these months says that, or anything close.' : 'Nothing in your pages says that, or anything close.'}
         </p>
         {bracketed && elsewhere > 0 && onWholeArchive ? (
-          <button type="button" className="pg-found__light" onClick={onWholeArchive}>
+          <button type="button" className="pg-found__light" data-found-nav onClick={onWholeArchive}>
             {pagesWord(elsewhere)} outside these months — look in every year
           </button>
         ) : (
@@ -1134,7 +1227,7 @@ function FoundPages({
   }
 
   return (
-    <section className="pg-sheet__g pg-found">
+    <section className="pg-sheet__g pg-found" onKeyDown={walk}>
       <h3>
         in your pages
         <span>{foundSummary(search)}</span>
@@ -1147,7 +1240,7 @@ function FoundPages({
           const how = HOW[f.closeness](one)
           return (
             <li key={f.id}>
-              <button type="button" className="pg-found__hit" onClick={() => onOpen(f)}>
+              <button type="button" className="pg-found__hit" data-found-nav onClick={() => onOpen(f)}>
                 <time className="pg-found__date" dateTime={entry.created_at}>
                   {new Date(entry.created_at).toLocaleDateString(undefined, {
                     month: 'short',
@@ -1166,7 +1259,12 @@ function FoundPages({
       </ol>
       <div className="pg-found__foot">
         {search.found.length > shown ? (
-          <button type="button" className="pg-found__more" onClick={() => setShown((n) => n + MORE_PASSAGES)}>
+          <button
+            type="button"
+            className="pg-found__more"
+            data-found-nav
+            onClick={() => setShown((n) => n + MORE_PASSAGES)}
+          >
             {Math.min(MORE_PASSAGES, search.found.length - shown)} more of {search.found.length.toLocaleString()}
           </button>
         ) : (
@@ -1176,6 +1274,7 @@ function FoundPages({
           <button
             type="button"
             className="pg-found__light"
+            data-found-nav
             data-on={lit ? 'true' : undefined}
             onClick={onLight}
           >

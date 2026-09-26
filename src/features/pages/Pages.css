@@ -2864,6 +2864,13 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 
+/* Arrowed to, not pointed at: the row has to say "Enter opens this" from
+   across the sheet, so it takes the accent's edge as well as the wash. */
+.pg-found__hit:focus-visible {
+  outline: none;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 .pg-found__date {
   font-family: var(--font-mono);
   font-size: 0.68rem;
