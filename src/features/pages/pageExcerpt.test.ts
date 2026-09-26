@@ -235,7 +235,7 @@ describe('pageExcerpt on a ritual page', () => {
     expect(x.lines.every((l) => l.label === undefined)).toBe(true)
   })
 
-  it('opens a scripture ritual on her own line, never on the verse she quoted (Guardrail H3)', () => {
+  it('shows a scripture ritual’s quotes as Scripture, never as her own lines (Guardrail H3)', () => {
     const soap = [
       '<!-- ritual:name:SOAP -->',
       '<!-- ritual:section:Scripture -->',
@@ -254,9 +254,16 @@ describe('pageExcerpt on a ritual page', () => {
       '<!-- ritual:end -->',
     ].join('\n')
     const x = pageExcerpt(entry(soap))
-    expect(x.lines.map((l) => [l.label ?? null, l.text])).toEqual([
-      ['Observation', 'He says remain before he says bear fruit.'],
-      ['Prayer', 'Teach me to stay.'],
+    // The card reads like the page: the passage named, each quote marked with
+    // its verse, her lines between them.
+    expect(x.passage).toBe('John 15:4')
+    expect(x.lines.map((l) => [l.label ?? null, l.text, l.verse ?? null])).toEqual([
+      ['Observation', 'Remain in me, and I in you', 'v. 4'],
+      [null, 'He says remain before he says bear fruit.', null],
+      ['Prayer', 'I am the vine', ''],
+      [null, 'Teach me to stay.', null],
     ])
+    // A verse is never glowing as a line she set apart.
+    expect(x.lines.filter((l) => l.verse !== undefined).every((l) => !l.set)).toBe(true)
   })
 })

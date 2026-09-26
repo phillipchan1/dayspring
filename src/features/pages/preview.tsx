@@ -113,7 +113,42 @@ const RITUAL: Entry = page(
   ].join('\n'),
 )
 
-const ENTRIES: Entry[] = [...RECENT, ...ECHO_YEAR, RITUAL].sort(
+/**
+ * A scripture ritual as the composer writes one: the passage as a fence, then
+ * quotes drawn from it (`> … (v. N)`) between the writer's own lines.
+ * `?__preview=pages&scripture=1` puts it at the top of the wall, and
+ * `&part=reader&scripture=1` opens it. Verse text: WEB (public domain).
+ */
+const SCRIPTURE_PAGE: Entry = page(
+  'preview-scripture',
+  new Date(Date.UTC(2026, 8, 26, 14)).toISOString(),
+  [
+    '<!-- ritual:name:Open Reading -->',
+    '<!-- ritual:section:Read -->',
+    '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+    'Remain in me, and I in you. As the branch can’t bear fruit by itself, unless it remains in the vine, so neither can you, unless you remain in me. I am the vine. You are the branches. He who remains in me, and I in him, the same bears much fruit, for apart from me you can do nothing.',
+    'John 15:4–5 · ESV',
+    '```',
+    '<!-- ritual:section:Reflect -->',
+    'I came in tired and not wanting a method.',
+    '',
+    '> Remain in me, and I in you (v. 4)',
+    '',
+    'He says remain before he says bear fruit. The order is the whole point.',
+    '',
+    '> apart from me you can do nothing (v. 5)',
+    '',
+    'This is good.',
+    '<!-- ritual:end -->',
+  ].join('\n'),
+)
+
+const ENTRIES: Entry[] = [
+  ...RECENT,
+  ...ECHO_YEAR,
+  RITUAL,
+  ...(new URLSearchParams(window.location.search).get('scripture') === '1' ? [SCRIPTURE_PAGE] : []),
+].sort(
   (a, b) => (a.created_at > b.created_at ? -1 : a.created_at < b.created_at ? 1 : 0),
 )
 
@@ -441,9 +476,9 @@ function ReaderPreview({ ritual }: { ritual: boolean }) {
               </button>
             </div>
           }
-          entry={ritual ? READ_RITUAL : READ_PAGE}
+          entry={PARAMS.get('scripture') === '1' ? SCRIPTURE_PAGE : ritual ? READ_RITUAL : READ_PAGE}
           markQuotes={[]}
-          markings={ritual ? [] : READ_MARKINGS}
+          markings={ritual || PARAMS.get('scripture') === '1' ? [] : READ_MARKINGS}
           match={null}
           firstLineTitle={false}
           onEdit={(id, startAt) => setSaid(`edit ${id} at ${startAt ?? 'first open'}`)}

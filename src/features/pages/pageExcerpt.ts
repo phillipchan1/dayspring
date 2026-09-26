@@ -7,6 +7,7 @@
 // has stopped being a read surface (Principle 4).
 
 import { entryContentLines } from '@/lib/entryLabels'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { isScriptureQuoteLine, SCRIPTURE_RITUALS, writerWords } from '@/lib/writerWords'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import { ATTACHMENT_REF_RE } from '@/lib/attachments'
@@ -32,9 +33,17 @@ export interface ExcerptLine {
    * carries it.
    */
   label?: string
+  /**
+   * A phrase drawn from a scripture ritual's passage: the verse it came from,
+   * "v. 4". The line is Scripture, not the writer's — shown as a quote with
+   * its verse, and never as a line she set apart (Guardrail H3).
+   */
+  verse?: string
 }
 
 export interface PageExcerpt {
+  /** A scripture ritual's passage, by reference — "John 15:4–5". */
+  passage?: string
   /** At most `EXCERPT_MAX_LINES`. The card slices this to what it can show. */
   lines: ExcerptLine[]
   /** Prose characters in the WHOLE entry — drives how full the page reads. */
@@ -129,6 +138,10 @@ export function pageExcerpt(
   const prose: string[] = []
   /** Label per prose index — only on a ritual page, only on an answer's first line. */
   const labels = new Map<number, string>()
+  /** Verse per prose index — only on a drawn quote (a scripture ritual's `>` line). */
+  const verses = new Map<number, string>()
+  /** A scripture ritual's passage, by reference. */
+  let passage: string | null = null
   const shape = ritualEntryShape(entry.body_markdown)
   if (shape.kind === 'ritual') {
     // The answers in order, each opened by its movement's name, then the
@@ -140,9 +153,25 @@ export function pageExcerpt(
     // so the card opens on the first line she wrote, never on the verse.
     const scripture = SCRIPTURE_RITUALS.includes(shape.contents.name)
     texts.forEach((answer, i) => {
+      if (scripture && passage === null) {
+        // The passage itself names the page; its words are not shown here.
+        const fence = parseSpiritualBlocks(answer).find((b) => b.type === 'scripture')
+        if (fence?.reference) passage = fence.reference.replace(/\s*·\s*[A-Za-z]{2,5}\s*$/, '').trim()
+      }
       let first = true
       for (const line of entryContentLines(answer)) {
-        if (isScriptureQuoteLine(line, scripture)) continue
+        if (isScriptureQuoteLine(line, scripture)) {
+          // Shown as what it is: the words, and the verse they came from.
+          const q = line.replace(/^\s*>\s?/, '').trim()
+          const tail = q.match(/\s*\(\s*(vv?)\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?\s*\)\s*$/)
+          const text = display(tail ? q.slice(0, tail.index) : q)
+          if (!text) continue
+          if (first) labels.set(prose.length, names[i] ?? '')
+          first = false
+          verses.set(prose.length, tail ? (tail[3] ? `vv. ${tail[2]}–${tail[3]}` : `v. ${tail[2]}`) : '')
+          prose.push(text)
+          continue
+        }
         const text = display(line)
         if (!text) continue
         if (first) labels.set(prose.length, names[i] ?? '')
@@ -177,7 +206,7 @@ export function pageExcerpt(
 
   // Matching lines first, in their original order, then the rest. Stable on
   // both halves, so a page's excerpt never shuffles as you scroll past it.
-  let ordered = prose.map((text, i) => ({ text, label: labels.get(i) }))
+  let ordered = prose.map((text, i) => ({ text, label: labels.get(i), verse: verses.get(i) }))
   if (match) {
     const hits: typeof ordered = []
     const rest: typeof ordered = []
@@ -188,15 +217,17 @@ export function pageExcerpt(
     if (hits.length > 0) ordered = [...hits, ...rest]
   }
 
-  const lines: ExcerptLine[] = ordered.slice(0, maxLines).map(({ text, label }) => {
+  const lines: ExcerptLine[] = ordered.slice(0, maxLines).map(({ text, label, verse }) => {
     if (match) match.lastIndex = 0
     const hit = match ? match.test(text) : false
-    const line: ExcerptLine = { text, set: isSetApart(passageKey(text), keys) }
+    // A drawn quote is never "set apart" as hers: it is marked as Scripture instead.
+    const line: ExcerptLine = { text, set: verse === undefined && isSetApart(passageKey(text), keys) }
     if (label) line.label = label
+    if (verse !== undefined) line.verse = verse
     return hit ? { ...line, hit: true } : line
   })
 
-  return { lines, chars, total: prose.length, rituals }
+  return { lines, chars, total: prose.length, rituals, ...(passage ? { passage } : {}) }
 }
 
 /**

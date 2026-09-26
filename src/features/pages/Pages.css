@@ -5876,3 +5876,52 @@ button.pg__sense-q:hover {
     display: none;
   }
 }
+
+/* A scripture ritual on a card: the passage it read, and the phrases drawn from
+   it shown as quotes — italic, on a gold rule, with their verse. Scripture, marked
+   as Scripture; never glowing as a line the writer set apart. */
+.pgc__passage { color: rgb(var(--scripture-gold)); letter-spacing: 0.08em; }
+.pgc__line[data-quote='true'] {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--text-dim);
+  box-shadow: inset 2px 0 0 rgba(var(--scripture-gold), 0.55);
+  padding-left: 0.55rem;
+}
+.pgc__verse {
+  margin-left: 0.45em;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-style: normal;
+  font-size: 0.72em;
+  letter-spacing: 0.02em;
+  color: rgb(var(--scripture-gold));
+}
+
+/* …and in the reader: the drawn quote, and its words lit in the passage above. */
+.pg-read1 blockquote.read-quote,
+blockquote.read-quote {
+  border-left: 2px solid rgba(var(--scripture-gold), 0.7);
+  background: rgba(var(--scripture-gold), 0.07);
+  border-radius: 0 8px 8px 0;
+  padding: 0.3rem 0.9rem;
+  transition: background 0.2s ease;
+}
+blockquote.read-quote.is-lit { background: rgba(var(--scripture-gold), 0.18); }
+.read-quote__v {
+  margin-left: 0.5em;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-style: normal;
+  font-size: 0.68em;
+  letter-spacing: 0.03em;
+  color: rgb(var(--scripture-gold));
+}
+mark.read-drawn {
+  background: rgba(var(--scripture-gold), 0.2);
+  color: inherit;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background 0.2s ease;
+}
+mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
+.read-scripture__own { font-style: italic; color: var(--text-faint); }
