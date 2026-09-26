@@ -26,6 +26,7 @@ import { getAuthedUser, notAuthenticated } from './_lib/userAuth.js'
 import { supabaseAdmin } from './_lib/supabaseAdmin.js'
 import { embed, toVectorLiteral } from './_lib/embeddings.js'
 import { callModel } from './_lib/openai.js'
+import { writerWords } from './_lib/writerWords.js'
 
 // ── tuning ──────────────────────────────────────────────────────────────────
 const VECTOR_COUNT = 40
@@ -94,9 +95,12 @@ interface Row {
   word_count: number
 }
 
-/** Strip the app's spiritual-block markup so excerpts read as plain prose. */
+/** Strip the app's spiritual-block markup so excerpts read as plain prose.
+ *  Starts from the writer's own words (Guardrail H3): the Scripture fences and
+ *  quoted verses on a page are not theirs, so the model never sees them as
+ *  candidates and the verbatim gate below can never pass one as a beat. */
 function plain(md: string): string {
-  return md
+  return writerWords(md)
     .replace(/^:::.*$/gm, '')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/[*_`>#]/g, '')

@@ -29,6 +29,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
+import { writerWords } from './writerWords.js'
 
 // ── CONSTANTS (tune freely — copy & thresholds live here) ────────────────────
 // Mirrored in src/lib/concordance.ts for the drawer (the api/ and src/ trees
@@ -496,11 +497,15 @@ export async function concordancePlan(owner: string): Promise<{ unscanned: numbe
 export async function extractBatch(
   entries: { id: string; body: string }[],
 ): Promise<Map<string, Candidate[]> | null> {
+  // The writer's own words only (Guardrail H3): a name inside a Scripture fence
+  // or a quoted verse is the translation's spelling, not theirs, so the model
+  // never reads it and the gate never accepts it.
+  const own = new Map(entries.map((e) => [e.id, writerWords(e.body)]))
   let out: { entries?: { id: string; candidates?: Candidate[] }[] }
   try {
     out = await callModel<{ entries?: { id: string; candidates?: Candidate[] }[] }>(
       EXTRACT_PROMPT,
-      { entries: entries.map((e) => ({ id: e.id, text: e.body.slice(0, EXTRACT_MAX_CHARS) })) },
+      { entries: entries.map((e) => ({ id: e.id, text: own.get(e.id)!.slice(0, EXTRACT_MAX_CHARS) })) },
       EXTRACT_SCHEMA as unknown as Record<string, unknown>,
       'concordance_extract',
       'low',
@@ -517,7 +522,7 @@ export async function extractBatch(
     if (!entry) continue
     const accepted: Candidate[] = []
     for (const raw of (r.candidates ?? []).slice(0, MAX_CANDIDATES_PER_ENTRY)) {
-      const ok = gateCandidate(entry.body, raw)
+      const ok = gateCandidate(own.get(entry.id) ?? '', raw)
       if (ok) accepted.push(ok)
     }
     result.set(entry.id, accepted)
