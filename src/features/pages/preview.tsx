@@ -248,6 +248,7 @@ function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
 
 /** The fixture archive, indexed — what gives the sheet's pills their counts. */
 const SHEET_INDEX = buildSubjectIndex(ENTRIES)
+const SHEET_PAGES = new Map(ENTRIES.map((e) => [e.id, e]))
 
 /** The same, over one era only — what a bracket hands the sheet. */
 const BRACKET_INDEX = buildSubjectIndex(
@@ -319,6 +320,9 @@ function SheetPreview({
             onlyLit={false}
             onOnlyLit={() => {}}
             onTend={() => window.alert('This is where the Life Map would open.')}
+            pages={SHEET_PAGES}
+            onOpenFound={(id) => window.alert(`This is where page ${id} would open.`)}
+            archiveIndex={SHEET_INDEX}
           />
           </div>
         </div>

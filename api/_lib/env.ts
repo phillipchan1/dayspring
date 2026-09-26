@@ -12,7 +12,7 @@ export const env = {
   supabaseUrl: () => need('SUPABASE_URL'),
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
   openaiKey: () => need('OPENAI_API_KEY'),
-  model: () => process.env.OPENAI_MODEL || 'gpt-5.4-nano',
+  model: () => process.env.OPENAI_MODEL || 'gpt-6-luna',
   // Speech-to-text model for voice dictation. gpt-4o-mini-transcribe is cheap
   // (~$0.003/min), accurate, and accepts a `prompt` for vocabulary biasing.
   transcribeModel: () => process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe',

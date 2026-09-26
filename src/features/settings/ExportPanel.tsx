@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { exportEntriesToZip } from '@/lib/export/exportEntries'
+import { exportCachedEntriesToZip, exportEntriesToZip } from '@/lib/export/exportEntries'
 
 type ExportPhase = 'idle' | 'exporting' | 'building' | 'done' | 'error'
 
-export function ExportPanel() {
+export function ExportPanel({ localOnly = false }: { localOnly?: boolean } = {}) {
   const [phase, setPhase] = useState<ExportPhase>('idle')
   const [progress, setProgress] = useState({ fetched: 0, total: 0 })
   const [imgProgress, setImgProgress] = useState({ done: 0, total: 0 })
@@ -15,13 +15,18 @@ export function ExportPanel() {
     setProgress({ fetched: 0, total: 0 })
     setImgProgress({ done: 0, total: 0 })
     try {
-      const blob = await exportEntriesToZip(
-        (fetched, total) => {
-          setProgress({ fetched, total })
-          if (total > 0 && fetched >= total) setPhase('building')
-        },
-        (done, total) => setImgProgress({ done, total }),
-      )
+      const blob = localOnly
+        ? await exportCachedEntriesToZip((fetched, total) => {
+            setProgress({ fetched, total })
+            if (total > 0 && fetched >= total) setPhase('building')
+          })
+        : await exportEntriesToZip(
+            (fetched, total) => {
+              setProgress({ fetched, total })
+              if (total > 0 && fetched >= total) setPhase('building')
+            },
+            (done, total) => setImgProgress({ done, total }),
+          )
       const date = new Date().toISOString().slice(0, 10)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -44,8 +49,9 @@ export function ExportPanel() {
     <div className="export-panel">
       <h3 className="export-panel__title">Download backup</h3>
       <p className="export-panel__intro">
-        Save every entry to a zip you keep. Restore it anytime with the Dayspring Backup card
-        above.
+        {localOnly
+          ? 'Save the entries on this device to a zip you keep.'
+          : 'Save every entry to a zip you keep. Restore it anytime with the Dayspring Backup card above.'}
       </p>
 
       {(phase === 'idle' || phase === 'error') && (

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSession } from './useSession'
 import { fetchSubscription, isEntitled, readCachedSubscription, writeCachedSubscription } from '@/lib/subscription'
 import type { Subscription } from '@/lib/subscription'
 
@@ -32,6 +33,7 @@ const NO_PLAN: Subscription = {
 }
 
 export function useSubscription(): SubscriptionState {
+  const { session } = useSession()
   // Seed from the last-known value so a returning user's app paints instantly;
   // the fetch below still runs immediately to reconcile in the background.
   const [subscription, setSubscription] = useState<Subscription | null>(readCachedSubscription)
@@ -67,19 +69,28 @@ export function useSubscription(): SubscriptionState {
 
   useEffect(() => {
     mountedRef.current = true
+    if (!session) {
+      setLoading(false)
+      setSubscription(null)
+      setUnreachable(false)
+      return () => {
+        mountedRef.current = false
+      }
+    }
     void load()
     return () => {
       mountedRef.current = false
     }
-  }, [load])
+  }, [load, session])
 
   // Refetch when the window regains focus — catches the case where the user
   // completed checkout on Stripe and returned to the app.
   useEffect(() => {
+    if (!session) return
     const onFocus = () => void load()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [load])
+  }, [load, session])
 
   return {
     subscription,

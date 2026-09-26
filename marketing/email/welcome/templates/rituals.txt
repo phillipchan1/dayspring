@@ -8,7 +8,8 @@ To begin one, open a blank page and look at the foot of it, or type /ritual.
 
 If you’ve never tried one, start with New Every Morning. It’s three short questions and takes about three minutes.
 
-Try a ritual: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=rituals
+Try a ritual: dayspring://open
+Don’t have the app? Download for Mac: https://github.com/phillipchan1/dayspring-releases/releases/latest/download/Dayspring-aarch64.dmg
 
 The Dayspring team
 

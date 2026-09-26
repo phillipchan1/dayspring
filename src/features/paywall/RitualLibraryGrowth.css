@@ -1,0 +1,41 @@
+.ritual-growth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.75rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.ritual-growth__count {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.ritual-growth__cadence {
+  font-style: italic;
+  font-family: var(--font-serif);
+}
+
+.ritual-growth__latest {
+  color: var(--accent);
+}
+
+.service-bullets {
+  list-style: none;
+  margin: 0.15rem 0 0.35rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.service-bullets li {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}

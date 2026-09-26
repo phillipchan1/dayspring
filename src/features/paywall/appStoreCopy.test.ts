@@ -125,17 +125,18 @@ describe('App Store copy', () => {
       .toEqual([])
   })
 
-  it('the review notes describe the 14 days the way the app now does', () => {
+  it('the review notes describe guest writing and what a plan continues', () => {
     const listing = JSON.parse(read('assets/appstore/listing.json')) as Record<string, string>
     // The notes tell the reviewer what to expect on screen. Leaving the old word
-    // here would hand back the exact phrase the last rejection quoted, and would
-    // quote a banner string that no longer exists.
+    // here would hand back the exact phrase the last rejection quoted.
     for (const field of ['reviewNotes', 'promotionalText', 'description', 'subtitle'] as const) {
       expect(listing[field], `listing.${field} still says "complimentary"`).not.toMatch(
         /complimentary/i,
       )
     }
-    expect(listing.reviewNotes).toMatch(/full access/i)
+    expect(listing.reviewNotes).toMatch(/guest/i)
+    expect(listing.reviewNotes).toMatch(/sync/i)
+    expect(listing.reviewNotes).toMatch(/expanding rituals library/i)
   })
 
   it('the App Store listing claims no introductory offer', () => {

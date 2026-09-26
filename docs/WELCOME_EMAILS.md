@@ -162,8 +162,10 @@ There is **no** "launch day onward only" gate. Backfill is every current auth us
   is 09:30 UTC, so a signup after that hour gets day 0 on the next pass (or
   immediately from `ensure` once sends are on). The original plan (7am in the
   writer's timezone) needs a custom sender and isn't worth it for now.
-- **iPhone.** The site lists iOS as "Soon", so no email links to an iPhone app. When the
-  App Store listing is live, add it to `welcome` and the "find it" lines.
-- **Measuring.** Every app link carries `utm_medium=welcome&utm_campaign=<key>`. Judge the
+- **iPhone.** Welcome names Dayspring as a Mac and iPhone app. Days 0–9 open
+  `dayspring://open`; the secondary CTA is the Mac DMG. Add an App Store link
+  when the listing is live.
+- **Measuring.** Days 0–9 primary CTAs are `dayspring://open` (no UTM). The Day 13
+  trial link still carries `utm_medium=welcome&utm_campaign=trial`. Judge the
   series by what people do after each email (`slash_used`, an import, `ritual_begun`), not
   by opens, which Apple Mail's privacy protection makes meaningless.

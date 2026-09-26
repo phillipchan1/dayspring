@@ -2,9 +2,11 @@
  * Grant full app access to an App Store review account (entitled, not paywalled).
  *
  *   npx tsx scripts/grant-review-access.ts kai.chan.claw@gmail.com
- *   npx tsx scripts/grant-review-access.ts kai.chan.claw@gmail.com 365
+ *   npx tsx scripts/grant-review-access.ts kai.chan.claw@gmail.com 14
  *
- * Sets plan='active' with plan_expires_at one year out (or <days> from now).
+ * Sets plan='active' with plan_expires_at 14 days out (or <days> from now).
+ * Keep this short — a ~359-day window painted "Full access — N days remaining"
+ * and read as complimentary lifetime (Guideline 3.1.2, build 942).
  * Run once before submitting a build whose ASC demo credentials point at this
  * email. Requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.
  */
@@ -33,10 +35,10 @@ loadEnv()
 
 const email = process.argv[2]
 if (!email) {
-  console.error('Usage: npx tsx scripts/grant-review-access.ts <email> [days=365]')
+  console.error('Usage: npx tsx scripts/grant-review-access.ts <email> [days=14]')
   process.exit(1)
 }
-const days = Number(process.argv[3] ?? '365')
+const days = Number(process.argv[3] ?? '14')
 
 const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false },

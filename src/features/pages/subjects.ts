@@ -12,6 +12,7 @@
 
 import { listConcordance, type ConcordanceItem, type ConcordanceKind } from '@/lib/concordance'
 import { entryContentLines } from '@/lib/entryLabels'
+import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import type { Entry } from '@/lib/types'
 
 export interface Subject {
@@ -20,6 +21,16 @@ export interface Subject {
   label: string
   /** Every spelling that counts as a hit. */
   terms: string[]
+  /**
+   * A search rather than a name: one list of spellings per word asked for, and
+   * a page lights only when EVERY list has a hit on it. `terms` is then just
+   * all of them flattened, which is what paints the words.
+   *
+   * Every spelling here is one the writer actually used — `textSearch` builds
+   * the lists out of the archive's own vocabulary — so a forgiving search still
+   * lights pages for words that are on them, never for words that are not.
+   */
+  every?: string[][]
   kind: ConcordanceKind | 'word'
   /**
    * Which of the Life Map's four lists the WRITER filed this under —
@@ -66,14 +77,35 @@ export interface SubjectIndex {
 }
 
 /**
- * Index the corpus for matching.
+ * The writer's own words on a page, and only theirs.
  *
  * Built over `entryContentLines`, not the raw markdown: a `/scripture` block's
  * verse text is the Bible's words, not the writer's, and lighting a page because
  * a quoted psalm says "fear" would misreport what they wrote about.
+ *
+ * EVERY OTHER MARKING IS HERS, and is put back. `entryContentLines` drops every
+ * fence whole, because it serves titles and previews — so the words inside a
+ * prayer, a sense, a desire were invisible to the find field and to every
+ * subject. "Lord, be with Esther" inside a prayer did not light Esther, and a
+ * phrase she wrote inside a sense could not be found at all, on an archive
+ * with two thousand prayer blocks. Appended after the prose rather than in
+ * place: matching is per page, so position within it changes nothing.
  */
+export function writerLines(markdown: string | null | undefined): string[] {
+  const lines = entryContentLines(markdown)
+  for (const block of parseSpiritualBlocks(markdown ?? '')) {
+    if (block.type === 'scripture') continue
+    for (const line of block.content.split('\n')) {
+      const t = line.trim()
+      if (t) lines.push(t)
+    }
+  }
+  return lines
+}
+
+/** Index the corpus for matching — see `writerLines` for what counts. */
 export function haystackFor(entry: Entry): string {
-  return entryContentLines(entry.body_markdown).join('\n').toLowerCase()
+  return writerLines(entry.body_markdown).join('\n').toLowerCase()
 }
 
 /**
@@ -115,8 +147,17 @@ function termRegex(terms: string[]): RegExp | null {
 
 /** Ids of every entry that carries the subject. */
 export function matchSubject(index: SubjectIndex, subject: Subject): Set<string> {
-  const re = termRegex(subject.terms)
   const hit = new Set<string>()
+  if (subject.every) {
+    const all = subject.every.map(termRegex)
+    if (all.length === 0 || all.some((re) => re === null)) return hit
+    for (let i = 0; i < index.ids.length; i++) {
+      const hay = index.haystacks[i]!
+      if (all.every((re) => re!.test(hay))) hit.add(index.ids[i]!)
+    }
+    return hit
+  }
+  const re = termRegex(subject.terms)
   if (!re) return hit
   for (let i = 0; i < index.ids.length; i++) {
     if (re.test(index.haystacks[i]!)) hit.add(index.ids[i]!)

@@ -68,7 +68,7 @@ GitHub Actions secrets on the private repo:
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for the key (empty) |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Frontend build-time env |
 | `RELEASES_TOKEN` | Lets the build publish releases to the public repo |
-| `OPENAI_API_KEY` | _(optional)_ LLM-polished release notes; falls back to a cleaned commit list if unset. Set once with `gh secret set OPENAI_API_KEY`. Override the model with the `OPENAI_MODEL` env (default `gpt-5.4-nano`). |
+| `OPENAI_API_KEY` | _(optional)_ LLM-polished release notes; falls back to a cleaned commit list if unset. Set once with `gh secret set OPENAI_API_KEY`. Override the model with the `OPENAI_MODEL` env (default `gpt-6-luna`). |
 
 ### ⚠️ Back up the updater private key
 

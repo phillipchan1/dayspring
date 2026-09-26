@@ -12,7 +12,13 @@ import { PROVIDER_LABEL, readLastAuthProvider } from '@/lib/lastAuthProvider'
 import { isOAuthCanceled, useTapAction } from '@/lib/tapAction'
 import './SignIn.css'
 
-export function SignIn() {
+export interface SignInProps {
+  /** When set, this is an overlay on the guest journal — the reviewer can close it. */
+  onDismiss?: () => void
+  reason?: 'default' | 'account'
+}
+
+export function SignIn({ onDismiss, reason = 'default' }: SignInProps) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<'apple' | 'google' | 'email' | null>(null)
   // Desktop: browser is open and we're waiting on the dayspring:// callback.
@@ -162,11 +168,25 @@ export function SignIn() {
   )
 
   return (
-    <div className="center-screen signin">
+    <div className={`center-screen signin${onDismiss ? ' signin--overlay' : ''}`}>
+      {onDismiss && (
+        <button
+          type="button"
+          className="signin__dismiss"
+          onClick={onDismiss}
+          aria-label="Back to journal"
+        >
+          ← Back to journal
+        </button>
+      )}
       <ThemeToggle
         isLight={isLight}
         onToggle={() => update({ appearance: isLight ? 'dark' : 'light' })}
-        className="theme-toggle--fixed"
+        className={
+          onDismiss
+            ? 'theme-toggle--fixed theme-toggle--fixed-end'
+            : 'theme-toggle--fixed'
+        }
       />
 
       <div className="signin__glow" aria-hidden />
@@ -180,7 +200,11 @@ export function SignIn() {
 
         <div className="signin__rule" />
 
-        <p className="signin__lede">A journal built for spiritual growth.</p>
+        <p className="signin__lede">
+          {reason === 'account'
+            ? 'Sign in to sync this journal, restore purchases, or subscribe.'
+            : 'A journal built for spiritual growth.'}
+        </p>
 
         <div className="signin__actions">
           {appleFirst ? <>{appleBtn}{googleBtn}</> : <>{googleBtn}{appleBtn}</>}

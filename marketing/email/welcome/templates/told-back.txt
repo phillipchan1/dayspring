@@ -12,7 +12,8 @@ All three fill in as you write, so if they look quiet right now, that’s expect
 
 Find them: Ascent, Lamp and Altar in the sidebar (⌘3, ⌘4, ⌘5).
 
-See your Ascent: https://dayspring-eosin.vercel.app/?utm_source=email&utm_medium=welcome&utm_campaign=told-back
+See your Ascent: dayspring://open
+Don’t have the app? Download for Mac: https://github.com/phillipchan1/dayspring-releases/releases/latest/download/Dayspring-aarch64.dmg
 
 The Dayspring team
 

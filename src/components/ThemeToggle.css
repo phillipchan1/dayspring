@@ -59,7 +59,7 @@
   height: 15px;
 }
 
-/* Pinned top-left for full-screen surfaces (SignIn). */
+/* Pinned top-left for full-screen surfaces (hard SignIn). */
 .theme-toggle--fixed {
   position: fixed;
   top: max(18px, env(safe-area-inset-top, 0px));
@@ -68,4 +68,10 @@
 }
 html[data-platform='desktop'] .theme-toggle--fixed {
   top: 3.25rem;
+}
+
+/* Guest SignIn overlay: leave the top-left corner for "← Back to journal". */
+.theme-toggle--fixed-end {
+  left: auto;
+  right: max(16px, env(safe-area-inset-right, 0px));
 }

@@ -11,6 +11,35 @@ const ENTRY_COLUMNS =
   'id, created_at, updated_at, body_markdown, title, mood, tags, word_count, source, external_id, circumstances'
 
 /**
+ * Zip whatever is already on this device. Used by guest / local-only journals
+ * — there is no server library to page through, and requiring an account to
+ * download your own local writing would be a 5.1.1(v) login wall.
+ */
+export async function exportCachedEntriesToZip(
+  onProgress?: (fetched: number, total: number) => void,
+): Promise<Blob> {
+  const { listEntries } = await import('../repo')
+  const entries = await listEntries()
+  onProgress?.(entries.length, entries.length)
+
+  const payload = JSON.stringify(
+    {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      entry_count: entries.length,
+      entries,
+    },
+    null,
+    2,
+  )
+
+  const { default: JSZip } = await import('jszip')
+  const zip = new JSZip()
+  zip.file('entries.json', payload)
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+}
+
+/**
  * Fetch all entries and package them into a downloadable zip.
  * `onProgress(fetched, total)` fires after the initial count query and after
  * each page; `onImageProgress(done, total)` fires while image binaries are

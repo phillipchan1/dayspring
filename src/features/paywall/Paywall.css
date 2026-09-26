@@ -177,6 +177,23 @@
   color: var(--text);
 }
 
+.paywall__services {
+  list-style: none;
+  margin: 0.15rem 0 0.35rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  text-align: center;
+}
+
+.paywall__services li {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
 .paywall__privacy {
   font-family: var(--font-sans);
   font-size: 0.74rem;

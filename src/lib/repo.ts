@@ -228,6 +228,21 @@ export async function removeEntries(ids: string[]): Promise<void> {
 let flushChain: Promise<void> = Promise.resolve()
 
 /**
+ * Guest / local-only mode. Writes still land in IndexedDB and the outbox so a
+ * later sign-in can flush them, but nothing talks to the server until an
+ * account claims the cache. Set by App.tsx for the guest shell.
+ */
+let localOnly = false
+
+export function setLocalOnlySync(enabled: boolean): void {
+  localOnly = enabled
+}
+
+export function isLocalOnlySync(): boolean {
+  return localOnly
+}
+
+/**
  * Rebuilds the rows derived from an entry's body (prayers, scripture refs).
  * Injected rather than imported so the repo stays free of feature modules.
  */
@@ -367,6 +382,7 @@ async function pushEntry(row: Entry): Promise<void> {
 }
 
 async function flushOnce(): Promise<void> {
+  if (localOnly) return
   if (!navigator.onLine) {
     syncStore.setOnline(false)
     return
@@ -456,6 +472,7 @@ export async function retryBlocked(): Promise<void> {
 // so continuous typing still pushes within the window rather than starving.
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 function scheduleFlush(delay = 1500): void {
+  if (localOnly) return
   if (flushTimer) return
   flushTimer = setTimeout(() => {
     flushTimer = null
@@ -605,6 +622,7 @@ const FULL_RECONCILE_INTERVAL_MS = 5 * 60_000
  * copy from being overwritten mid-edit. Returns the merged list, or null offline.
  */
 export async function sync(preserveId?: string | null): Promise<Entry[] | null> {
+  if (localOnly) return listEntries()
   await flush()
   if (!navigator.onLine) return null
   syncStore.setPulling(true)
@@ -698,6 +716,7 @@ export async function sync(preserveId?: string | null): Promise<Entry[] | null> 
  * its entries), or null when nothing changed / offline (caller skips — no churn).
  */
 export async function syncChanged(preserveId?: string | null): Promise<Entry[] | null> {
+  if (localOnly) return listEntries()
   if (syncCursor === null || Date.now() - lastFullSyncAt > FULL_RECONCILE_INTERVAL_MS) {
     return sync(preserveId)
   }

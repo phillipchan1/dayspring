@@ -14,7 +14,7 @@ export function TrialWelcome({ variant, onDismiss }: Props) {
   // say what the days give rather than what they cost: "complimentary" was cited
   // by Guideline 3.1.2(c) on 2026-09-21 for describing the price and not the thing.
   const opening = usesAppStoreCopy()
-    ? 'The slow work begins now. You have 14 days of full access — your first entry is waiting.'
+    ? 'The slow work begins now. Your first entry is waiting.'
     : 'The slow work begins now. 14 days free — your first entry is waiting.'
 
   return (
