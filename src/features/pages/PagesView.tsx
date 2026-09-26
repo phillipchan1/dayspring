@@ -28,6 +28,7 @@ import {
 import { markingChips, matchFacets } from './facets'
 import { facetIndexFor, subjectIndexFor } from './derived'
 import { LookFor } from './LookFor'
+import { findSubject } from './textSearch'
 import { LitChips, type LookChip } from './LitChips'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
@@ -460,13 +461,20 @@ export function PagesView({
    * key alone isn't enough to light the wall.
    */
   const keys = useMemo(() => (subjectKey ? subjectKey.split('\u0000').filter(Boolean) : []), [subjectKey])
-  const facetKeys = useMemo(() => keys.filter((k) => !k.startsWith('word:') && !k.startsWith('c:')), [keys])
+  const facetKeys = useMemo(() => keys.filter((k) => !k.startsWith('word:') && !k.startsWith('c:') && !k.startsWith('find:')), [keys])
+  // Here rather than with `index` below: a search's lit key rebuilds against it.
+  const fullIndex = useMemo(() => subjectIndexFor(entries), [entries])
   const subjects: Subject[] = useMemo(() => {
     const out: Subject[] = []
     for (const key of keys) {
       if (key.startsWith('word:')) {
         const w = wordSubject(key.slice(5))
         if (w) out.push(w)
+      } else if (key.startsWith('find:')) {
+        // A search rebuilds from its words against the whole archive, so the
+        // spellings it forgave are the same ones whatever is bracketed.
+        const f = findSubject(fullIndex, key.slice(5))
+        if (f) out.push(f)
       } else if (key.startsWith('c:')) {
         // Kept first: a kept subject outlives the Concordance row it came from,
         // and it has to keep lighting after a rebuild drops that row.
@@ -475,7 +483,7 @@ export function PagesView({
       }
     }
     return out
-  }, [keys, vocabulary, kept])
+  }, [keys, vocabulary, kept, fullIndex])
 
   /*
    * Both go through `derived.ts` rather than being built here.
@@ -507,7 +515,6 @@ export function PagesView({
    * Two builds cost one, near enough: `derived.ts` memoises per page, so the
    * bracketed index re-uses every derivation the full one already did.
    */
-  const fullIndex = useMemo(() => subjectIndexFor(entries), [entries])
   const markedIds = useMemo(() => marks.map((m) => m.entryId), [marks])
 
   /** The pages inside the bracket — what every count and every light is about. */
@@ -1117,6 +1124,13 @@ export function PagesView({
               onlyLit={onlyLit}
               onOnlyLit={setOnlyLit}
               onTend={onTendSubjects}
+              pages={byId}
+              onOpenFound={(id, light) => {
+                if (light && !keys.includes(light.key)) addSubject(light)
+                onSpread(id)
+              }}
+              archiveIndex={fullIndex}
+              onWholeArchive={() => onStretchSpan(null)}
               when={
                 narrow ? (
                   <StretchPeriods

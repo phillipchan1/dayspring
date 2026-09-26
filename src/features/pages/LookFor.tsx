@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import type { MarkingChip } from './facets'
@@ -9,6 +9,8 @@ import { READINGS, type Reading } from './readings'
 import { MarkGlyph } from '@/components/MarkGlyph'
 import { Glyph } from '@/features/lifemap/Glyph'
 import { LitChips, type LookChip } from './LitChips'
+import { findSubject, passageFor, searchPages, type Found, type PageSearch } from './textSearch'
+import type { Entry } from '@/lib/types'
 
 export type { LookChip }
 
@@ -151,6 +153,18 @@ interface Props {
    * a bracket changes the count beside every subject below it.
    */
   when?: ReactNode
+  /** Every page by id — where a found passage is read from. */
+  pages: Map<string, Entry>
+  /**
+   * Open a page from a search result. With `light`, the search goes on the wall
+   * first, so the reader's arrows walk the pages that say it rather than every
+   * page you wrote.
+   */
+  onOpenFound: (id: string, light: Subject | null) => void
+  /** The whole archive's index, for saying what a bracket is hiding. */
+  archiveIndex?: SubjectIndex | undefined
+  /** Take the bracket off. */
+  onWholeArchive?: (() => void) | undefined
 }
 
 /**
@@ -192,6 +206,10 @@ export function LookFor({
   onOnlyLit,
   onTend,
   when,
+  pages,
+  onOpenFound,
+  archiveIndex,
+  onWholeArchive,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState('')
@@ -234,6 +252,33 @@ export function LookFor({
   const on = useMemo(() => new Set(chips.map((c) => c.key)), [chips])
   const q = typed.trim()
   const searching = q.length > 0
+
+  /*
+   * THE PAGES THAT SAY IT — the answer to what was actually typed.
+   *
+   * The field used to search only NAMES, so a phrase came back as a Matters
+   * pill with a 0 beside it: nothing said whether the words were in the
+   * journal, and nothing showed where. Now what was typed is looked for in the
+   * pages themselves, and the first thing under the field is the answer.
+   *
+   * Deferred, so a keystroke never waits on a pass over the archive.
+   */
+  const deferred = useDeferredValue(typed)
+  const search = useMemo(() => {
+    const dq = deferred.trim()
+    if (!open || dq.length < 2) return null
+    // A trailing space means the last word is finished.
+    return searchPages(index, dq, !deferred.endsWith(' '))
+  }, [open, deferred, index])
+  /** What the bracket is hiding, asked only when it hides everything. */
+  const elsewhere = useMemo(() => {
+    if (!search || search.found.length > 0 || !window || !archiveIndex) return 0
+    return searchPages(archiveIndex, search.query).found.length
+  }, [search, window, archiveIndex])
+  const light = useMemo(
+    () => (search && search.lightable > 0 ? findSubject(index, search.query) : null),
+    [search, index],
+  )
 
   /*
    * Counted at the last moment, and ONLY WHILE THE SHEET IS OPEN.
@@ -320,7 +365,10 @@ export function LookFor({
     const known = [...kept, ...offered].some((s) => s.label.toLowerCase() === q.toLowerCase())
     if (known) return null
     const [counted] = withCounts(index, [w])
-    return counted ?? null
+    // A word no page says is not a subject anyone can keep — and a 0 under
+    // Matters read as "your search found nothing" while saying it badly. The
+    // pages section above answers that question now.
+    return counted && counted.count ? counted : null
   }, [open, q, kept, offered, index])
 
   /*
@@ -577,11 +625,37 @@ export function LookFor({
             <input
               autoFocus={!narrow}
               value={typed}
-              placeholder="a name, or a word you carry"
-              aria-label="Find a subject"
+              placeholder="a name, a word, or something you wrote"
+              aria-label="Search your pages"
               onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter lights what was found — type, press return, read.
+                if (e.key !== 'Enter' || !light) return
+                e.preventDefault()
+                if (!on.has(light.key)) onToggleSubject(light)
+                setOpen(false)
+              }}
             />
           </div>
+
+          {search ? (
+            <FoundPages
+              search={search}
+              pages={pages}
+              bracketed={window !== null}
+              elsewhere={elsewhere}
+              lit={light ? on.has(light.key) : false}
+              onLight={() => {
+                if (light && !on.has(light.key)) onToggleSubject(light)
+                setOpen(false)
+              }}
+              onOpen={(f) => {
+                setOpen(false)
+                onOpenFound(f.id, f.closeness === 'some' ? null : light)
+              }}
+              onWholeArchive={onWholeArchive}
+            />
+          ) : null}
 
           {when && !searching ? (
             <section className="pg-sheet__g pg-sheet__g--when">
@@ -593,10 +667,11 @@ export function LookFor({
             </section>
           ) : null}
 
+          {searching && nothing ? null : (
           <section className="pg-sheet__g">
             <h3>
               subject
-              <span>the four lists your Life Map keeps</span>
+              <span>{searching ? 'names and words you keep' : 'the four lists your Life Map keeps'}</span>
             </h3>
 
             {/*
@@ -686,11 +761,9 @@ export function LookFor({
               that emptied the list and points at the one thing that still
               works, which is typing.
             */}
-            {nothing ? (
+            {nothing && !searching ? (
               <p className="pg-sheet__note">
-                {searching
-                  ? 'Nothing in your pages says that.'
-                  : `No subject comes up on ${floor} ${floor === 1 ? 'page' : 'pages'}` +
+                {`No subject comes up on ${floor} ${floor === 1 ? 'page' : 'pages'}` +
                     (window ? ' in these months. ' : ' yet. ') +
                     'Type any word and the pages that say it light up.'}
               </p>
@@ -746,6 +819,7 @@ export function LookFor({
               ) : null}
             </div>
           </section>
+          )}
 
           {/*
             Marking and reading share one hem once the sheet is a column wide
@@ -970,3 +1044,147 @@ function SubjectPill({
     </span>
   )
 }
+
+/** How many passages show before "more". A render bound, not a selection. */
+const FIRST_PASSAGES = 6
+const MORE_PASSAGES = 20
+
+const pagesWord = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'page' : 'pages'}`
+
+/**
+ * What the pages section says above its passages — the direct answer.
+ *
+ * Every state names what it found and how close, because "nothing" and "not
+ * exactly" are different answers and the old field gave the same 0 for both.
+ */
+function foundSummary(search: PageSearch): string {
+  const count = (c: Found['closeness']) => search.found.filter((f) => f.closeness === c).length
+  const exact = count('exact')
+  const loose = count('near') + count('page')
+  const one = search.words.length === 1
+  if (exact > 0) {
+    return loose > 0
+      ? `${pagesWord(exact)} say exactly that · ${loose} more have ${one ? 'another form of it' : 'the words apart'}`
+      : `${pagesWord(exact)} say exactly that`
+  }
+  if (loose > 0) {
+    return `No page says exactly that · ${pagesWord(loose)} ${loose === 1 ? 'has' : 'have'} ${
+      one ? 'a close spelling' : 'every word'
+    }`
+  }
+  return `No page has all of it · ${pagesWord(search.found.length)} ${
+    search.found.length === 1 ? 'has' : 'have'
+  } some of the words`
+}
+
+/** The small print on a passage: how it matched, when it was not exactly. */
+const HOW: Record<Found['closeness'], (one: boolean) => string | null> = {
+  exact: () => null,
+  near: (one) => (one ? 'close spelling' : 'close together'),
+  page: () => 'same page',
+  some: () => 'some of the words',
+}
+
+function FoundPages({
+  search,
+  pages,
+  bracketed,
+  elsewhere,
+  lit,
+  onLight,
+  onOpen,
+  onWholeArchive,
+}: {
+  search: PageSearch
+  pages: Map<string, Entry>
+  bracketed: boolean
+  /** Pages outside the bracket that would have matched — only asked when none inside do. */
+  elsewhere: number
+  lit: boolean
+  onLight: () => void
+  onOpen: (found: Found) => void
+  onWholeArchive?: (() => void) | undefined
+}) {
+  const [shown, setShown] = useState(FIRST_PASSAGES)
+  // A new search starts short again.
+  useEffect(() => setShown(FIRST_PASSAGES), [search.query])
+
+  const one = search.words.length === 1
+  const visible = search.found.slice(0, shown)
+
+  if (search.found.length === 0) {
+    return (
+      <section className="pg-sheet__g pg-found">
+        <h3>in your pages</h3>
+        <p className="pg-found__none">
+          {bracketed ? 'Nothing in these months says that, or anything close.' : 'Nothing in your pages says that, or anything close.'}
+        </p>
+        {bracketed && elsewhere > 0 && onWholeArchive ? (
+          <button type="button" className="pg-found__light" onClick={onWholeArchive}>
+            {pagesWord(elsewhere)} outside these months — look in every year
+          </button>
+        ) : (
+          <p className="pg-sheet__note">
+            Searched every word you wrote, prayers and senses included — not scripture you quoted.
+            Try fewer words, or one you are surer of.
+          </p>
+        )}
+      </section>
+    )
+  }
+
+  return (
+    <section className="pg-sheet__g pg-found">
+      <h3>
+        in your pages
+        <span>{foundSummary(search)}</span>
+      </h3>
+      <ol className="pg-found__list">
+        {visible.map((f) => {
+          const entry = pages.get(f.id)
+          if (!entry) return null
+          const runs = passageFor(entry, search)
+          const how = HOW[f.closeness](one)
+          return (
+            <li key={f.id}>
+              <button type="button" className="pg-found__hit" onClick={() => onOpen(f)}>
+                <time className="pg-found__date" dateTime={entry.created_at}>
+                  {new Date(entry.created_at).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </time>
+                <span className="pg-found__text">
+                  {runs.map((r, i) => (i % 2 === 1 ? <mark key={i}>{r}</mark> : r))}
+                </span>
+                {how ? <span className="pg-found__how">{how}</span> : null}
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+      <div className="pg-found__foot">
+        {search.found.length > shown ? (
+          <button type="button" className="pg-found__more" onClick={() => setShown((n) => n + MORE_PASSAGES)}>
+            {Math.min(MORE_PASSAGES, search.found.length - shown)} more of {search.found.length.toLocaleString()}
+          </button>
+        ) : (
+          <span />
+        )}
+        {search.lightable > 0 ? (
+          <button
+            type="button"
+            className="pg-found__light"
+            data-on={lit ? 'true' : undefined}
+            onClick={onLight}
+          >
+            {lit ? 'Lit on the wall' : `Light ${search.lightable === 1 ? 'it' : `all ${search.lightable.toLocaleString()}`} on the wall`}
+            <kbd>↵</kbd>
+          </button>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
