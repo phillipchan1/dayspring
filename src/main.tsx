@@ -59,7 +59,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { applyPlatformClass } from './lib/platform'
 import { installGlobalHandlers } from './lib/crashReport'
 import { installDropGuard } from './lib/dropGuard'
-import { supabase } from './lib/supabase'
+import { startSessionStore } from './lib/sessionStore'
 import { initDeepLinkAuth } from './lib/auth'
 import { registerServiceWorker } from './lib/registerSW'
 import { initPostHog } from './lib/posthog'
@@ -249,10 +249,10 @@ async function bootstrap() {
   // phone and opens offline. No-op inside the Tauri apps and in dev.
   registerServiceWorker()
 
-  // Finish reading persisted session / OAuth callback before we choose Sign-in vs journal.
-  if (supabase) {
-    await supabase.auth.getSession()
-  }
+  // Read the persisted session from disk before we choose sign-in vs journal.
+  // Not supabase.auth.getSession(): offline with an expired token that waits
+  // out ~25s of refresh retries per call, which was the long launch splash.
+  await startSessionStore()
 
   const rootEl = document.getElementById('root')
   if (!rootEl) throw new Error('Root element #root not found')

@@ -27,7 +27,7 @@ import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { shouldHoldForProfile, trialDaysRemaining } from './lib/subscription'
 import { APP_GRANTED_DISPLAY_CAP } from './features/paywall/valueCopy'
 import { ensureProfile } from './lib/onboarding'
-import { fenceCacheToOwner } from './lib/localData'
+import { fenceCacheToOwner, readCacheOwner } from './lib/localData'
 import { getOrCreateGuestOwnerId } from './lib/guestOwner'
 import { registerEntryDerive } from './lib/entryDerive'
 import { maybeBackfillOnLoad } from './lib/processingClient'
@@ -191,7 +191,17 @@ function AuthenticatedApp({ userEmail, ownerId }: { userEmail: string; ownerId: 
   // plus a refetch must finish before we show paywall/locked/onboarding.
   // The first profile select can return an empty row; treating that as "no
   // plan" flashed the subscribe screen at paying users on login.
-  const [initReady, setInitReady] = useState(false)
+  //
+  // When the cache already belongs to this account the fence is a no-op, so
+  // skip the loader frame entirely. The journal then mounts in this very
+  // commit, and child effects run before ours — so the sync hooks the effect
+  // below sets up are set here first (both idempotent).
+  const [initReady, setInitReady] = useState(() => {
+    if (readCacheOwner() !== ownerId) return false
+    registerEntryDerive()
+    setLocalOnlySync(false)
+    return true
+  })
   const [profileReady, setProfileReady] = useState(false)
   useEffect(() => {
     let alive = true

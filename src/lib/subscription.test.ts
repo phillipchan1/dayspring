@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   isEntitled,
+  isEntitledNow,
+  OFFLINE_GRACE_DAYS,
   shouldHoldForProfile,
   appleMayStillCharge,
   isAppleRelationship,
@@ -337,5 +339,36 @@ describe('readCachedSubscription', () => {
     // device would be a free-forever device.
     writeCachedSubscription(sub({ plan: 'active', plan_expires_at: at(-30) }))
     expect(isEntitled(readCachedSubscription(), NOW)).toBe(false)
+  })
+})
+
+describe('isEntitledNow', () => {
+  // The Sept 2026 report: a paying subscriber opened the app offline and was
+  // told their trial had ended. Only the server may take the journal away.
+
+  it('lets a server answer govern exactly as isEntitled does', () => {
+    const lapsed = sub({ plan: 'active', plan_source: 'stripe', plan_expires_at: at(-GRACE_DAYS - 1) })
+    expect(isEntitledNow(lapsed, { verified: true, now: NOW })).toBe(false)
+    expect(isEntitledNow(sub({ plan: 'active' }), { verified: true, now: NOW })).toBe(true)
+  })
+
+  it('keeps a cached subscription open across a renewal the offline device never heard', () => {
+    // Stripe renewed on the expiry date; the cache still holds the old one.
+    const cached = sub({ plan: 'active', plan_source: 'stripe', plan_expires_at: at(-GRACE_DAYS - 2) })
+    expect(isEntitled(cached, NOW)).toBe(false)
+    expect(isEntitledNow(cached, { verified: false, now: NOW })).toBe(true)
+  })
+
+  it('is bounded, so an offline device is never a free-forever device', () => {
+    const cached = sub({ plan: 'active', plan_expires_at: at(-GRACE_DAYS - OFFLINE_GRACE_DAYS - 1) })
+    expect(isEntitledNow(cached, { verified: false, now: NOW })).toBe(false)
+    const trial = sub({ plan: 'trialing', trial_ends_at: at(-OFFLINE_GRACE_DAYS - 1) })
+    expect(isEntitledNow(trial, { verified: false, now: NOW })).toBe(false)
+  })
+
+  it('still locks when the cache itself is the server saying no', () => {
+    expect(isEntitledNow(sub({ plan: 'cancelled' }), { verified: false, now: NOW })).toBe(false)
+    expect(isEntitledNow(sub({ plan: 'none' }), { verified: false, now: NOW })).toBe(false)
+    expect(isEntitledNow(null, { verified: false, now: NOW })).toBe(false)
   })
 })
