@@ -20,6 +20,11 @@ export interface JournalShortcutActions {
   onOpenSettings: () => void
   /** ⌘K — Find (instant, local), or Ask (which lights the wall). */
   onFindOrAsk: () => void
+  /**
+   * ⌘F — search your pages: Pages' Look for, caret in the field, seeded with
+   * the editor's selection when there is one.
+   */
+  onFindInPages: (seed: string) => void
   /** Expand or collapse navigation rail labels. */
   onToggleRailLabels: () => void
   /**
@@ -54,6 +59,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onAltar,
     onOpenSettings,
     onFindOrAsk,
+    onFindInPages,
     onToggleRailLabels,
     onZoomIn,
     onZoomOut,
@@ -105,6 +111,19 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
       if (key === 'k' && !hasEditorSelection()) {
         e.preventDefault()
         onFindOrAsk()
+        return
+      }
+
+      /*
+       * ⌘F is "find it in my pages", everywhere — the key every Mac hand
+       * already reaches for. Not the browser's find-in-page: the wall is
+       * virtualised and an entry is one page, so that would search a sliver of
+       * the journal and call it the whole. ⌘⇧F stays the editor's (show
+       * formatting); a Shift here yields to it.
+       */
+      if (key === 'f' && !e.shiftKey && !settingsOpen) {
+        e.preventDefault()
+        onFindInPages(hasEditorSelection() ? selectionSeed() : '')
         return
       }
 
@@ -170,6 +189,7 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     onAltar,
     onOpenSettings,
     onFindOrAsk,
+    onFindInPages,
     onToggleRailLabels,
     onZoomIn,
     onZoomOut,
@@ -177,4 +197,14 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
     focusActive,
     settingsOpen,
   ])
+}
+
+/**
+ * The selected words, if they read as something to look for — one line, a
+ * phrase rather than a paragraph. Anything longer is a selection made for
+ * another reason, and the field starts empty rather than full of it.
+ */
+function selectionSeed(): string {
+  const text = window.getSelection()?.toString().replace(/\s+/g, ' ').trim() ?? ''
+  return text.length > 0 && text.length <= 60 ? text : ''
 }

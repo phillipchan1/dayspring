@@ -245,6 +245,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   )
   /** ⌘K — Find (instant, local), or Ask, which lights the wall with what it found. */
   const [findOpen, setFindOpen] = useState(false)
+  // ⌘F — a request for Pages to open Look for, consumed once it has.
+  const [lookRequest, setLookRequest] = useState<{ seq: number; seed: string } | null>(null)
   const [findSeed, setFindSeed] = useState('')
   /** Defer typewriter/dimming one frame after chrome hides — avoids CM measure churn. */
   const [focusEditorReady, setFocusEditorReady] = useState(false)
@@ -1620,6 +1622,38 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     else await leaveForSurface({ surface: 'scripture', scriptureBook: null, scriptureVerse: null })
   }
 
+  /**
+   * ⌘F — search your pages, from anywhere.
+   *
+   * The request is set first and survives the trip: Pages consumes it when
+   * Look for mounts, whether that is now or after the editor has handed back
+   * to the wall. The way there is `goToPages`' own, minus its toggle — ⌘F on
+   * Pages must never be the thing that leaves it.
+   */
+  async function findInPages(seed: string) {
+    setFindOpen(false)
+    setLookRequest({ seq: Date.now(), seed })
+    if (pagesActive) return
+    if (state.surface === 'journal' && state.entryReturn?.surface === 'pages') {
+      await leaveEditorUp()
+      return
+    }
+    if (state.entryReturn?.surface === 'pages') {
+      returnFromEntryOrigin()
+      return
+    }
+    await leaveForSurface({ surface: 'pages' })
+  }
+
+  // Leaving Pages drops a ⌘F request it never got to — otherwise the sheet
+  // would open itself on the next visit. On the transition, not on unmount:
+  // StrictMode's rehearsal unmount would drop the request on its way in.
+  const wasOnPages = useRef(pagesActive)
+  useEffect(() => {
+    if (wasOnPages.current && !pagesActive) setLookRequest(null)
+    wasOnPages.current = pagesActive
+  }, [pagesActive])
+
   /** Open ⌘K. Find is instant and local; Ask leaves for the server on Return. */
   function openFindOrAsk(seed = '') {
     setFindSeed(seed)
@@ -1826,6 +1860,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       else openSettings()
     },
     onFindOrAsk: () => openFindOrAsk(''),
+    onFindInPages: (seed) => void findInPages(seed),
     onToggleRailLabels: () => updateSettings({ railLabels: !settings.railLabels }),
     // ⌘= / ⌘− / ⌘0 mean "bigger / smaller / normal", and what that acts on is
     // whatever owns the screen: the writing size while writing, how close
@@ -2540,6 +2575,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       // fresh `leaveForSurface`, so pressing it lands exactly where the rail
       // and ⌘-nav land — one way in, one behaviour.
       onTendSubjects={() => void toggleLifeMap()}
+      lookRequest={lookRequest}
+      onLookRequestHandled={() => setLookRequest(null)}
       settings={settings}
       updateSettings={updateSettings}
     />

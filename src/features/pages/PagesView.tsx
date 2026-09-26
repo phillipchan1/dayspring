@@ -136,6 +136,9 @@ interface Props {
    * previews and the listing shots mount this surface with no app to navigate.
    */
   onTendSubjects?: (() => void) | undefined
+  /** ⌘F: open Look for, caret in the field. One-shot — see `LookFor.openRequest`. */
+  lookRequest?: { seq: number; seed: string } | null | undefined
+  onLookRequestHandled?: (() => void) | undefined
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
 }
@@ -171,6 +174,8 @@ export function PagesView({
   onEntryMenuAction,
   onDeleteEntries,
   onTendSubjects,
+  lookRequest = null,
+  onLookRequestHandled,
   settings,
   updateSettings,
 }: Props) {
@@ -820,6 +825,21 @@ export function PagesView({
     return () => window.removeEventListener('keydown', onKey)
   }, [within, onSpread])
 
+  /*
+   * ⌘F while reading: Look for lives on the wall, so the page closes first and
+   * the request waits for the sheet to mount. The same Esc-to-wall a reader
+   * would press themselves.
+   */
+  useEffect(() => {
+    if (lookRequest && spreadId) onSpread(null)
+  }, [lookRequest, spreadId, onSpread])
+
+  // A request Look for can never take — an empty archive has no sheet — must
+  // not spring the sheet open on some later visit nobody pressed ⌘F for.
+  useEffect(() => {
+    if (lookRequest && ready && entries.length === 0) onLookRequestHandled?.()
+  }, [lookRequest, ready, entries.length, onLookRequestHandled])
+
   /** Add or remove one key. The wall never has a "clear all" it can't undo. */
   function toggleKey(key: string) {
     const next = keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]
@@ -1130,6 +1150,8 @@ export function PagesView({
                 onSpread(id)
               }}
               archiveIndex={fullIndex}
+              openRequest={lookRequest}
+              onOpenRequestHandled={onLookRequestHandled}
               onWholeArchive={() => onStretchSpan(null)}
               when={
                 narrow ? (
