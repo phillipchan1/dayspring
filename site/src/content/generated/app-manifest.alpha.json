@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.436",
+  "appVersion": "1.0.437",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -1162,6 +1162,27 @@
         ]
       },
       {
+        "id": "practice.discovery-bible-study",
+        "name": "Discovery Bible Study",
+        "function": "encounter",
+        "rhythm": [
+          "morning",
+          "weekly"
+        ],
+        "origin": "Disciple-making movements, 20th century",
+        "tradition": "Missional",
+        "intention": "Read one passage, say what it says, and ask what it shows you about God and about us — then decide one thing you will do.",
+        "quote": "What does it say? What does it show us about God, and about us? What will I do?",
+        "steps": [
+          "Read",
+          "What it says",
+          "About God",
+          "About us",
+          "I will",
+          "Who to tell"
+        ]
+      },
+      {
         "id": "practice.psalmic-lament",
         "name": "Psalmic Lament",
         "function": "lament",
@@ -1474,7 +1495,7 @@
     "editor.font-size-default": 24,
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
-    "counts.practices": 13,
+    "counts.practices": 14,
     "counts.themes": 11,
     "counts.voices": 6,
     "counts.slash-commands": 23,
