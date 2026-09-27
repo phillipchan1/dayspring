@@ -23,6 +23,7 @@ import { fetchEntriesByIds } from '../entries'
 import { requireSupabase } from '../supabase'
 import { isCapturePreview } from '../previewMode'
 import { parseReferences } from './parse'
+import { excerptAround } from './excerpt'
 
 export interface DateWindow {
   from?: Date
@@ -556,15 +557,3 @@ export async function getBookSummary(bookOsis: string, window?: DateWindow): Pro
   return { distinctEntries: mine.size, firstDate, lastDate, rank, booksTouched: bookSets.size }
 }
 
-const EXCERPT_RADIUS = 120
-
-function excerptAround(body: string, charStart: number | null): string {
-  if (!body) return ''
-  const at = charStart ?? 0
-  const start = Math.max(0, at - EXCERPT_RADIUS)
-  const end = Math.min(body.length, at + EXCERPT_RADIUS)
-  let slice = body.slice(start, end).replace(/\s+/g, ' ').trim()
-  if (start > 0) slice = `…${slice}`
-  if (end < body.length) slice = `${slice}…`
-  return slice
-}
