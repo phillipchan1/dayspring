@@ -81,6 +81,7 @@ export function PageReader({
   onEdit,
   onRitualThread,
   onBack,
+  onAround,
   newer,
   older,
   onTurn,
@@ -126,6 +127,13 @@ export function PageReader({
   onRitualThread?: (practice: string) => void
   /** Back to the list this page was opened from. */
   onBack: () => void
+  /**
+   * The wall around this page — what else was going on then.
+   *
+   * The date is the door, because it is already the one thing on the page that
+   * answers "when". Absent where there is no wall to go back to (previews).
+   */
+  onAround?: () => void
   /**
    * The pages either side of this one, IN THE SET YOU CAME FROM.
    *
@@ -454,9 +462,29 @@ export function PageReader({
               on every page that had them and not on the ones that didn't, which
               is the one thing the header's own note says must not happen.
             */}
-            <time className="pg-read1__date" dateTime={entry.created_at}>
-              {formatDate(entry.created_at)}
-            </time>
+            {onAround ? (
+              <button
+                type="button"
+                className="pg-read1__date pg-read1__date--door"
+                // The page itself opens the editor on a click and on Enter; this
+                // is a different door, so neither may reach it.
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAround()
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+                aria-label={`The pages around ${formatDate(entry.created_at)}`}
+              >
+                <time dateTime={entry.created_at}>{formatDate(entry.created_at)}</time>
+                <span className="pg-read1__date-hint" aria-hidden>
+                  the pages around it
+                </span>
+              </button>
+            ) : (
+              <time className="pg-read1__date" dateTime={entry.created_at}>
+                {formatDate(entry.created_at)}
+              </time>
+            )}
           </header>
 
           <div className="pg-read1__cols">

@@ -1908,6 +1908,71 @@ button.pg__sense-q:hover {
   transform: translateX(2px);
 }
 
+/*
+ * The way back to a search you stepped out of to look around a page.
+ *
+ * The same quiet hand as the way back to now — no box, bar type — with the
+ * search's own words in the accent the chips wore, so it reads as "that, again"
+ * rather than as one more control. It only exists between the trip and the
+ * next thing you light.
+ */
+.pg-aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 22rem;
+  padding: 0.35rem 0.1rem;
+  font-family: var(--bar-font);
+  font-size: var(--bar-size);
+  color: var(--bar-ink);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition);
+  animation: pg-aside-in 260ms ease both;
+}
+
+.pg-aside:hover {
+  color: var(--text-bright);
+}
+
+.pg-aside:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pg-aside svg {
+  flex: none;
+  opacity: 0.55;
+}
+
+.pg-aside__to {
+  flex: none;
+}
+
+.pg-aside__what {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent);
+}
+
+@keyframes pg-aside-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-aside {
+    animation: none;
+  }
+}
+
 .pg-look__row {
   display: flex;
   flex-wrap: wrap;
@@ -4369,6 +4434,56 @@ button.pg__sense-q:hover {
 
 .pg-read1__page:hover .pg-read1__date {
   color: var(--accent);
+}
+
+/*
+ * The date as a door to the wall around it.
+ *
+ * It must still set exactly like the plain date — same line box, no button
+ * chrome — or the first sentence moves on the pages that have it. A dotted
+ * rule says it goes somewhere; on a pointer the words appear beside it on
+ * hover, because "around" is not a thing a date says on its own.
+ */
+.pg-read1__date--door {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6em;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.pg-read1__date--door time {
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 0.3em;
+}
+
+.pg-read1__date-hint {
+  letter-spacing: 0.04em;
+  text-transform: none;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.pg-read1__date--door:hover,
+.pg-read1__date--door:focus-visible {
+  color: var(--accent);
+}
+
+.pg-read1__date--door:hover .pg-read1__date-hint,
+.pg-read1__date--door:focus-visible .pg-read1__date-hint {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .pg-read1__date-hint {
+    display: none;
+  }
 }
 
 .pg-read1__colophon {

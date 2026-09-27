@@ -57,7 +57,7 @@ afterEach(() => {
   hydrate.mockClear()
 })
 
-function renderReader(onEdit = vi.fn(), markings: PageMarking[] = []) {
+function renderReader(onEdit = vi.fn(), markings: PageMarking[] = [], onAround?: () => void) {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
@@ -72,6 +72,7 @@ function renderReader(onEdit = vi.fn(), markings: PageMarking[] = []) {
         firstLineTitle: false,
         onEdit,
         onBack: vi.fn(),
+        ...(onAround ? { onAround } : {}),
         newer: null,
         older: null,
         onTurn: vi.fn(),
@@ -153,5 +154,25 @@ describe('PageReader', () => {
       host!.querySelector<HTMLElement>('.pg-read1__page')!.click()
     })
     expect(onEdit).toHaveBeenCalledWith(entry.id)
+  })
+
+  it('makes the date a door to the pages around it, without opening the editor', () => {
+    const onEdit = vi.fn()
+    const onAround = vi.fn()
+    renderReader(onEdit, [], onAround)
+    const door = host!.querySelector<HTMLButtonElement>('button.pg-read1__date--door')!
+    expect(door.querySelector('time')?.getAttribute('dateTime')).toBe(entry.created_at)
+    act(() => {
+      door.click()
+      door.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(onAround).toHaveBeenCalledTimes(1)
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+
+  it('keeps the date plain where there is no wall to go back to', () => {
+    renderReader()
+    expect(host!.querySelector('button.pg-read1__date--door')).toBeNull()
+    expect(host!.querySelector('time.pg-read1__date')).not.toBeNull()
   })
 })
