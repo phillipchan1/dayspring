@@ -226,6 +226,7 @@ function PreviewAnswer({ slot }: { slot: AnswerSlot }) {
         onSlashCommand={(cmd) => console.log('[preview] slash', cmd)}
         onOpenChapter={(target) => setChapter(chapterFromCitation(target.reference))}
         marks={marks}
+        drawnQuotes={slot.quotes ?? false}
         onToggleMark={(quote, charStart, existing) => {
           console.log('[preview] mark', quote, 'entry offset', charStart + (slot.offset() ?? 0))
           setMarks((prev) =>

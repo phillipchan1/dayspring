@@ -115,6 +115,8 @@ export interface AnswerSlot {
    * against the entry (a mark on a verse) needs them shifted by this.
    */
   offset: () => number | null
+  /** A scripture ritual: its `>` lines are the passage's words, kept whole. */
+  quotes?: boolean
 }
 
 export interface RitualEntryMode {
@@ -852,10 +854,18 @@ export function RitualComposer({
     let k = 0
     const caughtEl = kindAt(i) === 'mark' ? page.querySelector<HTMLElement>('.rc__caught') : null
     if (caughtEl && mine[0]) out.set(mine[k++]!.key, caughtEl)
+    // Matched by their words, not by counting `>` rows: an empty `>` row (left
+    // by Enter before quotes were guarded) or a concealed marker must not shift
+    // every line after it onto the wrong quote.
+    const open = mine.slice(k)
+    const norm = (t: string) => t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
     page.querySelectorAll<HTMLElement>('.cm-line').forEach((line) => {
-      if (!/^\s*>/.test(line.textContent ?? '')) return
-      const q = mine[k++]
-      if (q) out.set(q.key, line)
+      const said = norm((line.textContent ?? '').replace(/^\s*>\s?/, ''))
+      if (!said) return
+      const at = open.findIndex((q) => said.startsWith(norm(q.text)))
+      if (at === -1) return
+      out.set(open[at]!.key, line)
+      open.splice(at, 1)
     })
     return out
   }
@@ -1079,6 +1089,7 @@ export function RitualComposer({
           if (i < CLOSE) paneRefs.current[i] = el
         }}
         renderAnswer={renderAnswer}
+        scripture={Boolean(practice?.passage)}
         answerOffset={(n) => answerOffset(getDocRef.current(), blockIndex, n)}
         onWrite={write}
         go={go}
@@ -1374,6 +1385,8 @@ interface DeskProps {
   landed: string
   /** A scripture ritual's passage: the rail widens into a leaf that holds it. */
   leaf?: React.ReactNode
+  /** A scripture ritual, passage or not: its answers' `>` lines are verses. */
+  scripture?: boolean
   /** Widening now — once, as the chosen passage arrives. */
   widen?: boolean
   /** Between a movement's question and its box. */
@@ -1459,6 +1472,7 @@ function ConfirmButton({
  * disagree about the ritual, only about how it is arranged.
  */
 function DeskLayout({
+  scripture = false,
   name,
   origin,
   intention,
@@ -1646,6 +1660,7 @@ function DeskLayout({
                     placeholder: placeholder(i),
                     register: textareaRef,
                     offset: () => answerOffset(i),
+                    quotes: scripture,
                   })}
                 </div>
               ) : (

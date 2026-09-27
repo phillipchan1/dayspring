@@ -49,6 +49,7 @@ import { taskListExtension } from './taskListExtension'
 import { horizontalRuleExtension } from './horizontalRule'
 import { orderedListNumberingExtension } from './orderedListNumbering'
 import { editorTabKeymap } from './tabKeymap'
+import { drawnQuotesExtension } from './drawnQuotes'
 import { computeInlinePanelAnchor } from './inlinePanelAnchor'
 import { minimalDocChange } from './minimalDocChange'
 import { detectSlash, reconcileSlashState, type SlashCommandId, type SlashState } from './slashDetect'
@@ -222,6 +223,11 @@ interface EditorProps {
    * `canMark`.
    */
   proseMarking?: boolean
+  /**
+   * A scripture ritual's answer: its `>` lines are verses drawn from the
+   * passage, kept whole (see drawnQuotes.ts). Read once, when the editor mounts.
+   */
+  drawnQuotes?: boolean
 }
 
 /**
@@ -258,6 +264,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     marks,
     onToggleMark,
     proseMarking = false,
+    drawnQuotes = false,
   },
   ref,
 ) {
@@ -573,6 +580,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               return formatBarEventsRef.current.keydown(event)
             },
           }),
+          drawnQuotes ? drawnQuotesExtension() : [],
           editorTabKeymap,
           // 3 spaces (not 2) — CommonMark/GFM requires a nested list item to be indented
           // at least as wide as the parent marker (e.g. "1. " is 3 columns); 2 spaces

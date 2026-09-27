@@ -761,6 +761,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         onSlashPaletteChange={setSlashPaletteOpen}
         marks={answerMarks}
         proseMarking={isPastEntry}
+        drawnQuotes={slot.quotes ?? false}
         {...(entryId
           ? {
               onToggleMark: (quote: string, charStart: number, existing: Mark | null) =>
