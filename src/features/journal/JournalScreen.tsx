@@ -2535,6 +2535,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       subjectKey={state.pagesSubject}
       asked={asked}
       onClearAsked={() => setAsked(null)}
+      onAsked={setAsked}
       // Replace, not push: a subject is a filter you try on, and pushing a frame
       // per chip would make Back walk every word you looked at.
       onSubject={(key) => go({ pagesSubject: key, pagesSpreadId: null }, { replace: true })}

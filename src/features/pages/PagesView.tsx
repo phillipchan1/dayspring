@@ -33,7 +33,7 @@ import { LitChips, type LookChip } from './LitChips'
 import { ReadingView } from './ReadingView'
 import { Chapter } from './Chapter'
 import { Stretch, StretchPeriods } from './Stretch'
-import { inSpan, monthsAcross, spanBounds, type Span } from './band'
+import { inSpan, monthsAcross, spanBounds, spanText, type Span } from './band'
 import { localNoonIso } from './wallItems'
 import { PageReader } from './PageReader'
 import { defaultSplit, type Reading } from './readings'
@@ -100,6 +100,8 @@ interface Props {
    */
   asked: { question: string; entryIds: string[] } | null
   onClearAsked: () => void
+  /** Put a question back — only ever one this view set aside itself. */
+  onAsked?: (asked: { question: string; entryIds: string[] }) => void
   /**
    * The page you zoomed to, or null.
    *
@@ -164,6 +166,7 @@ export function PagesView({
   onSubject,
   asked,
   onClearAsked,
+  onAsked,
   spreadId,
   onSpread,
   volumeAt = null,
@@ -204,6 +207,19 @@ export function PagesView({
   const [perScreen, setPerScreen] = useState(0)
   const [wallJump, setWallJump] = useState<WallJumpTarget | null>(null)
   const wallJumpRequest = useRef(0)
+  /*
+   * What was lit before you stepped out to look around a page.
+   *
+   * Set down, not thrown away: the search found you an old page, and the whole
+   * point of the trip is to come back to it. See `around`.
+   */
+  const [aside, setAside] = useState<{
+    subjectKey: string | null
+    asked: { question: string; entryIds: string[] } | null
+    span: Span | null
+    entryId: string
+    label: string
+  } | null>(null)
   // The markings on the page currently open, WITH their text. The corpus-wide
   // read deliberately carries none (see `markingsForEntry`); one page's worth
   // is a handful of short rows, and it is what lets an open page show the
@@ -642,6 +658,11 @@ export function PagesView({
   }, [asked, subjects, markPills, keys])
 
   const anyLit = keys.length > 0 || asked !== null
+  // Lighting anything new is a new search, and the one set aside is let go —
+  // the pill would otherwise offer to throw away the search you are in.
+  useEffect(() => {
+    if (anyLit || span !== null) setAside(null)
+  }, [anyLit, span])
   /**
    * The unwritten next page belongs on the archive, not on a question.
    * A stretch that excludes today is also a question ("what about then").
@@ -854,6 +875,54 @@ export function PagesView({
 
   function clearAll() {
     onSubject(null)
+  }
+
+  /**
+   * THE PAGES AROUND THIS ONE — what else was going on then.
+   *
+   * A search finds you a page from years ago, and the next question is never
+   * "what else says this word" but "what was that season". The wall already
+   * answers that, in order; what was in the way is the search itself, which
+   * dims the neighbours or folds them away. So the search steps aside (kept, see
+   * `aside`), the page closes, and the wall lands on it in plain date order with
+   * the days either side in view. One press on the pill puts the search back.
+   *
+   * Nothing here ranks, reads or chooses: it is the wall, at a date.
+   */
+  function around(id: string) {
+    const entry = byId.get(id)
+    if (!entry) return
+    if (anyLit || span !== null) {
+      const words = chips.map((c) => c.label)
+      if (words.length === 0 && span) words.push(spanText(span, months))
+      setAside({ subjectKey, asked, span, entryId: id, label: words.join(' · ') })
+    }
+    if (asked) onClearAsked()
+    setSpan(null)
+    landOn(entry)
+    onSubject(null)
+    onSpread(null)
+  }
+
+  function backToAside() {
+    if (!aside) return
+    const entry = byId.get(aside.entryId)
+    setSpan(aside.span)
+    if (aside.asked) onAsked?.(aside.asked)
+    onSubject(aside.subjectKey)
+    if (entry) landOn(entry)
+    setAside(null)
+  }
+
+  function landOn(entry: Entry) {
+    const d = new Date(entry.created_at)
+    setWallJump({
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      entryId: entry.id,
+      request: ++wallJumpRequest.current,
+      here: true,
+    })
   }
 
   /**
@@ -1167,6 +1236,18 @@ export function PagesView({
               tooltip; repeating it here made a second masthead that fought
               whatever was lit.
             */}
+            {aside ? (
+              <button
+                type="button"
+                className="pg-aside"
+                onClick={backToAside}
+                title={`Back to ${aside.label}`}
+              >
+                <BackChevron />
+                <span className="pg-aside__to">Back to</span>
+                <span className="pg-aside__what">{aside.label}</span>
+              </button>
+            ) : null}
             {!narrow && latest ? (
               <button
                 type="button"
@@ -1394,6 +1475,9 @@ export function PagesView({
             onEdit={onOpenEntry}
             {...(onRitualThread ? { onRitualThread } : {})}
             onBack={() => onSpread(null)}
+            // A volume and the shelf are their own arrangements, with no wall
+            // behind them to land on; the door is the wall's.
+            {...(openVolume === null && !onShelf ? { onAround: () => around(openPage.id) } : {})}
             leaves={settings.readerLeaves}
             newer={neighbours.newer}
             older={neighbours.older}

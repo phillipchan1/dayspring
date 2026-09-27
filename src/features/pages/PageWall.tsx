@@ -81,6 +81,13 @@ export interface WallJumpTarget {
   entryId: string
   /** Makes clicking the same cell twice a fresh request. */
   request: number
+  /**
+   * Land ON this page rather than at the top of its month: at once, a third of
+   * the way down so the days either side show, with the "you were here" edge.
+   * For arriving from a page (see `around` in PagesView), where the wall has
+   * just been rearranged under you and a smooth scroll would cross years.
+   */
+  here?: boolean
 }
 
 interface Props {
@@ -866,15 +873,19 @@ export function PageWall({
    * to hunt a grid of near-identical rectangles for the one you just left.
    */
   const [hereId, setHereId] = useState<string | null>(null)
+  const hereTimer = useRef<number | undefined>(undefined)
+  const sayHere = useCallback((id: string) => {
+    window.clearTimeout(hereTimer.current)
+    setHereId(id)
+    hereTimer.current = window.setTimeout(() => setHereId(null), 2400)
+  }, [])
+  useEffect(() => () => window.clearTimeout(hereTimer.current), [])
   const wasCoveredRef = useRef(covered)
   useEffect(() => {
     const uncovered = wasCoveredRef.current && !covered
     wasCoveredRef.current = covered
-    if (!uncovered || !returningId) return
-    setHereId(returningId)
-    const t = window.setTimeout(() => setHereId(null), 2400)
-    return () => window.clearTimeout(t)
-  }, [covered, returningId])
+    if (uncovered && returningId) sayHere(returningId)
+  }, [covered, returningId, sayHere])
 
   /**
    * A month in the subject band is a map coordinate, not decoration.
@@ -911,7 +922,13 @@ export function PageWall({
     }
     if (idx < 0) return
     const row = rowLayout?.itemPositions[idx]?.row ?? Math.floor(idx / cols)
-    scrollRef.current?.scrollTo({ top: row * rowHeight, behavior: 'smooth' })
+    const el = scrollRef.current
+    if (jumpTarget.here && el) {
+      el.scrollTop = Math.max(0, row * rowHeight - (el.clientHeight - cardHeight) / 3)
+      if (list[idx]?.entry.id === jumpTarget.entryId) sayHere(jumpTarget.entryId)
+    } else {
+      el?.scrollTo({ top: row * rowHeight, behavior: 'smooth' })
+    }
     // Layout measurement can change the column count immediately after mount.
     // Consume the request on the next frame so that correction gets one chance
     // to use the measured geometry, without making a later resize snap back.
@@ -919,7 +936,7 @@ export function PageWall({
       handledJumpRef.current = jumpTarget.request
     })
     return () => cancelAnimationFrame(frame)
-  }, [jumpTarget, cols, rowHeight, rowLayout])
+  }, [jumpTarget, cols, rowHeight, cardHeight, rowLayout, sayHere])
 
   const focusCard = useCallback((key: string): boolean => {
     const node = gridRef.current?.querySelector<HTMLElement>(
