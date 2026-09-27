@@ -19,6 +19,8 @@
   overflow-wrap: break-word;
 }
 .psg__v { transition: opacity 0.4s ease; }
+/* A new paragraph in the ESV: a breath of space, not a full blank line. */
+.psg__para { display: block; height: 0.55em; }
 .psg__n {
   font-family: var(--font-sans, system-ui, sans-serif);
   font-size: 0.58rem;
@@ -339,12 +341,15 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 /* Doubled class: RitualComposer.css may load after this sheet, and its
    `.rc--desk` column rule must not win. */
 .rc--desk.rc--facing {
-  grid-template-columns: max(24rem, 45%) minmax(0, 1fr);
+  /* Fractions, not max(24rem, 45%): WebKit (the Mac app) resolved that track to
+     nearly the whole window and pushed the page off-screen. 9fr : 11fr is the
+     same 45 / 55 split, with the leaf never narrower than 24rem. */
+  grid-template-columns: minmax(24rem, 9fr) minmax(0, 11fr);
 }
 .rc--desk.rc--facing[data-widen='true'] { animation: rc-widen 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
 @keyframes rc-widen {
-  from { grid-template-columns: 19rem minmax(0, 1fr); }
-  to { grid-template-columns: max(24rem, 45%) minmax(0, 1fr); }
+  from { grid-template-columns: minmax(19rem, 5fr) minmax(0, 15fr); }
+  to { grid-template-columns: minmax(24rem, 9fr) minmax(0, 11fr); }
 }
 .rc--facing .rc__rail {
   padding-left: 2.6rem;
@@ -406,7 +411,7 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 }
 .rc__leaf-own b { display: block; font-style: normal; font-weight: 400; font-size: 1.35rem; color: var(--text-bright); margin-bottom: 0.35rem; }
 .rc__leaf-loading { color: var(--text-faint); font-style: italic; animation: pf-breathe 1.6s ease-in-out infinite; }
-.rc__leaf-fallback { font-size: 1.15rem; line-height: 1.8; color: var(--text-bright); margin: 0; }
+.rc__leaf-fallback { font-size: 1.15rem; line-height: 1.8; color: var(--text-bright); margin: 0; white-space: pre-line; }
 
 /* Focus: while the writer types, the leaf keeps only the passage. */
 .rc--facing .rc__chrome { transition: opacity 0.6s ease; }

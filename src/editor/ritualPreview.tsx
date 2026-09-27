@@ -9,6 +9,8 @@ import { RitualShelf } from '@/features/journal/RitualShelf'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
 import { PRACTICES, resolveMovements } from './practices/practicesData'
+import { parseReferenceLine, versesIn, writePassage } from './practices/passage'
+import { FIXTURE_CHAPTERS, FIXTURE_LAYOUT } from './practices/passageFixtures'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer, type AnswerSlot } from './practices/RitualComposer'
 import { PracticeAboutSheet } from './practices/PracticeAboutSheet'
@@ -444,6 +446,19 @@ export function renderRitualPreview(): void {
       seen++
     }
     block = lines.join('\n')
+  }
+  // `&passage=John 15` opens a scripture ritual with its passage already
+  // chosen (WEB fixture text) — the facing leaf without walking the finder,
+  // e.g. to look at it in Safari, which is the Mac app's WebKit.
+  const wantedPassage = params.get('passage')
+  const passageRef = wantedPassage ? parseReferenceLine(wantedPassage) : null
+  if (passageRef) {
+    const all = (FIXTURE_CHAPTERS[`${passageRef.book} ${passageRef.chapter}`] ?? []).map((v) => ({
+      ...v,
+      ...(FIXTURE_LAYOUT[`${passageRef.book} ${passageRef.chapter}`]?.para?.includes(v.n) ? { para: true as const } : {}),
+    }))
+    const fence = writePassage(passageRef, versesIn(passageRef, all), '5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d')
+    block = block.replace(/(<!-- ritual:section:[^\n]*-->\n)/, `$1${fence}\n`)
   }
   // `&verse=1` puts a quoted verse in the first answer, to try marking and
   // opening scripture from inside a ritual.

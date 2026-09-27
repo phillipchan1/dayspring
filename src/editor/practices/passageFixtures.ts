@@ -490,3 +490,14 @@ export const FIXTURE_TOPICS: { re: RegExp; refs: string[] }[] = [
   { re: /^(lost|home|return|forgiv)/i, refs: ['Luke 15:11–32', 'Luke 15:1–7'] },
   { re: /^(abide|remain|fruit|vine|stay)/i, refs: ['John 15:1–11', 'John 15:4–5'] },
 ]
+
+/**
+ * Where the fixture chapters break, the way the ESV lays them out: paragraphs,
+ * and Psalm 23 as poetry, one verse to a line. (The WEB text carries none.)
+ */
+export const FIXTURE_LAYOUT: Record<string, { para?: number[]; lines?: 'all' }> = {
+  'John 15': { para: [9, 12, 18, 26] },
+  'Mark 4': { para: [10, 13, 21, 24, 26, 30, 35] },
+  'Luke 15': { para: [3, 8, 11, 25] },
+  'Psalms 23': { lines: 'all' },
+}

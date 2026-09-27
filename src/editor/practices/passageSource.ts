@@ -16,11 +16,9 @@
  * In the dev `?__preview=` harnesses (no sign-in) the words are public-domain
  * WEB fixtures instead — see passageFixtures.ts.
  */
-import { BOOKS } from '@/lib/bible/canon'
 import { fetchScriptureChapter, fetchScriptureRefs, resolveScripturePassages } from '@/lib/spiritual'
 import { loadScriptureCanonPage } from '@/lib/scripture/query'
-import { chapterFromCitation } from '@/lib/scripture/citation'
-import type { PassageRef, Verse } from './passage'
+import { parseReferenceLine, type PassageRef, type Verse } from './passage'
 
 function inPreview(): boolean {
   return import.meta.env.DEV && typeof location !== 'undefined' && location.search.includes('__preview=')
@@ -35,11 +33,22 @@ export function loadChapter(book: string, chapter: number): Promise<Verse[]> {
   if (hit) return hit
   const run = (async (): Promise<Verse[]> => {
     if (import.meta.env.DEV && inPreview()) {
-      const { FIXTURE_CHAPTERS } = await import('./passageFixtures')
-      return FIXTURE_CHAPTERS[key] ?? []
+      const { FIXTURE_CHAPTERS, FIXTURE_LAYOUT } = await import('./passageFixtures')
+      const layout = FIXTURE_LAYOUT[key]
+      return (FIXTURE_CHAPTERS[key] ?? []).map((v) => ({
+        ...v,
+        ...(layout?.para?.includes(v.n) ? { para: true as const } : {}),
+        ...(layout?.lines === 'all' ? { line: true as const } : {}),
+      }))
     }
     const res = await fetchScriptureChapter(book, chapter)
-    return res.verses.map((v) => ({ n: v.n, text: v.text }))
+    return res.verses.map((v) => ({
+      n: v.n,
+      text: v.text,
+      ...(v.para ? { para: true as const } : {}),
+      ...(v.line ? { line: true as const } : {}),
+      ...(v.breaks?.length ? { breaks: v.breaks } : {}),
+    }))
   })().catch(() => [] as Verse[])
   chapters.set(key, run)
   // A failure is not remembered: offline now is online in a minute.
@@ -111,14 +120,5 @@ export async function searchTopic(word: string): Promise<TopicHit[]> {
 }
 
 function toRef(reference: string): PassageRef | null {
-  const t = chapterFromCitation(reference)
-  if (!t) return null
-  const book = BOOKS.find((b) => b.name === t.book)
-  if (!book) return null
-  return {
-    book: book.name,
-    chapter: t.chapter,
-    from: t.verse,
-    to: t.verse == null ? null : (t.verseEnd ?? t.verse),
-  }
+  return parseReferenceLine(reference)
 }

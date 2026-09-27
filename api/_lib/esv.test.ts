@@ -15,12 +15,24 @@ describe('parseChapterVerses', () => {
     expect(parseChapterVerses(raw)).toEqual([{ n: 1, text: 'What causes quarrels among you?' }])
   })
 
-  it('collapses newlines inside a verse', () => {
-    const raw = '[1] Blessed is the man\nwho walks not in the counsel of the wicked,'
+  it('keeps a poem’s line breaks inside a verse, single-spacing the words', () => {
+    const raw = '[1] Blessed is the man\n    who walks not in the counsel of the wicked,'
     expect(parseChapterVerses(raw)[0]).toEqual({
       n: 1,
       text: 'Blessed is the man who walks not in the counsel of the wicked,',
+      breaks: [19],
     })
+  })
+
+  it('marks where a paragraph, or a line of poetry, begins', () => {
+    const raw = '[1] Then I saw a new heaven. [2] And I saw the holy city.\n\n[3] And I heard a loud voice.\n    [4] He will wipe away every tear.'
+    const v = parseChapterVerses(raw)
+    expect(v.map((x) => [x.n, x.para ?? false, x.line ?? false])).toEqual([
+      [1, false, false],
+      [2, false, false],
+      [3, true, false],
+      [4, false, true],
+    ])
   })
 
   it('handles a Psalm 119-scale chapter', () => {

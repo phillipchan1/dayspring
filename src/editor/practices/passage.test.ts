@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  parseReferenceLine,
   spanText,
   findQuote,
   formatQuote,
@@ -256,5 +257,26 @@ describe('quotes drawn from the passage', () => {
 
   it('makes a whole verse a quote', () => {
     expect(quoteVerse('Remain in me, and I in you.', 4)).toBe('> Remain in me, and I in you (v. 4)')
+  })
+})
+
+describe('a passage’s own reference, read back', () => {
+  it('reads a whole chapter of any book, including the ones whose names are words', () => {
+    for (const [line, book, chapter] of [
+      ['Revelation 21', 'Revelation', 21],
+      ['Mark 4', 'Mark', 4],
+      ['Acts 2', 'Acts', 2],
+      ['Job 38', 'Job', 38],
+      ['Psalm 23', 'Psalms', 23],
+    ] as const) {
+      expect(parseReferenceLine(line)).toEqual({ book, chapter, from: null, to: null })
+    }
+    expect(parseReferenceLine('Mark 4:35–41')).toEqual({ book: 'Mark', chapter: 4, from: 35, to: 41 })
+    expect(readPassage(writePassage({ book: 'Revelation', chapter: 21, from: null, to: null }, [{ n: 1, text: 'Then I saw' }], ID))?.ref).toEqual({
+      book: 'Revelation',
+      chapter: 21,
+      from: null,
+      to: null,
+    })
   })
 })

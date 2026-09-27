@@ -360,6 +360,12 @@ export async function resolveScripturePassages(references: string[]): Promise<(R
 export interface ChapterVerse {
   n: number
   text: string
+  /** A new paragraph (or stanza) begins here — see api/_lib/esv.ts. */
+  para?: true
+  /** Poetry: the verse begins on a line of its own. */
+  line?: true
+  /** Poetry: offsets in `text` where a line breaks inside the verse. */
+  breaks?: number[]
 }
 
 export interface ScriptureChapter {

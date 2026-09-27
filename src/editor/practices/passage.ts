@@ -20,7 +20,6 @@
  * Pure, so it is tested without a DOM — see passage.test.ts.
  */
 import { BOOKS, type BibleBook } from '@/lib/bible/canon'
-import { chapterFromCitation } from '@/lib/scripture/citation'
 import { formatSpiritualBlock, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 
 export interface PassageRef {
@@ -46,6 +45,10 @@ export interface Passage {
 export interface Verse {
   n: number
   text: string
+  /** Layout from the ESV: a new paragraph, a new poetry line, line breaks inside. */
+  para?: true
+  line?: true
+  breaks?: number[]
 }
 
 /** "Psalms" reads in the singular once one chapter is in view. */
@@ -75,15 +78,7 @@ export function readPassage(answer: string): Passage | null {
   const fence = parseSpiritualBlocks(answer).find((b) => b.type === 'scripture')
   if (!fence) return null
   const reference = (fence.reference ?? '').replace(TRANSLATION_TAIL, '').trim()
-  const target = chapterFromCitation(reference)
-  const ref: PassageRef | null = target
-    ? {
-        book: target.book,
-        chapter: target.chapter,
-        from: target.verse,
-        to: target.verse == null ? null : (target.verseEnd ?? target.verse),
-      }
-    : null
+  const ref = parseReferenceLine(reference)
   // A fence with only a reference parses as content = the reference line; a
   // one-line fence has no reference at all. Either way, no verse text.
   const text = fence.reference ? fence.content.trim() : ''
@@ -100,7 +95,15 @@ export function readPassage(answer: string): Passage | null {
 export function writePassage(ref: PassageRef, verses: readonly Verse[] | null, id: string): string {
   const label = passageLabel(ref)
   if (!verses || verses.length === 0) return formatSpiritualBlock('scripture', id, '', label)
-  const text = verses.map((v) => v.text.trim()).join(' ')
+  // Paragraphs and poetry lines carried as line breaks, so the passage reads as
+  // laid out wherever the block is drawn (the reader, the leaf offline).
+  const text = verses
+    .map((v, k) => {
+      let t = v.text.trim()
+      for (const at of [...(v.breaks ?? [])].reverse()) t = `${t.slice(0, at).trimEnd()}\n${t.slice(at)}`
+      return k === 0 ? t : `${v.para || v.line ? '\n' : ' '}${t}`
+    })
+    .join('')
   return formatSpiritualBlock('scripture', id, text, `${label} · ESV`)
 }
 
@@ -324,6 +327,28 @@ export function spanText(
   })
   const text = trimPhrase(parts.join(' '))
   return text ? { text, v: inRun[0]!.n, vEnd: inRun[inRun.length - 1]!.n } : null
+}
+
+/**
+ * A reference we wrote ourselves ("Revelation 21", "Mark 4:35–41"), read back.
+ *
+ * Strict, not the prose parser: `parseReferences` is built to find references
+ * in someone's writing, and so it refuses a bare chapter for any book whose
+ * name is also a word — "Mark 4", "Acts 2", "Job 38", "Revelation 21" — lest
+ * "Mark 4 people came" light the Scripture map. A passage's own reference line
+ * is known to be a reference, so it needs none of that caution; reading it with
+ * the prose parser is what left a whole chapter of Revelation with no verses,
+ * no numbers and nothing to highlight.
+ */
+export function parseReferenceLine(reference: string): PassageRef | null {
+  const q = parseFinderQuery(reference.replace(/[–—]/g, '-'))
+  if (q.type !== 'ref') return null
+  return {
+    book: q.book.name,
+    chapter: q.chapter,
+    from: q.from,
+    to: q.from == null ? null : (q.to ?? q.from),
+  }
 }
 
 // ── Choosing a passage ──────────────────────────────────────────────────────

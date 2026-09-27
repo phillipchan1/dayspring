@@ -18,15 +18,24 @@ const fold = (s: string) =>
   s.toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s/g, ' ')
 
 /** Wrap [start, end) of an element's text in marks, across text nodes and `<br>`s. */
-function wrapText(root: HTMLElement, start: number, end: number, make: () => HTMLElement): HTMLElement[] {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+/** Text nodes in order with their offsets, a `<br>` counting as one space. */
+function textRuns(root: HTMLElement): { nodes: { node: Text; at: number }[]; text: string } {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT)
   const nodes: { node: Text; at: number }[] = []
-  let at = 0
+  let text = ''
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    const t = n as Text
-    nodes.push({ node: t, at })
-    at += t.data.length
+    if (n.nodeType === Node.TEXT_NODE) {
+      nodes.push({ node: n as Text, at: text.length })
+      text += (n as Text).data
+    } else if ((n as Element).tagName === 'BR') {
+      text += ' '
+    }
   }
+  return { nodes, text }
+}
+
+function wrapText(root: HTMLElement, start: number, end: number, make: () => HTMLElement): HTMLElement[] {
+  const { nodes } = textRuns(root)
   const made: HTMLElement[] = []
   for (const { node, at: s0 } of nodes) {
     const s1 = s0 + node.data.length
@@ -43,10 +52,7 @@ function wrapText(root: HTMLElement, start: number, end: number, make: () => HTM
 
 /** The passage's text as the reader shows it, with each `<br>` read as a space. */
 function readableText(p: HTMLElement): string {
-  let out = ''
-  const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) out += (n as Text).data
-  return out
+  return textRuns(p).text
 }
 
 /**

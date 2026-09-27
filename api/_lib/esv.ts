@@ -31,7 +31,14 @@ export interface ResolvedPassage {
 
 export interface ChapterVerse {
   n: number
+  /** The verse's words, single-spaced. */
   text: string
+  /** A new paragraph (or, in poetry, a new stanza) begins here. */
+  para?: true
+  /** Poetry: the verse begins on a line of its own. */
+  line?: true
+  /** Poetry: offsets in `text` where a line breaks inside the verse. */
+  breaks?: number[]
 }
 
 export interface ResolvedChapter {
@@ -55,8 +62,31 @@ export function parseChapterVerses(raw: string): ChapterVerse[] {
   const verses: ChapterVerse[] = []
   for (let i = 1; i < parts.length; i += 2) {
     const n = Number.parseInt(parts[i]!, 10)
-    const text = (parts[i + 1] ?? '').replace(/\s+/g, ' ').trim()
-    if (Number.isFinite(n) && n > 0 && text) verses.push({ n, text })
+    // Crossway sets paragraphs apart with a blank line and poetry one line to a
+    // line; both survive in the raw text (and in the cache). Kept, so a chapter
+    // reads as the ESV lays it out rather than as one block.
+    const lines = (parts[i + 1] ?? '')
+      .split('\n')
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+    const text = lines.join(' ')
+    if (!Number.isFinite(n) || n <= 0 || !text) continue
+    const verse: ChapterVerse = { n, text }
+    if (i > 1) {
+      const gap = (parts[i - 1] ?? '').match(/\s*$/)?.[0] ?? ''
+      if (/\n[ \t]*\n/.test(gap)) verse.para = true
+      else if (gap.includes('\n')) verse.line = true
+    }
+    if (lines.length > 1) {
+      const breaks: number[] = []
+      let at = 0
+      for (let k = 0; k < lines.length - 1; k++) {
+        at += lines[k]!.length + 1
+        breaks.push(at)
+      }
+      verse.breaks = breaks
+    }
+    verses.push(verse)
   }
   return verses
 }

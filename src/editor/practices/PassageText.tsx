@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { Fragment, useEffect, useRef } from 'react'
 import { findPhrase, spanText, type Verse } from './passage'
 import './Passage.css'
 
@@ -131,7 +131,7 @@ export function PassageText({
   onHoverHighlight,
   slow = false,
 }: Props) {
-  const clean = verses.map((v) => ({ n: v.n, text: v.text.replace(/\s+/g, ' ').trim() }))
+  const clean = verses.map((v) => ({ ...v, text: v.text.replace(/\s+/g, ' ').trim() }))
   const caughtAt = findPhrase(clean, caught)
   const rootRef = useRef<HTMLDivElement>(null)
   const selecting = (mode === 'mark' && Boolean(onCatch)) || (mode === 'quote' && Boolean(onChosen))
@@ -228,9 +228,13 @@ export function PassageText({
         const inSel = selected != null && v.n >= selected.from && v.n <= selected.to
         const hl = highlights.filter((h) => h.n === v.n)
         const verseCite = (mode === 'cite' || mode === 'quote') && onCite
+        // The ESV's own layout: a gap where a paragraph begins, a line for poetry.
+        const opens = vi === 0 ? null : v.para ? <span className="psg__para" aria-hidden /> : v.line ? <br /> : null
+        const lineAt = new Set(v.breaks ?? [])
         return (
+          <Fragment key={v.n}>
+          {opens}
           <span
-            key={v.n}
             className="psg__v"
             data-sel={inSel ? 'true' : undefined}
             data-cited={cited.includes(v.n) ? 'true' : undefined}
@@ -258,6 +262,7 @@ export function PassageText({
               const keys = cover.map((h) => h.key)
               return (
                 <span key={i}>
+                  {lineAt.has(w.start) ? <br /> : null}
                   <span
                     className="psg__w"
                     data-v={v.n}
@@ -280,6 +285,7 @@ export function PassageText({
               )
             })}{' '}
           </span>
+          </Fragment>
         )
       })}
     </div>
