@@ -78,7 +78,12 @@ import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import { RitualThreads } from '@/features/rituals/RitualThreads'
 import { PracticeAboutSheet } from '@/editor/practices/PracticeAboutSheet'
 import { RitualComposer, type AnswerSlot } from '@/editor/practices/RitualComposer'
-import { ritualEntryShape, ritualIndexContaining } from '@/editor/practices/ritualDocument'
+import {
+  ritualCaretFor,
+  ritualEntryShape,
+  ritualIndexContaining,
+  ritualPageState,
+} from '@/editor/practices/ritualDocument'
 import { RitualShelf } from './RitualShelf'
 import { BACK_TO_ENTRY, ritualBackTo, ritualLanding } from './ritualEntryNav'
 import {
@@ -1012,7 +1017,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       return
     }
     pendingRitualRef.current = null
-    if (ritualEntryShape(content).kind !== 'ritual') {
+    // Only a ritual still being walked goes to the composer. A finished one is
+    // edited where it sits: the caret on the answer that was clicked, if any.
+    const pageState = ritualPageState(content)
+    if (pageState !== 'walking') {
+      if (pageState === 'finished' && pending.startAt !== undefined) {
+        const at = ritualCaretFor(content, pending.startAt)
+        if (at !== null) editorRef.current?.focusAt(at)
+      }
       liftVeil()
       return
     }
@@ -1696,7 +1708,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     setFindOpen(false)
     const entry = entries.find((e) => e.id === id)
     if (!entry) return
-    if (ritualEntryShape(entry.body_markdown).kind === 'ritual') {
+    if (ritualPageState(entry.body_markdown) === 'walking') {
       // From the thread (a full-screen sheet closing this same moment), the
       // veil has to be there at once; from anywhere else it fades in.
       raiseVeil(threadsOpen)
@@ -2134,13 +2146,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       }
     }
     if (!entry) return
-    // A ritual entry is written in the composer, never in the editor — opened
-    // on the answer that was clicked, when one was.
-    const ritualPage = ritualEntryShape(entry.body_markdown).kind === 'ritual'
+    // A ritual still being walked is written in the composer — opened on the
+    // answer that was clicked, when one was. A FINISHED one opens here, in the
+    // editor, in the same column the reader showed it in (`ritualPageState`),
+    // with the caret on that answer.
+    const pageState = ritualPageState(entry.body_markdown)
+    const ritualPage = pageState === 'walking'
     if (ritualPage) {
       // Veil first, then change surfaces underneath it — see `ritualVeil`.
       raiseVeil()
       await veilUp()
+      openRitualEntryWhenLoaded(entry.id, startAt)
+    } else if (pageState === 'finished' && startAt !== undefined) {
       openRitualEntryWhenLoaded(entry.id, startAt)
     }
 

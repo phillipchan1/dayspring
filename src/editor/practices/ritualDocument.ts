@@ -1,4 +1,4 @@
-import { parseRitualBlocks, type RitualBlock } from './ritualPacing'
+import { isRitualComplete, parseRitualBlocks, type RitualBlock } from './ritualPacing'
 
 /**
  * Reading a ritual out of the entry, and writing it back.
@@ -200,4 +200,47 @@ export function ritualEntryShape(markdown: string | null | undefined): RitualEnt
     contents,
     after: lines.slice(block.endLine).join('\n').trim(),
   }
+}
+
+/**
+ * Which surface a ritual page is written on.
+ *
+ * WALKING a practice and CHANGING what you wrote are different acts, and they
+ * get different surfaces — but never two at once for the same state:
+ *
+ * - `walking`: a ritual page with a movement still unanswered. The composer
+ *   owns it — one question at a time, the passage beside you for a scripture
+ *   ritual — because pacing is the point while you are praying it through.
+ * - `finished`: a ritual page answered all the way through. Nothing is left to
+ *   pace, so it is edited WHERE IT SITS, in the editor, in the same one column
+ *   the reader shows it in. Sending it to the composer moved every word you
+ *   had just been reading into a different layout (a rail, one question per
+ *   screen) to fix a typo.
+ * - `none`: not a ritual page (`plain`, or a `mixed` entry, which keeps its
+ *   read-only record and its door into the block composer).
+ */
+export type RitualPageState = 'none' | 'walking' | 'finished'
+
+export function ritualPageState(markdown: string | null | undefined): RitualPageState {
+  const doc = markdown ?? ''
+  if (ritualEntryShape(doc).kind !== 'ritual') return 'none'
+  const block = parseRitualBlocks(doc.split('\n'))[0]
+  return block && isRitualComplete(block) ? 'finished' : 'walking'
+}
+
+/**
+ * Where the caret goes when a finished ritual page is opened on movement `n`
+ * (the answer clicked in the reader): the end of that movement's writing, or
+ * — for `n` one past the last movement — the end of the page's After.
+ */
+export function ritualCaretFor(doc: string, n: number): number | null {
+  const lines = doc.split('\n')
+  const block = parseRitualBlocks(lines)[0]
+  if (!block) return null
+  const movement = block.movements[n]
+  if (!movement) return n === block.movements.length ? doc.replace(/\s+$/, '').length : null
+  const starts = lineStarts(doc)
+  if (!movement.filled) return starts[movement.answerLine - 1] ?? null
+  const last = lines[movement.contentEnd - 1] ?? ''
+  return (starts[movement.contentEnd - 1] ?? 0) + last.length
 }

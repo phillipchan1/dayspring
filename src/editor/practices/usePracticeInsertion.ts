@@ -141,6 +141,36 @@ const ritualDocField = StateField.define<RitualDoc>({
   },
 })
 
+/** A ritual PAGE: one block, and the page opens with it (`ritualEntryShape`). */
+function isRitualPage(state: EditorState): boolean {
+  const { blocks } = state.field(ritualDocField)
+  return blocks.length === 1 && blocks[0]!.nameLine === firstFilledLine(state.doc)
+}
+
+function isFinishedPage(state: EditorState): boolean {
+  return isRitualPage(state) && isRitualComplete(state.field(ritualDocField).blocks[0]!)
+}
+
+/**
+ * Whether this page's ritual is edited IN PLACE (see `ritualPageState`).
+ *
+ * Decided when the page arrives — finished, or not — and then held while the
+ * writer works on it. Clearing an answer to rewrite it makes the ritual
+ * momentarily unfinished; re-deciding on every keystroke would slam the page
+ * back into a locked record under the caret. The writer's own edits (typing,
+ * undo) keep it open; a document the app puts in (another entry loading, the
+ * composer writing back, sync) decides afresh.
+ */
+const ritualOpenField = StateField.define<boolean>({
+  create: isFinishedPage,
+  update(value, tr) {
+    if (!tr.docChanged) return value
+    if (!tr.state.field(ritualDocField).hasRituals || !isRitualPage(tr.state)) return false
+    const byWriter = tr.annotation(Transaction.userEvent) !== undefined
+    return byWriter ? value || isFinishedPage(tr.state) : isFinishedPage(tr.state)
+  },
+})
+
 // ── Decorations ────────────────────────────────────────────────────────────
 //
 // Each `ritual:*` token line is *replaced* by its block widget (the ritual
@@ -184,6 +214,18 @@ const tokenLineDeco = Decoration.line({ class: 'cm-ritual-tokenline' })
 const bodyLineDeco = Decoration.line({ class: 'cm-ritual-body' })
 /** Same, while the caret is inside — the block lights as you step into it. */
 const heldLineDeco = Decoration.line({ class: 'cm-ritual-body cm-ritual-body--held' })
+/**
+ * Every line of a FINISHED ritual page (`ritualPageState`), which is edited in
+ * place: no spine, no inset, a text cursor — set in the reader's one column, so
+ * pressing Write moves nothing you were just reading.
+ */
+const openLineDeco = Decoration.line({ class: 'cm-ritual-body cm-ritual-body--open' })
+
+/** Line number of the document's first non-blank line, or 0 when there is none. */
+function firstFilledLine(doc: EditorState['doc']): number {
+  for (let n = 1; n <= doc.lines; n++) if (doc.line(n).text.trim() !== '') return n
+  return 0
+}
 
 interface PracticeDecorations {
   /** All ritual decorations (hidden tokens, prompts, thresholds, colophon). */
@@ -212,7 +254,8 @@ function buildDecorations(state: EditorState): PracticeDecorations {
 
   const ranges: Range<Decoration>[] = []
   const atomicRanges: Range<Decoration>[] = []
-
+  // Edited in place — a finished ritual page (see `ritualOpenField`).
+  const openPage = state.field(ritualOpenField, false) ?? false
 
   for (const block of blocks) {
     const nameLine = doc.line(block.nameLine)
@@ -223,24 +266,37 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     const waiting = currentMovementIndex(block)
     const held = false
     const practice = PRACTICE_BY_NAME.get(block.name)
+    // A finished ritual page is edited where it sits (see `ritualPageState`):
+    // its answers are text, and only its token lines are atoms.
+    const open = openPage
 
-    // The whole block is one atom: a record you open, not text you step
-    // through. The caret arrows straight past it and can only rest on its
-    // edges — see `ritualRecordGuard.ts` for what typing there does.
     const endTo = doc.line(block.endLine).to
-    if (endTo > nameLine.from) atomicRanges.push(atomicMark.range(nameLine.from, endTo))
+    if (open) {
+      const lock = (n: number) => {
+        const line = doc.line(n)
+        if (line.to > line.from) atomicRanges.push(atomicMark.range(line.from, line.to))
+      }
+      lock(block.nameLine)
+      for (const movement of block.movements) lock(movement.tokenLine)
+      if (PRACTICE_END_RE.test(doc.line(block.endLine).text)) lock(block.endLine)
+    } else if (endTo > nameLine.from) {
+      // The whole block is one atom: a record you open, not text you step
+      // through. The caret arrows straight past it and can only rest on its
+      // edges — see `ritualRecordGuard.ts` for what typing there does.
+      atomicRanges.push(atomicMark.range(nameLine.from, endTo))
+    }
 
     // The spine: one line decoration across the whole block, so the ritual reads
     // as a container rather than as questions floating in the entry.
     for (let n = block.nameLine; n <= block.endLine; n++) {
-      ranges.push((held ? heldLineDeco : bodyLineDeco).range(doc.line(n).from))
+      ranges.push((open ? openLineDeco : held ? heldLineDeco : bodyLineDeco).range(doc.line(n).from))
     }
 
     // The masthead.
     ranges.push(tokenLineDeco.range(nameLine.from))
     ranges.push(
       Decoration.replace({
-        widget: new RitualHeaderWidget(block.name, !complete, held),
+        widget: new RitualHeaderWidget(block.name, !complete, held, open),
         block: true,
         inclusive: false,
       }).range(nameLine.from, nameLine.to),
@@ -254,9 +310,12 @@ function buildDecorations(state: EditorState): PracticeDecorations {
         Decoration.replace({
           widget: new RitualPromptWidget(
             movement.label,
-            questionFor(practice, movement.label),
+            // The reader shows a finished ritual's labels without its
+            // questions; so does the page you edit it on.
+            open ? '' : questionFor(practice, movement.label),
             movement.index === 0,
             held,
+            open,
           ),
           block: true,
           inclusive: false,
@@ -298,7 +357,7 @@ function buildDecorations(state: EditorState): PracticeDecorations {
     if (complete) {
       ranges.push(
         Decoration.widget({
-          widget: new RitualColophonWidget(block.name, practice?.origin ?? '', held),
+          widget: new RitualColophonWidget(block.name, practice?.origin ?? '', held, open),
           block: true,
           side: 1,
         }).range(doc.line(block.endLine).to),
@@ -395,6 +454,23 @@ function insetMarkedLines(): Record<string, Record<string, string>> {
   return rules
 }
 
+/** `insetMarkedLines`, undone for a finished page — the inset is the spine's. */
+function openMarkedLines(): Record<string, Record<string, string>> {
+  const lines: [cls: string, indent: string][] = [
+    ['cm-scripture-line', 'var(--scripture-indent, 1rem)'],
+    ['cm-scripture-cite', 'var(--scripture-indent, 1rem)'],
+    ['cm-mark-line', '0.85rem'],
+  ]
+  const rules: Record<string, Record<string, string>> = {}
+  for (const [cls, indent] of lines) {
+    rules[`.cm-line.cm-ritual-body.cm-ritual-body--open.${cls}`] = {
+      paddingLeft: indent,
+      backgroundPositionX: '0',
+    }
+  }
+  return rules
+}
+
 const practiceTheme = EditorView.theme({
   // Writing line beneath a prompt — a generous, obvious target to click into.
   '.cm-practice-answer': {
@@ -420,6 +496,17 @@ const practiceTheme = EditorView.theme({
   // ANSWER's size, so a line set smaller (a verse at 0.9em, its citation at
   // 0.66em) needs the same distance in its own ems.
   ...insetMarkedLines(),
+  // ── A finished ritual page, edited in place ────────────────────────────
+  // The reader's one column: no spine, no inset, and it is text you write in
+  // rather than a door. Marked lines inside it keep their own indent only.
+  '.cm-ritual-body--open, .cm-practice-header[data-open], .cm-practice-prompt[data-open], .cm-ritual-colophon[data-open]':
+    {
+      borderLeft: 'none',
+      paddingLeft: '0',
+      cursor: 'auto',
+    },
+  '.cm-line.cm-ritual-body--open': { cursor: 'text' },
+  ...openMarkedLines(),
   // Standing inside the practice lights its spine and lays down the faintest
   // ground. Stepping out lets go of both.
   '.cm-ritual-body--held, .cm-practice-header[data-held], .cm-practice-prompt[data-held], .cm-ritual-colophon[data-held]':
@@ -718,10 +805,18 @@ const ritualRecordGuard = EditorState.transactionFilter.of(
     if (!hasRituals || blocks.length === 0) return tr
 
     const doc = tr.startState.doc
-    const ranges: BlockRange[] = blocks.map((b) => ({
-      from: doc.line(b.nameLine).from,
-      to: doc.line(b.endLine).to,
-    }))
+    const open = tr.startState.field(ritualOpenField, false) ?? false
+    const ranges: BlockRange[] = blocks.map((b) => {
+      const range: BlockRange = { from: doc.line(b.nameLine).from, to: doc.line(b.endLine).to }
+      // A finished ritual page: only its token lines are guarded.
+      if (!open) return range
+      const tokenLines = [b.nameLine, ...b.movements.map((m) => m.tokenLine)]
+      if (PRACTICE_END_RE.test(doc.line(b.endLine).text)) tokenLines.push(b.endLine)
+      return {
+        ...range,
+        tokens: tokenLines.map((n) => ({ from: doc.line(n).from, to: doc.line(n).to })),
+      }
+    })
 
     // A selection means the writer chose what to take; an empty one means a
     // single keystroke, which atomic ranges may have widened.
@@ -764,8 +859,10 @@ const ritualRecordGuard = EditorState.transactionFilter.of(
  * Display-only either way — the markdown tokens stay in the document so the
  * structure survives save/sync, but no prompt text is ever persisted.
  *
- * And read-only: the composer is the one place a ritual is written. A click
+ * And read-only: the composer is the one place a ritual is walked. A click
  * anywhere on the record opens it there (see `ritualRecordGuard.ts` for why).
+ * A FINISHED ritual page is the exception — it is edited where it sits, in the
+ * reader's one column (`ritualOpenField`).
  *
  * @param onAbout Open the practice's "about" sheet (by practice name).
  * @param onContinue Reopen the composer on the ritual block at a document position.
@@ -779,6 +876,7 @@ export function practicePromptExtension(
   // Order matters: the parse feeds the reveal counts, and both feed the
   // decorations. A field can only read one registered before it.
   ritualDocField,
+  ritualOpenField,
   practiceField,
   // Each ritual is one atom, so the caret skips the record entirely.
   EditorView.atomicRanges.of((view) => view.state.field(practiceField).atomic),
@@ -810,6 +908,9 @@ export function practicePromptExtension(
         onContinue(view.posAtDOM(cont))
         return true
       }
+      // A finished ritual page is written where it sits, so a click on it is
+      // just a click — CodeMirror places the caret.
+      if (node?.closest('.cm-ritual-body--open, [data-open]')) return false
       // Anywhere else on the record — a question, an answer, the colophon —
       // opens it. One door, and the whole ritual is it.
       if (event.button === 0) {

@@ -519,6 +519,18 @@ export function renderRitualPreview(): void {
     return
   }
 
+  // `&page=1`: the ritual as its own page (one entry, one ritual), closed by
+  // its end token with an After below. With every movement answered
+  // (`&answered=4` for the Examen) it is a FINISHED page, edited in place.
+  if (params.get('page') === '1') {
+    createRoot(el).render(
+      <EntryHarness
+        initialDoc={`${block.trim()}\n<!-- ritual:end -->\n\n${BELOW.trim()}\n`}
+      />,
+    )
+    return
+  }
+
   createRoot(el).render(
     <EntryHarness
       // Exactly one blank line between the ritual and the prose below it —
