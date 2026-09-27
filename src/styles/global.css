@@ -40,6 +40,26 @@
   --frame-bar-top: var(--mac-traffic-main-top, 0.75rem);
   --frame-bar-row: 2rem;
   --frame-bar-floor: 0.6rem;
+
+  /*
+   * THE BAR'S TYPE — one font, one size, one ink.
+   *
+   * The bars had grown ten sizes (10.2px to 16px), two families and three
+   * cases: a mono "focus", a mono uppercase "LATEST · SEP 27", a 16px word
+   * count in the darkest ink on the page, a 13px "Look for". Reading, writing
+   * and the wall looked like three apps. Now everything in a top bar is set in
+   * the sans at `--bar-size`, sentence case, in `--bar-ink` — pressable or not
+   * — and turns `--bar-ink-hover` under the cursor. Numbers are tabular so a
+   * count does not jitter as it changes. Mono stays where it means something:
+   * a page's own date and colophon, inside the page, not in the chrome.
+   *
+   * The one deliberate difference is weight: `Look for`, the wall's primary
+   * verb, is 500. Everything else is 400.
+   */
+  --bar-font: var(--font-sans);
+  --bar-size: 0.78rem;
+  --bar-ink: var(--text-dim);
+  --bar-ink-hover: var(--text-bright);
 }
 
 *,
@@ -1723,11 +1743,12 @@ a {
 /* The cluster is the sync control now — it used to be the word "Synced", which
    is exactly the word that goes away when there is nothing to report. */
 .status-cluster--action {
+  /* No `font: inherit` / `color: inherit` here: at the same specificity and
+     later in the file, they replaced the cluster's own quiet type with the
+     page's — a 16px word count in the darkest ink, the loudest thing in the bar. */
   border: none;
   background: none;
   padding: 0;
-  font: inherit;
-  color: inherit;
   cursor: pointer;
 }
 .status-cluster--action:focus-visible {
@@ -2406,6 +2427,27 @@ a {
   min-height: var(--frame-bar-row);
 }
 
+/* The bar's type (`--bar-*` on :root), on everything the editor's bar holds:
+   the date, the count and save state, and Focus. */
+.journal-topbar--frame .journal-topbar__lead,
+.journal-topbar--frame .status-cluster,
+.journal-topbar--frame .nav-btn {
+  font-family: var(--bar-font);
+  font-size: var(--bar-size);
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--bar-ink);
+  font-variant-numeric: tabular-nums;
+}
+.journal-topbar--frame .nav-btn {
+  text-transform: none;
+  line-height: normal;
+}
+.journal-topbar--frame .nav-btn:hover,
+.journal-topbar--frame .status-cluster--action:hover {
+  color: var(--bar-ink-hover);
+}
+
 /*
  * The same bar with no editor behind it. `.journal-topbar`'s row, lead and
  * label restated rather than borrowed, so a surface can wear the frame
@@ -2425,10 +2467,9 @@ a {
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-  letter-spacing: 0.01em;
-  color: var(--text-dim);
+  font-family: var(--bar-font);
+  font-size: var(--bar-size);
+  color: var(--bar-ink);
 }
 .frame-bar__label {
   min-width: 0;
@@ -2448,17 +2489,17 @@ a {
   align-items: center;
   gap: 0.4rem;
   padding: 0.28rem 0.6rem 0.28rem 0.45rem;
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
+  font-family: var(--bar-font);
+  font-size: var(--bar-size);
   letter-spacing: normal;
-  color: var(--text-dim);
+  color: var(--bar-ink);
   border: 1px solid transparent;
   border-radius: var(--radius-full);
   transition: color var(--transition), border-color var(--transition),
     background-color var(--transition);
 }
 .journal-topbar--frame .journal-topbar__back:hover {
-  color: var(--text-bright);
+  color: var(--bar-ink-hover);
   border-color: var(--border-subtle);
   background: color-mix(in srgb, var(--text) 4%, transparent);
 }
