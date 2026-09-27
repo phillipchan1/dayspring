@@ -434,7 +434,7 @@ export function parseFinderQuery(q: string): FinderQuery {
  * The one soft line about length — said, never enforced. Their practice
  * (Principle 6): we describe how it is usually done and keep what they chose.
  */
-export function sizeNote(size: 'few' | 'story', count: number, practiceName: string): string | null {
+export function sizeNote(size: 'few' | 'story' | 'any', count: number, practiceName: string): string | null {
   if (size === 'few' && count > 8) {
     return `${practiceName} usually stays with a few verses. You can keep all ${count}.`
   }

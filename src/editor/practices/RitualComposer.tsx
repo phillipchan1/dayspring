@@ -740,9 +740,16 @@ export function RitualComposer({
     const first = choosing === 'first'
     setChoosing(null)
     if (first) {
+      // Straight to writing: the passage is already open beside the page, and
+      // a separate "read it" stop was one step too many (Phil, Sept 26). The
+      // Read movement still holds the passage and stays on the path, walked.
+      const firstWrite = Math.max(0, labels.findIndex((_, n) => kindAt(n) !== 'read'))
       setWiden(true)
-      setI(0)
-      embla?.scrollTo(0, true)
+      setI(firstWrite)
+      setReached((r) => Math.max(r, firstWrite))
+      // On a phone the passage is folded to a strip while writing — open it.
+      setOpenStrip(firstWrite)
+      embla?.scrollTo(firstWrite, true)
     }
   }
   /** Change it — asked first when anything has been written under it. */

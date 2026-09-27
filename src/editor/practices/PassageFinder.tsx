@@ -13,6 +13,7 @@ import {
 } from './passage'
 import { loadChapter, loadLight, searchTopic, type PassageLight, type TopicHit } from './passageSource'
 import { PassageText } from './PassageText'
+import { SUGGESTION_THEMES, suggestionsFor, type SuggestionTheme } from './passageSuggestions'
 import './Passage.css'
 
 interface Props {
@@ -48,9 +49,11 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   const [light, setLight] = useState<PassageLight | null>(null)
   const [topic, setTopic] = useState<{ word: string; hits: TopicHit[] | null; failed?: boolean } | null>(null)
   const [kb, setKb] = useState(0)
+  const [theme, setTheme] = useState<SuggestionTheme | null>(null)
+  const [turn, setTurn] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const size = practice.passage?.size ?? 'few'
+  const size = practice.passage?.size ?? 'any'
 
   useEffect(() => {
     let live = true
@@ -196,36 +199,20 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
     return () => window.removeEventListener('keydown', onEsc, true)
   }, [open, browseBook, onBack])
 
-  const heatOf = (osis: string) => (light && light.max ? (light.books.get(osis) ?? 0) / light.max : 0)
-  const chapterHeat = (osis: string, c: number) =>
-    light && light.max ? (light.chapters.get(`${osis}:${c}`) ?? 0) / light.max : 0
-
+  // The canon and a book's chapters are plain: an earlier version lit them by
+  // how often the journal cites each, and on a real archive nearly everything
+  // glowed and nothing said why. "Passages you return to" carries the writer's
+  // own history; these are for finding your way.
   const bookView = (book: BibleBook, also: BibleBook[] = []) => {
-    const lit = light ? [...light.chapters.keys()].some((k) => k.startsWith(`${book.osis}:`)) : false
     return (
       <section className="pf__sec">
-        <h3 className="pf__h">
-          {book.name}
-          <span className="pf__src">
-            {lit ? 'lit where your journal has been' : 'every chapter at rest'}
-          </span>
-        </h3>
+        <h3 className="pf__h">{book.name}</h3>
         <div className="pf__chapters">
-          {Array.from({ length: book.chapters }, (_, n) => n + 1).map((c) => {
-            const h = chapterHeat(book.osis, c)
-            return (
-              <button
-                key={c}
-                type="button"
-                className="pf__ch"
-                data-lit={h > 0 ? 'true' : undefined}
-                style={{ '--h': h.toFixed(2) } as React.CSSProperties}
-                onClick={() => openRef(book, c, null, null)}
-              >
-                {c}
-              </button>
-            )
-          })}
+          {Array.from({ length: book.chapters }, (_, n) => n + 1).map((c) => (
+            <button key={c} type="button" className="pf__ch" onClick={() => openRef(book, c, null, null)}>
+              {c}
+            </button>
+          ))}
         </div>
         {also.length > 0 && (
           <p className="pf__soft">
@@ -333,8 +320,45 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
     body = bookView(browseBook)
   } else if (parsed.type === 'empty') {
     const returning = (light?.returning ?? []).map(refFromOsis).filter((r): r is PassageRef => r !== null)
+    const picks = suggestionsFor(size, theme, turn)
     body = (
       <>
+        <section className="pf__sec">
+          <h3 className="pf__h">Good places to begin</h3>
+          <div className="pf__themes" role="group" aria-label="Themes">
+            <button type="button" className="pf__theme" aria-pressed={theme === null} onClick={() => { setTheme(null); setTurn(0) }}>
+              Any
+            </button>
+            {SUGGESTION_THEMES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                className="pf__theme"
+                aria-pressed={theme === t}
+                onClick={() => {
+                  setTheme(theme === t ? null : t)
+                  setTurn(0)
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <div className="pf__picks">
+            {picks.map((p) => (
+              <button key={passageLabel(p.ref)} type="button" className="pf__pick" onClick={() => openPassage(p.ref)}>
+                <span className="pf__pick-title">{p.title}</span>
+                <span className="pf__pick-ref">{passageLabel(p.ref)}</span>
+                <span className="pf__pick-themes">{p.themes.join(' · ')}</span>
+              </button>
+            ))}
+          </div>
+          {picks.length >= 6 && (
+            <button type="button" className="pf__link pf__more" onClick={() => setTurn((n) => n + 1)}>
+              Show others
+            </button>
+          )}
+        </section>
         {returning.length > 0 && (
           <section className="pf__sec">
             <h3 className="pf__h">
@@ -355,12 +379,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
           </section>
         )}
         <section className="pf__sec">
-          <h3 className="pf__h">
-            The canon
-            <span className="pf__src">
-              {light && light.max ? 'lit where your journal has been' : 'every book at rest'}
-            </span>
-          </h3>
+          <h3 className="pf__h">The canon</h3>
           <div className="pf__canon">
             {[
               ['Old Testament', OT_BOOKS],
@@ -369,21 +388,11 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
               <div key={title as string}>
                 <div className="pf__testament">{title as string}</div>
                 <div className="pf__books">
-                  {(list as BibleBook[]).map((b) => {
-                    const h = heatOf(b.osis)
-                    return (
-                      <button
-                        key={b.osis}
-                        type="button"
-                        className="pf__book"
-                        data-lit={h > 0 ? 'true' : undefined}
-                        style={{ '--h': h.toFixed(2) } as React.CSSProperties}
-                        onClick={() => setBrowseBook(b)}
-                      >
-                        {b.name}
-                      </button>
-                    )
-                  })}
+                  {(list as BibleBook[]).map((b) => (
+                    <button key={b.osis} type="button" className="pf__book" onClick={() => setBrowseBook(b)}>
+                      {b.name}
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}

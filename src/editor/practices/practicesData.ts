@@ -70,8 +70,8 @@ export type MovementKind = 'read' | 'mark' | 'carry' | 'dwell' | 'cite'
  * passage open beside every movement (the rail widens into it on a desk).
  */
 export interface PracticePassage {
-  /** A few verses (Lectio, SOAP) or one whole story (Discovery). */
-  size: 'few' | 'story'
+  /** A few verses (Lectio, SOAP), one whole story (Discovery), or either (Open Reading). */
+  size: 'few' | 'story' | 'any'
   /** One line, said where the passage is chosen and in About. */
   hint: string
 }
@@ -561,7 +561,7 @@ export const PRACTICES: Practice[] = [
       'Bring in only the words that stop you. Three is plenty.',
       'You do not have to finish a thought. Leave it where it stops.',
     ],
-    passage: { size: 'few', hint: 'Any passage. A few verses, or a whole chapter.' },
+    passage: { size: 'any', hint: 'Any passage. A few verses, or a whole chapter.' },
     prompts: [
       {
         label: 'Read',
