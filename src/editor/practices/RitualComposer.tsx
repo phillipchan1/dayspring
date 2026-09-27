@@ -1504,6 +1504,34 @@ function DeskLayout({
    */
   const [typing, setTyping] = useState(false)
   const replaced = i < total ? instead?.(i) : undefined
+  /**
+   * Keep the line being written in view, with room under it.
+   *
+   * There is no typewriter here, and a page that only scrolls when the caret
+   * falls off it leaves you writing on its last visible line — or, as it was,
+   * below it. Once the caret passes two thirds of the way down, the page eases
+   * up to bring it back; above that line nothing moves, so short answers never
+   * scroll at all.
+   */
+  const deskRef = useRef<HTMLElement>(null)
+  const followCaret = () => {
+    requestAnimationFrame(() => {
+      const desk = deskRef.current
+      if (!desk) return
+      const cursor = desk.querySelector<HTMLElement>('.cm-cursor-primary, .cm-cursor')
+      let caret = cursor?.getBoundingClientRect()
+      if (!caret || caret.height === 0) {
+        const sel = window.getSelection()
+        if (!sel || sel.rangeCount === 0 || !desk.contains(sel.anchorNode)) return
+        const range = sel.getRangeAt(0)
+        caret = range.getClientRects()[0] ?? range.getBoundingClientRect()
+      }
+      if (!caret || caret.height === 0) return
+      const box = desk.getBoundingClientRect()
+      const limit = box.top + box.height * 0.66
+      if (caret.bottom > limit) desk.scrollBy({ top: caret.bottom - limit, behavior: 'smooth' })
+    })
+  }
 
   return (
     <div
@@ -1586,14 +1614,13 @@ function DeskLayout({
 
       <main
         className="rc__desk"
+        ref={deskRef}
         onMouseOver={onPageHover}
-        onKeyDown={
-          facing
-            ? (e) => {
-                if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) setTyping(true)
-              }
-            : undefined
-        }
+        onKeyDown={(e) => {
+          if (facing && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) setTyping(true)
+          followCaret()
+        }}
+        onInput={followCaret}
       >
         {i < total ? (
           <>
