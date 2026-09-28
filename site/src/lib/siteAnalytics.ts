@@ -1,10 +1,21 @@
-// Site-side PostHog — the Entrance funnel: landing_viewed, intent_clicked,
-// download_clicked, start_trial_clicked. Each carries UTM props and nothing else; that's a
+// Site-side PostHog — the Entrance funnel plus page analytics.
+//
+// Custom events: landing_viewed, intent_clicked, download_clicked,
+// start_trial_clicked. Each carries UTM props and nothing else; that's a
 // different privacy posture from the app's closed enum vocabulary in
 // src/lib/analytics.ts on purpose — this is marketing attribution data from
 // an anonymous, pre-signup visitor, not journal content from an account.
 //
-// Same PostHog PROJECT as the app and the server (docs/product/GROWTH_PULSE.md):
+// On every page load (once PUBLIC_POSTHOG_KEY is set) this module also inits
+// posthog-js with $pageview / $pageleave and session replay. $pageleave is
+// what fills PostHog's scroll-depth props ($prev_pageview_max_scroll_percentage
+// and siblings). Autocapture and rageclick stay off; replay masks every input
+// (the /help/contact form collects emails and messages). No new free-text
+// properties are attached to any of this.
+//
+// Init is a no-op when PUBLIC_POSTHOG_KEY is unset.
+//
+// Same PostHog PROJECT as the app and the server (docs/GROWTH_PULSE.md):
 // PUBLIC_POSTHOG_KEY here must hold the identical project API key as the app's
 // VITE_POSTHOG_KEY. site/ is a separate Vercel project, so the two env vars
 // are set independently even though the value is the same — see
@@ -23,11 +34,26 @@ function ensureInit(): void {
   posthog.init(KEY, {
     api_host: HOST,
     autocapture: false,
-    capture_pageview: false,
-    capture_pageleave: false,
-    disable_session_recording: true,
+    // Static MPA: no View Transitions / ClientRouter. Prefetch (astro.config
+    // prefetchAll) only fetches HTML — it never runs this module — so one
+    // $pageview per real navigation and no extras. If ClientRouter is added
+    // later, switch this to 'history_change' so soft navigations aren't missed.
+    capture_pageview: true,
+    capture_pageleave: true,
+    disable_session_recording: false,
     rageclick: false,
+    session_recording: {
+      maskAllInputs: true,
+    },
   })
+}
+
+/**
+ * Init on every site page — not only when a custom Entrance event fires.
+ * Safe to call more than once; a no-op without PUBLIC_POSTHOG_KEY.
+ */
+export function initSiteAnalytics(): void {
+  ensureInit()
 }
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const
