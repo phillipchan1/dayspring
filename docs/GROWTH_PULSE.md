@@ -22,8 +22,12 @@ everywhere. No second project, no new analytics vendor.
 | `landing_viewed` | `site/src/pages/index.astro` | `utm_*` | PostHog |
 | `intent_clicked` | `site/src/lib/siteAnalytics.ts` (`wireCtaLinks`, on any `/start` link — Hero, PricingTiers, Footer) | `utm_*` | PostHog |
 | `start_trial_clicked` | `site/src/pages/start.astro` | `utm_*` | PostHog |
+| `download_clicked` | `site/src/lib/macDownload.ts` (`wireMacDownloads`, every `[data-dl-macos]` CTA) | `utm_*` | PostHog |
 | `PageView` | every page, `site/src/layouts/Base.astro` | — | Meta Pixel |
 | `StartTrial` | `site/src/pages/start.astro` | — | Meta Pixel |
+| gtag.js `config` | every page, `site/src/lib/googleAds.ts` (`initGoogleTag` from `Base.astro`) | — | Google tag |
+| `conversion` (`download_clicked`) | same `wireMacDownloads` click, `trackGoogleDownloadConversion` | `send_to` = `PUBLIC_GADS_DOWNLOAD_SEND_TO` | Google Ads |
+| `conversion` (`start_trial_clicked`) | `site/src/pages/start.astro` (`trackGoogleStartTrialConversion`, same 400ms flush as PostHog/Meta) | `send_to` = `PUBLIC_GADS_START_TRIAL_SEND_TO` | Google Ads |
 
 Session replay is on for the marketing site (same PostHog project; filter
 replays by `$host` = `www.usedayspring.app` / `usedayspring.app`). Inputs
@@ -36,6 +40,15 @@ free-text-shaped prop is allowed — it's marketing attribution data from an
 anonymous, pre-signup visitor, not journal content. See `site/src/lib/siteAnalytics.ts`
 for the full comment on why that's a different privacy posture from the app's
 closed enum vocabulary.
+
+Landing attribution is also persisted in a first-party `ds_attrib` cookie
+(`site/src/lib/attribution.ts`): `gclid`, `gbraid`, `wbraid`, and the five
+`utm_*` keys. Domain `.usedayspring.app` (any subdomain can read it), 90 days,
+`SameSite=Lax`, `Secure`. Last non-empty value per key wins; an empty later
+visit does not clear what is already stored. `wireCtaLinks` still forwards the
+current page's full query string onto `/start` unchanged. Google tag / Ads
+conversions are env-gated (`PUBLIC_GOOGLE_TAG_ID`, `PUBLIC_GADS_*_SEND_TO`)
+and no-op when unset — stock gtag defaults, no Google Signals.
 
 ### Use — the app (`src/`), per account, closed enum vocabulary
 
@@ -218,6 +231,9 @@ That means:
 | `META_CAPI_ACCESS_TOKEN` | root (`api/`) | Meta CAPI secret. Events Manager → Settings → Conversions API. |
 | `PUBLIC_POSTHOG_KEY` / `PUBLIC_POSTHOG_HOST` | `dayspring-site` (separate Vercel project) | Must hold the **same** PostHog project key as `VITE_POSTHOG_KEY` above. See `site/.env.example`. |
 | `PUBLIC_META_PIXEL_ID` | `dayspring-site` | Must hold the **same** pixel id as `META_PIXEL_ID` above. |
+| `PUBLIC_GOOGLE_TAG_ID` | `dayspring-site` | Google Ads tag id (`AW-XXXXXXXXX`). Unset → no gtag.js. |
+| `PUBLIC_GADS_DOWNLOAD_SEND_TO` | `dayspring-site` | `AW-XXXXXXXXX/label` for the Mac DMG conversion. Unset → no-op. |
+| `PUBLIC_GADS_START_TRIAL_SEND_TO` | `dayspring-site` | `AW-XXXXXXXXX/label` for `/start`. Unset → no-op. |
 
 Every one of these is unset by default. Nothing in this pass changes behavior —
 no event fires, no script loads — until they're set in the relevant Vercel
@@ -242,6 +258,11 @@ project.
   properties `plan` / `store` from `$set`. A restored session should
   identify without a new `auth_completed` (that event is still SIGNED_IN
   only).
+- **Google Ads**: Tag Assistant (or DevTools → Network) on a preview/prod
+  URL with the three `PUBLIC_GOOGLE_*` / `PUBLIC_GADS_*` vars set. Expect
+  `googletagmanager.com/gtag/js?id=AW-…` on every page, a `conversion` hit
+  on a Mac DMG click, and another on `/start` before the redirect. With
+  those vars unset, none of that loads.
 
 ## Known limitations / explicitly out of scope for this pass
 
@@ -251,9 +272,13 @@ project.
 - `first_entry_created` and `minutes_to_first_entry_bucket` are device-local,
   not account-global (see the Activation table above) — the same known
   trade-off `surface_opened`'s `first` flag already makes elsewhere in the app.
-- No cookie/consent banner was added. Meta Pixel and PostHog load unconditionally
-  on the marketing site once their env vars are set. Worth a compliance pass
-  before scaling spend, depending on where the ad targeting actually reaches.
+- No cookie/consent banner was added. Meta Pixel, PostHog, and the Google tag
+  load unconditionally on the marketing site once their env vars are set. Worth
+  a compliance pass before scaling spend, depending on where the ad targeting
+  actually reaches. The first-party `ds_attrib` cookie is not readable on
+  `dayspring-eosin.vercel.app` (different registrable domain) or inside the
+  Mac / iOS apps, so it cannot yet join a stored click id onto
+  `trial_started`.
 - The `/` vs `/start` ad-destination question (Entrance funnel caveat above) is
   a call for whoever runs the ad campaign, not something this pass resolves.
 - `entry_discarded` was requested but does not exist in the product today — no
