@@ -17,11 +17,18 @@ everywhere. No second project, no new analytics vendor.
 
 | Event | Fired from | Props | Vendor |
 |---|---|---|---|
+| `$pageview` | every page, `site/src/lib/siteAnalytics.ts` (`initSiteAnalytics` from `Base.astro`) | PostHog defaults (URL, referrer, scroll-from-previous) | PostHog |
+| `$pageleave` | every page, same init (`capture_pageleave`) | scroll-depth props (`$prev_pageview_max_scroll_percentage` etc. on the next `$pageview`) | PostHog |
 | `landing_viewed` | `site/src/pages/index.astro` | `utm_*` | PostHog |
 | `intent_clicked` | `site/src/lib/siteAnalytics.ts` (`wireCtaLinks`, on any `/start` link — Hero, PricingTiers, Footer) | `utm_*` | PostHog |
 | `start_trial_clicked` | `site/src/pages/start.astro` | `utm_*` | PostHog |
 | `PageView` | every page, `site/src/layouts/Base.astro` | — | Meta Pixel |
 | `StartTrial` | `site/src/pages/start.astro` | — | Meta Pixel |
+
+Session replay is on for the marketing site (same PostHog project; filter
+replays by `$host` = `www.usedayspring.app` / `usedayspring.app`). Inputs
+are masked; autocapture and rageclick stay off. The app still does **not**
+record sessions — see Use below.
 
 `utm_*` = whichever of `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`,
 `utm_term` are present on the URL. This is the one place in the product where a
@@ -132,8 +139,10 @@ this device's anonymous person to the same account id Exit already uses.
 
 Identify is gated on Settings → About → "Share anonymous usage"
 (`shareUsage`). Opted-out sessions stay anonymous; opting in later flushes
-the remembered user id. Sign-out calls `reset()`. Autocapture, pageviews,
-and session recording stay off — identify does not widen what can be sent.
+the remembered user id. Sign-out calls `reset()`. In the **app**, autocapture,
+pageviews, and session recording stay off — identify does not widen what can
+be sent. The **marketing site** is the exception: it records `$pageview` /
+`$pageleave` and session replay (inputs masked). See Entrance above.
 
 That means:
 
@@ -223,7 +232,10 @@ project.
   / `Purchase` / `Cancel` land in the same tool (they arrive as `system_generated`
   action-source events, distinguishable from the browser ones).
 - **PostHog**: Activity → **Live events**, filter by event name. Site events
-  show up with `utm_*` props (or none, for direct traffic); app events after
+  show up with `utm_*` props (or none, for direct traffic); every site page
+  also sends `$pageview` / `$pageleave` (scroll-depth props on leave /
+  the next view). Session replay: Recordings filtered by `$host` =
+  `usedayspring.app` / `www.usedayspring.app`. App events after
   sign-in show up on the Supabase user id (Persons → that id, if "Share
   anonymous usage" is on); server Exit events show up with
   `source: stripe|apple|reverse-trial`, the same `distinct_id`, and person
