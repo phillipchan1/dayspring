@@ -11,6 +11,7 @@
 // the exact asset via the REST API (CORS-enabled) and rewrite the href, so the
 // click is a direct, instant download.
 
+import { trackGoogleDownloadConversion } from './googleAds'
 import { trackSite } from './siteAnalytics'
 
 let resolved: string | null = null
@@ -52,7 +53,10 @@ export function wireMacDownloads(): void {
     link.addEventListener('click', (e) => {
       // The download IS the conversion now, so it gets the same best-effort
       // signal /start's trial links get — fired without delaying the click.
+      // Google Ads uses transport_type: 'beacon' so this does not intercept
+      // or hold the navigation.
       trackSite('download_clicked')
+      trackGoogleDownloadConversion()
       if (resolved) return // href already points straight at the .dmg
       e.preventDefault()
       void resolveLatest(repo).then((url) => {
