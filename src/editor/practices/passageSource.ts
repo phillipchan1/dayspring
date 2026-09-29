@@ -17,6 +17,7 @@
  * WEB fixtures instead — see passageFixtures.ts.
  */
 import { fetchScriptureChapter, fetchScriptureRefs, resolveScripturePassages } from '@/lib/spiritual'
+import { getSessionState } from '@/lib/sessionStore'
 import { loadScriptureCanonPage } from '@/lib/scripture/query'
 import { parseReferenceLine, type PassageRef, type Verse } from './passage'
 
@@ -41,6 +42,9 @@ export function loadChapter(book: string, chapter: number): Promise<Verse[]> {
         ...(layout?.lines === 'all' ? { line: true as const } : {}),
       }))
     }
+    // The chapter endpoint is session-gated. A guest has none — do not fetch,
+    // and do not throw `not authenticated` into the finder's error path.
+    if (!getSessionState().session) return []
     const res = await fetchScriptureChapter(book, chapter)
     return res.verses.map((v) => ({
       n: v.n,

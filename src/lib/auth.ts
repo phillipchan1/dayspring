@@ -224,9 +224,13 @@ export async function listSignInMethods(): Promise<OAuthProvider[]> {
 
 export async function signOut(): Promise<void> {
   const sb = requireSupabase()
+  const {
+    data: { session },
+  } = await sb.auth.getSession()
   await sb.auth.signOut()
-  // Scrub cached journal content so it can't surface under the next person who
-  // signs in on this browser. Onboarding flags survive (same user re-login).
+  // Only an authenticated session owns a tenant cache that must be scrubbed.
+  // A guest journal is the only copy of that writing — leave it on the device.
+  if (!session) return
   await purgeOnSignOut()
 }
 
