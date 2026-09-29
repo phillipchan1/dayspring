@@ -69,6 +69,10 @@ export async function openaiSentiment(text: string): Promise<JevSentiment> {
     valenceLevel: present ? (valence < -0.33 ? 1 : valence > 0.33 ? 3 : 2) : 2,
     activation,
     emotions,
+    denied: [],
+    primary: null,
+    primaryConfidence: 0,
+    variant: 'openai',
     probs: { present: present ? 1 : 0, valence, activation, emotions: {} },
     confidence: 1,
   }

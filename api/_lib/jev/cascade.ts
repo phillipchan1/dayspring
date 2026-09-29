@@ -7,7 +7,13 @@ import { harvestTexts, type HarvestedPassage } from '../altar.js'
 import { tagTexts, type SubjectTag } from '../declared.js'
 import { jevHarvestTexts, type JevHarvestResult } from './harvest.js'
 import { jevTagTexts, type JevTagResult } from './subjects.js'
-import { jevSentiment, sentimentNeedsLlm, type JevSentiment } from './sentiment.js'
+import {
+  jevSentiment,
+  sentimentNeedsLlm,
+  type JevSentiment,
+  type SentimentVariant,
+} from './sentiment.js'
+import type { FittedEmotionThresholds } from './sentimentThresholds.js'
 import { openaiSentiment } from './openaiSentiment.js'
 
 export type Route = 'jev' | 'llm'
@@ -93,13 +99,19 @@ export async function cascadeSentiment(
   text: string,
   opts: {
     tau?: number
+    variant?: SentimentVariant | string
+    thresholds?: FittedEmotionThresholds | null
     sentimentWithOpenAI?: typeof openaiSentiment
   } = {},
 ): Promise<JevSentiment & { route: Route }> {
   const tau = opts.tau ?? 0.8
   const openai = opts.sentimentWithOpenAI ?? openaiSentiment
   try {
-    const reading = await jevSentiment(text, { tau })
+    const reading = await jevSentiment(text, {
+      tau,
+      variant: opts.variant,
+      thresholds: opts.thresholds,
+    })
     if (!sentimentNeedsLlm(reading, tau)) return { ...reading, route: 'jev' }
     const fb = await openai(text)
     return { ...fb, route: 'llm' }

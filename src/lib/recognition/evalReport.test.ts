@@ -15,6 +15,7 @@ describe('costPerPass', () => {
     const c = costPerPass(0.03, 1000, 3)
     expect(c.total).toBeCloseTo(0.01)
     expect(c.per1k).toBeCloseTo(0.01)
+    expect(c.perItem).toBeCloseTo(0.00001)
     expect(c.per2000).toBeCloseTo(0.02)
     expect(c.allPasses).toBeCloseTo(0.03)
   })
@@ -66,6 +67,7 @@ describe('taskOf / breakdown', () => {
     expect(taskOf('concordance_extract')).toBe('entities')
     expect(taskOf('altar_harvest')).toBe('harvest')
     expect(taskOf('embed')).toBe('embed')
+    expect(taskOf('jev_sentiment_denial')).toBe('sentiment')
   })
 
   it('prices each call by its own model and can exclude entities', () => {

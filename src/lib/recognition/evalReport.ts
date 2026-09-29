@@ -32,11 +32,18 @@ export function costPerPass(
   totalDollars: number,
   entries: number,
   passes: number,
-): { total: number; per1k: number; per2000: number; allPasses: number; passes: number } {
+): { total: number; per1k: number; per2000: number; perItem: number; allPasses: number; passes: number } {
   const p = Math.max(1, passes)
   const total = totalDollars / p
   const per = entries ? total / entries : 0
-  return { total, per1k: per * 1000, per2000: per * 2000, allPasses: totalDollars, passes: p }
+  return {
+    total,
+    per1k: per * 1000,
+    per2000: per * 2000,
+    perItem: per,
+    allPasses: totalDollars,
+    passes: p,
+  }
 }
 
 export type PricedCall = {

@@ -51,6 +51,17 @@ Quick stratified sample (round-robin across corpus categories):
 npm run eval:recognition -- --provider=jev --limit=24 --reruns=1 --json
 ```
 
+Sentiment only (any `--sentiment-variant`, works with `--limit`):
+
+```bash
+npm run eval:recognition -- --only=sentiment --compare=openai,jev --sentiment-variant=baseline --split=dev --limit=48 --reruns=1 --json
+```
+
+Dry-run token estimates now use the **real sentiment question set** (not a
+one-Noul stub), so the headline Jev token count is higher than the harvest-only
+~323k figure from the cost-design pass. `--sentiment-variant=tight` / `v2`
+adds more tokens; `denial` adds a second call in the estimate.
+
 Every run writes `eval-results/recognition-eval.md` and
 `eval-results/recognition-eval.json`. Both report the **mean** across `--reruns`
 (JSON also keeps `reruns[]` per pass). `--json` also prints the JSON to stdout.
@@ -80,6 +91,42 @@ as well as the passages.
 Sentiment buckets valence on the **argmax rubric level** (0–1 negative, 2 mixed,
 3–4 positive). The weighted-average expected value stays in `valence` /
 `valenceExpected` for MAE. Cascade confidence is the argmax probability.
+
+### Emotion tuning (`--sentiment-variant`)
+
+The 150-entry live A/B had Jev sentiment micro F1 0.589 (macro 0.431) vs Luna
+0.642 (macro 0.548). Jev counted negated emotions as present, missed fear / love
+/ shame, over-called longing / sadness, and was weak on inferred-emotion valence.
+`--sentiment-variant` composes lab-only knobs so those can be A/B'd against Luna
+without touching production Keeping:
+
+| Token | What it changes |
+|---|---|
+| `baseline` | Wording from the 150-entry A/B (default). Shared 0.5 presence bar. |
+| `tight` | Short per-emotion definitions + explicit no on mentions, negation, other people. Shared `state.rules`. |
+| `denial` | Second Jev call: yes/no "Is the writer denying or negating feeling X?" per candidate emotion (`p ≥ 0.25`). Drop if yes. |
+| `thresholds` | Per-emotion probability bars. **Fit on `--split=dev` only**, write `eval-results/jev-sentiment-thresholds.json`, apply to test. Dev and test scores are printed separately. |
+| `writer` | Writer's own first-person emotion only — do not infer from events. |
+| `primary` | Extra multi-choice "primary emotion" (or `none`) used as a second signal. |
+| `v2` | `tight+denial+thresholds+writer+primary`. |
+
+Compose with `+` or `,` (`tight+denial+thresholds`). `--only=sentiment` skips
+harvest / subjects / entities. `--limit=N` is still stratified. Every arm prints
+`$ /item` (over sentiment items when `--only=sentiment`).
+
+Fit thresholds on dev, then freeze them for test:
+
+```bash
+npm run eval:recognition -- --only=sentiment --compare=openai,jev --sentiment-variant=tight+denial --split=dev --limit=48 --reruns=1 --json
+npm run eval:recognition -- --only=sentiment --compare=openai,jev --sentiment-variant=tight --split=dev --reruns=1 --json
+npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial+thresholds --split=dev --reruns=1 --json
+npm run eval:recognition -- --only=sentiment --compare=openai,jev --sentiment-variant=tight+denial+thresholds --split=test --sentiment-thresholds=eval-results/jev-sentiment-thresholds.json --reruns=1 --json
+npm run eval:recognition -- --only=sentiment --compare=openai,jev --sentiment-variant=v2 --split=all --reruns=1 --json
+```
+
+`--split=all` with `thresholds` still fits on the **dev ids only** and prints
+`sentiment dev` (optimistic) and `sentiment test` (the number to ship on).
+Do not pick a variant from the test line.
 
 ## Arms
 

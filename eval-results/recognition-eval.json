@@ -1,6 +1,8 @@
 {
   "dry": true,
   "split": "all",
+  "only": null,
+  "sentimentVariant": "baseline",
   "providers": [
     "openai",
     "jev"
@@ -10,8 +12,8 @@
   ],
   "entries": 515,
   "openaiCalls": 503,
-  "jevTok": 323400,
-  "jevCost": 0.0135828,
+  "jevTok": 1001031,
+  "jevCost": 0.042043302000000005,
   "openaiCost": 0.5533,
   "vocab": [
     "anxiety",

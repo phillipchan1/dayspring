@@ -5,13 +5,17 @@
 //   npm run eval:recognition -- --compare=openai,jev,cascade --tau=0.6,0.7,0.8,0.9 --split=dev --reruns=3 --json
 //   npm run eval:recognition -- --provider=jev --split=test --json
 //   npm run eval:recognition -- --provider=jev --limit=24 --reruns=1 --json
+//   npm run eval:recognition -- --only=sentiment --compare=openai,jev --limit=48 --reruns=1 --json
+//   npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial --split=dev --json
+//   npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial+thresholds --split=dev --json
+//   npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial+thresholds --split=test --sentiment-thresholds=eval-results/jev-sentiment-thresholds.json --json
 //
 // Lab only. Synthetic corpus. Never fails the build (exit 0) except on missing
 // env when a live provider is selected. Do not point this at real journals.
 //
 // --compare without a value means openai,jev.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -94,6 +98,11 @@ const rerunsArg = args.find((a) => a.startsWith('--reruns='))
 const RERUNS = Math.max(1, rerunsArg ? Number(rerunsArg.slice('--reruns='.length)) : 1)
 const splitArg = args.find((a) => a.startsWith('--split='))?.slice('--split='.length) ?? 'all'
 const SPLIT = splitArg === 'dev' || splitArg === 'test' ? splitArg : 'all'
+const variantArg = args.find((a) => a.startsWith('--sentiment-variant='))?.slice('--sentiment-variant='.length)
+const thresholdsArg = args.find((a) => a.startsWith('--sentiment-thresholds='))?.slice('--sentiment-thresholds='.length)
+const THRESHOLDS_PATH =
+  thresholdsArg ??
+  join(dirname(fileURLToPath(import.meta.url)), '..', 'eval-results', 'jev-sentiment-thresholds.json')
 
 const AXES = ['scripture', 'prayers', 'entities', 'subjects', 'sentiment'] as const
 type Axis = (typeof AXES)[number]
@@ -260,7 +269,12 @@ function meanPassScores(reports: Record<string, unknown>[]): Record<string, unkn
       }
     } else if ((k === 'gate' || k === 'subjectAssignment') && isScore(vals[0])) {
       out[k] = meanScore(vals as Parameters<typeof meanScore>[0])
-    } else if (k === 'sentiment' && vals[0] && typeof vals[0] === 'object' && 'micro' in (vals[0] as object)) {
+    } else if (
+      (k === 'sentiment' || k === 'sentimentDev' || k === 'sentimentTest') &&
+      vals[0] &&
+      typeof vals[0] === 'object' &&
+      'micro' in (vals[0] as object)
+    ) {
       const rows = vals as Array<{
         present: { accuracy: number; n: number }
         valenceBucket: { accuracy: number; n: number }
@@ -311,7 +325,7 @@ interface ArmResult {
 }
 
 async function main(): Promise<void> {
-  const { CORPUS, DESIGNED_THREADS, asEntryRows, filterSplit, stratifiedSample } = await import(
+  const { CORPUS, DESIGNED_THREADS, asEntryRows, filterSplit, splitForId, stratifiedSample } = await import(
     '../src/lib/recognition/corpus/index.ts'
   )
   const score = await import('../src/lib/recognition/score.ts')
@@ -322,12 +336,43 @@ async function main(): Promise<void> {
   const { env } = await import('../api/_lib/env.ts')
   const { jevHarvestTexts, chunkForHarvest, estimateHarvestTokens, estimateGateTokens } = await import('../api/_lib/jev/harvest.ts')
   const { jevTagTexts, evalSubjectVocabulary } = await import('../api/_lib/jev/subjects.ts')
-  const { jevSentiment } = await import('../api/_lib/jev/sentiment.ts')
+  const {
+    estimateSentimentTokens,
+    formatSentimentVariant,
+    jevSentiment,
+    parseSentimentVariant,
+  } = await import('../api/_lib/jev/sentiment.ts')
+  const { finalizeEmotions, fitEmotionThresholds } = await import('../api/_lib/jev/sentimentThresholds.ts')
   const { cascadeHarvest, cascadeTag, cascadeSentiment } = await import('../api/_lib/jev/cascade.ts')
   const { openaiSentiment } = await import('../api/_lib/jev/openaiSentiment.ts')
   const { estimateJevTokens } = await import('../api/_lib/typesafe.ts')
   const { splitSentences } = await import('../api/_lib/jev/sentences.ts')
   const { noul, choice } = await import('@typesafe-ai/sdk')
+
+  let SENTIMENT_VARIANT
+  try {
+    SENTIMENT_VARIANT = parseSentimentVariant(variantArg)
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  }
+  const variantLabel = formatSentimentVariant(SENTIMENT_VARIANT)
+  type Fitted = Awaited<ReturnType<typeof fitEmotionThresholds>>
+  const loadFittedThresholds = (): Fitted | null => {
+    if (!SENTIMENT_VARIANT.thresholds) return null
+    if (!existsSync(THRESHOLDS_PATH)) return null
+    try {
+      const raw = JSON.parse(readFileSync(THRESHOLDS_PATH, 'utf8')) as Fitted
+      if (raw?.fittedOn === 'dev' && raw?.byEmotion) return raw
+    } catch {
+      return null
+    }
+    return null
+  }
+  const preloadedThresholds =
+    SENTIMENT_VARIANT.thresholds && (Boolean(thresholdsArg) || SPLIT === 'test')
+      ? loadFittedThresholds()
+      : null
 
   const splitRows = filterSplit(asEntryRows(), SPLIT)
   const allRows = LIMIT
@@ -367,7 +412,7 @@ async function main(): Promise<void> {
           }
         }
         if (wants('sentiment') && CORPUS.find((e) => e.id === r.id)?.sentiment) {
-          jevTok += estimateJevTokens({ text: r.body_markdown.slice(0, 500) }, { present: noul('x') })
+          jevTok += estimateSentimentTokens(r.body_markdown, SENTIMENT_VARIANT)
         }
       }
       if (wants('subjects')) {
@@ -384,6 +429,8 @@ async function main(): Promise<void> {
       `  openai model      ${model}`,
       `  jev model         ${env.typesafeModel()}`,
       `  providers         ${selected.join(', ')}`,
+      `  only              ${only ?? 'all axes'}`,
+      `  sentiment variant ${variantLabel}`,
       `  tau               ${TAUS.join(', ')}`,
       `  reruns            ${RERUNS}`,
       `  cue prefilter     ${cueHits.length}/${allRows.length} entries would reach the OpenAI harvest`,
@@ -396,9 +443,26 @@ async function main(): Promise<void> {
       ``,
       `  scripture is deterministic and always free.`,
       `  Live: npm run eval:recognition -- --compare=openai,jev,cascade --tau=0.8 --split=test --json`,
+      `  Sentiment A/B: npm run eval:recognition -- --only=sentiment --compare=openai,jev --sentiment-variant=${variantLabel} --split=dev --json`,
     ]
     realLog(lines.join('\n'))
-    writeReports({ dry: true, split: SPLIT, providers: selected, taus: TAUS, entries: allRows.length, openaiCalls, jevTok, jevCost, openaiCost, vocab }, lines)
+    writeReports(
+      {
+        dry: true,
+        split: SPLIT,
+        only: only ?? null,
+        sentimentVariant: variantLabel,
+        providers: selected,
+        taus: TAUS,
+        entries: allRows.length,
+        openaiCalls,
+        jevTok,
+        jevCost,
+        openaiCost,
+        vocab,
+      },
+      lines,
+    )
     return
   }
 
@@ -412,6 +476,8 @@ async function main(): Promise<void> {
       model: provider === 'jev' ? env.typesafeModel() : model,
       entries: allRows.length,
       split: SPLIT,
+      sentimentVariant: variantLabel,
+      only: only ?? null,
     }
     const lines: string[] = []
     const misses: string[] = []
@@ -423,7 +489,7 @@ async function main(): Promise<void> {
     }
 
     lines.push(
-      `recognition eval — ${armName} — ${allRows.length} entries (split=${SPLIT}${LIMIT ? `, limit=${LIMIT} stratified` : ''}${RERUNS > 1 ? `, ${RERUNS}-run mean` : ''})`,
+      `recognition eval — ${armName} — ${allRows.length} entries (split=${SPLIT}${LIMIT ? `, limit=${LIMIT} stratified` : ''}${RERUNS > 1 ? `, ${RERUNS}-run mean` : ''}${wants('sentiment') ? `, sentiment=${variantLabel}` : ''})`,
     )
     lines.push(`model output varies run to run; a 1–2 point move is noise. use --json to diff runs.`)
     lines.push('')
@@ -631,15 +697,25 @@ async function main(): Promise<void> {
 
       if (wants('sentiment')) {
         const annotated = corpus.filter((e) => e.sentiment)
-        const actual: score.ModelSentiment[] = []
+        type Raw = {
+          entryId: string
+          present: boolean
+          valence: score.ModelSentiment['valence']
+          valenceNumeric?: number
+          probs: Partial<Record<string, number>>
+          denied: string[]
+          primary: string | null
+          emotions: score.ModelSentiment['emotions']
+        }
+        const raw: Raw[] = []
         for (const e of annotated) {
           try {
             const reading =
               provider === 'openai'
                 ? await openaiSentiment(e.body)
                 : provider === 'jev'
-                  ? await jevSentiment(e.body, { tau })
-                  : await cascadeSentiment(e.body, { tau })
+                  ? await jevSentiment(e.body, { tau, variant: SENTIMENT_VARIANT, thresholds: preloadedThresholds })
+                  : await cascadeSentiment(e.body, { tau, variant: SENTIMENT_VARIANT, thresholds: preloadedThresholds })
             if (provider === 'cascade') {
               esc.sentiment.d++
               if ('route' in reading && reading.route === 'llm') esc.sentiment.n++
@@ -647,20 +723,79 @@ async function main(): Promise<void> {
             if (provider === 'jev') {
               calSamples.push({ p: reading.confidence, ok: reading.present === e.sentiment!.present })
             }
-            actual.push({
+            raw.push({
               entryId: e.id,
               present: reading.present,
               valence: reading.valenceBucket,
               valenceNumeric: reading.valenceExpected ?? reading.valence,
+              probs: reading.probs.emotions ?? {},
+              denied: reading.denied ?? [],
+              primary: reading.primary,
               emotions: reading.emotions,
             })
-            disc[`sent:${e.id}`] = `${reading.present ? 1 : 0}:${reading.valenceBucket}:${[...reading.emotions].sort().join(',')}`
           } catch {
             passMisses.push(`  sentiment ERR   ${e.id}`)
           }
         }
+
+        let usedThresholds = preloadedThresholds
+        if (SENTIMENT_VARIANT.thresholds && provider !== 'openai') {
+          if (!usedThresholds) {
+            const devSamples = raw
+              .filter((r) => splitForId(r.entryId) === 'dev')
+              .map((r) => ({
+                id: r.entryId,
+                gold: CORPUS.find((e) => e.id === r.entryId)?.sentiment?.emotions ?? [],
+                probs: r.probs,
+              }))
+            if (SPLIT === 'test' && devSamples.length === 0) {
+              passMisses.push(
+                '  sentiment NOTE  thresholds requested on --split=test but no fitted file — using the shared 0.5 bar. Fit on --split=dev first.',
+              )
+            } else if (devSamples.length) {
+              usedThresholds = fitEmotionThresholds(devSamples, { variant: variantLabel })
+              mkdirSync(dirname(THRESHOLDS_PATH), { recursive: true })
+              writeFileSync(THRESHOLDS_PATH, JSON.stringify(usedThresholds, null, 2) + '\n')
+              scores.sentimentThresholdsPath = THRESHOLDS_PATH
+              scores.sentimentThresholds = usedThresholds
+            }
+          } else {
+            scores.sentimentThresholdsPath = THRESHOLDS_PATH
+            scores.sentimentThresholds = usedThresholds
+          }
+          for (const row of raw) {
+            row.emotions = finalizeEmotions({
+              present: row.present,
+              probs: row.probs,
+              denied: row.denied,
+              primary: row.primary,
+              thresholds: usedThresholds,
+            })
+          }
+        }
+
+        const actual: score.ModelSentiment[] = raw.map((r) => ({
+          entryId: r.entryId,
+          present: r.present,
+          valence: r.valence,
+          valenceNumeric: r.valenceNumeric,
+          emotions: r.emotions,
+        }))
+        for (const r of raw) {
+          disc[`sent:${r.entryId}`] = `${r.present ? 1 : 0}:${r.valence}:${[...r.emotions].sort().join(',')}`
+        }
         const s = score.scoreSentiment(actual, keep)
         scores.sentiment = s
+        const devIds = new Set(actual.filter((a) => splitForId(a.entryId) === 'dev').map((a) => a.entryId))
+        const testIds = new Set(actual.filter((a) => splitForId(a.entryId) === 'test').map((a) => a.entryId))
+        if (devIds.size) scores.sentimentDev = score.scoreSentiment(actual, devIds)
+        if (testIds.size) scores.sentimentTest = score.scoreSentiment(actual, testIds)
+        scores.sentimentSplitNote =
+          SENTIMENT_VARIANT.thresholds && usedThresholds
+            ? usedThresholds.fittedOn === 'dev'
+              ? 'thresholds fitted on dev only; sentimentTest is the honest number'
+              : 'thresholds loaded from file'
+            : null
         for (const m of s.misses.slice(0, 8)) {
           passMisses.push(`  sentiment ${m.kind.toUpperCase()}  ${m.entryId.padEnd(26)} ${m.detail}`)
         }
@@ -760,25 +895,44 @@ async function main(): Promise<void> {
       )
     }
     if (isScore(meanScores.subjectAssignment)) lines.push(scoreLine('subj assign', meanScores.subjectAssignment))
-    const sent = meanScores.sentiment as
-      | {
-          present: { accuracy: number }
-          valenceBucket: { accuracy: number }
-          valenceMae: number
-          micro: { f1: number }
-          macro: { f1: number }
-          perEmotion: Array<score.Score & { label: string }>
-        }
-      | undefined
-    if (sent) {
+    const sentShape = (s: unknown) =>
+      s && typeof s === 'object' && 'micro' in s
+        ? (s as {
+            present: { accuracy: number }
+            valenceBucket: { accuracy: number }
+            valenceMae: number
+            micro: { f1: number }
+            macro: { f1: number }
+            perEmotion: Array<score.Score & { label: string; tp: number; fp: number; fn: number; precision: number; recall: number }>
+          })
+        : undefined
+    const printSent = (sent: NonNullable<ReturnType<typeof sentShape>>, title: string, note?: string): void => {
       lines.push(
-        `sentiment      present acc=${pct(sent.present.accuracy)}  valence acc=${pct(sent.valenceBucket.accuracy)}  MAE=${sent.valenceMae.toFixed(3)}  micro F1=${pct(sent.micro.f1)}  macro F1=${pct(sent.macro.f1)}`,
+        `${title.padEnd(14)} present acc=${pct(sent.present.accuracy)}  valence acc=${pct(sent.valenceBucket.accuracy)}  MAE=${sent.valenceMae.toFixed(3)}  micro F1=${pct(sent.micro.f1)}  macro F1=${pct(sent.macro.f1)}${note ? `  ${note}` : ''}`,
       )
       for (const lab of sent.perEmotion) {
         lines.push(
           `  ${lab.label.padEnd(12)} ${fmtN(lab.tp).padStart(3)}  ${fmtN(lab.fp).padStart(3)}  ${fmtN(lab.fn).padStart(3)}      ${pct(lab.precision)}   ${pct(lab.recall)}   ${pct(lab.f1)}`,
         )
       }
+    }
+    const sent = sentShape(meanScores.sentiment)
+    const sentDev = sentShape(meanScores.sentimentDev)
+    const sentTest = sentShape(meanScores.sentimentTest)
+    if (sent && sentDev && sentTest) {
+      printSent(sentDev, 'sentiment dev', SENTIMENT_VARIANT.thresholds ? '(thresholds fitted here — optimistic)' : undefined)
+      printSent(sentTest, 'sentiment test', SENTIMENT_VARIANT.thresholds ? '(thresholds applied, not fitted)' : undefined)
+    } else if (sent) {
+      const note =
+        SPLIT === 'dev' && SENTIMENT_VARIANT.thresholds
+          ? '(dev — thresholds fitted here; do not ship on this number)'
+          : SPLIT === 'test' && SENTIMENT_VARIANT.thresholds
+            ? '(test — thresholds from file or shared 0.5 bar)'
+            : undefined
+      printSent(sent, 'sentiment', note)
+    }
+    if (meanScores.sentimentThresholdsPath) {
+      lines.push(`  thresholds    ${meanScores.sentimentThresholdsPath}`)
     }
 
     let flipRate = 0
@@ -801,7 +955,8 @@ async function main(): Promise<void> {
     }
 
     const snap = snapFromCalls([...usageCalls])
-    const cost = costBlock(snap, allRows.length, RERUNS)
+    const costEntries = only === 'sentiment' ? corpus.filter((e) => e.sentiment).length : allRows.length
+    const cost = costBlock(snap, costEntries, RERUNS)
     const lat = {
       p50: percentile(snap.ms, 50),
       p95: percentile(snap.ms, 95),
@@ -819,10 +974,11 @@ async function main(): Promise<void> {
     const costTotal = cost.total as number
     const costPer1k = cost.per1k as number
     const costPer2000 = cost.per2000 as number
+    const costPerItem = (cost.perItem as number) ?? (costEntries ? costTotal / costEntries : 0)
     lines.push(
       `latency p50=${lat.p50}ms  p95=${lat.p95}ms  p99=${lat.p99}ms   $${costTotal.toFixed(5)}` +
-        `   $/1k=${costPer1k.toFixed(4)}   $/2k-import=${costPer2000.toFixed(4)}` +
-        `   (compare $; entities excluded)`,
+        `   $/item=${costPerItem.toFixed(5)}   $/1k=${costPer1k.toFixed(4)}   $/2k-import=${costPer2000.toFixed(4)}` +
+        `   (compare $; entities excluded${only === 'sentiment' ? `; $/item over ${costEntries} sentiment items` : ''})`,
     )
     if (typeof cost.entities === 'number' && cost.entities > 0) {
       lines.push(`  entities (OpenAI-only, not in compare $)  $${(cost.entities as number).toFixed(5)}`)
@@ -856,6 +1012,8 @@ async function main(): Promise<void> {
     report['latency'] = lat
     report['cost'] = cost
     report['escalation'] = escalation
+    report['sentimentVariant'] = variantLabel
+    report['only'] = only ?? null
 
     const calibration = bins(calSamples)
     if (calibration.length) {
@@ -907,7 +1065,11 @@ async function main(): Promise<void> {
     for (const arm of arms) {
       const pr = (arm.report.prayers as { f1?: number } | undefined)?.f1
       const gt = (arm.report.gate as { f1?: number } | undefined)?.f1
-      const se = (arm.report.sentiment as { micro?: { f1?: number } } | undefined)?.micro?.f1
+      const se = (
+        (SENTIMENT_VARIANT.thresholds
+          ? (arm.report.sentimentTest as { micro?: { f1?: number } } | undefined)
+          : undefined) ?? (arm.report.sentiment as { micro?: { f1?: number } } | undefined)
+      )?.micro?.f1
       const lat = arm.report.latency as { p50: number; p95: number }
       const cost = arm.report.cost as { total: number; per1k: number }
       outLines.push(
@@ -931,6 +1093,8 @@ async function main(): Promise<void> {
 
   const payload = {
     split: SPLIT,
+    only: only ?? null,
+    sentimentVariant: variantLabel,
     entries: allRows.length,
     limit: LIMIT ?? null,
     reruns: RERUNS,
