@@ -49,6 +49,7 @@ export function choiceOf(
 export function scoreOf(
   value: number,
   confidence = 0.85,
+  probabilities?: Record<string, number>,
 ): {
   type: 'score'
   score: number
@@ -61,6 +62,6 @@ export function scoreOf(
     score: value,
     confidence,
     legend: { '0': 'a', '1': 'b', '2': 'c' },
-    probabilities: { '0': 0.1, '1': 0.8, '2': 0.1 },
+    probabilities: probabilities ?? { '0': 0.1, '1': 0.8, '2': 0.1 },
   }
 }

@@ -488,9 +488,10 @@ export async function planDeclared(owner: string): Promise<DeclaredPlan> {
  */
 export async function groupTagged(
   items: TaggedItem[],
-  opts: { merge?: number } = {},
+  opts: { merge?: number; embed?: (texts: string[]) => Promise<number[][]> } = {},
 ): Promise<DeclaredPlan> {
   const mergeBar = opts.merge ?? SUBJECT_MERGE
+  const embedFn = opts.embed ?? embed
   // Normalize here rather than trusting the caller: tags reach this function from
   // the database, from a local dump, and from tests, and the stop-label filter must
   // hold on all three paths.
@@ -530,7 +531,7 @@ export async function groupTagged(
   const labelToCanon = new Map<string, number>()
 
   if (labels.length) {
-    const vecs = await embed(labels.map((l) => labelInfo.get(l)!.orig))
+    const vecs = await embedFn(labels.map((l) => labelInfo.get(l)!.orig))
     labels.forEach((l, idx) => {
       const v = vecs[idx]!
       const info = labelInfo.get(l)!

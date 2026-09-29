@@ -66,7 +66,8 @@ describe('cascade', () => {
         return systemOneResponse(
           answersForQuestions(req.questions, (id, type) => {
             if (id === 'present') return noulYes(0.96)
-            if (type === 'score') return scoreOf(id === 'valence' ? 3.2 : 1.0, 0.9)
+            if (id === 'valence') return scoreOf(3.2, 0.9, { '3': 0.92, '2': 0.05, '4': 0.03, '1': 0, '0': 0 })
+            if (type === 'score') return scoreOf(1.0, 0.9, { '1': 0.9, '0': 0.05, '2': 0.05 })
             if (id === 'emo_joy') return noulYes(0.88)
             return noulNo(0.05)
           }),

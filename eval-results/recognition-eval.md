@@ -12,8 +12,9 @@ recognition eval — DRY RUN, $0, no network
   openai calls      prayers=28 entities=65 subjects=25 sentiment=385  TOTAL=503
   openai est. $     ~$0.553 (rough; live run uses token logs)
   jev calls         harvest=515 tag=150 sentiment=385 (one request per item)
-  jev est. tokens   171307  (~$0.0072 at $0.042/1M in, out free)
+  jev est. tokens   1092090  (~$0.0459 at $0.042/1M in, out free)
   vocab (subjects)  19 labels + none_of_these  — gold + DESIGNED_THREADS.forms + sibling/virtue distractors
+  thread formation  skipped without OPENAI_API_KEY; assignment still scored
 
   scripture is deterministic and always free.
   Live: npm run eval:recognition -- --compare=openai,jev,cascade --tau=0.8 --split=test --json

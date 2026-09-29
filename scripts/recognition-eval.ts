@@ -4,6 +4,7 @@
 //   npm run eval:recognition -- --dry --compare
 //   npm run eval:recognition -- --compare=openai,jev,cascade --tau=0.6,0.7,0.8,0.9 --split=dev --reruns=3 --json
 //   npm run eval:recognition -- --provider=jev --split=test --json
+//   npm run eval:recognition -- --provider=jev --limit=24 --reruns=1 --json
 //
 // Lab only. Synthetic corpus. Never fails the build (exit 0) except on missing
 // env when a live provider is selected. Do not point this at real journals.
@@ -13,6 +14,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { costPerPass, mean, meanScore } from '../src/lib/recognition/evalReport.ts'
 
 function loadDotEnv(): void {
   let raw = ''
@@ -170,15 +172,92 @@ function percentile(values: number[], p: number): number {
   return s[idx]!
 }
 
-function costBlock(u: UsageSnap, entries: number, modelHint: string): Record<string, number> {
+function costBlock(u: UsageSnap, entries: number, modelHint: string, passes = 1): Record<string, number> {
   const model = u.models[0] ?? modelHint
-  const total = dollars(model, u.in, u.out, u.reasoning)
-  const per = entries ? total / entries : 0
-  return {
-    total,
-    per1k: per * 1000,
-    per2000: per * 2000,
+  const allPasses = dollars(model, u.in, u.out, u.reasoning)
+  return costPerPass(allPasses, entries, passes)
+}
+
+function fmtN(x: number): string {
+  return Number.isInteger(x) || Math.abs(x - Math.round(x)) < 1e-6 ? String(Math.round(x)) : x.toFixed(1)
+}
+
+function scoreLine(
+  name: string,
+  s: { tp: number; fp: number; fn: number; precision: number; recall: number; f1: number },
+  tail = '',
+): string {
+  return (
+    `${name.padEnd(14)} ${fmtN(s.tp).padStart(3)}  ${fmtN(s.fp).padStart(3)}  ${fmtN(s.fn).padStart(3)}` +
+    `      ${pct(s.precision)}   ${pct(s.recall)}   ${pct(s.f1)}${tail ? '   ' + tail : ''}`
+  )
+}
+
+function isScore(v: unknown): v is { tp: number; fp: number; fn: number; precision: number; recall: number; f1: number } {
+  return !!v && typeof v === 'object' && 'f1' in v && 'precision' in v && 'tp' in v
+}
+
+function meanPassScores(reports: Record<string, unknown>[]): Record<string, unknown> {
+  if (reports.length === 0) return {}
+  if (reports.length === 1) return { ...reports[0] }
+  const out: Record<string, unknown> = {}
+  const keys = new Set(reports.flatMap((r) => Object.keys(r)))
+  for (const k of keys) {
+    const vals = reports.map((r) => r[k]).filter((v) => v !== undefined)
+    if (vals.length === 0) continue
+    if (k === 'prayers' && isScore(vals[0])) {
+      const spans = vals as Array<
+        ReturnType<typeof meanScore> & {
+          typeAgreement?: { agreed: number; matched: number }
+          failed?: number
+          failures?: unknown[]
+        }
+      >
+      out[k] = {
+        ...meanScore(spans),
+        typeAgreement: {
+          agreed: mean(spans.map((s) => s.typeAgreement?.agreed ?? 0)),
+          matched: mean(spans.map((s) => s.typeAgreement?.matched ?? 0)),
+        },
+        failed: mean(spans.map((s) => s.failed ?? 0)),
+        failures: spans.flatMap((s) => (Array.isArray(s.failures) ? s.failures : [])),
+      }
+    } else if ((k === 'gate' || k === 'subjectAssignment') && isScore(vals[0])) {
+      out[k] = meanScore(vals as Parameters<typeof meanScore>[0])
+    } else if (k === 'sentiment' && vals[0] && typeof vals[0] === 'object' && 'micro' in (vals[0] as object)) {
+      const rows = vals as Array<{
+        present: { accuracy: number; n: number }
+        valenceBucket: { accuracy: number; n: number }
+        valenceMae: number
+        micro: Parameters<typeof meanScore>[0][number]
+        macro: { precision: number; recall: number; f1: number }
+        perEmotion: Array<Parameters<typeof meanScore>[0][number] & { label: string }>
+        misses: unknown
+      }>
+      out[k] = {
+        ...rows[0],
+        present: { accuracy: mean(rows.map((r) => r.present.accuracy)), n: rows[0]!.present.n },
+        valenceBucket: {
+          accuracy: mean(rows.map((r) => r.valenceBucket.accuracy)),
+          n: rows[0]!.valenceBucket.n,
+        },
+        valenceMae: mean(rows.map((r) => r.valenceMae)),
+        micro: meanScore(rows.map((r) => r.micro)),
+        macro: {
+          precision: mean(rows.map((r) => r.macro.precision)),
+          recall: mean(rows.map((r) => r.macro.recall)),
+          f1: mean(rows.map((r) => r.macro.f1)),
+        },
+        perEmotion: rows[0]!.perEmotion.map((lab, i) => ({
+          ...meanScore(rows.map((r) => r.perEmotion[i] ?? lab)),
+          label: lab.label,
+        })),
+      }
+    } else {
+      out[k] = vals[0]
+    }
   }
+  return out
 }
 
 type ArmName = string
@@ -196,7 +275,7 @@ interface ArmResult {
 }
 
 async function main(): Promise<void> {
-  const { CORPUS, DESIGNED_THREADS, asEntryRows, filterSplit } = await import(
+  const { CORPUS, DESIGNED_THREADS, asEntryRows, filterSplit, stratifiedSample } = await import(
     '../src/lib/recognition/corpus/index.ts'
   )
   const score = await import('../src/lib/recognition/score.ts')
@@ -205,7 +284,7 @@ async function main(): Promise<void> {
   const { extractCandidates } = await import('../api/_lib/concordance.ts')
   const { tagTexts, groupTagged } = await import('../api/_lib/declared.ts')
   const { env } = await import('../api/_lib/env.ts')
-  const { jevHarvestTexts } = await import('../api/_lib/jev/harvest.ts')
+  const { jevHarvestTexts, chunkForHarvest, estimateHarvestTokens } = await import('../api/_lib/jev/harvest.ts')
   const { jevTagTexts, evalSubjectVocabulary } = await import('../api/_lib/jev/subjects.ts')
   const { jevSentiment } = await import('../api/_lib/jev/sentiment.ts')
   const { cascadeHarvest, cascadeTag, cascadeSentiment } = await import('../api/_lib/jev/cascade.ts')
@@ -215,7 +294,9 @@ async function main(): Promise<void> {
   const { noul, choice } = await import('@typesafe-ai/sdk')
 
   const splitRows = filterSplit(asEntryRows(), SPLIT)
-  const allRows = LIMIT ? splitRows.slice(0, LIMIT) : splitRows
+  const allRows = LIMIT
+    ? stratifiedSample(splitRows, LIMIT, (r) => CORPUS.find((e) => e.id === r.id)?.category ?? 'unknown')
+    : splitRows
   const keep = new Set(allRows.map((r) => r.id))
   const corpus = CORPUS.filter((e) => keep.has(e.id))
   const model = env.model()
@@ -240,13 +321,10 @@ async function main(): Promise<void> {
     if (selected.some((p) => p === 'jev' || p === 'cascade')) {
       for (const r of allRows) {
         if (wants('prayers')) {
-          const sentences = splitSentences(r.body_markdown).map((s) => s.text)
-          const questions: Record<string, unknown> = {
-            contains_prayer: noul('x'),
-            contains_sense: noul('x'),
+          const sentences = splitSentences(r.body_markdown)
+          for (const chunk of chunkForHarvest(sentences)) {
+            jevTok += estimateHarvestTokens(chunk)
           }
-          for (let i = 0; i < sentences.length; i++) questions[`s${i}`] = choice('x', { prayer: 'a', sense: 'b', neither: 'c' })
-          jevTok += estimateJevTokens({ sentences }, questions)
         }
         if (wants('sentiment') && CORPUS.find((e) => e.id === r.id)?.sentiment) {
           jevTok += estimateJevTokens({ text: r.body_markdown.slice(0, 500) }, { present: noul('x') })
@@ -262,7 +340,7 @@ async function main(): Promise<void> {
     const openaiCost = openaiCalls * 0.0011
     const lines = [
       `recognition eval — DRY RUN, $0, no network`,
-      `  corpus            ${allRows.length} entries (${CORPUS.length} available, split=${SPLIT})`,
+      `  corpus            ${allRows.length} entries (${CORPUS.length} available, split=${SPLIT}${LIMIT ? `, limit=${LIMIT} stratified` : ''})`,
       `  openai model      ${model}`,
       `  jev model         ${env.typesafeModel()}`,
       `  providers         ${selected.join(', ')}`,
@@ -274,6 +352,7 @@ async function main(): Promise<void> {
       `  jev calls         harvest=${jevHarvestCalls} tag=${jevTagCalls} sentiment=${jevSentimentCalls} (one request per item)`,
       `  jev est. tokens   ${jevTok}  (~$${(jevCost).toFixed(4)} at $${PRICE.jevIn}/1M in, out free)`,
       `  vocab (subjects)  ${vocab.length} labels + none_of_these  — gold + DESIGNED_THREADS.forms + sibling/virtue distractors`,
+      `  thread formation  ${process.env.OPENAI_API_KEY ? 'on (groupTagged embeddings)' : 'skipped without OPENAI_API_KEY; assignment still scored'}`,
       ``,
       `  scripture is deterministic and always free.`,
       `  Live: npm run eval:recognition -- --compare=openai,jev,cascade --tau=0.8 --split=test --json`,
@@ -300,16 +379,15 @@ async function main(): Promise<void> {
     let escalationN = 0
     let escalationD = 0
 
-    lines.push(`recognition eval — ${armName} — ${allRows.length} entries (split=${SPLIT})`)
+    lines.push(
+      `recognition eval — ${armName} — ${allRows.length} entries (split=${SPLIT}${LIMIT ? `, limit=${LIMIT} stratified` : ''}${RERUNS > 1 ? `, ${RERUNS}-run mean` : ''})`,
+    )
     lines.push(`model output varies run to run; a 1–2 point move is noise. use --json to diff runs.`)
     lines.push('')
     lines.push(`axis            TP   FP   FN   precision  recall     F1`)
 
     const row = (name: string, s: score.Score, tail = ''): void => {
-      lines.push(
-        `${name.padEnd(14)} ${String(s.tp).padStart(3)}  ${String(s.fp).padStart(3)}  ${String(s.fn).padStart(3)}` +
-          `      ${pct(s.precision)}   ${pct(s.recall)}   ${pct(s.f1)}${tail ? '   ' + tail : ''}`,
-      )
+      lines.push(scoreLine(name, s, tail))
     }
 
     if (wants('scripture')) {
@@ -331,14 +409,18 @@ async function main(): Promise<void> {
     }
 
     type Discrete = Record<string, string>
+    type PassBundle = { disc: Discrete; scores: Record<string, unknown>; misses: string[] }
     const snapshots: Discrete[] = []
 
-    const once = async (): Promise<Discrete> => {
+    const once = async (): Promise<PassBundle> => {
       const disc: Discrete = {}
+      const scores: Record<string, unknown> = {}
+      const passMisses: string[] = []
 
       if (wants('prayers')) {
         let byEntry = new Map<string, { type: 'prayer' | 'sense'; text: string }[]>()
         let failed: string[] = []
+        let failures: { id: string; status?: number; code?: string; message: string }[] = []
         const gateMap = new Map<string, boolean>()
 
         if (provider === 'openai') {
@@ -353,6 +435,7 @@ async function main(): Promise<void> {
           )
           byEntry = harvested.byEntry
           failed = harvested.failed
+          failures = harvested.failures
           for (const [id, g] of harvested.gate) {
             gateMap.set(id, g.containsPrayer || g.containsSense)
             const gold = (CORPUS.find((e) => e.id === id)?.passages ?? []).length > 0
@@ -365,6 +448,7 @@ async function main(): Promise<void> {
           )
           byEntry = harvested.byEntry
           failed = harvested.failed
+          failures = harvested.failures
           for (const r of allRows) {
             const g = harvested.gate.get(r.id)
             gateMap.set(r.id, g ? g.containsPrayer || g.containsSense : (byEntry.get(r.id) ?? []).length > 0)
@@ -377,21 +461,18 @@ async function main(): Promise<void> {
           ps.map((p) => ({ entryId, type: p.type, text: p.text })),
         )
         const s = score.scorePassages(actual, keep)
-        row('prayers', s.span)
-        lines.push(
-          `  type agree    ${s.typeAgreement.agreed}/${s.typeAgreement.matched} (${pct(
-            s.typeAgreement.matched ? s.typeAgreement.agreed / s.typeAgreement.matched : 1,
-          )})`,
-        )
-        if (failed.length) lines.push(`  ${failed.length} entries in failed batches (not scored)`)
-        report['prayers'] = { ...s.span, typeAgreement: s.typeAgreement, failed: failed.length }
+        scores.prayers = { ...s.span, typeAgreement: s.typeAgreement, failed: failed.length, failures }
 
         const gate = score.scoreGate((id) => gateMap.get(id) === true, keep)
-        row('gate', gate)
-        report['gate'] = gate
+        scores.gate = gate
 
         for (const m of s.misses.slice(0, 8)) {
-          misses.push(`  prayers ${m.kind.toUpperCase()}    ${m.entryId.padEnd(26)} ${JSON.stringify(m.detail)}`)
+          passMisses.push(`  prayers ${m.kind.toUpperCase()}    ${m.entryId.padEnd(26)} ${JSON.stringify(m.detail)}`)
+        }
+        for (const f of failures) {
+          passMisses.push(
+            `  harvest ERR    ${f.id.padEnd(26)} HTTP ${f.status ?? '—'} ${f.code ?? f.message}`,
+          )
         }
         for (const r of allRows) {
           const ps = (byEntry.get(r.id) ?? []).map((p) => `${p.type}:${p.text}`).sort().join('|')
@@ -414,23 +495,12 @@ async function main(): Promise<void> {
           })),
         )
         const s = score.scoreEntities(actual, keep)
-        row('entities', s.identity)
-        lines.push(
-          `  kind agree    ${s.kindAgreement.agreed}/${s.kindAgreement.matched} (${pct(
-            s.kindAgreement.matched ? s.kindAgreement.agreed / s.kindAgreement.matched : 1,
-          )})`,
-        )
-        lines.push(
-          `  descriptors   ${s.descriptors.kept}/${s.descriptors.proposed} survived the evaluative gate correctly`,
-        )
-        lines.push(`  NOTE: entity precision is a lower bound — see the misses, not the number`)
-        if (failed.length) lines.push(`  ${failed.length} entries in failed batches (not scored)`)
-        report['entities'] = { ...s.identity, kindAgreement: s.kindAgreement, descriptors: s.descriptors }
+        scores.entities = { ...s.identity, kindAgreement: s.kindAgreement, descriptors: s.descriptors, failed: failed.length }
         for (const m of s.misses.slice(0, 8)) {
-          misses.push(`  entities ${m.kind.toUpperCase()}   ${m.entryId.padEnd(26)} ${m.detail}`)
+          passMisses.push(`  entities ${m.kind.toUpperCase()}   ${m.entryId.padEnd(26)} ${m.detail}`)
         }
       } else if (wants('entities') && provider !== 'openai') {
-        lines.push(`entities       —    —    —      (OpenAI-only axis; skipped for ${provider})`)
+        scores.entitiesSkipped = provider
       }
 
       if (wants('subjects')) {
@@ -475,21 +545,30 @@ async function main(): Promise<void> {
             tags: tagged.get(l.key)!,
             content: l.p.text,
           }))
-        const plan = await groupTagged(items)
-        const formed = plan.subjects.map((s) => s.label.toLowerCase())
-        const shouldForm = DESIGNED_THREADS.forms.map((f) => f.toLowerCase())
-        const shouldNot = DESIGNED_THREADS.nearMisses.map((n) => n.label.toLowerCase())
-        const got = shouldForm.filter((f) => formed.includes(f))
-        const wrong = shouldNot.filter((f) => formed.includes(f))
-        const extra = formed.filter((f) => !shouldForm.includes(f) && !shouldNot.includes(f))
 
-        lines.push(
-          `subjects      ${String(got.length).padStart(3)}  ${String(extra.length).padStart(3)}  ` +
-            `${String(shouldForm.length - got.length).padStart(3)}` +
-            `      ${pct(formed.length ? got.length / formed.length : 1)}   ` +
-            `${pct(got.length / shouldForm.length)}           ${wrong.length} near-miss threads wrongly formed`,
-        )
-        report['subjects'] = { formed, expected: shouldForm, wronglyFormed: wrong, extra }
+        const canEmbed = Boolean(process.env.OPENAI_API_KEY)
+        if (canEmbed) {
+          const plan = await groupTagged(items)
+          const formed = plan.subjects.map((s) => s.label.toLowerCase())
+          const shouldForm = DESIGNED_THREADS.forms.map((f) => f.toLowerCase())
+          const shouldNot = DESIGNED_THREADS.nearMisses.map((n) => n.label.toLowerCase())
+          const got = shouldForm.filter((f) => formed.includes(f))
+          const wrong = shouldNot.filter((f) => formed.includes(f))
+          const extra = formed.filter((f) => !shouldForm.includes(f) && !shouldNot.includes(f))
+          scores.subjects = { formed, expected: shouldForm, wronglyFormed: wrong, extra, skipped: false }
+          for (const f of shouldForm.filter((x) => !got.includes(x))) {
+            passMisses.push(`  subjects FN    ${'—'.padEnd(26)} "${f}" did not form a thread`)
+          }
+          for (const f of wrong) {
+            const why = DESIGNED_THREADS.nearMisses.find((n) => n.label.toLowerCase() === f)?.fails
+            passMisses.push(`  subjects FP    ${'—'.padEnd(26)} "${f}" formed despite ${why}`)
+          }
+        } else {
+          console.log(
+            'thread formation skipped — OPENAI_API_KEY absent (groupTagged embeddings). Subject assignment still scored.',
+          )
+          scores.subjects = { skipped: true, reason: 'OPENAI_API_KEY absent' }
+        }
 
         const byEntry = new Map<string, string[]>()
         for (const l of labeled) {
@@ -501,16 +580,7 @@ async function main(): Promise<void> {
           [...byEntry].map(([entryId, labels]) => ({ entryId, labels })),
           keep,
         )
-        row('subj assign', assign)
-        report['subjectAssignment'] = assign
-
-        for (const f of shouldForm.filter((x) => !got.includes(x))) {
-          misses.push(`  subjects FN    ${'—'.padEnd(26)} "${f}" did not form a thread`)
-        }
-        for (const f of wrong) {
-          const why = DESIGNED_THREADS.nearMisses.find((n) => n.label.toLowerCase() === f)?.fails
-          misses.push(`  subjects FP    ${'—'.padEnd(26)} "${f}" formed despite ${why}`)
-        }
+        scores.subjectAssignment = assign
         for (const [id, labels] of byEntry) disc[`subj:${id}`] = labels.map((x) => x.toLowerCase()).sort().join('|')
       }
 
@@ -536,41 +606,129 @@ async function main(): Promise<void> {
               entryId: e.id,
               present: reading.present,
               valence: reading.valenceBucket,
-              valenceNumeric: reading.valence,
+              valenceNumeric: reading.valenceExpected ?? reading.valence,
               emotions: reading.emotions,
             })
             disc[`sent:${e.id}`] = `${reading.present ? 1 : 0}:${reading.valenceBucket}:${[...reading.emotions].sort().join(',')}`
           } catch {
-            misses.push(`  sentiment ERR   ${e.id}`)
+            passMisses.push(`  sentiment ERR   ${e.id}`)
           }
         }
         const s = score.scoreSentiment(actual, keep)
-        lines.push(
-          `sentiment      present acc=${pct(s.present.accuracy)}  valence acc=${pct(s.valenceBucket.accuracy)}  MAE=${s.valenceMae.toFixed(3)}  micro F1=${pct(s.micro.f1)}  macro F1=${pct(s.macro.f1)}`,
-        )
-        for (const lab of s.perEmotion) {
-          lines.push(
-            `  ${lab.label.padEnd(12)} ${String(lab.tp).padStart(3)}  ${String(lab.fp).padStart(3)}  ${String(lab.fn).padStart(3)}      ${pct(lab.precision)}   ${pct(lab.recall)}   ${pct(lab.f1)}`,
-          )
-        }
-        report['sentiment'] = s
+        scores.sentiment = s
         for (const m of s.misses.slice(0, 8)) {
-          misses.push(`  sentiment ${m.kind.toUpperCase()}  ${m.entryId.padEnd(26)} ${m.detail}`)
+          passMisses.push(`  sentiment ${m.kind.toUpperCase()}  ${m.entryId.padEnd(26)} ${m.detail}`)
         }
       }
 
-      return disc
+      return { disc, scores, misses: passMisses }
     }
 
-    const first = await once()
-    snapshots.push(first)
-    for (let r = 1; r < RERUNS; r++) {
-      // Subsequent reruns only collect discrete labels; scoring stays on run 1.
-      const savedLines = lines.length
-      const savedMisses = misses.length
-      snapshots.push(await once())
-      lines.length = savedLines
-      misses.length = savedMisses
+    const passes: PassBundle[] = []
+    for (let r = 0; r < RERUNS; r++) {
+      const pass = await once()
+      snapshots.push(pass.disc)
+      passes.push(pass)
+    }
+
+    const meanScores = meanPassScores(passes.map((p) => p.scores))
+    Object.assign(report, meanScores)
+    report['reruns'] = passes.map((p) => p.scores)
+    misses.push(...(passes[0]?.misses ?? []))
+
+    const prayers = meanScores.prayers as
+      | (score.Score & {
+          typeAgreement?: { agreed: number; matched: number }
+          failed?: number
+          failures?: { id: string; status?: number; code?: string; message: string }[]
+        })
+      | undefined
+    if (prayers && isScore(prayers)) {
+      lines.push(scoreLine('prayers', prayers))
+      if (prayers.typeAgreement) {
+        lines.push(
+          `  type agree    ${fmtN(prayers.typeAgreement.agreed)}/${fmtN(prayers.typeAgreement.matched)} (${pct(
+            prayers.typeAgreement.matched ? prayers.typeAgreement.agreed / prayers.typeAgreement.matched : 1,
+          )})`,
+        )
+      }
+      const harvestFails = prayers.failures ?? []
+      if (harvestFails.length) {
+        lines.push(`  ${harvestFails.length} harvest failures`)
+        for (const f of harvestFails.slice(0, 16)) {
+          lines.push(`    ${f.id}  HTTP ${f.status ?? '—'}  ${f.code ?? f.message}`)
+        }
+      } else if (prayers.failed) {
+        lines.push(`  ${fmtN(prayers.failed)} entries in failed batches (not scored)`)
+      }
+    }
+    if (isScore(meanScores.gate)) lines.push(scoreLine('gate', meanScores.gate))
+    if (meanScores.entitiesSkipped) {
+      lines.push(`entities       —    —    —      (OpenAI-only axis; skipped for ${meanScores.entitiesSkipped})`)
+    } else if (meanScores.entities && typeof meanScores.entities === 'object') {
+      const ent = meanScores.entities as score.Score & {
+        kindAgreement?: { agreed: number; matched: number }
+        descriptors?: { kept: number; proposed: number }
+        failed?: number
+      }
+      if (isScore(ent)) {
+        lines.push(scoreLine('entities', ent))
+        if (ent.kindAgreement) {
+          lines.push(
+            `  kind agree    ${ent.kindAgreement.agreed}/${ent.kindAgreement.matched} (${pct(
+              ent.kindAgreement.matched ? ent.kindAgreement.agreed / ent.kindAgreement.matched : 1,
+            )})`,
+          )
+        }
+        if (ent.descriptors) {
+          lines.push(
+            `  descriptors   ${ent.descriptors.kept}/${ent.descriptors.proposed} survived the evaluative gate correctly`,
+          )
+        }
+        lines.push(`  NOTE: entity precision is a lower bound — see the misses, not the number`)
+        if (ent.failed) lines.push(`  ${ent.failed} entries in failed batches (not scored)`)
+      }
+    }
+    const subjects = meanScores.subjects as
+      | { skipped?: boolean; reason?: string; formed?: string[]; expected?: string[]; wronglyFormed?: string[]; extra?: string[] }
+      | undefined
+    if (subjects?.skipped) {
+      lines.push(
+        `subjects      —    —    —      thread formation skipped (${subjects.reason}); assignment still scored`,
+      )
+    } else if (subjects?.expected) {
+      const formed = subjects.formed ?? []
+      const shouldForm = subjects.expected
+      const got = shouldForm.filter((f) => formed.includes(f))
+      const extra = subjects.extra ?? []
+      const wrong = subjects.wronglyFormed ?? []
+      lines.push(
+        `subjects      ${String(got.length).padStart(3)}  ${String(extra.length).padStart(3)}  ` +
+          `${String(shouldForm.length - got.length).padStart(3)}` +
+          `      ${pct(formed.length ? got.length / formed.length : 1)}   ` +
+          `${pct(shouldForm.length ? got.length / shouldForm.length : 1)}           ${wrong.length} near-miss threads wrongly formed`,
+      )
+    }
+    if (isScore(meanScores.subjectAssignment)) lines.push(scoreLine('subj assign', meanScores.subjectAssignment))
+    const sent = meanScores.sentiment as
+      | {
+          present: { accuracy: number }
+          valenceBucket: { accuracy: number }
+          valenceMae: number
+          micro: { f1: number }
+          macro: { f1: number }
+          perEmotion: Array<score.Score & { label: string }>
+        }
+      | undefined
+    if (sent) {
+      lines.push(
+        `sentiment      present acc=${pct(sent.present.accuracy)}  valence acc=${pct(sent.valenceBucket.accuracy)}  MAE=${sent.valenceMae.toFixed(3)}  micro F1=${pct(sent.micro.f1)}  macro F1=${pct(sent.macro.f1)}`,
+      )
+      for (const lab of sent.perEmotion) {
+        lines.push(
+          `  ${lab.label.padEnd(12)} ${fmtN(lab.tp).padStart(3)}  ${fmtN(lab.fp).padStart(3)}  ${fmtN(lab.fn).padStart(3)}      ${pct(lab.precision)}   ${pct(lab.recall)}   ${pct(lab.f1)}`,
+        )
+      }
     }
 
     let flipRate = 0
@@ -593,16 +751,20 @@ async function main(): Promise<void> {
     }
 
     const snap = { ...usage, ms: [...usage.ms], models: [...usage.models] }
-    const cost = costBlock(snap, allRows.length, provider === 'jev' ? env.typesafeModel() : model)
+    const cost = costBlock(snap, allRows.length, provider === 'jev' ? env.typesafeModel() : model, RERUNS)
     const lat = {
       p50: percentile(snap.ms, 50),
       p95: percentile(snap.ms, 95),
       p99: percentile(snap.ms, 99),
     }
     lines.push('')
+    const perPassIn = RERUNS ? snap.in / RERUNS : snap.in
+    const perPassOut = RERUNS ? snap.out / RERUNS : snap.out
+    const perPassCalls = RERUNS ? snap.calls / RERUNS : snap.calls
     lines.push(
-      `tokens  in=${snap.in}  cached=${snap.cached}  out=${snap.out}  reasoning=${snap.reasoning}` +
-        `   ${snap.calls} calls`,
+      `tokens  in=${Math.round(perPassIn)}  cached=${Math.round(snap.cached / RERUNS)}  out=${Math.round(perPassOut)}  reasoning=${Math.round(snap.reasoning / RERUNS)}` +
+        `   ${Math.round(perPassCalls)} calls/pass` +
+        (RERUNS > 1 ? `  (${RERUNS} passes; $ and $/1k are per pass)` : ''),
     )
     lines.push(
       `latency p50=${lat.p50}ms  p95=${lat.p95}ms  p99=${lat.p99}ms   $${cost.total.toFixed(5)}` +
@@ -691,6 +853,7 @@ async function main(): Promise<void> {
   const payload = {
     split: SPLIT,
     entries: allRows.length,
+    limit: LIMIT ?? null,
     reruns: RERUNS,
     arms: arms.map((a) => a.report),
   }

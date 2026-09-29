@@ -12,7 +12,12 @@ export type ValenceBucket = 'negative' | 'mixed' | 'positive'
 export interface JevSentiment {
   present: boolean
   valenceBucket: ValenceBucket
+  /** Expected value on [-1, 1] (weighted average of the rubric). Secondary. */
   valence: number
+  /** Same as `valence`, kept so reports can print expected value next to the argmax bucket. */
+  valenceExpected: number
+  /** Argmax rubric level 0..4. */
+  valenceLevel: number
   activation: number
   emotions: Emotion[]
   probs: {
@@ -55,10 +60,31 @@ const EMO_HINT: Record<Emotion, string> = {
   stress: 'stressed, tense, pressured, overwhelmed — stress alone is not anger, fear, or weariness',
 }
 
-function bucketValence(v: number): ValenceBucket {
-  if (v < -0.33) return 'negative'
-  if (v > 0.33) return 'positive'
+/** Bucket the argmax rubric level: 0–1 negative, 2 mixed, 3–4 positive. */
+export function bucketValenceLevel(level: number): ValenceBucket {
+  if (level <= 1) return 'negative'
+  if (level >= 3) return 'positive'
   return 'mixed'
+}
+
+export function argmaxScore(
+  ans: { score?: number; probabilities?: Record<string, number> } | undefined,
+  fallback: number,
+): { level: number; p: number; expected: number } {
+  const expected = ans && typeof ans.score === 'number' ? ans.score : fallback
+  const probs = ans?.probabilities ?? {}
+  let bestLevel = Math.round(expected)
+  let bestP = -1
+  for (const [k, v] of Object.entries(probs)) {
+    const level = Number(k)
+    if (!Number.isFinite(level) || typeof v !== 'number') continue
+    if (v > bestP || (v === bestP && level < bestLevel)) {
+      bestP = v
+      bestLevel = level
+    }
+  }
+  if (bestP < 0) return { level: bestLevel, p: 0, expected }
+  return { level: bestLevel, p: bestP, expected }
 }
 
 export async function jevSentiment(text: string, opts: { tau?: number } = {}): Promise<JevSentiment> {
@@ -94,13 +120,15 @@ export async function jevSentiment(text: string, opts: { tau?: number } = {}): P
   const { answers } = await askJev('jev_sentiment', state, questions)
   const presentNoul = answers.present && answers.present.type === 'noul' ? answers.present.noul : 0
   const present = presentNoul >= 0.5
-  const valAns = answers.valence
-  const actAns = answers.activation
-  const valenceScore = valAns && valAns.type === 'score' ? valAns.score : 2
-  const activationScore = actAns && actAns.type === 'score' ? actAns.score : 0
-  // 5-level valence 0..4 → -1..1; 3-level activation 0..2 → 0..1
-  const valence = present ? (valenceScore / 4) * 2 - 1 : 0
-  const activation = present ? activationScore / 2 : 0
+  const valAns = answers.valence && answers.valence.type === 'score' ? answers.valence : undefined
+  const actAns = answers.activation && answers.activation.type === 'score' ? answers.activation : undefined
+  const val = argmaxScore(valAns, 2)
+  const act = argmaxScore(actAns, 0)
+  // Expected value stays on [-1, 1] for MAE; the bucket uses the argmax level.
+  const valenceExpected = present ? (val.expected / 4) * 2 - 1 : 0
+  const valence = valenceExpected
+  const activation = present ? act.expected / 2 : 0
+  const valenceLevel = present ? val.level : 2
 
   const emoProbs: Partial<Record<Emotion, number>> = {}
   const ranked: { emo: Emotion; p: number }[] = []
@@ -113,22 +141,24 @@ export async function jevSentiment(text: string, opts: { tau?: number } = {}): P
   ranked.sort((a, b) => b.p - a.p)
   const emotions = ranked.slice(0, 4).map((r) => r.emo)
 
-  const valConf = valAns && valAns.type === 'score' ? valAns.confidence : 0
-  const actConf = actAns && actAns.type === 'score' ? actAns.confidence : 0
   const noulConf = Math.max(presentNoul, 1 - presentNoul)
-  const confidence = Math.min(valConf || 1, actConf || 1, noulConf)
+  const valP = val.p || (valAns && 'confidence' in valAns ? valAns.confidence : 0)
+  const actP = act.p || (actAns && 'confidence' in actAns ? actAns.confidence : 0)
+  const confidence = Math.min(valP || 1, actP || 1, noulConf)
 
   void tau
   return {
     present,
-    valenceBucket: present ? bucketValence(valence) : 'mixed',
+    valenceBucket: present ? bucketValenceLevel(val.level) : 'mixed',
     valence,
+    valenceExpected,
+    valenceLevel,
     activation,
     emotions,
     probs: {
       present: presentNoul,
-      valence: valenceScore,
-      activation: activationScore,
+      valence: val.expected,
+      activation: act.expected,
       emotions: emoProbs,
     },
     confidence,

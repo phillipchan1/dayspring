@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { chunkSentences, mergeSpans, splitSentences, MAX_SENTENCES_PER_REQUEST } from './sentences.js'
+import {
+  chunkByTokenBudget,
+  chunkSentences,
+  mergeSpans,
+  splitSentences,
+  MAX_SENTENCES_PER_REQUEST,
+} from './sentences.js'
 
 describe('splitSentences', () => {
   it('returns exact substrings of the body', () => {
@@ -41,8 +47,22 @@ describe('chunkSentences', () => {
   it('chunks past the 255-option / long-entry cap', () => {
     const items = Array.from({ length: 260 }, (_, i) => i)
     const chunks = chunkSentences(items, MAX_SENTENCES_PER_REQUEST)
-    expect(chunks.length).toBe(2)
+    expect(chunks.length).toBeGreaterThanOrEqual(2)
     expect(chunks[0]).toHaveLength(MAX_SENTENCES_PER_REQUEST)
-    expect(chunks[1]).toHaveLength(260 - MAX_SENTENCES_PER_REQUEST)
+    expect(chunks.flat()).toHaveLength(260)
+    expect(chunks.at(-1)).toHaveLength(260 % MAX_SENTENCES_PER_REQUEST)
+  })
+})
+
+describe('chunkByTokenBudget', () => {
+  it('shrinks a pack that would overflow the token budget', () => {
+    const items = Array.from({ length: 40 }, (_, i) => i)
+    const chunks = chunkByTokenBudget(items, (slice) => slice.length * 1000, {
+      maxItems: 80,
+      maxTokens: 5000,
+    })
+    expect(chunks.every((c) => c.length * 1000 <= 5000 || c.length === 1)).toBe(true)
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.flat()).toEqual(items)
   })
 })

@@ -38,6 +38,7 @@ export async function cascadeHarvest(
       if (passages) jev.byEntry.set(e.id, passages)
       if (!fallback.failed.includes(e.id)) {
         jev.failed = jev.failed.filter((id) => id !== e.id)
+        jev.failures = jev.failures.filter((f) => f.id !== e.id)
       }
     }
     for (const id of fallback.failed) {

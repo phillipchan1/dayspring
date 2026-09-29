@@ -39,9 +39,36 @@ npm run eval:recognition -- --provider=jev --split=test --only=prayers
 npm run eval:recognition -- --provider=openai --model=gpt-5.4-nano --only=prayers
 ```
 
+Jev-only (no OpenAI key). Thread formation is skipped; subject assignment still scores:
+
+```bash
+npm run eval:recognition -- --provider=jev --split=dev --reruns=1 --json
+```
+
+Quick stratified sample (round-robin across corpus categories):
+
+```bash
+npm run eval:recognition -- --provider=jev --limit=24 --reruns=1 --json
+```
+
 Every run writes `eval-results/recognition-eval.md` and
-`eval-results/recognition-eval.json`. `--json` also prints the JSON to stdout.
-The process exits 0 on model variance (same as before). Missing keys exit 1.
+`eval-results/recognition-eval.json`. Both report the **mean** across `--reruns`
+(JSON also keeps `reruns[]` per pass). `--json` also prints the JSON to stdout.
+`$ /1k` and `$ /2k` are **per corpus pass**, not the accumulated rerun total.
+The process exits 0 on model variance (same as before). Missing keys exit 1
+(`--provider=jev` needs `TYPESAFE_API_KEY` only).
+
+`--provider=jev` without `OPENAI_API_KEY` logs
+`thread formation skipped — OPENAI_API_KEY absent (groupTagged embeddings). Subject assignment still scored.`
+`groupTagged` also accepts an injected `embed` so tests can form threads without a key.
+
+Harvest chunks by estimated tokens (target ≤ 20k, cap 80 sentences) so long
+entries stay under Jev's 64k request limit. Failures are counted and printed
+with their HTTP status / code (`max_tokens_exceeded`, etc.).
+
+Sentiment buckets valence on the **argmax rubric level** (0–1 negative, 2 mixed,
+3–4 positive). The weighted-average expected value stays in `valence` /
+`valenceExpected` for MAE. Cascade confidence is the argmax probability.
 
 ## Arms
 

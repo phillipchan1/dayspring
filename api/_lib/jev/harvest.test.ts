@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { configureTypeSafe, resetTypeSafe } from '../typesafe.js'
-import { jevHarvestTexts } from './harvest.js'
+import { chunkForHarvest, estimateHarvestTokens, jevHarvestTexts } from './harvest.js'
+import { TARGET_TOKENS_PER_REQUEST } from './sentences.js'
 import {
   answersForQuestions,
   choiceOf,
@@ -68,6 +69,36 @@ describe('jevHarvestTexts', () => {
     const body = Array.from({ length: 260 }, (_, i) => `Sentence number ${i} about the weather.`).join(' ')
     await jevHarvestTexts([{ id: 'long', body }])
     expect(calls).toBeGreaterThanOrEqual(2)
+  })
+
+  it('records HTTP 400 max_tokens_exceeded instead of swallowing it', async () => {
+    configureTypeSafe({
+      fetch: async () =>
+        new Response(JSON.stringify({ error: { code: 'max_tokens_exceeded', message: 'too large' } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    })
+    const { failed, failures } = await jevHarvestTexts([{ id: 'adv-long', body: 'Lord, help me tonight.' }])
+    expect(failed).toEqual(['adv-long'])
+    expect(failures[0]?.status).toBe(400)
+    expect(failures[0]?.code).toBe('max_tokens_exceeded')
+    expect(failures[0]?.message).toMatch(/400|max_tokens|too large/i)
+  })
+
+  it('packs long entries so each harvest chunk stays under the token budget', () => {
+    const sentences = Array.from({ length: 200 }, (_, i) => ({
+      id: `s${i}`,
+      text: `${'The same long weather note repeats here. '.repeat(8)}${i}.`,
+      start: 0,
+      end: 10,
+    }))
+    const chunks = chunkForHarvest(sentences)
+    expect(chunks.length).toBeGreaterThan(2)
+    for (const chunk of chunks) {
+      if (chunk.length > 1) expect(estimateHarvestTokens(chunk)).toBeLessThanOrEqual(TARGET_TOKENS_PER_REQUEST)
+    }
+    expect(chunks.flat()).toHaveLength(200)
   })
 
   it('records lowConfidence when a sentence is under tau', async () => {

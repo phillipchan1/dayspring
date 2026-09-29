@@ -91,6 +91,44 @@ export function filterSplit<T extends { id: string }>(
 }
 
 /**
+ * Round-robin sample across categories so `--limit=N` still hits every
+ * corpus bucket it can, instead of taking the first N rows in date order.
+ */
+export function stratifiedSample<T>(
+  items: readonly T[],
+  n: number,
+  categoryOf: (item: T) => string,
+): T[] {
+  if (!Number.isFinite(n) || n <= 0) return []
+  if (n >= items.length) return [...items]
+  const groups = new Map<string, T[]>()
+  for (const item of items) {
+    const key = categoryOf(item)
+    const list = groups.get(key) ?? []
+    list.push(item)
+    groups.set(key, list)
+  }
+  const keys = [...groups.keys()].sort()
+  const cursor = new Map<string, number>(keys.map((k) => [k, 0]))
+  const out: T[] = []
+  while (out.length < n) {
+    let progressed = false
+    for (const key of keys) {
+      const group = groups.get(key)!
+      const i = cursor.get(key) ?? 0
+      if (i < group.length) {
+        out.push(group[i]!)
+        cursor.set(key, i + 1)
+        progressed = true
+        if (out.length >= n) break
+      }
+    }
+    if (!progressed) break
+  }
+  return out
+}
+
+/**
  * Entries annotated on `axis`. Entries that omit the axis are excluded — an
  * omitted axis means "not annotated here", which is not the same as "yields
  * nothing", and scoring an unannotated entry would invent both a denominator

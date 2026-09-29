@@ -14,7 +14,10 @@ export interface Sentence {
 
 export type SentenceLabel = 'prayer' | 'sense' | 'neither'
 
-const MAX_SENTENCES_PER_REQUEST = 240
+/** Hard cap. Criteria repeat per sentence (~290 tokens), so 240 blew Jev's 64k limit. */
+const MAX_SENTENCES_PER_REQUEST = 80
+/** Pack harvest chunks under this estimate (JSON chars/4). Jev's request cap is 64k. */
+const TARGET_TOKENS_PER_REQUEST = 20_000
 
 /**
  * Split writer-words into sentences. `text` is always a substring of the
@@ -88,4 +91,27 @@ export function chunkSentences<T>(items: T[], size = MAX_SENTENCES_PER_REQUEST):
   return out
 }
 
-export { MAX_SENTENCES_PER_REQUEST }
+/**
+ * Pack items so each chunk stays under `maxTokens` given `estimate(slice)`.
+ * Also respects the sentence-count cap so criteria text cannot blow the 64k wall.
+ */
+export function chunkByTokenBudget<T>(
+  items: T[],
+  estimate: (slice: T[]) => number,
+  opts: { maxItems?: number; maxTokens?: number } = {},
+): T[][] {
+  const maxItems = opts.maxItems ?? MAX_SENTENCES_PER_REQUEST
+  const maxTokens = opts.maxTokens ?? TARGET_TOKENS_PER_REQUEST
+  if (items.length === 0) return [[]]
+  const out: T[][] = []
+  let start = 0
+  while (start < items.length) {
+    let end = Math.min(start + maxItems, items.length)
+    while (end > start + 1 && estimate(items.slice(start, end)) > maxTokens) end--
+    out.push(items.slice(start, end))
+    start = end
+  }
+  return out
+}
+
+export { MAX_SENTENCES_PER_REQUEST, TARGET_TOKENS_PER_REQUEST }
