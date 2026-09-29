@@ -16,7 +16,7 @@ const loadChapter = vi.hoisted(() =>
 )
 
 vi.mock('./passageSource', () => ({
-  loadChapter: (...args: unknown[]) => loadChapter(...args),
+  loadChapter,
   loadLight: async () => ({ books: new Map(), chapters: new Map(), max: 0, returning: [] }),
   searchTopic: async () => [],
 }))
