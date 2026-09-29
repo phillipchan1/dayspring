@@ -80,4 +80,49 @@ describe('guest account menu', () => {
     expect(menu?.textContent).toMatch(/Sign out/)
     expect(menu?.textContent).not.toMatch(/Sign in/)
   })
+
+  it('clamps the portalled menu inside a 430px iPhone viewport', () => {
+    const innerWidth = vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(430)
+    const innerHeight = vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(932)
+    const origRect = HTMLElement.prototype.getBoundingClientRect
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains('you')) {
+        return {
+          x: 374,
+          y: 860,
+          left: 374,
+          right: 430,
+          top: 860,
+          bottom: 920,
+          width: 56,
+          height: 60,
+          toJSON() {
+            return {}
+          },
+        }
+      }
+      return origRect.call(this)
+    })
+
+    act(() => {
+      root.render(
+        createElement(GuestModeProvider, {
+          requestSignIn: () => {},
+          children: createElement(YouMenu, menuProps('')),
+        }),
+      )
+    })
+    openYouMenu(host)
+
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')
+    expect(menu).toBeTruthy()
+    expect(menu?.style.left).toBe('154px')
+    expect(menu?.style.width).toBe('268px')
+
+    rectSpy.mockRestore()
+    innerWidth.mockRestore()
+    innerHeight.mockRestore()
+  })
 })

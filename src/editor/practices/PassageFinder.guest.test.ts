@@ -69,6 +69,7 @@ describe('guest passage picker', () => {
     expect(loadChapter).not.toHaveBeenCalled()
     expect(host.textContent).not.toMatch(/wouldn.t open just now/i)
     expect(host.textContent).toMatch(/Open this passage in your own Bible, then continue/)
-    expect(host.textContent).toMatch(/from your own Bible/)
+    expect(host.querySelector('.pf__begin')?.textContent?.trim()).toBe('Continue')
+    expect([...host.querySelectorAll('button')].filter((b) => /from your own Bible/.test(b.textContent ?? ''))).toHaveLength(0)
   })
 })
