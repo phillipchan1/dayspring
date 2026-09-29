@@ -1,7 +1,7 @@
 {
   "name": "dayspring",
   "private": true,
-  "version": "1.0.451",
+  "version": "1.0.452",
   "type": "module",
   "description": "Personal AI Journal — single-user, private journaling app",
   "scripts": {
