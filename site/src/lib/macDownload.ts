@@ -39,8 +39,14 @@ function resolveLatest(repo: string): Promise<string | null> {
 export function wireMacDownloads(): void {
   const links = document.querySelectorAll<HTMLAnchorElement>('a[data-dl-macos]')
   links.forEach((link) => {
+    // Nav, DownloadCTA, and PricingTiers each call this on pages that render
+    // more than one of them. A module-level "already ran" flag would miss
+    // links added later; the marker is per element so each link is wired
+    // exactly once no matter how many times this runs.
+    if (link.hasAttribute('data-dl-wired')) return
     const repo = link.dataset.repo
     if (!repo) return
+    link.setAttribute('data-dl-wired', '')
 
     const warm = () => {
       void resolveLatest(repo).then((url) => {
