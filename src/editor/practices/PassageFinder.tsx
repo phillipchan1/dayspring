@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useGuestMode } from '@/context/GuestMode'
 import { BOOKS, NT_BOOKS, OT_BOOKS, type BibleBook } from '@/lib/bible/canon'
 import { formatOsisRef } from '@/lib/scripture/format'
 import type { Practice } from './practicesData'
@@ -54,6 +55,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const size = practice.passage?.size ?? 'any'
+  const { isGuest } = useGuestMode()
 
   useEffect(() => {
     let live = true
@@ -66,16 +68,21 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
     inputRef.current?.focus({ preventScroll: true })
   }, [])
 
-  // One chapter, loaded when opened.
+  // One chapter, loaded when opened. Guests have no session for the ESV
+  // endpoint — skip the fetch rather than failing into an error string.
   useEffect(() => {
     if (!open) return
+    if (isGuest) {
+      setVerses(null)
+      return
+    }
     let live = true
     setVerses(null)
     void loadChapter(open.book.name, open.chapter).then((v) => live && setVerses(v))
     return () => {
       live = false
     }
-  }, [open])
+  }, [open, isGuest])
 
   // Land on the chosen verses once they are on screen.
   useEffect(() => {
@@ -283,7 +290,14 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
             </button>
           </span>
         </div>
-        {verses === null ? (
+        {isGuest ? (
+          <div className="pf__soft">
+            <p>Open this passage in your own Bible, then continue.</p>
+            <button type="button" className="pf__link" onClick={() => begin(true)}>
+              Read {passageLabel(ref)} from your own Bible →
+            </button>
+          </div>
+        ) : verses === null ? (
           <p className="pf__soft pf__loading">Opening {displayBook(open.book.name)} {open.chapter}…</p>
         ) : verses.length === 0 ? (
           <div className="pf__soft">
@@ -302,17 +316,25 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
             </div>
           </>
         )}
-        {note && <p className="pf__soft">{note}</p>}
+        {note && !isGuest && <p className="pf__soft">{note}</p>}
         <div className="pf__bar">
           <span className="pf__bar-ref">{passageLabel(ref)}</span>
           <span className="pf__bar-count">{sel ? `${count} verse${count === 1 ? '' : 's'}` : 'the whole chapter'}</span>
           <span className="pf__bar-sp" />
-          <button type="button" className="pf__link" onClick={() => begin(true)}>
-            I’m reading from my own Bible
-          </button>
-          <button type="button" className="pf__begin" onClick={() => begin(false)} disabled={verses === null}>
-            {current ? 'Use this passage' : 'Begin'}
-          </button>
+          {isGuest ? (
+            <button type="button" className="pf__begin" onClick={() => begin(true)}>
+              Continue
+            </button>
+          ) : (
+            <>
+              <button type="button" className="pf__link" onClick={() => begin(true)}>
+                I’m reading from my own Bible
+              </button>
+              <button type="button" className="pf__begin" onClick={() => begin(false)} disabled={verses === null}>
+                {current ? 'Use this passage' : 'Begin'}
+              </button>
+            </>
+          )}
         </div>
       </>
     )

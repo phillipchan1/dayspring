@@ -141,8 +141,16 @@ export async function fenceCacheToOwner(ownerId: string): Promise<void> {
   }
 }
 
-/** On sign-out: scrub content and forget the owner so the next login re-fences. */
+/**
+ * On sign-out: scrub content and forget the owner so the next login re-fences.
+ *
+ * A guest id (`local:…`) is unpublished work on this device — the only copy.
+ * Signing out of nothing must not wipe it. Account owners still purge so a
+ * second person on the same browser never sees the first person's journal.
+ */
 export async function purgeOnSignOut(): Promise<void> {
+  const stored = readCacheOwner()
+  if (stored && isGuestOwnerId(stored)) return
   await purgeContent()
   try {
     localStorage.removeItem(CACHE_OWNER_KEY)

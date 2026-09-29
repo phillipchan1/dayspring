@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { signOut } from '@/lib/auth'
+import { useGuestMode } from '@/context/GuestMode'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
 import './You.css'
 
@@ -64,6 +65,7 @@ export function YouMenu({
   const [at, setAt] = useState<{ left: number; bottom: number } | null>(null)
   const wrap = useRef<HTMLDivElement | null>(null)
   const menu = useRef<HTMLDivElement | null>(null)
+  const { isGuest, requestSignIn } = useGuestMode()
 
   /**
    * The menu is PORTALLED to the body, not nested in the rail.
@@ -174,17 +176,30 @@ export function YouMenu({
 
           <hr className="you__rule" />
 
-          <div className="you__who" title={userEmail}>
-            {userEmail}
-          </div>
-          <button
-            type="button"
-            role="menuitem"
-            className="you__item you__item--quiet"
-            onClick={pick(() => void signOut())}
-          >
-            Sign out
-          </button>
+          {isGuest ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="you__item you__item--quiet"
+              onClick={pick(requestSignIn)}
+            >
+              Sign in
+            </button>
+          ) : (
+            <>
+              <div className="you__who" title={userEmail}>
+                {userEmail}
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                className="you__item you__item--quiet"
+                onClick={pick(() => void signOut())}
+              >
+                Sign out
+              </button>
+            </>
+          )}
           </div>,
           document.body,
         )}

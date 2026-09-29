@@ -61,9 +61,35 @@ export function statusLine(args: {
   saveError: string | null
   sync: SyncSnapshot
   now?: number
+  /**
+   * Guest / local-only journal. Writes never leave this device, so "Offline"
+   * and "Synced" are the wrong words — the local write is the whole story.
+   */
+  localOnly?: boolean
+  /** The open page already exists on this device (reload of a guest entry). */
+  persisted?: boolean
 }): StatusLine {
-  const { save, lastSavedAt, saveError, sync, now = Date.now() } = args
+  const { save, lastSavedAt, saveError, sync, now = Date.now(), localOnly = false, persisted = false } = args
   const word = savedWord(save, lastSavedAt)
+
+  if (localOnly) {
+    if (save === 'error') {
+      return { label: 'Save failed', tone: 'error', detail: saveError || 'Save failed', busy: false }
+    }
+    if (save === 'saving') {
+      return { label: 'Saving…', tone: 'quiet', detail: 'Saving on this device', busy: true }
+    }
+    const onDevice = save === 'saved' || lastSavedAt != null || persisted
+    if (onDevice) {
+      return {
+        label: 'Saved on this device',
+        tone: 'quiet',
+        detail: lastSavedAt ? `Saved ${timeAgo(lastSavedAt, now)} · on this device` : 'Saved on this device',
+        busy: false,
+      }
+    }
+    return { label: 'Not saved yet', tone: 'quiet', detail: 'Not saved yet', busy: false }
+  }
 
   // The detail is always the whole picture, whatever the label ends up saying.
   const saveDetail =

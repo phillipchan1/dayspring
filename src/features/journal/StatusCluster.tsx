@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useGuestMode } from '@/context/GuestMode'
 import { syncStore } from '@/lib/sync'
 import { statusLine } from './statusLine'
 import type { SaveStatus } from '@/hooks/useAutosave'
@@ -11,6 +12,8 @@ interface Props {
   onSync?: () => void
   /** Desktop puts the word count in the same cluster, ahead of the status. */
   leading?: ReactNode
+  /** The open page already exists on this device (guest reload). */
+  persisted?: boolean
 }
 
 /**
@@ -24,7 +27,8 @@ interface Props {
  * The whole cluster is the sync control now. It used to be the word "Synced"
  * itself, which is exactly the word that goes away when nothing is wrong.
  */
-export function StatusCluster({ status, lastSavedAt, saveError, onSync, leading }: Props) {
+export function StatusCluster({ status, lastSavedAt, saveError, onSync, leading, persisted = false }: Props) {
+  const { isGuest } = useGuestMode()
   const sync = useSyncExternalStore(syncStore.subscribe, syncStore.get)
   // Only the hover detail carries a timestamp now, so this ticks at half the
   // rate the old visible "saved 30s ago" needed.
@@ -34,7 +38,14 @@ export function StatusCluster({ status, lastSavedAt, saveError, onSync, leading 
     return () => clearInterval(id)
   }, [])
 
-  const line = statusLine({ save: status, lastSavedAt, saveError, sync })
+  const line = statusLine({
+    save: status,
+    lastSavedAt,
+    saveError,
+    sync,
+    localOnly: isGuest,
+    persisted,
+  })
 
   const body = (
     <>
