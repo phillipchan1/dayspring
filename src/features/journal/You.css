@@ -69,10 +69,13 @@
 /* ── the menu ─────────────────────────────────────────────────────────────── */
 .you__menu {
   /* Portalled to the body and placed from the trigger's rect — see YouMenu.tsx.
-     The rail clips its overflow, and clipping is not something z-index fixes. */
+     The rail clips its overflow, and clipping is not something z-index fixes.
+     Width is clamped in JS (youMenuPlacement.ts); max-width is the CSS fallback
+     so a 320px viewport with safe-area insets cannot paint past the edge. */
   position: fixed;
   z-index: 400;
-  min-width: 268px;
+  min-width: min(268px, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  max-width: calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px));
   padding: 6px;
   border-radius: 10px;
   background: var(--bg-elevated);

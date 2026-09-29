@@ -291,12 +291,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
           </span>
         </div>
         {isGuest ? (
-          <div className="pf__soft">
-            <p>Open this passage in your own Bible, then continue.</p>
-            <button type="button" className="pf__link" onClick={() => begin(true)}>
-              Read {passageLabel(ref)} from your own Bible →
-            </button>
-          </div>
+          <p className="pf__soft">Open this passage in your own Bible, then continue.</p>
         ) : verses === null ? (
           <p className="pf__soft pf__loading">Opening {displayBook(open.book.name)} {open.chapter}…</p>
         ) : verses.length === 0 ? (

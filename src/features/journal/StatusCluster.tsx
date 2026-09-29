@@ -67,7 +67,10 @@ export function StatusCluster({ status, lastSavedAt, saveError, onSync, leading,
 
   // `title` carries the full picture on hover; `aria-label` carries it to a
   // screen reader, which would otherwise get only the one collapsed word.
-  return onSync ? (
+  // Guests have nothing to sync — the cluster is not a control, and the
+  // tooltip is the same "on this device" sentence the label already uses.
+  const canSync = Boolean(onSync) && !isGuest
+  return canSync ? (
     <button
       type="button"
       className="status-cluster status-cluster--action"
