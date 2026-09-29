@@ -137,26 +137,68 @@ describe('handoffAfterStartTrialConversion', () => {
     PUBLIC_GADS_START_TRIAL_SEND_TO: 'AW-18483316711/j0NLCJGG4oodEOePxO1E',
   }
 
-  it('redirects via gtag event_callback and does not fire again on the fallback', async () => {
+  it('when send_to is unset, redirects at the 400ms floor, not immediately', async () => {
+    const { handoffAfterStartTrialConversion, START_TRIAL_HANDOFF_MIN_MS } =
+      await loadGoogleAds({
+        PUBLIC_GOOGLE_TAG_ID: 'AW-18483316711',
+      })
+    vi.useFakeTimers()
+    const handoff = vi.fn()
+    handoffAfterStartTrialConversion(handoff)
+
+    expect(handoff).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(START_TRIAL_HANDOFF_MIN_MS - 1)
+    expect(handoff).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(handoff).toHaveBeenCalledOnce()
+    vi.advanceTimersByTime(5000)
+    expect(handoff).toHaveBeenCalledOnce()
+  })
+
+  it('a fast event_callback still waits for the 400ms floor, then hands off once', async () => {
     const { win } = installDom()
-    const { handoffAfterStartTrialConversion, START_TRIAL_HANDOFF_FALLBACK_MS } =
-      await loadGoogleAds(env)
+    const {
+      handoffAfterStartTrialConversion,
+      START_TRIAL_HANDOFF_MIN_MS,
+      START_TRIAL_HANDOFF_FALLBACK_MS,
+    } = await loadGoogleAds(env)
     vi.useFakeTimers()
     const handoff = vi.fn()
     handoffAfterStartTrialConversion(handoff)
 
     const params = conversionParams(win.dataLayer)
     expect(typeof params?.event_callback).toBe('function')
+    ;(params?.event_callback as () => void)()
     expect(handoff).not.toHaveBeenCalled()
 
-    ;(params?.event_callback as () => void)()
+    vi.advanceTimersByTime(START_TRIAL_HANDOFF_MIN_MS - 1)
+    expect(handoff).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
     expect(handoff).toHaveBeenCalledOnce()
 
-    vi.advanceTimersByTime(START_TRIAL_HANDOFF_FALLBACK_MS + 50)
+    vi.advanceTimersByTime(START_TRIAL_HANDOFF_FALLBACK_MS)
     expect(handoff).toHaveBeenCalledOnce()
   })
 
-  it('redirects via the fallback timeout when event_callback never runs', async () => {
+  it('a late event_callback after the floor redirects then, not at 400ms', async () => {
+    const { win } = installDom()
+    const { handoffAfterStartTrialConversion, START_TRIAL_HANDOFF_MIN_MS } =
+      await loadGoogleAds(env)
+    vi.useFakeTimers()
+    const handoff = vi.fn()
+    handoffAfterStartTrialConversion(handoff)
+
+    vi.advanceTimersByTime(START_TRIAL_HANDOFF_MIN_MS)
+    expect(handoff).not.toHaveBeenCalled()
+
+    const params = conversionParams(win.dataLayer)
+    ;(params?.event_callback as () => void)()
+    expect(handoff).toHaveBeenCalledOnce()
+    vi.advanceTimersByTime(5000)
+    expect(handoff).toHaveBeenCalledOnce()
+  })
+
+  it('when event_callback never runs, redirects at the 1200ms fallback, once', async () => {
     const { handoffAfterStartTrialConversion, START_TRIAL_HANDOFF_FALLBACK_MS } =
       await loadGoogleAds(env)
     vi.useFakeTimers()
@@ -167,16 +209,6 @@ describe('handoffAfterStartTrialConversion', () => {
     vi.advanceTimersByTime(START_TRIAL_HANDOFF_FALLBACK_MS - 1)
     expect(handoff).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
-    expect(handoff).toHaveBeenCalledOnce()
-  })
-
-  it('hands off immediately when the start-trial conversion is not configured', async () => {
-    const { handoffAfterStartTrialConversion } = await loadGoogleAds({
-      PUBLIC_GOOGLE_TAG_ID: 'AW-18483316711',
-    })
-    vi.useFakeTimers()
-    const handoff = vi.fn()
-    handoffAfterStartTrialConversion(handoff)
     expect(handoff).toHaveBeenCalledOnce()
     vi.advanceTimersByTime(5000)
     expect(handoff).toHaveBeenCalledOnce()

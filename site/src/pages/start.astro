@@ -7,9 +7,10 @@
 //   2. Fire the client-side conversion signals a redirect straight to the app
 //      would lose — Meta's StartTrial pixel, PostHog's start_trial_clicked,
 //      and (when PUBLIC_GADS_START_TRIAL_SEND_TO is set) a Google Ads
-//      conversion. The Google hit waits on gtag's event_callback (gtag.js is
-//      large enough that a fixed 400ms often navigates away first); a 1200ms
-//      fallback keeps the visitor from getting stuck.
+//      conversion. Handoff waits at least 400ms so PostHog/Meta can flush,
+//      then the later of that floor and gtag's event_callback (gtag.js is
+//      large enough that 400ms alone often navigates away first), capped at
+//      1200ms so a hung tag never leaves the visitor here.
 //   3. Send the visitor on to sign-in, where first sign-in grants
 //      14-day trial with no card (api/profile/ensure.ts in the app repo).
 //
@@ -102,8 +103,8 @@ import { APP_URL } from "../content/site";
 
   trackSite("start_trial_clicked");
   trackStartTrial();
-  // gtag.js is ~438KB; event_callback fires once the conversion is queued for
-  // the network. Fallback is 1200ms so a hung tag never leaves the visitor here.
+  // At least 400ms so PostHog + Meta can land; then gtag event_callback if it
+  // comes later. 1200ms fallback if the tag never calls back.
   handoffAfterStartTrialConversion(() => {
     window.location.replace(target);
   });

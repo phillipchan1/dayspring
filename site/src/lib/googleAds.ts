@@ -19,6 +19,8 @@ const START_TRIAL_SEND_TO = import.meta.env.PUBLIC_GADS_START_TRIAL_SEND_TO as
   | string
   | undefined
 
+/** Floor on /start so PostHog and Meta can flush before we navigate. */
+export const START_TRIAL_HANDOFF_MIN_MS = 400
 /** Max wait on /start if gtag never invokes event_callback. */
 export const START_TRIAL_HANDOFF_FALLBACK_MS = 1200
 
@@ -82,10 +84,11 @@ export function trackGoogleDownloadConversion(): void {
 }
 
 /**
- * /start handoff. No-op when PUBLIC_GADS_START_TRIAL_SEND_TO is unset.
- * Pass `onReady` to wait for gtag's event_callback (script may still be
- * loading). When the conversion is not configured, `onReady` runs immediately
- * so the visitor is not held for a hit that will never fire.
+ * /start conversion. No-op when PUBLIC_GADS_START_TRIAL_SEND_TO is unset.
+ * Pass `onReady` to hear gtag's event_callback (script may still be loading).
+ * When the conversion is not configured, `onReady` runs immediately — the
+ * 400ms floor that protects PostHog/Meta lives in
+ * `handoffAfterStartTrialConversion`, not here.
  */
 export function trackGoogleStartTrialConversion(onReady?: () => void): void {
   const sent = sendConversion(
@@ -96,17 +99,33 @@ export function trackGoogleStartTrialConversion(onReady?: () => void): void {
 }
 
 /**
- * Fire the start-trial conversion, then call `handoff` once — either when
- * gtag's event_callback runs, or after START_TRIAL_HANDOFF_FALLBACK_MS so
- * the visitor is never stuck on /start.
+ * Fire the start-trial conversion, then call `handoff` once: no earlier than
+ * START_TRIAL_HANDOFF_MIN_MS (so PostHog / Meta can land), at the later of
+ * that floor and gtag's event_callback, capped at
+ * START_TRIAL_HANDOFF_FALLBACK_MS so the visitor is never stuck on /start.
  */
 export function handoffAfterStartTrialConversion(handoff: () => void): void {
   let done = false
+  let minElapsed = false
+  let conversionReady = false
+
   const go = () => {
     if (done) return
     done = true
     handoff()
   }
-  trackGoogleStartTrialConversion(go)
+
+  const tryGo = () => {
+    if (minElapsed && conversionReady) go()
+  }
+
+  trackGoogleStartTrialConversion(() => {
+    conversionReady = true
+    tryGo()
+  })
+  setTimeout(() => {
+    minElapsed = true
+    tryGo()
+  }, START_TRIAL_HANDOFF_MIN_MS)
   setTimeout(go, START_TRIAL_HANDOFF_FALLBACK_MS)
 }
