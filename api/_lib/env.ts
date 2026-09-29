@@ -13,6 +13,16 @@ export const env = {
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
   openaiKey: () => need('OPENAI_API_KEY'),
   model: () => process.env.OPENAI_MODEL || 'gpt-6-luna',
+  // TypeSafe / Jev — lab and eval only. Nullable so importing this module never
+  // throws. Production processing does not read these; default provider stays
+  // openai. See docs/lab/JEV_CLASSIFIER.md.
+  typesafeKey: () => process.env.TYPESAFE_API_KEY ?? null,
+  typesafeModel: () => process.env.TYPESAFE_MODEL || 'jev-1.13.0',
+  classifierProvider: (): 'openai' | 'jev' | 'cascade' => {
+    const raw = (process.env.CLASSIFIER_PROVIDER ?? 'openai').toLowerCase()
+    if (raw === 'jev' || raw === 'cascade') return raw
+    return 'openai'
+  },
   // Speech-to-text model for voice dictation. gpt-4o-mini-transcribe is cheap
   // (~$0.003/min), accurate, and accepts a `prompt` for vocabulary biasing.
   transcribeModel: () => process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe',

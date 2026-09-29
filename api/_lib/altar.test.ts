@@ -77,7 +77,24 @@ describe('HARVEST_CUE', () => {
   })
 
   it('meets the recall floor, and names what it costs when it does not', () => {
-    const score = scoreCuePrefilter(fires)
+    // Lab gold (prayer-hard / adversarial) deliberately adds cue-blind prayers.
+    // Keep the production floor on the original Altar categories so the lab set
+    // cannot silently lower it.
+    const original = new Set(
+      corpusFor('passages')
+        .filter((e) =>
+          [
+            'prayer-clear',
+            'prayer-cue-blind',
+            'prayer-cue-false-positive',
+            'prayer-distractor',
+            'prayer-paraphrase-trap',
+            'subject-stoplist',
+          ].includes(e.category),
+        )
+        .map((e) => e.id),
+    )
+    const score = scoreCuePrefilter(fires, original)
     expect(score.recall, `prayers the cue cannot see: ${score.missedIn.join(', ')}`).toBeGreaterThanOrEqual(
       CUE_RECALL_FLOOR,
     )

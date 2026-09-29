@@ -8,7 +8,7 @@
 // tests this file directly rather than trusting it.
 
 import { corpusFor } from './corpus'
-import type { LoadedEntry } from './corpus/types'
+import { CORPUS_EMOTIONS, type CorpusEmotion, type LoadedEntry, type ValenceBucket } from './corpus/types'
 
 export interface Score {
   tp: number
@@ -333,4 +333,193 @@ export function scoreEntities(actual: ModelEntity[], only?: Set<string>): Entity
     descriptors: { kept, proposed },
     misses,
   }
+}
+
+// ── prayer gate (entry-level has-prayer) ─────────────────────────────────────
+
+/**
+ * Entry-level has-prayer vs gold "has ≥1 expected passage". Same shape as the
+ * cue prefilter so the two rows print next to each other.
+ */
+export function scoreGate(hasPrayer: (id: string) => boolean, only?: Set<string>): Score {
+  let tp = 0
+  let fp = 0
+  let fn = 0
+  const misses: Miss[] = []
+  for (const e of scopeTo('passages', only)) {
+    const should = (e.passages ?? []).length > 0
+    const got = hasPrayer(e.id)
+    if (should && got) tp++
+    else if (should && !got) {
+      fn++
+      misses.push({ entryId: e.id, kind: 'fn', detail: 'prayer present, gate silent' })
+    } else if (!should && got) {
+      fp++
+      misses.push({ entryId: e.id, kind: 'fp', detail: 'gate fires, no prayer' })
+    }
+  }
+  return summarize(tp, fp, fn, misses)
+}
+
+// ── sentiment (Tier 2) ───────────────────────────────────────────────────────
+
+export interface ModelSentiment {
+  entryId: string
+  present: boolean
+  valence: ValenceBucket
+  valenceNumeric?: number
+  emotions: CorpusEmotion[]
+}
+
+export interface LabelScore {
+  label: string
+  tp: number
+  fp: number
+  fn: number
+  precision: number
+  recall: number
+  f1: number
+}
+
+export interface SentimentScore {
+  present: { accuracy: number; n: number }
+  valenceBucket: { accuracy: number; n: number }
+  valenceMae: number
+  perEmotion: LabelScore[]
+  micro: Score
+  macro: { precision: number; recall: number; f1: number }
+  misses: Miss[]
+}
+
+const valenceToNum = (v: ValenceBucket): number => (v === 'negative' ? -1 : v === 'positive' ? 1 : 0)
+
+export function scoreSentiment(actual: ModelSentiment[], only?: Set<string>): SentimentScore {
+  const annotated = scopeTo('sentiment', only)
+  let presentHit = 0
+  let valenceHit = 0
+  let valenceN = 0
+  let maeSum = 0
+  let maeN = 0
+  const misses: Miss[] = []
+
+  const per = new Map<CorpusEmotion, { tp: number; fp: number; fn: number }>()
+  for (const emo of CORPUS_EMOTIONS) per.set(emo, { tp: 0, fp: 0, fn: 0 })
+
+  for (const e of annotated) {
+    const exp = e.sentiment
+    if (!exp) continue
+    const got = actual.find((a) => a.entryId === e.id)
+    if (!got) {
+      misses.push({ entryId: e.id, kind: 'fn', detail: 'no sentiment prediction' })
+      if (exp.present) {
+        /* present miss counted below via got=undefined → treat as present=false */
+      }
+      const predictedPresent = false
+      if (exp.present === predictedPresent) presentHit++
+      else misses.push({ entryId: e.id, kind: 'fn', detail: 'present' })
+      for (const emo of exp.emotions) {
+        const row = per.get(emo)!
+        row.fn++
+      }
+      continue
+    }
+
+    if (got.present === exp.present) presentHit++
+    else {
+      misses.push({
+        entryId: e.id,
+        kind: got.present ? 'fp' : 'fn',
+        detail: `present ${got.present} ≠ ${exp.present}`,
+      })
+    }
+
+    if (exp.present) {
+      valenceN++
+      if (got.valence === exp.valence) valenceHit++
+      else {
+        misses.push({
+          entryId: e.id,
+          kind: 'fp',
+          detail: `valence ${got.valence} ≠ ${exp.valence}`,
+        })
+      }
+      const predNum = got.valenceNumeric ?? valenceToNum(got.valence)
+      maeSum += Math.abs(predNum - valenceToNum(exp.valence))
+      maeN++
+    }
+
+    const expSet = new Set(exp.emotions)
+    const gotSet = new Set(got.emotions)
+    for (const emo of CORPUS_EMOTIONS) {
+      const row = per.get(emo)!
+      const eOn = expSet.has(emo)
+      const gOn = gotSet.has(emo)
+      if (eOn && gOn) row.tp++
+      else if (!eOn && gOn) row.fp++
+      else if (eOn && !gOn) {
+        row.fn++
+        misses.push({ entryId: e.id, kind: 'fn', detail: `emotion ${emo}` })
+      }
+    }
+  }
+
+  const perEmotion: LabelScore[] = CORPUS_EMOTIONS.map((label) => {
+    const { tp, fp, fn } = per.get(label)!
+    const precision = ratio(tp, tp + fp)
+    const recall = ratio(tp, tp + fn)
+    return {
+      label,
+      tp,
+      fp,
+      fn,
+      precision,
+      recall,
+      f1: precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall),
+    }
+  })
+
+  let mtp = 0
+  let mfp = 0
+  let mfn = 0
+  for (const row of perEmotion) {
+    mtp += row.tp
+    mfp += row.fp
+    mfn += row.fn
+  }
+  const micro = summarize(mtp, mfp, mfn, misses)
+  const macroP = perEmotion.reduce((s, r) => s + r.precision, 0) / perEmotion.length
+  const macroR = perEmotion.reduce((s, r) => s + r.recall, 0) / perEmotion.length
+  const macroF = perEmotion.reduce((s, r) => s + r.f1, 0) / perEmotion.length
+
+  return {
+    present: { accuracy: ratio(presentHit, annotated.length), n: annotated.length },
+    valenceBucket: { accuracy: ratio(valenceHit, valenceN), n: valenceN },
+    valenceMae: maeN === 0 ? 0 : maeSum / maeN,
+    perEmotion,
+    micro,
+    macro: { precision: macroP, recall: macroR, f1: macroF },
+    misses,
+  }
+}
+
+/** Per-entry subject label accuracy against the corpus gold list. */
+export function scoreSubjectAssignment(
+  actual: { entryId: string; labels: string[] }[],
+  only?: Set<string>,
+): Score {
+  let tp = 0
+  let fp = 0
+  let fn = 0
+  const misses: Miss[] = []
+  for (const e of scopeTo('subjects', only)) {
+    const expected = (e.subjects ?? []).map((s) => s.label.toLowerCase())
+    const got = (actual.find((a) => a.entryId === e.id)?.labels ?? []).map((s) => s.toLowerCase())
+    const { tp: hit, missing, extra } = diffMultiset(expected, got)
+    tp += hit
+    fn += missing.length
+    fp += extra.length
+    for (const m of missing) misses.push({ entryId: e.id, kind: 'fn', detail: m })
+    for (const x of extra) misses.push({ entryId: e.id, kind: 'fp', detail: x })
+  }
+  return summarize(tp, fp, fn, misses)
 }

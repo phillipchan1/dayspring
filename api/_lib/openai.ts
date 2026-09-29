@@ -33,7 +33,7 @@ type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
  *
  * Grep Vercel logs for `[tokens]` to total a day by name.
  */
-function logUsage(name: string, model: string, attempt: number, usage: unknown): void {
+function logUsage(name: string, model: string, attempt: number, usage: unknown, ms?: number): void {
   const u = usage as
     | {
         prompt_tokens?: number
@@ -43,10 +43,11 @@ function logUsage(name: string, model: string, attempt: number, usage: unknown):
       }
     | undefined
   if (!u) return
+  const timing = typeof ms === 'number' ? ` ms=${Math.round(ms)}` : ''
   console.log(
     `[tokens] name=${name} model=${model} in=${u.prompt_tokens ?? 0} ` +
       `cached=${u.prompt_tokens_details?.cached_tokens ?? 0} out=${u.completion_tokens ?? 0} ` +
-      `reasoning=${u.completion_tokens_details?.reasoning_tokens ?? 0} attempt=${attempt}`,
+      `reasoning=${u.completion_tokens_details?.reasoning_tokens ?? 0} attempt=${attempt}${timing}`,
   )
 }
 
@@ -87,8 +88,9 @@ export async function callModel<T>(
       // Reasoning models can exhaust the budget on hidden tokens; retry with headroom.
       max_completion_tokens: attempt === 0 ? cap : cap * 2,
     }
+    const t0 = Date.now()
     const completion = await openai().chat.completions.create(params)
-    logUsage(name, params.model, attempt, completion.usage)
+    logUsage(name, params.model, attempt, completion.usage, Date.now() - t0)
     const choice = completion.choices[0]
     const msg = choice?.message
     const finish = choice?.finish_reason
