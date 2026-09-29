@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { CORPUS, stratifiedSample } from './corpus'
-import { costPerPass, mean, meanScore } from './evalReport'
+import {
+  breakdownByTaskAndModel,
+  costPerPass,
+  dollarsForCall,
+  dollarsForCalls,
+  mean,
+  meanScore,
+  taskOf,
+} from './evalReport'
 
 describe('costPerPass', () => {
   it('divides accumulated spend by the rerun count', () => {
@@ -25,6 +33,54 @@ describe('meanScore', () => {
 describe('mean', () => {
   it('is 0 on an empty list', () => {
     expect(mean([])).toBe(0)
+  })
+})
+
+describe('dollarsForCall', () => {
+  const luna = { inn: 0.1, out: 0.5, cached: 0.01 }
+
+  it('does not add reasoning on top of output_tokens', () => {
+    const withReason = dollarsForCall(
+      { name: 'altar_harvest', model: 'gpt-6-luna', in: 1000, cached: 0, out: 200, reasoning: 50, ms: 0 },
+      luna,
+    )
+    const without = dollarsForCall(
+      { name: 'altar_harvest', model: 'gpt-6-luna', in: 1000, cached: 0, out: 200, reasoning: 0, ms: 0 },
+      luna,
+    )
+    expect(withReason).toBeCloseTo(without)
+    expect(withReason).toBeCloseTo((1000 * 0.1 + 200 * 0.5) / 1_000_000)
+  })
+
+  it('bills cached input at the cached rate', () => {
+    const d = dollarsForCall(
+      { name: 'altar_harvest', model: 'gpt-6-luna', in: 1000, cached: 400, out: 0, reasoning: 0, ms: 0 },
+      luna,
+    )
+    expect(d).toBeCloseTo((600 * 0.1 + 400 * 0.01) / 1_000_000)
+  })
+})
+
+describe('taskOf / breakdown', () => {
+  it('labels entity extraction separately from harvest', () => {
+    expect(taskOf('concordance_extract')).toBe('entities')
+    expect(taskOf('altar_harvest')).toBe('harvest')
+    expect(taskOf('embed')).toBe('embed')
+  })
+
+  it('prices each call by its own model and can exclude entities', () => {
+    const rates = (model: string) =>
+      model.startsWith('jev') ? { inn: 0.042, out: 0, cached: 0 } : { inn: 0.1, out: 0.5, cached: 0.01 }
+    const calls = [
+      { name: 'jev_harvest_gate:a', model: 'jev-1.13.0', in: 1_000_000, cached: 0, out: 0, reasoning: 0, ms: 0 },
+      { name: 'altar_harvest', model: 'gpt-6-luna', in: 1_000_000, cached: 0, out: 0, reasoning: 0, ms: 0 },
+      { name: 'concordance_extract', model: 'gpt-6-luna', in: 1_000_000, cached: 0, out: 0, reasoning: 0, ms: 0 },
+    ]
+    expect(dollarsForCalls(calls, rates)).toBeCloseTo(0.042 + 0.1 + 0.1)
+    expect(dollarsForCalls(calls, rates, { exclude: ['entities'] })).toBeCloseTo(0.042 + 0.1)
+    const rows = breakdownByTaskAndModel(calls, rates)
+    expect(rows.find((r) => r.task === 'harvest' && r.model.startsWith('jev'))?.dollars).toBeCloseTo(0.042)
+    expect(rows.find((r) => r.task === 'harvest' && r.model.includes('luna'))?.dollars).toBeCloseTo(0.1)
   })
 })
 

@@ -10,8 +10,8 @@
   ],
   "entries": 515,
   "openaiCalls": 503,
-  "jevTok": 1092090,
-  "jevCost": 0.045867780000000004,
+  "jevTok": 323400,
+  "jevCost": 0.0135828,
   "openaiCost": 0.5533,
   "vocab": [
     "anxiety",

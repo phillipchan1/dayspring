@@ -60,7 +60,7 @@ describe('jevHarvestTexts', () => {
         const req = parseBody(init)
         return systemOneResponse(
           answersForQuestions(req.questions, (id, type) => {
-            if (type === 'noul') return noulNo()
+            if (type === 'noul') return noulYes()
             return choiceOf('neither', 0.7)
           }),
         )
@@ -69,6 +69,58 @@ describe('jevHarvestTexts', () => {
     const body = Array.from({ length: 260 }, (_, i) => `Sentence number ${i} about the weather.`).join(' ')
     await jevHarvestTexts([{ id: 'long', body }])
     expect(calls).toBeGreaterThanOrEqual(2)
+  })
+
+  it('skips per-sentence harvest when the entry gate is a confident no', async () => {
+    let sentenceQuestions = 0
+    let calls = 0
+    configureTypeSafe({
+      fetch: async (_url, init) => {
+        calls++
+        const req = parseBody(init)
+        if (Object.keys(req.questions).some((k) => k.startsWith('s'))) sentenceQuestions++
+        return systemOneResponse(
+          answersForQuestions(req.questions, (id, type) => {
+            if (type === 'noul') return noulNo(0.04)
+            return choiceOf('neither', 0.9)
+          }),
+        )
+      },
+    })
+    const { byEntry, skippedSentences, gate } = await jevHarvestTexts(
+      [{ id: 'skip', body: 'The radiator knocks in threes. I made coffee.' }],
+      { tau: 0.8 },
+    )
+    expect(calls).toBe(1)
+    expect(sentenceQuestions).toBe(0)
+    expect(skippedSentences).toContain('skip')
+    expect(byEntry.has('skip')).toBe(false)
+    expect(gate.get('skip')?.containsPrayer).toBe(false)
+  })
+
+  it('puts the kind rubric on state once, not in every sentence question', async () => {
+    let sawSentence = false
+    configureTypeSafe({
+      fetch: async (_url, init) => {
+        const req = parseBody(init)
+        if (Object.keys(req.questions).some((k) => k.startsWith('s'))) {
+          sawSentence = true
+          const state = req.state as { kind_rubric?: { prayer?: string } }
+          expect(state.kind_rubric?.prayer).toMatch(/addressed TO God/)
+          const q = req.questions.s0 as { instructions?: string; criteria?: Record<string, string> }
+          expect(JSON.stringify(q.criteria ?? {}).length).toBeLessThan(200)
+          expect(String(q.instructions ?? '')).not.toMatch(/Holy Spirit/)
+        }
+        return systemOneResponse(
+          answersForQuestions(req.questions, (id, type) => {
+            if (type === 'noul') return noulYes(0.9)
+            return choiceOf('prayer', 0.9)
+          }),
+        )
+      },
+    })
+    await jevHarvestTexts([{ id: 'slim', body: 'Lord, be near her tonight.' }])
+    expect(sawSentence).toBe(true)
   })
 
   it('records HTTP 400 max_tokens_exceeded instead of swallowing it', async () => {

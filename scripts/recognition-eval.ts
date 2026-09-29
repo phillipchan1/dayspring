@@ -14,7 +14,15 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { costPerPass, mean, meanScore } from '../src/lib/recognition/evalReport.ts'
+import {
+  breakdownByTaskAndModel,
+  costPerPass,
+  dollarsForCalls,
+  mean,
+  meanScore,
+  taskOf,
+  type PricedCall,
+} from '../src/lib/recognition/evalReport.ts'
 
 function loadDotEnv(): void {
   let raw = ''
@@ -115,19 +123,18 @@ const PRICE = {
   jevOut: 0,
   lunaIn: Number(process.env.LUNA_PRICE_IN ?? 0.1),
   lunaOut: Number(process.env.LUNA_PRICE_OUT ?? 0.5),
+  lunaCached: Number(process.env.LUNA_PRICE_CACHED ?? 0.01),
   nanoIn: 0.2,
   nanoOut: 1.25,
+  nanoCached: 0.02,
+  embedIn: Number(process.env.EMBED_PRICE_IN ?? 0.02),
 } as const
 
-function priceOf(model: string): { inn: number; out: number } {
-  if (model.startsWith('jev')) return { inn: PRICE.jevIn, out: PRICE.jevOut }
-  if (model.includes('nano')) return { inn: PRICE.nanoIn, out: PRICE.nanoOut }
-  return { inn: PRICE.lunaIn, out: PRICE.lunaOut }
-}
-
-function dollars(model: string, inn: number, out: number, reasoning: number): number {
-  const p = priceOf(model)
-  return (inn * p.inn + (out + reasoning) * p.out) / 1_000_000
+function priceOf(model: string): { inn: number; out: number; cached: number } {
+  if (model.startsWith('jev')) return { inn: PRICE.jevIn, out: PRICE.jevOut, cached: 0 }
+  if (model.includes('embed')) return { inn: PRICE.embedIn, out: 0, cached: PRICE.embedIn }
+  if (model.includes('nano')) return { inn: PRICE.nanoIn, out: PRICE.nanoOut, cached: PRICE.nanoCached }
+  return { inn: PRICE.lunaIn, out: PRICE.lunaOut, cached: PRICE.lunaCached }
 }
 
 type UsageSnap = {
@@ -138,29 +145,40 @@ type UsageSnap = {
   reasoning: number
   ms: number[]
   models: string[]
+  items: PricedCall[]
 }
 
-function emptyUsage(): UsageSnap {
-  return { calls: 0, in: 0, cached: 0, out: 0, reasoning: 0, ms: [], models: [] }
-}
-
-let usage = emptyUsage()
+let usageCalls: PricedCall[] = []
 const realLog = console.log
 console.log = (...a: unknown[]) => {
   const line = typeof a[0] === 'string' ? a[0] : ''
   if (line.startsWith('[tokens]')) {
     const num = (k: string) => Number(new RegExp(`\\b${k}=(\\d+)`).exec(line)?.[1] ?? 0)
-    const model = /\bmodel=(\S+)/.exec(line)?.[1] ?? ''
-    usage.calls++
-    usage.in += num('in')
-    usage.cached += num('cached')
-    usage.out += num('out')
-    usage.reasoning += num('reasoning')
-    if (num('ms')) usage.ms.push(num('ms'))
-    if (model) usage.models.push(model)
+    usageCalls.push({
+      name: /\bname=(\S+)/.exec(line)?.[1] ?? '',
+      model: /\bmodel=(\S+)/.exec(line)?.[1] ?? '',
+      in: num('in'),
+      cached: num('cached'),
+      out: num('out'),
+      reasoning: num('reasoning'),
+      ms: num('ms'),
+    })
     return
   }
   realLog(...a)
+}
+
+function snapFromCalls(items: PricedCall[]): UsageSnap {
+  return {
+    calls: items.length,
+    in: items.reduce((s, c) => s + c.in, 0),
+    cached: items.reduce((s, c) => s + c.cached, 0),
+    out: items.reduce((s, c) => s + c.out, 0),
+    reasoning: items.reduce((s, c) => s + c.reasoning, 0),
+    ms: items.map((c) => c.ms).filter((n) => n > 0),
+    models: items.map((c) => c.model).filter(Boolean),
+    items,
+  }
 }
 
 const pct = (n: number): string => (Number.isFinite(n) ? n.toFixed(3) : '—')
@@ -172,10 +190,28 @@ function percentile(values: number[], p: number): number {
   return s[idx]!
 }
 
-function costBlock(u: UsageSnap, entries: number, modelHint: string, passes = 1): Record<string, number> {
-  const model = u.models[0] ?? modelHint
-  const allPasses = dollars(model, u.in, u.out, u.reasoning)
-  return costPerPass(allPasses, entries, passes)
+function costBlock(u: UsageSnap, entries: number, passes = 1): Record<string, unknown> {
+  const compareCalls = u.items.filter((c) => taskOf(c.name) !== 'entities')
+  const allPasses = dollarsForCalls(u.items, priceOf)
+  const comparePasses = dollarsForCalls(compareCalls, priceOf)
+  const headline = costPerPass(comparePasses, entries, passes)
+  const entities = costPerPass(allPasses - comparePasses, entries, passes)
+  const rows = breakdownByTaskAndModel(u.items, priceOf)
+  const perPass = 1 / Math.max(1, passes)
+  return {
+    ...headline,
+    entities: entities.total,
+    allTasks: costPerPass(allPasses, entries, passes).total,
+    byTaskModel: rows.map((r) => ({
+      ...r,
+      dollars: r.dollars * perPass,
+      in: r.in * perPass,
+      cached: r.cached * perPass,
+      out: r.out * perPass,
+      reasoning: r.reasoning * perPass,
+      calls: r.calls * perPass,
+    })),
+  }
 }
 
 function fmtN(x: number): string {
@@ -284,7 +320,7 @@ async function main(): Promise<void> {
   const { extractCandidates } = await import('../api/_lib/concordance.ts')
   const { tagTexts, groupTagged } = await import('../api/_lib/declared.ts')
   const { env } = await import('../api/_lib/env.ts')
-  const { jevHarvestTexts, chunkForHarvest, estimateHarvestTokens } = await import('../api/_lib/jev/harvest.ts')
+  const { jevHarvestTexts, chunkForHarvest, estimateHarvestTokens, estimateGateTokens } = await import('../api/_lib/jev/harvest.ts')
   const { jevTagTexts, evalSubjectVocabulary } = await import('../api/_lib/jev/subjects.ts')
   const { jevSentiment } = await import('../api/_lib/jev/sentiment.ts')
   const { cascadeHarvest, cascadeTag, cascadeSentiment } = await import('../api/_lib/jev/cascade.ts')
@@ -307,7 +343,6 @@ async function main(): Promise<void> {
   const subjectLines = corpus.flatMap((e) => e.passages ?? [])
   const subjectCalls = wants('subjects') ? Math.ceil(subjectLines.length / 6) : 0
   const sentimentCalls = wants('sentiment') ? corpus.filter((e) => e.sentiment).length : 0
-  const jevHarvestCalls = wants('prayers') ? allRows.length : 0
   const jevTagCalls = wants('subjects') ? subjectLines.length : 0
   const jevSentimentCalls = wants('sentiment') ? sentimentCalls : 0
 
@@ -321,9 +356,14 @@ async function main(): Promise<void> {
     if (selected.some((p) => p === 'jev' || p === 'cascade')) {
       for (const r of allRows) {
         if (wants('prayers')) {
-          const sentences = splitSentences(r.body_markdown)
-          for (const chunk of chunkForHarvest(sentences)) {
-            jevTok += estimateHarvestTokens(chunk)
+          jevTok += estimateGateTokens(r.body_markdown)
+          const gold = CORPUS.find((e) => e.id === r.id)
+          const likely = (gold?.passages?.length ?? 0) > 0 || HARVEST_CUE.test(r.body_markdown)
+          if (likely) {
+            const sentences = splitSentences(r.body_markdown)
+            for (const chunk of chunkForHarvest(sentences)) {
+              jevTok += estimateHarvestTokens(chunk)
+            }
           }
         }
         if (wants('sentiment') && CORPUS.find((e) => e.id === r.id)?.sentiment) {
@@ -349,7 +389,7 @@ async function main(): Promise<void> {
       `  cue prefilter     ${cueHits.length}/${allRows.length} entries would reach the OpenAI harvest`,
       `  openai calls      prayers=${prayerCalls} entities=${entityCalls} subjects=${subjectCalls} sentiment=${sentimentCalls}  TOTAL=${openaiCalls}`,
       `  openai est. $     ~$${openaiCost.toFixed(3)} (rough; live run uses token logs)`,
-      `  jev calls         harvest=${jevHarvestCalls} tag=${jevTagCalls} sentiment=${jevSentimentCalls} (one request per item)`,
+      `  jev calls         harvest=1 gate + sentences only if gate-positive/low-τ (est. from gold/cue)  tag=${jevTagCalls} sentiment=${jevSentimentCalls}`,
       `  jev est. tokens   ${jevTok}  (~$${(jevCost).toFixed(4)} at $${PRICE.jevIn}/1M in, out free)`,
       `  vocab (subjects)  ${vocab.length} labels + none_of_these  — gold + DESIGNED_THREADS.forms + sibling/virtue distractors`,
       `  thread formation  ${process.env.OPENAI_API_KEY ? 'on (groupTagged embeddings)' : 'skipped without OPENAI_API_KEY; assignment still scored'}`,
@@ -365,7 +405,7 @@ async function main(): Promise<void> {
   const arms: ArmResult[] = []
 
   const runArm = async (provider: Provider, tau: number, armName: string): Promise<ArmResult> => {
-    usage = emptyUsage()
+    usageCalls = []
     const report: Record<string, unknown> = {
       provider,
       tau,
@@ -376,8 +416,11 @@ async function main(): Promise<void> {
     const lines: string[] = []
     const misses: string[] = []
     const calSamples: { p: number; ok: boolean }[] = []
-    let escalationN = 0
-    let escalationD = 0
+    const esc = {
+      harvest: { n: 0, d: 0 },
+      subjects: { n: 0, d: 0 },
+      sentiment: { n: 0, d: 0 },
+    }
 
     lines.push(
       `recognition eval — ${armName} — ${allRows.length} entries (split=${SPLIT}${LIMIT ? `, limit=${LIMIT} stratified` : ''}${RERUNS > 1 ? `, ${RERUNS}-run mean` : ''})`,
@@ -436,6 +479,7 @@ async function main(): Promise<void> {
           byEntry = harvested.byEntry
           failed = harvested.failed
           failures = harvested.failures
+          scores.skippedSentences = harvested.skippedSentences.length
           for (const [id, g] of harvested.gate) {
             gateMap.set(id, g.containsPrayer || g.containsSense)
             const gold = (CORPUS.find((e) => e.id === id)?.passages ?? []).length > 0
@@ -449,11 +493,12 @@ async function main(): Promise<void> {
           byEntry = harvested.byEntry
           failed = harvested.failed
           failures = harvested.failures
+          scores.skippedSentences = harvested.skippedSentences.length
           for (const r of allRows) {
             const g = harvested.gate.get(r.id)
             gateMap.set(r.id, g ? g.containsPrayer || g.containsSense : (byEntry.get(r.id) ?? []).length > 0)
-            if (harvested.route.get(r.id) === 'llm') escalationN++
-            escalationD++
+            if (harvested.route.get(r.id) === 'llm') esc.harvest.n++
+            esc.harvest.d++
           }
         }
 
@@ -531,8 +576,8 @@ async function main(): Promise<void> {
           )
           tagged = res.tags
           for (const l of labeled) {
-            if (res.route.get(l.key) === 'llm') escalationN++
-            escalationD++
+            if (res.route.get(l.key) === 'llm') esc.subjects.n++
+            esc.subjects.d++
           }
         }
 
@@ -596,8 +641,8 @@ async function main(): Promise<void> {
                   ? await jevSentiment(e.body, { tau })
                   : await cascadeSentiment(e.body, { tau })
             if (provider === 'cascade') {
-              escalationD++
-              if ('route' in reading && reading.route === 'llm') escalationN++
+              esc.sentiment.d++
+              if ('route' in reading && reading.route === 'llm') esc.sentiment.n++
             }
             if (provider === 'jev') {
               calSamples.push({ p: reading.confidence, ok: reading.present === e.sentiment!.present })
@@ -661,6 +706,11 @@ async function main(): Promise<void> {
       } else if (prayers.failed) {
         lines.push(`  ${fmtN(prayers.failed)} entries in failed batches (not scored)`)
       }
+    }
+    if (typeof meanScores.skippedSentences === 'number') {
+      lines.push(
+        `  gate-first     skipped sentence harvest for ${fmtN(meanScores.skippedSentences as number)}/${allRows.length} entries`,
+      )
     }
     if (isScore(meanScores.gate)) lines.push(scoreLine('gate', meanScores.gate))
     if (meanScores.entitiesSkipped) {
@@ -750,8 +800,8 @@ async function main(): Promise<void> {
       lines.push(...misses)
     }
 
-    const snap = { ...usage, ms: [...usage.ms], models: [...usage.models] }
-    const cost = costBlock(snap, allRows.length, provider === 'jev' ? env.typesafeModel() : model, RERUNS)
+    const snap = snapFromCalls([...usageCalls])
+    const cost = costBlock(snap, allRows.length, RERUNS)
     const lat = {
       p50: percentile(snap.ms, 50),
       p95: percentile(snap.ms, 95),
@@ -766,15 +816,43 @@ async function main(): Promise<void> {
         `   ${Math.round(perPassCalls)} calls/pass` +
         (RERUNS > 1 ? `  (${RERUNS} passes; $ and $/1k are per pass)` : ''),
     )
+    const costTotal = cost.total as number
+    const costPer1k = cost.per1k as number
+    const costPer2000 = cost.per2000 as number
     lines.push(
-      `latency p50=${lat.p50}ms  p95=${lat.p95}ms  p99=${lat.p99}ms   $${cost.total.toFixed(5)}` +
-        `   $/1k=${cost.per1k.toFixed(4)}   $/2k-import=${cost.per2000.toFixed(4)}`,
+      `latency p50=${lat.p50}ms  p95=${lat.p95}ms  p99=${lat.p99}ms   $${costTotal.toFixed(5)}` +
+        `   $/1k=${costPer1k.toFixed(4)}   $/2k-import=${costPer2000.toFixed(4)}` +
+        `   (compare $; entities excluded)`,
     )
-    const escalation = escalationD ? escalationN / escalationD : 0
-    if (provider === 'cascade') {
-      lines.push(`escalation     ${pct(escalation)}  (${escalationN}/${escalationD}) at τ=${tau}`)
+    if (typeof cost.entities === 'number' && cost.entities > 0) {
+      lines.push(`  entities (OpenAI-only, not in compare $)  $${(cost.entities as number).toFixed(5)}`)
     }
-    report['usage'] = { ...snap, ms: undefined }
+    const byTask = (cost.byTaskModel as { task: string; model: string; calls: number; in: number; dollars: number }[]) ?? []
+    if (byTask.length) {
+      lines.push(`  cost by task/model`)
+      for (const row of byTask) {
+        lines.push(
+          `    ${row.task.padEnd(10)} ${row.model.padEnd(22)} calls=${fmtN(row.calls)}  in=${Math.round(row.in)}  $${row.dollars.toFixed(5)}`,
+        )
+      }
+    }
+    const escRate = (pair: { n: number; d: number }) => (pair.d ? pair.n / pair.d : 0)
+    const escalation = {
+      harvest: escRate(esc.harvest),
+      subjects: escRate(esc.subjects),
+      sentiment: escRate(esc.sentiment),
+      combined: escRate({
+        n: esc.harvest.n + esc.subjects.n + esc.sentiment.n,
+        d: esc.harvest.d + esc.subjects.d + esc.sentiment.d,
+      }),
+      counts: esc,
+    }
+    if (provider === 'cascade') {
+      lines.push(
+        `escalation     harvest=${pct(escalation.harvest)}  subjects=${pct(escalation.subjects)}  sentiment=${pct(escalation.sentiment)}  combined=${pct(escalation.combined)}  at τ=${tau}`,
+      )
+    }
+    report['usage'] = { calls: snap.calls, in: snap.in, cached: snap.cached, out: snap.out, reasoning: snap.reasoning, models: [...new Set(snap.models)] }
     report['latency'] = lat
     report['cost'] = cost
     report['escalation'] = escalation
@@ -795,7 +873,7 @@ async function main(): Promise<void> {
       lines,
       usage: snap,
       flipRate,
-      escalation,
+      escalation: escalation.combined,
       calibration,
     }
   }
@@ -813,6 +891,7 @@ async function main(): Promise<void> {
     outLines.push(...arms[0]!.lines)
   } else {
     outLines.push(`recognition eval — COMPARE ${arms.map((a) => a.name).join(' vs ')} — ${allRows.length} entries (split=${SPLIT})`)
+    outLines.push(`$total / $/1k exclude entity extraction (OpenAI-only). Escalation column is combined; per-task rates are in each arm.`)
     outLines.push('')
     outLines.push(
       'arm'.padEnd(16) +

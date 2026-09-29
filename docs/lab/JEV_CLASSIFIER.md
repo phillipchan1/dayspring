@@ -62,9 +62,20 @@ The process exits 0 on model variance (same as before). Missing keys exit 1
 `thread formation skipped — OPENAI_API_KEY absent (groupTagged embeddings). Subject assignment still scored.`
 `groupTagged` also accepts an injected `embed` so tests can form threads without a key.
 
-Harvest chunks by estimated tokens (target ≤ 20k, cap 80 sentences) so long
-entries stay under Jev's 64k request limit. Failures are counted and printed
-with their HTTP status / code (`max_tokens_exceeded`, etc.).
+Harvest is **gate-first**: one entry-level Noul pair, then per-sentence labels
+only when the gate is positive or below τ. The TypeSafe request has no shared
+`context` field (`docs.typesafe.ai/api.md`); the kind rubric lives once on
+`state.kind_rubric` and each sentence question is a short pointer. Chunks cap
+at 30 sentences (80-sentence packs mis-indexed long entries in live runs).
+Failures are counted and printed with their HTTP status / code.
+
+Cost: each `[tokens]` line is priced by **its own model**. OpenAI
+`output_tokens` already includes reasoning — do not add `reasoning` again.
+Cached input is billed at the cached rate. Embedding calls log `[tokens]` and
+are priced. Compare `$total` **excludes** entity extraction (OpenAI-only).
+Cascade escalation is reported per task (harvest / subjects / sentiment).
+When a cascade harvest entry escalates, OpenAI's spans replace Jev's **gate**
+as well as the passages.
 
 Sentiment buckets valence on the **argmax rubric level** (0–1 negative, 2 mixed,
 3–4 positive). The weighted-average expected value stays in `valence` /
@@ -76,7 +87,7 @@ Sentiment buckets valence on the **argmax rubric level** (0–1 negative, 2 mixe
 |---|---|---|
 | A | `openai` | Current path. Prayer harvest still goes through `HARVEST_CUE` then `harvestTexts`. Sentiment uses a lab-only `openaiSentiment` seam (not Keeping read). |
 | A′ | `--model=gpt-5.4-nano` | Optional history. |
-| B | `jev` | Pure `jev-1.13.0`. Harvests every entry (no cue). |
+| B | `jev` | Pure `jev-1.13.0`. Gate-first harvest of every entry (no cue). |
 | C | `cascade` | Jev first; OpenAI on low confidence, `none_of_these`, or error. Sweep `--tau=`. |
 
 ## Subject vocabulary (eval only)

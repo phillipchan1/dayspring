@@ -34,8 +34,16 @@ export async function cascadeHarvest(
     const fallback = await openai(escalate)
     for (const e of escalate) {
       route.set(e.id, 'llm')
-      const passages = fallback.byEntry.get(e.id)
-      if (passages) jev.byEntry.set(e.id, passages)
+      const passages = fallback.byEntry.get(e.id) ?? []
+      if (passages.length) jev.byEntry.set(e.id, passages)
+      else jev.byEntry.delete(e.id)
+      // OpenAI harvest has no noul; the gate is whether it returned a span.
+      jev.gate.set(e.id, {
+        containsPrayer: passages.some((p) => p.type === 'prayer'),
+        containsSense: passages.some((p) => p.type === 'sense'),
+        prayerNoul: passages.some((p) => p.type === 'prayer') ? 1 : 0,
+        senseNoul: passages.some((p) => p.type === 'sense') ? 1 : 0,
+      })
       if (!fallback.failed.includes(e.id)) {
         jev.failed = jev.failed.filter((id) => id !== e.id)
         jev.failures = jev.failures.filter((f) => f.id !== e.id)

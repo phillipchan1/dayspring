@@ -14,8 +14,8 @@ export interface Sentence {
 
 export type SentenceLabel = 'prayer' | 'sense' | 'neither'
 
-/** Hard cap. Criteria repeat per sentence (~290 tokens), so 240 blew Jev's 64k limit. */
-const MAX_SENTENCES_PER_REQUEST = 80
+/** Hard cap. 80-sentence chunks mis-indexed long entries in live Jev runs. */
+const MAX_SENTENCES_PER_REQUEST = 30
 /** Pack harvest chunks under this estimate (JSON chars/4). Jev's request cap is 64k. */
 const TARGET_TOKENS_PER_REQUEST = 20_000
 

@@ -18,7 +18,8 @@ import {
 const PER_ENTRY_CAP = 5
 const NOUL_YES = 0.5
 
-const KIND_CRITERIA = {
+/** Shared once on `state` — the TypeSafe request has no top-level context field. */
+export const KIND_RUBRIC = {
   prayer:
     'The sentence is addressed TO God (You / Lord / Jesus / Father / Holy Spirit) — a petition, thanks, confession, praise, lament, or longing spoken to God. Writing ABOUT prayer is not a prayer. A quoted Scripture verse is not the writer\'s prayer. Other people\'s words are not the writer\'s prayer.',
   sense:
@@ -26,6 +27,25 @@ const KIND_CRITERIA = {
   neither:
     'Narration, plans, self-reflection, what God is doing for other people, passing mentions of church or faith, writing about prayer, quoted Scripture, or anything that is not the writer addressing God or receiving a personal sense.',
 } as const
+
+const SHORT_KIND = {
+  prayer: 'See kind_rubric.prayer — addressed TO God.',
+  sense: 'See kind_rubric.sense — first-person sense of God.',
+  neither: 'See kind_rubric.neither.',
+} as const
+
+export function noulCertainty(n: number): number {
+  return Math.max(n, 1 - n)
+}
+
+/** Sentence-label only when the entry gate is yes, or the gate itself is below τ. */
+export function needsSentenceHarvest(
+  gate: { prayerNoul: number; senseNoul: number },
+  tau: number,
+): boolean {
+  if (gate.prayerNoul >= NOUL_YES || gate.senseNoul >= NOUL_YES) return true
+  return noulCertainty(gate.prayerNoul) < tau || noulCertainty(gate.senseNoul) < tau
+}
 
 export interface HarvestFailure {
   id: string
@@ -43,38 +63,52 @@ export interface JevHarvestResult {
   gate: Map<string, { containsPrayer: boolean; containsSense: boolean; prayerNoul: number; senseNoul: number }>
   /** Per-sentence confidence, for cascade / calibration. */
   confidences: Map<string, number[]>
+  /** Entries whose sentence pass was skipped after a confident-negative gate. */
+  skippedSentences: string[]
 }
 
-/** Shared with the eval dry-run so token estimates match the live payload. */
-export function harvestQuestions(chunkTexts: string[]) {
-  const questions: Record<string, ReturnType<typeof noul> | ReturnType<typeof choice>> = {
+export function gateQuestions() {
+  return {
     contains_prayer: noul(
-      'Does the writer address God directly anywhere in these sentences (a petition, thanks, confession, praise, or lament spoken TO God)? Writing about prayer, others\' prayers, or quoted Scripture is not a yes.',
+      'Does the writer address God directly anywhere in `text` (a petition, thanks, confession, praise, or lament spoken TO God)? Writing about prayer, others\' prayers, or quoted Scripture is not a yes.',
       {
         true: 'At least one sentence is the writer speaking to God.',
         false: 'No sentence is addressed to God.',
       },
     ),
     contains_sense: noul(
-      'Does the writer describe a first-person experience of God speaking, leading, comforting, convicting, or showing them something?',
+      'Does the writer describe a first-person experience of God speaking, leading, comforting, convicting, or showing them something in `text`?',
       {
         true: 'A personal sense of God is present.',
         false: 'No personal sense of God.',
       },
     ),
   }
+}
+
+export function harvestState(chunkTexts: string[]) {
+  return { sentences: chunkTexts, kind_rubric: KIND_RUBRIC }
+}
+
+/** Per-sentence questions. Criteria live once on `state.kind_rubric` (no request-level context field). */
+export function harvestQuestions(chunkTexts: string[]) {
+  const questions: Record<string, ReturnType<typeof choice>> = {}
   for (let i = 0; i < chunkTexts.length; i++) {
     questions[`s${i}`] = choice(
-      `Is \`sentences[${i}]\` a prayer addressed TO God, a first-person sense of God, or neither? Writing ABOUT prayer is neither. Quoted Scripture is neither. Other people's words are neither.`,
-      KIND_CRITERIA,
+      `Using \`kind_rubric\`, is \`sentences[${i}]\` prayer, sense, or neither?`,
+      SHORT_KIND,
     )
   }
   return questions
 }
 
+export function estimateGateTokens(body: string): number {
+  return estimateJevTokens({ text: writerWords(body).slice(0, 20_000) }, gateQuestions())
+}
+
 export function estimateHarvestTokens(sentences: Sentence[]): number {
   const texts = sentences.map((s) => s.text)
-  return estimateJevTokens({ sentences: texts }, harvestQuestions(texts))
+  return estimateJevTokens(harvestState(texts), harvestQuestions(texts))
 }
 
 export function chunkForHarvest(sentences: Sentence[]): Sentence[][] {
@@ -117,6 +151,7 @@ export async function jevHarvestTexts(
   const failed: string[] = []
   const failures: HarvestFailure[] = []
   const lowConfidence: string[] = []
+  const skippedSentences: string[] = []
   const gate = new Map<
     string,
     { containsPrayer: boolean; containsSense: boolean; prayerNoul: number; senseNoul: number }
@@ -130,6 +165,7 @@ export async function jevHarvestTexts(
       gate.set(entry.id, result.gate)
       confidences.set(entry.id, result.confidences)
       if (result.lowConfidence) lowConfidence.push(entry.id)
+      if (result.skippedSentences) skippedSentences.push(entry.id)
     } catch (err) {
       const failure = harvestFailureFrom(err, entry.id)
       failed.push(entry.id)
@@ -142,7 +178,7 @@ export async function jevHarvestTexts(
     }
   }
 
-  return { byEntry, failed, failures, lowConfidence, gate, confidences }
+  return { byEntry, failed, failures, lowConfidence, gate, confidences, skippedSentences }
 }
 
 async function harvestOne(
@@ -153,24 +189,36 @@ async function harvestOne(
   gate: { containsPrayer: boolean; containsSense: boolean; prayerNoul: number; senseNoul: number }
   confidences: number[]
   lowConfidence: boolean
+  skippedSentences: boolean
 }> {
   const source = writerWords(entry.body)
+  const { answers: gateAns } = await askJev(
+    `jev_harvest_gate:${entry.id}`,
+    { text: source.slice(0, 20_000) },
+    gateQuestions(),
+  )
+  const prayerNoul = gateAns.contains_prayer?.type === 'noul' ? gateAns.contains_prayer.noul : 0
+  const senseNoul = gateAns.contains_sense?.type === 'noul' ? gateAns.contains_sense.noul : 0
+  const gate = {
+    containsPrayer: prayerNoul >= NOUL_YES,
+    containsSense: senseNoul >= NOUL_YES,
+    prayerNoul,
+    senseNoul,
+  }
+  const gateLow = noulCertainty(prayerNoul) < tau || noulCertainty(senseNoul) < tau
+
+  if (!needsSentenceHarvest(gate, tau)) {
+    return { passages: [], gate, confidences: [], lowConfidence: false, skippedSentences: true }
+  }
+
   const sentences = splitSentences(entry.body)
   const chunks = chunkForHarvest(sentences)
   const labels: SentenceLabel[] = []
   const confidences: number[] = []
-  let prayerNoul = 0
-  let senseNoul = 0
 
   for (const chunk of chunks) {
-    const state = { sentences: chunk.map((s) => s.text) }
-    const questions = harvestQuestions(state.sentences)
-
-    const { answers } = await askJev(`jev_harvest:${entry.id}`, state, questions)
-    const prayerAns = answers.contains_prayer
-    const senseAns = answers.contains_sense
-    if (prayerAns && prayerAns.type === 'noul') prayerNoul = Math.max(prayerNoul, prayerAns.noul)
-    if (senseAns && senseAns.type === 'noul') senseNoul = Math.max(senseNoul, senseAns.noul)
+    const texts = chunk.map((s) => s.text)
+    const { answers } = await askJev(`jev_harvest:${entry.id}`, harvestState(texts), harvestQuestions(texts))
 
     for (let i = 0; i < chunk.length; i++) {
       const ans = answers[`s${i}`]
@@ -186,16 +234,6 @@ async function harvestOne(
   }
 
   const merged = mergeSpans(sentences, labels, source).slice(0, PER_ENTRY_CAP)
-  const lowConfidence = confidences.some((c) => c < tau)
-  return {
-    passages: merged,
-    gate: {
-      containsPrayer: prayerNoul >= NOUL_YES,
-      containsSense: senseNoul >= NOUL_YES,
-      prayerNoul,
-      senseNoul,
-    },
-    confidences,
-    lowConfidence,
-  }
+  const lowConfidence = gateLow || confidences.some((c) => c < tau)
+  return { passages: merged, gate, confidences, lowConfidence, skippedSentences: false }
 }

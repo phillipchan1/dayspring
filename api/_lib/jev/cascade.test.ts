@@ -58,6 +58,30 @@ describe('cascade', () => {
     expect(res.tags.get('l1')?.[0]?.label).toBe('the unnamed thing')
   })
 
+  it('replaces Jev\'s gate with OpenAI\'s when the entry escalates', async () => {
+    configureTypeSafe({
+      fetch: async (_url, init) => {
+        const req = parseBody(init)
+        return systemOneResponse(
+          answersForQuestions(req.questions, (id, type) => {
+            if (type === 'noul') return noulYes(0.55)
+            return choiceOf('prayer', 0.4)
+          }),
+        )
+      },
+    })
+    const res = await cascadeHarvest([{ id: 'e1', body: 'Lord, be near her tonight.' }], {
+      tau: 0.8,
+      harvestWithOpenAI: async () => ({
+        byEntry: new Map([['e1', [{ type: 'prayer', text: 'Lord, be near her tonight.' }]]]),
+        failed: [],
+      }),
+    })
+    expect(res.route.get('e1')).toBe('llm')
+    expect(res.gate.get('e1')?.containsPrayer).toBe(true)
+    expect(res.gate.get('e1')?.prayerNoul).toBe(1)
+  })
+
   it('keeps a high-confidence Jev sentiment without calling OpenAI', async () => {
     let openaiCalls = 0
     configureTypeSafe({

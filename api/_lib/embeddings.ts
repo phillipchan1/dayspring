@@ -55,7 +55,13 @@ export async function embed(texts: string[]): Promise<number[][]> {
   const out: number[][] = []
   for (let i = 0; i < texts.length; i += BATCH) {
     const slice = texts.slice(i, i + BATCH).map((t) => t.slice(0, MAX_INPUT_CHARS) || ' ')
-    const res = await openai().embeddings.create({ model: env.embedModel(), input: slice })
+    const model = env.embedModel()
+    const t0 = Date.now()
+    const res = await openai().embeddings.create({ model, input: slice })
+    const inn = res.usage?.prompt_tokens ?? res.usage?.total_tokens ?? 0
+    console.log(
+      `[tokens] name=embed model=${model} in=${inn} cached=0 out=0 reasoning=0 attempt=0 ms=${Date.now() - t0}`,
+    )
     // The API guarantees data is returned in input order, but sort by index to be safe.
     const sorted = [...res.data].sort((a, b) => a.index - b.index)
     for (const d of sorted) out.push(d.embedding as number[])
