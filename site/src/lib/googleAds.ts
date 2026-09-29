@@ -19,6 +19,9 @@ const START_TRIAL_SEND_TO = import.meta.env.PUBLIC_GADS_START_TRIAL_SEND_TO as
   | string
   | undefined
 
+/** Max wait on /start if gtag never invokes event_callback. */
+export const START_TRIAL_HANDOFF_FALLBACK_MS = 1200
+
 declare global {
   interface Window {
     dataLayer?: unknown[]
@@ -35,8 +38,12 @@ function ensureLoaded(): void {
   const w = window
   w.dataLayer = w.dataLayer || []
   if (!w.gtag) {
-    w.gtag = function gtag(...args: unknown[]) {
-      w.dataLayer!.push(args)
+    // gtag.js only processes Arguments objects on dataLayer. A rest-parameter
+    // array (`...args` → push(args)) is ignored, so no page_view, no _gcl_au,
+    // no conversion hits. This is Google's standard snippet.
+    w.gtag = function gtag() {
+      // eslint-disable-next-line prefer-rest-params -- rest args become an Array; gtag.js ignores those
+      w.dataLayer!.push(arguments)
     }
   }
   w.gtag('js', new Date())
@@ -54,13 +61,19 @@ export function initGoogleTag(): void {
   ensureLoaded()
 }
 
-function sendConversion(sendTo: string | undefined): void {
-  if (!sendTo) return
+function sendConversion(
+  sendTo: string | undefined,
+  extra?: { event_callback?: () => void },
+): boolean {
+  if (!sendTo) return false
   ensureLoaded()
-  window.gtag?.('event', 'conversion', {
+  if (!window.gtag) return false
+  window.gtag('event', 'conversion', {
     send_to: sendTo,
     transport_type: 'beacon',
+    ...(extra?.event_callback ? { event_callback: extra.event_callback } : {}),
   })
+  return true
 }
 
 /** Mac DMG click. No-op when PUBLIC_GADS_DOWNLOAD_SEND_TO is unset. */
@@ -68,7 +81,32 @@ export function trackGoogleDownloadConversion(): void {
   sendConversion(DOWNLOAD_SEND_TO)
 }
 
-/** /start handoff. No-op when PUBLIC_GADS_START_TRIAL_SEND_TO is unset. */
-export function trackGoogleStartTrialConversion(): void {
-  sendConversion(START_TRIAL_SEND_TO)
+/**
+ * /start handoff. No-op when PUBLIC_GADS_START_TRIAL_SEND_TO is unset.
+ * Pass `onReady` to wait for gtag's event_callback (script may still be
+ * loading). When the conversion is not configured, `onReady` runs immediately
+ * so the visitor is not held for a hit that will never fire.
+ */
+export function trackGoogleStartTrialConversion(onReady?: () => void): void {
+  const sent = sendConversion(
+    START_TRIAL_SEND_TO,
+    onReady ? { event_callback: onReady } : undefined,
+  )
+  if (!sent) onReady?.()
+}
+
+/**
+ * Fire the start-trial conversion, then call `handoff` once — either when
+ * gtag's event_callback runs, or after START_TRIAL_HANDOFF_FALLBACK_MS so
+ * the visitor is never stuck on /start.
+ */
+export function handoffAfterStartTrialConversion(handoff: () => void): void {
+  let done = false
+  const go = () => {
+    if (done) return
+    done = true
+    handoff()
+  }
+  trackGoogleStartTrialConversion(go)
+  setTimeout(go, START_TRIAL_HANDOFF_FALLBACK_MS)
 }

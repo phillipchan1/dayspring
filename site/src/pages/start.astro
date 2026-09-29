@@ -7,7 +7,9 @@
 //   2. Fire the client-side conversion signals a redirect straight to the app
 //      would lose — Meta's StartTrial pixel, PostHog's start_trial_clicked,
 //      and (when PUBLIC_GADS_START_TRIAL_SEND_TO is set) a Google Ads
-//      conversion. All three share the flush delay below.
+//      conversion. The Google hit waits on gtag's event_callback (gtag.js is
+//      large enough that a fixed 400ms often navigates away first); a 1200ms
+//      fallback keeps the visitor from getting stuck.
 //   3. Send the visitor on to sign-in, where first sign-in grants
 //      14-day trial with no card (api/profile/ensure.ts in the app repo).
 //
@@ -84,7 +86,7 @@ import { APP_URL } from "../content/site";
 </style>
 
 <script>
-  import { trackGoogleStartTrialConversion } from "../lib/googleAds";
+  import { handoffAfterStartTrialConversion } from "../lib/googleAds";
   import { trackSite } from "../lib/siteAnalytics";
   import { trackStartTrial } from "../lib/metaPixel";
   import { APP_URL } from "../content/site";
@@ -100,14 +102,9 @@ import { APP_URL } from "../content/site";
 
   trackSite("start_trial_clicked");
   trackStartTrial();
-  trackGoogleStartTrialConversion();
-
-  // A deliberate, small delay: capture()/fbq()/gtag() fire an HTTP request
-  // that a same-tab navigation can cancel before it lands if we redirect in
-  // the same tick. This page's entire purpose is those calls landing, so the
-  // trade (half a second, once, on a redirect page nobody lingers on) is the
-  // right one here — unlike the CTA click on the pages that lead here.
-  window.setTimeout(() => {
+  // gtag.js is ~438KB; event_callback fires once the conversion is queued for
+  // the network. Fallback is 1200ms so a hung tag never leaves the visitor here.
+  handoffAfterStartTrialConversion(() => {
     window.location.replace(target);
-  }, 400);
+  });
 </script>
