@@ -20,6 +20,8 @@ import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
 import { embed, toVectorLiteral } from './embeddings.js'
 import { writerWords } from './writerWords.js'
+import { env } from './env.js'
+import { gatherHarvest } from './gather.js'
 
 // Open-thread sweep: cosine DISTANCE (1 - sim); only entries this close are
 // even shown to the Nano evidence pass.
@@ -404,6 +406,9 @@ export async function harvestPlan(owner: string): Promise<{ unscanned: number; c
     owner,
     (q) => q.is('prayer_scanned_at', null),
   )
+  if (env.gatherMode() === 'gate') {
+    return { unscanned: all.length, candidates: all.length }
+  }
   const candidates = all.filter((e) => HARVEST_CUE.test(e.body_markdown)).length
   return { unscanned: all.length, candidates }
 }
@@ -498,6 +503,47 @@ export async function harvestTexts(
   return { byEntry, failed }
 }
 
+/**
+ * Gate-mode harvestPrayers. Inserts and watermarks an entry only after every
+ * chunk of that entry has resolved. A failed chunk leaves the entry unmarked
+ * with no rows — harvestPrayers inserts without dedupe, so a partial write
+ * would duplicate on retry.
+ */
+async function harvestPrayersViaGather(
+  sb: SupabaseClient,
+  owner: string,
+  pool: { id: string; created_at: string; body_markdown: string }[],
+): Promise<{ scanned: number; candidates: number; planted: number }> {
+  const harvested = await gatherHarvest(pool.map((e) => ({ id: e.id, body: e.body_markdown })))
+  const failed = new Set(harvested.failed)
+  const byId = new Map(pool.map((e) => [e.id, e]))
+
+  const rows: Record<string, unknown>[] = []
+  for (const [entryId, passages] of harvested.byEntry) {
+    if (failed.has(entryId)) continue
+    const e = byId.get(entryId)
+    if (!e) continue
+    for (const p of passages) {
+      rows.push({
+        owner,
+        entry_id: e.id,
+        type: p.type,
+        content: p.text,
+        source: 'scanned',
+        created_at: e.created_at,
+      })
+    }
+  }
+  if (rows.length > 0) {
+    const { error } = await sb.from('spiritual_items').insert(rows)
+    if (error) throw error
+  }
+
+  const resolved = pool.filter((e) => !failed.has(e.id)).map((e) => e.id)
+  await markScanned(sb, resolved)
+  return { scanned: pool.length, candidates: pool.length, planted: rows.length }
+}
+
 export async function harvestPrayers(
   owner: string,
   opts: { max?: number } = {},
@@ -512,6 +558,10 @@ export async function harvestPrayers(
     (q) => q.is('prayer_scanned_at', null).order('created_at', { ascending: true }),
   )
   const pool = opts.max ? all.slice(0, opts.max) : all
+
+  if (env.gatherMode() === 'gate') {
+    return harvestPrayersViaGather(sb, owner, pool)
+  }
 
   const candidates = pool.filter((e) => HARVEST_CUE.test(e.body_markdown))
   const noncandidates = pool.filter((e) => !HARVEST_CUE.test(e.body_markdown))

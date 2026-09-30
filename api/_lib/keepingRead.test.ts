@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   entryTextForKeeping,
+  KEEPING_READ_VERSION,
+  KEEPING_READ_VERSION_TIGHT,
+  keepingReadSchema,
+  keepingReadSystem,
   sanitizeKeepingRead,
   type SubjectCandidate,
 } from './keepingRead'
@@ -269,6 +273,105 @@ describe('sanitizeKeepingRead', () => {
         confidence: 0.99,
       },
     ])
+  })
+})
+
+describe('gatherSentiment tight-denial', () => {
+  const saved: string | undefined = process.env.GATHER_SENTIMENT
+
+  afterEach(() => {
+    if (saved === undefined) delete process.env.GATHER_SENTIMENT
+    else process.env.GATHER_SENTIMENT = saved
+  })
+
+  it('drops denied emotions', () => {
+    const text = 'I am not angry, just tired. I felt exhausted.'
+    const result = sanitizeKeepingRead(
+      {
+        movements: [
+          {
+            quote: text,
+            subject_keys: [],
+            sentiment: {
+              present: true,
+              valence: -0.3,
+              activation: 0.2,
+              confidence: 0.9,
+              denied: ['anger'],
+              emotions: [
+                { emotion: 'anger', intensity: 0.8, quote: 'angry' },
+                { emotion: 'weariness', intensity: 0.7, quote: 'exhausted' },
+              ],
+            },
+            ingredients: [],
+          },
+        ],
+      },
+      'entry-denied',
+      text,
+      [],
+    )
+    expect(result.movements[0]?.sentiment.emotions.map((e) => e.emotion)).toEqual(['weariness'])
+    expect(result.version).toBe(KEEPING_READ_VERSION)
+  })
+
+  it('puts denied before emotions in the schema only when flagged', () => {
+    delete process.env.GATHER_SENTIMENT
+    const off = keepingReadSchema() as {
+      properties: { movements: { items: { properties: { sentiment: { properties: Record<string, unknown>; required: string[] } } } } }
+    }
+    const offSent = off.properties.movements.items.properties.sentiment
+    expect(offSent.properties.denied).toBeUndefined()
+    expect(offSent.required).not.toContain('denied')
+
+    process.env.GATHER_SENTIMENT = 'tight-denial'
+    const on = keepingReadSchema() as {
+      properties: { movements: { items: { properties: { sentiment: { properties: Record<string, unknown>; required: string[] } } } } }
+    }
+    const sent = on.properties.movements.items.properties.sentiment
+    const keys = Object.keys(sent.properties)
+    expect(keys.indexOf('denied')).toBeGreaterThanOrEqual(0)
+    expect(keys.indexOf('denied')).toBeLessThan(keys.indexOf('emotions'))
+    expect(sent.required.indexOf('denied')).toBeLessThan(sent.required.indexOf('emotions'))
+  })
+
+  it('puts the tight definitions in the prompt only when flagged', () => {
+    delete process.env.GATHER_SENTIMENT
+    const off = keepingReadSystem()
+    expect(off).toContain('Use joy for happy/glad/delighted')
+    expect(off).not.toContain('gladness or delight the writer feels')
+    expect(off).not.toContain('First fill "denied"')
+
+    process.env.GATHER_SENTIMENT = 'tight-denial'
+    const on = keepingReadSystem()
+    expect(on).toContain('gladness or delight the writer feels')
+    expect(on).toContain('Not mere stress.')
+    expect(on).toContain('First fill "denied"')
+    expect(on).not.toContain('Use joy for happy/glad/delighted')
+    const text = 'I felt exhausted after the long day at home.'
+    const flagged = sanitizeKeepingRead(
+      {
+        movements: [
+          {
+            quote: text,
+            subject_keys: [],
+            sentiment: {
+              present: true,
+              valence: -0.2,
+              activation: 0.3,
+              confidence: 0.8,
+              denied: [],
+              emotions: [{ emotion: 'weariness', intensity: 0.7, quote: 'exhausted' }],
+            },
+            ingredients: [],
+          },
+        ],
+      },
+      'entry-version',
+      text,
+      [],
+    )
+    expect(flagged.version).toBe(KEEPING_READ_VERSION_TIGHT)
   })
 })
 
