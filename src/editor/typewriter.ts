@@ -115,4 +115,12 @@ const keepCentered = ViewPlugin.fromClass(
   },
 )
 
-export const typewriterExtension: Extension = [typewriterTheme, keepCentered]
+/**
+ * Marks the editor so page-level CSS can stand aside. The Pages hand-off sets
+ * a fixed `padding-top` on `.cm-content` to line the first line up with the
+ * reader's; outside CodeMirror's theme, it beat `--tw-pad`, and an entry opened
+ * from Pages never centred in focus mode — the caret sat at the top.
+ */
+const typewriterMarker = EditorView.editorAttributes.of({ class: 'cm-typewriter' })
+
+export const typewriterExtension: Extension = [typewriterTheme, typewriterMarker, keepCentered]
