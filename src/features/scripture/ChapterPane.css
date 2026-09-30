@@ -12,8 +12,11 @@
 }
 
 /* The reader's date occupies 20px more vertical space than the Journal bar.
-   Preserve that baseline instead of letting the same first line jump upward. */
-.journal-write--from-pages .cm-content {
+   Preserve that baseline instead of letting the same first line jump upward.
+   Never under typewriter: its centring IS the top padding (`--tw-pad`), and
+   this rule silently pinned the caret to the top of every entry opened from
+   Pages in focus mode. */
+.journal-write--from-pages .cm-editor:not(.cm-typewriter) .cm-content {
   padding-top: 1.5rem;
 }
 
