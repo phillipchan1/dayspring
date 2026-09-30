@@ -14,6 +14,7 @@
 
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { env } from './env.js'
+import { parseChapterHtml, type ShapedVerse } from './esvHtml.js'
 
 // Required attribution for quoting the ESV (short form, for works quoting < 500
 // verses). Surfaced in the app so the citation requirement is satisfied.
@@ -21,6 +22,7 @@ export const ESV_COPYRIGHT =
   'Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. Used by permission. All rights reserved.'
 
 const ESV_ENDPOINT = 'https://api.esv.org/v3/passage/text/'
+const ESV_HTML_ENDPOINT = 'https://api.esv.org/v3/passage/html/'
 
 export interface ResolvedPassage {
   /** ESV's canonical reference, e.g. "Romans 8:28". */
@@ -29,10 +31,7 @@ export interface ResolvedPassage {
   text: string
 }
 
-export interface ChapterVerse {
-  n: number
-  text: string
-}
+export type ChapterVerse = ShapedVerse
 
 export interface ResolvedChapter {
   book: string
@@ -41,24 +40,15 @@ export interface ResolvedChapter {
   verses: ChapterVerse[]
 }
 
-/** Cache key for a numbered chapter — never collides with a quote-blob `ref`. */
-export function chapterCacheKey(book: string, chapter: number): string {
-  return `${normalizeRef(`${book} ${chapter}`)}#chapter`
-}
-
 /**
- * Split Crossway numbered text (`[1] … [2] …`) into verses. Headings and
- * leftover preamble before the first marker are dropped.
+ * Cache key for a numbered chapter — never collides with a quote-blob `ref`.
+ * `-html`: chapters are kept as Crossway's HTML, which says where a poem's
+ * lines, half-lines and stanzas fall; the older `#chapter` rows (indented
+ * plain text, which cannot tell a poem from the prose after it) are simply
+ * never read again.
  */
-export function parseChapterVerses(raw: string): ChapterVerse[] {
-  const parts = raw.split(/\[(\d+)\]/)
-  const verses: ChapterVerse[] = []
-  for (let i = 1; i < parts.length; i += 2) {
-    const n = Number.parseInt(parts[i]!, 10)
-    const text = (parts[i + 1] ?? '').replace(/\s+/g, ' ').trim()
-    if (Number.isFinite(n) && n > 0 && text) verses.push({ n, text })
-  }
-  return verses
+export function chapterCacheKey(book: string, chapter: number): string {
+  return `${normalizeRef(`${book} ${chapter}`)}#chapter-html`
 }
 
 /** Normalize a reference into a stable cache key: lowercased, ws-collapsed. */
@@ -141,21 +131,28 @@ export async function resolveChapter(book: string, chapter: number): Promise<Res
     .eq('translation', 'ESV')
     .maybeSingle()
   if (cached) {
-    const verses = parseChapterVerses(cached.text as string)
+    const verses = parseChapterHtml(cached.text as string)
     if (verses.length > 0) {
       return { book: name, chapter, canonical: cached.canonical as string, verses }
     }
   }
 
-  const url = new URL(ESV_ENDPOINT)
+  // Everything but the verse numbers and the shape is left out: no editorial
+  // headings, notes or cross-references — only what Crossway sets as text,
+  // plus a psalm's own title, an acrostic's letters and the Song's speakers.
+  const url = new URL(ESV_HTML_ENDPOINT)
   url.searchParams.set('q', query)
   url.searchParams.set('include-passage-references', 'false')
   url.searchParams.set('include-verse-numbers', 'true')
   url.searchParams.set('include-first-verse-numbers', 'true')
+  url.searchParams.set('include-chapter-numbers', 'false')
   url.searchParams.set('include-footnotes', 'false')
+  url.searchParams.set('include-footnote-body', 'false')
   url.searchParams.set('include-headings', 'false')
+  url.searchParams.set('include-crossrefs', 'false')
   url.searchParams.set('include-short-copyright', 'false')
-  url.searchParams.set('indent-paragraphs', '0')
+  url.searchParams.set('include-copyright', 'false')
+  url.searchParams.set('include-audio-link', 'false')
 
   const res = await fetch(url, { headers: { Authorization: `Token ${env.esvApiKey()}` } })
   if (!res.ok) {
@@ -166,7 +163,7 @@ export async function resolveChapter(book: string, chapter: number): Promise<Res
   const data = (await res.json()) as { canonical?: string; passages?: string[] }
   const canonical = (data.canonical ?? '').trim()
   const raw = (data.passages?.[0] ?? '').trim()
-  const verses = parseChapterVerses(raw)
+  const verses = parseChapterHtml(raw)
   if (!canonical || verses.length === 0) return null
 
   const { error } = await sb.from('scripture_text').upsert(

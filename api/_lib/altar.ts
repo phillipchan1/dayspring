@@ -19,6 +19,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { callModel } from './openai.js'
 import { embed, toVectorLiteral } from './embeddings.js'
+import { writerWords } from './writerWords.js'
 
 // Open-thread sweep: cosine DISTANCE (1 - sim); only entries this close are
 // even shown to the Nano evidence pass.
@@ -434,11 +435,16 @@ export interface HarvestedPassage {
 export async function harvestBatch(
   entries: { id: string; body: string }[],
 ): Promise<Map<string, HarvestedPassage[]> | null> {
+  // Read and verify against the writer's own words only (Guardrail H3): a
+  // Scripture fence or a verse quoted into a ritual answer is full of "Lord" and
+  // "Father" and reads as a prayer, but it is the Bible's, not theirs — it must
+  // never be planted as a cairn in their name.
+  const own = new Map(entries.map((e) => [e.id, writerWords(e.body)]))
   let out: { entries?: { id: string; prayers?: { type: string; text: string }[] }[] }
   try {
     out = await callModel(
       HARVEST_PROMPT,
-      { entries: entries.map((e) => ({ id: e.id, text: e.body.slice(0, HARVEST_MAX_CHARS) })) },
+      { entries: entries.map((e) => ({ id: e.id, text: own.get(e.id)!.slice(0, HARVEST_MAX_CHARS) })) },
       HARVEST_SCHEMA as Record<string, unknown>,
       'altar_harvest',
       'low',
@@ -456,7 +462,9 @@ export async function harvestBatch(
     const kept: HarvestedPassage[] = []
     for (const p of (r.prayers ?? []).slice(0, HARVEST_PER_ENTRY_CAP)) {
       const text = (p.text || '').trim()
-      if (!isVerbatim(e.body, text)) continue // honesty gate: the writer's own words only
+      // honesty gate: the writer's own words only — in their words (H3), and in
+      // the page as written, so a span can't stitch across a removed verse line
+      if (!isVerbatim(own.get(e.id) ?? '', text) || !isVerbatim(e.body, text)) continue
       kept.push({ type: p.type === 'sense' ? 'sense' : 'prayer', text })
     }
     if (kept.length > 0) result.set(e.id, kept)
