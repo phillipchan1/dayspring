@@ -7,6 +7,13 @@ intentionally unchanged — no ZDR provider exists for those models.
 
 Merging this is inert until `AI_GATEWAY_ZDR` is set to `on` or `true`.
 
+## Prerequisite: paid AI Gateway credits
+
+Do **not** flip `AI_GATEWAY_ZDR` on until the team has **paid** AI Gateway
+credits. On free-tier credits, `gpt-6-luna` and `text-embedding-3-small`
+return HTTP 403 `RestrictedModelsError`. Fail-closed means those features
+break — there is no fallback to `api.openai.com`.
+
 ## Env vars
 
 | Var | Default | Role |
@@ -18,6 +25,13 @@ Merging this is inert until `AI_GATEWAY_ZDR` is set to `on` or `true`.
 
 `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_EMBED_MODEL` still apply. When the
 flag is on they are prefixed (`gpt-6-luna` → `openai/gpt-6-luna`).
+
+Keep `AI_GATEWAY_ZDR_PROVIDERS` pinned (default `azure`). A live probe without
+a pin showed the gateway preferring `openai` over `azure`. OpenAI's listing is
+"ZDR with safety retention"; embeddings are ZDR only on Azure.
+
+`max_completion_tokens` must be ≥ 16 through the gateway. `callModel` clamps
+to 16 on the gateway path only; today's callers already send 512+.
 
 ## Self-test (preview)
 

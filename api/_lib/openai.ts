@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import OpenAI from 'openai'
-import { createAiClient, gatewayBody, resolveModelId } from './aiClient.js'
+import { createAiClient, gatewayBody, logGatewayError, resolveModelId, useAiGateway } from './aiClient.js'
 import { env } from './env.js'
 
 function openai(): OpenAI {
@@ -75,7 +75,10 @@ export async function callModel<T>(
   // Heavier reasoning models (gpt-5.4/5.5) spend output budget on hidden reasoning
   // tokens and need far more headroom than nano. OPENAI_MAX_TOKENS lets you raise
   // the ceiling globally when running a bigger model (and for A/B testing).
-  const cap = process.env.OPENAI_MAX_TOKENS ? Number(process.env.OPENAI_MAX_TOKENS) : maxTokens
+  const rawCap = process.env.OPENAI_MAX_TOKENS ? Number(process.env.OPENAI_MAX_TOKENS) : maxTokens
+  // Gateway rejects max_completion_tokens < 16. Callers already send 512+;
+  // clamp only on the gateway path so flag-off stays identical.
+  const cap = useAiGateway() ? Math.max(16, rawCap) : rawCap
   const baseParams: ChatParams = {
     model: resolveModelId(env.model()),
     // This model family only accepts the default temperature (1); grounding is
@@ -99,7 +102,13 @@ export async function callModel<T>(
       // Reasoning models can exhaust the budget on hidden tokens; retry with headroom.
       max_completion_tokens: attempt === 0 ? cap : cap * 2,
     }
-    const completion = await openai().chat.completions.create(params)
+    let completion
+    try {
+      completion = await openai().chat.completions.create(params)
+    } catch (e) {
+      if (useAiGateway()) logGatewayError(e)
+      throw e
+    }
     logUsage(name, params.model, attempt, completion.usage)
     const choice = completion.choices[0]
     const msg = choice?.message

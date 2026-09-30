@@ -2,7 +2,7 @@
 // Uses OpenAI text-embedding-3-small (1536d). Batched so a few hundred prayers /
 // thousands of entries embed in a handful of requests. Never logs text (§8).
 
-import { createAiClient, gatewayBody, resolveModelId } from './aiClient.js'
+import { createAiClient, gatewayBody, logGatewayError, resolveModelId, useAiGateway } from './aiClient.js'
 import { env } from './env.js'
 
 function openai() {
@@ -53,11 +53,17 @@ export async function embed(texts: string[]): Promise<number[][]> {
   const out: number[][] = []
   for (let i = 0; i < texts.length; i += BATCH) {
     const slice = texts.slice(i, i + BATCH).map((t) => t.slice(0, MAX_INPUT_CHARS) || ' ')
-    const res = await openai().embeddings.create({
-      model: resolveModelId(env.embedModel()),
-      input: slice,
-      ...gatewayBody(),
-    })
+    let res
+    try {
+      res = await openai().embeddings.create({
+        model: resolveModelId(env.embedModel()),
+        input: slice,
+        ...gatewayBody(),
+      })
+    } catch (e) {
+      if (useAiGateway()) logGatewayError(e)
+      throw e
+    }
     // The API guarantees data is returned in input order, but sort by index to be safe.
     const sorted = [...res.data].sort((a, b) => a.index - b.index)
     for (const d of sorted) out.push(d.embedding as number[])

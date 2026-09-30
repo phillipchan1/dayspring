@@ -120,6 +120,44 @@ describe('callModel / embed request shape', () => {
     })
   })
 
+  it('does not clamp max_completion_tokens when the flag is off', async () => {
+    await callModel<{ ok: boolean }>('sys', { n: 1 }, SCHEMA, 'probe', 'low', 8)
+    expect(lastFetch().body.max_completion_tokens).toBe(8)
+  })
+
+  it('clamps max_completion_tokens to 16 on the gateway path only', async () => {
+    process.env.AI_GATEWAY_ZDR = 'on'
+    process.env.AI_GATEWAY_API_KEY = 'gw-test'
+    resetAiClientsForTests()
+    await callModel<{ ok: boolean }>('sys', { n: 1 }, SCHEMA, 'probe', 'low', 8)
+    expect(lastFetch().body.max_completion_tokens).toBe(16)
+  })
+
+  it('logs gateway_error then rethrows on a ZDR rejection (fail closed)', async () => {
+    process.env.AI_GATEWAY_ZDR = 'on'
+    process.env.AI_GATEWAY_API_KEY = 'gw-test'
+    resetAiClientsForTests()
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: 'No ZDR providers',
+              type: 'no_zdr_providers_available',
+              name: 'NoZdrProvidersError',
+            },
+          }),
+          { status: 400, headers: { 'content-type': 'application/json' } },
+        ),
+    )
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(callModel('sys', { n: 1 }, SCHEMA, 'probe')).rejects.toThrow()
+    const joined = err.mock.calls.map((c) => c.map(String).join(' ')).join('\n')
+    expect(joined).toMatch(/gateway_error status=400 name=NoZdrProvidersError/)
+    expect(joined).not.toContain('No ZDR providers')
+    err.mockRestore()
+  })
+
   it('does not log journal-derived model output on parse failure', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     fetchMock.mockImplementation(async () => jsonResponse(chatOk('SECRET_JOURNAL_TEXT_SHOULD_NOT_APPEAR')))

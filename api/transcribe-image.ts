@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 import { getAuthedUser, notAuthenticated } from './_lib/userAuth.js'
 import { preflight, withCors } from './_lib/cors.js'
-import { createAiClient, gatewayBody, resolveModelId } from './_lib/aiClient.js'
+import { createAiClient, gatewayBody, logGatewayError, resolveModelId, useAiGateway } from './_lib/aiClient.js'
 import { env } from './_lib/env.js'
 import { concordanceVocab } from './_lib/dictationPrompt.js'
 
@@ -134,6 +134,7 @@ export async function POST(req: Request): Promise<Response> {
     // kept in the response shape for parity with /api/transcribe and future use.
     return withCors(req, Response.json({ text, raw: text, pages: pages.length }))
   } catch (e) {
+    if (useAiGateway()) logGatewayError(e)
     console.error('image transcription failed:', e)
     return withCors(
       req,

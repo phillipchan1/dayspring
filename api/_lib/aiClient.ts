@@ -111,52 +111,75 @@ export function resetAiClientsForTests(): void {
 }
 
 /**
- * Best-effort read of the provider the gateway actually used. Headers vary;
- * providerMetadata.gateway.routing is the documented shape.
+ * Live chat completions put gateway metadata on
+ * `choices[0].message.provider_metadata.gateway`. Embeddings and error bodies
+ * use top-level `providerMetadata.gateway`. No response header names the
+ * provider — do not scan headers.
  */
-export function readGatewayProvider(data: unknown, response?: Response): string | null {
-  if (response) {
-    const named = [
-      'x-vercel-ai-gateway-provider',
-      'ai-gateway-provider',
-      'x-ai-gateway-provider',
-      'x-gateway-provider',
-    ]
-    for (const name of named) {
-      const v = response.headers.get(name)
-      if (v) return v
-    }
-    for (const [k, v] of response.headers) {
-      if (v && /provider/i.test(k) && !/rate|limit|retry/i.test(k)) return v
+export function readGatewayBlock(data: unknown): Record<string, unknown> | null {
+  if (!data || typeof data !== 'object') return null
+  const rec = data as Record<string, unknown>
+
+  const choices = rec.choices
+  if (Array.isArray(choices) && choices[0] && typeof choices[0] === 'object') {
+    const msg = (choices[0] as Record<string, unknown>).message
+    if (msg && typeof msg === 'object') {
+      const meta = msg as Record<string, unknown>
+      const snake = meta.provider_metadata as Record<string, unknown> | undefined
+      const camel = meta.providerMetadata as Record<string, unknown> | undefined
+      const fromMsg = snake?.gateway ?? camel?.gateway
+      if (fromMsg && typeof fromMsg === 'object') return fromMsg as Record<string, unknown>
     }
   }
 
-  if (!data || typeof data !== 'object') return null
-  const rec = data as Record<string, unknown>
-  const meta = rec.providerMetadata as Record<string, unknown> | undefined
-  const gateway = (meta?.gateway ?? rec.gateway) as Record<string, unknown> | undefined
-  if (!gateway || typeof gateway !== 'object') return null
-  if (typeof gateway.provider === 'string' && gateway.provider) return gateway.provider
+  const top = rec.providerMetadata as Record<string, unknown> | undefined
+  const topSnake = rec.provider_metadata as Record<string, unknown> | undefined
+  const fromTop = top?.gateway ?? topSnake?.gateway
+  if (fromTop && typeof fromTop === 'object') return fromTop as Record<string, unknown>
+  return null
+}
+
+export function readGatewayProvider(data: unknown): string | null {
+  const gateway = readGatewayBlock(data)
+  if (!gateway) return null
   const routing = gateway.routing as Record<string, unknown> | undefined
   if (routing && typeof routing === 'object') {
-    for (const field of ['finalProvider', 'provider', 'selectedProvider', 'chosenProvider']) {
-      const v = routing[field]
-      if (typeof v === 'string' && v) return v
-    }
-    const reason = routing.planningReasoning
-    if (typeof reason === 'string' && reason) {
-      const m = reason.match(/\b(azure|openai|bedrock|vertex|anthropic)\b/i)
-      if (m?.[1]) return m[1].toLowerCase()
-      return reason
-    }
+    if (typeof routing.finalProvider === 'string' && routing.finalProvider) return routing.finalProvider
+    if (typeof routing.provider === 'string' && routing.provider) return routing.provider
   }
+  if (typeof gateway.provider === 'string' && gateway.provider) return gateway.provider
   return null
 }
 
 export function readGatewayRouting(data: unknown): unknown {
-  if (!data || typeof data !== 'object') return null
-  const rec = data as Record<string, unknown>
-  const meta = rec.providerMetadata as Record<string, unknown> | undefined
-  const gateway = (meta?.gateway ?? rec.gateway) as Record<string, unknown> | undefined
-  return gateway?.routing ?? null
+  return readGatewayBlock(data)?.routing ?? null
+}
+
+export function readGatewayExtras(data: unknown): {
+  enabledZeroDataRetention: unknown
+  cost: unknown
+} {
+  const gateway = readGatewayBlock(data)
+  return {
+    enabledZeroDataRetention: gateway?.enabledZeroDataRetention ?? null,
+    cost: gateway?.cost ?? null,
+  }
+}
+
+/**
+ * One-line, no-content tag so 400 NoZdrProvidersError vs 403 RestrictedModelsError
+ * (and timeouts) are distinguishable in Vercel logs. Call only on the gateway path.
+ */
+export function logGatewayError(err: unknown): void {
+  const rec = err && typeof err === 'object' ? (err as Record<string, unknown>) : null
+  const body = rec?.error
+  const bodyObj = body && typeof body === 'object' ? (body as Record<string, unknown>) : null
+  const status = rec?.status ?? rec?.statusCode ?? bodyObj?.statusCode ?? 'unknown'
+  const name =
+    (typeof bodyObj?.name === 'string' && bodyObj.name) ||
+    (typeof rec?.name === 'string' && rec.name !== 'Error' ? rec.name : null) ||
+    (typeof bodyObj?.type === 'string' && bodyObj.type) ||
+    (typeof rec?.type === 'string' && rec.type) ||
+    'unknown'
+  console.error(`gateway_error status=${String(status)} name=${name}`)
 }

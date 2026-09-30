@@ -3,7 +3,10 @@ import {
   AI_GATEWAY_BASE_URL,
   createAiClient,
   gatewayBody,
+  logGatewayError,
+  readGatewayExtras,
   readGatewayProvider,
+  readGatewayRouting,
   resetAiClientsForTests,
   resolveModelId,
 } from './aiClient.js'
@@ -228,13 +231,67 @@ describe('AI Gateway ZDR client helper', () => {
     expect(getToken).not.toHaveBeenCalled()
   })
 
-  it('reads the provider from gateway metadata or headers', () => {
-    const res = new Response(null, { headers: { 'x-ai-gateway-provider': 'azure' } })
-    expect(readGatewayProvider({}, res)).toBe('azure')
-    expect(
-      readGatewayProvider({
-        providerMetadata: { gateway: { routing: { planningReasoning: 'ZDR execution order: azure(system)' } } },
-      }),
-    ).toBe('azure')
+  it('reads chat provider from choices[0].message.provider_metadata.gateway', () => {
+    const data = {
+      choices: [
+        {
+          message: {
+            provider_metadata: {
+              gateway: {
+                routing: { finalProvider: 'azure', providerAttempts: 1, planningReasoning: 'ZDR' },
+                enabledZeroDataRetention: true,
+                cost: '0.0001',
+              },
+            },
+          },
+        },
+      ],
+    }
+    expect(readGatewayProvider(data)).toBe('azure')
+    expect(readGatewayRouting(data)).toEqual({
+      finalProvider: 'azure',
+      providerAttempts: 1,
+      planningReasoning: 'ZDR',
+    })
+    expect(readGatewayExtras(data)).toEqual({ enabledZeroDataRetention: true, cost: '0.0001' })
+  })
+
+  it('falls back to top-level providerMetadata.gateway (embeddings / errors)', () => {
+    const data = {
+      providerMetadata: {
+        gateway: {
+          routing: { finalProvider: 'azure' },
+          enabledZeroDataRetention: true,
+          cost: '0.00000012',
+        },
+      },
+    }
+    expect(readGatewayProvider(data)).toBe('azure')
+    expect(readGatewayExtras(data).cost).toBe('0.00000012')
+  })
+
+  it('does not infer a provider from response headers', () => {
+    const data = { choices: [{ message: { content: 'ok' } }] }
+    expect(readGatewayProvider(data)).toBeNull()
+  })
+
+  it('logs gateway_error status and name only', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    logGatewayError({
+      status: 400,
+      name: 'BadRequestError',
+      type: 'no_zdr_providers_available',
+      error: { name: 'NoZdrProvidersError', type: 'no_zdr_providers_available', message: 'journal text must not appear' },
+    })
+    logGatewayError({
+      status: 403,
+      name: 'PermissionDeniedError',
+      error: { name: 'RestrictedModelsError', type: 'restricted_models' },
+    })
+    const lines = err.mock.calls.map((c) => c.map(String).join(' '))
+    expect(lines).toContain('gateway_error status=400 name=NoZdrProvidersError')
+    expect(lines).toContain('gateway_error status=403 name=RestrictedModelsError')
+    expect(lines.join('\n')).not.toContain('journal text')
+    err.mockRestore()
   })
 })

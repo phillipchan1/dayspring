@@ -9,6 +9,7 @@ import OpenAI from 'openai'
 import {
   createAiClient,
   gatewayBody,
+  readGatewayExtras,
   readGatewayProvider,
   readGatewayRouting,
   resolveModelId,
@@ -36,6 +37,8 @@ type CallResult = {
   model: string
   provider: string | null
   routing?: unknown
+  enabledZeroDataRetention?: unknown
+  cost?: unknown
   error?: string
   vectorLength?: number
   cosineVsOpenAI?: number | null
@@ -73,9 +76,9 @@ async function timed<T>(fn: () => Promise<T>): Promise<{ value?: T; latencyMs: n
 
 async function runText(): Promise<CallResult> {
   const model = resolveModelId(env.model(), FORCE)
-  const extras = gatewayBody(FORCE)
+  const body = gatewayBody(FORCE)
   const ran = await timed(async () => {
-    const { data, response } = await client()
+    const { data } = await client()
       .chat.completions.create({
         model,
         max_completion_tokens: 32,
@@ -83,30 +86,33 @@ async function runText(): Promise<CallResult> {
           { role: 'system', content: 'Reply with the single word ok.' },
           { role: 'user', content: SYNTHETIC_TEXT },
         ],
-        ...extras,
+        ...body,
       })
       .withResponse()
-    return { data, response }
+    return data
   })
   if (!ran.value) {
     return { success: false, latencyMs: ran.latencyMs, model, provider: null, error: ran.error }
   }
-  const { data, response } = ran.value
+  const data = ran.value
+  const gw = readGatewayExtras(data)
   return {
     success: Boolean(data.choices[0]?.message),
     latencyMs: ran.latencyMs,
     model,
-    provider: readGatewayProvider(data, response),
+    provider: readGatewayProvider(data),
     routing: readGatewayRouting(data),
+    enabledZeroDataRetention: gw.enabledZeroDataRetention,
+    cost: gw.cost,
   }
 }
 
 async function runVision(): Promise<CallResult> {
   const model = resolveModelId(env.visionModel(), FORCE)
-  const extras = gatewayBody(FORCE)
+  const body = gatewayBody(FORCE)
   const b64 = SYNTHETIC_PNG.toString('base64')
   const ran = await timed(async () => {
-    const { data, response } = await client()
+    const { data } = await client()
       .chat.completions.create({
         model,
         max_tokens: 32,
@@ -119,44 +125,50 @@ async function runVision(): Promise<CallResult> {
             ],
           },
         ],
-        ...extras,
+        ...body,
       })
       .withResponse()
-    return { data, response }
+    return data
   })
   if (!ran.value) {
     return { success: false, latencyMs: ran.latencyMs, model, provider: null, error: ran.error }
   }
-  const { data, response } = ran.value
+  const data = ran.value
+  const gw = readGatewayExtras(data)
   return {
     success: Boolean(data.choices[0]?.message),
     latencyMs: ran.latencyMs,
     model,
-    provider: readGatewayProvider(data, response),
+    provider: readGatewayProvider(data),
     routing: readGatewayRouting(data),
+    enabledZeroDataRetention: gw.enabledZeroDataRetention,
+    cost: gw.cost,
   }
 }
 
 async function runEmbeddings(): Promise<CallResult> {
   const model = resolveModelId(env.embedModel(), FORCE)
-  const extras = gatewayBody(FORCE)
+  const body = gatewayBody(FORCE)
   const ran = await timed(async () => {
-    const { data, response } = await client()
-      .embeddings.create({ model, input: SYNTHETIC_TEXT, ...extras })
+    const { data } = await client()
+      .embeddings.create({ model, input: SYNTHETIC_TEXT, ...body })
       .withResponse()
-    return { data, response }
+    return data
   })
   if (!ran.value) {
     return { success: false, latencyMs: ran.latencyMs, model, provider: null, error: ran.error }
   }
-  const { data, response } = ran.value
+  const data = ran.value
+  const gw = readGatewayExtras(data)
   const vector = data.data[0]?.embedding as number[] | undefined
   const result: CallResult = {
     success: Boolean(vector && vector.length > 0),
     latencyMs: ran.latencyMs,
     model,
-    provider: readGatewayProvider(data, response),
+    provider: readGatewayProvider(data),
     routing: readGatewayRouting(data),
+    enabledZeroDataRetention: gw.enabledZeroDataRetention,
+    cost: gw.cost,
     vectorLength: vector?.length,
     cosineVsOpenAI: null,
   }
