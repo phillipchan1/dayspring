@@ -17,7 +17,7 @@
 //   prayer-cue-false-positive / prayer-distractor — cue fires, no prayer
 //   ordinary                 — no prayer, and the cue should stay quiet
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HARVEST_CUE, harvestBatch, harvestPlan, harvestPrayers, isVerbatim } from './altar.js'
 import { callModel } from './openai.js'
 import { supabaseAdmin } from './supabaseAdmin.js'
@@ -200,6 +200,10 @@ function mockSb(entries: EntryRow[]) {
 
 describe('harvestPrayers / harvestPlan — cue vs gate', () => {
   const saved: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    vi.mocked(callModel).mockReset()
+  })
 
   afterEach(() => {
     for (const key of ['GATHER_MODE']) {
