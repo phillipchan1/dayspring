@@ -174,6 +174,21 @@ describe('groupTagged', () => {
       .toEqual(b.subjects.map((s) => `${s.label}:${s.itemIds.join(',')}`))
   })
 
+  it('uses an injected embed and never needs OPENAI_API_KEY', async () => {
+    let calls = 0
+    const plan = await groupTagged(
+      [line('y1', 0, [trading]), line('y2', 7, [trading]), line('y3', 14, [trading])],
+      {
+        embed: async (texts) => {
+          calls++
+          return texts.map(() => [1, 0, 0])
+        },
+      },
+    )
+    expect(calls).toBe(1)
+    expect(plan.subjects.some((s) => s.label === 'trading')).toBe(true)
+  })
+
   it('splits prayer and sense about the same subject into separate threads', async () => {
     const senses = [0, 7, 14].map((d, i) => ({ ...line(`s${i}`, d, [trading]), type: 'sense' as const }))
     const prayers = [0, 7, 14].map((d, i) => line(`p${i}`, d, [trading]))

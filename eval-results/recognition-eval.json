@@ -1,0 +1,39 @@
+{
+  "dry": true,
+  "split": "all",
+  "only": null,
+  "sentimentVariant": "baseline",
+  "providers": [
+    "openai",
+    "jev"
+  ],
+  "taus": [
+    0.8
+  ],
+  "entries": 515,
+  "openaiCalls": 503,
+  "jevTok": 1001031,
+  "jevCost": 0.042043302000000005,
+  "openaiCost": 0.5533,
+  "vocab": [
+    "anxiety",
+    "Naomi",
+    "Grace",
+    "Frontier",
+    "Bristol",
+    "the move",
+    "Ada",
+    "money",
+    "finances",
+    "purity",
+    "porn",
+    "sexual temptation",
+    "Joy",
+    "Hope",
+    "Faith",
+    "Mercy",
+    "wisdom",
+    "peace",
+    "strength"
+  ]
+}

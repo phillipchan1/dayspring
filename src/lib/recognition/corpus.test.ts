@@ -13,8 +13,8 @@
 // about what the pipeline does with it.
 
 import { describe, expect, it } from 'vitest'
-import { CORPUS, DEFECTS, DESIGNED_THREADS, EPOCH_MS, asEntryRows, corpusFor } from './corpus'
-import type { DefectId } from './corpus/types'
+import { CORPUS, DEFECTS, DESIGNED_THREADS, EPOCH_MS, asEntryRows, corpusFor, splitForId } from './corpus'
+import { CORPUS_EMOTIONS, type DefectId } from './corpus/types'
 
 const nz = (s: string) => s.replace(/\s+/g, ' ').trim()
 /** Mirrors the whitespace-tolerant substring gate in altar.ts / concordance.ts. */
@@ -121,5 +121,28 @@ describe('CORPUS', () => {
 
   it('is large enough to say something', () => {
     expect(CORPUS.length).toBeGreaterThanOrEqual(80)
+  })
+
+  it('keeps every sentiment emotion inside the closed Keeping label set', () => {
+    const allowed = new Set<string>(CORPUS_EMOTIONS)
+    const broken = CORPUS.flatMap((e) =>
+      (e.sentiment?.emotions ?? []).filter((emo) => !allowed.has(emo)).map((emo) => `${e.id}:${emo}`),
+    )
+    expect(broken).toEqual([])
+  })
+
+  it('gives every emotion at least 15 positive entries', () => {
+    const short = CORPUS_EMOTIONS.filter(
+      (emo) => CORPUS.filter((e) => e.sentiment?.emotions.includes(emo)).length < 15,
+    )
+    expect(short).toEqual([])
+  })
+
+  it('splits ids 60/40 without a stored field', () => {
+    expect(splitForId('sen-exp-joy-01')).toMatch(/^(dev|test)$/)
+    const dev = CORPUS.filter((e) => splitForId(e.id) === 'dev').length
+    const share = dev / CORPUS.length
+    expect(share).toBeGreaterThan(0.45)
+    expect(share).toBeLessThan(0.75)
   })
 })
