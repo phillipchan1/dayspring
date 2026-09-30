@@ -269,7 +269,7 @@ function dedupeSameDay(members: TaggedItem[]): TaggedItem[] {
   return out
 }
 
-function cleanTags(raw: unknown): SubjectTag[] {
+export function cleanTags(raw: unknown): SubjectTag[] {
   if (!Array.isArray(raw)) return []
   const seen = new Set<string>()
   const out: SubjectTag[] = []

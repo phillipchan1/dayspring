@@ -9,6 +9,10 @@ import { PRAYER_ENTRIES } from './prayers'
 import { ENTITY_ENTRIES } from './entities'
 import { SUBJECT_ENTRIES } from './subjects'
 import { ORDINARY_ENTRIES } from './ordinary'
+import { SENTIMENT_ENTRIES } from './sentiment'
+import { PRAYER_HARD_ENTRIES } from './prayers-hard'
+import { SUBJECT_HARD_ENTRIES } from './subjects-hard'
+import { ADVERSARIAL_ENTRIES } from './adversarial'
 
 const RAW: CorpusEntry[] = [
   ...SCRIPTURE_ENTRIES,
@@ -16,6 +20,10 @@ const RAW: CorpusEntry[] = [
   ...ENTITY_ENTRIES,
   ...SUBJECT_ENTRIES,
   ...ORDINARY_ENTRIES,
+  ...SENTIMENT_ENTRIES,
+  ...PRAYER_HARD_ENTRIES,
+  ...SUBJECT_HARD_ENTRIES,
+  ...ADVERSARIAL_ENTRIES,
 ]
 
 /**
@@ -59,7 +67,66 @@ export const CORPUS: readonly LoadedEntry[] = RAW.map(load).sort((a, b) =>
   a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : a.id < b.id ? -1 : 1,
 )
 
-export type Axis = 'refs' | 'passages' | 'entities' | 'subjects'
+export type Axis = 'refs' | 'passages' | 'entities' | 'subjects' | 'sentiment'
+
+/**
+ * Frozen 60/40 dev/test split from a hash of the entry id. Tune Jev criteria
+ * and τ only on `dev`; report on `test`.
+ */
+export function splitForId(id: string): 'dev' | 'test' {
+  let h = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0) % 100 < 60 ? 'dev' : 'test'
+}
+
+export function filterSplit<T extends { id: string }>(
+  rows: readonly T[],
+  split: 'dev' | 'test' | 'all',
+): T[] {
+  if (split === 'all') return [...rows]
+  return rows.filter((r) => splitForId(r.id) === split)
+}
+
+/**
+ * Round-robin sample across categories so `--limit=N` still hits every
+ * corpus bucket it can, instead of taking the first N rows in date order.
+ */
+export function stratifiedSample<T>(
+  items: readonly T[],
+  n: number,
+  categoryOf: (item: T) => string,
+): T[] {
+  if (!Number.isFinite(n) || n <= 0) return []
+  if (n >= items.length) return [...items]
+  const groups = new Map<string, T[]>()
+  for (const item of items) {
+    const key = categoryOf(item)
+    const list = groups.get(key) ?? []
+    list.push(item)
+    groups.set(key, list)
+  }
+  const keys = [...groups.keys()].sort()
+  const cursor = new Map<string, number>(keys.map((k) => [k, 0]))
+  const out: T[] = []
+  while (out.length < n) {
+    let progressed = false
+    for (const key of keys) {
+      const group = groups.get(key)!
+      const i = cursor.get(key) ?? 0
+      if (i < group.length) {
+        out.push(group[i]!)
+        cursor.set(key, i + 1)
+        progressed = true
+        if (out.length >= n) break
+      }
+    }
+    if (!progressed) break
+  }
+  return out
+}
 
 /**
  * Entries annotated on `axis`. Entries that omit the axis are excluded — an
@@ -123,5 +190,8 @@ export type {
   ExpectedPassage,
   ExpectedEntity,
   ExpectedSubject,
+  ExpectedSentiment,
   Category,
+  CorpusEmotion,
 } from './types'
+export { CORPUS_EMOTIONS } from './types'

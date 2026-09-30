@@ -72,6 +72,48 @@ export type Category =
   | 'entity-generic-control'
   | 'subject-stoplist'
   | 'ordinary'
+  | 'prayer-hard'
+  | 'sentiment-explicit'
+  | 'sentiment-inferred'
+  | 'sentiment-negated'
+  | 'sentiment-other'
+  | 'sentiment-mixed'
+  | 'sentiment-absent'
+  | 'subject-sibling'
+  | 'subject-virtue-name'
+  | 'subject-generic'
+  | 'adversarial-injection'
+  | 'adversarial-long'
+  | 'adversarial-language'
+  | 'adversarial-typo'
+
+/** Closed emotion set — duplicated from api/_lib/keepingRead.ts so src/ never imports api/. */
+export const CORPUS_EMOTIONS = [
+  'joy',
+  'peace',
+  'gratitude',
+  'hope',
+  'love',
+  'longing',
+  'sadness',
+  'grief',
+  'fear',
+  'anger',
+  'shame',
+  'confusion',
+  'weariness',
+  'stress',
+] as const
+
+export type CorpusEmotion = (typeof CORPUS_EMOTIONS)[number]
+
+export type ValenceBucket = 'negative' | 'mixed' | 'positive'
+
+export interface ExpectedSentiment {
+  present: boolean
+  valence: ValenceBucket
+  emotions: CorpusEmotion[]
+}
 
 export interface ExpectedRef {
   /**
@@ -133,6 +175,11 @@ export interface CorpusEntry {
   passages?: ExpectedPassage[]
   entities?: ExpectedEntity[]
   subjects?: ExpectedSubject[]
+  /**
+   * Optional sentiment axis. Omitted = not scored. present=false with
+   * emotions=[] is the empty control.
+   */
+  sentiment?: ExpectedSentiment
 
   /** Shorthand for refs/passages/entities/subjects all `[]`. */
   yieldsNothing?: true

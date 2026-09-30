@@ -13,9 +13,12 @@ import { describe, expect, it } from 'vitest'
 import {
   passagesOverlap,
   scoreEntities,
+  scoreGate,
   scoreOrdinaryProse,
   scorePassages,
   scoreScripture,
+  scoreSentiment,
+  scoreSubjectAssignment,
   summarize,
 } from './score'
 import { corpusFor } from './corpus'
@@ -240,5 +243,64 @@ describe('scoping a run to a subset of the corpus', () => {
 
   it('scores the whole corpus when no scope is given', () => {
     expect(scorePassages([]).span.fn).toBeGreaterThan(scorePassages([], new Set()).span.fn)
+  })
+})
+
+describe('scoreGate', () => {
+  it('is a perfect cue when the predicate matches gold passages', () => {
+    const s = scoreGate((id) => {
+      const e = corpusFor('passages').find((x) => x.id === id)
+      return (e?.passages ?? []).length > 0
+    })
+    expect(s.fp).toBe(0)
+    expect(s.fn).toBe(0)
+    expect(s.recall).toBe(1)
+  })
+
+  it('counts a silent gate on a prayer entry as a miss', () => {
+    const one = corpusFor('passages').find((e) => (e.passages ?? []).length > 0)!
+    const s = scoreGate(() => false, new Set([one.id]))
+    expect(s.fn).toBe(1)
+    expect(s.missedIn).toEqual([one.id])
+  })
+})
+
+describe('scoreSentiment', () => {
+  it('scores present, valence, and per-emotion F1 on a stub', () => {
+    const one = corpusFor('sentiment').find((e) => e.sentiment?.present && (e.sentiment.emotions.length ?? 0) > 0)!
+    const s = scoreSentiment([
+      {
+        entryId: one.id,
+        present: true,
+        valence: one.sentiment!.valence,
+        emotions: one.sentiment!.emotions,
+      },
+    ], new Set([one.id]))
+    expect(s.present.accuracy).toBe(1)
+    expect(s.valenceBucket.accuracy).toBe(1)
+    expect(s.micro.fn).toBe(0)
+    expect(s.micro.fp).toBe(0)
+  })
+
+  it('counts an extra emotion as a false positive and a miss as a false negative', () => {
+    const one = corpusFor('sentiment').find((e) => e.sentiment?.emotions[0] === 'joy')!
+    const s = scoreSentiment(
+      [{ entryId: one.id, present: true, valence: 'positive', emotions: ['joy', 'anger'] }],
+      new Set([one.id]),
+    )
+    const anger = s.perEmotion.find((r) => r.label === 'anger')!
+    expect(anger.fp).toBe(1)
+  })
+})
+
+describe('scoreSubjectAssignment', () => {
+  it('is perfect when labels match gold', () => {
+    const one = corpusFor('subjects').find((e) => (e.subjects ?? []).length > 0)!
+    const s = scoreSubjectAssignment(
+      [{ entryId: one.id, labels: one.subjects!.map((x) => x.label) }],
+      new Set([one.id]),
+    )
+    expect(s.fp).toBe(0)
+    expect(s.fn).toBe(0)
   })
 })

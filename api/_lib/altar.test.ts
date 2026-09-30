@@ -79,7 +79,10 @@ describe('HARVEST_CUE', () => {
   })
 
   it('meets the recall floor, and names what it costs when it does not', () => {
-    const score = scoreCuePrefilter(fires)
+    // Lab corpus packs (prayers-hard / adversarial / …) add designed cue-blind
+    // items. The floor is the production cue vs the original production set.
+    const production = new Set(CORPUS.filter((e) => !/^(prh-|subh-|adv-|sent-)/.test(e.id)).map((e) => e.id))
+    const score = scoreCuePrefilter(fires, production)
     expect(score.recall, `prayers the cue cannot see: ${score.missedIn.join(', ')}`).toBeGreaterThanOrEqual(
       CUE_RECALL_FLOOR,
     )

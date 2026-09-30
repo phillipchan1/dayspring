@@ -42,3 +42,18 @@ The cost increase is the gate calls on cue-negative entries. The return is recal
 - **Gate** — batched prayer/sense yes/no before span harvest.
 - **Span harvest** — production `HARVEST_PROMPT` extraction (`harvestBatch`).
 - **tight-denial** — 14 tight emotion definitions, plus a `denied` field the model fills before `emotions`.
+
+## Eval + rescan (lab/gather-eval only — do not merge)
+
+```bash
+npm run eval:recognition -- --only=prayers --compare=gather,luna --split=test --json
+npm run eval:recognition -- --only=sentiment --compare=gather,luna --split=test --json
+```
+
+`gather` is production `gatherHarvest` + keepingRead tight-denial. `luna` is production flag-off `harvestTexts` + keepingRead v2. Both need only `OPENAI_API_KEY`.
+
+```bash
+npx tsx scripts/gather-rescan.ts --owner=<uuid> --dry-run
+npx tsx scripts/gather-rescan.ts --owner=<uuid> --max=50 --after=<entry-id-or-date> --apply
+npx tsx scripts/gather-rescan.ts --owner=<uuid> --apply --downstream
+```

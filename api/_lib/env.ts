@@ -13,6 +13,10 @@ export const env = {
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
   openaiKey: () => need('OPENAI_API_KEY'),
   model: () => process.env.OPENAI_MODEL || 'gpt-6-luna',
+  // Lab only (api/_lib/typesafe.ts / recognition-eval). Unset → Jev arms fail
+  // at call time; gather/luna arms do not read these.
+  typesafeKey: () => process.env.TYPESAFE_API_KEY ?? null,
+  typesafeModel: () => process.env.TYPESAFE_MODEL || 'jev-1.13.0',
   // AI Gateway ZDR (api/_lib/aiClient.ts). Default OFF — only 'on' / 'true'
   // (any case) change the client. Anything else, including unset, is identical
   // to today: direct OpenAI, unprefixed models, no providerOptions.
