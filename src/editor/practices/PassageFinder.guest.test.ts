@@ -48,14 +48,15 @@ describe('guest passage picker', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows the own-Bible path and no error when there is no session', async () => {
+  it('begins on a chapter from your own Bible, without fetching or erroring', async () => {
+    const onChoose = vi.fn()
     await act(async () => {
       root.render(
         createElement(GuestModeProvider, {
           requestSignIn: () => {},
           children: createElement(PassageFinder, {
             practice: lectio,
-            onChoose: () => {},
+            onChoose,
             onBack: () => {},
             backLabel: 'the library',
           }),
@@ -68,8 +69,6 @@ describe('guest passage picker', () => {
 
     expect(loadChapter).not.toHaveBeenCalled()
     expect(host.textContent).not.toMatch(/wouldn.t open just now/i)
-    expect(host.textContent).toMatch(/Open this passage in your own Bible, then continue/)
-    expect(host.querySelector('.pf__begin')?.textContent?.trim()).toBe('Continue')
-    expect([...host.querySelectorAll('button')].filter((b) => /from your own Bible/.test(b.textContent ?? ''))).toHaveLength(0)
+    expect(onChoose).toHaveBeenCalledWith({ book: 'John', chapter: 15, from: null, to: null }, null)
   })
 })

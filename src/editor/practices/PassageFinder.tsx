@@ -6,9 +6,11 @@ import type { Practice } from './practicesData'
 import {
   displayBook,
   parseFinderQuery,
+  parseReferenceLine,
   passageLabel,
   refFromOsis,
   sizeNote,
+  versesIn,
   type PassageRef,
   type Verse,
 } from './passage'
@@ -27,6 +29,8 @@ interface Props {
   onBack: () => void
   /** Where leaving goes, said plainly. */
   backLabel: string
+  /** Begin on this passage straight away — the Bible door's "continue". */
+  autoTake?: PassageRef | null
 }
 
 type Open = { book: BibleBook; chapter: number }
@@ -41,7 +45,7 @@ type Open = { book: BibleBook; chapter: number }
  * place a model chooses, and it only chooses references; the words are the
  * ESV's. One chapter is ever on screen — the chapter pane's licence shape.
  */
-export function PassageFinder({ practice, current = null, onChoose, onBack, backLabel }: Props) {
+export function PassageFinder({ practice, current = null, onChoose, onBack, backLabel, autoTake = null }: Props) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Open | null>(null)
   const [browseBook, setBrowseBook] = useState<BibleBook | null>(null)
@@ -52,6 +56,18 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   const [kb, setKb] = useState(0)
   const [theme, setTheme] = useState<SuggestionTheme | null>(null)
   const [turn, setTurn] = useState(0)
+  /** A passage chosen, its chapter still on the way. */
+  const [taking, setTaking] = useState<PassageRef | null>(autoTake)
+  /** Reading from a Bible of their own: a choice needs no chapter fetched. */
+  const [ownBible, setOwnBible] = useState(false)
+  const takingRef = useRef(false)
+  const liveRef = useRef(true)
+  useEffect(() => {
+    liveRef.current = true
+    return () => {
+      liveRef.current = false
+    }
+  }, [])
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const size = practice.passage?.size ?? 'any'
@@ -110,6 +126,54 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
     [openRef],
   )
 
+  /**
+   * Choosing is beginning. The first time, a passage picked anywhere here —
+   * a reference typed, a suggestion, a passage you return to, a chapter — is
+   * the passage: the facing leaf shows it at once, and narrowing to verses is
+   * one "change" away there. Only choosing AGAIN keeps the chapter preview,
+   * because that is where a passage gets narrowed.
+   */
+  const take = (ref: PassageRef) => {
+    if (current) {
+      openPassage(ref)
+      return
+    }
+    if (takingRef.current) return
+    if (isGuest || ownBible) {
+      onChoose(ref, null)
+      return
+    }
+    takingRef.current = true
+    setTaking(ref)
+    void loadChapter(ref.book, ref.chapter)
+      .catch(() => [] as Verse[])
+      .then((all) => {
+        if (!liveRef.current) return
+        const words = ref.from == null ? all : versesIn(ref, all)
+        if (words.length > 0) {
+          onChoose(ref, words)
+          return
+        }
+        // It would not open: the preview says so and offers your own Bible.
+        takingRef.current = false
+        setTaking(null)
+        openPassage(ref)
+      })
+  }
+
+  // The Bible door's "continue" arrives with its passage already chosen.
+  // Choosing again opens where the passage already is, verses marked, so
+  // narrowing it is one click.
+  useEffect(() => {
+    if (autoTake) take(autoTake)
+    else if (current) {
+      const r = parseReferenceLine(current)
+      if (r) openPassage(r)
+    }
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const chosenRef = (): PassageRef | null => {
     if (!open) return null
     if (sel) return { book: open.book.name, chapter: open.chapter, from: sel.from, to: sel.to }
@@ -149,12 +213,14 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   if (!open) {
     if (parsed.type === 'ref' || parsed.type === 'typo') {
       const p = parsed
-      if (p.chapter != null) rows.push({ key: 'ref', act: () => openRef(p.book, p.chapter!, p.from, p.to) })
+      if (p.chapter != null) {
+        rows.push({ key: 'ref', act: () => take({ book: p.book.name, chapter: p.chapter!, from: p.from, to: p.to }) })
+      }
       else rows.push({ key: 'book', act: () => setBrowseBook(p.book) })
     } else if (parsed.type === 'books') {
       for (const b of parsed.books) rows.push({ key: b.osis, act: () => setBrowseBook(b) })
     } else if (parsed.type === 'topic' && topic?.hits) {
-      for (const h of topic.hits) rows.push({ key: passageLabel(h.ref), act: () => openPassage(h.ref) })
+      for (const h of topic.hits) rows.push({ key: passageLabel(h.ref), act: () => take(h.ref) })
     }
   }
 
@@ -216,7 +282,12 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
         <h3 className="pf__h">{book.name}</h3>
         <div className="pf__chapters">
           {Array.from({ length: book.chapters }, (_, n) => n + 1).map((c) => (
-            <button key={c} type="button" className="pf__ch" onClick={() => openRef(book, c, null, null)}>
+            <button
+              key={c}
+              type="button"
+              className="pf__ch"
+              onClick={() => take({ book: book.name, chapter: c, from: null, to: null })}
+            >
               {c}
             </button>
           ))}
@@ -253,7 +324,9 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   )
 
   let body: React.ReactNode
-  if (open) {
+  if (taking) {
+    body = <p className="pf__soft pf__loading">Opening {passageLabel(taking)}…</p>
+  } else if (open) {
     const ref = chosenRef()!
     const count = sel ? sel.to - sel.from + 1 : (verses?.length ?? 0)
     const note = sel ? sizeNote(size, count, practice.name) : null
@@ -363,7 +436,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
           </div>
           <div className="pf__picks">
             {picks.map((p) => (
-              <button key={passageLabel(p.ref)} type="button" className="pf__pick" onClick={() => openPassage(p.ref)}>
+              <button key={passageLabel(p.ref)} type="button" className="pf__pick" onClick={() => take(p.ref)}>
                 <span className="pf__pick-title">{p.title}</span>
                 <span className="pf__pick-ref">{passageLabel(p.ref)}</span>
                 <span className="pf__pick-themes">{p.themes.join(' · ')}</span>
@@ -386,7 +459,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
                 const r = refFromOsis(osis)
                 if (!r) return null
                 return (
-                  <button key={osis} type="button" className="pf__chip" onClick={() => openPassage(r)}>
+                  <button key={osis} type="button" className="pf__chip" onClick={() => take(r)}>
                     <span className="pf__glow" aria-hidden />
                     {formatOsisRef(osis)}
                   </button>
@@ -437,7 +510,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
     body = (
       <section className="pf__sec">
         <h3 className="pf__h">{p.type === 'typo' ? 'Did you mean' : 'Reference'}</h3>
-        {refRow('ref', 0, label, p.type === 'typo' ? `for “${p.typed}”` : 'enter to open', rows[0]!.act)}
+        {refRow('ref', 0, label, p.type === 'typo' ? `for “${p.typed}”` : current ? 'enter to open' : 'enter to begin', rows[0]!.act)}
       </section>
     )
   } else if (parsed.type === 'nobook') {
@@ -460,7 +533,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
         ) : topic?.hits === null ? (
           <p className="pf__soft pf__loading">Looking…</p>
         ) : topic?.hits?.length ? (
-          topic.hits.map((h, n) => refRow(passageLabel(h.ref), n, passageLabel(h.ref), '', () => openPassage(h.ref), h.text))
+          topic.hits.map((h, n) => refRow(passageLabel(h.ref), n, passageLabel(h.ref), '', () => take(h.ref), h.text))
         ) : (
           <p className="pf__soft">
             {topic?.failed ? 'That search didn’t go through.' : 'No passage for that word.'} Try a book or a
@@ -503,6 +576,16 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
             onKeyDown={onKey}
           />
           <p className="pf__hint">{practice.passage?.hint}</p>
+          {!current && !isGuest && !taking && !open && (
+            <button
+              type="button"
+              className="pf__link pf__own"
+              aria-pressed={ownBible}
+              onClick={() => setOwnBible((o) => !o)}
+            >
+              {ownBible ? '✓ ' : ''}I’m reading from my own Bible
+            </button>
+          )}
           {body}
         </div>
       </div>

@@ -84,7 +84,9 @@ import {
   ritualIndexContaining,
   ritualPageState,
 } from '@/editor/practices/ritualDocument'
-import { RitualShelf } from './RitualShelf'
+import { BIBLE_DOOR_PRACTICE, RitualShelf } from './RitualShelf'
+import { passageLabel, type PassageRef } from '@/editor/practices/passage'
+import { bibleResume } from '@/editor/practices/passageResume'
 import { BACK_TO_ENTRY, ritualBackTo, ritualLanding } from './ritualEntryNav'
 import {
   PRACTICE_BY_NAME,
@@ -452,8 +454,10 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * document yet; `returnTo` is where leaving goes.
    */
   const [ritualEntry, setRitualEntry] = useState<{
-    seed?: { name: string; labels: string[] }
+    seed?: { name: string; labels: string[]; passage?: PassageRef }
     startAt?: number
+    /** Bumped when the page changes practice under an open composer — it opens again. */
+    gen?: number
     backTo: string
     backShort: string
     returnTo: { kind: 'up' } | { kind: 'entry'; id: string }
@@ -981,10 +985,18 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * page of its own and the entry stays exactly as it is; leaving the ritual
    * comes back to it.
    */
-  async function beginRitualEntry(practice: Practice, movements: readonly PracticePrompt[]) {
+  async function beginRitualEntry(
+    practice: Practice,
+    movements: readonly PracticePrompt[],
+    passage?: PassageRef,
+  ) {
     setLibraryOpen(false)
     track('ritual_begun')
-    const seed = { name: practice.name, labels: movements.map((m) => m.label) }
+    const seed = {
+      name: practice.name,
+      labels: movements.map((m) => m.label),
+      ...(passage ? { passage } : {}),
+    }
     const doc = editorRef.current?.getDoc() ?? contentRef.current
     editorRef.current?.blur()
     if (!doc.trim()) {
@@ -2338,6 +2350,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * symptom of the entry-duplication class of bug, and this is cheap insurance
    * against concurrent state updates racing.
    */
+  /** Where the Bible door picks up: the chapter after the last scripture ritual. */
+  const bibleOnward = useMemo(() => bibleResume(entries), [entries])
+
   const visibleEntries = useMemo(() => {
     const seen = new Set<string>()
     return entries.filter((e) => {
@@ -2461,6 +2476,24 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             <RitualShelf
               visible={!content.trim() && !ritualEntry && !libraryOpen && !focus.active}
               onPick={(practice) => void beginRitualEntry(practice, practice.prompts)}
+              onBible={() => {
+                const open = PRACTICE_BY_NAME.get(BIBLE_DOOR_PRACTICE)
+                if (open) void beginRitualEntry(open, open.prompts)
+              }}
+              resume={
+                bibleOnward
+                  ? {
+                      label: passageLabel(bibleOnward.ref),
+                      practice: bibleOnward.practice.name,
+                      onGo: () =>
+                        void beginRitualEntry(
+                          bibleOnward.practice,
+                          bibleOnward.practice.prompts,
+                          bibleOnward.ref,
+                        ),
+                    }
+                  : null
+              }
               onAll={openLibrary}
             />
           )}
@@ -2781,6 +2814,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {ritualVeil && <div className="ritual-veil" data-state={ritualVeil} aria-hidden />}
       {ritualEntry && (
         <RitualComposer
+          key={ritualEntry.gen ?? 0}
           blockIndex={0}
           getDoc={() => editorRef.current?.getDoc() ?? ''}
           replaceRange={(from, to, text, opts) =>
@@ -2805,6 +2839,14 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             backTo: ritualEntry.backTo,
             backShort: ritualEntry.backShort,
             onDelete: deleteRitualEntry,
+            // Same passage, another way through it: the page has been
+            // rewritten under the new practice; open on it as it stands.
+            onSwitch: () =>
+              setRitualEntry((r) => {
+                if (!r) return r
+                const { seed: _seed, startAt: _startAt, ...rest } = r
+                return { ...rest, gen: (r.gen ?? 0) + 1 }
+              }),
           }}
         />
       )}

@@ -6,7 +6,7 @@ import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { track } from '@/lib/analytics'
 import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
-import { PRACTICE_BY_NAME, movementKind, type MovementKind } from './practicesData'
+import { PRACTICE_BY_NAME, movementKind, type MovementKind, type Practice } from './practicesData'
 import { placeholderFor, questionFor } from './usePracticeInsertion'
 import {
   bodyOf,
@@ -120,8 +120,12 @@ export interface AnswerSlot {
 }
 
 export interface RitualEntryMode {
-  /** A ritual begun on a blank page: nothing is in the document yet. */
-  seed?: { name: string; labels: readonly string[] }
+  /**
+   * A ritual begun on a blank page: nothing is in the document yet. A
+   * scripture ritual may arrive with its passage already chosen (the Bible
+   * door's "continue"), and begins on it without asking.
+   */
+  seed?: { name: string; labels: readonly string[]; passage?: PassageRef }
   /** Where leaving goes, said plainly — "your journal", "the page". */
   backTo: string
   /** The same place in one word, for the phone's back button. */
@@ -130,7 +134,24 @@ export interface RitualEntryMode {
   onDelete: () => void
   /** Open on this movement (a click on one answer in the reader). */
   startAt?: number
+  /**
+   * The page now holds a different practice over the same passage — open the
+   * composer again on the document as it stands. Without it, a scripture
+   * ritual offers no other way through its passage.
+   */
+  onSwitch?: () => void
 }
+
+/**
+ * The ways through a passage, as the facing leaf offers them — short names,
+ * because they sit on one line beside the reference.
+ */
+const PASSAGE_WAYS: readonly { name: string; short: string }[] = [
+  { name: 'Open Reading', short: 'Open' },
+  { name: 'Lectio Divina', short: 'Lectio' },
+  { name: 'SOAP', short: 'SOAP' },
+  { name: 'Discovery Bible Study', short: 'Discovery' },
+]
 
 /** After is a page, not a movement: no question, just room. */
 const AFTER_LABEL = 'After'
@@ -760,6 +781,59 @@ export function RitualComposer({
       embla?.scrollTo(firstWrite, true)
     }
   }
+  // ── The way through it ──────────────────────────────────────────────────
+  /**
+   * Nothing written but the passage: the method can still be changed, and so
+   * can the passage, without asking. The passage is the choice people come
+   * for; the method is easier to pick once the text is in front of you.
+   */
+  const untouched =
+    Boolean(entry) &&
+    passage !== null &&
+    texts.every((t, n) => n === 0 || t.trim() === '') &&
+    after.trim() === ''
+  /**
+   * The same passage, walked another way. The page is rewritten under the
+   * new practice with the passage as its first answer, and the composer is
+   * opened again on it — every movement, pane and pacing rule belongs to the
+   * practice, so a fresh composer is the honest way to change all of them.
+   */
+  const switchTo = (next: Practice) => {
+    const onSwitch = entry?.onSwitch
+    if (!block || !onSwitch || next.name === block.name) return
+    const nextLabels = next.prompts.map((p) => p.label)
+    const md = composeRitualMarkdown(
+      next.name,
+      nextLabels,
+      nextLabels.map((_, n) => (n === 0 ? (textsRef.current[0] ?? '') : '')),
+    )
+    // Latched first, so this composer's unmount flush cannot write the old
+    // practice back over the new one.
+    goneRef.current = true
+    writeWhole(`${md}\n${RITUAL_END_TOKEN}`)
+    onSwitch()
+  }
+  const ways =
+    untouched && entry?.onSwitch && block ? (
+      <div className="rc__ways rc__chrome" role="group" aria-label="How to read it">
+        {PASSAGE_WAYS.map((w) => {
+          const p = PRACTICE_BY_NAME.get(w.name)
+          if (!p?.passage || p.retired) return null
+          const on = p.name === block.name
+          return (
+            <button
+              key={w.name}
+              type="button"
+              aria-pressed={on}
+              title={p.name}
+              onClick={() => switchTo(p)}
+            >
+              {w.short}
+            </button>
+          )
+        })}
+      </div>
+    ) : null
   /** Change it — asked first when anything has been written under it. */
   const requestChange = () => {
     if (texts.some((t, n) => n > 0 && t.trim() !== '')) setAskChange(true)
@@ -894,6 +968,7 @@ export function RitualComposer({
         // Leaving before any passage is chosen leaves nothing behind.
         onBack={() => (choosing === 'first' ? leave() : setChoosing(null))}
         backLabel={entry?.backTo ?? 'your entry'}
+        autoTake={choosing === 'first' ? (entry?.seed?.passage ?? null) : null}
       />,
       document.body,
     )
@@ -1054,12 +1129,13 @@ export function RitualComposer({
             <div className="rc__leaf-text">
               <div className="rc__leaf-ref">
                 <span>{passage.reference}</span>
-                {(kind === 'read' || !kind) && (
+                {(kind === 'read' || !kind || untouched) && (
                   <button type="button" onClick={requestChange}>
                     change
                   </button>
                 )}
               </div>
+              {ways}
               {passageBody(leafMode, { slowly: kind === 'read' })}
               {kind === 'read' && !own && (
                 <div className="rc__leaf-under rc__chrome">
@@ -1245,6 +1321,7 @@ export function RitualComposer({
           return (
             <section className="rc__pane" key={n === AFTER ? '__after' : label} aria-hidden={n !== i}>
               <div className="rc__inner">
+                {n === i && n !== AFTER ? ways : null}
                 {above}
                 <span className="rc__label">{label}</span>
                 {n === AFTER ? null : (

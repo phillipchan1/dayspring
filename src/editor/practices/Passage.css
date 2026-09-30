@@ -175,6 +175,8 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .pf__input:focus { border-bottom-color: color-mix(in srgb, var(--pf-gold) 55%, var(--border-subtle)); }
 .pf__input::placeholder { color: var(--text-faint); font-style: italic; }
 .pf__hint { margin: 0.6rem 0 0; font-style: italic; color: var(--text-dim); font-size: 0.95rem; }
+.pf__link.pf__own { display: block; margin-top: 0.35rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; color: var(--text-faint); }
+.pf__link.pf__own[aria-pressed='true'] { color: var(--text-dim); }
 .pf__sec { margin-top: 2.3rem; }
 .pf__h {
   margin: 0 0 0.8rem;
@@ -399,6 +401,38 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 }
 .rc__leaf-ref button:hover,
 .rc__leaf-under button:hover { color: var(--accent); }
+/* The ways through the passage — one quiet line under the reference, only
+   until the writer has written. The one being walked is simply the brighter. */
+.rc__ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1rem;
+  margin: -0.4rem 0 1.1rem;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+}
+.rc__ways button {
+  border: none;
+  background: none;
+  padding: 0.15rem 0;
+  font: inherit;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.rc__ways button:hover { color: var(--accent); }
+.rc__ways button[aria-pressed='true'] {
+  color: var(--text-bright);
+  border-bottom-color: rgb(var(--scripture-gold, 196, 145, 60));
+  cursor: default;
+}
+.rc__ways button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.rc__pane .rc__ways { margin: 0 0 0.8rem; }
 .rc__leaf-text .psg { font-size: 1.28rem; line-height: 1.9; }
 .rc__leaf-under { margin-top: 1rem; display: flex; gap: 1.1rem; }
 .rc__leaf-own {

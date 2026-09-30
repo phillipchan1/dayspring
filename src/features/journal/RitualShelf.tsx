@@ -3,9 +3,16 @@ import { SHELF, type Practice } from '@/editor/practices/practicesData'
 import { skyFor } from '@/editor/practices/ritualSky'
 import './RitualShelf.css'
 
+/** The practice the Bible door opens: a passage and a page, no framework. */
+export const BIBLE_DOOR_PRACTICE = 'Open Reading'
+
 interface Props {
   /** Begin this practice on this page. */
   onPick: (practice: Practice) => void
+  /** Open your Bible: the passage finder, straight away. */
+  onBible?: () => void
+  /** Where the last scripture ritual left off — "John 16" — and the way on to it. */
+  resume?: { label: string; practice: string; onGo: () => void } | null
   /** Open the whole library. */
   onAll: () => void
   /** Only while the page is blank — it fades at the first keystroke. */
@@ -31,11 +38,14 @@ const SHELF_SIZE = 3
  * "you usually…". Anything not tied to an hour (The Round is weekly) is left
  * to the library.
  */
-export function RitualShelf({ onPick, onAll, visible, now }: Props) {
+export function RitualShelf({ onPick, onBible, resume = null, onAll, visible, now }: Props) {
+  const withBible = Boolean(onBible)
   const picks = useMemo(() => {
     const { filter } = skyFor(now ?? new Date())
-    return SHELF.filter((p) => !p.dynamic && p.rhythm.includes(filter)).slice(0, SHELF_SIZE)
-  }, [now])
+    return SHELF.filter(
+      (p) => !p.dynamic && p.rhythm.includes(filter) && !(withBible && p.name === BIBLE_DOOR_PRACTICE),
+    ).slice(0, SHELF_SIZE)
+  }, [now, withBible])
 
   return (
     <nav
@@ -45,6 +55,39 @@ export function RitualShelf({ onPick, onAll, visible, now }: Props) {
       aria-hidden={!visible}
     >
       <span className="ritual-shelf__lead">Or begin with a ritual</span>
+      {/* The one door that never rotates with the hour. Reading Scripture is
+          how most people who journal as Christians already begin, and a
+          passage is chosen more often than a method — so the passage comes
+          first, and the method is picked beside it on the facing leaf. */}
+      {onBible && (
+        <span className="ritual-shelf__bible">
+          <button
+            type="button"
+            className="ritual-shelf__pick ritual-shelf__open"
+            tabIndex={visible ? 0 : -1}
+            onClick={onBible}
+          >
+            Open your Bible
+          </button>
+          {resume && (
+            <>
+              <span className="ritual-shelf__dot" aria-hidden>
+                ·
+              </span>
+              <button
+                type="button"
+                className="ritual-shelf__pick ritual-shelf__resume"
+                tabIndex={visible ? 0 : -1}
+                aria-label={`Go on to ${resume.label}, with ${resume.practice}`}
+                title={`Go on to ${resume.label} · ${resume.practice}`}
+                onClick={resume.onGo}
+              >
+                {resume.label}
+              </button>
+            </>
+          )}
+        </span>
+      )}
       {picks.map((p) => (
         <button
           key={p.name}

@@ -9,7 +9,7 @@ import { RitualShelf } from '@/features/journal/RitualShelf'
 import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
 import { PRACTICES, resolveMovements } from './practices/practicesData'
-import { parseReferenceLine, versesIn, writePassage } from './practices/passage'
+import { parseReferenceLine, passageLabel, versesIn, writePassage, type PassageRef } from './practices/passage'
 import { FIXTURE_CHAPTERS, FIXTURE_LAYOUT } from './practices/passageFixtures'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer, type AnswerSlot } from './practices/RitualComposer'
@@ -344,10 +344,13 @@ function EntryHarness({ initialDoc }: { initialDoc: string }) {
  * ritual). The document below is what the entry would save — blank until the
  * first word. `&hour=N` pins the clock the shelf picks by.
  */
-function BlankHarness({ now }: { now?: Date }) {
+function BlankHarness({ now, resume }: { now?: Date; resume?: PassageRef | null }) {
   const editorRef = useRef<EditorHandle | null>(null)
   const [doc, setDoc] = useState('')
   const [open, setOpen] = useState<Practice | null>(null)
+  const [openPassage, setOpenPassage] = useState<PassageRef | null>(null)
+  const [gen, setGen] = useState(0)
+  const lectio = PRACTICE_BY_NAME.get('Lectio Divina')!
   const [about, setAbout] = useState<Practice | null>(null)
   const [left, setLeft] = useState<string | null>(null)
   return (
@@ -367,8 +370,27 @@ function BlankHarness({ now }: { now?: Date }) {
           visible={!doc.trim() && !open}
           onPick={(p) => {
             setLeft(null)
+            setOpenPassage(null)
             setOpen(p)
           }}
+          onBible={() => {
+            setLeft(null)
+            setOpenPassage(null)
+            setOpen(PRACTICE_BY_NAME.get('Open Reading') ?? null)
+          }}
+          resume={
+            resume
+              ? {
+                  label: passageLabel(resume),
+                  practice: lectio.name,
+                  onGo: () => {
+                    setLeft(null)
+                    setOpenPassage(resume)
+                    setOpen(lectio)
+                  },
+                }
+              : null
+          }
           onAll={() => console.log('[preview] all rituals')}
           {...(now ? { now } : {})}
         />
@@ -383,6 +405,7 @@ function BlankHarness({ now }: { now?: Date }) {
       </pre>
       {open && (
         <RitualComposer
+          key={gen}
           blockIndex={0}
           getDoc={() => editorRef.current?.getDoc() ?? ''}
           replaceRange={(from, to, text, opts) => editorRef.current?.replaceRange(from, to, text, opts)}
@@ -394,9 +417,14 @@ function BlankHarness({ now }: { now?: Date }) {
           blocked={about !== null}
         renderAnswer={previewAnswer}
           entry={{
-            seed: { name: open.name, labels: open.prompts.map((m) => m.label) },
+            seed: {
+              name: open.name,
+              labels: open.prompts.map((m) => m.label),
+              ...(openPassage ? { passage: openPassage } : {}),
+            },
             backTo: 'your journal',
             backShort: 'Journal',
+            onSwitch: () => setGen((g) => g + 1),
             onDelete: () => {
               editorRef.current?.replaceRange(0, editorRef.current.getDoc().length, '', { focus: false })
               setOpen(null)
@@ -487,7 +515,11 @@ export function renderRitualPreview(): void {
   if (params.get('blank') === '1') {
     const hour = params.get('hour')
     createRoot(el).render(
-      <BlankHarness {...(hour === null ? {} : { now: new Date(2026, 0, 15, Number(hour), 30) })} />,
+      <BlankHarness
+        {...(hour === null ? {} : { now: new Date(2026, 0, 15, Number(hour), 30) })}
+        // `&resume=John 16` shows the Bible door's "continue" (as Lectio).
+        resume={params.get('resume') ? parseReferenceLine(params.get('resume')!) : null}
+      />,
     )
     return
   }
