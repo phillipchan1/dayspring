@@ -32,8 +32,8 @@ Not resolved for you, just noticed.
 ## Where it comes from
 
 Everything here is built from your own entries. The counting, the dating, the
-grouping — all done in code, from facts. The only thing the model does is
-**choose which of your sentences to show you**, and it quotes them verbatim.
+grouping — all worked out directly from your entries. The only choice Dayspring
+makes is which of your sentences to show you, and it quotes them word for word.
 
 It won't tell you what your year meant. It shows you your year and lets you be
 the one who understands it.

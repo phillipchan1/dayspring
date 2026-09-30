@@ -112,4 +112,4 @@ export const pricingTiers = [
 
 // honest comparison line — no competitor named on-site
 export const pricingHonest =
-  "Less than the leading AI journal — and the only one that reflects with you across years.";
+  "About $5.33 a month — and the only journal that reflects with you across years.";

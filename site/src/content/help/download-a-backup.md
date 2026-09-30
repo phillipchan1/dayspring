@@ -16,7 +16,7 @@ You get `dayspring-backup-YYYY-MM-DD.zip`, containing:
 - the full text of each entry as Markdown
 - every photo, as an actual image file
 
-Nothing is left behind on a server for you to come back for.
+Nothing is left waiting online for you to come back for.
 
 ## It's readable without us
 

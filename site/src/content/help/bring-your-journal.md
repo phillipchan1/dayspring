@@ -45,9 +45,9 @@ original ID, so restoring twice never gives you two of everything.
 
 ## Your files stay yours
 
-The whole import runs **in your browser**. The archive is read on your machine
-and the entries go straight into your journal. It isn't uploaded to a
-third-party service to be processed.
+The whole import runs **in your browser**. The archive is read on your own computer
+and the entries go straight into your journal. It isn't sent to any
+outside company along the way.
 
 ## One thing to do afterwards
 

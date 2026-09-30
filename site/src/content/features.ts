@@ -285,7 +285,7 @@ export const everything = [
     items: [
       "A real Mac app, kept in sync",
       "iPhone app — coming soon",
-      "Encrypted in transit & at rest",
+      "Encrypted on the way and in storage",
       "Never sold, never trained on",
       "Private reflection",
       "Yours alone — between you and God",

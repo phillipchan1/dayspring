@@ -36,7 +36,7 @@ You can also check by hand in **Settings → About**.
 
 ## Where your writing actually is
 
-Not inside the app bundle. It's in your Library folder and on our servers, so
+Not inside the app bundle. It's in your Library folder and safely stored with us, so
 deleting and reinstalling the app never touches your journal.
 
 ## Checking your version
