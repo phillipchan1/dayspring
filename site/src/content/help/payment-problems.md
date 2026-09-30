@@ -16,9 +16,9 @@ not be the moment you lose access to your journal.
 If a renewal fails, **Settings → Billing** shows a payment issue, and you keep
 your access for a few days' grace while it sorts itself out.
 
-That window exists for a real reason: sometimes the payment is fine and it's our
-notification from Stripe or Apple that got lost. Cutting someone off from their
-own journal because of a dropped webhook would be indefensible.
+That window exists for a real reason: sometimes the payment is fine and it's the
+notice from our payment provider or Apple that got lost. Cutting someone off from their
+own journal because a notice went missing would be indefensible.
 
 ## Fixing it
 
