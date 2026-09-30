@@ -1,18 +1,25 @@
+import { createHash } from 'node:crypto'
 import OpenAI from 'openai'
+import { createAiClient, gatewayBody, logGatewayError, resolveModelId, useAiGateway } from './aiClient.js'
 import { env } from './env.js'
 
-let client: OpenAI | null = null
 function openai(): OpenAI {
   // Generous retries so a transient connect blip during a long backfill doesn't
   // abort the run (the harvest/label passes make hundreds of calls).
-  if (!client) client = new OpenAI({ apiKey: env.openaiKey(), maxRetries: 8, timeout: 60_000 })
-  return client
+  return createAiClient({ maxRetries: 8, timeout: 60_000 })
 }
 
 // Some nano reasoning models accept a reasoning-effort hint; it isn't in the
 // base ChatCompletion params type, so we widen the params object here.
+// providerOptions is a Vercel AI Gateway extension (see aiClient.ts).
 type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
   reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh'
+  providerOptions?: {
+    gateway: {
+      zeroDataRetention: true
+      only: string[]
+    }
+  }
 }
 
 /**
@@ -50,6 +57,10 @@ function logUsage(name: string, model: string, attempt: number, usage: unknown):
   )
 }
 
+function contentFingerprint(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 12)
+}
+
 export async function callModel<T>(
   systemPrompt: string,
   input: unknown,
@@ -64,9 +75,12 @@ export async function callModel<T>(
   // Heavier reasoning models (gpt-5.4/5.5) spend output budget on hidden reasoning
   // tokens and need far more headroom than nano. OPENAI_MAX_TOKENS lets you raise
   // the ceiling globally when running a bigger model (and for A/B testing).
-  const cap = process.env.OPENAI_MAX_TOKENS ? Number(process.env.OPENAI_MAX_TOKENS) : maxTokens
+  const rawCap = process.env.OPENAI_MAX_TOKENS ? Number(process.env.OPENAI_MAX_TOKENS) : maxTokens
+  // Gateway rejects max_completion_tokens < 16. Callers already send 512+;
+  // clamp only on the gateway path so flag-off stays identical.
+  const cap = useAiGateway() ? Math.max(16, rawCap) : rawCap
   const baseParams: ChatParams = {
-    model: env.model(),
+    model: resolveModelId(env.model()),
     // This model family only accepts the default temperature (1); grounding is
     // enforced in code (verbatim validation), so sampling temp doesn't matter.
     reasoning_effort: effort,
@@ -79,6 +93,7 @@ export async function callModel<T>(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: JSON.stringify(input) },
     ],
+    ...gatewayBody(),
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -87,7 +102,13 @@ export async function callModel<T>(
       // Reasoning models can exhaust the budget on hidden tokens; retry with headroom.
       max_completion_tokens: attempt === 0 ? cap : cap * 2,
     }
-    const completion = await openai().chat.completions.create(params)
+    let completion
+    try {
+      completion = await openai().chat.completions.create(params)
+    } catch (e) {
+      if (useAiGateway()) logGatewayError(e)
+      throw e
+    }
     logUsage(name, params.model, attempt, completion.usage)
     const choice = completion.choices[0]
     const msg = choice?.message
@@ -104,7 +125,10 @@ export async function callModel<T>(
     if (raw) {
       // Strip markdown code-block wrapping that some models add despite json_schema.
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-      console.error(`[callModel:${name}] raw_head=${cleaned.slice(0, 120)}`)
+      // Counts + a short hash only — never journal-derived output (§8).
+      console.error(
+        `[callModel:${name}] parse_preview len=${cleaned.length} finish=${finish} hash=${contentFingerprint(cleaned)}`,
+      )
       try {
         return JSON.parse(cleaned) as T
       } catch (e) {

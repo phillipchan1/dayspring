@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { getAuthedUser, notAuthenticated } from './_lib/userAuth.js'
 import { preflight, withCors } from './_lib/cors.js'
+import { createAiClient, gatewayBody, logGatewayError, resolveModelId, useAiGateway } from './_lib/aiClient.js'
 import { env } from './_lib/env.js'
 import { concordanceVocab } from './_lib/dictationPrompt.js'
 
@@ -11,10 +12,8 @@ import { concordanceVocab } from './_lib/dictationPrompt.js'
 // transcription. The result is always a *draft* the writer reviews; we transcribe,
 // we never rewrite. The API key never touches the client.
 
-let client: OpenAI | null = null
 function openai(): OpenAI {
-  if (!client) client = new OpenAI({ apiKey: env.openaiKey(), maxRetries: 4, timeout: 120_000 })
-  return client
+  return createAiClient({ maxRetries: 4, timeout: 120_000 })
 }
 
 // Cap each page so a runaway upload can't pin a serverless function. A phone photo
@@ -100,7 +99,7 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const completion = await openai().chat.completions.create({
-      model: env.visionModel(),
+      model: resolveModelId(env.visionModel()),
       max_tokens: 4096,
       messages: [
         { role: 'system', content: SYSTEM + vocabLine },
@@ -118,12 +117,13 @@ export async function POST(req: Request): Promise<Response> {
           ],
         },
       ],
+      ...gatewayBody(),
     })
     // The vision model is the most expensive call in the app (a full model, high
     // detail, up to 8 page images). Log the token cost per scan so a page-scan
     // habit is visible in the bill rather than buried in the dashboard total.
     console.log(
-      `[tokens] name=scan_pages model=${env.visionModel()} pages=${pages.length} ` +
+      `[tokens] name=scan_pages model=${resolveModelId(env.visionModel())} pages=${pages.length} ` +
         `in=${completion.usage?.prompt_tokens ?? 0} out=${completion.usage?.completion_tokens ?? 0}`,
     )
     const text = (completion.choices[0]?.message?.content ?? '').trim()
@@ -134,6 +134,7 @@ export async function POST(req: Request): Promise<Response> {
     // kept in the response shape for parity with /api/transcribe and future use.
     return withCors(req, Response.json({ text, raw: text, pages: pages.length }))
   } catch (e) {
+    if (useAiGateway()) logGatewayError(e)
     console.error('image transcription failed:', e)
     return withCors(
       req,
