@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { env } from './env.js'
 
-const KEYS = ['OPENAI_MODEL', 'OPENAI_VISION_MODEL', 'OPENAI_TRANSCRIBE_MODEL'] as const
+const KEYS = [
+  'OPENAI_MODEL',
+  'OPENAI_VISION_MODEL',
+  'OPENAI_TRANSCRIBE_MODEL',
+  'AI_GATEWAY_ZDR',
+  'AI_GATEWAY_ZDR_PROVIDERS',
+] as const
 
 function restore(saved: Record<string, string | undefined>): void {
   for (const key of KEYS) {
@@ -38,5 +44,23 @@ describe('text / vision / transcribe model defaults', () => {
     isolate()
     expect(env.visionModel()).toBe('gpt-4o')
     expect(env.transcribeModel()).toBe('gpt-4o-mini-transcribe')
+  })
+
+  it('keeps the AI Gateway ZDR flag off unless it is on/true', () => {
+    isolate()
+    expect(env.aiGatewayZdr()).toBe(false)
+    process.env.AI_GATEWAY_ZDR = 'off'
+    expect(env.aiGatewayZdr()).toBe(false)
+    process.env.AI_GATEWAY_ZDR = 'on'
+    expect(env.aiGatewayZdr()).toBe(true)
+    process.env.AI_GATEWAY_ZDR = 'TRUE'
+    expect(env.aiGatewayZdr()).toBe(true)
+  })
+
+  it('defaults ZDR providers to azure and splits a comma list', () => {
+    isolate()
+    expect(env.aiGatewayZdrProviders()).toEqual(['azure'])
+    process.env.AI_GATEWAY_ZDR_PROVIDERS = 'azure, openai'
+    expect(env.aiGatewayZdrProviders()).toEqual(['azure', 'openai'])
   })
 })
