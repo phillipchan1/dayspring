@@ -287,7 +287,7 @@ export const everything = [
       "iPhone app — coming soon",
       "Encrypted in transit & at rest",
       "Never sold, never trained on",
-      "Zero-retention AI reflection",
+      "Private reflection, never trained on",
       "Yours alone — between you and God",
     ],
   },

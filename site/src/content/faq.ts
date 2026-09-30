@@ -39,7 +39,7 @@ export const faqs = [
   },
   {
     q: "Is this an AI chatbot that's going to analyze my soul?",
-    a: "No — it's a journal, not a therapist-bot, and we deliberately stay out of that lane. Reflection is occasional and gentle: it arranges your <em>own</em> words and asks honest questions, never diagnoses or scores you. It runs under a zero-retention agreement — your entries are read, reflected on, and gone, never stored on their end, never used to train any model.",
+    a: "No — it's a journal, not a therapist-bot, and we deliberately stay out of that lane. Reflection is occasional and gentle: it arranges your <em>own</em> words and asks honest questions, never diagnoses or scores you. Your entries are never used to train any model. Our processing partner may hold them for up to 30 days, only to prevent abuse, before deleting them. The full story is on the <a href=\"/privacy\">Privacy page</a>.",
   },
   {
     q: "It's only on Mac right now — what about my phone?",

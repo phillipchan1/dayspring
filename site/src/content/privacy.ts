@@ -32,8 +32,8 @@ export const privacyPage = {
       body: "Every entry is bound to your account at the database level. Another person cannot read your writing — not by accident, not by a bug we'd shrug at.",
     },
     {
-      title: "Reflection runs under a zero-retention agreement",
-      body: "When you ask Dayspring to reflect with you, your words pass securely to our AI provider, who is contractually barred from storing them or training on them. They're read, reflected on, and gone.",
+      title: "Your reflections stay yours",
+      body: "When you ask Dayspring to reflect with you, dictate, or read a handwritten page, your words pass securely to a trusted processing partner. Your writing is never used to train models. Our partner may hold what you send for up to 30 days solely to prevent abuse, then deletes it. We never sell it.",
     },
   ],
 
