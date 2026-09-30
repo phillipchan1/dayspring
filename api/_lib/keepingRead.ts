@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto'
 import { parseReferences } from '../../src/lib/scripture/parse.js'
 import { callModel } from './openai.js'
+import { env } from './env.js'
 
 export const KEEPING_READ_VERSION = 'movements-v2-seven-signals'
+/** Reported only when GATHER_SENTIMENT=tight-denial. Flag-off keeps KEEPING_READ_VERSION. */
+export const KEEPING_READ_VERSION_TIGHT = 'movements-v2-tight-denial'
 export const MAX_ENTRY_CHARS = 20_000
 export const MAX_SUBJECTS = 80
 export const MAX_MOVEMENTS = 12
@@ -87,6 +90,7 @@ interface RawMovement {
     valence?: unknown
     activation?: unknown
     confidence?: unknown
+    denied?: unknown
     emotions?: unknown
   }
   ingredients?: unknown
@@ -198,6 +202,76 @@ INGREDIENTS
 
 Return the structured result only.`
 
+const V2_EMOTION_LINE =
+  '- Use joy for happy/glad/delighted. Use anger only for angry/frustrated/furious language, fear only for afraid/scared/threatened language, weariness only for tired/exhausted/depleted language, and stress for stressed/tense/pressured/overwhelmed language. Stress alone is not evidence of anger, fear, or weariness.'
+
+/** Tight definitions from lab/jev-classifier@9566d4c sentiment.ts EMO_DEF. */
+export const EMO_DEF: Record<Emotion, string> = {
+  joy: 'gladness or delight the writer feels',
+  peace: 'calm or settledness the writer feels — not "peace" as a request or a news topic',
+  gratitude: 'thankfulness the writer feels toward God or someone',
+  hope: 'expectant confidence the writer feels — not a quoted verse about hope',
+  love: 'affection or tenderness the writer feels toward a person or God ("I love you", "I felt loved"). Not someone else loving, not "love" as a topic.',
+  longing: 'the writer aches for someone or something absent. Not a lyric they quote, not someone else missing them, not nostalgia named without ache.',
+  sadness: 'the writer feels sad, down, or sorrowful. Not mere tiredness, not weather, not someone else being sad.',
+  grief: 'the writer is mourning a specific loss',
+  fear: 'the writer is afraid, scared, or feels threatened ("I am scared", "I am afraid"). Not mere busyness. Not "fear not" as quoted Scripture unless they say they are afraid.',
+  anger: 'the writer is angry, furious, or resentful. Not mere stress.',
+  shame: 'the writer feels ashamed, exposed, or unworthy ("I felt small / dirty / like I should hide"). Not someone shaming them unless they feel the shame.',
+  confusion: 'the writer is unsure what is true or what to do',
+  weariness: 'the writer is tired, exhausted, or depleted',
+  stress: 'the writer feels tense, pressured, or overwhelmed — stress alone is not anger, fear, or weariness',
+}
+
+const EXCLUSION =
+  'mentions of the word without the writer feeling it; negation or denial ("I\'m not X", "I don\'t feel X"); another person\'s emotion; a quoted speaker, song, or verse; a topic\'s stereotypical mood'
+
+const TIGHT_EMOTION_BLOCK = [
+  '- Emotion definitions (use exactly these meanings):',
+  ...EMOTIONS.map((e) => `- ${e}: ${EMO_DEF[e]}`),
+  `- Count only the writer's own felt emotion. Do not count: ${EXCLUSION}.`,
+  '- First fill "denied": every emotion from the list the page NAMES but the writer does not feel — negated or denied ("I\'m not angry", "I don\'t feel afraid"), someone else\'s feeling, or a quoted song/verse/speaker. An emotion in "denied" must not be marked as felt.',
+].join('\n')
+
+export function keepingReadVersion(): string {
+  return env.gatherSentiment() === 'tight-denial' ? KEEPING_READ_VERSION_TIGHT : KEEPING_READ_VERSION
+}
+
+export function keepingReadSystem(): string {
+  if (env.gatherSentiment() !== 'tight-denial') return SYSTEM
+  return SYSTEM.replace(V2_EMOTION_LINE, TIGHT_EMOTION_BLOCK)
+}
+
+export function keepingReadSchema(): Record<string, unknown> {
+  if (env.gatherSentiment() !== 'tight-denial') return SCHEMA as unknown as Record<string, unknown>
+  const clone = structuredClone(SCHEMA) as {
+    properties: {
+      movements: {
+        items: {
+          properties: {
+            sentiment: {
+              properties: Record<string, unknown>
+              required: string[]
+            }
+          }
+        }
+      }
+    }
+  }
+  const sentiment = clone.properties.movements.items.properties.sentiment
+  const { emotions, ...rest } = sentiment.properties
+  sentiment.properties = {
+    ...rest,
+    denied: { type: 'array', items: { type: 'string', enum: [...EMOTIONS] } },
+    emotions,
+  }
+  const emoIdx = sentiment.required.indexOf('emotions')
+  if (!sentiment.required.includes('denied')) {
+    sentiment.required.splice(emoIdx < 0 ? sentiment.required.length : emoIdx, 0, 'denied')
+  }
+  return clone
+}
+
 const clamp = (value: unknown, min: number, max: number): number => {
   const n = typeof value === 'number' && Number.isFinite(value) ? value : min
   return Math.min(max, Math.max(min, n))
@@ -224,12 +298,15 @@ function sanitizeSentiment(
       confidence: clamp(raw?.confidence, 0, 1),
     }
   }
+  const denied = new Set(
+    (Array.isArray(raw.denied) ? raw.denied : []).filter((e): e is Emotion => isEmotion(e)),
+  )
   const seen = new Set<string>()
   const emotions: EmotionScore[] = []
   if (Array.isArray(raw.emotions)) {
     for (const item of raw.emotions) {
       const row = item as { emotion?: unknown; intensity?: unknown; quote?: unknown }
-      if (!isEmotion(row.emotion) || seen.has(row.emotion)) continue
+      if (!isEmotion(row.emotion) || seen.has(row.emotion) || denied.has(row.emotion)) continue
       if (
         typeof row.quote !== 'string' ||
         row.quote.length < 2 ||
@@ -405,7 +482,7 @@ export function sanitizeKeepingRead(
   }
 
   return {
-    version: KEEPING_READ_VERSION,
+    version: keepingReadVersion(),
     entryId,
     truncated,
     sentiment: aggregateSentiment(movements),
@@ -420,7 +497,7 @@ export async function readEntryWithKeeping(
   const { text, truncated } = boundedText(entry.body_markdown)
   if (text.length < 40) return sanitizeKeepingRead(null, entry.id, text, subjects, truncated)
   const raw = await callModel<RawReading>(
-    SYSTEM,
+    keepingReadSystem(),
     {
       entry: { id: entry.id, date: entry.created_at, text },
       subjects: subjects.map(({ key, label, terms, kind, writerNamed }) => ({
@@ -431,7 +508,7 @@ export async function readEntryWithKeeping(
         writer_named: writerNamed,
       })),
     },
-    SCHEMA as unknown as Record<string, unknown>,
+    keepingReadSchema(),
     'keeping_read',
     'low',
     4096,

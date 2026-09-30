@@ -7,6 +7,8 @@ const KEYS = [
   'OPENAI_TRANSCRIBE_MODEL',
   'AI_GATEWAY_ZDR',
   'AI_GATEWAY_ZDR_PROVIDERS',
+  'GATHER_MODE',
+  'GATHER_SENTIMENT',
 ] as const
 
 function restore(saved: Record<string, string | undefined>): void {
@@ -62,5 +64,42 @@ describe('text / vision / transcribe model defaults', () => {
     expect(env.aiGatewayZdrProviders()).toEqual(['azure'])
     process.env.AI_GATEWAY_ZDR_PROVIDERS = 'azure, openai'
     expect(env.aiGatewayZdrProviders()).toEqual(['azure', 'openai'])
+  })
+})
+
+describe('Gather flags', () => {
+  const saved: Record<string, string | undefined> = {}
+
+  afterEach(() => restore(saved))
+
+  function isolate(): void {
+    for (const key of KEYS) {
+      saved[key] = process.env[key]
+      delete process.env[key]
+    }
+  }
+
+  it('defaults gatherMode to cue and gatherSentiment to v2', () => {
+    isolate()
+    expect(env.gatherMode()).toBe('cue')
+    expect(env.gatherSentiment()).toBe('v2')
+  })
+
+  it('parses known values and falls unknown values back to the defaults', () => {
+    isolate()
+    process.env.GATHER_MODE = 'gate'
+    process.env.GATHER_SENTIMENT = 'tight-denial'
+    expect(env.gatherMode()).toBe('gate')
+    expect(env.gatherSentiment()).toBe('tight-denial')
+
+    process.env.GATHER_MODE = 'GATE'
+    process.env.GATHER_SENTIMENT = 'TIGHT-DENIAL'
+    expect(env.gatherMode()).toBe('gate')
+    expect(env.gatherSentiment()).toBe('tight-denial')
+
+    process.env.GATHER_MODE = 'luna'
+    process.env.GATHER_SENTIMENT = 'tight'
+    expect(env.gatherMode()).toBe('cue')
+    expect(env.gatherSentiment()).toBe('v2')
   })
 })
