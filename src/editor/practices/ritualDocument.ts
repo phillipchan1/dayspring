@@ -1,3 +1,4 @@
+import { PRACTICE_BY_NAME } from './practicesData'
 import { isRitualComplete, parseRitualBlocks, type RitualBlock } from './ritualPacing'
 
 /**
@@ -208,14 +209,20 @@ export function ritualEntryShape(markdown: string | null | undefined): RitualEnt
  * WALKING a practice and CHANGING what you wrote are different acts, and they
  * get different surfaces — but never two at once for the same state:
  *
- * - `walking`: a ritual page with a movement still unanswered. The composer
- *   owns it — one question at a time, the passage beside you for a scripture
- *   ritual — because pacing is the point while you are praying it through.
+ * - `walking`: a ritual page with a movement still unanswered — or a
+ *   scripture ritual at any point. The composer owns it — one question at a
+ *   time, the passage beside you for a scripture ritual — because pacing is
+ *   the point while you are praying it through.
  * - `finished`: a ritual page answered all the way through. Nothing is left to
  *   pace, so it is edited WHERE IT SITS, in the editor, in the same one column
  *   the reader shows it in. Sending it to the composer moved every word you
  *   had just been reading into a different layout (a rail, one question per
  *   screen) to fix a typo.
+ *
+ * A scripture ritual never finishes into the editor (`editedInPlace`). Coming
+ * back to one is coming back to the passage, to keep reflecting on it; in one
+ * column the whole chapter stacks above your words and the facing leaf — the
+ * reason the ritual exists — is gone (Phil, Sept 30).
  * - `none`: not a ritual page (`plain`, or a `mixed` entry, which keeps its
  *   read-only record and its door into the block composer).
  */
@@ -225,7 +232,16 @@ export function ritualPageState(markdown: string | null | undefined): RitualPage
   const doc = markdown ?? ''
   if (ritualEntryShape(doc).kind !== 'ritual') return 'none'
   const block = parseRitualBlocks(doc.split('\n'))[0]
-  return block && isRitualComplete(block) ? 'finished' : 'walking'
+  return block && editedInPlace(block) ? 'finished' : 'walking'
+}
+
+/**
+ * Whether a ritual page's block is edited in the editor rather than the
+ * composer: answered all the way through, and not a scripture ritual (see
+ * `ritualPageState`).
+ */
+export function editedInPlace(block: RitualBlock): boolean {
+  return isRitualComplete(block) && !PRACTICE_BY_NAME.get(block.name)?.passage
 }
 
 /**

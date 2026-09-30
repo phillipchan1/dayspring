@@ -145,8 +145,9 @@ describe('a scripture ritual with its passage', () => {
   it('rests on the caught word with nothing to write', async () => {
     open([PASSAGE, '> Remain in me\n\nIt keeps coming back.', 'Teach me to stay.', ''])
     await flush()
-    // Walked to, the way a writer gets there: ⌥↵ three times.
-    for (let n = 0; n < 3; n++) {
+    // Walked to, the way a writer gets there: ⌥↵ from Meditatio, where a
+    // finished Lectio reopens.
+    for (let n = 0; n < 2; n++) {
       act(() => {
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', altKey: true }))
       })
@@ -157,10 +158,12 @@ describe('a scripture ritual with its passage', () => {
     expect(document.querySelector('.rc__desk .rc__next')?.textContent).toBe('Amen')
   })
 
-  it('reopens a finished Lectio at its beginning, though Rest holds no words', async () => {
+  it('reopens a finished Lectio on its first writing movement, though Rest holds no words', async () => {
     open([PASSAGE, '> Remain in me', 'Teach me to stay.', ''])
     await flush()
-    expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Lectio — Read')
+    // Read is not a stop: the passage is already open beside the page.
+    expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Meditatio — Meditate')
+    expect(document.querySelector('.ritual-composer')?.classList.contains('rc--facing')).toBe(true)
   })
 
   it('asks before changing a passage something has been written under', async () => {

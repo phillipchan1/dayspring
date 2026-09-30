@@ -229,6 +229,17 @@ describe('ritualPageState and ritualCaretFor', () => {
     expect(ritualPageState('Just prose.')).toBe('none')
   })
 
+  it('keeps a finished scripture ritual in the composer, beside its passage', () => {
+    const reading = PRACTICES.find((p) => p.name === 'Open Reading')!
+    const readingLabels = reading.prompts.map((p) => p.label)
+    const answered = composeRitualMarkdown(
+      reading.name,
+      readingLabels,
+      readingLabels.map((_, i) => `A${i}.`),
+    )
+    expect(ritualPageState(answered)).toBe('walking')
+  })
+
   it('puts the caret at the end of the clicked answer, or the end of After', () => {
     expect(ritualCaretFor(full, 1)).toBe(full.indexOf('A1.') + 'A1.'.length)
     const withAfter = `${full}\n<!-- ritual:end -->\n\nAfter.\n`

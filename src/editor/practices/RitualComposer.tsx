@@ -228,7 +228,9 @@ export function RitualComposer({
   /**
    * Open on the movement still waiting. A finished ritual, reopened from the
    * entry, opens at its beginning — landing on the close would greet someone
-   * who came back to write with "you're done".
+   * who came back to write with "you're done". For a scripture ritual that
+   * beginning is the first writing movement: the passage is already open
+   * beside it, and Read is not a stop (see `choosePassage`).
    */
   const startAt = (() => {
     if (!block) return 0
@@ -239,7 +241,11 @@ export function RitualComposer({
     const firstEmpty = block.texts.findIndex(
       (t, n) => t.trim() === '' && movementKind(block.name, block.labels[n] ?? '') !== 'dwell',
     )
-    return firstEmpty === -1 ? 0 : firstEmpty
+    if (firstEmpty !== -1) return firstEmpty
+    return Math.max(
+      0,
+      block.labels.findIndex((l) => movementKind(block.name, l) !== 'read'),
+    )
   })()
   const [texts, setTexts] = useState<string[]>(block ? block.texts : [])
   const [i, setI] = useState(startAt)

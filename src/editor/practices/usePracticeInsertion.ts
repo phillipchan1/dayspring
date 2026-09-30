@@ -27,7 +27,7 @@ import {
   parseRitualBlocks,
   type RitualBlock,
 } from './ritualPacing'
-import { ritualIndexContaining, ritualRemovalRange } from './ritualDocument'
+import { editedInPlace, ritualIndexContaining, ritualRemovalRange } from './ritualDocument'
 import { judgeRitualEdit, type BlockRange } from './ritualRecordGuard'
 import {
   RitualColophonWidget,
@@ -148,7 +148,7 @@ function isRitualPage(state: EditorState): boolean {
 }
 
 function isFinishedPage(state: EditorState): boolean {
-  return isRitualPage(state) && isRitualComplete(state.field(ritualDocField).blocks[0]!)
+  return isRitualPage(state) && editedInPlace(state.field(ritualDocField).blocks[0]!)
 }
 
 /**
