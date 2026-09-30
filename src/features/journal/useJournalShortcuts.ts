@@ -120,8 +120,13 @@ export function useJournalShortcuts(actions: JournalShortcutActions): void {
        * virtualised and an entry is one page, so that would search a sliver of
        * the journal and call it the whole. ⌘⇧F stays the editor's (show
        * formatting); a Shift here yields to it.
+       *
+       * ⌃⌘F is Enter Full Screen (macOS, and Safari/Chrome on a Mac). Both
+       * modifiers are down on that chord; swallowing it opened Look for
+       * instead of the window.
        */
       if (key === 'f' && !e.shiftKey && !settingsOpen) {
+        if (e.metaKey && e.ctrlKey) return
         e.preventDefault()
         onFindInPages(hasEditorSelection() ? selectionSeed() : '')
         return
