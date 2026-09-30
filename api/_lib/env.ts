@@ -13,6 +13,26 @@ export const env = {
   serviceRoleKey: () => need('SUPABASE_SERVICE_ROLE_KEY'),
   openaiKey: () => need('OPENAI_API_KEY'),
   model: () => process.env.OPENAI_MODEL || 'gpt-6-luna',
+  // AI Gateway ZDR (api/_lib/aiClient.ts). Default OFF — only 'on' / 'true'
+  // (any case) change the client. Anything else, including unset, is identical
+  // to today: direct OpenAI, unprefixed models, no providerOptions.
+  aiGatewayZdr: () => {
+    const v = (process.env.AI_GATEWAY_ZDR ?? '').trim().toLowerCase()
+    return v === 'on' || v === 'true'
+  },
+  // Comma list of gateway provider slugs passed as providerOptions.gateway.only.
+  // Default `azure` — Azure is full ZDR (OpenAI's listing is "ZDR with safety
+  // retention"), and text-embedding-3-small is ZDR only on Azure.
+  aiGatewayZdrProviders: () => {
+    const raw = process.env.AI_GATEWAY_ZDR_PROVIDERS ?? 'azure'
+    const parsed = raw.split(',').map((s) => s.trim()).filter(Boolean)
+    return parsed.length > 0 ? parsed : ['azure']
+  },
+  // Optional override for local / synthetic tests. When set it wins over OIDC.
+  // Do not set this in production — preview/prod use getVercelOidcToken().
+  aiGatewayApiKey: () => process.env.AI_GATEWAY_API_KEY || null,
+  // Guards GET/POST /api/zdr-selftest. Unset → the route 404s.
+  zdrSelftestToken: () => process.env.ZDR_SELFTEST_TOKEN || null,
   // Speech-to-text model for voice dictation. gpt-4o-mini-transcribe is cheap
   // (~$0.003/min), accurate, and accepts a `prompt` for vocabulary biasing.
   transcribeModel: () => process.env.OPENAI_TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe',

@@ -1,18 +1,25 @@
+import { createHash } from 'node:crypto'
 import OpenAI from 'openai'
+import { createAiClient, gatewayBody, resolveModelId } from './aiClient.js'
 import { env } from './env.js'
 
-let client: OpenAI | null = null
 function openai(): OpenAI {
   // Generous retries so a transient connect blip during a long backfill doesn't
   // abort the run (the harvest/label passes make hundreds of calls).
-  if (!client) client = new OpenAI({ apiKey: env.openaiKey(), maxRetries: 8, timeout: 60_000 })
-  return client
+  return createAiClient({ maxRetries: 8, timeout: 60_000 })
 }
 
 // Some nano reasoning models accept a reasoning-effort hint; it isn't in the
 // base ChatCompletion params type, so we widen the params object here.
+// providerOptions is a Vercel AI Gateway extension (see aiClient.ts).
 type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
   reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh'
+  providerOptions?: {
+    gateway: {
+      zeroDataRetention: true
+      only: string[]
+    }
+  }
 }
 
 /**
@@ -50,6 +57,10 @@ function logUsage(name: string, model: string, attempt: number, usage: unknown):
   )
 }
 
+function contentFingerprint(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 12)
+}
+
 export async function callModel<T>(
   systemPrompt: string,
   input: unknown,
@@ -66,7 +77,7 @@ export async function callModel<T>(
   // the ceiling globally when running a bigger model (and for A/B testing).
   const cap = process.env.OPENAI_MAX_TOKENS ? Number(process.env.OPENAI_MAX_TOKENS) : maxTokens
   const baseParams: ChatParams = {
-    model: env.model(),
+    model: resolveModelId(env.model()),
     // This model family only accepts the default temperature (1); grounding is
     // enforced in code (verbatim validation), so sampling temp doesn't matter.
     reasoning_effort: effort,
@@ -79,6 +90,7 @@ export async function callModel<T>(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: JSON.stringify(input) },
     ],
+    ...gatewayBody(),
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -104,7 +116,10 @@ export async function callModel<T>(
     if (raw) {
       // Strip markdown code-block wrapping that some models add despite json_schema.
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-      console.error(`[callModel:${name}] raw_head=${cleaned.slice(0, 120)}`)
+      // Counts + a short hash only — never journal-derived output (§8).
+      console.error(
+        `[callModel:${name}] parse_preview len=${cleaned.length} finish=${finish} hash=${contentFingerprint(cleaned)}`,
+      )
       try {
         return JSON.parse(cleaned) as T
       } catch (e) {
