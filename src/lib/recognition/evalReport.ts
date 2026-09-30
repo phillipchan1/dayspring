@@ -62,9 +62,9 @@ export type CostTask = 'harvest' | 'subjects' | 'sentiment' | 'entities' | 'embe
 
 /** Map a `[tokens] name=` to the eval axis that spent it. */
 export function taskOf(name: string): CostTask {
-  if (name.startsWith('jev_harvest') || name === 'altar_harvest') return 'harvest'
+  if (name.startsWith('jev_harvest') || name.startsWith('altar_harvest')) return 'harvest'
   if (name.startsWith('jev_tag') || name === 'declared_tag') return 'subjects'
-  if (name.startsWith('jev_sentiment') || name === 'lab_sentiment') return 'sentiment'
+  if (name.startsWith('jev_sentiment') || name.startsWith('lab_sentiment')) return 'sentiment'
   if (name.startsWith('concordance') || name.includes('extract')) return 'entities'
   if (name.startsWith('embed')) return 'embed'
   return 'other'

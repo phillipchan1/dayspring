@@ -9,6 +9,12 @@
 //   npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial --split=dev --json
 //   npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial+thresholds --split=dev --json
 //   npm run eval:recognition -- --only=sentiment --provider=jev --sentiment-variant=tight+denial+thresholds --split=test --sentiment-thresholds=eval-results/jev-sentiment-thresholds.json --json
+//   npm run eval:recognition -- --only=prayers --compare=openai,luna-tuned "--luna-variant=harvest=gate,hb=3;harvest=nocue" --split=dev --json
+//   npm run eval:recognition -- --only=sentiment --provider=luna-tuned --luna-variant=sent=tight+denial --split=test --json
+//
+// luna-tuned (lab): Jev tuning ideas applied to gpt-6-luna — see api/_lib/jev/lunaTuned.ts.
+// --luna-variant takes ';'-separated variants (one arm each). lp variants fit thresholds on dev
+// into eval-results/luna-tuned-thresholds.json (or --luna-thresholds=path) and load them on test.
 //
 // Lab only. Synthetic corpus. Never fails the build (exit 0) except on missing
 // env when a live provider is selected. Do not point this at real journals.
@@ -59,7 +65,7 @@ const LIMIT = limitArg ? Number(limitArg.slice('--limit='.length)) : undefined
 const modelArg = args.find((a) => a.startsWith('--model='))
 if (modelArg) process.env.OPENAI_MODEL = modelArg.slice('--model='.length)
 
-const PROVIDERS = ['openai', 'jev', 'cascade'] as const
+const PROVIDERS = ['openai', 'jev', 'cascade', 'luna-tuned'] as const
 type Provider = (typeof PROVIDERS)[number]
 
 function parseList(flag: string, fallback: string[]): string[] {
@@ -103,6 +109,14 @@ const thresholdsArg = args.find((a) => a.startsWith('--sentiment-thresholds='))?
 const THRESHOLDS_PATH =
   thresholdsArg ??
   join(dirname(fileURLToPath(import.meta.url)), '..', 'eval-results', 'jev-sentiment-thresholds.json')
+// luna-tuned arm (lab): one or more variants separated by ';' → one arm each.
+const lunaVariantArgs = (args.find((a) => a.startsWith('--luna-variant='))?.slice('--luna-variant='.length) ?? '')
+  .split(';')
+  .map((s) => s.trim())
+const lunaThresholdsArg = args.find((a) => a.startsWith('--luna-thresholds='))?.slice('--luna-thresholds='.length)
+const LUNA_THRESHOLDS_PATH =
+  lunaThresholdsArg ??
+  join(dirname(fileURLToPath(import.meta.url)), '..', 'eval-results', 'luna-tuned-thresholds.json')
 
 const AXES = ['scripture', 'prayers', 'entities', 'subjects', 'sentiment'] as const
 type Axis = (typeof AXES)[number]
@@ -113,7 +127,7 @@ if (only && ![...AXES, 'gate'].includes(only as Axis)) {
   process.exit(1)
 }
 
-const needsOpenAI = !DRY && selected.some((p) => p === 'openai' || p === 'cascade') && (wants('prayers') || wants('entities') || wants('subjects') || wants('sentiment'))
+const needsOpenAI = !DRY && selected.some((p) => p === 'openai' || p === 'cascade' || p === 'luna-tuned') && (wants('prayers') || wants('entities') || wants('subjects') || wants('sentiment'))
 const needsJev = !DRY && selected.some((p) => p === 'jev' || p === 'cascade') && (wants('prayers') || wants('subjects') || wants('sentiment'))
 const REQUIRED = [
   ...(needsOpenAI ? ['OPENAI_API_KEY'] : []),
@@ -345,6 +359,17 @@ async function main(): Promise<void> {
   const { finalizeEmotions, fitEmotionThresholds } = await import('../api/_lib/jev/sentimentThresholds.ts')
   const { cascadeHarvest, cascadeTag, cascadeSentiment } = await import('../api/_lib/jev/cascade.ts')
   const { openaiSentiment } = await import('../api/_lib/jev/openaiSentiment.ts')
+  const { formatLunaVariant, lunaTunedHarvest, lunaTunedSentiment, lunaTunedTag, parseLunaVariant } = await import(
+    '../api/_lib/jev/lunaTuned.ts'
+  )
+  type LunaVariant = ReturnType<typeof parseLunaVariant>
+  let lunaVariants: LunaVariant[]
+  try {
+    lunaVariants = lunaVariantArgs.map((v) => parseLunaVariant(v || undefined))
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err)
+    process.exit(1)
+  }
   const { estimateJevTokens } = await import('../api/_lib/typesafe.ts')
   const { splitSentences } = await import('../api/_lib/jev/sentences.ts')
   const { noul, choice } = await import('@typesafe-ai/sdk')
@@ -468,7 +493,12 @@ async function main(): Promise<void> {
 
   const arms: ArmResult[] = []
 
-  const runArm = async (provider: Provider, tau: number, armName: string): Promise<ArmResult> => {
+  const runArm = async (
+    provider: Provider,
+    tau: number,
+    armName: string,
+    luna: LunaVariant = lunaVariants[0]!,
+  ): Promise<ArmResult> => {
     usageCalls = []
     const report: Record<string, unknown> = {
       provider,
@@ -476,8 +506,19 @@ async function main(): Promise<void> {
       model: provider === 'jev' ? env.typesafeModel() : model,
       entries: allRows.length,
       split: SPLIT,
-      sentimentVariant: variantLabel,
+      sentimentVariant: provider === 'luna-tuned' ? `luna-tuned:${formatLunaVariant(luna)}` : provider === 'openai' ? 'luna-production' : variantLabel,
+      lunaVariant: provider === 'luna-tuned' ? formatLunaVariant(luna) : null,
       only: only ?? null,
+    }
+    // luna-tuned thresholds: load when present (lp variants only); else fit on dev below.
+    let lunaThresholds: Fitted | null = null
+    if (provider === 'luna-tuned' && luna.lp && (Boolean(lunaThresholdsArg) || SPLIT !== 'dev') && existsSync(LUNA_THRESHOLDS_PATH)) {
+      try {
+        const raw = JSON.parse(readFileSync(LUNA_THRESHOLDS_PATH, 'utf8')) as Fitted
+        if (raw?.fittedOn === 'dev' && raw?.byEmotion && String(raw.variant).startsWith('luna-tuned')) lunaThresholds = raw
+      } catch {
+        lunaThresholds = null
+      }
     }
     const lines: string[] = []
     const misses: string[] = []
@@ -537,6 +578,15 @@ async function main(): Promise<void> {
           byEntry = harvested.byEntry
           failed = harvested.failed
           for (const r of allRows) gateMap.set(r.id, (byEntry.get(r.id) ?? []).length > 0)
+        } else if (provider === 'luna-tuned') {
+          const harvested = await lunaTunedHarvest(allRows.map((r) => ({ id: r.id, body: r.body_markdown })), luna)
+          byEntry = harvested.byEntry
+          failed = harvested.failed
+          scores.harvestChunks = { total: harvested.totalChunks, harvested: harvested.harvestedChunks }
+          for (const r of allRows) {
+            const g = harvested.gate.get(r.id)
+            gateMap.set(r.id, g ? g.containsPrayer || g.containsSense : false)
+          }
         } else if (provider === 'jev') {
           const harvested = await jevHarvestTexts(
             allRows.map((r) => ({ id: r.id, body: r.body_markdown })),
@@ -622,6 +672,8 @@ async function main(): Promise<void> {
         let tagged = new Map<string, { label: string; kind: string }[]>()
         if (provider === 'openai') {
           tagged = await tagTexts(labeled.map((l) => ({ id: l.key, content: l.p.text })))
+        } else if (provider === 'luna-tuned') {
+          tagged = await lunaTunedTag(labeled.map((l) => ({ id: l.key, content: l.p.text })), luna)
         } else if (provider === 'jev') {
           const res = await jevTagTexts(
             labeled.map((l) => ({ id: l.key, content: l.p.text })),
@@ -713,7 +765,9 @@ async function main(): Promise<void> {
             const reading =
               provider === 'openai'
                 ? await openaiSentiment(e.body)
-                : provider === 'jev'
+                : provider === 'luna-tuned'
+                  ? await lunaTunedSentiment(e.body, luna, { thresholds: lunaThresholds })
+                  : provider === 'jev'
                   ? await jevSentiment(e.body, { tau, variant: SENTIMENT_VARIANT, thresholds: preloadedThresholds })
                   : await cascadeSentiment(e.body, { tau, variant: SENTIMENT_VARIANT, thresholds: preloadedThresholds })
             if (provider === 'cascade') {
@@ -738,8 +792,41 @@ async function main(): Promise<void> {
           }
         }
 
-        let usedThresholds = preloadedThresholds
-        if (SENTIMENT_VARIANT.thresholds && provider !== 'openai') {
+        let usedThresholds = provider === 'luna-tuned' ? lunaThresholds : preloadedThresholds
+        if (provider === 'luna-tuned' && luna.lp) {
+          // Fit on dev from the FINALIZED view (presence gate + denial already applied → prob 0),
+          // so fitted per-emotion stats match what gets scored. Top-4 cap still applies after.
+          if (!usedThresholds) {
+            const devSamples = raw
+              .filter((r) => splitForId(r.entryId) === 'dev')
+              .map((r) => {
+                const probs: Partial<Record<string, number>> = {}
+                for (const [k, p] of Object.entries(r.probs)) probs[k] = r.present && !r.denied.includes(k) ? p : 0
+                return { id: r.entryId, gold: CORPUS.find((e) => e.id === r.entryId)?.sentiment?.emotions ?? [], probs }
+              })
+            if (devSamples.length) {
+              usedThresholds = fitEmotionThresholds(devSamples, { variant: `luna-tuned:${formatLunaVariant(luna)}` })
+              mkdirSync(dirname(LUNA_THRESHOLDS_PATH), { recursive: true })
+              writeFileSync(LUNA_THRESHOLDS_PATH, JSON.stringify(usedThresholds, null, 2) + '\n')
+            } else {
+              passMisses.push('  sentiment NOTE  luna-tuned lp: no dev items and no thresholds file — shared 0.5 bar.')
+            }
+          }
+          if (usedThresholds) {
+            scores.sentimentThresholdsPath = LUNA_THRESHOLDS_PATH
+            scores.sentimentThresholds = usedThresholds
+          }
+          for (const row of raw) {
+            row.emotions = finalizeEmotions({
+              present: row.present,
+              probs: row.probs,
+              denied: row.denied,
+              primary: null,
+              thresholds: usedThresholds,
+            })
+          }
+        }
+        if (SENTIMENT_VARIANT.thresholds && (provider === 'jev' || provider === 'cascade')) {
           if (!usedThresholds) {
             const devSamples = raw
               .filter((r) => splitForId(r.entryId) === 'dev')
@@ -1038,6 +1125,12 @@ async function main(): Promise<void> {
 
   for (const provider of selected) {
     const taus = provider === 'cascade' ? TAUS : [TAUS[0]!]
+    if (provider === 'luna-tuned') {
+      for (let i = 0; i < lunaVariants.length; i++) {
+        arms.push(await runArm(provider, TAUS[0]!, lunaVariants.length > 1 ? `luna-tuned#${i + 1}` : 'luna-tuned', lunaVariants[i]!))
+      }
+      continue
+    }
     for (const tau of taus) {
       const name = provider === 'cascade' ? `cascade@${tau}` : provider
       arms.push(await runArm(provider, tau, name))
