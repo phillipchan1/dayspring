@@ -17,12 +17,14 @@
 //   prayer-cue-false-positive / prayer-distractor — cue fires, no prayer
 //   ordinary                 — no prayer, and the cue should stay quiet
 
-import { describe, expect, it, vi } from 'vitest'
-import { HARVEST_CUE, harvestBatch, isVerbatim } from './altar.js'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HARVEST_CUE, harvestBatch, harvestPlan, harvestPrayers, isVerbatim } from './altar.js'
 import { callModel } from './openai.js'
+import { supabaseAdmin } from './supabaseAdmin.js'
 
-// Only harvestBatch's test drives the model; everything else here is pure.
+// Only harvestBatch / harvestPrayers tests drive the model; everything else here is pure.
 vi.mock('./openai.js', () => ({ callModel: vi.fn() }))
+vi.mock('./supabaseAdmin.js', () => ({ supabaseAdmin: vi.fn() }))
 import { CORPUS, corpusFor } from '../../src/lib/recognition/corpus/index.js'
 import { scoreCuePrefilter } from '../../src/lib/recognition/score.js'
 
@@ -154,5 +156,180 @@ describe('harvestBatch — the writer\'s words, never the verse (Guardrail H3)',
     // …and the model was never shown the passage in the first place.
     const sent = JSON.stringify(vi.mocked(callModel).mock.calls[0]?.[1])
     expect(sent).not.toContain('glorify your name')
+  })
+})
+
+type EntryRow = { id: string; created_at: string; body_markdown: string }
+
+function mockSb(entries: EntryRow[]) {
+  const inserts: Record<string, unknown>[] = []
+  const scanned: string[][] = []
+  const sb = {
+    from(table: string) {
+      const state: { table: string; update?: Record<string, unknown> } = { table }
+      const chain: Record<string, unknown> = {
+        select: () => chain,
+        eq: () => chain,
+        is: () => chain,
+        range: () => chain,
+        order: () => chain,
+        update: (payload: Record<string, unknown>) => {
+          state.update = payload
+          return chain
+        },
+        in: (_col: string, ids: string[]) => {
+          if (state.update && 'prayer_scanned_at' in state.update) scanned.push(ids)
+          return chain
+        },
+        insert: (rows: Record<string, unknown>[]) => {
+          inserts.push(...rows)
+          return Promise.resolve({ data: rows, error: null })
+        },
+        then: (resolve: (v: { data: unknown; error: null }) => void) =>
+          Promise.resolve({
+            data: state.update ? null : entries,
+            error: null,
+          }).then(resolve),
+      }
+      return chain
+    },
+  }
+  vi.mocked(supabaseAdmin).mockReturnValue(sb as never)
+  return { inserts, scanned }
+}
+
+describe('harvestPrayers / harvestPlan — cue vs gate', () => {
+  const saved: Record<string, string | undefined> = {}
+
+  beforeEach(() => {
+    vi.mocked(callModel).mockReset()
+  })
+
+  afterEach(() => {
+    for (const key of ['GATHER_MODE']) {
+      const value = saved[key]
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+    delete saved.GATHER_MODE
+    vi.mocked(callModel).mockReset()
+  })
+
+  function isolateMode(mode?: string) {
+    saved.GATHER_MODE = process.env.GATHER_MODE
+    if (mode === undefined) delete process.env.GATHER_MODE
+    else process.env.GATHER_MODE = mode
+  }
+
+  it('flag off keeps the cue prefilter and 6-entry span batches', async () => {
+    isolateMode(undefined)
+    const cueNeg = {
+      id: 'neg',
+      created_at: '2026-01-05T12:00:00.000Z',
+      body_markdown: 'Went to the store for milk.',
+    }
+    const cuePos = Array.from({ length: 7 }, (_, i) => ({
+      id: `pos${i}`,
+      created_at: '2026-01-05T12:00:00.000Z',
+      body_markdown: `Lord, help me number ${i}.`,
+    }))
+    const { inserts, scanned } = mockSb([cueNeg, ...cuePos])
+    vi.mocked(callModel).mockImplementation(async (_sys, input) => {
+      const batch = (input as { entries: { id: string; text: string }[] }).entries
+      return {
+        entries: batch.map((e) => ({
+          id: e.id,
+          prayers: [{ type: 'prayer', text: e.text }],
+        })),
+      }
+    })
+
+    const plan = await harvestPlan('owner')
+    expect(plan).toEqual({ unscanned: 8, candidates: 7 })
+
+    const out = await harvestPrayers('owner')
+    expect(out.candidates).toBe(7)
+    const names = vi.mocked(callModel).mock.calls.map((c) => c[3])
+    expect(names.every((n) => n === 'altar_harvest')).toBe(true)
+    expect(names).toHaveLength(2)
+    const sizes = vi.mocked(callModel).mock.calls.map(
+      (c) => (c[1] as { entries: unknown[] }).entries.length,
+    )
+    expect(sizes).toEqual([6, 1])
+    const sentIds = vi.mocked(callModel).mock.calls.flatMap(
+      (c) => (c[1] as { entries: { id: string }[] }).entries.map((e) => e.id),
+    )
+    expect(sentIds).not.toContain('neg')
+    expect(scanned.flat()).toContain('neg')
+    expect(inserts).toHaveLength(7)
+  })
+
+  it('gate mode calls the model for cue-negative entries', async () => {
+    isolateMode('gate')
+    const cueNeg = {
+      id: 'blind',
+      created_at: '2026-01-05T12:00:00.000Z',
+      body_markdown: 'Please just let her be okay tonight.',
+    }
+    mockSb([cueNeg])
+    expect(HARVEST_CUE.test(cueNeg.body_markdown)).toBe(false)
+
+    vi.mocked(callModel).mockImplementation(async (_sys, input, _schema, name) => {
+      const batch = (input as { entries: { id: string; text: string }[] }).entries
+      if (name === 'gather_gate') {
+        return { entries: batch.map((e) => ({ id: e.id, contains_prayer: true, contains_sense: false })) }
+      }
+      return {
+        entries: batch.map((e) => ({
+          id: e.id,
+          prayers: [{ type: 'prayer', text: e.text }],
+        })),
+      }
+    })
+
+    const plan = await harvestPlan('owner')
+    expect(plan).toEqual({ unscanned: 1, candidates: 1 })
+
+    const out = await harvestPrayers('owner')
+    expect(out.candidates).toBe(1)
+    expect(out.planted).toBe(1)
+    const names = vi.mocked(callModel).mock.calls.map((c) => c[3])
+    expect(names).toContain('gather_gate')
+    expect(names).toContain('altar_harvest')
+    const sentIds = vi.mocked(callModel).mock.calls.flatMap(
+      (c) => (c[1] as { entries: { id: string }[] }).entries.map((e) => e.id),
+    )
+    expect(sentIds).toContain('blind')
+  })
+
+  it('a partial chunk failure leaves the entry unmarked with no rows inserted', async () => {
+    isolateMode('gate')
+    const body = Array.from(
+      { length: 280 },
+      (_, i) => `Sentence number ${String(i).padStart(3, '0')} is here with extra padding words.`,
+    ).join(' ')
+    const entry = { id: 'long', created_at: '2026-01-05T12:00:00.000Z', body_markdown: body }
+    const { inserts, scanned } = mockSb([entry])
+    let spanCalls = 0
+    vi.mocked(callModel).mockImplementation(async (_sys, input, _schema, name) => {
+      const batch = (input as { entries: { id: string; text: string }[] }).entries
+      if (name === 'gather_gate') {
+        return { entries: batch.map((e) => ({ id: e.id, contains_prayer: true, contains_sense: false })) }
+      }
+      spanCalls++
+      if (spanCalls === 2) throw new Error('span failed')
+      return {
+        entries: batch.map((e) => ({
+          id: e.id,
+          prayers: [{ type: 'prayer', text: e.text.slice(0, 48) }],
+        })),
+      }
+    })
+
+    const out = await harvestPrayers('owner')
+    expect(spanCalls).toBeGreaterThan(1)
+    expect(inserts).toEqual([])
+    expect(scanned.flat()).not.toContain('long')
+    expect(out.planted).toBe(0)
   })
 })

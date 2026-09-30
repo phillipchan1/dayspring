@@ -54,6 +54,17 @@ export const env = {
   // unset, the sync finds or creates a segment named resendSegmentName().
   resendSegmentId: () => process.env.RESEND_SEGMENT_ID ?? null,
   resendSegmentName: () => process.env.RESEND_SEGMENT_NAME || 'Dayspring accounts',
+  // Gather (api/_lib/gather.ts, docs/GATHER.md). Default OFF — cue prefilter
+  // and Keeping-read v2 stay identical until these are flipped independently.
+  // Unknown values fall back to the defaults.
+  gatherMode: (): 'cue' | 'gate' => {
+    const v = (process.env.GATHER_MODE ?? '').trim().toLowerCase()
+    return v === 'gate' ? 'gate' : 'cue'
+  },
+  gatherSentiment: (): 'v2' | 'tight-denial' => {
+    const v = (process.env.GATHER_SENTIMENT ?? '').trim().toLowerCase()
+    return v === 'tight-denial' ? 'tight-denial' : 'v2'
+  },
   // Welcome drip (api/_lib/welcomeDrip.ts). Default OFF — merging the PR must
   // not start mailing. Enroll still writes; only Resend sends are gated.
   welcomeDripSendsEnabled: () =>
