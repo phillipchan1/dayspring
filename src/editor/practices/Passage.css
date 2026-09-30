@@ -19,8 +19,64 @@
   overflow-wrap: break-word;
 }
 .psg__v { transition: opacity 0.4s ease; }
+
+/* Set as a Bible sets it (passageLayout.ts). Prose runs in paragraphs with a
+   first-line indent; poetry sits one step in, each half-line a step further,
+   and a line too long for the column turns over deeper still. The verse number of a poem hangs in the margin, so the
+   lines' left edges stay true. */
+.psg { --psg-step: 1.4em; }
+.psg__row[data-kind='prose'] { text-indent: var(--psg-step); }
+.psg__row[data-kind='prose'][data-flush='true'] { text-indent: 0; }
+/* Every turnover lands at one depth, past the deepest half-line, so a wrapped
+   line can never be mistaken for the next line of the poem. */
+.psg__row[data-kind='poetry'] {
+  --psg-in: 1;
+  padding-left: calc(3 * var(--psg-step));
+  text-indent: calc((var(--psg-in) - 3) * var(--psg-step));
+}
+.psg__row[data-indent='2'] { --psg-in: 2; }
+.psg__row[data-indent='3'] { --psg-in: 3; }
+.psg__row[data-gap='true'] { margin-top: 0.85em; }
+.psg__n[data-hang='true'] {
+  display: inline-block;
+  width: 1.3rem;
+  margin: 0 0.3rem 0 -1.6rem;
+  text-align: right;
+  text-indent: 0;
+}
+/* The divine name: LORD as the ESV prints it, capital and small capitals. The
+   letters stay capitals underneath, so a copied verse is still verbatim. */
+.psg__sc > span { font-variant-caps: all-small-caps; letter-spacing: 0.03em; }
+.psg__selah {
+  font-style: italic;
+  font-size: 0.86em;
+  color: var(--text-dim);
+  margin-left: 0.5em;
+  letter-spacing: 0.02em;
+}
+/* Crossway's own labels, never scripture: set apart, quiet, above their words. */
+.psg__head {
+  padding-left: var(--psg-step);
+  color: var(--text-dim);
+  font-size: 0.82em;
+  line-height: 1.5;
+  text-indent: 0;
+}
+.psg__head[data-kind='title'] { font-style: italic; margin: 0 0 0.7em; padding-left: 0; }
+.psg__head[data-kind='acrostic'] {
+  margin: 1.4em 0 0.35em;
+  color: var(--psg-gold);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.14em;
+}
+.psg__head[data-kind='speaker'] {
+  margin: 1.1em 0 0.2em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+.psg > .psg__head:first-child { margin-top: 0; }
+.psg__head + .psg__row[data-gap='true'] { margin-top: 0; }
 /* A new paragraph in the ESV: a breath of space, not a full blank line. */
-.psg__para { display: block; height: 0.55em; }
 .psg__n {
   font-family: var(--font-sans, system-ui, sans-serif);
   font-size: 0.58rem;

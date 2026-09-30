@@ -34,13 +34,8 @@ export function loadChapter(book: string, chapter: number): Promise<Verse[]> {
   if (hit) return hit
   const run = (async (): Promise<Verse[]> => {
     if (import.meta.env.DEV && inPreview()) {
-      const { FIXTURE_CHAPTERS, FIXTURE_LAYOUT } = await import('./passageFixtures')
-      const layout = FIXTURE_LAYOUT[key]
-      return (FIXTURE_CHAPTERS[key] ?? []).map((v) => ({
-        ...v,
-        ...(layout?.para?.includes(v.n) ? { para: true as const } : {}),
-        ...(layout?.lines === 'all' ? { line: true as const } : {}),
-      }))
+      const { fixtureChapter } = await import('./passageFixtures')
+      return fixtureChapter(key)
     }
     // The chapter endpoint is session-gated. A guest has none — do not fetch,
     // and do not throw `not authenticated` into the finder's error path.
@@ -49,9 +44,7 @@ export function loadChapter(book: string, chapter: number): Promise<Verse[]> {
     return res.verses.map((v) => ({
       n: v.n,
       text: v.text,
-      ...(v.para ? { para: true as const } : {}),
-      ...(v.line ? { line: true as const } : {}),
-      ...(v.breaks?.length ? { breaks: v.breaks } : {}),
+      ...(v.parts?.length ? { parts: v.parts } : {}),
     }))
   })().catch(() => [] as Verse[])
   chapters.set(key, run)

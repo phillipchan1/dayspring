@@ -10,7 +10,7 @@ import { THEMES, type ThemeId } from '@/lib/resolveTheme'
 import { useEffect, useRef, useState } from 'react'
 import { PRACTICES, resolveMovements } from './practices/practicesData'
 import { parseReferenceLine, passageLabel, versesIn, writePassage, type PassageRef } from './practices/passage'
-import { FIXTURE_CHAPTERS, FIXTURE_LAYOUT } from './practices/passageFixtures'
+import { fixtureChapter } from './practices/passageFixtures'
 import { PracticeLibrary } from './practices/PracticeLibrary'
 import { RitualComposer, type AnswerSlot } from './practices/RitualComposer'
 import { PracticeAboutSheet } from './practices/PracticeAboutSheet'
@@ -482,10 +482,7 @@ export function renderRitualPreview(): void {
   const wantedPassage = params.get('passage')
   const passageRef = wantedPassage ? parseReferenceLine(wantedPassage) : null
   if (passageRef) {
-    const all = (FIXTURE_CHAPTERS[`${passageRef.book} ${passageRef.chapter}`] ?? []).map((v) => ({
-      ...v,
-      ...(FIXTURE_LAYOUT[`${passageRef.book} ${passageRef.chapter}`]?.para?.includes(v.n) ? { para: true as const } : {}),
-    }))
+    const all = fixtureChapter(`${passageRef.book} ${passageRef.chapter}`)
     const fence = writePassage(passageRef, versesIn(passageRef, all), '5a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d')
     block = block.replace(/(<!-- ritual:section:[^\n]*-->\n)/, `$1${fence}\n`)
   }

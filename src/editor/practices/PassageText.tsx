@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef } from 'react'
 import { findPhrase, spanText, type Verse } from './passage'
+import { divineName, flatText, layoutPassage, type Fragment as Frag } from './passageLayout'
 import './Passage.css'
 
 /**
@@ -88,7 +89,15 @@ function pointOf(root: HTMLElement, node: Node, offset: number, isEnd: boolean):
   const word = el?.closest<HTMLElement>('.psg__w')
   if (word && root.contains(word)) {
     const start = Number(word.dataset.start)
-    const inside = node.nodeType === Node.TEXT_NODE ? offset : 0
+    // Measured, not read off the text node: the divine name splits a word
+    // into more than one node (L + ORD in small capitals).
+    let inside = 0
+    if (node.nodeType === Node.TEXT_NODE) {
+      const r = document.createRange()
+      r.setStart(word, 0)
+      r.setEnd(node, offset)
+      inside = r.toString().length
+    }
     return { n: Number(word.dataset.v), offset: start + inside }
   }
   // Not in a word: walk to the nearest one in document order.
@@ -131,7 +140,8 @@ export function PassageText({
   onHoverHighlight,
   slow = false,
 }: Props) {
-  const clean = verses.map((v) => ({ ...v, text: v.text.replace(/\s+/g, ' ').trim() }))
+  const clean = verses.map((v) => ({ ...v, text: flatText(v) }))
+  const rows = layoutPassage(verses)
   const caughtAt = findPhrase(clean, caught)
   const rootRef = useRef<HTMLDivElement>(null)
   const selecting = (mode === 'mark' && Boolean(onCatch)) || (mode === 'quote' && Boolean(onChosen))
@@ -185,6 +195,87 @@ export function PassageText({
     return after && before
   }
 
+  /** One verse's words within one row — a line of a poem, or a run of prose. */
+  const fragment = (f: Frag, hang: boolean) => {
+    const words = wordsOf(f.text).map((w) => ({ ...w, start: w.start + f.char, end: w.end + f.char }))
+    const inSel = selected != null && f.n >= selected.from && f.n <= selected.to
+    const hl = highlights.filter((h) => h.n === f.n)
+    const verseCite = (mode === 'cite' || mode === 'quote') && onCite
+    return (
+      <span
+        key={`${f.n}:${f.word}`}
+        className="psg__v"
+        data-sel={inSel ? 'true' : undefined}
+        data-cited={cited.includes(f.n) ? 'true' : undefined}
+        style={slow ? { animationDelay: `${f.vi * 1.6}s` } : undefined}
+        onClick={mode === 'choose' && onVerse ? (e) => onVerse(f.n, e.shiftKey) : undefined}
+      >
+        {f.lead &&
+          (verseCite ? (
+            <button
+              type="button"
+              className="psg__n psg__n--cite"
+              data-hang={hang ? 'true' : undefined}
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={() => onCite(f.n)}
+              aria-label={`Bring verse ${f.n} into your answer`}
+              title="Bring this whole verse in"
+            >
+              {f.n}
+            </button>
+          ) : (
+            <sup className="psg__n" data-hang={hang ? 'true' : undefined}>
+              {f.n}
+            </sup>
+          ))}
+        {words.map((w, i) => {
+          if (f.selah && i === words.length - 1) {
+            return (
+              <span key={i} className="psg__selah">
+                {w.text}
+              </span>
+            )
+          }
+          const on = caughtAt != null && caughtAt.n === f.n && w.end > caughtAt.start && w.start < caughtAt.end
+          const cover = hl.filter((h) => w.end > h.start && w.start < h.end)
+          const keys = cover.map((h) => h.key)
+          return (
+            <span key={i}>
+              <span
+                className="psg__w"
+                data-v={f.n}
+                data-start={w.start}
+                data-on={on ? 'true' : undefined}
+                data-hl={cover.length ? (cover.some((h) => h.here) ? (cover.length > 1 ? 'deep' : 'here') : 'past') : undefined}
+                data-lit={lit && keys.includes(lit) ? 'true' : undefined}
+                data-keys={keys.length ? keys.join(' ') : undefined}
+                data-pending={pendingCovers(f.n, w) ? 'true' : undefined}
+                onMouseEnter={
+                  onHoverHighlight
+                    ? (e) => onHoverHighlight(keys.length ? keys : null, keys.length ? e.currentTarget : null)
+                    : undefined
+                }
+              >
+                {divineName(w.text).map((seg, k) =>
+                  seg.name ? (
+                    <span key={k} className="psg__sc">
+                      {seg.text[0]}
+                      <span>{seg.text.slice(1)}</span>
+                    </span>
+                  ) : (
+                    seg.text
+                  ),
+                )}
+              </span>
+              {i < words.length - 1 ? ' ' : ''}
+            </span>
+          )
+        })}{' '}
+      </span>
+    )
+  }
+
   return (
     <div
       ref={rootRef}
@@ -223,71 +314,24 @@ export function PassageText({
         onHoverHighlight?.(null, null)
       }}
     >
-      {clean.map((v, vi) => {
-        const words = wordsOf(v.text)
-        const inSel = selected != null && v.n >= selected.from && v.n <= selected.to
-        const hl = highlights.filter((h) => h.n === v.n)
-        const verseCite = (mode === 'cite' || mode === 'quote') && onCite
-        // The ESV's own layout: a gap where a paragraph begins, a line for poetry.
-        const opens = vi === 0 ? null : v.para ? <span className="psg__para" aria-hidden /> : v.line ? <br /> : null
-        const lineAt = new Set(v.breaks ?? [])
-        return (
-          <Fragment key={v.n}>
-          {opens}
-          <span
-            className="psg__v"
-            data-sel={inSel ? 'true' : undefined}
-            data-cited={cited.includes(v.n) ? 'true' : undefined}
-            style={slow ? { animationDelay: `${vi * 1.6}s` } : undefined}
-            onClick={mode === 'choose' && onVerse ? (e) => onVerse(v.n, e.shiftKey) : undefined}
+      {rows.map((row, ri) => (
+        <Fragment key={ri}>
+          {row.head && (
+            <div className="psg__head" data-kind={row.head.kind}>
+              {row.head.text}
+            </div>
+          )}
+          <div
+            className="psg__row"
+            data-kind={row.kind}
+            data-indent={row.kind === 'poetry' ? row.indent : undefined}
+            data-gap={row.gap ? 'true' : undefined}
+            data-flush={row.flush ? 'true' : undefined}
           >
-            {verseCite ? (
-              <button
-                type="button"
-                className="psg__n psg__n--cite"
-                onMouseDown={(e) => e.preventDefault()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onClick={() => onCite(v.n)}
-                aria-label={`Bring verse ${v.n} into your answer`}
-                title="Bring this whole verse in"
-              >
-                {v.n}
-              </button>
-            ) : (
-              <sup className="psg__n">{v.n}</sup>
-            )}
-            {words.map((w, i) => {
-              const on = caughtAt != null && caughtAt.n === v.n && w.end > caughtAt.start && w.start < caughtAt.end
-              const cover = hl.filter((h) => w.end > h.start && w.start < h.end)
-              const keys = cover.map((h) => h.key)
-              return (
-                <span key={i}>
-                  {lineAt.has(w.start) ? <br /> : null}
-                  <span
-                    className="psg__w"
-                    data-v={v.n}
-                    data-start={w.start}
-                    data-on={on ? 'true' : undefined}
-                    data-hl={cover.length ? (cover.some((h) => h.here) ? (cover.length > 1 ? 'deep' : 'here') : 'past') : undefined}
-                    data-lit={lit && keys.includes(lit) ? 'true' : undefined}
-                    data-keys={keys.length ? keys.join(' ') : undefined}
-                    data-pending={pendingCovers(v.n, w) ? 'true' : undefined}
-                    onMouseEnter={
-                      onHoverHighlight
-                        ? (e) => onHoverHighlight(keys.length ? keys : null, keys.length ? e.currentTarget : null)
-                        : undefined
-                    }
-                  >
-                    {w.text}
-                  </span>
-                  {i < words.length - 1 ? ' ' : ''}
-                </span>
-              )
-            })}{' '}
-          </span>
-          </Fragment>
-        )
-      })}
+            {row.frags.map((f, fi) => fragment(f, row.kind === 'poetry' && fi === 0))}
+          </div>
+        </Fragment>
+      ))}
     </div>
   )
 }

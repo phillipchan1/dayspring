@@ -21,6 +21,8 @@
  */
 import { BOOKS, type BibleBook } from '@/lib/bible/canon'
 import { formatSpiritualBlock, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import type { VersePart } from '@/lib/spiritual'
+import { partsOf } from './passageLayout'
 
 export interface PassageRef {
   /** Canon display name — "Psalms", "1 Corinthians". */
@@ -45,10 +47,8 @@ export interface Passage {
 export interface Verse {
   n: number
   text: string
-  /** Layout from the ESV: a new paragraph, a new poetry line, line breaks inside. */
-  para?: true
-  line?: true
-  breaks?: number[]
+  /** How the words are set — poetry lines, stanzas, paragraphs. See passageLayout.ts. */
+  parts?: VersePart[]
 }
 
 /** "Psalms" reads in the singular once one chapter is in view. */
@@ -98,11 +98,8 @@ export function writePassage(ref: PassageRef, verses: readonly Verse[] | null, i
   // Paragraphs and poetry lines carried as line breaks, so the passage reads as
   // laid out wherever the block is drawn (the reader, the leaf offline).
   const text = verses
-    .map((v, k) => {
-      let t = v.text.trim()
-      for (const at of [...(v.breaks ?? [])].reverse()) t = `${t.slice(0, at).trimEnd()}\n${t.slice(at)}`
-      return k === 0 ? t : `${v.para || v.line ? '\n' : ' '}${t}`
-    })
+    .flatMap((v) => partsOf(v))
+    .map((p, k) => (k === 0 ? p.text : `${p.at === 'flow' ? ' ' : '\n'}${p.text}`))
     .join('')
   return formatSpiritualBlock('scripture', id, text, `${label} · ESV`)
 }

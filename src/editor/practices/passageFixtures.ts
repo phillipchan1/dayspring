@@ -288,27 +288,119 @@ export const FIXTURE_CHAPTERS: Record<string, Verse[]> = {
   "Psalms 23": [
     {
       "n": 1,
-      "text": "Yahweh is my shepherd: I shall lack nothing."
+      "text": "Yahweh is my shepherd: I shall lack nothing.",
+      "parts": [
+        {
+          "text": "Yahweh is my shepherd:",
+          "at": "stanza",
+          "indent": 1
+        },
+        {
+          "text": "I shall lack nothing.",
+          "at": "line",
+          "indent": 2
+        }
+      ]
     },
     {
       "n": 2,
-      "text": "He makes me lie down in green pastures. He leads me beside still waters."
+      "text": "He makes me lie down in green pastures. He leads me beside still waters.",
+      "parts": [
+        {
+          "text": "He makes me lie down in green pastures.",
+          "at": "line",
+          "indent": 1
+        },
+        {
+          "text": "He leads me beside still waters.",
+          "at": "line",
+          "indent": 2
+        }
+      ]
     },
     {
       "n": 3,
-      "text": "He restores my soul. He guides me in the paths of righteousness for his name’s sake."
+      "text": "He restores my soul. He guides me in the paths of righteousness for his name’s sake.",
+      "parts": [
+        {
+          "text": "He restores my soul.",
+          "at": "line",
+          "indent": 1
+        },
+        {
+          "text": "He guides me in the paths of righteousness for his name’s sake.",
+          "at": "line",
+          "indent": 2
+        }
+      ]
     },
     {
       "n": 4,
-      "text": "Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me. Your rod and your staff, they comfort me."
+      "text": "Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me. Your rod and your staff, they comfort me.",
+      "parts": [
+        {
+          "text": "Even though I walk through the valley of the shadow of death,",
+          "at": "line",
+          "indent": 1
+        },
+        {
+          "text": "I will fear no evil, for you are with me.",
+          "at": "line",
+          "indent": 2
+        },
+        {
+          "text": "Your rod and your staff,",
+          "at": "line",
+          "indent": 2
+        },
+        {
+          "text": "they comfort me.",
+          "at": "line",
+          "indent": 2
+        }
+      ]
     },
     {
       "n": 5,
-      "text": "You prepare a table before me in the presence of my enemies. You anoint my head with oil. My cup runs over."
+      "text": "You prepare a table before me in the presence of my enemies. You anoint my head with oil. My cup runs over.",
+      "parts": [
+        {
+          "text": "You prepare a table before me",
+          "at": "line",
+          "indent": 1
+        },
+        {
+          "text": "in the presence of my enemies.",
+          "at": "line",
+          "indent": 2
+        },
+        {
+          "text": "You anoint my head with oil.",
+          "at": "line",
+          "indent": 2
+        },
+        {
+          "text": "My cup runs over.",
+          "at": "line",
+          "indent": 2
+        }
+      ]
     },
     {
       "n": 6,
-      "text": "Surely goodness and loving kindness shall follow me all the days of my life, and I will dwell in Yahweh’s house forever."
+      "text": "Surely goodness and loving kindness shall follow me all the days of my life, and I will dwell in Yahweh’s house forever.",
+      "parts": [
+        {
+          "text": "Surely goodness and loving kindness shall follow me all the days of my life,",
+          "at": "line",
+          "indent": 1
+        },
+        {
+          "text": "and I will dwell in Yahweh’s house forever.",
+          "at": "line",
+          "indent": 2
+        }
+      ]
     }
   ],
   "Luke 15": [
@@ -492,12 +584,20 @@ export const FIXTURE_TOPICS: { re: RegExp; refs: string[] }[] = [
 ]
 
 /**
- * Where the fixture chapters break, the way the ESV lays them out: paragraphs,
- * and Psalm 23 as poetry, one verse to a line. (The WEB text carries none.)
+ * Where the fixture chapters' paragraphs begin, the way the ESV lays them
+ * out. (The WEB text carries none. Psalm 23 carries its own poetry lines —
+ * bible-api.com's line breaks, fetched 2026-09-30; WEB has no stanzas.)
  */
-export const FIXTURE_LAYOUT: Record<string, { para?: number[]; lines?: 'all' }> = {
-  'John 15': { para: [9, 12, 18, 26] },
-  'Mark 4': { para: [10, 13, 21, 24, 26, 30, 35] },
-  'Luke 15': { para: [3, 8, 11, 25] },
-  'Psalms 23': { lines: 'all' },
+const FIXTURE_PARAGRAPHS: Record<string, number[]> = {
+  'John 15': [9, 12, 18, 26],
+  'Mark 4': [10, 13, 21, 24, 26, 30, 35],
+  'Luke 15': [3, 8, 11, 25],
+}
+
+/** A fixture chapter with its shape, as the chapter endpoint would send it. */
+export function fixtureChapter(key: string): Verse[] {
+  const paras = FIXTURE_PARAGRAPHS[key]
+  return (FIXTURE_CHAPTERS[key] ?? []).map((v) =>
+    v.parts || !paras?.includes(v.n) ? v : { ...v, parts: [{ text: v.text, at: 'para' as const }] },
+  )
 }
