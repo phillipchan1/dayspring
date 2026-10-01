@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.443",
+  "appVersion": "1.0.460",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -777,6 +777,18 @@
       {
         "id": "setting.first-line-title",
         "key": "firstLineTitle",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.dateline",
+        "key": "dateline",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.voice-caret",
+        "key": "voiceCaret",
         "default": true,
         "type": "boolean"
       },
