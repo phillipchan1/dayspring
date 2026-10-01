@@ -24,6 +24,18 @@ import '@fontsource/newsreader/400.css'
 import '@fontsource/newsreader/400-italic.css'
 import '@fontsource/newsreader/500.css'
 import '@fontsource/newsreader/600.css'
+// Dawn's two faces again, as VARIABLE fonts with the optical-size axis — what
+// the writing surface and the app's own voice actually point at (themes.css).
+// The static files above are one cut each: measured, Fraunces matches opsz 14
+// and Newsreader opsz 16, so a 43px title was a 14pt text design blown up.
+// With `opsz` the browser picks the cut from the size (`font-optical-sizing:
+// auto` is the default): finer, tighter display cuts for titles, sturdier text
+// cuts for the body. The statics stay for the surfaces that name 'Fraunces' /
+// 'Newsreader' outright (onboarding, rituals, the marketing frames).
+import '@fontsource-variable/fraunces/opsz.css'
+import '@fontsource-variable/fraunces/opsz-italic.css'
+import '@fontsource-variable/newsreader/opsz.css'
+import '@fontsource-variable/newsreader/opsz-italic.css'
 // Writing-font picker faces (self-hosted, no CDN): typewriter + readable.
 //
 // These two ship 400 and 700 ONLY — no 300, no 500, no 600. Anything set in

@@ -155,6 +155,9 @@ export interface Settings {
   /** Style the first line as the entry title (editor + rendered/exported markdown). */
   firstLineTitle: boolean
 
+  /** Set the entry's date above its title, in the voice's label face. */
+  dateline: boolean
+
   /**
    * Show markdown's raw syntax characters (`*`, `**`, `#`, `==`) in the editor.
    * Off — the default — hides them until the cursor is inside the span, so the
@@ -259,6 +262,7 @@ const DEFAULTS: Settings = {
   pagesZoom: 0.6,
   railLabels: false,
   firstLineTitle: true,
+  dateline: true,
   showMarkdownSyntax: false,
   devMode: false,
   skipRitualPreview: false,

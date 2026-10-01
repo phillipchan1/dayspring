@@ -231,7 +231,36 @@ page with text on them at 6.2+. The faces did not.
   against the page, and selected text is set in `--selection-fg`), but if
   people start confusing a selection with a highlight, this is where to look.
 
-## 7. Re-running
+## 7. The editorial layer — 1 Oct 2026
+
+Chosen in the Type Lab prototype (each change on its own switch, both pages
+built from the app's real tokens), then built:
+
+| Change | How | Notes |
+|---|---|---|
+| **Optical sizes** | Dawn's faces as variable fonts (`@fontsource-variable/fraunces`, `/newsreader`, opsz axis) | The statics measure identical to opsz 14 (Fraunces) and 16 (Newsreader): a 43px title was a 14pt text cut enlarged. The other voices already shipped variable or single-cut faces. Statics kept for surfaces that name the family outright. |
+| **Balanced titles** | `text-wrap: balance` on title and heading lines | Only once the caret has left the line — see below |
+| **No lonely last words** | `text-wrap: pretty` on prose lines | Same rule |
+| **Hanging punctuation** | `hanging-punctuation: first` | WebKit only, i.e. the Mac and iPhone apps |
+| **Old-style figures** | `oldstyle-nums` in body; lining in titles, headings, citations, list numbers | Ignored by faces without them; Plainsong keeps tabular |
+| **Dateline** | `editor/dateline.ts`, a block widget above line 1; setting on by default | Each voice in its own ornament (themes.css, "The dateline"). Dawn's fading hairline under the title is gone; its sunrise rule sits above the date instead |
+
+**Settling, not reflowing.** Balanced and pretty wrapping re-break a paragraph
+as it changes, so applied to the line being typed, a word would hop lines under
+the writer's pen. They apply only to lines without `.cm-activeLine`
+(`highlightActiveLine()`, painted transparent): a paragraph settles once, as
+you move on. Measured: Cloister's title is 624 / 155px while typed, 435 / 343px
+after.
+
+**Cost.** Synchronous layout per keystroke in a 33-paragraph entry, settling
+on vs off: 1.9–2.0ms median, 2.7–3.0ms p95, both ways. No measurable
+difference.
+
+**Not adopted:** "Accent once" (headings in ink). **Open:** per-voice carets
+(prototyped; the editor uses the native caret, which can only be recoloured, so
+a shaped caret means drawing one — an input-path change to weigh separately).
+
+## 8. Re-running
 
 ```bash
 npm run typecheck
@@ -241,7 +270,7 @@ npx vitest run src/editor      # the writing surface alone
 
 `src/editor/pointerInput.test.ts` is the regression net for §3;
 `listLayout.test.ts`, `listContinue.test.ts` and `concealMarkers.test.ts` for §5;
-`src/lib/editorFace.test.ts` for §6. It drives real
+`src/lib/editorFace.test.ts` for §6; `dateline.test.ts` (lib and editor) for §7. It drives real
 events through a real `EditorView` and asserts on what a handler *below*
 `editorTap` sees, so it tests the property that actually matters: nothing
 downstream gets a second crack at a gesture already served.

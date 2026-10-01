@@ -259,7 +259,7 @@ const listLayoutTheme = EditorView.theme({
     display: 'inline-block',
     minWidth: COLUMN,
     textIndent: '0',
-    fontVariantNumeric: 'tabular-nums',
+    fontVariantNumeric: 'lining-nums tabular-nums',
   },
   // The box is 0.95em; the margin fills the rest of the column.
   '.cm-li .cm-task-checkbox': {

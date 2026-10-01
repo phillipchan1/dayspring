@@ -300,6 +300,12 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         onChange={(v) => update({ firstLineTitle: v })}
       />
       <Toggle
+        label="Dateline"
+        hint="Set each entry's date above its title, in your theme's small type."
+        checked={settings.dateline}
+        onChange={(v) => update({ dateline: v })}
+      />
+      <Toggle
         label="Show markdown syntax"
         hint="Show the raw *, **, and == characters. Off hides them until your cursor is inside — the text itself never changes."
         checked={settings.showMarkdownSyntax}

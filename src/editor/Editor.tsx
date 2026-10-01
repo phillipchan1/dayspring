@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject } from 'react'
 import { ChangeSet, Compartment, EditorState, Prec, type ChangeSpec, type Extension } from '@codemirror/state'
-import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
+import { EditorView, highlightActiveLine, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
@@ -15,6 +15,7 @@ import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { ritualHoldExtension } from './ritualHold'
 import { firstLineTitleExtension } from './firstLineTitle'
+import { datelineExtension } from './dateline'
 import { bodyLinePlaceholder } from './bodyLinePlaceholder'
 import {
   spiritualBlockExtension,
@@ -168,6 +169,11 @@ interface EditorProps {
    * concealed until the cursor is inside the span they belong to.
    */
   showMarkdownSyntax?: boolean
+  /**
+   * The entry's date, formatted, to set above the title as a dateline. Null or
+   * absent: no dateline (the ritual answer editors, the setting turned off).
+   */
+  dateline?: string | null
   /** Placeholder shown on the first body line (line 2) when a title exists but no body has been written. */
   bodyPlaceholder?: string
   /**
@@ -245,6 +251,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     dimming = false,
     titleStyling = true,
     showMarkdownSyntax = false,
+    dateline = null,
     slashEnabled = false,
     commandLinePos = null,
     onSlashCommand,
@@ -267,6 +274,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const typewriterCompartment = useRef(new Compartment())
   const dimCompartment = useRef(new Compartment())
   const titleCompartment = useRef(new Compartment())
+  const datelineCompartment = useRef(new Compartment())
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
@@ -615,6 +623,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               ? [firstLineTitleExtension, ...(bodyPlaceholder ? [bodyLinePlaceholder(bodyPlaceholder)] : [])]
               : [],
           ),
+          datelineCompartment.current.of(dateline ? datelineExtension(dateline) : []),
           // Rewrite duplicate block UUIDs (copy-paste creates same UUID twice).
           // Runs as a transaction filter so duplication is fixed atomically,
           // before decorations or listeners observe the new doc.
@@ -699,6 +708,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             scripturePasteExtension((reference) => onScripturePasteRef.current?.(reference)),
           ),
           EditorView.lineWrapping,
+          // Invisible (theme.ts paints `.cm-activeLine` transparent). It exists
+          // so CSS can tell the line being written from the lines that are
+          // finished: balanced titles and `text-wrap: pretty` settle only
+          // lines the caret has left, so no word ever hops under a writer's
+          // pen (global.css, "Editorial finishing"). A class on the line, not
+          // a mark in it, so Safari's autocorrect never loses the word.
+          highlightActiveLine(),
           nativeTyping(),
           editorTheme,
           typewriterCompartment.current.of(typewriter ? typewriterExtension : []),
@@ -794,6 +810,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       ? [firstLineTitleExtension, ...(bodyPlaceholder ? [bodyLinePlaceholder(bodyPlaceholder)] : [])]
       : [])
   }, [titleStyling, bodyPlaceholder])
+
+  useEffect(() => {
+    reconfigure(viewRef.current, datelineCompartment.current, dateline ? datelineExtension(dateline) : [])
+  }, [dateline])
 
   useEffect(() => {
     reconfigure(
