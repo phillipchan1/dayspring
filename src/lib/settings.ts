@@ -158,6 +158,9 @@ export interface Settings {
   /** Set the entry's date above its title, in the voice's label face. */
   dateline: boolean
 
+  /** Draw the voice's own caret (desktop). Off: the system caret. */
+  voiceCaret: boolean
+
   /**
    * Show markdown's raw syntax characters (`*`, `**`, `#`, `==`) in the editor.
    * Off — the default — hides them until the cursor is inside the span, so the
@@ -263,6 +266,7 @@ const DEFAULTS: Settings = {
   railLabels: false,
   firstLineTitle: true,
   dateline: true,
+  voiceCaret: true,
   showMarkdownSyntax: false,
   devMode: false,
   skipRitualPreview: false,

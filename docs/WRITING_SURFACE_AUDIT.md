@@ -256,9 +256,26 @@ after.
 on vs off: 1.9–2.0ms median, 2.7–3.0ms p95, both ways. No measurable
 difference.
 
-**Not adopted:** "Accent once" (headings in ink). **Open:** per-voice carets
-(prototyped; the editor uses the native caret, which can only be recoloured, so
-a shaped caret means drawing one — an input-path change to weigh separately).
+**Not adopted:** "Accent once" (headings in ink).
+
+**Voice carets.** `editor/voiceCaret.ts` draws a cursor-only layer (CodeMirror's
+`layer` API, as `drawSelection` draws its cursor) and hides the native caret;
+selection stays native. Shape and blink are CSS per voice (themes.css, "The
+caret"): Dawn breathes (1.6s), Sabbath breathes slower (2.6s), Vellum is a
+1.5px line of ink, Cloister a 1px hairline, Plainsong a one-cell terminal
+block, Vigil dim and steady. Every keystroke restarts the blink, so the caret
+is solid while you type. Desktop only: on iOS and Android the caret belongs to
+the system's text machinery (handles, loupe, autocorrect), so those keep it —
+the one deliberate device check on this surface, documented in place. Setting:
+Writing → Theme cursor.
+
+**Rituals.** Desktop rituals write in the real editor, so they get all of the
+above. The phone's filmstrip writes in a `<textarea>`; it now takes the
+writer's leading (was a fixed 1.5), old-style figures, hanging punctuation, and
+the voice's caret and selection colours — not the settling wraps, since a
+textarea is always the line being written. Also fixed: the editor's 42rem cap,
+centred in the slightly wider ritual page, set every answer ~6px right of its
+question; they now share an edge.
 
 ## 8. Re-running
 
@@ -270,7 +287,7 @@ npx vitest run src/editor      # the writing surface alone
 
 `src/editor/pointerInput.test.ts` is the regression net for §3;
 `listLayout.test.ts`, `listContinue.test.ts` and `concealMarkers.test.ts` for §5;
-`src/lib/editorFace.test.ts` for §6; `dateline.test.ts` (lib and editor) for §7. It drives real
+`src/lib/editorFace.test.ts` for §6; `dateline.test.ts` (lib and editor) and `voiceCaret.test.ts` for §7. It drives real
 events through a real `EditorView` and asserts on what a handler *below*
 `editorTap` sees, so it tests the property that actually matters: nothing
 downstream gets a second crack at a gesture already served.

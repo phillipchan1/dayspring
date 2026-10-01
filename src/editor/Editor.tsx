@@ -16,6 +16,7 @@ import { dimmingExtension } from './dimming'
 import { ritualHoldExtension } from './ritualHold'
 import { firstLineTitleExtension } from './firstLineTitle'
 import { datelineExtension } from './dateline'
+import { voiceCaretExtension } from './voiceCaret'
 import { bodyLinePlaceholder } from './bodyLinePlaceholder'
 import {
   spiritualBlockExtension,
@@ -175,6 +176,12 @@ interface EditorProps {
    * absent: no dateline (the ritual answer editors, the setting turned off).
    */
   dateline?: string | null
+  /**
+   * Draw the voice's own caret instead of the system's. The caller decides —
+   * it knows the setting and whether the platform allows it
+   * (voiceCaretSupported).
+   */
+  voiceCaret?: boolean
   /** Placeholder shown on the first body line (line 2) when a title exists but no body has been written. */
   bodyPlaceholder?: string
   /**
@@ -258,6 +265,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     titleStyling = true,
     showMarkdownSyntax = false,
     dateline = null,
+    voiceCaret = false,
     slashEnabled = false,
     commandLinePos = null,
     onSlashCommand,
@@ -282,6 +290,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const dimCompartment = useRef(new Compartment())
   const titleCompartment = useRef(new Compartment())
   const datelineCompartment = useRef(new Compartment())
+  const caretCompartment = useRef(new Compartment())
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
@@ -632,6 +641,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               : [],
           ),
           datelineCompartment.current.of(dateline ? datelineExtension(dateline) : []),
+          caretCompartment.current.of(voiceCaret ? voiceCaretExtension() : []),
           // Rewrite duplicate block UUIDs (copy-paste creates same UUID twice).
           // Runs as a transaction filter so duplication is fixed atomically,
           // before decorations or listeners observe the new doc.
@@ -822,6 +832,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     reconfigure(viewRef.current, datelineCompartment.current, dateline ? datelineExtension(dateline) : [])
   }, [dateline])
+
+  useEffect(() => {
+    reconfigure(viewRef.current, caretCompartment.current, voiceCaret ? voiceCaretExtension() : [])
+  }, [voiceCaret])
 
   useEffect(() => {
     reconfigure(

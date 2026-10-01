@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatDateline } from '@/lib/dateline'
+import { voiceCaretSupported } from '@/editor/voiceCaret'
 import { flushSync } from 'react-dom'
 import { Editor, type EditorHandle } from '@/editor/Editor'
 import type { SpiritualBlockEditTarget } from '@/editor/spiritualBlockDecoration'
@@ -234,6 +235,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     () => (entryId ? entries.find((e) => e.id === entryId)?.created_at : undefined),
     [entryId, entries],
   )
+  // The voice's own caret, where the platform lets us draw one (voiceCaret.ts).
+  const voiceCaret = settings.voiceCaret && voiceCaretSupported()
   const dateline = useMemo(
     () => (settings.dateline ? formatDateline(entryCreatedAt ?? new Date().toISOString()) : null),
     [settings.dateline, entryCreatedAt],
@@ -766,6 +769,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         placeholder={slot.placeholder}
         autofocus={false}
         titleStyling={false}
+        voiceCaret={voiceCaret}
         showMarkdownSyntax={settings.showMarkdownSyntax}
         slashEnabled
         commandLinePos={slashCapture && !slashCapture.edit ? slashCapture.insertAt : null}
@@ -2467,6 +2471,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               dimming={focus.active && focusEditorReady && settings.dimming}
               titleStyling={settings.firstLineTitle}
               dateline={dateline}
+              voiceCaret={voiceCaret}
               showMarkdownSyntax={settings.showMarkdownSyntax}
               // Settings (⌘,) and Find (⌘K) open from the keyboard, so the
               // palette's press-outside listener never hears them; without this

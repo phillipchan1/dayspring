@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { voiceCaretSupported } from '@/editor/voiceCaret'
 import { track } from '@/lib/analytics'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
@@ -305,6 +306,14 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         checked={settings.dateline}
         onChange={(v) => update({ dateline: v })}
       />
+      {voiceCaretSupported() && (
+        <Toggle
+          label="Theme cursor"
+          hint="Each theme draws its own cursor: Dawn's breathes, Plainsong's is a block. Off uses the system cursor."
+          checked={settings.voiceCaret}
+          onChange={(v) => update({ voiceCaret: v })}
+        />
+      )}
       <Toggle
         label="Show markdown syntax"
         hint="Show the raw *, **, and == characters. Off hides them until your cursor is inside — the text itself never changes."
