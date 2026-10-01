@@ -90,3 +90,26 @@ describe('renderMarkdown — thematic break', () => {
     expect(render('word --- word')).not.toMatch(/<hr/i)
   })
 })
+
+// The reader sets an entry the way the editor does (global.css "Reading sets
+// an entry exactly as writing does"): tasks in the marker column, and text
+// under `white-space: break-spaces`, which needs marked's formatting newlines
+// gone and the writer's own spaces kept.
+describe('renderMarkdown — read as written', () => {
+  it('draws a task as a box on a classed item, with no stray space before the words', () => {
+    const html = renderMarkdown('- [ ] write Dan\n- [x] read the psalm')
+    expect(html).toContain('<li class="read-task"><span class="read-task__box" data-checked="false"')
+    expect(html).toContain('<li class="read-task read-task--done"><span class="read-task__box" data-checked="true"')
+    expect(html).toMatch(/<\/span>write Dan/)
+    expect(html).not.toContain('<input')
+  })
+
+  it('drops the newlines between tags', () => {
+    const html = renderMarkdown('one\n\n- a\n- b')
+    expect(html).not.toMatch(/>\s*\n\s*</)
+  })
+
+  it("keeps a space between two inline tags — it's the writer's", () => {
+    expect(renderMarkdown('**a** *b*')).toContain('</strong> <em>')
+  })
+})

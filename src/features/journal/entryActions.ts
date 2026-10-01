@@ -147,6 +147,11 @@ export function printEntry(entry: Entry, asTitle = true): void {
   h1,h2,h3 { font-family: system-ui, sans-serif; }
   ol ol { list-style-type: lower-alpha; }
   ol ol ol { list-style-type: lower-roman; }
+  /* Task boxes (markdown.ts draws them as spans, not inputs). */
+  li.read-task { list-style: none; margin-left: -1.2em; }
+  li.read-task--done { text-decoration: line-through; color: #777; }
+  .read-task__box { display: inline-block; width: .8em; height: .8em; margin-right: .4em; vertical-align: -.08em; border: 1.5px solid #888; border-radius: .18em; box-sizing: border-box; text-align: center; line-height: .7em; font-size: 1em; }
+  .read-task__box[data-checked='true']::after { content: '\\2713'; font-size: .7em; color: #444; }
 ${highlightPrintCss()}
 </style></head><body>${html}</body></html>`)
   win.document.close()

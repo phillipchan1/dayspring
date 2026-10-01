@@ -393,11 +393,19 @@ const spiritualBlockTheme = EditorView.theme({
     cursor: 'pointer',
     // On the line, for the same reason the verse is — and the underline with
     // it, which is what lets the arrow escape it by being an inline-block.
-    fontFamily: 'var(--font-editor)',
+    //
+    // The voice's label: its face, tracking, case and caps — the same tokens
+    // themes.css gives the reader's `.spiritual-cite` (Archivo in Cloister, a
+    // true small cap in Vellum). They are named HERE, not left to themes.css,
+    // because the cite is also a `.cm-line`, and editorTheme's `.cm-line`
+    // face outranks a plain class: this line was the writing face in forced
+    // capitals while the same verse read back in Pages was set in the label.
+    fontFamily: 'var(--font-label)',
+    letterSpacing: 'var(--label-track)',
+    textTransform: 'var(--label-case)' as 'uppercase',
+    fontVariantCaps: 'var(--label-caps)' as 'normal',
     fontSize: '0.66em',
     fontWeight: '500',
-    letterSpacing: '0.16em',
-    textTransform: 'uppercase',
     color: 'var(--text-faint)',
     textDecoration: 'underline',
     textDecorationThickness: '1px',

@@ -3996,6 +3996,11 @@ button.pg__sense-q:hover {
   /* How far the page has been pulled out of the way, 0–1. Written from the
      gesture; see the note on `out` in PageReader. */
   --pg-out: 0;
+  /* The page's side margin — the editor's, so a line breaks where it was
+     written. On a phone that is MobileJournal's 1.25rem (the 20pt margin iOS
+     gives its own prose); the wall's 1rem made the reading measure 8px wider
+     and re-broke every paragraph. */
+  --read-gutter: clamp(1.25rem, 3vw, 2rem);
 }
 
 /*
@@ -4239,9 +4244,9 @@ button.pg__sense-q:hover {
   inline-size: 100%;
   /* The writing column is centred by itself. Marginalia sits beside it without
      taking part in centring, so opening the editor cannot pull the prose right. */
-  max-inline-size: calc(var(--editor-max-width) + 2 * clamp(1rem, 3vw, 2rem));
+  max-inline-size: calc(var(--editor-max-width) + 2 * var(--read-gutter));
   margin: 0 auto;
-  padding: 0 clamp(1rem, 3vw, 2rem) 6rem;
+  padding: 0 var(--read-gutter) 6rem;
   text-align: start;
   background: none;
   border: none;
@@ -4415,25 +4420,11 @@ button.pg__sense-q:hover {
   }
 }
 
-.pg-read1__head {
-  padding-block-end: 0.6rem;
-  /* Keeps the first writing baseline aligned with the Journal editor. The date
-     is read-only chrome; it should not push the entry down when it fades. */
-  margin-block-end: 0.5rem;
-}
-
+/* The head is the dateline, set by the same rule as the editor's (global.css,
+   "The dateline"), so the title and first line sit at the same place whether
+   the page is being read or written. */
 .pg-read1__date {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  transition: color var(--transition);
-}
-
-.pg-read1__page:hover .pg-read1__date {
-  color: var(--accent);
+  margin: 0;
 }
 
 /*
@@ -4445,19 +4436,32 @@ button.pg__sense-q:hover {
  * hover, because "around" is not a thing a date says on its own.
  */
 .pg-read1__date--door {
-  display: inline-flex;
+  /* Block-level, not inline-flex: an inline box sits on the head's baseline
+     and adds a sliver of descent to its line — 2–3px of drift between a
+     page read and the same page written. `max-content` keeps the door the
+     width of its words. */
+  display: flex;
+  width: max-content;
   align-items: baseline;
   gap: 0.6em;
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
+  /* A button sets its own font; this one is the dateline's. */
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
   line-height: inherit;
   text-align: start;
   cursor: pointer;
 }
 
-.pg-read1__date--door time {
+/* The door's rule shows when it is reached for, not at rest — at rest the
+   head reads exactly as the editor's does. */
+.pg-read1__date--door:hover time,
+.pg-read1__date--door:focus-visible time {
   text-decoration: underline dotted;
   text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
   text-underline-offset: 0.3em;
@@ -4823,7 +4827,7 @@ button.pg__sense-q:hover {
    * the measure was pinned for.
    */
   .pg-read1__page {
-    max-inline-size: calc(var(--editor-max-width) + 2 * clamp(1rem, 3vw, 2rem));
+    max-inline-size: calc(var(--editor-max-width) + 2 * var(--read-gutter));
   }
 
   .pg-read1__cols {
@@ -5614,7 +5618,7 @@ button.pg__sense-q:hover {
     position: sticky;
     inset-block-start: 0;
     z-index: 2;
-    padding: calc(var(--safe-top) + 0.6rem) clamp(1rem, 3vw, 2rem) 0.6rem;
+    padding: calc(var(--safe-top) + 0.6rem) var(--read-gutter) 0.6rem;
     background: var(--bg);
   }
 
@@ -5704,10 +5708,6 @@ button.pg__sense-q:hover {
      its own left it stranded at the left margin looking like a mistake. */
   .pg__write + .pg__through-nav {
     margin-inline-start: auto;
-  }
-
-  .pg-read1__date {
-    font-size: 0.68rem;
   }
 
   /* The tab bar and both floating controls sit over the reader — the last

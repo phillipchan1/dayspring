@@ -80,6 +80,18 @@
   --line-height-scale: 1;
   /* --device-scale: phones only, below. */
   --editor-font-size: calc(var(--editor-font-size-base) * var(--font-scale) * var(--device-scale, 1));
+  /* Two sizes for text that sits BESIDE the writing — a ritual's passage and
+     question, the chapter pane — so it keeps one proportion to the writing in
+     every voice, instead of a fixed rem tuned against Dawn's 24px (which set a
+     19px mono passage over 17px Plainsong writing, the reverse of Dawn).
+       --voice-text-size  the voice's own face at the reader's size: for text
+                          set in --font-serif (the app's voice)
+       --face-text-size   the writing face at the reader's size: for text set
+                          in --font-editor (the writer's face)
+     --voice-scale is the voice's own tuning; --font-scale is the WRITING
+     face's, which a hand-picked face replaces inline (applyEditorFace). */
+  --voice-text-size: calc(var(--editor-font-size-base) * var(--voice-scale, 1) * var(--device-scale, 1));
+  --face-text-size: var(--editor-font-size);
   --editor-line-height: calc(var(--editor-line-height-base) * var(--line-height-scale));
   --editor-max-width: 42rem; /* deep-margin centered writing column */
 
@@ -1030,7 +1042,8 @@
 
   /* Declared even at 1: --font-scale inherits, so a voice that omits it picks
      up whatever an ancestor set the moment two themes are nested. */
-  --font-scale: 1;
+  --voice-scale: 1;
+  --font-scale: var(--voice-scale);
   --line-height-scale: 1;
   --h1-size: 1.78em;
   --h1-weight: 500;
@@ -1053,7 +1066,8 @@
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --font-scale: 1.08;
+  --voice-scale: 1.08;
+  --font-scale: var(--voice-scale);
   --line-height-scale: 0.95;
   --h1-size: 2em;
   --h1-weight: 600;
@@ -1066,7 +1080,7 @@
   --label-track: 0.12em;
   --label-case: lowercase;
   --label-caps: small-caps; /* real small caps, not uppercase-plus-tracking */
-  --dateline-size: 0.64em; /* small caps are x-height tall */
+  --dateline-ratio: 0.64; /* small caps are x-height tall */
 }
 
 /* Cloister — sans display over serif body, which is the reversal. It is what
@@ -1078,7 +1092,8 @@
   --font-editor: var(--font-serif);
   --font-label: var(--font-display);
 
-  --font-scale: 0.97;
+  --voice-scale: 0.97;
+  --font-scale: var(--voice-scale);
   --line-height-scale: 1;
   --h1-size: 1.62em;
   --h1-weight: 600;
@@ -1100,7 +1115,8 @@
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --font-scale: 1.05;
+  --voice-scale: 1.05;
+  --font-scale: var(--voice-scale);
   --line-height-scale: 1.12;
   --h1-size: 1.85em;
   --h1-weight: 600;
@@ -1113,7 +1129,7 @@
   --label-track: 0.1em;
   --label-case: lowercase;
   --label-caps: small-caps;
-  --dateline-size: 0.64em;
+  --dateline-ratio: 0.64;
 }
 
 /* Plainsong — monophonic chant: one line, no harmony, no ornament, and exactly
@@ -1128,7 +1144,8 @@
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --font-scale: 0.72;
+  --voice-scale: 0.72;
+  --font-scale: var(--voice-scale);
   --line-height-scale: 1.07;
   --h1-size: 1.52em;
   --h1-weight: 700;
@@ -1152,7 +1169,8 @@
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --font-scale: 0.97;
+  --voice-scale: 0.97;
+  --font-scale: var(--voice-scale);
   --line-height-scale: 1.05;
   --h1-size: 1.5em;
   --h1-weight: 700;
@@ -1368,7 +1386,9 @@
    masthead above, a rule below was a second frame around four words; the
    sunrise rule moves to the top of the head, where the day starts. */
 [data-theme='dawn'] .cm-dateline::before,
-[data-theme='ink'] .cm-dateline::before {
+[data-theme='ink'] .cm-dateline::before,
+[data-theme='dawn'] .pg-read1__head::before,
+[data-theme='ink'] .pg-read1__head::before {
   content: '';
   display: block;
   width: 2.4em;
@@ -1378,15 +1398,21 @@
   margin-bottom: 1.15em;
 }
 [data-theme='vellum'] .cm-dateline,
-[data-theme='ember'] .cm-dateline {
+[data-theme='ember'] .cm-dateline,
+[data-theme='vellum'] .pg-read1__head,
+[data-theme='ember'] .pg-read1__head {
   color: var(--accent);
 }
 [data-theme='quire'] .cm-dateline__text::before,
-[data-theme='nocturne'] .cm-dateline__text::before {
+[data-theme='nocturne'] .cm-dateline__text::before,
+[data-theme='quire'] .pg-read1__date-text::before,
+[data-theme='nocturne'] .pg-read1__date-text::before {
   content: '[\00a0';
 }
 [data-theme='quire'] .cm-dateline__text::after,
-[data-theme='nocturne'] .cm-dateline__text::after {
+[data-theme='nocturne'] .cm-dateline__text::after,
+[data-theme='quire'] .pg-read1__date-text::after,
+[data-theme='nocturne'] .pg-read1__date-text::after {
   content: '\00a0]';
 }
 
@@ -1490,11 +1516,40 @@
 [data-theme='ember'] .markdown-body {
   --scripture-rule: color-mix(in srgb, var(--accent) 55%, transparent);
 }
+/* The section mark hangs in the margin, on both surfaces: in flow it pushed
+   every reading heading 27px right of where it was written. Out of flow, the
+   words sit where the writer put them and the ¶ stands outside the measure,
+   the way a rubricator's mark does. The editor drops it on the caret's line,
+   where the `##` it stands for is showing. */
+[data-theme='vellum'] .markdown-body h2,
+[data-theme='ember'] .markdown-body h2,
+[data-theme='vellum'] .cm-content .cm-line.cm-md-h2,
+[data-theme='ember'] .cm-content .cm-line.cm-md-h2 {
+  position: relative;
+}
 [data-theme='vellum'] .markdown-body h2::before,
-[data-theme='ember'] .markdown-body h2::before {
-  content: '¶\00a0';
+[data-theme='ember'] .markdown-body h2::before,
+[data-theme='vellum'] .cm-content .cm-line.cm-md-h2:not(.cm-activeLine)::before,
+[data-theme='ember'] .cm-content .cm-line.cm-md-h2:not(.cm-activeLine)::before {
+  content: '¶';
+  position: absolute;
+  right: 100%;
+  padding-right: 0.28em;
   color: var(--accent);
   font-weight: 400;
+  pointer-events: none;
+  user-select: none;
+}
+/* A phone's 20pt margin is narrower than the mark, and the editor's scroller
+   clips anything outside the measure. Rather than a ¶ on one surface and not
+   the other, it steps aside on both. */
+@media (max-width: 600px) {
+  [data-theme='vellum'] .markdown-body h2::before,
+  [data-theme='ember'] .markdown-body h2::before,
+  [data-theme='vellum'] .cm-content .cm-line.cm-md-h2::before,
+  [data-theme='ember'] .cm-content .cm-line.cm-md-h2::before {
+    content: none;
+  }
 }
 
 /* ── Cloister — no colonnade ───────────────────────────────────────────────
@@ -1547,9 +1602,20 @@
 [data-theme='nocturne'] .markdown-body .spiritual-cite::after {
   content: '\00a0]';
 }
+/* A quotation's rule in characters' worth of dashes — written and read alike
+   (the rule is an inset image on both, so it takes no width). */
+[data-theme='quire'] .cm-content .cm-line.cm-md-quote,
+[data-theme='nocturne'] .cm-content .cm-line.cm-md-quote,
 [data-theme='quire'] .markdown-body blockquote,
 [data-theme='nocturne'] .markdown-body blockquote {
-  border-left-style: dashed;
+  box-shadow: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--md-quote) 45%, transparent) 0 4px,
+    transparent 4px 9px
+  );
+  background-size: 2px 100%;
+  background-repeat: no-repeat;
 }
 [data-theme='quire'] .cm-content,
 [data-theme='nocturne'] .cm-content,

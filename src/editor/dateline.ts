@@ -42,25 +42,11 @@ class DatelineWidget extends WidgetType {
   }
 }
 
+// The dateline's type lives in global.css ("The dateline"), shared with the
+// Pages reader's, so an entry's head is set identically written and read.
+// Only what is particular to the editor stays here.
 const datelineTheme = EditorView.theme({
-  // Padding, never margin: CodeMirror measures a block widget from its
-  // bounding rect, which excludes margins, and an uncounted margin drifts every
-  // coordinate below it.
   '.cm-dateline': {
-    paddingBottom: '1.35em',
-    fontFamily: 'var(--font-label)',
-    // Small caps are x-height tall, so a small-caps voice sets it larger
-    // (--dateline-size, themes.css). Never under 11px: in Plainsong (0.72)
-    // and on a phone (0.82) half the body size is too small to read.
-    fontSize: 'max(var(--dateline-size, 0.5em), 11px)',
-    lineHeight: '1.4',
-    letterSpacing: 'var(--label-track)',
-    textTransform: 'var(--label-case)' as 'uppercase',
-    fontVariantCaps: 'var(--label-caps)' as 'normal',
-    fontVariantNumeric: 'lining-nums',
-    fontWeight: '500',
-    // --text-dim alone is 3.8:1 on Dawn's paper; small text wants more.
-    color: 'color-mix(in srgb, var(--text-dim) 70%, var(--text))',
     userSelect: 'none',
     WebkitUserSelect: 'none',
     cursor: 'text',
