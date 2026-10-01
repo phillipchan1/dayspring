@@ -3,7 +3,7 @@ import { useAppNavigation } from '@/context/AppNavigation'
 import { settingsStore } from '@/lib/settings'
 import { pickCards, latestDeck, type Deck } from './pickCards'
 import { onOpenFirstLight } from './open'
-import { RELEASES, type CardArt } from './releases'
+import { RELEASES, WHATS_NEW_LABEL, type CardArt } from './releases'
 import './FirstLight.css'
 
 /**
@@ -35,7 +35,8 @@ function effectiveLastSeen(): string | null {
 }
 
 /**
- * FIRST LIGHT — what changed, on the one morning it matters.
+ * FIRST LIGHT (internal name; users see “What’s new”) — what changed, on the one
+ * morning it matters.
  *
  * PRINCIPLE 3 ("modal interruptions while the cursor is active" are forbidden)
  * is enforced structurally, not by good intentions: the deck is decided **once**,
@@ -135,7 +136,7 @@ export function FirstLight() {
         onKeyDown={onKeyDown}
       >
         <div className="firstlight__top">
-          <span className="firstlight__mark">First light</span>
+          <span className="firstlight__mark">{WHATS_NEW_LABEL}</span>
           <button type="button" className="firstlight__skip" onClick={() => close()}>
             Not now
           </button>

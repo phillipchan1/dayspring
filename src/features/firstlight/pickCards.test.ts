@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pickCards, MAX_CARDS } from './pickCards'
-import { RELEASES, DRAFTS, CURRENT_RELEASE_ID, type Release } from './releases'
+import { RELEASES, DRAFTS, CURRENT_RELEASE_ID, WHATS_NEW_LABEL, type Release } from './releases'
 
 const card = (title: string) => ({ kicker: 'What changed', title, body: ['x'] })
 
@@ -113,6 +113,15 @@ describe('pickCards', () => {
         for (const c of r.cards) {
           expect(c.title).not.toContain('!')
           for (const p of c.body) expect(p).not.toContain('!')
+        }
+      }
+    })
+
+    it('never shows users the internal name', () => {
+      expect(WHATS_NEW_LABEL).not.toMatch(/first\s*light/i)
+      for (const r of [...RELEASES, ...DRAFTS]) {
+        for (const c of r.cards) {
+          expect([c.kicker, c.title, ...c.body].join(' ')).not.toMatch(/first\s*light/i)
         }
       }
     })

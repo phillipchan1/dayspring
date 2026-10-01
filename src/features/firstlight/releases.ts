@@ -1,6 +1,12 @@
 /**
- * FIRST LIGHT — the release-note registry. Every word any announcement has ever
- * shown lives in this file.
+ * FIRST LIGHT is the INTERNAL name of this feature: the folder, the component,
+ * the CSS prefix, `?__preview=firstlight`. Users never see it. What they see is
+ * "What's new" (WHATS_NEW_LABEL below). It is one visual place to announce a
+ * major change — a reader opens the app after an update and is told, once, what
+ * moved. Nothing else announces anything.
+ *
+ * The release-note registry. Every word any announcement has ever shown lives in
+ * this file.
  *
  * Same discipline as features/ads/ads.ts and features/appstore/shots.ts: copy is
  * data, rendered as real text, so editing this file is the whole loop and
@@ -37,6 +43,14 @@
  * cold open, before the editor takes focus — see pickCards.ts — and can never
  * appear mid-session.
  */
+
+/**
+ * The user-facing name of the announcement surface: the label on the deck and
+ * the Settings → About row. Never "First Light" — that is the internal name, and
+ * it is also what the palette tokens are called, which is exactly the confusion
+ * this constant exists to keep out of the UI.
+ */
+export const WHATS_NEW_LABEL = 'What’s new'
 
 /** A small inline glyph above the title. Purely decorative; never load-bearing. */
 export type CardArt = 'wall' | 'keys' | 'climb' | 'passage' | 'sidebyside'

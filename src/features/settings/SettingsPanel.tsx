@@ -422,7 +422,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
             </a>
           </div>
           <div className="settings-about__row">
-            <span className="settings-field__label">This release</span>
+            <span className="settings-field__label">What’s new</span>
             {/* Close Settings first — the deck is a full-screen surface and
                 should not have to out-stack the panel that opened it. */}
             <button
@@ -433,7 +433,7 @@ function AboutTab({ userEmail, onClose, featureFlags }: { userEmail: string; onC
                 openFirstLight()
               }}
             >
-              What changed
+              See the latest update
             </button>
           </div>
           <div className="settings-about__row">
