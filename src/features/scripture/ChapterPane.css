@@ -333,7 +333,7 @@
   --chapter-here-rule-width: 3px;
 }
 
-/* Cloister / Compline — a hairline, like the colonnade. */
+/* Cloister / Compline — a hairline: precise, institutional. */
 [data-theme='cloister'] .chapter-pane,
 [data-theme='compline'] .chapter-pane {
   --chapter-here-glow: none;

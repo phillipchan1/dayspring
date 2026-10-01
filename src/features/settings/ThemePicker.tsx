@@ -30,8 +30,14 @@ export function ThemePicker({ settings, update, active }: Props) {
     // channel still finds valid values in the shared settings row.
     // A night-only voice has nowhere to go in light mode, so it takes the app
     // dark rather than leaving the toggle pointing at a ground it lacks.
-    if (isNightOnly(v.id)) update({ voice: v.id, appearance: 'dark' })
-    else update({ voice: v.id })
+    //
+    // Picking a voice takes its face too. A face chosen by hand in Advanced
+    // typography used to survive the switch, so choosing Plainsong could leave
+    // a serif body under a mono title — the row you clicked, set in the voice's
+    // own face, promised something the page then didn't do. A different face
+    // can still be chosen afterwards.
+    if (isNightOnly(v.id)) update({ voice: v.id, appearance: 'dark', editorFontAuto: true })
+    else update({ voice: v.id, editorFontAuto: true })
   }
 
   return (

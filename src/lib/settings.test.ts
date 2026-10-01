@@ -3,7 +3,7 @@
 // not apply twice, and the density steps that became a continuous zoom.
 
 import { describe, expect, it } from 'vitest'
-import { FONT_SIZE_DEFAULT, migrateSettings } from './settings'
+import { FONT_SIZE_DEFAULT, migrateSettings, normalizeLegacyFace } from './settings'
 
 describe('migrateSettings', () => {
   it('gives a blob with nothing in it the defaults', () => {
@@ -60,5 +60,33 @@ describe('migrateSettings', () => {
   it('clamps a corrupt zoom back into range', () => {
     expect(migrateSettings({ v: 4, pagesZoom: 5 }).pagesZoom).toBe(1)
     expect(migrateSettings({ v: 4, pagesZoom: -2 }).pagesZoom).toBe(0)
+  })
+})
+
+// "Serif" used to resolve through --font-serif, which every voice repoints to
+// its own face — so an explicit Serif followed the voice everywhere. Read
+// literally after the faces became fixed tokens, a Plainsong writer who had
+// once picked Serif got a Newsreader body under a mono title.
+describe('normalizeLegacyFace', () => {
+  it('reads an old explicit Serif as following the voice, which is what it rendered', () => {
+    const s = migrateSettings({ v: 4, voice: 'plainsong', editorFont: 'serif', editorFontAuto: false })
+    expect(s.editorFontAuto).toBe(true)
+    expect(s.editorFont).toBe('mono')
+  })
+
+  it('keeps a face chosen under the new meaning', () => {
+    const s = migrateSettings({ v: 4, voice: 'plainsong', editorFont: 'serif', editorFontAuto: false, faceNamed: true })
+    expect(s.editorFontAuto).toBe(false)
+    expect(s.editorFont).toBe('serif')
+  })
+
+  it('keeps an old explicit face that never meant the voice', () => {
+    const s = migrateSettings({ v: 4, voice: 'dawn', editorFont: 'typewriter', editorFontAuto: false })
+    expect(s.editorFontAuto).toBe(false)
+    expect(s.editorFont).toBe('typewriter')
+  })
+
+  it('applies to a blob arriving from an older client too', () => {
+    expect(normalizeLegacyFace({ editorFont: 'serif', editorFontAuto: false }).editorFontAuto).toBe(true)
   })
 })
