@@ -239,8 +239,8 @@ built from the app's real tokens), then built:
 | Change | How | Notes |
 |---|---|---|
 | **Optical sizes** | Dawn's faces as variable fonts (`@fontsource-variable/fraunces`, `/newsreader`, opsz axis) | The statics measure identical to opsz 14 (Fraunces) and 16 (Newsreader): a 43px title was a 14pt text cut enlarged. The other voices already shipped variable or single-cut faces. Statics kept for surfaces that name the family outright. |
-| **Balanced titles** | `text-wrap: balance` on title and heading lines | Only once the caret has left the line — see below |
-| **No lonely last words** | `text-wrap: pretty` on prose lines | Same rule |
+| ~~**Balanced titles**~~ | ~~`text-wrap: balance` on title and heading lines~~ | Removed — see below |
+| ~~**No lonely last words**~~ | ~~`text-wrap: pretty` on prose lines~~ | Removed — see below |
 | **Hanging punctuation** | `hanging-punctuation: first` | WebKit only, i.e. the Mac and iPhone apps |
 | **Old-style figures** | `oldstyle-nums` in body; lining in titles, headings, citations, list numbers | Ignored by faces without them; Plainsong keeps tabular |
 | **Dateline** | `editor/dateline.ts`, a block widget above line 1; setting on by default | Each voice in its own ornament (themes.css, "The dateline"). Dawn's fading hairline under the title is gone; its sunrise rule sits above the date instead |
@@ -251,6 +251,14 @@ the writer's pen. They apply only to lines without `.cm-activeLine`
 (`highlightActiveLine()`, painted transparent): a paragraph settles once, as
 you move on. Measured: Cloister's title is 624 / 155px while typed, 435 / 343px
 after.
+
+**Removed, 1 Oct 2026.** In use, "settles once, as you move on" meant the
+paragraph rearranged itself at the exact moment the writer looked at it:
+press Return under a paragraph ending in one word, and three words dropped
+down to keep it company. Reported as a bug, and it is one — the editor is
+sacred, and words already written do not move. Both wraps are gone from the
+editor and the reading view (which must break identically). The cost note
+below is kept for the record.
 
 **Cost.** Synchronous layout per keystroke in a 33-paragraph entry, settling
 on vs off: 1.9–2.0ms median, 2.7–3.0ms p95, both ways. No measurable

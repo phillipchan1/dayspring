@@ -719,11 +719,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           ),
           EditorView.lineWrapping,
           // Invisible (theme.ts paints `.cm-activeLine` transparent). It exists
-          // so CSS can tell the line being written from the lines that are
-          // finished: balanced titles and `text-wrap: pretty` settle only
-          // lines the caret has left, so no word ever hops under a writer's
-          // pen (global.css, "Editorial finishing"). A class on the line, not
-          // a mark in it, so Safari's autocorrect never loses the word.
+          // so CSS can tell the line being written from the finished ones —
+          // Vellum's ¶ steps aside where the `##` it stands for is showing
+          // (themes.css). A class on the line, not a mark in it, so Safari's
+          // autocorrect never loses the word.
           highlightActiveLine(),
           nativeTyping(),
           editorTheme,

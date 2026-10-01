@@ -3175,12 +3175,13 @@ html[data-chapter-pane] .focus-controls--docked {
    Hanging punctuation: an opening quote sits in the margin so the text edge
    stays straight. WebKit only — which is the Mac and iPhone apps.
 
-   Settling: a finished paragraph avoids a one-word last line, and a title or
-   heading breaks into even lines. Only on lines the caret has LEFT
-   (`.cm-activeLine` is the caret's line — Editor.tsx). Applied to the line
-   being written, both re-break the paragraph as you type and a word hops
-   lines under your pen; applied after, the paragraph settles once, as you
-   move on. */
+   No settling. Paragraphs once took `text-wrap: pretty` and titles
+   `balance`, applied only after the caret LEFT the line so words would not
+   hop as you typed. They hopped as you left instead: press Return under a
+   paragraph ending in one word and the browser re-broke it, pulling three
+   words down to keep that one company — the text you just wrote rearranging
+   itself under your eye. A line breaks where it broke while you wrote it,
+   here and in the reading view, and nothing moves after that. */
 .cm-content {
   font-variant-numeric: oldstyle-nums proportional-nums;
   hanging-punctuation: first;
@@ -3200,32 +3201,16 @@ html[data-chapter-pane] .focus-controls--docked {
 .cm-content .cm-list-label {
   font-variant-numeric: lining-nums tabular-nums;
 }
-.cm-content .cm-line:not(.cm-activeLine) {
-  text-wrap: pretty;
-}
-.cm-content .cm-line.cm-entry-title:not(.cm-activeLine),
-.cm-content .cm-line.cm-entry-title-explicit:not(.cm-activeLine),
-.cm-content .cm-line.cm-md-h1:not(.cm-activeLine),
-.cm-content .cm-line.cm-md-h2:not(.cm-activeLine),
-.cm-content .cm-line.cm-md-h3:not(.cm-activeLine) {
-  text-wrap: balance;
-}
 /* The reading view sets an entry exactly as it was written. */
 .markdown-body {
   font-variant-numeric: oldstyle-nums proportional-nums;
   hanging-punctuation: first;
-}
-.markdown-body p,
-.markdown-body li,
-.markdown-body blockquote {
-  text-wrap: pretty;
 }
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
   font-variant-numeric: lining-nums proportional-nums;
-  text-wrap: balance;
 }
 
 /* No soft wrap beside a concealed inline marker — see ConcealWidget in
