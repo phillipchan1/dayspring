@@ -204,6 +204,35 @@ function Art({ kind }: { kind: CardArt }) {
       </svg>
     )
   }
+  if (kind === 'sidebyside') {
+    // The composer in miniature, drawn from the real one: the passage on the
+    // left (reference in small caps, verse numbers in the accent, one run
+    // picked out), the page on the right (the prompt, the quote that came
+    // across, the writer's own lines). Bars stand for words — no verse text is
+    // ever set here.
+    const left = [34, 46, 58, 70, 82, 94]
+    const widths = [118, 124, 96, 122, 110, 70]
+    return (
+      <svg className="firstlight__side" viewBox="0 0 320 116" aria-hidden="true">
+        <rect className="frame" x="0.75" y="0.75" width="318.5" height="114.5" rx="7" />
+        <path className="split" d="M160 0v116" />
+        <path className="ref" d="M14 14h26" />
+        {left.map((y, i) => (
+          <g key={y}>
+            <path className="num" d={`M14 ${y - 2}h3`} />
+            <path className="rule" d={`M22 ${y}h${widths[i]}`} />
+          </g>
+        ))}
+        <rect className="pickfill" x="60" y="52" width="46" height="9" rx="2" />
+        <path className="pick" d="M60 58h46" />
+        <path className="prompt" d="M176 14h104" />
+        <path className="quote" d="M176 34v16M184 38h70M184 46h42" />
+        <path className="draw" d="M106 57C140 57 142 42 176 42" />
+        <path className="rule" d="M176 70h118M176 82h104M176 94h58" />
+        <path className="caret" d="M236 94v8" />
+      </svg>
+    )
+  }
   if (kind === 'passage') {
     // A few lines of a passage, one picked out, and a line drawn from it to
     // the answer — the same gesture the card describes.

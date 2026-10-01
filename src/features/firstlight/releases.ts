@@ -39,7 +39,7 @@
  */
 
 /** A small inline glyph above the title. Purely decorative; never load-bearing. */
-export type CardArt = 'wall' | 'keys' | 'climb' | 'passage'
+export type CardArt = 'wall' | 'keys' | 'climb' | 'passage' | 'sidebyside'
 
 export interface Card {
   /** Small caps line above the title. Two or three words. */
@@ -153,6 +153,10 @@ export const DRAFTS: Release[] = [
     // The passage rituals: Open your Bible, the finder, drawn quotes, chapters
     // set as the ESV prints them. Unflagged — it reaches stable with the
     // master → stable merge, so move this into RELEASES in that commit.
+    //
+    // Three cards, in the order someone needs them: what it looks like (the
+    // pitch is the picture), how to start it (a real sequence, so numbered),
+    // and what's different about the page itself.
     id: '2026-10-scripture',
     major: true,
     land: 'journal',
@@ -160,18 +164,21 @@ export const DRAFTS: Release[] = [
     cards: [
       {
         kicker: 'What changed',
-        art: 'passage',
-        title: 'Open your Bible',
+        art: 'sidebyside',
+        title: 'Bible journaling, side by side',
         body: [
-          'A blank page now has one door that stays the same at every hour: Open your Bible. Choose a chapter and you are already writing, with the passage open beside the page.',
-          'Open Reading, Lectio, SOAP and Discovery all begin this way. Once you have read a chapter, the door offers the next one.',
+          'Read a chapter on the left and write on the right, with the passage open for as long as you are answering it.',
+          'Open Reading, Lectio, SOAP and Discovery all begin this way.',
         ],
       },
       {
-        kicker: 'Also new',
-        title: 'Draw a line from the passage',
+        kicker: 'How it works',
+        art: 'passage',
+        title: 'Three steps in',
         body: [
-          'Select any words in the passage and they land in your answer as a quote, with a line drawn back to where you took them. Move the quote, cut it or undo it, and the line goes with it.',
+          '1. On a blank page, choose Open your Bible. It sits in the same place at every hour.',
+          '2. Type a reference like John 15, or pick a passage from the suggestions.',
+          '3. Write on the right. Select any words in the passage to bring them in as a quote, with a line drawn back to where you took them.',
         ],
       },
       {
@@ -179,7 +186,7 @@ export const DRAFTS: Release[] = [
         title: 'Set the way a Bible sets it',
         body: [
           'Poetry keeps its lines and stanzas, prose its paragraphs, and LORD stays in small capitals. Passages come from the ESV, one chapter at a time.',
-          'Reading from a Bible of your own? Say so under the search, and write from the reference.',
+          'Once you have read a chapter, Open your Bible offers the next one. Reading from a Bible of your own? Say so under the search, and write from the reference.',
         ],
       },
     ],
