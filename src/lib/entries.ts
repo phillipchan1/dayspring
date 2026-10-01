@@ -1,4 +1,5 @@
 import { isCircumstances } from './circumstances'
+import { cacheGetAll } from './db'
 import { stripSpiritualBlocks } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
 import type { Entry, EntrySource, NewEntry } from './types'
@@ -177,15 +178,35 @@ export async function getEntryById(id: string): Promise<Entry | null> {
 /** Fetch specific entries by id (chunked to stay under PostgREST URL limits). */
 export async function fetchEntriesByIds(ids: string[]): Promise<Entry[]> {
   if (ids.length === 0) return []
-  const sb = requireSupabase()
-  const out: Entry[] = []
-  for (let i = 0; i < ids.length; i += 200) {
-    const chunk = ids.slice(i, i + 200)
-    const { data, error } = await sb.from('entries').select(ENTRY_COLUMNS).in('id', chunk)
-    if (error) throw error
-    for (const e of (data ?? []) as Entry[]) out.push(e)
+  try {
+    const sb = requireSupabase()
+    const out: Entry[] = []
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200)
+      const { data, error } = await sb.from('entries').select(ENTRY_COLUMNS).in('id', chunk)
+      if (error) throw error
+      for (const e of (data ?? []) as Entry[]) out.push(e)
+    }
+    return out
+  } catch (err) {
+    // Offline: the whole journal is already in IndexedDB, so answer from there
+    // rather than failing a surface over entries this device holds.
+    const local = await localEntries()
+    if (!local) throw err
+    const want = new Set(ids)
+    return local.filter((e) => want.has(e.id))
   }
-  return out
+}
+
+/** Every locally cached entry, or null when the cache is empty or unreachable —
+ *  in which case there is nothing to fall back to and the caller's error stands. */
+async function localEntries(): Promise<Entry[] | null> {
+  try {
+    const all = await cacheGetAll()
+    return all.length > 0 ? all : null
+  } catch {
+    return null
+  }
 }
 
 /** List entries newest-first. */
@@ -208,15 +229,31 @@ export async function listEntries(limit = 50): Promise<Entry[]> {
  * weekly rollup.
  */
 export async function listEntriesInWindow(fromISO: string, toExclusiveISO: string): Promise<Entry[]> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('entries')
-    .select(ENTRY_COLUMNS)
-    .gte('created_at', fromISO)
-    .lt('created_at', toExclusiveISO)
-    .order('created_at', { ascending: true })
-  if (error) throw error
-  return (data ?? []) as Entry[]
+  try {
+    const sb = requireSupabase()
+    const { data, error } = await sb
+      .from('entries')
+      .select(ENTRY_COLUMNS)
+      .gte('created_at', fromISO)
+      .lt('created_at', toExclusiveISO)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as Entry[]
+  } catch (err) {
+    // Offline: same window, read from the local cache (see fetchEntriesByIds).
+    // Compared as instants, not strings — a cached created_at may carry a
+    // different offset spelling than the ISO bounds.
+    const local = await localEntries()
+    if (!local) throw err
+    const from = Date.parse(fromISO)
+    const to = Date.parse(toExclusiveISO)
+    return local
+      .filter((e) => {
+        const t = Date.parse(e.created_at)
+        return t >= from && t < to
+      })
+      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+  }
 }
 
 const ENTRY_PAGE = 1000

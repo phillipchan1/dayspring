@@ -1,6 +1,7 @@
 import { apiUrl } from './api'
-import { parseSpiritualBlocks } from './spiritualBlocks'
+import { spiritualBlockRows } from './spiritualBlocks'
 import { requireSupabase } from './supabase'
+import { withOfflineSnapshot } from './offlineSnapshot'
 import type { NewSpiritualItem, SpiritualItem, SpiritualItemType } from './types'
 
 // Every SpiritualItem field EXCEPT the server-only `embedding` vector — never
@@ -122,30 +123,21 @@ export async function syncSpiritualBlocksFromMarkdown(
   markdown: string,
 ): Promise<void> {
   if (!entryId) return
-  const blocks = parseSpiritualBlocks(markdown)
-  const ids = blocks.map((b) => b.id)
   const sb = requireSupabase()
+  // Rows come from the shared planner, so the server's gather engine writes
+  // exactly what a save does (src/lib/spiritualBlocks.ts). The owner is filled
+  // in below: an entry with no fences needs no session at all.
+  const planned = spiritualBlockRows('', entryId, markdown)
+  const ids = planned.map((r) => r.id)
 
-  if (blocks.length > 0) {
+  if (planned.length > 0) {
     const {
       data: { session },
     } = await sb.auth.getSession()
     if (!session) throw new Error('not authenticated')
-    const { error } = await sb.from('spiritual_items').upsert(
-      blocks.map((b) => ({
-        id: b.id,
-        owner: session.user.id,
-        entry_id: entryId,
-        type: b.type,
-        content: b.content,
-        // Offsets into body_markdown as stored, fences included — so a declared
-        // block finally has a position. Rewritten on every save, because every
-        // edit above it moves it.
-        char_start: b.from,
-        char_end: b.to,
-      })),
-      { onConflict: 'id' },
-    )
+    const { error } = await sb
+      .from('spiritual_items')
+      .upsert(planned.map((r) => ({ ...r, owner: session.user.id })), { onConflict: 'id' })
     if (error) throw error
   }
 
@@ -183,23 +175,25 @@ export interface MarkingRef {
  * has no business pulling every prayer's text across the wire to find out.
  */
 export async function listMarkings(): Promise<MarkingRef[]> {
-  const sb = requireSupabase()
-  const out: MarkingRef[] = []
-  const PAGE = 1000
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb
-      .from('spiritual_items')
-      .select('entry_id, type, source')
-      .not('entry_id', 'is', null)
-      .order('id', { ascending: true })
-      .range(from, from + PAGE - 1)
-    if (error) throw error
-    const rows = (data ?? []) as { entry_id: string; type: SpiritualItemType; source: string | null }[]
-    for (const r of rows) {
-      out.push({ entryId: r.entry_id, type: r.type, declared: r.source === 'command' })
+  return withOfflineSnapshot('markings:all', async () => {
+    const sb = requireSupabase()
+    const out: MarkingRef[] = []
+    const PAGE = 1000
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await sb
+        .from('spiritual_items')
+        .select('entry_id, type, source')
+        .not('entry_id', 'is', null)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) throw error
+      const rows = (data ?? []) as { entry_id: string; type: SpiritualItemType; source: string | null }[]
+      for (const r of rows) {
+        out.push({ entryId: r.entry_id, type: r.type, declared: r.source === 'command' })
+      }
+      if (rows.length < PAGE) return out
     }
-    if (rows.length < PAGE) return out
-  }
+  })
 }
 
 /** One marking on one page, with the sentence it was made of. */
@@ -231,14 +225,16 @@ export interface PageMarking {
  * actually sits rather than asserting that one is in here somewhere.
  */
 export async function markingsForEntry(entryId: string): Promise<PageMarking[]> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('spiritual_items')
-    .select('id, type, content, source')
-    .eq('entry_id', entryId)
-    .order('created_at', { ascending: true })
-  if (error) throw error
-  return toPageMarkings(data, entryId)
+  return withOfflineSnapshot(`markings:entry:${entryId}`, async () => {
+    const sb = requireSupabase()
+    const { data, error } = await sb
+      .from('spiritual_items')
+      .select('id, type, content, source')
+      .eq('entry_id', entryId)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return toPageMarkings(data, entryId)
+  })
 }
 
 interface MarkingRow {

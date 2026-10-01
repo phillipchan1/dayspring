@@ -11,6 +11,7 @@
 // those is absent rather than merely unbuilt.
 
 import { requireSupabase } from '@/lib/supabase'
+import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import type { Subject } from './subjects'
 
 /** A row as stored. `kept_at` is the only order this list is ever shown in. */
@@ -34,13 +35,15 @@ export interface KeptSubject extends Subject {
  * life that says nothing about them.
  */
 export async function listKeptSubjects(): Promise<KeptSubject[]> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('kept_subjects')
-    .select('subject_key, label, terms, kind, kept_at')
-    .order('kept_at', { ascending: true })
-  if (error) throw error
-  return (data ?? []).map(fromRow)
+  return withOfflineSnapshot('kept-subjects', async () => {
+    const sb = requireSupabase()
+    const { data, error } = await sb
+      .from('kept_subjects')
+      .select('subject_key, label, terms, kind, kept_at')
+      .order('kept_at', { ascending: true })
+    if (error) throw error
+    return (data ?? []).map(fromRow)
+  })
 }
 
 const fromRow = (r: KeptRow): KeptSubject => ({

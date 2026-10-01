@@ -1,6 +1,6 @@
 import type { SpiritualItemType } from './types'
-import { MARK_KIND, MARK_KINDS } from './markKinds'
-import { isPracticeTokenLine } from './practiceTokens'
+import { MARK_KIND, MARK_KINDS } from './markKinds.js'
+import { isPracticeTokenLine } from './practiceTokens.js'
 
 // Derived from the one kind table (markKinds.ts) rather than restated here, so
 // adding a kind can't leave the parser recognising a fence the writer can't make
@@ -167,4 +167,41 @@ export function ensureBlockSeparation(markdown: string): string {
     out = out.slice(0, pos) + '\n' + out.slice(pos)
   }
   return out
+}
+
+/** One `spiritual_items` row for a fenced block, as the save-time reconcile writes it. */
+export interface SpiritualBlockRow {
+  id: string
+  owner: string
+  entry_id: string
+  type: SpiritualItemType
+  content: string
+  char_start: number
+  char_end: number
+}
+
+/**
+ * The rows an entry's fenced blocks stand for — the block is the source of
+ * truth, so this is what `spiritual_items` should hold for the page.
+ *
+ * PURE, and shared on purpose: the editor's save-time reconcile
+ * (`syncSpiritualBlocksFromMarkdown`) and the server's gather engine
+ * (`api/_lib/derive.ts`) both build their rows here, so an imported page and a
+ * page typed in the editor cannot come to mean different things.
+ *
+ * `metadata` and `created_at` are deliberately absent — see the reconcile for why.
+ */
+export function spiritualBlockRows(owner: string, entryId: string, markdown: string): SpiritualBlockRow[] {
+  return parseSpiritualBlocks(markdown).map((b) => ({
+    id: b.id,
+    owner,
+    entry_id: entryId,
+    type: b.type,
+    content: b.content,
+    // Offsets into body_markdown as stored, fences included — so a declared
+    // block finally has a position. Rewritten on every save, because every
+    // edit above it moves it.
+    char_start: b.from,
+    char_end: b.to,
+  }))
 }

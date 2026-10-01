@@ -9,6 +9,8 @@ const KEYS = [
   'AI_GATEWAY_ZDR_PROVIDERS',
   'GATHER_MODE',
   'GATHER_SENTIMENT',
+  'GATHER_ENGINE',
+  'GATHER_SETTLE_MINUTES',
 ] as const
 
 function restore(saved: Record<string, string | undefined>): void {
@@ -101,5 +103,40 @@ describe('Gather flags', () => {
     process.env.GATHER_SENTIMENT = 'tight'
     expect(env.gatherMode()).toBe('cue')
     expect(env.gatherSentiment()).toBe('v2')
+  })
+})
+
+describe('gather engine flags', () => {
+  const saved: Record<string, string | undefined> = {}
+  afterEach(() => restore(saved))
+  function isolate(): void {
+    for (const key of KEYS) {
+      saved[key] = process.env[key]
+      delete process.env[key]
+    }
+  }
+
+  it('is off unless GATHER_ENGINE is exactly "on"', () => {
+    isolate()
+    expect(env.gatherEngine()).toBe(false)
+    for (const v of ['true', '1', 'yes', 'gate', '']) {
+      process.env.GATHER_ENGINE = v
+      expect(env.gatherEngine()).toBe(false)
+    }
+    process.env.GATHER_ENGINE = ' ON '
+    expect(env.gatherEngine()).toBe(true)
+  })
+
+  it('settles for 30 minutes by default, and ignores a nonsense override', () => {
+    isolate()
+    expect(env.gatherSettleMinutes()).toBe(30)
+    process.env.GATHER_SETTLE_MINUTES = '5'
+    expect(env.gatherSettleMinutes()).toBe(5)
+    process.env.GATHER_SETTLE_MINUTES = '0'
+    expect(env.gatherSettleMinutes()).toBe(0)
+    for (const v of ['-3', 'soon']) {
+      process.env.GATHER_SETTLE_MINUTES = v
+      expect(env.gatherSettleMinutes()).toBe(30)
+    }
   })
 })

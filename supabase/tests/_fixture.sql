@@ -28,6 +28,25 @@ alter table public.entries add column if not exists entry_lens text;            
 alter table public.entries add column if not exists entry_domain text;             -- 20260604130000_threads_v2
 alter table public.entries add column if not exists concordance_scanned_at timestamptz; -- 20260611120000_concordance
 
+-- Stand-ins for the two other tables the gather migrations touch
+-- (20260930120000_reconcile_scanned_items, 20260930130000_gather_engine), reduced
+-- to the columns those functions read and write.
+create table if not exists public.spiritual_items (
+  id                uuid primary key default gen_random_uuid(),
+  owner             uuid not null references auth.users (id) on delete cascade,
+  entry_id          uuid, -- no FK here: multi_device_sync.test.sql truncates entries on its own
+  type              text not null,
+  content           text not null,
+  created_at        timestamptz not null default now(),
+  source            text not null default 'command',
+  subject_tagged_at timestamptz
+);
+create table if not exists public.processing_jobs (
+  id   uuid primary key default gen_random_uuid(),
+  kind text not null,
+  constraint processing_jobs_kind_check check (kind in ('reflections'))
+);
+
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -45,8 +64,12 @@ drop publication if exists supabase_realtime;
 create publication supabase_realtime;
 alter publication supabase_realtime add table public.entries;
 
-do $$ begin
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
-    create role authenticated;
-  end if;
+do $$
+declare r text;
+begin
+  foreach r in array array['anon', 'authenticated', 'service_role'] loop
+    if not exists (select 1 from pg_roles where rolname = r) then
+      execute format('create role %I', r);
+    end if;
+  end loop;
 end $$;

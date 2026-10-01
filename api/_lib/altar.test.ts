@@ -161,41 +161,66 @@ describe('harvestBatch — the writer\'s words, never the verse (Guardrail H3)',
 
 type EntryRow = { id: string; created_at: string; body_markdown: string }
 
+type ReconcileEntry = {
+  entry_id: string
+  created_at: string
+  items: { type: string; content: string }[]
+}
+
+/**
+ * A Supabase double whose `reconcile_scanned_items` behaves like the SQL one
+ * (supabase/migrations/20260930120000_reconcile_scanned_items.sql): per entry it
+ * drops scanned rows the harvest no longer returns, inserts only what is not
+ * already there, and stamps the entry. `entries` is served back on EVERY read —
+ * deliberately not filtered by the stamp — so two runs model two callers that
+ * both read the same unscanned entries (the cron racing an import job).
+ */
 function mockSb(entries: EntryRow[]) {
   const inserts: Record<string, unknown>[] = []
+  const rows: { entry_id: string; type: string; content: string }[] = []
   const scanned: string[][] = []
   const sb = {
-    from(table: string) {
-      const state: { table: string; update?: Record<string, unknown> } = { table }
+    from() {
       const chain: Record<string, unknown> = {
         select: () => chain,
         eq: () => chain,
         is: () => chain,
         range: () => chain,
         order: () => chain,
-        update: (payload: Record<string, unknown>) => {
-          state.update = payload
-          return chain
-        },
-        in: (_col: string, ids: string[]) => {
-          if (state.update && 'prayer_scanned_at' in state.update) scanned.push(ids)
-          return chain
-        },
-        insert: (rows: Record<string, unknown>[]) => {
-          inserts.push(...rows)
-          return Promise.resolve({ data: rows, error: null })
-        },
         then: (resolve: (v: { data: unknown; error: null }) => void) =>
-          Promise.resolve({
-            data: state.update ? null : entries,
-            error: null,
-          }).then(resolve),
+          Promise.resolve({ data: entries, error: null }).then(resolve),
       }
       return chain
     },
+    rpc(name: string, args: { p_owner: string; p_entries: ReconcileEntry[] }) {
+      if (name !== 'reconcile_scanned_items') throw new Error(`unexpected rpc ${name}`)
+      let planted = 0
+      for (const e of args.p_entries) {
+        const wanted = new Set(e.items.map((i) => `${i.type}\u0000${i.content}`))
+        for (let k = rows.length - 1; k >= 0; k--) {
+          const r = rows[k]!
+          if (r.entry_id === e.entry_id && !wanted.has(`${r.type}\u0000${r.content}`)) rows.splice(k, 1)
+        }
+        for (const i of e.items) {
+          if (rows.some((r) => r.entry_id === e.entry_id && r.type === i.type && r.content === i.content)) continue
+          rows.push({ entry_id: e.entry_id, type: i.type, content: i.content })
+          inserts.push({
+            owner: args.p_owner,
+            entry_id: e.entry_id,
+            type: i.type,
+            content: i.content,
+            source: 'scanned',
+            created_at: e.created_at,
+          })
+          planted++
+        }
+      }
+      scanned.push(args.p_entries.map((e) => e.entry_id))
+      return Promise.resolve({ data: planted, error: null })
+    },
   }
   vi.mocked(supabaseAdmin).mockReturnValue(sb as never)
-  return { inserts, scanned }
+  return { inserts, rows, scanned }
 }
 
 describe('harvestPrayers / harvestPlan — cue vs gate', () => {
@@ -331,5 +356,82 @@ describe('harvestPrayers / harvestPlan — cue vs gate', () => {
     expect(inserts).toEqual([])
     expect(scanned.flat()).not.toContain('long')
     expect(out.planted).toBe(0)
+    expect(out).toMatchObject({ scanned: 0, failed: 1 })
+  })
+
+  // REGRESSION (duplicate cairns): the harvest used to insert, then stamp, with no
+  // dedupe. Two readers of the same unscanned entries — the daily cron and an
+  // import's altar_harvest job, or one run retried after its stamp failed — each
+  // inserted, and the tagger was billed for every duplicate line.
+  for (const mode of [undefined, 'gate'] as const) {
+    it(`two runs over the same unscanned entries plant each prayer once (${mode ?? 'cue'})`, async () => {
+      isolateMode(mode)
+      const entries = Array.from({ length: 3 }, (_, i) => ({
+        id: `e${i}`,
+        created_at: '2026-01-05T12:00:00.000Z',
+        body_markdown: `Lord, help me number ${i}.`,
+      }))
+      const { inserts, rows } = mockSb(entries)
+      vi.mocked(callModel).mockImplementation(async (_sys, input, _schema, name) => {
+        const batch = (input as { entries: { id: string; text: string }[] }).entries
+        if (name === 'gather_gate') {
+          return { entries: batch.map((e) => ({ id: e.id, contains_prayer: true, contains_sense: false })) }
+        }
+        return { entries: batch.map((e) => ({ id: e.id, prayers: [{ type: 'prayer', text: e.text }] })) }
+      })
+
+      const first = await harvestPrayers('owner')
+      const second = await harvestPrayers('owner')
+
+      expect(first.planted).toBe(3)
+      expect(second.planted).toBe(0)
+      expect(inserts).toHaveLength(3)
+      expect(rows.map((r) => r.entry_id).sort()).toEqual(['e0', 'e1', 'e2'])
+    })
+  }
+
+  it('a re-read drops the passage the harvest no longer returns and keeps the rest', async () => {
+    isolateMode(undefined)
+    const entry = {
+      id: 'e',
+      created_at: '2026-01-05T12:00:00.000Z',
+      body_markdown: 'Lord, keep her safe tonight. Father, give me patience with him.',
+    }
+    const { inserts, rows } = mockSb([entry])
+    const answers = [
+      ['Lord, keep her safe tonight.', 'Father, give me patience with him.'],
+      ['Father, give me patience with him.'],
+    ]
+    vi.mocked(callModel).mockImplementation(async () => ({
+      entries: [{ id: 'e', prayers: answers.shift()!.map((text) => ({ type: 'prayer', text })) }],
+    }))
+
+    await harvestPrayers('owner')
+    await harvestPrayers('owner')
+
+    expect(rows.map((r) => r.content)).toEqual(['Father, give me patience with him.'])
+    // the surviving row was never re-inserted, so it keeps its id, tags and thread
+    expect(inserts).toHaveLength(2)
+  })
+
+  // REGRESSION (job that never ends): a failed cue batch returned 0 and nothing
+  // else, so a run that read nothing was indistinguishable from a quiet success.
+  it('counts the entries a failed model call left unread, and does not stamp them', async () => {
+    isolateMode(undefined)
+    const quiet = { id: 'quiet', created_at: '2026-01-05T12:00:00.000Z', body_markdown: 'Bought milk.' }
+    const prayers = Array.from({ length: 7 }, (_, i) => ({
+      id: `p${i}`,
+      created_at: '2026-01-05T12:00:00.000Z',
+      body_markdown: `Lord, help me number ${i}.`,
+    }))
+    const { inserts, scanned } = mockSb([quiet, ...prayers])
+    vi.mocked(callModel).mockRejectedValue(new Error('model down'))
+
+    const out = await harvestPrayers('owner')
+
+    expect(out).toMatchObject({ scanned: 1, candidates: 7, planted: 0, failed: 7 })
+    expect(out.failedIds.sort()).toEqual(prayers.map((p) => p.id))
+    expect(scanned.flat()).toEqual(['quiet'])
+    expect(inserts).toEqual([])
   })
 })

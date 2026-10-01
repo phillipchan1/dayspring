@@ -13,22 +13,8 @@
 
 import * as cache from '../db'
 import { requireSupabase } from '../supabase'
-import { parseReferences, type ParsedRef } from './parse'
-
-const PROSE_SOURCES = ['parsed', 'inline', 'command']
-
-interface ExistingRow {
-  id: string
-  osis_ref: string
-  source: string
-}
-
-/** Dedupe parsed refs by osis_ref (the unique-index key), keeping the first hit. */
-function dedupeByOsis(refs: ParsedRef[]): Map<string, ParsedRef> {
-  const out = new Map<string, ParsedRef>()
-  for (const r of refs) if (!out.has(r.osis_ref)) out.set(r.osis_ref, r)
-  return out
-}
+import { parseReferences } from './parse'
+import { dedupeByOsis, planScriptureRefs, type ExistingRefRow } from './refRows'
 
 async function entryDate(entryId: string): Promise<string> {
   const entry = await cache.cacheGet(entryId)
@@ -47,41 +33,22 @@ export async function syncScriptureRefsFromMarkdown(
   if (!entryId) return
   const sb = requireSupabase()
 
-  const parsed = dedupeByOsis(parseReferences(markdown))
-  const parsedOsis = new Set(parsed.keys())
-
   const { data, error } = await sb
     .from('scripture_refs')
     .select('id, osis_ref, source')
     .eq('entry_id', entryId)
   if (error) throw error
-  const existing = (data ?? []) as ExistingRow[]
-  const existingOsis = new Set(existing.map((e) => e.osis_ref))
+  const existing = (data ?? []) as ExistingRefRow[]
 
-  const created_at_src = await entryDate(entryId)
-
-  const toInsert = [...parsed.values()]
-    .filter((r) => !existingOsis.has(r.osis_ref))
-    .map((r) => ({
-      entry_id: entryId,
-      book_osis: r.book_osis,
-      book_name: r.book_name,
-      book_order: r.book_order,
-      chapter: r.chapter,
-      verse_start: r.verse_start,
-      verse_end: r.verse_end,
-      osis_ref: r.osis_ref,
-      entry_created_at: created_at_src,
-      source: 'inline' as const,
-      confidence: r.confidence,
-      status: 'confirmed' as const,
-      char_start: r.char_start,
-      char_end: r.char_end,
-    }))
-
-  const toDelete = existing
-    .filter((e) => PROSE_SOURCES.includes(e.source) && !parsedOsis.has(e.osis_ref))
-    .map((e) => e.id)
+  // The decision is the shared planner's (refRows.ts) — the server's gather
+  // engine reads an imported page by the same rule.
+  const { toInsert, toDelete } = planScriptureRefs(
+    entryId,
+    await entryDate(entryId),
+    markdown,
+    existing,
+    'inline',
+  )
 
   if (toInsert.length > 0) {
     const { error: insErr } = await sb.from('scripture_refs').insert(toInsert)

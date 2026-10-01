@@ -15,6 +15,7 @@ import { listEntries, onLocalEntryChange } from '@/lib/repo'
 import type { Entry } from '@/lib/types'
 import { markingsForEntries } from '@/lib/spiritual'
 import { requireSupabase } from '@/lib/supabase'
+import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import { allSubjects, type Subject } from '@/features/pages/subjects'
 import { listKeptSubjects, withVocabulary } from '@/features/pages/keptSubjects'
 import {
@@ -52,7 +53,10 @@ async function pageAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{
 function once<T>(key: string, load: () => Promise<T>, fallback: T): Promise<T> {
   const hit = getCache<Promise<T>>(key)
   if (hit) return hit
-  const p = load().catch((e) => {
+  // Offline, the last good read stands in before the empty fallback does — an
+  // empty ledger reads as "nothing happened this year", which is not what a
+  // failed request means (lib/offlineSnapshot.ts).
+  const p = withOfflineSnapshot(key, load).catch((e) => {
     console.error(`[ledger] ${key}`, e instanceof Error ? e.message : e)
     return fallback
   })

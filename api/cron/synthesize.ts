@@ -10,6 +10,7 @@
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { env } from '../_lib/env.js'
 import {
   isMonday,
   isFirstOfMonth,
@@ -33,6 +34,7 @@ import {
 } from '../_lib/synthesize.js'
 import {
   embedUnembedded,
+  embedUnembeddedItems,
   migrateLegacyAnswered,
   sweepOpenThreads,
   harvestPrayers,
@@ -90,8 +92,14 @@ async function synthesizeOwner(
   // from entries the model hasn't read (covers fresh native writing; the import
   // catch-up is the 'concordance' processing job). Mondays: the consolidation
   // pass — dedup aliases, merge duplicates, decay year-stale rows to dormant.
+  // With the gather engine on (GATHER_ENGINE, api/_lib/gatherEngine.ts) this cron
+  // no longer READS entries: the engine reads each one once it has settled, so a
+  // page still being written at 08:00 UTC is not harvested half-finished. The
+  // cron keeps what is not a read — consolidation, tagging, regrouping, sweeps.
+  const engine = env.gatherEngine()
+
   try {
-    concordance.scan = await scanConcordance(owner, { max: 50, source: 'repetition' })
+    if (!engine) concordance.scan = await scanConcordance(owner, { max: 50, source: 'repetition' })
     if (isMonday(now)) concordance.consolidated = await consolidateConcordance(owner)
   } catch (e) {
     concordance.error = e instanceof Error ? e.message : 'failed'
@@ -103,8 +111,13 @@ async function synthesizeOwner(
     // the local script), then embed + thread, migrate the legacy binary, and
     // (weekly) lay evidence beside open threads. Nano-only; frontier stays
     // reserved for the monthly/yearly rollups.
-    altar.harvested = await harvestPrayers(owner, { max: 50 })
-    altar.embedded = await embedUnembedded(owner)
+    if (engine) {
+      // Items only: a /pray block typed today still needs its vector to thread.
+      altar.embedded = await embedUnembeddedItems(owner)
+    } else {
+      altar.harvested = await harvestPrayers(owner, { max: 50 })
+      altar.embedded = await embedUnembedded(owner)
+    }
     // Declared threads, by SUBJECT (api/_lib/declared.ts). Tagging is the only
     // priced step and reads each line once ever, so it's bounded here; a larger
     // leftover backlog is handed to the self-chaining altar_thread engine job,

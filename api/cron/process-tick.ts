@@ -7,7 +7,7 @@
 // See docs/PROCESSING_AND_ONBOARDING.md §4.
 
 import { isAuthorized, unauthorized } from '../_lib/auth.js'
-import { drain, kickWorker } from '../_lib/processing.js'
+import { drain, enqueueSettledGathers, kickWorker } from '../_lib/processing.js'
 
 // Owners processed per tick — also the natural OpenAI rate cap. skip-locked makes
 // overlapping ticks safe.
@@ -18,11 +18,20 @@ export async function GET(req: Request): Promise<Response> {
 
   const ranAt = new Date().toISOString()
   try {
+    // Steady state (GATHER_ENGINE=on; a no-op otherwise): any owner whose writing
+    // has settled gets a gather job, which this same tick can then claim. Its own
+    // try/catch — a failed lookup must not stop imports draining.
+    let gathers = 0
+    try {
+      gathers = await enqueueSettledGathers()
+    } catch (e) {
+      console.error('[process-tick] enqueueSettledGathers failed:', e instanceof Error ? e.message : e)
+    }
     const results = await drain(K)
     // Self-chain: if this tick did work, more chunks likely remain — kick the
     // next tick. Stops naturally when a tick claims nothing (chain ends).
     if (results.length > 0) kickWorker()
-    return Response.json({ ran_at: ranAt, claimed: results.length, results })
+    return Response.json({ ran_at: ranAt, gathers, claimed: results.length, results })
   } catch (e) {
     return Response.json(
       { ran_at: ranAt, error: e instanceof Error ? e.message : 'tick failed' },

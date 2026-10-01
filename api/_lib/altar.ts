@@ -162,6 +162,21 @@ export async function embedUnembedded(
     owner,
     (q) => q.is('embedding', null),
   )
+  await embedEntries(owner, entries)
+  const { items } = await embedUnembeddedItems(owner)
+  return { entries: entries.length, items }
+}
+
+/**
+ * (Re-)embed a GIVEN set of entries, overwriting whatever vector they had. The
+ * gather engine calls this for an entry whose body changed — `embedding IS NULL`
+ * can only ever say "never embedded", not "embedded from words since rewritten".
+ */
+export async function embedEntries(
+  owner: string,
+  entries: { id: string; body_markdown: string }[],
+): Promise<void> {
+  const sb = supabaseAdmin()
   const entryBatches: { id: string; body_markdown: string }[][] = []
   for (let i = 0; i < entries.length; i += EMBED_WRITE_BATCH) {
     entryBatches.push(entries.slice(i, i + EMBED_WRITE_BATCH))
@@ -170,6 +185,11 @@ export async function embedUnembedded(
     const vecs = await embed(batch.map((e) => e.body_markdown))
     await writeEmbeddings(sb, 'set_entry_embeddings', 'entries', owner, batch.map((e, k) => ({ id: e.id, emb: vecs[k]! })))
   })
+}
+
+/** Embed the prayer/sense items that have no embedding yet (new harvest rows, new /pray blocks). */
+export async function embedUnembeddedItems(owner: string): Promise<{ items: number }> {
+  const sb = supabaseAdmin()
 
   // Prayers + senses (the clustering input).
   const items = await fetchAll<{ id: string; content: string }>(
@@ -188,7 +208,7 @@ export async function embedUnembedded(
     await writeEmbeddings(sb, 'set_item_embeddings', 'spiritual_items', owner, batch.map((it, k) => ({ id: it.id, emb: vecs[k]! })))
   })
 
-  return { entries: entries.length, items: items.length }
+  return { items: items.length }
 }
 
 // ── 3. migrate the legacy binary → encounters ──────────────────────────────────
@@ -327,8 +347,77 @@ export function isVerbatim(body: string, text: string): boolean {
   return normalizeWs(body).includes(normalizeWs(text))
 }
 
-async function markScanned(sb: SupabaseClient, ids: string[]): Promise<void> {
+// Entries per reconcile_scanned_items call. The payload travels in the request
+// body (not the URL), so this is about keeping one transaction short, not length.
+const RECONCILE_CHUNK = 60
+
+/**
+ * The harvest's one write. For each entry, atomically: drop the scanned rows the
+ * harvest no longer returns, insert the passages that are not already there, and
+ * stamp prayer_scanned_at (supabase/migrations/20260930120000_reconcile_scanned_items.sql).
+ *
+ * It used to be an insert followed by a separate watermark update, with no
+ * dedupe — so a failure between the two, or the cron and an import job reading
+ * the same entries at once, planted the same prayer twice (and the tagger was
+ * then billed for it twice). An entry with no passages is simply stamped.
+ *
+ * Returns the number of rows inserted.
+ */
+async function reconcileScanned(
+  sb: SupabaseClient,
+  owner: string,
+  entries: { id: string; created_at: string }[],
+  byEntry: Map<string, HarvestedPassage[]>,
+): Promise<number> {
+  let planted = 0
+  for (let i = 0; i < entries.length; i += RECONCILE_CHUNK) {
+    const { data, error } = await sb.rpc('reconcile_scanned_items', {
+      p_owner: owner,
+      p_entries: entries.slice(i, i + RECONCILE_CHUNK).map((e) => ({
+        entry_id: e.id,
+        created_at: e.created_at, // date the cairn to when it was prayed, not now
+        items: (byEntry.get(e.id) ?? []).map((p) => ({ type: p.type, content: p.text })),
+      })),
+    })
+    if (error) {
+      const missing = error.code === 'PGRST202' || /function|does not exist|not find/i.test(error.message ?? '')
+      if (!missing) throw error
+      // Same contract as writeEmbeddings: a deploy that lands before its
+      // migration must not stop the Altar. The old two-step write is the bug the
+      // RPC fixes (it can plant a prayer twice), so say so loudly every time.
+      console.warn(
+        '[altar] reconcile_scanned_items not found — apply migration 20260930120000. Falling back to the non-atomic insert + stamp.',
+      )
+      return planted + (await legacyInsertThenStamp(sb, owner, entries.slice(i), byEntry))
+    }
+    planted += typeof data === 'number' ? data : 0
+  }
+  return planted
+}
+
+/** The pre-RPC write, kept ONLY as the fallback above. Not idempotent. */
+async function legacyInsertThenStamp(
+  sb: SupabaseClient,
+  owner: string,
+  entries: { id: string; created_at: string }[],
+  byEntry: Map<string, HarvestedPassage[]>,
+): Promise<number> {
+  const rows = entries.flatMap((e) =>
+    (byEntry.get(e.id) ?? []).map((p) => ({
+      owner,
+      entry_id: e.id,
+      type: p.type,
+      content: p.text,
+      source: 'scanned',
+      created_at: e.created_at,
+    })),
+  )
+  if (rows.length > 0) {
+    const { error } = await sb.from('spiritual_items').insert(rows)
+    if (error) throw error
+  }
   const stamp = new Date().toISOString()
+  const ids = entries.map((e) => e.id)
   for (let i = 0; i < ids.length; i += IN_CHUNK) {
     const { error } = await sb
       .from('entries')
@@ -336,6 +425,7 @@ async function markScanned(sb: SupabaseClient, ids: string[]): Promise<void> {
       .in('id', ids.slice(i, i + IN_CHUNK))
     if (error) throw error
   }
+  return rows.length
 }
 
 /**
@@ -504,50 +594,48 @@ export async function harvestTexts(
 }
 
 /**
- * Gate-mode harvestPrayers. Inserts and watermarks an entry only after every
- * chunk of that entry has resolved. A failed chunk leaves the entry unmarked
- * with no rows — harvestPrayers inserts without dedupe, so a partial write
- * would duplicate on retry.
+ * Gate-mode harvestPrayers. Writes an entry only after every chunk of that entry
+ * has resolved: a failed chunk leaves the entry unstamped with its rows as they
+ * were, so the next run reads the whole entry again rather than reconciling it
+ * against half a harvest.
  */
 async function harvestPrayersViaGather(
   sb: SupabaseClient,
   owner: string,
   pool: { id: string; created_at: string; body_markdown: string }[],
-): Promise<{ scanned: number; candidates: number; planted: number }> {
+): Promise<HarvestRun> {
   const harvested = await gatherHarvest(pool.map((e) => ({ id: e.id, body: e.body_markdown })))
   const failed = new Set(harvested.failed)
-  const byId = new Map(pool.map((e) => [e.id, e]))
-
-  const rows: Record<string, unknown>[] = []
-  for (const [entryId, passages] of harvested.byEntry) {
-    if (failed.has(entryId)) continue
-    const e = byId.get(entryId)
-    if (!e) continue
-    for (const p of passages) {
-      rows.push({
-        owner,
-        entry_id: e.id,
-        type: p.type,
-        content: p.text,
-        source: 'scanned',
-        created_at: e.created_at,
-      })
-    }
+  const resolved = pool.filter((e) => !failed.has(e.id))
+  const planted = await reconcileScanned(sb, owner, resolved, harvested.byEntry)
+  return {
+    scanned: resolved.length,
+    candidates: pool.length,
+    planted,
+    failed: failed.size,
+    failedIds: [...failed],
   }
-  if (rows.length > 0) {
-    const { error } = await sb.from('spiritual_items').insert(rows)
-    if (error) throw error
-  }
+}
 
-  const resolved = pool.filter((e) => !failed.has(e.id)).map((e) => e.id)
-  await markScanned(sb, resolved)
-  return { scanned: pool.length, candidates: pool.length, planted: rows.length }
+/**
+ * What one harvest run did. `scanned` counts entries actually resolved (read, or
+ * skipped by the cue prefilter) — NOT entries attempted — and `failed` counts the
+ * ones whose model call failed and which therefore stay unscanned. A caller that
+ * sees failed > 0 with scanned === 0 made no progress and must not just loop.
+ */
+export interface HarvestRun {
+  scanned: number
+  candidates: number
+  planted: number
+  failed: number
+  /** The entries behind `failed` — still unread, with their rows as they were. */
+  failedIds: string[]
 }
 
 export async function harvestPrayers(
   owner: string,
   opts: { max?: number } = {},
-): Promise<{ scanned: number; candidates: number; planted: number }> {
+): Promise<HarvestRun> {
   const sb = supabaseAdmin()
 
   const all = await fetchAll<{ id: string; created_at: string; body_markdown: string }>(
@@ -557,7 +645,21 @@ export async function harvestPrayers(
     owner,
     (q) => q.is('prayer_scanned_at', null).order('created_at', { ascending: true }),
   )
-  const pool = opts.max ? all.slice(0, opts.max) : all
+  return harvestEntries(owner, opts.max ? all.slice(0, opts.max) : all)
+}
+
+/**
+ * Harvest a GIVEN set of entries — the half of harvestPrayers that does not care
+ * how they were chosen. harvestPrayers picks "never scanned"; the gather engine
+ * (gatherEngine.ts) picks "words changed since the last gather", which is how an
+ * edited entry gets read again. Either way the write is reconcileScanned, so a
+ * re-read keeps the rows that still stand and drops the ones that do not.
+ */
+export async function harvestEntries(
+  owner: string,
+  pool: { id: string; created_at: string; body_markdown: string }[],
+): Promise<HarvestRun> {
+  const sb = supabaseAdmin()
 
   if (env.gatherMode() === 'gate') {
     return harvestPrayersViaGather(sb, owner, pool)
@@ -566,8 +668,8 @@ export async function harvestPrayers(
   const candidates = pool.filter((e) => HARVEST_CUE.test(e.body_markdown))
   const noncandidates = pool.filter((e) => !HARVEST_CUE.test(e.body_markdown))
 
-  // Entries with no prayer cue: nothing to read, just mark them scanned.
-  await markScanned(sb, noncandidates.map((e) => e.id))
+  // Entries with no prayer cue: nothing to read, just stamp them scanned.
+  await reconcileScanned(sb, owner, noncandidates, new Map())
 
   // Batches run with bounded concurrency so the whole archive finishes in minutes
   // (a long sequential run kept getting killed before it could complete).
@@ -576,43 +678,29 @@ export async function harvestPrayers(
     batches.push(candidates.slice(i, i + HARVEST_LLM_BATCH))
   }
 
+  const failedIds: string[] = []
   const planted = (
     await mapPool(batches, POOL, async (batch) => {
       const harvested = await harvestBatch(
         batch.map((e) => ({ id: e.id, body: e.body_markdown })),
       )
-      if (harvested === null) return 0 // leave this batch unmarked so it retries next run
-
-      // Iterate the harvest map, not the batch: Map preserves insertion order,
-      // so this keeps the model's ordering exactly as the inline version had it.
-      // Row order survives into spiritual_items ids, which declared.ts's
-      // same-day dedupe resolves by lowest id.
-      const byId = new Map(batch.map((e) => [e.id, e]))
-      const rows: Record<string, unknown>[] = []
-      for (const [entryId, passages] of harvested) {
-        const e = byId.get(entryId)
-        if (!e) continue
-        for (const p of passages) {
-          rows.push({
-            owner,
-            entry_id: e.id,
-            type: p.type,
-            content: p.text,
-            source: 'scanned',
-            created_at: e.created_at, // date the cairn to when it was prayed, not now
-          })
-        }
+      if (harvested === null) {
+        // Leave this batch unstamped so it is read again next run — and COUNT it,
+        // so a run in which nothing could be read is visible to the caller.
+        failedIds.push(...batch.map((e) => e.id))
+        return 0
       }
-      if (rows.length > 0) {
-        const { error } = await sb.from('spiritual_items').insert(rows)
-        if (error) throw error
-      }
-      await markScanned(sb, batch.map((e) => e.id))
-      return rows.length
+      return reconcileScanned(sb, owner, batch, harvested)
     })
   ).reduce((a, b) => a + b, 0)
 
-  return { scanned: pool.length, candidates: candidates.length, planted }
+  return {
+    scanned: pool.length - failedIds.length,
+    candidates: candidates.length,
+    planted,
+    failed: failedIds.length,
+    failedIds,
+  }
 }
 
 // ── 4. weekly open-thread evidence sweep (P2) ──────────────────────────────────

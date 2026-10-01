@@ -61,6 +61,18 @@ export const env = {
     const v = (process.env.GATHER_MODE ?? '').trim().toLowerCase()
     return v === 'gate' ? 'gate' : 'cue'
   },
+  // The gather engine (docs/GATHER.md §Engine, migration 20260930130000). Default
+  // OFF: merging must not change who reads an entry or when. `on` hands harvest,
+  // concordance and embedding to the per-owner `gather` job — driven by "the
+  // words changed and the writer stopped" — and takes them off the daily cron.
+  // Needs the migration applied first; unknown values mean off.
+  gatherEngine: (): boolean => (process.env.GATHER_ENGINE ?? '').trim().toLowerCase() === 'on',
+  // Minutes an entry must sit untouched before the engine reads it.
+  gatherSettleMinutes: (): number => {
+    const raw = (process.env.GATHER_SETTLE_MINUTES ?? '').trim()
+    const n = Number(raw)
+    return raw !== '' && Number.isFinite(n) && n >= 0 ? n : 30
+  },
   gatherSentiment: (): 'v2' | 'tight-denial' => {
     const v = (process.env.GATHER_SENTIMENT ?? '').trim().toLowerCase()
     return v === 'tight-denial' ? 'tight-denial' : 'v2'

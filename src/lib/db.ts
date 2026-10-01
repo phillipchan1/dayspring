@@ -96,6 +96,22 @@ export interface PendingUploadRow {
   quarantined?: boolean
 }
 
+/**
+ * The last good answer to a surface's server read (the Altar field, a rollup,
+ * the Life Map), kept so the surface can still render with no network.
+ *
+ * Unlike `entries`, this is NOT a source of truth and nothing is derived from it
+ * on the way back up: it is a photograph of what the server last said, served
+ * only when the server cannot be reached (lib/offlineSnapshot.ts). Stamped with
+ * the owner it was read under, and scrubbed with everything else on sign-out.
+ */
+export interface SnapshotRow {
+  key: string
+  owner: string
+  value: unknown
+  at: number
+}
+
 interface DayspringDB extends DBSchema {
   entries: { key: string; value: Entry }
   outbox: { key: string; value: OutboxOp; indexes: { 'by-entry': string } }
@@ -104,13 +120,14 @@ interface DayspringDB extends DBSchema {
   dictation: { key: string; value: PendingDictationRow }
   attUploads: { key: string; value: PendingUploadRow }
   marks: { key: string; value: MarkRow; indexes: { 'by-entry': string } }
+  snapshots: { key: string; value: SnapshotRow; indexes: { 'by-at': number } }
 }
 
 let dbp: Promise<IDBPDatabase<DayspringDB>> | null = null
 
 function db(): Promise<IDBPDatabase<DayspringDB>> {
   if (!dbp) {
-    dbp = openDB<DayspringDB>('dayspring', 5, {
+    dbp = openDB<DayspringDB>('dayspring', 6, {
       upgrade(d, oldVersion) {
         if (oldVersion < 1) {
           d.createObjectStore('entries', { keyPath: 'id' })
@@ -137,6 +154,12 @@ function db(): Promise<IDBPDatabase<DayspringDB>> {
           // so Remember reads instantly and marking works on a plane.
           const marks = d.createObjectStore('marks', { keyPath: 'id' })
           marks.createIndex('by-entry', 'entryId')
+        }
+        if (oldVersion < 6) {
+          // Last-good server reads, so the surfaces built from derived data
+          // (Altar, Ascent, Life Map) still render offline. Lossless to evict.
+          const snapshots = d.createObjectStore('snapshots', { keyPath: 'key' })
+          snapshots.createIndex('by-at', 'at')
         }
       },
     })
@@ -203,7 +226,38 @@ export async function cacheClearAll(): Promise<void> {
     // Marks are verbatim entry text. Leaving them behind on an owner switch
     // would leak one tenant's sentences into another's Remember.
     d.clear('marks'),
+    // Snapshots are the Altar's prayers and the rollups' quotes — content, the
+    // same as the entries they were drawn from.
+    d.clear('snapshots'),
   ])
+}
+
+// ── snapshots (last-good server reads, for offline) ─────────────────────────
+export async function snapshotGet(key: string): Promise<SnapshotRow | undefined> {
+  return (await db()).get('snapshots', key)
+}
+export async function snapshotPut(row: SnapshotRow): Promise<void> {
+  await (await db()).put('snapshots', row)
+}
+/** Drop the oldest rows beyond `keep`, and anything older than `maxAgeMs`. */
+export async function snapshotPrune(keep: number, maxAgeMs: number): Promise<void> {
+  const d = await db()
+  const tx = d.transaction('snapshots', 'readwrite')
+  const cutoff = Date.now() - maxAgeMs
+  const total = await tx.store.count()
+  let excess = Math.max(0, total - keep)
+  // 'by-at' ascending = oldest first.
+  let cursor = await tx.store.index('by-at').openCursor()
+  while (cursor) {
+    if (excess > 0 || cursor.value.at < cutoff) {
+      await cursor.delete()
+      if (excess > 0) excess--
+    } else {
+      break
+    }
+    cursor = await cursor.continue()
+  }
+  await tx.done
 }
 
 // ── marks (local mirror + offline intent) ───────────────────────────────────
