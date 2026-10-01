@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.460",
+  "appVersion": "1.0.463",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -747,6 +747,12 @@
       {
         "id": "setting.editor-font-auto",
         "key": "editorFontAuto",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.face-named",
+        "key": "faceNamed",
         "default": true,
         "type": "boolean"
       },
