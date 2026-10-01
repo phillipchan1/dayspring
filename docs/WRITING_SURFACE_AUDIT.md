@@ -288,7 +288,7 @@ compares the position of every line of text against the dateline above it
 underline, link, heading, bullet, task, quote, prayer and scripture blocks).
 
 **Before:** Cloister drifted 116px on the rich sample; every voice drifted
-226–315px on a phone. **After:** 0px in every voice × mode × width (one
+226–315px on a phone. **After:** 0–1px in every voice × mode at 390, 768, 1024 and 1440px (one
 documented exception below).
 
 What was different, and is now the same:
@@ -302,7 +302,7 @@ What was different, and is now the same:
 | Highlights had a margin the editor's didn't | Same −0.02em bleed on both |
 | Scripture citation: the editor's face vs the theme's | Both from `--font-label` and the voice's label tracking and case |
 | Reader date: small mono caps, its own size | The editor's dateline — same ornament per voice, same size, one rule in global.css for both |
-| Phone reader margin 16px, editor 20pt | `--read-gutter`: the editor's 1.25rem on a phone (8px of measure re-broke every paragraph) |
+| Reader margin was fluid (`clamp(1rem, 3vw, 2rem)`); the editor's is fixed | `--read-gutter` = the editor's own: 1.5rem, 1.25rem below 768px. 8px of extra measure on a phone and 2px on a tablet were each enough to re-break a paragraph |
 | Vellum's ¶ before headings sat in flow on the reader only (27px) | Hangs in the margin on both surfaces; off on phones on both, where a 20pt margin can't hold it |
 
 **Sizes are one system.** Each voice sets `--voice-scale`; `--voice-text-size`
