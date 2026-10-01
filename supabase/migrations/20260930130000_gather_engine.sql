@@ -33,6 +33,14 @@
 -- None of the three settable columns is in ENTRY_COLUMNS, so by the rule in
 -- 20260823120000 writing them never moves updated_at.
 
+-- Adding a STORED generated column rewrites the table, and a rewrite rebuilds
+-- every index on it — including entries_embedding_idx (ivfflat, lists=100),
+-- whose build wants ~62 MB against a default maintenance_work_mem of 32 MB. The
+-- first attempt at this migration failed on exactly that ("memory required is
+-- 62 MB, maintenance_work_mem is 32 MB") before anything was written. Raise it
+-- for this session; it is put back at the end of the file.
+set maintenance_work_mem = '256MB';
+
 alter table public.entries
   add column if not exists body_hash text generated always as (md5(body_markdown)) stored;
 alter table public.entries add column if not exists gathered_hash text;
@@ -187,3 +195,5 @@ grant execute on function public.gather_pending_owners(interval, integer)       
 grant execute on function public.gather_pending_count(uuid, interval)           to service_role;
 grant execute on function public.gather_pending_entries(uuid, interval, integer) to service_role;
 grant execute on function public.gather_stamp(uuid, jsonb, integer)             to service_role;
+
+reset maintenance_work_mem;
