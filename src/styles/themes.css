@@ -1569,7 +1569,10 @@
 [data-theme='sabbath'] .markdown-body,
 [data-theme='grove'] .markdown-body {
   --scripture-rule-image: none;
-  --scripture-indent: 0;
+  /* 0px, never a bare 0: a ritual adds its own inset to this in a calc(), and
+     `calc(1.28em + 0)` is invalid — the whole padding drops and the passage
+     falls back onto the ritual's spine. */
+  --scripture-indent: 0px;
   /* What the bare voice spends instead of a mark. This was `margin: 1.4em 0`
      on the widget; on a line it has to be padding — see the note above. */
   --scripture-air: 1.1em;
