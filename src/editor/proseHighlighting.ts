@@ -257,7 +257,9 @@ const blockLineTheme = EditorView.theme({
   '.cm-line.cm-md-quote': {
     fontStyle: 'italic',
     color: 'color-mix(in srgb, var(--text) 72%, var(--md-quote))',
-    paddingLeft: '0.95em',
+    // The inset a marking's words and a verse's sit at, so every ruled block
+    // in a column shares one text edge.
+    paddingLeft: '0.85rem',
     boxShadow: 'inset 2px 0 0 color-mix(in srgb, var(--md-quote) 45%, transparent)',
   },
 })

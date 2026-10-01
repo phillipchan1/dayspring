@@ -68,8 +68,11 @@ interface Props {
 
 type Page = 'format' | 'swatches' | 'system' | 'replace'
 
+/** Breathing room between the bar and the viewport's edges. */
+const EDGE_PAD = 12
+
 function clampPosition(rect: DOMRect, bar: DOMRect) {
-  const pad = 10
+  const pad = EDGE_PAD
   const gap = 10
   // Clamp to the visual viewport: on iOS the on-screen keyboard shrinks
   // visualViewport while window.innerHeight stays put, so clamping to the
@@ -296,7 +299,10 @@ export function SelectionFormatBar({
   const pageLabel =
     page === 'swatches' ? 'Highlight colour' : page === 'system' ? 'Edit' : page === 'replace' ? 'Replace' : 'Formatting'
 
-  const maxWidth = Math.max(0, viewportWidth - 16)
+  // Both edges' padding. This was `- 16` against a 10px pad each side, so a
+  // bar at full width could only be placed with its right edge off-screen —
+  // on a phone, the touch row's last label sat cut in half against the glass.
+  const maxWidth = Math.max(0, viewportWidth - EDGE_PAD * 2)
 
   const face = (action: BarAction, label: string) =>
     // A lone bookmark glyph floating over a verse is a riddle; with only one

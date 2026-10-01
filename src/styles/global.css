@@ -2824,6 +2824,17 @@ html[data-focus-mode] .focus-controls {
     bottom: max(8.5rem, calc(env(safe-area-inset-bottom) + 8rem));
   }
 }
+/* On a phone the corner this sits in is not "a corner nobody is writing near"
+   — it is over the prose. At 48% on a half-clear ground the words showed
+   through it, and with no hover to firm it up it read as a smudge on the
+   page. Solid and quiet instead: the icons stay soft, the ground doesn't. */
+@media (max-width: 768px) and (hover: none) {
+  .focus-controls--docked {
+    opacity: 0.92;
+    background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+    border-color: var(--border-subtle);
+  }
+}
 
 /* ── the chapter pane takes the right edge ──────────────────────────────────
  *
@@ -3122,6 +3133,14 @@ html[data-chapter-pane] .focus-controls--docked {
 .markdown-body mark.hl--sky { --hl-hue: var(--hl-sky); }
 .markdown-body mark.hl--lilac { --hl-hue: var(--hl-lilac); }
 
+/* No soft wrap beside a concealed inline marker — see ConcealWidget in
+   concealMarkers.ts. Without this, punctuation after **bold**, *italic*, a
+   highlight or a link could open the next line on its own. */
+.cm-line img.cm-widgetBuffer:has(+ .cm-conceal),
+.cm-line .cm-conceal + img.cm-widgetBuffer {
+  display: none;
+}
+
 /* Editor highlighter wash. Colour is applied per `.cm-hl--*` so it reads
    `--hl-*` off [data-theme] like every other surface. Kept here rather than
    in EditorView.theme: a custom-property hop inside style-mod can leave
@@ -3236,7 +3255,7 @@ html[data-chapter-pane] .focus-controls--docked {
   background-repeat: no-repeat;
 }
 .markdown-body .read-mark > :last-child { margin-bottom: 0; }
-.markdown-body strong { color: var(--text-bright); }
+.markdown-body strong { color: color-mix(in srgb, var(--text) 50%, var(--text-bright)); } /* see highlight.ts */
 .markdown-body em { font-style: italic; } /* ink, not --md-emphasis — see highlight.ts */
 .markdown-body a { color: var(--md-link); }
 .markdown-body ul,
@@ -3247,7 +3266,7 @@ html[data-chapter-pane] .focus-controls--docked {
 .markdown-body ol ol ol { list-style-type: lower-roman; }
 .markdown-body blockquote {
   margin: 0 0 1em;
-  padding: 0.1em 0.95em;
+  padding: 0.1em 0.85rem;
   border-left: 2px solid color-mix(in srgb, var(--md-quote) 45%, transparent);
   color: color-mix(in srgb, var(--text) 72%, var(--md-quote));
   font-style: italic;

@@ -38,6 +38,13 @@ import '@fontsource/atkinson-hyperlegible/400-italic.css'
 import '@fontsource/atkinson-hyperlegible/700.css'
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
+// Inter is also the Sans writing face (settings → Writing font), and a face you
+// write in needs its italic and its bold — without these, *emphasis* in Sans
+// was a slanted roman and **strong** a smeared 500.
+import '@fontsource/inter/400-italic.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/inter/700.css'
+import '@fontsource/inter/700-italic.css'
 // The voices' own faces (D-028). Variable, unlike everything above — which is
 // also what makes `fontOpticalSizing: 'auto'` in spiritualBlockDecoration.ts
 // and usePracticeInsertion.ts mean anything for the first time; against the

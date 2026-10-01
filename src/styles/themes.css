@@ -12,7 +12,18 @@
   /* Reflections roles: Fraunces for display headings, Newsreader for quoted words. */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
-  /* Self-hosted writing faces — the picker maps to these (see EDITOR_FONT_VARS). */
+  /* Self-hosted writing faces — the picker maps to these (see EDITOR_FONT_VARS).
+     FIXED: no voice block may repoint a --face-* / --font-iawriter /
+     --font-atkinson. The picker used to point at --font-serif and
+     --font-display, which every voice repoints, so "Serif" set JetBrains Mono
+     in Plainsong and Atkinson in Vigil, and "Literary" set Archivo — a sans —
+     in Cloister. A face picked by name has to be that face in every voice. */
+  --face-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --face-literary: 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* Inter, not the system stack: a designed face with the same metrics on
+     every platform (the system stack is SF on Apple, Segoe on Windows and
+     DejaVu on Linux, and EDITOR_FACE_METRICS can only be tuned to one). */
+  --face-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-iawriter: 'iA Writer Duo', 'JetBrains Mono', ui-monospace, monospace;
   --font-atkinson: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
   --font-entry-list: 'Inter', -apple-system, sans-serif;
@@ -67,7 +78,8 @@
   --editor-line-height-base: 1.7;
   --font-scale: 1;
   --line-height-scale: 1;
-  --editor-font-size: calc(var(--editor-font-size-base) * var(--font-scale));
+  /* --device-scale: phones only, below. */
+  --editor-font-size: calc(var(--editor-font-size-base) * var(--font-scale) * var(--device-scale, 1));
   --editor-line-height: calc(var(--editor-line-height-base) * var(--line-height-scale));
   --editor-max-width: 42rem; /* deep-margin centered writing column */
 
@@ -161,6 +173,18 @@
   --k-learned: #6f7d61;
   --k-story: #7a5c43;
   --k-absence: #8a8175;
+}
+
+/* A phone sets type smaller than the desk — the reader holds it at half the
+   distance. The slider's number is the same everywhere; a phone sets it at
+   0.82 of that, so the 24px default writes at ~19.7px: about 44 characters a
+   line on a 390pt screen, where it was 28 — every third line a two-word
+   widow. Multiplies with the voice and face scales, so every voice keeps its
+   proportions and the reader's slider still moves it. */
+@media (max-width: 600px) {
+  :root {
+    --device-scale: 0.82;
+  }
 }
 
 /* ── Dawn (light) ───────────────────────────────────────────────────────── */
@@ -655,7 +679,10 @@
      Dim sand: findable without being the brightest thing on screen. */
   --accent: #8a7f6a;
   --accent-soft: rgba(138, 127, 106, 0.12);
-  --selection-bg: color-mix(in srgb, var(--accent) 44%, var(--bg-elevated));
+  /* 26%, not 44: Vigil's text is dim by design, and a lighter selection
+     ground made selected words HARDER to read than unselected ones (3.4:1
+     against 4.9). At 26% they read at 4.6:1 and the selection still shows. */
+  --selection-bg: color-mix(in srgb, var(--accent) 26%, var(--bg-elevated));
   --selection-fg: var(--text-bright);
 
   /* One ramp, seven stops, all at or below the ceiling. Headings are the top
@@ -1314,7 +1341,11 @@
   --scripture-rule: color-mix(in srgb, var(--accent) 32%, transparent);
   --scripture-rule-image: linear-gradient(var(--scripture-rule), var(--scripture-rule));
   --scripture-rule-width: 1px;
-  --scripture-indent: 1rem;
+  /* 0.85rem: the inset a marking's words sit at (spiritualBlockDecoration) and
+     a quote's (proseHighlighting). Three ruled blocks in a column, three
+     different text edges — 16, 13.6 and 22.8px — was the one misalignment
+     left on the page. A voice may still set its own (Sabbath: 0, no rule). */
+  --scripture-indent: 0.85rem;
   --scripture-air: 0.3em;
 }
 

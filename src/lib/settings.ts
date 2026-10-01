@@ -15,12 +15,61 @@ export type EditorFont = 'serif' | 'literary' | 'typewriter' | 'mono' | 'sans' |
  * font definitions live in one place.
  */
 export const EDITOR_FONT_VARS: Record<EditorFont, string> = {
-  serif: 'var(--font-serif)', // Newsreader (default)
-  literary: 'var(--font-display)', // Fraunces
+  // Fixed tokens only — never one a voice repoints. See themes.css `:root`.
+  serif: 'var(--face-serif)', // Newsreader (default)
+  literary: 'var(--face-literary)', // Fraunces
   typewriter: 'var(--font-iawriter)', // iA Writer Duo
   mono: 'var(--font-mono)', // JetBrains Mono
-  sans: 'var(--font-sans)', // system sans
+  sans: 'var(--face-sans)', // Inter
   readable: 'var(--font-atkinson)', // Atkinson Hyperlegible
+}
+
+/**
+ * How big, and how loosely led, each face has to be set to read at the same
+ * size as Newsreader at the reader's own number.
+ *
+ * A voice tunes its own face (`--font-scale` in themes.css: Plainsong's mono at
+ * 0.72, Vellum's Garamond at 1.08). A face picked in Advanced typography used
+ * to inherit the VOICE's number, which is the wrong face's: JetBrains Mono at
+ * a full 24px in Dawn, Newsreader at 17px in Plainsong.
+ *
+ * Measured, not guessed — x-height and mean advance against Newsreader's
+ * (0.450 / 0.412 em): Inter and JetBrains Mono sit 22% taller, iA Writer Duo
+ * is half again as wide. Mono faces land between the two ratios, because a
+ * fixed pitch reads large at any x-height; they match Plainsong's tuning.
+ */
+export const EDITOR_FACE_METRICS: Record<EditorFont, { scale: number; leading: number }> = {
+  serif: { scale: 1, leading: 1 },
+  literary: { scale: 0.96, leading: 1 },
+  typewriter: { scale: 0.78, leading: 1.06 },
+  mono: { scale: 0.72, leading: 1.07 },
+  sans: { scale: 0.86, leading: 1 },
+  readable: { scale: 0.93, leading: 1.02 },
+}
+
+/**
+ * Point the writing surface at the settings' face.
+ *
+ * Following the voice: every inline property comes OFF, so the [data-theme]
+ * block's face and tuning show through (an inline value would pin every voice
+ * to one face). A face picked by hand: the face, plus that face's own scale —
+ * unless it is the voice's own face, whose tuning the voice already carries.
+ */
+export function applyEditorFace(
+  root: HTMLElement,
+  s: Pick<Settings, 'editorFont' | 'editorFontAuto' | 'voice'>,
+): void {
+  const own = s.editorFontAuto || s.editorFont === getVoice(s.voice).face
+  if (s.editorFontAuto) root.style.removeProperty('--font-editor')
+  else root.style.setProperty('--font-editor', EDITOR_FONT_VARS[s.editorFont])
+  if (own) {
+    root.style.removeProperty('--font-scale')
+    root.style.removeProperty('--line-height-scale')
+  } else {
+    const m = EDITOR_FACE_METRICS[s.editorFont]
+    root.style.setProperty('--font-scale', String(m.scale))
+    root.style.setProperty('--line-height-scale', String(m.leading))
+  }
 }
 
 export const FONT_SIZE_MIN = 14

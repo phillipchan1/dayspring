@@ -6,7 +6,7 @@ import { useSettingsSync } from './hooks/useSettingsSync'
 import { useResolvedTheme } from './hooks/useResolvedTheme'
 import { isLightTheme } from './lib/resolveTheme'
 import { useSubscription } from './hooks/useSubscription'
-import { EDITOR_FONT_VARS } from './lib/settings'
+import { applyEditorFace } from './lib/settings'
 import { SetupNotice } from './components/SetupNotice'
 import { SignIn } from './components/SignIn'
 import { JournalScreen } from './features/journal/JournalScreen'
@@ -65,14 +65,8 @@ export function App() {
     root.style.setProperty('--editor-font-size-base', `${settings.fontSize}px`)
     root.style.setProperty('--editor-line-height-base', String(settings.lineHeight))
     root.style.setProperty('--editor-max-width', `${settings.maxWidth}rem`)
-    // While the face follows the voice, the inline property has to be REMOVED,
-    // not merely left stale — an inline style beats the [data-theme] block, so
-    // setting it here would pin every voice to one font.
-    if (settings.editorFontAuto) {
-      root.style.removeProperty('--font-editor')
-    } else {
-      root.style.setProperty('--font-editor', EDITOR_FONT_VARS[settings.editorFont])
-    }
+    // The face, and a hand-picked face's own scale. See applyEditorFace.
+    applyEditorFace(root, settings)
   }, [
     resolvedTheme,
     settings.fontSize,
@@ -80,6 +74,7 @@ export function App() {
     settings.maxWidth,
     settings.editorFont,
     settings.editorFontAuto,
+    settings.voice,
   ])
 
   if (!isSupabaseConfigured) return <SetupNotice />

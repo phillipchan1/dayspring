@@ -196,7 +196,42 @@ have found most of these; the numbers did.
   sends Home to the start of the words. Worth doing alongside headings, which
   behave the same way.
 
-## 6. Re-running
+## 6. Third run — 1 Oct 2026: faces, colour, mobile, selection
+
+Same method, wider matrix: all 11 palettes through real settings (voice ×
+appearance), all six writing faces as hand-picked overrides, phone width, a
+live selection, every highlight and marking on one page, and a WCAG contrast
+table computed in the browser for every text role, the selection and all five
+highlight washes in every palette.
+
+The colours held up — body text 8.6:1 or better everywhere but Vigil (4.9,
+dim by design), highlight washes balanced across hues at 1.3–1.5:1 against the
+page with text on them at 6.2+. The faces did not.
+
+| # | Finding | Status |
+|---|---|---|
+| T1 | The writing-font picker pointed at `--font-serif` / `--font-display`, which every voice repoints: **Serif set JetBrains Mono in Plainsong** and Atkinson in Vigil; **Literary set Archivo** — a sans — in Cloister | **fixed** — fixed `--face-*` tokens; a test asserts no voice block declares one |
+| T2 | A hand-picked face inherited the VOICE's size tuning: Mono at a full 24px in Dawn, Serif at 17px in Plainsong. Measured x-heights: Inter and JetBrains Mono sit 22% taller than Newsreader, iA Writer Duo is 50% wider | **fixed** — `EDITOR_FACE_METRICS` (scale + leading per face), applied by `applyEditorFace` unless the face is the voice's own |
+| T3 | "Sans" was the system stack — SF, Segoe or DejaVu depending on the machine — and Inter, the bundled sans, shipped without italic or bold | **fixed** — Sans is Inter, with 400 italic, 600, 700, 700 italic |
+| T4 | The settings preview set the raw slider number in the raw face, ignoring every scale: it showed Plainsong's mono at 24px while the page wrote at 17 | **fixed** — previews the surface's own computed tokens |
+| T5 | Punctuation after any formatting could open the next line: `**bold**, and` broke before the comma. CodeMirror's zero-width `<img>` widget buffers flank every concealed marker, and CSS gives every atomic inline a wrap opportunity | **fixed** — inline-span markers render as `.cm-conceal`; the buffers beside them (never needed: the reveal rule is inclusive) are dropped. 23 orphan widths in a 4px sweep before, 0 of 726 after |
+| T6 | Phone: the 24px default set ~28 characters a line on a 390pt screen | **fixed** — `--device-scale: 0.82` under 600px: ~19.7px, ~36–44 characters, slider still relative; margins 16 → 20px |
+| T7 | Phone: the touch format bar could only be placed with its right edge off the glass (max width `vw − 16` against a 10px pad each side) | **fixed** |
+| T8 | Phone: the docked focus/appearance cluster sat over the prose at 48% opacity on a half-clear ground — the words showed through it | **fixed** — solid and quiet on touch phones |
+| T9 | Bold switched ink: `--text-bright` is near-black against Dawn's warm brown | **fixed** — half a step toward bright; weight does the work |
+| T10 | Quote, marking and verse each set their words at a different inset from their rule (22.8 / 13.6 / 16px) | **fixed** — one 0.85rem text edge; Sabbath keeps its bare verse |
+| T11 | Vigil: selected words were harder to read than unselected ones (3.4:1 vs 4.9) | **fixed** — 4.6:1 |
+
+### Left as they are
+
+- **Mono chrome labels** (bottom tabs, save status) are an app-wide style, 253
+  uses deep — a chrome decision, not a writing-surface defect.
+- **The selection's hue.** Light palettes select in their own accent, which in
+  Dawn sits near the rose highlighter. Distinguishable today (1.47 vs 1.39
+  against the page, and selected text is set in `--selection-fg`), but if
+  people start confusing a selection with a highlight, this is where to look.
+
+## 7. Re-running
 
 ```bash
 npm run typecheck
@@ -205,7 +240,8 @@ npx vitest run src/editor      # the writing surface alone
 ```
 
 `src/editor/pointerInput.test.ts` is the regression net for §3;
-`listLayout.test.ts`, `listContinue.test.ts` and `concealMarkers.test.ts` for §5. It drives real
+`listLayout.test.ts`, `listContinue.test.ts` and `concealMarkers.test.ts` for §5;
+`src/lib/editorFace.test.ts` for §6. It drives real
 events through a real `EditorView` and asserts on what a handler *below*
 `editorTap` sees, so it tests the property that actually matters: nothing
 downstream gets a second crack at a gesture already served.
