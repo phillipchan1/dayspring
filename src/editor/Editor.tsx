@@ -10,6 +10,7 @@ import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
 import { highlightDecoration } from './highlightDecoration'
 import { concealMarkersExtension } from './concealMarkers'
+import { listLayoutExtension } from './listLayout'
 import { typewriterExtension } from './typewriter'
 import { dimmingExtension } from './dimming'
 import { ritualHoldExtension } from './ritualHold'
@@ -607,7 +608,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // closing delimiter.
           proseHighlighting(),
           highlightDecoration(),
-          concealCompartment.current.of(showMarkdownSyntax ? [] : concealMarkersExtension()),
+          concealCompartment.current.of(showMarkdownSyntax ? [] : [concealMarkersExtension(), listLayoutExtension()]),
           orderedListNumberingExtension(),
           titleCompartment.current.of(
             titleStyling
@@ -798,7 +799,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     reconfigure(
       viewRef.current,
       concealCompartment.current,
-      showMarkdownSyntax ? [] : concealMarkersExtension(),
+      showMarkdownSyntax ? [] : [concealMarkersExtension(), listLayoutExtension()],
     )
   }, [showMarkdownSyntax])
 

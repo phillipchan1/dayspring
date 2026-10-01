@@ -83,11 +83,18 @@ describe('concealMarkers', () => {
     ])
   })
 
-  // "- " IS the bullet, and ">" is the only sign a line is a quote.
-  it('never hides list or quote markers', () => {
+  // List prefixes are listLayout.ts's job (a fixed marker column), not this
+  // plugin's.
+  it('never hides list markers', () => {
     expect(concealed('- an item')).toEqual([])
-    expect(concealed('> a quote')).toEqual([])
     expect(concealed('- [ ] a task')).toEqual([])
+  })
+
+  // The left rule on `.cm-md-quote` is the signal now, so `> ` goes the way
+  // of a heading's `## ` — the space with it, or the quote would indent.
+  it('hides a quote marker and the space after it', () => {
+    expect(concealed('> a quote')).toEqual(['> '])
+    expect(concealed('> one\n> two')).toEqual(['> ', '> '])
   })
 
   it('leaves a fenced spiritual block completely alone', () => {
@@ -148,6 +155,13 @@ describe('concealMarkers — the reveal rule', () => {
   it('reveals a heading hash with the caret at the line start, or a selection into it', () => {
     expect(concealed('# Title\n\nbody', { anchor: 0 })).toEqual([])
     expect(concealed('# Title\n\nbody', { anchor: 0, head: 4 })).toEqual([])
+  })
+
+  it('keeps a quote marker hidden while writing the quote, revealing it at the line start', () => {
+    expect(concealed('> a quote\n\nbody', { anchor: 2 })).toEqual(['> '])
+    expect(concealed('> a quote\n\nbody', { anchor: 5 })).toEqual(['> '])
+    expect(concealed('> a quote\n\nbody', { anchor: 0 })).toEqual([])
+    expect(concealed('> a quote\n\nbody', { anchor: 1 })).toEqual([])
   })
 
   it('keeps hashes with no space yet visible while they are being typed', () => {

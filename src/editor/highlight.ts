@@ -17,7 +17,11 @@ export const markdownHighlight = HighlightStyle.define([
 
   // Inline emphasis.
   { tag: t.strong, fontWeight: '700', color: 'var(--text-bright)' },
-  { tag: t.emphasis, fontStyle: 'italic', color: 'var(--md-emphasis)' },
+  // Italic is a change of voice, not of ink. It used to wear --md-emphasis —
+  // purple in Dawn, pink in Compline — which is a code editor's token colour,
+  // and on a page of prose it read as a link nobody could click. The token
+  // stays (it's the Sense marking's hue); emphasis no longer borrows it.
+  { tag: t.emphasis, fontStyle: 'italic' },
   { tag: t.strikethrough, textDecoration: 'line-through', color: 'var(--text-dim)' },
   // Underline (`++text++`, our own grammar extension — see markdownMarks.ts).
   // Two other things in this editor are already underlined: links, which carry
@@ -32,11 +36,24 @@ export const markdownHighlight = HighlightStyle.define([
     textDecorationColor: 'color-mix(in srgb, currentColor 55%, transparent)',
   },
 
-  // Code.
+  // Code. Deliberately just the face and a tint: a fence body (every marking,
+  // every scripture block) is ALSO tagged t.monospace, so anything boxy here —
+  // a background, padding, a smaller size — would land inside every prayer.
+  // spiritualBlockDecoration resets face and colour on those lines; it does
+  // not reset the rest.
   { tag: t.monospace, fontFamily: 'var(--font-mono)', color: 'var(--md-code)' },
 
-  // Links.
-  { tag: t.link, color: 'var(--md-link)', textDecoration: 'underline' },
+  // Links. A full-strength underline in the link colour shouted over the
+  // sentence around it; a hairline at a little distance reads as "this goes
+  // somewhere" without striking through the descenders.
+  {
+    tag: t.link,
+    color: 'var(--md-link)',
+    textDecoration: 'underline',
+    textDecorationThickness: '1px',
+    textUnderlineOffset: '0.2em',
+    textDecorationColor: 'color-mix(in srgb, var(--md-link) 45%, transparent)',
+  },
   { tag: t.url, color: 'var(--md-link)' },
 
   // List markers fade via t.processingInstruction below — the grammar tags
