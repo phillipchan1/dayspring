@@ -10,16 +10,16 @@
     Consolas, monospace;
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   /* Reflections roles: Fraunces for display headings, Newsreader for quoted words. */
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-serif: 'Newsreader Variable', 'Newsreader', Georgia, 'Times New Roman', serif;
   /* Self-hosted writing faces — the picker maps to these (see EDITOR_FONT_VARS).
      FIXED: no voice block may repoint a --face-* / --font-iawriter /
      --font-atkinson. The picker used to point at --font-serif and
      --font-display, which every voice repoints, so "Serif" set JetBrains Mono
      in Plainsong and Atkinson in Vigil, and "Literary" set Archivo — a sans —
      in Cloister. A face picked by name has to be that face in every voice. */
-  --face-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --face-literary: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --face-serif: 'Newsreader Variable', 'Newsreader', Georgia, 'Times New Roman', serif;
+  --face-literary: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
   /* Inter, not the system stack: a designed face with the same metrics on
      every platform (the system stack is SF on Apple, Segoe on Windows and
      DejaVu on Linux, and EDITOR_FACE_METRICS can only be tuned to one). */
@@ -1023,8 +1023,8 @@
    font made fat. Both faces already ship. */
 [data-theme='dawn'],
 [data-theme='ink'] {
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-serif: 'Newsreader Variable', 'Newsreader', Georgia, 'Times New Roman', serif;
   --font-editor: var(--font-serif);
   --font-label: 'Inter', -apple-system, system-ui, sans-serif;
 
@@ -1066,6 +1066,7 @@
   --label-track: 0.12em;
   --label-case: lowercase;
   --label-caps: small-caps; /* real small caps, not uppercase-plus-tracking */
+  --dateline-size: 0.64em; /* small caps are x-height tall */
 }
 
 /* Cloister — sans display over serif body, which is the reversal. It is what
@@ -1112,6 +1113,7 @@
   --label-track: 0.1em;
   --label-case: lowercase;
   --label-caps: small-caps;
+  --dateline-size: 0.64em;
 }
 
 /* Plainsong — monophonic chant: one line, no harmony, no ornament, and exactly
@@ -1349,42 +1351,43 @@
   --scripture-air: 0.3em;
 }
 
-/* ── Dawn — the horizon under the title ─────────────────────────────────────
-   The same fading hairline the writing canvas already draws below the header,
-   at a quarter of its weight, closing the entry's head.
+/* ── The dateline, in each voice's ornament ─────────────────────────────────
+   The entry's date over its title (editor/dateline.ts). Every voice sets it in
+   its own label face, tracking and case; the ornament is the voice's own
+   idiom, so the decoration reads as a family trait rather than one theme's
+   flourish:
 
-   Drawn as a BACKGROUND on the line, not a pseudo-element. `.cm-line::after` is
-   the `+` insert door (lineMenu.ts) with a whole opacity system behind it, and
-   `::before` would sit above the text rather than under it — so this borrows
-   the technique the marking rules already use, which needs neither.
+     Dawn       a short sunrise rule above the date — the title's only mark
+     Vellum     the date in rubric, small caps: the scribe's second ink
+     Cloister   plain tracked caps; the colonnade already frames the page
+     Plainsong  bracketed, like its citations — the grid is the ornament
+     Sabbath    bare. The margin is the ornament
+     Vigil      bare. Nothing glows
 
-   Positioned from the CONTENT box, below it, into the line's bottom padding.
-   That padding only exists once a body line follows (`--spaced`); measured
-   from the padding box, a title with nothing under it yet had the hairline
-   struck through its lowercase letters. From the content box it can never
-   touch the text — with no padding it falls outside the box and is clipped,
-   and it appears, in place, the moment the writer presses Enter.
-   ────────────────────────────────────────────────────────────────────────── */
-[data-theme='dawn'] .cm-line.cm-entry-title,
-[data-theme='ink'] .cm-line.cm-entry-title,
-[data-theme='dawn'] .cm-line.cm-entry-title-explicit,
-[data-theme='ink'] .cm-line.cm-entry-title-explicit {
-  background-image: linear-gradient(90deg, var(--journal-horizon), transparent);
-  background-repeat: no-repeat;
-  background-origin: content-box;
-  background-clip: border-box;
-  background-position: left bottom -0.43em;
-  background-size: 62% 1px;
-}
-[data-theme='dawn'] .markdown-body h1::after,
-[data-theme='ink'] .markdown-body h1::after {
+   Dawn's title used to close with a fading hairline under it. With a
+   masthead above, a rule below was a second frame around four words; the
+   sunrise rule moves to the top of the head, where the day starts. */
+[data-theme='dawn'] .cm-dateline::before,
+[data-theme='ink'] .cm-dateline::before {
   content: '';
   display: block;
-  width: 62%;
-  height: 1px;
-  margin-top: 0.34em;
-  background: linear-gradient(90deg, var(--journal-horizon), transparent);
-  opacity: 0.55;
+  width: 2.4em;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  margin-bottom: 1.15em;
+}
+[data-theme='vellum'] .cm-dateline,
+[data-theme='ember'] .cm-dateline {
+  color: var(--accent);
+}
+[data-theme='quire'] .cm-dateline__text::before,
+[data-theme='nocturne'] .cm-dateline__text::before {
+  content: '[\00a0';
+}
+[data-theme='quire'] .cm-dateline__text::after,
+[data-theme='nocturne'] .cm-dateline__text::after {
+  content: '\00a0]';
 }
 
 /* ── Vellum — rubrication ───────────────────────────────────────────────────

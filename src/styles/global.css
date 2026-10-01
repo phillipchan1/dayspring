@@ -3133,6 +3133,71 @@ html[data-chapter-pane] .focus-controls--docked {
 .markdown-body mark.hl--sky { --hl-hue: var(--hl-sky); }
 .markdown-body mark.hl--lilac { --hl-hue: var(--hl-lilac); }
 
+/* ── Editorial finishing ────────────────────────────────────────────────
+   The details a typeset page has and a text box doesn't. Each was proposed
+   and picked in the Type Lab (docs/WRITING_SURFACE_AUDIT.md §7).
+
+   Old-style figures: "6:40" and "Psalm 23" sit in the line like lowercase
+   letters instead of standing at cap height. Ignored by faces that don't
+   carry them (JetBrains Mono, Atkinson, Inter), which is the right answer for
+   those voices. Titles, headings and counted things keep lining figures.
+
+   Hanging punctuation: an opening quote sits in the margin so the text edge
+   stays straight. WebKit only — which is the Mac and iPhone apps.
+
+   Settling: a finished paragraph avoids a one-word last line, and a title or
+   heading breaks into even lines. Only on lines the caret has LEFT
+   (`.cm-activeLine` is the caret's line — Editor.tsx). Applied to the line
+   being written, both re-break the paragraph as you type and a word hops
+   lines under your pen; applied after, the paragraph settles once, as you
+   move on. */
+.cm-content {
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  hanging-punctuation: first;
+}
+.cm-content .cm-entry-title,
+.cm-content .cm-entry-title-explicit,
+.cm-content .cm-md-h1,
+.cm-content .cm-md-h2,
+.cm-content .cm-md-h3,
+.cm-content .cm-md-h4,
+.cm-content .cm-md-h5,
+.cm-content .cm-md-h6,
+.cm-content .cm-scripture-cite,
+.cm-content .cm-list-label {
+  font-variant-numeric: lining-nums proportional-nums;
+}
+.cm-content .cm-list-label {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.cm-content .cm-line:not(.cm-activeLine) {
+  text-wrap: pretty;
+}
+.cm-content .cm-line.cm-entry-title:not(.cm-activeLine),
+.cm-content .cm-line.cm-entry-title-explicit:not(.cm-activeLine),
+.cm-content .cm-line.cm-md-h1:not(.cm-activeLine),
+.cm-content .cm-line.cm-md-h2:not(.cm-activeLine),
+.cm-content .cm-line.cm-md-h3:not(.cm-activeLine) {
+  text-wrap: balance;
+}
+/* The reading view sets an entry exactly as it was written. */
+.markdown-body {
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  hanging-punctuation: first;
+}
+.markdown-body p,
+.markdown-body li,
+.markdown-body blockquote {
+  text-wrap: pretty;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  font-variant-numeric: lining-nums proportional-nums;
+  text-wrap: balance;
+}
+
 /* No soft wrap beside a concealed inline marker — see ConcealWidget in
    concealMarkers.ts. Without this, punctuation after **bold**, *italic*, a
    highlight or a link could open the next line on its own. */

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { formatDateline } from '@/lib/dateline'
 import { flushSync } from 'react-dom'
 import { Editor, type EditorHandle } from '@/editor/Editor'
 import type { SpiritualBlockEditTarget } from '@/editor/spiritualBlockDecoration'
@@ -227,6 +228,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * marking makes sense. A local-day comparison, not a 24-hour window — an entry
    * from 11pm last night is yesterday's.
    */
+  // The dateline over the title: the entry's own date, or today's for a page
+  // not yet written. Recomputed per entry, not per keystroke.
+  const entryCreatedAt = useMemo(
+    () => (entryId ? entries.find((e) => e.id === entryId)?.created_at : undefined),
+    [entryId, entries],
+  )
+  const dateline = useMemo(
+    () => (settings.dateline ? formatDateline(entryCreatedAt ?? new Date().toISOString()) : null),
+    [settings.dateline, entryCreatedAt],
+  )
+
   const isPastEntry = useMemo(() => {
     if (!entryId) return false
     const created = entries.find((e) => e.id === entryId)?.created_at
@@ -2454,6 +2466,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               typewriter={focus.active && focusEditorReady && settings.typewriter}
               dimming={focus.active && focusEditorReady && settings.dimming}
               titleStyling={settings.firstLineTitle}
+              dateline={dateline}
               showMarkdownSyntax={settings.showMarkdownSyntax}
               // Settings (⌘,) and Find (⌘K) open from the keyboard, so the
               // palette's press-outside listener never hears them; without this
