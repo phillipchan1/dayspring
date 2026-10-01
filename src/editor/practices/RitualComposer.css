@@ -161,13 +161,16 @@
   font-family: var(--rc-body);
   font-style: italic;
   font-weight: 300;
-  font-size: 1.05rem;
+  /* Ratios of the voice's text size (themes.css --voice-text-size), equal to
+     the old rems at Dawn's 24px, so a question keeps one proportion to the
+     answer in every voice. Floors keep the phone's smaller set legible. */
+  font-size: max(calc(var(--voice-text-size, 24px) * 0.7), 14px);
   line-height: 1.4;
   color: var(--text-dim);
   transition: font-size 0.28s ease, opacity 0.28s ease, margin 0.28s ease;
 }
 .rc__q[data-small='true'] {
-  font-size: 0.78rem;
+  font-size: max(calc(var(--voice-text-size, 24px) * 0.52), 11px);
   opacity: 0.62;
   margin-bottom: 0.55rem;
   white-space: nowrap;
@@ -276,7 +279,7 @@
   .rc__bar { padding-top: 1.1rem; }
   .rc__pane { justify-content: center; }
   .rc__inner { flex: 0 0 auto; }
-  .rc__q { font-size: 1.25rem; margin-bottom: 1rem; }
+  .rc__q { font-size: max(calc(var(--voice-text-size, 24px) * 0.8333), 15px); margin-bottom: 1rem; }
   .rc__write { flex: 0 0 auto; height: 9.5rem; }
   .rc__foot { padding: 0.6rem 1.6rem 0.8rem; }
 }
@@ -537,7 +540,7 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 .rc--desk .rc__label { color: var(--accent); margin-bottom: 0.6rem; }
 .rc--desk .rc__q {
   margin: 0 0 1.8rem;
-  font-size: 1.6rem;
+  font-size: calc(var(--voice-text-size, 24px) * 1.0667);
   line-height: 1.35;
   color: var(--text-bright);
 }

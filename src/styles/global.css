@@ -3123,6 +3123,9 @@ html[data-chapter-pane] .focus-controls--docked {
   background: rgba(var(--hl-hue, var(--hl-amber)), var(--hl-alpha));
   color: inherit;
   padding: 0.06em 0.1em;
+  /* The editor's `.cm-hl` margin, so a highlighted phrase is exactly as wide
+     read as written — 1px a highlight was enough to wrap a line differently. */
+  margin: 0 -0.02em;
   border-radius: 0.18em;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
@@ -3132,6 +3135,33 @@ html[data-chapter-pane] .focus-controls--docked {
 .markdown-body mark.hl--sage { --hl-hue: var(--hl-sage); }
 .markdown-body mark.hl--sky { --hl-hue: var(--hl-sky); }
 .markdown-body mark.hl--lilac { --hl-hue: var(--hl-lilac); }
+
+/* ── The dateline — written and read the same ──────────────────────────────
+   One rule for the editor's (editor/dateline.ts) and the Pages reader's
+   (PageReader.tsx), so an entry's head sits identically in both. Its size is
+   a ratio of the writing size (`--dateline-ratio`, larger in the small-caps
+   voices), floored at 11px for Plainsong and phones. In the editor the
+   writing size is the line's 1em; the reader's head says it outright. Each
+   voice's ornament is in themes.css, "The dateline". */
+.cm-dateline,
+.pg-read1__head {
+  font-family: var(--font-label);
+  font-size: max(calc(var(--dateline-base, 1em) * var(--dateline-ratio, 0.5)), 11px);
+  line-height: 1.4;
+  letter-spacing: var(--label-track);
+  text-transform: var(--label-case);
+  font-variant-caps: var(--label-caps);
+  font-variant-numeric: lining-nums;
+  font-weight: 500;
+  /* --text-dim alone is 3.8:1 on Dawn's paper; small text wants more. */
+  color: color-mix(in srgb, var(--text-dim) 70%, var(--text));
+  /* Padding, never margin: CodeMirror measures a block widget by its rect. */
+  padding: 0 0 1.35em;
+  margin: 0;
+}
+.pg-read1__head {
+  --dateline-base: var(--editor-font-size);
+}
 
 /* ── Editorial finishing ────────────────────────────────────────────────
    The details a typeset page has and a text box doesn't. Each was proposed
@@ -3234,13 +3264,20 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--md-heading);
   letter-spacing: var(--h1-track);
   line-height: 1.3;
-  margin: 1.6em 0 0.6em;
+  /* The editor's heading: air ABOVE it (the blank line before, plus its own
+     0.35em), none below — it belongs to what follows. proseHighlighting.ts. */
+  margin: 0;
+  padding-top: 0.35em;
 }
+.markdown-body h3 { line-height: 1.35; }
+.markdown-body h4 { line-height: 1.4; }
 .markdown-body h1 {
   font-size: var(--h1-size);
   font-weight: var(--h1-weight);
   line-height: var(--h1-lh);
-  margin: 0 0 1.1em;
+  /* The editor's title: 0.85em under it (firstLineTitle.ts). */
+  margin: 0;
+  padding: 0 0 0.85em;
 }
 .markdown-body h1 + p,
 .markdown-body h1 + ul,
@@ -3250,7 +3287,25 @@ html[data-chapter-pane] .focus-controls--docked {
 }
 .markdown-body h2 { font-size: var(--h2-size); font-weight: var(--h2-weight); }
 .markdown-body h3 { font-size: var(--h3-size); font-weight: var(--h3-weight); }
-.markdown-body p { margin: 0 0 1em; }
+/*
+ * ── Reading sets an entry exactly as writing does ───────────────────────────
+ * The reader renders with `breaks: true`, so a single newline is a <br> and a
+ * blank line starts a new block — the same two cases the editor draws as
+ * "next line" and "one empty line". So every block ends in exactly one line of
+ * the writer's leading, and the page reads back line for line where it was
+ * written. It used to be 1em: a paragraph gap 20% tighter than the page the
+ * writer saw, so Write ⇄ Read reflowed the whole entry.
+ */
+.markdown-body {
+  --block-gap: calc(var(--editor-line-height) * 1em);
+  /* CodeMirror's own setting for every written line. A space at a line's end
+     takes room instead of hanging, so the reader breaks a paragraph at the
+     same word the editor did — under `normal`, "growth, " fit read and wrapped
+     written. renderMarkdown drops the inter-tag newlines this would show. */
+  white-space: break-spaces;
+}
+.markdown-body p { margin: 0 0 var(--block-gap); }
+.markdown-body > :last-child { margin-bottom: 0; }
 .markdown-body .read-ritual-name {
   font-family: var(--font-serif);
   font-size: 0.7em;
@@ -3287,8 +3342,11 @@ html[data-chapter-pane] .focus-controls--docked {
  * restyling of the words themselves.
  */
 .markdown-body .read-scripture {
-  margin: 0 0 1em;
-  padding: var(--scripture-air, 0.3em) 0 var(--scripture-air, 0.3em)
+  margin: 0 0 var(--block-gap);
+  /* The editor's verse: air measured in the verse's own 0.9em, the cite's in
+     its 0.66em, and the 1.6rem the editor keeps clear for the verse menu —
+     without it the verse wrapped at a different word read than written. */
+  padding: calc(var(--scripture-air, 0.3em) * 0.9) 1.6rem calc(var(--scripture-air, 0.3em) * 0.66)
     var(--scripture-indent, 1rem);
   background-image: var(--scripture-rule-image, none);
   background-size: var(--scripture-rule-width, 1px)
@@ -3304,14 +3362,16 @@ html[data-chapter-pane] .focus-controls--docked {
   color: var(--text);
 }
 .markdown-body .read-scripture__cite {
-  margin-top: 0.5em;
+  margin: 0;
   font-size: 0.66em;
   font-weight: 500;
   color: var(--text-faint);
+  /* Face, tracking and case: the voice's, via `.spiritual-cite` in themes.css. */
 }
 .markdown-body .read-mark {
-  margin: 0 0 1em;
-  padding-left: 0.85rem;
+  margin: 0 0 var(--block-gap);
+  /* The editor's marking: 0.35em of air at each end of its rule. */
+  padding: 0.35em 0 0.35em 0.85rem;
   background-image: linear-gradient(
     var(--mark-tone, var(--accent)),
     var(--mark-tone, var(--accent))
@@ -3322,20 +3382,112 @@ html[data-chapter-pane] .focus-controls--docked {
 .markdown-body .read-mark > :last-child { margin-bottom: 0; }
 .markdown-body strong { color: color-mix(in srgb, var(--text) 50%, var(--text-bright)); } /* see highlight.ts */
 .markdown-body em { font-style: italic; } /* ink, not --md-emphasis — see highlight.ts */
-.markdown-body a { color: var(--md-link); }
+.markdown-body a {
+  color: var(--md-link);
+  text-decoration: underline 1px color-mix(in srgb, var(--md-link) 45%, transparent);
+  text-underline-offset: 0.2em;
+}
+/*
+ * Lists, in the editor's marker column (listLayout.ts): one 1.5em column per
+ * level, the marker drawn in it, wrapped lines hanging under the words. The
+ * native ::marker sat at a different inset in every face, so a list read back
+ * a few pixels — and a different bullet — away from where it was written.
+ */
 .markdown-body ul,
-.markdown-body ol { margin: 0 0 1em; padding-left: 1.4em; }
-.markdown-body li { margin: 0.2em 0; }
-.markdown-body li::marker { color: color-mix(in srgb, var(--text) 55%, transparent); }
-.markdown-body ol ol { list-style-type: lower-alpha; }
-.markdown-body ol ol ol { list-style-type: lower-roman; }
+.markdown-body ol {
+  margin: 0 0 var(--block-gap);
+  padding-left: 1.5em;
+  list-style: none;
+}
+.markdown-body li { margin: 0; }
+.markdown-body li > ul,
+.markdown-body li > ol { margin: 0; }
+.markdown-body li > p { margin: 0; }
+.markdown-body ul > li::before,
+.markdown-body ol > li::before {
+  display: inline-block;
+  margin-left: -1.5em;
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+/* Bullets: a dot sitting 0.2em above the baseline, as the editor draws it —
+   an empty inline-block's bottom edge is its baseline, so vertical-align
+   lifts it exactly that far. Solid, hollow, square by depth. */
+.markdown-body ul > li::before {
+  content: '';
+  box-sizing: border-box;
+  width: 0.3em;
+  height: 0.3em;
+  margin-left: calc(-1.5em + 0.2em);
+  margin-right: calc(1.5em - 0.2em - 0.3em);
+  vertical-align: 0.2em;
+  border-radius: 50%;
+  background: currentColor;
+}
+.markdown-body ul ul > li::before {
+  background: transparent;
+  border: 0.075em solid currentColor;
+}
+.markdown-body ul ul ul > li::before {
+  border: 0;
+  border-radius: 0.05em;
+  background: currentColor;
+  width: 0.27em;
+  height: 0.27em;
+  margin-right: calc(1.5em - 0.2em - 0.27em);
+}
+/* Numbers: left in the column at its full width, as orderedListNumbering
+   sets them. `list-item` is the browser's own counter, so `<ol start>` holds. */
+.markdown-body ol > li::before {
+  content: counter(list-item) '.';
+  min-width: 1.5em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.markdown-body ol ol > li::before { content: counter(list-item, lower-alpha) '.'; }
+.markdown-body ol ol ol > li::before { content: counter(list-item, lower-roman) '.'; }
+/* A task: the checkbox IS the marker (the editor hides the dash before it). */
+.markdown-body li.read-task::before { content: none; }
+.markdown-body .read-task__box {
+  display: inline-block;
+  position: relative;
+  box-sizing: border-box;
+  width: 0.95em;
+  height: 0.95em;
+  margin: 0 calc(1.5em - 0.95em) 0 -1.5em;
+  vertical-align: -0.12em;
+  border: 1.5px solid var(--text-dim);
+  border-radius: 0.2em;
+  background: color-mix(in srgb, var(--bg-input) 70%, transparent);
+}
+.markdown-body .read-task__box[data-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.markdown-body .read-task__box[data-checked='true']::after {
+  content: '';
+  position: absolute;
+  left: 0.17em;
+  top: 0.06em;
+  width: 0.28em;
+  height: 0.48em;
+  border: solid var(--accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.markdown-body li.read-task--done {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+/* The editor's quote: the rule is an inset shadow, so it takes no width and
+   the words start exactly 0.85rem in; no padding above or below the lines. */
 .markdown-body blockquote {
-  margin: 0 0 1em;
-  padding: 0.1em 0.85rem;
-  border-left: 2px solid color-mix(in srgb, var(--md-quote) 45%, transparent);
+  margin: 0 0 var(--block-gap);
+  padding: 0 0 0 0.85rem;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--md-quote) 45%, transparent);
   color: color-mix(in srgb, var(--text) 72%, var(--md-quote));
   font-style: italic;
 }
+.markdown-body blockquote > p { margin: 0; }
+.markdown-body blockquote > p + p { margin-top: var(--block-gap); }
 .markdown-body code {
   font-family: var(--font-mono);
   background: var(--bg-input);
@@ -3386,7 +3538,10 @@ html[data-chapter-pane] .focus-controls--docked {
   transform: translate(-50%, -50%) rotate(45deg);
 }
 .markdown-body hr {
-  margin: 0.55em 0 0.85em;
+  /* One line, like the editor's rule (.cm-hr below), with the block gap
+     after it standing for the blank line the writer leaves. */
+  height: calc(var(--editor-line-height) * 1em);
+  margin: 0 0 var(--block-gap);
 }
 /* In the editor the rule is exactly one line tall — the same box the `---`
    it replaces had — so revealing the dashes under the caret moves nothing.

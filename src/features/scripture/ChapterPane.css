@@ -147,7 +147,9 @@
   z-index: 0;
   margin: 0 0 0.85rem;
   font-family: var(--font-editor);
-  font-size: 0.95rem;
+  /* Set in the writer's face, so sized from it: 15.2px at Dawn's default as
+     before, and in proportion in every other voice and face. */
+  font-size: max(calc(var(--face-text-size, 24px) * 0.633), 13px);
   line-height: 1.6;
   color: var(--text);
   transition: opacity 280ms ease;

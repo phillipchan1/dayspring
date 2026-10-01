@@ -13,7 +13,11 @@
   --psg-lit: color-mix(in srgb, var(--psg-gold) 30%, transparent);
   position: relative;
   font-family: var(--font-serif, 'Newsreader', Georgia, serif);
-  font-size: 1.2rem;
+  /* Four-fifths of the voice's own text size — 19.2px at Dawn's default, as
+     it always was — rather than a fixed 1.2rem: that held in Dawn and
+     inverted in Plainsong, where a 19px mono passage stood over 17px writing.
+     Follows the reader's size slider now, too. */
+  font-size: max(calc(var(--voice-text-size, 24px) * 0.8), 12.5px);
   line-height: 1.85;
   color: var(--text-bright);
   overflow-wrap: break-word;

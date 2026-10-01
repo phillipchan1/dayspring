@@ -173,6 +173,6 @@ describe('PageReader', () => {
   it('keeps the date plain where there is no wall to go back to', () => {
     renderReader()
     expect(host!.querySelector('button.pg-read1__date--door')).toBeNull()
-    expect(host!.querySelector('time.pg-read1__date')).not.toBeNull()
+    expect(host!.querySelector('.pg-read1__date time.pg-read1__date-text')).not.toBeNull()
   })
 })

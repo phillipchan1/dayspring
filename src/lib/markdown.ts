@@ -76,6 +76,41 @@ marked.use({
   ],
 })
 
+// A task's box, drawn the way the editor draws one (taskListExtension.ts)
+// rather than as a disabled native <input>, whose size, inset and tick were
+// the platform's and never the page's. `renderMarkdown` then lifts the state
+// onto the <li>, where the reader hangs it in the marker column.
+marked.use({
+  renderer: {
+    checkbox({ checked }) {
+      return `<span class="read-task__box" data-checked="${checked ? 'true' : 'false'}" role="img" aria-label="${checked ? 'Done' : 'Not done'}"></span>`
+    },
+  },
+})
+
+/** `<li><span class="read-task__box"…></span> text` → a classed, tight task item. */
+function liftTasks(html: string): string {
+  return html.replace(
+    /<li>(\s*(?:<p>)?)(<span class="read-task__box" data-checked="(true|false)"[^>]*><\/span>) ?/g,
+    (_m, pre: string, box: string, checked: string) =>
+      `<li class="read-task${checked === 'true' ? ' read-task--done' : ''}">${pre}${box}`,
+  )
+}
+
+/**
+ * Drop the newlines marked writes BETWEEN tags (`</p>\n<ul>\n<li>`).
+ *
+ * The reader sets text with `white-space: break-spaces`, as CodeMirror sets
+ * every written line, so a space at a line's end takes room the same way in
+ * both and a paragraph breaks at the same word read as written. Under that
+ * rule these formatting newlines would render as line breaks. Only runs of
+ * whitespace that contain a newline AND sit between two tags go: a space
+ * between two inline tags (`</strong> <em>`) is the writer's, and stays.
+ */
+function dropInterTagNewlines(html: string): string {
+  return html.replace(/>[ \t]*\n\s*</g, '><')
+}
+
 /** Render markdown to sanitized HTML for the read-only reading view. */
 export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
   // Markings first: they are found by character offset, which the ritual pass
@@ -84,7 +119,7 @@ export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
   const raw = marked.parse(markdownForDisplay(shown, opts), {
     async: false,
   })
-  return DOMPurify.sanitize(raw, {
+  return DOMPurify.sanitize(liftTasks(dropInterTagNewlines(raw)), {
     USE_PROFILES: { html: true },
     // `class` is already in DOMPurify's default ALLOWED_ATTR, so this changes
     // nothing today — it's here so a future major that tightens the default

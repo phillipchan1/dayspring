@@ -1,4 +1,5 @@
 import { drawReaderQuotes } from './readerQuotes'
+import { formatDateline } from '@/lib/dateline'
 import { SCRIPTURE_RITUALS } from '@/lib/writerWords'
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -475,15 +476,19 @@ export function PageReader({
                 onKeyDown={(e) => e.stopPropagation()}
                 aria-label={`The pages around ${formatDate(entry.created_at)}`}
               >
-                <time dateTime={entry.created_at}>{formatDate(entry.created_at)}</time>
+                <time className="pg-read1__date-text" dateTime={entry.created_at}>
+                  {formatDateline(entry.created_at)}
+                </time>
                 <span className="pg-read1__date-hint" aria-hidden>
                   the pages around it
                 </span>
               </button>
             ) : (
-              <time className="pg-read1__date" dateTime={entry.created_at}>
-                {formatDate(entry.created_at)}
-              </time>
+              <p className="pg-read1__date">
+                <time className="pg-read1__date-text" dateTime={entry.created_at}>
+                  {formatDateline(entry.created_at)}
+                </time>
+              </p>
             )}
           </header>
 

@@ -277,7 +277,48 @@ textarea is always the line being written. Also fixed: the editor's 42rem cap,
 centred in the slightly wider ritual page, set every answer ~6px right of its
 question; they now share an edge.
 
-## 8. Re-running
+## 8. Reading = writing — 1 Oct 2026
+
+The rule: **a page reads exactly as it was written.** The same words land on
+the same line, at the same height, at the same indent, in every voice, light
+and dark, on desktop, tablet and phone. Measured, not eyeballed: a Playwright
+pass types a sample into the editor, opens the same page in Pages, and
+compares the position of every line of text against the dateline above it
+(a structural sample, and a rich one: bold, italics, all five highlights,
+underline, link, heading, bullet, task, quote, prayer and scripture blocks).
+
+**Before:** Cloister drifted 116px on the rich sample; every voice drifted
+226–315px on a phone. **After:** 0px in every voice × mode × width (one
+documented exception below).
+
+What was different, and is now the same:
+
+| Was | Now |
+|---|---|
+| Reader paragraphs had their own margins; the editor's gap between blocks is one blank line | `.markdown-body` sets `--block-gap` = one line of the writer's leading; headings, lists, quotes, rules all use it |
+| `marked` emitted newlines between tags, and the reader collapsed white space; the editor keeps it (`break-spaces`) | Newlines between tags dropped at render (`dropInterTagNewlines`); the reader sets `white-space: break-spaces` too |
+| Task checkboxes were `<input>`s with browser metrics | Drawn boxes (`.read-task__box`), the editor's size and column |
+| Lists used the browser's markers and indent | The editor's 1.5em marker column, its drawn bullets (solid / hollow / square), its numbering (decimal → alpha → roman) |
+| Highlights had a margin the editor's didn't | Same −0.02em bleed on both |
+| Scripture citation: the editor's face vs the theme's | Both from `--font-label` and the voice's label tracking and case |
+| Reader date: small mono caps, its own size | The editor's dateline — same ornament per voice, same size, one rule in global.css for both |
+| Phone reader margin 16px, editor 20pt | `--read-gutter`: the editor's 1.25rem on a phone (8px of measure re-broke every paragraph) |
+| Vellum's ¶ before headings sat in flow on the reader only (27px) | Hangs in the margin on both surfaces; off on phones on both, where a 20pt margin can't hold it |
+
+**Sizes are one system.** Each voice sets `--voice-scale`; `--voice-text-size`
+is the writer's size × voice × device. Everything set beside the writing
+derives from it rather than from fixed rems, so switching voices keeps the
+proportions: the ritual's passage reads at 0.80× the writing and its question
+at 1.07×, in every voice (Plainsong's 0.78 scale had been shrinking the
+writing under a fixed-size passage). The scripture pane follows the face.
+
+**The one exception: Vellum's versal.** The reading view opens Vellum with an
+illuminated letter; the editor does not (see the note in themes.css — a drop
+cap on a contenteditable line is not a safe place for a caret). The float
+re-wraps the opening paragraph, so that paragraph — and only it — breaks
+differently. With the versal switched off the measurement is 0px.
+
+## 9. Re-running
 
 ```bash
 npm run typecheck
@@ -287,7 +328,7 @@ npx vitest run src/editor      # the writing surface alone
 
 `src/editor/pointerInput.test.ts` is the regression net for §3;
 `listLayout.test.ts`, `listContinue.test.ts` and `concealMarkers.test.ts` for §5;
-`src/lib/editorFace.test.ts` for §6; `dateline.test.ts` (lib and editor) and `voiceCaret.test.ts` for §7. It drives real
+`src/lib/editorFace.test.ts` for §6; `dateline.test.ts` (lib and editor) and `voiceCaret.test.ts` for §7; `src/lib/markdown.test.ts` ("read as written") for §8. It drives real
 events through a real `EditorView` and asserts on what a handler *below*
 `editorTap` sees, so it tests the property that actually matters: nothing
 downstream gets a second crack at a gesture already served.
