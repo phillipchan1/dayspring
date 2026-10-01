@@ -30,6 +30,16 @@ adds latency or chrome to the writing surface).
 `docs/archive/personal-ai-journal-requirements.md` is the superseded single-user
 founding spec. **Do not build from it** — it predates multi-tenancy and payments.
 
+## Announcing a major change (What's new)
+
+Users see **What's new**: a short visual deck shown once after an update that
+changes something they will notice. **First Light** is its internal name only
+(`src/features/firstlight/`) — never in user copy. Draft one with `/whats-new`;
+the rules (you-can-now voice, topical kickers, picture first, numbered how-to,
+max 3 cards) live in the `releases.ts` header and are enforced by its tests.
+Drafts go in `DRAFTS`, move to `RELEASES` in the same commit that merges to
+`stable`.
+
 ## Release channels
 
 | Channel | Branch | Who | Desktop build | Web |

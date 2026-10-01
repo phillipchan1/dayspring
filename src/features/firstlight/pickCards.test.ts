@@ -126,9 +126,21 @@ describe('pickCards', () => {
       }
     })
 
-    it('does not repeat the deck label in a draft’s kickers', () => {
-      for (const r of DRAFTS) {
+    // Phil's standing feedback applies to every release from 2026-10 on, drafted
+    // or shipped. Older decks are history and keep the voice they shipped with.
+    const governed = [...DRAFTS, ...RELEASES].filter((r) => r.id >= '2026-10')
+
+    it('does not repeat the deck label in a kicker', () => {
+      for (const r of governed) {
         for (const c of r.cards) expect(c.kicker).not.toMatch(/what.?s new|what changed|^also new$/i)
+      }
+    })
+
+    it('opens with a picture of the thing and says what the reader can now do', () => {
+      for (const r of governed) {
+        const first = r.cards[0]!
+        expect(first.art, `${r.id}: first card needs art`).toBeDefined()
+        expect(first.body.join(' '), `${r.id}: first card should say "you can"`).toMatch(/\byou can\b/i)
       }
     })
 

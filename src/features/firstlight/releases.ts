@@ -38,6 +38,22 @@
  * changed in the software. It never counts what someone has written, never
  * congratulates them, and never sells them anything — they already paid.
  *
+ * VOICE AND SHAPE (Phil's standing feedback — enforced by pickCards.test.ts for
+ * every release from 2026-10 on; drafted with `/whats-new`)
+ *
+ * - Say what the reader can now do. "You can now read a chapter on the left and
+ *   write on the right." Not "We've improved…", not a feature name as a subject.
+ * - The deck is already labelled What's new (WHATS_NEW_LABEL), so a kicker names
+ *   the TOPIC — "Bible journaling", "How it works" — and never repeats the
+ *   label ("What changed", "Also new", "What's new").
+ * - Show before you tell. The first card carries a picture of the thing (`art`),
+ *   drawn from the real surface, with bars for words so no scripture or journal
+ *   text is ever set in it.
+ * - Tell them how to start. When there is a sequence to learn, a card gives it as
+ *   numbered steps — numbers only for a real order. Steps are plain instructions.
+ * - Three cards at most, three paragraphs at most. Fewer claims, not more cards.
+ * - Land them where the thing lives (`land`, `landLabel`).
+ *
  * PRINCIPLE 3 is the constraint that shaped the surface: "modal interruptions
  * while the cursor is active" are forbidden. So the deck is decided once, at
  * cold open, before the editor takes focus — see pickCards.ts — and can never
