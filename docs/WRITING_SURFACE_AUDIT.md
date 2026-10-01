@@ -312,6 +312,17 @@ proportions: the ritual's passage reads at 0.80× the writing and its question
 at 1.07×, in every voice (Plainsong's 0.78 scale had been shrinking the
 writing under a fixed-size passage). The scripture pane follows the face.
 
+**Every voice reads at one size.** Apparent size measured as √(x-height ×
+cap height), at the default 24px: Dawn 14.6; Vellum, Cloister, Vigil 13.4–13.5
+(92%); Sabbath was 12.4 (85%) and Plainsong 11.1 (76%), and the Advanced
+typography faces Mono and Typewriter 76–79%. Plainsong 0.72 → 0.84, Sabbath
+1.05 → 1.12, faces Typewriter 0.88 / Mono 0.84 / Sans 0.90 / Readable 0.97.
+Everything now sits at 87–94% of Dawn, the band the serif voices already
+shared; Mono keeps ~56 characters a line. The ritual's passage beside the
+writing was a fixed 1.28rem in every voice (larger than Plainsong's writing);
+it is 0.85× the writer's size now, and the phone's pane and strip keep their
+old Dawn sizes as ratios.
+
 **The one exception: Vellum's versal.** The reading view opens Vellum with an
 illuminated letter; the editor does not (see the note in themes.css — a drop
 cap on a contenteditable line is not a safe place for a caret). The float
