@@ -39,7 +39,7 @@
  */
 
 /** A small inline glyph above the title. Purely decorative; never load-bearing. */
-export type CardArt = 'wall' | 'keys' | 'climb'
+export type CardArt = 'wall' | 'keys' | 'climb' | 'passage'
 
 export interface Card {
   /** Small caps line above the title. Two or three words. */
@@ -60,7 +60,7 @@ export interface Release {
   major?: boolean
   cards: Card[]
   /** Where the final button sends them. Omitted → the button just closes. */
-  land?: 'pages' | 'reflections'
+  land?: 'pages' | 'reflections' | 'journal'
   /** Label for the final button. Defaults to "Done". */
   landLabel?: string
 }
@@ -148,7 +148,43 @@ export const RELEASES: Release[] = [
  * To release: move the entry into RELEASES, in the same commit that makes what
  * it describes visible to everyone. Preview with `?__preview=firstlight&draft=1`.
  */
-export const DRAFTS: Release[] = []
+export const DRAFTS: Release[] = [
+  {
+    // The passage rituals: Open your Bible, the finder, drawn quotes, chapters
+    // set as the ESV prints them. Unflagged — it reaches stable with the
+    // master → stable merge, so move this into RELEASES in that commit.
+    id: '2026-10-scripture',
+    major: true,
+    land: 'journal',
+    landLabel: 'Open a page',
+    cards: [
+      {
+        kicker: 'What changed',
+        art: 'passage',
+        title: 'Open your Bible',
+        body: [
+          'A blank page now has one door that stays the same at every hour: Open your Bible. Choose a chapter and you are already writing, with the passage open beside the page.',
+          'Open Reading, Lectio, SOAP and Discovery all begin this way. Once you have read a chapter, the door offers the next one.',
+        ],
+      },
+      {
+        kicker: 'Also new',
+        title: 'Draw a line from the passage',
+        body: [
+          'Select any words in the passage and they land in your answer as a quote, with a line drawn back to where you took them. Move the quote, cut it or undo it, and the line goes with it.',
+        ],
+      },
+      {
+        kicker: 'Also new',
+        title: 'Set the way a Bible sets it',
+        body: [
+          'Poetry keeps its lines and stanzas, prose its paragraphs, and LORD stays in small capitals. Passages come from the ESV, one chapter at a time.',
+          'Reading from a Bible of your own? Say so under the search, and write from the reference.',
+        ],
+      },
+    ],
+  },
+]
 
 /**
  * The id stamped on someone who should see nothing — a brand-new account at the

@@ -204,6 +204,19 @@ function Art({ kind }: { kind: CardArt }) {
       </svg>
     )
   }
+  if (kind === 'passage') {
+    // A few lines of a passage, one picked out, and a line drawn from it to
+    // the answer — the same gesture the card describes.
+    return (
+      <svg className="firstlight__passage" viewBox="0 0 176 56" aria-hidden="true">
+        <path className="rule" d="M10 10h62M10 22h54M10 34h60M10 46h44" />
+        <path className="pick" d="M10 22h54" />
+        <path className="draw" d="M68 22C92 22 92 34 112 34" />
+        <path className="rule" d="M112 34h54M112 46h38" />
+        <circle cx="112" cy="34" r="3" />
+      </svg>
+    )
+  }
   if (kind === 'wall') {
     // The wall, from far enough away to see its shape. Lit cells stand for the
     // pages a subject touches — dimming, never filtering (D-017).

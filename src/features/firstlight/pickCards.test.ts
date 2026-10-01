@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pickCards, MAX_CARDS } from './pickCards'
-import { RELEASES, CURRENT_RELEASE_ID, type Release } from './releases'
+import { RELEASES, DRAFTS, CURRENT_RELEASE_ID, type Release } from './releases'
 
 const card = (title: string) => ({ kicker: 'What changed', title, body: ['x'] })
 
@@ -100,7 +100,7 @@ describe('pickCards', () => {
 
     it('never sermonises: no copy addresses the user’s own writing', () => {
       const banned = /\b(streak|score|unlock|supercharge|journey|AI-powered)\b/i
-      for (const r of RELEASES) {
+      for (const r of [...RELEASES, ...DRAFTS]) {
         for (const c of r.cards) {
           expect(c.title).not.toMatch(banned)
           for (const p of c.body) expect(p).not.toMatch(banned)
@@ -109,7 +109,7 @@ describe('pickCards', () => {
     })
 
     it('has no exclamation marks anywhere in the registry', () => {
-      for (const r of RELEASES) {
+      for (const r of [...RELEASES, ...DRAFTS]) {
         for (const c of r.cards) {
           expect(c.title).not.toContain('!')
           for (const p of c.body) expect(p).not.toContain('!')
@@ -117,8 +117,15 @@ describe('pickCards', () => {
       }
     })
 
-    it('keeps every release id unique', () => {
-      const ids = RELEASES.map((r) => r.id)
+    it('keeps every deck inside the card ceiling', () => {
+      for (const r of [...RELEASES, ...DRAFTS]) {
+        expect(r.cards.length).toBeLessThanOrEqual(MAX_CARDS)
+        for (const c of r.cards) expect(c.body.length).toBeLessThanOrEqual(3)
+      }
+    })
+
+    it('keeps every release id unique, drafts included', () => {
+      const ids = [...RELEASES, ...DRAFTS].map((r) => r.id)
       expect(new Set(ids).size).toBe(ids.length)
     })
   })
