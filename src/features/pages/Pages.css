@@ -3996,11 +3996,17 @@ button.pg__sense-q:hover {
   /* How far the page has been pulled out of the way, 0–1. Written from the
      gesture; see the note on `out` in PageReader. */
   --pg-out: 0;
-  /* The page's side margin — the editor's, so a line breaks where it was
-     written. On a phone that is MobileJournal's 1.25rem (the 20pt margin iOS
-     gives its own prose); the wall's 1rem made the reading measure 8px wider
-     and re-broke every paragraph. */
-  --read-gutter: clamp(1.25rem, 3vw, 2rem);
+  /* The page's side margin — the editor's, exactly, so a line breaks where it
+     was written: DesktopJournal's 1.5rem, and MobileJournal's 1.25rem below
+     768px (the 20pt margin iOS gives its own prose). The wall's fluid
+     clamp(1rem, 3vw, 2rem) missed both — 8px of extra measure on a phone,
+     2px on a tablet — and either is enough to re-break a paragraph. */
+  --read-gutter: 1.5rem;
+}
+@media (max-width: 767px) {
+  .pg-read1 {
+    --read-gutter: 1.25rem;
+  }
 }
 
 /*
