@@ -151,7 +151,52 @@ fight live typing) reached by the wrong test — it silently prefers whichever
 side happened to be non-empty. A real answer needs a merge policy, and that is
 a sync decision, not an editor one.
 
-## 5. Re-running
+## 5. Second run — 1 Oct 2026: the craft pass
+
+The first run asked whether the surface *behaves* the same way twice. This one
+asks whether it is *set* well: type, rhythm, alignment, and every marking, at
+one line and at a hundred. Different method, too: it was run against the real
+app in a browser (guest mode, `npm run dev`), with a fixture entry carrying
+every construct, measured line box by line box in the DOM, in Dawn and Ink, at
+1440, 1100 and 390 wide, in and out of focus mode. Reading the CSS would not
+have found most of these; the numbers did.
+
+| # | Finding | Measured | Status |
+|---|---|---|---|
+| C1 | List items didn't hang: a wrapped bullet, number or task fell back to the left margin, under the marker | continuation `text-indent` 0 on every list line | **fixed** — `listLayout.ts` |
+| C2 | Bullets were the raw `-` in faint grey; nested levels only 2 spaces (~6px) deeper | — | **fixed** — drawn bullets (solid / hollow / square), one 1.5em column per level |
+| C3 | Task lines showed `-` *and* a checkbox | — | **fixed** — the dash is hidden on task lines |
+| C4 | Quotes showed `>` and had no rule; the only signal was italic in placeholder grey; a long quote wrapped under the `>` | — | **fixed** — `>` concealed (heading reveal rule), 2px rule, ink-softened italic |
+| C5 | `---` rendered 145px tall and collapsed to 41px when the caret touched it | `.cm-hr` was `display:block`; CodeMirror's widget buffers opened a phantom line box either side | **fixed** — exactly one line tall, so revealing the dashes moves nothing |
+| C6 | Text was guillotined mid-glyph 4rem under the header while scrolling (and 2.5rem above the bottom) | scroller top 118px, header bottom 54px | **fixed** — that space now lives inside the scroller; first line opens in the same place |
+| C7 | h3 set a *taller* line box than the h2 above it | h2 40px, h3 46px | **fixed** — headings lead like headings; air above, not below |
+| C8 | Italic was purple (pink in Compline); list numbers teal | `--md-emphasis`, `--md-list` — One Dark token colours | **fixed** — italic and numbers in the writer's ink; reading view matched |
+| C9 | Link underline full-strength, through the descenders | — | **fixed** — 1px hairline at 0.2em, 45% |
+| C10 | Enter on an empty nested item pushed a blank line holding a lone space and stayed put; Enter-twice never left the list | reproduced on the pre-change build | **fixed** — `nonTightLists: false` in `tabKeymap.ts`; Enter steps out one level |
+
+### What was decided against
+
+- **Shrinking the blank line between paragraphs.** A full blank line at 1.7
+  leading is a generous paragraph gap, and Notion's is tighter. But a short
+  blank line has to grow to full height the moment it gets a character, which
+  means a 15px hop on the first keystroke of every new paragraph, or, if the
+  caret line is exempt, the page breathing in and out as you arrow through it.
+  Stable beats tight on this surface.
+- **A code chip for `inline code`.** Fence bodies (every marking) are tagged
+  `monospace` too, so any box style lands inside every prayer.
+
+### Open, for a product call
+
+- **Phone body size.** The 24px default is per device and the same on a phone,
+  where it sets ~30 characters a line, short for comfortable prose (45+ is the
+  usual floor). A small-viewport scale on `--editor-font-size` would fix it,
+  but it changes what existing phone writers see, and they chose that size (or
+  accepted it) deliberately. Not a silent change.
+- **Home on a list line** lands before the bullet and shows the raw `-`. Notion
+  sends Home to the start of the words. Worth doing alongside headings, which
+  behave the same way.
+
+## 6. Re-running
 
 ```bash
 npm run typecheck
@@ -159,7 +204,8 @@ npm test                       # the whole suite
 npx vitest run src/editor      # the writing surface alone
 ```
 
-`src/editor/pointerInput.test.ts` is the regression net for §3. It drives real
+`src/editor/pointerInput.test.ts` is the regression net for §3;
+`listLayout.test.ts`, `listContinue.test.ts` and `concealMarkers.test.ts` for §5. It drives real
 events through a real `EditorView` and asserts on what a handler *below*
 `editorTap` sees, so it tests the property that actually matters: nothing
 downstream gets a second crack at a gesture already served.

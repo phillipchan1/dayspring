@@ -146,6 +146,10 @@ export function DesktopJournal(props: JournalViewProps) {
                   ? '0'
                   : '4rem 1.5rem 2.5rem',
               overflow: 'hidden',
+              // The same breathing room, handed to the writing column, which
+              // puts it inside its scroller instead (global.css).
+              ['--write-pad-top' as string]: focused ? '0px' : '4rem',
+              ['--write-pad-bottom' as string]: focused ? '0px' : '2.5rem',
             }}
           >
             {mainSlot}

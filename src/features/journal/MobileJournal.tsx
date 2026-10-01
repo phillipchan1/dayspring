@@ -213,6 +213,9 @@ export function MobileJournal(props: JournalViewProps) {
           style={{
             padding: focused ? '0 1rem' : canvasTaken ? '0' : '2.5rem 1rem 1.25rem',
             overflow: 'hidden',
+            // See DesktopJournal: the writing column scrolls through this.
+            ['--write-pad-top' as string]: focused ? '0px' : '2.5rem',
+            ['--write-pad-bottom' as string]: focused ? '0px' : '1.25rem',
           }}
         >
           {mainSlot}

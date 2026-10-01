@@ -38,17 +38,15 @@ const CONCEALED = new Set([
   'HighlightMark', // == and =={rose}  (markdownMarks.ts)
   'UnderlineMark', // ++            (markdownMarks.ts)
   'CodeMark', // ` — inline only, guarded below
+  'QuoteMark', // > — the left rule on .cm-md-quote is the signal now
 ])
 
 /*
  * Deliberately NOT concealed:
  *
- *   ListMark      "- " IS the visible bullet. Hiding it loses the bullet and
- *                 collides with orderedListNumbering, which already replaces
- *                 ordered list marks with a label widget.
- *   QuoteMark     ">" is the only visual signal a line is a blockquote today —
- *                 highlight.ts merely italicises it. Revisit together with a
- *                 real left-rule line decoration.
+ *   ListMark      listLayout.ts owns the whole list prefix — it sets the
+ *                 marker in a fixed column, which is a layout job, not a
+ *                 hide-the-characters one.
  *   TaskMarker    taskListExtension already replaces it with a checkbox.
  *   Escape        "\*" should keep showing its backslash while you edit it.
  *   HorizontalRule — horizontalRule.ts replaces the line with a decorative
@@ -272,6 +270,14 @@ function build(view: EditorView): DecorationSet {
             // Closing `##` — rare; shown whenever the caret is in the heading.
             return
           }
+        }
+        if (node.name === 'QuoteMark') {
+          // `> ` behaves like a heading's `## `: hidden while you write the
+          // quote, back only when the caret reaches into it (Home, or
+          // arrowing left past the text). The space goes with it, or the
+          // quote would open with a stray indent.
+          if (doc.sliceString(t, t + 1) === ' ') t++
+          if (revealsLeadingMark(sel, f, t)) return
         }
         if (f >= t) return
 

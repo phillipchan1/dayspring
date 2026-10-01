@@ -223,22 +223,42 @@ const blockLineTheme = EditorView.theme({
     color: 'var(--md-heading)',
     lineHeight: '1.3',
   },
+  // h3 had no line-height of its own, so it inherited the body's 1.7 and set
+  // a TALLER line box than the h2 above it (46px against 40 at the default
+  // size). Every heading now leads like a heading.
   '.cm-md-h3': {
     fontFamily: 'var(--font-display)',
     fontSize: 'var(--h3-size)',
     fontWeight: 'var(--h3-weight)',
     letterSpacing: 'var(--h1-track)',
     color: 'var(--md-heading)',
+    lineHeight: '1.35',
   },
   '.cm-md-h4, .cm-md-h5, .cm-md-h6': {
     fontFamily: 'var(--font-display)',
     fontSize: '1.05em',
     fontWeight: 'var(--h3-weight)',
     color: 'var(--md-heading)',
+    lineHeight: '1.4',
   },
-  '.cm-md-quote': {
+  // A section heading belongs to what follows it, so the air goes above it,
+  // not below. Padding on the line (not margin) so the caret's line box and
+  // the click target grow with it. `.cm-line.` to beat editorTheme's zeroed
+  // `.cm-line` padding, which sits at the same specificity otherwise.
+  '.cm-line.cm-md-h2, .cm-line.cm-md-h3': {
+    paddingTop: '0.35em',
+  },
+  // A quotation: a quiet rule in the margin, the words in italic, a shade
+  // softer than the writer's own. The `>` is concealed (concealMarkers.ts),
+  // so the rule is the whole signal — and since the marker is gone, a long
+  // quote wraps under its own first letter. --md-quote alone measured close to
+  // --text-faint in the light palettes, i.e. placeholder-grey, which is not
+  // how anyone wants to read the words they chose to keep.
+  '.cm-line.cm-md-quote': {
     fontStyle: 'italic',
-    color: 'var(--md-quote)',
+    color: 'color-mix(in srgb, var(--text) 72%, var(--md-quote))',
+    paddingLeft: '0.95em',
+    boxShadow: 'inset 2px 0 0 color-mix(in srgb, var(--md-quote) 45%, transparent)',
   },
 })
 

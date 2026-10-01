@@ -3046,6 +3046,27 @@ html[data-chapter-pane] .focus-controls--docked {
   z-index: 1;
   height: 100%;
 }
+/* The writing column scrolls the whole height of the canvas.
+   The canvas's breathing room (4rem above, 2.5rem below on desktop) used to be
+   padding OUTSIDE CodeMirror's scroller, so a scrolled entry was cut off
+   mid-glyph against an invisible line 4rem under the header, and again 2.5rem
+   above the window's bottom edge. The space now lives inside the scroller, as
+   padding on the page: the first line still opens in the same place, and the
+   words travel all the way to the header before they go. Other canvases
+   (range select, bulk select) keep the wrapper's padding.
+   !important because the wrapper's padding is set inline per mode. */
+.journal-canvas__content:has(> .journal-write) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+.journal-write .cm-editor:not(.cm-typewriter) .cm-content {
+  padding-top: var(--write-pad-top, 0);
+}
+/* The chapter pane sits beside the column, not in its scroller, so it keeps
+   the margins the wrapper used to give it. */
+.journal-canvas__content:has(> .journal-write) .chapter-pane {
+  margin-block: var(--write-pad-top, 0) var(--write-pad-bottom, 0);
+}
 .journal-glow {
   position: absolute;
   inset: 0 0 auto 0;
@@ -3216,19 +3237,19 @@ html[data-chapter-pane] .focus-controls--docked {
 }
 .markdown-body .read-mark > :last-child { margin-bottom: 0; }
 .markdown-body strong { color: var(--text-bright); }
-.markdown-body em { color: var(--md-emphasis); }
+.markdown-body em { font-style: italic; } /* ink, not --md-emphasis — see highlight.ts */
 .markdown-body a { color: var(--md-link); }
 .markdown-body ul,
 .markdown-body ol { margin: 0 0 1em; padding-left: 1.4em; }
 .markdown-body li { margin: 0.2em 0; }
-.markdown-body li::marker { color: var(--md-list); }
+.markdown-body li::marker { color: color-mix(in srgb, var(--text) 55%, transparent); }
 .markdown-body ol ol { list-style-type: lower-alpha; }
 .markdown-body ol ol ol { list-style-type: lower-roman; }
 .markdown-body blockquote {
   margin: 0 0 1em;
-  padding: 0.1em 1em;
-  border-left: 3px solid var(--border);
-  color: var(--md-quote);
+  padding: 0.1em 0.95em;
+  border-left: 2px solid color-mix(in srgb, var(--md-quote) 45%, transparent);
+  color: color-mix(in srgb, var(--text) 72%, var(--md-quote));
   font-style: italic;
 }
 .markdown-body code {
@@ -3282,6 +3303,20 @@ html[data-chapter-pane] .focus-controls--docked {
 }
 .markdown-body hr {
   margin: 0.55em 0 0.85em;
+}
+/* In the editor the rule is exactly one line tall — the same box the `---`
+   it replaces had — so revealing the dashes under the caret moves nothing.
+   It used to be `display: block` inside the line, and CodeMirror's inline
+   widget buffers either side of a replace then opened a phantom line box
+   above it and another below: 145px for a one-line rule at the default size,
+   collapsing to 41 the moment the caret touched it. `vertical-align: top`
+   lets the box and the line's strut share one line box. */
+.cm-hr {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+  height: calc(var(--editor-line-height) * 1em);
+  margin: 0;
 }
 .markdown-body img {
   max-width: 100%;

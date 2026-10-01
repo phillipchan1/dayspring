@@ -17,7 +17,7 @@
    this rule silently pinned the caret to the top of every entry opened from
    Pages in focus mode. */
 .journal-write--from-pages .cm-editor:not(.cm-typewriter) .cm-content {
-  padding-top: 1.5rem;
+  padding-top: calc(var(--write-pad-top, 0px) + 1.5rem);
 }
 
 /* Fires once, on the surface swap that mounts this — arriving from Pages,

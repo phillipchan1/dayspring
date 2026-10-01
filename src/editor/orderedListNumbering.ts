@@ -151,8 +151,11 @@ const orderedListNumberingPlugin = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations },
 )
 
+// Numbers in the writer's ink, softened — the same tone listLayout gives a
+// bullet. --md-list was a teal carried over from a code-editor palette, and
+// the brightest thing in a list should be the words, not the counting.
 const orderedListNumberingTheme = EditorView.theme({
-  '.cm-list-label': { color: 'var(--md-list)' },
+  '.cm-list-label': { color: 'color-mix(in srgb, var(--text) 55%, transparent)' },
 })
 
 export function orderedListNumberingExtension(): Extension {
