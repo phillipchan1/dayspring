@@ -168,6 +168,9 @@ export const DRAFTS: Release[] = [
     // set as the ESV prints them. Unflagged — it reaches stable with the
     // master → stable merge, so move this into RELEASES in that commit.
     //
+    // Voice: "You can now…". The deck is already labelled What's new, so kickers
+    // name the topic and never say "what changed" / "new".
+    //
     // Three cards, in the order someone needs them: what it looks like (the
     // pitch is the picture), how to start it (a real sequence, so numbered),
     // and what's different about the page itself.
@@ -177,12 +180,12 @@ export const DRAFTS: Release[] = [
     landLabel: 'Open a page',
     cards: [
       {
-        kicker: 'What changed',
+        kicker: 'Bible journaling',
         art: 'sidebyside',
         title: 'Bible journaling, side by side',
         body: [
-          'Read a chapter on the left and write on the right, with the passage open for as long as you are answering it.',
-          'Open Reading, Lectio, SOAP and Discovery all begin this way.',
+          'You can now read a chapter on the left and write on the right, with the passage open for as long as you are answering it.',
+          'Open Reading, Lectio, SOAP and Discovery all work this way.',
         ],
       },
       {
@@ -192,15 +195,15 @@ export const DRAFTS: Release[] = [
         body: [
           '1. On a blank page, choose Open your Bible. It sits in the same place at every hour.',
           '2. Type a reference like John 15, or pick a passage from the suggestions.',
-          '3. Write on the right. Select any words in the passage to bring them in as a quote, with a line drawn back to where you took them.',
+          '3. Write on the right. Select any words in the passage and you can bring them in as a quote, with a line drawn back to where you took them.',
         ],
       },
       {
-        kicker: 'Also new',
+        kicker: 'The passage',
         title: 'Set the way a Bible sets it',
         body: [
-          'Poetry keeps its lines and stanzas, prose its paragraphs, and LORD stays in small capitals. Passages come from the ESV, one chapter at a time.',
-          'Once you have read a chapter, Open your Bible offers the next one. Reading from a Bible of your own? Say so under the search, and write from the reference.',
+          'You can now read poetry in its lines and stanzas, prose in its paragraphs, and LORD in small capitals, as the ESV prints it. Passages come one chapter at a time.',
+          'Once you have read a chapter, Open your Bible offers the next one. Reading from a Bible of your own? You can say so under the search and write from the reference.',
         ],
       },
     ],

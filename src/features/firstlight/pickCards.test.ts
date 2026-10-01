@@ -126,6 +126,12 @@ describe('pickCards', () => {
       }
     })
 
+    it('does not repeat the deck label in a draft’s kickers', () => {
+      for (const r of DRAFTS) {
+        for (const c of r.cards) expect(c.kicker).not.toMatch(/what.?s new|what changed|^also new$/i)
+      }
+    })
+
     it('keeps every deck inside the card ceiling', () => {
       for (const r of [...RELEASES, ...DRAFTS]) {
         expect(r.cards.length).toBeLessThanOrEqual(MAX_CARDS)
