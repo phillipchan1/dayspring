@@ -4,6 +4,8 @@ import { settingsStore } from '@/lib/settings'
 import { pickCards, latestDeck, type Deck } from './pickCards'
 import { onOpenFirstLight } from './open'
 import { RELEASES, WHATS_NEW_LABEL, type CardArt } from './releases'
+import composerStill from './assets/open-your-bible.jpg'
+import stepsGif from './assets/open-your-bible.gif'
 import './FirstLight.css'
 
 /**
@@ -185,7 +187,11 @@ export function FirstLight() {
   )
 }
 
-/** Decorative only — never the carrier of anything the card needs to say. */
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Decorative glyphs are never the carrier of anything the card needs to say; the captures carry an alt. */
 function Art({ kind }: { kind: CardArt }) {
   if (kind === 'climb') {
     // Four heights on one rail, rising — week, month, season, year. The top
@@ -205,46 +211,22 @@ function Art({ kind }: { kind: CardArt }) {
       </svg>
     )
   }
-  if (kind === 'sidebyside') {
-    // The composer in miniature, drawn from the real one: the passage on the
-    // left (reference in small caps, verse numbers in the accent, one run
-    // picked out), the page on the right (the prompt, the quote that came
-    // across, the writer's own lines). Bars stand for words — no verse text is
-    // ever set here.
-    const left = [34, 46, 58, 70, 82, 94]
-    const widths = [118, 124, 96, 122, 110, 70]
+  if (kind === 'composer' || kind === 'steps') {
+    // Real captures of the shipped surface (scripts/capture-whats-new.mjs), not
+    // drawings. The GIF is the same file the email uses; someone who has asked
+    // the system for less motion gets its still instead.
+    const still = kind === 'composer' || prefersReducedMotion()
     return (
-      <svg className="firstlight__side" viewBox="0 0 320 116" aria-hidden="true">
-        <rect className="frame" x="0.75" y="0.75" width="318.5" height="114.5" rx="7" />
-        <path className="split" d="M160 0v116" />
-        <path className="ref" d="M14 14h26" />
-        {left.map((y, i) => (
-          <g key={y}>
-            <path className="num" d={`M14 ${y - 2}h3`} />
-            <path className="rule" d={`M22 ${y}h${widths[i]}`} />
-          </g>
-        ))}
-        <rect className="pickfill" x="60" y="52" width="46" height="9" rx="2" />
-        <path className="pick" d="M60 58h46" />
-        <path className="prompt" d="M176 14h104" />
-        <path className="quote" d="M176 34v16M184 38h70M184 46h42" />
-        <path className="draw" d="M106 57C140 57 142 42 176 42" />
-        <path className="rule" d="M176 70h118M176 82h104M176 94h58" />
-        <path className="caret" d="M236 94v8" />
-      </svg>
-    )
-  }
-  if (kind === 'passage') {
-    // A few lines of a passage, one picked out, and a line drawn from it to
-    // the answer — the same gesture the card describes.
-    return (
-      <svg className="firstlight__passage" viewBox="0 0 176 56" aria-hidden="true">
-        <path className="rule" d="M10 10h62M10 22h54M10 34h60M10 46h44" />
-        <path className="pick" d="M10 22h54" />
-        <path className="draw" d="M68 22C92 22 92 34 112 34" />
-        <path className="rule" d="M112 34h54M112 46h38" />
-        <circle cx="112" cy="34" r="3" />
-      </svg>
+      <img
+        className="firstlight__shot"
+        src={still ? composerStill : stepsGif}
+        alt={
+          kind === 'composer'
+            ? 'The passage beside the page: John 15 on the left, and on the right a quote from it with a line drawn back to the words, and a line of your own writing below.'
+            : 'A short recording. On a blank page, choose Open your Bible, type John 15, select words in the passage and press Return. The quote lands on your page and you write beside it.'
+        }
+        draggable={false}
+      />
     )
   }
   if (kind === 'wall') {

@@ -46,11 +46,16 @@
  * - The deck is already labelled What's new (WHATS_NEW_LABEL), so a kicker names
  *   the TOPIC — "Bible journaling", "How it works" — and never repeats the
  *   label ("What changed", "Also new", "What's new").
- * - Show before you tell. The first card carries a picture of the thing (`art`),
- *   drawn from the real surface, with bars for words so no scripture or journal
- *   text is ever set in it.
+ * - Show before you tell. The first card is a real picture of the surface as it
+ *   looks (`art`), not a drawing of an idea. Captures come from the real app
+ *   through a script (scripts/capture-whats-new.mjs is the pattern) against
+ *   fixtures — never a real journal, never licensed scripture text.
+ * - A card that teaches an action shows it: a short GIF with a caption per step.
+ *   The same file is the email's hero, hosted from the marketing site
+ *   (site/public/email/whats-new/), so write it once.
  * - Tell them how to start. When there is a sequence to learn, a card gives it as
- *   numbered steps — numbers only for a real order. Steps are plain instructions.
+ *   numbered steps — numbers only for a real order. Steps are plain instructions,
+ *   and the GIF's captions say the same words.
  * - Three cards at most, three paragraphs at most. Fewer claims, not more cards.
  * - Land them where the thing lives (`land`, `landLabel`).
  *
@@ -69,7 +74,7 @@
 export const WHATS_NEW_LABEL = 'What’s new'
 
 /** A small inline glyph above the title. Purely decorative; never load-bearing. */
-export type CardArt = 'wall' | 'keys' | 'climb' | 'passage' | 'sidebyside'
+export type CardArt = 'wall' | 'keys' | 'climb' | 'composer' | 'steps'
 
 export interface Card {
   /** Small caps line above the title. Two or three words. */
@@ -197,7 +202,7 @@ export const DRAFTS: Release[] = [
     cards: [
       {
         kicker: 'Bible journaling',
-        art: 'sidebyside',
+        art: 'composer',
         title: 'Bible journaling, side by side',
         body: [
           'You can now read a chapter on the left and write on the right, with the passage open for as long as you are answering it.',
@@ -206,12 +211,12 @@ export const DRAFTS: Release[] = [
       },
       {
         kicker: 'How it works',
-        art: 'passage',
+        art: 'steps',
         title: 'Three steps in',
         body: [
-          '1. On a blank page, choose Open your Bible. It sits in the same place at every hour.',
+          '1. On a blank page, choose Open your Bible.',
           '2. Type a reference like John 15, or pick a passage from the suggestions.',
-          '3. Write on the right. Select any words in the passage and you can bring them in as a quote, with a line drawn back to where you took them.',
+          '3. Select words in the passage and press Return. They land on your page as a quote, with a line drawn back to where you took them.',
         ],
       },
       {

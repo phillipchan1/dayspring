@@ -22,9 +22,14 @@ Then:
    ("You can now…"); a later card gives the **numbered steps** to start, if there is
    a sequence; the last card holds the details. Kickers name the topic, never
    "What changed" / "Also new". Max 3 cards, 3 paragraphs each.
-3. If card 1 needs a picture that does not exist, add a `CardArt` kind: an inline
-   SVG in `FirstLight.tsx` (`Art`) styled in `FirstLight.css` from theme tokens
-   only. Draw it from the real surface; bars for words, no scripture or journal text.
+3. Pictures are **real captures of the shipped app**, not drawings. Copy
+   `scripts/capture-whats-new.mjs`: it drives a dev-only `?__preview=` harness,
+   writes a still (card 1) and a captioned GIF (the how-to card) into
+   `src/features/firstlight/assets/` and the same files into
+   `site/public/email/<release>/` for the email. Fixtures only — no real journal,
+   no licensed scripture text. Add a `CardArt` kind per image in `FirstLight.tsx`
+   (with alt text). The GIF is the email's hero too; hand its hosted URL to
+   whoever writes the email.
 4. `npm run typecheck` and `npx vitest run src/features/firstlight`. The tests
    enforce the shape for every release from 2026-10 on.
 5. Preview: `npm run dev`, then `?__preview=firstlight&draft=1` (any palette).
