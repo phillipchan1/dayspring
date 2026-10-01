@@ -2721,6 +2721,21 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     onCommand: runCommandAtCaret,
   }
 
+  // Every layer that can sit over a ritual and answers Escape itself.
+  const ritualBlocked =
+    aboutPractice !== null ||
+    settingsOpen ||
+    helpOpen ||
+    findOpen ||
+    voiceOpen ||
+    scanOpen ||
+    editDateEntry !== null ||
+    slashCapture !== null ||
+    slashPaletteOpen ||
+    imageEdit !== null ||
+    imageMenu !== null ||
+    chapterOpen !== null
+
   return (
     <FeatureFlagProvider flags={featureFlags}>
       <>
@@ -2842,14 +2857,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onClose={closeRitualEntry}
           // Anything open over an answer — a palette, a panel, the About sheet —
           // owns the keyboard, so Escape closes it rather than the ritual.
-          blocked={
-            aboutPractice !== null ||
-            slashCapture !== null ||
-            slashPaletteOpen ||
-            imageEdit !== null ||
-            imageMenu !== null ||
-            chapterOpen !== null
-          }
+          blocked={ritualBlocked}
           renderAnswer={renderRitualAnswer}
           entry={{
             ...(ritualEntry.seed ? { seed: ritualEntry.seed } : {}),
@@ -2879,14 +2887,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
           onClose={() => setComposerIndex(null)}
           // Anything open over an answer — a palette, a panel, the About sheet —
           // owns the keyboard, so Escape closes it rather than the ritual.
-          blocked={
-            aboutPractice !== null ||
-            slashCapture !== null ||
-            slashPaletteOpen ||
-            imageEdit !== null ||
-            imageMenu !== null ||
-            chapterOpen !== null
-          }
+          blocked={ritualBlocked}
           renderAnswer={renderRitualAnswer}
         />
       )}

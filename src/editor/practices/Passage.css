@@ -46,7 +46,10 @@
   width: 1.3rem;
   margin: 0 0.3rem 0 -1.6rem;
   text-align: right;
-  text-indent: 0;
+  text-indent: 0;  /* In cite mode the number is a <button> (border-box): the pill's padding
+     and border ate the 1.3rem, so "12" wrapped to one digit per line. */
+  white-space: nowrap;
+  padding-inline: 0.2em;
 }
 /* The divine name: LORD as the ESV prints it, capital and small capitals. The
    letters stay capitals underneath, so a copied verse is still verbatim. */
@@ -497,6 +500,10 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
    Dawn, as the fixed 1.28rem was), never larger — it was 1.28rem in every
    voice, so in Plainsong a 20px passage stood over 17px writing. */
 .rc__leaf-text .psg { font-size: max(calc(var(--voice-text-size, 24px) * 0.85), 13px); line-height: 1.9; }
+/* The rail foot is pinned with `margin-top: auto`, which is zero once a long
+   passage fills the leaf — so the last line sat on the hairline. A passage
+   gets its own breathing room before the foot, however long it runs. */
+.rc__leaf-text { padding-bottom: 2.25rem; }
 .rc__leaf-under { margin-top: 1rem; display: flex; gap: 1.1rem; }
 .rc__leaf-own {
   border: 1px dashed var(--border-subtle);
