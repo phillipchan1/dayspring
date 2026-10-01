@@ -13,8 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.1",
     "@astrojs/sitemap": "^3.7.3",
-    "astro": "^5.13.0",
+    "astro": "^7.3.5",
     "posthog-js": "^1.415.3"
   },
   "devDependencies": {
