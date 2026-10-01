@@ -24,7 +24,7 @@ import { useWelcome } from '@/features/welcome/WelcomeProvider'
 import { useSettings } from '@/hooks/useSettings'
 import type { SettingsTab } from '@/lib/appHistory'
 import type { Settings } from '@/lib/settings'
-import { EDITOR_FONT_VARS, FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
+import { FONT_SIZE_MAX, FONT_SIZE_MIN, settingsStore } from '@/lib/settings'
 import {
   billingDestination,
   fetchPortalUrl,
@@ -255,10 +255,13 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
           mirrors the actual writing surface's font, size, and line height. */}
       <div
         className="settings-preview"
+        // The surface's own computed tokens, not the raw slider numbers: those
+        // ignored the voice's and the face's scale (Plainsong previewed mono at
+        // 24px and wrote at 17) and, on a phone, the device scale too.
         style={{
-          fontFamily: EDITOR_FONT_VARS[settings.editorFont],
-          fontSize: settings.fontSize,
-          lineHeight: settings.lineHeight,
+          fontFamily: 'var(--font-editor)',
+          fontSize: 'var(--editor-font-size)',
+          lineHeight: 'var(--editor-line-height)',
         }}
       >
         Grace and peace to you this morning.

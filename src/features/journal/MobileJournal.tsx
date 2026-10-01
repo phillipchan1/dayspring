@@ -210,7 +210,9 @@ export function MobileJournal(props: JournalViewProps) {
           ref={canvasRef}
           className="journal-canvas__content"
           style={{
-            padding: focused ? '0 1rem' : canvasTaken ? '0' : '2.5rem 1rem 1.25rem',
+            // 1.25rem sides: the 20pt reading margin iOS sets its own prose
+            // in. At 1rem the words ran to within a thumb's width of the glass.
+            padding: focused ? '0 1.25rem' : canvasTaken ? '0' : '2.5rem 1.25rem 1.25rem',
             overflow: 'hidden',
             // See DesktopJournal: the writing column scrolls through this.
             ['--write-pad-top' as string]: focused ? '0px' : '2.5rem',

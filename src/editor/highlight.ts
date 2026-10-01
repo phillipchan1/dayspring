@@ -16,7 +16,14 @@ export const markdownHighlight = HighlightStyle.define([
   // `em` sizes can't compound with a mark nested inside the line.
 
   // Inline emphasis.
-  { tag: t.strong, fontWeight: '700', color: 'var(--text-bright)' },
+  // Weight does the work. In --text-bright, bold switched to a different ink
+  // mid-sentence — near-black against Dawn's warm brown, a jump you saw
+  // before you read it. Half a step toward bright keeps it the same pen.
+  {
+    tag: t.strong,
+    fontWeight: '700',
+    color: 'color-mix(in srgb, var(--text) 50%, var(--text-bright))',
+  },
   // Italic is a change of voice, not of ink. It used to wear --md-emphasis —
   // purple in Dawn, pink in Compline — which is a code editor's token colour,
   // and on a page of prose it read as a link nobody could click. The token

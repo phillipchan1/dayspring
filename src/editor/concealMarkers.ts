@@ -5,6 +5,7 @@ import {
   EditorView,
   keymap,
   ViewPlugin,
+  WidgetType,
   type Command,
   type DecorationSet,
   type ViewUpdate,
@@ -78,6 +79,35 @@ const SPAN_OF_MARK: Record<string, true> = {
  */
 
 const hidden = Decoration.replace({})
+
+/**
+ * The same nothing, for the markers of an INLINE span (`**`, `*`, `==`, `](url)`).
+ *
+ * CodeMirror flanks every replaced range with zero-width `<img
+ * class="cm-widgetBuffer">`s so a caret beside it renders, and CSS gives every
+ * atomic inline a soft wrap opportunity on both sides. So `**bold**, and` could
+ * break between the hidden `**` and the comma, and the line below opened on a
+ * stray `, and` — in every face, worst in the wide ones.
+ *
+ * The buffers are dead weight here: the reveal rule is inclusive, so a caret
+ * touching an inline span's edge has already turned these markers back into
+ * text. `.cm-conceal` lets global.css drop exactly these buffers, and no
+ * others — a heading's or a quote's leading mark keeps its own, because the
+ * caret DOES sit beside those while the line is being written.
+ */
+class ConcealWidget extends WidgetType {
+  eq(): boolean {
+    return true
+  }
+
+  toDOM(): HTMLElement {
+    const el = document.createElement('span')
+    el.className = 'cm-conceal'
+    return el
+  }
+}
+
+const hiddenInline = Decoration.replace({ widget: new ConcealWidget() })
 
 /**
  * True when any selection range touches `[from, to]`, INCLUSIVE at both ends.
@@ -291,7 +321,8 @@ function build(view: EditorView): DecorationSet {
         const key = `${f}:${t}`
         if (seen.has(key)) return
         seen.add(key)
-        ranges.push(hidden.range(f, t))
+        const leading = node.name === 'HeaderMark' || node.name === 'QuoteMark'
+        ranges.push((leading ? hidden : hiddenInline).range(f, t))
       },
     })
   }
