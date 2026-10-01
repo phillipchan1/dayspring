@@ -171,23 +171,11 @@ export const RELEASES: Release[] = [
       },
     ],
   },
-]
 
-/**
- * WRITTEN, NOT YET RELEASED. pickCards() never reads this array, and nothing in
- * it can be stamped as seen — which is the whole point. A release sitting in
- * RELEASES becomes CURRENT_RELEASE_ID, so anyone closing an older deck (or
- * finishing onboarding) would be marked as having seen it before it existed,
- * and it would never show them. Web serves master, so that happens on push.
- *
- * To release: move the entry into RELEASES, in the same commit that makes what
- * it describes visible to everyone. Preview with `?__preview=firstlight&draft=1`.
- */
-export const DRAFTS: Release[] = [
   {
     // The passage rituals: Open your Bible, the finder, drawn quotes, chapters
-    // set as the ESV prints them. Unflagged — it reaches stable with the
-    // master → stable merge, so move this into RELEASES in that commit.
+    // set as the ESV prints them. Unflagged, so it reached everyone with the
+    // master → stable merge that promoted this entry.
     //
     // Voice: "You can now…". The deck is already labelled What's new, so kickers
     // name the topic and never say "what changed" / "new".
@@ -230,6 +218,18 @@ export const DRAFTS: Release[] = [
     ],
   },
 ]
+
+/**
+ * WRITTEN, NOT YET RELEASED. pickCards() never reads this array, and nothing in
+ * it can be stamped as seen — which is the whole point. A release sitting in
+ * RELEASES becomes CURRENT_RELEASE_ID, so anyone closing an older deck (or
+ * finishing onboarding) would be marked as having seen it before it existed,
+ * and it would never show them. Web serves master, so that happens on push.
+ *
+ * To release: move the entry into RELEASES, in the same commit that makes what
+ * it describes visible to everyone. Preview with `?__preview=firstlight&draft=1`.
+ */
+export const DRAFTS: Release[] = []
 
 /**
  * The id stamped on someone who should see nothing — a brand-new account at the
