@@ -10,9 +10,15 @@ import { env } from './env.js'
 import type { Period } from './dates.js'
 import { weeksInRange, monthsInRange, quartersInRange, yearsInRange } from './dates.js'
 import { buildWeekly, buildMonthly, buildQuarterly, buildYearly } from './synthesize.js'
-import { harvestPlan, harvestPrayers, embedUnembedded } from './altar.js'
+import { harvestPlan, harvestPrayers, embedUnembedded, embedUnembeddedItems } from './altar.js'
 import { tagSubjects, regroupDeclared } from './declared.js'
 import { concordancePlan, scanConcordance } from './concordance.js'
+import {
+  GATHER_PER_TICK,
+  gatherChunk,
+  gatherPendingCount,
+  gatherPendingOwners,
+} from './gatherEngine.js'
 
 export type JobKind =
   | 'reflections'
@@ -21,13 +27,27 @@ export type JobKind =
   | 'altar_embed'
   | 'altar_thread'
   | 'concordance'
+  | 'gather'
+
+/**
+ * Where a gather job came from. It decides two things: whether the entry must
+ * have settled before it is read (an imported page is finished the moment it
+ * lands; a page being written is not), and whether the job is VISIBLE — an
+ * import shows progress in the "still preparing…" banner, while the gather that
+ * follows an ordinary writing session must never raise it.
+ */
+export type GatherOrigin = 'import' | 'write'
+
+interface GatherCursor {
+  origin: GatherOrigin
+}
 
 export interface Job {
   id: string
   owner: string
   kind: JobKind
   status: 'queued' | 'running' | 'done' | 'failed'
-  cursor: ReflectionsCursor | Record<string, never>
+  cursor: ReflectionsCursor | GatherCursor | Record<string, never>
   total: number
   completed: number
   attempts: number
@@ -81,7 +101,13 @@ const REFLECTIONS_POOL = 6 // concurrent builds within a tick — caps model fan
 const HARVEST_PER_TICK = 60 // entries scanned for prayer cues per tick
 const THREAD_PER_TICK = 300 // untagged prayers/senses read by the subject tagger per tick
 const CONCORDANCE_PER_TICK = 64 // entries read for concordance candidates per tick
-const MAX_ATTEMPTS = 5 // after this many failures, give up (status=failed)
+const WRITE_TAG_MAX = 120 // prayer lines tagged inline after a writing-session gather (the cron's old bound)
+// Give up (status=failed) after this many CONSECUTIVE failures. The claim RPC bumps
+// `attempts` on every claim — so a chunk that crashes outright (function killed,
+// no catch) still counts — and every successful chunk writes it back to 0. Before
+// that reset, attempts only ever grew: a long import was past 5 after its fifth
+// healthy tick, and the first transient error after that failed it for good.
+const MAX_ATTEMPTS = 5
 
 /** Run `fn` over items with bounded concurrency (no extra deps). */
 async function runPool<T>(
@@ -142,6 +168,14 @@ export async function enqueueBackfill(
     await extendActiveReflections(sb, owner, range)
   }
 
+  if (env.gatherEngine()) {
+    // One job reads each imported entry once: derive, harvest, concordance,
+    // embed (gatherEngine.ts). It replaces altar_harvest → altar_embed and
+    // concordance below, and chains altar_thread itself when it drains.
+    if (await enqueueGather(owner, 'import')) enqueued.push('gather')
+    return { enqueued }
+  }
+
   const { unscanned } = await harvestPlan(owner)
   if (await insertIfInactive(sb, owner, 'altar_harvest', unscanned, {})) {
     enqueued.push('altar_harvest')
@@ -192,12 +226,72 @@ async function extendActiveReflections(
     .eq('id', active.id)
 }
 
+/**
+ * Ensure a gather job is active for an owner. Returns true if one was created.
+ *
+ * An import that arrives while a writing-session gather is already running
+ * PROMOTES that job rather than queueing behind it: it becomes visible, stops
+ * waiting for entries to settle, and its total grows to cover the import.
+ */
+export async function enqueueGather(owner: string, origin: GatherOrigin): Promise<boolean> {
+  const sb = supabaseAdmin()
+  const settle = origin === 'import' ? 0 : env.gatherSettleMinutes()
+  const pending = await gatherPendingCount(owner, settle)
+  if (pending <= 0) return false
+
+  // A finished writing-session gather is deleted when it drains; one that FAILED
+  // is not. Clear those so they do not pile up one per retry.
+  if (origin === 'write') {
+    await sb
+      .from('processing_jobs')
+      .delete()
+      .eq('owner', owner)
+      .eq('kind', 'gather')
+      .in('status', ['done', 'failed'])
+      .eq('cursor->>origin', 'write')
+  }
+
+  if (await insertIfInactive(sb, owner, 'gather', pending, { origin })) return true
+  if (origin !== 'import') return false
+
+  const { data: active } = await sb
+    .from('processing_jobs')
+    .select('id, cursor, completed')
+    .eq('owner', owner)
+    .eq('kind', 'gather')
+    .in('status', ['queued', 'running'])
+    .maybeSingle()
+  if (active && (active.cursor as GatherCursor).origin !== 'import') {
+    await sb
+      .from('processing_jobs')
+      .update({ cursor: { origin: 'import' }, total: (active.completed as number) + pending })
+      .eq('id', active.id)
+  }
+  return false
+}
+
+/**
+ * The steady-state trigger, called from the every-minute tick: give every owner
+ * with entries that have settled a gather job. This is what replaces "wait for
+ * 08:00 UTC" — new writing is read within a minute or so of the writer stopping
+ * for the settle window, with no per-owner daily cap.
+ */
+export async function enqueueSettledGathers(limit = 25): Promise<number> {
+  if (!env.gatherEngine()) return 0
+  const owners = await gatherPendingOwners(env.gatherSettleMinutes(), limit)
+  let enqueued = 0
+  for (const { owner } of owners) {
+    if (await enqueueGather(owner, 'write')) enqueued++
+  }
+  return enqueued
+}
+
 async function insertIfInactive(
   sb: ReturnType<typeof supabaseAdmin>,
   owner: string,
   kind: JobKind,
   total: number,
-  cursor: ReflectionsCursor | Record<string, never>,
+  cursor: ReflectionsCursor | GatherCursor | Record<string, never>,
 ): Promise<boolean> {
   const { data: active } = await sb
     .from('processing_jobs')
@@ -267,6 +361,8 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
         return await runAltarThread(job)
       case 'concordance':
         return await runConcordance(job)
+      case 'gather':
+        return await runGather(job)
       case 'scripture':
         // Scripture is scanned client-side post-import; nothing to do server-side.
         await sb.from('processing_jobs').update({ status: 'done', locked_at: null }).eq('id', job.id)
@@ -289,6 +385,12 @@ async function runChunk(job: Job): Promise<Record<string, unknown>> {
       .from('processing_jobs')
       .update({ error: message, ...(giveUp ? { status: 'failed', locked_at: null } : {}) })
       .eq('id', job.id)
+    // A harvest that gives up has usually still planted most of the archive. Hand
+    // that on to embed → thread so the Altar is built from what WAS read; the
+    // entries it could not read stay unscanned for the daily cron to retry.
+    if (giveUp && job.kind === 'altar_harvest') {
+      await insertIfInactive(sb, job.owner, 'altar_embed', 1, {})
+    }
     return { id: job.id, kind: job.kind, status: giveUp ? 'failed' : 'retry', error: message }
   }
 }
@@ -325,7 +427,7 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
   if (index >= tasks.length) {
     await sb
       .from('processing_jobs')
-      .update({ status: 'done', completed: tasks.length, locked_at: null })
+      .update({ status: 'done', completed: tasks.length, locked_at: null, attempts: 0 })
       .eq('id', job.id)
     return { id: job.id, kind: 'reflections', status: 'done', completed: tasks.length }
   }
@@ -334,21 +436,28 @@ async function runReflections(job: Job): Promise<Record<string, unknown>> {
   // picks it straight up rather than waiting out the 5-min stale window).
   await sb
     .from('processing_jobs')
-    .update({ cursor: { range, index }, completed: index, locked_at: null })
+    .update({ cursor: { range, index }, completed: index, locked_at: null, attempts: 0 })
     .eq('id', job.id)
   return { id: job.id, kind: 'reflections', status: 'running', completed: index, of: job.total }
 }
 
 async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
-  const { scanned } = await harvestPrayers(job.owner, { max: HARVEST_PER_TICK })
+  const { scanned, failed } = await harvestPrayers(job.owner, { max: HARVEST_PER_TICK })
+  // Nothing could be read this tick: fail the chunk so the engine backs off,
+  // counts the attempt and eventually gives up. Returning normally here left the
+  // job "running" with the same unreadable entries at the head of the queue,
+  // re-ticking every minute and never reaching embed → thread.
+  if (scanned === 0 && failed > 0) {
+    throw new Error(`altar_harvest: model call failed for ${failed} entries; none read`)
+  }
   const completed = job.completed + scanned
   const { unscanned } = await harvestPlan(job.owner)
 
   if (unscanned <= 0) {
     await sb
       .from('processing_jobs')
-      .update({ status: 'done', completed, locked_at: null })
+      .update({ status: 'done', completed, locked_at: null, attempts: 0 })
       .eq('id', job.id)
     // Chain: embed everything we just harvested, then thread it.
     await insertIfInactive(sb, job.owner, 'altar_embed', 1, {})
@@ -357,33 +466,92 @@ async function runAltarHarvest(job: Job): Promise<Record<string, unknown>> {
 
   await sb
     .from('processing_jobs')
-    .update({ completed, locked_at: null })
+    .update({ completed, locked_at: null, attempts: 0 })
     .eq('id', job.id)
   return { id: job.id, kind: 'altar_harvest', status: 'running', completed, remaining: unscanned }
 }
 
 async function runConcordance(job: Job): Promise<Record<string, unknown>> {
   const sb = supabaseAdmin()
-  const { scanned } = await scanConcordance(job.owner, {
+  const { scanned, failed } = await scanConcordance(job.owner, {
     max: CONCORDANCE_PER_TICK,
     source: 'import', // archive seed — items land suggested, never confirmed
   })
+  // Same guard as the harvest: a tick that read nothing must fail, not loop.
+  if (scanned === 0 && failed > 0) {
+    throw new Error(`concordance: model call failed for ${failed} entries; none read`)
+  }
   const completed = job.completed + scanned
   const { unscanned } = await concordancePlan(job.owner)
 
   if (unscanned <= 0) {
     await sb
       .from('processing_jobs')
-      .update({ status: 'done', completed, locked_at: null })
+      .update({ status: 'done', completed, locked_at: null, attempts: 0 })
       .eq('id', job.id)
     return { id: job.id, kind: 'concordance', status: 'done', completed }
   }
 
   await sb
     .from('processing_jobs')
-    .update({ completed, locked_at: null })
+    .update({ completed, locked_at: null, attempts: 0 })
     .eq('id', job.id)
   return { id: job.id, kind: 'concordance', status: 'running', completed, remaining: unscanned }
+}
+
+async function runGather(job: Job): Promise<Record<string, unknown>> {
+  const sb = supabaseAdmin()
+  const origin: GatherOrigin = (job.cursor as GatherCursor).origin === 'import' ? 'import' : 'write'
+  const settleMinutes = origin === 'import' ? 0 : env.gatherSettleMinutes()
+
+  const res = await gatherChunk(job.owner, {
+    settleMinutes,
+    max: GATHER_PER_TICK,
+    source: origin === 'import' ? 'import' : 'repetition',
+  })
+  // "Done with" an entry = gathered, or given up on. A failed entry is still
+  // pending and is counted when it finally resolves.
+  const completed = job.completed + res.gathered + res.givenUp
+  const remaining = await gatherPendingCount(job.owner, settleMinutes)
+
+  if (remaining > 0) {
+    await sb
+      .from('processing_jobs')
+      .update({ completed, total: completed + remaining, locked_at: null, attempts: 0 })
+      .eq('id', job.id)
+    return { id: job.id, kind: 'gather', status: 'running', origin, completed, remaining, ...res }
+  }
+
+  // Drained. Everything harvested (and every /pray block the derive wrote) needs
+  // an embedding before it can be threaded.
+  const embedded = await embedUnembeddedItems(job.owner)
+
+  if (origin === 'import') {
+    await sb
+      .from('processing_jobs')
+      .update({ status: 'done', completed, total: completed, locked_at: null, attempts: 0 })
+      .eq('id', job.id)
+    // Thread the archive as its own visible job, exactly as altar_embed used to.
+    await insertIfInactive(sb, job.owner, 'altar_thread', 1, {})
+    return { id: job.id, kind: 'gather', status: 'done', origin, completed, ...res, ...embedded }
+  }
+
+  // A writing session: tag the handful of new lines here, as the daily cron did,
+  // rather than through a visible altar_thread job that would raise the banner.
+  const tagged = await tagSubjects(job.owner, { max: WRITE_TAG_MAX })
+  let declared: unknown
+  let tagBacklog = false
+  if (tagged.remaining > 0) {
+    // A real backlog (an archive not yet threaded) — that IS worth the engine job,
+    // and the field must not be regrouped from a half-read archive.
+    tagBacklog = await insertIfInactive(sb, job.owner, 'altar_thread', 1, {})
+  } else if (tagged.read > 0) {
+    declared = await regroupDeclared(job.owner)
+  }
+  // Leave no row behind: a 'done' gather per writing session would accumulate
+  // forever, and any processing_jobs row reads as "this owner has been processed".
+  await sb.from('processing_jobs').delete().eq('id', job.id)
+  return { id: job.id, kind: 'gather', status: 'done', origin, completed, ...res, ...embedded, tagged, declared, tagBacklog }
 }
 
 async function runAltarEmbed(job: Job): Promise<Record<string, unknown>> {
@@ -391,7 +559,7 @@ async function runAltarEmbed(job: Job): Promise<Record<string, unknown>> {
   const res = await embedUnembedded(job.owner) // batches internally
   await sb
     .from('processing_jobs')
-    .update({ status: 'done', completed: 1, total: 1, locked_at: null })
+    .update({ status: 'done', completed: 1, total: 1, locked_at: null, attempts: 0 })
     .eq('id', job.id)
   await insertIfInactive(sb, job.owner, 'altar_thread', 1, {})
   return { id: job.id, kind: 'altar_embed', status: 'done', ...res }
@@ -412,7 +580,7 @@ async function runAltarThread(job: Job): Promise<Record<string, unknown>> {
   if (res.remaining > 0) {
     await sb
       .from('processing_jobs')
-      .update({ completed, total: completed + res.remaining, locked_at: null })
+      .update({ completed, total: completed + res.remaining, locked_at: null, attempts: 0 })
       .eq('id', job.id)
     return { id: job.id, kind: 'altar_thread', status: 'running', completed, remaining: res.remaining }
   }
@@ -421,7 +589,7 @@ async function runAltarThread(job: Job): Promise<Record<string, unknown>> {
   const declared = await regroupDeclared(job.owner)
   await sb
     .from('processing_jobs')
-    .update({ status: 'done', completed, total: completed, locked_at: null })
+    .update({ status: 'done', completed, total: completed, locked_at: null, attempts: 0 })
     .eq('id', job.id)
   return { id: job.id, kind: 'altar_thread', status: 'done', ...res, declared }
 }

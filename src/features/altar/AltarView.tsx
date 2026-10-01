@@ -450,10 +450,16 @@ export function AltarView({ onOpenEntry }: Props) {
   // has surfaced yet, show honest progress instead of the "nothing here" copy.
   // Must be called before any early return — Rules of Hooks.
   const { byKind } = useProcessingJobs()
-  const harvestJob = byKind.altar_harvest
-  const altarBackfilling = [byKind.altar_harvest, byKind.altar_embed, byKind.altar_thread].some(
-    (j) => j != null && isActive(j.status),
-  )
+  // The read stage is `altar_harvest` on the old path and an import's `gather`
+  // on the gather engine (only import-origin gathers reach this hook at all).
+  const harvestJob =
+    byKind.gather && isActive(byKind.gather.status) ? byKind.gather : byKind.altar_harvest
+  const altarBackfilling = [
+    byKind.altar_harvest,
+    byKind.gather,
+    byKind.altar_embed,
+    byKind.altar_thread,
+  ].some((j) => j != null && isActive(j.status))
 
   // Fill in live: reload when the altar backfill (harvest→embed→thread) finishes
   // so the strands appear without the user navigating away and back.

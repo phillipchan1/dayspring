@@ -64,6 +64,11 @@ export async function embed(texts: string[]): Promise<number[][]> {
       if (useAiGateway()) logGatewayError(e)
       throw e
     }
+    // Same line shape as callModel's, so one grep prices a run. Embeddings were
+    // the one priced call that logged nothing. Counts only, never text (§8).
+    console.log(
+      `[tokens] name=embed model=${res.model ?? env.embedModel()} in=${res.usage?.prompt_tokens ?? 0} inputs=${slice.length}`,
+    )
     // The API guarantees data is returned in input order, but sort by index to be safe.
     const sorted = [...res.data].sort((a, b) => a.index - b.index)
     for (const d of sorted) out.push(d.embedding as number[])

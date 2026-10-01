@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { requireSupabase } from '@/lib/supabase'
+import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import { listKeptSubjects, dropSubject, type KeptSubject } from '@/features/pages/keptSubjects'
 import { forgetConcordanceItem, type ConcordanceKind } from '@/lib/concordance'
 import { buildLifeMap, floorFor, type LifeMapItem, type LifeMapSection, type SectionId } from './lifeMap'
@@ -56,10 +57,12 @@ export interface LifeMap {
 }
 
 export async function loadLifeMap(): Promise<LifeMap> {
-  const pages = await pageCount()
-  const floor = floorFor(pages)
-  const [concordance, kept] = await Promise.all([listForLifeMap(floor), listKeptSubjects()])
-  return { sections: buildLifeMap(concordance, kept, floor), floor, pages }
+  return withOfflineSnapshot('lifemap', async () => {
+    const pages = await pageCount()
+    const floor = floorFor(pages)
+    const [concordance, kept] = await Promise.all([listForLifeMap(floor), listKeptSubjects()])
+    return { sections: buildLifeMap(concordance, kept, floor), floor, pages }
+  })
 }
 
 /**

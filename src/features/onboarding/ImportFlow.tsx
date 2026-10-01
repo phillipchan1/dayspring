@@ -2,7 +2,8 @@ import { useRef, useState, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { track } from '@/lib/analytics'
 import { upsertImportedEntries } from '@/lib/entries'
-import { scanAllForRefs } from '@/lib/scripture/scan'
+import { scanAllForRefs, getImportedEntryCount, writeScanWatermark } from '@/lib/scripture/scan'
+import * as repo from '@/lib/repo'
 import type { ImportParseResult } from '@/lib/import/types'
 import { archiveFromDrop, archiveFromFiles, type ImportArchive } from '@/lib/import/archive'
 import { IMPORT_SOURCES } from '@/lib/import/sources'
@@ -132,7 +133,22 @@ export function ImportFlow({ onComplete, onBack }: Props) {
     // Light the Lamp: imported entries skip the editor, so scan them for
     // scripture refs now (cheap on-device regex, runs in the background). Without
     // this the user lands on a "N entries haven't been scanned" CTA.
-    void scanAllForRefs().catch((err) => console.warn('scripture scan failed', err))
+    // The watermark is what retires that CTA — the Settings import has always
+    // written it, and this flow did not, so the prompt outlived the scan.
+    void scanAllForRefs()
+      .then(async () => {
+        try {
+          writeScanWatermark(await getImportedEntryCount())
+        } catch { /* non-fatal */ }
+      })
+      .catch((err) => console.warn('scripture scan failed', err))
+
+    // The import writes straight to Supabase, bypassing the local cache — pull
+    // the entries in now so this device is not the last to see what it imported
+    // (same step the Settings import takes).
+    void repo.sync().catch(() => {
+      // Non-fatal: the entries are on the server, and the next sync collects them.
+    })
 
     // Build the full archive through the SAME processing engine the rest of the
     // app reads — reflections AND altar — so the in-app banner + per-surface

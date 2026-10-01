@@ -181,7 +181,16 @@ begin
     $c$superseded = not superseded$c$,
     $c$entry_lens = coalesce(entry_lens, '') || 'x'$c$,
     $c$entry_domain = coalesce(entry_domain, '') || 'x'$c$
-  ] loop
+  ] || case when exists (
+         select 1 from pg_attribute
+          where attrelid = 'public.entries'::regclass and attname = 'gathered_hash')
+       -- 20260930130000_gather_engine, when it has been applied to this database
+       then array[
+         $c$gathered_hash = coalesce(gathered_hash, '') || 'x'$c$,
+         $c$gathered_words_hash = coalesce(gathered_words_hash, '') || 'x'$c$,
+         $c$gather_attempts = gather_attempts + 1$c$
+       ] else array[]::text[] end
+  loop
     assert not pg_temp.stamp_moved(id, clause),
       format('a derived write must not bump updated_at: %s', clause);
   end loop;
@@ -244,7 +253,10 @@ declare
                                          'tags', 'word_count', 'source', 'external_id',
                                          'circumstances'];
   derived_cols  constant text[] := array['embedding', 'prayer_scanned_at', 'concordance_scanned_at',
-                                         'superseded', 'entry_lens', 'entry_domain'];
+                                         'superseded', 'entry_lens', 'entry_domain',
+                                         -- 20260930130000_gather_engine
+                                         'body_hash', 'gathered_hash', 'gathered_words_hash',
+                                         'gather_attempts'];
   unclassified  text[];
 begin
   select coalesce(array_agg(a.attname order by a.attname), '{}')

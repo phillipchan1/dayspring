@@ -554,10 +554,18 @@ export async function extractCandidates(
   return { byEntry, failed }
 }
 
+export interface ConcordanceRun {
+  scanned: number
+  merged: number
+  failed: number
+  /** The entries behind `failed` — their model call failed, so they stay unread. */
+  failedIds: string[]
+}
+
 export async function scanConcordance(
   owner: string,
   opts: { max?: number; window?: { fromISO: string; toExclusiveISO: string }; source: 'import' | 'repetition' },
-): Promise<{ scanned: number; merged: number }> {
+): Promise<ConcordanceRun> {
   const sb = supabaseAdmin()
 
   const pool = await fetchAll<{ id: string; created_at: string; body_markdown: string }>(
@@ -573,7 +581,26 @@ export async function scanConcordance(
       return r
     },
   )
-  const slice = opts.max ? pool.slice(0, opts.max) : pool
+  return scanConcordanceEntries(owner, opts.max ? pool.slice(0, opts.max) : pool, opts.source)
+}
+
+/**
+ * Extract + merge over a GIVEN set of entries — the half of scanConcordance that
+ * does not care how they were chosen. scanConcordance picks "never scanned"; the
+ * gather engine (gatherEngine.ts) picks "words changed since the last gather".
+ *
+ * A re-read is ADDITIVE: the occurrence junction's primary key makes a name the
+ * entry already carried a no-op, and a new name gets its row. A name the writer
+ * has since removed keeps its occurrence until the weekly consolidation — the
+ * Concordance is a spelling aid (names, never claims), so a lingering alias costs
+ * nothing a reader can see.
+ */
+export async function scanConcordanceEntries(
+  owner: string,
+  slice: { id: string; created_at: string; body_markdown: string }[],
+  source: 'import' | 'repetition',
+): Promise<ConcordanceRun> {
+  const sb = supabaseAdmin()
 
   // Blank/trivial entries skip the model entirely — just mark them scanned.
   const blank = slice.filter((e) => normalizeWs(e.body_markdown).length < 3)
@@ -594,10 +621,17 @@ export async function scanConcordance(
   const state = await loadMergeState(sb, owner)
   let merged = 0
   let scanned = blank.length
+  // Entries whose model call failed stay unscanned to be read next run. Counted so
+  // a run that could read nothing is visible to the caller instead of looking
+  // like a quiet success (the import job used to re-tick on it forever).
+  const failedIds: string[] = []
   for (let b = 0; b < batches.length; b++) {
     const batch = batches[b]!
     const out = results[b]
-    if (!out) continue
+    if (!out) {
+      failedIds.push(...batch.map((e) => e.id))
+      continue
+    }
     // Iterate the extraction map, not the batch: Map preserves insertion order,
     // so merges happen in the same order the inline version did them. Merge
     // state is shared and mutated in sequence, so the order is load-bearing.
@@ -605,13 +639,13 @@ export async function scanConcordance(
     for (const [entryId, accepted] of out) {
       const entry = byId.get(entryId)
       if (!entry) continue
-      merged += await mergeCandidates(sb, owner, state, entry, accepted, opts.source)
+      merged += await mergeCandidates(sb, owner, state, entry, accepted, source)
     }
     await markScanned(sb, batch.map((e) => e.id))
     scanned += batch.length
   }
 
-  return { scanned, merged }
+  return { scanned, merged, failed: failedIds.length, failedIds }
 }
 
 // ── consolidate — weekly pass (Mondays, riding the synthesize cron) ──────────

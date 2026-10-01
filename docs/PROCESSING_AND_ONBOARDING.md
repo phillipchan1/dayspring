@@ -1,5 +1,7 @@
 # Processing & Onboarding Plan — making every intelligence surface work out of the box
 
+> **Sept 2026:** with `GATHER_ENGINE=on`, an import enqueues `reflections` + one `gather` job (derive → embed → harvest + concordance, per entry) in place of `altar_harvest` → `altar_embed` and `concordance`, and the same job reads ordinary writing once it has settled. See [GATHER.md](GATHER.md) § The engine. Job `attempts` now counts consecutive failures.
+
 **Status:** proposed (2026-06-01)
 **Goal:** *Anyone who joins at any time gets a full, living app.* A user who imports
 years of history gets their **reflections, scripture map, and altar** all built —

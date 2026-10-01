@@ -8,6 +8,7 @@
 // derived, not authoritative. Extraction/merging is server-side only.
 
 import { requireSupabase } from './supabase'
+import { withOfflineSnapshot } from './offlineSnapshot'
 
 // Mirrored from api/_lib/concordance.ts (the api/ and src/ trees don't share
 // modules — same convention as entryLabels.ts). Copy & thresholds live here.
@@ -46,19 +47,21 @@ const today = () => new Date().toISOString().slice(0, 10)
  * hidden until they repeat — the drawer never shows noise.
  */
 export async function listConcordance(): Promise<ConcordanceItem[]> {
-  const sb = requireSupabase()
-  const { data, error } = await sb
-    .from('concordance')
-    .select(
-      'id, kind, canonical, surface_forms, descriptor, status, source, occurrence_count, first_seen, last_seen',
-    )
-    .in('status', ['suggested', 'confirmed'])
-    .or(
-      `occurrence_count.gte.${CONCORDANCE.SURFACE_MIN_DISTINCT_ENTRIES},status.eq.confirmed,source.eq.explicit`,
-    )
-    .order('canonical', { ascending: true })
-  if (error) throw error
-  return (data ?? []) as ConcordanceItem[]
+  return withOfflineSnapshot('concordance:list', async () => {
+    const sb = requireSupabase()
+    const { data, error } = await sb
+      .from('concordance')
+      .select(
+        'id, kind, canonical, surface_forms, descriptor, status, source, occurrence_count, first_seen, last_seen',
+      )
+      .in('status', ['suggested', 'confirmed'])
+      .or(
+        `occurrence_count.gte.${CONCORDANCE.SURFACE_MIN_DISTINCT_ENTRIES},status.eq.confirmed,source.eq.explicit`,
+      )
+      .order('canonical', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as ConcordanceItem[]
+  })
 }
 
 /** Append a correction to the event log (the rebuild's replay source). */

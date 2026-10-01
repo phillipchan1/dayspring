@@ -10,7 +10,7 @@
 // "Psalm 42 and 43". Verse lists and "and N" chapter continuations each expand
 // into their own ParsedRef so the map counts every distinct landing place.
 
-import { BOOKS, type BibleBook } from '../bible/canon'
+import { BOOKS, type BibleBook } from '../bible/canon.js'
 
 export interface ParsedRef {
   osis_ref: string

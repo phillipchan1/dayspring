@@ -8,6 +8,7 @@ export type ProcessingKind =
   | 'altar_harvest'
   | 'altar_embed'
   | 'altar_thread'
+  | 'gather'
 
 export interface ProcessingJob {
   kind: ProcessingKind
@@ -99,6 +100,12 @@ export function useProcessingJobs(): ProcessingState {
         // the user-facing "still preparing…" banner. Exclude it at the source so
         // its (large, slow) job can't drag the aggregate or trigger a celebration.
         .neq('kind', 'concordance')
+        // A `gather` job has two origins. An IMPORT's is the archive being read
+        // and belongs in the banner. The one that follows an ordinary writing
+        // session (cursor.origin='write') is routine upkeep: surfacing it would
+        // raise "still preparing…" — and then celebrate — every time someone
+        // writes an entry.
+        .or('kind.neq.gather,cursor->>origin.eq.import')
         .then(({ data }) => {
           if (data) reduce(data as JobRow[])
         })

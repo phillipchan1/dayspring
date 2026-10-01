@@ -11,6 +11,7 @@
 
 import { assertSameOwner, cacheGeneration, onCacheCleared } from '@/lib/asyncCache'
 import { requireSupabase } from '@/lib/supabase'
+import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
 import { isCapturePreview } from '@/lib/previewMode'
 import {
   buildBands, bandExcerpt, reframeFor,
@@ -173,7 +174,10 @@ export async function loadAltarSource(): Promise<AltarSource> {
   // next owner may already have started, and this promise is still the old one.
   if (inflight) return inflight
   let run: Promise<AltarSource>
-  run = loadAltarSourceOnce().finally(() => {
+  // Kept for offline: with no network the field is the one last seen, not an
+  // error (lib/offlineSnapshot.ts). AltarSource is plain data + a Map, both of
+  // which IndexedDB stores as they are.
+  run = withOfflineSnapshot('altar:source', loadAltarSourceOnce).finally(() => {
     if (inflight === run) inflight = null
   })
   inflight = run
@@ -398,13 +402,22 @@ const EMPTY_SOURCE: AltarSource = { rawThreads: [], rawMembers: [], meta: new Ma
 
 /** A single strand's whole life — every line in time, for the click-in panel. */
 export async function loadAltarStrand(id: string): Promise<AltarStrandDetail | null> {
+  // A strand opened before stays openable offline. `null` (no such thread) is a
+  // real answer but not one worth keeping over a strand that was there.
+  return withOfflineSnapshot(`altar:strand:${id}`, () => loadAltarStrandOnce(id), (v) => v !== null)
+}
+
+async function loadAltarStrandOnce(id: string): Promise<AltarStrandDetail | null> {
   const sb = requireSupabase()
 
-  const { data: tdata } = await sb
+  // The error has to be looked at: a failed read used to fall through to
+  // `return null`, which told the panel the strand did not exist.
+  const { data: tdata, error: terr } = await sb
     .from('threads')
     .select('id, label, label_ai, label_user, type, subject_kind')
     .eq('id', id)
     .maybeSingle()
+  if (terr) throw terr
   if (!tdata) return null
   const t = tdata as ThreadRow
 

@@ -21,7 +21,14 @@ function isDateStr(v: unknown): v is string {
  *  by passing an explicit range. */
 async function alreadyProcessed(owner: string): Promise<boolean> {
   const sb = supabaseAdmin()
-  const jobs = await sb.from('processing_jobs').select('id').eq('owner', owner).limit(1)
+  // A writing-session gather (cursor.origin='write') is routine upkeep, not an
+  // archive build — it must not make a never-processed account look processed.
+  const jobs = await sb
+    .from('processing_jobs')
+    .select('id')
+    .eq('owner', owner)
+    .or('kind.neq.gather,cursor->>origin.eq.import')
+    .limit(1)
   if ((jobs.data?.length ?? 0) > 0) return true
   const insights = await sb.from('insights').select('id').eq('owner', owner).limit(1)
   return (insights.data?.length ?? 0) > 0

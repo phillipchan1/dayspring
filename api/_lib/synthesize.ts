@@ -354,7 +354,20 @@ async function upsertInsight(sb: SupabaseClient, row: InsightRow): Promise<void>
       period_end: row.period_end,
       ...fields,
     })
-    if (error) throw error
+    if (!error) return
+    // 23505 = insights_period_key fired: another builder (the onboarding
+    // backfill racing the reflections job, or two overlapping ticks) inserted
+    // this period between our select and our insert. The rollup is already paid
+    // for — land it on that row instead of throwing it away and failing the chunk.
+    if (error.code !== '23505') throw error
+    const { error: updErr } = await sb
+      .from('insights')
+      .update(fields)
+      .eq('owner', row.owner)
+      .eq('type', row.type)
+      .eq('period_start', row.period_start)
+      .eq('period_end', row.period_end)
+    if (updErr) throw updErr
   }
 }
 
