@@ -55,6 +55,7 @@ export function PageScanCapture({ onInsert, onClose, vocab }: PageScanCapturePro
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
+        e.stopPropagation()
         onClose()
       }
     }
