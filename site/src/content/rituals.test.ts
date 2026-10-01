@@ -10,6 +10,16 @@ import { rituals } from "./rituals";
 const DATA = fileURLToPath(
   new URL("../../../src/editor/practices/practicesData.ts", import.meta.url),
 );
+/** What the STABLE app ships — the channel the public site speaks for. */
+const STABLE = fileURLToPath(new URL("./generated/app-manifest.json", import.meta.url));
+
+/** Practice names in the stable manifest. */
+function onStable(): Set<string> {
+  const manifest = JSON.parse(readFileSync(STABLE, "utf8")) as {
+    categories?: { practices?: { name?: string }[] };
+  };
+  return new Set((manifest.categories?.practices ?? []).map((p) => p.name ?? "").filter(Boolean));
+}
 
 /** Each practice object in PRACTICES, as { name, retired }. */
 function shelfFromApp(): { name: string; retired: boolean }[] {
@@ -34,8 +44,16 @@ describe("/rituals matches the app's shelf", () => {
     expect(app.length).toBeGreaterThan(10);
   });
 
-  it("lists every live practice", () => {
-    const missing = app.filter((p) => !p.retired && !onPage.has(p.name)).map((p) => p.name);
+  // Every live practice that has reached STABLE. A practice on the alpha shelf
+  // only (Discovery Bible Study and Open Reading, Sept 2026) may wait: the site
+  // is public, and must not offer a ritual beta users can't open yet. Once the
+  // stable manifest carries it, this fails until the page lists it too.
+  it("lists every live practice that has reached stable", () => {
+    const stable = onStable();
+    expect(stable.size).toBeGreaterThan(10);
+    const missing = app
+      .filter((p) => !p.retired && stable.has(p.name) && !onPage.has(p.name))
+      .map((p) => p.name);
     expect(missing).toEqual([]);
   });
 

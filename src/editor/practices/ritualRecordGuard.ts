@@ -14,6 +14,11 @@
  * deleting, pasting, dropping) are judged. The composer writing back, the
  * header's remove, sync and undo all dispatch programmatically and
  * pass untouched.
+ *
+ * One exception, and it keeps the one-owner rule rather than breaking it: a
+ * FINISHED ritual page (`ritualPageState`) has nothing left for the composer
+ * to pace, so the page owns it and it is edited in place — its block carries
+ * `tokens`, and only those token lines are guarded (`judgeOpenEdit`).
  */
 
 export interface BlockRange {
@@ -21,6 +26,13 @@ export interface BlockRange {
   from: number
   /** End of the block's last line's text (before its newline). */
   to: number
+  /**
+   * Set only on a FINISHED ritual page (see `ritualPageState`), which is edited
+   * in place rather than in the composer: the text ranges of its token lines
+   * (name, sections, end). The answers between them are the writer's to change;
+   * only these — the structure — are protected.
+   */
+  tokens?: readonly { from: number; to: number }[]
 }
 
 export type Verdict =
@@ -65,6 +77,11 @@ export function judgeRitualEdit(
       if (selected) continue // takes the whole block, deliberately
       return REFUSE
     }
+    if (b.tokens) {
+      const verdict = judgeOpenEdit(b, fromA, toA, inserted)
+      if (verdict.kind !== 'allow') return verdict
+      continue
+    }
     // Reaches inside.
     if (fromA < b.to && toA > b.from) return REFUSE
     // Pure insertion on an edge.
@@ -79,6 +96,43 @@ export function judgeRitualEdit(
     // edge) or just below it (Delete at its end) glues a neighbour on.
     if (toA === b.from && fromA < b.from && !inserted.endsWith('\n')) return REFUSE
     if (fromA === b.to && toA > b.to && !inserted.startsWith('\n')) return REFUSE
+  }
+  return ALLOW
+}
+
+/**
+ * A finished ritual page, edited in place: the answers are free text, and
+ * only the token lines are guarded — the same rules the record applies to its
+ * whole block, applied to each token line instead.
+ *
+ * - Nothing may reach into a token line's text.
+ * - Nothing may be typed in front of the name token — the page would stop
+ *   opening with its ritual and quietly turn into a `mixed` entry.
+ * - Typing at a token line's edge (the caret parks there, the line is atomic)
+ *   is reshaped onto its own line, so it never joins the token.
+ * - Deleting the newline on either side of a token line is refused: it glues
+ *   an answer onto the markup.
+ */
+function judgeOpenEdit(
+  b: BlockRange,
+  fromA: number,
+  toA: number,
+  inserted: string,
+): Verdict {
+  const tokens = b.tokens ?? []
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]!
+    const isName = i === 0 && t.from === b.from
+    if (fromA < t.to && toA > t.from) return REFUSE
+    if (fromA === toA && fromA === t.from) {
+      if (isName) return REFUSE
+      return inserted.endsWith('\n') ? ALLOW : { kind: 'reshape', insert: `${inserted}\n` }
+    }
+    if (fromA === toA && fromA === t.to) {
+      return inserted.startsWith('\n') ? ALLOW : { kind: 'reshape', insert: `\n${inserted}` }
+    }
+    if (toA === t.from && fromA < t.from && !inserted.endsWith('\n')) return REFUSE
+    if (fromA === t.to && toA > t.to && !inserted.startsWith('\n')) return REFUSE
   }
   return ALLOW
 }

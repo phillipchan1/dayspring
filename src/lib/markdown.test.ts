@@ -69,6 +69,24 @@ describe('renderMarkdown — ritual', () => {
     expect(html).not.toContain('Reveal')
   })
 
+  it('leaves a hidden marker where the end token was, for the reader to find', () => {
+    const html = render(
+      [
+        '<!-- ritual:name:The Daily Examen -->',
+        '<!-- ritual:section:Prayer -->',
+        'Patience.',
+        '',
+        'And for Hannah, again.',
+        '<!-- ritual:end -->',
+        '',
+        'A quiet evening after all.',
+      ].join('\n'),
+    )
+    expect(html).toContain('<p class="read-ritual-end" hidden=""></p>')
+    expect(html.indexOf('And for Hannah')).toBeLessThan(html.indexOf('read-ritual-end'))
+    expect(html.indexOf('read-ritual-end')).toBeLessThan(html.indexOf('A quiet evening'))
+  })
+
   it('gives each answer a paragraph of its own, with its markdown rendered', () => {
     const html = render(
       [

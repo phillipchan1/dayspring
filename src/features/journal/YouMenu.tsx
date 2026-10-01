@@ -18,10 +18,12 @@
 // question nobody is asking. The initial gives the recognisable shape without
 // pretending there is more behind it.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { signOut } from '@/lib/auth'
+import { useGuestMode } from '@/context/GuestMode'
 import { ConcordanceDrawer } from '@/features/concordance/ConcordanceDrawer'
+import { placeYouMenu, readSafeInsets } from './youMenuPlacement'
 import './You.css'
 
 interface Props {
@@ -61,9 +63,10 @@ export function YouMenu({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [concordance, setConcordance] = useState(false)
-  const [at, setAt] = useState<{ left: number; bottom: number } | null>(null)
+  const [at, setAt] = useState<{ left: number; bottom: number; width: number } | null>(null)
   const wrap = useRef<HTMLDivElement | null>(null)
   const menu = useRef<HTMLDivElement | null>(null)
+  const { isGuest, requestSignIn } = useGuestMode()
 
   /**
    * The menu is PORTALLED to the body, not nested in the rail.
@@ -71,15 +74,35 @@ export function YouMenu({
    * The rail clips its overflow, so a menu wider than the rail was cut off
    * mid-word — and no z-index fixes that, because clipping is not stacking. A
    * portal escapes every ancestor's overflow, and fixed coordinates taken from
-   * the trigger keep it anchored.
+   * the trigger keep it anchored. Those coordinates are then clamped so a
+   * phone-width tab (the trigger sits on the right edge) cannot push the
+   * panel past the viewport — see youMenuPlacement.ts.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) {
       setAt(null)
       return
     }
-    const r = wrap.current?.getBoundingClientRect()
-    if (r) setAt({ left: r.left, bottom: window.innerHeight - r.top + 8 })
+    const place = () => {
+      const r = wrap.current?.getBoundingClientRect()
+      if (!r) return
+      const safe = readSafeInsets()
+      const box = placeYouMenu({
+        triggerLeft: r.left,
+        triggerRight: r.right,
+        viewportWidth: window.innerWidth,
+        safeLeft: safe.left,
+        safeRight: safe.right,
+      })
+      setAt({ left: box.left, width: box.width, bottom: window.innerHeight - r.top + 8 })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.visualViewport?.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.visualViewport?.removeEventListener('resize', place)
+    }
   }, [open])
 
   useEffect(() => {
@@ -131,7 +154,7 @@ export function YouMenu({
             className={`you__menu you__menu--${placement}`}
             role="menu"
             ref={menu}
-            style={{ left: at.left, bottom: at.bottom }}
+            style={{ left: at.left, bottom: at.bottom, width: at.width }}
           >
           <button type="button" role="menuitem" className="you__item" onClick={pick(onLifeMap)}>
             Life Map
@@ -174,17 +197,30 @@ export function YouMenu({
 
           <hr className="you__rule" />
 
-          <div className="you__who" title={userEmail}>
-            {userEmail}
-          </div>
-          <button
-            type="button"
-            role="menuitem"
-            className="you__item you__item--quiet"
-            onClick={pick(() => void signOut())}
-          >
-            Sign out
-          </button>
+          {isGuest ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="you__item you__item--quiet"
+              onClick={pick(requestSignIn)}
+            >
+              Sign in
+            </button>
+          ) : (
+            <>
+              <div className="you__who" title={userEmail}>
+                {userEmail}
+              </div>
+              <button
+                type="button"
+                role="menuitem"
+                className="you__item you__item--quiet"
+                onClick={pick(() => void signOut())}
+              >
+                Sign out
+              </button>
+            </>
+          )}
           </div>,
           document.body,
         )}

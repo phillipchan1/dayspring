@@ -10,6 +10,7 @@ import {
   subjectMatcher,
   withCounts,
   wordSubject,
+  writerLines,
 } from './subjects'
 
 let n = 0
@@ -279,5 +280,27 @@ describe('no subject may claim another subject a name', () => {
   it('never drops a subject own canonical', () => {
     const merged = mergeItems([item('Ben'), item('Ben')])
     expect(merged[0]!.terms).toContain('Ben')
+  })
+})
+
+describe('writerLines — the writer\'s words, never the verse (Guardrail H3)', () => {
+  it('drops a verse quoted into a scripture ritual, keeps her answer and her prayer', () => {
+    const body = [
+      '<!-- ritual:name:SOAP -->',
+      '<!-- ritual:section:Scripture -->',
+      '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+      'Remain in me, and I in you.',
+      'John 15:4 · ESV',
+      '```',
+      '<!-- ritual:section:Observation -->',
+      '> Remain in me, and I in you (v. 4)',
+      '',
+      'He says remain before he says bear fruit.',
+      '```dayspring-pray 53430d30-3e0c-4d5a-9b1a-000000000001',
+      'Lord, be with Esther',
+      '```',
+      '<!-- ritual:end -->',
+    ].join('\n')
+    expect(writerLines(body)).toEqual(['He says remain before he says bear fruit.', 'Lord, be with Esther'])
   })
 })

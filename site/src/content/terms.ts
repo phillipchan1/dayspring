@@ -40,7 +40,7 @@ export const termsPage = {
       bullets: [
         {
           label: "On the web and desktop",
-          body: "payment is processed by Stripe. You can update payment details or cancel at any time from the billing portal in Settings.",
+          body: "payment is handled by our payment provider, Stripe. You can update payment details or cancel at any time from the billing portal in Settings.",
         },
         {
           label: "In the iOS app",
@@ -60,20 +60,20 @@ export const termsPage = {
     {
       heading: "Refunds",
       paragraphs: [
-        "Purchases made through the App Store are subject to Apple's refund policy and must be requested from Apple. For subscriptions billed through Stripe, contact us.",
+        "Purchases made through the App Store are subject to Apple's refund policy and must be requested from Apple. For subscriptions billed on the web or desktop, contact us.",
       ],
     },
     {
       heading: "Your content",
       paragraphs: [
-        'Everything you write, photograph or record in Dayspring remains yours. You grant us only the limited permission needed to operate the service for you — to store your content, to transmit it to the processors listed in our <a href="/privacy">Privacy Policy</a>, and to generate the reflective features you have asked for. We claim no ownership and no right to publish it.',
+        'Everything you write, photograph or record in Dayspring remains yours. You grant us only the limited permission needed to operate the service for you — to store your content, to share it with the service providers listed in our <a href="/privacy">Privacy Policy</a>, and to prepare the reflections you have asked for. We claim no ownership and no right to publish it.',
       ],
     },
     {
       heading: "What Dayspring is not",
       paragraphs: [
         "Dayspring surfaces your own words back to you. It selects and quotes what you have already written; it does not evaluate your spiritual life and does not score it. It is not spiritual direction, pastoral counselling, therapy, or medical or mental-health advice, and it is not a substitute for any of those. If you are in crisis, please contact a qualified professional or an emergency service in your area.",
-        "Automatically generated summaries and reflections can be imperfect. Please treat them as a prompt for your own reflection rather than as an authority.",
+        "The reflections Dayspring prepares for you can be imperfect. Please treat them as a prompt for your own reflection rather than as an authority.",
       ],
     },
     {

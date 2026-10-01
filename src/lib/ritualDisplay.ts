@@ -32,6 +32,11 @@ export function revealRitualsForDisplay(markdown: string): string {
     }
     if (PRACTICE_END_RE.test(trimmed)) {
       pendingLabel = null
+      // Never shown, but kept as a (hidden) marker: it is the only way the
+      // reader can tell that the last movement runs, whole, to here — every
+      // paragraph above it is that movement's, not the page's After
+      // (`readerRitual.ts`).
+      out.push('<p class="read-ritual-end" hidden></p>', '')
       continue
     }
     const section = PRACTICE_SECTION_RE.exec(trimmed)

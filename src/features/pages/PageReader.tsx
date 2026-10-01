@@ -1,4 +1,6 @@
+import { drawReaderQuotes } from './readerQuotes'
 import { formatDateline } from '@/lib/dateline'
+import { SCRIPTURE_RITUALS } from '@/lib/writerWords'
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
@@ -255,10 +257,17 @@ export function PageReader({
     paintQuotes(el, markQuotes, 'pg-read1__saved-mark')
     paintMatches(el, match, 'pg-read1__lit')
     drawMarkings(el, inProse)
-    return hydrateReadAttachments(el, renderedMarkdown, undefined, {
+    // A scripture ritual's quotes, lit back into its passage (readerQuotes.ts).
+    const scripture = /<!--\s*ritual:name:(.+?)\s*-->/.exec(entry.body_markdown ?? '')
+    const undraw = drawReaderQuotes(el, scripture != null && SCRIPTURE_RITUALS.includes(scripture[1]!.trim()))
+    const unhydrate = hydrateReadAttachments(el, renderedMarkdown, undefined, {
       verso: colophon,
     })
-  }, [html, renderedMarkdown, markQuotes, match, inProse, colophon])
+    return () => {
+      undraw()
+      unhydrate?.()
+    }
+  }, [html, renderedMarkdown, markQuotes, match, inProse, colophon, entry.body_markdown])
 
   /**
    * What the writer set apart on this page, verbatim, in the margin.

@@ -128,6 +128,33 @@ describe('emphasis completeness filter', () => {
   })
 })
 
+describe('a quoted verse is never set apart as hers (Guardrail H3)', () => {
+  it('drops every `>` line inside a scripture ritual, keeps the ritual\'s own prose', () => {
+    const md = [
+      '<!-- ritual:name:Lectio Divina -->',
+      '<!-- ritual:section:Meditate -->',
+      '> Remain in me, and I in you',
+      '',
+      'He says **remain before he says bear fruit.**',
+      '<!-- ritual:end -->',
+      '',
+      '> a line I set apart on purpose after the ritual',
+    ].join('\n')
+    expect(passagesForEntry(entry(md)).map((p) => p.text)).toEqual([
+      'a line I set apart on purpose after the ritual',
+      'remain before he says bear fruit.',
+    ])
+  })
+
+  it('drops a quote run carrying a verse number anywhere, even outside a ritual', () => {
+    expect(passagesForEntry(entry('> For God so loved the world\n> that he gave (v. 16)'))).toEqual([])
+  })
+
+  it('keeps an ordinary blockquote in an ordinary page, as before', () => {
+    expect(passagesForEntry(entry('> shepherd the flock of God that is among you'))).toHaveLength(1)
+  })
+})
+
 describe('collectPassages', () => {
   const declared = { entry_id: 'e2', created_at: '2019-11-12T09:00:00Z', text: 'For Dad. Again. The same words.', source: null }
   const harvested = { entry_id: 'e4', created_at: '2020-05-05T09:00:00Z', text: 'God it is frustrating and hard.', source: 'scanned' }

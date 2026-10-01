@@ -78,6 +78,33 @@ describe('when something needs the writer', () => {
   })
 })
 
+describe('guest / local-only storage', () => {
+  it('says the writing is on this device after a local save', () => {
+    const s = line({ localOnly: true, sync: { ...CLEAR, online: false } })
+    expect(s.label).toBe('Saved on this device')
+    expect(s.tone).toBe('quiet')
+    expect(s.label).not.toMatch(/offline/i)
+  })
+
+  it('says the same after a reload of an existing guest entry', () => {
+    const s = line({
+      localOnly: true,
+      persisted: true,
+      lastSavedAt: null,
+      save: 'idle',
+      sync: { ...CLEAR, online: false },
+    })
+    expect(s.label).toBe('Saved on this device')
+    expect(s.detail).not.toMatch(/not saved yet/i)
+    expect(s.detail).not.toMatch(/offline/i)
+  })
+
+  it('still says so before the first local write', () => {
+    const s = line({ localOnly: true, lastSavedAt: null, save: 'idle' })
+    expect(s.label).toBe('Not saved yet')
+  })
+})
+
 describe('timeAgo', () => {
   it('reads as a person would say it', () => {
     expect(timeAgo(NOW - 2_000, NOW)).toBe('just now')

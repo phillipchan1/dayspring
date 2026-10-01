@@ -38,8 +38,8 @@ filter.
 
 There's also a filter box that takes plain English — "entries about my mother
 from last spring". It sets the filters for you; it does not decide what matches.
-The distinction matters: the model can configure the search, but the results are
-always literally your entries meeting literal criteria.
+The distinction matters: it can set up the search for you, but the results are
+always your own entries meeting the criteria you asked for.
 
 ## Weather
 

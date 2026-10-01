@@ -1,29 +1,30 @@
 ---
-title: What the AI does, and what it doesn't
+title: How Dayspring reflects, and what it won't do
 summary: It selects your own sentences. It never writes your spiritual life for you.
 section: privacy
 order: 3
 requires: []
-keywords: [ai, model, gpt, llm, generated, training, privacy, hallucination, accurate]
+keywords: [reflection, generated, training, privacy, accurate, made up]
 updated: 2026-08-10
 ---
 
-Dayspring uses a language model. You should know exactly for what.
+Some of Dayspring's reflection is done by software that reads your entries.
+You should know exactly what it does.
 
 ## The rule
 
-**Facts come from code. The model only selects. Quotes are verbatim.**
+**Facts are counted, never guessed. It only chooses. Quotes are exact.**
 
-When the Ascent tells you something ran through your autumn, a program counted
-that — not a model's impression. When it shows you a line that carried the
+When the Ascent tells you something ran through your autumn, it was counted
+from your entries — not guessed at. When it shows you a line that carried the
 season, that line is one you wrote, reproduced exactly.
 
-## What the model actually does
+## What it actually does
 
 - **Chooses** which of your sentences to show you.
 - **Groups** related things — prayers about the same subject, entries about the
   same thread.
-- **Transcribes** your voice recordings and your handwriting.
+- Turns your spoken words and your handwriting into text.
 - **Interprets a filter** you typed in plain English into actual filter
   settings. It sets the criteria; it never decides which entries match.
 
@@ -41,7 +42,7 @@ worthless if you believe it.
 
 ## Your writing and training
 
-Your entries are not used to train models. Not ours, not anyone's.
+Your entries are never used for training. Not by us, not by anyone.
 
 ## Why not more
 

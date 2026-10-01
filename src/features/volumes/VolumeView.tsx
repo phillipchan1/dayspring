@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { entryContentLines } from '@/lib/entryLabels'
+import { writerWords } from '@/lib/writerWords'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import type { Entry } from '@/lib/types'
 import { clip, type LedgerThread, type RangeLedger } from '@/features/ascent/ledger/build'
@@ -18,10 +19,11 @@ import './Volumes.css'
 const MON_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const fullDay = (d: string) => `${MON_LONG[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}, ${d.slice(0, 4)}`
 
-/** The first line of a page as the writer reads it. */
+/** The first line of a page as the writer reads it — her line, never a verse
+ *  quoted into a scripture ritual (Guardrail H3, via writerWords). */
 export function firstLine(e: Entry | undefined): string {
   if (!e) return ''
-  const l = entryContentLines(e.body_markdown)
+  const l = entryContentLines(writerWords(e.body_markdown))
     .map((x) => stripMarkdownMarkers(x).replace(/^#{1,6}\s+/, '').trim())
     .find((x) => x.length > 0)
   return l ? clip(l) : ''

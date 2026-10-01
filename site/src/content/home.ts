@@ -472,7 +472,7 @@ export const bringHistory = {
 export const privacy = {
   tag: "Privacy as stewardship",
   heading: "Some things are meant to be written <em>before they're ever spoken aloud.</em>",
-  body: "Your entries are encrypted, never sold, and never used to train AI — and never read by us. What you write here is yours alone.",
+  body: "Your entries are encrypted, never sold, never used for training — and never read by us. What you write here is yours alone.",
   line: "It's just between you and God.",
 };
 

@@ -1,11 +1,11 @@
 ---
 title: Speaking an entry instead of typing it
-summary: Tap the microphone and talk. Dayspring transcribes it and drops the text where your cursor is.
+summary: Tap the microphone and talk. Dayspring turns it into text and drops it where your cursor is.
 section: writing
 order: 6
 requires: [capability.voice-dictation]
 platforms: [ios]
-keywords: [voice, dictate, dictation, speak, microphone, talk, transcribe, audio]
+keywords: [voice, dictate, dictation, speak, microphone, talk, audio]
 updated: 2026-08-10
 ---
 
@@ -29,12 +29,12 @@ one yet.
 
 ## It learns your names
 
-Transcription tends to mangle exactly the words you most want it to get right —
+Dictation tends to mangle exactly the words you most want it to get right —
 the names of people you're praying for, your church, places that matter to you.
 
-Dayspring feeds the transcriber the proper nouns it's seen in your own writing,
-so the names you've written before come out spelled the way you spell them. The
-longer you've been writing, the better this gets.
+When it turns your voice into text, Dayspring includes the names it has seen
+in your own writing, so the names you've written before come out spelled the
+way you spell them. The longer you've been writing, the better this gets.
 
 ## If it's interrupted
 
@@ -44,5 +44,6 @@ throwing away the recording.
 
 ## What we keep
 
-The audio is transcribed and not kept. What's stored is the text, in your entry,
-same as if you'd typed it.
+The audio is turned into text. It is never used for training. Our partner may
+hold it for up to 30 days only to prevent abuse, then deletes it. What's stored
+is the text, in your entry, same as if you'd typed it.

@@ -4,6 +4,8 @@ import {
   composeRitualMarkdown,
   readRitual,
   ritualBlockRange,
+  ritualCaretFor,
+  ritualPageState,
   ritualIndexAt,
   ritualEntryShape,
   ritualRemovalRange,
@@ -212,5 +214,36 @@ describe('answerOffset', () => {
   it('returns null for a block or movement that is not there', () => {
     expect(answerOffset(block, 1, 0)).toBeNull()
     expect(answerOffset(block, 0, LABELS.length + 1)).toBeNull()
+  })
+})
+
+describe('ritualPageState and ritualCaretFor', () => {
+  const examen = PRACTICES.find((p) => p.name === 'The Daily Examen')!
+  const labels = examen.prompts.map((p) => p.label)
+  const full = composeRitualMarkdown(examen.name, labels, labels.map((_, i) => `A${i}.`))
+
+  it('tells a ritual still being walked from a finished one', () => {
+    expect(ritualPageState(full)).toBe('finished')
+    expect(ritualPageState(composeRitualMarkdown(examen.name, labels, ['A0.', '', '', '']))).toBe('walking')
+    expect(ritualPageState(`Prose first.\n\n${full}`)).toBe('none')
+    expect(ritualPageState('Just prose.')).toBe('none')
+  })
+
+  it('keeps a finished scripture ritual in the composer, beside its passage', () => {
+    const reading = PRACTICES.find((p) => p.name === 'Open Reading')!
+    const readingLabels = reading.prompts.map((p) => p.label)
+    const answered = composeRitualMarkdown(
+      reading.name,
+      readingLabels,
+      readingLabels.map((_, i) => `A${i}.`),
+    )
+    expect(ritualPageState(answered)).toBe('walking')
+  })
+
+  it('puts the caret at the end of the clicked answer, or the end of After', () => {
+    expect(ritualCaretFor(full, 1)).toBe(full.indexOf('A1.') + 'A1.'.length)
+    const withAfter = `${full}\n<!-- ritual:end -->\n\nAfter.\n`
+    expect(ritualCaretFor(withAfter, labels.length)).toBe(withAfter.indexOf('After.') + 'After.'.length)
+    expect(ritualCaretFor(full, labels.length + 1)).toBeNull()
   })
 })

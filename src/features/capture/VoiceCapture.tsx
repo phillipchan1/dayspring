@@ -57,6 +57,7 @@ export function VoiceCapture({ onInsert, onClose, vocab }: VoiceCaptureProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
+        e.stopPropagation()
         cancel()
         onClose()
       }

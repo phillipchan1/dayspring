@@ -192,6 +192,7 @@ export function MobileJournal(props: JournalViewProps) {
             lastSavedAt={lastSavedAt}
             saveError={saveError}
             onSync={onSync}
+            persisted={!!activeId}
           />
         </header>
       )}

@@ -3,7 +3,9 @@ import { useAppNavigation } from '@/context/AppNavigation'
 import { settingsStore } from '@/lib/settings'
 import { pickCards, latestDeck, type Deck } from './pickCards'
 import { onOpenFirstLight } from './open'
-import { RELEASES, type CardArt } from './releases'
+import { RELEASES, WHATS_NEW_LABEL, type CardArt } from './releases'
+import composerStill from './assets/open-your-bible.jpg'
+import stepsGif from './assets/open-your-bible.gif'
 import './FirstLight.css'
 
 /**
@@ -35,7 +37,8 @@ function effectiveLastSeen(): string | null {
 }
 
 /**
- * FIRST LIGHT — what changed, on the one morning it matters.
+ * FIRST LIGHT (internal name; users see “What’s new”) — what changed, on the one
+ * morning it matters.
  *
  * PRINCIPLE 3 ("modal interruptions while the cursor is active" are forbidden)
  * is enforced structurally, not by good intentions: the deck is decided **once**,
@@ -135,7 +138,7 @@ export function FirstLight() {
         onKeyDown={onKeyDown}
       >
         <div className="firstlight__top">
-          <span className="firstlight__mark">First light</span>
+          <span className="firstlight__mark">{WHATS_NEW_LABEL}</span>
           <button type="button" className="firstlight__skip" onClick={() => close()}>
             Not now
           </button>
@@ -184,7 +187,11 @@ export function FirstLight() {
   )
 }
 
-/** Decorative only — never the carrier of anything the card needs to say. */
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** Decorative glyphs are never the carrier of anything the card needs to say; the captures carry an alt. */
 function Art({ kind }: { kind: CardArt }) {
   if (kind === 'climb') {
     // Four heights on one rail, rising — week, month, season, year. The top
@@ -202,6 +209,24 @@ function Art({ kind }: { kind: CardArt }) {
           <circle key={i} cx={x} cy={y} r={i === at.length - 1 ? 5 : 3.5} className={i === at.length - 1 ? 'lit' : undefined} />
         ))}
       </svg>
+    )
+  }
+  if (kind === 'composer' || kind === 'steps') {
+    // Real captures of the shipped surface (scripts/capture-whats-new.mjs), not
+    // drawings. The GIF is the same file the email uses; someone who has asked
+    // the system for less motion gets its still instead.
+    const still = kind === 'composer' || prefersReducedMotion()
+    return (
+      <img
+        className="firstlight__shot"
+        src={still ? composerStill : stepsGif}
+        alt={
+          kind === 'composer'
+            ? 'The passage beside the page: John 15 on the left, and on the right a quote from it with a line drawn back to the words, and a line of your own writing below.'
+            : 'A short recording. On a blank page, choose Open your Bible, type John 15, select words in the passage and press Return. The quote lands on your page and you write beside it.'
+        }
+        draggable={false}
+      />
     )
   }
   if (kind === 'wall') {

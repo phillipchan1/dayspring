@@ -2,6 +2,7 @@ import { isSpiritualFenceLine, parseSpiritualBlocks, stripSpiritualBlocks } from
 import { isPracticeTokenLine, practiceNameFromLine } from './practiceTokens'
 import { ATTACHMENT_REF_RE } from './attachments'
 import { stripMarkdownMarkers } from './inlineMarkers'
+import { writerWords } from './writerWords'
 
 /**
  * Label fallback for an entry with no prose — just a spiritual block (e.g. a
@@ -59,16 +60,23 @@ export function entryContentLines(markdown: string | null | undefined): string[]
 
 /** Derive a short display title from markdown (first meaningful content line). */
 export function deriveTitle(markdown: string | null | undefined): string {
-  const [first] = entryContentLines(markdown)
+  // A title is the writer's own line (Guardrail H3): read writerWords, so a verse
+  // quoted into a SOAP/Lectio answer can never become the page's name, and pass
+  // over `>` lines the way isNonTitleLine does.
+  const own = entryContentLines(writerWords(asEntryMarkdown(markdown)))
+  const first = own.find((line) => !line.startsWith('>'))
   if (first) {
     return stripMarkdownMarkers(first).trim()
   }
-  // No written content yet — a freshly-begun practice should show its name
-  // rather than nothing.
+  // No written content yet — a freshly-begun practice (or a scripture ritual
+  // with nothing written but its quoted verses) should show its name.
   for (const raw of asEntryMarkdown(markdown).split('\n')) {
     const name = practiceNameFromLine(raw.trim())
     if (name) return name
   }
+  // A page that is only an ordinary `> quote` keeps it as its title, as before;
+  // a verse quote never reaches here (writerWords took it out).
+  if (own[0]) return stripMarkdownMarkers(own[0]).trim()
   // Still nothing prose-like — surface a lone spiritual block (a /scripture
   // insert with no other writing) instead of falling through to "Untitled".
   return spiritualBlockLabel(markdown)?.title ?? ''
@@ -79,7 +87,9 @@ export function deriveEntryPreview(
   markdown: string | null | undefined,
   maxLength = 80,
 ): string | null {
-  for (const line of entryContentLines(markdown)) {
+  // Her words only (Guardrail H3): a verse quoted into a SOAP/Lectio answer
+  // never previews as the page's prose.
+  for (const line of entryContentLines(writerWords(asEntryMarkdown(markdown)))) {
     if (line.startsWith('/')) continue
     if (line.length < 4) continue
     // `>` used to be stripped by a character class here, which also deleted any

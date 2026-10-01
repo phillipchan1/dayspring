@@ -109,3 +109,63 @@ describe('the ritual record in the entry', () => {
     expect(next.state.doc.toString()).toBe(`Early. ${doc}`)
   })
 })
+
+/*
+ * A FINISHED ritual page is edited where it sits (`ritualPageState`): the
+ * answers are the writer's text, and only the token lines are guarded.
+ */
+describe('a finished ritual page, edited in place', () => {
+  const texts = LABELS.map((_, i) => `Answer ${i + 1}.`)
+  const doc = `${composeRitualMarkdown(examen.name, LABELS, texts)}\n<!-- ritual:end -->\n\nAfter words.`
+  const make = (d = doc) =>
+    EditorState.create({ doc: d, extensions: practicePromptExtension(() => {}, () => {}) })
+  const type = (state: EditorState, from: number, insert: string, to = from) =>
+    state.update({ changes: { from, to, insert }, userEvent: 'input.type' }).state.doc.toString()
+
+  it('lets the writer change an answer', () => {
+    const at = doc.indexOf('Answer 2.') + 'Answer 2'.length
+    expect(type(make(), at, ', and more')).toContain('Answer 2, and more.')
+  })
+
+  it('lets the writer clear an answer and keep writing without the page locking', () => {
+    const from = doc.indexOf('Answer 1.')
+    let state = make()
+    state = state.update({
+      changes: { from, to: from + 'Answer 1.'.length, insert: '' },
+      userEvent: 'delete.backward',
+    }).state
+    // Momentarily unfinished — but still the writer's to type in.
+    const next = state.update({ changes: { from, insert: 'Again.' }, userEvent: 'input.type' })
+    expect(next.state.doc.toString()).toContain(`\nAgain.\n<!-- ritual:section:${LABELS[1]} -->`)
+  })
+
+  it('refuses edits that reach into a token line', () => {
+    const token = doc.indexOf(`<!-- ritual:section:${LABELS[1]} -->`)
+    expect(type(make(), token + 5, 'x')).toBe(doc)
+    // Deleting the newline that keeps an answer off the token below it.
+    const end1 = doc.indexOf('Answer 1.') + 'Answer 1.'.length
+    expect(type(make(), end1, '', end1 + 1)).toBe(doc)
+  })
+
+  it('refuses typing in front of the name, which would make the page a mixed entry', () => {
+    expect(type(make(), 0, 'x')).toBe(doc)
+  })
+
+  it('puts typing at a token line’s edge onto its own line', () => {
+    const tokenEnd = doc.indexOf(`<!-- ritual:section:${LABELS[1]} -->`) + `<!-- ritual:section:${LABELS[1]} -->`.length
+    const out = type(make(), tokenEnd, 'New line')
+    expect(out).toContain(`<!-- ritual:section:${LABELS[1]} -->\nNew line\nAnswer 2.`)
+  })
+
+  it('keeps an unfinished ritual page a read-only record', () => {
+    const unfinished = composeRitualMarkdown(examen.name, LABELS, ['Only one.', '', '', ''])
+    const at = unfinished.indexOf('Only one.')
+    expect(type(make(unfinished), at, 'x')).toBe(unfinished)
+  })
+
+  it('keeps a ritual inside other writing a read-only record, even when finished', () => {
+    const mixed = `Morning.\n\n${composeRitualMarkdown(examen.name, LABELS, texts)}`
+    const at = mixed.indexOf('Answer 1.')
+    expect(type(make(mixed), at, 'x')).toBe(mixed)
+  })
+})

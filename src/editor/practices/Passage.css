@@ -1,0 +1,753 @@
+/*
+ * A scripture ritual's passage: the finder that chooses it, the text it is
+ * read in, and the leaf the composer's rail widens into to hold it.
+ *
+ * Every colour is a theme token, and the passage's own light is the Scripture
+ * surface's gold (`--scripture-gold`, an `r, g, b` triple — wrap it in rgb()).
+ */
+
+/* ── The text ─────────────────────────────────────────────────────────── */
+.psg {
+  --psg-gold: rgb(var(--scripture-gold, 196, 145, 60));
+  --psg-wash: color-mix(in srgb, var(--psg-gold) 14%, transparent);
+  --psg-lit: color-mix(in srgb, var(--psg-gold) 30%, transparent);
+  position: relative;
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  /* Four-fifths of the voice's own text size — 19.2px at Dawn's default, as
+     it always was — rather than a fixed 1.2rem: that held in Dawn and
+     inverted in Plainsong, where a 19px mono passage stood over 17px writing.
+     Follows the reader's size slider now, too. */
+  font-size: max(calc(var(--voice-text-size, 24px) * 0.8), 12.5px);
+  line-height: 1.85;
+  color: var(--text-bright);
+  overflow-wrap: break-word;
+}
+.psg__v { transition: opacity 0.4s ease; }
+
+/* Set as a Bible sets it (passageLayout.ts). Prose runs in paragraphs with a
+   first-line indent; poetry sits one step in, each half-line a step further,
+   and a line too long for the column turns over deeper still. The verse number of a poem hangs in the margin, so the
+   lines' left edges stay true. */
+.psg { --psg-step: 1.4em; }
+.psg__row[data-kind='prose'] { text-indent: var(--psg-step); }
+.psg__row[data-kind='prose'][data-flush='true'] { text-indent: 0; }
+/* Every turnover lands at one depth, past the deepest half-line, so a wrapped
+   line can never be mistaken for the next line of the poem. */
+.psg__row[data-kind='poetry'] {
+  --psg-in: 1;
+  padding-left: calc(3 * var(--psg-step));
+  text-indent: calc((var(--psg-in) - 3) * var(--psg-step));
+}
+.psg__row[data-indent='2'] { --psg-in: 2; }
+.psg__row[data-indent='3'] { --psg-in: 3; }
+.psg__row[data-gap='true'] { margin-top: 0.85em; }
+.psg__n[data-hang='true'] {
+  display: inline-block;
+  width: 1.3rem;
+  margin: 0 0.3rem 0 -1.6rem;
+  text-align: right;
+  text-indent: 0;  /* In cite mode the number is a <button> (border-box): the pill's padding
+     and border ate the 1.3rem, so "12" wrapped to one digit per line. */
+  white-space: nowrap;
+  padding-inline: 0.2em;
+}
+/* The divine name: LORD as the ESV prints it, capital and small capitals. The
+   letters stay capitals underneath, so a copied verse is still verbatim. */
+.psg__sc > span { font-variant-caps: all-small-caps; letter-spacing: 0.03em; }
+.psg__selah {
+  font-style: italic;
+  font-size: 0.86em;
+  color: var(--text-dim);
+  margin-left: 0.5em;
+  letter-spacing: 0.02em;
+}
+/* Crossway's own labels, never scripture: set apart, quiet, above their words. */
+.psg__head {
+  padding-left: var(--psg-step);
+  color: var(--text-dim);
+  font-size: 0.82em;
+  line-height: 1.5;
+  text-indent: 0;
+}
+.psg__head[data-kind='title'] { font-style: italic; margin: 0 0 0.7em; padding-left: 0; }
+.psg__head[data-kind='acrostic'] {
+  margin: 1.4em 0 0.35em;
+  color: var(--psg-gold);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.14em;
+}
+.psg__head[data-kind='speaker'] {
+  margin: 1.1em 0 0.2em;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+}
+.psg > .psg__head:first-child { margin-top: 0; }
+.psg__head + .psg__row[data-gap='true'] { margin-top: 0; }
+/* A new paragraph in the ESV: a breath of space, not a full blank line. */
+.psg__n {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: var(--psg-gold);
+  vertical-align: 0.55em;
+  margin: 0 0.22em 0 0.1em;
+  line-height: 1;
+}
+.psg__w { border-radius: 3px; transition: background 0.2s ease, opacity 0.5s ease; }
+.psg__w[data-on='true'] {
+  background: var(--psg-lit);
+  box-shadow: 0 0 0 0.12em var(--psg-lit);
+  color: var(--text-bright);
+}
+
+/* choose: verses are the targets. The wash sits on the verse, not on each
+   word, so a chosen verse reads as one band rather than a row of tiles. */
+.psg[data-mode='choose'] .psg__v {
+  cursor: pointer;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background 0.2s ease;
+}
+.psg[data-mode='choose'] .psg__v:hover { background: var(--psg-wash); }
+.pf__reading[data-has-sel='true'] .psg__v .psg__w { opacity: 0.4; }
+.pf__reading[data-has-sel='true'] .psg__v[data-sel='true'] { background: var(--psg-wash); }
+.pf__reading[data-has-sel='true'] .psg__v[data-sel='true'] .psg__w { opacity: 1; }
+
+/* mark / quote: the words are text you select — the browser's own
+   selection, in the passage's gold, snapped to whole words when it settles. */
+.psg[data-selecting='true'] { cursor: text; user-select: text; -webkit-user-select: text; }
+.psg[data-selecting='true'] ::selection { background: var(--psg-lit); color: var(--text-bright); }
+/* Resting on a word: it underlines, so you know it is a target. */
+.psg[data-selecting='true'] .psg__w:hover { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 70%, transparent); }
+/* Chosen, not yet brought in: one band, not a row of tiles. */
+.psg__w[data-pending='true'] { background: var(--psg-lit); box-shadow: 0.3em 0 0 var(--psg-lit); }
+
+/* Quoted phrases. This movement's in gold; earlier movements' as an underline
+   that stays out of the way; where quotes overlap, deeper. */
+.psg__w[data-hl='here'] { background: var(--psg-lit); box-shadow: 0.3em 0 0 var(--psg-lit); border-radius: 3px; }
+.psg__w[data-hl='deep'] { background: color-mix(in srgb, var(--psg-gold) 42%, transparent); box-shadow: 0.3em 0 0 color-mix(in srgb, var(--psg-gold) 42%, transparent); border-radius: 3px; }
+.psg__w[data-hl='past'] { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 40%, transparent); background: color-mix(in srgb, var(--psg-gold) 7%, transparent); }
+.psg__w[data-lit='true'] { background: color-mix(in srgb, var(--psg-gold) 48%, transparent); }
+.psg__w[data-hl] { cursor: help; }
+.psg[data-selecting='true'] .psg__w[data-hl] { cursor: text; }
+
+/* carry / cite / plain: on view, the caught word ahead of the rest */
+.psg[data-mode='carry'] .psg__w:not([data-on='true']),
+.psg[data-mode='plain'] .psg__w:not([data-on='true']),
+.psg[data-mode='cite'] .psg__w:not([data-on='true']) { opacity: 0.58; }
+.psg[data-mode='cite'] .psg__v:hover .psg__w { opacity: 1; }
+.psg__n--cite {
+  font: inherit;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--psg-gold);
+  vertical-align: 0.45em;
+  margin: 0 0.25em 0 0.1em;
+  padding: 0.1em 0.45em;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+}
+.psg__n--cite:hover,
+.psg__n--cite:focus-visible { border-color: var(--psg-lit); background: var(--psg-wash); outline: none; }
+.psg__v[data-cited='true'] .psg__n--cite { background: var(--psg-lit); color: var(--text-bright); }
+
+/* dwell: everything rests but the word */
+.psg[data-mode='dwell'] .psg__w:not([data-on='true']),
+.psg[data-mode='dwell'] .psg__n { animation: psg-rest 3.2s ease both; }
+.psg[data-mode='dwell'] .psg__w[data-on='true'] { box-shadow: 0 0 34px 6px var(--psg-lit); transition: box-shadow 1.2s ease; }
+@keyframes psg-rest { from { opacity: 1; } to { opacity: 0.13; } }
+
+/* read again, slowly */
+.psg[data-slow='true'] .psg__v { animation: psg-slow 1.6s ease both; }
+@keyframes psg-slow { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: none; } }
+
+/* ── The finder ───────────────────────────────────────────────────────── */
+.passage-finder {
+  --pf-gold: rgb(var(--scripture-gold, 196, 145, 60));
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--pf-gold) 12%, transparent), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+  animation: rc-in 0.28s ease;
+}
+.pf__back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 1.2rem);
+  left: 1.6rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+}
+html[data-platform='desktop'] .pf__back { top: 2.6rem; }
+.pf__back:hover { color: var(--accent); }
+.pf__back .rc__kbd { opacity: 0; transition: opacity 0.2s ease; }
+.pf__back:hover .rc__kbd { opacity: 1; }
+.pf__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.pf__col {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 5rem) 1.5rem 8rem;
+}
+.pf__eyebrow { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.pf__name {
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pf__origin { font-style: italic; color: var(--text-faint); font-size: 0.9rem; }
+.pf__title {
+  margin: 0.5rem 0 1.3rem;
+  font-weight: 300;
+  font-size: clamp(1.8rem, 5vw, 2.35rem);
+  color: var(--text-bright);
+}
+.pf__input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  outline: none;
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: clamp(1.35rem, 4vw, 1.7rem);
+  font-weight: 300;
+  padding: 0.35rem 0 0.6rem;
+  border-radius: 0;
+  transition: border-color 0.3s ease;
+}
+.pf__input:focus { border-bottom-color: color-mix(in srgb, var(--pf-gold) 55%, var(--border-subtle)); }
+.pf__input::placeholder { color: var(--text-faint); font-style: italic; }
+.pf__hint { margin: 0.6rem 0 0; font-style: italic; color: var(--text-dim); font-size: 0.95rem; }
+.pf__link.pf__own { display: block; margin-top: 0.35rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; color: var(--text-faint); }
+.pf__link.pf__own[aria-pressed='true'] { color: var(--text-dim); }
+.pf__sec { margin-top: 2.3rem; }
+.pf__h {
+  margin: 0 0 0.8rem;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pf__src {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pf__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pf__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  padding: 0.45rem 0.95rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.pf__chip:hover { border-color: color-mix(in srgb, var(--pf-gold) 45%, var(--border-subtle)); }
+.pf__glow { width: 7px; height: 7px; border-radius: 99px; background: var(--pf-gold); box-shadow: 0 0 8px var(--pf-gold); }
+.pf__canon { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem 2rem; }
+.pf__testament {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.5rem;
+}
+.pf__books { display: flex; flex-wrap: wrap; gap: 0.1rem 0.15rem; line-height: 1.3; }
+.pf__book {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0.14rem 0.3rem;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-faint);
+}
+.pf__book[data-lit='true'] {
+  color: color-mix(in srgb, var(--pf-gold) calc(40% + var(--h) * 60%), var(--text-dim));
+  text-shadow: 0 0 calc(var(--h) * 14px) color-mix(in srgb, var(--pf-gold) 60%, transparent);
+}
+.pf__book:hover { background: color-mix(in srgb, var(--pf-gold) 12%, transparent); color: var(--text-bright); }
+.pf__chapters { display: flex; flex-wrap: wrap; gap: 5px; }
+.pf__ch {
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.pf__ch[data-lit='true'] {
+  background: color-mix(in srgb, var(--pf-gold) calc(12% + var(--h) * 30%), var(--bg-elevated));
+  box-shadow: 0 0 12px -3px var(--pf-gold);
+  color: var(--text-bright);
+}
+.pf__ch:hover { border-color: var(--pf-gold); color: var(--text-bright); }
+.pf__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 1rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: none;
+  cursor: pointer;
+  padding: 0.9rem 0.3rem;
+  font: inherit;
+  color: inherit;
+}
+.pf__row:last-child { border-bottom: 1px solid var(--border-subtle); }
+.pf__row[data-kb='true'] { background: color-mix(in srgb, var(--pf-gold) 10%, transparent); }
+.pf__row:hover .pf__row-ref, .pf__row[data-kb='true'] .pf__row-ref { color: var(--accent); }
+.pf__row-ref { font-size: 1.15rem; color: var(--text-bright); }
+.pf__row-meta { font-family: var(--font-sans, system-ui, sans-serif); font-size: 11.5px; color: var(--text-faint); }
+.pf__row-text {
+  grid-column: 1 / -1;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pf__soft { color: var(--text-dim); font-style: italic; font-size: 1rem; line-height: 1.55; margin: 1rem 0 0; }
+.pf__soft p { margin: 0 0 0.4rem; }
+.pf__loading { animation: pf-breathe 1.6s ease-in-out infinite; }
+@keyframes pf-breathe { 50% { opacity: 0.45; } }
+.pf__link {
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  font: inherit;
+  font-style: normal;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.pf__link:hover { color: var(--accent); }
+.pf__reader-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 2.1rem 0 0.2rem; flex-wrap: wrap; }
+.pf__chapter { margin: 0; font-weight: 400; font-size: 1.6rem; color: var(--text-bright); }
+.pf__nav { display: inline-flex; gap: 0.9rem; }
+.pf__hint-line { margin: 0 0 1rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; color: var(--text-faint); }
+.pf__bar {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
+  z-index: 2;
+  margin-top: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.7rem 0.65rem 1.2rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+}
+.pf__bar-ref { font-size: 1.1rem; color: var(--text-bright); }
+.pf__bar-count { font-family: var(--font-sans, system-ui, sans-serif); font-size: 11.5px; color: var(--text-faint); }
+.pf__bar-sp { flex: 1; }
+.pf__begin {
+  border: 1px solid var(--text-bright);
+  border-radius: 999px;
+  background: var(--text-bright);
+  color: var(--bg);
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.5rem 1.3rem;
+  cursor: pointer;
+}
+.pf__begin:disabled { opacity: 0.4; cursor: default; }
+
+@media (max-width: 640px) {
+  .pf__canon { grid-template-columns: 1fr; }
+  .pf__col { padding-top: calc(env(safe-area-inset-top, 0px) + 4.2rem); }
+  .pf__bar { border-radius: 18px; }
+  .pf__bar .pf__link { order: 5; width: 100%; text-align: left; }
+}
+
+/* ── The leaf: the rail, widened to hold the passage ──────────────────── */
+/* Doubled class: RitualComposer.css may load after this sheet, and its
+   `.rc--desk` column rule must not win. */
+.rc--desk.rc--facing {
+  /* Fractions, not max(24rem, 45%): WebKit (the Mac app) resolved that track to
+     nearly the whole window and pushed the page off-screen. 9fr : 11fr is the
+     same 45 / 55 split, with the leaf never narrower than 24rem. */
+  grid-template-columns: minmax(24rem, 9fr) minmax(0, 11fr);
+}
+.rc--desk.rc--facing[data-widen='true'] { animation: rc-widen 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+@keyframes rc-widen {
+  from { grid-template-columns: minmax(19rem, 5fr) minmax(0, 15fr); }
+  to { grid-template-columns: minmax(24rem, 9fr) minmax(0, 11fr); }
+}
+.rc--facing .rc__rail {
+  padding-left: 2.6rem;
+  padding-right: 2.4rem;
+  background: color-mix(in srgb, var(--bg-elevated) 55%, var(--bg));
+  box-shadow: inset -30px 0 40px -40px rgba(0, 0, 0, 0.25);
+}
+.rc--facing[data-widen='true'] .rc__leaf-text { animation: rc-in 0.8s 0.45s ease both; }
+.rc--facing .rc__home { margin-bottom: 1.6rem; }
+.rc--facing .rc__intent { max-width: 34rem; }
+/* The path, laid on one line: same beads, same states, less height. */
+.rc__path--row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.9rem;
+  margin: 1.1rem 0 2rem;
+}
+.rc__path--row::before { display: none; }
+.rc__path--row button { padding: 0.3rem 0 0.3rem 1rem; width: auto; }
+.rc__path--row button::before { top: 0.52rem; width: 7px; height: 7px; }
+.rc__path--row [data-state='on'] button::before { box-shadow: 0 0 0 3px var(--accent-soft); }
+.rc__path--row .rc__path-label { font-size: 0.58rem; }
+.rc__path--row .rc__gist { display: none; }
+.rc__leaf-ref {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.rc__leaf-ref span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(var(--scripture-gold, 196, 145, 60));
+}
+.rc__leaf-ref button,
+.rc__leaf-under button {
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  font-family: var(--rc-body);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.rc__leaf-ref button:hover,
+.rc__leaf-under button:hover { color: var(--accent); }
+/* The ways through the passage — one quiet line under the reference, only
+   until the writer has written. The one being walked is simply the brighter. */
+.rc__ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1rem;
+  margin: -0.4rem 0 1.1rem;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+}
+.rc__ways button {
+  border: none;
+  background: none;
+  padding: 0.15rem 0;
+  font: inherit;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.rc__ways button:hover { color: var(--accent); }
+.rc__ways button[aria-pressed='true'] {
+  color: var(--text-bright);
+  border-bottom-color: rgb(var(--scripture-gold, 196, 145, 60));
+  cursor: default;
+}
+.rc__ways button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.rc__pane .rc__ways { margin: 0 0 0.8rem; }
+/* The passage beside the writing: 0.85× the writer's own size (20.4px in
+   Dawn, as the fixed 1.28rem was), never larger — it was 1.28rem in every
+   voice, so in Plainsong a 20px passage stood over 17px writing. */
+.rc__leaf-text .psg { font-size: max(calc(var(--voice-text-size, 24px) * 0.85), 13px); line-height: 1.9; }
+/* The rail foot is pinned with `margin-top: auto`, which is zero once a long
+   passage fills the leaf — so the last line sat on the hairline. A passage
+   gets its own breathing room before the foot, however long it runs. */
+.rc__leaf-text { padding-bottom: 2.25rem; }
+.rc__leaf-under { margin-top: 1rem; display: flex; gap: 1.1rem; }
+.rc__leaf-own {
+  border: 1px dashed var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.3rem 1.3rem 1.2rem;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.6;
+}
+.rc__leaf-own b { display: block; font-style: normal; font-weight: 400; font-size: 1.35rem; color: var(--text-bright); margin-bottom: 0.35rem; }
+.rc__leaf-loading { color: var(--text-faint); font-style: italic; animation: pf-breathe 1.6s ease-in-out infinite; }
+.rc__leaf-fallback { font-size: max(calc(var(--voice-text-size, 24px) * 0.85), 13px); line-height: 1.8; color: var(--text-bright); margin: 0; white-space: pre-line; }
+
+/* Focus: while the writer types, the leaf keeps only the passage. */
+.rc--facing .rc__chrome { transition: opacity 0.6s ease; }
+.rc--facing[data-typing='true'] .rc__chrome { opacity: 0.12; }
+.rc--facing[data-typing='true'] .rc__foot { opacity: 0.35; transition: opacity 0.6s ease; }
+
+/* ── The page, beside the leaf ────────────────────────────────────────── */
+.rc__await {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: -0.8rem 0 1.4rem;
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: 1.02rem;
+}
+.rc__await::before { content: ''; width: 22px; height: 1px; background: rgb(var(--scripture-gold, 196, 145, 60)); opacity: 0.6; }
+.rc__caught {
+  margin: -0.6rem 0 1.4rem;
+  font-family: var(--rc-body);
+  font-size: 1.45rem;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--text-bright);
+}
+.rc__caught q::before, .rc__caught q::after { color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__caught q { quotes: '“' '”'; }
+.rc__caught button {
+  margin-left: 0.6rem;
+  border: none;
+  background: none;
+  font-family: var(--rc-body);
+  font-size: 0.82rem;
+  font-style: normal;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.rc__caught button:hover { color: var(--accent); }
+.rc__caught[data-small='true'] { font-size: 1.12rem; }
+.rc__typein {
+  width: 100%;
+  margin: -0.6rem 0 1.4rem;
+  padding: 0.2rem 0 0.4rem;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  outline: none;
+  background: none;
+  font-family: var(--rc-body);
+  font-size: 1.35rem;
+  font-style: italic;
+  color: var(--text-bright);
+  border-radius: 0;
+}
+.rc__dwell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+.rc__dwell-word {
+  font-family: var(--rc-body);
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text-bright);
+  max-width: 30rem;
+  animation: rc-breathe 7s ease-in-out infinite;
+}
+@keyframes rc-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+.rc__dwell p { margin: 0; color: var(--text-dim); font-style: italic; }
+
+/* ── On a phone: the passage in the pane, or folded to a strip ────────── */
+.rc__psg-pane { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 1rem; }
+/* Ratios of the writer's size on a phone, where Dawn writes at 19.7px:
+   the reading pane 17.6px, the strip above an answer 16.3px — as they were. */
+.rc__psg-pane .psg { font-size: max(calc(var(--voice-text-size, 24px) * 0.894), 13px); line-height: 1.8; }
+.rc__psg-top {
+  max-height: 38vh;
+  overflow-y: auto;
+  margin: 0 0 0.9rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.rc__psg-top .psg { font-size: max(calc(var(--voice-text-size, 24px) * 0.829), 12.5px); line-height: 1.7; }
+.rc__strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0 0 0.7rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elevated) 70%, var(--bg));
+  font-family: var(--rc-body);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  text-align: left;
+  cursor: pointer;
+}
+.rc__strip-ref {
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--scripture-gold, 196, 145, 60));
+  white-space: nowrap;
+}
+.rc__strip-word {
+  font-style: italic;
+  color: var(--text-bright);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rc__strip-chev { margin-left: auto; color: var(--text-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rc--facing[data-widen='true'],
+  .rc--facing[data-widen='true'] .rc__leaf-text,
+  .psg[data-mode='dwell'] .psg__w,
+  .psg[data-slow='true'] .psg__v,
+  .rc__dwell-word { animation: none; }
+}
+
+/* ── Reading another passage, after writing under this one ─────────────── */
+.rc__ask {
+  position: fixed;
+  inset: 0;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.rc__ask-box {
+  max-width: 30rem;
+  padding: 1.5rem 1.7rem 1.3rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+}
+.rc__ask-box h3 { margin: 0 0 0.6rem; font-weight: 400; font-size: 1.3rem; color: var(--text-bright); }
+.rc__ask-box p { margin: 0 0 1.2rem; line-height: 1.6; color: var(--text); }
+.rc__ask-tools { display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap; }
+.rc__ask-tools button {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: none;
+  padding: 0.5rem 1.1rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.rc__ask-tools .rc__ask-go { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }
+
+/* ── Drawn lines ──────────────────────────────────────────────────────── */
+.rc__tethers { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1001; overflow: visible; }
+.rc__tethers path { fill: none; stroke-linecap: round; }
+@media (max-width: 899px) { .rc__tethers { display: none; } }
+.rc__page { position: relative; }
+.rc__ghost {
+  position: absolute; left: 0; right: 0; z-index: 2;
+  margin: 0; padding: 0.35rem 0.9rem 0.4rem 1rem;
+  border: 1.5px dashed color-mix(in srgb, rgb(var(--scripture-gold, 196, 145, 60)) 70%, transparent);
+  border-left-width: 2px; border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--bg) 88%, rgb(var(--scripture-gold, 196, 145, 60)));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-family: var(--rc-body); font-size: 1.02rem; font-style: italic; line-height: 1.55; color: var(--text-dim);
+  pointer-events: none; animation: rc-ghost 0.18s ease both;
+}
+.rc__ghost:not([style]) { position: static; margin: 0 0 1rem; }
+.rc__ghost-v { margin-left: 0.5rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__ghost-lands { display: block; margin-top: 0.15rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; letter-spacing: 0.03em; color: var(--text-faint); }
+@keyframes rc-ghost { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.rc__chip { position: fixed; z-index: 1003; display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--text-bright); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18); animation: rc-ghost 0.16s ease both; }
+.rc__chip button { border: none; background: none; color: var(--bg); font-family: var(--rc-body, var(--font-serif)); font-size: 0.92rem; cursor: pointer; border-radius: 999px; }
+.rc__chip-go { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.8rem; }
+.rc__chip-go kbd { font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; opacity: 0.7; border: 1px solid color-mix(in srgb, var(--bg) 35%, transparent); border-radius: 4px; padding: 0 4px; }
+.rc__chip-x { padding: 0.3rem 0.6rem; opacity: 0.7; }
+.rc__chip button:hover { background: color-mix(in srgb, var(--bg) 14%, transparent); }
+.rc__card { position: fixed; z-index: 1003; max-width: 300px; padding: 0.65rem 0.8rem 0.7rem; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-elevated); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12); font-family: var(--font-serif, 'Newsreader', Georgia, serif); font-size: 0.9rem; line-height: 1.45; color: var(--text); pointer-events: none; }
+.rc__card-row + .rc__card-row { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle); }
+.rc__card-mv { display: block; font-size: 0.58rem; font-weight: 500; letter-spacing: 0.17em; text-transform: uppercase; color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__card-mv[data-tone='1'] { color: var(--accent); }
+.rc__card-mv[data-tone='2'] { color: color-mix(in srgb, #8a74c0 80%, var(--text-dim)); }
+.rc__card-said { display: -webkit-box; margin-top: 0.15rem; font-style: italic; color: var(--text-dim); -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rc__card-foot { display: block; margin-top: 0.45rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: var(--text-faint); }
+.rc__bring { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.6rem; }
+.rc__bring button { border: none; background: none; font-family: var(--rc-body); font-size: 0.9rem; color: var(--text-dim); cursor: pointer; }
+.rc__bring .rc__bring-go { padding: 0.45rem 0.9rem; border-radius: 999px; background: var(--text-bright); color: var(--bg); font-style: italic; }
+/* The close: every line drawn, movement by movement. */
+.rc__drawn { width: 100%; max-width: 36rem; margin: 2.4rem auto 0; text-align: left; }
+.rc__drawn-head { margin: 0 0 1.2rem; font-style: italic; color: var(--text-dim); }
+.rc__drawn-mv { margin-bottom: 1.4rem; --rc-tone: rgb(var(--scripture-gold, 196, 145, 60)); }
+.rc__drawn-mv[data-tone='1'] { --rc-tone: var(--accent); }
+.rc__drawn-mv[data-tone='2'] { --rc-tone: color-mix(in srgb, #8a74c0 80%, var(--text-dim)); }
+.rc__drawn-label { display: block; margin-bottom: 0.4rem; font-size: 0.62rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rc-tone); }
+.rc__drawn-q blockquote { margin: 0.2rem 0 0.35rem; padding: 0.3rem 0.8rem; border-left: 2px solid var(--rc-tone); border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--rc-tone) 9%, transparent); font-style: italic; color: var(--text-bright); }
+.rc__drawn-v { margin-left: 0.5rem; font-style: normal; font-family: var(--font-sans, system-ui, sans-serif); font-size: 10.5px; color: var(--rc-tone); }
+.rc__drawn-q p { margin: 0 0 0.8rem; font-size: 0.98rem; line-height: 1.6; color: var(--text); }
+.rc--facing .rc__close { overflow-y: auto; }
+
+/* Good places to begin: themes, then a few passages, each by what it is about. */
+.pf__themes { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.9rem; }
+.pf__theme {
+  border: 1px solid var(--border-subtle); border-radius: 999px; background: none;
+  padding: 0.28rem 0.75rem; font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px;
+  color: var(--text-dim); cursor: pointer;
+}
+.pf__theme:hover { color: var(--text-bright); }
+.pf__theme[aria-pressed='true'] { color: var(--text-bright); border-color: color-mix(in srgb, var(--pf-gold) 55%, var(--border-subtle)); background: color-mix(in srgb, var(--pf-gold) 10%, transparent); }
+.pf__picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.6rem; }
+.pf__pick {
+  display: flex; flex-direction: column; gap: 0.2rem; text-align: left; cursor: pointer;
+  padding: 0.8rem 0.95rem 0.75rem; border: 1px solid var(--border-subtle); border-radius: 12px;
+  background: var(--bg-elevated); font: inherit; color: inherit; transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.pf__pick:hover { border-color: color-mix(in srgb, var(--pf-gold) 45%, var(--border-subtle)); transform: translateY(-1px); }
+.pf__pick-title { font-size: 1.05rem; line-height: 1.3; color: var(--text-bright); }
+.pf__pick-ref { font-size: 0.66rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--pf-gold); }
+.pf__pick-themes { font-family: var(--font-sans, system-ui, sans-serif); font-size: 11px; color: var(--text-faint); }
+.pf__more { margin-top: 0.6rem; font-size: 0.88rem; }
+.pf__book, .pf__ch { color: var(--text-dim); }

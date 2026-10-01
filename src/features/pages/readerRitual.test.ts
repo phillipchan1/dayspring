@@ -43,4 +43,22 @@ describe('ritualMovementAt', () => {
     const page = body('<p class="read-ritual-label">Awareness</p><p><em id="x">far</em> today</p>')
     expect(ritualMovementAt(page.querySelector('#x'), page, LABELS)).toBe(1)
   })
+
+  it('keeps every paragraph of a last movement closed by the end token', () => {
+    const page = body(
+      [
+        '<p class="read-ritual-name">The Daily Examen</p>',
+        '<p class="read-ritual-label">Prayer</p>',
+        '<p id="p1">Patience.</p>',
+        '<p id="p2">And for Hannah, again.</p>',
+        '<p class="read-ritual-end" hidden></p>',
+        '<p id="after">A quiet evening after all.</p>',
+      ].join(''),
+    )
+    const where = (id: string) => ritualMovementAt(page.querySelector(`#${id}`), page, LABELS)
+    expect(where('p1')).toBe(3)
+    expect(where('p2')).toBe(3)
+    expect(where('after')).toBe(4)
+  })
 })
+

@@ -58,6 +58,13 @@
   letter-spacing: 0.02em;
   color: var(--text-faint);
 }
+.ritual-shelf__bible {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+.ritual-shelf__pick.ritual-shelf__open { color: rgb(var(--scripture-gold, 196, 145, 60)); }
+.ritual-shelf__dot { color: var(--text-faint); }
 .ritual-shelf__pick:hover,
 .ritual-shelf__all:hover { color: var(--accent); }
 .ritual-shelf__pick:focus-visible,

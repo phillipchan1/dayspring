@@ -108,6 +108,7 @@ async function bootstrap() {
   //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
   //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
   //   ?__preview=topbar             → the Ritual door + status cluster (features/journal/topbarPreview.tsx)
+  //   ?__preview=guest-review       → guest You menu + own-Bible passage picker
   //   ?__preview=welcome            → the first-run tour (features/welcome/preview.tsx)
   //   ?__preview=threads            → practices you have walked (features/rituals/preview.tsx)
   //   ?__preview=ledger             → the Summit's year ledger (features/ascent/ledger/preview.tsx)
@@ -211,6 +212,11 @@ async function bootstrap() {
     if (preview === 'topbar') {
       const { renderTopbarPreview } = await import('./features/journal/topbarPreview')
       renderTopbarPreview()
+      return
+    }
+    if (preview === 'guest-review') {
+      const { renderGuestReviewPreview } = await import('./features/journal/guestReviewPreview')
+      renderGuestReviewPreview()
       return
     }
     if (preview === 'signin') {

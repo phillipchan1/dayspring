@@ -21,6 +21,8 @@ export class RitualHeaderWidget extends WidgetType {
     readonly unfinished: boolean,
     /** True while the caret is inside this block. */
     readonly held: boolean,
+    /** A finished ritual page, edited in place: the name, and no door. */
+    readonly open: boolean = false,
   ) {
     super()
   }
@@ -28,7 +30,8 @@ export class RitualHeaderWidget extends WidgetType {
     return (
       other.name === this.name &&
       other.unfinished === this.unfinished &&
-      other.held === this.held
+      other.held === this.held &&
+      other.open === this.open
     )
   }
   toDOM(): HTMLElement {
@@ -36,12 +39,16 @@ export class RitualHeaderWidget extends WidgetType {
     root.className = 'cm-practice-header'
     root.dataset.practice = this.name
     if (this.held) root.dataset.held = 'true'
+    if (this.open) root.dataset.open = 'true'
     root.setAttribute('contenteditable', 'false')
 
     const name = document.createElement('span')
     name.className = 'cm-practice-header__name'
     name.textContent = this.name
     root.append(name)
+    // The page IS where it is changed, so there is nothing to open it into —
+    // the name alone, as the reader sets it.
+    if (this.open) return root
 
     const action = (cls: string, label: string, title: string) => {
       const button = document.createElement('button')
@@ -78,6 +85,8 @@ export class RitualPromptWidget extends WidgetType {
     readonly first: boolean,
     /** True while the caret is inside this block. */
     readonly held: boolean,
+    /** A finished ritual page, edited in place. */
+    readonly open: boolean = false,
   ) {
     super()
   }
@@ -86,7 +95,8 @@ export class RitualPromptWidget extends WidgetType {
       other.label === this.label &&
       other.question === this.question &&
       other.first === this.first &&
-      other.held === this.held
+      other.held === this.held &&
+      other.open === this.open
     )
   }
   toDOM(): HTMLElement {
@@ -95,6 +105,7 @@ export class RitualPromptWidget extends WidgetType {
       ? 'cm-practice-prompt cm-practice-prompt--first'
       : 'cm-practice-prompt'
     if (this.held) root.dataset.held = 'true'
+    if (this.open) root.dataset.open = 'true'
     root.setAttribute('contenteditable', 'false')
     root.setAttribute('aria-hidden', 'true')
 
@@ -152,16 +163,24 @@ export class RitualColophonWidget extends WidgetType {
     readonly name: string,
     readonly origin: string,
     readonly held: boolean,
+    /** A finished ritual page, edited in place. */
+    readonly open: boolean = false,
   ) {
     super()
   }
   eq(other: RitualColophonWidget): boolean {
-    return other.name === this.name && other.origin === this.origin && other.held === this.held
+    return (
+      other.name === this.name &&
+      other.origin === this.origin &&
+      other.held === this.held &&
+      other.open === this.open
+    )
   }
   toDOM(): HTMLElement {
     const root = document.createElement('div')
     root.className = 'cm-ritual-colophon'
     if (this.held) root.dataset.held = 'true'
+    if (this.open) root.dataset.open = 'true'
     root.setAttribute('contenteditable', 'false')
     root.setAttribute('aria-hidden', 'true')
 

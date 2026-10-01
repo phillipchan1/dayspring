@@ -13,6 +13,7 @@
 import { listConcordance, type ConcordanceItem, type ConcordanceKind } from '@/lib/concordance'
 import { entryContentLines } from '@/lib/entryLabels'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { writerWords } from '@/lib/writerWords'
 import type { Entry } from '@/lib/types'
 
 export interface Subject {
@@ -92,7 +93,9 @@ export interface SubjectIndex {
  * place: matching is per page, so position within it changes nothing.
  */
 export function writerLines(markdown: string | null | undefined): string[] {
-  const lines = entryContentLines(markdown)
+  // Over writerWords (Guardrail H3), so a verse quoted into a SOAP/Lectio answer
+  // (`> Remain in me (v. 4)`) is as absent as the passage it came from.
+  const lines = entryContentLines(writerWords(markdown))
   for (const block of parseSpiritualBlocks(markdown ?? '')) {
     if (block.type === 'scripture') continue
     for (const line of block.content.split('\n')) {

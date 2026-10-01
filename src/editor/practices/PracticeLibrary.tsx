@@ -15,6 +15,7 @@ import {
   type PracticeRhythm,
 } from './practicesData'
 import { skyFor } from './ritualSky'
+import { ScriptureMark } from './ScriptureMark'
 import './PracticeLibrary.css'
 
 interface Props {
@@ -83,7 +84,12 @@ interface Props {
   hasWalked?: boolean
 }
 
-type RhythmFilter = PracticeRhythm | 'all'
+/**
+ * The hours, plus one chip that is not an hour: the rituals that begin with a
+ * passage. It sits after the hours, set apart, because it answers a different
+ * question — what you will do, not when.
+ */
+type RhythmFilter = PracticeRhythm | 'all' | 'scripture'
 
 /**
  * What search reads. Name, tradition and origin are how a person half-recalls a
@@ -101,6 +107,9 @@ function haystack(p: Practice, fnLabel: string): string {
     p.intention,
     fnLabel,
     ...p.prompts.map((prompt) => `${prompt.label} ${prompt.question}`),
+    // The words people use for a ritual built on a passage, when they don't
+    // know its name.
+    p.passage ? 'with scripture bible passage verse study reading' : '',
   ]
     .join(' ')
     .toLowerCase()
@@ -157,7 +166,13 @@ export function PracticeLibrary({
     // what they want far more precisely than the hour did, and hiding the one
     // ritual they asked for behind a filter they never touched is the kind of
     // cleverness that makes people stop using search.
-    const pool = q ? SHELF : SHELF.filter((p) => rhythm === 'all' || p.rhythm.includes(rhythm))
+    const pool = q
+      ? SHELF
+      : SHELF.filter((p) =>
+          rhythm === 'scripture'
+            ? Boolean(p.passage)
+            : rhythm === 'all' || p.rhythm.includes(rhythm),
+        )
     if (!q) return pool
     const terms = q.split(/\s+/)
     return pool.filter((p) => {
@@ -365,6 +380,21 @@ export function PracticeLibrary({
                 {r.label}
               </button>
             ))}
+            <span className="practice-filter__divider" aria-hidden />
+            <button
+              type="button"
+              role="tab"
+              className="practice-filter practice-filter--scripture"
+              data-active={!searching && rhythm === 'scripture' ? 'true' : undefined}
+              aria-selected={!searching && rhythm === 'scripture'}
+              onClick={() => {
+                setQuery('')
+                setRhythm('scripture')
+              }}
+            >
+              <ScriptureMark />
+              With Scripture
+            </button>
           </div>
           <div className="practice-search">
             <input
@@ -411,6 +441,12 @@ export function PracticeLibrary({
               <span className="practice-card__origin">{practice.origin}</span>
               <span className="practice-card__quote">{practice.quote}</span>
               <span className="practice-card__footer">
+                {practice.passage && (
+                  <span className="practice-card__scripture">
+                    <ScriptureMark />
+                    With Scripture
+                  </span>
+                )}
                 <span className="practice-card__tag">{practice.tradition}</span>
                 {unready(practice) ? (
                   <span className="practice-card__needs">
@@ -462,6 +498,15 @@ export function PracticeLibrary({
               ))}
             </ol>
 
+            {selected.passage && (
+              <p className="practice-threshold__passage">
+                <ScriptureMark />
+                <span>
+                  <b>Begins with a passage you choose.</b> It stays open beside you while you write.
+                </span>
+              </p>
+            )}
+
             {landing && <p className="practice-threshold__landing">{landing}</p>}
 
             <button
@@ -469,7 +514,7 @@ export function PracticeLibrary({
               className="practice-threshold__begin"
               onClick={() => onBegin(selected, movementsOf(selected))}
             >
-              Begin writing
+              {selected.passage ? 'Choose a passage' : 'Begin writing'}
             </button>
             <label className="practice-threshold__skip">
               <input

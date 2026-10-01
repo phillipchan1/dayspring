@@ -136,6 +136,17 @@
   background: color-mix(in srgb, var(--accent) 14%, var(--bg));
 }
 
+/* ── Captures of the real surface ── */
+.firstlight__shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
 /* ── The climb glyph ── */
 .firstlight__climb {
   display: block;

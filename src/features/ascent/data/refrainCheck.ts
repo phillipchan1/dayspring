@@ -15,6 +15,7 @@
  */
 
 import { entryContentLines } from '@/lib/entryLabels'
+import { writerWords } from '@/lib/writerWords'
 import { getEntryById } from '@/lib/entries'
 import { cacheGet } from '@/lib/db'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
@@ -24,9 +25,10 @@ function norm(s: string): string {
   return s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim()
 }
 
-/** True when `text` is on the page as the writer reads it. */
+/** True when `text` is on the page as the writer reads it, in her own words —
+ *  a refrain is shown as hers, so a verse she quoted never counts (Guardrail H3). */
 export function isOnPage(text: string, body: string): boolean {
-  const visible = norm(entryContentLines(body).map(stripMarkdownMarkers).join(' '))
+  const visible = norm(entryContentLines(writerWords(body)).map(stripMarkdownMarkers).join(' '))
   const needle = norm(text)
   return needle.length > 0 && visible.includes(needle)
 }

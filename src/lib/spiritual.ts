@@ -353,9 +353,30 @@ export async function resolveScripturePassages(references: string[]): Promise<(R
   return result.resolved
 }
 
+/**
+ * How a verse's words are set, as Crossway sets them: where a poetry line, a
+ * stanza or a prose paragraph begins. The parts' texts joined by single
+ * spaces are the verse's `text`. Built server-side in api/_lib/esvHtml.ts.
+ */
+export interface VersePart {
+  text: string
+  /** `flow` carries on; `line` / `stanza` start a poetry line; `para` a prose paragraph. */
+  at: 'flow' | 'line' | 'stanza' | 'para'
+  /** Poetry only: 1 a line, 2 its indented half, 3 an aside set far in ("declares the LORD"). */
+  indent?: number
+  /** A paragraph picking up again after a poem. */
+  resume?: boolean
+  /** The part's last word is "Selah". */
+  selah?: boolean
+  /** A psalm's title, an acrostic letter, a speaker in the Song — set above these words. */
+  head?: { kind: 'title' | 'acrostic' | 'speaker'; text: string }
+}
+
 export interface ChapterVerse {
   n: number
   text: string
+  /** Absent from anything that predates it — read as one plain paragraph. */
+  parts?: VersePart[]
 }
 
 export interface ScriptureChapter {

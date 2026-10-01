@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deriveTitle, deriveEntryPreview } from './entryLabels'
+import { deriveTitle as serverDeriveTitle } from '../../api/_lib/entryLabels'
 import {
   firstContentLineNumber,
   firstLineIsTitle,
@@ -144,6 +145,40 @@ describe('deriveTitle', () => {
     const body =
       '```dayspring-pray 53430d30-3e0c-4d5a-9b1a-000000000001\nLord, steady my heart today\n```\n'
     expect(deriveTitle(body)).toBe('Lord, steady my heart today')
+  })
+})
+
+describe.each([
+  ['app', deriveTitle],
+  ['server', serverDeriveTitle],
+])('deriveTitle never names a page after a verse (%s, Guardrail H3)', (_, title) => {
+  const soap = (answer: string) =>
+    [
+      '<!-- ritual:name:SOAP -->',
+      '<!-- ritual:section:Scripture -->',
+      '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+      'Remain in me, and I in you.',
+      'John 15:4 · ESV',
+      '```',
+      '<!-- ritual:section:Observation -->',
+      '> Remain in me, and I in you (v. 4)',
+      ...(answer ? ['', answer] : []),
+      '<!-- ritual:end -->',
+    ].join('\n')
+
+  it('takes her first written line, past the tokens, the passage and the quote', () => {
+    expect(title(soap('He says remain before he says bear fruit.'))).toBe(
+      'He says remain before he says bear fruit.',
+    )
+  })
+
+  it('falls back to the ritual\'s name when only the verse is on the page', () => {
+    expect(title(soap(''))).toBe('SOAP')
+  })
+
+  it('passes over a leading `> quote` for her own line, but keeps a lone one', () => {
+    expect(title('> Be still\nI sat by the lake')).toBe('I sat by the lake')
+    expect(title('> a quote')).toBe('a quote')
   })
 })
 

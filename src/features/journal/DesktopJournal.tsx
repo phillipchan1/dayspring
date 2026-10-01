@@ -117,6 +117,7 @@ export function DesktopJournal(props: JournalViewProps) {
                 lastSavedAt={lastSavedAt}
                 saveError={saveError}
                 onSync={onSync}
+                persisted={!!activeId}
                 leading={<span>{words} {words === 1 ? 'word' : 'words'}</span>}
               />
               <button className="nav-btn" onClick={focus.enter} title="Focus mode (⌘⏎)">

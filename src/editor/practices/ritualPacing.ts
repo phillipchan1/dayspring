@@ -19,6 +19,7 @@
  * the writer is still standing in.
  */
 import { PRACTICE_END_RE, PRACTICE_NAME_RE, PRACTICE_SECTION_RE } from '@/lib/practiceTokens'
+import { movementKind } from './practicesData'
 
 export interface RitualMovement {
   /** Position within the block, 0-based. */
@@ -156,9 +157,20 @@ export function ritualBlockAtLine(
   return null
 }
 
+/**
+ * Answered, for the purposes of "is there more to do here".
+ *
+ * A `dwell` movement (Lectio's Contemplatio) is rest with nothing to write, and
+ * an empty one is the practice done right — so it never counts as waiting, or
+ * every Lectio would carry a permanent "continue" on its page.
+ */
+function done(block: RitualBlock, m: RitualMovement): boolean {
+  return m.filled || movementKind(block.name, m.label) === 'dwell'
+}
+
 /** Every movement answered — the practice has been prayed all the way through. */
 export function isRitualComplete(block: RitualBlock): boolean {
-  return block.movements.length > 0 && block.movements.every((m) => m.filled)
+  return block.movements.length > 0 && block.movements.every((m) => done(block, m))
 }
 
 /**
@@ -167,7 +179,7 @@ export function isRitualComplete(block: RitualBlock): boolean {
  */
 export function currentMovementIndex(block: RitualBlock): number {
   const n = block.movements.length
-  for (let i = 0; i < n; i++) if (!block.movements[i]!.filled) return i
+  for (let i = 0; i < n; i++) if (!done(block, block.movements[i]!)) return i
   return Math.max(0, n - 1)
 }
 

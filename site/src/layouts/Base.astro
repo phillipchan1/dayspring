@@ -131,9 +131,14 @@ const ogImageUrl = new URL(ogImage, site.url).href;
       // Entrance instrumentation that has to run on every page, regardless of
       // which one a visitor lands on. Per-page signals (landing_viewed on the
       // homepage, start_trial_clicked on /start) live in those pages instead.
+      import { persistLandingAttribution } from "../lib/attributionCookie";
+      import { initGoogleTag } from "../lib/googleAds";
       import { trackPageView } from "../lib/metaPixel";
-      import { wireCtaLinks } from "../lib/siteAnalytics";
+      import { initSiteAnalytics, wireCtaLinks } from "../lib/siteAnalytics";
 
+      persistLandingAttribution();
+      initGoogleTag();
+      initSiteAnalytics();
       trackPageView();
       wireCtaLinks();
     </script>

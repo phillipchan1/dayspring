@@ -6,8 +6,30 @@ import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { track } from '@/lib/analytics'
 import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
-import { PRACTICE_BY_NAME } from './practicesData'
+import { PRACTICE_BY_NAME, movementKind, type MovementKind, type Practice } from './practicesData'
 import { placeholderFor, questionFor } from './usePracticeInsertion'
+import {
+  bodyOf,
+  canWalkWithPassage,
+  caughtOf,
+  citedVerses,
+  findQuote,
+  formatQuote,
+  placeQuote,
+  quotesIn,
+  quoteVerse,
+  readPassage,
+  versesIn,
+  withCaught,
+  writePassage,
+  type PassageRef,
+  type Verse,
+} from './passage'
+import type { Highlight, WordSpan } from './PassageText'
+import { Tethers, type TetherKey } from './Tethers'
+import { loadChapter } from './passageSource'
+import { PassageFinder } from './PassageFinder'
+import { CaughtLine, DwellView, DrawnCard, PassageBody, PassageStrip, QuoteChip, QuoteGhost } from './PassageViews'
 import {
   answerOffset,
   composeRitualMarkdown,
@@ -65,9 +87,17 @@ interface Props {
   entry?: RitualEntryMode
 }
 
-/** Anything an answer is written in that can take the caret. */
+/**
+ * Anything an answer is written in that can take the caret. The real editor
+ * can also say where its caret is and write there — how a verse is quoted into
+ * an answer without disturbing what is already written.
+ */
 export interface Focusable {
   focus: (opts?: FocusOptions) => void
+  getCursor?: () => number
+  getDoc?: () => string
+  insertAt?: (pos: number, text: string) => void
+  focusAt?: (pos?: number) => void
 }
 
 /** What the journal needs to render one answer's editor. */
@@ -85,11 +115,17 @@ export interface AnswerSlot {
    * against the entry (a mark on a verse) needs them shifted by this.
    */
   offset: () => number | null
+  /** A scripture ritual: its `>` lines are the passage's words, kept whole. */
+  quotes?: boolean
 }
 
 export interface RitualEntryMode {
-  /** A ritual begun on a blank page: nothing is in the document yet. */
-  seed?: { name: string; labels: readonly string[] }
+  /**
+   * A ritual begun on a blank page: nothing is in the document yet. A
+   * scripture ritual may arrive with its passage already chosen (the Bible
+   * door's "continue"), and begins on it without asking.
+   */
+  seed?: { name: string; labels: readonly string[]; passage?: PassageRef }
   /** Where leaving goes, said plainly — "your journal", "the page". */
   backTo: string
   /** The same place in one word, for the phone's back button. */
@@ -98,7 +134,24 @@ export interface RitualEntryMode {
   onDelete: () => void
   /** Open on this movement (a click on one answer in the reader). */
   startAt?: number
+  /**
+   * The page now holds a different practice over the same passage — open the
+   * composer again on the document as it stands. Without it, a scripture
+   * ritual offers no other way through its passage.
+   */
+  onSwitch?: () => void
 }
+
+/**
+ * The ways through a passage, as the facing leaf offers them — short names,
+ * because they sit on one line beside the reference.
+ */
+const PASSAGE_WAYS: readonly { name: string; short: string }[] = [
+  { name: 'Open Reading', short: 'Open' },
+  { name: 'Lectio Divina', short: 'Lectio' },
+  { name: 'SOAP', short: 'SOAP' },
+  { name: 'Discovery Bible Study', short: 'Discovery' },
+]
 
 /** After is a page, not a movement: no question, just room. */
 const AFTER_LABEL = 'After'
@@ -196,15 +249,24 @@ export function RitualComposer({
   /**
    * Open on the movement still waiting. A finished ritual, reopened from the
    * entry, opens at its beginning — landing on the close would greet someone
-   * who came back to write with "you're done".
+   * who came back to write with "you're done". For a scripture ritual that
+   * beginning is the first writing movement: the passage is already open
+   * beside it, and Read is not a stop (see `choosePassage`).
    */
   const startAt = (() => {
     if (!block) return 0
     const asked = entry?.startAt
     // `labels.length` is After — a click on the After in the reader.
     if (asked !== undefined && asked >= 0 && asked <= block.labels.length) return asked
-    const firstEmpty = block.texts.findIndex((t) => t.trim() === '')
-    return firstEmpty === -1 ? 0 : firstEmpty
+    // Rest with nothing written is rest done — see `movementKind`.
+    const firstEmpty = block.texts.findIndex(
+      (t, n) => t.trim() === '' && movementKind(block.name, block.labels[n] ?? '') !== 'dwell',
+    )
+    if (firstEmpty !== -1) return firstEmpty
+    return Math.max(
+      0,
+      block.labels.findIndex((l) => movementKind(block.name, l) !== 'read'),
+    )
   })()
   const [texts, setTexts] = useState<string[]>(block ? block.texts : [])
   const [i, setI] = useState(startAt)
@@ -247,6 +309,93 @@ export function RitualComposer({
   const AFTER = entry ? total : -1
   /** The pane past everything that can be written: the close. */
   const CLOSE = entry ? total + 1 : total
+
+  // ── The passage ──────────────────────────────────────────────────────────
+  /**
+   * Walked with its passage: a scripture ritual whose first answer is empty or
+   * already a passage. Decided once, on open — a Lectio begun before the finder
+   * existed holds a passage typed out as prose, and keeps the plain composer it
+   * was written in rather than being offered a finder that would replace it.
+   */
+  const passageMode = useRef(
+    Boolean(practice?.passage) && canWalkWithPassage(block?.texts[0] ?? ''),
+  ).current
+  const kindAt = (n: number): MovementKind | undefined =>
+    passageMode && block && n >= 0 && n < total ? movementKind(block.name, labels[n] ?? '') : undefined
+  const passage = passageMode ? readPassage(texts[0] ?? '') : null
+  /** The finder is up: before the first movement, or to read another passage. */
+  const [choosing, setChoosing] = useState<'first' | 'again' | null>(
+    passageMode && !passage ? 'first' : null,
+  )
+  const [askChange, setAskChange] = useState(false)
+  /** The rail widening into the leaf, once, as the chosen passage arrives. */
+  const [widen, setWiden] = useState(false)
+  const [slow, setSlow] = useState(0)
+  /** The phone's strip that is open, by movement. */
+  const [openStrip, setOpenStrip] = useState<number | null>(null)
+  const passageRef = passage?.ref ?? null
+  const chapterKey = passageRef && !passage?.own ? `${passageRef.book} ${passageRef.chapter}` : null
+  const [chapter, setChapter] = useState<{ key: string; verses: Verse[] } | null>(null)
+  useEffect(() => {
+    if (!chapterKey) return
+    const at = chapterKey.lastIndexOf(' ')
+    let live = true
+    void loadChapter(chapterKey.slice(0, at), Number(chapterKey.slice(at + 1))).then(
+      (verses) => live && setChapter({ key: chapterKey, verses }),
+    )
+    return () => {
+      live = false
+    }
+  }, [chapterKey])
+  /** The passage's verses: null while its chapter loads, [] when it will not. */
+  const passageVerses: Verse[] | null =
+    !passageRef || !chapterKey
+      ? []
+      : chapter?.key === chapterKey
+        ? versesIn(passageRef, chapter.verses)
+        : null
+  const markIndex =
+    passageMode && block ? block.labels.findIndex((l) => movementKind(block.name, l) === 'mark') : -1
+  const caught = markIndex >= 0 ? caughtOf(texts[markIndex] ?? '') : null
+
+  // ── Drawn lines ──────────────────────────────────────────────────────────
+  /**
+   * Every writing movement of a scripture ritual can bring words in from the
+   * passage: select them, and they land in the answer as a quote line, with a
+   * line drawn back to where they came from. Lectio's Meditatio keeps its own
+   * single catch; Read and Rest have nothing to write in.
+   */
+  const drawsAt = (n: number) => {
+    if (!passageMode || n < 0 || n >= total) return false
+    const k = kindAt(n)
+    return k !== 'read' && k !== 'dwell' && k !== 'mark'
+  }
+  /** Every quote in the ritual, keyed `movement:index`, in each answer's order. */
+  const drawn = passageMode
+    ? labels.flatMap((_, n) => {
+        const k = kindAt(n)
+        if (k === 'read' || k === 'dwell') return []
+        return quotesIn(texts[n] ?? '').map((q, idx) => ({ key: `${n}:${idx}`, n, idx, ...q }))
+      })
+    : []
+  /** Words chosen in the passage and not yet brought in. */
+  const [pending, setPending] = useState<WordSpan | null>(null)
+  const pendingRef = useRef(pending)
+  pendingRef.current = pending
+  const bringInRef = useRef<() => void>(() => {})
+  const [rest, setRest] = useState<{ n: number; offset: number } | null>(null)
+  const [hovered, setHovered] = useState<{ keys: string[]; el: HTMLElement } | null>(null)
+  const [pageLit, setPageLit] = useState<string | null>(null)
+  useEffect(() => {
+    setPending(null)
+    setHovered(null)
+    setPageLit(null)
+  }, [i])
+  useEffect(() => {
+    if (!widen) return
+    const id = setTimeout(() => setWiden(false), 1000)
+    return () => clearTimeout(id)
+  }, [widen])
 
   // ── Writing back ─────────────────────────────────────────────────────────
   // Debounced while typing, immediate on any move and on the way out, so the
@@ -514,12 +663,12 @@ export function RitualComposer({
   // rather than mount, so closing About returns here; later moves take focus
   // through `go`.
   useEffect(() => {
-    if (blocked) return
+    if (blocked || choosing) return
     const id = requestAnimationFrame(() =>
       paneRefs.current[iRef.current]?.focus({ preventScroll: true }),
     )
     return () => cancelAnimationFrame(id)
-  }, [blocked])
+  }, [blocked, choosing])
 
   // ── Keys ─────────────────────────────────────────────────────────────────
   // ⌥↵ is "continue". Not ⌘↵ — that is focus mode everywhere else in the app,
@@ -528,8 +677,33 @@ export function RitualComposer({
   // start and end, and a writer's own text selection must not be taken.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // The sheet over us owns the keyboard while it is open.
-      if (blocked) return
+      // The sheet over us owns the keyboard while it is open — and so does the
+      // finder, which answers Escape one level at a time on its own.
+      if (blocked || choosing) return
+      // Words chosen in the passage: Enter brings them in, Escape lets them go
+      // (before Escape can mean "leave the ritual").
+      if (pendingRef.current && !e.altKey && !e.metaKey && !e.ctrlKey) {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.stopPropagation()
+          bringInRef.current()
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          setPending(null)
+          return
+        }
+      }
+      if (askChange) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          setAskChange(false)
+        }
+        return
+      }
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
@@ -547,7 +721,7 @@ export function RitualComposer({
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [CLOSE, blocked, go, i, leave])
+  }, [CLOSE, askChange, blocked, choosing, go, i, leave])
 
 
   if (!block) return null
@@ -555,7 +729,10 @@ export function RitualComposer({
   // What the writer walks through: the movements, then — for a ritual entry —
   // After. Everything below renders panes, so After needs no layout of its own.
   const paneLabels = entry ? [...labels, AFTER_LABEL] : labels
-  const paneTexts = entry ? [...texts, after] : texts
+  // A `mark` answer opens with the caught word as a quote line; the writer's
+  // box holds only what is under it. See passage.ts.
+  const shown = texts.map((t, n) => (kindAt(n) === 'mark' ? bodyOf(t) : t))
+  const paneTexts = entry ? [...shown, after] : shown
   const paneQuestion = (n: number) => (n === AFTER ? '' : questionFor(practice, labels[n] ?? ''))
   const panePlaceholder = (n: number) =>
     n === AFTER ? AFTER_PLACEHOLDER : placeholderFor(practice, labels[n] ?? '')
@@ -563,7 +740,8 @@ export function RitualComposer({
 
   const written = i < CLOSE && (paneTexts[i] ?? '').trim().length > 0
   // Only a keyboard makes room worth fighting for; on desktop nothing recedes.
-  const yielding = written && touch
+  // A passage is not typing: the Read movement keeps its question full size.
+  const yielding = written && touch && kindAt(i) !== 'read'
 
   const write = (n: number, value: string) => {
     if (n === AFTER) {
@@ -572,14 +750,413 @@ export function RitualComposer({
     }
     setTexts((prev) => {
       const next = prev.slice()
-      next[n] = value
+      next[n] = kindAt(n) === 'mark' ? withCaught(caughtOf(prev[n] ?? ''), value) : value
       return next
     })
   }
 
-  if (desk) {
+  // ── The passage, acted on ────────────────────────────────────────────────
+  const choosePassage = (ref: PassageRef, verses: Verse[] | null) => {
+    // The same fence keeps its id when the passage is changed, so the saved
+    // scripture item is updated rather than a second one minted.
+    const had = parseSpiritualBlocks(textsRef.current[0] ?? '').find((b) => b.type === 'scripture')
+    const md = writePassage(ref, verses, had?.id ?? crypto.randomUUID())
+    setTexts((prev) => {
+      const next = prev.slice()
+      next[0] = md
+      return next
+    })
+    const first = choosing === 'first'
+    setChoosing(null)
+    if (first) {
+      // Straight to writing: the passage is already open beside the page, and
+      // a separate "read it" stop was one step too many (Phil, Sept 26). The
+      // Read movement still holds the passage and stays on the path, walked.
+      const firstWrite = Math.max(0, labels.findIndex((_, n) => kindAt(n) !== 'read'))
+      setWiden(true)
+      setI(firstWrite)
+      setReached((r) => Math.max(r, firstWrite))
+      // On a phone the passage is folded to a strip while writing — open it.
+      setOpenStrip(firstWrite)
+      embla?.scrollTo(firstWrite, true)
+    }
+  }
+  // ── The way through it ──────────────────────────────────────────────────
+  /**
+   * Nothing written but the passage: the method can still be changed, and so
+   * can the passage, without asking. The passage is the choice people come
+   * for; the method is easier to pick once the text is in front of you.
+   */
+  const untouched =
+    Boolean(entry) &&
+    passage !== null &&
+    texts.every((t, n) => n === 0 || t.trim() === '') &&
+    after.trim() === ''
+  /**
+   * The same passage, walked another way. The page is rewritten under the
+   * new practice with the passage as its first answer, and the composer is
+   * opened again on it — every movement, pane and pacing rule belongs to the
+   * practice, so a fresh composer is the honest way to change all of them.
+   */
+  const switchTo = (next: Practice) => {
+    const onSwitch = entry?.onSwitch
+    if (!block || !onSwitch || next.name === block.name) return
+    const nextLabels = next.prompts.map((p) => p.label)
+    const md = composeRitualMarkdown(
+      next.name,
+      nextLabels,
+      nextLabels.map((_, n) => (n === 0 ? (textsRef.current[0] ?? '') : '')),
+    )
+    // Latched first, so this composer's unmount flush cannot write the old
+    // practice back over the new one.
+    goneRef.current = true
+    writeWhole(`${md}\n${RITUAL_END_TOKEN}`)
+    onSwitch()
+  }
+  const ways =
+    untouched && entry?.onSwitch && block ? (
+      <div className="rc__ways rc__chrome" role="group" aria-label="How to read it">
+        {PASSAGE_WAYS.map((w) => {
+          const p = PRACTICE_BY_NAME.get(w.name)
+          if (!p?.passage || p.retired) return null
+          const on = p.name === block.name
+          return (
+            <button
+              key={w.name}
+              type="button"
+              aria-pressed={on}
+              title={p.name}
+              onClick={() => switchTo(p)}
+            >
+              {w.short}
+            </button>
+          )
+        })}
+      </div>
+    ) : null
+  /** Change it — asked first when anything has been written under it. */
+  const requestChange = () => {
+    if (texts.some((t, n) => n > 0 && t.trim() !== '')) setAskChange(true)
+    else setChoosing('again')
+  }
+  const setCaught = (phrase: string | null) => {
+    if (markIndex < 0) return
+    setTexts((prev) => {
+      const next = prev.slice()
+      next[markIndex] = withCaught(phrase, bodyOf(prev[markIndex] ?? ''))
+      return next
+    })
+  }
+  /**
+   * A quote, into the answer being written: on its own line at the caret, with
+   * a blank line either side so markdown never folds the writer's next
+   * sentence into it — which would show their words as Scripture.
+   */
+  const insertQuote = (quote: string) => {
+    const n = iRef.current
+    const handle = paneRefs.current[n]
+    if (handle?.insertAt && handle.getCursor && handle.getDoc) {
+      const p = placeQuote(handle.getDoc(), handle.getCursor(), quote)
+      handle.insertAt(p.at, p.text)
+      if (handle.focusAt) handle.focusAt(p.caret)
+      else handle.focus()
+      return
+    }
+    const current = paneTexts[n] ?? ''
+    const box = handle instanceof HTMLTextAreaElement ? handle : null
+    const p = placeQuote(current, box ? box.selectionStart : current.length, quote)
+    write(n, current.slice(0, p.at) + p.text + current.slice(p.at))
+    if (box) {
+      requestAnimationFrame(() => {
+        box.focus()
+        box.setSelectionRange(p.caret, p.caret)
+      })
+    }
+  }
+  const bringIn = () => {
+    const span = pendingRef.current
+    if (!span) return
+    insertQuote(formatQuote(span.text, span.v, span.vEnd))
+    setPending(null)
+  }
+  bringInRef.current = bringIn
+  /** A whole verse, by its number. */
+  const citeVerse = (vn: number) => {
+    const v = passageVerses?.find((x) => x.n === vn)
+    if (!v) return
+    insertQuote(quoteVerse(v.text, vn))
+    setPending(null)
+  }
+  const atClose = i >= CLOSE
+  /** Where each quote's words are in the passage — drawn from the quotes, never stored. */
+  const highlights: Highlight[] = passageVerses
+    ? drawn.flatMap((q) =>
+        (findQuote(passageVerses, q.text, q.v, q.vEnd) ?? []).map((r) => ({
+          key: q.key,
+          n: r.n,
+          start: r.start,
+          end: r.end,
+          here: atClose || q.n === i,
+        })),
+      )
+    : []
+  /** Which writing movement a quote came from, as a tone at the close. */
+  const toneOf = (n: number) => labels.slice(0, n).filter((_, m) => kindAt(m) !== 'read' && kindAt(m) !== 'dwell').length
+  const tetherKeys: TetherKey[] = atClose
+    ? drawn.map((q) => ({ key: q.key, tone: toneOf(q.n) }))
+    : drawn.filter((q) => q.n === i).map((q) => ({ key: q.key, tone: null }))
+  const lit =
+    pageLit ??
+    (hovered ? (hovered.keys.find((k) => k.startsWith(`${i}:`)) ?? hovered.keys[0] ?? null) : null)
+  /** What a movement said right after it quoted — for the card on a highlight. */
+  const saidAfter = (key: string): string => {
+    const q = drawn.find((d) => d.key === key)
+    if (!q) return ''
+    const lines = (texts[q.n] ?? '').split('\n')
+    for (let l = q.line + 1; l < lines.length; l++) {
+      const t = lines[l]!.trim()
+      if (!t) continue
+      if (t.startsWith('>')) return ''
+      return t
+    }
+    return ''
+  }
+  /** Where each quote sits on the right-hand page, for its line. */
+  const tetherTargets = (): Map<string, HTMLElement> => {
+    const out = new Map<string, HTMLElement>()
+    if (atClose) {
+      document.querySelectorAll<HTMLElement>('.rc__drawn [data-qkey]').forEach((el) => out.set(el.dataset.qkey!, el))
+      return out
+    }
+    const page = document.querySelector<HTMLElement>('.rc--facing .rc__page')
+    if (!page) return out
+    const mine = drawn.filter((q) => q.n === i)
+    let k = 0
+    const caughtEl = kindAt(i) === 'mark' ? page.querySelector<HTMLElement>('.rc__caught') : null
+    if (caughtEl && mine[0]) out.set(mine[k++]!.key, caughtEl)
+    // Matched by their words, not by counting `>` rows: an empty `>` row (left
+    // by Enter before quotes were guarded) or a concealed marker must not shift
+    // every line after it onto the wrong quote.
+    const open = mine.slice(k)
+    const norm = (t: string) => t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
+    page.querySelectorAll<HTMLElement>('.cm-line').forEach((line) => {
+      const said = norm((line.textContent ?? '').replace(/^\s*>\s?/, ''))
+      if (!said) return
+      const at = open.findIndex((q) => said.startsWith(norm(q.text)))
+      if (at === -1) return
+      out.set(open[at]!.key, line)
+      open.splice(at, 1)
+    })
+    return out
+  }
+  /** Following a quote from the page side: which one is under the pointer. */
+  const onPageHover = (e: React.MouseEvent) => {
+    const line = (e.target as HTMLElement).closest<HTMLElement>('.cm-line, .rc__caught, [data-qkey]')
+    let key: string | null = null
+    if (line) {
+      for (const [k, el] of tetherTargets()) if (el === line) key = k
+    }
+    if (key !== pageLit) setPageLit(key)
+  }
+
+  if (choosing && practice) {
     return createPortal(
+      <PassageFinder
+        practice={practice}
+        current={choosing === 'again' ? (passage?.reference ?? null) : null}
+        onChoose={choosePassage}
+        // Leaving before any passage is chosen leaves nothing behind.
+        onBack={() => (choosing === 'first' ? leave() : setChoosing(null))}
+        backLabel={entry?.backTo ?? 'your entry'}
+        autoTake={choosing === 'first' ? (entry?.seed?.passage ?? null) : null}
+      />,
+      document.body,
+    )
+  }
+
+  const kind = kindAt(i)
+  const own = passage?.own ?? false
+  const where = desk ? 'on the left' : 'above'
+  /** The passage, however this movement uses it. */
+  const passageBody = (mode: MovementKind | 'plain' | 'quote', opts: { slowly?: boolean } = {}) =>
+    passage ? (
+      <PassageBody
+        key={opts.slowly ? `slow-${slow}` : 'still'}
+        passage={passage}
+        verses={passageVerses}
+        mode={mode}
+        caught={caught}
+        cited={mode === 'quote' || mode === 'cite' ? citedVerses(texts[i] ?? '') : []}
+        highlights={highlights}
+        lit={lit}
+        pending={pending}
+        {...(mode === 'mark' ? { onCatch: (p: string) => setCaught(p) } : {})}
+        {...(mode === 'quote' || mode === 'cite'
+          ? {
+              onCite: citeVerse,
+              onChoosing: setPending,
+              onChosen: setPending,
+              onRest: setRest,
+            }
+          : {})}
+        onHoverHighlight={(keys, el) => setHovered(keys && el ? { keys, el } : null)}
+        slow={Boolean(opts.slowly && slow > 0)}
+      />
+    ) : null
+  /** What a movement puts between its question and the box — or instead of the box. */
+  const lead = (n: number): React.ReactNode => {
+    const k = kindAt(n)
+    if (k === 'mark') {
+      if (own) {
+        return (
+          <input
+            className="rc__typein"
+            value={caught ?? ''}
+            placeholder="Type the word or phrase that caught you"
+            onChange={(e) => setCaught(e.target.value)}
+          />
+        )
+      }
+      return caught ? (
+        <CaughtLine phrase={caught} onRelease={() => setCaught(null)} />
+      ) : (
+        <p className="rc__await">Touch a word {where}, or {desk ? 'drag across' : 'tap two'} for a phrase.</p>
+      )
+    }
+    const said = k === 'carry' && caught ? <CaughtLine phrase={caught} small /> : null
+    // Said once, until the first quote is in: after that the gesture is known.
+    const hint =
+      drawsAt(n) && !own && quotesIn(texts[n] ?? '').length === 0 ? (
+        <p className="rc__await">
+          {desk ? 'Select any words on the left to bring them in.' : 'Open the passage and select words to bring them in.'}
+        </p>
+      ) : null
+    const ghost =
+      desk && n === i && pending ? (
+        <QuoteGhost span={pending} locate={() => caretLine(paneRefs.current[n])} />
+      ) : null
+    return said || hint || ghost ? (
+      <>
+        {said}
+        {hint}
+        {ghost}
+      </>
+    ) : null
+  }
+  /** A movement with nothing to write in: the passage is the answer, or rest is. */
+  const instead = (n: number): React.ReactNode | undefined => {
+    const k = kindAt(n)
+    if (k === 'read') return desk ? <p className="rc__await">The passage is on the left. Take your time.</p> : null
+    // An older Contemplatio written in keeps its words and its box.
+    if (k === 'dwell' && (texts[n] ?? '').trim() === '') {
+      return <DwellView word={caught ?? passage?.reference ?? ''} />
+    }
+    return undefined
+  }
+  const nextLabel = (n: number): string | undefined => {
+    const k = kindAt(n)
+    if (k === 'read') return 'I’ve read it'
+    if (k === 'dwell') return 'Amen'
+    return undefined
+  }
+  const askChangeDialog = askChange ? (
+    <div className="rc__ask" role="alertdialog" aria-modal="true" aria-label="Read another passage?">
+      <div className="rc__ask-box">
+        <h3>Read another passage?</h3>
+        <p>
+          What you’ve written stays on this page. {passage?.reference} is replaced by the passage you choose
+          next{caught ? `, and “${caught}” stays in your words but goes dark in the text if it isn’t there` : ''}.
+        </p>
+        <div className="rc__ask-tools">
+          <button type="button" onClick={() => setAskChange(false)}>
+            Keep {passage?.reference}
+          </button>
+          <button
+            type="button"
+            className="rc__ask-go"
+            onClick={() => {
+              setAskChange(false)
+              setChoosing('again')
+            }}
+          >
+            Choose another
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
+
+  if (desk) {
+    const leafMode: MovementKind | 'plain' | 'quote' =
+      kind === 'read' || kind === 'mark' || kind === 'dwell' ? kind : drawsAt(i) ? 'quote' : 'plain'
+    /** At the close: every line drawn, movement by movement. */
+    const drawnRecord =
+      passage && drawn.length > 0 ? (
+        <section className="rc__drawn" aria-label={`What you drew from ${passage.reference}`}>
+          <p className="rc__drawn-head">What you drew from {passage.reference}</p>
+          {labels.map((label, n) => {
+            const mine = drawn.filter((q) => q.n === n)
+            if (mine.length === 0) return null
+            return (
+              <div key={label} className="rc__drawn-mv" data-tone={toneOf(n) % 3}>
+                <span className="rc__drawn-label">{label}</span>
+                {mine.map((q) => {
+                  const after = saidAfter(q.key)
+                  return (
+                    <div key={q.key} className="rc__drawn-q">
+                      <blockquote data-qkey={q.key}>
+                        {q.text}
+                        {q.v != null && (
+                          <span className="rc__drawn-v">
+                            {q.vEnd != null && q.vEnd !== q.v ? `vv. ${q.v}–${q.vEnd}` : `v. ${q.v}`}
+                          </span>
+                        )}
+                      </blockquote>
+                      {after && <p>{after}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </section>
+      ) : null
+    return createPortal(
+      <>
       <DeskLayout
+        leaf={
+          passage ? (
+            <div className="rc__leaf-text">
+              <div className="rc__leaf-ref">
+                <span>{passage.reference}</span>
+                {(kind === 'read' || !kind || untouched) && (
+                  <button type="button" onClick={requestChange}>
+                    change
+                  </button>
+                )}
+              </div>
+              {ways}
+              {passageBody(leafMode, { slowly: kind === 'read' })}
+              {kind === 'read' && !own && (
+                <div className="rc__leaf-under rc__chrome">
+                  <button type="button" onClick={() => setSlow((n) => n + 1)}>
+                    Read it again, slowly
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : undefined
+        }
+        widen={widen}
+        closeExtra={drawnRecord}
+        onPageHover={passage ? onPageHover : undefined}
+        lead={lead}
+        instead={instead}
+        nextLabel={nextLabel}
+        // Said from what is stored, not what the box shows: a Meditatio with
+        // only its caught word is walked, and says the word.
+        filledAt={(n) => ((n < total ? texts[n] : paneTexts[n]) ?? '').trim() !== ''}
+        gistAt={(n) => gistOf((n < total ? texts[n] : paneTexts[n]) ?? '')}
         name={block.name}
         origin={practice?.origin}
         intention={practice?.intention}
@@ -594,6 +1171,7 @@ export function RitualComposer({
           if (i < CLOSE) paneRefs.current[i] = el
         }}
         renderAnswer={renderAnswer}
+        scripture={Boolean(practice?.passage)}
         answerOffset={(n) => answerOffset(getDocRef.current(), blockIndex, n)}
         onWrite={write}
         go={go}
@@ -610,7 +1188,21 @@ export function RitualComposer({
             : 'Saved to your entry as you write.'
         }
         landed={entry ? 'It’s on your journal page, as you wrote it.' : 'It’s in your entry, as you wrote it.'}
-      />,
+      />
+      {passage && !own && <Tethers keys={tetherKeys} targets={tetherTargets} lit={lit} rest={drawsAt(i) ? rest : null} />}
+      {pending && drawsAt(i) && <QuoteChip span={pending} onBring={bringIn} onLetGo={() => setPending(null)} />}
+      {hovered && !pending && (
+        <DrawnCard
+          el={hovered.el}
+          rows={hovered.keys.flatMap((k) => {
+            const q = drawn.find((d) => d.key === k)
+            return q ? [{ key: k, label: q.n === i ? 'In this answer' : (labels[q.n] ?? ''), said: saidAfter(k), tone: toneOf(q.n) % 3 }] : []
+          })}
+          foot={drawsAt(i) && hovered.keys.every((k) => !k.startsWith(`${i}:`)) ? 'Select it to bring it in here too' : null}
+        />
+      )}
+      {askChangeDialog}
+      </>,
       document.body,
     )
   }
@@ -694,25 +1286,75 @@ export function RitualComposer({
       <div className="rc__viewport" ref={emblaRef}>
         <div className="rc__track">
         {paneLabels.map((label, n) => {
+          const k = kindAt(n)
+          const replaced = instead(n)
+          // The passage on a phone: the whole pane when reading it, the top of
+          // the pane when a word is to be caught, a strip everywhere else.
+          const above =
+            !passage || k === 'read' || k === 'dwell' || n === AFTER ? null : k === 'mark' ? (
+              <div className="rc__psg-top">{passageBody('mark')}</div>
+            ) : (
+              <>
+                <PassageStrip
+                  reference={passage.reference}
+                  word={caught}
+                  open={openStrip === n}
+                  onToggle={() => setOpenStrip((o) => (o === n ? null : n))}
+                />
+                {openStrip === n && (
+                  <div className="rc__psg-top">
+                    {passageBody(drawsAt(n) ? 'quote' : 'plain')}
+                    {pending && n === i && (
+                      <div className="rc__bring">
+                        <button type="button" className="rc__bring-go" onMouseDown={(e) => e.preventDefault()} onClick={bringIn}>
+                          Reflect on “{pending.text.length > 40 ? `${pending.text.slice(0, 40)}…` : pending.text}”
+                        </button>
+                        <button type="button" onClick={() => setPending(null)}>
+                          Let go
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )
           return (
             <section className="rc__pane" key={n === AFTER ? '__after' : label} aria-hidden={n !== i}>
               <div className="rc__inner">
+                {n === i && n !== AFTER ? ways : null}
+                {above}
                 <span className="rc__label">{label}</span>
                 {n === AFTER ? null : (
                   <p className="rc__q" data-small={n === i && yielding ? 'true' : undefined}>
                     {paneQuestion(n)}
                   </p>
                 )}
-                <textarea
-                  className="rc__write"
-                  ref={(el) => {
-                    paneRefs.current[n] = el
-                  }}
-                  value={paneTexts[n] ?? ''}
-                  placeholder={panePlaceholder(n)}
-                  tabIndex={n === i ? 0 : -1}
-                  onChange={(e) => write(n, e.target.value)}
-                />
+                {k === 'read' && passage ? (
+                  <div className="rc__psg-pane">
+                    {passageBody('read')}
+                    <div className="rc__leaf-under">
+                      <button type="button" onClick={requestChange}>
+                        Change passage
+                      </button>
+                    </div>
+                  </div>
+                ) : replaced !== undefined && replaced !== null ? (
+                  replaced
+                ) : (
+                  <>
+                    {lead(n)}
+                    <textarea
+                      className="rc__write"
+                      ref={(el) => {
+                        paneRefs.current[n] = el
+                      }}
+                      value={paneTexts[n] ?? ''}
+                      placeholder={panePlaceholder(n)}
+                      tabIndex={n === i ? 0 : -1}
+                      onChange={(e) => write(n, e.target.value)}
+                    />
+                  </>
+                )}
               </div>
             </section>
           )
@@ -749,13 +1391,22 @@ export function RitualComposer({
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => go(i + 1)}
           >
-            {i < CLOSE - 1 ? `Next: ${paneLabels[i + 1]}` : 'Close the ritual'}
+            {nextLabel(i) ?? (i < CLOSE - 1 ? `Next: ${paneLabels[i + 1]}` : 'Close the ritual')}
           </button>
         )}
       </footer>
+      {askChangeDialog}
     </div>,
     document.body,
   )
+}
+
+/** Which line of an answer the caret is on, and whether it is empty — where a quote will land. */
+function caretLine(h: Focusable | null | undefined): { line: number; empty: boolean } | null {
+  if (!h?.getDoc || !h.getCursor) return null
+  const doc = h.getDoc()
+  const line = doc.slice(0, h.getCursor()).split('\n').length - 1
+  return { line, empty: (doc.split('\n')[line] ?? '').trim() === '' }
 }
 
 /** ⌥ on Apple hardware, Alt everywhere else — the hint must match the key. */
@@ -776,6 +1427,12 @@ export function gistOf(text: string): string {
     const b = blocks[n]!
     const said = (b.type === 'scripture' && b.reference) || b.content
     out = out.slice(0, b.from) + said + out.slice(b.to)
+  }
+  // A caught word (Lectio's Meditatio) opens its answer as a quote line.
+  const phrase = caughtOf(out)
+  if (phrase !== null) {
+    const rest = bodyOf(out).replace(/\s+/g, ' ').trim()
+    return rest ? `“${phrase}” — ${rest}` : `“${phrase}”`
   }
   return out.replace(/\s+/g, ' ').trim()
 }
@@ -809,6 +1466,24 @@ interface DeskProps {
   saved: string
   /** What the close says about where the writing now is. */
   landed: string
+  /** A scripture ritual's passage: the rail widens into a leaf that holds it. */
+  leaf?: React.ReactNode
+  /** A scripture ritual, passage or not: its answers' `>` lines are verses. */
+  scripture?: boolean
+  /** Widening now — once, as the chosen passage arrives. */
+  widen?: boolean
+  /** Between a movement's question and its box. */
+  lead?: (n: number) => React.ReactNode
+  /** Instead of a movement's box, when it has nothing to write in (undefined: the box). */
+  instead?: (n: number) => React.ReactNode | undefined
+  /** The continue button's words for a movement, when not the default. */
+  nextLabel?: (n: number) => string | undefined
+  filledAt?: (n: number) => boolean
+  gistAt?: (n: number) => string
+  /** More for the close — the lines a scripture ritual drew. */
+  closeExtra?: React.ReactNode
+  /** Pointer over the page, to follow a quote's line from its end. */
+  onPageHover?: ((e: React.MouseEvent) => void) | undefined
 }
 
 /**
@@ -880,6 +1555,7 @@ function ConfirmButton({
  * disagree about the ritual, only about how it is arranged.
  */
 function DeskLayout({
+  scripture = false,
   name,
   origin,
   intention,
@@ -902,18 +1578,73 @@ function DeskLayout({
   backTo,
   saved,
   landed,
+  leaf,
+  widen = false,
+  lead,
+  instead,
+  nextLabel,
+  filledAt,
+  gistAt,
+  closeExtra,
+  onPageHover,
 }: DeskProps) {
   const total = labels.length
-  const filled = (n: number) => (texts[n] ?? '').trim() !== ''
+  const filled = filledAt ?? ((n: number) => (texts[n] ?? '').trim() !== '')
+  const gist = gistAt ?? ((n: number) => gistOf(texts[n] ?? ''))
   const reachable = (n: number) => n <= reached || filled(n)
   const label = labels[i] ?? ''
+  const facing = leaf != null
+  /**
+   * Focus, on the facing leaf: while the writer types, everything on it but
+   * the passage fades back. A real move of the mouse brings it back — not a
+   * trackpad's twitch.
+   */
+  const [typing, setTyping] = useState(false)
+  const replaced = i < total ? instead?.(i) : undefined
+  /**
+   * Keep the line being written in view, with room under it.
+   *
+   * There is no typewriter here, and a page that only scrolls when the caret
+   * falls off it leaves you writing on its last visible line — or, as it was,
+   * below it. Once the caret passes two thirds of the way down, the page eases
+   * up to bring it back; above that line nothing moves, so short answers never
+   * scroll at all.
+   */
+  const deskRef = useRef<HTMLElement>(null)
+  const followCaret = () => {
+    requestAnimationFrame(() => {
+      const desk = deskRef.current
+      if (!desk) return
+      const cursor = desk.querySelector<HTMLElement>('.cm-cursor-primary, .cm-cursor')
+      let caret = cursor?.getBoundingClientRect()
+      if (!caret || caret.height === 0) {
+        const sel = window.getSelection()
+        if (!sel || sel.rangeCount === 0 || !desk.contains(sel.anchorNode)) return
+        const range = sel.getRangeAt(0)
+        caret = range.getClientRects()[0] ?? range.getBoundingClientRect()
+      }
+      if (!caret || caret.height === 0) return
+      const box = desk.getBoundingClientRect()
+      const limit = box.top + box.height * 0.66
+      if (caret.bottom > limit) desk.scrollBy({ top: caret.bottom - limit, behavior: 'smooth' })
+    })
+  }
 
   return (
     <div
-      className="ritual-composer rc--desk"
+      className={`ritual-composer rc--desk${facing ? ' rc--facing' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={`${name} — movement ${Math.min(i + 1, total)} of ${total}`}
+      data-widen={facing && widen ? 'true' : undefined}
+      data-typing={facing && typing ? 'true' : undefined}
+      onMouseMove={
+        facing && typing
+          ? (e) => {
+              if (Math.abs(e.movementX) + Math.abs(e.movementY) > 6) setTyping(false)
+            }
+          : undefined
+      }
     >
       {/* The composer covers the whole window in the Mac app, so the rail's
           empty space is what moves it (Tauri drags only on the element that
@@ -921,17 +1652,19 @@ function DeskLayout({
       <aside className="rc__rail" data-tauri-drag-region>
         {/* Not "close" and not "step out": say where it goes, and (below) that
             nothing is lost by going. */}
-        <button type="button" className="rc__home" onClick={leave}>
+        <button type="button" className="rc__home rc__chrome" onClick={leave}>
           <span aria-hidden>←</span> Back to {backTo}
           <kbd className="rc__kbd">esc</kbd>
         </button>
-        <h2 className="rc__title">{name}</h2>
-        {origin && <p className="rc__origin">{origin}</p>}
+        <h2 className="rc__title rc__chrome">{name}</h2>
+        {origin && <p className="rc__origin rc__chrome">{origin}</p>}
         {/* What the practice is for sits with its name, as a dek — not stranded
             at the foot of the rail with a screen of nothing above it. */}
-        {intention && <p className="rc__intent">{intention}</p>}
+        {intention && <p className="rc__intent rc__chrome">{intention}</p>}
 
-        <ol className="rc__path">
+        {/* On the facing leaf the same path lies on one line, so the passage
+            has the height; a walked movement says its gist on hover. */}
+        <ol className={`rc__path${facing ? ' rc__path--row rc__chrome' : ''}`}>
           {labels.map((l, n) => {
             const state =
               n === i ? 'on' : !reachable(n) ? 'ahead' : filled(n) ? 'done' : 'open'
@@ -947,16 +1680,19 @@ function DeskLayout({
                   onClick={() => go(n)}
                   disabled={state === 'ahead'}
                   aria-current={n === i ? 'step' : undefined}
+                  title={facing && n !== i && filled(n) ? gist(n) : undefined}
                 >
                   <span className="rc__path-label">{l}</span>
-                  {n !== i && filled(n) && <span className="rc__gist">{gistOf(texts[n] ?? '')}</span>}
+                  {n !== i && filled(n) && <span className="rc__gist">{gist(n)}</span>}
                 </button>
               </li>
             )
           })}
         </ol>
 
-        <footer className="rc__rail-foot">
+        {leaf}
+
+        <footer className="rc__rail-foot rc__chrome">
         <div className="rc__rail-tools">
           <button type="button" onClick={about}>
             About this ritual
@@ -973,7 +1709,16 @@ function DeskLayout({
         </footer>
       </aside>
 
-      <main className="rc__desk">
+      <main
+        className="rc__desk"
+        ref={deskRef}
+        onMouseOver={onPageHover}
+        onKeyDown={(e) => {
+          if (facing && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) setTyping(true)
+          followCaret()
+        }}
+        onInput={followCaret}
+      >
         {i < total ? (
           <>
             {/* Keyed so each movement arrives rather than being swapped in. */}
@@ -984,6 +1729,11 @@ function DeskLayout({
             >
               <span className="rc__label">{label}</span>
               {i === afterIndex ? null : <p className="rc__q">{question(i)}</p>}
+              {replaced !== undefined ? (
+                replaced
+              ) : (
+                <>
+              {lead?.(i)}
               {renderAnswer ? (
                 <div className="rc__write rc__write--editor">
                   {renderAnswer({
@@ -993,6 +1743,7 @@ function DeskLayout({
                     placeholder: placeholder(i),
                     register: textareaRef,
                     offset: () => answerOffset(i),
+                    quotes: scripture,
                   })}
                 </div>
               ) : (
@@ -1003,6 +1754,8 @@ function DeskLayout({
                   placeholder={placeholder(i)}
                   onChange={(e) => onWrite(i, e.target.value)}
                 />
+              )}
+                </>
               )}
             </section>
             <footer className="rc__foot">
@@ -1017,7 +1770,7 @@ function DeskLayout({
               <span className="rc__foot-go">
                 <kbd className="rc__kbd">{ALT} ↵</kbd>
                 <button type="button" className="rc__next" onClick={() => go(i + 1)}>
-                  {i < total - 1 ? 'Continue' : 'Finish'}
+                  {nextLabel?.(i) ?? (i < total - 1 ? 'Continue' : 'Finish')}
                 </button>
               </span>
             </footer>
@@ -1030,6 +1783,7 @@ function DeskLayout({
             <button type="button" className="rc__next" onClick={leave}>
               Back to {backTo}
             </button>
+            {closeExtra}
           </div>
         )}
       </main>

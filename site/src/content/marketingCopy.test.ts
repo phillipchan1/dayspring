@@ -85,5 +85,6 @@ describe("cold marketing access copy (D-031: a trial, never free)", () => {
   it("keeps analytics event names that are not user-facing copy", () => {
     expect(surfaces["start.astro"]).toContain('trackSite("start_trial_clicked")');
     expect(surfaces["start.astro"]).toContain("trackStartTrial()");
+    expect(surfaces["start.astro"]).toContain("handoffAfterStartTrialConversion(");
   });
 });

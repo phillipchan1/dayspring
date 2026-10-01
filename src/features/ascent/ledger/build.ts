@@ -19,6 +19,7 @@
  */
 
 import { entryContentLines } from '@/lib/entryLabels'
+import { writerWords } from '@/lib/writerWords'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
 import { ritualNamesIn } from '@/lib/ritualDisplay'
 import { formatOsisRef } from '@/lib/scripture/format'
@@ -234,9 +235,11 @@ export function clip(text: string, match?: RegExp | null): string {
   return first.length <= MAX_LINE ? first : first.slice(0, MAX_LINE).trimEnd()
 }
 
-/** Lines of an entry as the writer reads them: fences out, markers unwrapped. */
+/** Lines of an entry as the writer reads them: fences out, markers unwrapped.
+ *  Over writerWords (Guardrail H3) — a verse quoted into a scripture ritual is
+ *  not a line she wrote, so it can never be handed back as one. */
 function plainLines(body: string): string[] {
-  return entryContentLines(body)
+  return entryContentLines(writerWords(body))
     .map((l) => stripMarkdownMarkers(l).replace(/^#{1,6}\s+/, '').replace(/^[-*>]\s+/, '').trim())
     .filter((l) => l.length > 0)
 }
@@ -506,7 +509,10 @@ export function buildLedger(input: LedgerInput, range: LedgerRange, opts: Ledger
         const start = body.lastIndexOf('\n', r.charStart) + 1
         const endNl = body.indexOf('\n', r.charStart)
         const raw = body.slice(start, endNl < 0 ? body.length : endNl)
-        text = clip(stripMarkdownMarkers(raw).replace(/^#{1,6}\s+/, '').replace(/^[-*>]\s+/, ''))
+        // A verse quoted into a scripture ritual is the Bible's line, not hers
+        // (Guardrail H3): only a line that survives writerWords is shown as hers.
+        const quoted = raw.trimStart().startsWith('>') && !writerWords(body).split('\n').includes(raw)
+        if (!quoted) text = clip(stripMarkdownMarkers(raw).replace(/^#{1,6}\s+/, '').replace(/^[-*>]\s+/, ''))
       }
       const marking = (markingsByEntry.get(id) ?? []).find((m) => text && m.content.includes(text.slice(0, 40)))
       byEntry.set(id, text ? [{ text, kind: marking ? toLineKind(marking.type) : 'story', flag: null }] : [])

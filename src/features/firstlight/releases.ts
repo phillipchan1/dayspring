@@ -1,6 +1,12 @@
 /**
- * FIRST LIGHT — the release-note registry. Every word any announcement has ever
- * shown lives in this file.
+ * FIRST LIGHT is the INTERNAL name of this feature: the folder, the component,
+ * the CSS prefix, `?__preview=firstlight`. Users never see it. What they see is
+ * "What's new" (WHATS_NEW_LABEL below). It is one visual place to announce a
+ * major change — a reader opens the app after an update and is told, once, what
+ * moved. Nothing else announces anything.
+ *
+ * The release-note registry. Every word any announcement has ever shown lives in
+ * this file.
  *
  * Same discipline as features/ads/ads.ts and features/appstore/shots.ts: copy is
  * data, rendered as real text, so editing this file is the whole loop and
@@ -32,14 +38,43 @@
  * changed in the software. It never counts what someone has written, never
  * congratulates them, and never sells them anything — they already paid.
  *
+ * VOICE AND SHAPE (Phil's standing feedback — enforced by pickCards.test.ts for
+ * every release from 2026-10 on; drafted with `/whats-new`)
+ *
+ * - Say what the reader can now do. "You can now read a chapter on the left and
+ *   write on the right." Not "We've improved…", not a feature name as a subject.
+ * - The deck is already labelled What's new (WHATS_NEW_LABEL), so a kicker names
+ *   the TOPIC — "Bible journaling", "How it works" — and never repeats the
+ *   label ("What changed", "Also new", "What's new").
+ * - Show before you tell. The first card is a real picture of the surface as it
+ *   looks (`art`), not a drawing of an idea. Captures come from the real app
+ *   through a script (scripts/capture-whats-new.mjs is the pattern) against
+ *   fixtures — never a real journal, never licensed scripture text.
+ * - A card that teaches an action shows it: a short GIF with a caption per step.
+ *   The same file is the email's hero, hosted from the marketing site
+ *   (site/public/email/whats-new/), so write it once.
+ * - Tell them how to start. When there is a sequence to learn, a card gives it as
+ *   numbered steps — numbers only for a real order. Steps are plain instructions,
+ *   and the GIF's captions say the same words.
+ * - Three cards at most, three paragraphs at most. Fewer claims, not more cards.
+ * - Land them where the thing lives (`land`, `landLabel`).
+ *
  * PRINCIPLE 3 is the constraint that shaped the surface: "modal interruptions
  * while the cursor is active" are forbidden. So the deck is decided once, at
  * cold open, before the editor takes focus — see pickCards.ts — and can never
  * appear mid-session.
  */
 
+/**
+ * The user-facing name of the announcement surface: the label on the deck and
+ * the Settings → About row. Never "First Light" — that is the internal name, and
+ * it is also what the palette tokens are called, which is exactly the confusion
+ * this constant exists to keep out of the UI.
+ */
+export const WHATS_NEW_LABEL = 'What’s new'
+
 /** A small inline glyph above the title. Purely decorative; never load-bearing. */
-export type CardArt = 'wall' | 'keys' | 'climb'
+export type CardArt = 'wall' | 'keys' | 'climb' | 'composer' | 'steps'
 
 export interface Card {
   /** Small caps line above the title. Two or three words. */
@@ -60,7 +95,7 @@ export interface Release {
   major?: boolean
   cards: Card[]
   /** Where the final button sends them. Omitted → the button just closes. */
-  land?: 'pages' | 'reflections'
+  land?: 'pages' | 'reflections' | 'journal'
   /** Label for the final button. Defaults to "Done". */
   landLabel?: string
 }
@@ -132,6 +167,52 @@ export const RELEASES: Release[] = [
         title: 'Write about this',
         body: [
           'Anywhere on the climb, Write about this opens a new page with those lines already above it, and a question you choose.',
+        ],
+      },
+    ],
+  },
+
+  {
+    // The passage rituals: Open your Bible, the finder, drawn quotes, chapters
+    // set as the ESV prints them. Unflagged, so it reached everyone with the
+    // master → stable merge that promoted this entry.
+    //
+    // Voice: "You can now…". The deck is already labelled What's new, so kickers
+    // name the topic and never say "what changed" / "new".
+    //
+    // Three cards, in the order someone needs them: what it looks like (the
+    // pitch is the picture), how to start it (a real sequence, so numbered),
+    // and what's different about the page itself.
+    id: '2026-10-scripture',
+    major: true,
+    land: 'journal',
+    landLabel: 'Open a page',
+    cards: [
+      {
+        kicker: 'Bible journaling',
+        art: 'composer',
+        title: 'Bible journaling, side by side',
+        body: [
+          'You can now read a chapter on the left and write on the right, with the passage open for as long as you are answering it.',
+          'Open Reading, Lectio, SOAP and Discovery all work this way.',
+        ],
+      },
+      {
+        kicker: 'How it works',
+        art: 'steps',
+        title: 'Three steps in',
+        body: [
+          '1. On a blank page, choose Open your Bible.',
+          '2. Type a reference like John 15, or pick a passage from the suggestions.',
+          '3. Select words in the passage and press Return. They land on your page as a quote, with a line drawn back to where you took them.',
+        ],
+      },
+      {
+        kicker: 'The passage',
+        title: 'Set the way a Bible sets it',
+        body: [
+          'You can now read poetry in its lines and stanzas, prose in its paragraphs, and LORD in small capitals, as the ESV prints it. Passages come one chapter at a time.',
+          'Once you have read a chapter, Open your Bible offers the next one. Reading from a Bible of your own? You can say so under the search and write from the reference.',
         ],
       },
     ],

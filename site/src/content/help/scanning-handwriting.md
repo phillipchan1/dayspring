@@ -5,7 +5,7 @@ section: writing
 order: 7
 requires: [capability.page-scan]
 platforms: [ios]
-keywords: [scan, handwriting, handwritten, paper, photo, camera, ocr, transcribe, notebook]
+keywords: [scan, handwriting, handwritten, paper, photo, camera, notebook]
 updated: 2026-08-10
 ---
 
@@ -25,7 +25,7 @@ Dayspring reads the handwriting into text.
    saved.
 5. Insert it where your cursor is.
 
-## It transcribes, it doesn't tidy
+## Word for word — it doesn't tidy
 
 The draft is what you wrote, as you wrote it — including the bits that don't
 scan well and the sentence you abandoned halfway. Nothing is smoothed out,

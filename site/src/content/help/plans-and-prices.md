@@ -51,5 +51,5 @@ your journal back, building the Ascent, keeping the Lamp lit, and storing your
 writing and your photos safely.
 
 There's no free tier with your history locked behind it, and there's no version
-that sells your writing to anyone. See [what the AI does and
-doesn't do](/help/what-the-ai-does).
+that sells your writing to anyone. See [how Dayspring reflects, and
+what it won't do](/help/what-the-ai-does).

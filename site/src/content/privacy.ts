@@ -21,19 +21,19 @@ export const privacyPage = {
   promises: [
     {
       title: "Your words are yours",
-      body: "We never sell them, never use them to train AI, and never mine them for marketing. There is no version of this where your journal becomes someone's product.",
+      body: "We never sell them, never use them for training, and never mine them for marketing. There is no version of this where your journal becomes someone's product.",
     },
     {
-      title: "Encrypted in transit and at rest",
-      body: "Your entries are protected on their way to the server and while they sit on it. That's the floor, not the headline.",
+      title: "Encrypted on the way and in storage",
+      body: "Your entries are protected on their way to us and while we keep them. That's the floor, not the headline.",
     },
     {
       title: "No one else can reach your journal",
-      body: "Every entry is bound to your account at the database level. Another person cannot read your writing — not by accident, not by a bug we'd shrug at.",
+      body: "Every entry is locked to your account, at the deepest level of how it's stored. Another person cannot read your writing — not by accident, not by a bug we'd shrug at.",
     },
     {
-      title: "Reflection runs under a zero-retention agreement",
-      body: "When you ask Dayspring to reflect with you, your words pass securely to our AI provider, who is contractually barred from storing them or training on them. They're read, reflected on, and gone.",
+      title: "Your reflections stay yours",
+      body: "When you ask Dayspring to reflect with you, dictate, or read a handwritten page, your words pass securely to a trusted partner who helps with that work. Your writing is never used for training. Our partner may hold what you send for up to 30 days solely to prevent abuse, then deletes it. We never sell it.",
     },
   ],
 

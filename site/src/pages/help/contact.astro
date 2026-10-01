@@ -176,7 +176,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
         say(body.error ?? "That didn't send. Please try again in a moment.", "err");
       } catch {
         say(
-          "We couldn't reach the server. Check your connection, or email hello@usedayspring.app directly.",
+          "We couldn't send that just now. Check your connection, or email hello@usedayspring.app directly.",
           "err",
         );
       } finally {

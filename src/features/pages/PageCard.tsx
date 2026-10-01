@@ -159,12 +159,14 @@ export const PageCard = memo(function PageCard({
           {excerpt.rituals.map((name, i) => (
             <p className="pgc__ritual" key={`${name}-${i}`}>
               {name}
+              {i === 0 && excerpt.passage ? <span className="pgc__passage"> · {excerpt.passage}</span> : null}
             </p>
           ))}
           {shown.map((line, i) => (
             <p
               key={i}
               className="pgc__line"
+              data-quote={line.verse !== undefined ? 'true' : undefined}
               data-set={line.set ? 'true' : undefined}
               data-hit={line.hit ? 'true' : undefined}
             >
@@ -181,6 +183,7 @@ export const PageCard = memo(function PageCard({
                     ),
                   )
                 : line.text}
+              {line.verse ? <span className="pgc__verse">{line.verse}</span> : null}
             </p>
           ))}
           </>

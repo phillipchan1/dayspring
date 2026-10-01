@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pickCards, MAX_CARDS } from './pickCards'
-import { RELEASES, CURRENT_RELEASE_ID, type Release } from './releases'
+import { RELEASES, DRAFTS, CURRENT_RELEASE_ID, WHATS_NEW_LABEL, type Release } from './releases'
 
 const card = (title: string) => ({ kicker: 'What changed', title, body: ['x'] })
 
@@ -100,7 +100,7 @@ describe('pickCards', () => {
 
     it('never sermonises: no copy addresses the user’s own writing', () => {
       const banned = /\b(streak|score|unlock|supercharge|journey|AI-powered)\b/i
-      for (const r of RELEASES) {
+      for (const r of [...RELEASES, ...DRAFTS]) {
         for (const c of r.cards) {
           expect(c.title).not.toMatch(banned)
           for (const p of c.body) expect(p).not.toMatch(banned)
@@ -109,7 +109,7 @@ describe('pickCards', () => {
     })
 
     it('has no exclamation marks anywhere in the registry', () => {
-      for (const r of RELEASES) {
+      for (const r of [...RELEASES, ...DRAFTS]) {
         for (const c of r.cards) {
           expect(c.title).not.toContain('!')
           for (const p of c.body) expect(p).not.toContain('!')
@@ -117,8 +117,42 @@ describe('pickCards', () => {
       }
     })
 
-    it('keeps every release id unique', () => {
-      const ids = RELEASES.map((r) => r.id)
+    it('never shows users the internal name', () => {
+      expect(WHATS_NEW_LABEL).not.toMatch(/first\s*light/i)
+      for (const r of [...RELEASES, ...DRAFTS]) {
+        for (const c of r.cards) {
+          expect([c.kicker, c.title, ...c.body].join(' ')).not.toMatch(/first\s*light/i)
+        }
+      }
+    })
+
+    // Phil's standing feedback applies to every release from 2026-10 on, drafted
+    // or shipped. Older decks are history and keep the voice they shipped with.
+    const governed = [...DRAFTS, ...RELEASES].filter((r) => r.id >= '2026-10')
+
+    it('does not repeat the deck label in a kicker', () => {
+      for (const r of governed) {
+        for (const c of r.cards) expect(c.kicker).not.toMatch(/what.?s new|what changed|^also new$/i)
+      }
+    })
+
+    it('opens with a picture of the thing and says what the reader can now do', () => {
+      for (const r of governed) {
+        const first = r.cards[0]!
+        expect(first.art, `${r.id}: first card needs art`).toBeDefined()
+        expect(first.body.join(' '), `${r.id}: first card should say "you can"`).toMatch(/\byou can\b/i)
+      }
+    })
+
+    it('keeps every deck inside the card ceiling', () => {
+      for (const r of [...RELEASES, ...DRAFTS]) {
+        expect(r.cards.length).toBeLessThanOrEqual(MAX_CARDS)
+        for (const c of r.cards) expect(c.body.length).toBeLessThanOrEqual(3)
+      }
+    })
+
+    it('keeps every release id unique, drafts included', () => {
+      const ids = [...RELEASES, ...DRAFTS].map((r) => r.id)
       expect(new Set(ids).size).toBe(ids.length)
     })
   })

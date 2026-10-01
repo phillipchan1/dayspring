@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.431",
+  "appVersion": "1.0.469",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -242,6 +242,52 @@
         ],
         "mac": "⌘K",
         "pc": "Ctrl + K"
+      },
+      {
+        "id": "shortcut.search-your-pages",
+        "group": "Navigation",
+        "label": "Search your pages",
+        "when": "anywhere",
+        "keys": [
+          "Mod",
+          "F"
+        ],
+        "mac": "⌘F",
+        "pc": "Ctrl + F"
+      },
+      {
+        "id": "shortcut.search-from-the-wall",
+        "group": "Navigation",
+        "label": "Search from the wall",
+        "when": "on the Pages wall",
+        "keys": [
+          "/"
+        ],
+        "mac": "/",
+        "pc": "/"
+      },
+      {
+        "id": "shortcut.move-through-what-you-found",
+        "group": "Navigation",
+        "label": "Move through what you found",
+        "when": "in Look for",
+        "keys": [
+          "↑",
+          "↓"
+        ],
+        "mac": "↑↓",
+        "pc": "↑ + ↓"
+      },
+      {
+        "id": "shortcut.clear-the-search",
+        "group": "Navigation",
+        "label": "Clear the search",
+        "when": "in the Look for field",
+        "keys": [
+          "Esc"
+        ],
+        "mac": "Esc",
+        "pc": "Esc"
       },
       {
         "id": "shortcut.toggle-sidebar-labels",
@@ -705,6 +751,12 @@
         "type": "boolean"
       },
       {
+        "id": "setting.face-named",
+        "key": "faceNamed",
+        "default": true,
+        "type": "boolean"
+      },
+      {
         "id": "setting.entries-group-by",
         "key": "entriesGroupBy",
         "default": "flat",
@@ -731,6 +783,18 @@
       {
         "id": "setting.first-line-title",
         "key": "firstLineTitle",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.dateline",
+        "key": "dateline",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.voice-caret",
+        "key": "voiceCaret",
         "default": true,
         "type": "boolean"
       },
@@ -1116,6 +1180,44 @@
         ]
       },
       {
+        "id": "practice.discovery-bible-study",
+        "name": "Discovery Bible Study",
+        "function": "encounter",
+        "rhythm": [
+          "morning",
+          "weekly"
+        ],
+        "origin": "Disciple-making movements, 20th century",
+        "tradition": "Missional",
+        "intention": "Read one passage, say what it says, and ask what it shows you about God and about us — then decide one thing you will do.",
+        "quote": "What does it say? What does it show us about God, and about us? What will I do?",
+        "steps": [
+          "Read",
+          "What it says",
+          "About God",
+          "About us",
+          "I will",
+          "Who to tell"
+        ]
+      },
+      {
+        "id": "practice.open-reading",
+        "name": "Open Reading",
+        "function": "encounter",
+        "rhythm": [
+          "morning",
+          "anytime"
+        ],
+        "origin": "No framework — a passage, and a page",
+        "tradition": "Any",
+        "intention": "Open the Bible and see what happens. No questions in order — read, then write whatever comes, bringing in the words that catch you.",
+        "quote": "Read it. Then write whatever comes.",
+        "steps": [
+          "Read",
+          "Reflect"
+        ]
+      },
+      {
         "id": "practice.psalmic-lament",
         "name": "Psalmic Lament",
         "function": "lament",
@@ -1428,7 +1530,7 @@
     "editor.font-size-default": 24,
     "editor.font-size-min": 14,
     "editor.font-size-max": 36,
-    "counts.practices": 13,
+    "counts.practices": 15,
     "counts.themes": 11,
     "counts.voices": 6,
     "counts.slash-commands": 23,

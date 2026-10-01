@@ -11,6 +11,7 @@ import { ATTACHMENT_REF_RE } from '@/lib/attachments'
 import { buildSubjectIndex, haystackFor, isAddressee, matchSubject, subjectMatcher, type Subject } from '@/features/pages/subjects'
 import { entryContentLines } from '@/lib/entryLabels'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
+import { writerWords } from '@/lib/writerWords'
 import type { Entry } from '@/lib/types'
 import { clip } from './build'
 
@@ -76,7 +77,9 @@ export function newIn(names: Subject[], entries: PageLike[], from: string, to: s
     const page = hits[0]
     if (!page) continue
     const re = subjectMatcher([s])
-    const line = entryContentLines(page.body_markdown)
+    // "The line it came in on" is shown as hers — so read writerWords (Guardrail
+    // H3), or a name first met in a quoted verse comes in on the Bible's line.
+    const line = entryContentLines(writerWords(page.body_markdown))
       .map((l) => stripMarkdownMarkers(l).replace(/^#{1,6}\s+/, '').trim())
       .find((l) => {
         if (!re) return false

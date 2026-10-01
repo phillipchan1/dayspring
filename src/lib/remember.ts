@@ -16,6 +16,8 @@
 
 import { parseSpiritualBlocks } from './spiritualBlocks'
 import { asEntryMarkdown } from './entryLabels'
+import { PRACTICE_END_RE, practiceNameFromLine } from './practiceTokens'
+import { isScriptureQuoteLine, SCRIPTURE_RITUALS, writerWords } from './writerWords'
 import type { Entry } from './types'
 
 /**
@@ -161,13 +163,26 @@ export function extractQuotes(markdown: string): string[] {
   const scrubbed = blankSpiritualBlocks(markdown)
   const out: string[] = []
   let run: string[] = []
+  // A run holding a verse quoted from Scripture — any `>` inside a scripture
+  // ritual, or one ending `(v. 4)` — is the Bible's words, not a line she set
+  // apart, and must never glow or list as hers (Guardrail H3; see writerWords).
+  let verse = false
+  let ritual: string | null = null
 
   const flush = () => {
-    if (run.length) out.push(run.join(' ').trim())
+    if (run.length && !verse) out.push(run.join(' ').trim())
     run = []
+    verse = false
   }
 
   for (const line of scrubbed.split('\n')) {
+    const name = practiceNameFromLine(line.trim())
+    if (name !== null || PRACTICE_END_RE.test(line.trim())) {
+      flush()
+      ritual = name
+      continue
+    }
+    if (isScriptureQuoteLine(line, ritual !== null && SCRIPTURE_RITUALS.includes(ritual))) verse = true
     const m = line.match(/^\s{0,3}>\s?(.*)$/)
     if (m) {
       const body = m[1]!.trim()
@@ -267,7 +282,8 @@ export function passagesForEntry(entry: Pick<Entry, 'id' | 'created_at' | 'body_
   }
 
   for (const q of extractQuotes(md)) add('quote', q)
-  for (const e of extractEmphasis(md)) add('emphasis', e)
+  // Emphasis inside a quoted verse is still the verse (Guardrail H3).
+  for (const e of extractEmphasis(writerWords(md))) add('emphasis', e)
 
   return out
 }

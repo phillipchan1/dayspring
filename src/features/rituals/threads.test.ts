@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRitualThreads, openingMovement, threadDepth } from './threads'
+import { answerParts, buildRitualThreads, openingMovement, threadDepth } from './threads'
 import type { Entry } from '@/lib/types'
 
 /** The shape `buildPracticeBlock` actually writes into an entry. */
@@ -234,3 +234,30 @@ describe('movement order', () => {
     expect(threads[0]!.movements.map((m) => m.label)).toEqual(['Zeta', 'Alpha'])
   })
 })
+
+describe('answerParts — a verse never reads as her answer (Guardrail H3)', () => {
+  it('shows a Read movement\'s passage by its reference, never the raw fence or the verse', () => {
+    const read = [
+      '```dayspring-scripture 7c1e0b52-9a0b-4f1e-8c3d-2b6a1f0e9d44',
+      'Remain in me, and I in you.',
+      'John 15:4–5 · ESV',
+      '```',
+    ].join('\n')
+    expect(answerParts(read)).toEqual([{ kind: 'passage', text: 'John 15:4–5' }])
+  })
+
+  it('sets a `>` line apart as a quote, marker gone, and keeps her words as text', () => {
+    const meditate = '> Remain in me (v. 4)\n\nHe says remain before\nhe says bear fruit.'
+    expect(answerParts(meditate)).toEqual([
+      { kind: 'quote', text: 'Remain in me (v. 4)' },
+      { kind: 'text', text: 'He says remain before\nhe says bear fruit.' },
+    ])
+  })
+
+  it('leaves a plain answer exactly as written', () => {
+    expect(answerParts('The walk after dinner.\nAnd the rain.')).toEqual([
+      { kind: 'text', text: 'The walk after dinner.\nAnd the rain.' },
+    ])
+  })
+})
+

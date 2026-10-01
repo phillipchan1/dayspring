@@ -15,7 +15,7 @@ export const faqIntro = {
 export const faqs = [
   {
     q: "Can I trust you with the most private things I write?",
-    a: "This is the question that matters most, so here's the whole truth: we hold the key, so technically we <em>could</em> read your entries. We never do, and we never will — your words are never sold, never used to train AI, never read by us. We won't claim we <em>can't</em>, because that wouldn't be true and you'd be right to walk away from anyone who said it. The full, plain story is on the <a href=\"/privacy\">Privacy page</a>.",
+    a: "This is the question that matters most, so here's the whole truth: we hold the key, so technically we <em>could</em> read your entries. We never do, and we never will — your words are never sold, never used for training, never read by us. We won't claim we <em>can't</em>, because that wouldn't be true and you'd be right to walk away from anyone who said it. The full, plain story is on the <a href=\"/privacy\">Privacy page</a>.",
   },
   {
     q: "Isn't this just another cheesy Christian app?",
@@ -38,8 +38,8 @@ export const faqs = [
     a: "No on both. The faith-aware reflections are a lens you choose, never a default you opt out of — no daily verse, no devotional pop-ups. The long view works for anyone who wants to see their life as more than today; the deeper it goes for believers is simply there when you want it.",
   },
   {
-    q: "Is this an AI chatbot that's going to analyze my soul?",
-    a: "No — it's a journal, not a therapist-bot, and we deliberately stay out of that lane. Reflection is occasional and gentle: it arranges your <em>own</em> words and asks honest questions, never diagnoses or scores you. It runs under a zero-retention agreement — your entries are read, reflected on, and gone, never stored on their end, never used to train any model.",
+    q: "Is this going to try to analyze my soul?",
+    a: "No — it's a journal, not a therapist-bot, and we deliberately stay out of that lane. Reflection is occasional and gentle: it arranges your <em>own</em> words and asks honest questions, never diagnoses or scores you. Your entries are never used for training. Our trusted partner may hold them for up to 30 days, only to prevent abuse, before deleting them. The full story is on the <a href=\"/privacy\">Privacy page</a>.",
   },
   {
     q: "It's only on Mac right now — what about my phone?",
@@ -47,7 +47,7 @@ export const faqs = [
   },
   {
     q: "Is it really worth $64 a year?",
-    a: "That's the whole product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar (<a href=\"/features#everything\">50+ details in all</a>). It's about $5.33 a month — less than the leading AI journal, and the only one that reflects with you across years. There's also <strong>$7 month-to-month</strong> if you'd rather go slow.",
+    a: "That's the whole product — the editor, every slash command, the Lamp, the Ascent across every horizon, and the Altar (<a href=\"/features#everything\">50+ details in all</a>). It's about $5.33 a month — and the only journal that reflects with you across years. There's also <strong>$7 month-to-month</strong> if you'd rather go slow.",
   },
   {
     q: "What if Dayspring just isn't for me?",

@@ -1,10 +1,10 @@
 ---
 title: Where your writing lives
-summary: On your device, and on our servers so it can follow you. The honest details, including what we don't do.
+summary: On your device, and safely stored with us so it can follow you. The honest details, including what we don't do.
 section: privacy
 order: 1
 requires: []
-keywords: [privacy, security, encryption, storage, server, data, offline, sync, private]
+keywords: [privacy, security, encryption, storage, data, offline, sync, private]
 updated: 2026-08-10
 ---
 
@@ -13,7 +13,7 @@ updated: 2026-08-10
 Every entry is written **to your device first** — which is why Dayspring works
 on a plane and never makes you wait for a spinner before you can type.
 
-It's then synced to our servers so it can reach your other devices and so you
+It's then synced and stored with us so it can reach your other devices and so you
 don't lose your journal with a lost laptop.
 
 ## Who can read it
@@ -21,17 +21,17 @@ don't lose your journal with a lost laptop.
 Your entries are yours. We don't sell them, we don't share them, we don't train
 anything on them, and we don't read them for interest.
 
-## Encryption — the honest version
+## How it's protected — the honest version
 
-Your writing is encrypted in transit and encrypted at rest on our servers.
+Your writing is encrypted on its way to us and while we store it.
 
-It is **not end-to-end encrypted.** That means we hold the keys, and in
+It is **not locked so that only you can open it.** We hold the keys, so in
 principle we could read your entries. We don't, and access is restricted — but
 you should decide based on what's true rather than what sounds reassuring.
 
-This is a real trade-off, not an oversight. End-to-end encryption would rule out
+This is a real trade-off, not an oversight. Locking it that way would rule out
 everything Dayspring does when you're not looking: no Lamp, no Altar, no Ascent,
-no asking a question of your own journal. Those need the server to be able to
+no asking a question of your own journal. Those need Dayspring to be able to
 read your writing.
 
 We think that trade is worth it for what you get, and we think you're entitled

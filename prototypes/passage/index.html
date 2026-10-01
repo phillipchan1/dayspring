@@ -1,0 +1,1593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>The passage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   THE PASSAGE — scripture-centric rituals on the existing ritual frame.
+
+   Not production code. Three moments, one argument:
+     1. CHOOSE  — a passage finder that replaces Lectio's "type the passage out"
+     2. KEEP    — the passage stays in view while you write (three placements)
+     3. LET IT ACT — a movement can do something to the passage: catch a word,
+                  keep it lit, quote a verse into an answer.
+
+   Verse text is the World English Bible (public domain), fetched from
+   bible-api.com — never model memory (GUARDRAILS H3). The product serves ESV.
+   State lives in localStorage so every scene reads the same ritual.
+   ─────────────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+
+:root {
+  --bg: #fbf6ee; --bg-elevated: #fffdf8; --bg-input: #f3ece0; --leaf: #f6efe2;
+  --border-subtle: #ece3d4; --text: #4a4035; --text-bright: #2a2118;
+  --text-dim: #8a7c69; --text-faint: #b4a78f; --accent: #c2683a;
+  --accent-soft: rgba(194,104,58,.12);
+  --gold: #b07a22; --gold-soft: rgba(214,160,64,.22); --gold-wash: rgba(214,160,64,.12);
+  --shadow: rgba(60,40,10,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #16130f; --bg-elevated: #1e1a15; --bg-input: #25201a; --leaf: #1b1712;
+    --border-subtle: #2e2820; --text: #d9cdbb; --text-bright: #f2e9da;
+    --text-dim: #9a8b76; --text-faint: #5f5446; --accent: #dba85c;
+    --accent-soft: rgba(219,168,92,.12);
+    --gold: #f3bd76; --gold-soft: rgba(243,189,118,.22); --gold-wash: rgba(243,189,118,.09);
+    --shadow: rgba(0,0,0,.35);
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #16130f; --bg-elevated: #1e1a15; --bg-input: #25201a; --leaf: #1b1712;
+  --border-subtle: #2e2820; --text: #d9cdbb; --text-bright: #f2e9da;
+  --text-dim: #9a8b76; --text-faint: #5f5446; --accent: #dba85c;
+  --accent-soft: rgba(219,168,92,.12);
+  --gold: #f3bd76; --gold-soft: rgba(243,189,118,.22); --gold-wash: rgba(243,189,118,.09);
+  --shadow: rgba(0,0,0,.35);
+}
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Newsreader', Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column;
+}
+button { font: inherit; color: inherit; }
+textarea {
+  display: block; width: 100%; border: 0; outline: 0; resize: none;
+  background: transparent; color: var(--text-bright);
+  font-family: 'Newsreader', Georgia, serif; font-size: 20px; line-height: 1.7; padding: 0;
+}
+textarea::placeholder { color: var(--text-faint); font-style: italic; }
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+a { color: inherit; }
+
+/* ── prototype chrome (not the design) ─────────────────────────────────── */
+#bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: .2rem; flex-wrap: wrap;
+  padding: .5rem .9rem; border-bottom: 1px solid var(--border-subtle);
+  font-family: Inter, system-ui, sans-serif; font-size: 12.5px;
+  background: var(--bg-elevated); z-index: 30; position: relative;
+}
+#bar .t { color: var(--text-dim); margin-right: .6rem; letter-spacing: .02em; }
+#bar button, #bar a.tab {
+  border: 1px solid transparent; background: none; border-radius: 999px; text-decoration: none;
+  padding: .3rem .7rem; cursor: pointer; color: var(--text-dim);
+}
+#bar button:hover, #bar a.tab:hover { color: var(--text-bright); }
+#bar [aria-pressed='true'], #bar a.tab.on { border-color: var(--border-subtle); color: var(--text-bright); background: var(--bg); }
+#bar .sp { flex: 1; }
+#bar .grp { display: inline-flex; align-items: center; gap: .1rem; padding-left: .6rem; margin-left: .4rem; border-left: 1px solid var(--border-subtle); }
+#bar .grp span { color: var(--text-faint); margin-right: .25rem; }
+#stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+#note {
+  position: fixed; left: 1rem; bottom: 1rem; width: 320px; z-index: 40;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  border-radius: 12px; padding: .85rem 1rem .95rem;
+  font-family: Inter, system-ui, sans-serif; font-size: 12.5px; line-height: 1.55;
+  color: var(--text-dim); box-shadow: 0 10px 30px var(--shadow);
+}
+#note h4 { margin: 0; font-size: 12.5px; color: var(--text-bright); font-weight: 500; cursor: pointer; padding-right: 1.4rem; }
+#note .body p { margin: .45rem 0 0; }
+#note b { color: var(--text); font-weight: 500; }
+#note[data-min='true'] .body { display: none; }
+#note[data-min='true'] { width: auto; padding: .55rem .9rem; }
+#note .x { position: absolute; top: .6rem; right: .75rem; border: 0; background: none; cursor: pointer; color: var(--text-faint); }
+.kbd {
+  font-family: Inter, system-ui, sans-serif; font-size: 11px; color: var(--text-faint);
+  border: 1px solid var(--border-subtle); border-radius: 5px; padding: 1px 5px; font-style: normal;
+}
+
+/* ── shared type ───────────────────────────────────────────────────────── */
+.lbl { font-size: .66rem; font-weight: 500; letter-spacing: .19em; text-transform: uppercase; color: var(--accent); font-family: 'Newsreader', serif; }
+.q { font-style: italic; color: var(--text); margin: .35rem 0 .9rem; line-height: 1.45; }
+.link { border: 0; background: none; cursor: pointer; color: var(--text-dim); font-size: .95rem; padding: .3rem 0; text-decoration: none; }
+.link:hover { color: var(--accent); }
+.btn {
+  border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--bg-elevated);
+  padding: .6rem 1.35rem; cursor: pointer; color: var(--text-bright); font-size: 1rem;
+  display: inline-flex; align-items: center; gap: .6rem;
+}
+.btn:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border-subtle)); }
+.btn.primary { background: var(--text-bright); color: var(--bg); border-color: var(--text-bright); }
+.btn.primary .kbd { color: color-mix(in srgb, var(--bg) 70%, transparent); border-color: color-mix(in srgb, var(--bg) 30%, transparent); }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+.sans { font-family: Inter, system-ui, sans-serif; }
+@keyframes arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.arrive { animation: arrive .6s cubic-bezier(.2,.7,.2,1) both; }
+.home {
+  display: inline-flex; align-items: center; gap: .45rem; border: 0; background: none; cursor: pointer;
+  padding: .2rem 0; color: var(--text-dim); font-size: .92rem; text-decoration: none;
+}
+.home:hover { color: var(--accent); }
+
+/* ═══ THE PASSAGE (text) — shared by every scene ══════════════════════════ */
+.psg { font-size: 1.2rem; line-height: 1.85; color: var(--text-bright); position: relative; }
+.psg .vs { transition: opacity .5s ease; }
+.psg .vn {
+  font-family: Inter, system-ui, sans-serif; font-size: .58rem; color: var(--gold);
+  vertical-align: .55em; margin: 0 .22em 0 .1em; font-weight: 500; letter-spacing: .02em;
+}
+.psg .w { border-radius: 3px; transition: background .2s, color .4s, opacity .6s; }
+.psg mark.caught {
+  background: var(--gold-soft); color: var(--text-bright); border-radius: 4px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: .05em .12em; margin: 0 -.12em;
+  transition: box-shadow 1.2s ease;
+}
+.psg .sec { display: block; font-family: 'Newsreader', serif; font-style: italic; font-size: .92rem; color: var(--text-dim); margin: 1.3rem 0 .2rem; }
+.psg .sec:first-child { margin-top: 0; }
+.psg .para { display: block; margin-bottom: .6rem; }
+/* kinds */
+.psg[data-kind='mark'] { user-select: none; -webkit-user-select: none; }
+.psg[data-kind='mark'] .w { cursor: pointer; }
+.psg[data-kind='mark'] .w:hover, .psg .w.pre { background: var(--gold-wash); box-shadow: 0 1.5px 0 var(--gold-soft); }
+.psg[data-kind='carry'] .w, .psg[data-kind='plain'] .w, .psg[data-kind='cite'] .w { opacity: .55; }
+.psg[data-kind='carry'] mark .w, .psg[data-kind='plain'] mark .w, .psg[data-kind='cite'] mark .w { opacity: 1; }
+.psg[data-kind='dwell'] .w, .psg[data-kind='dwell'] .vn, .psg[data-kind='dwell'] .sec { opacity: .13; transition: opacity 2.6s ease; }
+.psg[data-kind='dwell'] mark .w { opacity: 1; animation: none; }
+.psg[data-kind='dwell'] .w, .psg[data-kind='dwell'] .vn, .psg[data-kind='dwell'] .sec { animation: torest 3.2s ease both; }
+@keyframes torest { from { opacity: 1; } to { opacity: .13; } }
+.psg[data-kind='dwell'] mark.caught { box-shadow: 0 0 34px 6px var(--gold-soft); }
+.psg[data-kind='cite'] .vn { cursor: pointer; padding: .1em .35em; border-radius: 99px; border: 1px solid transparent; }
+.psg[data-kind='cite'] .vn:hover { border-color: var(--gold-soft); background: var(--gold-wash); }
+.psg[data-kind='cite'] .vs.cited .vn { background: var(--gold-soft); color: var(--text-bright); }
+.psg[data-kind='cite'] .vs:hover .w { opacity: 1; }
+/* read again, slowly */
+.psg.reading .vs { animation: slowin 1.6s ease both; animation-delay: var(--d); }
+@keyframes slowin { from { opacity: 0; filter: blur(2px); } to { opacity: 1; filter: none; } }
+.own {
+  border: 1px dashed var(--border-subtle); border-radius: 12px; padding: 1.4rem 1.4rem 1.3rem;
+  color: var(--text-dim); font-style: italic; font-size: 1.02rem; line-height: 1.6;
+}
+.own b { font-style: normal; color: var(--text-bright); font-weight: 400; font-size: 1.35rem; display: block; margin-bottom: .35rem; }
+
+/* ═══ INTRO ══════════════════════════════════════════════════════════════ */
+.v-intro { height: 100%; overflow-y: auto; }
+.v-intro .col { max-width: 46rem; margin: 0 auto; padding: 4.5rem 2rem 8rem; }
+.v-intro h1 { font-weight: 300; font-size: 2.6rem; line-height: 1.15; margin: .6rem 0 1.2rem; color: var(--text-bright); }
+.v-intro p { font-size: 1.12rem; line-height: 1.7; margin: 0 0 1.1rem; }
+.v-intro .moves { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2.2rem 0 2.4rem; }
+.v-intro .moves div { border-top: 1px solid var(--border-subtle); padding-top: .9rem; }
+.v-intro .moves h3 { font-weight: 400; font-size: 1.2rem; margin: .3rem 0 .35rem; color: var(--text-bright); }
+.v-intro .moves p { font-size: .95rem; line-height: 1.55; color: var(--text-dim); margin: 0; }
+.v-intro ol.scenes { list-style: none; padding: 0; margin: 1.5rem 0 0; border-top: 1px solid var(--border-subtle); }
+.v-intro ol.scenes li { border-bottom: 1px solid var(--border-subtle); }
+.v-intro ol.scenes a { display: grid; grid-template-columns: 9rem 1fr; gap: 1rem; padding: .95rem 0; text-decoration: none; }
+.v-intro ol.scenes a:hover b { color: var(--accent); }
+.v-intro ol.scenes b { font-weight: 400; color: var(--text-bright); font-size: 1.05rem; }
+.v-intro ol.scenes span { color: var(--text-dim); font-size: .98rem; line-height: 1.5; }
+.v-intro .practices { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 2rem 0; }
+.pcard {
+  border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1.2rem 1.25rem 1.1rem; background: var(--bg-elevated);
+  text-align: left; cursor: pointer; display: block; width: 100%; transition: border-color .2s, transform .2s;
+}
+.pcard:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border-subtle)); transform: translateY(-1px); }
+.pcard h3 { font-weight: 400; font-size: 1.3rem; margin: .25rem 0 .3rem; color: var(--text-bright); }
+.pcard .o { font-style: italic; color: var(--text-faint); font-size: .9rem; }
+.pcard p { color: var(--text-dim); font-size: .95rem; line-height: 1.5; margin: .6rem 0 .7rem; }
+.pcard .path { font-family: Inter, sans-serif; font-size: 11.5px; color: var(--text-faint); letter-spacing: .02em; }
+.pcard.later { cursor: default; opacity: .6; background: none; }
+.pcard.later:hover { transform: none; border-color: var(--border-subtle); }
+
+/* ═══ LIBRARY — the real shelf, with scripture rituals marked ═════════════ */
+.v-lib { height: 100%; overflow-y: auto; background: radial-gradient(90% 50% at 70% -10%, var(--gold-wash), transparent 60%), var(--bg); }
+.v-lib .col { max-width: 62rem; margin: 0 auto; padding: 3.6rem 2rem 8rem; }
+.v-lib .eyebrow { font-family: Inter, sans-serif; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); }
+.v-lib h1 { font-weight: 300; font-size: 2.2rem; margin: .5rem 0 .4rem; color: var(--text-bright); }
+.v-lib h1 em { color: var(--accent); }
+.v-lib .sub { color: var(--text-dim); font-size: 1rem; margin: 0 0 1.8rem; }
+.libctl { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.pfilter { font-family: Inter, sans-serif; font-size: 12px; letter-spacing: .06em; color: var(--text-dim); background: none; border: 1px solid transparent; border-radius: 999px; padding: .38rem .8rem; cursor: pointer; }
+.pfilter:hover { border-color: var(--border-subtle); color: var(--text); }
+.pfilter[data-on='true'] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.pfilter.scrip { display: inline-flex; align-items: center; gap: .4rem; }
+.pfilter.scrip[data-on='true'] { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+.libctl .div { width: 1px; height: 18px; background: var(--border-subtle); margin: 0 .3rem; }
+.libctl .sp { flex: 1; }
+.libctl input { font-family: Inter, sans-serif; font-size: 13px; border: 1px solid var(--border-subtle); background: var(--bg-elevated); border-radius: 999px; padding: .45rem .9rem; width: 15rem; color: var(--text-bright); outline: 0; }
+.libctl input:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-subtle)); }
+.libnote { font-style: italic; color: var(--text-dim); margin: -.4rem 0 1.2rem; font-size: .98rem; }
+.lgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; }
+.lcard { text-align: left; border: 1px solid var(--border-subtle); background: color-mix(in srgb, var(--bg-elevated) 80%, transparent); border-radius: 12px; padding: 1rem 1.1rem .9rem; cursor: pointer; display: flex; flex-direction: column; gap: .3rem; transition: transform .2s, border-color .2s, box-shadow .2s; }
+.lcard:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 35%, transparent); box-shadow: 0 8px 28px var(--shadow); }
+.lcard.scripture { border-color: color-mix(in srgb, var(--gold) 28%, var(--border-subtle)); }
+.lcard .fn { font-family: Inter, sans-serif; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.lcard .fn .new { margin-left: .5rem; letter-spacing: .06em; font-weight: 500; }
+.lcard .nm { font-size: 1.15rem; color: var(--text-bright); }
+.lcard .or { font-style: italic; color: var(--text-faint); font-size: .85rem; }
+.lcard .qt { font-family: Inter, sans-serif; font-weight: 300; font-style: italic; font-size: 12.5px; color: var(--text-dim); line-height: 1.55; margin-top: .2rem; }
+.lcard .ft { margin-top: auto; padding-top: .7rem; display: flex; align-items: center; gap: .6rem; font-family: Inter, sans-serif; font-size: 11px; color: var(--text-faint); }
+.lcard .ft .ar { margin-left: auto; color: var(--text-faint); }
+.stag { display: inline-flex; align-items: center; gap: .3rem; color: var(--gold); font-family: Inter, sans-serif; font-size: 11px; letter-spacing: .02em; }
+.stag svg, .pfilter.scrip svg { width: 13px; height: 13px; }
+.thresh { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); z-index: 10; overflow-y: auto; display: flex; justify-content: center; }
+.thresh .in { max-width: 34rem; padding: 4.5rem 2rem 4rem; text-align: center; }
+.thresh .back { position: absolute; top: 1.4rem; left: 2rem; }
+.thresh .nm { font-size: 2.2rem; font-weight: 300; color: var(--text-bright); margin: .4rem 0 .2rem; }
+.thresh .or { font-style: italic; color: var(--text-faint); }
+.thresh .div { width: 40px; height: 1px; background: var(--border-subtle); margin: 1.4rem auto; }
+.thresh .it { font-size: 1.1rem; line-height: 1.6; color: var(--text); }
+.thresh .first { margin: 1.6rem 0 0; padding: .9rem 1.1rem; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--border-subtle)); border-radius: 12px; background: var(--gold-wash); text-align: left; display: flex; gap: .8rem; align-items: flex-start; }
+.thresh .first svg { width: 18px; height: 18px; color: var(--gold); flex: 0 0 auto; margin-top: .2rem; }
+.thresh .first b { display: block; font-weight: 400; color: var(--text-bright); }
+.thresh .first span { color: var(--text-dim); font-size: .95rem; font-style: italic; }
+.thresh ol { list-style: none; padding: 0; margin: 1.6rem 0 2rem; text-align: left; }
+.thresh ol li { padding: .55rem 0; border-top: 1px solid var(--border-subtle); display: flex; gap: 1rem; align-items: baseline; }
+.thresh ol li .lbl { flex: 0 0 11rem; }
+.thresh ol li span:last-child { color: var(--text-dim); font-style: italic; font-size: .95rem; }
+
+/* ═══ FIND — the passage finder ═══════════════════════════════════════════ */
+.v-find { height: 100%; overflow-y: auto; position: relative; background:
+  radial-gradient(120% 60% at 50% -10%, var(--gold-wash), transparent 60%), var(--bg); }
+.v-find .corner { position: absolute; top: 1.6rem; left: 2rem; z-index: 2; }
+.v-find .col { max-width: 44rem; margin: 0 auto; padding: 5rem 2rem 10rem; }
+.v-find .eyebrow { display: flex; align-items: baseline; gap: .7rem; }
+.v-find .eyebrow .o { font-style: italic; color: var(--text-faint); font-size: .9rem; }
+.v-find h1 { font-weight: 300; font-size: 2.35rem; margin: .5rem 0 1.4rem; color: var(--text-bright); letter-spacing: -.005em; }
+.v-find .inwrap { position: relative; }
+.v-find input.q-in {
+  width: 100%; border: 0; outline: 0; background: transparent; color: var(--text-bright);
+  font-family: 'Newsreader', serif; font-size: 1.7rem; font-weight: 300; padding: .35rem 0 .6rem;
+  border-bottom: 1px solid var(--border-subtle); transition: border-color .3s;
+}
+.v-find input.q-in:focus { border-bottom-color: color-mix(in srgb, var(--gold) 55%, var(--border-subtle)); }
+.v-find input.q-in::placeholder { color: var(--text-faint); font-style: italic; }
+.v-find .hint { font-family: Inter, sans-serif; font-size: 12px; color: var(--text-faint); margin-top: .6rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+.v-find .hint .why { font-family: 'Newsreader', serif; font-style: italic; font-size: .95rem; color: var(--text-dim); }
+.fsec { margin-top: 2.4rem; }
+.fsec h5 { margin: 0 0 .8rem; font-family: Inter, sans-serif; font-weight: 500; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); }
+.fsec .src { font-family: Inter, sans-serif; font-size: 11px; color: var(--text-faint); letter-spacing: 0; text-transform: none; font-weight: 400; margin-left: .5rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.chip {
+  border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--bg-elevated);
+  padding: .45rem .95rem; cursor: pointer; font-size: 1rem; color: var(--text-bright);
+  display: inline-flex; align-items: center; gap: .5rem;
+}
+.chip:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border-subtle)); }
+.chip .glow { width: 7px; height: 7px; border-radius: 99px; background: var(--gold); box-shadow: 0 0 8px var(--gold); opacity: var(--h, .6); }
+.row {
+  display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; align-items: baseline; width: 100%; text-align: left;
+  border: 0; border-top: 1px solid var(--border-subtle); background: none; cursor: pointer; padding: .95rem .2rem;
+}
+.row:last-child { border-bottom: 1px solid var(--border-subtle); }
+.row:hover .r, .row.kb .r { color: var(--accent); }
+.row.kb { background: var(--gold-wash); }
+.row .r { font-size: 1.15rem; color: var(--text-bright); }
+.row .m { font-family: Inter, sans-serif; font-size: 11.5px; color: var(--text-faint); }
+.row .t { grid-column: 1 / -1; color: var(--text-dim); font-style: italic; font-size: .98rem; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.canon { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem 2rem; }
+.canon .t5 { font-family: Inter, sans-serif; font-size: 10.5px; color: var(--text-faint); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .5rem; }
+.canon .books { display: flex; flex-wrap: wrap; gap: .1rem .15rem; line-height: 1.3; }
+.bk {
+  border: 0; background: none; cursor: pointer; padding: .12rem .3rem; border-radius: 5px; font-size: .95rem;
+  color: color-mix(in srgb, var(--gold) calc(var(--h) * 100%), var(--text-faint));
+  text-shadow: 0 0 calc(var(--h) * 14px) color-mix(in srgb, var(--gold) calc(var(--h) * 70%), transparent);
+}
+.bk:hover { background: var(--gold-wash); color: var(--text-bright); }
+.chstrip { display: flex; flex-wrap: wrap; gap: 5px; }
+.ch {
+  width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--border-subtle); cursor: pointer;
+  font-family: Inter, sans-serif; font-size: 11.5px; color: var(--text-dim);
+  background: color-mix(in srgb, var(--gold) calc(var(--h) * 38%), var(--bg-elevated));
+}
+.ch:hover { border-color: var(--gold); color: var(--text-bright); }
+.ch.here { box-shadow: 0 0 12px -2px var(--gold); }
+.reader-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 2.2rem 0 1.2rem; }
+.reader-head h2 { font-weight: 400; font-size: 1.6rem; margin: 0; color: var(--text-bright); }
+.reader-head .nav { font-family: Inter, sans-serif; font-size: 12px; color: var(--text-faint); }
+.reading-view .psg .vs { cursor: pointer; border-radius: 4px; }
+.reading-view .psg .vs:hover .w { background: var(--gold-wash); }
+.reading-view .psg.has-sel .vs .w { opacity: .38; }
+.reading-view .psg.has-sel .vs.sel .w { opacity: 1; background: var(--gold-wash); }
+.reading-view .psg .sec { cursor: pointer; }
+.reading-view .psg .sec:hover { color: var(--accent); }
+.reading-view .psg .sec::after { content: '  · choose this section'; font-size: .78rem; opacity: 0; transition: opacity .2s; font-family: Inter, sans-serif; font-style: normal; }
+.reading-view .psg .sec:hover::after { opacity: 1; }
+.selbar {
+  position: sticky; bottom: 1.4rem; margin-top: 2rem; z-index: 3;
+  display: flex; align-items: center; gap: 1rem; padding: .75rem .8rem .75rem 1.3rem;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 999px;
+  box-shadow: 0 14px 40px var(--shadow);
+}
+.selbar .r { font-size: 1.1rem; color: var(--text-bright); }
+.selbar .n { font-family: Inter, sans-serif; font-size: 11.5px; color: var(--text-faint); }
+.selbar .sp { flex: 1; }
+.softnote { font-style: italic; color: var(--text-dim); font-size: .98rem; margin: 1rem 0 0; line-height: 1.55; }
+.softnote .link { font-size: .95rem; font-style: normal; }
+.been { margin: 1.2rem 0 0; padding: .8rem 1rem; border-left: 2px solid var(--gold-soft); color: var(--text-dim); font-size: 1rem; line-height: 1.5; }
+.been a { color: var(--text-bright); }
+.empty-msg { color: var(--text-dim); font-style: italic; font-size: 1.05rem; line-height: 1.6; padding: .6rem 0; }
+
+/* ═══ WALK — shared rail + page ══════════════════════════════════════════ */
+.v-walk { height: 100%; }
+.rail {
+  border-right: 1px solid var(--border-subtle); padding: 2.85rem 1.6rem 1.6rem 2rem;
+  display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; min-height: 0;
+}
+.rail .home { margin: -1.2rem 0 2rem; align-self: flex-start; }
+.rail h1 { font-weight: 400; font-size: 1.35rem; margin: 0; color: var(--text-bright); }
+.rail .intent { font-style: italic; color: var(--text-faint); font-size: .88rem; line-height: 1.45; margin: .35rem 0 2rem; }
+.path { list-style: none; margin: 0; padding: 0; position: relative; }
+.path::before { content: ''; position: absolute; left: 4px; top: 10px; bottom: 10px; width: 1px; background: var(--border-subtle); }
+.path li { position: relative; padding: .5rem 0 .65rem 1.4rem; cursor: pointer; }
+.path li::before {
+  content: ''; position: absolute; left: 0; top: .9rem; width: 9px; height: 9px; border-radius: 99px;
+  background: var(--bg); border: 1px solid var(--text-faint);
+}
+.path li.done::before { background: color-mix(in srgb, var(--accent) 45%, var(--bg)); border-color: transparent; }
+.path li.on::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.path li .lbl { color: var(--text-dim); }
+.path li.on .lbl { color: var(--accent); }
+.path li.ahead { cursor: default; }
+.path li.ahead .lbl { color: var(--text-faint); }
+.path li .gist { font-size: .9rem; color: var(--text-dim); margin-top: .2rem; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.path li .gist.ref { color: var(--gold); font-style: normal; }
+.rail .foot { margin-top: auto; padding-top: 1.6rem; display: flex; gap: 1rem; }
+.rail .foot .link, .leaf .foot .link { font-size: .85rem; }
+.rail .saved, .leaf .saved { font-family: Inter, sans-serif; font-size: 11px; color: var(--text-faint); margin-top: .6rem; }
+.page-wrap { overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+.page { flex: 1; max-width: 44rem; width: 100%; margin: 0 auto; padding: 5.5rem 2.5rem 2rem; display: flex; flex-direction: column; }
+.page .q { font-size: 1.7rem; line-height: 1.35; color: var(--text-bright); margin: .6rem 0 2rem; font-weight: 300; }
+.page textarea { flex: 1; min-height: 14rem; }
+.page .caughtq { font-size: 1.5rem; font-style: italic; color: var(--text-bright); margin: -.6rem 0 1.6rem; line-height: 1.4; }
+.page .caughtq .cq::before { content: '“'; color: var(--gold); }
+.page .caughtq .cq::after { content: '”'; color: var(--gold); }
+.page .caughtq .link { font-size: .85rem; font-style: normal; margin-left: .6rem; }
+.page .await { color: var(--text-faint); font-style: italic; font-size: 1.05rem; margin: -.8rem 0 1.6rem; display: flex; align-items: center; gap: .6rem; }
+.page .await::before { content: ''; width: 22px; height: 1px; background: var(--gold); opacity: .6; }
+.page .typein { border: 0; border-bottom: 1px solid var(--border-subtle); background: none; outline: 0; font: inherit; font-size: 1.4rem; font-style: italic; color: var(--text-bright); padding: .2rem 0 .4rem; margin: -.6rem 0 1.6rem; width: 100%; }
+.pfoot { display: flex; justify-content: space-between; align-items: center; max-width: 44rem; width: 100%; margin: 0 auto; padding: 1rem 2.5rem 2rem; gap: 1rem; }
+.pfoot .r { display: flex; gap: .6rem; align-items: center; }
+.dwell-page { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.2rem; }
+.dwell-page .word { font-size: 2.3rem; font-weight: 300; font-style: italic; color: var(--text-bright); line-height: 1.3; max-width: 30rem; animation: breathe 7s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
+.dwell-page p { color: var(--text-dim); font-style: italic; margin: 0; }
+.close { margin: auto; text-align: center; padding: 2rem; }
+.close h2 { font-weight: 400; font-size: 1.9rem; margin: 0 0 .3rem; color: var(--text-bright); }
+.close p { font-style: italic; color: var(--text-dim); margin: 0 0 1.6rem; }
+.close .r { display: flex; gap: .8rem; justify-content: center; flex-wrap: wrap; }
+
+/* ── A · FACING ── the rail becomes the open Bible ─────────────────────── */
+.v-face { height: 100%; display: grid; }
+.leaf {
+  background: var(--leaf); border-right: 1px solid var(--border-subtle); min-height: 0; overflow-y: auto;
+  padding: 2.85rem 2.6rem 1.6rem 3rem; display: flex; flex-direction: column;
+  box-shadow: inset -30px 0 40px -40px var(--shadow);
+}
+.leaf .home { margin: -1.2rem 0 1.8rem; align-self: flex-start; }
+.leaf .who { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.leaf .who h1 { font-weight: 400; font-size: 1.2rem; margin: 0; color: var(--text-bright); }
+.hpath { display: flex; gap: .35rem; flex-wrap: wrap; margin: .8rem 0 2.6rem; list-style: none; padding: 0; }
+.hpath li { font-size: .6rem; letter-spacing: .17em; text-transform: uppercase; color: var(--text-faint); display: flex; align-items: center; gap: .35rem; cursor: default; position: relative; }
+.hpath li + li::before { content: ''; width: 14px; height: 1px; background: var(--border-subtle); margin-right: .1rem; }
+.hpath li.done { color: var(--text-dim); cursor: pointer; }
+.hpath li.done:hover { color: var(--accent); }
+.hpath li.on { color: var(--accent); }
+.hpath li .tip {
+  position: absolute; top: 1.4rem; left: 0; width: 240px; z-index: 5; display: none;
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 10px; padding: .6rem .75rem;
+  font-size: .9rem; letter-spacing: 0; text-transform: none; color: var(--text); line-height: 1.4; box-shadow: 0 8px 24px var(--shadow);
+}
+.hpath li.done:hover .tip { display: block; }
+.leaf .refline { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.leaf .refline .ref { font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 500; }
+.leaf .refline .link { font-size: .85rem; }
+.leaf .psg { font-size: 1.28rem; line-height: 1.9; }
+.leaf .under { margin-top: 1.2rem; display: flex; gap: 1.1rem; }
+.leaf .under .link { font-size: .88rem; }
+.leaf .foot { margin-top: auto; padding-top: 2rem; display: flex; gap: 1rem; align-items: center; }
+.leaf .attrib { font-family: Inter, sans-serif; font-size: 10.5px; color: var(--text-faint); margin-left: auto; }
+
+/* the leaf keeps the rail's anatomy */
+.leaf .intent { font-style: italic; color: var(--text-faint); font-size: .88rem; line-height: 1.45; margin: .3rem 0 0; max-width: 34rem; }
+.hpath li .dot { width: 7px; height: 7px; border-radius: 99px; border: 1px solid var(--text-faint); background: var(--bg); flex: 0 0 auto; }
+.hpath li.done .dot { background: color-mix(in srgb, var(--accent) 45%, var(--bg)); border-color: transparent; }
+.hpath li.on .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.hpath { margin-top: 1.2rem; }
+/* focus: while you type, the leaf keeps only the passage */
+.leaf .chrome, .leaf .who { transition: opacity .6s ease; }
+.v-face.typing .leaf .chrome, .v-face.typing .leaf .who { opacity: .12; }
+.v-face.typing .page > .lbl, .v-face.typing .pfoot { opacity: .35; transition: opacity .6s ease; }
+/* the rail widens into the leaf */
+.v-face { grid-template-columns: max(380px, 45%) 1fr; }
+.v-face.widen { animation: widen .9s cubic-bezier(.3,.7,.2,1) both; }
+@keyframes widen { from { grid-template-columns: 280px 1fr; } to { grid-template-columns: max(380px, 45%) 1fr; } }
+.v-face.widen .leaf .psg, .v-face.widen .leaf .refline { animation: arrive .8s .45s cubic-bezier(.2,.7,.2,1) both; }
+/* About — the same sheet every ritual has */
+.sheet-wrap { position: absolute; inset: 0; z-index: 25; }
+.sheet-scrim { position: absolute; inset: 0; border: 0; background: color-mix(in srgb, var(--bg) 55%, transparent); cursor: pointer; }
+.about { position: absolute; top: 0; right: 0; bottom: 0; width: min(430px, 92vw); background: var(--bg-elevated); border-left: 1px solid var(--border-subtle); box-shadow: -20px 0 50px var(--shadow); padding: 2.6rem 2.2rem 2.4rem; overflow-y: auto; }
+.about .x { position: absolute; top: 1rem; right: 1.2rem; font-size: 1.4rem; }
+.about h2 { font-weight: 400; font-size: 1.7rem; margin: .3rem 0 .2rem; color: var(--text-bright); }
+.about .or { font-style: italic; color: var(--text-faint); font-size: .92rem; }
+.about .div { width: 36px; height: 1px; background: var(--border-subtle); margin: 1.2rem 0; }
+.about .lead { font-size: 1.1rem; line-height: 1.55; color: var(--text-bright); margin: 0 0 1.2rem; }
+.about h3 { font-family: Inter, sans-serif; font-weight: 500; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); margin: 1.4rem 0 .4rem; }
+.about p, .about li { font-size: .98rem; line-height: 1.6; color: var(--text); margin: 0; }
+.about ul { padding-left: 1.1rem; margin: 0; } .about li { margin-bottom: .35rem; }
+.about .quote { margin-top: 1.6rem; font-style: italic; color: var(--text-dim); }
+.about .first { padding: .8rem 1rem; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--border-subtle)); border-radius: 12px; background: var(--gold-wash); display: flex; gap: .7rem; align-items: flex-start; }
+.about .first svg { width: 17px; height: 17px; color: var(--gold); flex: 0 0 auto; margin-top: .2rem; }
+.about .first b { display: block; font-weight: 400; color: var(--text-bright); } .about .first span { color: var(--text-dim); font-style: italic; font-size: .93rem; }
+
+/* ── B · ABOVE ── the passage heads the page, folds while you write ───── */
+.v-above { height: 100%; display: grid; grid-template-columns: 280px 1fr; }
+.pblock {
+  border-left: 2px solid var(--gold-soft); padding: .1rem 0 .1rem 1.3rem; margin: 0 0 2.2rem;
+  transition: all .35s ease;
+}
+.pblock .ref { font-size: .66rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 500; display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.pblock .ref .link { font-size: .8rem; letter-spacing: 0; text-transform: none; font-weight: 400; }
+.pblock .psg { font-size: 1.08rem; line-height: 1.8; margin-top: .5rem; }
+.pblock.folded { cursor: pointer; margin-bottom: 1.4rem; }
+.pblock.folded .psg, .pblock.folded .under { display: none; }
+.pblock .strip { display: none; color: var(--text-dim); font-style: italic; font-size: 1rem; margin-top: .25rem; }
+.pblock.folded .strip { display: block; }
+.pblock .strip mark { background: var(--gold-soft); color: var(--text-bright); border-radius: 3px; padding: 0 .15em; font-style: normal; }
+.pblock.big .psg { font-size: 1.35rem; line-height: 1.95; }
+.pblock .under { margin-top: .8rem; display: flex; gap: 1rem; }
+.pblock .under .link { font-size: .85rem; }
+
+/* ── C · BESIDE ── today's parts: rail + page + floating chapter pane ── */
+.v-beside { height: 100%; display: grid; grid-template-columns: 280px 1fr 360px; }
+.cpane { border-left: 1px solid var(--border-subtle); background: var(--bg-elevated); overflow-y: auto; padding: 1.3rem 1.5rem 2rem; min-height: 0; }
+.cpane .top { display: flex; justify-content: space-between; align-items: baseline; font-family: Inter, sans-serif; font-size: 12px; color: var(--text-dim); margin-bottom: 1rem; }
+.cpane .psg { font-size: 1rem; line-height: 1.75; }
+.cpane .psg .vs.cited { background: var(--gold-wash); border-radius: 4px; box-shadow: -8px 0 0 var(--gold-wash); }
+.cpane .psg .vs:not(.cited) .w { opacity: .68; }
+.v-beside .page .todaynote { font-family: Inter, sans-serif; font-size: 12px; line-height: 1.5; color: var(--text-faint); margin: -2.5rem 0 1.6rem; max-width: 30rem; }
+.cpane .psg .vs.cited .w { opacity: 1; }
+
+/* ═══ Confirm ═══════════════════════════════════════════════════════════ */
+.scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 60%, transparent); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 20; }
+.dialog { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.6rem 1.8rem 1.4rem; max-width: 30rem; box-shadow: 0 20px 60px var(--shadow); }
+.dialog h3 { font-weight: 400; font-size: 1.35rem; margin: 0 0 .6rem; color: var(--text-bright); }
+.dialog p { margin: 0 0 1.2rem; line-height: 1.6; color: var(--text); }
+.dialog .r { display: flex; gap: .7rem; justify-content: flex-end; flex-wrap: wrap; }
+
+/* ═══ EDGES ═══════════════════════════════════════════════════════════════ */
+.v-edge { height: 100%; overflow-y: auto; }
+.v-edge .col { max-width: 66rem; margin: 0 auto; padding: 3.5rem 2rem 8rem; }
+.v-edge h1 { font-weight: 300; font-size: 2.1rem; margin: .4rem 0 .6rem; color: var(--text-bright); }
+.v-edge .lede { font-size: 1.08rem; line-height: 1.65; max-width: 44rem; margin: 0 0 2.4rem; }
+.v-edge h2 { font-weight: 400; font-size: 1.05rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 3rem 0 1rem; font-size: .72rem; }
+.slashdemo { display: grid; grid-template-columns: 1.2fr 1fr; gap: 2rem; align-items: start; border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.6rem 1.8rem; background: var(--bg-elevated); }
+.slashdemo .mini .lbl { display: block; }
+.slashdemo .mini .q { font-size: 1.2rem; margin-bottom: 1rem; }
+.slashdemo textarea { font-size: 18px; min-height: 5rem; }
+.slashdemo .rule { font-size: .98rem; line-height: 1.6; color: var(--text); }
+.slashdemo .rule p { margin: 0 0 .8rem; }
+.slashdemo .rule b { font-weight: 500; color: var(--text-bright); }
+.palette {
+  margin-top: .6rem; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg); overflow: hidden;
+  box-shadow: 0 12px 32px var(--shadow); max-width: 26rem; font-size: .98rem;
+}
+.palette .h { font-family: Inter, sans-serif; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); padding: .7rem .9rem .3rem; }
+.palette button { display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer; padding: .45rem .9rem; color: var(--text); line-height: 1.4; }
+.palette button:hover { background: var(--gold-wash); color: var(--text-bright); }
+.palette button small { display: block; color: var(--text-faint); font-style: italic; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xref { border-left: 2px solid var(--gold-soft); padding: .3rem 0 .3rem .9rem; margin: .8rem 0; font-size: .98rem; line-height: 1.6; color: var(--text-bright); }
+.xref .c { display: block; font-size: .62rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); margin-top: .25rem; }
+.quoteline { color: var(--text-bright); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1rem; }
+.ecard { border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1.1rem 1.2rem 1rem; background: var(--bg-elevated); display: flex; flex-direction: column; }
+.ecard h3 { font-weight: 400; font-size: 1.12rem; margin: 0 0 .45rem; color: var(--text-bright); line-height: 1.3; }
+.ecard .when { font-style: italic; color: var(--text-dim); font-size: .95rem; margin: 0 0 .6rem; line-height: 1.45; }
+.ecard .then { font-size: .95rem; line-height: 1.55; margin: 0 0 .6rem; }
+.ecard .why { font-family: Inter, sans-serif; font-size: 11.5px; line-height: 1.5; color: var(--text-faint); margin: 0; }
+.ecard .try { margin-top: auto; padding-top: .7rem; }
+.ecard .try .link { font-size: .9rem; color: var(--accent); }
+.ecard.lean { border-color: color-mix(in srgb, var(--gold) 35%, var(--border-subtle)); }
+
+/* ═══ PHONE ═══════════════════════════════════════════════════════════════ */
+.v-phone { height: 100%; overflow: auto; }
+.v-phone .col { padding: 2.4rem 2rem 6rem; }
+.v-phone .intro { max-width: 44rem; margin: 0 auto 2rem; font-size: 1.05rem; line-height: 1.6; }
+.v-phone .intro h1 { font-weight: 300; font-size: 2rem; margin: 0 0 .5rem; color: var(--text-bright); }
+.phones { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
+.phonewrap { display: flex; flex-direction: column; align-items: center; gap: .8rem; width: 300px; }
+.phonewrap .cap { font-size: .95rem; line-height: 1.45; color: var(--text-dim); text-align: center; font-style: italic; }
+.phonewrap .cap b { font-style: normal; color: var(--text-bright); font-weight: 400; display: block; }
+.phone {
+  width: 300px; height: 620px; border-radius: 42px; border: 9px solid #1c1813; background: var(--bg);
+  position: relative; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 18px 50px var(--shadow);
+}
+:root[data-theme='dark'] .phone { border-color: #3a3229; }
+.phone .sb { height: 38px; flex: 0 0 auto; }
+.phone .top { display: flex; align-items: center; justify-content: space-between; padding: 0 1rem .4rem; font-family: Inter, sans-serif; font-size: 11.5px; color: var(--text-dim); }
+.phone .pips { display: flex; justify-content: center; gap: 4px; padding: .1rem 0 .6rem; }
+.phone .pip { width: 16px; height: 2px; border-radius: 2px; background: var(--border-subtle); }
+.phone .pip.done { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.phone .pip.on { background: var(--accent); }
+.phone .body { flex: 1; min-height: 0; overflow: hidden; padding: 0 1.1rem; display: flex; flex-direction: column; }
+.phone .psg { font-size: .98rem; line-height: 1.7; }
+.phone .lbl { font-size: .56rem; }
+.phone .q { font-size: 1.05rem; margin: .25rem 0 .6rem; }
+.phone .ta { color: var(--text-bright); font-size: 1rem; line-height: 1.55; }
+.phone .ta .caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--accent); vertical-align: -.2em; animation: blink 1.1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.phone .kb { flex: 0 0 auto; height: 205px; background: color-mix(in srgb, var(--text-faint) 22%, var(--bg-input)); display: grid; grid-template-rows: repeat(4, 1fr); gap: 7px; padding: 8px 4px 22px; }
+.phone .kb div { display: flex; gap: 5px; justify-content: center; }
+.phone .kb span { flex: 0 0 22px; background: var(--bg-elevated); border-radius: 5px; box-shadow: 0 1px 0 var(--shadow); }
+.phone .kb .wide { flex: 1 1 auto; }
+.phone .bot { padding: .7rem 1.1rem 1.4rem; display: flex; justify-content: space-between; align-items: center; }
+.phone .bot .btn { font-size: .85rem; padding: .45rem 1rem; }
+.phone .pstrip {
+  margin: 0 .8rem .6rem; padding: .55rem .8rem; border-radius: 12px; background: var(--leaf); border: 1px solid var(--border-subtle);
+  display: flex; align-items: center; gap: .5rem; font-size: .88rem; color: var(--text-dim);
+}
+.phone .pstrip .ref { font-size: .56rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); font-weight: 500; white-space: nowrap; }
+.phone .pstrip mark { background: var(--gold-soft); color: var(--text-bright); border-radius: 3px; padding: 0 .15em; font-style: italic; }
+.phone .pstrip .chev { margin-left: auto; color: var(--text-faint); }
+.phone .half { border-bottom: 1px solid var(--border-subtle); padding-bottom: .8rem; margin-bottom: .9rem; }
+.phone .sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 70px; background: var(--bg-elevated); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 40px var(--shadow); padding: .6rem 1.1rem; }
+.phone .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border-subtle); margin: 0 auto .9rem; }
+.phone input { width: 100%; border: 0; border-bottom: 1px solid var(--gold-soft); background: none; font-family: 'Newsreader', serif; font-size: 1.25rem; color: var(--text-bright); padding: .2rem 0 .4rem; outline: 0; }
+.phone .chstrip { gap: 4px; }
+.phone .ch { width: 30px; height: 30px; font-size: 10.5px; }
+.phone .fsec { margin-top: 1.2rem; }
+.phone .chip { font-size: .88rem; padding: .35rem .75rem; }
+
+/* ═══ RECORD ═════════════════════════════════════════════════════════════ */
+.v-record { height: 100%; overflow-y: auto; }
+.v-record .col { max-width: 72rem; margin: 0 auto; padding: 3.2rem 2rem 8rem; }
+.v-record h1 { font-weight: 300; font-size: 2.1rem; margin: .4rem 0 .6rem; color: var(--text-bright); }
+.v-record .lede { font-size: 1.08rem; line-height: 1.65; max-width: 46rem; margin: 0 0 2rem; }
+.v-record .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: start; }
+.md { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; line-height: 1.65; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1.1rem 1.2rem; white-space: pre-wrap; word-break: break-word; color: var(--text); margin: 0; }
+.md .tok { color: var(--text-faint); }
+.md .fence { color: var(--gold); }
+.md .new { background: var(--gold-wash); border-radius: 3px; }
+.wallcard { border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1.1rem 1.2rem; background: var(--bg-elevated); margin-bottom: 1.2rem; }
+.wallcard .d { font-family: Inter, sans-serif; font-size: 11px; color: var(--text-faint); margin-bottom: .4rem; }
+.wallcard .nm { font-size: .62rem; letter-spacing: .19em; text-transform: uppercase; color: var(--accent); }
+.wallcard p { margin: .35rem 0 0; font-size: .98rem; line-height: 1.55; color: var(--text-bright); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wallcard .rl { font-size: .58rem; letter-spacing: .17em; text-transform: uppercase; color: var(--text-faint); margin-right: .45rem; }
+.wallcard .gref { color: var(--gold); }
+.readerpage { border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1.6rem 1.8rem; background: var(--bg); }
+.readerpage .d { color: var(--text-faint); font-size: .95rem; margin-bottom: 1.2rem; }
+.readerpage .nm { font-size: .62rem; letter-spacing: .19em; text-transform: uppercase; color: var(--accent); margin-bottom: 1rem; }
+.readerpage .rl { display: block; font-size: .6rem; letter-spacing: .19em; text-transform: uppercase; color: var(--accent); margin-top: 1.2rem; }
+.readerpage p { margin: .25rem 0 0; font-size: 1.05rem; line-height: 1.7; color: var(--text-bright); white-space: pre-wrap; }
+.readerpage .sblock { border-left: 2px solid var(--gold-soft); padding-left: 1rem; margin: .5rem 0 0; font-size: 1.02rem; line-height: 1.7; color: var(--text-bright); }
+.readerpage .sblock .c { display: block; font-size: .6rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); margin-top: .3rem; }
+.readerpage blockquote { margin: .3rem 0 .4rem; padding: 0; font-style: italic; color: var(--text-bright); }
+.readerpage blockquote::before { content: '“'; color: var(--gold); } .readerpage blockquote::after { content: '”'; color: var(--gold); }
+.readerpage .rested { font-style: italic; color: var(--text-faint); }
+.decisions { margin-top: 3rem; }
+.decisions h2, .build h2 { font-weight: 400; font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0 0 1rem; }
+.decisions ol { margin: 0; padding-left: 1.3rem; }
+.decisions li { margin-bottom: 1.1rem; font-size: 1.02rem; line-height: 1.6; }
+.decisions li b { font-weight: 500; color: var(--text-bright); }
+.decisions li .lean { display: block; font-style: italic; color: var(--text-dim); font-size: .96rem; margin-top: .2rem; }
+.build { margin-top: 3rem; }
+.build table { width: 100%; border-collapse: collapse; font-size: .96rem; }
+.build td, .build th { text-align: left; vertical-align: top; padding: .65rem .8rem .65rem 0; border-top: 1px solid var(--border-subtle); line-height: 1.5; }
+.build th { font-family: Inter, sans-serif; font-size: 11px; font-weight: 500; color: var(--text-faint); letter-spacing: .06em; text-transform: uppercase; }
+.build code { font-family: ui-monospace, Menlo, monospace; font-size: .82em; color: var(--text-bright); background: var(--bg-input); padding: 1px 5px; border-radius: 4px; }
+.build .yes { color: var(--gold); }
+
+@media (max-width: 900px) {
+  .lgrid { grid-template-columns: 1fr; }
+  .v-face, .v-above, .v-beside { grid-template-columns: 1fr; overflow-y: auto; display: block; }
+  .leaf, .rail, .cpane { border: 0; }
+  .v-intro .moves, .v-intro .practices, .canon, .slashdemo, .v-record .grid { grid-template-columns: 1fr; }
+  #note { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="stage"></div>
+<aside id="note"></aside>
+
+<script>
+/* World English Bible (public domain), fetched from bible-api.com on 2026-09-26. Never model memory (GUARDRAILS H3). */
+const CORPUS = {"John 15": [[1, "“I am the true vine, and my Father is the farmer."], [2, "Every branch in me that doesn’t bear fruit, he takes away. Every branch that bears fruit, he prunes, that it may bear more fruit."], [3, "You are already pruned clean because of the word which I have spoken to you."], [4, "Remain in me, and I in you. As the branch can’t bear fruit by itself, unless it remains in the vine, so neither can you, unless you remain in me."], [5, "I am the vine. You are the branches. He who remains in me, and I in him, the same bears much fruit, for apart from me you can do nothing."], [6, "If a man doesn’t remain in me, he is thrown out as a branch, and is withered; and they gather them, throw them into the fire, and they are burned."], [7, "If you remain in me, and my words remain in you, you will ask whatever you desire, and it will be done for you."], [8, "“In this is my Father glorified, that you bear much fruit; and so you will be my disciples."], [9, "Even as the Father has loved me, I also have loved you. Remain in my love."], [10, "If you keep my commandments, you will remain in my love; even as I have kept my Father’s commandments, and remain in his love."], [11, "I have spoken these things to you, that my joy may remain in you, and that your joy may be made full."], [12, "“This is my commandment, that you love one another, even as I have loved you."], [13, "Greater love has no one than this, that someone lay down his life for his friends."], [14, "You are my friends, if you do whatever I command you."], [15, "No longer do I call you servants, for the servant doesn’t know what his lord does. But I have called you friends, for everything that I heard from my Father, I have made known to you."], [16, "You didn’t choose me, but I chose you, and appointed you, that you should go and bear fruit, and that your fruit should remain; that whatever you will ask of the Father in my name, he may give it to you."], [17, "“I command these things to you, that you may love one another."], [18, "If the world hates you, you know that it has hated me before it hated you."], [19, "If you were of the world, the world would love its own. But because you are not of the world, since I chose you out of the world, therefore the world hates you."], [20, "Remember the word that I said to you: ‘A servant is not greater than his lord.’ If they persecuted me, they will also persecute you. If they kept my word, they will also keep yours."], [21, "But all these things will they do to you for my name’s sake, because they don’t know him who sent me."], [22, "If I had not come and spoken to them, they would not have had sin; but now they have no excuse for their sin."], [23, "He who hates me, hates my Father also."], [24, "If I hadn’t done among them the works which no one else did, they wouldn’t have had sin. But now have they seen and also hated both me and my Father."], [25, "But this happened so that the word may be fulfilled which was written in their law, ‘They hated me without a cause.’"], [26, "“When the Counselor has come, whom I will send to you from the Father, the Spirit of truth, who proceeds from the Father, he will testify about me."], [27, "You will also testify, because you have been with me from the beginning."]], "Mark 4": [[1, "Again he began to teach by the seaside. A great multitude was gathered to him, so that he entered into a boat in the sea, and sat down. All the multitude were on the land by the sea."], [2, "He taught them many things in parables, and told them in his teaching,"], [3, "“Listen! Behold, the farmer went out to sow,"], [4, "and as he sowed, some seed fell by the road, and the birds came and devoured it."], [5, "Others fell on the rocky ground, where it had little soil, and immediately it sprang up, because it had no depth of soil."], [6, "When the sun had risen, it was scorched; and because it had no root, it withered away."], [7, "Others fell among the thorns, and the thorns grew up, and choked it, and it yielded no fruit."], [8, "Others fell into the good ground, and yielded fruit, growing up and increasing. Some produced thirty times, some sixty times, and some one hundred times as much.”"], [9, "He said, “Whoever has ears to hear, let him hear.”"], [10, "When he was alone, those who were around him with the twelve asked him about the parables."], [11, "He said to them, “To you is given the mystery of God’s Kingdom, but to those who are outside, all things are done in parables,"], [12, "that ‘seeing they may see, and not perceive; and hearing they may hear, and not understand; lest perhaps they should turn again, and their sins should be forgiven them.’”"], [13, "He said to them, “Don’t you understand this parable? How will you understand all of the parables?"], [14, "The farmer sows the word."], [15, "The ones by the road are the ones where the word is sown; and when they have heard, immediately Satan comes, and takes away the word which has been sown in them."], [16, "These in the same way are those who are sown on the rocky places, who, when they have heard the word, immediately receive it with joy."], [17, "They have no root in themselves, but are short-lived. When oppression or persecution arises because of the word, immediately they stumble."], [18, "Others are those who are sown among the thorns. These are those who have heard the word,"], [19, "and the cares of this age, and the deceitfulness of riches, and the lusts of other things entering in choke the word, and it becomes unfruitful."], [20, "Those which were sown on the good ground are those who hear the word, and accept it, and bear fruit, some thirty times, some sixty times, and some one hundred times.”"], [21, "He said to them, “Is the lamp brought to be put under a basket or under a bed? Isn’t it put on a stand?"], [22, "For there is nothing hidden, except that it should be made known; neither was anything made secret, but that it should come to light."], [23, "If any man has ears to hear, let him hear.”"], [24, "He said to them, “Take heed what you hear. With whatever measure you measure, it will be measured to you, and more will be given to you who hear."], [25, "For whoever has, to him will more be given, and he who doesn’t have, even that which he has will be taken away from him.”"], [26, "He said, “God’s Kingdom is as if a man should cast seed on the earth,"], [27, "and should sleep and rise night and day, and the seed should spring up and grow, though he doesn’t know how."], [28, "For the earth bears fruit: first the blade, then the ear, then the full grain in the ear."], [29, "But when the fruit is ripe, immediately he puts in the sickle, because the harvest has come.”"], [30, "He said, “How will we liken God’s Kingdom? Or with what parable will we illustrate it?"], [31, "It’s like a grain of mustard seed, which, when it is sown in the earth, though it is less than all the seeds that are on the earth,"], [32, "yet when it is sown, grows up, and becomes greater than all the herbs, and puts out great branches, so that the birds of the sky can lodge under its shadow.”"], [33, "With many such parables he spoke the word to them, as they were able to hear it."], [34, "Without a parable he didn’t speak to them; but privately to his own disciples he explained everything."], [35, "On that day, when evening had come, he said to them, “Let’s go over to the other side.”"], [36, "Leaving the multitude, they took him with them, even as he was, in the boat. Other small boats were also with him."], [37, "A big wind storm arose, and the waves beat into the boat, so much that the boat was already filled."], [38, "He himself was in the stern, asleep on the cushion, and they woke him up, and told him, “Teacher, don’t you care that we are dying?”"], [39, "He awoke, and rebuked the wind, and said to the sea, “Peace! Be still!” The wind ceased, and there was a great calm."], [40, "He said to them, “Why are you so afraid? How is it that you have no faith?”"], [41, "They were greatly afraid, and said to one another, “Who then is this, that even the wind and the sea obey him?”"]], "Psalm 23": [[1, "Yahweh is my shepherd: I shall lack nothing."], [2, "He makes me lie down in green pastures. He leads me beside still waters."], [3, "He restores my soul. He guides me in the paths of righteousness for his name’s sake."], [4, "Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me. Your rod and your staff, they comfort me."], [5, "You prepare a table before me in the presence of my enemies. You anoint my head with oil. My cup runs over."], [6, "Surely goodness and loving kindness shall follow me all the days of my life, and I will dwell in Yahweh’s house forever."]], "Luke 15": [[1, "Now all the tax collectors and sinners were coming close to him to hear him."], [2, "The Pharisees and the scribes murmured, saying, “This man welcomes sinners, and eats with them.”"], [3, "He told them this parable."], [4, "“Which of you men, if you had one hundred sheep, and lost one of them, wouldn’t leave the ninety-nine in the wilderness, and go after the one that was lost, until he found it?"], [5, "When he has found it, he carries it on his shoulders, rejoicing."], [6, "When he comes home, he calls together his friends and his neighbors, saying to them, ‘Rejoice with me, for I have found my sheep which was lost!’"], [7, "I tell you that even so there will be more joy in heaven over one sinner who repents, than over ninety-nine righteous people who need no repentance."], [8, "Or what woman, if she had ten drachma coins, if she lost one drachma coin, wouldn’t light a lamp, sweep the house, and seek diligently until she found it?"], [9, "When she has found it, she calls together her friends and neighbors, saying, ‘Rejoice with me, for I have found the drachma which I had lost.’"], [10, "Even so, I tell you, there is joy in the presence of the angels of God over one sinner repenting.”"], [11, "He said, “A certain man had two sons."], [12, "The younger of them said to his father, ‘Father, give me my share of your property.’ He divided his livelihood between them."], [13, "Not many days after, the younger son gathered all of this together and traveled into a far country. There he wasted his property with riotous living."], [14, "When he had spent all of it, there arose a severe famine in that country, and he began to be in need."], [15, "He went and joined himself to one of the citizens of that country, and he sent him into his fields to feed pigs."], [16, "He wanted to fill his belly with the husks that the pigs ate, but no one gave him any."], [17, "But when he came to himself he said, ‘How many hired servants of my father’s have bread enough to spare, and I’m dying with hunger!"], [18, "I will get up and go to my father, and will tell him, “Father, I have sinned against heaven, and in your sight."], [19, "I am no more worthy to be called your son. Make me as one of your hired servants.”’"], [20, "“He arose, and came to his father. But while he was still far off, his father saw him, and was moved with compassion, and ran, and fell on his neck, and kissed him."], [21, "The son said to him, ‘Father, I have sinned against heaven, and in your sight. I am no longer worthy to be called your son.’"], [22, "“But the father said to his servants, ‘Bring out the best robe, and put it on him. Put a ring on his hand, and shoes on his feet."], [23, "Bring the fattened calf, kill it, and let us eat, and celebrate;"], [24, "for this, my son, was dead, and is alive again. He was lost, and is found.’ They began to celebrate."], [25, "“Now his elder son was in the field. As he came near to the house, he heard music and dancing."], [26, "He called one of the servants to him, and asked what was going on."], [27, "He said to him, ‘Your brother has come, and your father has killed the fattened calf, because he has received him back safe and healthy.’"], [28, "But he was angry, and would not go in. Therefore his father came out, and begged him."], [29, "But he answered his father, ‘Behold, these many years I have served you, and I never disobeyed a commandment of yours, but you never gave me a goat, that I might celebrate with my friends."], [30, "But when this your son came, who has devoured your living with prostitutes, you killed the fattened calf for him.’"], [31, "“He said to him, ‘Son, you are always with me, and all that is mine is yours."], [32, "But it was appropriate to celebrate and be glad, for this, your brother, was dead, and is alive again. He was lost, and is found.’”"]], "Matthew 11": [[25, "At that time, Jesus answered, “I thank you, Father, Lord of heaven and earth, that you hid these things from the wise and understanding, and revealed them to infants."], [26, "Yes, Father, for so it was well-pleasing in your sight."], [27, "All things have been delivered to me by my Father. No one knows the Son, except the Father; neither does anyone know the Father, except the Son, and he to whom the Son desires to reveal him."], [28, "“Come to me, all you who labor and are heavily burdened, and I will give you rest."], [29, "Take my yoke upon you, and learn from me, for I am gentle and humble in heart; and you will find rest for your souls."], [30, "For my yoke is easy, and my burden is light.”"]]};
+
+/* ── The canon: name, chapters, and (invented) heat from "your journal" ── */
+const OT = [['Genesis',50],['Exodus',40],['Leviticus',27],['Numbers',36],['Deuteronomy',34],['Joshua',24],['Judges',21],['Ruth',4],['1 Samuel',31],['2 Samuel',24],['1 Kings',22],['2 Kings',25],['1 Chronicles',29],['2 Chronicles',36],['Ezra',10],['Nehemiah',13],['Esther',10],['Job',42],['Psalms',150],['Proverbs',31],['Ecclesiastes',12],['Song of Songs',8],['Isaiah',66],['Jeremiah',52],['Lamentations',5],['Ezekiel',48],['Daniel',12],['Hosea',14],['Joel',3],['Amos',9],['Obadiah',1],['Jonah',4],['Micah',7],['Nahum',3],['Habakkuk',3],['Zephaniah',3],['Haggai',2],['Zechariah',14],['Malachi',4]];
+const NT = [['Matthew',28],['Mark',16],['Luke',24],['John',21],['Acts',28],['Romans',16],['1 Corinthians',16],['2 Corinthians',13],['Galatians',6],['Ephesians',6],['Philippians',4],['Colossians',4],['1 Thessalonians',5],['2 Thessalonians',3],['1 Timothy',6],['2 Timothy',4],['Titus',3],['Philemon',1],['Hebrews',13],['James',5],['1 Peter',5],['2 Peter',3],['1 John',5],['2 John',1],['3 John',1],['Jude',1],['Revelation',22]];
+const BOOKS = [...OT, ...NT].map(([name, chapters]) => ({ name, chapters }));
+/* Invented for the prototype — in the app this is query.ts getBookChapterHeat, the Scripture surface's own light. */
+const HEAT = {
+  Psalms: {23:1, 27:.6, 46:.5, 51:.6, 139:.9, 62:.3, 91:.35},
+  John: {1:.35, 3:.5, 14:.55, 15:1, 17:.3}, Mark: {4:.7, 1:.3, 10:.3}, Luke: {15:.8, 10:.3, 24:.35},
+  Matthew: {5:.5, 6:.8, 11:.7}, Romans: {8:.9, 12:.5, 5:.3}, Colossians: {1:.5, 3:.55, 2:.3},
+  James: {1:.5, 4:.5}, Isaiah: {40:.6, 43:.6, 55:.3}, Philippians: {4:.8}, Genesis: {1:.25, 32:.3},
+  Lamentations: {3:.55}, Ephesians: {3:.3}, Hebrews: {12:.35}, '1 John': {4:.4},
+};
+const bookHeat = (b) => { const h = HEAT[b]; if (!h) return 0; const v = Object.values(h); return Math.min(1, Math.max(...v) * .75 + v.length * .06); };
+const DISPLAY = { Psalms: 'Psalm' };
+const corpusKey = (book, ch) => `${DISPLAY[book] || book} ${ch}`;
+
+/* Section headings — our own plain descriptions, not a publisher's. */
+const SECTIONS = {
+  'John 15': [[1, 'The vine and the branches'], [12, 'Love one another'], [18, 'When the world hates you']],
+  'Mark 4': [[1, 'The sower'], [21, 'A lamp on a stand'], [26, 'Seed that grows by itself'], [30, 'The mustard seed'], [35, 'The storm on the lake']],
+  'Luke 15': [[1, 'The lost sheep'], [8, 'The lost coin'], [11, 'The two sons']],
+  'Psalm 23': [[1, 'The shepherd']],
+  'Matthew 11': [[25, 'Come to me']],
+};
+/* Invented history — what "your journal" says, for the grounded rows. */
+const HISTORY = [
+  { book: 'John', chapter: 15, from: 5, to: 5, practice: 'Lectio Divina', date: 'Sept 12', caught: 'apart from me you can do nothing' },
+  { book: 'Mark', chapter: 4, from: 1, to: 34, practice: 'Discovery Bible Study', date: 'Sept 19' },
+];
+const TOPICS = [
+  { re: /^(rest|tired|weary|burden|heavy)/i, refs: [['Matthew',11,28,30],['Psalms',23,1,3]] },
+  { re: /^(fear|afraid|anx|storm|worr|panic)/i, refs: [['Mark',4,35,41],['Psalms',23,4,4]] },
+  { re: /^(lost|prodigal|home|return|forgiv)/i, refs: [['Luke',15,11,32],['Luke',15,1,7]] },
+  { re: /^(abide|remain|fruit|stay|vine)/i, refs: [['John',15,1,11],['John',15,4,5]] },
+  { re: /^(love|friend)/i, refs: [['John',15,12,17],['John',15,9,11]] },
+];
+const ALIASES = { jn: 'John', jhn: 'John', mk: 'Mark', mrk: 'Mark', lk: 'Luke', mt: 'Matthew', matt: 'Matthew', ps: 'Psalms', psa: 'Psalms', psalm: 'Psalms', col: 'Colossians', rom: 'Romans', gen: 'Genesis', jas: 'James', phil: 'Philippians', isa: 'Isaiah', rev: 'Revelation', song: 'Song of Songs' };
+
+/* ── Practices. Lectio, SOAP and the Examen carry their real copy from
+      practicesData.ts; Discovery Bible Study is new and its copy is ours. ── */
+const PRACTICES = {
+  lectio: {
+    key: 'lectio', name: 'Lectio Divina', origin: 'Benedict of Nursia, 6th century', fn: 'Encounter', tradition: 'Benedictine', rhythm: ['morning'], passage: true, onShelf: true,
+    intention: 'Not reading Scripture to extract truth, but receiving it — letting a word or phrase find you, and sitting with what it stirs.',
+    quote: 'Read. Meditate. Pray. Contemplate. Let the Word find you.',
+    why: 'Lectio assumes Scripture is less information to master than a living voice to be met. By reading slowly and letting a single word choose you, you move from studying the text to being addressed by it — the oldest Christian way of praying the Bible.',
+    shape: 'Four movements over a short passage: read (lectio), meditate on the word that caught you (meditatio), pray it back (oratio), and rest (contemplatio). You may spend the whole time on a single phrase.',
+    tips: ['Choose a short passage — a few verses is plenty.', 'Read it twice, slowly; the second time aloud if you can.', 'When a word snags you, stop and stay there rather than reading on.'],
+    size: 'few', sizeHint: 'Lectio stays with a few verses. One is enough.',
+    fallback: { book: 'John', chapter: 15, from: 4, to: 5 },
+    moves: [
+      { kind: 'read', label: 'Lectio — Read', short: 'Read', q: 'Read it slowly, twice. The second time, aloud if you can.' },
+      { kind: 'mark', label: 'Meditatio — Meditate', short: 'Meditate', q: 'Which word or phrase caught you? Stay there. What does it surface?', ph: 'Don’t analyze yet — just notice…' },
+      { kind: 'carry', label: 'Oratio — Pray', short: 'Pray', q: 'What does this word prompt you to say to God?', ph: 'Speak it honestly, in your own words…' },
+      { kind: 'dwell', label: 'Contemplatio — Rest', short: 'Rest', q: 'Stay with the word. There is nothing to write.' },
+    ],
+  },
+  soap: {
+    key: 'soap', name: 'SOAP', origin: 'Wayne Cordeiro, contemporary', fn: 'Encounter', tradition: 'Evangelical', rhythm: ['morning'], passage: true, onShelf: true,
+    intention: 'A structured encounter with Scripture that moves from observation to personal application — simple enough to sustain daily.',
+    quote: 'Scripture. Observation. Application. Prayer.',
+    why: 'SOAP keeps daily Bible reading from staying abstract. Its discipline is the move from observation to one concrete application — turning what the text says into something you’ll actually live today, and then into prayer.',
+    shape: 'Four steps over a passage: read the Scripture, observe what it says, apply it specifically to today, and pray it back. Simple enough to keep daily for years.',
+    tips: ['Keep the passage short so application stays focused.', 'Make the application specific and doable today — not a general principle.', 'Let the prayer flow directly out of your application.'],
+    size: 'few', sizeHint: 'Keep the passage short, so the application stays focused.',
+    fallback: { book: 'Matthew', chapter: 11, from: 28, to: 30 },
+    moves: [
+      { kind: 'read', label: 'Scripture', short: 'Scripture', q: 'Read it through, slowly.' },
+      { kind: 'cite', label: 'Observation', short: 'Observation', q: 'What do you observe — context, repetitions, what stands out?', ph: 'What does the text actually say… touch a verse number to bring its words in' },
+      { kind: 'plain', label: 'Application', short: 'Application', q: 'What does this mean for your life, concretely, today?', ph: 'One specific thing, not a general principle…' },
+      { kind: 'plain', label: 'Prayer', short: 'Prayer', q: 'Turn your application into a prayer.', ph: 'Speak it directly to God…' },
+    ],
+  },
+  dbs: {
+    key: 'dbs', name: 'Discovery Bible Study', origin: 'Disciple-making movements, 20th century', fn: 'Encounter', tradition: 'Missional', rhythm: ['morning', 'weekly'], passage: true, isNew: true,
+    intention: 'Read one passage, say what it says, and ask what it shows you about God and about us — then decide one thing you will do.',
+    quote: 'What does it say? What does it show us about God, and about us? What will I do?',
+    why: 'Discovery Bible Study lets the text lead. Instead of a teacher explaining the passage, you ask it the same plain questions every time and let it answer. The questions end in obedience — one thing you will actually do — and in telling someone else.',
+    shape: 'One story or paragraph, read twice. Say what it says in your own words, then what it shows about God and about people, then one “I will”, and who needs to hear it.',
+    tips: ['Choose a whole story, not a single verse.', 'Stay with what the passage says before what it means.', 'Make the “I will” small enough to do this week.'],
+    size: 'story', sizeHint: 'Discovery works on one whole story or paragraph. A section heading chooses it.',
+    fallback: { book: 'Mark', chapter: 4, from: 35, to: 41 },
+    moves: [
+      { kind: 'read', label: 'Read', short: 'Read', q: 'Read it twice. The second time, notice who does what.' },
+      { kind: 'plain', label: 'What it says', short: 'What it says', q: 'What does this passage say? Put it in your own words.', ph: 'It starts when…' },
+      { kind: 'cite', label: 'About God', short: 'About God', q: 'What does this passage show you about God?', ph: 'Touch a verse number to bring its words in…' },
+      { kind: 'cite', label: 'About us', short: 'About us', q: 'What does it show you about people — about you?', ph: 'We…' },
+      { kind: 'plain', label: 'I will', short: 'I will', q: 'What are you going to do about it?', ph: 'I will…' },
+      { kind: 'plain', label: 'Who to tell', short: 'Who to tell', q: 'Who needs to hear this story this week?', ph: 'A name, and when…' },
+    ],
+  },
+  /* Not scripture-centric — here only so the facing leaf can be compared with the rail every other ritual gets. */
+  examen: {
+    key: 'examen', name: 'The Daily Examen', origin: 'Ignatius of Loyola, 16th century', fn: 'Examine', tradition: 'Ignatian', rhythm: ['evening'], passage: false, onShelf: true,
+    intention: 'A review of the day in God’s presence — not to audit yourself, but to notice where you were carried and where you resisted.',
+    quote: 'Where was I consoled today? Where did I resist grace?',
+    why: 'The Examen trains a particular kind of attention: not self-improvement, but noticing where God was already at work in an ordinary day. Practiced regularly, it slowly retunes you to recognize grace in real time — and to meet your failures without despair.',
+    shape: 'Unhurried movements looking back over the day — gratitude, honest awareness of where you felt alive or distant, a gentle look at one turning-away, and a single request for tomorrow.',
+    tips: ['Pray it at the same time each day — most do it at night.', 'Start with gratitude; it softens the harder noticing that follows.', 'Examine, don’t accuse — you’re looking for grace, not building a case against yourself.'],
+    moves: [
+      { label: 'Gratitude', short: 'Gratitude', q: 'What am I grateful for from today — even one small thing?', ph: 'Begin here, however small…' },
+      { label: 'Awareness', short: 'Awareness', q: 'Where did I feel most alive? Where most distant from God?', ph: 'Consolation and desolation, honestly…' },
+      { label: 'Examination', short: 'Examination', q: 'Was there a moment I turned away — from love, from truth, from someone who needed me?', ph: 'Name it without self-punishment…' },
+      { label: 'Prayer', short: 'Prayer', q: 'What do I want to ask for tomorrow?', ph: 'One thing, simply asked…' },
+    ],
+  },
+};
+const SCRIPTURE_KEYS = ['lectio', 'soap', 'dbs'];
+/* The rest of the real shelf, for the library scene — name, function, rhythm, origin, tradition, quote from practicesData.ts. */
+const OTHER_SHELF = [
+  ['The Morning Offering', 'Order', ['morning'], 'Ignatius of Loyola, 16th century — the Suscipe', 'Ignatian', "Empty your head onto the page. Then find the one thing that matters."],
+  ['New Every Morning', 'Gratitude', ['morning'], 'The Hebrew morning blessings — Talmudic, with Lamentations 3', 'Hebrew', "You are awake, and the day is given. Start there."],
+  ['Luther’s Garland', 'Order', ['morning', 'anytime'], 'Martin Luther, 1535 — a letter to his barber', 'Lutheran', "Instruction. Thanksgiving. Confession. Prayer. Wound around one short text."],
+  ['The Round', 'Order', ['weekly'], 'The Benedictine Rule of Life, 6th century — adapted', 'Benedictine', "Your life, one domain at a time. Once around, once a week."],
+  ['Wesley’s Questions', 'Form', ['evening'], 'John Wesley, 18th century', 'Wesleyan', "Am I consciously or unconsciously creating the impression I desire?"],
+  ['Psalmic Lament', 'Lament', ['anytime'], 'Ancient — the Hebrew Psalter', 'Hebrew', "Address God. Complain honestly. Ask boldly. Trust anyway."],
+  ['Prayer of Recollection', 'Listen', ['morning', 'midday'], 'Teresa of Ávila, 16th century', 'Carmelite', "Turn inward. The castle of the soul has many rooms. Begin at the gate."],
+  ['The Examen of Consolation', 'Gratitude', ['midday', 'evening'], 'Ignatius of Loyola, 16th century', 'Ignatian', "Where did love move in me today? Name it. Receive it. Return it."],
+  ['Ignatian Discernment', 'Listen', ['anytime'], 'Ignatius of Loyola, 16th century', 'Ignatian', "Which choice brings deeper peace? Not comfort — peace."],
+  ['Threshold', 'Examine', ['anytime'], 'Adapted from rite-of-passage practice, contemporary', 'Secular', "What am I leaving? What am I carrying forward? What am I letting go of?"],
+];
+const RHYTHMS = [['all', 'Any hour'], ['morning', 'To begin'], ['midday', 'To pause'], ['evening', 'To close'], ['weekly', 'Week’s turn'], ['anytime', 'Need-based']];
+
+/* ── State ── */
+const KEY = 'dayspring.passage.v1';
+const fresh = () => ({
+  theme: null, practice: 'lectio', layout: 'facing', ownBible: false,
+  passage: { lectio: null, dbs: null }, step: { lectio: 0, dbs: 0 }, answers: {}, caught: { lectio: null, dbs: null }, typedCatch: { lectio: '', dbs: '' },
+  fq: '', fbook: null, fch: null, fsel: null, changing: false, noteMin: false, finished: { lectio: false, dbs: false },
+});
+let S;
+try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { S = fresh(); }
+// Every per-practice map carries every practice, including ones added after the state was saved.
+for (const k of Object.keys(PRACTICES)) {
+  S.passage[k] ??= null; S.step[k] ??= 0; S.caught[k] ??= null; S.typedCatch[k] ??= ''; S.finished[k] ??= false;
+}
+if (!PRACTICES[S.practice]) S.practice = 'lectio';
+S.scriptureOnly ??= false; S.rhythm ??= 'all'; S.libq ??= '';
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+let ui = { confirm: false, fold: null, kb: 0 };
+
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const P = () => PRACTICES[S.practice];
+const passage = () => S.passage[S.practice] || P().fallback;
+const ansKey = (i) => `${S.practice}:${i}`;
+const answer = (i) => S.answers[ansKey(i)] || '';
+const versesOf = (book, ch) => CORPUS[corpusKey(book, ch)] || null;
+const inRange = (p) => (versesOf(p.book, p.chapter) || []).filter(([n]) => n >= p.from && n <= p.to);
+const lastVerse = (book, ch) => { const v = versesOf(book, ch); return v ? v[v.length - 1][0] : 1; };
+function refLabel(p) {
+  const b = DISPLAY[p.book] || p.book;
+  if (p.from == null) return `${b} ${p.chapter}`;
+  const whole = p.from === 1 && p.to === lastVerse(p.book, p.chapter) && versesOf(p.book, p.chapter)?.[0]?.[0] === 1;
+  if (whole) return `${b} ${p.chapter}`;
+  return p.from === p.to ? `${b} ${p.chapter}:${p.from}` : `${b} ${p.chapter}:${p.from}–${p.to}`;
+}
+const strip = (s) => s.replace(/^[“”‘’"'(\[]+|[“”‘’"',.;:)\]]+$/g, '');
+function caughtText() {
+  if (S.ownBible) return S.typedCatch[S.practice] || '';
+  const c = S.caught[S.practice]; if (!c) return '';
+  const v = (versesOf(passage().book, passage().chapter) || []).find(([n]) => n === c.v);
+  if (!v) return '';
+  return strip(v[1].split(' ').slice(c.a, c.b + 1).join(' '));
+}
+
+/* ── Passage HTML ── */
+function verseHTML(n, text, caught) {
+  const ws = text.split(' ');
+  const on = caught && caught.v === n;
+  const toks = ws.map((w, i) => {
+    let t = `<span class="w" data-v="${n}" data-i="${i}">${esc(w)}</span>`;
+    if (on && i === caught.a) t = '<mark class="caught">' + t;
+    if (on && i === caught.b) t = t + '</mark>';
+    return t;
+  });
+  return `<span class="vs" data-n="${n}"><sup class="vn" data-n="${n}">${n}</sup>${toks.join(' ')}</span> `;
+}
+function passageHTML(p, { kind = 'read', caught = null, sections = true, cited = [], sel = null } = {}) {
+  const vs = inRange(p);
+  if (!vs.length) return `<div class="empty-msg">This prototype only carries John 15, Mark 4, Luke 15, Psalm 23 and Matthew 11:25–30.</div>`;
+  const secs = sections ? (SECTIONS[corpusKey(p.book, p.chapter)] || []) : [];
+  let out = '';
+  vs.forEach(([n, t], i) => {
+    const sec = secs.find(([s]) => s === n);
+    if (sec && (i > 0 || secs.length > 1)) out += `<span class="sec" data-sec="${n}">${esc(sec[1])}</span>`;
+    const cls = (cited.includes(n) ? ' cited' : '') + (sel && n >= sel.from && n <= sel.to ? ' sel' : '');
+    out += verseHTML(n, t, caught).replace('class="vs"', `class="vs${cls}" style="--d:${(i * 1.7).toFixed(1)}s"`);
+  });
+  const body = `<div class="body">${out}</div>`;
+  const veil = '';
+  return `<div class="psg" data-kind="${kind}">${body}${veil}</div>`;
+}
+function ownHTML(p) {
+  return `<div class="own"><b>${esc(refLabel(p))}</b>Your own Bible is open beside you. Nothing is shown here — the reference is enough for this page to find it again.</div>`;
+}
+
+/* ── Bar + note ── */
+const SCENES = [
+  ['intro', 'The idea'], ['library', '0 · The library'], ['find', '1 · Choose the passage'], ['walk', '2 · Walk it'], ['phone', '3 · On a phone'], ['edge', '4 · Edge cases'], ['record', '5 · What it writes'],
+];
+function scene() { return (location.hash.slice(1) || 'intro').split('?')[0]; }
+function renderBar() {
+  const sc = scene();
+  let h = `<span class="t">The passage</span>` + SCENES.map(([k, l]) => `<a class="tab${sc === k ? ' on' : ''}" href="#${k}">${l}</a>`).join('');
+  const LABEL = { lectio: 'Lectio', soap: 'SOAP', dbs: 'Discovery', examen: 'Examen (compare)' };
+  if (sc === 'walk' || sc === 'find') {
+    const keys = sc === 'walk' ? [...SCRIPTURE_KEYS, 'examen'] : SCRIPTURE_KEYS;
+    h += `<span class="grp"><span>Practice</span>${keys.map((k) => `<button data-act="practice" data-v="${k}" aria-pressed="${S.practice === k}">${LABEL[k]}</button>`).join('')}</span>`;
+  }
+  if (sc === 'walk' && P().passage) {
+    h += `<span class="grp"><span>Passage sits</span>${[['facing', 'A · Facing'], ['above', 'B · Above'], ['beside', 'C · Beside (today’s parts)']].map(([k, l]) => `<button data-act="layout" data-v="${k}" aria-pressed="${S.layout === k}">${l}</button>`).join('')}</span>`;
+    h += `<span class="grp"><button data-act="own" aria-pressed="${S.ownBible}">My own Bible</button></span>`;
+  }
+  h += `<span class="sp"></span><button data-act="theme">${isDark() ? 'Light' : 'Dark'}</button><button data-act="reset" title="Clear every answer">Start over</button>`;
+  $('#bar').innerHTML = h;
+}
+const NOTES = {
+  intro: ['What this is', `<p>Scripture-centric rituals on the ritual frame that already ships — the shelf, the rail, one entry per ritual. Nothing here changes the document format.</p><p>Start with <b>1 · Choose the passage</b>. What you choose is carried into every other scene.</p>`],
+  library: ['Marked on the shelf, found by search', `<p>Scripture rituals carry a quiet <b>With Scripture</b> mark on the card, and the filter row gets one more chip. It sits beside the hours, not among them, because it isn’t a time of day.</p><p>Search answers to <b>scripture</b>, <b>bible</b>, <b>passage</b>, <b>verse</b>, <b>study</b>. The preview says what’s different before you begin: <i>Begins with a passage you choose.</i></p><p>SOAP is already on the shelf and gets all of this. Discovery Bible Study is the one new card.</p>`],
+  find: ['The finder replaces “type the passage out”', `<p>Today Lectio’s first question asks you to <b>type the passage</b>. Here the first movement is choosing it.</p><p>Try: <b>jn 15:4-5</b> · <b>Colossians</b> (a bare book — today’s parser refuses it) · <b>jhon 15</b> · <b>afraid</b> · or click a lit book in the canon.</p><p>Every suggestion is <b>your own history</b> (the Scripture surface’s light) or a reference you typed. A word search is the one place a model chooses, and it only chooses references.</p>`],
+  walk: ['The same rail, widened', `<p><b>A · Facing</b> keeps every piece of the rail: the way back, the name, the intention, the path, About · Delete page, and “Saved…”. It widens to make room for the passage, and you can watch it widen when you Begin from the finder. Flip to <b>Examen (compare)</b> to see the rail it grew from.</p><p><b>Focus:</b> while you type, everything on the leaf except the passage fades. Move the mouse to bring it back.</p><p><b>B · Above</b> — the passage heads the page and folds to one line while you type. Closest to how a verse already sits in an entry; it is also the phone’s shape.</p><p><b>C · Beside</b> — only parts that exist today: the rail, the page, the floating chapter pane. Cheapest, and it shows why the passage needs its own place.</p><p>Walk a whole ritual: each movement does something different to the passage. <span class="kbd">⌥↵</span> continues.</p>`],
+  phone: ['One passage, half a screen', `<p>The keyboard owns half the glass, so the passage folds to a strip whenever you type — and the word you caught rides in the strip.</p>`],
+  edge: ['What happens when…', `<p>The two that matter most: <b>/scripture inside an answer</b>, and <b>changing the passage after you’ve written</b>. Both are live at the top.</p>`],
+  record: ['No format change', `<p>The page is the same <b>ritual:name / ritual:section</b> markdown the composer writes today. The passage is an ordinary scripture fence in the first movement, so the Scripture surface lights it with no new code.</p><p>This markdown is built live from what you wrote in the walk.</p>`],
+};
+function renderNote() {
+  const n = NOTES[scene()]; const el = $('#note');
+  if (!n) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.dataset.min = S.noteMin;
+  el.innerHTML = `<h4 data-act="note">${n[0]}</h4><button class="x" data-act="note">${S.noteMin ? '+' : '–'}</button><div class="body">${n[1]}</div>`;
+}
+function isDark() { return S.theme ? S.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+function applyTheme() { if (S.theme) document.documentElement.dataset.theme = S.theme; else delete document.documentElement.dataset.theme; }
+
+/* ═══ SCENES ═══════════════════════════════════════════════════════════ */
+function vIntro() {
+  return `<div class="v-intro"><div class="col arrive">
+  <span class="lbl">Rituals · Scripture</span>
+  <h1>A ritual that begins with a passage, and keeps it open.</h1>
+  <p>Lectio Divina is on the shelf today, and it breaks in a way you can point at: its first question asks you to <i>type the passage out</i>, and then the composer scrolls it away for the three movements that need it. Discovery Bible Study has the same shape. Read one passage, then keep asking it questions.</p>
+  <p>Both run on the frame that already ships: the shelf, the rail, one entry per ritual. What they need is three new things.</p>
+  <div class="moves">
+    <div><span class="lbl">1</span><h3>Choose</h3><p>A finder that knows references, bare books, typos, and your own history: where your journal already leans.</p></div>
+    <div><span class="lbl">2</span><h3>Keep</h3><p>The passage stays in view while you write: facing the page on a desk, folded to a strip on a phone.</p></div>
+    <div><span class="lbl">3</span><h3>Let it act</h3><p>A movement can do something to the text: catch a word, keep that word lit while you pray, or quote a verse into your answer.</p></div>
+  </div>
+  <span class="lbl">Three practices</span>
+  <div class="practices">
+    ${SCRIPTURE_KEYS.map((k) => PRACTICES[k]).map((p) => `<button class="pcard" data-act="begin-practice" data-v="${p.key}"><span class="lbl">${p.onShelf ? 'On the shelf today' : 'New'}</span><h3>${p.name}</h3><span class="o">${p.origin}</span><p>${p.intention}</p><div class="path">${p.moves.map((m) => m.short).join(' · ')}</div></button>`).join('')}
+    <div class="pcard later"><span class="lbl">Why SOAP is here</span><h3>It has the same defect</h3><span class="o">practicesData.ts, today</span><p>SOAP’s first question is “What passage are you reading today?” with “Write the reference, or copy the text…”. Lectio’s problem, word for word. It gets the finder and the leaf for free.</p></div>
+  </div>
+  <ol class="scenes">
+    <li><a href="#library"><b>0 · The library</b><span>How a scripture ritual is marked on the shelf and found in search.</span></a></li>
+    <li><a href="#find"><b>1 · Choose</b><span>The finder. Type a reference, a bare book, a typo or a word, or pick from the lit canon. Then choose verses the way you would underline them.</span></a></li>
+    <li><a href="#walk"><b>2 · Walk it</b><span>Three places for the passage while you write, and what each movement does to it.</span></a></li>
+    <li><a href="#phone"><b>3 · On a phone</b><span>The strip, the sheet, the tapped word, the keyboard.</span></a></li>
+    <li><a href="#edge"><b>4 · Edge cases</b><span>/scripture inside an answer, changing the passage midway, your own paper Bible, offline, typos, too long, and more.</span></a></li>
+    <li><a href="#record"><b>5 · What it writes</b><span>The markdown, the wall card, the reader, and the decisions left for Phil.</span></a></li>
+  </ol>
+  </div></div>`;
+}
+
+/* ── LIBRARY ── */
+const BOOK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4.5h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>';
+function shelfCards() {
+  const mine = ['lectio', 'examen', 'soap', 'dbs'].map((k) => { const p = PRACTICES[k]; return { key: k, name: p.name, fn: p.fn, rhythm: p.rhythm, origin: p.origin, tradition: p.tradition, quote: p.quote, passage: p.passage, isNew: p.isNew, hay: p.moves.map((m) => m.label + ' ' + m.q).join(' ') }; });
+  const rest = OTHER_SHELF.map(([name, fn, rhythm, origin, tradition, quote]) => ({ key: null, name, fn, rhythm, origin, tradition, quote, passage: false, hay: '' }));
+  // Shelf order as practicesData.ts has it, with Discovery placed beside SOAP.
+  const order = ['The Morning Offering', 'New Every Morning', 'Luther’s Garland', 'The Round', 'The Daily Examen', 'Lectio Divina', 'Wesley’s Questions', 'SOAP', 'Discovery Bible Study', 'Psalmic Lament', 'Prayer of Recollection', 'The Examen of Consolation', 'Ignatian Discernment', 'Threshold'];
+  return [...mine, ...rest].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+}
+function libVisible() {
+  const q = S.libq.trim().toLowerCase();
+  return shelfCards().filter((c) => {
+    if (q) {
+      // Search ignores the hour, like the real library. A passage ritual also answers to the words people use for it.
+      const hay = [c.name, c.tradition, c.origin, c.quote, c.fn, c.hay, c.passage ? 'scripture bible passage verse study reading word' : ''].join(' ').toLowerCase();
+      return q.split(/\s+/).every((t) => hay.includes(t));
+    }
+    if (S.scriptureOnly) return c.passage;
+    return S.rhythm === 'all' || c.rhythm.includes(S.rhythm);
+  });
+}
+function libGridHTML() {
+  const vis = libVisible();
+  const searching = S.libq.trim();
+  const note = searching ? (vis.length ? `Searching every ritual — ${vis.length} ${vis.length === 1 ? 'match' : 'matches'}.` : 'Nothing on the shelf matches that.')
+    : S.scriptureOnly ? 'Rituals that begin with a passage you choose, at any hour.' : '';
+  return `${note ? `<p class="libnote">${note}</p>` : ''}<div class="lgrid">${vis.map((c) => `<button class="lcard${c.passage ? ' scripture' : ''}" data-act="lib-open" data-v="${esc(c.name)}">
+      <span class="fn">${esc(c.fn)}${c.isNew ? '<span class="new">New</span>' : ''}</span>
+      <span class="nm">${esc(c.name)}</span><span class="or">${esc(c.origin)}</span><span class="qt">${esc(c.quote)}</span>
+      <span class="ft">${c.passage ? `<span class="stag">${BOOK_SVG}With Scripture</span>` : ''}<span>${esc(c.tradition)}</span><span class="ar">→</span></span>
+    </button>`).join('')}</div>`;
+}
+function threshHTML() {
+  const c = shelfCards().find((x) => x.name === ui.thresh);
+  if (!c) return '';
+  const p = c.key ? PRACTICES[c.key] : null;
+  return `<div class="thresh"><button class="link back" data-act="lib-close">← Rituals</button><div class="in arrive">
+    <span class="lbl">${esc(c.fn)}</span><div class="nm">${esc(c.name)}</div><div class="or">${esc(c.origin)}</div><div class="div"></div>
+    <p class="it">${esc(p ? p.intention : c.quote)}</p>
+    ${c.passage ? `<div class="first">${BOOK_SVG}<div><b>Begins with a passage you choose.</b><span>It stays open beside you while you write.</span></div></div>` : ''}
+    ${p ? `<ol>${p.moves.map((m) => `<li><span class="lbl">${esc(m.label)}</span><span>${m.kind === 'read' ? 'the passage' : ''}</span></li>`).join('')}</ol>
+      <button class="btn primary" data-act="${c.passage ? 'begin-practice' : 'begin-plain'}" data-v="${c.key}">${c.passage ? 'Choose a passage' : 'Begin writing'} <span class="kbd">↵</span></button>`
+      : `<p class="softnote">Not walked in this prototype.</p>`}
+  </div></div>`;
+}
+function vLibrary() {
+  return `<div class="v-lib" style="position:relative"><div class="col">
+    <div class="eyebrow">Good morning</div>
+    <h1>How will you <em>draw near</em> today?</h1>
+    <p class="sub">Tried and true rituals for the inner life — gathered from two thousand years of faithful writing.</p>
+    <div class="libctl">
+      ${RHYTHMS.map(([id, l]) => `<button class="pfilter" data-act="rhythm" data-v="${id}" data-on="${!S.libq.trim() && !S.scriptureOnly && S.rhythm === id}">${l}</button>`).join('')}
+      <span class="div"></span>
+      <button class="pfilter scrip" data-act="scripture-only" data-on="${!S.libq.trim() && S.scriptureOnly}">${BOOK_SVG}With Scripture</button>
+      <span class="sp"></span>
+      <input id="libq" type="search" placeholder="Search the rituals…" value="${esc(S.libq)}" autocomplete="off">
+    </div>
+    <div id="libgrid">${libGridHTML()}</div>
+  </div>${ui.thresh ? threshHTML() : ''}</div>`;
+}
+
+/* ── FIND ── */
+function parseQuery(q) {
+  const raw = q.trim();
+  if (!raw) return { type: 'empty' };
+  const m = raw.match(/^([1-3]?\s*[a-z][a-z .]*?)\.?\s*(\d+)?(?:\s*[:.]\s*(\d+)(?:\s*[-–]\s*(\d+))?)?\s*$/i);
+  if (!m) return { type: 'topic', word: raw };
+  const name = m[1].trim().toLowerCase().replace(/\s+/g, ' ');
+  const ch = m[2] ? +m[2] : null, v1 = m[3] ? +m[3] : null, v2 = m[4] ? +m[4] : v1;
+  const norm = (s) => s.toLowerCase();
+  let book = BOOKS.find((b) => norm(b.name) === name) || (ALIASES[name.replace(/ /g, '')] && BOOKS.find((b) => b.name === ALIASES[name.replace(/ /g, '')]));
+  const prefix = BOOKS.filter((b) => norm(b.name).startsWith(name) || norm(b.name).replace(/^\d /, '').startsWith(name));
+  if (!book && prefix.length === 1 && name.length >= 3) book = prefix[0];
+  if (!book && ch != null && prefix.length) book = prefix[0];
+  if (book) {
+    if (ch == null) return { type: 'book', book: book.name, also: prefix.filter((b) => b !== book).slice(0, 5) };
+    return { type: 'ref', book: book.name, chapter: Math.min(ch, book.chapters), from: v1, to: v2 };
+  }
+  if (prefix.length && ch == null) return { type: 'books', books: prefix.slice(0, 7), word: raw };
+  // a typo?
+  let best = null, bd = 9;
+  for (const b of BOOKS) { const d = lev(name, norm(b.name)); if (d < bd) { bd = d; best = b; } }
+  if (best && bd <= 2 && name.length >= 3) return { type: 'typo', book: best.name, chapter: ch, from: v1, to: v2, typed: m[1].trim() };
+  if (ch != null) return { type: 'nobook', typed: m[1].trim() };
+  return { type: 'topic', word: raw };
+}
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    { d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1); }
+  return d[a.length][b.length];
+}
+function firstLine(book, ch, from) {
+  const v = versesOf(book, ch); if (!v) return 'Opens the chapter.';
+  const hit = v.find(([n]) => n >= (from || 1)) || v[0]; return hit[1];
+}
+function rowHTML(book, ch, from, to, meta, act = 'open-ref') {
+  const p = { book, chapter: ch, from: from ?? null, to: to ?? null };
+  return `<button class="row" data-act="${act}" data-b="${esc(book)}" data-c="${ch}" data-f="${from ?? ''}" data-t="${to ?? ''}"><span class="r">${esc(refLabel(p))}</span><span class="m">${meta || ''}</span><span class="t">${esc(firstLine(book, ch, from))}</span></button>`;
+}
+function vFind() {
+  const p = P();
+  const head = S.changing ? 'Choose another passage' : 'What will you read?';
+  return `<div class="v-find" id="find-scroll">
+    <div class="corner"><a class="home" href="#walk" data-act="leave-find">← ${S.changing ? 'Keep ' + esc(refLabel(passage())) : 'Back to today’s entry'} <span class="kbd">esc</span></a></div>
+    <div class="col">
+      <div class="eyebrow arrive"><span class="lbl">${p.name}</span><span class="o">${p.origin}</span></div>
+      <h1 class="arrive">${head}</h1>
+      <div class="inwrap arrive"><input class="q-in" id="q" autocomplete="off" spellcheck="false" placeholder="John 15, Psalm 23, a book, or a word" value="${esc(S.fq)}" /></div>
+      <div class="hint arrive"><span class="why">${p.sizeHint}</span></div>
+      <div id="results"></div>
+    </div></div>`;
+}
+function resultsHTML() {
+  if (S.fch) return readingHTML();
+  const q = parseQuery(S.fq);
+  if (S.fbook && (q.type === 'empty' || (q.type === 'book' && q.book === S.fbook))) return bookHTML(S.fbook);
+  if (q.type === 'empty') return suggestionsHTML();
+  if (q.type === 'book') return bookHTML(q.book, q.also);
+  if (q.type === 'books') return `<div class="fsec"><h5>Books</h5>${q.books.map((b) => `<button class="row" data-act="pick-book" data-b="${esc(b.name)}"><span class="r">${esc(b.name)}</span><span class="m">${b.chapters} chapter${b.chapters > 1 ? 's' : ''}</span></button>`).join('')}</div>${q.word.length >= 3 ? topicHTML(q.word) : ''}`;
+  if (q.type === 'ref') {
+    const meta = versesOf(q.book, q.chapter) ? 'enter to open' : 'not in this prototype';
+    return `<div class="fsec"><h5>Reference</h5>${rowHTML(q.book, q.chapter, q.from, q.to, meta)}</div>`;
+  }
+  if (q.type === 'typo') {
+    return `<div class="fsec"><h5>Did you mean</h5>${q.chapter ? rowHTML(q.book, q.chapter, q.from, q.to, 'enter to open') : `<button class="row" data-act="pick-book" data-b="${esc(q.book)}"><span class="r">${esc(q.book)}</span><span class="m">no book called “${esc(q.typed)}”</span></button>`}</div>`;
+  }
+  if (q.type === 'nobook') return `<div class="fsec"><p class="empty-msg">There’s no book called “${esc(q.typed)}.” Try a book, a reference, or a single word.</p></div>`;
+  return topicHTML(q.word);
+}
+function topicHTML(word) {
+  const t = TOPICS.find((x) => x.re.test(word));
+  const refs = t ? t.refs : [['Matthew',11,28,30],['Psalms',23,1,3],['John',15,4,5]];
+  return `<div class="fsec"><h5>Passages for “${esc(word)}”<span class="src">references chosen by a model from your word · the words themselves come from the ESV</span></h5>
+    ${refs.map(([b, c, f, tt]) => rowHTML(b, c, f, tt, '')).join('')}
+    ${t ? '' : `<p class="softnote">This prototype returns the same three for any word it doesn’t know.</p>`}</div>`;
+}
+function suggestionsHTML() {
+  const p = P();
+  const last = HISTORY.find((h) => h.practice === p.name);
+  let cont = '';
+  if (p.key === 'dbs') {
+    cont = `<div class="fsec"><h5>Where you left off<span class="src">your last Discovery: Mark 4:1–34, Sept 19</span></h5>${rowHTML('Mark', 4, 35, 41, 'the next section')}</div>`;
+  } else if (last) {
+    cont = `<div class="fsec"><h5>Your last Lectio<span class="src">${last.date} · you caught “${esc(last.caught)}”</span></h5>${rowHTML(last.book, last.chapter, last.from, last.to, 'read it again')}</div>`;
+  }
+  const returning = [['Psalms',23,null,null,1],['John',15,5,5,.9],['Matthew',11,28,30,.7],['Luke',15,11,32,.6],['Mark',4,39,39,.5]];
+  const canon = (list, t) => `<div><div class="t5">${t}</div><div class="books">${list.map(([n]) => { const h = bookHeat(n); return `<button class="bk" style="--h:${h.toFixed(2)}" data-act="pick-book" data-b="${esc(n)}" title="${h ? 'lit by your journal' : 'at rest'}">${esc(n)}</button>`; }).join('')}</div></div>`;
+  return `${cont}
+    <div class="fsec"><h5>Passages you return to<span class="src">from the Scripture surface — the light your own pages cast</span></h5>
+      <div class="chips">${returning.map(([b, c, f, t, h]) => `<button class="chip" data-act="open-ref" data-b="${b}" data-c="${c}" data-f="${f ?? ''}" data-t="${t ?? ''}"><span class="glow" style="--h:${h}"></span>${esc(refLabel({ book: b, chapter: c, from: f, to: t }))}</button>`).join('')}</div></div>
+    <div class="fsec"><h5>Marked lately<span class="src">a phrase you marked in an entry</span></h5>
+      ${rowHTML('Mark', 4, 39, 39, 'marked Sept 22').replace(/<span class="t">.*?<\/span>/, '<span class="t">“…and there was a great calm.”</span>')}</div>
+    <div class="fsec"><h5>The canon<span class="src">lit where your journal has been, unlit books are at rest</span></h5><div class="canon">${canon(OT, 'Old Testament')}${canon(NT, 'New Testament')}</div></div>`;
+}
+function bookHTML(name, also = []) {
+  const b = BOOKS.find((x) => x.name === name);
+  const h = HEAT[name] || {};
+  const lit = Object.keys(h).length;
+  return `<div class="fsec"><h5>${esc(name)}<span class="src">${lit ? 'chapters lit where your journal has been' : 'nothing written here yet — every chapter at rest'}</span></h5>
+    <div class="chstrip">${Array.from({ length: b.chapters }, (_, i) => i + 1).map((c) => `<button class="ch${h[c] ? ' here' : ''}" style="--h:${h[c] || 0}" data-act="open-ref" data-b="${esc(name)}" data-c="${c}" data-f="" data-t="">${c}</button>`).join('')}</div>
+    ${also.length ? `<p class="softnote">Or ${also.map((x) => `<button class="link" data-act="pick-book" data-b="${esc(x.name)}">${esc(x.name)}</button>`).join(', ')}</p>` : ''}
+    ${name === 'Colossians' ? `<p class="softnote">Today, <span class="mono">/scripture Colossians</span> finds nothing: the parser ignores bare book names on purpose. This is Kristi’s K2 case — here it opens the book.</p>` : ''}
+  </div>`;
+}
+function readingHTML() {
+  const { book, chapter } = S.fch;
+  const vs = versesOf(book, chapter);
+  const title = `${DISPLAY[book] || book} ${chapter}`;
+  if (!vs) {
+    return `<div class="reader-head"><h2>${esc(title)}</h2><button class="link" data-act="find-back">← back</button></div>
+      <div class="empty-msg">In the app this is one chapter from the ESV, fetched by <span class="mono">scripture-chapter.ts</span>. The prototype only carries John 15, Mark 4, Luke 15, Psalm 23 and Matthew 11:25–30.</div>
+      <p class="softnote"><button class="link" data-act="own-ref">Read ${esc(title)} from my own Bible instead →</button></p>`;
+  }
+  const sel = S.fsel;
+  const range = { book, chapter, from: vs[0][0], to: vs[vs.length - 1][0] };
+  const html = passageHTML(range, { kind: 'choose', sel }).replace('class="psg"', `class="psg${sel ? ' has-sel' : ''}"`);
+  const p = sel ? { book, chapter, from: sel.from, to: sel.to } : range;
+  const count = p.to - p.from + 1;
+  const prac = P();
+  let note = '';
+  if (prac.size === 'few' && count > 8) note = `<p class="softnote">Lectio usually stays with a few verses. You can keep all ${count}; it will still work.</p>`;
+  if (prac.size === 'story' && count === 1) note = `<p class="softnote">Discovery reads a whole story. <button class="link" data-act="sel-section">Choose the section this verse sits in →</button></p>`;
+  const been = HISTORY.find((h) => h.book === book && h.chapter === chapter && !(h.to < p.from || h.from > p.to));
+  const beenHTML = been ? `<div class="been">You were here on <a href="#record">${been.date}</a> in ${been.practice}${been.caught ? ` — you caught “${esc(been.caught)}”` : ''}.</div>` : '';
+  return `<div class="reader-head"><h2>${esc(title)}</h2><span class="nav">${sel ? 'click a verse to start again · shift-click to extend' : 'click a verse, then another to choose the verses between'} · <button class="link" style="font-size:12px" data-act="find-back">← search</button></span></div>
+    <div class="reading-view">${html}</div>
+    ${beenHTML}
+    <div class="selbar"><span class="r">${esc(refLabel(p))}</span><span class="n">${sel ? `${count} verse${count > 1 ? 's' : ''}` : 'the whole chapter'}</span><span class="sp"></span><button class="link" data-act="own-ref" style="font-size:.9rem">I’m reading from my own Bible</button><button class="btn primary" data-act="begin">${S.changing ? 'Use this passage' : 'Begin'} <span class="kbd">↵</span></button></div>
+    ${note}`;
+}
+function renderResults() {
+  const r = $('#results'); if (!r) return;
+  r.innerHTML = resultsHTML();
+  ui.kb = 0; markKb();
+}
+function markKb() {
+  const rows = [...document.querySelectorAll('#results .row')];
+  rows.forEach((r, i) => r.classList.toggle('kb', i === ui.kb && S.fq.trim() !== ''));
+}
+function openRef(book, ch, f, t) {
+  S.fch = { book, chapter: ch };
+  S.fsel = f ? { from: f, to: t || f } : null;
+  S.fq = `${DISPLAY[book] || book} ${ch}${f ? ':' + f + (t && t !== f ? '–' + t : '') : ''}`;
+  S.fbook = null; save();
+  const q = $('#q'); if (q) q.value = S.fq;
+  renderResults();
+  requestAnimationFrame(() => {
+    const first = S.fsel && document.querySelector(`.reading-view .vs[data-n="${S.fsel.from}"]`);
+    if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
+function begin(own = false) {
+  const vs = versesOf(S.fch.book, S.fch.chapter);
+  const p = { book: S.fch.book, chapter: S.fch.chapter, from: S.fsel ? S.fsel.from : (vs ? vs[0][0] : 1), to: S.fsel ? S.fsel.to : (vs ? vs[vs.length - 1][0] : 1) };
+  const k = S.practice;
+  const c = S.caught[k];
+  S.passage[k] = p; S.ownBible = own || (!vs);
+  if (S.changing) {
+    if (c && (c.v < p.from || c.v > p.to)) S.caught[k] = null;
+  } else {
+    S.step[k] = 0; S.caught[k] = null; S.typedCatch[k] = ''; S.finished[k] = false;
+    PRACTICES[k].moves.forEach((_, i) => delete S.answers[`${k}:${i}`]);
+  }
+  S.changing = false; S.fch = null; S.fsel = null; S.fq = ''; save();
+  ui.widen = S.layout === 'facing';
+  location.hash = 'walk';
+}
+
+/* ── WALK ── */
+function gistOf(i) {
+  const m = P().moves[i];
+  if (m.kind === 'read') return `<div class="gist ref">${esc(refLabel(passage()))}</div>`;
+  if (m.kind === 'dwell') return `<div class="gist">rested</div>`;
+  const a = answer(i);
+  if (m.kind === 'mark' && caughtText()) return `<div class="gist">“${esc(caughtText())}”${a ? ' — ' + esc(a) : ''}</div>`;
+  return a ? `<div class="gist">${esc(a)}</div>` : '';
+}
+function railHTML() {
+  const pr = P(), st = S.step[S.practice];
+  return `<aside class="rail">
+    <a class="home" href="#record">← Back to today’s entry <span class="kbd">esc</span></a>
+    <h1>${pr.name}</h1><div class="intent">${pr.intention}</div>
+    <ol class="path">${pr.moves.map((m, i) => `<li class="${i < st || S.finished[S.practice] ? 'done' : i === st ? 'on' : 'ahead'}" data-act="${i <= st ? 'goto' : ''}" data-v="${i}"><span class="lbl">${m.label}</span>${i < st || S.finished[S.practice] ? gistOf(i) : ''}</li>`).join('')}</ol>
+    <div class="saved">Saved to today’s entry as you write</div>
+    <div class="foot"><button class="link" data-act="about">About</button><button class="link">Delete page</button></div>
+  </aside>`;
+}
+function movePage() {
+  const pr = P(), st = S.step[S.practice], m = pr.moves[st];
+  if (S.finished[S.practice]) {
+    return `<div class="page"><div class="close arrive"><span class="lbl">${pr.name}</span><h2>${pr.key === 'dbs' ? 'That’s the study.' : 'Amen.'}</h2><p>Saved to today’s entry.${pr.passage ? ` ${esc(refLabel(passage()))} is lit on the Scripture surface.` : ''}</p><div class="r"><a class="btn" href="#record">← Back to today’s entry</a><button class="btn" data-act="after">Keep writing on this page</button></div></div></div>`;
+  }
+  const next = st === pr.moves.length - 1 ? (pr.key === 'dbs' ? 'Finish' : 'Amen') : m.kind === 'read' ? 'I’ve read it' : 'Continue';
+  const foot = `<div class="pfoot"><span>${st > 0 ? `<button class="link" data-act="goto" data-v="${st - 1}">← ${esc(pr.moves[st - 1].short)}</button>` : pr.passage ? `<button class="link" data-act="change">Change passage</button>` : ''}</span><span class="r"><button class="btn primary" data-act="next">${next} <span class="kbd">⌥↵</span></button></span></div>`;
+  let mid = '';
+  const facing = S.layout === 'facing';
+  const where = facing ? 'on the left' : S.layout === 'above' ? 'above' : 'in the pane';
+  if (m.kind === 'read') {
+    mid = facing
+      ? `<p class="await">The passage is ${where}. Take your time.</p>`
+      : '';
+  } else if (m.kind === 'mark') {
+    const ct = caughtText();
+    if (S.ownBible) mid = `<input class="typein" data-act="typecatch" placeholder="Type the word or phrase that caught you" value="${esc(S.typedCatch[S.practice])}">`;
+    else mid = ct ? `<div class="caughtq"><span class="cq">${esc(ct)}</span><button class="link" data-act="uncatch">choose another</button></div>` : `<p class="await">Touch a word ${where}, or drag across a phrase.</p>`;
+    mid += `<textarea data-ans="${st}" placeholder="${esc(m.ph)}">${esc(answer(st))}</textarea>`;
+  } else if (m.kind === 'dwell') {
+    const ct = caughtText();
+    return `<div class="page"><span class="lbl">${m.label}</span><div class="dwell-page arrive">${ct ? `<div class="word">${esc(ct)}</div>` : `<div class="word">${esc(refLabel(passage()))}</div>`}<p>${esc(m.q)}</p><p style="font-size:.9rem">Stay as long as you like.</p></div></div>${foot}`;
+  } else {
+    const ct = caughtText();
+    if (m.kind === 'carry' && ct) mid = `<div class="caughtq" style="font-size:1.15rem"><span class="cq">${esc(ct)}</span></div>`;
+    if (m.kind === 'cite' && !S.ownBible) mid = `<p class="await">Touch a verse number ${where} to bring its words into your answer.</p>`;
+    mid += `<textarea data-ans="${st}" placeholder="${esc(m.ph || '')}">${esc(answer(st))}</textarea>`;
+  }
+  const readBig = m.kind === 'read' && !facing ? '' : '';
+  return `<div class="page arrive" data-step="${st}"><span class="lbl">${m.label}</span><div class="q">${esc(m.q)}</div>${readBig}${mid}</div>${foot}`;
+}
+function curKind() { const pr = P(); if (S.finished[S.practice]) return 'plain'; return pr.moves[S.step[S.practice]].kind; }
+function citedIn(i) { const a = answer(i); return [...a.matchAll(/\(v\. (\d+)\)/g)].map((x) => +x[1]); }
+function passageFor(kind) {
+  const p = passage();
+  if (S.ownBible) return ownHTML(p);
+  return passageHTML(p, { kind, caught: S.caught[S.practice], cited: kind === 'cite' ? citedIn(S.step[S.practice]) : [] });
+}
+function aboutHTML(pr) {
+  return `<div class="sheet-wrap"><button class="sheet-scrim" data-act="about-close" aria-label="Close"></button><aside class="about arrive">
+    <button class="x link" data-act="about-close">×</button>
+    <span class="lbl">${esc(pr.fn)}</span><h2>${esc(pr.name)}</h2><div class="or">${esc(pr.origin)} · ${esc(pr.tradition)}</div>
+    <div class="div"></div><p class="lead">${esc(pr.intention)}</p>
+    ${pr.passage ? `<div class="first">${BOOK_SVG}<div><b>With Scripture</b><span>${esc(pr.sizeHint)}</span></div></div>` : ''}
+    <h3>Why</h3><p>${esc(pr.why)}</p><h3>The shape</h3><p>${esc(pr.shape)}</p>
+    <h3>Tips</h3><ul>${pr.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+    <p class="quote">“${esc(pr.quote)}”</p></aside></div>`;
+}
+function vWalk() {
+  const pr = P(), st = S.step[S.practice], kind = curKind(), p = passage();
+  let html;
+  if (!pr.passage) {
+    // Every other ritual: the rail as it ships (master 466d9ae). Here for comparison with the leaf.
+    html = `<div class="v-above">${railHTML()}<main class="page-wrap">${movePage()}</main></div>`;
+  } else if (S.layout === 'facing') {
+    // The same rail, widened: back link, name, intention, path, About · Delete, "Saved…" — only the passage is new.
+    html = `<div class="v-face${ui.widen ? ' widen' : ''}">
+      <section class="leaf">
+        <a class="home chrome" href="#record">← Back to today’s entry <span class="kbd">esc</span></a>
+        <div class="who"><h1>${pr.name}</h1></div>
+        <div class="intent chrome">${pr.intention}</div>
+        <ol class="hpath chrome">${pr.moves.map((m, i) => { const done = i < st || S.finished[S.practice]; return `<li class="${done ? 'done' : i === st && !S.finished[S.practice] ? 'on' : ''}" ${done ? `data-act="goto" data-v="${i}"` : ''}><i class="dot"></i>${esc(m.short)}${done ? `<span class="tip">${gistOf(i) || '<i>left blank</i>'}</span>` : ''}</li>`; }).join('')}</ol>
+        <div class="refline"><span class="ref">${esc(refLabel(p))}</span>${kind === 'read' || kind === 'plain' ? `<button class="link chrome" data-act="change">change</button>` : ''}</div>
+        ${passageFor(kind)}
+        ${kind === 'read' && !S.ownBible ? `<div class="under chrome"><button class="link" data-act="slow">Read it again, slowly</button></div>` : ''}
+        <div class="foot chrome"><button class="link" data-act="about">About</button><button class="link">Delete page</button><span class="attrib">${S.ownBible ? 'Saved to today’s entry as you write' : 'Saved as you write · WEB here, ESV in the app'}</span></div>
+      </section>
+      <main class="page-wrap">${movePage()}</main>
+    </div>`;
+  } else if (S.layout === 'above') {
+    const big = kind === 'read' || kind === 'dwell';
+    const folded = ui.fold === true && !big && kind !== 'mark';
+    const ct = caughtText();
+    const stripTxt = ct ? `<mark>${esc(ct)}</mark>` : esc((inRange(p)[0] || [0, ''])[1].split(' ').slice(0, 8).join(' ') + '…');
+    const block = kind === 'dwell' ? '' : `<div class="pblock${folded ? ' folded' : ''}${big ? ' big' : ''}" ${folded ? 'data-act="unfold"' : ''}>
+        <div class="ref"><span>${esc(refLabel(p))}</span>${folded ? '<span class="link">show ▾</span>' : kind === 'read' ? '<button class="link" data-act="change">change</button>' : '<button class="link" data-act="fold">fold ▴</button>'}</div>
+        <div class="strip">${stripTxt}</div>
+        ${passageFor(kind)}
+        ${kind === 'read' && !S.ownBible ? `<div class="under"><button class="link" data-act="slow">Read it again, slowly</button></div>` : ''}
+      </div>`;
+    const page = movePage().replace('<span class="lbl">', block + '<span class="lbl">');
+    html = `<div class="v-above">${railHTML()}<main class="page-wrap">${page}</main></div>`;
+  } else {
+    // C — today's parts: the Read movement is a textarea; the chapter pane floats beside.
+    const m0 = pr.moves[0];
+    const whole = { book: p.book, chapter: p.chapter, from: 1, to: lastVerse(p.book, p.chapter) };
+    const cited = []; for (let n = p.from; n <= p.to; n++) cited.push(n);
+    const pane = S.ownBible ? `<aside class="cpane"><div class="top"><span>${esc(refLabel(p))}</span></div>${ownHTML(p)}</aside>` :
+      `<aside class="cpane"><div class="top"><span>${esc(DISPLAY[p.book] || p.book)} ${p.chapter}</span><span>✕</span></div>${passageHTML(whole, { kind: kind === 'mark' ? 'mark' : 'plain', caught: S.caught[S.practice], cited })}</aside>`;
+    let page = movePage();
+    if (kind === 'read' && pr.key === 'lectio') {
+      // Honest "today": the real first prompt from practicesData.ts, and a box to retype the passage into.
+      page = page.replace(/<div class="page arrive" data-step="0">[\s\S]*?<\/div><div class="pfoot">/, `<div class="page arrive" data-step="0"><div class="todaynote">Today’s real first prompt. Typing <span class="mono">/scripture</span> here makes a verse block; clicking it opens the chapter pane →</div><span class="lbl">${m0.label}</span><div class="q">What passage are you bringing? Read it slowly, twice. What word or phrase caught you?</div><textarea data-ans="0" placeholder="Write the passage, then the word that found you…">${esc(answer(0))}</textarea></div><div class="pfoot">`);
+    }
+    html = `<div class="v-beside">${railHTML()}<main class="page-wrap">${page}</main>${pane}</div>`;
+  }
+  if (ui.about) html += aboutHTML(pr);
+  if (ui.confirm) html += `<div class="scrim"><div class="dialog"><h3>Read another passage?</h3><p>What you’ve written stays on this page. ${esc(refLabel(p))} is replaced by the passage you choose next${caughtText() ? `, and “${esc(caughtText())}” stays in your words but goes dark in the text if it isn’t there` : ''}.</p><div class="r"><button class="btn" data-act="confirm-no">Keep ${esc(refLabel(p))}</button><button class="btn primary" data-act="confirm-yes">Choose another</button></div></div></div>`;
+  return html;
+}
+
+/* ── PHONE ── */
+function vPhone() {
+  const lp = PRACTICES.lectio;
+  const p = S.passage.lectio || lp.fallback;
+  const c = S.caught.lectio || { v: 4, a: 0, b: 2 };
+  const ct = (() => { const v = (versesOf(p.book, p.chapter) || []).find(([n]) => n === c.v); return v ? strip(v[1].split(' ').slice(c.a, c.b + 1).join(' ')) : 'Remain in me'; })();
+  const pips = (on, n = 4) => `<div class="pips">${Array.from({ length: n }, (_, i) => `<span class="pip ${i < on ? 'done' : i === on ? 'on' : ''}"></span>`).join('')}</div>`;
+  const top = (name) => `<div class="sb"></div><div class="top"><span>‹ Journal</span><span class="lbl" style="font-size:.55rem">${name}</span><span>⋯</span></div>`;
+  const kb = `<div class="kb">${[10, 9, 7, 1].map((n, r) => `<div>${r === 3 ? '<span style="flex:0 0 60px"></span><span class="wide"></span><span style="flex:0 0 60px"></span>' : Array.from({ length: n }, () => '<span></span>').join('')}</div>`).join('')}</div>`;
+  const psg = (kind, caught) => passageHTML(p, { kind, caught });
+  const mk = S.passage.dbs || PRACTICES.dbs.fallback;
+  const phones = [
+    [`<div class="sb"></div><div class="top"><span></span><span class="lbl" style="font-size:.55rem">Lectio Divina</span><span></span></div>
+      <div class="sheet"><div class="grab"></div><span class="lbl">What will you read?</span><input value="Mark" readonly>
+      <div class="fsec"><h5 style="font-family:Inter;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin:0 0 .5rem">Mark · lit where you’ve written</h5>
+      <div class="chstrip">${Array.from({ length: 16 }, (_, i) => i + 1).map((ch) => `<span class="ch${HEAT.Mark[ch] ? ' here' : ''}" style="--h:${HEAT.Mark[ch] || 0};display:inline-flex;align-items:center;justify-content:center">${ch}</span>`).join('')}</div></div>
+      <div class="fsec"><h5 style="font-family:Inter;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin:0 0 .5rem">You return to</h5>
+      <div class="chips"><span class="chip"><span class="glow"></span>Psalm 23</span><span class="chip"><span class="glow" style="--h:.8"></span>John 15:5</span><span class="chip"><span class="glow" style="--h:.6"></span>Matthew 11:28–30</span></div></div></div>`,
+      'The finder is a sheet', 'Same finder, full height. The canon becomes the chapter strip once you type a book.'],
+    [`${top('Lectio Divina')}${pips(0)}<div class="body"><span class="lbl">${esc(refLabel(p))}</span><div style="margin-top:.4rem">${psg('read')}</div></div><div class="bot"><span class="link" style="font-size:.85rem">change</span><span class="btn primary">I’ve read it</span></div>`,
+      'Read: the passage is the page', 'No textarea. The movement’s content is the passage itself.'],
+    [`${top('Lectio Divina')}${pips(1)}<div class="body"><div class="half"><span class="lbl">${esc(refLabel(p))}</span><div style="margin-top:.3rem">${psg('mark', c)}</div></div><span class="lbl">Meditatio — Meditate</span><div class="q">Which word caught you?</div><div class="ta" style="color:var(--text-faint);font-style:italic">Tap to write…</div></div>`,
+      'Meditate: tap the word', 'Long-press and drag for a phrase, the way text selection already works. The word lights up and stays lit.'],
+    [`${top('Lectio Divina')}${pips(2)}<div class="pstrip"><span class="ref">${esc(refLabel(p))}</span><mark>${esc(ct)}</mark><span class="chev">▾</span></div><div class="body"><span class="lbl">Oratio — Pray</span><div class="q">What does this word prompt you to say to God?</div><div class="ta">Lord, I keep leaving. Teach me what staying looks like on a Tuesday<span class="caret"></span></div></div>${kb}`,
+      'Keyboard up: the strip', 'The passage folds to one line and carries the caught word. Tap ▾ to open it over the page as a sheet.'],
+    [`${top('Discovery Bible Study')}${pips(2, 6)}<div class="body"><div class="half"><span class="lbl">${esc(refLabel(mk))}</span><div style="margin-top:.3rem;max-height:230px;overflow:hidden">${passageHTML(mk, { kind: 'cite', cited: [39] })}</div></div><span class="lbl">About God</span><div class="q">What does this passage show you about God?</div><div class="ta">He is not asleep to it. “He awoke, and rebuked the wind…” (v. 39)<span class="caret"></span></div></div>`,
+      'Quote a verse: tap its number', 'The verse number is the tap target: it drops the verse into your answer with its number. No selection handles, no copy and paste.'],
+  ];
+  return `<div class="v-phone"><div class="col"><div class="intro"><span class="lbl">On a phone</span><h1>The keyboard owns half the glass.</h1>
+    <p>The phone keeps its filmstrip, one movement per screen. What changes is that the passage gets a home: the whole screen when you are reading, the top half when you are choosing a word, and a single strip once you type. The strip carries the word you caught.</p>
+    <p class="softnote">Today the phone’s answer box is a plain textarea: no <span class="mono">/</span>, no markings. Tapping a word in the passage is the one gesture these practices can’t do without. Everything else here the phone can already draw.</p></div>
+    <div class="phones">${phones.map(([inner, t, cap]) => `<div class="phonewrap"><div class="phone">${inner}</div><div class="cap"><b>${t}</b>${cap}</div></div>`).join('')}</div></div></div>`;
+}
+
+/* ── EDGES ── */
+let slash = { open: false, text: 'He is not asleep to it. ', xref: null, quote: null };
+function vEdge() {
+  const pd = S.passage.dbs || PRACTICES.dbs.fallback;
+  const vs = inRange(pd);
+  return `<div class="v-edge"><div class="col">
+  <span class="lbl">Edge cases</span><h1>What happens when…</h1>
+  <p class="lede">The rule that settles most of these: <b>a ritual has one passage, and it lives in the first movement.</b> Everything else the writer brings is theirs, in their answers, where it already works.</p>
+
+  <h2>1 · /scripture inside an answer</h2>
+  <div class="slashdemo">
+    <div class="mini">
+      <span class="lbl">About God</span><div class="q">What does this passage show you about God?</div>
+      <textarea id="slash-ta" placeholder="Type / to bring in scripture">${esc(slash.text)}</textarea>
+      ${slash.quote ? `<p class="quoteline">“${esc(slash.quote[1])}” <span style="color:var(--gold);font-size:.85rem">(v. ${slash.quote[0]})</span></p>` : ''}
+      ${slash.xref ? `<div class="xref">${esc(slash.xref.text)}<span class="c">${esc(slash.xref.ref)}</span></div>` : ''}
+      ${slash.open ? `<div class="palette">
+        <div class="h">From ${esc(refLabel(pd))} — this ritual’s passage</div>
+        ${vs.slice(-3).map(([n, t]) => `<button data-act="sl-quote" data-v="${n}">Quote verse ${n}<small>${esc(t)}</small></button>`).join('')}
+        <div class="h">Elsewhere in Scripture</div>
+        <button data-act="sl-xref">Psalm 23:4 — found by searching “afraid”<small>Even though I walk through the valley of the shadow of death…</small></button>
+        <button data-act="sl-search">Search for another passage…<small>the same finder, as a popover</small></button>
+        <div class="h">The passage itself</div>
+        <button data-act="sl-change">Change this ritual’s passage…<small>goes through the confirm below</small></button>
+      </div>` : `<p class="softnote" style="font-size:.9rem">Type <span class="kbd">/</span> in the box, or <button class="link" data-act="sl-open">open the palette</button>.</p>`}
+    </div>
+    <div class="rule">
+      <p><b>Scoped palette.</b> In a scripture ritual, <span class="mono">/scripture</span> opens with the ritual’s own verses first. Quoting one of those writes a <b>plain quoted line</b> with its verse number, not a second scripture block: the passage is already captured once, so it isn’t counted twice.</p>
+      <p><b>A cross-reference is an ordinary scripture block</b> inside the answer, the same fence <span class="mono">/scripture</span> writes today. It lights the Scripture surface like any other. It <b>never replaces</b> the passage on the leaf. Clicking it opens the chapter pane over the leaf (D-024), and closing the pane gives the leaf back.</p>
+      <p><b>In a ritual that isn’t scripture-centric</b> (the Examen, Gratitude), <span class="mono">/scripture</span> is unchanged.</p>
+    </div>
+  </div>
+
+  <h2>2 · The passage itself</h2>
+  <div class="cards">
+    <div class="ecard lean"><h3>Changing the passage after writing</h3><p class="when">You’ve answered two movements, then realize you meant John 14.</p><p class="then">Allowed, behind one plain confirm. Your answers stay. The caught word stays in your words, but it goes dark in the text if the new passage doesn’t contain it. Before your first answer there’s no confirm at all.</p><p class="why">Never silently rewrite what they wrote (H3). No “your answers will be lost”: they won’t be.</p><div class="try"><button class="link" data-act="try-change">Try it in the walk →</button></div></div>
+    <div class="ecard"><h3>Two passages in one ritual</h3><p class="when">“I want to read Psalm 23 alongside John 10.”</p><p class="then">One ritual, one passage. The second is a cross-reference inside an answer (above). If they want a second passage to be <i>the</i> passage, that’s a second ritual, and one entry holds one ritual.</p><p class="why">Keeps the leaf single and the record parseable: the first fence in the first movement.</p></div>
+    <div class="ecard"><h3>Too long for the practice</h3><p class="when">All 27 verses of John 15 for Lectio.</p><p class="then">A soft line, once: “Lectio usually stays with a few verses. You can keep all 27.” Never blocked. The only hard ceiling is one chapter, which is also the licence shape D-024 already uses.</p><p class="why">Principle 6: their practice. We describe; we don’t enforce.</p><div class="try"><button class="link" data-act="try-long">Try it →</button></div></div>
+    <div class="ecard"><h3>Crossing a chapter line</h3><p class="when">John 14:27–15:4.</p><p class="then">Allowed when typed. The leaf shows a chapter break as a small “15” rule. The finder’s click-to-choose stays inside one chapter, so only a typed reference ever crosses.</p><p class="why">Rare, and <span class="mono">parse.ts</span> already reads cross-chapter ranges.</p></div>
+    <div class="ecard"><h3>One verse for Discovery</h3><p class="when">Only Mark 4:39 is chosen.</p><p class="then">“Discovery reads a whole story. Choose the section this verse sits in →” Clicking it widens to 35–41. Ignoring it is fine.</p><div class="try"><button class="link" data-act="try-one">Try it →</button></div></div>
+    <div class="ecard"><h3>Starting from a verse you already have</h3><p class="when">A scripture block in yesterday’s entry, and you want to pray it.</p><p class="then">The block’s menu gets “Pray this with Lectio.” It begins a new ritual page with that passage already chosen, so the finder is skipped.</p><p class="why">The door from reading into a ritual, which rituals-write-only says is missing.</p></div>
+  </div>
+
+  <h2>3 · The words</h2>
+  <div class="cards">
+    <div class="ecard lean"><h3>Reading from their own paper Bible</h3><p class="when">NIV on the desk, and no interest in ESV.</p><p class="then">“I’m reading from my own Bible” keeps the reference and shows no text. Meditate asks them to type the word that caught them. The page still lights on the Scripture surface, because the reference is enough.</p><p class="why">No translation picker (SCRIPTURE.md), no silent assumption. Plenty of our people journal with a paper Bible open.</p><div class="try"><button class="link" data-act="try-own">Try it in the walk →</button></div></div>
+    <div class="ecard"><h3>Offline</h3><p class="when">On a plane. ESV can’t be fetched.</p><p class="then">If the passage is one of the bundled <span class="mono">offlinePassages</span>, show it. If not, fall back to reference-only (as above) with “The words will come back when you’re online.” They’re filled into the fence on the next sync, from ESV, never from memory.</p></div>
+    <div class="ecard"><h3>A typo, or a book that isn’t one</h3><p class="when">“Jhon 15” · “Hezekiah 3”</p><p class="then">“Did you mean John 15?” For no match at all, the word is treated as a topic, never a guessed reference.</p><div class="try"><button class="link" data-act="try-typo">Try “jhon 15” →</button></div></div>
+    <div class="ecard"><h3>Pasting the verse instead of the reference</h3><p class="when">Copied from bible.com into the search box.</p><p class="then"><span class="mono">pasteDetect.ts</span> already recognizes pasted verses (D-024’s auto-land). The finder offers the match as its reference, with the text shown so they can see it’s right.</p></div>
+    <div class="ecard"><h3>A word search that finds nothing sensible</h3><p class="when">“tuesday”</p><p class="then">Three passages are still offered, labeled as chosen by a model from their word, with the verse text from ESV. If nothing resolves, show a plain “No passage for that word. Try a book or a reference.” No filler.</p><p class="why">Principle 4: grounded, or silent.</p></div>
+  </div>
+
+  <h2>4 · Coming back</h2>
+  <div class="cards">
+    <div class="ecard"><h3>Leaving mid-ritual</h3><p class="when">Esc after Meditate.</p><p class="then">The passage is already written into the page (movement one). Reopening restores the leaf from that fence, and the caught word from the <span class="mono">&gt;</span> quote line at the head of Meditate.</p></div>
+    <div class="ecard"><h3>Contemplatio left empty</h3><p class="when">Rest has nothing to write, by design.</p><p class="then">A dwell movement counts as done once you walk past it, so no permanent “continue” button is left on the page. The rail says “rested.” Nothing is stored for it.</p><p class="why">The Round already drops untouched movements. This borrows that.</p></div>
+    <div class="ecard"><h3>The same passage again</h3><p class="when">John 15 for the third time.</p><p class="then">One grounded line in the finder: “You were here on Sept 12 in Lectio Divina — you caught ‘apart from me you can do nothing’.” It links to that page. There’s no count and no “again!”</p><div class="try"><button class="link" data-act="try-been">See it →</button></div></div>
+    <div class="ecard"><h3>Opening the page from the wall or the editor</h3><p class="when">Double-click the card, or open it through the sidebar.</p><p class="then">Same route as every ritual page (<span class="mono">ritualEntryShape → composer</span>), and the leaf comes back with it. In the read-only record, the passage fence renders as the normal scripture block.</p><p class="why">Trap from Sept 23: any new way to open an entry must check the ritual shape.</p></div>
+    <div class="ecard"><h3>Phone: no <span class="mono">/</span> in answers</h3><p class="when">The phone filmstrip’s answer is a textarea.</p><p class="then">Scripture rituals don’t depend on it. Choosing is the finder sheet, catching is a tap on the passage, and quoting a verse is a tap on its number. Cross-references on a phone wait for the textarea to become an editor.</p></div>
+  </div>
+  </div></div>`;
+}
+
+/* ── RECORD ── */
+function recordMarkdown(k) {
+  const pr = PRACTICES[k], p = S.passage[k] || pr.fallback;
+  const saved = S.practice; S.practice = k;
+  const ct = caughtText(); S.practice = saved;
+  const text = S.ownBible ? '' : inRange(p).map(([, t]) => t).join(' ');
+  let md = `<span class="tok">&lt;!-- ritual:name:${pr.name} --&gt;</span>\n`;
+  pr.moves.forEach((m, i) => {
+    md += `<span class="tok">&lt;!-- ritual:section:${esc(m.label)} --&gt;</span>\n`;
+    const a = S.answers[`${k}:${i}`] || '';
+    if (m.kind === 'read') md += `<span class="fence new">\`\`\`dayspring-scripture 7c1e0b52-…\n${esc(text)}${text ? '\n' : ''}${esc(refLabel(p))} · ${S.ownBible ? 'own Bible' : 'ESV'}\n\`\`\`</span>\n`;
+    else if (m.kind === 'mark') md += (ct ? `<span class="new">&gt; ${esc(ct)}</span>\n\n` : '') + (a ? esc(a) + '\n' : '');
+    else if (m.kind === 'dwell') md += '';
+    else md += a ? esc(a).replace(/“([^”]+)” \(v\. (\d+)\)/g, '<span class="new">“$1” (v. $2)</span>') + '\n' : '';
+  });
+  md += `<span class="tok">&lt;!-- ritual:end --&gt;</span>`;
+  return md;
+}
+function readerHTML(k) {
+  const pr = PRACTICES[k], p = S.passage[k] || pr.fallback;
+  const saved = S.practice; S.practice = k; const ct = caughtText(); S.practice = saved;
+  const text = inRange(p).map(([, t]) => t).join(' ');
+  let h = `<div class="d">Friday, September 26</div><div class="nm">${pr.name}</div>`;
+  pr.moves.forEach((m, i) => {
+    const a = S.answers[`${k}:${i}`] || '';
+    if (m.kind === 'read') h += `<span class="rl">${esc(m.label)}</span><div class="sblock">${S.ownBible ? '' : esc(text)}<span class="c">${esc(refLabel(p))}</span></div>`;
+    else if (m.kind === 'dwell') h += `<span class="rl">${esc(m.label)}</span><p class="rested">rested</p>`;
+    else if (m.kind === 'mark') h += `<span class="rl">${esc(m.label)}</span>${ct ? `<blockquote>${esc(ct)}</blockquote>` : ''}<p>${esc(a) || '<span class="rested">—</span>'}</p>`;
+    else h += `<span class="rl">${esc(m.label)}</span><p>${esc(a) || '<span class="rested">—</span>'}</p>`;
+  });
+  return h;
+}
+function wallHTML(k) {
+  const pr = PRACTICES[k], p = S.passage[k] || pr.fallback;
+  const saved = S.practice; S.practice = k; const ct = caughtText(); S.practice = saved;
+  const first = pr.moves.findIndex((m) => m.kind !== 'read' && m.kind !== 'dwell' && (S.answers[`${k}:${pr.moves.indexOf(m)}`]));
+  const a = first >= 0 ? S.answers[`${k}:${first}`] : '';
+  return `<div class="wallcard"><div class="d">Fri, Sept 26</div><span class="nm">${pr.name}</span> <span class="gref" style="font-size:.9rem">· ${esc(refLabel(p))}</span>
+    <p>${ct ? `<span class="rl">${esc(pr.moves[1].short)}</span>“${esc(ct)}” ` : ''}${a ? `${!ct || first !== 1 ? `<span class="rl">${esc(pr.moves[first].short)}</span>` : ''}${esc(a)}` : (ct ? '' : '<i style="color:var(--text-faint)">Walk the ritual and your first answer appears here.</i>')}</p></div>`;
+}
+function vRecord() {
+  const k = PRACTICES[S.practice].passage ? S.practice : 'lectio';
+  return `<div class="v-record"><div class="col">
+    <span class="lbl">What it writes</span><h1>The same page format, with a passage in it.</h1>
+    <p class="lede">A ritual entry is still <span class="mono">ritual:name</span> plus one <span class="mono">ritual:section</span> per movement. The passage is an ordinary scripture fence, the same one <span class="mono">/scripture</span> writes, sitting as the first movement’s answer. So it syncs, exports and lights the Scripture surface with nothing new. Highlighted lines are the only things these practices add.</p>
+    <div style="display:flex;gap:.3rem;margin-bottom:1rem">${SCRIPTURE_KEYS.map((key) => PRACTICES[key]).map((p) => `<button class="chip" data-act="practice" data-v="${p.key}" style="${k === p.key ? 'border-color:var(--gold)' : ''}">${p.name}</button>`).join('')}</div>
+    <div class="grid">
+      <div><pre class="md">${recordMarkdown(k)}</pre></div>
+      <div>${wallHTML(k)}<div class="readerpage">${readerHTML(k)}</div></div>
+    </div>
+
+    <div class="build"><h2>What gets built</h2>
+    <table><tr><th>Piece</th><th>Shape</th><th>Exists today</th></tr>
+      <tr><td>Movement kinds</td><td>Optional <code>kind</code> on <code>PracticePrompt</code>: <code>read · mark · carry · dwell · cite</code>. Absent = today’s textarea. Only Lectio, SOAP and Discovery declare any.</td><td>No: the walk prototype’s proposal, plus <code>cite</code></td></tr>
+      <tr><td>Passage size hint</td><td><code>passage: { size: 'few' | 'story' }</code> on <code>Practice</code>. Its presence also marks a practice as scripture-centric.</td><td>No</td></tr>
+      <tr><td>Library</td><td>The same <code>passage</code> flag puts <b>With Scripture</b> on the card and on the About sheet, adds a filter chip beside the hours, and adds “scripture bible passage verse study” to the search haystack</td><td>Half: search + the rhythm chips exist</td></tr>
+      <tr><td>The finder</td><td><code>PassageFinder</code>: reference + bare-book + typo parse, the lit canon, returning, marked lately, topic search</td><td class="yes"><code>parse.ts</code>, <code>getBookChapterHeat</code>, <code>getReturning</code>, <code>fetchScriptureRefs</code> + <code>resolveScripturePassages</code>, <code>pasteDetect</code></td></tr>
+      <tr><td>Chapter text</td><td>One chapter at a time, choose verses</td><td class="yes"><code>scripture-chapter.ts</code> + <code>ChapterPane</code> (D-024)</td></tr>
+      <tr><td>The leaf</td><td>A <code>PassageLeaf</code> inside <code>DeskLayout</code>, replacing the rail’s body when the practice has a passage. On the phone, a strip plus a sheet over the filmstrip.</td><td>Half: rail layout exists</td></tr>
+      <tr><td>Record</td><td>First scripture fence in movement one = the passage; <code>&gt;</code> line at the head of Meditate = the caught word; <code>(v. N)</code> = a quoted verse</td><td class="yes">Fences already live inside ritual answers (markings-inside-rituals, Sept 23)</td></tr>
+      <tr><td>Completion</td><td><code>isRitualComplete</code> skips <code>dwell</code></td><td>One line</td></tr>
+    </table></div>
+
+    <div class="decisions"><h2>Decisions for Phil</h2><ol>
+      <li><b>Where the passage sits on a desk: Facing (A) or Above (B)?</b><span class="lean">Lean: A. Lectio is re-reading, and A is the only layout where the text never moves while you write. B is the phone’s shape anyway, so it’s built either way.</span></li>
+      <li><b>SOAP and Discovery side by side?</b><span class="lean">SOAP is already on the shelf, so it gets the finder and the leaf with no new copy. Discovery is the one new card. They overlap: both read, observe, apply. What Discovery adds is “about God / about us” and “who to tell”. Lean: ship both, and let <span class="mono">ritual_finished</span> say whether people tell them apart.</span></li>
+      <li><b>“Where you left off” in Discovery: the next section after your last study.</b><span class="lean">It’s grounded, but it leans toward a reading plan (a VISION non-goal). Lean: keep it to exactly one row, the next section, with no progress through the book and nothing shown when there’s no history.</span></li>
+      <li><b>Should the next Discovery show last week’s “I will”?</b><span class="lean">DBS groups ask “how did your I will go?” Verbatim is grounded, but a remembered promise is a verdict waiting to happen (Principle 2). Lean: not in v1. Ask Kristi/Judy.</span></li>
+      <li><b>The caught word as a <span class="mono">&gt;</span> quote line, or as a real marking on the verse?</b><span class="lean">Lean: quote line. It’s plain markdown, survives export, and needs no position bookkeeping in answers (the Sept 23 trap). A marking can come later.</span></li>
+      <li><b>Crossway:</b> the finder shows one chapter, the same shape as the shipped chapter pane, so this adds no new exposure. The commercial-licence question in SCRIPTURE.md is unchanged, and it gets louder if rituals lead the paid campaign (D-030).</li>
+      <li><b>Falsifier first?</b> <span class="mono">ritual_finished</span> reports <span class="mono">{movements, answered}</span>. A beta of these two practices on alpha answers “does keeping the passage in view carry people past movement one?” faster than any more prototyping.</li>
+    </ol></div>
+  </div></div>`;
+}
+
+/* ═══ RENDER ═══════════════════════════════════════════════════════════ */
+function render() {
+  applyTheme();
+  renderBar(); renderNote();
+  const sc = scene();
+  const st = $('#stage');
+  if (sc === 'find' && !P().passage) S.practice = 'lectio';
+  st.innerHTML = sc === 'library' ? vLibrary() : sc === 'find' ? vFind() : sc === 'walk' ? vWalk() : sc === 'phone' ? vPhone() : sc === 'edge' ? vEdge() : sc === 'record' ? vRecord() : vIntro();
+  if (sc === 'find') {
+    renderResults();
+    const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+  }
+  if (sc === 'walk' && ui.widen) setTimeout(() => { ui.widen = false; }, 1000);
+  if (sc === 'library' && S.libq) { const q = $('#libq'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  if (sc === 'walk') {
+    const ta = document.querySelector('.page textarea');
+    if (ta && ui.focus !== false) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); autosize(ta); }
+  }
+}
+function autosize(ta) { if (!ta) return; }
+
+window.addEventListener('hashchange', () => { ui.confirm = false; ui.fold = null; ui.about = false; ui.thresh = null; render(); document.getElementById('stage').firstElementChild?.scrollTo?.(0, 0); });
+
+/* ── events ── */
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.id === 'q') { S.fq = t.value; S.fch = null; S.fsel = null; if (!t.value.trim()) S.fbook = null; save(); renderResults(); return; }
+  if (t.id === 'libq') {
+    S.libq = t.value; save();
+    $('#libgrid').innerHTML = libGridHTML();
+    document.querySelectorAll('.libctl .pfilter').forEach((b) => { b.dataset.on = !S.libq.trim() && (b.dataset.act === 'scripture-only' ? S.scriptureOnly : !S.scriptureOnly && S.rhythm === b.dataset.v); });
+    return;
+  }
+  if (t.dataset.ans != null) {
+    S.answers[ansKey(+t.dataset.ans)] = t.value; save();
+    document.querySelector('.v-face')?.classList.add('typing');
+    if (S.layout === 'above') {
+      const pb = document.querySelector('.pblock');
+      const k = curKind();
+      if (pb && k !== 'read' && k !== 'mark' && ui.fold == null && t.value.length > 0 && !pb.classList.contains('folded')) { ui.fold = true; ui.focus = true; render(); }
+    }
+    return;
+  }
+  if (t.dataset.act === 'typecatch') { S.typedCatch[S.practice] = t.value; save(); return; }
+  if (t.id === 'slash-ta') {
+    slash.text = t.value;
+    if (t.value.endsWith('/')) { slash.text = t.value.slice(0, -1); slash.open = true; render(); }
+  }
+});
+let lastMove = 0;
+document.addEventListener('mousemove', (e) => {
+  const f = document.querySelector('.v-face.typing');
+  if (!f) return;
+  const d = Math.abs(e.movementX) + Math.abs(e.movementY);
+  if (d > 6) f.classList.remove('typing');
+});
+document.addEventListener('keydown', (e) => {
+  const sc = scene();
+  if (sc === 'find' && e.target.id === 'q') {
+    const rows = [...document.querySelectorAll('#results .row')];
+    if (e.key === 'ArrowDown' && rows.length) { e.preventDefault(); ui.kb = Math.min(rows.length - 1, ui.kb + 1); markKb(); return; }
+    if (e.key === 'ArrowUp' && rows.length) { e.preventDefault(); ui.kb = Math.max(0, ui.kb - 1); markKb(); return; }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (S.fch) { begin(); return; }
+      const r = rows[ui.kb]; if (r) r.click();
+      return;
+    }
+  }
+  if (e.key === 'Escape') {
+    if (ui.about) { ui.about = false; render(); return; }
+    if (ui.thresh) { ui.thresh = null; render(); return; }
+    if (ui.confirm) { ui.confirm = false; render(); return; }
+    if (slash.open) { slash.open = false; render(); return; }
+    if (sc === 'find') { if (S.fch) { S.fch = null; S.fsel = null; save(); renderResults(); } else { S.changing = false; save(); location.hash = S.passage[S.practice] ? 'walk' : 'intro'; } return; }
+    if (sc === 'walk') { location.hash = 'record'; return; }
+  }
+  if (sc === 'walk' && e.key === 'Enter' && e.altKey) { e.preventDefault(); next(); }
+});
+function next() {
+  const pr = P(), k = S.practice;
+  if (S.finished[k]) return;
+  if (S.step[k] >= pr.moves.length - 1) S.finished[k] = true; else S.step[k]++;
+  ui.fold = null; save(); render();
+}
+
+/* catching a word: click or drag within one verse */
+let drag = null;
+document.addEventListener('pointerdown', (e) => {
+  const w = e.target.closest('.psg[data-kind="mark"] .w');
+  if (w && scene() !== 'phone') { drag = { v: +w.dataset.v, a: +w.dataset.i, b: +w.dataset.i, el: w.closest('.psg') }; paintDrag(); e.preventDefault(); }
+});
+document.addEventListener('pointerover', (e) => {
+  if (!drag) return;
+  const w = e.target.closest('.w');
+  if (w && +w.dataset.v === drag.v) { drag.b = +w.dataset.i; paintDrag(); }
+});
+document.addEventListener('pointerup', (e) => {
+  if (!drag) return;
+  const { v, a, b } = drag; drag = null;
+  S.caught[S.practice] = { v, a: Math.min(a, b), b: Math.max(a, b) }; save(); ui.focus = true; render();
+});
+function paintDrag() {
+  drag.el.querySelectorAll('.w.pre').forEach((x) => x.classList.remove('pre'));
+  const lo = Math.min(drag.a, drag.b), hi = Math.max(drag.a, drag.b);
+  drag.el.querySelectorAll(`.w[data-v="${drag.v}"]`).forEach((x) => { const i = +x.dataset.i; if (i >= lo && i <= hi) x.classList.add('pre'); });
+}
+
+document.addEventListener('click', (e) => {
+  const sc = scene();
+  // choose verses in the finder
+  const rv = e.target.closest('.reading-view .vs');
+  const rsec = e.target.closest('.reading-view .sec');
+  if (rsec) { const secs = SECTIONS[corpusKey(S.fch.book, S.fch.chapter)]; const i = secs.findIndex(([n]) => n === +rsec.dataset.sec); const to = secs[i + 1] ? secs[i + 1][0] - 1 : lastVerse(S.fch.book, S.fch.chapter); S.fsel = { from: +rsec.dataset.sec, to }; save(); renderResults(); return; }
+  if (rv) {
+    const n = +rv.dataset.n, s = S.fsel;
+    if (!s || (!e.shiftKey && s.from !== s.to) ) S.fsel = { from: n, to: n };
+    else if (s.from === s.to && s.from === n) S.fsel = null;
+    else S.fsel = { from: Math.min(s.from, n), to: Math.max(s.to, n) };
+    if (s && s.from === s.to && s.from !== n && !e.shiftKey) S.fsel = { from: Math.min(s.from, n), to: Math.max(s.from, n) };
+    save(); const y = $('#find-scroll').scrollTop; renderResults(); $('#find-scroll').scrollTop = y; return;
+  }
+  // cite a verse into the answer
+  const vn = e.target.closest('.psg[data-kind="cite"] .vn');
+  if (vn) {
+    const n = +vn.dataset.n; const v = inRange(passage()).find(([x]) => x === n);
+    const ta = document.querySelector('.page textarea');
+    if (v && ta) {
+      const ins = `“${v[1].replace(/^[“"]|[”"]$/g, '').replace(/“/g, '‘').replace(/”/g, '’')}” (v. ${n}) `;
+      const pos = ta.selectionStart ?? ta.value.length;
+      const before = ta.value.slice(0, pos), after = ta.value.slice(pos);
+      ta.value = before + (before && !/\s$/.test(before) ? ' ' : '') + ins + after;
+      S.answers[ansKey(S.step[S.practice])] = ta.value; save(); ui.focus = true; render();
+    }
+    return;
+  }
+  const a = e.target.closest('[data-act]');
+  if (!a) return;
+  const act = a.dataset.act, v = a.dataset.v;
+  switch (act) {
+    case 'theme': S.theme = isDark() ? 'light' : 'dark'; save(); render(); break;
+    case 'reset': { const th = S.theme; S = fresh(); S.theme = th; save(); slash = { open: false, text: 'He is not asleep to it. ', xref: null, quote: null }; location.hash = 'intro'; render(); break; }
+    case 'note': S.noteMin = !S.noteMin; save(); renderNote(); break;
+    case 'practice': S.practice = v; S.fch = null; S.fsel = null; ui.about = false; save(); render(); break;
+    case 'layout': S.layout = v; ui.fold = null; save(); render(); break;
+    case 'own': S.ownBible = !S.ownBible; save(); render(); break;
+    case 'begin-practice': ui.thresh = null; S.practice = v; S.fq = ''; S.fch = null; S.fsel = null; S.fbook = null; S.changing = false; save(); location.hash = 'find'; break;
+    case 'pick-book': S.fbook = a.dataset.b; S.fq = a.dataset.b; S.fch = null; save(); { const q = $('#q'); if (q) q.value = S.fq; } renderResults(); break;
+    case 'open-ref': openRef(a.dataset.b, +a.dataset.c, a.dataset.f ? +a.dataset.f : null, a.dataset.t ? +a.dataset.t : null); break;
+    case 'find-back': S.fch = null; S.fsel = null; S.fq = S.fbook || ''; save(); { const q = $('#q'); if (q) q.value = S.fq; } renderResults(); break;
+    case 'sel-section': { const secs = SECTIONS[corpusKey(S.fch.book, S.fch.chapter)] || []; const n = S.fsel.from; let from = 1, to = lastVerse(S.fch.book, S.fch.chapter); secs.forEach(([s], i) => { if (s <= n) { from = s; to = secs[i + 1] ? secs[i + 1][0] - 1 : to; } }); S.fsel = { from, to }; save(); renderResults(); break; }
+    case 'begin': begin(false); break;
+    case 'own-ref': begin(true); break;
+    case 'leave-find': e.preventDefault(); S.changing = false; save(); location.hash = S.passage[S.practice] ? 'walk' : 'intro'; break;
+    case 'next': next(); break;
+    case 'about': ui.about = true; render(); break;
+    case 'about-close': ui.about = false; render(); break;
+    case 'rhythm': S.rhythm = v; S.scriptureOnly = false; S.libq = ''; save(); render(); break;
+    case 'scripture-only': S.scriptureOnly = !S.scriptureOnly; S.libq = ''; if (!S.scriptureOnly) S.rhythm = 'all'; save(); render(); break;
+    case 'lib-open': ui.thresh = v; render(); break;
+    case 'lib-close': ui.thresh = null; render(); break;
+    case 'begin-plain': ui.thresh = null; S.practice = v; S.step[v] = 0; S.finished[v] = false; save(); location.hash = 'walk'; break;
+    case 'goto': if (v !== '' && v != null) { S.step[S.practice] = +v; S.finished[S.practice] = false; ui.fold = null; save(); render(); } break;
+    case 'uncatch': S.caught[S.practice] = null; save(); render(); break;
+    case 'change': {
+      const any = P().moves.some((_, i) => answer(i)) || caughtText();
+      if (any) { ui.confirm = true; render(); } else { S.changing = true; S.fq = ''; S.fch = null; save(); location.hash = 'find'; }
+      break;
+    }
+    case 'confirm-no': ui.confirm = false; render(); break;
+    case 'confirm-yes': ui.confirm = false; S.changing = true; S.fq = ''; S.fch = null; save(); location.hash = 'find'; break;
+    case 'slow': { const ps = document.querySelector('.leaf .psg, .pblock .psg'); if (ps) { ps.classList.remove('reading'); void ps.offsetWidth; ps.classList.add('reading'); } break; }
+    case 'fold': ui.fold = true; ui.focus = false; render(); break;
+    case 'unfold': ui.fold = false; ui.focus = false; render(); break;
+    case 'after': location.hash = 'record'; break;
+    case 'sl-open': slash.open = true; render(); break;
+    case 'sl-quote': { const pd = S.passage.dbs || PRACTICES.dbs.fallback; slash.quote = inRange(pd).find(([n]) => n === +v); slash.open = false; render(); break; }
+    case 'sl-xref': { const t = (CORPUS['Psalm 23'].find(([n]) => n === 4) || [0, ''])[1]; slash.xref = { ref: 'Psalm 23:4', text: t }; slash.open = false; render(); break; }
+    case 'sl-search': case 'sl-change': slash.open = false; S.practice = 'dbs'; S.changing = act === 'sl-change'; S.fq = ''; S.fch = null; save(); location.hash = 'find'; break;
+    case 'try-change': { S.practice = 'lectio'; if (!S.passage.lectio) S.passage.lectio = PRACTICES.lectio.fallback; if (!answer(1)) S.answers['lectio:1'] = 'The word keeps coming back.'; S.step.lectio = Math.max(1, S.step.lectio); S.ownBible = false; save(); location.hash = 'walk'; setTimeout(() => { ui.confirm = true; render(); }, 60); break; }
+    case 'try-long': S.practice = 'lectio'; S.fq = 'John 15'; save(); location.hash = 'find'; setTimeout(() => { openRef('John', 15, 1, 27); }, 30); break;
+    case 'try-one': S.practice = 'dbs'; save(); location.hash = 'find'; setTimeout(() => { openRef('Mark', 4, 39, 39); }, 30); break;
+    case 'try-own': S.ownBible = true; S.practice = 'lectio'; if (!S.passage.lectio) S.passage.lectio = PRACTICES.lectio.fallback; S.step.lectio = 1; S.finished.lectio = false; save(); location.hash = 'walk'; break;
+    case 'try-typo': S.fq = 'jhon 15'; S.fch = null; S.fbook = null; save(); location.hash = 'find'; break;
+    case 'try-been': S.practice = 'lectio'; save(); location.hash = 'find'; setTimeout(() => { openRef('John', 15, 4, 5); }, 30); break;
+  }
+});
+render();
+</script>
+</body>
+</html>

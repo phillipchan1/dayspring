@@ -18,6 +18,7 @@ name forever.
 | **Dayspring** | `dayspring` | — | The product. Luke 1:78, *"the dayspring from on high hath visited us."* First light, visitation, mercy after darkness. Most users won't know the reference — telling them is a small gift. |
 | **The Ascent** | `reflections` | ⌘2 | Retrospective as elevation. ⚠️ Internal key is `reflections`, not `ascent` — predates the rename. |
 | **Lamp** | `scripture` | ⌘3 | Scripture as it has intersected the user's life. Psalm 119:105. |
+| **What’s new** | `firstlight` | — | The one place that announces a major change: a short visual deck shown once at cold start after an update, and reachable from Settings → About. Internal name *First Light* (also the name of the palette tokens) — never shown to users. Copy lives in `features/firstlight/releases.ts`. |
 | **Altar** | `altar` | ⌘4 | Matters returned to, and what came of them. **Not "Covenant"** — that rename was reverted unshipped (D-009). |
 | **Concordance** | `concordance` | — | Per-user vocabulary engine. Names and spellings only, never moods. |
 | **Threads & Ropes** | — | — | Surface never shipped; flag deleted 2026-09-07 (D-005). The `features/threads/data/` seam it left behind is live — Altar and the Ascent read warmth bands through it. |

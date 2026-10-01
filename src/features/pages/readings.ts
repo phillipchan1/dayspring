@@ -19,6 +19,7 @@
 //     them, and selection is significance (D-016).
 
 import { entryContentLines } from '@/lib/entryLabels'
+import { writerWords } from '@/lib/writerWords'
 import type { Entry } from '@/lib/types'
 
 export type Reading = 'order' | 'thennow' | 'bursts' | 'words' | 'near'
@@ -253,7 +254,9 @@ function vocabulary(entries: Entry[], terms: string[], floor: number): Map<strin
 
   for (const e of inOrder(entries)) {
     const here = new Set<string>()
-    for (const line of entryContentLines(e.body_markdown)) {
+    // Her vocabulary, not the translation's (Guardrail H3): writerWords drops the
+    // verses quoted into a scripture ritual along with the passage itself.
+    for (const line of entryContentLines(writerWords(e.body_markdown))) {
       for (const w of line.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)) {
         if (w.length < MIN_WORD_LENGTH) continue
         if (COMMON.has(w)) continue
