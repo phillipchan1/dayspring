@@ -188,9 +188,24 @@
   font-family: var(--font-editor);
   font-size: var(--editor-font-size, 20px);
   font-weight: 400;
-  line-height: 1.5;
+  /* The writer's leading too, not a fixed 1.5: the same words set tighter in
+     a ritual than on the page read as someone else's. */
+  line-height: var(--editor-line-height, 1.5);
+  /* The page's editorial finishing (global.css), minus the settling wraps: a
+     textarea is always the line being written, and `text-wrap: pretty` would
+     re-break it under the writer's pen on every keystroke. */
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  hanging-punctuation: first;
+  /* A textarea keeps the system caret (the filmstrip is the phone's layout,
+     where the platform owns it — voiceCaret.ts), but in the voice's colour:
+     Vellum's ink, Vigil's dim. */
+  caret-color: var(--caret-color, var(--accent));
 }
 .rc__write::placeholder { color: var(--text-faint); }
+.rc__write::selection {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+}
 
 /* ── The close ────────────────────────────────────────────────────────── */
 .rc__close {
@@ -571,7 +586,15 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 }
 .rc__write--editor .cm-editor.cm-focused { outline: none; }
 .rc__write--editor .cm-scroller { overflow: visible; }
-.rc__write--editor .cm-content { padding-top: 0; padding-bottom: 2rem; }
+.rc__write--editor .cm-content {
+  padding-top: 0;
+  padding-bottom: 2rem;
+  /* The page sets the measure here, not the editor. The editor's own
+     42rem cap, centred in a slightly wider page, set every answer ~6px to the
+     right of the question above it. */
+  max-width: none;
+  margin: 0;
+}
 
 /* ── The veil ─────────────────────────────────────────────────────────────
    Held by JournalScreen (`ritualVeil`) while a ritual page is opened or

@@ -1390,6 +1390,64 @@
   content: '\00a0]';
 }
 
+/* ── The caret, in each voice ───────────────────────────────────────────────
+   Drawn by editor/voiceCaret.ts on desktop (iOS and Android keep the system's
+   caret, which is part of their text machinery). The same family logic as the
+   dateline: each voice's caret is its own idiom, two of them restrained.
+
+     Dawn       2px accent, BREATHES — a slow fade, like first light
+     Vellum     a 1.5px line of ink, the classic blink: a pen, not a lamp
+     Cloister   a 1px hairline, the classic blink: precise, institutional
+     Sabbath    2px accent, breathes slowest of all
+     Plainsong  a terminal block, one character cell, hard blink
+     Vigil      dim and STEADY. Nothing flashes in a dark room
+
+   Every caret is solid while you type; the blink starts when you pause. */
+[data-theme='dawn'],
+[data-theme='ink'] {
+  --caret-period: 1.6s;
+  --caret-ease: ease-in-out;
+  --caret-low: 0.12;
+}
+[data-theme='vellum'],
+[data-theme='ember'] {
+  --caret-width: 1.5px;
+  --caret-offset: -0.75px;
+  --caret-color: var(--text-bright);
+}
+[data-theme='cloister'],
+[data-theme='compline'] {
+  --caret-width: 1px;
+  --caret-offset: -0.5px;
+}
+[data-theme='sabbath'],
+[data-theme='grove'] {
+  --caret-period: 2.6s;
+  --caret-ease: ease-in-out;
+  --caret-low: 0.12;
+}
+/* One cell wide — `ch` of the writing face, which in Plainsong is the grid.
+   Translucent, so the character under the block still reads, as in a
+   terminal that draws its cursor over the cell rather than instead of it. */
+[data-theme='quire'],
+[data-theme='nocturne'] {
+  --caret-width: 1ch;
+  --caret-offset: 0px;
+  --caret-period: 1s;
+  --caret-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+[data-theme='vigil'] {
+  --caret-color: var(--text-dim);
+}
+[data-theme='vigil'] .cm-voiceCaretLayer {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cm-voiceCaretLayer {
+    animation: none !important;
+  }
+}
+
 /* ── Vellum — rubrication ───────────────────────────────────────────────────
    Red-in-a-manuscript is literally what a rubric is: the scribe's second ink,
    used for the parts that are not the body — citations, section marks, the
