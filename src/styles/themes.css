@@ -1359,7 +1359,7 @@
 
      Dawn       a short sunrise rule above the date — the title's only mark
      Vellum     the date in rubric, small caps: the scribe's second ink
-     Cloister   plain tracked caps; the colonnade already frames the page
+     Cloister   plain tracked caps — its sans over serif is the ornament
      Plainsong  bracketed, like its citations — the grid is the ornament
      Sabbath    bare. The margin is the ornament
      Vigil      bare. Nothing glows
@@ -1497,31 +1497,12 @@
   font-weight: 400;
 }
 
-/* ── Cloister — the colonnade ───────────────────────────────────────────────
-   One hairline running the full height of the writing column, at its own left
-   edge. It is the only ornament here that is a line rather than a mark, which
-   is the point: the others punctuate, this one encloses. */
-[data-theme='cloister'] .cm-content,
-[data-theme='compline'] .cm-content,
-[data-theme='cloister'] .markdown-body,
-[data-theme='compline'] .markdown-body {
-  border-left: 1px solid var(--border);
-  padding-left: 2.2rem;
-  /* No compensating negative margin. `.markdown-body` carries `margin: 0 auto`
-     and Pages pins it to `margin-inline: 0` on a grid item for a documented
-     reason (Pages.css, "The measure, pinned"); reaching in here to re-centre
-     would re-open exactly that bug. Both boxes are border-box and centred, so
-     padding alone offsets the rule without moving the column. */
-}
-@media (max-width: 640px) {
-  [data-theme='cloister'] .cm-content,
-  [data-theme='compline'] .cm-content,
-  [data-theme='cloister'] .markdown-body,
-  [data-theme='compline'] .markdown-body {
-    border-left: 0;
-    padding-left: 0;
-  }
-}
+/* ── Cloister — no colonnade ───────────────────────────────────────────────
+   Cloister used to run a 1px hairline the full height of the writing column
+   at its left edge. In use it read as an odd vertical line beside the words —
+   and it cost the column 2.2rem of measure. Removed (D-028, amended 1 Oct
+   2026). Cloister's character is its pairing: Archivo over Source Serif, and
+   its dateline in plain tracked caps. */
 
 /* ── Sabbath — the ornament is the margin ───────────────────────────────────
    No versal, no rule, no border on the scripture. One voice has to be bare or

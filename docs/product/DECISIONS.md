@@ -171,6 +171,12 @@ tones and an ornament, under one name.** Nine picks become six.
 | **Plainsong** | **quire** ⇄ nocturne | JetBrains Mono @ 0.72 scale | The grid — bracketed citation, `· · ·` break |
 | **Vigil** | night only | Atkinson Hyperlegible | Off. Nothing glows |
 
+*Amended 2026-10-01:* Cloister's colonnade is removed: in use the full-height hairline read
+as a stray vertical line beside the words, and it cost the column 2.2rem. Cloister's
+ornament is now its pairing and its dateline in plain tracked caps. Dawn's horizon
+hairline under the title also moved: it is a short sunrise rule above the dateline.
+See `docs/WRITING_SURFACE_AUDIT.md` §7.
+
 **A voice spans light and dark**, so the face cannot change when the sun goes down. That was
 the actual mechanism behind the complaint, and two independent slots could never fix it.
 

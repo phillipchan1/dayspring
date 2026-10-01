@@ -135,6 +135,15 @@ export interface Settings {
    */
   editorFontAuto: boolean
 
+  /**
+   * Marks a blob written by a client where `editorFont` names a FACE ('serif'
+   * is Newsreader in every voice). Absent: an older writer, where 'serif'
+   * resolved through `--font-serif`, which every voice repoints to its own
+   * face — so an explicit 'serif' there behaved exactly like following the
+   * voice. See `normalizeLegacyFace`.
+   */
+  faceNamed?: boolean
+
   /** Entries sidebar: flat list vs month/year section headers. */
   entriesGroupBy: EntriesGroupBy
 
@@ -260,6 +269,7 @@ const DEFAULTS: Settings = {
   editorFont: 'serif',
   voice: 'dawn',
   editorFontAuto: true,
+  faceNamed: true,
   entriesGroupBy: 'flat',
   showEntryPreview: false,
   pagesZoom: 0.6,
@@ -296,14 +306,41 @@ type StoredSettings = Partial<Settings> & {
 }
 
 /**
+ * Carry an older writer's explicit 'serif' across the change in what it means.
+ *
+ * Before the writing faces were fixed tokens (themes.css `--face-*`), the
+ * picker's "Serif" pointed at `--font-serif`, which every voice repoints to
+ * its OWN face: an explicit Serif followed the voice in all six of them,
+ * mono in Plainsong included. Read literally now, that same stored value set
+ * Newsreader under a Plainsong title — a body face the writer never saw
+ * before and never chose. So a blob that predates named faces and says
+ * "serif, not auto" is read as what it always rendered: follow the voice.
+ *
+ * Runs on local load AND on every remote apply — stable still writes the old
+ * shape into the shared `profiles.settings` row. Only 'serif' is carried:
+ * 'literary' and 'sans' rendered something other than the voice's face before
+ * too, and keep their (now honest) meaning.
+ */
+export function normalizeLegacyFace<T extends Partial<Settings>>(blob: T): T {
+  if (blob.faceNamed) return blob
+  if (blob.editorFontAuto === false && blob.editorFont === 'serif') {
+    return { ...blob, editorFontAuto: true, faceNamed: true }
+  }
+  return blob.editorFontAuto === undefined && blob.editorFont === undefined
+    ? blob
+    : { ...blob, faceNamed: true }
+}
+
+/**
  * Bring a stored blob up to the current format.
  *
  * Pure and exported so the migrations can be tested without a DOM — each one is
  * a one-way door that runs against real users' saved preferences, and getting
  * one wrong silently changes something they chose deliberately.
  */
-export function migrateSettings(parsed: StoredSettings): Settings {
-  const merged = { ...DEFAULTS, ...parsed }
+export function migrateSettings(stored: StoredSettings): Settings {
+  const parsed = normalizeLegacyFace(stored)
+  const merged = { ...DEFAULTS, ...parsed, faceNamed: true }
   const legacyAppearance = parsed.appearance === undefined
   // Legacy theme + followSystem → appearance.
   if (legacyAppearance) {
@@ -379,7 +416,10 @@ function load(): Settings {
     if (!raw) return DEFAULTS
     const parsed = JSON.parse(raw) as StoredSettings
     const migrated = migrateSettings(parsed)
-    if ((parsed.v ?? 1) < SETTINGS_FORMAT_VERSION) {
+    // Also written back when the blob predates named faces, so the corrected
+    // face (normalizeLegacyFace) is what gets stored and synced, not just what
+    // renders.
+    if ((parsed.v ?? 1) < SETTINGS_FORMAT_VERSION || !parsed.faceNamed) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...migrated, v: SETTINGS_FORMAT_VERSION }))
       } catch {
@@ -429,7 +469,7 @@ export const settingsStore = {
    * suppresses that by remembering what it last pushed.
    */
   applyRemote(remote: Partial<Settings>): void {
-    state = reconcileVoice({ ...state, ...remote })
+    state = reconcileVoice({ ...state, ...normalizeLegacyFace(remote), faceNamed: true })
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, v: SETTINGS_FORMAT_VERSION }))
     } catch {
