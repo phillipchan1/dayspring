@@ -1115,7 +1115,9 @@
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --voice-scale: 1.05;
+  /* Crimson Pro is a small face — short x-height, shorter capitals. 1.05 left
+     it at 85% of Dawn's apparent size; 1.12 joins the other voices (~92%). */
+  --voice-scale: 1.12;
   --font-scale: var(--voice-scale);
   --line-height-scale: 1.12;
   --h1-size: 1.85em;
@@ -1135,8 +1137,10 @@
 /* Plainsong — monophonic chant: one line, no harmony, no ornament, and exactly
    plain text. The scale is the load-bearing part. A mono face at the 24px
    default turned a two-line practice question into three and pushed the writing
-   line off a phone screen entirely; 0.72 lands it near 17px, and the reader's
-   slider still moves it. */
+   line off a phone screen entirely — but 0.72 overcorrected: 17px of JetBrains
+   Mono stood at 76% of Dawn's apparent size (√(x-height × cap height)), the
+   smallest of the six by a distance, and read that way. 0.84 (≈20px) puts it
+   with Vellum, Cloister and Vigil, at ~55 characters a line. */
 [data-theme='quire'],
 [data-theme='nocturne'] {
   --font-display: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -1144,7 +1148,7 @@
   --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --voice-scale: 0.72;
+  --voice-scale: 0.84;
   --font-scale: var(--voice-scale);
   --line-height-scale: 1.07;
   --h1-size: 1.52em;

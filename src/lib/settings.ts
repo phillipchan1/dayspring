@@ -29,22 +29,26 @@ export const EDITOR_FONT_VARS: Record<EditorFont, string> = {
  * size as Newsreader at the reader's own number.
  *
  * A voice tunes its own face (`--font-scale` in themes.css: Plainsong's mono at
- * 0.72, Vellum's Garamond at 1.08). A face picked in Advanced typography used
+ * 0.84, Vellum's Garamond at 1.08). A face picked in Advanced typography used
  * to inherit the VOICE's number, which is the wrong face's: JetBrains Mono at
  * a full 24px in Dawn, Newsreader at 17px in Plainsong.
  *
- * Measured, not guessed — x-height and mean advance against Newsreader's
- * (0.450 / 0.412 em): Inter and JetBrains Mono sit 22% taller, iA Writer Duo
- * is half again as wide. Mono faces land between the two ratios, because a
- * fixed pitch reads large at any x-height; they match Plainsong's tuning.
+ * Measured, not guessed. Apparent size is taken as √(x-height × cap height),
+ * the lowercase body and the capitals together: a face with a tall x and
+ * short capitals (JetBrains Mono, Inter) does not read as big as its x alone
+ * says. Every face lands at 86–94% of Newsreader's — the band the serif
+ * voices themselves sit in. The first tuning matched x-height against width
+ * and set Mono at 0.72, Typewriter at 0.78: 76–79% of Newsreader, and they
+ * read visibly small beside every other face. Fixed-pitch faces sit at the
+ * low end of the band, because even strokes and wide cells read large.
  */
 export const EDITOR_FACE_METRICS: Record<EditorFont, { scale: number; leading: number }> = {
   serif: { scale: 1, leading: 1 },
   literary: { scale: 0.96, leading: 1 },
-  typewriter: { scale: 0.78, leading: 1.06 },
-  mono: { scale: 0.72, leading: 1.07 },
-  sans: { scale: 0.86, leading: 1 },
-  readable: { scale: 0.93, leading: 1.02 },
+  typewriter: { scale: 0.88, leading: 1.06 },
+  mono: { scale: 0.84, leading: 1.07 },
+  sans: { scale: 0.9, leading: 1 },
+  readable: { scale: 0.97, leading: 1.02 },
 }
 
 /**
