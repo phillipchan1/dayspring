@@ -2865,6 +2865,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             backTo: ritualEntry.backTo,
             backShort: ritualEntry.backShort,
             onDelete: deleteRitualEntry,
+            ...((ritualEntry.gen ?? 0) > 0 ? { still: true } : {}),
             // Same passage, another way through it: the page has been
             // rewritten under the new practice; open on it as it stands.
             onSwitch: () =>

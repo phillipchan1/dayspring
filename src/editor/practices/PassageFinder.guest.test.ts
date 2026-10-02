@@ -16,6 +16,7 @@ const loadChapter = vi.hoisted(() =>
 )
 
 vi.mock('./passageSource', () => ({
+  peekChapter: () => null,
   loadChapter,
   loadLight: async () => ({ books: new Map(), chapters: new Map(), max: 0, returning: [] }),
   searchTopic: async () => [],
@@ -63,6 +64,10 @@ describe('guest passage picker', () => {
         }),
       )
     })
+
+    // Said up front: signed out is why there is no passage to draw from.
+    expect(host.querySelector('.pf__guest')?.textContent).toMatch(/not signed in/)
+    expect(host.textContent).not.toMatch(/own Bible/i)
 
     clickNamed(host, '.pf__book', 'John')
     clickNamed(host, '.pf__ch', '15')

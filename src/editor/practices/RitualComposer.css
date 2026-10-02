@@ -30,6 +30,10 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* Opened again in place — the same passage walked another way. Nothing
+   arrives: fading in from nothing blanked the window between the two. */
+.ritual-composer[data-still='true'],
+.ritual-composer[data-still='true'] .rc__page { animation: none; }
 
 /* ── Masthead ─────────────────────────────────────────────────────────── */
 .rc__bar {
@@ -329,6 +333,15 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   border-radius: 5px;
   padding: 1px 5px;
 }
+/* The ritual's name, with the other ways through its passage on the same
+   line: name left, control right — the reference line below reads the same. */
+.rc__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1.5rem;
+}
 .rc__title {
   margin: 0;
   font-family: var(--rc-body);
@@ -409,6 +422,12 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 }
 .rc__path [data-after='true'][data-state='done'] button::before {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+/* Being written: still hollow (it is a page, not a movement), but drawn in
+   the accent — the dashed grey bead inside the halo read as a smudge. */
+.rc__path [data-after='true'][data-state='on'] button::before {
+  border-style: solid;
+  border-color: var(--accent);
 }
 .rc__path [data-after='true'] .rc__path-label {
   font-size: 0.86rem;

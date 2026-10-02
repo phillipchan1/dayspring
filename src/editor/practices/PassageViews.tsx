@@ -21,28 +21,54 @@ interface BodyProps {
   onRest?: (at: { n: number; offset: number } | null) => void
   onHoverHighlight?: (keys: string[] | null, el: HTMLElement | null) => void
   slow?: boolean
+  /** No session for the chapter: the words cannot be had until they sign in. */
+  guest?: boolean
+  /** Leave for the sign-in sheet. */
+  onSignIn?: () => void
+  /** Ask for the chapter again, when it would not open. */
+  onRetry?: () => void
 }
 
 /**
- * The passage however it can be had: numbered verses when its chapter loads,
- * the fence's own words when it will not (offline — they were written into the
- * page when it was chosen), and a reference alone when it is being read from
- * the writer's own Bible.
+ * The passage however it can be had: numbered verses whenever its chapter
+ * loads — whether or not the page kept the words — the fence's own words when
+ * it will not (offline; they were written into the page when it was chosen),
+ * and a reference alone only when there are no words to be had at all: a
+ * guest, who has no session for the chapter (and is told so, with the way to
+ * sign in), or a bare reference offline.
  */
-export function PassageBody({ passage, verses, slow, ...text }: BodyProps) {
-  if (passage.own) {
-    return (
-      <div className="rc__leaf-own">
-        <b>{passage.reference}</b>
-        Your own Bible is open beside you. The reference is all this page keeps, and it is enough to find it
-        again.
-      </div>
-    )
-  }
+export function PassageBody({ passage, verses, slow, guest, onRetry, onSignIn, ...text }: BodyProps) {
   if (verses && verses.length > 0) {
     return <PassageText verses={verses} {...text} slow={Boolean(slow)} />
   }
   if (verses === null && !passage.text) return <p className="rc__leaf-loading">Opening {passage.reference}…</p>
+  if (passage.own) {
+    return (
+      <div className="rc__leaf-own">
+        <b>{passage.reference}</b>
+        {guest ? (
+          <>
+            You’re not signed in, so this passage can’t open here. Sign in to read it beside your page and
+            draw from it.
+            {onSignIn && (
+              <button type="button" className="rc__leaf-retry" onClick={onSignIn}>
+                Sign in
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            This passage wouldn’t open just now. It will appear here as soon as it can.
+            {onRetry && (
+              <button type="button" className="rc__leaf-retry" onClick={onRetry}>
+                Try again
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
   return <p className="rc__leaf-fallback">{passage.text}</p>
 }
 

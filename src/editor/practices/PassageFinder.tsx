@@ -24,11 +24,12 @@ interface Props {
   /** Choosing again, over a passage already on the page. */
   current?: string | null
   /**
-   * The passage chosen, with its words. `null` words mean it is read from the
-   * writer's own Bible, and only when the words cannot be had: a guest (no
-   * session for the ESV), or a chapter that would not open. Never a choice —
-   * a page that keeps only a reference has nothing to draw quotes from, which
-   * is the whole of a scripture ritual (Phil, Oct 1).
+   * The passage chosen, with its words. `null` words mean a bare reference,
+   * and only when the words cannot be had: a guest (no session for the ESV),
+   * or a chapter that would not open. Never a choice — a page that keeps only
+   * a reference has nothing to draw quotes from, which is the whole of a
+   * scripture ritual (Phil, Oct 1). The composer asks for the chapter again
+   * every time such a page is opened, and writes the words in when they come.
    */
   onChoose: (ref: PassageRef, verses: Verse[] | null) => void
   /** Leave without choosing. */
@@ -75,7 +76,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const size = practice.passage?.size ?? 'any'
-  const { isGuest } = useGuestMode()
+  const { isGuest, requestSignIn } = useGuestMode()
 
   useEffect(() => {
     let live = true
@@ -368,14 +369,16 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
           </span>
         </div>
         {isGuest ? (
-          <p className="pf__soft">Open this passage in your own Bible, then continue.</p>
+          <p className="pf__soft">
+            You’re not signed in, so this passage can’t open here. You can continue with the reference alone.
+          </p>
         ) : verses === null ? (
           <p className="pf__soft pf__loading">Opening {displayBook(open.book.name)} {open.chapter}…</p>
         ) : verses.length === 0 ? (
           <div className="pf__soft">
-            <p>This chapter wouldn’t open just now.</p>
+            <p>This chapter wouldn’t open just now. You can begin anyway; it opens beside you as soon as it can.</p>
             <button type="button" className="pf__link" onClick={() => begin(true)}>
-              Read {passageLabel(ref)} from your own Bible →
+              Begin with {passageLabel(ref)} →
             </button>
           </div>
         ) : (
@@ -575,6 +578,25 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
             onKeyDown={onKey}
           />
           <p className="pf__hint">{practice.passage?.hint}</p>
+          {isGuest && (
+            // Said before a passage is chosen: signed out, the words cannot be
+            // fetched, so there is nothing to select or draw from. Without
+            // this line that looked like the feature being gone (Phil, Oct 1).
+            <p className="pf__soft pf__guest">
+              You’re not signed in. Passages open beside your page, ready to draw from, once you are.{' '}
+              <button
+                type="button"
+                className="pf__link"
+                onClick={() => {
+                  // The sign-in sheet sits under this surface; leave first.
+                  onBack()
+                  requestSignIn()
+                }}
+              >
+                Sign in →
+              </button>
+            </p>
+          )}
           {body}
         </div>
       </div>

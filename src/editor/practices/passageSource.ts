@@ -26,6 +26,17 @@ function inPreview(): boolean {
 }
 
 const chapters = new Map<string, Promise<Verse[]>>()
+/** Chapters already in hand this session, for a caller that cannot wait a tick. */
+const loaded = new Map<string, Verse[]>()
+
+/**
+ * A chapter this session has already loaded, synchronously — or null. A
+ * composer opened again on the same passage (the same passage walked another
+ * way) draws it at once instead of flashing the fallback for a frame.
+ */
+export function peekChapter(book: string, chapter: number): Verse[] | null {
+  return loaded.get(`${book} ${chapter}`) ?? null
+}
 
 /** One chapter's numbered verses; empty when it cannot be had. */
 export function loadChapter(book: string, chapter: number): Promise<Verse[]> {
@@ -51,6 +62,7 @@ export function loadChapter(book: string, chapter: number): Promise<Verse[]> {
   // A failure is not remembered: offline now is online in a minute.
   void run.then((v) => {
     if (v.length === 0) chapters.delete(key)
+    else loaded.set(key, v)
   })
   return run
 }

@@ -27,7 +27,12 @@ import { ONBOARDING_REQUIRE_CARD } from './features/onboarding/flags'
 import { shouldHoldForProfile, trialDaysRemaining } from './lib/subscription'
 import { APP_GRANTED_DISPLAY_CAP } from './features/paywall/valueCopy'
 import { ensureProfile } from './lib/onboarding'
-import { fenceCacheToOwner, readCacheOwner } from './lib/localData'
+import {
+  fenceCacheToOwner,
+  purgeOnSignOut,
+  readCacheOwner,
+  scrubAccountRowsFromGuestCache,
+} from './lib/localData'
 import { getOrCreateGuestOwnerId } from './lib/guestOwner'
 import { registerEntryDerive } from './lib/entryDerive'
 import { maybeBackfillOnLoad } from './lib/processingClient'
@@ -36,6 +41,9 @@ import { initApplePurchases, isAppleIapAvailable } from './lib/appleIap'
 import { isMobileTauri } from './lib/platform'
 import { track } from './lib/analytics'
 import { setLocalOnlySync } from './lib/repo'
+import { leftAccount, restartClaimed } from './lib/accountLeave'
+import { readLastAuthProvider } from './lib/lastAuthProvider'
+import { SignedOutNotice } from './features/journal/SignedOutNotice'
 
 // localStorage key used by useHasSeenWelcome — set before WelcomeProvider
 // mounts so the first-run flow is suppressed for users coming through checkout.
@@ -43,6 +51,29 @@ const LS_WELCOME_KEY = 'dayspring.has_seen_welcome'
 
 export function App() {
   const { session, loading } = useSession()
+
+  // Leaving an account restarts the app — see lib/accountLeave.ts. `account`
+  // is the last account this run was signed in as; once the session is no
+  // longer that account, nothing more is rendered from it and nothing new is
+  // mounted over its cache.
+  const userId = session?.user.id ?? null
+  const [account, setAccount] = useState<string | null>(userId)
+  const left = leftAccount(account, userId)
+  if (!left && account !== userId) setAccount(userId)
+  useEffect(() => {
+    if (!left) return
+    // Account deletion scrubs more (flags too) and reloads itself.
+    if (restartClaimed()) return
+    void (async () => {
+      try {
+        await purgeOnSignOut()
+      } catch {
+        /* the boot fence scrubs again after the reload */
+      }
+      window.location.reload()
+    })()
+  }, [left])
+
   const { settings } = useSettings()
   const resolvedTheme = useResolvedTheme(settings)
 
@@ -83,6 +114,10 @@ export function App() {
     return <div className="app-shell"><SurfaceLoader /></div>
   }
 
+  if (left) {
+    return <div className="app-shell"><SurfaceLoader /></div>
+  }
+
   if (!session) {
     // Guideline 5.1.1(v): writing is not account-based. Cold launch without a
     // session reaches the journal on this device. Sign-in is asked only for
@@ -118,6 +153,10 @@ function GuestApp() {
   const [initReady, setInitReady] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
   const ownerId = getOrCreateGuestOwnerId()
+  // This device has signed in before, so this guest is almost certainly its
+  // owner, signed out — say so (SignedOutNotice.tsx).
+  const [hadAccount] = useState(() => readLastAuthProvider() !== null)
+  const [noticeDismissed, setNoticeDismissed] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -131,6 +170,9 @@ function GuestApp() {
     void (async () => {
       try {
         await fenceCacheToOwner(ownerId)
+        // An account's pages have no business in a guest's cache, whatever
+        // the owner marker says — see scrubAccountRowsFromGuestCache.
+        await scrubAccountRowsFromGuestCache()
       } catch {
         /* idb unavailable — proceed */
       }
@@ -153,6 +195,12 @@ function GuestApp() {
   return (
     <GuestModeProvider requestSignIn={() => setSignInOpen(true)}>
       <WelcomeProvider>
+        {hadAccount && !noticeDismissed && !signInOpen && (
+          <SignedOutNotice
+            onSignIn={() => setSignInOpen(true)}
+            onDismiss={() => setNoticeDismissed(true)}
+          />
+        )}
         <SurfaceErrorBoundary>
           <JournalScreen userEmail="" featureFlags={[]} />
         </SurfaceErrorBoundary>

@@ -4,6 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RitualComposer } from './RitualComposer'
+import { GuestModeProvider } from '@/context/GuestMode'
 import { composeRitualMarkdown } from './ritualDocument'
 import { writePassage, type PassageRef } from './passage'
 import { PRACTICE_BY_NAME } from './practicesData'
@@ -53,8 +54,10 @@ const JOHN = [
 ]
 // Any chapter opens, with enough verses for any suggestion on the shelf.
 const CHAPTER = Array.from({ length: 40 }, (_, k) => ({ n: k + 1, text: `Verse ${k + 1}.` }))
+const source = vi.hoisted(() => ({ fail: false }))
 vi.mock('./passageSource', () => ({
-  loadChapter: async () => CHAPTER,
+  peekChapter: () => null,
+  loadChapter: async () => (source.fail ? [] : CHAPTER),
   loadLight: async () => ({ books: new Map(), chapters: new Map(), max: 0, returning: [] }),
   searchTopic: async () => [],
 }))
@@ -70,6 +73,7 @@ beforeEach(() => {
   document.body.appendChild(host)
   root = createRoot(host)
   viewport.desk = true
+  source.fail = false
 })
 afterEach(() => {
   act(() => root.unmount())
@@ -164,28 +168,79 @@ describe('reading from your own Bible', () => {
 })
 
 describe('a page already kept as a reference only', () => {
-  it('gets its words through change → Use this passage, and can then be drawn from', async () => {
-    const REF_ONLY = writePassage({ book: 'John', chapter: 15, from: null, to: null }, null, ID)
-    begin({
-      start: `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [REF_ONLY, ''])}\n${RITUAL_END_TOKEN}`,
-      onSwitch: () => {},
-    })
-    await flush()
-    expect(document.querySelector('.rc__leaf-own')).not.toBeNull()
-    act(() => (document.querySelector('.rc__leaf-ref button') as HTMLButtonElement).click())
-    await flush()
-    expect(document.querySelector('.pf__chapter')?.textContent).toBe('John 15')
-    act(() => (document.querySelector('.pf__begin') as HTMLButtonElement).click())
+  const REF_ONLY = writePassage({ book: 'John', chapter: 15, from: null, to: null }, null, ID)
+  const refOnlyPage = () =>
+    `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [REF_ONLY, ''])}\n${RITUAL_END_TOKEN}`
+
+  it('opens with its passage beside it, ready to draw from, and keeps the words from then on', async () => {
+    begin({ start: refOnlyPage(), onSwitch: () => {} })
     await flush()
     await flush()
     expect(document.querySelector('.rc__leaf-own')).toBeNull()
     expect(document.querySelectorAll('.rc__leaf-text .psg__v').length).toBe(CHAPTER.length)
+    // Scripture beside the page is always scripture you can select.
+    expect(document.querySelector('.rc__leaf-text .psg')?.getAttribute('data-mode')).toBe('quote')
     // The same fence, now holding the words — once the debounced write lands.
     await act(async () => {
       await new Promise((r) => setTimeout(r, 450))
     })
     expect(doc).toContain(ID)
     expect(doc).toContain('Verse 1.')
+  })
+
+  it('says so, and offers to try again, when the chapter will not open — never "your own Bible"', async () => {
+    source.fail = true
+    begin({ start: refOnlyPage(), onSwitch: () => {} })
+    await flush()
+    await flush()
+    const box = document.querySelector('.rc__leaf-own')
+    expect(box?.textContent).toMatch(/wouldn’t open just now/)
+    expect(box?.textContent).not.toMatch(/own Bible/i)
+    // The connection comes back: asked again, the words arrive.
+    source.fail = false
+    act(() => (document.querySelector('.rc__leaf-retry') as HTMLButtonElement).click())
+    await flush()
+    await flush()
+    expect(document.querySelector('.rc__leaf-own')).toBeNull()
+    expect(document.querySelectorAll('.rc__leaf-text .psg__v').length).toBe(CHAPTER.length)
+  })
+})
+
+describe('a guest, who has no session for the chapter', () => {
+  it('is told the passage needs a sign-in, with the way to do it — not that a feature is missing', async () => {
+    const requestSignIn = vi.fn()
+    const onClose = vi.fn()
+    const REF_ONLY = writePassage({ book: 'John', chapter: 15, from: null, to: null }, null, ID)
+    doc = `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [REF_ONLY, 'A line.'])}\n${RITUAL_END_TOKEN}`
+    // A guest's chapter never loads: there is no session to ask with.
+    source.fail = true
+    act(() => {
+      root.render(
+        createElement(GuestModeProvider, {
+          requestSignIn,
+          children: createElement(RitualComposer, {
+            blockIndex: 0,
+            getDoc: () => doc,
+            replaceRange: (from: number, to: number, text: string) => {
+              doc = doc.slice(0, from) + text + doc.slice(to)
+            },
+            onClose,
+            onAbout: () => {},
+            entry: { backTo: 'your journal', backShort: 'Journal', onDelete: () => {} },
+          }),
+        }),
+      )
+    })
+    await flush()
+    await flush()
+    const box = document.querySelector('.rc__leaf-own')
+    expect(box?.textContent).toMatch(/not signed in/)
+    expect(box?.textContent).not.toMatch(/own Bible/i)
+    act(() => (box!.querySelector('button') as HTMLButtonElement).click())
+    // Leaves the ritual (keeping what is written), then asks to sign in.
+    expect(onClose).toHaveBeenCalled()
+    expect(requestSignIn).toHaveBeenCalledOnce()
+    expect(doc).toContain('A line.')
   })
 })
 
@@ -216,6 +271,14 @@ describe('the ways through a passage', () => {
     act(() => root.unmount())
     root = createRoot(host)
     expect(doc).toContain('<!-- ritual:name:Lectio Divina -->')
+  })
+
+  it('sit beside the ritual’s name, not under the passage reference', async () => {
+    begin({ start: page('Open Reading', [PSG, '']), onSwitch: () => {} })
+    await flush()
+    expect(document.querySelector('.rc__head .rc__title')?.textContent).toBe('Open Reading')
+    expect(document.querySelector('.rc__head .rc__ways')).not.toBeNull()
+    expect(document.querySelector('.rc__leaf-text .rc__ways')).toBeNull()
   })
 
   it('go once the writer has written', async () => {

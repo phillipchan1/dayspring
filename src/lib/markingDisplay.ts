@@ -46,13 +46,14 @@ export function revealMarkingsForDisplay(markdown: string): string {
 
 function drawBlock(block: ParsedSpiritualBlock): string | null {
   const content = block.content.replace(/\s+$/, '')
-  // A passage read from the writer's own Bible keeps only its reference: say
-  // so, rather than drawing nothing where the Read movement was.
+  // A passage kept as a bare reference (begun signed out, or while the chapter
+  // would not load): say so, rather than drawing nothing where it was. The
+  // words arrive the next time the page is opened for writing, signed in.
   if (!content.trim() && block.type === 'scripture' && block.reference?.trim()) {
     return (
       `<figure class="read-scripture read-scripture--own" data-kind="scripture">` +
       `<figcaption class="read-scripture__cite spiritual-cite">${escapeHtml(block.reference.trim())}</figcaption>` +
-      `<p class="read-scripture__own">Read from your own Bible</p></figure>`
+      `<p class="read-scripture__own">Reference only</p></figure>`
     )
   }
   if (!content.trim()) return null

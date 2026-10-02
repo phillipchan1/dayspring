@@ -49,6 +49,7 @@ const JOHN = [
   { n: 5, text: 'I am the vine. You are the branches.' },
 ]
 vi.mock('./passageSource', () => ({
+  peekChapter: () => null,
   loadChapter: async () => JOHN,
   loadLight: async () => ({ books: new Map(), chapters: new Map(), max: 0, returning: [] }),
   searchTopic: async () => [],
@@ -114,16 +115,40 @@ describe('a scripture ritual with its passage', () => {
     expect(document.querySelectorAll('.rc__leaf-text .psg__v')).toHaveLength(2)
   })
 
-  it('resumes where the writing stops, and asks for no box on the Read movement', async () => {
+  it('resumes where the writing stops, and has no Read stop to go back to', async () => {
     open([PASSAGE])
     await flush()
     // The passage is the Read movement's answer, so a return lands on Meditate.
     expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Meditatio — Meditate')
-    act(() => (document.querySelector('.rc__path button') as HTMLButtonElement).click())
+    // Read is not on the path: the passage is beside every movement already.
+    const path = [...document.querySelectorAll('.rc__path .rc__path-label')].map((l) => l.textContent)
+    expect(path[0]).toBe('Meditatio — Meditate')
+    expect(path).not.toContain('Lectio — Read')
+    // ...and Back does not lead to it.
+    const back = document.querySelector('.rc__desk .rc__back') as HTMLButtonElement
+    expect(back.disabled).toBe(true)
+    expect(back.textContent).toBe('')
+    expect(document.body.textContent).not.toContain('I’ve read it')
+  })
+
+  it('opens on the first writing movement when the passage itself was clicked in the reader', async () => {
+    doc = composeRitualMarkdown('Lectio Divina', LECTIO, [PASSAGE, '> Remain in me', 'Teach me to stay.', ''])
+    act(() => {
+      root.render(
+        createElement(RitualComposer, {
+          blockIndex: 0,
+          getDoc: () => doc,
+          replaceRange: (from: number, to: number, text: string) => {
+            doc = doc.slice(0, from) + text + doc.slice(to)
+          },
+          onClose: () => {},
+          onAbout: () => {},
+          entry: { startAt: 0, backTo: 'your journal', backShort: 'Journal', onDelete: () => {} },
+        }),
+      )
+    })
     await flush()
-    expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Lectio — Read')
-    expect(document.querySelector('.rc__page textarea')).toBeNull()
-    expect(document.querySelector('.rc__desk .rc__next')?.textContent).toBe('I’ve read it')
+    expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Meditatio — Meditate')
   })
 
   it('writes a touched word as the quote line at the head of Meditatio', async () => {
@@ -169,8 +194,7 @@ describe('a scripture ritual with its passage', () => {
   it('asks before changing a passage something has been written under', async () => {
     open([PASSAGE, '> Remain in me\n\nIt keeps coming back.'])
     await flush()
-    act(() => (document.querySelector('.rc__path button') as HTMLButtonElement).click())
-    await flush()
+    // "change" is on the leaf at every movement now that Read is not a stop.
     act(() => (document.querySelector('.rc__leaf-ref button') as HTMLButtonElement).click())
     expect(document.querySelector('.rc__ask')).not.toBeNull()
     expect(document.querySelector('.passage-finder')).toBeNull()
@@ -234,7 +258,7 @@ describe('drawing a line from the passage', () => {
     await flush()
     expect(document.querySelector('.rc__page .rc__label')?.textContent).toBe('Application')
     // Back to Observation, where something is already written.
-    act(() => ([...document.querySelectorAll<HTMLButtonElement>('.rc__path button')][1]!).click())
+    act(() => ([...document.querySelectorAll<HTMLButtonElement>('.rc__path button')][0]!).click())
     await flush()
     select('Remain', 'you.')
     expect(document.querySelector('.rc__ghost')?.textContent).toContain('Remain in me, and I in you')

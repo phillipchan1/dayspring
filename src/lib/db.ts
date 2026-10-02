@@ -233,6 +233,9 @@ export async function cacheClearAll(): Promise<void> {
 }
 
 // ── snapshots (last-good server reads, for offline) ─────────────────────────
+export async function snapshotsClear(): Promise<void> {
+  await (await db()).clear('snapshots')
+}
 export async function snapshotGet(key: string): Promise<SnapshotRow | undefined> {
   return (await db()).get('snapshots', key)
 }
