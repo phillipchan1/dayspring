@@ -212,7 +212,7 @@ class AttachmentImageWidget extends WidgetType {
     const wrap = document.createElement('div')
     wrap.className = `cm-attachment cm-attachment--interactive cm-attachment--size-${this.size}`
     wrap.contentEditable = 'false'
-    wrap.title = 'Click for options · drag to move'
+    wrap.title = 'Click for options · drag to move, or onto another photo to put them together'
     wrap.draggable = true
     wrap.dataset.attachmentKey = this.cacheKey
 
@@ -390,7 +390,7 @@ class PhotoSetWidget extends WidgetType {
         tile.classList.add('cm-attachment--interactive')
         tile.dataset.attachmentKey = spec.key
         tile.draggable = true
-        tile.title = 'Click for options · drag to move'
+        tile.title = 'Click for options · drag to reorder, or out of the set'
       } else {
         tile.classList.add('cm-photoset__tile--pending')
         tile.setAttribute('aria-label', 'Uploading photo')

@@ -3,7 +3,7 @@
 // Shared by the editor's set widget and the reader's set figure so a set looks
 // the same while it is being written and when it is read back.
 
-import { PHOTO_ROW_GAP, layoutPhotoRows, photoRatio } from './photoSet'
+import { PHOTO_ROW_GAP, PHOTO_ROW_MAX_HEIGHT, layoutPhotoRows, photoRatio } from './photoSet'
 
 export interface PhotoRowItem {
   /** The tile. Its width and height are set here; everything inside is the caller's. */
@@ -92,7 +92,10 @@ export function mountPhotoRows(
       return
     }
     width = next
-    const rows = layoutPhotoRows(ratios, width)
+    // The cap a lone photo has in the editor and the reader: min(56vh, 480px).
+    const viewport = doc.defaultView?.innerHeight ?? 0
+    const maxHeight = viewport > 0 ? Math.min(PHOTO_ROW_MAX_HEIGHT, viewport * 0.56) : PHOTO_ROW_MAX_HEIGHT
+    const rows = layoutPhotoRows(ratios, width, maxHeight)
     const rowEls = rows.map((row) => {
       const rowEl = doc.createElement('div')
       rowEl.className = options.rowClass

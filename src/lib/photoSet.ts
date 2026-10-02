@@ -316,24 +316,27 @@ export function cleanCaption(text: string): string {
 /** Space between photos in a set, both ways. */
 export const PHOTO_ROW_GAP = 4
 
-/** Below this column width a set is on a phone and its rows run lower. */
-const PHONE_COLUMN = 480
-const ROW_TARGET_PHONE = 140
-const ROW_TARGET_WIDE = 172
+// A row aims for about a quarter of the column's width in height, so a set looks
+// the same on a narrow column and a wide one: three or four photos across, not
+// the same small tiles lost in a column twice as wide. Held between a floor a
+// phone can still read and a ceiling a wide column does not need to pass.
+const ROW_TARGET_SHARE = 0.27
+const ROW_TARGET_MIN = 140
+const ROW_TARGET_MAX = 240
 
-/** No row runs lower than this share of the target: under it a photo is a thumbnail. */
+/** No row of several photos runs lower than this share of the target: under it a photo is a thumbnail. */
 const MIN_ROW_SHARE = 0.7
 
-/** A photo with a row to itself is a photo on its own, so it takes a lone photo's height cap. */
-const SOLO_MAX_HEIGHT = 480
+/** No row is taller than a lone photo is allowed to be anywhere else. */
+export const PHOTO_ROW_MAX_HEIGHT = 480
 
 /**
- * What it costs to leave the last row short of the column, at the target height
- * and centred. Priced like a row half again too tall, so a pair that would have
- * to grow further than that to fill the column is left at the target instead.
+ * What it costs a row to stop short of the column's edges. That only happens
+ * when filling the column would take it past the height cap — two portraits on
+ * a wide column — and it is priced so that any split that fills is preferred.
  */
-const LOOSE_END_COST = Math.log(1.5) ** 2
-/** On top of that when the row is one photo: a lone photo at the end looks forgotten. */
+const SHORT_ROW_COST = Math.log(1.5) ** 2
+/** On top of that when the short row is one photo at the end: it looks forgotten. */
 const LONE_END_COST = 0.5
 /** A tie between "first photo alone" and "last photo alone" goes to the first. */
 const LEAD_BIAS = 0.95
@@ -346,7 +349,7 @@ const UNKNOWN_RATIO = 4 / 3
 
 /** The height a row aims for at this column width. */
 export function photoRowTarget(width: number): number {
-  return width < PHONE_COLUMN ? ROW_TARGET_PHONE : ROW_TARGET_WIDE
+  return Math.min(ROW_TARGET_MAX, Math.max(ROW_TARGET_MIN, Math.round(width * ROW_TARGET_SHARE)))
 }
 
 /** Width over height, held to the ratios a photo is ever drawn at. 4:3 until it is known. */
@@ -367,23 +370,26 @@ export interface PhotoRow {
 /**
  * Lay photos in rows of equal height that fill the column, every photo whole.
  *
+ * Every row reaches both edges of the column. Two photos fill it; so do five.
+ * The one exception is a row that would have to grow past `maxHeight` to do so
+ * (two portraits on a wide column): that row stops at the cap and is centred.
+ *
  * The breaks are chosen over the whole set at once, not row by row: of every
  * way to split the photos into rows, take the one whose rows sit nearest the
  * target height. Filling greedily strands the end — a short full row, then a
- * taller loose one — and the end is where a justified layout looks careless.
+ * much taller one — and the end is where a justified layout looks careless.
  *
- * Three things shape the choice beyond "near the target":
+ * Two things shape the choice beyond "near the target":
  *
- * - no row runs under `MIN_ROW_SHARE` of the target;
- * - the last row may stay short of the column, centred at the target height,
- *   but it costs, and costs more when it is a single photo — so three photos
- *   that would leave one over give the first photo a row to itself instead.
- *   The first photo is the one the writer chose to put first;
- * - a photo alone in a row is never taller than a lone photo is anywhere else.
+ * - no row of several photos runs under `MIN_ROW_SHARE` of the target;
+ * - when one photo would be left over, the first photo takes a row to itself
+ *   rather than the last. The first photo is the one the writer chose to put
+ *   first, so it is the one that should be large.
  */
 export function layoutPhotoRows(
   ratios: readonly number[],
   width: number,
+  maxHeight: number = PHOTO_ROW_MAX_HEIGHT,
   target: number = photoRowTarget(width),
   gap: number = PHOTO_ROW_GAP,
 ): PhotoRow[] {
@@ -397,35 +403,29 @@ export function layoutPhotoRows(
     (width - gap * (end - start - 1)) / (sums[end]! - sums[start]!)
 
   // best[i]: the cheapest way to lay out photos i..n-1, and where its first row ends.
-  const best: { cost: number; end: number; loose: boolean }[] = new Array(n + 1)
-  best[n] = { cost: 0, end: n, loose: false }
+  const best: { cost: number; end: number }[] = new Array(n + 1)
+  best[n] = { cost: 0, end: n }
   for (let i = n - 1; i >= 0; i--) {
-    let pick = { cost: Infinity, end: n, loose: true }
+    let pick = { cost: Infinity, end: n }
     for (let end = i + 1; end <= n; end++) {
-      const h = fit(i, end)
       const count = end - i
-      if (h >= target * MIN_ROW_SHARE || count === 1) {
-        let cost = Math.log(h / target) ** 2
-        if (count === 1 && i === 0) cost *= LEAD_BIAS
-        cost += best[end]!.cost
-        if (cost < pick.cost) pick = { cost, end, loose: false }
-      }
-      if (end === n && h > target) {
-        const cost = LOOSE_END_COST + (count === 1 ? LONE_END_COST : 0)
-        if (cost < pick.cost) pick = { cost, end, loose: true }
-      }
+      const full = fit(i, end)
+      const height = Math.min(full, maxHeight)
+      if (height < target * MIN_ROW_SHARE && count > 1) continue
+      let cost = Math.log(height / target) ** 2
+      if (count === 1 && i === 0) cost *= LEAD_BIAS
+      if (full > maxHeight) cost += SHORT_ROW_COST + (count === 1 && end === n && i > 0 ? LONE_END_COST : 0)
+      cost += best[end]!.cost
+      if (cost < pick.cost) pick = { cost, end }
     }
     best[i] = pick
   }
 
   const rows: PhotoRow[] = []
   for (let i = 0; i < n; i = best[i]!.end) {
-    const { end, loose } = best[i]!
-    const h = fit(i, end)
-    const solo = end - i === 1
-    if (loose) rows.push({ start: i, count: end - i, height: target, justified: false })
-    else if (solo && h > SOLO_MAX_HEIGHT) rows.push({ start: i, count: 1, height: SOLO_MAX_HEIGHT, justified: false })
-    else rows.push({ start: i, count: end - i, height: h, justified: true })
+    const end = best[i]!.end
+    const full = fit(i, end)
+    rows.push({ start: i, count: end - i, height: Math.min(full, maxHeight), justified: full <= maxHeight })
   }
   return rows
 }

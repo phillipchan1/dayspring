@@ -56,6 +56,7 @@ import { THEMES, type ThemeId } from '@/lib/resolveTheme'
  *    caption field.
  *
  *   &theme=ink     any palette; defaults to dawn
+ *   &col=63        the writing column's width in rem; defaults to 42
  *   &part=write    only the editor      &part=read    only the reader
  *
  * Narrow the window (or use a phone-sized viewport) to see the lower phone rows.
@@ -164,7 +165,7 @@ function Reader({ markdown, photos }: { markdown: string; photos: Map<string, Re
   )
 }
 
-function Harness({ part }: { part: string | null }) {
+function Harness({ part, column }: { part: string | null; column: number }) {
   const [photos] = useState(() => {
     const drawn = new Map<string, ReturnType<typeof drawPhoto>>()
     SHAPES.forEach((_, i) => {
@@ -200,7 +201,7 @@ function Harness({ part }: { part: string | null }) {
   const label = { fontFamily: 'var(--font-ui, system-ui)', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--text-faint)', margin: '2.5rem 0 0.75rem' }
 
   return (
-    <div style={{ maxWidth: '42rem', margin: '0 auto' }}>
+    <div style={{ maxWidth: `${column}rem`, margin: '0 auto' }}>
       {part !== 'read' && (
         <>
           <p style={label}>Writing</p>
@@ -297,12 +298,17 @@ export function renderPhotosPreview(): void {
   root.setAttribute('data-appearance', family)
   root.style.colorScheme = family
 
+  // The writing column is a setting (Settings → width), and a set has to look
+  // right at every value of it.
+  const column = Number(params.get('col')) || 42
+  root.style.setProperty('--editor-max-width', `${column}rem`)
+
   const el = document.getElementById('root')
   if (!el) throw new Error('Root element #root not found')
 
   createRoot(el).render(
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '4vh 1.5rem 20vh' }}>
-      <Harness part={params.get('part')} />
+      <Harness part={params.get('part')} column={column} />
     </div>,
   )
 }

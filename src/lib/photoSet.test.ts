@@ -226,9 +226,32 @@ describe('layoutPhotoRows', () => {
         return Math.abs(tiles + PHOTO_ROW_GAP * (row.count - 1) - width) < 0.01
       })
 
-  it('uses lower rows on a phone', () => {
+  it('aims rows at about a quarter of the column, within a floor and a ceiling', () => {
     expect(photoRowTarget(PHONE)).toBe(140)
-    expect(photoRowTarget(MAC)).toBe(172)
+    expect(photoRowTarget(MAC)).toBe(173)
+    expect(photoRowTarget(830)).toBe(224)
+    expect(photoRowTarget(1400)).toBe(240)
+  })
+
+  it('fills the column with two photos, however wide the column is', () => {
+    // The report that started this: two photos spanning half a wide column.
+    for (const width of [PHONE, MAC, 830, 1014]) {
+      const [row, ...rest] = layoutPhotoRows([LANDSCAPE, LANDSCAPE], width)
+      expect(rest).toEqual([])
+      expect(row).toMatchObject({ count: 2, justified: true })
+      expect(fills([LANDSCAPE, LANDSCAPE], width)).toBe(true)
+    }
+  })
+
+  it('fills the column for every count of ordinary photos', () => {
+    const shapes = [LANDSCAPE, WIDE, LANDSCAPE, 3 / 2, PORTRAIT, 1, 4 / 5]
+    for (let n = 2; n <= 12; n++) {
+      const ratios = Array.from({ length: n }, (_, i) => shapes[i % shapes.length]!)
+      for (const width of [PHONE, MAC, 830, 1014]) {
+        const rows = layoutPhotoRows(ratios, width)
+        expect(rows.every((r) => r.justified), `${n} photos at ${width}`).toBe(true)
+      }
+    }
   })
 
   it('keeps every photo, in order, exactly once', () => {
@@ -291,10 +314,17 @@ describe('layoutPhotoRows', () => {
     }
   })
 
-  it('leaves a pair that would have to grow too far at the target height, centred', () => {
-    // Two portraits on a wide column: filling it would make them enormous.
-    const [row] = layoutPhotoRows([PORTRAIT, PORTRAIT], 900)
-    expect(row).toMatchObject({ count: 2, justified: false, height: photoRowTarget(900) })
+  it('stops a row at the height cap rather than fill the column past it', () => {
+    // Two portraits on a wide column: filling it would make them taller than a
+    // lone photo is ever drawn. They stop at the cap, side by side, centred.
+    const [row, ...rest] = layoutPhotoRows([PORTRAIT, PORTRAIT], 900)
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({ count: 2, justified: false, height: 480 })
+  })
+
+  it('takes a lower cap from a short window', () => {
+    const rows = layoutPhotoRows([LANDSCAPE, LANDSCAPE], 1014, 300)
+    for (const row of rows) expect(row.height).toBeLessThanOrEqual(300)
   })
 
   it('caps a photo alone in its row at a lone photo’s height', () => {

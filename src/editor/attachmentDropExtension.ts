@@ -131,18 +131,44 @@ function dropPos(view: EditorView, event: DragEvent): number {
  */
 type DropTarget =
   | { kind: 'gap'; pos: number }
-  | { kind: 'beside'; from: number; after: boolean; rect: DOMRect }
+  | { kind: 'beside'; from: number; after: boolean; rect: DOMRect; block: HTMLElement }
+
+/** How far a point is from a box; zero inside it. */
+function distanceTo(rect: DOMRect, x: number, y: number): number {
+  const dx = Math.max(rect.left - x, 0, x - rect.right)
+  const dy = Math.max(rect.top - y, 0, y - rect.bottom)
+  return Math.hypot(dx, dy)
+}
 
 function dropTarget(view: EditorView, event: DragEvent): DropTarget {
-  const el = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-    '.cm-photoset__tile, .cm-attachment--interactive',
-  )
+  const under = event.target as HTMLElement | null
+  let el = under?.closest<HTMLElement>('.cm-photoset__tile, .cm-attachment--interactive') ?? null
+  // Anywhere on a set counts, not only on a photo: the sliver between two
+  // photos, the room beside a short row, the line under them. A set is one
+  // thing to drop onto, and the nearest photo decides where in it.
+  const set = under?.closest<HTMLElement>('.cm-photoset') ?? null
+  if (!el && set) {
+    let nearest = Infinity
+    for (const tile of set.querySelectorAll<HTMLElement>('.cm-photoset__tile.cm-attachment--interactive')) {
+      const d = distanceTo(tile.getBoundingClientRect(), event.clientX, event.clientY)
+      if (d < nearest) {
+        nearest = d
+        el = tile
+      }
+    }
+  }
   const photo = el ? resolvePhotoElement(view, el) : null
   if (el && photo) {
     // A lone photo's block spans the column; its picture is the box inside.
     const box = el.querySelector<HTMLElement>('.cm-attachment__media') ?? el
     const rect = box.getBoundingClientRect()
-    return { kind: 'beside', from: photo.from, after: event.clientX > rect.left + rect.width / 2, rect }
+    return {
+      kind: 'beside',
+      from: photo.from,
+      after: event.clientX > rect.left + rect.width / 2,
+      rect,
+      block: set ?? el,
+    }
   }
   return { kind: 'gap', pos: dropPos(view, event) }
 }
@@ -166,8 +192,12 @@ function dropTarget(view: EditorView, event: DragEvent): DropTarget {
  */
 const DROP_IDLE_MS = 1200
 
+/** On the photo or set a drop would join, while the drag is over it. */
+const JOINING_CLASS = 'cm-attachment--joining'
+
 class DropIndicator {
   private el: HTMLElement | null = null
+  private joining: HTMLElement | null = null
   private watchdog = 0
 
   show(view: EditorView, target: DropTarget): void {
@@ -181,6 +211,14 @@ class DropIndicator {
           }
         : view.coordsAtPos(target.pos)
     if (!coords) return this.hide()
+
+    // The bar says where; the ring says what: these will be together.
+    const block = target.kind === 'beside' ? target.block : null
+    if (block !== this.joining) {
+      this.joining?.classList.remove(JOINING_CLASS)
+      block?.classList.add(JOINING_CLASS)
+      this.joining = block
+    }
 
     if (!this.el) {
       this.el = document.createElement('div')
@@ -203,6 +241,8 @@ class DropIndicator {
   hide(): void {
     window.clearTimeout(this.watchdog)
     this.watchdog = 0
+    this.joining?.classList.remove(JOINING_CLASS)
+    this.joining = null
     this.el?.remove()
     this.el = null
   }
@@ -226,6 +266,12 @@ const dropCursorTheme = EditorView.theme({
     width: '3px',
     opacity: '1',
     borderRadius: '2px',
+  },
+  // The photo or set a drop is about to join.
+  '.cm-attachment--joining .cm-attachment__media, .cm-attachment--joining .cm-photoset__rows': {
+    outline: '2px solid color-mix(in srgb, var(--accent) 60%, transparent)',
+    outlineOffset: '5px',
+    borderRadius: '10px',
   },
 })
 
