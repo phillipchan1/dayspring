@@ -261,11 +261,26 @@ export function RitualComposer({
    * beginning is the first writing movement: the passage is already open
    * beside it, and Read is not a stop (see `choosePassage`).
    */
+  /**
+   * Read is not a stop. The passage is the first movement's answer — that is
+   * where the page keeps it — but there is nothing to do there that cannot be
+   * done beside every other movement, so once a passage is chosen Read is not
+   * on the path, not a pane, and not somewhere Back goes (Phil, Oct 1: "I can
+   * read it right then"). 1 when this page opens with its passage, else 0.
+   */
+  const opensPastRead =
+    block &&
+    PRACTICE_BY_NAME.get(block.name)?.passage &&
+    movementKind(block.name, block.labels[0] ?? '') === 'read' &&
+    readPassage(block.texts[0] ?? '') !== null
+      ? 1
+      : 0
   const startAt = (() => {
     if (!block) return 0
     const asked = entry?.startAt
-    // `labels.length` is After — a click on the After in the reader.
-    if (asked !== undefined && asked >= 0 && asked <= block.labels.length) return asked
+    // `labels.length` is After — a click on the After in the reader. A click
+    // on the passage itself (movement 0) lands on the first writing movement.
+    if (asked !== undefined && asked >= 0 && asked <= block.labels.length) return Math.max(opensPastRead, asked)
     // Rest with nothing written is rest done — see `movementKind`.
     const firstEmpty = block.texts.findIndex(
       (t, n) => t.trim() === '' && movementKind(block.name, block.labels[n] ?? '') !== 'dwell',
@@ -286,7 +301,8 @@ export function RitualComposer({
     // Slower than Embla's default: this is a passage between movements, not a
     // photo gallery.
     duration: 26,
-    startIndex: startAt,
+    // The filmstrip has no pane for Read, so its snaps sit one behind.
+    startIndex: startAt - opensPastRead,
   })
   const paneRefs = useRef<(Focusable | null)[]>([])
   const touch = useTouchPrimary()
@@ -331,6 +347,10 @@ export function RitualComposer({
   const kindAt = (n: number): MovementKind | undefined =>
     passageMode && block && n >= 0 && n < total ? movementKind(block.name, labels[n] ?? '') : undefined
   const passage = passageMode ? readPassage(texts[0] ?? '') : null
+  /** The first movement there is to walk to: past Read, once the passage is chosen. */
+  const FIRST = passageMode && passage !== null && kindAt(0) === 'read' ? 1 : 0
+  const firstRef = useRef(FIRST)
+  firstRef.current = FIRST
   /** The finder is up: before the first movement, or to read another passage. */
   const [choosing, setChoosing] = useState<'first' | 'again' | null>(
     passageMode && !passage ? 'first' : null,
@@ -338,7 +358,6 @@ export function RitualComposer({
   const [askChange, setAskChange] = useState(false)
   /** The rail widening into the leaf, once, as the chosen passage arrives. */
   const [widen, setWiden] = useState(false)
-  const [slow, setSlow] = useState(0)
   /** The phone's strip that is open, by movement. */
   const [openStrip, setOpenStrip] = useState<number | null>(null)
   const passageRef = passage?.ref ?? null
@@ -648,18 +667,18 @@ export function RitualComposer({
 
   const go = useCallback(
     (next: number) => {
-      const clamped = Math.max(0, Math.min(CLOSE, next))
+      const clamped = Math.max(FIRST, Math.min(CLOSE, next))
       commit()
       setI(clamped)
       // On the filmstrip the caret waits for the slide to land — see `onSettle`.
-      if (!desk && embla && embla.selectedScrollSnap() !== clamped) {
-        embla.scrollTo(clamped)
+      if (!desk && embla && embla.selectedScrollSnap() !== clamped - FIRST) {
+        embla.scrollTo(clamped - FIRST)
         return
       }
-      embla?.scrollTo(clamped)
+      embla?.scrollTo(clamped - FIRST)
       requestAnimationFrame(() => paneRefs.current[clamped]?.focus({ preventScroll: true }))
     },
-    [CLOSE, commit, desk, embla],
+    [CLOSE, FIRST, commit, desk, embla],
   )
 
   useEffect(() => {
@@ -676,7 +695,7 @@ export function RitualComposer({
     // 2/2 tries; with it, 0/3. Not yet confirmed on a physical device.
     const onSelect = () => {
       commit()
-      setI(embla.selectedScrollSnap())
+      setI(embla.selectedScrollSnap() + firstRef.current)
     }
     // Focus waits for the track to stop. Focusing on `select` — or a frame
     // after `scrollTo` — hands iOS a textarea that is still sliding in under a
@@ -686,7 +705,7 @@ export function RitualComposer({
     // than at its start. Until the slide lands the previous movement keeps
     // focus (the footer buttons refuse to take it), so the keyboard never drops.
     const onSettle = () => {
-      const el = paneRefs.current[embla.selectedScrollSnap()]
+      const el = paneRefs.current[embla.selectedScrollSnap() + firstRef.current]
       if (el) {
         if ((document.activeElement as unknown) !== el) el.focus({ preventScroll: true })
         return
@@ -698,7 +717,9 @@ export function RitualComposer({
     // The layout can change under an open composer (a window narrowed past
     // the desk width), and Embla then starts from its `startIndex`, not from
     // the movement the writer is in.
-    if (embla.selectedScrollSnap() !== iRef.current) embla.scrollTo(iRef.current, true)
+    if (embla.selectedScrollSnap() !== iRef.current - firstRef.current) {
+      embla.scrollTo(iRef.current - firstRef.current, true)
+    }
     embla.on('select', onSelect)
     embla.on('settle', onSettle)
     return () => {
@@ -827,7 +848,8 @@ export function RitualComposer({
       setReached((r) => Math.max(r, firstWrite))
       // On a phone the passage is folded to a strip while writing — open it.
       setOpenStrip(firstWrite)
-      embla?.scrollTo(firstWrite, true)
+      // The filmstrip mounts after this (the finder was in its place) and
+      // settles on `i` by itself — see the sync in the Embla effect.
     }
   }
   // ── The way through it ──────────────────────────────────────────────────
@@ -888,6 +910,14 @@ export function RitualComposer({
     if (texts.some((t, n) => n > 0 && t.trim() !== '')) setAskChange(true)
     else setChoosing('again')
   }
+  /** On a phone, under the open passage — where Read's "Change passage" used to be. */
+  const changeUnder = (
+    <div className="rc__leaf-under">
+      <button type="button" onClick={requestChange}>
+        Change passage
+      </button>
+    </div>
+  )
   const setCaught = (phrase: string | null) => {
     if (markIndex < 0) return
     setTexts((prev) => {
@@ -1032,10 +1062,9 @@ export function RitualComposer({
   const own = bareReference && !(passageVerses && passageVerses.length > 0)
   const where = desk ? 'on the left' : 'above'
   /** The passage, however this movement uses it. */
-  const passageBody = (mode: MovementKind | 'plain' | 'quote', opts: { slowly?: boolean } = {}) =>
+  const passageBody = (mode: MovementKind | 'plain' | 'quote') =>
     passage ? (
       <PassageBody
-        key={opts.slowly ? `slow-${slow}` : 'still'}
         passage={passage}
         verses={passageVerses}
         guest={isGuest}
@@ -1062,7 +1091,6 @@ export function RitualComposer({
             }
           : {})}
         onHoverHighlight={(keys, el) => setHovered(keys && el ? { keys, el } : null)}
-        slow={Boolean(opts.slowly && slow > 0)}
       />
     ) : null
   /** What a movement puts between its question and the box — or instead of the box. */
@@ -1117,7 +1145,6 @@ export function RitualComposer({
   }
   const nextLabel = (n: number): string | undefined => {
     const k = kindAt(n)
-    if (k === 'read') return 'I’ve read it'
     if (k === 'dwell') return 'Amen'
     return undefined
   }
@@ -1191,24 +1218,19 @@ export function RitualComposer({
             <div className="rc__leaf-text">
               <div className="rc__leaf-ref">
                 <span>{passage.reference}</span>
-                {(kind === 'read' || !kind || untouched) && (
-                  <button type="button" onClick={requestChange}>
-                    change
-                  </button>
-                )}
+                {/* Always here: Read was the one place it used to live, and
+                    Read is no longer a stop. Asked first when anything has
+                    been written under the passage (`requestChange`). */}
+                <button type="button" onClick={requestChange}>
+                  change
+                </button>
               </div>
-              {passageBody(leafMode, { slowly: kind === 'read' })}
-              {kind === 'read' && !own && (
-                <div className="rc__leaf-under rc__chrome">
-                  <button type="button" onClick={() => setSlow((n) => n + 1)}>
-                    Read it again, slowly
-                  </button>
-                </div>
-              )}
+              {passageBody(leafMode)}
             </div>
           ) : undefined
         }
         ways={ways}
+        first={FIRST}
         still={entry?.still ?? false}
         widen={widen}
         closeExtra={drawnRecord}
@@ -1336,7 +1358,8 @@ export function RitualComposer({
       </header>
 
       <div className="rc__spine" data-yield={yielding ? 'true' : undefined} aria-hidden>
-        {paneLabels.map((label, n) => (
+        {paneLabels.map((label, n) =>
+          n < FIRST ? null : (
           <span
             key={n === AFTER ? '__after' : label}
             className="rc__pip"
@@ -1344,19 +1367,25 @@ export function RitualComposer({
             data-on={n === i ? 'true' : undefined}
             data-done={(paneTexts[n] ?? '').trim() && n !== i ? 'true' : undefined}
           />
-        ))}
+          ),
+        )}
       </div>
 
       <div className="rc__viewport" ref={emblaRef}>
         <div className="rc__track">
         {paneLabels.map((label, n) => {
+          // Read has no pane once its passage is chosen — see `FIRST`.
+          if (n < FIRST) return null
           const k = kindAt(n)
           const replaced = instead(n)
           // The passage on a phone: the whole pane when reading it, the top of
           // the pane when a word is to be caught, a strip everywhere else.
           const above =
             !passage || k === 'read' || k === 'dwell' || n === AFTER ? null : k === 'mark' ? (
-              <div className="rc__psg-top">{passageBody('mark')}</div>
+              <div className="rc__psg-top">
+                {passageBody('mark')}
+                {changeUnder}
+              </div>
             ) : (
               <>
                 <PassageStrip
@@ -1368,6 +1397,7 @@ export function RitualComposer({
                 {openStrip === n && (
                   <div className="rc__psg-top">
                     {passageBody(drawsAt(n) ? 'quote' : 'plain')}
+                    {!(pending && n === i) && changeUnder}
                     {pending && n === i && (
                       <div className="rc__bring">
                         <button type="button" className="rc__bring-go" onMouseDown={(e) => e.preventDefault()} onClick={bringIn}>
@@ -1444,9 +1474,9 @@ export function RitualComposer({
           className="rc__back"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => go(i - 1)}
-          disabled={i === 0}
+          disabled={i <= FIRST}
         >
-          {i > 0 && i < CLOSE + 1 ? `‹ ${paneLabels[i - 1] ?? ''}` : ''}
+          {i > FIRST && i < CLOSE + 1 ? `‹ ${paneLabels[i - 1] ?? ''}` : ''}
         </button>
         {i < CLOSE && (
           <button
@@ -1536,6 +1566,8 @@ interface DeskProps {
   ways?: React.ReactNode
   /** Opened again in place: no entrance. */
   still?: boolean
+  /** The first movement on the path — 1 when Read holds a chosen passage. */
+  first?: number
   /** A scripture ritual, passage or not: its answers' `>` lines are verses. */
   scripture?: boolean
   /** Widening now — once, as the chosen passage arrives. */
@@ -1649,6 +1681,7 @@ function DeskLayout({
   leaf,
   ways,
   still = false,
+  first = 0,
   widen = false,
   lead,
   instead,
@@ -1706,7 +1739,7 @@ function DeskLayout({
       data-still={still ? 'true' : undefined}
       role="dialog"
       aria-modal="true"
-      aria-label={`${name} — movement ${Math.min(i + 1, total)} of ${total}`}
+      aria-label={`${name} — movement ${Math.min(i + 1, total) - first} of ${total - first}`}
       data-widen={facing && widen ? 'true' : undefined}
       data-typing={facing && typing ? 'true' : undefined}
       onMouseMove={
@@ -1742,6 +1775,7 @@ function DeskLayout({
             has the height; a walked movement says its gist on hover. */}
         <ol className={`rc__path${facing ? ' rc__path--row rc__chrome' : ''}`}>
           {labels.map((l, n) => {
+            if (n < first) return null
             const state =
               n === i ? 'on' : !reachable(n) ? 'ahead' : filled(n) ? 'done' : 'open'
             return (
@@ -1839,9 +1873,9 @@ function DeskLayout({
                 type="button"
                 className="rc__back"
                 onClick={() => go(i - 1)}
-                disabled={i === 0}
+                disabled={i <= first}
               >
-                {i > 0 ? `← ${labels[i - 1]}` : ''}
+                {i > first ? `← ${labels[i - 1]}` : ''}
               </button>
               <span className="rc__foot-go">
                 <kbd className="rc__kbd">{ALT} ↵</kbd>
