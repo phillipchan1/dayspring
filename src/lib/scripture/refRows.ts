@@ -6,6 +6,7 @@
 // in the editor are read by the same rule. Only the I/O differs between them.
 
 import { parseReferences, type ParsedRef } from './parse.js'
+import { fenceReferences, highlightRefs } from './highlights.js'
 
 /** Sources that live in the body, so a reconcile owns them. 'manual' and
  *  'suggested' rows are never derived from prose and are never deleted here. */
@@ -34,6 +35,24 @@ export interface ScriptureRefRow {
   char_end: number
 }
 
+/**
+ * Every reference a page's body holds, in the order that decides which of two
+ * equal ones is kept (`dedupeByOsis` keeps the first hit):
+ *
+ *  1. the verses highlighted in a scripture ritual — kept first, so a verse the
+ *     writer drew out is excerpted from their reflection beside the quote
+ *     rather than from the passage;
+ *  2. each scripture fence's own reference line, read strictly;
+ *  3. references found in prose.
+ *
+ * The one place this is decided: the editor's save, the gather engine, the
+ * client-side scan of an import, the offline fallback and the backfill all call
+ * it, so a page reads the same way however it arrived.
+ */
+export function scriptureRefsOf(markdown: string): ParsedRef[] {
+  return [...highlightRefs(markdown), ...fenceReferences(markdown), ...parseReferences(markdown)]
+}
+
 /** Dedupe parsed refs by osis_ref (the unique-index key), keeping the first hit. */
 export function dedupeByOsis(refs: ParsedRef[]): Map<string, ParsedRef> {
   const out = new Map<string, ParsedRef>()
@@ -56,7 +75,7 @@ export function planScriptureRefs(
   existing: ExistingRefRow[],
   source: 'inline' | 'parsed',
 ): { toInsert: ScriptureRefRow[]; toDelete: string[] } {
-  const parsed = dedupeByOsis(parseReferences(markdown))
+  const parsed = dedupeByOsis(scriptureRefsOf(markdown))
   const existingOsis = new Set(existing.map((e) => e.osis_ref))
 
   const toInsert = [...parsed.values()]

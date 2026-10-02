@@ -10,7 +10,7 @@
 // "Psalm 42 and 43". Verse lists and "and N" chapter continuations each expand
 // into their own ParsedRef so the map counts every distinct landing place.
 
-import { BOOKS, type BibleBook } from '../bible/canon.js'
+import { BOOKS, bookByOsis, type BibleBook } from '../bible/canon.js'
 
 export interface ParsedRef {
   osis_ref: string
@@ -346,6 +346,13 @@ export interface ParseOptions {
    * `AMBIGUOUS_FORMS` rule, scoped to one archive. Omit it and nothing changes.
    */
   personForms?: Iterable<string>
+  /**
+   * The text IS a reference — a scripture fence's own reference line, which we
+   * wrote ourselves — so a book name needs no corroboration. Skips admission,
+   * which exists to keep "Met Mark 5 minutes late" off the map and has nothing
+   * to say about "Mark 4 · ESV". Never set it for anyone's prose.
+   */
+  trusted?: boolean
 }
 
 /**
@@ -385,6 +392,7 @@ export function parseReferences(text: string, opts?: ParseOptions): ParsedRef[] 
     // strongest single signal that an ambiguous word is a book. See admits().
     const canonical = rawName.toLowerCase().replace(/\s+/g, ' ').trim()
     if (
+      !opts?.trusted &&
       !admits(rawName, canonical, {
         hasVerse: spans.some((s) => s.verseStart != null),
         hasChapterKeyword: m[2] != null,
@@ -417,4 +425,38 @@ export function parseReferences(text: string, opts?: ParseOptions): ParsedRef[] 
     }
   }
   return out
+}
+
+/**
+ * A verse or verse range the writer drew out of a passage — built from a book
+ * and chapter we already know, not found in prose. Same clamping and OSIS
+ * form as everything `parseReferences` emits, so it dedupes against it.
+ */
+export function verseRef(
+  bookOsis: string,
+  chapter: number,
+  verseStart: number,
+  verseEnd: number | null,
+  char_start: number,
+  char_end: number,
+): ParsedRef | null {
+  const book = bookByOsis(bookOsis)
+  if (!book || verseStart < 1) return null
+  const { span, confidence } = clampSpan(book, {
+    chapter,
+    verseStart,
+    verseEnd: verseEnd != null && verseEnd > verseStart ? verseEnd : null,
+  })
+  return {
+    osis_ref: osisFor(book, span),
+    book_osis: book.osis,
+    book_name: book.name,
+    book_order: book.order,
+    chapter: span.chapter,
+    verse_start: span.verseStart,
+    verse_end: span.verseEnd,
+    char_start,
+    char_end,
+    confidence,
+  }
 }

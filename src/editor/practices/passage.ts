@@ -14,13 +14,16 @@
  *   markdown quote line (`> Remain in me`), then a blank line, then what you
  *   wrote. Plain markdown: it reads as a quote everywhere, exports as one, and
  *   needs no positions kept against the entry.
- * - A verse brought into a `cite` answer is plain text: `“…” (v. 39)`. The
- *   passage is already captured once; quoting from it must not count it twice.
+ * - A phrase or verse brought into an answer is a quote line carrying its
+ *   verse: `> Remain in me (v. 4)`. The Scripture surface reads both back
+ *   (lib/scripture/highlights.ts): the passage fence lights its chapter — where
+ *   the writer has been — and each quote lights its own verse — what caught them.
  *
  * Pure, so it is tested without a DOM — see passage.test.ts.
  */
 import { BOOKS, type BibleBook } from '@/lib/bible/canon'
 import { formatSpiritualBlock, parseSpiritualBlocks } from '@/lib/spiritualBlocks'
+import { VERSE_TAIL } from '@/lib/scripture/highlights'
 import type { VersePart } from '@/lib/spiritual'
 import { partsOf } from './passageLayout'
 
@@ -182,8 +185,8 @@ export function findPhrase(
 // its highlight with it. `writerWords` keeps these lines out of anything that
 // speaks of "your words" (Guardrail H3).
 
-/** `(v. 4)`, `(vv. 4–5)` at the end of a quote line. */
-const VERSE_TAIL = /\s*\(\s*vv?\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?\s*\)\s*$/
+// VERSE_TAIL — `(v. 4)`, `(vv. 4–5)` at the end of a quote line — lives in
+// lib/scripture/highlights.ts, where the same line is read back as a reference.
 
 export interface DrawnQuote {
   /** The words, without the `>` or the verse. */
