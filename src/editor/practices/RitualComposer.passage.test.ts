@@ -309,3 +309,101 @@ describe('drawing a line from the passage', () => {
     expect(doc).toContain('> Remain in me, and I in you (v. 4)')
   })
 })
+
+describe('words lit in the passage', () => {
+  const words = () => [...document.querySelectorAll<HTMLElement>('.rc__leaf-text .psg__w')]
+  const word = (text: string, nth = 0) => words().filter((w) => w.textContent === text)[nth]!
+
+  it('are one band: the spaces between them are lit, and only the ends keep their corners', async () => {
+    // A page kept from before: its quote is already in the answer.
+    open([PASSAGE, '> Remain in me, and I in you (v. 4)', '', ''])
+    await flush()
+    const lit = words().filter((w) => w.dataset.hl)
+    expect(lit.map((w) => w.textContent)).toEqual(['Remain', 'in', 'me,', 'and', 'I', 'in', 'you.'])
+    // Seven words, six spaces, every one lit like the words either side.
+    const spaces = [...document.querySelectorAll<HTMLElement>('.rc__leaf-text .psg__sp')]
+    expect(spaces).toHaveLength(6)
+    expect(spaces.every((s) => s.dataset.hl === lit[0]!.dataset.hl)).toBe(true)
+    expect(word('Remain').dataset.jl).toBeUndefined()
+    expect(word('Remain').dataset.jr).toBe('true')
+    expect(word('me,').dataset.jl).toBe('true')
+    expect(word('me,').dataset.jr).toBe('true')
+    expect(word('you.').dataset.jl).toBe('true')
+    expect(word('you.').dataset.jr).toBeUndefined()
+    // The next word, not quoted, is not part of it.
+    expect(word('I', 1).dataset.hl).toBeUndefined()
+  })
+
+  it('leave the page text exactly as it was', async () => {
+    open([PASSAGE, '> Remain in me, and I in you (v. 4)', '', ''])
+    await flush()
+    const text = document.querySelector('.rc__leaf-text .psg')!.textContent!
+    expect(text).toContain('Remain in me, and I in you.')
+    expect(text).toContain('I am the vine. You are the branches.')
+  })
+
+  it('are two bands where two different quotes meet at a space', async () => {
+    open([PASSAGE, '> Remain in (v. 4)', '> me, and (v. 4)', ''])
+    await flush()
+    // "in" ends one quote and "me," begins the other: no lit space between.
+    expect(word('in').dataset.jr).toBeUndefined()
+    expect(word('me,').dataset.jl).toBeUndefined()
+    expect(word('Remain').dataset.jr).toBe('true')
+    expect(word('me,').dataset.jr).toBe('true')
+  })
+
+  it('light a chosen phrase as one band while it is being chosen', async () => {
+    openSoap([PASSAGE, ''])
+    await flush()
+    select('Remain', 'you.')
+    const pending = [...document.querySelectorAll<HTMLElement>('.rc__leaf-text .psg__w[data-pending]')]
+    expect(pending.map((w) => w.textContent)).toEqual(['Remain', 'in', 'me,', 'and', 'I', 'in', 'you.'])
+    expect(document.querySelectorAll('.rc__leaf-text .psg__sp[data-pending]')).toHaveLength(6)
+  })
+})
+
+describe('opening a chosen passage', () => {
+  /** The finder, driven the way a writer does: type a reference, press Enter. */
+  function chooseFromFinder(query: string) {
+    const input = document.querySelector<HTMLInputElement>('.pf__input')!
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    act(() => {
+      set.call(input, query)
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+  }
+
+  it('settles to "done", never back to no attribute (which hands the root its fade-in again)', async () => {
+    open([])
+    const seen: (string | null)[] = []
+    chooseFromFinder('John 15:4-5')
+    await flush()
+    await flush()
+    const composer = () => document.querySelector('.ritual-composer')!
+    expect(composer().classList.contains('rc--facing')).toBe(true)
+    const watcher = new MutationObserver(() => seen.push(composer().getAttribute('data-widen')))
+    watcher.observe(composer(), { attributes: true, attributeFilter: ['data-widen'] })
+    seen.push(composer().getAttribute('data-widen'))
+    // Past the longest thing the widening carries (the leaf's words, to 1.25s).
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1600))
+    })
+    watcher.disconnect()
+    expect(seen[0]).toBe('true')
+    expect(composer().getAttribute('data-widen')).toBe('done')
+    // It went true → done; at no moment was it simply absent.
+    expect(seen).not.toContain(null)
+  })
+
+  it('has no widening at all for a page opened again', async () => {
+    open([PASSAGE, '', '', ''])
+    await flush()
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 1600))
+    })
+    expect(document.querySelector('.ritual-composer')!.hasAttribute('data-widen')).toBe(false)
+  })
+})

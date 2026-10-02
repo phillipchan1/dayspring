@@ -93,12 +93,28 @@
   margin: 0 0.22em 0 0.1em;
   line-height: 1;
 }
-.psg__w { border-radius: 3px; transition: background 0.2s ease, opacity 0.5s ease; }
-.psg__w[data-on='true'] {
-  background: var(--psg-lit);
-  box-shadow: 0 0 0 0.12em var(--psg-lit);
-  color: var(--text-bright);
+.psg__w, .psg__sp { border-radius: 3px; transition: background 0.2s ease, opacity 0.5s ease; }
+/* A space lit between two words it joins (PassageText `joined`): part of the
+   band, so it has no corners of its own. */
+.psg__sp { border-radius: 0; }
+
+/* Anything lit is ONE band, not a tile per word. The words and the spaces
+   between them share a fill; a word squares off whichever side joins on. The
+   padding stands the fill clear of the letters and up toward the line above
+   and below — padding on an inline box moves nothing, and the negative
+   margin takes back the sideways room it asks for. */
+.psg__w[data-on='true'], .psg__w[data-pending='true'], .psg__w[data-hl='here'], .psg__w[data-hl='deep'],
+.psg__sp[data-on='true'], .psg__sp[data-pending='true'], .psg__sp[data-hl='here'], .psg__sp[data-hl='deep'] {
+  padding-block: 0.18em;
 }
+.psg__w[data-on='true'], .psg__w[data-pending='true'], .psg__w[data-hl='here'], .psg__w[data-hl='deep'] {
+  padding-inline: 0.14em;
+  margin-inline: -0.14em;
+}
+.psg__w[data-jl='true'] { padding-left: 0; margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.psg__w[data-jr='true'] { padding-right: 0; margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.psg__w[data-on='true'], .psg__sp[data-on='true'] { background: var(--psg-lit); }
+.psg__w[data-on='true'] { color: var(--text-bright); }
 
 /* choose: verses are the targets. The wash sits on the verse, not on each
    word, so a chosen verse reads as one band rather than a row of tiles. */
@@ -121,22 +137,22 @@
 /* Resting on a word: it underlines, so you know it is a target. */
 .psg[data-selecting='true'] .psg__w:hover { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 70%, transparent); }
 /* Chosen, not yet brought in: one band, not a row of tiles. */
-.psg__w[data-pending='true'] { background: var(--psg-lit); box-shadow: 0.3em 0 0 var(--psg-lit); }
+.psg__w[data-pending='true'], .psg__sp[data-pending='true'] { background: var(--psg-lit); }
 
 /* Quoted phrases. This movement's in gold; earlier movements' as an underline
    that stays out of the way; where quotes overlap, deeper. */
-.psg__w[data-hl='here'] { background: var(--psg-lit); box-shadow: 0.3em 0 0 var(--psg-lit); border-radius: 3px; }
-.psg__w[data-hl='deep'] { background: color-mix(in srgb, var(--psg-gold) 42%, transparent); box-shadow: 0.3em 0 0 color-mix(in srgb, var(--psg-gold) 42%, transparent); border-radius: 3px; }
-.psg__w[data-hl='past'] { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 40%, transparent); background: color-mix(in srgb, var(--psg-gold) 7%, transparent); }
-.psg__w[data-lit='true'] { background: color-mix(in srgb, var(--psg-gold) 48%, transparent); }
-.psg__w[data-hl] { cursor: help; }
-.psg[data-selecting='true'] .psg__w[data-hl] { cursor: text; }
+.psg__w[data-hl='here'], .psg__sp[data-hl='here'] { background: var(--psg-lit); }
+.psg__w[data-hl='deep'], .psg__sp[data-hl='deep'] { background: color-mix(in srgb, var(--psg-gold) 42%, transparent); }
+.psg__w[data-hl='past'], .psg__sp[data-hl='past'] { box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--psg-gold) 40%, transparent); background: color-mix(in srgb, var(--psg-gold) 7%, transparent); }
+.psg__w[data-lit='true'], .psg__sp[data-lit='true'] { background: color-mix(in srgb, var(--psg-gold) 48%, transparent); }
+.psg__w[data-hl], .psg__sp[data-hl] { cursor: help; }
+.psg[data-selecting='true'] .psg__w[data-hl], .psg[data-selecting='true'] .psg__sp[data-hl] { cursor: text; }
 
 /* carry / cite / plain: on view, the caught word ahead of the rest */
-.psg[data-mode='carry'] .psg__w:not([data-on='true']),
-.psg[data-mode='plain'] .psg__w:not([data-on='true']),
-.psg[data-mode='cite'] .psg__w:not([data-on='true']) { opacity: 0.58; }
-.psg[data-mode='cite'] .psg__v:hover .psg__w { opacity: 1; }
+.psg[data-mode='carry'] :is(.psg__w, .psg__sp):not([data-on='true']),
+.psg[data-mode='plain'] :is(.psg__w, .psg__sp):not([data-on='true']),
+.psg[data-mode='cite'] :is(.psg__w, .psg__sp):not([data-on='true']) { opacity: 0.58; }
+.psg[data-mode='cite'] .psg__v:hover :is(.psg__w, .psg__sp) { opacity: 1; }
 .psg__n--cite {
   font: inherit;
   font-family: var(--font-sans, system-ui, sans-serif);
@@ -156,9 +172,9 @@
 .psg__v[data-cited='true'] .psg__n--cite { background: var(--psg-lit); color: var(--text-bright); }
 
 /* dwell: everything rests but the word */
-.psg[data-mode='dwell'] .psg__w:not([data-on='true']),
+.psg[data-mode='dwell'] :is(.psg__w, .psg__sp):not([data-on='true']),
 .psg[data-mode='dwell'] .psg__n { animation: psg-rest 3.2s ease both; }
-.psg[data-mode='dwell'] .psg__w[data-on='true'] { box-shadow: 0 0 34px 6px var(--psg-lit); transition: box-shadow 1.2s ease; }
+.psg[data-mode='dwell'] :is(.psg__w, .psg__sp)[data-on='true'] { box-shadow: 0 0 34px 6px var(--psg-lit); transition: box-shadow 1.2s ease; }
 @keyframes psg-rest { from { opacity: 1; } to { opacity: 0.13; } }
 
 /* read again, slowly */
@@ -412,6 +428,9 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   grid-template-columns: minmax(24rem, 9fr) minmax(0, 11fr);
 }
 .rc--desk.rc--facing[data-widen='true'] { animation: rc-widen 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+/* Opened. NOT "no attribute": without one the root falls back to its mount
+   fade (`rc-in`), which then ran again from nothing a second after it opened. */
+.rc--desk.rc--facing[data-widen='done'] { animation: none; }
 @keyframes rc-widen {
   from { grid-template-columns: minmax(19rem, 5fr) minmax(0, 15fr); }
   to { grid-template-columns: minmax(24rem, 9fr) minmax(0, 11fr); }
@@ -678,9 +697,9 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .rc__strip-chev { margin-left: auto; color: var(--text-faint); }
 
 @media (prefers-reduced-motion: reduce) {
-  .rc--facing[data-widen='true'],
+  .rc--desk.rc--facing[data-widen],
   .rc--facing[data-widen='true'] .rc__leaf-text,
-  .psg[data-mode='dwell'] .psg__w,
+  .psg[data-mode='dwell'] :is(.psg__w, .psg__sp),
   .psg[data-slow='true'] .psg__v,
   .rc__dwell-word { animation: none; }
 }

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef } from 'react'
+import { Fragment, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import { findPhrase, spanText, type Verse } from './passage'
 import { divineName, flatText, layoutPassage, type Fragment as Frag } from './passageLayout'
 import './Passage.css'
@@ -67,6 +67,33 @@ interface Word {
   text: string
   start: number
   end: number
+}
+
+/** What lights one word: caught, chosen but not yet brought in, or quoted. */
+interface Light {
+  on: boolean
+  hl: 'here' | 'deep' | 'past' | undefined
+  lit: boolean
+  pending: boolean
+  /** The quotes that cover it. */
+  keys: string[]
+}
+
+/**
+ * Two neighbouring words are one band when they are lit the same way by the
+ * same quotes. Two different quotes that meet at a space stay two bands, so
+ * where one ends and the next begins can still be seen.
+ */
+function joined(a: Light | null | undefined, b: Light | null | undefined): boolean {
+  if (!a || !b) return false
+  if (!(a.on || a.pending || a.hl) || !(b.on || b.pending || b.hl)) return false
+  return (
+    a.on === b.on &&
+    a.pending === b.pending &&
+    a.hl === b.hl &&
+    a.lit === b.lit &&
+    a.keys.join(' ') === b.keys.join(' ')
+  )
 }
 
 function wordsOf(text: string): Word[] {
@@ -201,6 +228,19 @@ export function PassageText({
     const inSel = selected != null && f.n >= selected.from && f.n <= selected.to
     const hl = highlights.filter((h) => h.n === f.n)
     const verseCite = (mode === 'cite' || mode === 'quote') && onCite
+    // What lights each word, worked out first so a word can see its neighbours.
+    const lights: (Light | null)[] = words.map((w, i) => {
+      if (f.selah && i === words.length - 1) return null
+      const cover = hl.filter((h) => w.end > h.start && w.start < h.end)
+      const keys = cover.map((h) => h.key)
+      return {
+        on: caughtAt != null && caughtAt.n === f.n && w.end > caughtAt.start && w.start < caughtAt.end,
+        hl: cover.length ? (cover.some((h) => h.here) ? (cover.length > 1 ? 'deep' : 'here') : 'past') : undefined,
+        lit: Boolean(lit && keys.includes(lit)),
+        pending: pendingCovers(f.n, w),
+        keys,
+      }
+    })
     return (
       <span
         key={`${f.n}:${f.word}`}
@@ -237,25 +277,36 @@ export function PassageText({
               </span>
             )
           }
-          const on = caughtAt != null && caughtAt.n === f.n && w.end > caughtAt.start && w.start < caughtAt.end
-          const cover = hl.filter((h) => w.end > h.start && w.start < h.end)
-          const keys = cover.map((h) => h.key)
+          const here = lights[i]!
+          const next = i < words.length - 1 ? lights[i + 1] : null
+          const prev = i > 0 ? lights[i - 1] : null
+          // A band carries across the space between two words it lights —
+          // the space is lit too (`psg__sp`), and the corners between them
+          // square off. Lit word by word, a chosen phrase read as a row of
+          // tiles with slits between them, wider the wider the font's space.
+          const joinR = joined(here, next)
+          const joinL = joined(prev, here)
+          const lightProps = (l: Light) => ({
+            'data-on': l.on ? 'true' : undefined,
+            'data-hl': l.hl,
+            'data-lit': l.lit ? 'true' : undefined,
+            'data-pending': l.pending ? 'true' : undefined,
+          })
+          const hover = onHoverHighlight
+            ? (e: ReactMouseEvent<HTMLElement>) =>
+                onHoverHighlight(here.keys.length ? here.keys : null, here.keys.length ? e.currentTarget : null)
+            : undefined
           return (
             <span key={i}>
               <span
                 className="psg__w"
                 data-v={f.n}
                 data-start={w.start}
-                data-on={on ? 'true' : undefined}
-                data-hl={cover.length ? (cover.some((h) => h.here) ? (cover.length > 1 ? 'deep' : 'here') : 'past') : undefined}
-                data-lit={lit && keys.includes(lit) ? 'true' : undefined}
-                data-keys={keys.length ? keys.join(' ') : undefined}
-                data-pending={pendingCovers(f.n, w) ? 'true' : undefined}
-                onMouseEnter={
-                  onHoverHighlight
-                    ? (e) => onHoverHighlight(keys.length ? keys : null, keys.length ? e.currentTarget : null)
-                    : undefined
-                }
+                {...lightProps(here)}
+                data-keys={here.keys.length ? here.keys.join(' ') : undefined}
+                data-jl={joinL ? 'true' : undefined}
+                data-jr={joinR ? 'true' : undefined}
+                onMouseEnter={hover}
               >
                 {divineName(w.text).map((seg, k) =>
                   seg.name ? (
@@ -268,7 +319,14 @@ export function PassageText({
                   ),
                 )}
               </span>
-              {i < words.length - 1 ? ' ' : ''}
+              {i < words.length - 1 &&
+                (joinR ? (
+                  <span className="psg__sp" {...lightProps(here)} onMouseEnter={hover}>
+                    {' '}
+                  </span>
+                ) : (
+                  ' '
+                ))}
             </span>
           )
         })}{' '}
