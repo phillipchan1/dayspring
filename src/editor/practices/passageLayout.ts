@@ -101,15 +101,3 @@ export function layoutPassage(verses: readonly Verse[]): Row[] {
   })
   return rows
 }
-
-/**
- * Split a word around the divine name. The ESV prints YHWH as LORD (and GOD
- * after "Lord") in small capitals; the text keeps the capitals verbatim and
- * only the drawing changes.
- */
-export function divineName(word: string): { text: string; name: boolean }[] {
-  return word
-    .split(/(?<![A-Za-z])(LORD|GOD)(?![A-Za-z])/)
-    .map((text, i) => ({ text, name: i % 2 === 1 }))
-    .filter((s) => s.text)
-}

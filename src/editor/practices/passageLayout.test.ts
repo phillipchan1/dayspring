@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { divineName, flatText, layoutPassage } from './passageLayout'
+import { flatText, layoutPassage } from './passageLayout'
 import type { Verse } from './passage'
 
 const PSALM: Verse[] = [
@@ -86,24 +86,6 @@ describe('layoutPassage', () => {
 
   it('never opens a passage with a gap, even mid-psalm', () => {
     expect(layoutPassage(PSALM.slice(2))[0]!.gap).toBe(false)
-  })
-})
-
-describe('divineName', () => {
-  it('finds LORD and GOD, with their punctuation left outside', () => {
-    expect(divineName('LORD’s,')).toEqual([
-      { text: 'LORD', name: true },
-      { text: '’s,', name: false },
-    ])
-    expect(divineName('“GOD')).toEqual([
-      { text: '“', name: false },
-      { text: 'GOD', name: true },
-    ])
-  })
-
-  it('leaves Lord, God and ordinary capitals alone', () => {
-    expect(divineName('Lord')).toEqual([{ text: 'Lord', name: false }])
-    expect(divineName('GODLY')).toEqual([{ text: 'GODLY', name: false }])
   })
 })
 

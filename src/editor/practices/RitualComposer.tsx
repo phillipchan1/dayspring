@@ -461,7 +461,10 @@ export function RitualComposer({
   }, [i])
   useEffect(() => {
     if (!widen) return
-    const id = setTimeout(() => setWiden(false), 1000)
+    // Longer than the longest thing it carries: the leaf's words fade in until
+    // 1.25s (Passage.css), and taking `data-widen` off sooner cut that fade
+    // short and popped the text to full.
+    const id = setTimeout(() => setWiden(false), 1400)
     return () => clearTimeout(id)
   }, [widen])
 
@@ -1698,6 +1701,18 @@ function DeskLayout({
   const label = labels[i] ?? ''
   const facing = leaf != null
   /**
+   * Has the rail opened into the leaf. The root's own fade-in (`rc-in`) is
+   * what a composer wears when nothing else sets `animation` on it; `rc-widen`
+   * replaces it while `data-widen="true"`, and dropping the attribute handed
+   * the fade back — a second `rc-in`, the whole window going to nothing and
+   * returning just as the opening finished. So once widened the attribute
+   * becomes `"done"` (animation: none) rather than going away.
+   */
+  const [widened, setWidened] = useState(false)
+  useEffect(() => {
+    if (widen) setWidened(true)
+  }, [widen])
+  /**
    * Focus, on the facing leaf: while the writer types, everything on it but
    * the passage fades back. A real move of the mouse brings it back — not a
    * trackpad's twitch.
@@ -1740,7 +1755,7 @@ function DeskLayout({
       role="dialog"
       aria-modal="true"
       aria-label={`${name} — movement ${Math.min(i + 1, total) - first} of ${total - first}`}
-      data-widen={facing && widen ? 'true' : undefined}
+      data-widen={facing ? (widen ? 'true' : widened ? 'done' : undefined) : undefined}
       data-typing={facing && typing ? 'true' : undefined}
       onMouseMove={
         facing && typing
