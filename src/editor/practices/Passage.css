@@ -51,9 +51,6 @@
   white-space: nowrap;
   padding-inline: 0.2em;
 }
-/* The divine name: LORD as the ESV prints it, capital and small capitals. The
-   letters stay capitals underneath, so a copied verse is still verbatim. */
-.psg__sc > span { font-variant-caps: all-small-caps; letter-spacing: 0.03em; }
 .psg__selah {
   font-style: italic;
   font-size: 0.86em;

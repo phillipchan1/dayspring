@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import { findPhrase, spanText, type Verse } from './passage'
-import { divineName, flatText, layoutPassage, type Fragment as Frag } from './passageLayout'
+import { flatText, layoutPassage, type Fragment as Frag } from './passageLayout'
 import './Passage.css'
 
 /**
@@ -116,8 +116,8 @@ function pointOf(root: HTMLElement, node: Node, offset: number, isEnd: boolean):
   const word = el?.closest<HTMLElement>('.psg__w')
   if (word && root.contains(word)) {
     const start = Number(word.dataset.start)
-    // Measured, not read off the text node: the divine name splits a word
-    // into more than one node (L + ORD in small capitals).
+    // Measured from the word's start rather than read off the text node, so a
+    // word split into more than one node still gives the right offset.
     let inside = 0
     if (node.nodeType === Node.TEXT_NODE) {
       const r = document.createRange()
@@ -308,16 +308,11 @@ export function PassageText({
                 data-jr={joinR ? 'true' : undefined}
                 onMouseEnter={hover}
               >
-                {divineName(w.text).map((seg, k) =>
-                  seg.name ? (
-                    <span key={k} className="psg__sc">
-                      {seg.text[0]}
-                      <span>{seg.text.slice(1)}</span>
-                    </span>
-                  ) : (
-                    seg.text
-                  ),
-                )}
+                {/* As written: the ESV's LORD stays LORD, set like every other
+                    word. It used to be drawn as a capital and small capitals,
+                    which no one else on the page was, and in a monospace face
+                    the small caps came out as stray tiny letters. */}
+                {w.text}
               </span>
               {i < words.length - 1 &&
                 (joinR ? (
