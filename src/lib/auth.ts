@@ -222,12 +222,26 @@ export async function listSignInMethods(): Promise<OAuthProvider[]> {
   return SIGN_IN_PROVIDERS.filter((p) => linked.includes(p))
 }
 
+/**
+ * Sign THIS device out — and only this device.
+ *
+ * supabase-js defaults `signOut()` to `scope: 'global'`, which revokes every
+ * refresh token the account holds, so signing out of the Mac silently signs the
+ * iPhone out too (it finds out at its next token refresh, up to an hour later,
+ * mid-session). Every mainstream account system treats "sign out" as
+ * per-device; a separate, deliberate "sign out everywhere" is the exception.
+ * `local` still revokes this device's own session server-side, so its token is
+ * dead — it just leaves the others alone.
+ *
+ * This also bounds `forceReauth`: it calls here on any 401/403, and a global
+ * scope would let one device's stray rejection sign out all of them.
+ */
 export async function signOut(): Promise<void> {
   const sb = requireSupabase()
   const {
     data: { session },
   } = await sb.auth.getSession()
-  await sb.auth.signOut()
+  await sb.auth.signOut({ scope: 'local' })
   // Only an authenticated session owns a tenant cache that must be scrubbed.
   // A guest journal is the only copy of that writing — leave it on the device.
   if (!session) return
