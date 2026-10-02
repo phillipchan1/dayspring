@@ -1,4 +1,16 @@
-import { cacheClearAll, dictationCount, outboxCount, pendingUploadCount } from './db'
+import {
+  cacheClearAll,
+  cacheDelete,
+  cacheGetAll,
+  dictationCount,
+  markDelete,
+  marksAll,
+  outboxAll,
+  outboxCount,
+  pendingUploadCount,
+  snapshotsClear,
+} from './db'
+import type { Entry } from './types'
 import { clearAllCache } from './asyncCache'
 import { isGuestOwnerId } from './guestOwner'
 import { SUBSCRIPTION_CACHE_KEY } from './subscription'
@@ -139,6 +151,53 @@ export async function fenceCacheToOwner(ownerId: string): Promise<void> {
       writeCacheOwner(ownerId)
     }
   }
+}
+
+/**
+ * The rows in a guest's cache that only an account's sync could have put there.
+ *
+ * A guest has no server: what a guest writes is never pushed, so it never
+ * carries a server base (`base_body_markdown`, stamped by `withServerBase`
+ * when a row comes back from the server), and it always has a pending outbox
+ * op waiting for a sign-in. A row WITH a server base and WITHOUT a pending op
+ * is therefore an account's page, not this guest's — nothing of the guest's
+ * is lost by removing it, and the account still has it.
+ */
+export function accountRowsInGuestCache(
+  entries: readonly Pick<Entry, 'id' | 'base_body_markdown'>[],
+  pendingEntryIds: ReadonlySet<string>,
+): string[] {
+  return entries
+    .filter((e) => e.base_body_markdown !== undefined && !pendingEntryIds.has(e.id))
+    .map((e) => e.id)
+}
+
+/**
+ * Take an account's pages back out of a guest's cache. Run when the guest
+ * shell boots.
+ *
+ * Before the leave-an-account restart (lib/accountLeave.ts), a sync still in
+ * flight at sign-out could refill the cache after the fence had scrubbed it,
+ * and the fence had by then handed the cache to the guest — so every later
+ * launch saw "same owner" and left an account's whole archive readable by
+ * whoever opened the app signed out. This is the repair for devices already
+ * in that state, and a standing second check for any that get there again.
+ * Snapshots (the Altar's prayers, the rollups' quotes) are server reads a
+ * guest cannot make, so with leaked pages they go too.
+ */
+export async function scrubAccountRowsFromGuestCache(): Promise<number> {
+  const [entries, ops] = await Promise.all([cacheGetAll(), outboxAll()])
+  const ids = accountRowsInGuestCache(entries, new Set(ops.map((o) => o.entryId)))
+  if (ids.length === 0) return 0
+  const gone = new Set(ids)
+  clearAllCache()
+  const marks = await marksAll().catch(() => [])
+  await Promise.all([
+    ...ids.map((id) => cacheDelete(id)),
+    ...marks.filter((m) => gone.has(m.entryId) && !m.pending).map((m) => markDelete(m.id)),
+    snapshotsClear(),
+  ])
+  return ids.length
 }
 
 /**

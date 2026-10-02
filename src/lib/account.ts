@@ -6,6 +6,7 @@
 // that no longer exist anywhere is exactly the thing the user asked us to
 // remove — see docs/ACCOUNT_DELETION.md.
 
+import { claimRestart } from './accountLeave'
 import { apiUrl } from './api'
 import { purgeAfterAccountDeletion } from './localData'
 import { requireSupabase } from './supabase'
@@ -62,6 +63,9 @@ export async function deleteAccount(): Promise<void> {
   // The user this token belongs to no longer exists, so Supabase may well
   // reject the sign-out. That is not a failure worth surfacing — the account is
   // already gone, and the local scrub below is what actually matters here.
+  // This flow scrubs flags as well as content and reloads below; the general
+  // leave-an-account restart (App.tsx) must not cut that short.
+  claimRestart()
   try {
     await sb.auth.signOut()
   } catch {
