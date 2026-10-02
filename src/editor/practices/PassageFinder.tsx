@@ -23,7 +23,13 @@ interface Props {
   practice: Practice
   /** Choosing again, over a passage already on the page. */
   current?: string | null
-  /** The passage chosen, with its words — or `null` words for your own Bible. */
+  /**
+   * The passage chosen, with its words. `null` words mean it is read from the
+   * writer's own Bible, and only when the words cannot be had: a guest (no
+   * session for the ESV), or a chapter that would not open. Never a choice —
+   * a page that keeps only a reference has nothing to draw quotes from, which
+   * is the whole of a scripture ritual (Phil, Oct 1).
+   */
   onChoose: (ref: PassageRef, verses: Verse[] | null) => void
   /** Leave without choosing. */
   onBack: () => void
@@ -58,8 +64,6 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   const [turn, setTurn] = useState(0)
   /** A passage chosen, its chapter still on the way. */
   const [taking, setTaking] = useState<PassageRef | null>(autoTake)
-  /** Reading from a Bible of their own: a choice needs no chapter fetched. */
-  const [ownBible, setOwnBible] = useState(false)
   const takingRef = useRef(false)
   const liveRef = useRef(true)
   useEffect(() => {
@@ -139,7 +143,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
       return
     }
     if (takingRef.current) return
-    if (isGuest || ownBible) {
+    if (isGuest) {
       onChoose(ref, null)
       return
     }
@@ -394,14 +398,9 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
               Continue
             </button>
           ) : (
-            <>
-              <button type="button" className="pf__link" onClick={() => begin(true)}>
-                I’m reading from my own Bible
-              </button>
-              <button type="button" className="pf__begin" onClick={() => begin(false)} disabled={verses === null}>
-                {current ? 'Use this passage' : 'Begin'}
-              </button>
-            </>
+            <button type="button" className="pf__begin" onClick={() => begin(false)} disabled={verses === null}>
+              {current ? 'Use this passage' : 'Begin'}
+            </button>
           )}
         </div>
       </>
@@ -576,16 +575,6 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
             onKeyDown={onKey}
           />
           <p className="pf__hint">{practice.passage?.hint}</p>
-          {!current && !isGuest && !taking && !open && (
-            <button
-              type="button"
-              className="pf__link pf__own"
-              aria-pressed={ownBible}
-              onClick={() => setOwnBible((o) => !o)}
-            >
-              {ownBible ? '✓ ' : ''}I’m reading from my own Bible
-            </button>
-          )}
           {body}
         </div>
       </div>

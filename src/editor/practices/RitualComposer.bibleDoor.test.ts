@@ -138,6 +138,57 @@ describe('the Bible door', () => {
   })
 })
 
+describe('reading from your own Bible', () => {
+  const ownButtons = () =>
+    [...document.querySelectorAll('button')].filter((b) => /own Bible/i.test(b.textContent ?? ''))
+
+  it('is never offered as a choice — a page with only a reference has nothing to draw from', async () => {
+    begin()
+    await flush()
+    expect(document.querySelector('.passage-finder')).not.toBeNull()
+    expect(ownButtons()).toHaveLength(0)
+  })
+
+  it('is not offered when changing the passage either', async () => {
+    const PSG = writePassage({ book: 'John', chapter: 15, from: 4, to: 5 }, JOHN, ID)
+    begin({
+      start: `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [PSG, ''])}\n${RITUAL_END_TOKEN}`,
+      onSwitch: () => {},
+    })
+    await flush()
+    act(() => (document.querySelector('.rc__leaf-ref button') as HTMLButtonElement).click())
+    await flush()
+    expect(document.querySelector('.pf__begin')).not.toBeNull()
+    expect(ownButtons()).toHaveLength(0)
+  })
+})
+
+describe('a page already kept as a reference only', () => {
+  it('gets its words through change → Use this passage, and can then be drawn from', async () => {
+    const REF_ONLY = writePassage({ book: 'John', chapter: 15, from: null, to: null }, null, ID)
+    begin({
+      start: `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [REF_ONLY, ''])}\n${RITUAL_END_TOKEN}`,
+      onSwitch: () => {},
+    })
+    await flush()
+    expect(document.querySelector('.rc__leaf-own')).not.toBeNull()
+    act(() => (document.querySelector('.rc__leaf-ref button') as HTMLButtonElement).click())
+    await flush()
+    expect(document.querySelector('.pf__chapter')?.textContent).toBe('John 15')
+    act(() => (document.querySelector('.pf__begin') as HTMLButtonElement).click())
+    await flush()
+    await flush()
+    expect(document.querySelector('.rc__leaf-own')).toBeNull()
+    expect(document.querySelectorAll('.rc__leaf-text .psg__v').length).toBe(CHAPTER.length)
+    // The same fence, now holding the words — once the debounced write lands.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 450))
+    })
+    expect(doc).toContain(ID)
+    expect(doc).toContain('Verse 1.')
+  })
+})
+
 describe('the ways through a passage', () => {
   const PSG = writePassage({ book: 'John', chapter: 15, from: 4, to: 5 }, JOHN, ID)
   const page = (name: string, texts: string[]) =>

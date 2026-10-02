@@ -212,7 +212,7 @@ export const RELEASES: Release[] = [
         title: 'Set the way a Bible sets it',
         body: [
           'You can now read poetry in its lines and stanzas, prose in its paragraphs, and LORD in small capitals, as the ESV prints it. Passages come one chapter at a time.',
-          'Once you have read a chapter, Open your Bible offers the next one. Reading from a Bible of your own? You can say so under the search and write from the reference.',
+          'Once you have read a chapter, Open your Bible offers the next one.',
         ],
       },
     ],
