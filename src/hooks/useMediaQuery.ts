@@ -22,6 +22,16 @@ export function useIsMobile(): boolean {
 }
 
 /**
+ * A phone: the single-column layout on a touch screen. A narrow window driven
+ * by a mouse is still a desktop, and hover works there.
+ */
+export function useIsPhone(): boolean {
+  const isMobile = useIsMobile()
+  const coarsePointer = useMediaQuery('(pointer: coarse)')
+  return isMobile && coarsePointer
+}
+
+/**
  * Touch-primary device — phone, or tablet without a fine pointer. With a Magic
  * Keyboard trackpad the pointer becomes fine, so iPad then behaves like desktop.
  */

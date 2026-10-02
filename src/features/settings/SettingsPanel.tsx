@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { voiceCaretSupported } from '@/editor/voiceCaret'
 import { track } from '@/lib/analytics'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useIsMobile, useIsPhone } from '@/hooks/useMediaQuery'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
 import { AppearanceToggle } from '@/components/AppearanceToggle'
 import { ShortcutsGuide } from '@/features/shortcuts/ShortcutsGuide'
@@ -249,6 +249,7 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
 }
 
 function WritingTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
+  const phone = useIsPhone()
   return (
     <div className="settings-stack">
       {/* On mobile the settings panel covers the journal full-screen, so a
@@ -333,19 +334,24 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
         onChange={(v) => update({ readerLeaves: v })}
       />
       <div className="settings-divider" />
-      <Toggle
-        label="Typewriter scrolling"
-        hint="Keep the active line centered (focus mode)"
-        checked={settings.typewriter}
-        onChange={(v) => update({ typewriter: v })}
-      />
-      <Toggle
-        label="Paragraph dimming"
-        hint="Fade all but the current paragraph (focus mode)"
-        checked={settings.dimming}
-        onChange={(v) => update({ dimming: v })}
-      />
-      <div className="settings-divider" />
+      {/* Both only act inside focus mode, which a phone doesn't have. */}
+      {!phone && (
+        <>
+          <Toggle
+            label="Typewriter scrolling"
+            hint="Keep the active line centered (focus mode)"
+            checked={settings.typewriter}
+            onChange={(v) => update({ typewriter: v })}
+          />
+          <Toggle
+            label="Paragraph dimming"
+            hint="Fade all but the current paragraph (focus mode)"
+            checked={settings.dimming}
+            onChange={(v) => update({ dimming: v })}
+          />
+          <div className="settings-divider" />
+        </>
+      )}
       <Field label="Scripture" hint="Passages are looked up word-for-word from the ESV.">
         <p className="settings-attribution">
           Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®),

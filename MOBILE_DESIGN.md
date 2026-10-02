@@ -98,9 +98,12 @@
   - **New entry** is a perpetual floating accent FAB (`.mobile-fab`) above the
     bar — always in thumb reach, and freeing the bar for full-width labels.
   - **Focus mode** removed from the permanent bar (a "permanent" nav shouldn't
-    hold a control that hides itself). It now lives in the floating writing
-    controls cluster (`WritingControls`, mobile only), beside the appearance
-    toggle. Exit stays on the in-focus pill (`✕ esc`).
+    hold a control that hides itself). It briefly lived in a floating writing
+    controls cluster (`WritingControls`); that cluster opens on hover, so on a
+    phone it was unusable and its exit (`✕ esc`) was trapped inside it. It is
+    gone on phones (`useIsPhone`): the keyboard going up is the phone's focus
+    mode, and appearance is in Settings. Desktop, and a narrow window with a
+    mouse, keep it.
   - Bar + FAB hide while the entries drawer is open, the keyboard is up, or in
     focus mode. 50px+ tap targets; safe-area insets respected.
 - ✅ **Fixed**: tapping an entry in the mobile drawer did nothing — opening an

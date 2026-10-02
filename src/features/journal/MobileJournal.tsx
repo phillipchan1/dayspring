@@ -1,6 +1,6 @@
 import { useViewportHeight } from '@/hooks/useViewportHeight'
 import { useKeyboardOpen } from '@/hooks/useKeyboard'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useIsPhone, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { StatusCluster } from './StatusCluster'
 import { WritingControls } from './WritingControls'
@@ -45,6 +45,7 @@ export function MobileJournal(props: JournalViewProps) {
   const vh = useViewportHeight()
   const keyboardOpen = useKeyboardOpen()
   const touch = useMediaQuery('(pointer: coarse)')
+  const phone = useIsPhone()
   // Every Return destination replaces the journal outright now, Pages included.
   const canvasTaken = reflectionsActive || altarActive || scriptureActive || pagesActive
   /*
@@ -295,13 +296,21 @@ export function MobileJournal(props: JournalViewProps) {
         </>
       )}
 
-
-      <WritingControls
-        settings={settings}
-        update={updateSettings}
-        focus={focus}
-        {...(journalChrome && !keyboardOpen ? { onEnterFocus: focus.enter } : {})}
-      />
+      {/*
+        No writing controls on a phone. The cluster opens on hover, and a finger
+        has none: it folded away the moment it lifted, and its only way out of
+        focus mode ("✕ esc") sat inside it. The keyboard going up is already the
+        phone's focus mode — the bar and FAB step aside and the command bar takes
+        over — and appearance lives in Settings. A narrow desktop window keeps it.
+      */}
+      {!phone && (
+        <WritingControls
+          settings={settings}
+          update={updateSettings}
+          focus={focus}
+          {...(journalChrome && !keyboardOpen ? { onEnterFocus: focus.enter } : {})}
+        />
+      )}
     </div>
   )
 }
