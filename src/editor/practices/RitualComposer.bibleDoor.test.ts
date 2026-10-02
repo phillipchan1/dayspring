@@ -138,6 +138,31 @@ describe('the Bible door', () => {
   })
 })
 
+describe('reading from your own Bible', () => {
+  const ownButtons = () =>
+    [...document.querySelectorAll('button')].filter((b) => /own Bible/i.test(b.textContent ?? ''))
+
+  it('is never offered as a choice — a page with only a reference has nothing to draw from', async () => {
+    begin()
+    await flush()
+    expect(document.querySelector('.passage-finder')).not.toBeNull()
+    expect(ownButtons()).toHaveLength(0)
+  })
+
+  it('is not offered when changing the passage either', async () => {
+    const PSG = writePassage({ book: 'John', chapter: 15, from: 4, to: 5 }, JOHN, ID)
+    begin({
+      start: `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [PSG, ''])}\n${RITUAL_END_TOKEN}`,
+      onSwitch: () => {},
+    })
+    await flush()
+    act(() => (document.querySelector('.rc__leaf-ref button') as HTMLButtonElement).click())
+    await flush()
+    expect(document.querySelector('.pf__begin')).not.toBeNull()
+    expect(ownButtons()).toHaveLength(0)
+  })
+})
+
 describe('the ways through a passage', () => {
   const PSG = writePassage({ book: 'John', chapter: 15, from: 4, to: 5 }, JOHN, ID)
   const page = (name: string, texts: string[]) =>
