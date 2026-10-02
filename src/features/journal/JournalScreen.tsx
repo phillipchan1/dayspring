@@ -98,7 +98,21 @@ import {
 import { InlineImagePopover } from '@/features/capture/InlineImagePopover'
 import { InlineImageEditPopover } from '@/features/capture/InlineImageEditPopover'
 import { InlineEmojiPopover } from '@/features/capture/InlineEmojiPopover'
-import { ImageContextMenu, type ImageMenuPhase } from './ImageContextMenu'
+import { ImageContextMenu, type ImageMenuPhase, type PhotoArrangement } from './ImageContextMenu'
+import {
+  planJoinAbove,
+  planMakeFirst,
+  planMoveWithin,
+  planRemovePhoto,
+  planTakeOut,
+} from '@/lib/photoSet'
+import { EditorPhotoViewer } from '@/features/photos/EditorPhotoViewer'
+import {
+  openViewerSession,
+  planViewerCaption,
+  viewerSessionEnd,
+  type ViewerSession,
+} from '@/features/photos/viewerSession'
 import type { AttachmentEditTarget, ImageMenuPoint } from '@/editor/attachmentImageExtension'
 import {
   formatAttachmentMarkdown,
@@ -433,6 +447,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     anchor: InlinePanelAnchor
   } | null>(null)
 
+  // The photo viewer, open over the entry: looking at a photo and the set it is
+  // in, and — because this is the writing surface — typing their captions.
+  const [photoViewer, setPhotoViewer] = useState<ViewerSession | null>(null)
+  const photoViewerRef = useRef(photoViewer)
+  photoViewerRef.current = photoViewer
+
   // The practice "about" slide-over (opened from a practice header).
   const [aboutPractice, setAboutPractice] = useState<Practice | null>(null)
   /** The entry's shape when the Rituals library was opened — see handleSlashCommand. */
@@ -546,6 +566,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     slashCapture !== null ||
     imageEdit !== null ||
     imageMenu !== null ||
+    photoViewer !== null ||
     slashPaletteOpen ||
     // The ritual surfaces own the keyboard too — ⌘↵ is "continue" in the rail.
     ritualEntry !== null ||
@@ -804,9 +825,48 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    *  InlineImageEditPopover); we pass the column-aligned block anchor as the
    *  initial position and force below-placement. */
   const handleMenuEditCaption = useCallback((target: AttachmentEditTarget) => {
+    // In a set the caption is typed in the viewer, under the photo it is about:
+    // a popover hung off one tile among five has nowhere good to sit, and the
+    // viewer turns "caption these" into one Return per photo.
+    if (target.set) {
+      setImageMenu(null)
+      setPhotoViewer(openViewerSession(inputEditor()?.getDoc() ?? '', target.from, true))
+      return
+    }
     setImageMenu((current) => {
       if (current) setImageEdit({ target, anchor: { ...current.anchor, placeAbove: false } })
       return null
+    })
+  }, [])
+
+  /** "Look": open the photo, and the photos it was put with, in the viewer. */
+  const handleLookImage = useCallback((target: AttachmentEditTarget) => {
+    setImageMenu(null)
+    setPhotoViewer(openViewerSession(inputEditor()?.getDoc() ?? '', target.from, false))
+  }, [])
+
+  /** A caption typed in the viewer goes straight onto that photo's line. */
+  const handleViewerCaption = useCallback((index: number, caption: string) => {
+    const editor = inputEditor()
+    const session = photoViewerRef.current
+    if (!editor || !session) return
+    const edit = planViewerCaption(editor.getDoc(), session, index, caption)
+    if (!edit) return
+    editor.replaceRange(edit.from, edit.to, edit.insert, { focus: false })
+    setPhotoViewer((current) =>
+      current
+        ? { ...current, refs: current.refs.map((ref, i) => (i === index ? { ...ref, alt: caption } : ref)) }
+        : current,
+    )
+  }, [])
+
+  const closePhotoViewer = useCallback(() => {
+    const session = photoViewerRef.current
+    setPhotoViewer(null)
+    if (!session) return
+    requestAnimationFrame(() => {
+      const editor = inputEditor()
+      if (editor) editor.focusAt(viewerSessionEnd(editor.getDoc(), session))
     })
   }, [])
 
@@ -884,9 +944,32 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }, [])
 
   const handleRemoveImage = useCallback((target: AttachmentEditTarget) => {
-    inputEditor()?.replaceRange(target.from, target.to, '')
+    const editor = inputEditor()
+    if (!editor) return
+    // In a set the line goes with the photo, so the set does not fall in two.
+    const edit = planRemovePhoto(editor.getDoc(), target.from, target.to)
+    editor.replaceRange(edit.from, edit.to, edit.insert)
     setImageMenu(null)
-    requestAnimationFrame(() => inputEditor()?.focusAt(target.from))
+    requestAnimationFrame(() => inputEditor()?.focusAt(edit.caret))
+  }, [])
+
+  /** Move a photo among the photos beside it: into the set above, out of its set, or to the front. */
+  const handleArrangeImage = useCallback((target: AttachmentEditTarget, how: PhotoArrangement) => {
+    const editor = inputEditor()
+    if (!editor) return
+    const doc = editor.getDoc()
+    const edit =
+      how === 'join'
+        ? planJoinAbove(doc, target.from)
+        : how === 'takeOut'
+          ? planTakeOut(doc, target.from)
+          : how === 'makeFirst'
+            ? planMakeFirst(doc, target.from)
+            : planMoveWithin(doc, target.from, how === 'earlier' ? -1 : 1)
+    setImageMenu(null)
+    if (!edit) return
+    editor.replaceRange(edit.from, edit.to, edit.insert)
+    requestAnimationFrame(() => inputEditor()?.focusAt(edit.caret))
   }, [])
 
   /** Insert at the slash position (or replace an edited block), then refocus. */
@@ -2001,6 +2084,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         scanOpen ||
         imageEdit !== null ||
         imageMenu !== null ||
+        photoViewer !== null ||
         slashPaletteOpen
       ) {
         return
@@ -2044,6 +2128,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     scanOpen,
     imageEdit,
     imageMenu,
+    photoViewer,
     slashPaletteOpen,
     chapterOpen,
   ])
@@ -2734,6 +2819,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     slashPaletteOpen ||
     imageEdit !== null ||
     imageMenu !== null ||
+    photoViewer !== null ||
     chapterOpen !== null
 
   return (
@@ -2913,11 +2999,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
             : { kind: 'closed' }) as ImageMenuPhase
         }
         onClose={closeImageMenu}
+        sheet={isMobile}
+        onLook={handleLookImage}
         onEditCaption={handleMenuEditCaption}
         onReplaceFile={handleReplaceImageFile}
         onSetSize={handleSetImageSize}
+        onArrange={handleArrangeImage}
         onRemove={handleRemoveImage}
       />
+      {photoViewer && (
+        <EditorPhotoViewer
+          session={photoViewer}
+          onIndex={(index) => setPhotoViewer((current) => (current ? { ...current, index } : current))}
+          onCaption={handleViewerCaption}
+          onClose={closePhotoViewer}
+        />
+      )}
       {imageEdit && (
         <InlineImageEditPopover
           target={imageEdit.target}
@@ -2930,14 +3027,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       {slashCapture?.cmd === 'image' && (
         <InlineImagePopover
           anchor={slashCapture.anchor}
-          onBeginUpload={((capturedInsertAt) => (pendingId, alt) => {
+          onBeginUpload={((capturedInsertAt) => (items) => {
             // Use the render-time insertAt so this works even if the popover was
             // auto-dismissed (e.g. iOS synthesises a touchstart after the file
             // picker returns, which clears slashCapture before onChange fires).
             setSlashCapture(null)
             const after =
-              inputEditor()?.insertBlockPendingAttachment(capturedInsertAt, pendingId, alt) ??
-              capturedInsertAt
+              inputEditor()?.insertBlockPendingAttachments(
+                capturedInsertAt,
+                items.map(({ pendingId, alt }) => ({ id: pendingId, alt })),
+              ) ?? capturedInsertAt
             requestAnimationFrame(() => inputEditor()?.focusAt(after))
           })(slashCapture.insertAt)}
           onUploadComplete={(pendingId, hash, ext, alt) => {

@@ -26,10 +26,13 @@ import {
   type AttachmentPhotoMeta,
 } from '@/lib/attachmentCaption'
 import { cropFor, type CropPlan } from '@/lib/attachmentLayout'
+import { mountPhotoRows, type PhotoRowsHandle } from '@/lib/photoRowsDom'
+import { findPhotoRuns, formatPhotoSetLine, photoRatio } from '@/lib/photoSet'
 import {
   ATTACHMENT_DND_MIME,
   findAttachmentAtPos,
   findAttachmentByKey,
+  withPhotoPlacement,
   type AttachmentEditTarget,
 } from './attachmentInsert'
 import { computeBlockPanelAnchor, type InlinePanelAnchor } from './inlinePanelAnchor'
@@ -50,6 +53,9 @@ const resolvedUrls = new Map<string, string>()
 const resolvedMeta = new Map<string, AttachmentPhotoMeta | null>()
 const pendingFetches = new Map<string, Promise<string | null>>()
 const pendingMetaFetches = new Map<string, Promise<AttachmentPhotoMeta | null>>()
+// Shapes read off loaded images, for photos stored before sizes were recorded.
+// Kept so a set does not re-flow from the 4:3 stand-in every time it is redrawn.
+const learnedRatios = new Map<string, number>()
 const activeViews = new Set<EditorView>()
 
 let cachedOwnerId: string | null = null
@@ -157,7 +163,14 @@ function syncCachedUrls(view: EditorView): void {
   while ((m = ATTACHMENT_RE.exec(text)) !== null) {
     const key = `${m[2]!}.${m[3]!}`
     if (resolvedUrls.has(key)) {
-      view.dispatch({ effects: [urlResolved.of(undefined), metaResolved.of(undefined)] })
+      // Not synchronously: this runs while the view is being constructed, and a
+      // dispatch from inside that throws ("update in progress"), which takes
+      // this whole plugin down — and with it every later URL fetch.
+      queueMicrotask(() => {
+        if (activeViews.has(view)) {
+          view.dispatch({ effects: [urlResolved.of(undefined), metaResolved.of(undefined)] })
+        }
+      })
       return
     }
   }
@@ -310,6 +323,133 @@ class PendingAttachmentWidget extends WidgetType {
   }
 }
 
+/** One photo in a set. `key` is null while the upload is still in flight. */
+interface SetTile {
+  key: string | null
+  url: string | null
+  caption: string | null
+  ratio: number
+  /** False while `ratio` is the 4:3 stand-in. */
+  known: boolean
+  color: string | undefined
+}
+
+const setHandles = new WeakMap<HTMLElement, PhotoRowsHandle>()
+
+/**
+ * Several photos on touching lines, drawn as one block of rows (lib/photoSet.ts).
+ *
+ * One widget over the whole run rather than one per line: a row holds photos
+ * from several lines, and CodeMirror gives each block widget a line box of its
+ * own. Every tile still carries its own key and its place in the set, so a
+ * click or a drag acts on that photo and not on the block.
+ */
+class PhotoSetWidget extends WidgetType {
+  constructor(
+    readonly tiles: readonly SetTile[],
+    readonly metaLine: string,
+  ) {
+    super()
+  }
+
+  eq(other: PhotoSetWidget): boolean {
+    return (
+      other.metaLine === this.metaLine &&
+      other.tiles.length === this.tiles.length &&
+      other.tiles.every((t, i) => {
+        const mine = this.tiles[i]!
+        return (
+          t.key === mine.key &&
+          t.url === mine.url &&
+          t.caption === mine.caption &&
+          t.ratio === mine.ratio &&
+          t.known === mine.known &&
+          t.color === mine.color
+        )
+      })
+    )
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-attachment cm-photoset'
+    wrap.contentEditable = 'false'
+
+    const rows = document.createElement('div')
+    rows.className = 'cm-photoset__rows'
+    wrap.append(rows)
+
+    const items = this.tiles.map((spec, index) => {
+      const tile = document.createElement('div')
+      tile.className = 'cm-photoset__tile'
+      tile.dataset.setIndex = String(index)
+      if (spec.color) tile.style.backgroundColor = spec.color
+
+      let img: HTMLImageElement | null = null
+      if (spec.key) {
+        tile.classList.add('cm-attachment--interactive')
+        tile.dataset.attachmentKey = spec.key
+        tile.draggable = true
+        tile.title = 'Click for options · drag to move'
+      } else {
+        tile.classList.add('cm-photoset__tile--pending')
+        tile.setAttribute('aria-label', 'Uploading photo')
+      }
+      if (spec.url) {
+        img = document.createElement('img')
+        img.src = spec.url
+        img.alt = spec.caption ?? 'Photo'
+        img.className = 'cm-photoset__img'
+        img.loading = 'lazy'
+        img.draggable = false
+        tile.append(img)
+      }
+      if (spec.caption) {
+        const cap = document.createElement('span')
+        cap.className = 'cm-photoset__caption'
+        cap.textContent = spec.caption
+        tile.append(cap)
+      }
+      return { el: tile, ratio: spec.ratio, known: spec.known, img }
+    })
+
+    const meta = document.createElement('p')
+    meta.className = 'cm-attachment__meta'
+    meta.textContent = this.metaLine
+    wrap.append(meta)
+
+    const tiles = this.tiles
+    // The block is not in the document yet, so it has no width to measure. The
+    // column it is about to sit in does: the content box, less its own padding.
+    const column = getComputedStyle(view.contentDOM)
+    const columnWidth =
+      view.contentDOM.clientWidth - parseFloat(column.paddingLeft) - parseFloat(column.paddingRight)
+    setHandles.set(
+      wrap,
+      mountPhotoRows(rows, items, {
+        rowClass: 'cm-photoset__row',
+        fallbackWidth: columnWidth,
+        // The block changed height; CodeMirror's height map has to hear of it.
+        onLayout: () => view.requestMeasure(),
+        onLearnRatio: (index, ratio) => {
+          const key = tiles[index]?.key
+          if (key) learnedRatios.set(key, ratio)
+        },
+      }),
+    )
+    return wrap
+  }
+
+  destroy(dom: HTMLElement): void {
+    setHandles.get(dom)?.destroy()
+    setHandles.delete(dom)
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 // ── Decoration builder ────────────────────────────────────────────────────────
 
 interface AttachmentDecoMatch {
@@ -321,9 +461,46 @@ interface AttachmentDecoMatch {
 function buildDecos(text: string): DecorationSet {
   const matches: AttachmentDecoMatch[] = []
 
+  // Photo lines that touch are one set, drawn by one widget; the per-photo
+  // loops below skip anything a set already covers.
+  const sets = findPhotoRuns(text).filter((run) => run.refs.length > 1)
+  const inSet = (pos: number) => sets.some((run) => pos >= run.from && pos < run.to)
+  for (const run of sets) {
+    const taken: (string | undefined)[] = []
+    const tiles = run.refs.map((ref): SetTile => {
+      const caption = isMeaningfulCaption(ref.alt) ? ref.alt.trim() : null
+      if (!ref.hash) {
+        return { key: null, url: null, caption, ratio: photoRatio(), known: false, color: undefined }
+      }
+      const key = `${ref.hash}.${ref.ext!}`
+      const meta = resolvedMeta.get(ref.hash) ?? undefined
+      taken.push(meta?.takenAt)
+      const sized = Boolean(meta?.width && meta?.height)
+      const learned = learnedRatios.get(key)
+      return {
+        key,
+        url: resolvedUrls.get(key) ?? null,
+        caption,
+        ratio: sized ? photoRatio(meta!.width, meta!.height) : (learned ?? photoRatio()),
+        known: sized || learned !== undefined,
+        color: meta?.color,
+      }
+    })
+    matches.push({
+      from: run.from,
+      to: run.to,
+      deco: Decoration.replace({
+        widget: new PhotoSetWidget(tiles, formatPhotoSetLine(tiles.length, taken)),
+        block: true,
+        inclusive: false,
+      }),
+    })
+  }
+
   PENDING_ATTACHMENT_REF_RE.lastIndex = 0
   let pending: RegExpExecArray | null
   while ((pending = PENDING_ATTACHMENT_REF_RE.exec(text)) !== null) {
+    if (inSet(pending.index)) continue
     const [full, alt] = pending
     matches.push({
       from: pending.index,
@@ -339,6 +516,7 @@ function buildDecos(text: string): DecorationSet {
   ATTACHMENT_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = ATTACHMENT_RE.exec(text)) !== null) {
+    if (inSet(m.index)) continue
     const [full, alt, hash, ext, sizeRaw] = m
     const key = `${hash!}.${ext!}`
     const caption = isMeaningfulCaption(alt ?? '') ? alt!.trim() : null
@@ -424,6 +602,19 @@ function attachmentInitPlugin(): Extension {
   })
 }
 
+/**
+ * The photo a piece of editor DOM stands for — a tile in a set, or a lone
+ * photo's block. For a drop, where there is an element under the pointer but
+ * the coordinates only resolve to an edge of the block.
+ */
+export function resolvePhotoElement(
+  view: EditorView,
+  blockEl: HTMLElement,
+): AttachmentEditTarget | null {
+  const rect = blockEl.getBoundingClientRect()
+  return resolveAttachmentTarget(view, blockEl, rect.left + rect.width / 2, rect.top + rect.height / 2)
+}
+
 function resolveAttachmentTarget(
   view: EditorView,
   blockEl: HTMLElement,
@@ -431,6 +622,27 @@ function resolveAttachmentTarget(
   clientY: number,
 ): AttachmentEditTarget | null {
   const doc = view.state.doc.toString()
+
+  // A tile in a set: coordinates resolve to the block, not to the photo, so the
+  // tile says which place it holds and the run under the block says which ref.
+  const setEl = blockEl.closest<HTMLElement>('.cm-photoset')
+  if (setEl && blockEl.dataset.setIndex !== undefined) {
+    const at = view.posAtDOM(setEl)
+    const run = findPhotoRuns(doc).find(
+      (r) => r.refs.length > 1 && at >= r.refs[0]!.lineFrom && at <= r.to,
+    )
+    const ref = run?.refs[Number(blockEl.dataset.setIndex)]
+    if (!ref?.hash) return null
+    return withPhotoPlacement(doc, {
+      hash: ref.hash,
+      ext: ref.ext!,
+      alt: ref.alt,
+      size: ref.size,
+      from: ref.from,
+      to: ref.to,
+    })
+  }
+
   const pos = view.posAtCoords({ x: clientX, y: clientY })
   let target = pos === null ? null : findAttachmentAtPos(doc, pos)
   // Coords can land outside the ref range (a photo rendered tight against
@@ -438,7 +650,7 @@ function resolveAttachmentTarget(
   if (!target && blockEl.dataset.attachmentKey) {
     target = findAttachmentByKey(doc, blockEl.dataset.attachmentKey)
   }
-  return target
+  return target ? withPhotoPlacement(doc, target) : null
 }
 
 /**
@@ -655,6 +867,54 @@ const attachmentTheme = EditorView.theme({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // ── A set: touching photo lines drawn as rows (lib/photoSet.ts) ──────────────
+  // Tile sizes and the row wrappers are set by mountPhotoRows; this is only skin.
+  '.cm-photoset__tile': {
+    position: 'relative',
+    flex: '0 0 auto',
+    overflow: 'hidden',
+    borderRadius: '4px',
+    background: 'var(--bg-input)',
+    boxShadow: 'inset 0 0 0 1px rgba(20, 12, 4, 0.07)',
+  },
+  '.cm-photoset__tile.cm-attachment--interactive:hover': {
+    // Inset: the rows clip at the set's edge, and an outer ring would be cut there.
+    boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent)',
+  },
+  '.cm-photoset__img': {
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    animation: 'cm-attachment-fadein 220ms ease both',
+  },
+  '.cm-photoset__tile--pending': {
+    animation: 'cm-attachment-pulse 1.4s ease-in-out infinite',
+  },
+  '.cm-photoset__caption': {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: '1.1rem 0.5rem 0.35rem',
+    background: 'linear-gradient(to top, rgba(15, 10, 5, 0.66), transparent)',
+    color: '#fff8ec',
+    fontFamily: 'var(--font-editor)',
+    fontStyle: 'italic',
+    fontSize: '0.62em',
+    lineHeight: '1.3',
+    display: '-webkit-box',
+    WebkitLineClamp: '2',
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  '.cm-photoset .cm-attachment__meta': {
+    width: 'auto',
+    minWidth: '0',
+    margin: '0.45rem 0 0',
+    textAlign: 'center',
+  },
   '.cm-attachment__status': {
     fontFamily: 'var(--font-editor)',
     fontSize: '0.7em',
@@ -681,6 +941,19 @@ export function attachmentImageExtension(
     attachmentInitPlugin(),
     ...(onMenu ? [attachmentMenuHandler(onMenu)] : []),
   ]
+}
+
+/**
+ * Dev harness only (`?__preview=photos`): seed what the network would have
+ * resolved, so photos draw with no account behind them.
+ */
+export function primeAttachmentPreview(
+  key: string,
+  url: string,
+  meta: AttachmentPhotoMeta | null,
+): void {
+  resolvedUrls.set(key, url)
+  resolvedMeta.set(key.split('.')[0]!, meta)
 }
 
 /** Warm the URL cache so edit popovers can show a preview immediately. */

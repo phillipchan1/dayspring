@@ -105,6 +105,7 @@ async function bootstrap() {
   //   ?__preview=marking            → marking a phrase inside a verse (editor/markingPreview.tsx)
   //   ?__preview=hr                → editor thematic break (editor/hrPreview.tsx)
   //   ?__preview=typewriter         → caret centring + the title line (editor/typewriterPreview.tsx)
+  //   ?__preview=photos             → photo sets in the real editor and reader (editor/photosPreview.tsx)
   //   ?__preview=voices             → the six voices in the real editor (features/settings/voicesPreview.tsx)
   //   ?__preview=ritual             → a paced ritual in the editor (editor/ritualPreview.tsx)
   //   ?__preview=topbar             → the Ritual door + status cluster (features/journal/topbarPreview.tsx)
@@ -192,6 +193,11 @@ async function bootstrap() {
     if (preview === 'typewriter') {
       const { renderTypewriterPreview } = await import('./editor/typewriterPreview')
       renderTypewriterPreview()
+      return
+    }
+    if (preview === 'photos') {
+      const { renderPhotosPreview } = await import('./editor/photosPreview')
+      renderPhotosPreview()
       return
     }
     if (preview === 'ritual') {

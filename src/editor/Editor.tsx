@@ -109,8 +109,11 @@ export interface EditorHandle {
   applyHighlight: (color: HighlightColor) => void
   /** Insert a block-isolated attachment image at the given position. Returns caret after. */
   insertBlockAttachment: (pos: number, hash: string, ext: string, alt?: string) => number
-  /** Show an uploading placeholder, then resolve via replace/remove helpers. */
-  insertBlockPendingAttachment: (pos: number, pendingId: string, alt?: string) => number
+  /**
+   * Show uploading placeholders, then resolve each via replace/remove helpers.
+   * Several at once land on touching lines: one set (lib/photoSet.ts).
+   */
+  insertBlockPendingAttachments: (pos: number, items: Array<{ id: string; alt: string }>) => number
   replacePendingAttachment: (
     pendingId: string,
     hash: string,
@@ -493,10 +496,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       if (!view) return pos
       return insertBlockAttachmentAt(view, pos, hash, ext, alt)
     },
-    insertBlockPendingAttachment: (pos, pendingId, alt) => {
+    insertBlockPendingAttachments: (pos, items) => {
       const view = viewRef.current
       if (!view) return pos
-      return insertBlockPendingAttachmentsAt(view, pos, [{ id: pendingId, alt: alt ?? '' }])
+      return insertBlockPendingAttachmentsAt(view, pos, items)
     },
     replacePendingAttachment: (pendingId, hash, ext, alt, size) => {
       const view = viewRef.current

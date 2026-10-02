@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
+import type { EditorView } from '@codemirror/view'
 import {
   attachmentBlockNormalizeExtension,
   findAttachmentByKey,
@@ -8,6 +9,8 @@ import {
   splitInlineAttachments,
   wrapBlockAttachmentInsert,
   findAttachmentAtPos,
+  insertBlockPendingAttachmentsAt,
+  withPhotoPlacement,
 } from './attachmentInsert'
 import { formatAttachmentMarkdown } from '@/lib/attachments'
 
@@ -47,9 +50,48 @@ describe('splitInlineAttachments', () => {
 })
 
 describe('normalizeAttachmentBlocks', () => {
+  const IMG2 = `![two](attachment:${'b'.repeat(64)}.jpg)`
+
   it('pads an image-only line with blank lines', () => {
     const doc = `Before\n${IMG}\nAfter`
     expect(normalizeAttachmentBlocks(doc)).toBe(`Before\n\n${IMG}\n\nAfter`)
+  })
+
+  it('leaves photo lines that touch alone: that is a set', () => {
+    expect(normalizeAttachmentBlocks(`Before\n\n${IMG}\n${IMG2}\n\nAfter`)).toBeNull()
+  })
+
+  it('pads a set away from the writing on either side without splitting it', () => {
+    const doc = `Before\n${IMG}\n${IMG2}\nAfter`
+    expect(normalizeAttachmentBlocks(doc)).toBe(`Before\n\n${IMG}\n${IMG2}\n\nAfter`)
+  })
+
+  it('keeps every set whole when a photo is inserted elsewhere in the entry', () => {
+    // The normaliser runs over the whole entry on any photo insert. An app that
+    // padded touching lines here would split a set it never touched.
+    const IMG3 = `![three](attachment:${'c'.repeat(64)}.jpg)`
+    const start = `${IMG}\n${IMG2}\n\nwords`
+    const state = EditorState.create({ doc: start, extensions: [attachmentBlockNormalizeExtension()] })
+    const next = state.update({ changes: { from: start.length, insert: `\n${IMG3}` } }).state
+    expect(next.doc.toString()).toBe(`${IMG}\n${IMG2}\n\nwords\n\n${IMG3}`)
+  })
+})
+
+describe('withPhotoPlacement', () => {
+  const IMG2 = `![two](attachment:${'b'.repeat(64)}.jpg)`
+  const target = (doc: string, ref: string) => findAttachmentAtPos(doc, doc.indexOf(ref))!
+
+  it('says which place a photo holds in its set', () => {
+    const doc = `${IMG}\n${IMG2}`
+    expect(withPhotoPlacement(doc, target(doc, IMG2)).set).toEqual({ index: 1, count: 2 })
+  })
+
+  it('marks a photo that only blank lines keep from the photos above', () => {
+    const doc = `${IMG}\n\n${IMG2}`
+    const placed = withPhotoPlacement(doc, target(doc, IMG2))
+    expect(placed.set).toBeUndefined()
+    expect(placed.joinsAbove).toBe(true)
+    expect(withPhotoPlacement(doc, target(doc, IMG)).joinsAbove).toBe(false)
   })
 })
 
@@ -132,6 +174,40 @@ describe('planAttachmentMove', () => {
 
   it('returns null when the key is absent', () => {
     expect(planAttachmentMove('just text', KEY, 0)).toBeNull()
+  })
+
+  it('does nothing when a photo is dropped back onto its own set', () => {
+    const IMG2 = `![two](attachment:${'b'.repeat(64)}.jpg)`
+    const doc = `first\n\n${IMG2}\n${IMG}\n\nsecond`
+    // The set block resolves to one of its edges, whichever photo was dropped on.
+    expect(planAttachmentMove(doc, KEY, doc.indexOf(IMG2))).toBeNull()
+    expect(planAttachmentMove(doc, KEY, doc.indexOf(IMG) + IMG.length)).toBeNull()
+  })
+
+  it('carries a photo out of its set and leaves the rest of the set whole', () => {
+    const IMG2 = `![two](attachment:${'b'.repeat(64)}.jpg)`
+    const IMG3 = `![three](attachment:${'c'.repeat(64)}.jpg)`
+    const doc = `first\n\n${IMG2}\n${IMG}\n${IMG3}\n\nsecond`
+    expect(applyMove(doc, doc.length)).toBe(`first\n\n${IMG2}\n${IMG3}\n\nsecond\n\n${IMG}\n`)
+  })
+})
+
+describe('several photos arriving at once', () => {
+  it('lands them on touching lines, as one set', () => {
+    const view = { state: EditorState.create({ doc: 'Hello world' }), focus() {} } as unknown as EditorView
+    let next = ''
+    ;(view as unknown as { dispatch: (tr: { changes: { from: number; to: number; insert: string } }) => void }).dispatch =
+      ({ changes }) => {
+        next = 'Hello world'.slice(0, changes.from) + changes.insert + 'Hello world'.slice(changes.to)
+      }
+    insertBlockPendingAttachmentsAt(view, 5, [
+      { id: '11111111-2222-3333-4444-555555555555', alt: '' },
+      { id: '66666666-7777-8888-9999-000000000000', alt: 'two' },
+    ])
+    expect(next).toBe(
+      'Hello\n\n![](attachment-pending:11111111-2222-3333-4444-555555555555)\n' +
+        '![two](attachment-pending:66666666-7777-8888-9999-000000000000)\n\n world',
+    )
   })
 })
 

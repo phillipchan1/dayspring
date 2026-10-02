@@ -303,4 +303,16 @@ describe('writerLines — the writer\'s words, never the verse (Guardrail H3)', 
     ].join('\n')
     expect(writerLines(body)).toEqual(['He says remain before he says bear fruit.', 'Lord, be with Esther'])
   })
+
+  it('keeps the caption she gave a photo, and not the filename a camera gave it', () => {
+    const ref = (alt: string, c: string) => `![${alt}](attachment:${c.repeat(64)}.jpg)`
+    const body = [
+      'We got there before light.',
+      '',
+      ref('Micah on the lighthouse steps', 'a'),
+      ref('IMG_4821', 'b'),
+      ref('', 'c'),
+    ].join('\n')
+    expect(writerLines(body)).toEqual(['We got there before light.', 'Micah on the lighthouse steps'])
+  })
 })

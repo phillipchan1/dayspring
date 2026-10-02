@@ -12,11 +12,14 @@ import {
   imageFilesFromClipboard,
   imageFilesFromDataTransfer,
   insertBlockPendingAttachmentsAt,
+  insertPendingBesideInView,
   isImageFile,
   moveAttachmentRef,
+  placeAttachmentBeside,
   removePendingAttachmentInView,
   replacePendingAttachmentInView,
 } from './attachmentInsert'
+import { resolvePhotoElement } from './attachmentImageExtension'
 
 const DRAG_CLASS = 'editor-host--drag-over'
 
@@ -64,7 +67,7 @@ function viewAlive(view: EditorView): boolean {
 
 async function uploadFiles(
   view: EditorView,
-  pos: number,
+  target: DropTarget,
   files: File[],
 ): Promise<void> {
   if (files.length === 0) return
@@ -82,11 +85,12 @@ async function uploadFiles(
     file,
   }))
 
-  insertBlockPendingAttachmentsAt(
-    view,
-    pos,
-    pending.map((p) => ({ id: p.id, alt: p.alt })),
-  )
+  const placeholders = pending.map((p) => ({ id: p.id, alt: p.alt }))
+  if (target.kind === 'beside') {
+    insertPendingBesideInView(view, target.from, target.after, placeholders)
+  } else {
+    insertBlockPendingAttachmentsAt(view, target.pos, placeholders)
+  }
 
   const ownerId = (await supabase.auth.getUser()).data.user?.id
   if (!ownerId) return
@@ -121,6 +125,29 @@ function dropPos(view: EditorView, event: DragEvent): number {
 }
 
 /**
+ * Where a drop lands. Onto a photo, it goes beside that photo and joins its set
+ * — left half before it, right half after. Anywhere else it is a place in the
+ * text, and what lands there stands on its own.
+ */
+type DropTarget =
+  | { kind: 'gap'; pos: number }
+  | { kind: 'beside'; from: number; after: boolean; rect: DOMRect }
+
+function dropTarget(view: EditorView, event: DragEvent): DropTarget {
+  const el = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+    '.cm-photoset__tile, .cm-attachment--interactive',
+  )
+  const photo = el ? resolvePhotoElement(view, el) : null
+  if (el && photo) {
+    // A lone photo's block spans the column; its picture is the box inside.
+    const box = el.querySelector<HTMLElement>('.cm-attachment__media') ?? el
+    const rect = box.getBoundingClientRect()
+    return { kind: 'beside', from: photo.from, after: event.clientX > rect.left + rect.width / 2, rect }
+  }
+  return { kind: 'gap', pos: dropPos(view, event) }
+}
+
+/**
  * The insertion bar shown while a photo or a file is being dragged in.
  *
  * **This is ours, deliberately.** It replaces CodeMirror's `dropCursor()`,
@@ -143,8 +170,16 @@ class DropIndicator {
   private el: HTMLElement | null = null
   private watchdog = 0
 
-  show(view: EditorView, pos: number): void {
-    const coords = view.coordsAtPos(pos)
+  show(view: EditorView, target: DropTarget): void {
+    // Beside a photo the bar stands at that photo's edge, as tall as the photo.
+    const coords =
+      target.kind === 'beside'
+        ? {
+            left: (target.after ? target.rect.right : target.rect.left) - 1,
+            top: target.rect.top,
+            bottom: target.rect.bottom,
+          }
+        : view.coordsAtPos(target.pos)
     if (!coords) return this.hide()
 
     if (!this.el) {
@@ -153,6 +188,7 @@ class DropIndicator {
       this.el.setAttribute('aria-hidden', 'true')
       view.scrollDOM.appendChild(this.el)
     }
+    this.el.dataset.beside = target.kind === 'beside' ? 'true' : 'false'
     const host = view.scrollDOM.getBoundingClientRect()
     this.el.style.top = `${coords.top - host.top + view.scrollDOM.scrollTop}px`
     this.el.style.left = `${coords.left - host.left + view.scrollDOM.scrollLeft}px`
@@ -183,6 +219,13 @@ const dropCursorTheme = EditorView.theme({
     borderRadius: '1px',
     pointerEvents: 'none',
     zIndex: '4',
+  },
+  // Joining a set is a different thing from landing on a line, so it reads
+  // differently: solid, and a little wider.
+  '.cm-attachmentDropCursor[data-beside="true"]': {
+    width: '3px',
+    opacity: '1',
+    borderRadius: '2px',
   },
 })
 
@@ -259,7 +302,7 @@ export function attachmentDropExtension(): Extension {
         event.preventDefault()
         dt.dropEffect = internal ? 'move' : 'copy'
         if (!internal) setDragOver(view, true)
-        indicator.show(view, dropPos(view, event))
+        indicator.show(view, dropTarget(view, event))
         return !internal
       },
 
@@ -293,7 +336,9 @@ export function attachmentDropExtension(): Extension {
         const movedKey = dt.getData(ATTACHMENT_DND_MIME)
         if (movedKey) {
           event.preventDefault()
-          moveAttachmentRef(view, movedKey, dropPos(view, event))
+          const target = dropTarget(view, event)
+          if (target.kind === 'beside') placeAttachmentBeside(view, movedKey, target.from, target.after)
+          else moveAttachmentRef(view, movedKey, target.pos)
           return true
         }
 
@@ -303,8 +348,7 @@ export function attachmentDropExtension(): Extension {
           return false
         }
         event.preventDefault()
-        const pos = dropPos(view, event)
-        void uploadFiles(view, pos, files)
+        void uploadFiles(view, dropTarget(view, event), files)
         return true
       },
 
@@ -314,8 +358,7 @@ export function attachmentDropExtension(): Extension {
         const files = imageFilesFromClipboard(dt)
         if (!files.length) return false
         event.preventDefault()
-        const pos = view.state.selection.main.head
-        void uploadFiles(view, pos, files)
+        void uploadFiles(view, { kind: 'gap', pos: view.state.selection.main.head }, files)
         return true
       },
     }),

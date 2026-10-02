@@ -125,3 +125,117 @@ describe('hydrateReadAttachments', () => {
     expect(root.querySelector('.pg-read1__photo--size-f')).not.toBeNull()
   })
 })
+
+describe('hydrateReadAttachments: a set', () => {
+  const B = 'b'.repeat(64)
+  const C = 'c'.repeat(64)
+  const resolve = async (hash: string) => ({
+    url: `https://example.test/${hash[0]}.jpg`,
+    meta: { width: 1200, height: 900, takenAt: `2026-09-20T07:0${hash === HASH ? 2 : 8}:00` },
+  })
+
+  it('draws a paragraph of touching photos as one figure, in order', async () => {
+    // What `![](a)\n![](b)\n![](c)` renders as: one paragraph, a <br> per newline.
+    const root = mountedRoot(
+      `<p>Before</p><p><img src="attachment:${HASH}.jpg" alt=""><br>` +
+        `<img src="attachment:${B}.jpg" alt="The steps"><br>` +
+        `<img src="attachment:${C}.jpg" alt=""></p><p>After</p>`,
+    )
+    hydrateReadAttachments(root, '', { resolve })
+
+    const set = root.querySelector<HTMLElement>('.pg-read1__photoset')!
+    expect(root.querySelectorAll('.pg-read1__photoset')).toHaveLength(1)
+    expect(root.querySelector('.pg-read1__photo')).toBeNull()
+    expect(set.previousElementSibling?.textContent).toBe('Before')
+    expect(set.nextElementSibling?.textContent).toBe('After')
+    expect(set.querySelectorAll('.pg-read1__photoset-tile')).toHaveLength(3)
+    expect(set.querySelector('br')).toBeNull()
+
+    await vi.waitFor(() =>
+      expect(
+        [...set.querySelectorAll<HTMLImageElement>('.pg-read1__photoset-img')].map((img) => img.src),
+      ).toEqual([
+        'https://example.test/a.jpg',
+        'https://example.test/b.jpg',
+        'https://example.test/c.jpg',
+      ]),
+    )
+    expect(set.querySelector('.pg-read1__photoset-caption')?.textContent).toBe('The steps')
+    expect(set.querySelector('.pg-read1__photoset-meta')?.textContent).toMatch(/^3 photos · /)
+  })
+
+  it('recovers each photo of a set after DOMPurify removed the private scheme', async () => {
+    const root = mountedRoot('<p><img alt=""><br><img alt=""></p>')
+    hydrateReadAttachments(root, `![](attachment:${HASH}.jpg)\n![](attachment:${B}.jpg)`, { resolve })
+    await vi.waitFor(() =>
+      expect(
+        [...root.querySelectorAll<HTMLImageElement>('.pg-read1__photoset-img')].map((img) => img.src),
+      ).toEqual(['https://example.test/a.jpg', 'https://example.test/b.jpg']),
+    )
+  })
+
+  it('keeps photos apart when a blank line stood between them', () => {
+    const root = mountedRoot(
+      `<p><img src="attachment:${HASH}.jpg" alt=""></p><p><img src="attachment:${B}.jpg" alt=""></p>`,
+    )
+    hydrateReadAttachments(root, '', { resolve })
+    expect(root.querySelector('.pg-read1__photoset')).toBeNull()
+    expect(root.querySelectorAll('.pg-read1__photo')).toHaveLength(2)
+  })
+
+  it('leaves photos in a sentence as they were', () => {
+    const root = mountedRoot(
+      `<p>Look: <img src="attachment:${HASH}.jpg" alt=""> and <img src="attachment:${B}.jpg" alt=""></p>`,
+    )
+    hydrateReadAttachments(root, '', { resolve })
+    expect(root.querySelector('.pg-read1__photoset')).toBeNull()
+    expect(root.querySelectorAll('.pg-read1__photo')).toHaveLength(2)
+  })
+
+  it('opens the viewer on the photo that was tapped, with its set', async () => {
+    const root = mountedRoot(
+      `<p><img src="attachment:${HASH}.jpg" alt=""><br><img src="attachment:${B}.jpg" alt="The steps"></p>` +
+        `<p><img src="attachment:${C}.jpg" alt=""></p>`,
+    )
+    const onLook = vi.fn()
+    hydrateReadAttachments(root, '', { resolve }, { onLook })
+    await vi.waitFor(() =>
+      expect(root.querySelector<HTMLImageElement>('.pg-read1__photo-img')?.src).toBe(
+        'https://example.test/c.jpg',
+      ),
+    )
+
+    const tiles = root.querySelectorAll<HTMLElement>('.pg-read1__photoset-tile')
+    expect(tiles[1]!.getAttribute('role')).toBe('button')
+    tiles[1]!.click()
+    const [photos, index] = onLook.mock.calls[0]!
+    expect(index).toBe(1)
+    expect(photos.map((p: { url: string; caption: string }) => [p.url, p.caption])).toEqual([
+      ['https://example.test/a.jpg', ''],
+      ['https://example.test/b.jpg', 'The steps'],
+    ])
+
+    // A lone photo opens alone.
+    root.querySelector<HTMLElement>('.pg-read1__photo-media')!.click()
+    expect(onLook.mock.calls[1]![0]).toHaveLength(1)
+    expect(onLook.mock.calls[1]![0][0].url).toBe('https://example.test/c.jpg')
+  })
+
+  it('leaves photos inert when nothing is listening for a look', () => {
+    const root = mountedRoot(
+      `<p><img src="attachment:${HASH}.jpg" alt=""><br><img src="attachment:${B}.jpg" alt=""></p>`,
+    )
+    hydrateReadAttachments(root, '', { resolve })
+    expect(root.querySelector('[role="button"]')).toBeNull()
+  })
+
+  it('puts the circumstance line under a set that opens the page', async () => {
+    const root = mountedRoot(
+      `<p><img src="attachment:${HASH}.jpg" alt=""><br><img src="attachment:${B}.jpg" alt=""></p>`,
+    )
+    hydrateReadAttachments(root, '', { resolve }, { verso: 'early morning · Denver' })
+    await vi.waitFor(() =>
+      expect(root.querySelector('.pg-read1__photoset-meta')?.textContent).toBe('early morning · Denver'),
+    )
+  })
+})

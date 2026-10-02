@@ -23,6 +23,34 @@ agenda.
 
 ---
 
+## D-033 — Photos that touch are one set, drawn as rows; one layout, no picker
+**2026-10-02** · **Status:** Decided (Phil)
+
+**Decision:** Photo lines with no blank line between them are one set; a blank line ends it; a
+photo alone is a set of one and looks as it always did. Nothing else is stored. A set is drawn
+as **rows** of equal height that fill the column, every photo whole, in the editor and the
+reader alike. Photos that arrive together (a multi-drop, a multi-pick on the phone) are one set.
+There is one layout and no per-set choice of layout. Rule and layout: `src/lib/photoSet.ts`.
+
+**Why:** five photos used to stack full size, about two phone screens. Of the five layouts
+prototyped (`prototypes/photoset`), Rows is the only one that keeps both promises the editor
+already makes about a photo: a normal photo is never cropped, and a photo is an object you can
+see and move. A mosaic crops every photo in it; a filmstrip and a stack of prints put photos
+where they cannot be seen, and the filmstrip's sideways scroll fights the iPhone back-swipe; a
+contact sheet makes everything a thumbnail. A layout picker is chrome most writers never want,
+and every layout would have to be kept working in the editor, the reader, the wall, export and
+the phone.
+
+**What would change our mind:** if sets of twenty or more become common (the archive held 30
+photos in 3,146 entries when this shipped, largest group three), the reading view gets a cap;
+if writers ask for a set to look like a keepsake, Prints returns as the look of a set in
+Volumes or a remembrance, not as a choice on the writing surface.
+
+**Cost accepted:** on a phone, rows of two across are taller than the prototype's three across
+(five photos take about 525px, not 200). An app that has not updated pads touching photo lines
+apart when it inserts a photo, so it splits a set back into single photos; no photo is lost.
+The server still hands the model a caption with the photo's markup around it.
+
 ## D-032 — Lamp counts two grains: the passage is where you've been, a highlight is what caught you
 **2026-10-02** · **Status:** Decided (Phil)
 
