@@ -220,13 +220,16 @@ function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
   const [volStack, setVolStack] = useState<{ at: number | null; from: 'wall' | 'shelf' | null }[]>([{ at: null, from: null }])
   ;(window as unknown as { __volBack: () => void }).__volBack = () => setVolStack((st) => (st.length > 1 ? st.slice(0, -1) : st))
   const [spreadId, setSpreadId] = useState<string | null>(null)
+  // Held in state so a delete from the open page has something to delete from —
+  // the reader turns to a neighbour on the strength of the archive shrinking.
+  const [archive, setArchive] = useState<Entry[]>(VOLUME_ENTRIES)
 
   return (
     <div className="app-shell" style={{ flexDirection: 'column', height: '100dvh' }}>
       <div className="journal-canvas journal-canvas--reflections" style={{ flex: 1, minHeight: 0 }}>
         <div className="journal-canvas__content" style={{ padding: 0, overflow: 'hidden' }}>
           <PagesView
-            entries={VOLUME_ENTRIES}
+            entries={archive}
             marks={[]}
             ready
             activeId={null}
@@ -252,7 +255,7 @@ function SurfacePreview({ chrome = true }: { chrome?: boolean }) {
             onOpenEntry={() => window.alert('This is where the editor would open.')}
             onNew={() => window.alert('This is where a new entry would open.')}
             onEntryMenuAction={() => {}}
-            onDeleteEntries={() => {}}
+            onDeleteEntries={(ids) => setArchive((a) => a.filter((e) => !ids.includes(e.id)))}
             settings={settings}
             updateSettings={(patch) => setSettings((s) => ({ ...s, ...patch }))}
           />
