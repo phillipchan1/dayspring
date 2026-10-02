@@ -87,6 +87,7 @@ export function PageReader({
   older,
   onTurn,
   leaves,
+  onMenu,
 }: {
   /**
    * The reader's own bar — the way out, the way in, and the way along.
@@ -148,6 +149,11 @@ export function PageReader({
   onTurn: (entryId: string) => void
   /** Settings → show a sliver of the pages either side. Desktop only. */
   leaves: boolean
+  /**
+   * Open the page's menu at a point — what a right-click on the page asks for.
+   * Absent in previews, where a right-click is simply the browser's.
+   */
+  onMenu?: (x: number, y: number) => void
 }) {
   /*
    * Touch changes two things about this page, and both are about there being
@@ -364,6 +370,26 @@ export function PageReader({
     turn(way)
   }
 
+  /*
+   * A right-click on the page is the page's menu, as it is on the wall.
+   *
+   * Two things keep the browser's own: a selection, because copying a sentence
+   * out of a page is what you right-click for there, and a link, for the same
+   * reason. The app blocks the native menu everywhere but the editor and
+   * `[data-entry-row]` (see `useSuppressNativeContextMenu`), so the page carries
+   * that attribute — without it those two cases would be a right-click that
+   * does nothing at all. Touch never comes here: a long-press on a phone is how
+   * text gets selected, and the page's menu has its own button in the bar.
+   */
+  const onContextMenu = (e: React.MouseEvent) => {
+    if (touch || !onMenu) return
+    const sel = window.getSelection()
+    if (sel && !sel.isCollapsed) return
+    if ((e.target as Element).closest('a[href]')) return
+    e.preventDefault()
+    onMenu(e.clientX, e.clientY)
+  }
+
   const asButton = touch
     ? {}
     : {
@@ -450,6 +476,8 @@ export function PageReader({
              rightward along the wall, so the new page arrives from the right —
              the same direction the gesture that asked for it was going. */
           data-from={cameFrom.current ?? undefined}
+          data-entry-row
+          onContextMenu={onContextMenu}
           {...asButton}
         >
           <header className="pg-read1__head">

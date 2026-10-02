@@ -3,7 +3,11 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { SurfaceLoader } from '@/components/SurfaceLoader'
 import { fetchAnniversarySenses, type AnniversarySense } from '@/lib/echoes'
 import { buildFacts } from './weather'
-import type { EntryMenuAction } from '@/features/journal/EntryContextMenu'
+import {
+  EntryContextMenu,
+  type EntryMenuAction,
+  type EntryMenuPhase,
+} from '@/features/journal/EntryContextMenu'
 import type { Mark } from '@/lib/marks'
 import type { Settings } from '@/lib/settings'
 import type { Entry } from '@/lib/types'
@@ -233,6 +237,17 @@ export function PagesView({
   // reader should shrink back into when it closes.
   const lastSpreadRef = useRef<string | null>(null)
   if (spreadId) lastSpreadRef.current = spreadId
+  /*
+   * The open page's own menu — the one the wall opens on a right-click, with the
+   * same rows and the same delete confirm, so a page you are reading can do
+   * everything a card on the wall can.
+   *
+   * Closed whenever the page changes: it is a menu about THIS page, and a
+   * turn of the arrow keys under an open one would leave it describing a page
+   * that is no longer there.
+   */
+  const [menu, setMenu] = useState<EntryMenuPhase>({ kind: 'closed' })
+  useEffect(() => setMenu({ kind: 'closed' }), [spreadId])
   /*
    * One zoom, and it belongs to the pointer.
    *
@@ -1008,6 +1023,30 @@ export function PagesView({
    * There it travels with the page, sticky to the top of the reader's own
    * scroller, and the surface header goes away entirely.
    */
+  const openReaderMenu = (x: number, y: number) => {
+    if (openPage) setMenu({ kind: 'menu', entry: openPage, x, y })
+  }
+
+  const onReaderMenuAction = (action: EntryMenuAction, entry: Entry) => {
+    if (action !== 'delete') {
+      onEntryMenuAction(action, entry)
+      return
+    }
+    /*
+     * Deleting the page you are reading turns to its neighbour rather than
+     * letting the reader be left with nothing to read.
+     *
+     * The older one first, the way the wall does it (the page that slides into
+     * the gap), and the newer if this was the oldest. With neither — the last
+     * page in the set — it goes back to where you came from. Without this the
+     * reader keeps its `spreadId`, finds no page for it, and renders a bar with
+     * no Write over an empty canvas.
+     */
+    const landing = within?.older ?? within?.newer ?? null
+    onDeleteEntries([entry.id], landing)
+    onSpread(landing)
+  }
+
   const readerBar =
     spreadId === null ? null : (
       <div className="pg__through">
@@ -1077,6 +1116,38 @@ export function PagesView({
           </svg>
           Write
         </button>
+        ) : null}
+
+        {/*
+          Everything else you can do to a page, in one place.
+
+          The wall's menu, not a second one: copy, share or export, change the
+          date, duplicate, print, delete. One button rather than a row of them
+          because this bar is the editor's bar too, and a bar that grows a
+          control for every verb stops being a way out and a way in.
+
+          Beside Write rather than past the position, so the things that act on
+          THIS page sit together and the things that move along the archive
+          stay at the far end.
+        */}
+        {openPage ? (
+          <button
+            type="button"
+            className="pg__more"
+            aria-label="More for this page"
+            aria-haspopup="menu"
+            aria-expanded={menu.kind === 'menu'}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              openReaderMenu(r.left, r.bottom + 6)
+            }}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden>
+              <circle cx="3.2" cy="8" r="1.25" />
+              <circle cx="8" cy="8" r="1.25" />
+              <circle cx="12.8" cy="8" r="1.25" />
+            </svg>
+          </button>
         ) : null}
 
         {within && within.total > 1 ? (
@@ -1482,9 +1553,18 @@ export function PagesView({
             newer={neighbours.newer}
             older={neighbours.older}
             onTurn={onSpread}
+            onMenu={openReaderMenu}
           />
         ) : null}
       </div>
+
+      <EntryContextMenu
+        phase={menu}
+        onClose={() => setMenu({ kind: 'closed' })}
+        onAction={onReaderMenuAction}
+        onRequestDelete={(entry) => setMenu({ kind: 'confirm', entry })}
+        sheet={narrow}
+      />
     </div>
   )
 }
