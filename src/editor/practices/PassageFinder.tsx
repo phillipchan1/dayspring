@@ -76,7 +76,7 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
   const inputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const size = practice.passage?.size ?? 'any'
-  const { isGuest } = useGuestMode()
+  const { isGuest, requestSignIn } = useGuestMode()
 
   useEffect(() => {
     let live = true
@@ -369,7 +369,9 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
           </span>
         </div>
         {isGuest ? (
-          <p className="pf__soft">Open this passage in your own Bible, then continue.</p>
+          <p className="pf__soft">
+            You’re not signed in, so this passage can’t open here. You can continue with the reference alone.
+          </p>
         ) : verses === null ? (
           <p className="pf__soft pf__loading">Opening {displayBook(open.book.name)} {open.chapter}…</p>
         ) : verses.length === 0 ? (
@@ -576,6 +578,25 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
             onKeyDown={onKey}
           />
           <p className="pf__hint">{practice.passage?.hint}</p>
+          {isGuest && (
+            // Said before a passage is chosen: signed out, the words cannot be
+            // fetched, so there is nothing to select or draw from. Without
+            // this line that looked like the feature being gone (Phil, Oct 1).
+            <p className="pf__soft pf__guest">
+              You’re not signed in. Passages open beside your page, ready to draw from, once you are.{' '}
+              <button
+                type="button"
+                className="pf__link"
+                onClick={() => {
+                  // The sign-in sheet sits under this surface; leave first.
+                  onBack()
+                  requestSignIn()
+                }}
+              >
+                Sign in →
+              </button>
+            </p>
+          )}
           {body}
         </div>
       </div>

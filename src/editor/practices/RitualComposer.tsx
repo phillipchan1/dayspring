@@ -246,7 +246,7 @@ export function RitualComposer({
   entry,
   renderAnswer,
 }: Props) {
-  const { isGuest } = useGuestMode()
+  const { isGuest, requestSignIn } = useGuestMode()
   const seed = useRef(readSeed(getDoc(), blockIndex, entry))
   const block = seed.current?.block ?? null
   const [after, setAfter] = useState(seed.current?.after ?? '')
@@ -1040,6 +1040,12 @@ export function RitualComposer({
         verses={passageVerses}
         guest={isGuest}
         onRetry={retryChapter}
+        // The sign-in sheet sits under this surface: leave (what is written
+        // is kept), then ask.
+        onSignIn={() => {
+          leave()
+          requestSignIn()
+        }}
         mode={mode}
         caught={caught}
         cited={mode === 'quote' || mode === 'cite' ? citedVerses(texts[i] ?? '') : []}

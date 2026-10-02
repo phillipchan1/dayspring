@@ -346,6 +346,8 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 }
 .pf__soft { color: var(--text-dim); font-style: italic; font-size: 1rem; line-height: 1.55; margin: 1rem 0 0; }
 .pf__soft p { margin: 0 0 0.4rem; }
+.pf__guest { font-size: 0.92rem; margin-top: 0.6rem; }
+.pf__guest .pf__link { color: var(--accent); font-size: inherit; padding: 0; }
 .pf__loading { animation: pf-breathe 1.6s ease-in-out infinite; }
 @keyframes pf-breathe { 50% { opacity: 0.45; } }
 .pf__link {

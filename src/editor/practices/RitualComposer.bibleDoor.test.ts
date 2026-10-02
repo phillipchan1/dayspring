@@ -4,6 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RitualComposer } from './RitualComposer'
+import { GuestModeProvider } from '@/context/GuestMode'
 import { composeRitualMarkdown } from './ritualDocument'
 import { writePassage, type PassageRef } from './passage'
 import { PRACTICE_BY_NAME } from './practicesData'
@@ -202,6 +203,44 @@ describe('a page already kept as a reference only', () => {
     await flush()
     expect(document.querySelector('.rc__leaf-own')).toBeNull()
     expect(document.querySelectorAll('.rc__leaf-text .psg__v').length).toBe(CHAPTER.length)
+  })
+})
+
+describe('a guest, who has no session for the chapter', () => {
+  it('is told the passage needs a sign-in, with the way to do it — not that a feature is missing', async () => {
+    const requestSignIn = vi.fn()
+    const onClose = vi.fn()
+    const REF_ONLY = writePassage({ book: 'John', chapter: 15, from: null, to: null }, null, ID)
+    doc = `${composeRitualMarkdown(OPEN.name, labelsOf(OPEN.name), [REF_ONLY, 'A line.'])}\n${RITUAL_END_TOKEN}`
+    // A guest's chapter never loads: there is no session to ask with.
+    source.fail = true
+    act(() => {
+      root.render(
+        createElement(GuestModeProvider, {
+          requestSignIn,
+          children: createElement(RitualComposer, {
+            blockIndex: 0,
+            getDoc: () => doc,
+            replaceRange: (from: number, to: number, text: string) => {
+              doc = doc.slice(0, from) + text + doc.slice(to)
+            },
+            onClose,
+            onAbout: () => {},
+            entry: { backTo: 'your journal', backShort: 'Journal', onDelete: () => {} },
+          }),
+        }),
+      )
+    })
+    await flush()
+    await flush()
+    const box = document.querySelector('.rc__leaf-own')
+    expect(box?.textContent).toMatch(/not signed in/)
+    expect(box?.textContent).not.toMatch(/own Bible/i)
+    act(() => (box!.querySelector('button') as HTMLButtonElement).click())
+    // Leaves the ritual (keeping what is written), then asks to sign in.
+    expect(onClose).toHaveBeenCalled()
+    expect(requestSignIn).toHaveBeenCalledOnce()
+    expect(doc).toContain('A line.')
   })
 })
 

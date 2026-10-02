@@ -65,6 +65,10 @@ describe('guest passage picker', () => {
       )
     })
 
+    // Said up front: signed out is why there is no passage to draw from.
+    expect(host.querySelector('.pf__guest')?.textContent).toMatch(/not signed in/)
+    expect(host.textContent).not.toMatch(/own Bible/i)
+
     clickNamed(host, '.pf__book', 'John')
     clickNamed(host, '.pf__ch', '15')
 
