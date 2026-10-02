@@ -24,11 +24,12 @@ interface Props {
   /** Choosing again, over a passage already on the page. */
   current?: string | null
   /**
-   * The passage chosen, with its words. `null` words mean it is read from the
-   * writer's own Bible, and only when the words cannot be had: a guest (no
-   * session for the ESV), or a chapter that would not open. Never a choice —
-   * a page that keeps only a reference has nothing to draw quotes from, which
-   * is the whole of a scripture ritual (Phil, Oct 1).
+   * The passage chosen, with its words. `null` words mean a bare reference,
+   * and only when the words cannot be had: a guest (no session for the ESV),
+   * or a chapter that would not open. Never a choice — a page that keeps only
+   * a reference has nothing to draw quotes from, which is the whole of a
+   * scripture ritual (Phil, Oct 1). The composer asks for the chapter again
+   * every time such a page is opened, and writes the words in when they come.
    */
   onChoose: (ref: PassageRef, verses: Verse[] | null) => void
   /** Leave without choosing. */
@@ -373,9 +374,9 @@ export function PassageFinder({ practice, current = null, onChoose, onBack, back
           <p className="pf__soft pf__loading">Opening {displayBook(open.book.name)} {open.chapter}…</p>
         ) : verses.length === 0 ? (
           <div className="pf__soft">
-            <p>This chapter wouldn’t open just now.</p>
+            <p>This chapter wouldn’t open just now. You can begin anyway; it opens beside you as soon as it can.</p>
             <button type="button" className="pf__link" onClick={() => begin(true)}>
-              Read {passageLabel(ref)} from your own Bible →
+              Begin with {passageLabel(ref)} →
             </button>
           </div>
         ) : (

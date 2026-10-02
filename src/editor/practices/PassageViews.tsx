@@ -21,28 +21,43 @@ interface BodyProps {
   onRest?: (at: { n: number; offset: number } | null) => void
   onHoverHighlight?: (keys: string[] | null, el: HTMLElement | null) => void
   slow?: boolean
+  /** No session for the chapter: a guest reads from a Bible of their own. */
+  guest?: boolean
+  /** Ask for the chapter again, when it would not open. */
+  onRetry?: () => void
 }
 
 /**
- * The passage however it can be had: numbered verses when its chapter loads,
- * the fence's own words when it will not (offline — they were written into the
- * page when it was chosen), and a reference alone when it is being read from
- * the writer's own Bible.
+ * The passage however it can be had: numbered verses whenever its chapter
+ * loads — whether or not the page kept the words — the fence's own words when
+ * it will not (offline; they were written into the page when it was chosen),
+ * and a reference alone only when there are no words to be had at all: a
+ * guest, who has no session for the chapter, or a bare reference offline.
  */
-export function PassageBody({ passage, verses, slow, ...text }: BodyProps) {
-  if (passage.own) {
-    return (
-      <div className="rc__leaf-own">
-        <b>{passage.reference}</b>
-        Your own Bible is open beside you. The reference is all this page keeps, and it is enough to find it
-        again.
-      </div>
-    )
-  }
+export function PassageBody({ passage, verses, slow, guest, onRetry, ...text }: BodyProps) {
   if (verses && verses.length > 0) {
     return <PassageText verses={verses} {...text} slow={Boolean(slow)} />
   }
   if (verses === null && !passage.text) return <p className="rc__leaf-loading">Opening {passage.reference}…</p>
+  if (passage.own) {
+    return (
+      <div className="rc__leaf-own">
+        <b>{passage.reference}</b>
+        {guest ? (
+          'Your own Bible is open beside you. The reference is all this page keeps, and it is enough to find it again.'
+        ) : (
+          <>
+            This passage wouldn’t open just now. It will appear here as soon as it can.
+            {onRetry && (
+              <button type="button" className="rc__leaf-retry" onClick={onRetry}>
+                Try again
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
   return <p className="rc__leaf-fallback">{passage.text}</p>
 }
 

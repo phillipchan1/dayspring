@@ -421,27 +421,49 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   box-shadow: inset -30px 0 40px -40px rgba(0, 0, 0, 0.25);
 }
 .rc--facing[data-widen='true'] .rc__leaf-text { animation: rc-in 0.8s 0.45s ease both; }
-.rc--facing .rc__home { margin-bottom: 1.6rem; }
-.rc--facing .rc__intent { max-width: 34rem; }
-/* The path, laid on one line: same beads, same states, less height. */
-.rc__path--row {
+/* One rhythm down the leaf: the ritual (name, dek, path), a hairline, then
+   the passage. Each step is 1.25rem; within a group, lines sit close. */
+.rc--facing .rc__home { margin-bottom: 1.5rem; }
+.rc--facing .rc__intent { max-width: 34rem; margin-top: 0.7rem; }
+/* The path, laid on one line: same beads, same states, less height. Each bead
+   is a flex item centred on its label — absolutely placed at a fixed offset,
+   it sat below the small caps and above the italic After. */
+.rc__path.rc__path--row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.1rem 0.9rem;
-  margin: 1.1rem 0 2rem;
+  align-items: center;
+  gap: 0.1rem 1.25rem;
+  margin: 1.25rem 0;
 }
-.rc__path--row::before { display: none; }
-.rc__path--row button { padding: 0.3rem 0 0.3rem 1rem; width: auto; }
-.rc__path--row button::before { top: 0.52rem; width: 7px; height: 7px; }
-.rc__path--row [data-state='on'] button::before { box-shadow: 0 0 0 3px var(--accent-soft); }
-.rc__path--row .rc__path-label { font-size: 0.58rem; }
-.rc__path--row .rc__gist { display: none; }
+.rc__path.rc__path--row::before { display: none; }
+.rc__path.rc__path--row li { display: flex; }
+.rc__path.rc__path--row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  padding: 0.3rem 0;
+}
+.rc__path.rc__path--row button::before {
+  position: static;
+  flex: none;
+  width: 7px;
+  height: 7px;
+}
+.rc__path.rc__path--row [data-state='on'] button::before { box-shadow: 0 0 0 3px var(--accent-soft); }
+.rc__path.rc__path--row .rc__path-label { font-size: 0.58rem; line-height: 1; }
+.rc__path.rc__path--row [data-after='true'] .rc__path-label { font-size: 0.82rem; }
+.rc__path.rc__path--row .rc__gist { display: none; }
+.rc__leaf-text {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 1.25rem;
+}
 .rc__leaf-ref {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: 1rem;
 }
 .rc__leaf-ref span {
   font-size: 0.7rem;
@@ -462,13 +484,18 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 }
 .rc__leaf-ref button:hover,
 .rc__leaf-under button:hover { color: var(--accent); }
-/* The ways through the passage — one quiet line under the reference, only
-   until the writer has written. The one being walked is simply the brighter. */
+/* "change" is a control, like the ways above it: the same small sans. */
+.rc__leaf-ref button {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+/* The ways through the passage — beside the ritual's name, only until the
+   writer has written. The one being walked is simply the brighter. */
 .rc__ways {
   display: flex;
   flex-wrap: wrap;
   gap: 0.2rem 1rem;
-  margin: -0.4rem 0 1.1rem;
   font-family: var(--font-sans, system-ui, sans-serif);
   font-size: 12px;
 }
@@ -512,6 +539,18 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
   line-height: 1.6;
 }
 .rc__leaf-own b { display: block; font-style: normal; font-weight: 400; font-size: 1.35rem; color: var(--text-bright); margin-bottom: 0.35rem; }
+.rc__leaf-retry {
+  display: block;
+  margin-top: 0.7rem;
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-style: normal;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
 .rc__leaf-loading { color: var(--text-faint); font-style: italic; animation: pf-breathe 1.6s ease-in-out infinite; }
 .rc__leaf-fallback { font-size: max(calc(var(--voice-text-size, 24px) * 0.85), 13px); line-height: 1.8; color: var(--text-bright); margin: 0; white-space: pre-line; }
 

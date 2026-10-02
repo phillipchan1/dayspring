@@ -3,6 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react'
 import { createPortal } from 'react-dom'
 import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
+import { useGuestMode } from '@/context/GuestMode'
 import { track } from '@/lib/analytics'
 import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
@@ -27,7 +28,7 @@ import {
 } from './passage'
 import type { Highlight, WordSpan } from './PassageText'
 import { Tethers, type TetherKey } from './Tethers'
-import { loadChapter } from './passageSource'
+import { loadChapter, peekChapter } from './passageSource'
 import { PassageFinder } from './PassageFinder'
 import { CaughtLine, DwellView, DrawnCard, PassageBody, PassageStrip, QuoteChip, QuoteGhost } from './PassageViews'
 import {
@@ -140,6 +141,12 @@ export interface RitualEntryMode {
    * ritual offers no other way through its passage.
    */
   onSwitch?: () => void
+  /**
+   * Opened again in place (after `onSwitch`), not arriving: no fade-in. The
+   * composer was already on screen, and fading the new one in from nothing
+   * blanked the whole window between two ways of reading the same passage.
+   */
+  still?: boolean
 }
 
 /**
@@ -239,6 +246,7 @@ export function RitualComposer({
   entry,
   renderAnswer,
 }: Props) {
+  const { isGuest } = useGuestMode()
   const seed = useRef(readSeed(getDoc(), blockIndex, entry))
   const block = seed.current?.block ?? null
   const [after, setAfter] = useState(seed.current?.after ?? '')
@@ -334,8 +342,23 @@ export function RitualComposer({
   /** The phone's strip that is open, by movement. */
   const [openStrip, setOpenStrip] = useState<number | null>(null)
   const passageRef = passage?.ref ?? null
-  const chapterKey = passageRef && !passage?.own ? `${passageRef.book} ${passageRef.chapter}` : null
-  const [chapter, setChapter] = useState<{ key: string; verses: Verse[] } | null>(null)
+  // Every passage asks for its chapter — one kept as a bare reference too.
+  // Scripture beside the page is always scripture you can draw from; a
+  // reference alone is only what is left when the words cannot be had.
+  const chapterKey = passageRef ? `${passageRef.book} ${passageRef.chapter}` : null
+  const [chapter, setChapter] = useState<{ key: string; verses: Verse[] } | null>(() => {
+    // Already in hand this session (the same passage, walked another way):
+    // drawn at once, not after a frame of fallback text.
+    if (!passageRef || !chapterKey) return null
+    const verses = peekChapter(passageRef.book, passageRef.chapter)
+    return verses ? { key: chapterKey, verses } : null
+  })
+  /** Ask again: the writer said so, or the connection came back. */
+  const [chapterTry, setChapterTry] = useState(0)
+  const retryChapter = useCallback(() => {
+    setChapter(null)
+    setChapterTry((n) => n + 1)
+  }, [])
   useEffect(() => {
     if (!chapterKey) return
     const at = chapterKey.lastIndexOf(' ')
@@ -346,7 +369,13 @@ export function RitualComposer({
     return () => {
       live = false
     }
-  }, [chapterKey])
+  }, [chapterKey, chapterTry])
+  const chapterMissing = chapterKey !== null && chapter?.key === chapterKey && chapter.verses.length === 0
+  useEffect(() => {
+    if (!chapterMissing) return
+    window.addEventListener('online', retryChapter)
+    return () => window.removeEventListener('online', retryChapter)
+  }, [chapterMissing, retryChapter])
   /** The passage's verses: null while its chapter loads, [] when it will not. */
   const passageVerses: Verse[] | null =
     !passageRef || !chapterKey
@@ -354,6 +383,26 @@ export function RitualComposer({
       : chapter?.key === chapterKey
         ? versesIn(passageRef, chapter.verses)
         : null
+  /**
+   * A passage kept as a bare reference takes its words the moment they can be
+   * had: the same fence (same id, so the saved scripture item is updated, not
+   * a second one minted), now holding the text. Pages begun from "my own
+   * Bible", or while a chapter would not load, become ordinary scripture
+   * pages the first time they are opened with the chapter in reach.
+   */
+  const bareReference = passage?.own ?? false
+  useEffect(() => {
+    if (!bareReference || !passageRef || !passageVerses || passageVerses.length === 0) return
+    const had = parseSpiritualBlocks(textsRef.current[0] ?? '').find((b) => b.type === 'scripture')
+    const md = writePassage(passageRef, passageVerses, had?.id ?? crypto.randomUUID())
+    setTexts((prev) => {
+      const next = prev.slice()
+      next[0] = md
+      return next
+    })
+    // Keyed on the chapter arriving; the ref and verses are derived from it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bareReference, chapter])
   const markIndex =
     passageMode && block ? block.labels.findIndex((l) => movementKind(block.name, l) === 'mark') : -1
   const caught = markIndex >= 0 ? caughtOf(texts[markIndex] ?? '') : null
@@ -815,7 +864,7 @@ export function RitualComposer({
   }
   const ways =
     untouched && entry?.onSwitch && block ? (
-      <div className="rc__ways rc__chrome" role="group" aria-label="How to read it">
+      <div className="rc__ways" role="group" aria-label="How to read it">
         {PASSAGE_WAYS.map((w) => {
           const p = PRACTICE_BY_NAME.get(w.name)
           if (!p?.passage || p.retired) return null
@@ -975,7 +1024,12 @@ export function RitualComposer({
   }
 
   const kind = kindAt(i)
-  const own = passage?.own ?? false
+  /**
+   * No words to show: a bare reference whose chapter cannot be had (a guest
+   * has no session for it; offline, it will not load). Never merely "kept as
+   * a reference" — when the chapter is in reach the words are shown.
+   */
+  const own = bareReference && !(passageVerses && passageVerses.length > 0)
   const where = desk ? 'on the left' : 'above'
   /** The passage, however this movement uses it. */
   const passageBody = (mode: MovementKind | 'plain' | 'quote', opts: { slowly?: boolean } = {}) =>
@@ -984,6 +1038,8 @@ export function RitualComposer({
         key={opts.slowly ? `slow-${slow}` : 'still'}
         passage={passage}
         verses={passageVerses}
+        guest={isGuest}
+        onRetry={retryChapter}
         mode={mode}
         caught={caught}
         cited={mode === 'quote' || mode === 'cite' ? citedVerses(texts[i] ?? '') : []}
@@ -1135,7 +1191,6 @@ export function RitualComposer({
                   </button>
                 )}
               </div>
-              {ways}
               {passageBody(leafMode, { slowly: kind === 'read' })}
               {kind === 'read' && !own && (
                 <div className="rc__leaf-under rc__chrome">
@@ -1147,6 +1202,8 @@ export function RitualComposer({
             </div>
           ) : undefined
         }
+        ways={ways}
+        still={entry?.still ?? false}
         widen={widen}
         closeExtra={drawnRecord}
         onPageHover={passage ? onPageHover : undefined}
@@ -1210,6 +1267,7 @@ export function RitualComposer({
   return createPortal(
     <div
       className="ritual-composer"
+      data-still={entry?.still ? 'true' : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={`${block.name} — movement ${Math.min(i + 1, total)} of ${total}`}
@@ -1468,6 +1526,10 @@ interface DeskProps {
   landed: string
   /** A scripture ritual's passage: the rail widens into a leaf that holds it. */
   leaf?: React.ReactNode
+  /** The other ways through the passage, beside the ritual's name. */
+  ways?: React.ReactNode
+  /** Opened again in place: no entrance. */
+  still?: boolean
   /** A scripture ritual, passage or not: its answers' `>` lines are verses. */
   scripture?: boolean
   /** Widening now — once, as the chosen passage arrives. */
@@ -1579,6 +1641,8 @@ function DeskLayout({
   saved,
   landed,
   leaf,
+  ways,
+  still = false,
   widen = false,
   lead,
   instead,
@@ -1633,6 +1697,7 @@ function DeskLayout({
   return (
     <div
       className={`ritual-composer rc--desk${facing ? ' rc--facing' : ''}`}
+      data-still={still ? 'true' : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={`${name} — movement ${Math.min(i + 1, total)} of ${total}`}
@@ -1656,7 +1721,12 @@ function DeskLayout({
           <span aria-hidden>←</span> Back to {backTo}
           <kbd className="rc__kbd">esc</kbd>
         </button>
-        <h2 className="rc__title rc__chrome">{name}</h2>
+        {/* The name, and (for a passage not yet written under) the other ways
+            through it: they change the name, so they sit on its line. */}
+        <div className="rc__head rc__chrome">
+          <h2 className="rc__title">{name}</h2>
+          {ways}
+        </div>
         {origin && <p className="rc__origin rc__chrome">{origin}</p>}
         {/* What the practice is for sits with its name, as a dek — not stranded
             at the foot of the rail with a screen of nothing above it. */}

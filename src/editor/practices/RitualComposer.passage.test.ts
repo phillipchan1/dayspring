@@ -49,6 +49,7 @@ const JOHN = [
   { n: 5, text: 'I am the vine. You are the branches.' },
 ]
 vi.mock('./passageSource', () => ({
+  peekChapter: () => null,
   loadChapter: async () => JOHN,
   loadLight: async () => ({ books: new Map(), chapters: new Map(), max: 0, returning: [] }),
   searchTopic: async () => [],

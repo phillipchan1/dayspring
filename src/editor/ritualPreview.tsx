@@ -425,6 +425,7 @@ function BlankHarness({ now, resume }: { now?: Date; resume?: PassageRef | null 
             backTo: 'your journal',
             backShort: 'Journal',
             onSwitch: () => setGen((g) => g + 1),
+            ...(gen > 0 ? { still: true } : {}),
             onDelete: () => {
               editorRef.current?.replaceRange(0, editorRef.current.getDoc().length, '', { focus: false })
               setOpen(null)
