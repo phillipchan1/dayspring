@@ -49,7 +49,7 @@ if (missing.length) {
 }
 
 const { supabaseAdmin } = await import('../api/_lib/supabaseAdmin.ts')
-const { parseReferences } = await import('../src/lib/scripture/parse.ts')
+const { scriptureRefsOf } = await import('../src/lib/scripture/refRows.ts')
 
 const { requireOwner } = await import('./_owner.ts')
 const owner = await requireOwner()
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   let lowConfidence = 0
 
   for (const e of entries) {
-    const refs = parseReferences(e.body_markdown)
+    const refs = scriptureRefsOf(e.body_markdown)
     if (refs.length === 0) continue
     const seen = new Set<string>()
     let added = 0

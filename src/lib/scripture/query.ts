@@ -22,7 +22,7 @@ import * as cache from '../db'
 import { fetchEntriesByIds } from '../entries'
 import { requireSupabase } from '../supabase'
 import { isCapturePreview } from '../previewMode'
-import { parseReferences } from './parse'
+import { scriptureRefsOf } from './refRows'
 import { writerWords } from '../writerWords'
 
 export interface DateWindow {
@@ -171,7 +171,7 @@ async function deriveRefsFromCache(window?: DateWindow): Promise<RefLike[]> {
   const out: RefLike[] = []
   for (const e of entries) {
     if (!inWindow(e.created_at, window)) continue
-    for (const r of parseReferences(e.body_markdown)) {
+    for (const r of scriptureRefsOf(e.body_markdown)) {
       out.push({
         entry_id: e.id,
         book_osis: r.book_osis,

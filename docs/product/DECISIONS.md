@@ -23,6 +23,36 @@ agenda.
 
 ---
 
+## D-032 — Lamp counts two grains: the passage is where you've been, a highlight is what caught you
+**2026-10-02** · **Status:** Decided (Phil)
+
+**Decision:** On a scripture ritual page, the passage fence lights its **chapter** on Lamp and
+each phrase the writer highlights lights its own **verse** (`> phrase (v. 5)` → Prov 3:5, a
+range `(vv. 5–6)` → 3:5–6). Neither replaces the other, and a reading with no highlights still
+lights its chapter. Read by `src/lib/scripture/highlights.ts`, through the one planner the
+editor's save and the gather engine share.
+
+**Why:** Lamp's question is "which verses kept finding me?" (SURFACES.md). Counting only the
+chapter overstated a highlight — lingering on Proverbs 3:5–6 lit all of Proverbs 3 — and
+counting only the verses would have erased the chapters they had actually read. Lamp already
+aggregated at both grains (chapter heat; verse chips), each counting an entry once, so six
+highlights in one page add six verses and still light the chapter once. A highlight is also the
+sharpest "this caught me" signal Lamp has ever had: a deliberate act, where a pasted reference
+is only a reference. Fixed in the same change: a whole-chapter passage in Mark, Acts, Job,
+Revelation, Proverbs, Judges or Numbers was never counted, because the prose parser refuses a
+bare chapter for a book named like a word; a fence's reference line is now read strictly. On
+the founder's archive that had hidden 4 pages.
+
+**What would change our mind:** if the home "returning" strip (which ranks chapters and verses
+together) fills with chapters that outrank the verses — then it shows verse-level refs only; or
+if un-highlighted readings lighting Lamp starts to feel like a coverage count (the thing Lamp
+never does).
+
+**Cost accepted:** `distinctVerses` and `topVerse` already counted chapter refs as verses, and
+a ritual page now adds one. A highlight with no verse number (Lectio's older caught word)
+adds nothing beyond its chapter. Pages written before this are re-read once by the gather engine
+(`20261002120000_requeue_scripture_pages.sql`, applied after the deploy).
+
 ## D-031 — The introductory period is a trial, never "complimentary" or "free"
 **2026-09-21** · **Status:** Decided (Phil — third time; supersedes #108, #109, #116)
 

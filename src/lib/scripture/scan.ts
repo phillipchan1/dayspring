@@ -9,7 +9,7 @@
 // unique index, so re-running only adds what's missing.
 
 import { requireSupabase } from '../supabase'
-import { parseReferences } from './parse'
+import { scriptureRefsOf } from './refRows'
 
 // "Have I scanned my imports" watermark — the imported-entry count at the last
 // scan OR dismiss. Native entries are captured live on save, so only imports
@@ -111,7 +111,7 @@ export async function scanAllForRefs(
     for (const e of rows) {
       const seen = new Set<string>()
       let added = 0
-      for (const r of parseReferences(e.body_markdown)) {
+      for (const r of scriptureRefsOf(e.body_markdown)) {
         if (seen.has(r.osis_ref)) continue // dedup within an entry (the unique-index key)
         seen.add(r.osis_ref)
         books.add(r.book_osis)

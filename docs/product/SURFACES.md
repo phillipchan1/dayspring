@@ -113,6 +113,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
 - **State:** ✅ Shipped P0–P2. Map, seasons, book view with chapter strip + timeline +
   verse threads, live capture on save, editor underline. Backfilled (263 refs). Allusion
   AI pass deferred *(good — it's the highest-hallucination-risk idea in the backlog)*.
+  Scripture rituals count at two grains (D-032): the passage lights its chapter, each
+  highlighted phrase lights its verse.
 - **Audit:** *Is every verse string sourced from the scripture layer or the user's own
   entry — never from model memory?*
 
