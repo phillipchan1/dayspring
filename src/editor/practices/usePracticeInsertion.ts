@@ -436,6 +436,9 @@ const RITUAL_INSET_EM = 1.15
  * Each entry is a line class and its font size relative to an answer (see
  * spiritualBlockDecoration.ts): the rule moves by the inset, and the indent
  * becomes the inset plus the marking's own.
+ *
+ * Only the markings keep a rule here (their colour is the kind). A quotation
+ * does not — see `quotedLines`.
  */
 function insetMarkedLines(): Record<string, Record<string, string>> {
   const lines: [cls: string, size: number, indent: string][] = [
@@ -448,10 +451,39 @@ function insetMarkedLines(): Record<string, Record<string, string>> {
     const inset = `${+(RITUAL_INSET_EM / size).toFixed(4)}em`
     rules[`.cm-line.cm-ritual-body.${cls}`] = {
       paddingLeft: `calc(${inset} + ${indent})`,
-      backgroundPositionX: inset,
+      ...(cls === 'cm-mark-line' ? { backgroundPositionX: inset } : {}),
     }
   }
   return rules
+}
+
+/**
+ * A quotation inside a record draws no rule of its own.
+ *
+ * The spine already says "this is set apart", and a second vertical a few
+ * pixels inside it read as a rail: two lines for one fact, one solid and one
+ * dashed in Plainsong. What is quoted is told by its indent, its italic and,
+ * for a verse, its citation — and the air round it, which the rule used to
+ * supply by marking where the verse began and ended.
+ *
+ * That covers a verse (the Read movement's passage, or a fence in an answer)
+ * and a drawn `>` line, which also used to sit ON the spine with its words left
+ * of every other answer. Not a finished page edited in place: it has no spine,
+ * so there the rule is the only vertical and stays.
+ */
+function quotedLines(): Record<string, Record<string, string>> {
+  const spined = '.cm-line.cm-ritual-body:not(.cm-ritual-body--open)'
+  return {
+    [`${spined}.cm-scripture-line, ${spined}.cm-scripture-cite, ${spined}.cm-md-quote`]: {
+      backgroundImage: 'none',
+      boxShadow: 'none',
+    },
+    [`${spined}.cm-md-quote`]: {
+      paddingLeft: `calc(${RITUAL_INSET_EM}em + 0.85rem)`,
+    },
+    [`${spined}.cm-scripture-line--first`]: { paddingTop: '0.75em' },
+    [`${spined}.cm-scripture-cite`]: { paddingBottom: '0.9em' },
+  }
 }
 
 /** `insetMarkedLines`, undone for a finished page — the inset is the spine's. */
@@ -496,6 +528,7 @@ const practiceTheme = EditorView.theme({
   // ANSWER's size, so a line set smaller (a verse at 0.9em, its citation at
   // 0.66em) needs the same distance in its own ems.
   ...insetMarkedLines(),
+  ...quotedLines(),
   // ── A finished ritual page, edited in place ────────────────────────────
   // The reader's one column: no spine, no inset, and it is text you write in
   // rather than a door. Marked lines inside it keep their own indent only.

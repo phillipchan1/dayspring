@@ -502,6 +502,15 @@ export function renderRitualPreview(): void {
     block = block.replace(/(<!-- ritual:section:Prayer -->\n)/, `$1${prayer}\n`)
   }
 
+  // `&quote=1` drops two drawn quotes and a line of the writer's own into the
+  // Reflect movement — a scripture ritual as it reads once someone has used it.
+  if (params.get('quote') === '1') {
+    block = block.replace(
+      /(<!-- ritual:section:Reflect -->\n)[^\n]*/,
+      '$1> He makes me lie down in green pastures (v. 2)\n\n> I shall not want (v. 1)\n\nI keep skipping the pastures and going straight to the valley.',
+    )
+  }
+
   const root = document.documentElement
   root.setAttribute('data-theme', theme)
   root.setAttribute('data-appearance', family)
