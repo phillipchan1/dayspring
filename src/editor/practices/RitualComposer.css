@@ -289,9 +289,10 @@
 }
 
 /* ── At a desk: the path in a rail, one question on a page ─────────────────
-   Only rendered on a wide screen with a fine pointer (see `DeskLayout`), so
-   nothing here has to survive a keyboard. Everything is scoped to `.rc--desk`;
-   the filmstrip's rules above stay the phone's. */
+   Rendered on a wide screen with a fine pointer, or a tablet held wide (see
+   `DeskLayout`). On the tablet the composer's frame follows the visual
+   viewport, so the page and rail scroll above its keyboard. Everything is
+   scoped to `.rc--desk`; the filmstrip's rules above stay the phone's. */
 .rc--desk {
   display: grid;
   grid-template-columns: 19rem minmax(0, 1fr);
@@ -585,6 +586,10 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
+}
+/* A tablet at the desk layout: the shortcuts are a keyboard's, not a finger's. */
+@media (hover: none) {
+  .rc--desk .rc__kbd { display: none; }
 }
 .rc--desk .rc__back { font-size: 0.85rem; }
 .rc--desk .rc__back:hover { color: var(--accent); }

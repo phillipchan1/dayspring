@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
 import { createPortal } from 'react-dom'
-import { useVisualViewportFrame } from '@/hooks/useViewportHeight'
+import { useVisualViewportFrame, type VisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { useGuestMode } from '@/context/GuestMode'
 import { track } from '@/lib/analytics'
@@ -226,7 +226,7 @@ function readSeed(
  * Everything above is an argument about a phone keyboard, and a desk has none.
  * There the filmstrip became a nine-line box floating in an empty screen, with
  * what you wrote a minute ago a swipe away — a form wizard. So on a wide screen
- * with a fine pointer the same composer lays itself out as a rail and a page
+ * — or a tablet held wide (`roomy`) — the same composer lays itself out as a rail and a page
  * (`DeskLayout` below): the page holds the one question in front of you and
  * as much room to answer it as the screen has; the rail holds the path — what
  * you said to each movement behind you, where you are, and the NAMES of the
@@ -309,7 +309,12 @@ export function RitualComposer({
   // The rail wants room beside a reading column; below this the filmstrip is
   // the better use of the width even with a mouse.
   const wide = useMediaQuery('(min-width: 900px)')
-  const desk = wide && !touch
+  // A tablet held wide — iPad landscape, the mini included — has that room
+  // too, and the passage beside the page beats folding it away above the box.
+  // The height floor keeps a phone on its side (900+ wide, ~430 tall) on the
+  // filmstrip. Layout viewport, so the soft keyboard opening never flips it.
+  const roomy = useMediaQuery('(min-width: 900px) and (min-height: 600px)')
+  const desk = touch ? roomy : wide
   /**
    * The furthest movement the writer has walked to — what the rail may name
    * as reachable. Opening on the movement still waiting counts as having
@@ -1113,7 +1118,7 @@ export function RitualComposer({
       return caught ? (
         <CaughtLine phrase={caught} onRelease={() => setCaught(null)} />
       ) : (
-        <p className="rc__await">Touch a word {where}, or {desk ? 'drag across' : 'tap two'} for a phrase.</p>
+        <p className="rc__await">Touch a word {where}, or {touch ? 'tap two' : 'drag across'} for a phrase.</p>
       )
     }
     const said = k === 'carry' && caught ? <CaughtLine phrase={caught} small /> : null
@@ -1276,6 +1281,9 @@ export function RitualComposer({
             : 'Saved to your entry as you write.'
         }
         landed={entry ? 'It’s on your journal page, as you wrote it.' : 'It’s in your entry, as you wrote it.'}
+        // On a tablet the soft keyboard takes the bottom of the screen; the
+        // desk sits in what is left, as the filmstrip does.
+        frame={touch ? frame : null}
       />
       {passage && !own && <Tethers keys={tetherKeys} targets={tetherTargets} lit={lit} rest={drawsAt(i) ? rest : null} />}
       {pending && drawsAt(i) && <QuoteChip span={pending} onBring={bringIn} onLetGo={() => setPending(null)} />}
@@ -1587,6 +1595,8 @@ interface DeskProps {
   closeExtra?: React.ReactNode
   /** Pointer over the page, to follow a quote's line from its end. */
   onPageHover?: ((e: React.MouseEvent) => void) | undefined
+  /** The visible area on a touch screen, above its keyboard; null at a desk. */
+  frame?: VisualViewportFrame | null
 }
 
 /**
@@ -1693,6 +1703,7 @@ function DeskLayout({
   gistAt,
   closeExtra,
   onPageHover,
+  frame = null,
 }: DeskProps) {
   const total = labels.length
   const filled = filledAt ?? ((n: number) => (texts[n] ?? '').trim() !== '')
@@ -1757,6 +1768,15 @@ function DeskLayout({
       aria-label={`${name} — movement ${Math.min(i + 1, total) - first} of ${total - first}`}
       data-widen={facing ? (widen ? 'true' : widened ? 'done' : undefined) : undefined}
       data-typing={facing && typing ? 'true' : undefined}
+      style={frame ? { top: frame.top, height: frame.height } : undefined}
+      // No mouse to move on a tablet: a touch anywhere brings the leaf back.
+      onPointerDown={
+        facing && typing
+          ? (e) => {
+              if (e.pointerType !== 'mouse') setTyping(false)
+            }
+          : undefined
+      }
       onMouseMove={
         facing && typing
           ? (e) => {
