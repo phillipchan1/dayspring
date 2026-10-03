@@ -190,6 +190,27 @@ function readSeed(
 }
 
 /**
+ * May a press on the filmstrip become a swipe between movements?
+ *
+ * Not one that lands on the passage, and not while words are selected.
+ * Selecting a phrase in the passage is a sideways drag too — a long-press and
+ * then along the line, or a selection handle pulled across it — and Embla read
+ * the first horizontal pixel of it as a swipe, threw the slide to the previous
+ * movement and `preventDefault`ed the rest, so the words could never be chosen
+ * (Phil, on an iPad). The passage is for choosing words; everything else on the
+ * slide — the question, the strip, the margins — still swipes.
+ *
+ * Asked once, as the finger lands, the way `useSwipeToDismiss`'s guard is: a
+ * gesture that was never ours is never taken.
+ */
+export function filmstripMayDrag(_api: unknown, evt: MouseEvent | TouchEvent): boolean {
+  const target = evt.target
+  if (target instanceof Element && target.closest('.psg')) return false
+  const sel = typeof window === 'undefined' ? null : window.getSelection()
+  return !sel || sel.isCollapsed
+}
+
+/**
  * The ritual composer — one movement at a time, on a surface that owns the screen.
  *
  * A ritual used to be written in place, as a block inside the entry, and on a
@@ -303,6 +324,7 @@ export function RitualComposer({
     duration: 26,
     // The filmstrip has no pane for Read, so its snaps sit one behind.
     startIndex: startAt - opensPastRead,
+    watchDrag: filmstripMayDrag,
   })
   const paneRefs = useRef<(Focusable | null)[]>([])
   const touch = useTouchPrimary()

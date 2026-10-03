@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RitualComposer, gistOf } from './RitualComposer'
+import { RitualComposer, filmstripMayDrag, gistOf } from './RitualComposer'
 import { composeRitualMarkdown } from './ritualDocument'
 import { RitualHeaderWidget } from './ritualWidgets'
 import { PRACTICES } from './practicesData'
@@ -608,5 +608,33 @@ describe('the rail’s gist of a walked movement', () => {
 
   it('leaves plain writing as it was, on one line', () => {
     expect(gistOf('Bread.\n\nAnd rain.')).toBe('Bread. And rain.')
+  })
+})
+
+describe('filmstripMayDrag', () => {
+  const press = (target: Element) => ({ target }) as unknown as TouchEvent
+
+  afterEach(() => {
+    window.getSelection()?.removeAllRanges()
+    document.body.innerHTML = ''
+  })
+
+  it('swipes from anywhere on a slide but the passage', () => {
+    document.body.innerHTML = '<div class="rc__pane"><p class="rc__q">Question</p></div>'
+    expect(filmstripMayDrag(null, press(document.querySelector('.rc__q')!))).toBe(true)
+  })
+
+  it('leaves a press on the passage to the selection', () => {
+    document.body.innerHTML =
+      '<div class="psg" data-selecting="true"><span class="psg__w">abide</span></div>'
+    expect(filmstripMayDrag(null, press(document.querySelector('.psg__w')!))).toBe(false)
+  })
+
+  it('does not swipe while words are selected — a handle being dragged', () => {
+    document.body.innerHTML = '<div class="psg"><span>abide in me</span></div><p class="rc__q">Q</p>'
+    const range = document.createRange()
+    range.selectNodeContents(document.querySelector('.psg span')!)
+    window.getSelection()!.addRange(range)
+    expect(filmstripMayDrag(null, press(document.querySelector('.rc__q')!))).toBe(false)
   })
 })
