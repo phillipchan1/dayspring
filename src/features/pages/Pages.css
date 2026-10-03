@@ -873,6 +873,19 @@ button.pg__sense-q:hover {
   /* Colour and opacity only — a page must never move under the cursor. */
   transition: border-color var(--transition), background-color var(--transition),
     opacity var(--transition-slow);
+  /*
+   * A press-and-hold is this page's menu (see useWallPointer), so the system
+   * must not claim the same hold. Unconditionally, not under (pointer: coarse)
+   * with the rest of the touch chrome in global.css: an iPad with a trackpad
+   * attached reports a FINE pointer while its owner is still pressing pages
+   * with a finger, and there the hold became a text selection — WebKit cancels
+   * the pointer, the timer dies, and the menu never comes. On a mouse these
+   * opt-outs cost nothing: a drag on the wall is the marquee, not a selection.
+   */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /*
@@ -2654,6 +2667,11 @@ button.pg__sense-q:hover {
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   transition: background-color var(--transition), opacity var(--transition);
+  /* The hold is the menu here too — see `.pgc`. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .pgr:hover {
