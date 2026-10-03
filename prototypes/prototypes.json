@@ -72,6 +72,15 @@
       "listed": false,
       "hasFeedback": false,
       "startHash": "intro"
+    },
+    {
+      "slug": "prints",
+      "title": "Prints in the margin",
+      "description": "How the entries list shows a page carries a photo. Five directions, one picked: a print in the photo's own color, the photo itself on hover, and Photos in Look for.",
+      "status": "draft",
+      "listed": false,
+      "hasFeedback": false,
+      "startHash": "color"
     }
   ]
 }

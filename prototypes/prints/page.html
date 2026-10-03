@@ -1,0 +1,449 @@
+<title>Prints in the Margin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: the brief on the left reads down; the two lists (computer row, phone row)
+   sit side by side as the stage, and stack under 900px. Palette is Dawn (light) and
+   Ink (dark), lifted from src/styles/themes.css so the rows look like the app. */
+:root {
+  --bg: #fbf6ee;
+  --bg-elevated: #fffdf8;
+  --text: #4a4035;
+  --text-dim: #8a7c69;
+  --text-faint: #b4a78f;
+  --accent: #c2683a;
+  --gold: 196, 145, 60;
+  --rule: rgba(74, 64, 53, 0.12);
+  --print-edge: #fffdf8;
+  --print-line: rgba(74, 64, 53, 0.28);
+  --print-ink: #6b5f50;
+  --shadow: 0 10px 30px rgba(74, 64, 53, 0.18), 0 1px 3px rgba(74, 64, 53, 0.14);
+  --k-prayer: var(--accent);
+  --k-scripture: rgb(var(--gold));
+  --k-gift: #c08a2c;
+  --k-sense: #7b8fa8;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --transition: 160ms ease;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161d; --bg-elevated: #1b1e27; --text: #c2c6d0; --text-dim: #7a8090;
+    --text-faint: #565c6a; --accent: #e0a64e; --gold: 243, 189, 118;
+    --rule: rgba(194, 198, 208, 0.1); --print-edge: #e9e4da; --print-line: rgba(0,0,0,0.5);
+    --shadow: 0 12px 34px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.5);
+    --k-gift: #d6a24a; --k-sense: #8ea3c0; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161d; --bg-elevated: #1b1e27; --text: #c2c6d0; --text-dim: #7a8090;
+  --text-faint: #565c6a; --accent: #e0a64e; --gold: 243, 189, 118;
+  --rule: rgba(194, 198, 208, 0.1); --print-edge: #e9e4da; --print-line: rgba(0,0,0,0.5);
+  --shadow: 0 12px 34px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.5);
+  --k-gift: #d6a24a; --k-sense: #8ea3c0; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-inline: 20px;
+  padding-block: 40px 72px;
+}
+.wrap { max-width: 1120px; margin-inline: auto; display: grid; gap: 36px; }
+
+/* ── brief ─────────────────────────────────────────────── */
+.brief { display: grid; gap: 14px; max-width: 66ch; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+h1 {
+  font-family: var(--font-serif); font-weight: 400; font-size: clamp(32px, 5vw, 46px);
+  line-height: 1.08; letter-spacing: -0.015em; margin: 0; text-wrap: balance;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.brief p { margin: 0; color: var(--text-dim); }
+.brief p strong { color: var(--text); font-weight: 500; }
+.rule-quote {
+  font-family: var(--font-serif); font-style: italic; font-size: 19px; color: var(--text);
+  border-inline-start: 2px solid rgba(var(--gold), 0.5); padding-inline-start: 14px; margin: 4px 0;
+}
+
+/* ── controls ──────────────────────────────────────────── */
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 5%, transparent); }
+.seg button, .chip {
+  font: 500 13px/1 var(--font-sans); color: var(--text-dim); background: none; border: none;
+  padding: 9px 12px; border-radius: 7px; cursor: pointer; transition: background var(--transition), color var(--transition);
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--bg-elevated); color: var(--text); box-shadow: 0 1px 2px var(--rule), 0 0 0 1px var(--rule); }
+.seg button .rec { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; color: var(--accent); margin-inline-start: 6px; text-transform: uppercase; }
+.lookfor { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-faint); }
+.lookfor .lbl { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: lowercase; }
+.chip { border: 1px solid var(--rule); border-radius: 999px; padding: 7px 12px; display: inline-flex; gap: 7px; align-items: center; }
+.chip[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.chip .n { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── stage ─────────────────────────────────────────────── */
+.stage { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.panel { min-width: 0; display: grid; gap: 10px; }
+.panel-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); display: flex; justify-content: space-between; gap: 12px; }
+.panel-label span:last-child { text-transform: none; letter-spacing: 0; font-family: var(--font-sans); }
+.sheet { background: var(--bg-elevated); border: 1px solid var(--rule); border-radius: 12px; padding: 10px 8px; min-width: 0; position: relative; }
+.phone .sheet { max-width: 390px; border-radius: 26px; padding: 14px 6px 18px; }
+.section { font-family: var(--font-serif); font-size: 13px; color: var(--text-dim); padding: 10px 10px 6px; font-style: italic; }
+
+/* ── the row (after features/pages/Pages.css .pgr) ─────── */
+.pgr {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 27px;
+  padding-inline: 10px; border: none; background: none; text-align: start; border-radius: 4px;
+  cursor: pointer; color: var(--text); transition: background var(--transition), opacity var(--transition);
+}
+.pgr:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.pgr[data-today="true"] { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.pgr[data-dim="true"] { opacity: 0.28; }
+.pgr__date { flex: none; width: 3.9rem; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em; color: var(--text-faint); text-transform: uppercase; }
+.pgr[data-today="true"] .pgr__date { color: var(--accent); }
+.pgr__line { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-serif); font-size: 14.5px; line-height: 1.25; }
+.pgr__line.caption { font-style: italic; color: var(--text-dim); }
+.pgr__next { display: none; color: var(--text-dim); }
+.pgr__margin { flex: none; display: inline-flex; gap: 3px; align-items: center; }
+.pgr__mark { width: 4px; height: 4px; border-radius: 50%; opacity: 0.8; }
+.pgr__today { flex: none; font-size: 9.5px; letter-spacing: 0.05em; color: var(--accent); text-transform: uppercase; }
+/* The photo slot is a fixed column, so the prints line up down the list and the eye can run down them. */
+.pgr__photo { flex: none; width: 26px; display: inline-flex; align-items: center; justify-content: flex-end; }
+.facts { display: contents; }
+
+/* direction: the color of it — a print the size of a grain of rice */
+.prints { display: inline-flex; align-items: center; }
+.print {
+  width: 11px; height: 8px; border-radius: 1px; flex: none;
+  box-shadow: 0 0 0 1.5px var(--print-edge), 0 0 0 2px var(--print-line);
+}
+.print + .print { margin-inline-start: -5px; }
+.print:nth-child(2) { transform: translateY(-1.5px); }
+.print:nth-child(3) { transform: translateY(1px); }
+
+/* direction: tipped in — a real thumbnail */
+.thumb { width: 24px; height: 18px; border-radius: 1.5px; object-fit: cover; display: block;
+  box-shadow: 0 0 0 1.5px var(--print-edge), 0 0 0 2px var(--print-line); }
+.thumbs { display: inline-flex; }
+.thumbs .thumb + .thumb { margin-inline-start: -14px; }
+
+/* direction: camera mark — ours, in our face */
+.cam { display: inline-flex; gap: 3px; align-items: center; color: var(--text-faint); font: 500 10px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.cam svg { width: 12px; height: 12px; }
+
+/* ── phone: same children, two lines (Pages.css phone block) ── */
+.phone .pgr {
+  display: grid; grid-template-columns: auto auto 1fr auto; grid-template-areas: "date margin . photo" "line line line line";
+  column-gap: 8px; row-gap: 4px; padding: 11px 12px; min-height: 48px; align-items: center;
+}
+.phone .pgr__date { grid-area: date; width: auto; font-size: 10.5px; }
+.phone .pgr__margin { grid-area: margin; }
+.phone .pgr__photo { grid-area: photo; width: auto; }
+.phone .pgr__today { display: none; }
+.phone .pgr__line { grid-area: line; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 15.5px; line-height: 1.32; }
+.phone .pgr__next { display: inline; }
+/* tipped in, on a phone: the thumbnail takes both lines at the right, Day One style */
+.phone[data-dir="tipped"] .pgr { grid-template-columns: auto auto 1fr 46px; grid-template-areas: "date margin . photo" "line line line photo"; }
+.phone[data-dir="tipped"] .pgr__photo { align-self: stretch; }
+.phone .thumb { width: 46px; height: 46px; border-radius: 3px; }
+.phone .thumbs .thumb + .thumb { display: none; }
+.phone .print { width: 13px; height: 10px; }
+.phone .print + .print { margin-inline-start: -6px; }
+
+/* ── peek: the print steps forward ─────────────────────── */
+.peek {
+  position: absolute; z-index: 5; pointer-events: none; background: var(--print-edge);
+  padding: 6px 6px 8px; border-radius: 3px; box-shadow: var(--shadow); display: grid; gap: 6px;
+  opacity: 0; transform: translateY(4px) scale(0.98); transform-origin: right center;
+  transition: opacity 140ms ease, transform 140ms ease; max-width: min(360px, 80%);
+}
+.peek[data-on="true"] { opacity: 1; transform: none; }
+.peek .row { display: flex; gap: 4px; }
+.peek img { height: 86px; width: auto; display: block; border-radius: 1px; }
+.peek .cap { font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--print-ink); padding-inline: 2px; }
+@media (prefers-reduced-motion: reduce) { .peek, .pgr { transition: none; } }
+
+/* ── read-out ──────────────────────────────────────────── */
+.readout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--rule); }
+@media (max-width: 760px) { .readout { grid-template-columns: minmax(0, 1fr); } }
+.readout > div { padding: 18px 20px 4px 0; min-width: 0; }
+.readout h3 { margin: 0 0 6px; font: 500 11px/1.4 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.readout p { margin: 0; color: var(--text-dim); font-size: 14.5px; }
+.readout .what p { font-family: var(--font-serif); font-size: 17px; color: var(--text); line-height: 1.45; }
+
+.verdict { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; gap: 14px; max-width: 70ch; }
+.verdict h2 { font-family: var(--font-serif); font-weight: 400; font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+.verdict p, .verdict li { color: var(--text-dim); margin: 0; }
+.verdict ol { margin: 0; padding-inline-start: 1.2em; display: grid; gap: 8px; }
+.verdict strong { color: var(--text); font-weight: 500; }
+.small { font-size: 12.5px; color: var(--text-faint); }
+</style>
+
+<div class="wrap">
+  <header class="brief">
+    <div class="eyebrow">Prototype · Entries list · photos</div>
+    <h1>A photo is hers. <em>A camera icon is ours.</em></h1>
+    <p>Day One and Diarly lead with the photo: the list becomes an album. Dayspring already has a rule for what goes on a page, written into <code>PageCard.tsx</code>:</p>
+    <p class="rule-quote">Nothing goes on a page except her words, her date and her markings.</p>
+    <p>A photo she put on the page passes that rule. An icon we draw beside it doesn't. So the question isn't <strong>whether</strong> to show it. It's <strong>how much of the photo itself</strong> the list can carry from this far back without becoming an album. Switch directions below. On a computer, hover a row that has a photo.</p>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Direction">
+      <button type="button" id="d-ships" data-dir="ships">As it ships</button>
+      <button type="button" id="d-color" data-dir="color">The color of it<span class="rec">pick</span></button>
+      <button type="button" id="d-tipped" data-dir="tipped">Tipped in</button>
+      <button type="button" id="d-camera" data-dir="camera">Camera mark</button>
+      <button type="button" id="d-asked" data-dir="asked">Only when asked</button>
+    </div>
+    <div class="lookfor">
+      <span class="lbl">look for</span>
+      <button type="button" class="chip" id="lit-photos" aria-pressed="false">Photos <span class="n" id="photo-count">0</span></button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <section class="panel desk" data-dir="color" aria-label="Entries list on a computer">
+      <div class="panel-label"><span>Computer · list</span><span>hover a row with a photo</span></div>
+      <div class="sheet" id="desk-sheet"></div>
+    </section>
+    <section class="panel phone" data-dir="color" aria-label="Entries list on a phone">
+      <div class="panel-label"><span>Phone · list</span><span>the same row, two lines</span></div>
+      <div class="sheet" id="phone-sheet"></div>
+    </section>
+  </div>
+
+  <div class="readout" aria-live="polite">
+    <div class="what"><h3>What it is</h3><p id="r-what"></p></div>
+    <div><h3>What it keeps</h3><p id="r-keeps"></p></div>
+    <div><h3>What it costs</h3><p id="r-costs"></p></div>
+  </div>
+
+  <section class="verdict">
+    <h2>The Dayspring way</h2>
+    <ol>
+      <li><strong>At rest, a print the size of a grain of rice, in the photo's own color.</strong> Her photo, seen from far back. Not our glyph. A set of three fans into three prints, the way D-033 already treats photos that touch.</li>
+      <li><strong>Step closer and it becomes the photo.</strong> Hover on a computer and the set rises as rows of equal height, every photo whole, with her caption under it if she wrote one.</li>
+      <li><strong>"Photos" joins Look for.</strong> Lighting dims the rest instead of hiding them, so the photographed days stand out against the years around them. The founder’s archive holds 30 photos in 3,146 pages (D-033), so a photographed day is a landmark: "the day I took a picture of the sunset" is how a half-remembered page gets found.</li>
+    </ol>
+    <p class="small">Sample pages and photos are invented for this prototype. Each photo is drawn on a canvas, and its print color is the average of those pixels, which is exactly the color the app's <code>analyzeImage</code> stores when a photo is added.</p>
+  </section>
+</div>
+
+<div class="peek" id="peek" aria-hidden="true"><div class="row"></div><div class="cap"></div></div>
+
+<script>
+(() => {
+  // ── photos, painted ────────────────────────────────────────────────
+  const W = 240, H = 180;
+  function lin(ctx, y0, y1, stops) {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
+    return g;
+  }
+  function hill(ctx, base, amp, freq, phase, color) {
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 4) ctx.lineTo(x, base + Math.sin(x / W * Math.PI * freq + phase) * amp + Math.sin(x / 17 + phase) * amp * 0.15);
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  }
+  const scenes = {
+    sea(ctx, v) {
+      ctx.fillStyle = lin(ctx, 0, 92, ['#bcd6e6', '#e9eef0']); ctx.fillRect(0, 0, W, 92);
+      ctx.fillStyle = lin(ctx, 92, 140, ['#4f8fb0', '#6fa9c2']); ctx.fillRect(0, 92, W, 48);
+      ctx.fillStyle = lin(ctx, 140, H, ['#d9c6a3', '#cdb68d']); ctx.fillRect(0, 140, W, 40);
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
+      for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(10 + i * 37, 110 + (i % 3) * 8); ctx.lineTo(34 + i * 37, 110 + (i % 3) * 8); ctx.stroke(); }
+      const fig = (x, s) => { ctx.fillStyle = '#2f3b44'; ctx.beginPath(); ctx.arc(x, 108 - s * 10, s * 4, 0, 7); ctx.fill(); ctx.fillRect(x - s * 4, 108 - s * 6, s * 8, s * 14); };
+      if (v === 0) { fig(110, 1.4); fig(128, 1.5); }
+      if (v === 1) { fig(70, 1.2); fig(150, 1.1); fig(168, 1.3); }
+      if (v === 2) { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.ellipse(120, 116, 30, 6, 0, 0, 7); ctx.fill(); fig(120, 1.6); }
+    },
+    sunset(ctx) {
+      ctx.fillStyle = lin(ctx, 0, 120, ['#5b4a7a', '#c86f6a', '#f0a861', '#f6cf86']); ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#fbe3a8'; ctx.beginPath(); ctx.arc(150, 104, 16, 0, 7); ctx.fill();
+      hill(ctx, 112, 14, 1.4, 0.4, '#6b4c63'); hill(ctx, 128, 12, 2.2, 1.8, '#4a3650'); hill(ctx, 150, 8, 3, 0.2, '#2f2338');
+    },
+    fire(ctx) {
+      ctx.fillStyle = '#1c1512'; ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(120, 120, 4, 120, 120, 110);
+      g.addColorStop(0, '#ffd27a'); g.addColorStop(0.25, '#f08a3a'); g.addColorStop(0.6, 'rgba(160,60,30,.5)'); g.addColorStop(1, 'rgba(28,21,18,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#3a2a22'; ctx.fillRect(60, 140, 120, 10); ctx.save(); ctx.translate(120, 145); ctx.rotate(0.3); ctx.fillRect(-60, -5, 120, 10); ctx.restore();
+    },
+    window(ctx) {
+      ctx.fillStyle = lin(ctx, 0, H, ['#c9d0d6', '#a9b2ba']); ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = lin(ctx, 20, 150, ['#dfe7ee', '#b8c6d2']); ctx.fillRect(40, 20, 160, 130);
+      ctx.fillStyle = '#8e99a3'; ctx.fillRect(118, 20, 5, 130); ctx.fillRect(40, 82, 160, 5);
+      ctx.fillStyle = '#7d8790'; ctx.fillRect(30, 150, 180, 8);
+      hill(ctx, 128, 6, 2, 1, 'rgba(120,135,148,.55)');
+    },
+    lilies(ctx, v) {
+      ctx.fillStyle = lin(ctx, 0, H, ['#5f7a4f', '#3f5636']); ctx.fillRect(0, 0, W, H);
+      const pts = v ? [[70, 70], [150, 60], [110, 120], [190, 120]] : [[90, 80], [160, 96], [60, 130]];
+      pts.forEach(([x, y]) => {
+        ctx.fillStyle = '#f4efe2';
+        for (let k = 0; k < 6; k++) { ctx.save(); ctx.translate(x, y); ctx.rotate(k * Math.PI / 3); ctx.beginPath(); ctx.ellipse(0, -14, 7, 16, 0, 0, 7); ctx.fill(); ctx.restore(); }
+        ctx.fillStyle = '#e2b84f'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
+      });
+    },
+    night(ctx) {
+      ctx.fillStyle = lin(ctx, 0, H, ['#0e1530', '#1f2c4f', '#38406a']); ctx.fillRect(0, 0, W, H);
+      let s = 7; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+      ctx.fillStyle = '#fffbe8';
+      for (let i = 0; i < 90; i++) { const z = r() * 1.3 + 0.3; ctx.globalAlpha = 0.4 + r() * 0.6; ctx.fillRect(r() * W, r() * 120, z, z); }
+      ctx.globalAlpha = 1; hill(ctx, 140, 18, 1.2, 2.2, '#141826');
+      ctx.fillStyle = '#141826'; ctx.beginPath(); ctx.moveTo(60, 160); ctx.lineTo(84, 118); ctx.lineTo(108, 160); ctx.fill();
+      ctx.fillStyle = 'rgba(255,190,110,.6)'; ctx.beginPath(); ctx.arc(84, 152, 5, 0, 7); ctx.fill();
+    },
+  };
+  function draw(kind, v) {
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d'); scenes[kind](ctx, v);
+    return { url: c.toDataURL('image/jpeg', 0.85), color: dominant(ctx) };
+  }
+  // The average of every pixel: exactly what analyzeImage (src/lib/imageCompress.ts)
+  // stores, by drawing the photo into a 1×1 canvas. The print shows the real data.
+  function dominant(ctx) {
+    const one = document.createElement('canvas'); one.width = one.height = 1;
+    const o = one.getContext('2d'); o.drawImage(ctx.canvas, 0, 0, 1, 1);
+    const [r, g, b] = o.getImageData(0, 0, 1, 1).data;
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  // ── pages (invented, in a writer's voice) ─────────────────────────────
+  const P = (kind, v = 0) => draw(kind, v);
+  const pages = [
+    { d: 'Oct 3', today: true, line: 'Couldn’t sleep. Sat on the porch before anyone was up and just listened.', next: 'The neighbor’s sprinklers, a mockingbird, my own breathing.', marks: ['prayer'] },
+    { d: 'Oct 1', line: 'He came up out of the water laughing, and I didn’t expect to cry.', next: 'Pastor held him a second longer than he needed to.', marks: ['gift'], photos: [P('sea', 0), P('sea', 2), P('sea', 1)], cap: 'Corona del Mar, after the second service' },
+    { d: 'Sep 29', line: 'We talked late about the move again. Neither of us said the real thing.', next: 'Maybe tomorrow.', marks: [] },
+    { d: 'Sep 27', line: '', caption: 'First fire of the fall', marks: [], photos: [P('fire')], cap: 'First fire of the fall' },
+    { d: 'Sep 24', line: 'Psalm 46 again. “Be still” is harder than it sounds.', next: 'I read it three times and still reached for my phone.', marks: ['scripture'] },
+    { d: 'Sep 21', line: 'Mt. Wilson at the end of the day. Felt small in the best way.', next: 'Drove down in silence. Nobody needed the radio.', marks: ['sense'], photos: [P('sunset')] },
+    { d: 'Sep 18', line: 'Waiting room on the fourth floor. Dad’s scan is at two.', next: 'Lord, whatever it is, let me be the steady one today.', marks: ['prayer'], photos: [P('window')] },
+    { d: 'Sep 15', line: 'Nothing to say today, but I showed up.', next: '', marks: [] },
+    { d: 'Sep 12', line: 'The Easter lilies we planted in April came back on the patio.', next: 'I had given up on them in July.', marks: ['gift'], photos: [P('lilies', 0), P('lilies', 1)] },
+    { d: 'Sep 9', line: 'Romans 8 with the group. Someone read verse 26 out loud and stopped.', next: 'Nobody filled the silence. Good.', marks: ['scripture', 'prayer'] },
+    { d: 'Sep 6', line: 'Joshua Tree. I forgot how many there are when the city is far away.', next: 'The kids fell asleep counting.', marks: ['sense'], photos: [P('night')] },
+    { d: 'Sep 3', line: 'Back to school. The house is loud again and I’m grateful for it.', next: '', marks: ['gift'] },
+  ];
+  const tone = { prayer: 'var(--k-prayer)', scripture: 'var(--k-scripture)', gift: 'var(--k-gift)', sense: 'var(--k-sense)' };
+  const withPhotos = pages.filter((p) => p.photos).length;
+  document.getElementById('photo-count').textContent = withPhotos;
+
+  // ── direction copy ──────────────────────────────────────────────────
+  const copy = {
+    ships: {
+      what: 'Today’s list. A page that is only a photo shows its caption, or the word “Photo”. Every other photo is invisible from here.',
+      keeps: 'The list stays all words. Nothing new to load, nothing new to decide.',
+      costs: 'Six of these twelve pages carry a photo and you can’t tell which. The day you photographed is often the day you remember, and the list hides the one thing that would help you find it.',
+    },
+    color: {
+      what: 'Each photo stands in the margin as a tiny print, in its own dominant color. A set fans. On a computer, hover the row and the print steps forward into the photos themselves.',
+      keeps: 'Everything shown is hers: the color comes out of her photo, and the words still lead. A column of color is fast to scan for “the one with the sunset”. Nothing private shows over a shoulder. No image loads until you ask by hovering.',
+      costs: 'The list needs the photos’ stored colors, which is one more read. Photos brought in from Day One have no stored color yet, so the color needs a backfill or a neutral fallback print. A pale photo makes a pale print. On a phone there’s no hover, so you see only the color until you open the page.',
+    },
+    tipped: {
+      what: 'A real thumbnail at the end of the row: the Day One and Diarly way, kept small.',
+      keeps: 'You see exactly what’s in the photo without opening anything.',
+      costs: 'Every visible row loads an image, and this list exists to be faster than the panel it replaced (D-022). At 24px a photo is mush on a computer. On a phone it becomes a column of faces your kids would recognize over your shoulder, and the pictures pull the eye away from the words.',
+    },
+    camera: {
+      what: 'A small camera glyph and a count, the way a mail client marks an attachment.',
+      keeps: 'Cheap and clear. You need no stored color, and every imported photo gets one.',
+      costs: 'It’s our mark on her page, set in our face, so it fails the rule “her words, her date, her markings”. It says there’s a photo but never which one, and it reads like a file attachment, not a memory.',
+    },
+    asked: {
+      what: 'Nothing at rest. “Photos” joins Look for. Turn it on and the pages without photos dim, and the ones with photos show their prints.',
+      keeps: 'The list doesn’t change at all until you ask. It costs nothing at rest and it’s the cheapest thing to ship and measure.',
+      costs: 'You have to think to ask. A photo you didn’t know to look for stays hidden while you browse, and browsing is how most half-remembered pages get found.',
+    },
+  };
+
+  // ── render ─────────────────────────────────────────────────────────
+  const state = { dir: 'color', lit: false };
+  try { const s = JSON.parse(localStorage.getItem('prints-proto') || '{}'); if (copy[s.dir]) state.dir = s.dir; } catch (e) {}
+  const hash = location.hash.slice(1); if (copy[hash]) state.dir = hash;
+
+  const cameraSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M2.5 5.5h2.2l1.1-1.6h4.4l1.1 1.6h2.2v7h-11z"/><circle cx="8" cy="9" r="2.3"/></svg>';
+
+  function photoSlot(p) {
+    if (!p.photos) return '';
+    const showPrints = state.dir === 'color' || (state.dir === 'asked' && state.lit);
+    if (showPrints) return `<span class="prints" aria-label="${p.photos.length} photo${p.photos.length > 1 ? 's' : ''}">${p.photos.slice(0, 3).map((ph) => `<span class="print" style="background:${ph.color}"></span>`).join('')}</span>`;
+    if (state.dir === 'tipped') return `<span class="thumbs">${p.photos.slice(0, 2).map((ph) => `<img class="thumb" alt="" src="${ph.url}">`).join('')}</span>`;
+    if (state.dir === 'camera') return `<span class="cam" aria-label="${p.photos.length} photo${p.photos.length > 1 ? 's' : ''}">${cameraSvg}${p.photos.length > 1 ? p.photos.length : ''}</span>`;
+    return '';
+  }
+  function row(p, i) {
+    const words = p.line
+      ? `<span class="pgr__line">${p.line}${p.next ? `<span class="pgr__next"> ${p.next}</span>` : ''}</span>`
+      : `<span class="pgr__line caption">${p.caption || 'Photo'}</span>`;
+    const dim = state.lit && !p.photos;
+    return `<button type="button" class="pgr" data-i="${i}" ${p.today ? 'data-today="true"' : ''} ${dim ? 'data-dim="true"' : ''}>
+      <time class="pgr__date">${p.d}</time>${words}
+      <span class="pgr__margin" aria-hidden="true">${p.marks.map((k) => `<span class="pgr__mark" style="background:${tone[k]}"></span>`).join('')}</span>
+      <span class="pgr__photo">${photoSlot(p)}</span>
+      ${p.today ? '<span class="pgr__today">today</span>' : ''}
+    </button>`;
+  }
+  function render() {
+    const html = `<div class="section">October</div>${pages.slice(0, 2).map(row).join('')}<div class="section">September</div>${pages.slice(2).map((p, i) => row(p, i + 2)).join('')}`;
+    document.getElementById('desk-sheet').innerHTML = html;
+    document.getElementById('phone-sheet').innerHTML = html;
+    document.querySelectorAll('.panel').forEach((el) => (el.dataset.dir = state.dir));
+    document.querySelectorAll('.seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dir === state.dir)));
+    document.getElementById('lit-photos').setAttribute('aria-pressed', String(state.lit));
+    const c = copy[state.dir];
+    document.getElementById('r-what').textContent = c.what;
+    document.getElementById('r-keeps').textContent = c.keeps;
+    document.getElementById('r-costs').textContent = c.costs;
+    try { localStorage.setItem('prints-proto', JSON.stringify({ dir: state.dir })); } catch (e) {}
+  }
+  document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => { state.dir = b.dataset.dir; render(); }));
+  document.getElementById('lit-photos').addEventListener('click', () => { state.lit = !state.lit; render(); });
+
+  // ── peek: hover a row (computer list, "the color of it" or lit) ─────────
+  const peek = document.getElementById('peek'), peekRow = peek.querySelector('.row'), peekCap = peek.querySelector('.cap');
+  const desk = document.getElementById('desk-sheet');
+  let shown = -1;
+  function hide() { peek.dataset.on = 'false'; shown = -1; }
+  desk.addEventListener('pointerover', (e) => {
+    if (e.pointerType === 'touch') return;
+    const r = e.target.closest('.pgr'); if (!r) return;
+    const p = pages[+r.dataset.i];
+    const allowed = state.dir === 'color' || (state.dir === 'asked' && state.lit);
+    if (!p.photos || !allowed) return hide();
+    if (shown === +r.dataset.i) return;
+    shown = +r.dataset.i;
+    peekRow.innerHTML = p.photos.map((ph) => `<img alt="" src="${ph.url}">`).join('');
+    peekCap.textContent = p.cap || ''; peekCap.hidden = !p.cap;
+    const box = r.getBoundingClientRect(), slot = r.querySelector('.pgr__photo').getBoundingClientRect();
+    peek.style.top = `${window.scrollY + box.top + box.height / 2}px`;
+    peek.style.left = '0px'; peek.dataset.on = 'true';
+    const pw = peek.offsetWidth, ph = peek.offsetHeight;
+    const left = Math.max(8, Math.min(window.innerWidth - pw - 8, slot.right - pw));
+    const below = box.bottom + 6 + ph < window.innerHeight;
+    peek.style.left = `${window.scrollX + left}px`;
+    peek.style.top = `${window.scrollY + (below ? box.bottom + 6 : box.top - ph - 6)}px`;
+    peek.style.transformOrigin = below ? 'right top' : 'right bottom';
+  });
+  desk.addEventListener('pointerleave', hide);
+  window.addEventListener('scroll', hide, { passive: true });
+
+  render();
+})();
+</script>
