@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Editor, type EditorHandle } from './Editor'
 import {
   primeAttachmentPreview,
+  resolveCachedAttachmentMeta,
+  resolveCachedAttachmentPreview,
   type AttachmentEditTarget,
   type ImageMenuPoint,
 } from './attachmentImageExtension'
@@ -13,12 +15,14 @@ import type { AttachmentPhotoMeta } from '@/lib/attachmentCaption'
 import { formatAttachmentMarkdown } from '@/lib/attachments'
 import { renderMarkdown } from '@/lib/markdown'
 import {
+  planInsertBeside,
   planJoinAbove,
   planMakeFirst,
   planMoveWithin,
   planRemovePhoto,
   planTakeOut,
 } from '@/lib/photoSet'
+import { usePhotoSetTools } from '@/features/photos/usePhotoSetTools'
 import { EditorPhotoViewer } from '@/features/photos/EditorPhotoViewer'
 import { PhotoViewer } from '@/features/photos/PhotoViewer'
 import {
@@ -54,6 +58,12 @@ import { THEMES, type ThemeId } from '@/lib/resolveTheme'
  *    dropped on a line of writing it stands alone again.
  * 7. **Reading.** A photo in the reading half opens the same viewer, with no
  *    caption field.
+ * 8. **Add and Arrange.** Hover a set: "+ Add" picks files from disk and puts
+ *    them at the end of the set (drawn here, not uploaded); "Arrange" lays the
+ *    set flat — drag to reorder, ✕ to remove, + to add. Both are also in the
+ *    photo menu, which is how a phone reaches them.
+ * 9. **A set against writing.** The last set has a line of writing right under
+ *    it; the reading half must still draw it as one set.
  *
  *   &theme=ink     any palette; defaults to dawn
  *   &col=63        the writing column's width in rem; defaults to 42
@@ -109,6 +119,25 @@ function drawPhoto(i: number): { url: string; meta: AttachmentPhotoMeta } {
   }
 }
 
+/** A file picked in the harness, readied as if it had uploaded. Resolves to its key. */
+async function drawPickedFile(file: File): Promise<string> {
+  const url = await new Promise<string>((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.readAsDataURL(file)
+  })
+  const size = await new Promise<{ width: number; height: number }>((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+    img.onerror = () => resolve({ width: 4, height: 3 })
+    img.src = url
+  })
+  const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('')
+  const key = `${hash}.jpg`
+  primeAttachmentPreview(key, url, { ...size, takenAt: new Date(file.lastModified).toISOString() })
+  return key
+}
+
 const DOC = `Point Reyes, before light
 
 We left before light and got to the lighthouse steps just as the fog lifted. The kids ran the whole way down.
@@ -122,6 +151,10 @@ ${ref(5)}
 Three, which would leave one over:
 
 ${[6, 7, 8].map(ref).join('\n')}
+
+Written straight under a line, with no blank line:
+${[2, 7].map(ref).join('\n')}
+A line straight under them too.
 
 Two stacked the old way, with a blank line between them:
 
@@ -146,7 +179,14 @@ function Reader({ markdown, photos }: { markdown: string; photos: Map<string, Re
     return hydrateReadAttachments(
       el,
       markdown,
-      { resolve: async (hash) => photos.get(hash) ?? { url: null, meta: null } },
+      {
+        // Photos picked in the harness live in the editor's cache, not the drawn set.
+        resolve: async (hash, ext) =>
+          photos.get(hash) ?? {
+            url: await resolveCachedAttachmentPreview(hash, ext),
+            meta: await resolveCachedAttachmentMeta(hash),
+          },
+      },
       { onLook: (found, index) => setLook({ photos: found, index }) },
     )
   }, [markdown, photos])
@@ -180,6 +220,22 @@ function Harness({ part, column }: { part: string | null; column: number }) {
   const [menu, setMenu] = useState<{ target: AttachmentEditTarget; point: ImageMenuPoint } | null>(null)
   const [viewer, setViewer] = useState<ViewerSession | null>(null)
   const isMobile = useIsMobile()
+  const photoSetTools = usePhotoSetTools(
+    useCallback(() => editorRef.current, []),
+    {
+      // No account here, so a picked file is shown from disk under a made-up key.
+      addFiles: (editor, afterFrom, files) =>
+        Promise.all(files.map(drawPickedFile)).then((picked) => {
+          const edit = planInsertBeside(
+            editor.getDoc(),
+            afterFrom,
+            true,
+            picked.map((key) => formatAttachmentMarkdown(key.split('.')[0]!, 'jpg', '')),
+          )
+          if (edit) editor.replaceRange(edit.from, edit.to, edit.insert, { focus: false })
+        }),
+    },
+  )
 
   const arrange = (target: AttachmentEditTarget, how: PhotoArrangement) => {
     const editor = editorRef.current
@@ -214,6 +270,7 @@ function Harness({ part, column }: { part: string | null; column: number }) {
               autofocus={false}
               titleStyling
               onImageMenu={(target, point) => setMenu({ target, point })}
+              onPhotoSetAction={photoSetTools.onSetAction}
             />
           </div>
           <ImageContextMenu
@@ -235,6 +292,8 @@ function Harness({ part, column }: { part: string | null; column: number }) {
               )
             }
             onArrange={arrange}
+            onAddPhotos={photoSetTools.pickPhotos}
+            onArrangeSet={photoSetTools.openArrange}
             onRemove={(target) => {
               const editor = editorRef.current
               if (!editor) return
@@ -242,6 +301,7 @@ function Harness({ part, column }: { part: string | null; column: number }) {
               editor.replaceRange(edit.from, edit.to, edit.insert)
             }}
           />
+          {photoSetTools.element}
           {viewer && (
             <EditorPhotoViewer
               session={viewer}

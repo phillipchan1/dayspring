@@ -65,10 +65,14 @@ function viewAlive(view: EditorView): boolean {
   return !(view as unknown as { isDestroyed?: boolean }).isDestroyed
 }
 
+/** Where uploaded photos land: a place in the text, or beside a photo. A drop target is one. */
+type UploadTarget = { kind: 'gap'; pos: number } | { kind: 'beside'; from: number; after: boolean }
+
 async function uploadFiles(
   view: EditorView,
-  target: DropTarget,
+  target: UploadTarget,
   files: File[],
+  focus = true,
 ): Promise<void> {
   if (files.length === 0) return
   if (!supabase) {
@@ -87,7 +91,7 @@ async function uploadFiles(
 
   const placeholders = pending.map((p) => ({ id: p.id, alt: p.alt }))
   if (target.kind === 'beside') {
-    insertPendingBesideInView(view, target.from, target.after, placeholders)
+    insertPendingBesideInView(view, target.from, target.after, placeholders, focus)
   } else {
     insertBlockPendingAttachmentsAt(view, target.pos, placeholders)
   }
@@ -117,6 +121,20 @@ async function uploadFiles(
       if (viewAlive(view)) removePendingAttachmentInView(view, item.id)
     }
   }
+}
+
+/**
+ * Photos picked to join a set (its Add, or the photo menu's): they land beside
+ * the photo at `targetFrom` and upload the way a drop onto it does. The caret
+ * is left alone, since whatever opened the picker still has the writer.
+ */
+export function addPhotosBesideInView(
+  view: EditorView,
+  targetFrom: number,
+  after: boolean,
+  files: File[],
+): Promise<void> {
+  return uploadFiles(view, { kind: 'beside', from: targetFrom, after }, files, false)
 }
 
 function dropPos(view: EditorView, event: DragEvent): number {

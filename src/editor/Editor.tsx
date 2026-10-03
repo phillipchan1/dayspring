@@ -63,6 +63,7 @@ import {
   attachmentImageExtension,
   type AttachmentEditTarget,
   type ImageMenuPoint,
+  type PhotoSetAction,
 } from './attachmentImageExtension'
 import type { ImageSize } from '@/lib/attachments'
 import {
@@ -72,7 +73,7 @@ import {
   removePendingAttachmentInView,
   replacePendingAttachmentInView,
 } from './attachmentInsert'
-import { attachmentDropExtension } from './attachmentDropExtension'
+import { addPhotosBesideInView, attachmentDropExtension } from './attachmentDropExtension'
 import { practicePromptExtension } from './practices/usePracticeInsertion'
 
 export interface EditorHandle {
@@ -122,6 +123,11 @@ export interface EditorHandle {
     size?: ImageSize,
   ) => void
   removePendingAttachment: (pendingId: string) => void
+  /**
+   * Upload photos into the set the photo at `targetFrom` is in, beside it, as a
+   * drop onto it would. Leaves the caret where it is.
+   */
+  addPhotosBeside: (targetFrom: number, after: boolean, files: File[]) => void
   /**
    * Turn the selection's lines — or the caret's paragraph — into a marking of
    * `kind`. Returns the writer's words the fence now carries, so the caller can
@@ -215,6 +221,8 @@ interface EditorProps {
     point: ImageMenuPoint,
     anchor: InlinePanelAnchor,
   ) => void
+  /** A set's own Add or Arrange, from the tools over it. `target` is a photo in that set. */
+  onPhotoSetAction?: (action: PhotoSetAction, target: AttachmentEditTarget) => void
   /** Called when the user opens a practice's "about" sheet (by practice name). */
   onAboutPractice?: (name: string) => void
   /** Called when the user picks a part-written ritual back up, at its doc position. */
@@ -276,6 +284,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onOpenChapter,
     onScripturePaste,
     onImageMenu,
+    onPhotoSetAction,
     onAboutPractice,
     onContinueRitual,
     onSlashPaletteChange,
@@ -301,6 +310,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const onOpenChapterRef = useRef(onOpenChapter)
   const onScripturePasteRef = useRef(onScripturePaste)
   const onImageMenuRef = useRef(onImageMenu)
+  const onPhotoSetActionRef = useRef(onPhotoSetAction)
   const onAboutPracticeRef = useRef(onAboutPractice)
   const onContinueRitualRef = useRef(onContinueRitual)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
@@ -351,6 +361,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   onOpenChapterRef.current = onOpenChapter
   onScripturePasteRef.current = onScripturePaste
   onImageMenuRef.current = onImageMenu
+  onPhotoSetActionRef.current = onPhotoSetAction
   onAboutPracticeRef.current = onAboutPractice
   onContinueRitualRef.current = onContinueRitual
   setFormatBarRef.current = setFormatBar
@@ -510,6 +521,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const view = viewRef.current
       if (!view) return
       removePendingAttachmentInView(view, pendingId)
+    },
+    addPhotosBeside: (targetFrom, after, files) => {
+      const view = viewRef.current
+      if (!view) return
+      void addPhotosBesideInView(view, targetFrom, after, files)
     },
       markLines: (kind, id) => {
       const view = viewRef.current
@@ -714,8 +730,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // Must follow the extension above — it reads its field.
           ritualHoldExtension,
           attachmentBlockNormalizeExtension(),
-          attachmentImageExtension((target, point, anchor) =>
-            onImageMenuRef.current?.(target, point, anchor),
+          attachmentImageExtension(
+            (target, point, anchor) => onImageMenuRef.current?.(target, point, anchor),
+            (action, target) => onPhotoSetActionRef.current?.(action, target),
           ),
           // Drag-and-drop for photos and files, including the insertion bar that
           // previews where one will land. That bar used to be CodeMirror's

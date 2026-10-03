@@ -107,6 +107,7 @@ import {
   planTakeOut,
 } from '@/lib/photoSet'
 import { EditorPhotoViewer } from '@/features/photos/EditorPhotoViewer'
+import { usePhotoSetTools } from '@/features/photos/usePhotoSetTools'
 import {
   openViewerSession,
   planViewerCaption,
@@ -452,6 +453,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   const [photoViewer, setPhotoViewer] = useState<ViewerSession | null>(null)
   const photoViewerRef = useRef(photoViewer)
   photoViewerRef.current = photoViewer
+  // Adding to a set and arranging it: the tools over a set, or a photo's menu.
+  const photoSetTools = usePhotoSetTools(useCallback(() => inputEditor(), []))
 
   // The practice "about" slide-over (opened from a practice header).
   const [aboutPractice, setAboutPractice] = useState<Practice | null>(null)
@@ -799,6 +802,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         onOpenChapter={handleOpenChapter}
         onScripturePaste={handleScripturePaste}
         onImageMenu={handleImageMenu}
+        onPhotoSetAction={photoSetTools.onSetAction}
         onSlashPaletteChange={setSlashPaletteOpen}
         marks={answerMarks}
         proseMarking={isPastEntry}
@@ -2570,6 +2574,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               onOpenChapter={handleOpenChapter}
               onScripturePaste={handleScripturePaste}
               onImageMenu={handleImageMenu}
+              onPhotoSetAction={photoSetTools.onSetAction}
               onAboutPractice={(name) => setAboutPractice(PRACTICE_BY_NAME.get(name) ?? null)}
               onContinueRitual={handleContinueRitual}
               onSlashPaletteChange={setSlashPaletteOpen}
@@ -3005,8 +3010,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         onReplaceFile={handleReplaceImageFile}
         onSetSize={handleSetImageSize}
         onArrange={handleArrangeImage}
+        onAddPhotos={photoSetTools.pickPhotos}
+        onArrangeSet={photoSetTools.openArrange}
         onRemove={handleRemoveImage}
       />
+      {photoSetTools.element}
       {photoViewer && (
         <EditorPhotoViewer
           session={photoViewer}

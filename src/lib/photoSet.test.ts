@@ -11,10 +11,12 @@ import {
   planInsertBeside,
   planJoinAbove,
   planMakeFirst,
+  planMoveTo,
   planMoveWithin,
   planPlaceBeside,
   planRemovePhoto,
   planTakeOut,
+  setPhotoSetsApart,
   PHOTO_ROW_GAP,
   type PhotoEdit,
 } from './photoSet'
@@ -359,5 +361,41 @@ describe('formatPhotoSetLine', () => {
 
   it('ignores a time it cannot read', () => {
     expect(formatPhotoSetLine(2, ['not a date', undefined])).toBe('2 photos')
+  })
+})
+
+describe('planMoveTo', () => {
+  const doc = `Before\n${A}\n${B}\n${C}\nAfter`
+
+  it('moves a photo to any place in its set, in one change', () => {
+    expect(apply(doc, planMoveTo(doc, at(doc, C), 0)!)).toBe(`Before\n${C}\n${A}\n${B}\nAfter`)
+    expect(apply(doc, planMoveTo(doc, at(doc, A), 2)!)).toBe(`Before\n${B}\n${C}\n${A}\nAfter`)
+  })
+
+  it('holds the place to the set, and does nothing when it would not move', () => {
+    expect(apply(doc, planMoveTo(doc, at(doc, A), 9)!)).toBe(`Before\n${B}\n${C}\n${A}\nAfter`)
+    expect(planMoveTo(doc, at(doc, B), 1)).toBeNull()
+  })
+})
+
+describe('setPhotoSetsApart', () => {
+  it('sets a set apart from the writing it touches', () => {
+    expect(setPhotoSetsApart(`Text\n${A}\n${B}\nMore`)).toBe(`Text\n\n${A}\n${B}\n\nMore`)
+  })
+
+  it('leaves a set that already stands apart, and a lone photo, as they were', () => {
+    const apart = `Text\n\n${A}\n${B}\n\nMore`
+    expect(setPhotoSetsApart(apart)).toBe(apart)
+    const lone = `Text\n${A}\nMore`
+    expect(setPhotoSetsApart(lone)).toBe(lone)
+  })
+
+  it('lifts a set out of the list item it was written under', () => {
+    expect(setPhotoSetsApart(`- item\n  ${A}\n  ${B}`)).toBe(`- item\n\n${A}\n${B}`)
+  })
+
+  it('leaves photo markup inside a code fence alone', () => {
+    const fenced = `\`\`\`\nText\n${A}\n${B}\n\`\`\``
+    expect(setPhotoSetsApart(fenced)).toBe(fenced)
   })
 })

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderMarkdown } from '@/lib/markdown'
 import { hydrateReadAttachments } from './readAttachments'
 
 const HASH = 'a'.repeat(64)
@@ -172,6 +173,22 @@ describe('hydrateReadAttachments: a set', () => {
         [...root.querySelectorAll<HTMLImageElement>('.pg-read1__photoset-img')].map((img) => img.src),
       ).toEqual(['https://example.test/a.jpg', 'https://example.test/b.jpg']),
     )
+  })
+
+  // The whole way, from the stored text: a set is a set in the reader whatever
+  // it was written against, because the editor draws it as one either way.
+  it.each([
+    ['set apart', `Title\n\nText\n\n![](attachment:${HASH}.jpg)\n![](attachment:${B}.jpg)\n\nAfter`],
+    ['under a line of writing', `Title\n\nText\n![](attachment:${HASH}.jpg)\n![](attachment:${B}.jpg)\n\nAfter`],
+    ['over a line of writing', `Title\n\n![](attachment:${HASH}.jpg)\n![](attachment:${B}.jpg)\nAfter`],
+    ['under a list item', `Title\n\n- item\n![](attachment:${HASH}.jpg)\n![](attachment:${B}.jpg)`],
+    ['on the first line', `![](attachment:${HASH}.jpg)\n![](attachment:${B}.jpg)\n\nAfter`],
+  ])('draws a set written %s as one figure', (_, markdown) => {
+    const root = mountedRoot(renderMarkdown(markdown, { asTitle: true }))
+    hydrateReadAttachments(root, markdown, { resolve })
+    expect(root.querySelectorAll('.pg-read1__photoset')).toHaveLength(1)
+    expect(root.querySelectorAll('.pg-read1__photoset-tile')).toHaveLength(2)
+    expect(root.querySelector('.pg-read1__photo')).toBeNull()
   })
 
   it('keeps photos apart when a blank line stood between them', () => {

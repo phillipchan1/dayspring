@@ -25,11 +25,18 @@ interface Props {
   onReplaceFile: (target: AttachmentEditTarget, file: File) => void
   onSetSize: (target: AttachmentEditTarget, size: ImageSize) => void
   onArrange: (target: AttachmentEditTarget, how: PhotoArrangement) => void
+  /**
+   * Pick photos to join this photo's set, after its last photo. The picker is
+   * the caller's: on iOS the menu can be gone by the time the picker returns.
+   */
+  onAddPhotos: (target: AttachmentEditTarget) => void
+  /** Open the set laid flat, to reorder and remove (features/photos/PhotoArrange). */
+  onArrangeSet: (target: AttachmentEditTarget) => void
   onRemove: (target: AttachmentEditTarget) => void
   /**
    * Phone width: a bottom sheet instead of a menu at the finger, for the same
-   * reasons the page menu is one (EntryContextMenu). It is also where a photo
-   * is reordered on a phone, since there is no dragging one there.
+   * reasons the page menu is one (EntryContextMenu). Its Arrange is where a set
+   * is reordered on a phone, since there is no dragging a photo in the editor.
    */
   sheet?: boolean
 }
@@ -45,8 +52,8 @@ type ImageMenuIconName =
   | 'join'
   | 'takeOut'
   | 'first'
-  | 'earlier'
-  | 'later'
+  | 'add'
+  | 'arrange'
 
 function MenuIcon({ name }: { name: ImageMenuIconName }) {
   return (
@@ -83,16 +90,19 @@ function MenuIcon({ name }: { name: ImageMenuIconName }) {
           <circle cx="12" cy="12" r="2.6" />
         </>
       )}
-      {name === 'earlier' && (
+      {name === 'add' && (
         <>
-          <path d="M19 12H6" />
-          <path d="M11 7l-5 5 5 5" />
+          <rect x="3" y="5" width="13" height="11" rx="1.5" />
+          <path d="M19 13v8" />
+          <path d="M15 17h8" />
         </>
       )}
-      {name === 'later' && (
+      {name === 'arrange' && (
         <>
-          <path d="M5 12h13" />
-          <path d="M13 7l5 5-5 5" />
+          <rect x="4" y="4" width="7" height="7" rx="1" />
+          <rect x="13" y="4" width="7" height="7" rx="1" />
+          <rect x="4" y="13" width="7" height="7" rx="1" />
+          <rect x="13" y="13" width="7" height="7" rx="1" />
         </>
       )}
       {name === 'join' && (
@@ -172,6 +182,8 @@ export function ImageContextMenu({
   onReplaceFile,
   onSetSize,
   onArrange,
+  onAddPhotos,
+  onArrangeSet,
   onRemove,
   sheet = false,
 }: Props) {
@@ -315,20 +327,30 @@ export function ImageContextMenu({
           icon="replace"
           onClick={() => fileRef.current?.click()}
         />
-        {(target.set || target.joinsAbove) && (
-          <div className="entry-context-menu__sep" role="separator" />
+        <div className="entry-context-menu__sep" role="separator" />
+        <MenuItem
+          label="Add photos…"
+          icon="add"
+          onClick={() => {
+            onAddPhotos(target)
+            onClose()
+          }}
+        />
+        {target.set && (
+          <MenuItem
+            label="Arrange photos…"
+            icon="arrange"
+            onClick={() => {
+              onArrangeSet(target)
+              onClose()
+            }}
+          />
         )}
         {target.joinsAbove && (
           <MenuItem label="Put with the photos above" icon="join" onClick={arrange('join')} />
         )}
         {target.set && target.set.index > 0 && (
           <MenuItem label="Make this the first photo" icon="first" onClick={arrange('makeFirst')} />
-        )}
-        {target.set && target.set.index > 0 && (
-          <MenuItem label="Move earlier" icon="earlier" onClick={arrange('earlier')} />
-        )}
-        {target.set && target.set.index < target.set.count - 1 && (
-          <MenuItem label="Move later" icon="later" onClick={arrange('later')} />
         )}
         {target.set && (
           <MenuItem label="Take out of the set" icon="takeOut" onClick={arrange('takeOut')} />
@@ -356,6 +378,7 @@ export function ImageContextMenu({
             }
           }}
         />
+
       </div>
     </>,
     document.body,

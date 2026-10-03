@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import {
-  resolveCachedAttachmentMeta,
-  resolveCachedAttachmentPreview,
-} from '@/editor/attachmentImageExtension'
-import type { AttachmentPhotoMeta } from '@/lib/attachmentCaption'
+import { useMemo } from 'react'
 import { isMeaningfulCaption } from '@/lib/attachmentCaption'
 import { PhotoViewer, type ViewerPhoto } from './PhotoViewer'
+import { refKey, useResolvedRefs } from './useResolvedRefs'
 import type { ViewerSession } from './viewerSession'
 
 interface Props {
@@ -21,35 +17,12 @@ interface Props {
  * is already here.
  */
 export function EditorPhotoViewer({ session, onIndex, onCaption, onClose }: Props) {
-  const [resolved, setResolved] = useState<
-    Record<string, { url: string | null; meta: AttachmentPhotoMeta | null }>
-  >({})
-
-  const wanted = session.refs
-    .filter((ref) => ref.hash)
-    .map((ref) => `${ref.hash}.${ref.ext}`)
-    .join(' ')
-
-  useEffect(() => {
-    let alive = true
-    for (const key of wanted ? wanted.split(' ') : []) {
-      const [hash, ext] = key.split('.') as [string, string]
-      void Promise.all([
-        resolveCachedAttachmentPreview(hash, ext),
-        resolveCachedAttachmentMeta(hash),
-      ]).then(([url, meta]) => {
-        if (alive) setResolved((prev) => ({ ...prev, [key]: { url, meta } }))
-      })
-    }
-    return () => {
-      alive = false
-    }
-  }, [wanted])
+  const resolved = useResolvedRefs(session.refs)
 
   const photos = useMemo<ViewerPhoto[]>(
     () =>
       session.refs.map((ref, i) => {
-        const key = ref.hash ? `${ref.hash}.${ref.ext}` : `pending:${ref.pendingId ?? i}`
+        const key = refKey(ref, i)
         const hit = resolved[key]
         return {
           key,

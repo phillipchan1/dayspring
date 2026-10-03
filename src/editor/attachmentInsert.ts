@@ -478,6 +478,7 @@ export function insertPendingBesideInView(
   targetFrom: number,
   after: boolean,
   items: Array<{ id: string; alt: string }>,
+  focus = true,
 ): void {
   const edit = planInsertBeside(
     view.state.doc.toString(),
@@ -490,7 +491,7 @@ export function insertPendingBesideInView(
     changes: { from: edit.from, to: edit.to, insert: edit.insert },
     selection: { anchor: edit.caret },
   })
-  view.focus()
+  if (focus) view.focus()
 }
 
 /**

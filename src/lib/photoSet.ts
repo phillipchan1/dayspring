@@ -181,6 +181,18 @@ export function planMoveWithin(doc: string, refFrom: number, delta: -1 | 1): Pho
   return rewriteRun(here.run, lines)
 }
 
+/** A photo dragged to place `to` within its own set. Null when it is already there. */
+export function planMoveTo(doc: string, refFrom: number, to: number): PhotoEdit | null {
+  const here = photoPlacement(doc, refFrom)
+  if (!here) return null
+  const at = Math.min(Math.max(to, 0), here.run.refs.length - 1)
+  if (at === here.index) return null
+  const lines = here.run.refs.map((r) => doc.slice(r.lineFrom, r.lineTo))
+  const [mine] = lines.splice(here.index, 1)
+  lines.splice(at, 0, mine!)
+  return rewriteRun(here.run, lines)
+}
+
 /** The smallest single replacement that turns `before` into `after`. */
 function singleChange(before: string, after: string): { from: number; to: number; insert: string } {
   let head = 0
@@ -304,6 +316,48 @@ export function photoCaptions(markdown: string | null | undefined): string[] {
     if (isMeaningfulCaption(alt)) out.push(alt)
   }
   return out
+}
+
+/**
+ * For reading only: give every set of several photos a blank line above and
+ * below, and nothing in front of its lines.
+ *
+ * The rule is about lines, but markdown is about paragraphs. A set written
+ * straight under a line of writing (or over one, or under a list item) shares
+ * that line's paragraph once rendered, and the reader, which finds a set by its
+ * paragraph, saw a sentence with photos in it and stacked them one by one,
+ * while the editor beside it drew the set. Never stored: the entry's text is
+ * the record, and this is how it is drawn.
+ */
+export function setPhotoSetsApart(markdown: string): string {
+  const lines = markdown.split('\n')
+  const out: string[] = []
+  let fence: string | null = null
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    const opener = /^\s*(`{3,}|~{3,})/.exec(line)?.[1]
+    if (fence) {
+      if (opener && opener[0] === fence[0] && opener.length >= fence.length) fence = null
+      out.push(line)
+      continue
+    }
+    if (opener) {
+      fence = opener
+      out.push(line)
+      continue
+    }
+    const inSet = isPhotoLine(line) && (isPhotoLine(lines[i - 1]) || isPhotoLine(lines[i + 1]))
+    if (!inSet) {
+      out.push(line)
+      continue
+    }
+    const opens = !isPhotoLine(lines[i - 1])
+    const closes = !isPhotoLine(lines[i + 1])
+    if (opens && out.length > 0 && out[out.length - 1]!.trim() !== '') out.push('')
+    out.push(line.trim())
+    if (closes && i + 1 < lines.length && lines[i + 1]!.trim() !== '') out.push('')
+  }
+  return out.join('\n')
 }
 
 /** A caption lives in the ref's alt text, so it cannot hold a bracket or a line break. */

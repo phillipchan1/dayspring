@@ -42,6 +42,9 @@ export interface ImageMenuPoint {
   y: number
 }
 
+/** What a set's own tools do: bring more photos into it, or open it to rearrange. */
+export type PhotoSetAction = 'add' | 'arrange'
+
 export type { AttachmentEditTarget } from './attachmentInsert'
 
 const ATTACHMENT_RE =
@@ -413,6 +416,25 @@ class PhotoSetWidget extends WidgetType {
       return { el: tile, ratio: spec.ratio, known: spec.known, img }
     })
 
+    // Two quiet words over the set's corner, shown while the pointer is on it.
+    // Not drawn for touch: there the photo's own sheet carries the same two.
+    const tools = document.createElement('div')
+    tools.className = 'cm-photoset__tools'
+    for (const [action, label, hint] of [
+      ['add', '+ Add', 'Add photos to this set'],
+      ['arrange', 'Arrange', 'Reorder or remove photos'],
+    ] as const) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'cm-photoset__tool'
+      button.dataset.photosetAction = action
+      button.textContent = label
+      button.title = hint
+      button.setAttribute('aria-label', hint)
+      tools.append(button)
+    }
+    wrap.append(tools)
+
     const meta = document.createElement('p')
     meta.className = 'cm-attachment__meta'
     meta.textContent = this.metaLine
@@ -664,7 +686,21 @@ function attachmentMenuHandler(
     point: ImageMenuPoint,
     anchor: InlinePanelAnchor,
   ) => void,
+  onSetAction?: (action: PhotoSetAction, target: AttachmentEditTarget) => void,
 ): Extension {
+  /** A set's Add or Arrange. It acts on the set, so any photo in it stands for it. */
+  const setTool = (event: MouseEvent, view: EditorView): boolean => {
+    const button = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-photoset-action]')
+    if (!button) return false
+    event.preventDefault()
+    const action = button.dataset.photosetAction as PhotoSetAction
+    const tiles = button.closest('.cm-photoset')?.querySelectorAll<HTMLElement>('.cm-photoset__tile[data-attachment-key]')
+    const tile = tiles?.[tiles.length - 1]
+    const target = tile ? resolvePhotoElement(view, tile) : null
+    if (target) onSetAction?.(action, target)
+    return true
+  }
+
   const open = (event: MouseEvent, view: EditorView): boolean => {
     const blockEl = (event.target as HTMLElement | null)?.closest(
       '.cm-attachment--interactive',
@@ -679,9 +715,15 @@ function attachmentMenuHandler(
 
   return EditorView.domEventHandlers({
     // A completed drag emits no `click`, so a plain handler won't fire mid-move.
+    // Pressing a set's tool must not move the caret into the text beside it.
+    mousedown(event) {
+      if (!(event.target as HTMLElement | null)?.closest('[data-photoset-action]')) return false
+      event.preventDefault()
+      return true
+    },
     click(event, view) {
       if (event.button !== 0) return false
-      return open(event, view)
+      return setTool(event, view) || open(event, view)
     },
     contextmenu(event, view) {
       // Suppress the native browser menu on photos only; text keeps spellcheck.
@@ -909,6 +951,47 @@ const attachmentTheme = EditorView.theme({
     overflow: 'hidden',
     pointerEvents: 'none',
   },
+  '.cm-photoset': {
+    position: 'relative',
+  },
+  '.cm-photoset__tools': {
+    position: 'absolute',
+    top: '0.45rem',
+    right: '0.45rem',
+    display: 'flex',
+    gap: '0.3rem',
+    opacity: '0',
+    transition: 'opacity 160ms ease',
+    pointerEvents: 'none',
+  },
+  '.cm-photoset:hover .cm-photoset__tools, .cm-photoset__tools:focus-within': {
+    opacity: '1',
+    pointerEvents: 'auto',
+  },
+  '@media (hover: none)': {
+    '.cm-photoset__tools': { display: 'none' },
+  },
+  '.cm-photoset__tool': {
+    border: '0',
+    borderRadius: '999px',
+    padding: '0.3rem 0.7rem',
+    background: 'rgba(20, 12, 4, 0.62)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    color: 'rgba(255, 255, 255, 0.94)',
+    fontFamily: 'var(--font-ui, system-ui, sans-serif)',
+    fontSize: '12px',
+    lineHeight: '1.2',
+    letterSpacing: '0.01em',
+    cursor: 'pointer',
+  },
+  '.cm-photoset__tool:hover': {
+    background: 'rgba(20, 12, 4, 0.8)',
+  },
+  '.cm-photoset__tool:focus-visible': {
+    outline: '2px solid var(--accent)',
+    outlineOffset: '1px',
+  },
   '.cm-photoset .cm-attachment__meta': {
     width: 'auto',
     minWidth: '0',
@@ -933,13 +1016,14 @@ export function attachmentImageExtension(
     point: ImageMenuPoint,
     anchor: InlinePanelAnchor,
   ) => void,
+  onSetAction?: (action: PhotoSetAction, target: AttachmentEditTarget) => void,
 ): Extension {
   return [
     attachmentTheme,
     attachmentDecoField,
     EditorView.atomicRanges.of((view) => view.state.field(attachmentDecoField)),
     attachmentInitPlugin(),
-    ...(onMenu ? [attachmentMenuHandler(onMenu)] : []),
+    ...(onMenu ? [attachmentMenuHandler(onMenu, onSetAction)] : []),
   ]
 }
 
