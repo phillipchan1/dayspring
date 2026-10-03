@@ -59,11 +59,14 @@ vi.mock('@/lib/analytics', () => ({
 
 // The composer is under test, not the viewport hooks. A phone unless a test
 // sits down at a desk.
-const viewport = vi.hoisted(() => ({ desk: false }))
+// `tablet` is a touch screen with a size: true for a tablet held wide, false
+// for a phone on its side (wide, but short).
+const viewport = vi.hoisted(() => ({ desk: false, tablet: null as boolean | null }))
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useIsMobile: () => !viewport.desk,
+  useIsMobile: () => !viewport.desk && viewport.tablet === null,
   useTouchPrimary: () => !viewport.desk,
-  useMediaQuery: () => viewport.desk,
+  useMediaQuery: (q: string) =>
+    viewport.tablet === null ? viewport.desk : q.includes('min-height') ? viewport.tablet : true,
 }))
 
 const examen = PRACTICES.find((p) => p.name === 'The Daily Examen')!
@@ -389,6 +392,26 @@ describe('RitualComposer', () => {
     expect(
       document.querySelector('.rc__pane:not([aria-hidden="true"]) .rc__label')?.textContent,
     ).toBe('Examination')
+  })
+
+  describe('on a tablet', () => {
+    afterEach(() => {
+      viewport.tablet = null
+    })
+
+    it('held wide, lays the ritual out as a rail and a page', () => {
+      viewport.tablet = true
+      render()
+      expect(document.querySelector('.rc--desk')).toBeTruthy()
+      expect(document.querySelector('.rc__viewport')).toBeNull()
+    })
+
+    it('a phone on its side keeps the filmstrip', () => {
+      viewport.tablet = false
+      render()
+      expect(document.querySelector('.rc--desk')).toBeNull()
+      expect(document.querySelector('.rc__viewport')).toBeTruthy()
+    })
   })
 
   describe('at a desk', () => {
