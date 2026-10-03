@@ -59,3 +59,7 @@ support-manifest.json
 # Local-only: real journal content extracted for the rituals prototype.
 # Never commit — prototypes deploy to a public Vercel site.
 prototypes/*/src/data/*.local.json
+
+# Playwright
+/test-results/
+/playwright-report/
