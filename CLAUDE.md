@@ -30,6 +30,15 @@ adds latency or chrome to the writing surface).
 `docs/archive/personal-ai-journal-requirements.md` is the superseded single-user
 founding spec. **Do not build from it** — it predates multi-tenancy and payments.
 
+## Editor changes
+
+Before merging anything that touches the editor, run the **Editor regression
+checklist** in [`PROGRESS.md`](PROGRESS.md) (`npm run test:e2e` plus the on-device
+pass). CodeMirror's state is the single source of truth for text and caret; route
+input through its transactions, never raw `keydown` + manual DOM edits. In dev, the
+editor asserts DOM == state after every change (`src/editor/invariant.ts`) and logs
+`[editor invariant]` on a mismatch.
+
 ## Announcing a major change (What's new)
 
 Users see **What's new**: a short visual deck shown once after an update that

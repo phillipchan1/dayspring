@@ -4,8 +4,9 @@ import { defineConfig, devices } from '@playwright/test'
  * Browser regression suite for the writing surface (e2e/).
  *
  * The specs drive the real `Editor` mounted alone on e2e/harness/, served by
- * Vite. Two projects:
+ * Vite. Three projects:
  *
+ *  · `chromium` — desktop Chromium, mouse and hardware keyboard.
  *  · `ipad-chromium` — Chromium at an iPad viewport with touch, telling
  *    CodeMirror it is on iOS (see e2e/ios.ts), so its iOS-only input paths run.
  *    Runs anywhere, including cloud sandboxes that have no WebKit build.
@@ -22,6 +23,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'ipad-chromium',
       use: {
