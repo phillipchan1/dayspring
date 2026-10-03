@@ -75,6 +75,20 @@ describe('normalizeAttachmentBlocks', () => {
     const next = state.update({ changes: { from: start.length, insert: `\n${IMG3}` } }).state
     expect(next.doc.toString()).toBe(`${IMG}\n${IMG2}\n\nwords\n\n${IMG3}`)
   })
+
+  it('leaves a caret elsewhere in the entry where it was', () => {
+    // The normaliser used to replace the whole document, which mapped every
+    // position onto its edge and threw the caret to the start of the entry.
+    const start = 'Hello world\n\nlater text'
+    const state = EditorState.create({
+      doc: start,
+      selection: { anchor: 5 },
+      extensions: [attachmentBlockNormalizeExtension()],
+    })
+    const next = state.update({ changes: { from: start.length, insert: IMG } }).state
+    expect(next.doc.toString()).toBe(`Hello world\n\nlater text\n\n${IMG}`)
+    expect(next.selection.main.head).toBe(5)
+  })
 })
 
 describe('withPhotoPlacement', () => {

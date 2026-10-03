@@ -15,6 +15,7 @@ import {
   planInsertBeside,
   planPlaceBeside,
 } from '@/lib/photoSet'
+import { minimalDocChange } from './minimalDocChange'
 
 export interface AttachmentEditTarget {
   hash: string
@@ -344,7 +345,12 @@ export function attachmentBlockNormalizeExtension(): Extension {
     // Compose normalization onto tr's changes so we return a single changeset.
     // [tr, { changes }] crashes because CM expects the second spec's positions
     // relative to the original doc, but ours reference tr.newDoc.
-    const normCS = ChangeSet.of([{ from: 0, to: doc.length, insert: normalized }], doc.length)
+    //
+    // Only the span that actually differs is replaced. A whole-document replace
+    // maps every position in the entry onto its edge, so the caret and any
+    // selection collapsed to the end of the entry whenever a photo landed.
+    const diff = minimalDocChange(doc, normalized)!
+    const normCS = ChangeSet.of([diff], doc.length)
     const baseSel = tr.selection ?? tr.startState.selection.map(tr.changes)
     return {
       changes: tr.changes.compose(normCS),

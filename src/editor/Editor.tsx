@@ -5,6 +5,8 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
+import { JournalEditorView } from './journalView'
+import { editorInvariant } from './invariant'
 import { proseHighlighting } from './proseHighlighting'
 import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
@@ -306,6 +308,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
+  /**
+   * The last document this editor handed to `onChange`. When `initialDoc`
+   * comes back equal to it, that is the parent echoing our own keystroke —
+   * there is nothing to seed and nothing to compare.
+   */
+  const lastEmittedRef = useRef<string | null>(null)
   const onEditBlockRef = useRef(onEditBlock)
   const onOpenChapterRef = useRef(onOpenChapter)
   const onScripturePasteRef = useRef(onScripturePaste)
@@ -592,7 +600,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     if (!hostRef.current) return
 
-    const view = new EditorView({
+    // JournalEditorView, not EditorView: see journalView.ts for the iPad tap
+    // that CodeMirror's own focus test throws away.
+    const view = new JournalEditorView({
       parent: hostRef.current,
       state: EditorState.create({
         // Seed verbatim so the view never diverges from React's `content` (create
@@ -758,8 +768,15 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           dimCompartment.current.of(dimming ? dimmingExtension : []),
           commandLineCompartment.current.of(commandLineHighlight(commandLinePos)),
           cmPlaceholder(placeholder ?? 'Write…'),
+          // Development only: assert after every change that the DOM shows the
+          // document and the caret the state holds, and say so loudly if not.
+          import.meta.env.DEV ? editorInvariant() : [],
           EditorView.updateListener.of((u) => {
-            if (u.docChanged) onChangeRef.current(u.state.doc.toString())
+            if (u.docChanged) {
+              const doc = u.state.doc.toString()
+              lastEmittedRef.current = doc
+              onChangeRef.current(doc)
+            }
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
               const detected = detectSlash(u.view, titleStylingRef.current)
@@ -812,9 +829,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
-    const current = view.state.doc.toString()
     const entryChanged = prevDocKeyRef.current !== docKey
     prevDocKeyRef.current = docKey
+    // Every keystroke comes back through here as a new `initialDoc`. The view
+    // already holds it, so don't stringify the whole entry to find that out —
+    // and never let an echo near the re-seed below.
+    const echo = !entryChanged && initialDoc === lastEmittedRef.current
+    const current = echo ? initialDoc : view.state.doc.toString()
     if (current !== initialDoc) {
       // Swapping entries replaces the doc; on the same entry only seed an empty
       // editor when the body arrives after mount — never fight live typing.

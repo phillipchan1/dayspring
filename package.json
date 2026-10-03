@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit",
     "whatsnew:assets": "node scripts/capture-whats-new.mjs",
     "backfill": "tsx scripts/backfill.ts",
@@ -96,6 +97,7 @@
     "@codemirror/view": "6.38.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tauri-apps/cli": "^2.11.2",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^25.9.1",
