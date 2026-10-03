@@ -43,6 +43,10 @@ const OWNER_SCOPED_FLAGS = [
   // owner's clock.
   'dayspring.first_entry_tracked',
   'dayspring.first_seen_at',
+  // Photo colours for the entries list's prints (lib/photoLooks.ts). Colours,
+  // not content, and already stamped with their owner, but they are hashes of
+  // one person's photos and have no business outliving them on a shared browser.
+  'dayspring.photo_looks',
 ]
 
 /** Scrub all cached journal CONTENT (privacy-sensitive). */

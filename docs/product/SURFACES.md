@@ -74,7 +74,9 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   underline, emphasis, quote, marks) · scripture facet parsed client-side · previews that
   show the line that made the page light up · "only these" · interleaved anniversary
   pages · month rules down the scroll · the Spread (two-up, marginalia, shared-element
-  zoom) · Open somewhere · month fold · natural-language filter configuration (D-019).
+  zoom) · Open somewhere · month fold · natural-language filter configuration (D-019) ·
+  **prints** — a page's photos as small prints in their own colour, the photos on hover,
+  and Photos in Look for (D-034).
 - **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
   to return to — so the rail still shows four ways back. It obeys the Return rule anyway:
   you go there to see, never to do.
@@ -83,6 +85,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   the activity grid to someone in a dry season.* `longestSilence` is the first thing to cut.
   And the D-019 test: *ask it something, then look at the chips.* If the chips regularly
   need correcting, the sentence box goes back to being a word box.
+  The D-034 test: *find the day you photographed something without hovering.* If the
+  colours don't lead you there, the prints go and Photos in Look for stays.
 
 ---
 

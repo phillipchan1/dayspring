@@ -2,6 +2,8 @@
 
 **Start:** `/prints/#color` (also `#ships`, `#tipped`, `#camera`, `#asked`)
 
+**Built** as D-034: `#color` plus Photos in Look for. See `docs/product/DECISIONS.md`.
+
 How the entries list (`src/features/pages/PageRow.tsx`) could show that a page
 carries a photo. Day One and Diarly lead with a thumbnail; Dayspring's rule for a
 page is *her words, her date and her markings* (`PageCard.tsx`). A photo she put
@@ -29,6 +31,6 @@ editing `page.html`:
 Pages and photos are invented; photos are painted on a canvas so the print color
 is computed from real pixels the same way the app computes it.
 
-Known gap for `#color`: photos brought in by the Day One / Diarly importer go
-through `ensureAttachment` without `analyzeImage`, so they have no stored color.
-Shipping this needs a color backfill (or a neutral print as the fallback).
+The gap this prototype found, now closed in D-034: photos brought in by the Day One /
+Diarly importer had no stored color. Imports measure it now, and older photos learn it
+lazily (`src/lib/photoLooks.ts`), with a neutral print until they do.

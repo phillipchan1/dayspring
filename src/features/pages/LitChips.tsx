@@ -15,11 +15,13 @@
 
 import { MarkGlyph } from '@/components/MarkGlyph'
 import type { SpiritualItemType } from '@/lib/types'
+import { PrintGlyph } from './PrintGlyph'
 
 export interface LookChip {
   key: string
   label: string
-  kind: 'subject' | 'marking'
+  /** `photo` is the one non-marking fact a page can be looked for by (D-034). */
+  kind: 'subject' | 'marking' | 'photo'
   tone?: string
   /** For a marking chip: which of the six, so it can wear its own hand. */
   mark?: SpiritualItemType
@@ -45,6 +47,7 @@ export function LitChips({
           aria-label={`Stop looking for ${c.label}`}
         >
           {c.mark ? <MarkGlyph kind={c.mark} className="pg-held__glyph" /> : null}
+          {c.kind === 'photo' ? <PrintGlyph /> : null}
           {c.label}
           <svg viewBox="0 0 8 8" width="7" height="7" fill="none" aria-hidden>
             <path

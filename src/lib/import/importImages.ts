@@ -14,6 +14,19 @@ import { baseName, findByName, type ArchiveFile, type ImportArchive } from './ar
 import type { ImportedEntry } from './types'
 import type { AttachmentPhotoMeta } from '../attachmentCaption'
 import { ensureAttachment } from '../attachments'
+import { analyzeImage } from '../imageCompress'
+
+/**
+ * Dimensions and average colour, the same as an upload from the editor stores.
+ *
+ * Imports used to skip this, so an archive's photos arrived with no colour for
+ * the entries list's prints (D-034) and no shape for the editor's crop. Best
+ * effort: a photo the browser cannot decode is still imported, just without it.
+ */
+async function photoMeta(blob: Blob): Promise<AttachmentPhotoMeta | undefined> {
+  const analysis = await analyzeImage(blob)
+  return Object.keys(analysis).length > 0 ? analysis : undefined
+}
 
 export interface ImageImportProgress {
   done: number
@@ -94,7 +107,7 @@ export async function importDayOneImages(
 
       try {
         const blob = await photoFile.blob()
-        const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext)
+        const { hash, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, await photoMeta(blob))
         body = body.replace(full!, `![${alt ?? ''}](attachment:${hash}.${ext})`)
         if (isNew) prog.uploaded++
         else prog.skipped++
@@ -288,7 +301,7 @@ export async function importDiarlyImages(
 
       try {
         const blob = await photoFile.blob()
-        const { hash: sha, isNew } = await ensureAttachment(supabase, ownerId, blob, ext)
+        const { hash: sha, isNew } = await ensureAttachment(supabase, ownerId, blob, ext, await photoMeta(blob))
         body = body.replace(full!, `![${alt ?? ''}](attachment:${sha}.${ext})`)
         if (isNew) prog.uploaded++
         else prog.skipped++

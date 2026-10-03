@@ -16,6 +16,8 @@ import {
   bookFacet,
   highlightFacet,
   matchFacets,
+  FACET_PHOTO,
+  photoChip,
 } from './facets'
 
 let n = 0
@@ -188,5 +190,36 @@ describe('retired kinds', () => {
     const page = entry('something I was given')
     const index = buildFacetIndex([page], [], [{ entryId: page.id, type: 'gift', declared: false }])
     expect(index.byEntry.get(page.id)!.has('gift')).toBe(true)
+  })
+})
+
+describe('photos (D-034)', () => {
+  const photo = '![](attachment:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg)'
+
+  it('a page with a photo carries the photo facet', () => {
+    expect(facetsOf(`morning\n\n${photo}`).set.has(FACET_PHOTO)).toBe(true)
+    expect(facetsOf(photo).set.has(FACET_PHOTO)).toBe(true)
+  })
+
+  it('a photo still uploading, or prose about one, does not', () => {
+    expect(facetsOf('![](attachment-pending:00000000-0000-0000-0000-000000000000)').set.has(FACET_PHOTO)).toBe(false)
+    expect(facetsOf('took a photo of the sunset').set.has(FACET_PHOTO)).toBe(false)
+  })
+
+  it('counts one page once however many photos it holds, and is never a marking', () => {
+    const idx = buildFacetIndex([entry(`${photo}\n${photo}`), entry(photo), entry('words')])
+    expect(idx.counts.get(FACET_PHOTO)).toBe(2)
+    expect(markingChips(idx).some((c) => c.key === FACET_PHOTO)).toBe(false)
+  })
+
+  it('offers the pill only when some page has a photo', () => {
+    expect(photoChip(buildFacetIndex([entry('words')]))).toBeNull()
+    expect(photoChip(buildFacetIndex([entry(photo)]))).toEqual({ key: FACET_PHOTO, label: 'Photos', count: 1 })
+  })
+
+  it('lights with the markings, as an and', () => {
+    const both = entry(`${photo}\n\n> a quoted line`)
+    const idx = buildFacetIndex([both, entry(photo)])
+    expect(matchFacets(idx, [FACET_PHOTO, FACET_QUOTE])).toEqual(new Set([both.id]))
   })
 })

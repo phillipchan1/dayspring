@@ -23,6 +23,45 @@ agenda.
 
 ---
 
+## D-034 — A photo shows in the list as a print in its own colour, never as our glyph
+**2026-10-03** · **Status:** Decided (Phil)
+
+**Decision:** In the entries list (`PageRow`), a page that carries photos shows them as
+**prints**: up to three small prints, fanned, each filled with the photo's stored average
+colour, in one lane down the right of the list. Hover a row on a computer and the prints
+rise into the photos themselves, as rows of equal height (D-033) on a print's paper, with
+her caption under them if she wrote one. **Photos** joins Look for as its own group; it
+dims the pages without one, like every other light. No camera glyph, no thumbnail in the
+row, no count, and the wall's cards stay text-only. Imports from Day One and Diarly now
+measure each photo's colour and size the way an upload does; photos imported before this
+learn their colour lazily, a 48px render the first time their row scrolls past, 48 a
+session, written back to `attachments.metadata`. Rule: `features/pages/pagePhotos.ts`,
+`lib/photoLooks.ts`, `features/pages/PhotoPeek.tsx`.
+
+**Why:** Day One and Diarly lead with the thumbnail, and the list becomes an album. A
+page's rule here is *her words, her date and her markings* (`PageCard.tsx`): a photo she
+put on the page passes it, a camera icon we draw beside it does not. Of five directions
+prototyped (`prototypes/prints`), the print is the only one that shows something of the
+photo itself without loading it: a thumbnail costs an image per row on a list whose whole
+job is to be faster than the panel it replaced (D-022), is mush at row height, and puts
+faces in a list read over a shoulder; a glyph says *there is a photo* but never *which*;
+showing nothing until asked hides the one landmark browsing would find. Photos are rare
+(30 in 3,146 pages on the founder's archive), which is what makes a photographed day a
+landmark.
+
+**What would change our mind:** if `photos_lit` stays near zero among writers who have
+photos, and people can't find the day they photographed something without hovering, the
+prints are not working as landmarks: remove them at rest and keep Photos in Look for. If
+an archive where most pages carry photos turns the lane into a column of noise (a third of
+pages or more), the lane shows only when Photos is lit. If writers ask for the photo on a
+phone, where there is no hover, that is a separate decision about the long-press.
+
+**Cost accepted:** an average colour is muddy for a photo with two strong halves (a sunset
+averages to mauve); a pale photo makes a pale print; a print's colour is a metadata read
+the list did not need before; until a colour is learned the print is neutral; the phone
+gets the colour only; and every photo imported before this downloads a 48px render once,
+over several visits, to be coloured.
+
 ## D-033 — Photos that touch are one set, drawn as rows; one layout, no picker
 **2026-10-02** · **Status:** Decided (Phil)
 
