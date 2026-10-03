@@ -1490,6 +1490,7 @@ export function PageWall({
                 context={!item.echo && item.entry.id === menuTargetId}
                 echo={item.echo}
                 markings={rowMarkings.get(item.entry.id)}
+                photos={photosFor(item.entry)}
                 tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                 onFocus={onCardFocus}
                 onKeyDown={onCardKeyDown}

@@ -159,14 +159,20 @@ const PHOTO_FIXTURE: Record<number, { hash: string; color: string; ratio: number
   7: [{ hash: 'c1'.repeat(32), color: '#5f7a4f', ratio: 1 }, { hash: 'c2'.repeat(32), color: '#e4dfcf', ratio: 4 / 3 }],
   12: [{ hash: 'd1'.repeat(32), color: '#26304a', ratio: 3 / 2 }],
 }
+/** A page that is only a photo, with her caption. */
+const PHOTO_ONLY = { index: 2, hash: 'e1'.repeat(32), color: '#c98a4b', ratio: 4 / 3, caption: 'First fire of the fall' }
 const WITH_PHOTOS = new URLSearchParams(window.location.search).get('photos') === '1'
 if (WITH_PHOTOS) {
   for (const [i, photos] of Object.entries(PHOTO_FIXTURE)) {
     const e = RECENT[Number(i)]
     if (e) e.body_markdown = `${e.body_markdown}\n\n${photos.map((p) => `![](attachment:${p.hash}.jpg)`).join('\n')}`
   }
+  const only = RECENT[PHOTO_ONLY.index]
+  if (only) only.body_markdown = `![${PHOTO_ONLY.caption}](attachment:${PHOTO_ONLY.hash}.jpg)`
   seedPhotoLooks(
-    Object.fromEntries(Object.values(PHOTO_FIXTURE).flat().map((p) => [p.hash, { color: p.color, ratio: p.ratio }])),
+    Object.fromEntries(
+      [...Object.values(PHOTO_FIXTURE).flat(), PHOTO_ONLY].map((p) => [p.hash, { color: p.color, ratio: p.ratio }]),
+    ),
   )
 }
 

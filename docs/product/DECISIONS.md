@@ -32,7 +32,11 @@ colour, in one lane down the right of the list. Hover a row on a computer and th
 rise into the photos themselves, as rows of equal height (D-033) on a print's paper, with
 her caption under them if she wrote one. **Photos** joins Look for as its own group; it
 dims the pages without one, like every other light. No camera glyph, no thumbnail in the
-row, no count, and the wall's cards stay text-only. Imports from Day One and Diarly now
+row, no count. **The cards stand closer, so they show the photo itself:** up to three as
+one row at the foot of the card, under her words, every photo whole, the photo's colour
+holding its place until it loads; a page that is only photos gives the card to them, her
+caption beneath. *(Amended the same day: the first cut left cards text-only, and on the
+founder's own wall a photo page read as the word "Photo" on an empty card.)* Imports from Day One and Diarly now
 measure each photo's colour and size the way an upload does; photos imported before this
 learn their colour lazily, a 48px render the first time their row scrolls past, 48 a
 session, written back to `attachments.metadata`. Rule: `features/pages/pagePhotos.ts`,

@@ -1203,6 +1203,52 @@ button.pg__sense-q:hover {
   transition: opacity var(--transition);
 }
 
+/*
+ * Photos on a card (D-034) — a step closer than a row, so the photo itself
+ * rather than its colour. One row at the foot of the page, every photo whole,
+ * under her words and above the page's thickness. Until a photo arrives its
+ * colour holds its place, so the card does not jump when it lands.
+ */
+.pgc__photos {
+  flex: none;
+  margin-block: 0.5rem 0.35rem;
+}
+
+/* A page that is only photos gives them the card, her caption beneath. */
+.pgc__photos--whole {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  block-size: 100%;
+  margin: 0;
+}
+
+.pgc__strip .pg-photo {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.pgc__caption {
+  margin: 0;
+  font-family: var(--font-editor);
+  font-size: calc(var(--pg-card-text, 0.86rem) * 0.92);
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text-dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The words' fade, moved up to end above the photos rather than over them. */
+.pgc__cols {
+  position: relative;
+}
+
+.pgc__fade--cols {
+  height: 2.4rem;
+}
+
 /* An echo — a page that rose out of another year. */
 .pgc[data-echo='true'] {
   background: transparent;
@@ -3005,7 +3051,7 @@ button.pg__sense-q:hover {
   display: flex;
 }
 
-.pg-peek__photo {
+.pg-photo {
   flex: none;
   overflow: hidden;
   border-radius: 1px;
@@ -3013,7 +3059,7 @@ button.pg__sense-q:hover {
   background: color-mix(in srgb, var(--text-faint) 30%, transparent);
 }
 
-.pg-peek__photo img {
+.pg-photo img {
   display: block;
   inline-size: 100%;
   block-size: 100%;
@@ -3022,7 +3068,7 @@ button.pg__sense-q:hover {
   transition: opacity 160ms ease;
 }
 
-.pg-peek__photo img[data-loaded='true'] {
+.pg-photo img[data-loaded='true'] {
   opacity: 1;
 }
 
@@ -3043,7 +3089,7 @@ button.pg__sense-q:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .pg-peek,
-  .pg-peek__photo img {
+  .pg-photo img {
     transition: none;
   }
 }

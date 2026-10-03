@@ -1,9 +1,11 @@
-import { memo } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { MARK_KIND } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import type { PageExcerpt } from './pageExcerpt'
 import { pageFill, splitOnMatch } from './pageExcerpt'
 import { useWallPointer } from './useWallPointer'
+import { NO_PHOTOS, ROW_PRINTS, type PagePhoto } from './pagePhotos'
+import { PhotoStrip } from './PhotoStrip'
 
 export type PageClickResult = 'open' | 'toggle' | 'range'
 
@@ -37,6 +39,13 @@ interface Props {
    */
   markings?: readonly SpiritualItemType[] | undefined
   /**
+   * The photos on the page (D-034). A card stands closer than a row, so where a
+   * row draws a print in the photo's colour, a card shows the photo: the set as
+   * one row at the foot of the page, every photo whole, under her words. A page
+   * that is only photos gives the card to them.
+   */
+  photos?: readonly PagePhoto[] | undefined
+  /**
    * Roving-focus wiring from the wall.
    *
    * The callbacks take the key rather than closing over it so the wall can keep
@@ -68,7 +77,8 @@ function formatDate(iso: string): string {
 /**
  * One page.
  *
- * Everything on it is the writer's: their sentences, their date, their emphases.
+ * Everything on it is the writer's: their sentences, their date, their emphases,
+ * the photos they put there (D-034).
  * There is no title we invented, no summary, no tag, no count — a page in a
  * notebook doesn't carry metadata, and the moment this one does it stops reading
  * as a page and starts reading as a row.
@@ -96,6 +106,7 @@ export const PageCard = memo(function PageCard({
   context,
   echo,
   markings,
+  photos = NO_PHOTOS,
   wallKey,
   tabIndex,
   onFocus,
@@ -109,6 +120,8 @@ export const PageCard = memo(function PageCard({
   const shown = excerpt.lines.length > maxLines ? excerpt.lines.slice(0, maxLines) : excerpt.lines
   const truncated = excerpt.total > shown.length
   const empty = shown.length === 0 && excerpt.rituals.length === 0
+  const pictured = photos.length > 0 ? (photos.length > ROW_PRINTS ? photos.slice(0, ROW_PRINTS) : photos) : null
+  const photoOnly = pictured !== null && excerpt.photoOnly === true
   const pointer = useWallPointer((x, y) => onOpenMenu(entryId, x, y))
 
   return (
@@ -152,7 +165,9 @@ export const PageCard = memo(function PageCard({
 
       <div className="pgc__cols">
       <div className="pgc__body">
-        {empty ? (
+        {photoOnly ? (
+          <CardPhotos photos={pictured} whole caption={pictured.find((p) => p.caption)?.caption ?? null} />
+        ) : empty ? (
           <p className="pgc__blank">Blank page</p>
         ) : (
           <>
@@ -200,13 +215,72 @@ export const PageCard = memo(function PageCard({
           ))}
         </span>
       ) : null}
+      {/* Above the photos, not over them: the words end mid-sentence and the
+          photos start whole. */}
+      {truncated && pictured ? <span className="pgc__fade pgc__fade--cols" aria-hidden /> : null}
       </div>
 
-      {truncated ? <span className="pgc__fade" aria-hidden /> : null}
+      {pictured && !photoOnly ? <CardPhotos photos={pictured} whole={false} caption={null} /> : null}
+      {truncated && !pictured ? <span className="pgc__fade" aria-hidden /> : null}
       <span className="pgc__thickness" aria-hidden style={{ inlineSize: `${fill * 100}%` }} />
     </button>
   )
 }, propsEqual)
+
+/** Of the card's height, what the photos under her words may take. */
+const PHOTO_SHARE = 0.36
+
+/**
+ * The photos, sized to the card they are on.
+ *
+ * Measured rather than computed from the zoom, because the card's width is the
+ * grid's to decide and the photos must fit it exactly: a row of them too wide
+ * gets shorter, never cropped.
+ */
+function CardPhotos({
+  photos,
+  whole,
+  caption,
+}: {
+  photos: readonly PagePhoto[]
+  /** The page is only photos: they take the card, her caption under them. */
+  whole: boolean
+  caption: string | null
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    const card = el?.closest('.pgc')
+    if (!el || !card) return
+    const measure = () => {
+      const w = el.clientWidth
+      const h = whole ? el.clientHeight : card.clientHeight * PHOTO_SHARE
+      setBox((prev) => (prev && prev.w === w && prev.h === h ? prev : { w, h }))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(card)
+    return () => ro.disconnect()
+  }, [whole])
+
+  return (
+    <div ref={ref} className={whole ? 'pgc__photos pgc__photos--whole' : 'pgc__photos'}>
+      {box && box.w > 0 && box.h > 0 ? (
+        <PhotoStrip
+          photos={photos}
+          maxWidth={box.w}
+          maxHeight={whole && caption ? box.h - CAPTION_PX : box.h}
+          className="pgc__strip"
+        />
+      ) : null}
+      {whole && caption ? <p className="pgc__caption">{caption}</p> : null}
+    </div>
+  )
+}
+
+/** Room kept under a whole-card photo for her caption. */
+const CAPTION_PX = 26
 
 function propsEqual(prev: Props, next: Props): boolean {
   return (
@@ -222,6 +296,7 @@ function propsEqual(prev: Props, next: Props): boolean {
     prev.context === next.context &&
     prev.echo === next.echo &&
     prev.markings === next.markings &&
+    prev.photos === next.photos &&
     prev.wallKey === next.wallKey &&
     prev.tabIndex === next.tabIndex &&
     // Compared, not assumed stable. The wall keeps them stable with useCallback,

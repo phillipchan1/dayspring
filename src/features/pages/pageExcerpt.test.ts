@@ -135,6 +135,17 @@ describe('pageExcerpt', () => {
     expect(x.lines.map((line) => line.text)).toEqual(['Photo'])
     expect(x.chars).toBe(5)
   })
+
+  it('does not take a camera filename for a caption', () => {
+    const x = pageExcerpt(entry(`![IMG_4410](attachment:${'c'.repeat(64)}.jpg)`))
+    expect(x.lines.map((line) => line.text)).toEqual(['Photo'])
+  })
+
+  it('says when a page is only photos, so a card can give it to them (D-034)', () => {
+    const photo = `![](attachment:${'d'.repeat(64)}.jpg)`
+    expect(pageExcerpt(entry(photo)).photoOnly).toBe(true)
+    expect(pageExcerpt(entry(`a line of words\n\n${photo}`)).photoOnly).toBeUndefined()
+  })
 })
 
 describe('pageFill', () => {

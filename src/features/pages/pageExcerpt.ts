@@ -10,6 +10,7 @@ import { entryContentLines } from '@/lib/entryLabels'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { isScriptureQuoteLine, SCRIPTURE_RITUALS, writerWords } from '@/lib/writerWords'
 import { stripMarkdownMarkers } from '@/lib/inlineMarkers'
+import { isMeaningfulCaption } from '@/lib/attachmentCaption'
 import { ATTACHMENT_REF_RE } from '@/lib/attachments'
 import { ritualNamesIn } from '@/lib/ritualDisplay'
 import { ritualEntryShape } from '@/editor/practices/ritualDocument'
@@ -58,6 +59,11 @@ export interface PageExcerpt {
    * it was.
    */
   rituals: string[]
+  /**
+   * The page is photos and nothing else; its one line is her caption, or
+   * "Photo". A card gives such a page to the photos themselves (D-034).
+   */
+  photoOnly?: true
 }
 
 type ExcerptEntry = Pick<Entry, 'id' | 'created_at' | 'body_markdown'>
@@ -191,14 +197,21 @@ export function pageExcerpt(
     }
   }
 
-  // The wall stays text-only, but a page containing a photo is not blank.
+  // A page that is only photos is not blank. Its excerpt is her caption (a row
+  // shows it; a card shows the photos above it, D-034).
   // Prefer the writer's own caption; otherwise name the object without
   // inventing a description of it.
+  // A filename the camera made up ("IMG_4410") is not a caption.
+  let photoOnly = false
   if (prose.length === 0) {
     ATTACHMENT_REF_RE.lastIndex = 0
     const photo = ATTACHMENT_REF_RE.exec(entry.body_markdown ?? '')
     ATTACHMENT_REF_RE.lastIndex = 0
-    if (photo) prose.push(photo[1]?.trim() || 'Photo')
+    if (photo) {
+      const alt = photo[1]?.trim() ?? ''
+      prose.push(isMeaningfulCaption(alt) ? alt : 'Photo')
+      photoOnly = true
+    }
   }
 
   const chars = prose.reduce((n, l) => n + l.length, 0)
@@ -227,7 +240,14 @@ export function pageExcerpt(
     return hit ? { ...line, hit: true } : line
   })
 
-  return { lines, chars, total: prose.length, rituals, ...(passage ? { passage } : {}) }
+  return {
+    lines,
+    chars,
+    total: prose.length,
+    rituals,
+    ...(passage ? { passage } : {}),
+    ...(photoOnly ? { photoOnly: true as const } : {}),
+  }
 }
 
 /**

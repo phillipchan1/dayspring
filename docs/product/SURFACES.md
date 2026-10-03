@@ -75,8 +75,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   show the line that made the page light up · "only these" · interleaved anniversary
   pages · month rules down the scroll · the Spread (two-up, marginalia, shared-element
   zoom) · Open somewhere · month fold · natural-language filter configuration (D-019) ·
-  **prints** — a page's photos as small prints in their own colour, the photos on hover,
-  and Photos in Look for (D-034).
+  **prints** — a page's photos as small prints in their own colour on a row, the photos
+  on hover and on a card, and Photos in Look for (D-034).
 - **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
   to return to — so the rail still shows four ways back. It obeys the Return rule anyway:
   you go there to see, never to do.
