@@ -1033,18 +1033,19 @@ export function PagesView({
       return
     }
     /*
-     * Deleting the page you are reading turns to its neighbour rather than
-     * letting the reader be left with nothing to read.
+     * Deleting the page you are reading closes it back into where you came
+     * from — the wall, the volume, the shelf — the same place "All entries"
+     * takes you.
      *
-     * The older one first, the way the wall does it (the page that slides into
-     * the gap), and the newer if this was the oldest. With neither — the last
-     * page in the set — it goes back to where you came from. Without this the
-     * reader keeps its `spreadId`, finds no page for it, and renders a bar with
-     * no Write over an empty canvas.
+     * It used to turn to a neighbour instead, which dropped you onto a page you
+     * never chose with the list you were tidying gone behind it. A delete is a
+     * decision about the archive, so it hands you back the archive; the wall is
+     * still scrolled to where the page was, and its neighbours are right there.
+     * Leaving the `spreadId` set is not an option either: the reader would find
+     * no page for it and render a bar with no Write over an empty canvas.
      */
-    const landing = within?.older ?? within?.newer ?? null
-    onDeleteEntries([entry.id], landing)
-    onSpread(landing)
+    onDeleteEntries([entry.id])
+    onSpread(null)
   }
 
   const readerBar =
