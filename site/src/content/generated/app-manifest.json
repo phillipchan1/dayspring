@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.471",
+  "appVersion": "1.0.498",
   "channel": "stable",
   "categories": {
     "shortcuts": [
@@ -693,6 +693,12 @@
       {
         "id": "setting.dimming",
         "key": "dimming",
+        "default": true,
+        "type": "boolean"
+      },
+      {
+        "id": "setting.settle-while-writing",
+        "key": "settleWhileWriting",
         "default": true,
         "type": "boolean"
       },
