@@ -24,7 +24,7 @@
 -- transaction time, so steps that must produce DIFFERENT timestamps have to be
 -- committed separately (as they are in production, one push per request).
 
-truncate public.entries;
+truncate public.entries cascade; -- cascade: entry_reads (20261004120000) references it
 create temp table t (k text primary key, v text);
 
 -- 1. INSERT via the RPC when the row does not exist.
@@ -190,6 +190,12 @@ begin
          $c$gathered_words_hash = coalesce(gathered_words_hash, '') || 'x'$c$,
          $c$gather_attempts = gather_attempts + 1$c$
        ] else array[]::text[] end
+    || case when exists (
+         select 1 from pg_attribute
+          where attrelid = 'public.entries'::regclass and attname = 'read_words_hash')
+       -- 20261004120000_entry_reads, when it has been applied to this database
+       then array[$c$read_words_hash = coalesce(read_words_hash, '') || 'x'$c$]
+       else array[]::text[] end
   loop
     assert not pg_temp.stamp_moved(id, clause),
       format('a derived write must not bump updated_at: %s', clause);
@@ -256,7 +262,9 @@ declare
                                          'superseded', 'entry_lens', 'entry_domain',
                                          -- 20260930130000_gather_engine
                                          'body_hash', 'gathered_hash', 'gathered_words_hash',
-                                         'gather_attempts'];
+                                         'gather_attempts',
+                                         -- 20261004120000_entry_reads
+                                         'read_words_hash'];
   unclassified  text[];
 begin
   select coalesce(array_agg(a.attname order by a.attname), '{}')

@@ -54,12 +54,13 @@ export const env = {
   // unset, the sync finds or creates a segment named resendSegmentName().
   resendSegmentId: () => process.env.RESEND_SEGMENT_ID ?? null,
   resendSegmentName: () => process.env.RESEND_SEGMENT_NAME || 'Dayspring accounts',
-  // Gather (api/_lib/gather.ts, docs/GATHER.md). Default OFF — cue prefilter
-  // and Keeping-read v2 stay identical until these are flipped independently.
-  // Unknown values fall back to the defaults.
+  // Gather (api/_lib/gather.ts, docs/GATHER.md). Default ON (2026-10-04, D-035):
+  // the gate reads every entry, so a prayer that never names God still reaches
+  // the Altar. `GATHER_MODE=cue` puts the old regex prefilter back — the escape
+  // hatch if the gate's cost or precision turns out wrong. Unknown values mean gate.
   gatherMode: (): 'cue' | 'gate' => {
     const v = (process.env.GATHER_MODE ?? '').trim().toLowerCase()
-    return v === 'gate' ? 'gate' : 'cue'
+    return v === 'cue' ? 'cue' : 'gate'
   },
   // The gather engine (docs/GATHER.md §Engine, migration 20260930130000). Default
   // OFF: merging must not change who reads an entry or when. `on` hands harvest,
@@ -67,15 +68,24 @@ export const env = {
   // words changed and the writer stopped" — and takes them off the daily cron.
   // Needs the migration applied first; unknown values mean off.
   gatherEngine: (): boolean => (process.env.GATHER_ENGINE ?? '').trim().toLowerCase() === 'on',
+  // The stored entry read (api/_lib/entryRead.ts, migration 20261004120000,
+  // D-035). Default OFF until the dry run (scripts/gather-read-dry.ts) has priced
+  // the backfill. `on` makes the gather engine read each page for emotion,
+  // desire, story, learning and change and store it in entry_reads — and queues
+  // every already-gathered entry for that read once. Needs GATHER_ENGINE=on.
+  gatherRead: (): boolean => (process.env.GATHER_READ ?? '').trim().toLowerCase() === 'on',
   // Minutes an entry must sit untouched before the engine reads it.
   gatherSettleMinutes: (): number => {
     const raw = (process.env.GATHER_SETTLE_MINUTES ?? '').trim()
     const n = Number(raw)
     return raw !== '' && Number.isFinite(n) && n >= 0 ? n : 30
   },
+  // The emotion definitions the entry read uses. Default tight-denial (D-035):
+  // the stored read is what Ascent shows, so it uses the stricter definitions
+  // and the denied-first field. `GATHER_SENTIMENT=v2` restores the older prompt.
   gatherSentiment: (): 'v2' | 'tight-denial' => {
     const v = (process.env.GATHER_SENTIMENT ?? '').trim().toLowerCase()
-    return v === 'tight-denial' ? 'tight-denial' : 'v2'
+    return v === 'v2' ? 'v2' : 'tight-denial'
   },
   // Welcome drip (api/_lib/welcomeDrip.ts). Default OFF — merging the PR must
   // not start mailing. Enroll still writes; only Resend sends are gated.

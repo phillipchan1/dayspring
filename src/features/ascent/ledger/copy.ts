@@ -111,6 +111,17 @@ export const LEDGER_COPY = {
   nowNote: (month: string, year: number) => `It’s ${month}. ${year} is still being written — it closes Dec 31.`,
   moreThreads: 'more of the year ↓',
 
+  // ── what your words carried (entry_reads, D-035) ──────────────────────
+  // An observation about language, never a verdict (D-029): every emotion is
+  // shown with the line that earned it, and nothing here grades a span.
+  felt: 'WHAT YOUR WORDS CARRIED',
+  feltNote: 'Read from your own words — each one beside the line it came from.',
+  feltNone: 'No felt words on these pages.',
+  feltAlso: (span: string) => `also in ${span}`,
+  feltNotBefore: (span: string) => `not in ${span}`,
+  feltMonths: 'months it was on',
+  emotion: (e: string) => e.charAt(0).toUpperCase() + e.slice(1),
+
   youAsked: 'you asked',
   later: 'later, this',
 }

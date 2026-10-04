@@ -19,7 +19,7 @@
 \pset format unaligned
 
 truncate public.spiritual_items;
-truncate public.entries;
+truncate public.entries cascade; -- cascade: entry_reads (20261004120000) references it
 insert into auth.users (id) values ('00000000-0000-0000-0000-000000000002') on conflict do nothing;
 
 -- Four entries: read by nobody, read by everyone (then stamped by hand below, as

@@ -219,6 +219,12 @@ harmful than a missed one. Do not persist results, trigger reads on save, or bui
 cross-entry Movements until a stable sample reaches an agreed precision floor and
 the errors are understood by category.
 
+> **Overridden 2026-10-04 (D-035).** The read is now stored by the gather engine behind
+> `GATHER_READ`, and Ascent shows its emotions with their evidence. The check before the
+> flag goes on is the dry run's sample (`npm run gather:read-dry -- --sample N`) judged on
+> the writer's own pages. Precision still comes first: if the sample shows the failures
+> listed below, the flag stays off.
+
 ## What would change our mind
 
 - Emotional readings repeatedly mistake quoted speech, another person's emotion,

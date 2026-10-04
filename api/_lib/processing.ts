@@ -15,6 +15,7 @@ import { tagSubjects, regroupDeclared } from './declared.js'
 import { concordancePlan, scanConcordance } from './concordance.js'
 import {
   GATHER_PER_TICK,
+  GATHER_PER_TICK_READ,
   gatherChunk,
   gatherPendingCount,
   gatherPendingOwners,
@@ -506,7 +507,7 @@ async function runGather(job: Job): Promise<Record<string, unknown>> {
 
   const res = await gatherChunk(job.owner, {
     settleMinutes,
-    max: GATHER_PER_TICK,
+    max: env.gatherRead() ? GATHER_PER_TICK_READ : GATHER_PER_TICK,
     source: origin === 'import' ? 'import' : 'repetition',
   })
   // "Done with" an entry = gathered, or given up on. A failed entry is still

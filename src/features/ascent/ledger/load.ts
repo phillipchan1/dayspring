@@ -31,6 +31,7 @@ import {
   type YearLedger,
 } from './build'
 import { whatMoved, type Moved } from './moved'
+import { feltIn, type Felt, type ReadInput, type Span } from './felt'
 import { newIn, photosIn, type NewName, type SpanPhoto } from './extras'
 import { previousSeason, type Season } from './seasons'
 
@@ -196,6 +197,32 @@ function loadEncounters(): Promise<EncounterInput[]> {
   }, [])
 }
 
+interface ReadRow {
+  entry_id: string
+  emotions: ReadInput['emotions'] | null
+}
+
+/**
+ * The stored reads (entry_reads, D-035) — only pages where the read found felt
+ * emotion, and only the columns the ledger shows. Owner-scoped by RLS. A table
+ * that does not exist yet (migration not applied) reads as none, and the
+ * section stays hidden.
+ */
+function loadReads(): Promise<ReadInput[]> {
+  return once('ledger:reads', async () => {
+    const sb = requireSupabase()
+    const rows = await pageAll<ReadRow>((a, b) =>
+      sb
+        .from('entry_reads')
+        .select('entry_id, emotions')
+        .eq('present', true)
+        .order('entry_id', { ascending: true })
+        .range(a, b),
+    )
+    return rows.map((r) => ({ entryId: r.entry_id, emotions: Array.isArray(r.emotions) ? r.emotions : [] }))
+  }, [])
+}
+
 function dayKey(): string {
   return new Date().toISOString().slice(0, 10)
 }
@@ -242,9 +269,11 @@ export async function loadThreadAcross(threadId: string): Promise<LedgerThread |
 // Lets the preview feed the real loaders a synthetic archive, so the month,
 // season and year views can be seen without an account. Never set in a build.
 let previewInput: LedgerInput | null = null
-export function setLedgerPreviewInput(input: LedgerInput): void {
+let previewReads: ReadInput[] | null = null
+export function setLedgerPreviewInput(input: LedgerInput, reads: ReadInput[] = []): void {
   if (!import.meta.env.DEV) return
   previewInput = input
+  previewReads = reads
   entriesPromise = Promise.resolve(input.entries as Entry[])
 }
 
@@ -292,6 +321,20 @@ function today(): string {
 export function loadMonthLedger(ym: string, end: string): Promise<RangeLedger> {
   const to = end < today() ? end : today()
   return loadRangeLedger(`${ym}-01`, to, { keep: 8, minMentions: 1 })
+}
+
+/**
+ * What a span's pages carried, compared with the span before. Null when the
+ * writer has no stored reads at all — the read is off, or has not reached them
+ * yet — so the surface shows nothing rather than an empty promise.
+ */
+export async function loadFelt(span: Span, before?: Span): Promise<Felt | null> {
+  const [entries, reads] = await Promise.all([
+    loadEntries(),
+    import.meta.env.DEV && previewInput ? Promise.resolve(previewReads ?? []) : loadReads(),
+  ])
+  if (reads.length === 0) return null
+  return feltIn(entries, reads, span, before)
 }
 
 export interface SpanExtras {

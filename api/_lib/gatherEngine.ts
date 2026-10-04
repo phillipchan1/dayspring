@@ -1,7 +1,8 @@
 // The gather engine: ONE pass over an entry that does everything the server
 // derives from its text — the deterministic derive (fences, Scripture refs), the
-// prayer harvest, the concordance extract and the embedding — chosen by "the
-// body changed and the writer has stopped", not by the clock.
+// prayer harvest, the concordance extract, the embedding and (GATHER_READ) the
+// stored entry read — chosen by "the body changed and the writer has stopped",
+// not by the clock.
 //
 // (`gather.ts` is the gate-first HARVEST variant behind GATHER_MODE. This file is
 // the engine that decides WHICH entries get read, and when. docs/GATHER.md.)
@@ -49,9 +50,13 @@ import { writerWords } from './writerWords.js'
 import { deriveEntries } from './derive.js'
 import { embedEntries, harvestEntries } from './altar.js'
 import { scanConcordanceEntries } from './concordance.js'
+import { readEntries } from './entryRead.js'
+import { env } from './env.js'
 
 /** Entries read per tick — sized so harvest + concordance + embed fit one invocation. */
 export const GATHER_PER_TICK = 48
+/** The same, with the stored read on: one more model call per page (READ_POOL wide). */
+export const GATHER_PER_TICK_READ = 24
 /** Consecutive failed gathers of one entry before it is stamped and left. */
 export const GATHER_MAX_ATTEMPTS = 3
 
@@ -62,6 +67,8 @@ export interface PendingEntry {
   body_hash: string
   gathered_hash: string | null
   gathered_words_hash: string | null
+  /** Words hash of the stored read (null: never read). Absent when GATHER_READ is off. */
+  read_words_hash?: string | null
   gather_attempts: number
   prayer_scanned: boolean
   concordance_scanned: boolean
@@ -79,6 +86,8 @@ export interface GatherChunk {
   givenUp: number
   /** Entries whose words were unchanged, so the model was never called. */
   modelSkipped: number
+  /** Pages whose read was stored (GATHER_READ). */
+  readStored: number
   planted: number
   merged: number
   derived: { items: number; refs: number; foreign: number }
@@ -89,33 +98,47 @@ const interval = (minutes: number) => `${Math.max(0, Math.round(minutes))} minut
 const isBlank = (body: string) => body.replace(/\s+/g, ' ').trim().length < 3
 
 /** What one pending entry needs. PURE — exported for the tests. */
-export function planEntry(e: PendingEntry): {
+export function planEntry(
+  e: PendingEntry,
+  opts: { read?: boolean } = {},
+): {
   wordsHash: string
   harvest: boolean
   concordance: boolean
   embed: boolean
+  read: boolean
 } {
   const wordsHash = md5(writerWords(e.body_markdown))
   // Never gathered: trust the marks the old scanners left, and run only what is
   // missing. Gathered before: this is an EDIT — re-read iff the writer's own
   // words moved (a Scripture fence added or removed changes the body, not them).
   const first = e.gathered_hash === null
+  // Queued only for its read (GATHER_READ backfill): the body is exactly what was
+  // gathered, so nothing else is re-run — or re-billed.
+  const bodyChanged = e.gathered_hash !== e.body_hash
   const wordsChanged = e.gathered_words_hash !== wordsHash
   return {
     wordsHash,
-    harvest: first ? !e.prayer_scanned : wordsChanged,
-    concordance: first ? !e.concordance_scanned : wordsChanged,
+    harvest: bodyChanged && (first ? !e.prayer_scanned : wordsChanged),
+    concordance: bodyChanged && (first ? !e.concordance_scanned : wordsChanged),
     // The embedding input is the whole body, so any change re-embeds. A blank
     // page has nothing to embed.
-    embed: !isBlank(e.body_markdown) && (first ? !e.embedded : true),
+    embed: bodyChanged && !isBlank(e.body_markdown) && (first ? !e.embedded : true),
+    // The stored read is keyed to the writer's words: missing or stale → read.
+    read: opts.read === true && (e.read_words_hash ?? null) !== wordsHash,
   }
 }
+
+// With GATHER_READ off the queue readers are called exactly as before, so the
+// engine does not depend on migration 20261004120000 until the read is turned on.
+const readArg = (): { p_read?: true } => (env.gatherRead() ? { p_read: true } : {})
 
 /** How many of an owner's entries are ready to gather. */
 export async function gatherPendingCount(owner: string, settleMinutes: number): Promise<number> {
   const { data, error } = await supabaseAdmin().rpc('gather_pending_count', {
     p_owner: owner,
     p_settle: interval(settleMinutes),
+    ...readArg(),
   })
   if (error) throw error
   return Number(data ?? 0)
@@ -129,6 +152,7 @@ export async function gatherPendingOwners(
   const { data, error } = await supabaseAdmin().rpc('gather_pending_owners', {
     p_settle: interval(settleMinutes),
     p_limit: limit,
+    ...readArg(),
   })
   if (error) throw error
   return ((data ?? []) as { owner: string; pending: number | string }[]).map((r) => ({
@@ -149,10 +173,12 @@ export async function gatherChunk(
   opts: { settleMinutes: number; max?: number; source: 'import' | 'repetition' },
 ): Promise<GatherChunk> {
   const sb = supabaseAdmin()
+  const reading = env.gatherRead()
   const { data, error } = await sb.rpc('gather_pending_entries', {
     p_owner: owner,
     p_settle: interval(opts.settleMinutes),
-    p_limit: opts.max ?? GATHER_PER_TICK,
+    p_limit: opts.max ?? (reading ? GATHER_PER_TICK_READ : GATHER_PER_TICK),
+    ...readArg(),
   })
   if (error) throw error
   const pending = ((data ?? []) as PendingEntry[]).map((e) => ({
@@ -166,14 +192,15 @@ export async function gatherChunk(
     failed: 0,
     givenUp: 0,
     modelSkipped: 0,
+    readStored: 0,
     planted: 0,
     merged: 0,
     derived: { items: 0, refs: 0, foreign: 0 },
   }
   if (pending.length === 0) return out
 
-  const plans = new Map(pending.map((e) => [e.id, planEntry(e)]))
-  const needs = (step: 'harvest' | 'concordance' | 'embed') =>
+  const plans = new Map(pending.map((e) => [e.id, planEntry(e, { read: reading })]))
+  const needs = (step: 'harvest' | 'concordance' | 'embed' | 'read') =>
     pending.filter((e) => plans.get(e.id)![step])
 
   // 1. Deterministic derive — no model. Everything pending, every time: it is
@@ -184,7 +211,7 @@ export async function gatherChunk(
   //    on failure, so if it is going to fail the chunk, nothing has been paid.
   await embedEntries(owner, needs('embed'))
 
-  // 3. The two model reads, side by side (different tables, no shared state).
+  // 3. The model reads, side by side (different tables, no shared state).
   //    An entry on a retry is sent ALONE so a page the model cannot read fails by
   //    itself rather than with its five batch-mates.
   const failed = new Set<string>()
@@ -194,6 +221,8 @@ export async function gatherChunk(
   })
   const toHarvest = split(needs('harvest'))
   const toExtract = split(needs('concordance'))
+  // The stored read is one call per page already, so a retry is alone by nature.
+  const toRead = needs('read')
 
   await Promise.all([
     (async () => {
@@ -213,24 +242,42 @@ export async function gatherChunk(
         for (const id of run.failedIds) failed.add(id)
       }
     })(),
+    (async () => {
+      if (toRead.length === 0) return
+      const run = await readEntries(
+        sb,
+        owner,
+        toRead.map((e) => ({ ...e, wordsHash: plans.get(e.id)!.wordsHash })),
+      )
+      out.readStored += run.read
+      for (const id of run.failedIds) failed.add(id)
+    })(),
   ])
 
-  const asked = pending.filter((e) => plans.get(e.id)!.harvest || plans.get(e.id)!.concordance)
+  const asked = pending.filter((e) => {
+    const p = plans.get(e.id)!
+    return p.harvest || p.concordance || p.read
+  })
   out.modelSkipped = pending.length - asked.length
   out.failed = failed.size
   const outage = asked.length > 0 && asked.every((e) => failed.has(e.id))
 
   // 4. Stamp. `ok` rows record the hash of the body that was READ. Failed rows
   //    count an attempt — unless nothing at all could be read, which is an
-  //    outage, not a verdict on any one page.
+  //    outage, not a verdict on any one page. `read_hash` is sent only for a page
+  //    whose read was asked for, so with GATHER_READ off the stamp is unchanged.
   const rows = pending
     .filter((e) => !(outage && failed.has(e.id)))
-    .map((e) => ({
-      id: e.id,
-      body_hash: e.body_hash,
-      words_hash: plans.get(e.id)!.wordsHash,
-      ok: !failed.has(e.id),
-    }))
+    .map((e) => {
+      const plan = plans.get(e.id)!
+      return {
+        id: e.id,
+        body_hash: e.body_hash,
+        words_hash: plan.wordsHash,
+        ...(plan.read ? { read_hash: plan.wordsHash } : {}),
+        ok: !failed.has(e.id),
+      }
+    })
   if (rows.length > 0) {
     const { data: givenUp, error: stampErr } = await sb.rpc('gather_stamp', {
       p_owner: owner,

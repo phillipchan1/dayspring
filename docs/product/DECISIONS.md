@@ -23,6 +23,40 @@ agenda.
 
 ---
 
+## D-035 — Store the entry read; Ascent shows what your words carried; gate harvest by default
+**2026-10-04** · **Status:** Decided (Phil) · **overrides the persistence gate in MOVEMENTS.md / THE_KEEPING.md**
+
+**Decision:** Three changes, shipped together, the second behind a flag:
+
+1. **Prayer recall.** The gate-first harvest (`GATHER_MODE=gate`) is the default. Every
+   entry is read for prayer, so a prayer that never names God ("please just let her be
+   okay tonight") reaches the Altar. `GATHER_MODE=cue` restores the regex prefilter.
+2. **The read is stored.** The Keeping read (emotion, desire, story, learning, change)
+   moves into the gather engine as its fifth step and is kept in `entry_reads`, behind
+   `GATHER_READ=on`. Its emotion definitions are the stricter tight-denial set by default.
+   A dry run (`npm run gather:read-dry`) prices the backfill and reads a sample without
+   storing anything; it runs before the flag goes on.
+3. **Ascent shows it.** Month and Season gain *What your words carried*: each emotion the
+   read found, with the writer's verbatim line, the months it was on, and whether it was
+   there the period before. No average, no pleasant/unpleasant line, no arrow.
+
+**Why:** Emotion is important information for self-reflection, and an estimate of what a
+passage carries is an observation about language, not an oracle (D-029 already says so).
+MOVEMENTS.md held storage back until a judged precision floor; that kept the most useful
+reading of a life out of every surface. The dry run's sample replaces the playground as
+the check: the writer judges real reads of their own pages before the archive is read.
+Gate-first harvest is the one lever that lifts the ceiling the cue regex cannot.
+
+**What would change our mind:** the sample shows the read mistaking quoted speech,
+another person's feeling, or topic words for the writer's own; writers experience the
+section as surveillance or as a grade; the gate's cost per entry outweighs the prayers it
+recovers; or the "also in / not in" comparison is read as better/worse.
+
+**Cost accepted:** a model call per page for the read (priced by the dry run before it is
+on) and a cheap gate call per entry for the harvest. Corrections are not built yet:
+D-029 requires an estimate to be correctable, so a "not this" on an emotion is the next
+piece of work, not optional polish.
+
 ## D-034 — A photo shows in the list as a print in its own colour, never as our glyph
 **2026-10-03** · **Status:** Decided (Phil)
 

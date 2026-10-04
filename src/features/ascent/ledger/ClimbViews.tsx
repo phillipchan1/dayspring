@@ -13,6 +13,7 @@ import { WriteSheet } from './WriteSheet'
 import { NameIt, usePeriodName } from './NameIt'
 import { ThreadAcross } from './ThreadAcross'
 import { NowStrip } from './NowStrip'
+import { Felt } from './Felt'
 import { monthStrip, seasonStrip } from './strips'
 import type { Seed } from './write'
 import './Ledger.css'
@@ -41,6 +42,13 @@ export function recentMonths(today: string, n: number): string[] {
     }
   }
   return out
+}
+
+/** The month before `ym` (YYYY-MM). */
+export function previousMonth(ym: string): string {
+  const y = +ym.slice(0, 4)
+  const m = +ym.slice(5, 7)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
 }
 
 export function threadSeed(thread: LedgerThread, lines: LedgerLine[]): Seed {
@@ -112,6 +120,7 @@ export function MonthView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeri
   const [given, setGiven] = usePeriodName(`month:${ym}`)
   const [across, setAcross] = useState<LedgerThread | null>(null)
   useEffect(() => onPeriod?.(`${ym}-01`, end), [ym, end, onPeriod])
+  const prevYm = previousMonth(ym)
 
   useEffect(() => {
     let alive = true
@@ -176,6 +185,13 @@ export function MonthView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPeri
           </div>
         )}
       </section>
+
+      <Felt
+        span={{ from: `${ym}-01`, to: end }}
+        before={{ from: `${prevYm}-01`, to: monthEnd(prevYm) }}
+        beforeLabel={MONTH_LONG[+prevYm.slice(5, 7) - 1]!}
+        onOpenEntry={onOpenEntry}
+      />
 
       <section className="climb__mod">
         <span className="ascent-dim__eyebrow">{LEDGER_COPY.newInPages}</span>
@@ -329,6 +345,13 @@ export function SeasonView({ onOpenEntry, onPeriod }: { onOpenEntry: Open; onPer
           </>
         )}
       </section>
+
+      <Felt
+        span={{ from: season.from, to: season.to }}
+        before={{ from: prev.from, to: prev.to }}
+        beforeLabel={prev.label}
+        onOpenEntry={onOpenEntry}
+      />
 
       <section className="climb__mod">
         <span className="ascent-dim__eyebrow">{LEDGER_COPY.newInPages}</span>

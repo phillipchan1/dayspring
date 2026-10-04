@@ -4,7 +4,8 @@
  * Pure logic from lab/jev-classifier@9566d4c (`lunaTunedHarvest`, harvest=gate,
  * gb=6, hb=3, chunk=4000). No Jev / TypeSafe. Subject tagging is unchanged.
  *
- * Wired only when `GATHER_MODE=gate`. Flag-off harvest stays in altar.ts.
+ * The default harvest since 2026-10-04 (D-035). `GATHER_MODE=cue` puts back the
+ * regex-prefiltered harvest in altar.ts.
  */
 
 import { callModel } from './openai.js'

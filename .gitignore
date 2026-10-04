@@ -56,6 +56,9 @@ support-manifest.json
 # Local worktrees for parallel sessions — never part of the app.
 .claude/worktrees/
 
+# Local-only: entry reads sampled by scripts/gather-read-dry.ts (journal text).
+.gather-read/
+
 # Local-only: real journal content extracted for the rituals prototype.
 # Never commit — prototypes deploy to a public Vercel site.
 prototypes/*/src/data/*.local.json

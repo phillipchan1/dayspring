@@ -4,26 +4,24 @@ Gate-first prayer harvest + tight emotion definitions. **Internal name only** �
 
 Picked lab variant (`lab/jev-classifier` @ `9566d4c`): `harvest=gate,gb=6,hb=3,chunk=4000,sent=tight+denial`. No logprob / threshold fitting. Subject tagging is unchanged.
 
-Merging this is inert until the flags below are set. Defaults are today's production path.
+Since 2026-10-04 (D-035) both are the **defaults**: the gate reads every entry for prayer, and the entry read uses the tight emotion definitions. Each flag is now the escape hatch back to the old path.
 
 ## Flags
 
 | Var | Default | Role |
 |---|---|---|
-| `GATHER_MODE` | unset → `cue` | `gate` skips `HARVEST_CUE` and runs `gatherHarvest` (6-wide gate, then 3-wide span). Anything else, including unknown values, is the cue prefilter + 6-wide `harvestBatch`. |
-| `GATHER_SENTIMENT` | unset → `v2` | `tight-denial` swaps the Keeping-read emotion line for the 14 tight definitions + exclusion rule, and requires `denied` before `emotions` on each movement. Anything else is today's prompt and schema. |
+| `GATHER_MODE` | unset → `gate` | Gate skips `HARVEST_CUE` and runs `gatherHarvest` (6-wide gate, then 3-wide span). `cue` puts back the regex prefilter + 6-wide `harvestBatch`. Unknown values mean gate. |
+| `GATHER_SENTIMENT` | unset → `tight-denial` | The entry read's emotion line is the 14 tight definitions + exclusion rule, with `denied` required before `emotions` on each movement. `v2` restores the older prompt and schema. |
 
 The two flags are independent. Flip them separately.
 
-`KEEPING_READ_VERSION` stays `movements-v2-seven-signals` on the flag-off path so stored reads stay comparable. The tight-denial path reports `movements-v2-tight-denial`.
+The tight-denial read reports `movements-v2-tight-denial`; `GATHER_SENTIMENT=v2` reports `movements-v2-seven-signals`. Every stored read carries its version.
 
 ## Rollout
 
-1. Ship with both flags unset (this PR). Flag-off harvest and Keeping-read behavior is unchanged.
-2. Score `gather` vs `luna` on `lab/gather-eval` (see that branch; not for merge).
-3. Set `GATHER_MODE=gate` on a preview first. Gate reads every unscanned entry; cue-blind prayers that never reached the model will start to.
-4. Set `GATHER_SENTIMENT=tight-denial` independently on preview. Stored Keeping reads will report the new version.
-5. Production only after the eval and a preview pass. Do not enable either flag in production from this PR.
+1. Shipped flags-off first (`650e8e7`); the gate became the default on 2026-10-04 (D-035).
+2. If the gate's cost or precision is wrong in production, set `GATHER_MODE=cue` — no deploy needed.
+3. The gate only reads entries the harvest has not read yet. Entries the cue prefilter already passed over were stamped scanned, so prayers in them stay missing until the page is edited, or until a deliberate re-scan (`scripts/gather-rescan.ts` on `lab/gather-eval`).
 
 A failed span batch leaves that entry unmarked and writes no rows. `harvestPrayers` inserts without dedupe, so a partial write would duplicate on retry. Gate-negative entries are marked scanned with no rows.
 
@@ -91,13 +89,38 @@ Each scanner kept its own mark (`prayer_scanned_at`, `concordance_scanned_at`, `
 6. Import a small archive on the preview: `processing_jobs` should show `reflections` and `gather`, then `altar_thread`.
 7. Production after that. Turning the flag off again is safe: the old scanners resume from their own marks.
 
+### The read (`GATHER_READ`)
+
+The fifth step: the entry read (`api/_lib/keepingRead.ts` — movements, emotion, desire, story, learning, change), run by the engine on the same snapshot as the harvest and **stored** in `entry_reads` (`api/_lib/entryRead.ts`). D-035. Needs migration `20261004120000` and `GATHER_ENGINE=on`.
+
+| Var | Default | Role |
+|---|---|---|
+| `GATHER_READ` | unset → off | `on` reads and stores each page, and queues every page with no read (or a read older than its words) once. Any other value is off. |
+
+- **Keyed to the writer's words.** `entries.read_words_hash` is the words hash the stored read was made from. A page is pending for its read while that is null or differs from `gathered_words_hash`. A fence-only edit does not re-read.
+- **The backfill re-bills nothing else.** A page queued only for its read has `gathered_hash = body_hash`, so harvest, concordance and embedding are skipped (`planEntry`). Turning the read on reads the archive once, and only reads it.
+- **Same failure rules.** A failed read counts an attempt like a failed harvest. At the cap the read is given up (`gather_stamp` marks it), so an unreadable page leaves the queue instead of retrying every minute.
+- **Smaller ticks.** 24 pages per tick with the read on (`GATHER_PER_TICK_READ`), 4 reads in flight (`READ_POOL`), to stay inside the 300s function limit.
+- **Flag off is the old engine.** The queue readers are called without `p_read` and the stamp carries no `read_hash`, so the engine runs the same whether or not the migration is applied.
+- **Who reads it.** Ascent's Month and Season views (`src/features/ascent/ledger/Felt.tsx`): *What your words carried*. Each emotion with its verbatim line, the months it was on, and whether it was there the period before. Hidden until the writer has stored reads.
+
+#### Rollout
+
+1. Apply `20261004120000_entry_reads.sql`. Inert until the flag is on.
+2. **Dry run, $0:** `npm run gather:read-dry -- --owner <email>` counts the pages to read and estimates tokens (`--all` for every account).
+3. **Dry run, sample:** `npm run gather:read-dry -- --owner <email> --sample 10 --usd-in <$/1M> --usd-out <$/1M>` reads 10 real pages and **stores nothing**. It prints each page's emotions, learning and change with the quoted words, measures real token use, and projects the backlog's cost. Full output goes to `.gather-read/` (gitignored). Judge the quotes. If it misreads quoted speech, other people's feelings or topic words as the writer's, stop here (D-035).
+4. Set `GATHER_READ=on` on a preview. Watch `process-tick` report `readStored` per job, and Ascent → Season fill in. Each read stamps its entry once, which sends connected devices one no-op realtime event per page (the same event a harvest stamp sends). Flip it at a quiet hour for a large archive.
+5. Production. Turning it off again is safe: stored reads stay, and nothing new is read.
+
+Token line to grep: `keeping_read`.
+
 ### Offline
 
 Not part of the engine, but the other half of "the data is there when a surface needs it". The surfaces built from derived data keep the last good answer to each server read in IndexedDB (`snapshots` store, `src/lib/offlineSnapshot.ts`) and serve it only when the server cannot be reached: the Altar field and strands, the rollups the Ascent reads, the ledger's matters/refs/encounters, the Life Map, and the Pages markings and subjects. Windowed entry reads fall back to the local entries cache. The Lamp already derived its map from local entries when offline. Live answers always win; snapshots are owner-stamped and scrubbed on sign-out.
 
 ### Verifying
 
-`supabase/tests/gather_engine.test.sql` exercises both migrations against a throwaway Postgres (the settle window, the mid-gather edit, the give-up count, the idempotent harvest write). `api/_lib/gatherEngine.test.ts`, `derive.test.ts` and `processing.test.ts` cover the TypeScript side with the SQL functions as doubles.
+`supabase/tests/entry_reads.test.sql` covers the read-aware queue and stamp (flag off is the old queue, the backfill, re-queue on edit, give-up). `supabase/tests/gather_engine.test.sql` exercises both earlier migrations against a throwaway Postgres (the settle window, the mid-gather edit, the give-up count, the idempotent harvest write). `api/_lib/gatherEngine.test.ts`, `derive.test.ts` and `processing.test.ts` cover the TypeScript side with the SQL functions as doubles.
 
 Token lines to grep: `altar_harvest`, `gather_gate`, `concordance_extract`, `declared_tag`, and `embed` (embeddings were not logged before).
 
@@ -107,7 +130,8 @@ Token lines to grep: `altar_harvest`, `gather_gate`, `concordance_extract`, `dec
 - **Gather engine** — the dirty-and-settled scheduler above (`GATHER_ENGINE`). Decides which entries are read and when; the harvest variant is still chosen by `GATHER_MODE`.
 - **Pending / ready** — `gathered_hash` ≠ `body_hash`; ready once also past the settle window.
 - **Settle window** — minutes an entry must sit untouched before it is read (`GATHER_SETTLE_MINUTES`, default 30).
-- **Cue** — `HARVEST_CUE` regex prefilter. Today's default.
+- **Cue** — `HARVEST_CUE` regex prefilter. The default until 2026-10-04; now `GATHER_MODE=cue`.
 - **Gate** — batched prayer/sense yes/no before span harvest.
 - **Span harvest** — production `HARVEST_PROMPT` extraction (`harvestBatch`).
 - **tight-denial** — 14 tight emotion definitions, plus a `denied` field the model fills before `emotions`.
+- **The read** — the stored entry read (`entry_reads`, `GATHER_READ`). The playground endpoint `api/keeping/read.ts` runs the same read against the same vocabulary but stores nothing.

@@ -180,6 +180,7 @@ const chunk = (over: Record<string, unknown> = {}) => ({
   failed: 0,
   givenUp: 0,
   modelSkipped: 0,
+  readStored: 0,
   planted: 1,
   merged: 2,
   derived: { items: 0, refs: 0, foreign: 0 },

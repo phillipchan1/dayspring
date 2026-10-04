@@ -22,6 +22,7 @@
     "regen": "tsx scripts/regen.ts",
     "support:manifest": "tsx scripts/export-support-manifest.ts",
     "eval:recognition": "tsx scripts/recognition-eval.ts",
+    "gather:read-dry": "tsx scripts/gather-read-dry.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

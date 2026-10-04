@@ -11,6 +11,7 @@ const KEYS = [
   'GATHER_SENTIMENT',
   'GATHER_ENGINE',
   'GATHER_SETTLE_MINUTES',
+  'GATHER_READ',
 ] as const
 
 function restore(saved: Record<string, string | undefined>): void {
@@ -81,10 +82,10 @@ describe('Gather flags', () => {
     }
   }
 
-  it('defaults gatherMode to cue and gatherSentiment to v2', () => {
+  it('defaults gatherMode to gate and gatherSentiment to tight-denial', () => {
     isolate()
-    expect(env.gatherMode()).toBe('cue')
-    expect(env.gatherSentiment()).toBe('v2')
+    expect(env.gatherMode()).toBe('gate')
+    expect(env.gatherSentiment()).toBe('tight-denial')
   })
 
   it('parses known values and falls unknown values back to the defaults', () => {
@@ -101,6 +102,11 @@ describe('Gather flags', () => {
 
     process.env.GATHER_MODE = 'luna'
     process.env.GATHER_SENTIMENT = 'tight'
+    expect(env.gatherMode()).toBe('gate')
+    expect(env.gatherSentiment()).toBe('tight-denial')
+
+    process.env.GATHER_MODE = ' CUE '
+    process.env.GATHER_SENTIMENT = 'V2'
     expect(env.gatherMode()).toBe('cue')
     expect(env.gatherSentiment()).toBe('v2')
   })
@@ -125,6 +131,17 @@ describe('gather engine flags', () => {
     }
     process.env.GATHER_ENGINE = ' ON '
     expect(env.gatherEngine()).toBe(true)
+  })
+
+  it('stores the read only when GATHER_READ is exactly "on"', () => {
+    isolate()
+    expect(env.gatherRead()).toBe(false)
+    for (const v of ['true', '1', 'yes', '']) {
+      process.env.GATHER_READ = v
+      expect(env.gatherRead()).toBe(false)
+    }
+    process.env.GATHER_READ = ' On '
+    expect(env.gatherRead()).toBe(true)
   })
 
   it('settles for 30 minutes by default, and ignores a nonsense override', () => {

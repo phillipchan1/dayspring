@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   entryTextForKeeping,
-  KEEPING_READ_VERSION,
   KEEPING_READ_VERSION_TIGHT,
   keepingReadSchema,
   keepingReadSystem,
@@ -276,7 +275,7 @@ describe('sanitizeKeepingRead', () => {
   })
 })
 
-describe('gatherSentiment tight-denial', () => {
+describe('gatherSentiment: tight-denial default, v2 by flag', () => {
   const saved: string | undefined = process.env.GATHER_SENTIMENT
 
   afterEach(() => {
@@ -312,11 +311,11 @@ describe('gatherSentiment tight-denial', () => {
       [],
     )
     expect(result.movements[0]?.sentiment.emotions.map((e) => e.emotion)).toEqual(['weariness'])
-    expect(result.version).toBe(KEEPING_READ_VERSION)
+    expect(result.version).toBe(KEEPING_READ_VERSION_TIGHT)
   })
 
-  it('puts denied before emotions in the schema only when flagged', () => {
-    delete process.env.GATHER_SENTIMENT
+  it('puts denied before emotions in the schema unless GATHER_SENTIMENT=v2', () => {
+    process.env.GATHER_SENTIMENT = 'v2'
     const off = keepingReadSchema() as {
       properties: { movements: { items: { properties: { sentiment: { properties: Record<string, unknown>; required: string[] } } } } }
     }
@@ -335,8 +334,8 @@ describe('gatherSentiment tight-denial', () => {
     expect(sent.required.indexOf('denied')).toBeLessThan(sent.required.indexOf('emotions'))
   })
 
-  it('puts the tight definitions in the prompt only when flagged', () => {
-    delete process.env.GATHER_SENTIMENT
+  it('puts the tight definitions in the prompt unless GATHER_SENTIMENT=v2', () => {
+    process.env.GATHER_SENTIMENT = 'v2'
     const off = keepingReadSystem()
     expect(off).toContain('Use joy for happy/glad/delighted')
     expect(off).not.toContain('gladness or delight the writer feels')

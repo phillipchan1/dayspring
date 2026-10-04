@@ -9,19 +9,27 @@
 // their input.
 
 import { createHash } from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./supabaseAdmin.js', () => ({ supabaseAdmin: vi.fn() }))
 vi.mock('./derive.js', () => ({ deriveEntries: vi.fn() }))
 vi.mock('./altar.js', () => ({ embedEntries: vi.fn(), harvestEntries: vi.fn() }))
 vi.mock('./concordance.js', () => ({ scanConcordanceEntries: vi.fn() }))
+vi.mock('./entryRead.js', () => ({ readEntries: vi.fn() }))
 
 import { supabaseAdmin } from './supabaseAdmin.js'
 import { deriveEntries } from './derive.js'
 import { embedEntries, harvestEntries } from './altar.js'
 import { scanConcordanceEntries } from './concordance.js'
+import { readEntries } from './entryRead.js'
 import { writerWords } from './writerWords.js'
-import { GATHER_MAX_ATTEMPTS, gatherChunk, planEntry, type PendingEntry } from './gatherEngine.js'
+import {
+  GATHER_MAX_ATTEMPTS,
+  GATHER_PER_TICK_READ,
+  gatherChunk,
+  planEntry,
+  type PendingEntry,
+} from './gatherEngine.js'
 
 const md5 = (s: string) => createHash('md5').update(s, 'utf8').digest('hex')
 
@@ -85,6 +93,37 @@ describe('planEntry', () => {
       embed: false,
     })
   })
+
+  it('never asks for the read unless it is on', () => {
+    expect(planEntry(entry('a', 'I was so tired today.')).read).toBe(false)
+    expect(planEntry(entry('a', 'I was so tired today.'), { read: true }).read).toBe(true)
+  })
+
+  it('an archive queued only for its read runs only the read — nothing else is re-billed', () => {
+    const body = 'Lord, keep her safe tonight. I was so tired.'
+    // cut over by the migration: gathered, but no words hash and no read yet
+    const e = edited('a', body, body, { gathered_words_hash: null, read_words_hash: null })
+    expect(planEntry(e, { read: true })).toMatchObject({
+      harvest: false,
+      concordance: false,
+      embed: false,
+      read: true,
+    })
+  })
+
+  it('a current read is not read again; a stale one is', () => {
+    const body = 'I was so tired today.'
+    const current = edited('a', body, body, { read_words_hash: md5(writerWords(body)) })
+    expect(planEntry(current, { read: true }).read).toBe(false)
+    const stale = edited('a', 'I was tired.', body, { read_words_hash: md5(writerWords('I was tired.')) })
+    expect(planEntry(stale, { read: true })).toMatchObject({ harvest: true, read: true })
+  })
+
+  it('a fence-only edit leaves a current read alone', () => {
+    const was = 'I was so tired today.'
+    const e = edited('a', was, was + VERSE, { read_words_hash: md5(writerWords(was)) })
+    expect(planEntry(e, { read: true }).read).toBe(false)
+  })
 })
 
 function mockSb(pending: PendingEntry[], givenUp = 0) {
@@ -116,6 +155,7 @@ const ids = (calls: unknown[][], arg: number) =>
   calls.map((c) => (c[arg] as { id: string }[]).map((e) => e.id))
 
 beforeEach(() => {
+  vi.mocked(readEntries).mockReset().mockResolvedValue({ read: 0, failedIds: [] })
   vi.mocked(deriveEntries).mockReset().mockResolvedValue({ items: 0, refs: 0, foreign: 0 })
   vi.mocked(embedEntries).mockReset().mockResolvedValue(undefined)
   vi.mocked(harvestEntries).mockReset().mockResolvedValue(harvestOk())
@@ -213,5 +253,82 @@ describe('gatherChunk', () => {
     expect(out.read).toBe(0)
     expect(deriveEntries).not.toHaveBeenCalled()
     expect(stamps).toEqual([])
+  })
+})
+
+describe('gatherChunk with GATHER_READ=on', () => {
+  const saved = process.env.GATHER_READ
+  beforeEach(() => {
+    process.env.GATHER_READ = 'on'
+  })
+  afterEach(() => {
+    if (saved === undefined) delete process.env.GATHER_READ
+    else process.env.GATHER_READ = saved
+  })
+
+  it('asks the queue for read work, in smaller ticks', async () => {
+    const rpc = vi.fn((name: string) => Promise.resolve({ data: name === 'gather_pending_entries' ? [] : 0, error: null }))
+    vi.mocked(supabaseAdmin).mockReturnValue({ rpc } as never)
+
+    await gatherChunk('owner', { settleMinutes: 30, source: 'repetition' })
+
+    expect(rpc.mock.calls[0]).toEqual([
+      'gather_pending_entries',
+      { p_owner: 'owner', p_settle: '30 minutes', p_limit: GATHER_PER_TICK_READ, p_read: true },
+    ])
+  })
+
+  it('backfills an already-gathered archive with the read alone, and stamps the read hash', async () => {
+    const body = 'Lord, keep her safe tonight. I was so tired.'
+    const e = edited('a', body, body, { gathered_words_hash: null, read_words_hash: null })
+    const { stamps } = mockSb([e])
+    vi.mocked(readEntries).mockResolvedValue({ read: 1, failedIds: [] })
+
+    const out = await gatherChunk('owner', { settleMinutes: 30, source: 'repetition' })
+
+    expect(harvestEntries).not.toHaveBeenCalled()
+    expect(scanConcordanceEntries).not.toHaveBeenCalled()
+    expect(embedEntries).toHaveBeenCalledWith('owner', [])
+    expect(ids(vi.mocked(readEntries).mock.calls, 2)).toEqual([['a']])
+    const words = md5(writerWords(body))
+    expect(vi.mocked(readEntries).mock.calls[0]?.[2]?.[0]?.wordsHash).toBe(words)
+    expect(stamps[0]).toEqual([{ id: 'a', body_hash: e.body_hash, words_hash: words, read_hash: words, ok: true }])
+    expect(out).toMatchObject({ gathered: 1, readStored: 1, modelSkipped: 0 })
+  })
+
+  it('a new page is harvested, extracted and read in the same pass', async () => {
+    const { stamps } = mockSb([entry('a', 'Lord, one. I felt afraid.')])
+    vi.mocked(readEntries).mockResolvedValue({ read: 1, failedIds: [] })
+
+    await gatherChunk('owner', { settleMinutes: 30, source: 'repetition' })
+
+    expect(harvestEntries).toHaveBeenCalledTimes(1)
+    expect(scanConcordanceEntries).toHaveBeenCalledTimes(1)
+    expect(readEntries).toHaveBeenCalledTimes(1)
+    expect(stamps[0]![0]).toMatchObject({ id: 'a', ok: true, read_hash: expect.any(String) })
+  })
+
+  it('a failed read counts an attempt like any failed step', async () => {
+    const { stamps } = mockSb([entry('a', 'Lord, one.'), entry('b', 'Lord, two.')])
+    vi.mocked(readEntries).mockResolvedValue({ read: 1, failedIds: ['b'] })
+
+    const out = await gatherChunk('owner', { settleMinutes: 30, source: 'repetition' })
+
+    expect(stamps[0]!.map((r) => [r.id, r.ok])).toEqual([
+      ['a', true],
+      ['b', false],
+    ])
+    // read_hash still travels on the failed row: it is what lets the stamp give
+    // the read up at the cap instead of re-queuing it every minute
+    expect(stamps[0]![1]).toMatchObject({ read_hash: expect.any(String) })
+    expect(out).toMatchObject({ failed: 1, readStored: 1 })
+  })
+
+  it('a read-only backfill whose every read fails is an outage, not a verdict', async () => {
+    const body = 'I was so tired.'
+    mockSb([edited('a', body, body, { read_words_hash: null })])
+    vi.mocked(readEntries).mockResolvedValue({ read: 0, failedIds: ['a'] })
+
+    await expect(gatherChunk('owner', { settleMinutes: 30, source: 'repetition' })).rejects.toThrow(/all 1 entries/)
   })
 })

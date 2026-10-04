@@ -627,6 +627,13 @@
 .story__write:hover, .story__write.is-solid { background: var(--ascent-gold); color: var(--bg); }
 .story__write:disabled { opacity: 0.6; cursor: default; }
 
+/* what your words carried — reuses the alive rows; only the month marks are new */
+.felt__note { margin: -4px 0 0; font-size: 13px; color: color-mix(in srgb, var(--ledger-ink) 50%, transparent); }
+.felt__name { font-size: 18px; }
+.felt__months { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.felt__month { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em; color: color-mix(in srgb, var(--ledger-ink) 22%, transparent); }
+.felt__month[data-on] { color: var(--ascent-gold); }
+
 /* month: what's alive */
 .alive__row { display: grid; grid-template-columns: minmax(120px, 30%) 1fr; gap: 20px; padding: 16px 0; border-top: 1px solid color-mix(in srgb, var(--ledger-ink) 10%, transparent); }
 .alive__name { font-family: var(--font-serif); font-size: 19px; color: var(--story-ink); }

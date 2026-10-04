@@ -246,8 +246,8 @@ describe('harvestPrayers / harvestPlan — cue vs gate', () => {
     else process.env.GATHER_MODE = mode
   }
 
-  it('flag off keeps the cue prefilter and 6-entry span batches', async () => {
-    isolateMode(undefined)
+  it('GATHER_MODE=cue keeps the cue prefilter and 6-entry span batches', async () => {
+    isolateMode('cue')
     const cueNeg = {
       id: 'neg',
       created_at: '2026-01-05T12:00:00.000Z',
@@ -363,8 +363,8 @@ describe('harvestPrayers / harvestPlan — cue vs gate', () => {
   // dedupe. Two readers of the same unscanned entries — the daily cron and an
   // import's altar_harvest job, or one run retried after its stamp failed — each
   // inserted, and the tagger was billed for every duplicate line.
-  for (const mode of [undefined, 'gate'] as const) {
-    it(`two runs over the same unscanned entries plant each prayer once (${mode ?? 'cue'})`, async () => {
+  for (const mode of ['cue', 'gate'] as const) {
+    it(`two runs over the same unscanned entries plant each prayer once (${mode})`, async () => {
       isolateMode(mode)
       const entries = Array.from({ length: 3 }, (_, i) => ({
         id: `e${i}`,
@@ -391,7 +391,7 @@ describe('harvestPrayers / harvestPlan — cue vs gate', () => {
   }
 
   it('a re-read drops the passage the harvest no longer returns and keeps the rest', async () => {
-    isolateMode(undefined)
+    isolateMode('cue')
     const entry = {
       id: 'e',
       created_at: '2026-01-05T12:00:00.000Z',
@@ -417,7 +417,7 @@ describe('harvestPrayers / harvestPlan — cue vs gate', () => {
   // REGRESSION (job that never ends): a failed cue batch returned 0 and nothing
   // else, so a run that read nothing was indistinguishable from a quiet success.
   it('counts the entries a failed model call left unread, and does not stamp them', async () => {
-    isolateMode(undefined)
+    isolateMode('cue')
     const quiet = { id: 'quiet', created_at: '2026-01-05T12:00:00.000Z', body_markdown: 'Bought milk.' }
     const prayers = Array.from({ length: 7 }, (_, i) => ({
       id: `p${i}`,

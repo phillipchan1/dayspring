@@ -73,3 +73,8 @@ begin
     end if;
   end loop;
 end $$;
+
+-- auth.uid() stand-in, so a migration's RLS policy can be created. The fixture
+-- runs as a superuser, so policies are never enforced here — only defined.
+create or replace function auth.uid() returns uuid
+language sql stable as $$ select '00000000-0000-0000-0000-000000000001'::uuid $$;

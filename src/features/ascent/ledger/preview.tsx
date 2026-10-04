@@ -11,6 +11,8 @@
  *   ?__preview=ledger&light=1         daybreak
  *   ?__preview=ledger&through=6       the open year, seen from the end of June
  *   ?__preview=ledger&open=<label>    a thread opened on arrival
+ *   ?__preview=ledger&tab=season      a climb view (week | month | season | year | dots)
+ *   ?__preview=ledger&reads=0         as a writer with no stored reads (the felt section hides)
  *
  * DEV-only — main.tsx gates it behind `import.meta.env.DEV`.
  */
@@ -28,6 +30,7 @@ import { monthEnd } from './build'
 import { seasonOf } from './seasons'
 import { newIn, photosIn } from './extras'
 import { setLedgerPreviewInput } from './load'
+import type { ReadInput } from './felt'
 import { isLightTheme, type ThemeId } from '@/lib/resolveTheme'
 import '@/styles/themes.css'
 import '../Ascent.css'
@@ -179,9 +182,51 @@ function synthetic(): LedgerInput {
   return { entries, matters, names, refs, markings: [], encounters }
 }
 
+/**
+ * What the stored read might find on the synthetic year — phrase → emotion,
+ * with the phrase as its verbatim evidence, as the read's sanitizer requires.
+ * A stand-in for entry_reads only; the read itself is never run here.
+ */
+const FELT: [string, string, number][] = [
+  ['Still angry', 'anger', 0.8],
+  ["I don't know what to do with it", 'confusion', 0.6],
+  ['I rehearsed the whole conversation', 'stress', 0.6],
+  ['More tests next week', 'fear', 0.5],
+  ['Please.', 'fear', 0.7],
+  ["I don't know how to say that out loud yet", 'fear', 0.5],
+  ['My hands were shaking', 'fear', 0.6],
+  ['felt more like myself than I have in two years', 'joy', 0.8],
+  ['I cried in the parking lot', 'joy', 0.7],
+  ['for a week I forgot to be afraid', 'peace', 0.6],
+  ['could not stop crying', 'longing', 0.6],
+  ["I'm trying to borrow his", 'longing', 0.5],
+  ['Grandma Ruth died this morning', 'grief', 0.9],
+  ['She prayed for me every day of my life', 'grief', 0.7],
+  ['Waiting.', 'stress', 0.4],
+  ["Didn't feel the heat I expected to", 'peace', 0.5],
+  ['Clear. I said it out loud four times', 'joy', 0.9],
+  ["I think I've forgiven Tom", 'peace', 0.7],
+  ["I didn't have to be brave about it", 'gratitude', 0.5],
+  ['Thank you.', 'gratitude', 0.8],
+  ["I'll miss it over Christmas", 'longing', 0.5],
+  ['No sleep again', 'weariness', 0.6],
+  ['Slept badly', 'weariness', 0.5],
+]
+
+function syntheticReads(entries: LedgerInput['entries']): ReadInput[] {
+  return entries.flatMap((e) => {
+    const emotions = FELT.filter(([phrase]) => e.body_markdown.includes(phrase)).map(([quote, emotion, intensity]) => ({
+      emotion,
+      intensity,
+      quote,
+    }))
+    return emotions.length ? [{ entryId: e.id, emotions }] : []
+  })
+}
+
 function Harness({ light }: { light: boolean }) {
   const input = synthetic()
-  setLedgerPreviewInput(input)
+  setLedgerPreviewInput(input, params0().get('reads') === '0' ? [] : syntheticReads(input.entries))
   const params = new URLSearchParams(window.location.search)
   const [tab, setTab] = useState(params.get('tab') ?? 'year')
   const through = new Date().getUTCMonth() + 1
@@ -229,6 +274,8 @@ function Harness({ light }: { light: boolean }) {
     </div>
   )
 }
+
+const params0 = () => new URLSearchParams(window.location.search)
 
 export function renderLedgerPreview(): void {
   const host = document.getElementById('root')
