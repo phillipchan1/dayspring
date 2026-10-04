@@ -58,6 +58,8 @@ function makeLookable(el: HTMLElement, label: string, open: () => void): void {
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return
     e.preventDefault()
+    // The page around it opens to write on Enter; this Enter is the photo's.
+    e.stopPropagation()
     open()
   })
 }

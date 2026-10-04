@@ -112,11 +112,16 @@ export function PhotoViewer({ photos, index, onIndex, onClose, onCaption, captio
         return
       }
       if (typing) return
+      // The arrows are the viewer's while it is open. Stopped here, in capture,
+      // or the reader underneath hears them too and turns its page behind the
+      // photo — so closing it lands on a different entry.
       if (e.key === 'ArrowRight') {
         e.preventDefault()
+        e.stopPropagation()
         go(at + 1)
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
+        e.stopPropagation()
         go(at - 1)
       }
     }
@@ -141,6 +146,8 @@ export function PhotoViewer({ photos, index, onIndex, onClose, onCaption, captio
       // The surface underneath has its own back-swipe, armed by a touch that
       // reaches it. This is a portal, and React carries events through portals,
       // so they are stopped here: while a photo is open, a swipe turns photos.
+      // A trackpad's sideways swipe is a wheel, and the reader turns pages on it.
+      onWheel={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
