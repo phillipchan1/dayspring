@@ -10,12 +10,34 @@
   position: relative;
 }
 
-/* On a phone the trigger is a tab, so it stacks and centres like its siblings. */
+/* On a phone the trigger is a tab, so it takes a tab's cell and stacks and
+   centres like its siblings (`.mobile-tab`): an equal share of the bar, the
+   same 50px, the same gap and the same mono label. It was a 44px button at the
+   end, 62px from Altar where the tabs are 80px apart. */
+.you--bar {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
 .you--bar .you__trigger {
   flex-direction: column;
-  gap: 3px;
-  padding: 6px 10px;
-  width: auto;
+  justify-content: center;
+  gap: 0.22rem;
+  min-height: 50px;
+  padding: 0.3rem 0.2rem;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.you--bar .you__initial {
+  width: 22px;
+  height: 22px;
+}
+.you--bar .you__label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  line-height: 1;
 }
 
 

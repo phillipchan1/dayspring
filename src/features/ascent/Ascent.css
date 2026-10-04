@@ -660,6 +660,11 @@
 }
 .ascent-mountain {
   width: 100%;
+  /* Its 600×320 drawing at the size it was drawn for, give or take. On a
+     wide column (iPad landscape, the Mac) it grew to ~1000px across and taller
+     than the screen, pushing the year's one line below the fold. */
+  max-width: 640px;
+  margin-inline: auto;
   height: auto;
   overflow: visible;
   display: block;
@@ -1268,6 +1273,10 @@
 @media (min-width: 768px) {
   /* Room at the foot of the rail for the two steps, under the Week station. */
   .ascent-rail { padding-bottom: 104px; }
+}
+@media (pointer: coarse) and (min-width: 768px) {
+  /* …and for the same two at a finger's 44px (see the touch block below). */
+  .ascent-rail { padding-bottom: 124px; }
 }
 /* --ascent-ink-rgb is the night ink and daybreak never redefines it, so the
    light palette names its own — without this the steps were white on dawn. */
@@ -2228,6 +2237,11 @@
     min-height: 44px;
     padding: 12px 20px;
   }
+  /* ↑ Month / ↓ Week were 26px pills on an iPad; the rail's foot grows to
+     keep both clear of the Week station above them. */
+  .ascent-rail__step {
+    min-height: 44px;
+  }
   /* A four-character year in mono is a 26px target on a rail fifteen years
      long. Widen the row rather than the type. */
   .ascent-years__year {
@@ -2272,8 +2286,15 @@
 @media (min-width: 768px) {
   .ascent--framed {
     display: grid;
-    grid-template-columns: 128px minmax(0, 1fr);
+    /* 152, not the rail's own 128: the station you are on reads "Sep 28 –
+       Oct 4", which ran 13px past a 128px rail and its frosted label sat over
+       the first letters of the climb ("YO|UR WORDS"). */
+    grid-template-columns: 152px minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
+  }
+  .ascent--framed > .ascent-rail {
+    width: 152px;
+    flex-basis: 152px;
   }
   .ascent--framed > .frame-bar {
     grid-column: 1 / -1;

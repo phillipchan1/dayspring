@@ -200,6 +200,30 @@ export function ScriptureView({ onOpenEntry }: Props) {
   // true thing the Lamp can show rather than silently narrowing to a year.
   const season = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
 
+  /*
+   * The chosen range, in view. On a phone the row scrolls and the default —
+   * This year, fourth of five — opened under the fade at the right edge, so
+   * the one thing the row is for (which range am I looking at?) was the thing
+   * it hid. The row's own scroll, never `scrollIntoView`, which would also
+   * scroll the page to it.
+   */
+  // A callback ref, not an effect on a ref: the row is not in the DOM on the
+  // first render (the surface opens on its loading state), so an effect keyed
+  // on the season ran once against nothing and never again.
+  const seasonsRef = useCallback(
+    (row: HTMLDivElement | null) => {
+      const chip = row?.querySelector<HTMLElement>('[data-on="true"]')
+      if (!row || !chip) return
+      const fade = 40
+      const r = row.getBoundingClientRect()
+      const c = chip.getBoundingClientRect()
+      if (c.right > r.right - fade) row.scrollLeft += c.right - (r.right - fade)
+      else if (c.left < r.left) row.scrollLeft -= r.left - c.left
+    },
+    // Not read inside: a new identity is what re-runs it when the range changes.
+    [season.id],
+  )
+
   useEffect(() => {
     const cacheKey = `scripture:canon:${windowCacheKey(season.window)}`
     const cached = getCache<Awaited<ReturnType<typeof loadScriptureCanonPage>>>(cacheKey)
@@ -317,7 +341,7 @@ export function ScriptureView({ onOpenEntry }: Props) {
             </div>
           )}
 
-          <div className="scripture__seasons" role="group" aria-label="Time range">
+          <div ref={seasonsRef} className="scripture__seasons" role="group" aria-label="Time range">
             {seasons.map((s) => (
               <button
                 key={s.id}

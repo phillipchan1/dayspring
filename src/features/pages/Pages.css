@@ -695,7 +695,10 @@ button.pg__sense-q:hover {
   flex-direction: column;
   justify-content: center;
   gap: 0.1rem;
-  padding: 1rem 0.55rem 1rem 0;
+  /* The foot stops above the appearance control docked in this corner
+     (`.focus-controls--docked`, 1.25rem up and ~2.3rem tall) — at 1rem the
+     moon was drawn straight through the oldest year. */
+  padding: 1rem 0.55rem 4.25rem 0;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
@@ -5727,9 +5730,11 @@ button.pg__sense-q:hover {
   }
 
   /* The page's own top padding is the bar's now, or the date sits too far down
-     the screen to be the first thing on it. */
+     the screen to be the first thing on it. 1.5rem rather than 0.9: at 0.9 the
+     date's accent rule sat 14px under the bar's hairline, close enough to read
+     as part of the bar. */
   .pg-read1__page {
-    padding-block-start: 0.9rem;
+    padding-block-start: 1.5rem;
   }
 
   /*
@@ -5786,10 +5791,12 @@ button.pg__sense-q:hover {
     background: color-mix(in srgb, var(--accent) 9%, transparent);
   }
 
+  /* The same height as Back and Write beside them — 34px discs in a row of
+     42px pills read as two sizes of control. Width stays a thumb's, not more. */
   .pg__step,
   .pg__more {
-    inline-size: 2.15rem;
-    block-size: 2.15rem;
+    inline-size: 2.3rem;
+    block-size: 2.6rem;
     border-color: var(--border);
   }
 
@@ -5806,9 +5813,19 @@ button.pg__sense-q:hover {
      — and it has to keep hugging the right edge when it does. The adjacency rule
      that spaces it from `Write` sets a fixed start margin, which on a line of
      its own left it stranded at the left margin looking like a mistake. */
+  /*
+   * Right-aligned whether or not it wraps — by the row, not by a second auto
+   * margin. An auto margin here AND on Write split the free space between
+   * them whenever the row did fit (an iPad mini, a wide phone), which left
+   * Write and its menu floating in the middle of the bar.
+   */
+  .pg__through {
+    justify-content: flex-end;
+  }
+
   .pg__write + .pg__through-nav,
   .pg__more + .pg__through-nav {
-    margin-inline-start: auto;
+    margin-inline-start: 0.2rem;
   }
 
   /* The tab bar and both floating controls sit over the reader — the last
@@ -6141,3 +6158,57 @@ mark.read-drawn {
 }
 mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
 .read-scripture__own { font-style: italic; color: var(--text-faint); }
+
+/*
+ * ══ The wall's bar, for a finger (wide AND coarse) ═══════════════════════
+ *
+ * At the end for the same reason the narrow block is: the volumes toggle is
+ * declared above, and a media query adds no specificity.
+ *
+ * The reader and the editor have a 44px row on an iPad; the wall's controls
+ * were a pointer's 29px, so its row was 15px shorter and the top of the screen
+ * jumped 5px every time a page was opened or closed. The same row now, and
+ * the two controls that were barely targets at all — the 24px "a page at
+ * random" glyph and the 14px 1m / 6m / 1y — get a finger's area without
+ * getting any louder.
+ */
+@media (pointer: coarse) and (min-width: 768px) {
+  .pg__head-tools {
+    min-block-size: var(--frame-bar-row);
+  }
+
+  .pg-look__open {
+    min-block-size: var(--frame-bar-row);
+    padding-inline: 0.9rem 1rem;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* 2px of padding and a 1px border either side of the buttons. */
+  .pg-volumes button {
+    min-block-size: calc(var(--frame-bar-row) - 6px);
+    padding-inline: 0.95rem;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .pg-look__somewhere {
+    justify-content: center;
+    min-inline-size: var(--frame-bar-row);
+    min-block-size: var(--frame-bar-row);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .pg-stretch__preset {
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .pg-stretch__preset::after {
+    content: '';
+    position: absolute;
+    inset: -14px -3px;
+  }
+}

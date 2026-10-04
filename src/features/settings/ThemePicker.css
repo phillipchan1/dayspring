@@ -130,6 +130,7 @@
 
 /* The one on screen right now. */
 .voice-row[data-active='true'][data-selected='true'] .voice-row__blurb::after {
-  content: ' · now';
+  /* No-break spaces: "·" ending one line and "now" starting the next. */
+  content: '\00a0·\00a0now';
   color: var(--text-faint);
 }

@@ -161,7 +161,9 @@ export function MobileJournal(props: JournalViewProps) {
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            padding: 'max(0.5rem, env(safe-area-inset-top)) 0.75rem 0.5rem',
+            // 1.25rem sides, the same reading margin as the page below, so the
+            // date in the bar starts on the edge the first line does.
+            padding: 'max(0.5rem, env(safe-area-inset-top)) 1.25rem 0.5rem',
             borderBottom: '1px solid var(--border-subtle)',
           }}
         >
