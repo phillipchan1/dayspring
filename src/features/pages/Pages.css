@@ -4084,45 +4084,6 @@ button.pg__sense-q:hover {
   margin-inline-start: 0.35rem;
 }
 
-/*
- * A wide screen with no fine pointer to hover it — an iPad, whether or not it
- * currently has a trackpad paired. Clicking the page itself does nothing on a
- * coarse pointer (see the `touch` note in PageReader.tsx), which makes Write
- * the ONLY way in, and it was styled like the desktop's secondary link: dim
- * text with no container, correct beside a cursor that can hover it, invisible
- * beside a finger that cannot. `(min-width: 768px)` is deliberately outside
- * the `max-width: 767px` block below, which already gives Write this same
- * weight on a phone — this is the gap in between: wide AND coarse.
- */
-@media (pointer: coarse) and (min-width: 768px) {
-  .pg__back,
-  .pg__write {
-    min-block-size: 2.6rem;
-    padding-inline: 0.7rem;
-    font-size: 0.86rem;
-    border-color: var(--border);
-    background: var(--bg-elevated);
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-
-  .pg__write {
-    color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
-    background: color-mix(in srgb, var(--accent) 9%, transparent);
-  }
-
-  /* On a touch screen with no right-click this button is the ONLY way to the
-     page's menu, so it is a touch target, not a stepper's disc. */
-  .pg__more {
-    inline-size: 2.6rem;
-    block-size: 2.6rem;
-    border-color: var(--border);
-    background: var(--bg-elevated);
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-}
 
 /* Pushed to the end of the row, so the position never moves as chips come and
    go — it is the one thing here you reach for repeatedly. */
@@ -4184,6 +4145,111 @@ button.pg__sense-q:hover {
 .pg__more:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/*
+ * A wide screen with no fine pointer to hover it — an iPad, whether or not it
+ * currently has a trackpad paired. Clicking the page itself does nothing on a
+ * coarse pointer (see the `touch` note in PageReader.tsx), which makes Write
+ * the ONLY way in, and it was styled like the desktop's secondary link: dim
+ * text with no container, correct beside a cursor that can hover it, invisible
+ * beside a finger that cannot. `(min-width: 768px)` is deliberately outside
+ * the `max-width: 767px` block below, which already gives Write this same
+ * weight on a phone — this is the gap in between: wide AND coarse.
+ */
+@media (pointer: coarse) and (min-width: 768px) {
+  /*
+   * One height for everything in the row — the frame's row, which is a 44px
+   * target here (global.css) — and one size of type. Back and Write were
+   * 2.6rem pills at 13.8px beside a 12.5px count and 25px stepper discs: three
+   * scales in one line, which is what made the bar look assembled rather than
+   * drawn. The steppers keep no disc (they are the quiet end of the bar) but
+   * get the full target and a glyph a finger can find.
+   */
+  .pg__back,
+  .pg__write {
+    min-block-size: var(--frame-bar-row);
+    font-size: var(--bar-size);
+    border-color: var(--border);
+    background: var(--bg-elevated);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Optically even: the glyph side sits a little tighter than the word side,
+     because a chevron or a nib carries its own air. */
+  .pg__back {
+    gap: 0.45rem;
+    padding: 0 1rem 0 0.75rem;
+  }
+
+  .pg__write {
+    gap: 0.45rem;
+    padding: 0 1.05rem 0 0.85rem;
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+  }
+
+  .pg__back svg,
+  .pg__write svg {
+    inline-size: 14px;
+    block-size: 14px;
+  }
+
+  /* On a touch screen with no right-click this button is the ONLY way to the
+     page's menu, so it is a touch target, not a stepper's disc — and the same
+     height as Write beside it, so the two read as one group. */
+  .pg__more {
+    inline-size: var(--frame-bar-row);
+    block-size: var(--frame-bar-row);
+    color: var(--bar-ink);
+    border-color: var(--border);
+    background: var(--bg-elevated);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .pg__more svg {
+    inline-size: 16px;
+    block-size: 16px;
+  }
+
+  .pg__step {
+    inline-size: var(--frame-bar-row);
+    block-size: var(--frame-bar-row);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .pg__step svg {
+    inline-size: 14px;
+    block-size: 14px;
+  }
+
+  /* The last chevron's glyph, not its 44px target, lines up with the frame's
+     edge — the same edge "All entries" starts on — so the bar is as wide on
+     the right as it is on the left. */
+  .pg__through-nav {
+    gap: 0;
+    margin-inline-end: calc((14px - var(--frame-bar-row)) / 2);
+  }
+
+  .pg__through-at {
+    padding-inline: 0.15rem;
+  }
+
+  /* Write and its menu are one group (what you can do to THIS page); the
+     position is another (where it sits in the archive). The gap between groups
+     is wider than the gap inside one, so the row reads as two phrases. */
+  .pg__through {
+    column-gap: 0.5rem;
+  }
+
+  .pg__write + .pg__through-nav,
+  .pg__more + .pg__through-nav {
+    margin-inline-start: 0.5rem;
+  }
 }
 
 /* The count is a fact now, not a control — it lost its link to the years. */
@@ -5141,50 +5207,28 @@ button.pg__sense-q:hover {
 /*
  * ── When the rail comes off the side ────────────────────────────────────────
  *
- * 72.5rem, and the number is arithmetic rather than taste.
- *
  * The page box is centred and capped at the measure plus its own gutters, and
  * the rail hangs in whatever slack is left over — it takes no part in the
  * centring, so that opening the editor cannot pull the prose sideways. That
- * costs something: the slack is `(window − measure − 2 gutters) / 2`, and
- * nothing was checking it was ever enough. At the old 60rem the rail simply ran
- * off the right-hand edge — verses cut mid-word from about 960px to 1100px,
- * which is an ordinary half-screen window.
+ * costs something: the slack has to be checked, or the rail runs off the
+ * right-hand edge with its words cut mid-word.
  *
- * The rail needs `2.25rem` of gap, `11rem` of column and a gutter of its own
- * past the measure, so it fits from `measure + 30.5rem`. At the default 42rem
- * measure that is 72.5rem. Below it the rail goes under the writing instead.
- *
- * KNOWN LIMIT: the measure is the writer's own setting (32–60rem) and a media
- * query cannot read it, so a measure wider than the default still wants a wider
- * window than this before the rail truly fits. Making it exact for every
- * setting means the rail joins the centring and the prose moves — which is the
- * trade this file has already refused once.
+ * It used to be checked with a viewport query (72.5rem = the default 42rem
+ * measure + 30.5rem), which could see neither the app's rail eating the left of
+ * the screen nor a measure wider than the default. On an iPad in landscape
+ * with a wide measure that said "fits", and the colophon was cut to "Pasadena,
+ * Los Ang". The reader now measures the real room (see `marginUnder` in
+ * PageReader) and says so with `data-margin='under'`; below it the rail goes
+ * under the writing instead.
  */
-@media (max-width: 72.5rem) {
-  /*
-   * With the margin column gone there is nothing to balance the page against,
-   * so the whole block centres instead of hanging at the left edge with a hand
-   * of slack on the right. The cap is the measure plus its own padding, so the
-   * date and the first line still start at the same place — which is the thing
-   * the measure was pinned for.
-   */
-  .pg-read1__page {
-    max-inline-size: calc(var(--editor-max-width) + 2 * var(--read-gutter));
-  }
-
-  .pg-read1__cols {
-    display: block;
-  }
-
-  .pg-read1__margin {
-    position: static;
-    inline-size: auto;
-    border-inline-start: none;
-    border-block-start: 1px solid var(--border-subtle);
-    padding-inline-start: 0;
-    padding-block-start: 1rem;
-  }
+.pg-read1__page[data-margin='under'] .pg-read1__margin {
+  position: static;
+  inline-size: auto;
+  margin-block-start: 2rem;
+  border-inline-start: none;
+  border-block-start: 1px solid var(--border-subtle);
+  padding-inline-start: 0;
+  padding-block-start: 1rem;
 }
 
 /*
