@@ -5673,8 +5673,10 @@ button.pg__sense-q:hover {
    * and with a border you can see. These were transparent-bordered text buttons
    * — correct beside a cursor that can hover them, invisible on a phone.
    */
+  /* One line on a 390pt phone and wider (a 375pt one still wraps, cleanly,
+     to two right-aligned rows) — measured, with a few pixels to spare. */
   .pg__through {
-    gap: 0.4rem 0.2rem;
+    gap: 0.4rem 0.4rem;
   }
 
   /*
@@ -5791,22 +5793,67 @@ button.pg__sense-q:hover {
     background: color-mix(in srgb, var(--accent) 9%, transparent);
   }
 
-  /* The same height as Back and Write beside them — 34px discs in a row of
-     42px pills read as two sizes of control. Width stays a thumb's, not more. */
-  .pg__step,
+  /*
+   * The way out, drawn the way a phone draws one: a chevron and the place it
+   * goes, no pill. Four outlined shapes across 350pt read as a row of buttons
+   * jammed together; this leaves two (Write, and its menu), gives the width
+   * back as space between the groups, and puts the chevron on the page's own
+   * left edge. Still the pills' 2.6rem to hit — the target was never the
+   * border — and it says where it goes exactly as before.
+   */
+  .pg__back {
+    gap: 0.3rem;
+    padding-inline: 0 0.4rem;
+    color: var(--text);
+    border-color: transparent;
+    background: none;
+  }
+
+  .pg__back:active {
+    color: var(--text-bright);
+  }
+
+  .pg__back svg {
+    inline-size: 15px;
+    block-size: 15px;
+  }
+
+  /*
+   * Two groups, the way the iPad bar reads, not five bordered shapes.
+   *
+   * What you can do to THIS page — Write and its menu — and where it sits in
+   * the archive — ‹ 10 of 3,039 ›. The menu is a circle the height of the
+   * pills beside it (a 2.3rem-wide, 2.6rem-tall "disc" was an oval). The
+   * steppers carry no disc at all: three outlined shapes in a row for one
+   * position read as three controls, and crowded the count between them.
+   * Bare, they keep the full 2.6rem height to hit and give their width back.
+   */
   .pg__more {
-    inline-size: 2.3rem;
+    inline-size: 2.6rem;
     block-size: 2.6rem;
     border-color: var(--border);
   }
 
+  /* 28px wide and the pills' full height to hit; the 14px glyph is centred,
+     so the count still has 7px of air either side of it. */
+  .pg__step {
+    inline-size: 1.75rem;
+    block-size: 2.6rem;
+    border-color: transparent;
+  }
+
+  .pg__step svg {
+    inline-size: 14px;
+    block-size: 14px;
+  }
+
   .pg__through-at {
-    font-size: 0.72rem;
-    padding-inline: 0.1rem;
+    font-size: 0.8rem;
+    padding-inline: 0;
   }
 
   .pg__through-nav {
-    gap: 0.05rem;
+    gap: 0;
   }
 
   /* Three touch-sized controls do not fit one phone line, so the position wraps
@@ -5823,9 +5870,11 @@ button.pg__sense-q:hover {
     justify-content: flex-end;
   }
 
+  /* The bare chevron's own air is the rest of the gap between the groups. */
   .pg__write + .pg__through-nav,
   .pg__more + .pg__through-nav {
-    margin-inline-start: 0.2rem;
+    margin-inline-start: 0.1rem;
+    margin-inline-end: -0.45rem;
   }
 
   /* The tab bar and both floating controls sit over the reader — the last
