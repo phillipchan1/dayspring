@@ -112,8 +112,10 @@ export function renderSurface(shot: Shot) {
       return (
         <Canvas>
           <div
-            className="ascent"
-            style={{ '--a0': summit.air[0], '--a1': summit.air[1] } as React.CSSProperties}
+            // The capture stamps <html data-appearance> before rendering; a light
+            // palette needs the Ascent's daybreak tokens, not the night's.
+            className={`ascent${document.documentElement.dataset.appearance === 'light' ? ' ascent--light' : ''}`}
+            data-altitude={summit.key}
           >
             <div className="ascent-air" aria-hidden />
             <div className="ascent-scroll">

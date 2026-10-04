@@ -24,10 +24,6 @@ export interface AltitudeMeta {
   title: string
   /** One-line description of what this altitude is and who makes the meaning. */
   line: string
-  /** Air gradient [top-sky, bottom-warm] — night at the Valley, gold toward the Summit. */
-  air: [string, string]
-  /** Light-theme (dawn) air ramp — pale daybreak warming to golden morning. */
-  airLight: [string, string]
   /** The quiet app-voice footnote under the altitude's content. */
   voice: string
   /** Tone class for the voice line ('quiet' dims it; 'ask' tints it gold). */
@@ -42,8 +38,6 @@ export const ALTITUDES: AltitudeMeta[] = [
     alt: 'WEEK',
     title: 'Standing in the days.',
     line: 'Close to the ground — your own words and what you reached for, in the order you lived them. The app only arranges.',
-    air: ['#0d1018', '#141a28'],
-    airLight: ['#eef1f6', '#f7f1e8'],
     voice: 'in order, nothing interpreted yet — you’re close enough to feel them.',
     voiceTone: 'quiet',
   },
@@ -53,8 +47,6 @@ export const ALTITUDES: AltitudeMeta[] = [
     alt: 'MONTH',
     title: 'What you kept returning to.',
     line: 'Step back and the same dimensions resolve at month scale — the lines you kept, the verse you returned to. Named only as a question.',
-    air: ['#10131e', '#1d1f30'],
-    airLight: ['#f0eef4', '#f8f0e3'],
     voice: '↑ the app names what seems to connect — tentatively. Each is yours to rename or wave off.',
   },
   {
@@ -65,8 +57,6 @@ export const ALTITUDES: AltitudeMeta[] = [
     alt: 'SEASON',
     title: 'The season, distilled.',
     line: 'Step back to the season: the phrases you circled, its anchor passage, the prayer and its first signs. The app holds them up and hands them back.',
-    air: ['#15131f', '#2a2233'],
-    airLight: ['#f3eef2', '#faeede'],
     voice: '↑ the app asks; it never answers. These go back to you, and to God — not to a verdict.',
     voiceTone: 'ask',
   },
@@ -76,8 +66,6 @@ export const ALTITUDES: AltitudeMeta[] = [
     alt: 'YEAR',
     title: 'Looking back down the year.',
     line: 'The quietest ground. Your own words and the stones you set — looking back down the trail you climbed. The app nearly disappears.',
-    air: ['#1b1620', '#4a352f'],
-    airLight: ['#faf0e2', '#fbe4c6'],
     voice: '',
   },
 ]

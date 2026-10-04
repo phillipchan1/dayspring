@@ -185,7 +185,6 @@ export function AscentView({ onOpenEntry }: Props) {
   const L = ALTITUDES[idx]!
   const head = ledgerOn ? LEDGER_ALTITUDES[L.key] : { title: L.title, line: L.line }
   const loading = ascent === undefined
-  const air = light ? L.airLight : L.air
 
   const pushDrill = useCallback((next: AscentDrill) => go({ ascentDrill: next }), [go])
   const openScripture = useCallback(
@@ -228,7 +227,9 @@ export function AscentView({ onOpenEntry }: Props) {
       // that draw the Ascent (store shots, the flagship) have no bar and keep
       // the plain row.
       className={`ascent ascent--framed${light ? ' ascent--light' : ''}`}
-      style={{ '--a0': air[0], '--a1': air[1] } as React.CSSProperties}
+      // The sky's colours come from the palette (Ascent.css); this only says how
+      // far up it is.
+      data-altitude={L.key}
     >
       <div className="ascent-air" key={L.key} aria-hidden />
       <div className="ascent-stars" style={{ opacity: 1 - idx / LAST }} aria-hidden />
