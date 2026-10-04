@@ -578,12 +578,12 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     libraryOpen ||
     threadsOpen
   const focus = useFocusMode(focusOverlaysOpen)
-  // The frame fades once the words start (Settle). Desktop pointers only — on
-  // touch there is no pointer to move to bring it back. Focus mode has already
+  // The frame fades once the words start (Settle). The wide layout only — Mac,
+  // web and iPad; the phone layout has no rail to fade. Focus mode has already
   // taken the frame away, and the other surfaces aren't for writing.
   const settle = useSettle(
     settings.settleWhileWriting &&
-      !touchFirst &&
+      !isMobile &&
       !focus.active &&
       !pagesActive &&
       !canvasAlternateActive,
@@ -2198,6 +2198,11 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   useEffect(() => {
     if (saveError) settle.wake()
   }, [saveError, settle])
+
+  // On an iPad, putting the keyboard away is putting the pen down.
+  useEffect(() => {
+    if (!keyboardOpen) settle.wake()
+  }, [keyboardOpen, settle])
 
   async function handleNew() {
     track('entry_started')
