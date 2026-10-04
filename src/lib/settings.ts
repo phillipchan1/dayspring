@@ -101,6 +101,8 @@ export interface Settings {
   // Focus-mode behaviour
   typewriter: boolean // keep the active line vertically centered
   dimming: boolean // fade non-active paragraphs
+  /** Desktop: fade the rail and top bar once you start writing (see useSettle). */
+  settleWhileWriting: boolean
 
   // Editor typography (drive CSS custom props; sliders land in a later checkpoint)
   fontSize: number // px
@@ -264,6 +266,7 @@ export interface Settings {
 const DEFAULTS: Settings = {
   typewriter: true,
   dimming: true,
+  settleWhileWriting: true,
   fontSize: 24,
   lineHeight: 1.7,
   maxWidth: 42,

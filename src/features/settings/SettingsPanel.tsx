@@ -339,6 +339,12 @@ function WritingTab({ settings, update }: { settings: Settings; update: Props['u
       />
       <div className="settings-divider" />
       <Toggle
+        label="Fade the frame while writing"
+        hint="The rail and top bar fade as you type. Move the pointer or press Esc to bring them back."
+        checked={settings.settleWhileWriting}
+        onChange={(v) => update({ settleWhileWriting: v })}
+      />
+      <Toggle
         label="Typewriter scrolling"
         hint="Keep the active line centered (focus mode)"
         checked={settings.typewriter}

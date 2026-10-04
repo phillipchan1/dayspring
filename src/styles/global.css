@@ -1810,7 +1810,7 @@ a {
   backdrop-filter: blur(20px) saturate(var(--glass-saturate));
   border-right: 1px solid var(--glass-border);
   box-shadow: inset -1px 0 0 color-mix(in srgb, var(--glass-edge) 50%, transparent);
-  transition: flex-basis 0.22s ease, max-width 0.22s ease;
+  transition: flex-basis 0.22s ease, max-width 0.22s ease, opacity var(--settle-fade) ease;
 }
 .rail[data-labels='true'] {
   /* Fixed label column sized for "Looking back" — row centered in the rail */
@@ -2363,6 +2363,7 @@ a {
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-1);
+  transition: opacity var(--settle-fade) ease;
 }
 .journal-topbar__lead {
   display: flex;
@@ -2802,6 +2803,33 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
   -webkit-app-region: drag;
   z-index: 5;
   pointer-events: auto;
+}
+
+/* ── Settle: the frame fades once you start writing (useSettle.ts) ─────────
+   Opacity only, never display or width, so the column doesn't move and the
+   line under the caret stays exactly where it was. It leaves slowly and comes
+   back quickly: going away is something that happens to you, and reaching
+   for it should feel answered. */
+:root {
+  --settle-fade: 0.22s;
+}
+html[data-settled] {
+  --settle-fade: 0.7s;
+}
+html[data-settled] .rail,
+html[data-settled] .journal-topbar,
+html[data-settled] .focus-controls--docked {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Tabbing into it is reaching for it. */
+html[data-settled] .rail:focus-within,
+html[data-settled] .journal-topbar:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+html[data-settled] .focus-controls--docked {
+  transition: opacity var(--settle-fade) ease;
 }
 
 /* ── Focus mode floating controls ───────────────────────────────────────── */

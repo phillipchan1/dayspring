@@ -33,6 +33,8 @@ declare global {
       sel: () => { anchor: number; head: number }
       /** Saves completed, and how many of them were played back into the editor. */
       saves: { done: number; echoed: number }
+      /** Times the editor reported the writer changing the page (`onUserInput`). */
+      userInputs: number
     }
   }
 }
@@ -72,6 +74,7 @@ function Harness() {
             docKey="harness"
             initialDoc={content}
             onChange={setContent}
+            onUserInput={() => window.__editor.userInputs++}
             placeholder="Write…"
             bodyPlaceholder="Keep going…"
             autofocus={false}
@@ -93,6 +96,7 @@ window.__editor = {
     return { anchor: m.anchor, head: m.head }
   },
   saves: { done: 0, echoed: 0 },
+  userInputs: 0,
 }
 
 createRoot(document.getElementById('root')!).render(<Harness />)
