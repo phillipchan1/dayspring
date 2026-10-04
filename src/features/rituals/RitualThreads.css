@@ -22,7 +22,10 @@
 .rt__pane {
   max-width: 44rem;
   margin: 0 auto;
-  padding: clamp(2.5rem, 7vh, 5rem) 1.5rem 6rem;
+  /* Clear of the status bar AND of the close disc (safe-area + 8px + 48px):
+     on a short phone 7vh put the title under both, "walked" running beneath
+     the ×. */
+  padding: calc(env(safe-area-inset-top, 0px) + max(clamp(2.5rem, 7vh, 5rem), 4.5rem)) 1.5rem 6rem;
   /* The safe-area inset the rest of the iOS surfaces carry. */
   padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
 }
@@ -50,6 +53,7 @@
   color: var(--pl-muted);
   margin: 0 0 1.75rem;
   max-width: 32rem;
+  text-wrap: pretty;
 }
 
 .rt__sub--tight {

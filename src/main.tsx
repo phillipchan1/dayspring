@@ -97,6 +97,7 @@ async function bootstrap() {
   //   ?__preview=flagship           → the flagship hero image (capture-flagship.mjs)
   //   ?__preview=email-*            → welcome-email GIF scenes (capture-welcome-emails.mjs)
   //   ?__preview=applock*           → app-lock surfaces (features/applock/preview.tsx)
+  //   ?__preview=screens            → every surface in the real shell, any size (features/appstore/screensPreview.tsx)
   //   ?__preview=pages              → the read surface, in a phone frame (features/pages/preview.tsx)
   //   ?__preview=firstlight         → the release-note deck, in any palette (features/firstlight/preview.tsx)
   //   ?__preview=lifemap            → the Life Map against fixtures (features/lifemap/preview.tsx)
@@ -162,6 +163,11 @@ async function bootstrap() {
     if (preview === 'ledger') {
       const { renderLedgerPreview } = await import('./features/ascent/ledger/preview')
       renderLedgerPreview()
+      return
+    }
+    if (preview === 'screens') {
+      const { renderScreensPreview } = await import('./features/appstore/screensPreview')
+      renderScreensPreview()
       return
     }
     if (preview === 'pages') {

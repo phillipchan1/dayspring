@@ -516,7 +516,7 @@ export function AltarView({ onOpenEntry }: Props) {
                 </button>
               ))}
             </div>
-            <div className="altar-chips" role="group" aria-label="Time range">
+            <div className="altar-chips altar-chips--range" role="group" aria-label="Time range">
               {PERIODS.map((p) => (
                 <button
                   key={p.key}

@@ -267,10 +267,13 @@ html[data-platform='desktop'] .welcome-flow__skip {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  max-width: 560px;
+  /* Exactly the card's width — `.welcome-flow__glass` inside the stage's 24px
+     padding — so Next ends on the card's right edge. It used to be a 560px
+     band with 30px of its own padding, which put Next 30px inside the card on
+     an iPad and only lined up on a phone by accident. */
+  width: min(560px, 92vw, 100% - 48px);
   margin: 0 auto;
-  padding: 22px 30px max(30px, env(safe-area-inset-bottom, 0px));
+  padding: 22px 0 max(30px, env(safe-area-inset-bottom, 0px));
 }
 
 .welcome-flow__ghost {
@@ -1026,7 +1029,7 @@ html[data-platform='desktop'] .welcome-flow__skip {
     margin-left: 0;
   }
   .welcome-flow__nav {
-    max-width: min(960px, 90vw);
+    width: min(960px, 90vw);
   }
 }
 
@@ -1107,7 +1110,8 @@ html[data-platform='desktop'] .welcome-flow__skip {
   }
 
   .welcome-flow__nav {
-    padding: 16px 20px max(20px, env(safe-area-inset-bottom, 0px));
+    width: min(560px, 92vw, 100% - 32px);
+    padding: 16px 0 max(20px, env(safe-area-inset-bottom, 0px));
     gap: 12px;
   }
 
