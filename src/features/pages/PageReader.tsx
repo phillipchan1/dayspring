@@ -1,7 +1,7 @@
 import { drawReaderQuotes } from './readerQuotes'
 import { formatDateline } from '@/lib/dateline'
 import { SCRIPTURE_RITUALS } from '@/lib/writerWords'
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { colophonLines, formatColophon } from '@/lib/circumstances'
