@@ -700,8 +700,12 @@
 }
 
 /* Primary actions → the gold "Begin" CTA; ghosts → glass. */
+/* Centred, every one of them: `.btn` is an inline-flex that starts its label
+   at the left, so "Restore purchases" sat flush left under two centred plans. */
 .locked-screen .btn,
 .paywall .btn {
+  justify-content: center;
+  text-align: center;
   border-radius: 22px;
   font-family: var(--font-serif);
   font-weight: 500;
@@ -1272,4 +1276,13 @@ html[data-trial-banner='value'] {
   font-weight: 500;
   color: var(--text);
   letter-spacing: 0;
+}
+
+/* Short centred lines read as a shape; a last word alone on its own line
+   ("whenever you're / ready.") breaks it. Chrome copy only — never the
+   writing, whose breaks must match the editor's. */
+.locked-screen__headline,
+.locked-screen__body,
+.paywall__headline {
+  text-wrap: balance;
 }

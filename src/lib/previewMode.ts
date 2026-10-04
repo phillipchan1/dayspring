@@ -16,7 +16,7 @@
  */
 
 /** Prefixes whose previews must never touch live data. */
-const CAPTURE_PREVIEWS = ['listing-', 'flagship']
+const CAPTURE_PREVIEWS = ['listing-', 'flagship', 'screens']
 
 /** True when the page was opened as one of the marketing capture previews. */
 export function isCapturePreview(): boolean {

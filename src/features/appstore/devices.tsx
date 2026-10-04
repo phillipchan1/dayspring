@@ -33,7 +33,7 @@ const noop = () => {}
 /** Shared with the iPad shots, which render the same shell around a surface. */
 export function journalProps(
   mainSlot: React.ReactNode,
-  active?: Partial<Pick<JournalViewProps, 'reflectionsActive' | 'altarActive' | 'scriptureActive'>>,
+  active?: Partial<Pick<JournalViewProps, 'reflectionsActive' | 'altarActive' | 'scriptureActive' | 'pagesActive'>>,
 ): JournalViewProps {
   return {
     userEmail: 'you@example.com',

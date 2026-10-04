@@ -224,6 +224,8 @@ const primaryButton: React.CSSProperties = {
   justifyContent: 'center',
   width: '100%',
   maxWidth: 260,
+  // A finger's 44pt, which the 11px padding alone came to 39px short of.
+  minHeight: 44,
   padding: '11px 20px',
   borderRadius: 7,
   background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
@@ -244,5 +246,6 @@ const quietButton: React.CSSProperties = {
   fontSize: 12,
   color: 'var(--text-faint)',
   letterSpacing: '0.01em',
-  padding: '6px 8px',
+  minHeight: 44,
+  padding: '6px 12px',
 }

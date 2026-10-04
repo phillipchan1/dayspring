@@ -73,7 +73,8 @@ export function PinField({
       }}
       style={{
         width: '100%',
-        maxWidth: isPin ? 200 : 260,
+        // The same measure as the Open button under it, so the two share edges.
+        maxWidth: 260,
         padding: '12px 16px',
         borderRadius: 7,
         background: 'color-mix(in srgb, var(--text-bright) 4%, transparent)',

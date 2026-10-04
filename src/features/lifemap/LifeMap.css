@@ -54,6 +54,10 @@
   font-weight: 300;
   font-style: italic;
   color: var(--text-dim);
+  /* Its own leading: it inherited `normal`, which in this italic set two lines
+     almost touching wherever the sentence wrapped (every phone, most iPads). */
+  line-height: 1.45;
+  text-wrap: pretty;
   margin: 4px 0 0;
   max-width: 56ch;
 }
