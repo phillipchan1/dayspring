@@ -31,6 +31,22 @@ function shortDate(iso: string): string {
   })
 }
 
+/**
+ * What the margin column needs past the end of the text, in rem: the 2.25rem
+ * gap, the 11rem column, and a 1.5rem gutter of its own so it never sits on
+ * the edge of the screen. Mirrors `.pg-read1__margin` in Pages.css.
+ */
+const MARGIN_NEEDS_REM = 2.25 + 11 + 1.5
+
+/** An element's left edge from layout alone — transforms (a turn, a swipe) ignored. */
+function layoutLeft(el: HTMLElement): number {
+  let x = 0
+  for (let n: HTMLElement | null = el; n; n = n.offsetParent as HTMLElement | null) {
+    x += n.offsetLeft + n.clientLeft
+  }
+  return x
+}
+
 /** How many lines of a neighbour show through at the edge. */
 const EDGE_LINES = 8
 
@@ -205,6 +221,13 @@ export function PageReader({
     [renderedMarkdown, firstLineTitle],
   )
   /*
+   * The same object for the same html. React compares `dangerouslySetInnerHTML`
+   * by identity, so a fresh `{ __html }` on every render rewrote the body on
+   * ANY re-render — wiping the marks, quotes and photos the layout effect below
+   * painted into it, with nothing to put them back (its deps had not changed).
+   */
+  const bodyHtml = useMemo(() => ({ __html: html }), [html])
+  /*
    * The circumstances, twice over, and deliberately in two shapes.
    *
    * `colophon` is still the one-line form, because a photo's verso is one line
@@ -274,6 +297,44 @@ export function PageReader({
       unhydrate?.()
     }
   }, [html, renderedMarkdown, markQuotes, match, inProse, colophon, entry.body_markdown])
+
+  /*
+   * Whether the margin column fits BESIDE the writing, measured rather than
+   * guessed.
+   *
+   * It used to be a viewport query (72.5rem), and a viewport query cannot see
+   * the two things that decide it: the app's own rail, which takes 3–4rem off
+   * the left of every screen, and the writer's measure, which runs 32–60rem.
+   * On an iPad in landscape with a wide measure the query said "fits" and the
+   * column ran off the right-hand edge — "Pasadena, Los Ang" — on exactly the
+   * device where there is no hover or horizontal scroll to get it back.
+   *
+   * So it is asked of the page itself: from the right edge of the text to the
+   * edge of the reader, is there room for the gap, the column and a gutter of
+   * its own? The neighbours' faint leaves are not counted — they never were,
+   * and the column may lie over their edge. Layout offsets, not client rects,
+   * so a page mid-turn or mid-swipe measures where it will land.
+   */
+  const slideRef = useRef<HTMLDivElement>(null)
+  const colsRef = useRef<HTMLDivElement>(null)
+  const [marginUnder, setMarginUnder] = useState(false)
+  useLayoutEffect(() => {
+    const slide = slideRef.current
+    const cols = colsRef.current
+    if (!slide || !cols) return
+    const fit = () => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+      const colsEnd = layoutLeft(cols) + cols.offsetWidth
+      const limit = layoutLeft(slide) + slide.clientWidth
+      setMarginUnder(limit - colsEnd < MARGIN_NEEDS_REM * rem)
+    }
+    fit()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(fit)
+    ro.observe(slide)
+    ro.observe(cols)
+    return () => ro.disconnect()
+  }, [entry.id])
 
   /**
    * What the writer set apart on this page, verbatim, in the margin.
@@ -448,6 +509,7 @@ export function PageReader({
         the animation's `both` fill holds.
       */}
       <div
+        ref={slideRef}
         className="pg-read1__slide"
         style={back.dragX && !back.leaving ? { transform: `translateX(${back.dragX}px)` } : undefined}
       >
@@ -476,6 +538,7 @@ export function PageReader({
              rightward along the wall, so the new page arrives from the right —
              the same direction the gesture that asked for it was going. */
           data-from={cameFrom.current ?? undefined}
+          data-margin={marginUnder ? 'under' : undefined}
           data-entry-row
           onContextMenu={onContextMenu}
           {...asButton}
@@ -520,11 +583,11 @@ export function PageReader({
             )}
           </header>
 
-          <div className="pg-read1__cols">
+          <div ref={colsRef} className="pg-read1__cols">
             <div
               ref={bodyRef}
               className="pg-read1__body markdown-body"
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={bodyHtml}
             />
             {margin.length > 0 || facts.length > 0 ? (
               <aside className="pg-read1__margin" aria-label="Beside this page">

@@ -2183,8 +2183,37 @@ a {
 /* Phones already size entry rows at ≤767px; this lifts the iPad/desktop list
    without shrinking the phone's larger rows. */
 @media (pointer: coarse) and (min-width: 768px) {
+  /*
+   * THE FRAME, for a finger (see `--frame-*` and `--bar-*` on :root).
+   *
+   * The bar's row was a pointer's 2rem while the controls in it grew to a
+   * finger's 44px, so on an iPad the row was whatever its tallest pill
+   * happened to be (2.6rem in the reader, 44px in the editor — the "same bar"
+   * jumped 2px between reading and writing), the hairline sat 9.6px under
+   * pills that had 20px above them, and the type was three sizes at once:
+   * 13.8px on the pills, 12.5px on the count and the date beside them. The row
+   * is the hit target now, the floor gives the line the room the top has, and
+   * the bar is one size again — the one the pills were already at.
+   */
+  :root {
+    --frame-bar-row: 2.75rem;
+    --frame-bar-floor: 1rem;
+    --bar-size: 0.875rem;
+  }
+
   .entry-row {
     min-height: 44px;
+  }
+
+  /* The editor's way back wears the reader's pill, so the two Backs you press
+     in a row are one control on a touch screen too. */
+  .journal-topbar--frame .journal-topbar__back {
+    min-height: var(--frame-bar-row);
+    padding-inline: 0.75rem 1rem;
+    border-color: var(--border);
+    background: var(--bg-elevated);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 }
 
