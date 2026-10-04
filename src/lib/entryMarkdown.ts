@@ -42,6 +42,8 @@ export function isNonTitleLine(line: string): boolean {
     isPracticeTokenLine(t) ||
     t.startsWith('<p class="read-ritual') ||
     t === '```' ||
+    // A photo is an object on the page, not a heading.
+    /^!\[[^\]]*\]\(attachment(?:-pending)?:/.test(t) ||
     isThematicBreak(t)
   )
 }

@@ -308,6 +308,10 @@
 }
 /* The Mac app's overlay title bar puts the traffic lights over this corner —
    the same clearance the journal's own rail keeps (MAC_TRAFFIC_INSET.railTop). */
+/* An iPad draws the composer under its status bar (viewport-fit=cover), and
+   the way back sat ~7pt under the clock. The Mac reports 0 and keeps its
+   traffic-light clearance below. */
+.rc--desk .rc__rail { padding-top: calc(env(safe-area-inset-top, 0px) + 1.4rem); }
 html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 .rc__home {
   align-self: flex-start;
@@ -497,17 +501,25 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
   line-height: 1.5;
   color: var(--text-faint);
 }
-/* Pinned to the foot of the rail; wraps rather than clipping, because a
-   writer's monospace voice runs half again as wide as the serif. */
+/* Pinned to the foot of the rail: the two actions on the left, where they
+   were saved on the right of the same line — one row, not a stack of three
+   lines of equal weight. Wraps rather than clipping, because a writer's
+   monospace voice runs half again as wide as the serif; wrapped, the saved
+   line falls to the left edge under the actions. */
 .rc__rail-foot {
   margin-top: auto;
-  padding-top: 1.1rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1.5rem;
 }
 .rc__rail-tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.2rem 1.1rem;
+  gap: 0.2rem 1.5rem;
 }
 .rc__rail-tools button {
   flex: 0 0 auto;
@@ -522,7 +534,7 @@ html[data-platform='desktop'] .rc__rail { padding-top: 2.85rem; }
 }
 .rc__rail-tools button:hover { color: var(--accent); }
 .rc__saved {
-  margin: 0.5rem 0 0;
+  margin: 0;
   font-size: 0.74rem;
   color: var(--text-faint);
 }
@@ -684,4 +696,26 @@ html:has(.ritual-composer) .entry-context-backdrop--confirm { z-index: 1019; }
 html:has(.chapter-pane--floating) .rc--desk .rc__desk {
   margin-right: min(26rem, 100vw);
   transition: margin-right 0.22s cubic-bezier(0.22, 0.68, 0.36, 1);
+}
+
+/* A finger needs ~44pt; these are small type with a few px of padding. An
+   invisible ::after reaches past each one, so only the target grows and
+   nothing on the leaf moves. */
+@media (pointer: coarse) {
+  .rc--desk .rc__home,
+  .rc--desk .rc__rail-tools button,
+  .rc--desk .rc__ways button,
+  .rc--desk .rc__leaf-ref button,
+  .rc--desk .rc__path--row button {
+    position: relative;
+  }
+  .rc--desk .rc__home::after,
+  .rc--desk .rc__rail-tools button::after,
+  .rc--desk .rc__ways button::after,
+  .rc--desk .rc__leaf-ref button::after,
+  .rc--desk .rc__path--row button::after {
+    content: '';
+    position: absolute;
+    inset: -0.6rem -0.35rem;
+  }
 }

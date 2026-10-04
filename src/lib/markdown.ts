@@ -4,6 +4,7 @@ import { markdownForDisplay, type DisplayOptions } from './entryMarkdown'
 import { revealRitualsForDisplay } from './ritualDisplay'
 import { revealMarkingsForDisplay } from './markingDisplay'
 import { isHighlightColor, NAMED_COLOR_PATTERN, type HighlightColor } from './highlightColors'
+import { setPhotoSetsApart } from './photoSet'
 
 marked.setOptions({
   gfm: true,
@@ -116,7 +117,8 @@ export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
   // Markings first: they are found by character offset, which the ritual pass
   // would shift.
   const shown = revealRitualsForDisplay(revealMarkingsForDisplay(md))
-  const raw = marked.parse(markdownForDisplay(shown, opts), {
+  // A set of photos is its own paragraph, whatever it was written against.
+  const raw = marked.parse(setPhotoSetsApart(markdownForDisplay(shown, opts)), {
     async: false,
   })
   return DOMPurify.sanitize(liftTasks(dropInterTagNewlines(raw)), {

@@ -11,7 +11,8 @@ import './Capture.css'
 
 interface Props {
   anchor: InlinePanelAnchor
-  onBeginUpload: (pendingId: string, alt: string) => void
+  /** Called once with every photo chosen, in order — several land as one set. */
+  onBeginUpload: (items: Array<{ pendingId: string; alt: string }>) => void
   onUploadComplete: (pendingId: string, hash: string, ext: string, alt: string) => void
   onUploadFailed: (pendingId: string) => void
   onClose: () => void
@@ -32,16 +33,18 @@ export function InlineImagePopover({
   const [error, setError] = useState<string | null>(null)
   const busyRef = useRef(false)
 
-  async function handleFile(file: File) {
-    if (busyRef.current) return
-    if (!isImageFile(file)) {
+  async function handleFiles(chosen: File[]) {
+    if (busyRef.current || chosen.length === 0) return
+    // Anything that cannot be a photo is left out; the rest still go in. Only
+    // when nothing is left is there something to say.
+    const files = chosen.filter((file) => isImageFile(file) && file.size <= IMAGE_MAX_BYTES)
+    if (files.length === 0) {
       setPhase('error')
-      setError('Choose a photo (JPEG, PNG, GIF, or WebP)')
-      return
-    }
-    if (file.size > IMAGE_MAX_BYTES) {
-      setPhase('error')
-      setError('Photo must be under 20 MB')
+      setError(
+        chosen.some((file) => !isImageFile(file))
+          ? 'Choose a photo (JPEG, PNG, GIF, or WebP)'
+          : 'Photo must be under 20 MB',
+      )
       return
     }
     if (!supabase) {
@@ -50,35 +53,44 @@ export function InlineImagePopover({
       return
     }
 
-    const pendingId = crypto.randomUUID()
-    const alt = altFromFile(file)
-    const takenAt = takenAtFromFile(file)
+    const pending = files.map((file) => ({
+      pendingId: crypto.randomUUID(),
+      alt: altFromFile(file),
+      file,
+    }))
 
     busyRef.current = true
     setPhase('uploading')
     setError(null)
-    onBeginUpload(pendingId, alt)
+    onBeginUpload(pending.map(({ pendingId, alt }) => ({ pendingId, alt })))
     onClose()
 
     try {
       const ownerId = (await supabase.auth.getUser()).data.user?.id
-      if (!ownerId) throw new Error('Sign in to add photos')
-      const ref = await uploadOrQueue(
-        pendingId,
-        ownerId,
-        file,
-        extFromImageFile(file),
-        alt,
-        takenAt ? { takenAt } : undefined,
-      )
-      // null → no network; the photo is parked in IndexedDB and the pending
-      // block stays put until it uploads. Removing it here is what used to make
-      // a photo added on a bad connection silently disappear.
-      if (ref) onUploadComplete(pendingId, ref.hash, ref.ext, alt)
-    } catch (e) {
-      // Only for a file storage will never accept.
-      onUploadFailed(pendingId)
-      console.warn('[image upload] rejected', e)
+      // One at a time, in the order chosen: each tile fills in as its own upload
+      // lands, and one that fails takes only itself out of the set.
+      for (const { pendingId, alt, file } of pending) {
+        try {
+          if (!ownerId) throw new Error('Sign in to add photos')
+          const takenAt = takenAtFromFile(file)
+          const ref = await uploadOrQueue(
+            pendingId,
+            ownerId,
+            file,
+            extFromImageFile(file),
+            alt,
+            takenAt ? { takenAt } : undefined,
+          )
+          // null → no network; the photo is parked in IndexedDB and the pending
+          // block stays put until it uploads. Removing it here is what used to
+          // make a photo added on a bad connection silently disappear.
+          if (ref) onUploadComplete(pendingId, ref.hash, ref.ext, alt)
+        } catch (e) {
+          // Only for a file storage will never accept.
+          onUploadFailed(pendingId)
+          console.warn('[image upload] rejected', e)
+        }
+      }
     } finally {
       busyRef.current = false
     }
@@ -97,10 +109,10 @@ export function InlineImagePopover({
         ref={inputRef}
         type="file"
         accept="image/*"
+        multiple
         className="command-popover__file-input"
         onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) void handleFile(file)
+          void handleFiles([...(e.target.files ?? [])])
         }}
       />
       <button
@@ -118,15 +130,14 @@ export function InlineImagePopover({
           setDragging(false)
           if (phase === 'uploading') return
           // Use shared helper — handles dt.items (iOS) and dt.files (desktop)
-          const file = imageFilesFromDataTransfer(e.dataTransfer)[0]
-          if (file) void handleFile(file)
+          void handleFiles(imageFilesFromDataTransfer(e.dataTransfer))
         }}
       >
         <span className="command-popover__dropzone-icon" aria-hidden="true">
           {phase === 'uploading' ? '…' : '↓'}
         </span>
         <span className="command-popover__dropzone-text">
-          {phase === 'uploading' ? 'Uploading…' : 'Drop a photo here, or tap to choose'}
+          {phase === 'uploading' ? 'Uploading…' : 'Drop photos here, or tap to choose'}
         </span>
       </button>
       {error && <p className="command-popover__error">{error}</p>}

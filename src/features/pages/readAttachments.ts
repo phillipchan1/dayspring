@@ -7,6 +7,8 @@ import {
   resolveAttachmentDisplayUrl,
   type ImageSize,
 } from '@/lib/attachments'
+import { mountPhotoRows, type PhotoRowsHandle } from '@/lib/photoRowsDom'
+import { formatPhotoSetLine, photoRatio } from '@/lib/photoSet'
 import { supabase } from '@/lib/supabase'
 
 const ATTACHMENT_URL_RE =
@@ -21,12 +23,45 @@ export interface ReadAttachmentDeps {
   resolve: (hash: string, ext: string) => Promise<ResolvedReadAttachment>
 }
 
+/** A photo as the viewer shows it (features/photos/PhotoViewer). */
+export interface ReadLookPhoto {
+  key: string
+  url: string | null
+  caption: string
+  takenAt?: string | undefined
+  color?: string | undefined
+}
+
 export interface ReadAttachmentOptions {
   /**
    * Circumstance line for the first photo that has no writer caption —
    * the verso of a print. Later photos keep their own capture-time line.
    */
   verso?: string | null
+  /**
+   * Called when a photo is tapped: the photo, and the set it was put with.
+   * Without it photos are not interactive at all.
+   */
+  onLook?: (photos: ReadLookPhoto[], index: number) => void
+}
+
+/** Make a photo's box open the viewer — by tap, click, or Return when focused. */
+function makeLookable(el: HTMLElement, label: string, open: () => void): void {
+  el.dataset.look = 'true'
+  el.tabIndex = 0
+  el.setAttribute('role', 'button')
+  el.setAttribute('aria-label', label)
+  el.addEventListener('click', (e) => {
+    e.stopPropagation()
+    open()
+  })
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    // The page around it opens to write on Enter; this Enter is the photo's.
+    e.stopPropagation()
+    open()
+  })
 }
 
 const defaultDeps: ReadAttachmentDeps = {
@@ -92,6 +127,122 @@ function replaceWithFigure(img: HTMLImageElement, size: ImageSize): {
   return { figure, media, caption }
 }
 
+interface ReadPhoto {
+  img: HTMLImageElement
+  hash: string
+  ext: string
+  size: ImageSize
+}
+
+/**
+ * True when a paragraph holds these photos and nothing else — which is what
+ * touching photo lines render as (the `<br>` is the single newline between
+ * them). That paragraph is a set (lib/photoSet.ts).
+ */
+function isPhotoParagraph(p: HTMLElement, photos: ReadPhoto[]): boolean {
+  if (photos.length < 2 || (p.textContent ?? '').trim()) return false
+  const imgs = new Set<Element>(photos.map((photo) => photo.img))
+  return [...p.children].every((child) => child.tagName === 'BR' || imgs.has(child))
+}
+
+/**
+ * Draw a paragraph of photos as rows. The figure and a 4:3 stand-in layout are
+ * installed at once; shapes and URLs settle together and re-flow it one time.
+ */
+function hydratePhotoSet(
+  paragraph: HTMLElement,
+  photos: ReadPhoto[],
+  resolve: ReadAttachmentDeps['resolve'],
+  verso: string | null,
+  isAlive: () => boolean,
+  onLook: ReadAttachmentOptions['onLook'],
+): PhotoRowsHandle {
+  const doc = paragraph.ownerDocument
+  const figure = doc.createElement('figure')
+  figure.className = 'pg-read1__photoset'
+  const rows = doc.createElement('div')
+  rows.className = 'pg-read1__photoset-rows'
+  figure.append(rows)
+
+  const tiles = photos.map(({ img }) => {
+    const alt = img.getAttribute('alt')?.trim() ?? ''
+    const caption = isMeaningfulCaption(alt) ? alt : null
+    const tile = doc.createElement('span')
+    tile.className = 'pg-read1__photoset-tile'
+    tile.dataset.loading = 'true'
+    img.removeAttribute('src')
+    img.className = 'pg-read1__photoset-img'
+    img.alt = caption ?? 'Photo'
+    img.loading = 'lazy'
+    img.draggable = false
+    tile.append(img)
+    if (caption) {
+      const cap = doc.createElement('span')
+      cap.className = 'pg-read1__photoset-caption'
+      cap.textContent = caption
+      tile.append(cap)
+    }
+    return tile
+  })
+
+  // What the viewer is handed. Filled in as the photos resolve; a tap before
+  // then still opens it, on a photo that is still arriving.
+  const look: ReadLookPhoto[] = photos.map(({ img, hash, ext }) => ({
+    key: `${hash}.${ext}`,
+    url: null,
+    caption: img.alt === 'Photo' ? '' : img.alt,
+  }))
+  if (onLook) {
+    tiles.forEach((tile, i) =>
+      makeLookable(tile, look[i]!.caption || `Photo ${i + 1} of ${tiles.length}`, () => onLook(look, i)),
+    )
+  }
+
+  paragraph.replaceWith(figure)
+  const handle = mountPhotoRows(
+    rows,
+    tiles.map((el, i) => ({ el, ratio: photoRatio(), known: false, img: photos[i]!.img })),
+    { rowClass: 'pg-read1__photoset-row' },
+  )
+
+  void Promise.all(
+    photos.map(({ hash, ext }) => resolve(hash, ext).catch(() => ({ url: null, meta: null }))),
+  ).then((results) => {
+    if (!isAlive() || !figure.isConnected) return
+
+    handle.setRatios(
+      results.map(({ meta }) =>
+        meta?.width && meta?.height ? photoRatio(meta.width, meta.height) : null,
+      ),
+    )
+
+    const line = verso ?? formatPhotoSetLine(photos.length, results.map(({ meta }) => meta?.takenAt))
+    const metaLine = doc.createElement('figcaption')
+    metaLine.className = 'pg-read1__photo-meta pg-read1__photoset-meta'
+    metaLine.textContent = line
+    figure.append(metaLine)
+
+    results.forEach(({ url, meta }, i) => {
+      const tile = tiles[i]!
+      const img = photos[i]!.img
+      look[i] = { ...look[i]!, url, takenAt: meta?.takenAt, color: meta?.color }
+      if (meta?.color) tile.style.backgroundColor = meta.color
+      const settle = (state: 'ready' | 'error') => {
+        if (!isAlive()) return
+        delete tile.dataset.loading
+        tile.dataset[state] = 'true'
+      }
+      if (!url) return settle('error')
+      img.addEventListener('load', () => settle('ready'), { once: true })
+      img.addEventListener('error', () => settle('error'), { once: true })
+      img.src = url
+      if (img.complete && img.naturalWidth > 0) settle('ready')
+    })
+  })
+
+  return handle
+}
+
 /**
  * Turn private attachment refs in rendered markdown into stable read figures.
  *
@@ -124,6 +275,9 @@ export function hydrateReadAttachments(
   let firstPhoto = true
   const verso = options.verso?.trim() || null
 
+  // Find the photos first: a set is known by its paragraph, and that has to be
+  // read before any one photo is lifted out of it.
+  const photos: ReadPhoto[] = []
   for (const img of images) {
     const raw = img.getAttribute('src') ?? ''
     const urlMatch = ATTACHMENT_URL_RE.exec(raw)
@@ -151,15 +305,47 @@ export function hydrateReadAttachments(
       }
     }
     if (!attachment) continue
-    const { hash, ext, size } = attachment
+    photos.push({ img, hash: attachment.hash, ext: attachment.ext, size: attachment.size })
+  }
+
+  const byParagraph = new Map<HTMLElement, ReadPhoto[]>()
+  for (const photo of photos) {
+    const p = photo.img.parentElement
+    if (p?.tagName !== 'P') continue
+    byParagraph.set(p, [...(byParagraph.get(p) ?? []), photo])
+  }
+  const inSet = new Set<ReadPhoto>()
+  const setHandles: PhotoRowsHandle[] = []
+  for (const [p, group] of byParagraph) {
+    if (!isPhotoParagraph(p, group)) continue
+    group.forEach((photo) => inSet.add(photo))
+    const leads = firstPhoto && photos[0] === group[0]
+    setHandles.push(
+      hydratePhotoSet(p, group, resolve, leads ? verso : null, () => alive, options.onLook),
+    )
+  }
+
+  for (const photo of photos) {
+    if (inSet.has(photo)) {
+      firstPhoto = false
+      continue
+    }
+    const { img, hash, ext, size } = photo
     const { figure, media, caption } = replaceWithFigure(img, size)
     const isFirstPhoto = firstPhoto
     firstPhoto = false
+
+    const look: ReadLookPhoto = { key: `${hash}.${ext}`, url: null, caption: caption ?? '' }
+    const onLook = options.onLook
+    if (onLook) makeLookable(media, caption ?? 'Photo', () => onLook([look], 0))
 
     void resolve(hash!, ext!)
       .then(({ url, meta }) => {
         if (!alive || !figure.isConnected) return
 
+        look.url = url
+        look.takenAt = meta?.takenAt
+        look.color = meta?.color
         if (meta?.color) {
           figure.style.setProperty('--photo-tint', meta.color)
           media.style.backgroundColor = meta.color
@@ -227,5 +413,6 @@ export function hydrateReadAttachments(
 
   return () => {
     alive = false
+    setHandles.forEach((handle) => handle.destroy())
   }
 }

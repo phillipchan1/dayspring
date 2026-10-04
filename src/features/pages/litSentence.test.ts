@@ -50,4 +50,9 @@ describe('litSentence', () => {
   it('labels a retired kind rather than printing its raw key', () => {
     expect(say({ markings: ['gift'] })).toBe('34 pages marked Gift')
   })
+
+  it('says when photos are lit, after everything else', () => {
+    expect(say({ count: 30, photos: true })).toBe('30 pages with photos')
+    expect(say({ markings: ['prayer'], photos: true })).toBe('34 pages marked Prayer and with photos')
+  })
 })

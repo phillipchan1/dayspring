@@ -11,6 +11,7 @@ import type { KeptSubject } from './keptSubjects'
 import { MARK_KIND } from '@/lib/markKinds'
 import type { PageMarking } from '@/lib/spiritual'
 import type { MarkingChip } from './facets'
+import { seedPhotoLooks } from '@/lib/photoLooks'
 
 /**
  * Dev-only: `?__preview=pages` mounts the read surface with a fixture archive,
@@ -142,6 +143,38 @@ const SCRIPTURE_PAGE: Entry = page(
     '<!-- ritual:end -->',
   ].join('\n'),
 )
+
+/**
+ * `&photos=1`: a few pages carry photos, so the list's prints (D-034) can be
+ * looked at without an account. The hashes are made up, so the colours are
+ * seeded rather than read; the photos themselves never load.
+ */
+const PHOTO_FIXTURE: Record<number, { hash: string; color: string; ratio: number }[]> = {
+  1: [
+    { hash: 'a1'.repeat(32), color: '#6f9fb8', ratio: 4 / 3 },
+    { hash: 'a2'.repeat(32), color: '#8fb3c6', ratio: 4 / 3 },
+    { hash: 'a3'.repeat(32), color: '#c9b48c', ratio: 3 / 4 },
+  ],
+  4: [{ hash: 'b1'.repeat(32), color: '#b8725a', ratio: 3 / 2 }],
+  7: [{ hash: 'c1'.repeat(32), color: '#5f7a4f', ratio: 1 }, { hash: 'c2'.repeat(32), color: '#e4dfcf', ratio: 4 / 3 }],
+  12: [{ hash: 'd1'.repeat(32), color: '#26304a', ratio: 3 / 2 }],
+}
+/** A page that is only a photo, with her caption. */
+const PHOTO_ONLY = { index: 2, hash: 'e1'.repeat(32), color: '#c98a4b', ratio: 4 / 3, caption: 'First fire of the fall' }
+const WITH_PHOTOS = new URLSearchParams(window.location.search).get('photos') === '1'
+if (WITH_PHOTOS) {
+  for (const [i, photos] of Object.entries(PHOTO_FIXTURE)) {
+    const e = RECENT[Number(i)]
+    if (e) e.body_markdown = `${e.body_markdown}\n\n${photos.map((p) => `![](attachment:${p.hash}.jpg)`).join('\n')}`
+  }
+  const only = RECENT[PHOTO_ONLY.index]
+  if (only) only.body_markdown = `![${PHOTO_ONLY.caption}](attachment:${PHOTO_ONLY.hash}.jpg)`
+  seedPhotoLooks(
+    Object.fromEntries(
+      [...Object.values(PHOTO_FIXTURE).flat(), PHOTO_ONLY].map((p) => [p.hash, { color: p.color, ratio: p.ratio }]),
+    ),
+  )
+}
 
 const ENTRIES: Entry[] = [
   ...RECENT,
@@ -339,6 +372,7 @@ function SheetPreview({
             floor={3}
             window={bracket ? BRACKET : null}
             markings={MARKINGS}
+            photos={WITH_PHOTOS ? { key: 'photo', label: 'Photos', count: Object.keys(PHOTO_FIXTURE).length } : null}
             zoom={zoom}
             onZoom={setZoom}
             narrow={!wide}

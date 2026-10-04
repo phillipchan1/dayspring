@@ -23,7 +23,10 @@ import type { Entry } from '@/lib/types'
 import { BlankPageCard, BlankPageRow } from './BlankPage'
 import { PageCard } from './PageCard'
 import { PageRow } from './PageRow'
-import type { FacetIndex } from './facets'
+import { track } from '@/lib/analytics'
+import { FACET_PHOTO, type FacetIndex } from './facets'
+import { pagePhotos, type PagePhoto } from './pagePhotos'
+import { PhotoPeek, type PeekAnchor } from './PhotoPeek'
 import { MARK_KINDS } from '@/lib/markKinds'
 import type { SpiritualItemType } from '@/lib/types'
 import {
@@ -253,6 +256,8 @@ const ROW_COLUMN_GAP = 28
  * so it lasts exactly as long as the session and a relaunch starts at now.
  */
 let wallPlace: { key: string; into: number } | null = null
+/** `photo_peeked` is a yes/no per session, not a hover counter. */
+let peekedThisSession = false
 
 export function PageWall({
   entries,
@@ -457,6 +462,97 @@ export function PageWall({
     },
     [excerptCache, markQuotes, match],
   )
+
+  /**
+   * The photos on each page on screen (D-034), read from its markdown and kept
+   * until the markdown changes, so a row's `photos` prop is the same array from
+   * one scroll frame to the next and its memo holds.
+   */
+  const photoCache = useMemo(() => new Map<string, { body: string; photos: readonly PagePhoto[] }>(), [])
+  const photosFor = useCallback(
+    (entry: Entry): readonly PagePhoto[] => {
+      const body = entry.body_markdown ?? ''
+      const held = photoCache.get(entry.id)
+      if (held && held.body === body) return held.photos
+      const photos = pagePhotos(body)
+      photoCache.set(entry.id, { body, photos })
+      return photos
+    },
+    [photoCache],
+  )
+  /** Any page in the bracket carries a photo, so the rows keep a lane for prints. */
+  const photoLane = rows && (facetIndex.counts.get(FACET_PHOTO) ?? 0) > 0
+
+  /*
+   * The prints, one step closer: hover a row with photos and they rise under it.
+   *
+   * A mouse only. On a phone the long-press is the menu and a tap opens the
+   * page, so there is no gesture left that means "show me without opening",
+   * and the print alone has to be enough. A short delay, so running the pointer
+   * down the list does not strobe photos past the reader.
+   */
+  const [canPeek, setCanPeek] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const update = () => setCanPeek(mq.matches)
+    update()
+    mq.addEventListener?.('change', update)
+    return () => mq.removeEventListener?.('change', update)
+  }, [])
+  const [peek, setPeek] = useState<{ entryId: string; photos: readonly PagePhoto[]; anchor: PeekAnchor } | null>(null)
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const photosForRef = useRef(photosFor)
+  photosForRef.current = photosFor
+  const entriesRef = useRef(entries)
+  entriesRef.current = entries
+  const onPeek = useCallback((entryId: string, row: HTMLElement | null) => {
+    if (peekTimer.current) clearTimeout(peekTimer.current)
+    peekTimer.current = null
+    if (!row) {
+      setPeek(null)
+      return
+    }
+    peekTimer.current = setTimeout(() => {
+      peekTimer.current = null
+      if (!row.isConnected) return
+      const entry = entriesRef.current.find((e) => e.id === entryId)
+      if (!entry) return
+      const photos = photosForRef.current(entry)
+      if (photos.length === 0) return
+      const box = row.getBoundingClientRect()
+      const slot = row.querySelector('.pgr__photos')?.getBoundingClientRect()
+      setPeek({ entryId, photos, anchor: { top: box.top, bottom: box.bottom, right: slot?.right ?? box.right } })
+      if (!peekedThisSession) {
+        peekedThisSession = true
+        track('photo_peeked')
+      }
+    }, 160)
+  }, [])
+  const peekOn = canPeek && rows && !narrow && !covered
+  // Anything that moves the row out from under the pointer, or takes the
+  // reader's attention elsewhere, puts the photos away.
+  useEffect(() => {
+    if (!peek) return
+    const away = () => onPeek(peek.entryId, null)
+    const el = scrollRef.current
+    el?.addEventListener('scroll', away, { passive: true })
+    window.addEventListener('pointerdown', away, true)
+    window.addEventListener('keydown', away, true)
+    window.addEventListener('blur', away)
+    return () => {
+      el?.removeEventListener('scroll', away)
+      window.removeEventListener('pointerdown', away, true)
+      window.removeEventListener('keydown', away, true)
+      window.removeEventListener('blur', away)
+    }
+  }, [peek, onPeek])
+  useEffect(() => {
+    if (!peekOn) onPeek('', null)
+  }, [peekOn, onPeek])
+  useEffect(() => () => {
+    if (peekTimer.current) clearTimeout(peekTimer.current)
+  }, [])
 
   const rowLayout = useMemo(
     () => (rows ? buildWallRows(items, cols, undefined, chooseGrain(items)) : null),
@@ -1216,6 +1312,9 @@ export function PageWall({
              that appeared only on folded rows would step the date column in and
              out down the page, and a column of dates is read down. */
           data-folds={folds ? 'true' : undefined}
+          /* The same rule for the prints: one lane for the whole wall, so they
+             line up down the list and the markings beside them never step. */
+          data-photos={photoLane ? 'true' : undefined}
           aria-multiselectable
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
@@ -1352,6 +1451,8 @@ export function PageWall({
                   currentWeek={currentWeek}
                   echo={item.echo}
                   markings={rowMarkings.get(item.entry.id) ?? EMPTY_KINDS}
+                  photos={photosFor(item.entry)}
+                  onPeek={peekOn ? onPeek : undefined}
                   tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                   onFocus={onCardFocus}
                   onKeyDown={onCardKeyDown}
@@ -1389,6 +1490,7 @@ export function PageWall({
                 context={!item.echo && item.entry.id === menuTargetId}
                 echo={item.echo}
                 markings={rowMarkings.get(item.entry.id)}
+                photos={photosFor(item.entry)}
                 tabIndex={idx === focusIdx || (focusIdx < 0 && idx === 0) ? 0 : -1}
                 onFocus={onCardFocus}
                 onKeyDown={onCardKeyDown}
@@ -1513,6 +1615,7 @@ export function PageWall({
         onAction={(action, bulk) => void handleBulkAction(action, bulk)}
         onRequestDelete={(bulk) => setBulkPhase({ kind: 'confirm', entries: bulk })}
       />
+      {peek && peekOn ? <PhotoPeek key={peek.entryId} photos={peek.photos} anchor={peek.anchor} /> : null}
     </div>
   )
 }

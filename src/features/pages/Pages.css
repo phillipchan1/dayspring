@@ -1207,6 +1207,52 @@ button.pg__sense-q:hover {
   transition: opacity var(--transition);
 }
 
+/*
+ * Photos on a card (D-034) — a step closer than a row, so the photo itself
+ * rather than its colour. One row at the foot of the page, every photo whole,
+ * under her words and above the page's thickness. Until a photo arrives its
+ * colour holds its place, so the card does not jump when it lands.
+ */
+.pgc__photos {
+  flex: none;
+  margin-block: 0.5rem 0.35rem;
+}
+
+/* A page that is only photos gives them the card, her caption beneath. */
+.pgc__photos--whole {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  block-size: 100%;
+  margin: 0;
+}
+
+.pgc__strip .pg-photo {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.pgc__caption {
+  margin: 0;
+  font-family: var(--font-editor);
+  font-size: calc(var(--pg-card-text, 0.86rem) * 0.92);
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text-dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The words' fade, moved up to end above the photos rather than over them. */
+.pgc__cols {
+  position: relative;
+}
+
+.pgc__fade--cols {
+  height: 2.4rem;
+}
+
 /* An echo — a page that rose out of another year. */
 .pgc[data-echo='true'] {
   background: transparent;
@@ -2893,6 +2939,191 @@ button.pg__sense-q:hover {
   block-size: 4px;
   border-radius: 50%;
   opacity: 0.75;
+}
+
+/*
+ * ── the prints (D-034) ────────────────────────────────────────────────────────
+ *
+ * A page's photos, seen from as far back as a row stands: each one a print the
+ * size of a grain of rice, filled with the photo's own average colour. A set
+ * fans. Not a camera glyph: that would be our mark on her page, and the rule for
+ * a page is her words, her date, her markings. A photo she put there passes it.
+ *
+ * One lane for the whole wall (`data-photos` on the grid), never per row, so the
+ * prints make a column the eye can run down for "the one with the sunset", and
+ * the markings beside it hold still. A wall with no photo pays nothing.
+ */
+.pgr__photos {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Empty and off the lane, it takes no room — not even the row's gap. */
+.pgr__photos:empty {
+  display: none;
+}
+
+.pg__grid[data-photos='true'] .pgr__photos {
+  display: inline-flex;
+  inline-size: 1.7rem;
+}
+
+.pgr__prints {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pgr__print {
+  flex: none;
+  inline-size: 11px;
+  block-size: 8px;
+  border-radius: 1px;
+  /* The border of a print, cut from the page behind it, and a hairline to hold
+     a pale photo's edge on a pale page. Never a white mat: on a dark voice that
+     is a column of bright dots, which is louder than anything she wrote. */
+  box-shadow:
+    0 0 0 1.5px var(--bg),
+    0 0 0 2px color-mix(in srgb, var(--text) 24%, transparent);
+}
+
+.pgr__print + .pgr__print {
+  margin-inline-start: -5px;
+}
+
+.pgr__print:nth-child(2) {
+  transform: translateY(-1.5px);
+}
+
+.pgr__print:nth-child(3) {
+  transform: translateY(1px);
+}
+
+/* No colour known yet, or none stored: a photo is here, and we do not guess
+   what it looks like. */
+.pgr__print[data-unknown='true'] {
+  background: color-mix(in srgb, var(--text-faint) 45%, transparent);
+}
+
+.pgr[data-dim='true'] .pgr__print {
+  box-shadow: 0 0 0 1.5px var(--bg);
+}
+
+/* For a screen reader the prints are a clause on the row: ", with 3 photos". */
+.pgr__said {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The prints, one step closer — hover a row on a computer (PhotoPeek.tsx).
+ *
+ * The photos on a print's paper, as rows of equal height, every photo whole
+ * (D-033), and her caption under them if she wrote one. Under the row so the
+ * sentence you are pointing at stays in view.
+ */
+.pg-peek {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.4rem 0.4rem 0.45rem;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent),
+    0 14px 34px color-mix(in srgb, black 22%, transparent),
+    0 2px 6px color-mix(in srgb, black 12%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px) scale(0.985);
+  transform-origin: right top;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.pg-peek[data-on='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+.pg-peek__row {
+  display: flex;
+}
+
+.pg-photo {
+  flex: none;
+  overflow: hidden;
+  border-radius: 1px;
+  /* Until the photo lands, its own colour stands in for it. */
+  background: color-mix(in srgb, var(--text-faint) 30%, transparent);
+}
+
+.pg-photo img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.pg-photo img[data-loaded='true'] {
+  opacity: 1;
+}
+
+/* Her words, so her face — the same rule the reader's captions follow. */
+.pg-peek__caption {
+  margin: 0;
+  max-inline-size: 26rem;
+  padding-inline: 0.1rem;
+  font-family: var(--font-editor);
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--text-dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-peek,
+  .pg-photo img {
+    transition: none;
+  }
+}
+
+/* The same print, as the Photos pill wears it in Look for and on the bar. */
+.pg-print-glyph {
+  flex: none;
+  display: inline-block;
+  inline-size: 10px;
+  block-size: 7.5px;
+  border-radius: 1px;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  box-shadow: 0 0 0 1.25px currentColor;
+}
+
+.pg-held[data-kind='photo'] {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--text-bright, var(--text));
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-color: color-mix(in srgb, var(--text) 24%, transparent);
+}
+
+.pg-pill--photo[data-on='true'] {
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  border-color: color-mix(in srgb, var(--text) 32%, transparent);
+}
+
+.pg-pill--photo[data-on='true'] .pg-pill__hit {
+  color: var(--text-bright, var(--text));
 }
 
 /* The way back to what you were writing, never more than a glance away. */
@@ -4735,8 +4966,78 @@ button.pg__sense-q:hover {
   color: var(--text-faint);
 }
 
+/* A set: touching photo lines, drawn as rows (lib/photoSet.ts). Tile sizes and
+   the row wrappers come from mountPhotoRows; this is only the skin, and it
+   matches the editor's so a set reads back the way it was written. */
+.pg-read1__photoset {
+  display: block;
+  margin: 0.6rem 0 1rem;
+  line-height: 1;
+}
+
+.pg-read1__photoset-tile {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg-input);
+  box-shadow: inset 0 0 0 1px rgba(20, 12, 4, 0.07);
+}
+
+.pg-read1__photoset-img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.pg-read1__photoset-tile[data-ready='true'] .pg-read1__photoset-img {
+  opacity: 1;
+}
+
+.pg-read1__photoset-caption {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  padding: 1.1rem 0.5rem 0.35rem;
+  background: linear-gradient(to top, rgba(15, 10, 5, 0.66), transparent);
+  color: #fff8ec;
+  font-family: var(--font-editor);
+  font-style: italic;
+  font-size: 0.62em;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pg-read1__photoset-meta {
+  inline-size: auto;
+  min-inline-size: 0;
+  margin-block-start: 0.45rem;
+  text-align: center;
+}
+
+/* A photo that opens in the viewer says so. */
+.pg-read1__photo-media[data-look='true'],
+.pg-read1__photoset-tile[data-look='true'] {
+  cursor: zoom-in;
+}
+
+.pg-read1__photo-media[data-look='true']:focus-visible,
+.pg-read1__photoset-tile[data-look='true']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pg-read1__photo-img {
+  .pg-read1__photo-img,
+  .pg-read1__photoset-img {
     transition: none;
   }
 }
@@ -4877,6 +5178,18 @@ button.pg__sense-q:hover {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+  }
+
+  /* The one thing in the prose a finger does need: a photo opens in the viewer.
+     A photo is not running text, so WebKit's text recogniser never takes the
+     touch and the back-swipe still works across it. A caption printed on a
+     tile is text, so it stays out of hit-testing with the prose around it. */
+  .pg-read1__body.markdown-body [data-look='true'] {
+    pointer-events: auto;
+  }
+
+  .pg-read1__body.markdown-body .pg-read1__photoset-caption {
+    pointer-events: none;
   }
 }
 
@@ -5264,6 +5577,45 @@ button.pg__sense-q:hover {
   .pgr__margin {
     grid-area: margin;
     justify-self: end;
+  }
+
+  /* On the facts line, at the end — a print is a fact about the page from this
+     distance. A thumb gets no hover, so the colour has to carry it alone; a
+     touch larger than a pointer's. */
+  .pgr__photos {
+    display: none;
+  }
+
+  /* A fourth column only on a wall that has a photo somewhere, so a writer who
+     never adds one keeps the facts line exactly as it was. */
+  .pg__grid[data-photos='true'] .pgr {
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas:
+      'date today margin photos'
+      'line line line line';
+  }
+
+  .pg__grid[data-photos='true'] .pgr[data-echo='true'] {
+    grid-template-areas:
+      'date echo margin photos'
+      'line line line line';
+  }
+
+  .pg__grid[data-photos='true'] .pgr__photos {
+    display: inline-flex;
+    grid-area: photos;
+    justify-self: end;
+    inline-size: auto;
+    min-inline-size: 1.5rem;
+  }
+
+  .pgr__print {
+    inline-size: 13px;
+    block-size: 9.5px;
+  }
+
+  .pgr__print + .pgr__print {
+    margin-inline-start: -6px;
   }
 
   /*

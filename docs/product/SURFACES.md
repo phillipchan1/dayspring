@@ -40,7 +40,10 @@ thing that came out of it.)*
 - **Answers:** *(all personas, daily)* — the reason they open the app at all.
 - **Serves:** P3 (sacred writing surface). **Risks:** nothing, if kept clean.
 - **State:** ✅ Shipped, mature. CodeMirror 6, focus mode, typewriter scrolling,
-  paragraph dimming, themes, fonts, offline-first with outbox sync.
+  paragraph dimming, themes, fonts, offline-first with outbox sync. **Settle**
+  (desktop, on by default): once you type, the rail and top bar fade where they
+  stand and a pointer move or Esc brings them back — Diarly's ⌘N-to-focus feel
+  without a mode (`useSettle.ts`, prototype in `docs/prototypes/new-entry-focus.html`).
 - **Audit:** *Has anything been added to the editor since last review that adds latency
   or chrome?* This surface degrades by accretion, one reasonable addition at a time.
 
@@ -74,7 +77,9 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   underline, emphasis, quote, marks) · scripture facet parsed client-side · previews that
   show the line that made the page light up · "only these" · interleaved anniversary
   pages · month rules down the scroll · the Spread (two-up, marginalia, shared-element
-  zoom) · Open somewhere · month fold · natural-language filter configuration (D-019).
+  zoom) · Open somewhere · month fold · natural-language filter configuration (D-019) ·
+  **prints** — a page's photos as small prints in their own colour on a row, the photos
+  on hover and on a card, and Photos in Look for (D-034).
 - **Why it sits under Write:** it is a way of looking at your *entries*, not a fifth thing
   to return to — so the rail still shows four ways back. It obeys the Return rule anyway:
   you go there to see, never to do.
@@ -83,6 +88,8 @@ Inline commands (`/pray`, `/sense`, `/scripture`, `/image`), voice dictation, ha
   the activity grid to someone in a dry season.* `longestSilence` is the first thing to cut.
   And the D-019 test: *ask it something, then look at the chips.* If the chips regularly
   need correcting, the sentence box goes back to being a word box.
+  The D-034 test: *find the day you photographed something without hovering.* If the
+  colours don't lead you there, the prints go and Photos in Look for stays.
 
 ---
 

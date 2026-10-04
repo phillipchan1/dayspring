@@ -8,6 +8,14 @@ import {
   PENDING_ATTACHMENT_REF_RE,
   type ImageSize,
 } from '@/lib/attachments'
+import {
+  canJoinAbove,
+  isPhotoLine,
+  photoPlacement,
+  planInsertBeside,
+  planPlaceBeside,
+} from '@/lib/photoSet'
+import { minimalDocChange } from './minimalDocChange'
 
 export interface AttachmentEditTarget {
   hash: string
@@ -16,6 +24,22 @@ export interface AttachmentEditTarget {
   size: ImageSize
   from: number
   to: number
+  /** Present when the photo is one of several in a set. */
+  set?: { index: number; count: number }
+  /** True when only blank lines separate it from the photos above. */
+  joinsAbove?: boolean
+}
+
+/** Say where a photo sits among its neighbours, for the options menu. */
+export function withPhotoPlacement(doc: string, target: AttachmentEditTarget): AttachmentEditTarget {
+  const here = photoPlacement(doc, target.from)
+  if (!here) return target
+  const count = here.run.refs.length
+  return {
+    ...target,
+    ...(count > 1 ? { set: { index: here.index, count } } : {}),
+    joinsAbove: canJoinAbove(doc, target.from),
+  }
 }
 
 /** Resolve the attachment ref under `pos`, if any. */
@@ -96,6 +120,15 @@ export function planAttachmentMove(
 
   if (toPos >= delFrom && toPos <= delTo) return null
 
+  // Dropped back onto the set it came from. The block resolves to one position
+  // (its edge), which says nothing about where among the photos it was dropped,
+  // so moving it would only pop it out above or below. Leave it where it is.
+  const here = photoPlacement(doc, from)
+  if (here && here.run.refs.length > 1) {
+    const first = here.run.refs[0]!
+    if (toPos >= first.lineFrom && toPos <= here.run.to) return null
+  }
+
   const md = formatAttachmentMarkdown(hash, ext, alt, size)
   const before = doc.slice(0, toPos)
   const after = doc.slice(toPos)
@@ -146,9 +179,6 @@ export function replaceWithPendingInView(
     changes: { from, to, insert: formatPendingAttachmentMarkdown(pendingId, alt) },
   })
 }
-
-const ATTACHMENT_LINE_RE =
-  /^\s*!\[[^\]]*\]\((?:attachment:[a-f0-9]{64}\.[a-z0-9]+(?:\?size=[smf])?|attachment-pending:[a-f0-9-]{36})\)\s*$/
 
 /** Wrap an attachment markdown line with newlines so it sits on its own block. */
 export function wrapBlockAttachmentInsert(
@@ -251,7 +281,13 @@ export function splitInlineAttachments(doc: string): string | null {
   return out.join('\n')
 }
 
-/** Ensure blank lines surround lines that contain only an attachment ref. */
+/**
+ * Ensure blank lines stand between a photo line and any writing beside it.
+ *
+ * Two photo lines that touch are left touching: that is a set (lib/photoSet.ts),
+ * and this runs over the whole entry whenever a photo is inserted, so padding
+ * them apart here would quietly split every set the entry holds.
+ */
 export function padIsolatedAttachmentLines(doc: string): string | null {
   const lines = doc.split('\n')
   const out: string[] = []
@@ -259,19 +295,19 @@ export function padIsolatedAttachmentLines(doc: string): string | null {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
-    if (!ATTACHMENT_LINE_RE.test(line)) {
+    if (!isPhotoLine(line)) {
       out.push(line)
       continue
     }
 
     const prev = out[out.length - 1]
     const next = lines[i + 1]
-    if (prev !== undefined && prev !== '' && out.length > 0) {
+    if (prev !== undefined && prev !== '' && !isPhotoLine(prev)) {
       changed = true
       out.push('')
     }
     out.push(line)
-    if (next !== undefined && next !== '' && i + 1 < lines.length) {
+    if (next !== undefined && next !== '' && !isPhotoLine(next)) {
       changed = true
       out.push('')
     }
@@ -309,7 +345,12 @@ export function attachmentBlockNormalizeExtension(): Extension {
     // Compose normalization onto tr's changes so we return a single changeset.
     // [tr, { changes }] crashes because CM expects the second spec's positions
     // relative to the original doc, but ours reference tr.newDoc.
-    const normCS = ChangeSet.of([{ from: 0, to: doc.length, insert: normalized }], doc.length)
+    //
+    // Only the span that actually differs is replaced. A whole-document replace
+    // maps every position in the entry onto its edge, so the caret and any
+    // selection collapsed to the end of the entry whenever a photo landed.
+    const diff = minimalDocChange(doc, normalized)!
+    const normCS = ChangeSet.of([diff], doc.length)
     const baseSel = tr.selection ?? tr.startState.selection.map(tr.changes)
     return {
       changes: tr.changes.compose(normCS),
@@ -379,7 +420,12 @@ export function imageFilesFromClipboard(dt: DataTransfer): File[] {
   return files
 }
 
-/** Insert multiple uploaded images at one position (single atomic change). */
+/**
+ * Insert several uploaded images at one position, as one change.
+ *
+ * Their lines touch, so photos that arrive together are one set
+ * (lib/photoSet.ts). One photo is a set of one and reads exactly as before.
+ */
 export function insertBlockAttachmentsAt(
   view: EditorView,
   pos: number,
@@ -393,7 +439,7 @@ export function insertBlockAttachmentsAt(
   const after = doc.slice(clamped)
   const combinedMd = items
     .map(({ hash, ext, alt }) => formatAttachmentMarkdown(hash, ext, alt))
-    .join('\n\n')
+    .join('\n')
   const insert = wrapBlockAttachmentInsert(clamped, doc.length, before, after, combinedMd)
 
   view.dispatch({
@@ -404,7 +450,10 @@ export function insertBlockAttachmentsAt(
   return clamped + insert.length
 }
 
-/** Insert pending placeholders immediately — shows uploading state in the editor. */
+/**
+ * Insert pending placeholders immediately — shows uploading state in the editor.
+ * Several at once land on touching lines: one set, in the order given.
+ */
 export function insertBlockPendingAttachmentsAt(
   view: EditorView,
   pos: number,
@@ -418,7 +467,7 @@ export function insertBlockPendingAttachmentsAt(
   const after = doc.slice(clamped)
   const combinedMd = items
     .map(({ id, alt }) => formatPendingAttachmentMarkdown(id, alt))
-    .join('\n\n')
+    .join('\n')
   const insert = wrapBlockAttachmentInsert(clamped, doc.length, before, after, combinedMd)
 
   view.dispatch({
@@ -427,6 +476,50 @@ export function insertBlockPendingAttachmentsAt(
   })
   view.focus()
   return clamped + insert.length
+}
+
+/** Pending placeholders dropped onto a photo: they join its set, before or after it. */
+export function insertPendingBesideInView(
+  view: EditorView,
+  targetFrom: number,
+  after: boolean,
+  items: Array<{ id: string; alt: string }>,
+  focus = true,
+): void {
+  const edit = planInsertBeside(
+    view.state.doc.toString(),
+    targetFrom,
+    after,
+    items.map(({ id, alt }) => formatPendingAttachmentMarkdown(id, alt)),
+  )
+  if (!edit) return
+  view.dispatch({
+    changes: { from: edit.from, to: edit.to, insert: edit.insert },
+    selection: { anchor: edit.caret },
+  })
+  if (focus) view.focus()
+}
+
+/**
+ * A photo dragged onto another photo: move it beside that one, into its set.
+ * `key` names the photo being dragged; the first ref with that key moves.
+ */
+export function placeAttachmentBeside(
+  view: EditorView,
+  key: string,
+  targetFrom: number,
+  after: boolean,
+): void {
+  const doc = view.state.doc.toString()
+  const source = findAttachmentByKey(doc, key)
+  if (!source) return
+  const edit = planPlaceBeside(doc, source.from, targetFrom, after)
+  if (!edit) return
+  view.dispatch({
+    changes: { from: edit.from, to: edit.to, insert: edit.insert },
+    selection: { anchor: edit.caret },
+  })
+  view.focus()
 }
 
 export function findPendingAttachmentRange(

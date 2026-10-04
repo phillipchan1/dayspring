@@ -68,6 +68,40 @@ react, react-dom, @supabase/supabase-js, codemirror + @codemirror/* (state/view/
 
 ---
 
+## Editor regression checklist
+
+Run before **every merge that touches the editor**: anything in `src/editor/`, the
+`<Editor>` props or the content/autosave/sync flow in `JournalScreen`, a
+`@codemirror/*` version, or `e2e/`. The rule behind it: CodeMirror's state is the
+one source of truth for the text and the caret, the DOM is only a picture of it,
+and input goes through CodeMirror's transactions — never raw `keydown` plus
+hand-made DOM edits.
+
+**Automated** (all must pass):
+- [ ] `npm run typecheck` and `npm test`
+- [ ] `npm run test:e2e -- --project=chromium --project=ipad-chromium` — the regression
+      suite (`e2e/editor-regression.spec.ts`), the iPad caret bug
+      (`e2e/editor-caret.spec.ts`) and the 500-sequence randomized test
+      (`e2e/editor-fuzz.spec.ts`, ~5 min). Every test also fails on any
+      editor-invariant violation logged while it ran.
+- [ ] On a Mac, once: `npx playwright install webkit`, then
+      `npm run test:e2e -- --project=ipad-webkit` — the same specs on real WebKit.
+
+**By hand, on an iPad** (`npm run dev`, Safari Web Inspector attached — any
+`[editor invariant]` error in its console is a failure):
+- [ ] Open an entry with several paragraphs and trailing empty lines, keyboard
+      down. Tap in the empty space under the text → caret on the last line.
+      Backspace ×3 → the trailing lines go, nothing above moves.
+- [ ] Tap mid-word, type → the letters land there. Backspace at the very start
+      of the entry does nothing.
+- [ ] Enter on an empty line and on the last line; select all + delete; paste
+      several lines; undo / redo.
+- [ ] Type steadily for ~10 s while autosave runs (watch the status line) →
+      no lost or doubled characters, the caret never jumps.
+- [ ] Same quick pass in the Mac app and on an iPhone.
+
+---
+
 ## Manual setup you (Phil) need to do
 1. Create a Supabase project.
 2. Run `supabase/schema.sql` in the Supabase SQL editor.

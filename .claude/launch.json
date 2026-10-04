@@ -143,6 +143,20 @@
       ],
       "port": 5191,
       "url": "http://localhost:5191"
+    },
+    {
+      "name": "photo-rows",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5223",
+        "--strictPort"
+      ],
+      "port": 5223,
+      "url": "http://localhost:5223"
     }
   ]
 }

@@ -79,6 +79,7 @@ means *God met you here*, never *you did well here*. And — from the abandoned 
 | `/sense` | Marks something sensed or discerned; feeds Altar |
 | `/scripture` | Captures a reference; feeds Lamp |
 | `/image` | Inline image |
+| **Print** | How the entries list shows a page's photos: a print the size of a grain of rice, filled with the photo's own average colour, up to three fanned. Never a camera glyph, never a thumbnail in the row (D-034). |
 | **Page scan** | Photograph a handwritten entry → OCR → reviewable draft |
 | **Dictation** | Voice → transcription → inserted at caret |
 

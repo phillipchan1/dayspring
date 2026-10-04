@@ -573,8 +573,38 @@ html[data-platform='desktop'] .pf__back { top: 2.6rem; }
 .rc__leaf-fallback { font-size: max(calc(var(--voice-text-size, 24px) * 0.85), 13px); line-height: 1.8; color: var(--text-bright); margin: 0; white-space: pre-line; }
 
 /* Focus: while the writer types, the leaf keeps only the passage. */
-.rc--facing .rc__chrome { transition: opacity 0.6s ease; }
-.rc--facing[data-typing='true'] .rc__chrome { opacity: 0.12; }
+/* Writing on the facing leaf (Desk's `typing`). It was a ghost: the ritual's
+   name, dek, path and foot at 12%, and the passage left where they had put it,
+   two fifths of the way down beside a page that starts at the top. Now the
+   leaf keeps only what is being read — the passage and its reference — and
+   the passage rises so the reference sits on the page's label line
+   (--rc-rise, measured in passageRise). Leaves slowly, returns quickly, like
+   the journal's Settle. `top`, not a transform: the leaf is a selection
+   surface, and the quote chip and card are fixed. */
+.rc--facing .rc__chrome,
+.rc--facing .rc__leaf-ref button,
+.rc--facing .rc__leaf-under {
+  transition: opacity 0.22s ease;
+}
+.rc--facing .rc__leaf-text {
+  position: relative;
+  top: 0;
+  transition:
+    top 0.22s cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-top-color 0.22s ease;
+}
+.rc--facing[data-typing='true'] .rc__chrome,
+.rc--facing[data-typing='true'] .rc__leaf-ref button,
+.rc--facing[data-typing='true'] .rc__leaf-under {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: 0.7s;
+}
+.rc--facing[data-typing='true'] .rc__leaf-text {
+  top: var(--rc-rise, 0px);
+  border-top-color: transparent;
+  transition-duration: 0.7s;
+}
 .rc--facing[data-typing='true'] .rc__foot { opacity: 0.35; transition: opacity 0.6s ease; }
 
 /* ── The page, beside the leaf ────────────────────────────────────────── */

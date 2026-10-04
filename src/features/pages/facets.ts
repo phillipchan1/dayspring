@@ -8,6 +8,7 @@
 // Built in one pass over the corpus and cached, because it is read on every
 // re-light and the corpus is the whole archive.
 
+import { ATTACHMENT_REF_RE } from '@/lib/attachments'
 import { NAMED_COLOR_PATTERN, type HighlightColor } from '@/lib/highlightColors'
 import { LIVE_MARK_KINDS } from '@/lib/markKinds'
 import type { MarkingRef } from '@/lib/spiritual'
@@ -35,6 +36,14 @@ export const FACET_SCRIPTURE = 'scripture'
 export const FACET_PRAYER = 'prayer'
 export const FACET_SENSE = 'sense'
 export const FACET_RITUAL = 'ritual'
+/**
+ * A photo she put on the page (D-034).
+ *
+ * Not a marking: she did not set the page apart, she pictured something on it.
+ * It lives here because it is the same kind of fact: the characters are in the
+ * page (`![…](attachment:…)`), and nothing is inferred about what is in the photo.
+ */
+export const FACET_PHOTO = 'photo'
 
 /**
  * The two families a facet belongs to.
@@ -68,6 +77,8 @@ const HIGHLIGHT_RE = new RegExp(
 )
 const UNDERLINE_RE = /\+\+(?!\s)([^+]+?)(?<!\s)\+\+/
 const BOLD_RE = /(\*\*|__)(?!\s)([\s\S]+?)(?<!\s)\1/
+/** `ATTACHMENT_REF_RE` without its `g` flag, so `test` carries no `lastIndex` between pages. */
+const HAS_PHOTO_RE = new RegExp(ATTACHMENT_REF_RE.source)
 
 function add(set: Set<FacetKey>, counts: Map<FacetKey, number>, key: FacetKey): void {
   if (set.has(key)) return
@@ -143,6 +154,7 @@ export function documentFacets(entry: Entry): FacetKey[] {
       break
     }
   }
+  if (HAS_PHOTO_RE.test(raw)) put(FACET_PHOTO)
   return out
 }
 
@@ -254,4 +266,16 @@ export function markingChips(index: FacetIndex): MarkingChip[] {
     tone: k.tone,
     count: index.counts.get(k.kind) ?? 0,
   }))
+}
+
+/**
+ * Photos, as the one pill it is — or null when no page in the bracket has one.
+ *
+ * Unlike the markings this is not a closed vocabulary kept on screen at zero:
+ * plenty of writers never add a photo, and a dimmed "Photos 0" would sit in
+ * every sheet they open, offering a thing they have never done (D-034).
+ */
+export function photoChip(index: FacetIndex): FacetChip | null {
+  const count = index.counts.get(FACET_PHOTO) ?? 0
+  return count > 0 ? { key: FACET_PHOTO, label: 'Photos', count } : null
 }

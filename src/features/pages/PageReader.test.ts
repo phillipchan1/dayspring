@@ -87,7 +87,11 @@ describe('PageReader', () => {
   it('hydrates private images and paints saved marks like the editor', () => {
     renderReader()
     const body = host!.querySelector<HTMLElement>('.pg-read1__body')!
-    expect(hydrate).toHaveBeenCalledWith(body, entry.body_markdown, undefined, { verso: null })
+    expect(hydrate).toHaveBeenCalledWith(body, entry.body_markdown, undefined, {
+      verso: null,
+      // A photo on an open page can be tapped to look at it.
+      onLook: expect.any(Function),
+    })
     expect(body.querySelector('.pg-read1__saved-mark')?.textContent).toBe(
       'A sentence I marked for later.',
     )

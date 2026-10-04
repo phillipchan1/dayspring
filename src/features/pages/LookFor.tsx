@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSheetDismiss } from '@/hooks/useSheetDismiss'
-import type { MarkingChip } from './facets'
+import type { FacetChip, MarkingChip } from './facets'
+import { PrintGlyph } from './PrintGlyph'
 import type { KeptSubject } from './keptSubjects'
 import { searchSubjects, withCounts, wordSubject, type Subject, type SubjectIndex } from './subjects'
 import { aboveFloor, aliveIn, groupSubjects, type Window } from './lookGroups'
@@ -101,6 +102,11 @@ interface Props {
   window: Window | null
   markings: MarkingChip[]
   /**
+   * The pages with a photo on them, or null when the bracket has none (D-034).
+   * Lit through `onToggleMarking`, because it is a facet like the markings.
+   */
+  photos?: FacetChip | null | undefined
+  /**
    * How close you are standing. It lives on the surface rather than in the
    * sheet, because it is not part of what you are looking FOR — and it is one
    * continuous move rather than named stops, because naming them makes you pick
@@ -196,6 +202,7 @@ export function LookFor({
   floor,
   window,
   markings,
+  photos = null,
   zoom,
   onZoom,
   narrow,
@@ -941,6 +948,34 @@ export function LookFor({
               })}
             </div>
           </section>
+
+          {/*
+            Its own group, not a seventh marking. A photo is not something she
+            set apart; it is something she put on the page. One pill, worn as
+            the same small print the list draws for those pages, and absent
+            entirely for a writer who has never added one.
+          */}
+          {photos ? (
+            <section className="pg-sheet__g">
+              <h3>
+                photos
+                <span>the pages you put a picture on</span>
+              </h3>
+              <div className="pg-sheet__opts">
+                <span className="pg-pill pg-pill--photo" data-on={on.has(photos.key) ? 'true' : undefined}>
+                  <button
+                    type="button"
+                    className="pg-pill__hit"
+                    onClick={() => (on.has(photos.key) ? onRemove(photos.key) : onToggleMarking(photos.key))}
+                  >
+                    <PrintGlyph className="pg-pill__glyph" />
+                    {photos.label}
+                    <i>{photos.count}</i>
+                  </button>
+                </span>
+              </div>
+            </section>
+          ) : null}
 
           {/*
             Four plain pills and ONE gloss — the chosen one. Describing every

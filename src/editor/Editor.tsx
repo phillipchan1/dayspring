@@ -5,6 +5,8 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { indentUnit } from '@codemirror/language'
 import { editorTheme } from './theme'
+import { JournalEditorView } from './journalView'
+import { editorInvariant } from './invariant'
 import { proseHighlighting } from './proseHighlighting'
 import { nativeTyping, rearmNativeTypingAfterPaint } from './nativeTyping'
 import { HighlightExtension, UnderlineExtension } from './markdownMarks'
@@ -63,6 +65,7 @@ import {
   attachmentImageExtension,
   type AttachmentEditTarget,
   type ImageMenuPoint,
+  type PhotoSetAction,
 } from './attachmentImageExtension'
 import type { ImageSize } from '@/lib/attachments'
 import {
@@ -72,7 +75,7 @@ import {
   removePendingAttachmentInView,
   replacePendingAttachmentInView,
 } from './attachmentInsert'
-import { attachmentDropExtension } from './attachmentDropExtension'
+import { addPhotosBesideInView, attachmentDropExtension } from './attachmentDropExtension'
 import { practicePromptExtension } from './practices/usePracticeInsertion'
 
 export interface EditorHandle {
@@ -109,8 +112,11 @@ export interface EditorHandle {
   applyHighlight: (color: HighlightColor) => void
   /** Insert a block-isolated attachment image at the given position. Returns caret after. */
   insertBlockAttachment: (pos: number, hash: string, ext: string, alt?: string) => number
-  /** Show an uploading placeholder, then resolve via replace/remove helpers. */
-  insertBlockPendingAttachment: (pos: number, pendingId: string, alt?: string) => number
+  /**
+   * Show uploading placeholders, then resolve each via replace/remove helpers.
+   * Several at once land on touching lines: one set (lib/photoSet.ts).
+   */
+  insertBlockPendingAttachments: (pos: number, items: Array<{ id: string; alt: string }>) => number
   replacePendingAttachment: (
     pendingId: string,
     hash: string,
@@ -119,6 +125,11 @@ export interface EditorHandle {
     size?: ImageSize,
   ) => void
   removePendingAttachment: (pendingId: string) => void
+  /**
+   * Upload photos into the set the photo at `targetFrom` is in, beside it, as a
+   * drop onto it would. Leaves the caret where it is.
+   */
+  addPhotosBeside: (targetFrom: number, after: boolean, files: File[]) => void
   /**
    * Turn the selection's lines — or the caret's paragraph — into a marking of
    * `kind`. Returns the writer's words the fence now carries, so the caller can
@@ -158,6 +169,12 @@ interface EditorProps {
   /** Identity of the loaded entry. Changing it swaps the document. */
   docKey: string
   onChange: (doc: string) => void
+  /**
+   * Called when the writer changed the page themselves (typing, deleting,
+   * dictating), never for a load, a swap or an insert the app made. The
+   * journal uses it to let the frame settle once the words start.
+   */
+  onUserInput?: () => void
   placeholder?: string
   /** When true, the next docKey swap skips autofocus (sidebar selection keeps list focus). */
   skipAutofocusRef?: MutableRefObject<boolean>
@@ -212,6 +229,8 @@ interface EditorProps {
     point: ImageMenuPoint,
     anchor: InlinePanelAnchor,
   ) => void
+  /** A set's own Add or Arrange, from the tools over it. `target` is a photo in that set. */
+  onPhotoSetAction?: (action: PhotoSetAction, target: AttachmentEditTarget) => void
   /** Called when the user opens a practice's "about" sheet (by practice name). */
   onAboutPractice?: (name: string) => void
   /** Called when the user picks a part-written ritual back up, at its doc position. */
@@ -257,6 +276,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     initialDoc,
     docKey,
     onChange,
+    onUserInput,
     placeholder,
     bodyPlaceholder,
     autofocus,
@@ -273,6 +293,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     onOpenChapter,
     onScripturePaste,
     onImageMenu,
+    onPhotoSetAction,
     onAboutPractice,
     onContinueRitual,
     onSlashPaletteChange,
@@ -294,10 +315,18 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
+  const onUserInputRef = useRef(onUserInput)
+  /**
+   * The last document this editor handed to `onChange`. When `initialDoc`
+   * comes back equal to it, that is the parent echoing our own keystroke —
+   * there is nothing to seed and nothing to compare.
+   */
+  const lastEmittedRef = useRef<string | null>(null)
   const onEditBlockRef = useRef(onEditBlock)
   const onOpenChapterRef = useRef(onOpenChapter)
   const onScripturePasteRef = useRef(onScripturePaste)
   const onImageMenuRef = useRef(onImageMenu)
+  const onPhotoSetActionRef = useRef(onPhotoSetAction)
   const onAboutPracticeRef = useRef(onAboutPractice)
   const onContinueRitualRef = useRef(onContinueRitual)
   const setFormatBarRef = useRef<(anchor: FormatBarAnchor | null) => void>(() => {})
@@ -344,10 +373,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     })
   })
   onChangeRef.current = onChange
+  onUserInputRef.current = onUserInput
   onEditBlockRef.current = onEditBlock
   onOpenChapterRef.current = onOpenChapter
   onScripturePasteRef.current = onScripturePaste
   onImageMenuRef.current = onImageMenu
+  onPhotoSetActionRef.current = onPhotoSetAction
   onAboutPracticeRef.current = onAboutPractice
   onContinueRitualRef.current = onContinueRitual
   setFormatBarRef.current = setFormatBar
@@ -493,10 +524,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       if (!view) return pos
       return insertBlockAttachmentAt(view, pos, hash, ext, alt)
     },
-    insertBlockPendingAttachment: (pos, pendingId, alt) => {
+    insertBlockPendingAttachments: (pos, items) => {
       const view = viewRef.current
       if (!view) return pos
-      return insertBlockPendingAttachmentsAt(view, pos, [{ id: pendingId, alt: alt ?? '' }])
+      return insertBlockPendingAttachmentsAt(view, pos, items)
     },
     replacePendingAttachment: (pendingId, hash, ext, alt, size) => {
       const view = viewRef.current
@@ -507,6 +538,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       const view = viewRef.current
       if (!view) return
       removePendingAttachmentInView(view, pendingId)
+    },
+    addPhotosBeside: (targetFrom, after, files) => {
+      const view = viewRef.current
+      if (!view) return
+      void addPhotosBesideInView(view, targetFrom, after, files)
     },
       markLines: (kind, id) => {
       const view = viewRef.current
@@ -573,7 +609,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     if (!hostRef.current) return
 
-    const view = new EditorView({
+    // JournalEditorView, not EditorView: see journalView.ts for the iPad tap
+    // that CodeMirror's own focus test throws away.
+    const view = new JournalEditorView({
       parent: hostRef.current,
       state: EditorState.create({
         // Seed verbatim so the view never diverges from React's `content` (create
@@ -711,8 +749,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           // Must follow the extension above — it reads its field.
           ritualHoldExtension,
           attachmentBlockNormalizeExtension(),
-          attachmentImageExtension((target, point, anchor) =>
-            onImageMenuRef.current?.(target, point, anchor),
+          attachmentImageExtension(
+            (target, point, anchor) => onImageMenuRef.current?.(target, point, anchor),
+            (action, target) => onPhotoSetActionRef.current?.(action, target),
           ),
           // Drag-and-drop for photos and files, including the insertion bar that
           // previews where one will land. That bar used to be CodeMirror's
@@ -738,8 +777,21 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           dimCompartment.current.of(dimming ? dimmingExtension : []),
           commandLineCompartment.current.of(commandLineHighlight(commandLinePos)),
           cmPlaceholder(placeholder ?? 'Write…'),
+          // Development only: assert after every change that the DOM shows the
+          // document and the caret the state holds, and say so loudly if not.
+          import.meta.env.DEV ? editorInvariant() : [],
           EditorView.updateListener.of((u) => {
-            if (u.docChanged) onChangeRef.current(u.state.doc.toString())
+            if (u.docChanged) {
+              const doc = u.state.doc.toString()
+              lastEmittedRef.current = doc
+              onChangeRef.current(doc)
+              if (
+                onUserInputRef.current &&
+                u.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))
+              ) {
+                onUserInputRef.current()
+              }
+            }
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {
               const detected = detectSlash(u.view, titleStylingRef.current)
@@ -792,9 +844,13 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
-    const current = view.state.doc.toString()
     const entryChanged = prevDocKeyRef.current !== docKey
     prevDocKeyRef.current = docKey
+    // Every keystroke comes back through here as a new `initialDoc`. The view
+    // already holds it, so don't stringify the whole entry to find that out —
+    // and never let an echo near the re-seed below.
+    const echo = !entryChanged && initialDoc === lastEmittedRef.current
+    const current = echo ? initialDoc : view.state.doc.toString()
     if (current !== initialDoc) {
       // Swapping entries replaces the doc; on the same entry only seed an empty
       // editor when the body arrives after mount — never fight live typing.

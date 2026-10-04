@@ -14,6 +14,7 @@ import { listConcordance, type ConcordanceItem, type ConcordanceKind } from '@/l
 import { entryContentLines } from '@/lib/entryLabels'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
 import { writerWords } from '@/lib/writerWords'
+import { photoCaptions } from '@/lib/photoSet'
 import type { Entry } from '@/lib/types'
 
 export interface Subject {
@@ -91,11 +92,17 @@ export interface SubjectIndex {
  * phrase she wrote inside a sense could not be found at all, on an archive
  * with two thousand prayer blocks. Appended after the prose rather than in
  * place: matching is per page, so position within it changes nothing.
+ *
+ * A PHOTO'S CAPTION IS HERS TOO, and is put back the same way. The photo line
+ * goes whole in `entryContentLines` (a ref is not prose), which took the
+ * caption with it: "Micah on the lighthouse steps" under a photo could not be
+ * found, and did not light Micah.
  */
 export function writerLines(markdown: string | null | undefined): string[] {
   // Over writerWords (Guardrail H3), so a verse quoted into a SOAP/Lectio answer
   // (`> Remain in me (v. 4)`) is as absent as the passage it came from.
-  const lines = entryContentLines(writerWords(markdown))
+  const words = writerWords(markdown)
+  const lines = entryContentLines(words)
   for (const block of parseSpiritualBlocks(markdown ?? '')) {
     if (block.type === 'scripture') continue
     for (const line of block.content.split('\n')) {
@@ -103,6 +110,7 @@ export function writerLines(markdown: string | null | undefined): string[] {
       if (t) lines.push(t)
     }
   }
+  lines.push(...photoCaptions(words))
   return lines
 }
 

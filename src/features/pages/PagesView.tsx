@@ -29,7 +29,8 @@ import {
   wordSubject,
   type Subject,
 } from './subjects'
-import { markingChips, matchFacets } from './facets'
+import { track } from '@/lib/analytics'
+import { FACET_PHOTO, markingChips, matchFacets, photoChip } from './facets'
 import { facetIndexFor, subjectIndexFor } from './derived'
 import { LookFor } from './LookFor'
 import { findSubject } from './textSearch'
@@ -568,6 +569,7 @@ export function PagesView({
     [bracketed, markedIds, markings],
   )
   const markPills = useMemo(() => markingChips(facetIndex), [facetIndex])
+  const photoPill = useMemo(() => photoChip(facetIndex), [facetIndex])
 
   // Kept subjects keep matching against what the Concordance knows today, and
   // what is offered is everything else — so keeping something moves it between
@@ -669,6 +671,9 @@ export function PagesView({
         mark: pill.kind,
       })
     }
+    // Shown whenever it is on, even if the bracket has no photo in it: a lit
+    // filter with no chip would be a filter nobody can see or take off.
+    if (keys.includes(FACET_PHOTO)) out.push({ key: FACET_PHOTO, label: 'Photos', kind: 'photo' })
     return out
   }, [asked, subjects, markPills, keys])
 
@@ -1254,6 +1259,7 @@ export function PagesView({
               floor={subjectFloor}
               window={subjectWindow}
               markings={markPills}
+              photos={photoPill}
               zoom={onShelf || openVolume !== null ? Math.min(zoom, SHELF_ZOOM / 2) : zoom}
               onZoom={onZoomAnywhere}
               narrow={narrow}
@@ -1263,7 +1269,10 @@ export function PagesView({
               onReading={setReading}
               chips={chips}
               onToggleSubject={addSubject}
-              onToggleMarking={toggleKey}
+              onToggleMarking={(key) => {
+                if (key === FACET_PHOTO && !keys.includes(key)) track('photos_lit', { pages: photoPill?.count ?? 0 })
+                toggleKey(key)
+              }}
               onRemove={(key) => {
                 if (key === ASK_CHIP_KEY) onClearAsked()
                 else toggleKey(key)
@@ -1405,6 +1414,7 @@ export function PagesView({
                   count: facts.count,
                   subjects: subjects.map((sub) => sub.label),
                   markings: litMarkings,
+                  photos: keys.includes(FACET_PHOTO),
                   question: asked?.question ?? null,
                 })}
               </span>

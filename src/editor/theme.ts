@@ -88,6 +88,20 @@ export const editorTheme = EditorView.theme({
     color: 'var(--text-faint)',
     fontStyle: 'italic',
   },
+  /*
+   * Decoration you can see but not press: placeholders, the dateline, list
+   * bullets and numbers, the rule.
+   *
+   * On touch, CodeMirror leaves placing the caret to the browser, and a finger
+   * on non-editable text places no caret at all. So tapping "Keep going…" to
+   * start the body left the caret on the title line — and the first words of
+   * the body went into the title. Letting the press through to the line beneath
+   * puts the caret where the finger is, the way a mouse already did (CodeMirror
+   * places a mouse's caret by coordinates, whatever was under it).
+   */
+  '.cm-placeholder, .cm-dateline, .cm-li-bullet, .cm-list-label, .cm-hr': {
+    pointerEvents: 'none',
+  },
   // Active line stays subtle — focus mode handles emphasis later.
   '.cm-activeLine': {
     backgroundColor: 'transparent',

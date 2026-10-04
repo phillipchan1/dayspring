@@ -112,6 +112,14 @@ interface EventProps {
   surface_arrival_shown: { surface: ReturnSurface; kind: 'updates' | 'discovery'; count: number }
   /** "See your Ascent →" clicked on the processing-complete banner. */
   processing_cta_clicked: undefined
+  /**
+   * "Photos" lit in Look for, and how many pages it lit. D-034's instrument:
+   * if writers with photos never reach for it, the prints are not working as
+   * landmarks either.
+   */
+  photos_lit: { pages: number }
+  /** A row's photos shown on hover, at most once a session (D-034). */
+  photo_peeked: undefined
 
   // ── Activation / onboarding ────────────────────────────────────────────────
   /** An onboarding step (or import phase) became visible. */

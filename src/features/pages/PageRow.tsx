@@ -1,10 +1,12 @@
 import { memo } from 'react'
 import { MARK_KIND } from '@/lib/markKinds'
+import { usePhotoLooks } from '@/lib/photoLooks'
 import type { SpiritualItemType } from '@/lib/types'
 import type { PageExcerpt } from './pageExcerpt'
 import { splitOnMatch } from './pageExcerpt'
 import { useWallPointer } from './useWallPointer'
 import type { PageClickResult } from './PageCard'
+import { ROW_PRINTS, type PagePhoto } from './pagePhotos'
 
 interface Props {
   entryId: string
@@ -31,6 +33,16 @@ interface Props {
   echo?: string | undefined
   /** Declared kinds this page carries, in the vocabulary's own order. */
   markings: SpiritualItemType[]
+  /**
+   * The photos on the page, drawn as small prints in their own colours (D-034).
+   * Hers, like the words: the colour is the photo's own average, not a mark of ours.
+   */
+  photos: readonly PagePhoto[]
+  /**
+   * Hovering a row with photos asks the wall to show them; leaving it says null.
+   * Only passed where there is a mouse to hover with.
+   */
+  onPeek?: ((entryId: string, row: HTMLElement | null) => void) | undefined
   wallKey: string
   tabIndex: number
   onFocus: (wallKey: string) => void
@@ -117,6 +129,8 @@ export const PageRow = memo(function PageRow({
   currentWeek,
   echo,
   markings,
+  photos,
+  onPeek,
   wallKey,
   tabIndex,
   onFocus,
@@ -164,6 +178,8 @@ export const PageRow = memo(function PageRow({
       onFocus={() => onFocus(wallKey)}
       onKeyDown={(e) => onKeyDown(wallKey, e)}
       {...pointer.handlers}
+      onMouseEnter={onPeek && photos.length > 0 ? (e) => onPeek(entryId, e.currentTarget) : undefined}
+      onMouseLeave={onPeek && photos.length > 0 ? () => onPeek(entryId, null) : undefined}
       onClick={(e) => {
         if (pointer.consumeLongPress()) {
           e.preventDefault()
@@ -194,10 +210,46 @@ export const PageRow = memo(function PageRow({
           <span key={kind} className="pgr__mark" style={{ background: MARK_KIND[kind]?.tone }} />
         ))}
       </span>
+      {/* Always present, so a wall with any photo on it keeps one lane for them
+          and the prints line up down the list (see `data-photos` on the grid). */}
+      <span className="pgr__photos">{photos.length > 0 ? <RowPrints photos={photos} /> : null}</span>
       {today ? <span className="pgr__today">today</span> : null}
     </button>
   )
 })
+
+/**
+ * A page's photos, as prints.
+ *
+ * Its own component so that only rows with photos subscribe to the colour
+ * store; the other forty rows on screen never re-render when a colour lands.
+ * Until a colour is known the print is drawn neutral, which is still true: it
+ * says a photo is here without guessing what it looks like.
+ */
+function RowPrints({ photos }: { photos: readonly PagePhoto[] }) {
+  const shown = photos.length > ROW_PRINTS ? photos.slice(0, ROW_PRINTS) : photos
+  const look = usePhotoLooks(shown)
+  return (
+    <>
+      <span className="pgr__prints" aria-hidden>
+        {shown.map((p, i) => {
+          const color = look(p.hash)?.color
+          return (
+            <span
+              key={`${p.hash}-${i}`}
+              className="pgr__print"
+              data-unknown={color ? undefined : 'true'}
+              style={color ? { background: color } : undefined}
+            />
+          )
+        })}
+      </span>
+      <span className="pgr__said">
+        {photos.length === 1 ? ', with a photo' : `, with ${photos.length} photos`}
+      </span>
+    </>
+  )
+}
 
 /** The lit words, painted in place — the same treatment the cards give them. */
 /*

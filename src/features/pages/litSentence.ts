@@ -32,6 +32,8 @@ export interface LitDescription {
   subjects: string[]
   /** The lit markings, as kinds — labelled from the closed vocabulary. */
   markings: SpiritualItemType[]
+  /** "Photos" is lit (D-034). */
+  photos?: boolean
   /** A question asked from ⌘K, which has no word to light. */
   question?: string | null
 }
@@ -44,11 +46,12 @@ export interface LitDescription {
  * `12 pages saying Tiffany and marked Scripture`
  * `88 pages marked Prayer and Scripture`
  * `9 pages matching “where did I feel far from God” and marked Prayer`
+ * `30 pages with photos`
  *
  * "marked", not "carrying a prayer": the pills say Scripture and Prayer, and a
  * sentence that renames them is a second vocabulary for the same six things.
  */
-export function litSentence({ count, subjects, markings, question }: LitDescription): string {
+export function litSentence({ count, subjects, markings, photos, question }: LitDescription): string {
   const head = `${count.toLocaleString()} ${count === 1 ? 'page' : 'pages'}`
   const clauses: string[] = []
   if (question) clauses.push(`matching “${question}”`)
@@ -57,5 +60,6 @@ export function litSentence({ count, subjects, markings, question }: LitDescript
     const labels = markings.map((k) => MARK_KIND[k]?.label ?? k)
     clauses.push(`marked ${list(labels, 'and')}`)
   }
+  if (photos) clauses.push('with photos')
   return clauses.length === 0 ? head : `${head} ${clauses.join(' and ')}`
 }

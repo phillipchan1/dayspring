@@ -1,0 +1,483 @@
+<title>Arriving to Write</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Inter:wght@400;500;600&display=swap">
+
+<style>
+  /* Layout: one reading column; the mock window breaks out wider. Dawn (light) and Ink (dark), the app's own voices. */
+  :root {
+    --bg:#f4ede1; --paper:#fbf6ee; --paper-up:#fffdf8; --line:#e6dccb; --line-soft:#efe6d7;
+    --text:#4a4035; --text-bright:#2a2118; --dim:#8a7c69; --faint:#b4a78f;
+    --accent:#c2683a; --accent-soft:rgba(194,104,58,.12);
+    --amber:#9a6e24; --amber-bg:rgba(196,145,60,.15);
+    --good:#3f7d4f; --good-bg:rgba(63,125,79,.12); --warn:#a0702a; --warn-bg:rgba(160,112,42,.13); --bad:#a2463a; --bad-bg:rgba(162,70,58,.11);
+    --shadow:0 1px 2px rgba(42,33,24,.06),0 18px 50px -18px rgba(42,33,24,.28);
+    --f-display:'Fraunces',Georgia,'Times New Roman',serif;
+    --f-serif:'Newsreader',Georgia,'Times New Roman',serif;
+    --f-ui:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#101218; --paper:#14161d; --paper-up:#1b1e27; --line:#262a33; --line-soft:#1f222b;
+    --text:#c2c6d0; --text-bright:#eef0f5; --dim:#8b909c; --faint:#5d626e;
+    --accent:#e0a64e; --accent-soft:rgba(224,166,78,.14);
+    --amber:#e0a64e; --amber-bg:rgba(224,166,78,.14);
+    --good:#7fbf8c; --good-bg:rgba(127,191,140,.13); --warn:#e0b45e; --warn-bg:rgba(224,180,94,.13); --bad:#e48a7c; --bad-bg:rgba(228,138,124,.12);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 50px -18px rgba(0,0,0,.7);
+    color-scheme:dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg:#101218; --paper:#14161d; --paper-up:#1b1e27; --line:#262a33; --line-soft:#1f222b;
+    --text:#c2c6d0; --text-bright:#eef0f5; --dim:#8b909c; --faint:#5d626e;
+    --accent:#e0a64e; --accent-soft:rgba(224,166,78,.14);
+    --amber:#e0a64e; --amber-bg:rgba(224,166,78,.14);
+    --good:#7fbf8c; --good-bg:rgba(127,191,140,.13); --warn:#e0b45e; --warn-bg:rgba(224,180,94,.13); --bad:#e48a7c; --bad-bg:rgba(228,138,124,.12);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 50px -18px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font:16px/1.6 var(--f-serif);margin:0}
+  .page{max-width:1040px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:48px 96px;display:grid;gap:56px}
+  .page>*{min-width:0}
+  .col{max-width:42rem}
+  .eyebrow{font:600 11px/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+  h1{font:300 clamp(34px,5.4vw,52px)/1.05 var(--f-display);color:var(--text-bright);margin:14px 0 16px;text-wrap:balance;letter-spacing:-.01em}
+  h2{font:400 26px/1.2 var(--f-display);color:var(--text-bright);margin:0 0 12px;text-wrap:balance}
+  h3{font:600 12px/1.3 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+  p{margin:0 0 12px}
+  .lede{font-size:19px;line-height:1.55;color:var(--text)}
+  kbd{font:500 12px/1 var(--f-ui);padding:3px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--paper-up);color:var(--text-bright);white-space:nowrap}
+  em{font-style:italic}
+
+  /* ── Variant picker ── */
+  .lab{display:grid;gap:18px}
+  .picker{display:flex;flex-wrap:wrap;gap:6px;padding:5px;background:var(--paper);border:1px solid var(--line);border-radius:12px;width:fit-content;max-width:100%}
+  .picker button{font:500 13px/1 var(--f-ui);color:var(--dim);background:none;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .picker button:hover{color:var(--text-bright)}
+  .picker button[aria-pressed="true"]{background:var(--paper-up);color:var(--text-bright);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .picker button:focus-visible,.btn:focus-visible,.win button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tag{font:600 10px/1 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;padding:4px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+  .brief{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px;align-items:start}
+  .brief p{font-size:16.5px}
+  .try{font:13.5px/1.55 var(--f-ui);color:var(--text);margin:0;padding-left:1.2em;display:grid;gap:4px}
+  .try li::marker{color:var(--faint)}
+  @media (max-width:720px){.brief{grid-template-columns:1fr;gap:12px}}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font:13px var(--f-ui);color:var(--dim)}
+  .btn{font:500 13px/1 var(--f-ui);color:var(--text-bright);background:var(--paper-up);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+  .btn:hover{border-color:var(--faint)}
+  .btn.primary{background:var(--text-bright);color:var(--paper);border-color:var(--text-bright)}
+  .btn.primary kbd{background:transparent;color:inherit;border-color:color-mix(in srgb,var(--paper) 40%,transparent)}
+
+  /* ── The mock window ── */
+  .stage{margin-inline:calc(-1 * clamp(0px,2vw,24px))}
+  .win{position:relative;display:flex;height:clamp(440px,58vw,600px);background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;font-family:var(--f-ui)}
+  .lights{position:absolute;top:14px;left:14px;display:flex;gap:7px;z-index:6}
+  .lights i{width:11px;height:11px;border-radius:50%;background:var(--line);display:block}
+  .win[data-focus="false"] .lights i:nth-child(1){background:#ec6a5e}
+  .win[data-focus="false"] .lights i:nth-child(2){background:#f4bf4f}
+  .win[data-focus="false"] .lights i:nth-child(3){background:#61c554}
+
+  .rail{flex:0 0 68px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:46px 0 14px;background:var(--paper-up);border-right:1px solid var(--line-soft);transition:opacity .45s ease,transform .26s cubic-bezier(.2,.7,.2,1);z-index:5}
+  .rail .grp{display:flex;flex-direction:column;gap:4px;align-items:center}
+  .rail .grp+.grp{padding-top:10px;margin-top:4px;border-top:1px solid var(--line-soft)}
+  .rail .spacer{flex:1}
+  .rb{width:40px;height:40px;border-radius:10px;border:0;background:none;color:var(--dim);display:grid;place-items:center;cursor:pointer;position:relative}
+  .rb:hover{background:var(--amber-bg);color:var(--text-bright)}
+  .rb[data-on="true"]{color:var(--amber);background:var(--amber-bg)}
+  .rb svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .rb .tip{position:absolute;left:48px;top:50%;transform:translateY(-50%);white-space:nowrap;font:500 12px/1 var(--f-ui);background:var(--text-bright);color:var(--paper);padding:6px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .15s}
+  .rb:hover .tip{opacity:1}
+
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+  .topbar{height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 18px;font-size:12.5px;color:var(--dim);transition:opacity .45s ease}
+  .topbar .when{color:var(--text);font-weight:500}
+  .topbar .right{display:flex;align-items:center;gap:12px}
+  .topbar .saved::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:1px}
+  .chip{font:500 12px/1 var(--f-ui);border:1px solid var(--line);background:none;color:var(--text);border-radius:7px;padding:6px 9px;cursor:pointer}
+  .chip:hover{border-color:var(--faint);color:var(--text-bright)}
+
+  .canvas{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;padding:26px 24px 0}
+  .win[data-focus="true"] .canvas{padding-top:56px}
+  .canvas::before{content:'';position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent-soft),transparent)}
+  .editor{width:100%;max-width:34rem;flex:1;min-height:0;resize:none;border:0;outline:0;background:transparent;color:var(--text-bright);font:400 clamp(17px,1.9vw,20px)/1.7 var(--f-serif);padding:0;caret-color:var(--accent)}
+  .editor::placeholder{color:var(--faint);font-style:italic}
+
+  .shelf{width:100%;max-width:34rem;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:14px 0 22px;border-top:1px solid var(--line-soft);font:13px/1.4 var(--f-ui);color:var(--dim);transition:opacity .3s ease}
+  .shelf .lead{font-family:var(--f-serif);font-style:italic;font-size:15px;color:var(--faint)}
+  .shelf button{font:500 13px/1.4 var(--f-ui);background:none;border:0;padding:0;color:var(--text);cursor:pointer}
+  .shelf button:hover{color:var(--accent)}
+  .shelf .all{color:var(--dim)}
+  .shelf[data-show="false"]{opacity:0;pointer-events:none}
+
+  .handle{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--paper-up);color:var(--dim);display:none;place-items:center;opacity:.8;z-index:6;cursor:pointer}
+  .handle svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round}
+  .win[data-focus="true"] .handle{display:grid}
+
+  .edge{position:absolute;left:5px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:5px;z-index:4;pointer-events:none}
+  .edge i{width:3px;height:3px;border-radius:50%;background:var(--faint);display:block}
+
+  .narr{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font:500 12px/1.3 var(--f-ui);color:var(--paper);background:var(--text-bright);padding:7px 11px;border-radius:999px;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none;z-index:8;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+  .narr[data-show="true"]{opacity:.92}
+
+  /* Focus: the rail leaves the layout. Where a variant allows it, it waits just off the left edge. */
+  .win[data-focus="true"] .rail{position:absolute;left:0;top:0;bottom:0;transform:translateX(-102%);box-shadow:8px 0 30px -12px rgba(0,0,0,.25)}
+  .win[data-focus="true"][data-peek="true"] .rail{transform:none}
+  .win[data-focus="true"] .topbar{display:none}
+  .win[data-focus="true"][data-variant="honest"][data-peek="false"] .edge{display:flex}
+
+  /* Settle: nothing leaves the layout. It only fades, so the line under your caret never moves. */
+  .win[data-writing="true"] .rail,.win[data-writing="true"] .topbar{opacity:0;pointer-events:none}
+  .win[data-writing="true"] .lights{opacity:.25;transition:opacity .45s}
+
+  .readout{display:flex;flex-wrap:wrap;gap:8px;font:12.5px var(--f-ui);color:var(--dim);align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--paper)}
+  .pill b{font-weight:600;color:var(--text-bright)}
+  .pill[data-state="off"] b{color:var(--bad)}
+  .pill[data-state="on"] b{color:var(--good)}
+
+  /* ── Comparison ── */
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+  table{border-collapse:collapse;width:100%;min-width:680px;font:13.5px/1.45 var(--f-ui)}
+  th,td{padding:12px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line-soft)}
+  tr:last-child td{border-bottom:0}
+  thead th{font-weight:600;color:var(--text-bright);font-size:12.5px;background:var(--paper-up)}
+  thead th .tag{margin-left:6px}
+  tbody th{font-weight:500;color:var(--text);width:28%}
+  .v{display:inline-block;font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:4px;margin-right:6px}
+  .v.y{background:var(--good-bg);color:var(--good)} .v.n{background:var(--bad-bg);color:var(--bad)} .v.p{background:var(--warn-bg);color:var(--warn)}
+  td small{color:var(--dim);display:block;margin-top:3px;font-size:12.5px}
+
+  /* ── Setting mock ── */
+  .setting{border:1px solid var(--line);border-radius:12px;background:var(--paper-up);padding:20px 22px;font-family:var(--f-ui);display:grid;gap:12px;max-width:40rem}
+  .setting .row-label{font:500 14px/1.3 var(--f-ui);color:var(--text-bright)}
+  .setting .hint{font:13px/1.5 var(--f-ui);color:var(--dim);margin:0}
+  .seg{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:9px;background:var(--paper);border:1px solid var(--line-soft);width:fit-content;max-width:100%}
+  .seg button{font:500 12.5px/1 var(--f-ui);border:0;background:none;color:var(--dim);padding:8px 11px;border-radius:6px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--paper-up);color:var(--text-bright);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+  .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
+  @media (max-width:720px){.two{grid-template-columns:1fr}}
+  .note{font-size:16px}
+  .note ul{margin:0;padding-left:1.1em;display:grid;gap:8px}
+  .verdict{border-left:3px solid var(--accent);padding:4px 0 4px 18px}
+  .verdict p{font-size:17px}
+  footer{font:12.5px/1.5 var(--f-ui);color:var(--faint)}
+
+  @media (max-width:560px){
+    .rail{flex-basis:54px}
+    .rb{width:36px;height:36px}
+    .topbar .words{display:none}
+    .canvas{padding-inline:16px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="page">
+  <header class="col">
+    <div class="eyebrow">Prototype · ⌘N and focus</div>
+    <h1>Arriving to write</h1>
+    <p class="lede">In Diarly, <kbd>⌘N</kbd> opens a new entry and goes straight to focus: everything else disappears until you move to the left edge. Below are four ways Dayspring could handle the same moment. Pick one and try it in the window.</p>
+  </header>
+
+  <section class="lab" aria-label="Interactive prototype">
+    <div class="picker" role="group" aria-label="Variant">
+      <button type="button" data-v="today" aria-pressed="false">Today</button>
+      <button type="button" data-v="diarly" aria-pressed="false">Diarly, as is</button>
+      <button type="button" data-v="honest" aria-pressed="false">Focus, with doors</button>
+      <button type="button" data-v="settle" aria-pressed="true">Settle <span class="tag">Recommended</span></button>
+    </div>
+
+    <div class="brief">
+      <div id="brief-text"></div>
+      <ol class="try" id="brief-try"></ol>
+    </div>
+
+    <div class="controls">
+      <button type="button" class="btn primary" id="new-btn">New entry <kbd>⌘N</kbd></button>
+      <button type="button" class="btn" id="focus-btn">Toggle focus <kbd>⌘⏎</kbd></button>
+      <span>Your browser keeps ⌘N for itself, so use the button. Inside the window, <kbd>Esc</kbd> and <kbd>⌘⏎</kbd> behave as they do in the app.</span>
+    </div>
+
+    <div class="stage">
+      <div class="win" id="win" data-variant="settle" data-focus="false" data-writing="false" data-peek="false">
+        <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+
+        <nav class="rail" aria-label="Rail">
+          <div class="grp">
+            <button type="button" class="rb" id="rail-new" aria-label="New entry"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="tip">New entry ⌘N</span></button>
+          </div>
+          <div class="grp">
+            <button type="button" class="rb" data-on="true" aria-label="Journal"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="7.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="7.5" rx="1"/><rect x="4" y="14.5" width="6.5" height="5.5" rx="1"/><rect x="13.5" y="14.5" width="6.5" height="5.5" rx="1"/></svg><span class="tip">Journal ⌘1</span></button>
+            <button type="button" class="rb" aria-label="Ascent"><svg viewBox="0 0 24 24"><path d="M3 19l6-9 4 5 3-4 5 8z"/></svg><span class="tip">Ascent ⌘2</span></button>
+            <button type="button" class="rb" aria-label="Lamp"><svg viewBox="0 0 24 24"><path d="M12 3c2 3 3.5 4.6 3.5 7a3.5 3.5 0 0 1-7 0C8.5 7.6 10 6 12 3z"/><path d="M7 17h10M9 20.5h6"/></svg><span class="tip">Lamp ⌘3</span></button>
+            <button type="button" class="rb" aria-label="Altar"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 19l1.5-5h9L18 19M9 14l1-4h4l1 4"/></svg><span class="tip">Altar ⌘4</span></button>
+          </div>
+          <div class="spacer"></div>
+          <button type="button" class="rb" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span class="tip">Settings</span></button>
+        </nav>
+
+        <div class="edge" aria-hidden="true"><i></i><i></i><i></i></div>
+
+        <div class="main">
+          <header class="topbar">
+            <span class="when" id="when">October 4</span>
+            <span class="right">
+              <span class="words" id="words">0 words</span>
+              <span class="saved">Saved</span>
+              <button type="button" class="chip" id="topbar-focus">Focus</button>
+            </span>
+          </header>
+          <button type="button" class="handle" id="handle" aria-label="Writing controls" title="Writing controls · Esc to leave focus"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2" fill="var(--paper-up)"/><circle cx="15" cy="16" r="2" fill="var(--paper-up)"/></svg></button>
+
+          <div class="canvas">
+            <textarea class="editor" id="editor" aria-label="Entry" placeholder="Begin anywhere."></textarea>
+            <nav class="shelf" id="shelf" data-show="true" aria-label="Begin with a ritual">
+              <span class="lead">Or begin with a ritual</span>
+              <button type="button">Open your Bible</button>
+              <button type="button">The Daily Examen</button>
+              <button type="button">Lectio Divina</button>
+              <button type="button" class="all">All rituals →</button>
+            </nav>
+          </div>
+        </div>
+
+        <div class="narr" id="narr" data-show="false" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="readout" id="readout"></div>
+  </section>
+
+  <section>
+    <h2>Side by side</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col"></th><th scope="col">Today</th><th scope="col">Diarly, as is</th><th scope="col">Focus, with doors</th><th scope="col">Settle<span class="tag">Rec.</span></th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Nothing on screen but the page once you start</th>
+            <td><span class="v n">No</span><small>Until ⌘⏎</small></td>
+            <td><span class="v y">Yes</span><small>Before the first word</small></td>
+            <td><span class="v y">Yes</span><small>Before the first word</small></td>
+            <td><span class="v y">Yes</span><small>From the first keystroke</small></td></tr>
+          <tr><th scope="row">Rituals reachable from a blank page</th>
+            <td><span class="v y">Yes</span></td>
+            <td><span class="v n">No</span><small>The shelf hides in focus. It is the only door to rituals.</small></td>
+            <td><span class="v y">Yes</span><small>The shelf stays until the first word</small></td>
+            <td><span class="v y">Yes</span></td></tr>
+          <tr><th scope="row">You can always see the way back</th>
+            <td><span class="v y">Yes</span></td>
+            <td><span class="v n">No</span><small>The left edge has to be discovered</small></td>
+            <td><span class="v p">Partly</span><small>Three faint dots mark the edge</small></td>
+            <td><span class="v y">Yes</span><small>Move the pointer and everything is back</small></td></tr>
+          <tr><th scope="row">Nothing moves under the caret</th>
+            <td><span class="v y">Yes</span></td>
+            <td><span class="v p">Partly</span><small>The column re-centers as the rail leaves</small></td>
+            <td><span class="v p">Partly</span><small>Same re-center</small></td>
+            <td><span class="v y">Yes</span><small>Chrome fades and keeps its place</small></td></tr>
+          <tr><th scope="row">Ascent, Lamp and Altar stay in view between entries</th>
+            <td><span class="v y">Yes</span></td>
+            <td><span class="v n">No</span><small>Hidden after every ⌘N</small></td>
+            <td><span class="v n">No</span><small>Hidden after every ⌘N</small></td>
+            <td><span class="v y">Yes</span><small>Back whenever you stop typing and move</small></td></tr>
+          <tr><th scope="row">Needs a mode, a setting, or both</th>
+            <td><span class="v y">Neither</span></td>
+            <td><span class="v n">A mode</span><small>Plus a setting for anyone who doesn't want it</small></td>
+            <td><span class="v n">A mode</span><small>Plus a setting</small></td>
+            <td><span class="v y">Neither</span><small>Focus mode stays the deeper room for typewriter and dimming</small></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="two">
+    <div class="note">
+      <h2>Why Settle over Diarly's version</h2>
+      <ul>
+        <li>The feeling you liked comes from having nothing else on screen once the words start. Settle gives you that without a mode, so there is no state to get lost in.</li>
+        <li>Diarly's ⌘N would hide the ritual shelf on the one page where it lives. Rituals are a front-door feature now (D-001), and this would remove them from every ⌘N.</li>
+        <li>Ascent, Lamp and Altar are what you pay for. A rail that disappears after every new entry is a rail people stop seeing.</li>
+        <li>Fading keeps every element in place, so the line you are typing never shifts. Unmounting the rail re-centers the column under your caret.</li>
+        <li>iA Writer and Ulysses do the same thing: chrome recedes while you type and comes back when you reach for it.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>And for the Diarly people</h2>
+      <p class="note">If someone wants the full Diarly behavior, give them a setting, with the ritual shelf kept and the edge peek added. That is the "Focus, with doors" variant.</p>
+      <div class="setting" aria-label="Settings mock">
+        <span class="row-label">When you start a new entry</span>
+        <div class="seg" role="group" aria-label="When you start a new entry" id="seg">
+          <button type="button" aria-pressed="false">Show everything</button>
+          <button type="button" aria-pressed="true">Fade while I write</button>
+          <button type="button" aria-pressed="false">Go straight to focus</button>
+        </div>
+        <p class="hint" id="seg-hint">The rail and top bar fade as you type and come back when you move the pointer.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="col verdict">
+    <h2>Verdict: test first, on alpha</h2>
+    <p><b>Do now, on stable:</b> record when focus mode is entered and left, with the route in (⌘⏎, button, or new entry) and the seconds since the last ⌘N. If people already press ⌘⏎ right after ⌘N, that is the demand, measured without changing anything.</p>
+    <p><b>Do on alpha:</b> ship Settle as the default and "Go straight to focus" as a setting. Write in it for two weeks.</p>
+    <p><b>Kill Settle if:</b> the fade flickers or distracts in real writing (any pointer nudge brings chrome back), or visits to Ascent, Lamp and Altar per writing day drop once it is on. <b>Keep "straight to focus" off by default if:</b> fewer than about one in ten desktop writers ever use ⌘⏎ today.</p>
+  </section>
+
+  <footer>Dayspring prototype · not wired to the app · docs/prototypes/new-entry-focus.html</footer>
+</div>
+
+<script>
+(() => {
+  const VARIANTS = {
+    today: {
+      text: '<p><b>Today.</b> ⌘N gives you a fresh page with the rail and top bar in place. Focus is a separate step, ⌘⏎ or the Focus button, and the only way out is <kbd>Esc</kbd> or ⌘⏎ again. In focus there is no way to peek at the rail.</p>',
+      tries: ['Press New entry and start typing.', 'Press Focus. Look for a way back to Ascent without the keyboard.'],
+      onNew: 'stay', peek: false, settle: false, shelfInFocus: false,
+    },
+    diarly: {
+      text: '<p><b>Diarly, as is.</b> ⌘N opens the page and goes straight to focus. The rail waits off the left edge and slides in when the pointer reaches it. Built on today\'s focus mode, the ritual shelf goes with everything else.</p>',
+      tries: ['Press New entry. Notice what is missing under the page.', 'Move the pointer to the far left edge of the window.', 'Press Esc to come back.'],
+      onNew: 'focus', peek: true, settle: false, shelfInFocus: false,
+    },
+    honest: {
+      text: '<p><b>Focus, with doors.</b> The same ⌘N-to-focus, with two fixes. The ritual shelf stays until the first word, and three faint dots mark the edge so the way back can be seen. This is the setting for anyone who wants Diarly\'s behavior.</p>',
+      tries: ['Press New entry. The shelf is still there.', 'Type a word. The shelf leaves.', 'Hover the dots at the left edge.'],
+      onNew: 'focus', peek: true, settle: false, shelfInFocus: true,
+    },
+    settle: {
+      text: '<p><b>Settle.</b> ⌘N opens the page as it does today. The moment you type, the rail and top bar fade out without moving. Move the pointer and they come back. There is no mode to enter or leave, so you cannot get lost. ⌘⏎ still opens full focus with typewriter and dimming.</p>',
+      tries: ['Press New entry, then type a sentence.', 'Stop and move the pointer.', 'Type again. Notice that the text never shifts.'],
+      onNew: 'stay', peek: true, settle: true, shelfInFocus: false,
+    },
+  }
+
+  const win = document.getElementById('win')
+  const editor = document.getElementById('editor')
+  const shelf = document.getElementById('shelf')
+  const narr = document.getElementById('narr')
+  const readout = document.getElementById('readout')
+  const words = document.getElementById('words')
+  const rail = win.querySelector('.rail')
+
+  const s = { variant: 'settle', focus: false, writing: false, peek: false }
+  let moved = 0, narrTimer = 0
+
+  function say(msg) {
+    narr.textContent = msg
+    narr.dataset.show = 'true'
+    clearTimeout(narrTimer)
+    narrTimer = setTimeout(() => { narr.dataset.show = 'false' }, 2600)
+  }
+
+  function render() {
+    const v = VARIANTS[s.variant]
+    const blank = !editor.value.trim()
+    win.dataset.variant = s.variant
+    win.dataset.focus = String(s.focus)
+    win.dataset.writing = String(s.writing && !s.focus)
+    win.dataset.peek = String(s.focus && s.peek)
+    shelf.dataset.show = String(blank && (!s.focus || v.shelfInFocus))
+    const n = editor.value.trim() ? editor.value.trim().split(/\s+/).length : 0
+    words.textContent = n + (n === 1 ? ' word' : ' words')
+
+    const railShown = s.focus ? s.peek : !(s.writing && v.settle)
+    const back = s.focus
+      ? (v.peek ? (s.variant === 'honest' ? 'Esc, or the dots at the left edge' : 'Esc, or find the left edge') : 'Esc or ⌘⏎ only')
+      : (s.writing && v.settle ? 'Move the pointer' : 'Already in view')
+    readout.innerHTML =
+      `<span class="pill" data-state="${railShown ? 'on' : 'off'}">Rail <b>${railShown ? 'shown' : 'hidden'}</b></span>` +
+      `<span class="pill" data-state="${shelf.dataset.show === 'true' ? 'on' : (blank ? 'off' : '')}">Ritual shelf <b>${shelf.dataset.show === 'true' ? 'shown' : blank ? 'hidden on a blank page' : 'away (you are writing)'}</b></span>` +
+      `<span class="pill">Mode <b>${s.focus ? 'focus' : 'normal'}</b></span>` +
+      `<span class="pill">Way back <b>${back}</b></span>`
+  }
+
+  function setVariant(id) {
+    s.variant = id
+    document.querySelectorAll('.picker button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === id)))
+    const v = VARIANTS[id]
+    document.getElementById('brief-text').innerHTML = v.text
+    document.getElementById('brief-try').innerHTML = v.tries.map((t) => `<li>${t}</li>`).join('')
+    const segIdx = id === 'today' ? 0 : id === 'settle' ? 1 : 2
+    setSeg(segIdx, false)
+    reset()
+  }
+
+  function reset() {
+    s.focus = false; s.writing = false; s.peek = false
+    editor.value = ''
+    render()
+  }
+
+  function newEntry() {
+    const v = VARIANTS[s.variant]
+    editor.value = ''
+    s.writing = false; s.peek = false
+    s.focus = v.onNew === 'focus'
+    render()
+    editor.focus()
+    say(s.focus ? 'New entry, straight to focus' : 'New entry')
+  }
+
+  function setFocus(on) {
+    s.focus = on; s.peek = false; s.writing = false
+    render()
+    editor.focus()
+    say(on ? 'Focus. Esc to leave' : 'Left focus')
+  }
+
+  document.querySelectorAll('.picker button').forEach((b) => b.addEventListener('click', () => setVariant(b.dataset.v)))
+  document.getElementById('new-btn').addEventListener('click', newEntry)
+  document.getElementById('rail-new').addEventListener('click', newEntry)
+  document.getElementById('focus-btn').addEventListener('click', () => setFocus(!s.focus))
+  document.getElementById('topbar-focus').addEventListener('click', () => setFocus(true))
+  document.getElementById('handle').addEventListener('click', () => setFocus(false))
+  shelf.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => say(`Would open: ${b.textContent.replace(' →', '')}`)))
+  rail.querySelectorAll('.rb:not(#rail-new)').forEach((b) => b.addEventListener('click', () => say(`Would open: ${b.getAttribute('aria-label')}`)))
+
+  // One attribute flip on the first keystroke, not work on every keystroke.
+  editor.addEventListener('input', () => {
+    if (VARIANTS[s.variant].settle && !s.writing) { s.writing = true; moved = 0 }
+    render()
+  })
+
+  win.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); setFocus(!s.focus); return }
+    if (e.key === 'Escape' && s.focus) { e.preventDefault(); setFocus(false) }
+  })
+
+  win.addEventListener('pointermove', (e) => {
+    const v = VARIANTS[s.variant]
+    const r = win.getBoundingClientRect()
+    const x = e.clientX - r.left
+    // A resting hand nudges the trackpad. Wait for a deliberate move before bringing chrome back.
+    if (s.writing && v.settle && !s.focus) {
+      moved += Math.abs(e.movementX) + Math.abs(e.movementY)
+      if (moved > 24) { s.writing = false; moved = 0; render() }
+    }
+    if (s.focus && v.peek) {
+      const railW = rail.getBoundingClientRect().width
+      if (!s.peek && x < 18) { s.peek = true; render() }
+      else if (s.peek && x > railW + 28) { s.peek = false; render() }
+    }
+  })
+  win.addEventListener('pointerleave', () => { if (s.peek) { s.peek = false; render() } })
+
+  // Settings mock mirrors the variant it stands for.
+  const segHints = [
+    'Everything stays where it is while you write. ⌘⏎ opens focus.',
+    'The rail and top bar fade as you type and come back when you move the pointer.',
+    'A new entry opens in focus. The rituals stay until your first word. Esc, or the left edge, brings everything back.',
+  ]
+  const segToVariant = ['today', 'settle', 'honest']
+  function setSeg(i, drive) {
+    document.querySelectorAll('#seg button').forEach((b, j) => b.setAttribute('aria-pressed', String(i === j)))
+    document.getElementById('seg-hint').textContent = segHints[i]
+    if (drive) setVariant(segToVariant[i])
+  }
+  document.querySelectorAll('#seg button').forEach((b, i) => b.addEventListener('click', () => setSeg(i, true)))
+
+  setVariant('settle')
+})()
+</script>

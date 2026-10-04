@@ -17,7 +17,8 @@ import { paintQuotes } from './paintQuotes'
 import { drawMarkings, flatten, sortMarkings } from './pageMarkings'
 import { pageExcerpt } from './pageExcerpt'
 import { pageFacts } from './pageFacts'
-import { hydrateReadAttachments } from './readAttachments'
+import { hydrateReadAttachments, type ReadLookPhoto } from './readAttachments'
+import { PhotoViewer } from '@/features/photos/PhotoViewer'
 import { swipeTurn } from './swipeTurn'
 import { ritualMovementAt } from './readerRitual'
 import { ritualEntryShape } from '@/editor/practices/ritualDocument'
@@ -278,6 +279,9 @@ export function PageReader({
     }
   }, [entry.body_markdown, markings])
 
+  /** A photo opened to look at, with the set it was put with. Reading only: no captions typed here. */
+  const [look, setLook] = useState<{ photos: ReadLookPhoto[]; index: number } | null>(null)
+
   const bodyRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const el = bodyRef.current
@@ -291,6 +295,7 @@ export function PageReader({
     const undraw = drawReaderQuotes(el, scripture != null && SCRIPTURE_RITUALS.includes(scripture[1]!.trim()))
     const unhydrate = hydrateReadAttachments(el, renderedMarkdown, undefined, {
       verso: colophon,
+      onLook: (photos, index) => setLook({ photos, index }),
     })
     return () => {
       undraw()
@@ -646,6 +651,14 @@ export function PageReader({
           ) : null}
         </article>
       </div>
+      {look ? (
+        <PhotoViewer
+          photos={look.photos}
+          index={look.index}
+          onIndex={(index) => setLook((current) => (current ? { ...current, index } : current))}
+          onClose={() => setLook(null)}
+        />
+      ) : null}
     </div>
   )
 }
