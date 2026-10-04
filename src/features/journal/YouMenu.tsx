@@ -144,7 +144,9 @@ export function YouMenu({
         <span className="you__initial" aria-hidden>
           {initialOf(userEmail)}
         </span>
-        {labelsExpanded && <span className="you__label">You</span>}
+        {/* A tab in the phone's bar is an icon over its word, like the four
+            beside it — without one it sat 6px low and read as an afterthought. */}
+        {(labelsExpanded || placement === 'bar') && <span className="you__label">You</span>}
       </button>
 
       {open &&

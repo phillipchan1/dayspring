@@ -38,10 +38,17 @@ export function warmthSvg(heft: number, lenses: string[], pools: number[], id: s
     const rx = 26 + heft * 2.2
     return `<ellipse cx="${x.toFixed(0)}" cy="${(H / 2).toFixed(0)}" rx="${rx.toFixed(0)}" ry="${(H * 0.6).toFixed(0)}" fill="#f0c587" opacity="${(p * 0.45).toFixed(2)}"/>`
   }).join('')
-  return `<svg viewBox="0 0 600 ${H}" preserveAspectRatio="none" style="width:100%;height:${H}px;display:block">
+  // The pools are clipped to the band's own capsule before the blur, and the
+  // svg lets the blur spill past its box. A pool is taller than the band
+  // (ry = 0.6H) and, on a heavy strand, wider than its slot — unclipped, the
+  // viewport sliced it flat, and the heaviest bands (the ones that matter most)
+  // came out as a blurred rectangle with hard edges instead of light.
+  const capsule = `x="4" y="3" width="592" height="${H - 6}" rx="${((H - 6) / 2).toFixed(0)}"`
+  return `<svg viewBox="0 0 600 ${H}" preserveAspectRatio="none" style="width:100%;height:${H}px;display:block;overflow:visible">
     <defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="0">${stops}</linearGradient>
+    <clipPath id="c${id}"><rect ${capsule}/></clipPath>
     <filter id="b${id}" x="-5%" y="-50%" width="110%" height="200%"><feGaussianBlur stdDeviation="3.6"/></filter></defs>
-    <g filter="url(#b${id})"><rect x="4" y="3" width="592" height="${H - 6}" rx="${((H - 6) / 2).toFixed(0)}" fill="url(#g${id})" opacity="${op.toFixed(2)}"/>${poolEls}</g></svg>`
+    <g filter="url(#b${id})"><rect ${capsule} fill="url(#g${id})" opacity="${op.toFixed(2)}"/><g clip-path="url(#c${id})">${poolEls}</g></g></svg>`
 }
 
 // ── deterministic self-labeling caption (plain language, no counts) ───────────

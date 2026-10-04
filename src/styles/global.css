@@ -2848,16 +2848,29 @@ html[data-focus-mode] .focus-controls {
   background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
   border-color: var(--border-subtle);
 }
-@media (max-width: 768px) {
+/*
+ * On a phone it sits in the new-entry disc's band, just to its left, instead
+ * of stacked above it. Above it, it was a second floating layer over the
+ * middle of the prose — "the wo[rst]" of a paragraph being written — in a
+ * band no surface reserves, so the words under it could never be scrolled
+ * clear. Beside the disc it shares the band every surface already keeps free
+ * (`--mobile-chrome-h`), vertically centred on the disc.
+ */
+@media (max-width: 767px) {
   .focus-controls--docked {
-    bottom: max(8.5rem, calc(env(safe-area-inset-bottom) + 8rem));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 4.25rem + (52px - 3.25rem) / 2);
+    right: calc(max(1.1rem, env(safe-area-inset-right)) + 52px + 0.6rem);
+  }
+  .focus-controls--docked .appearance-icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 /* On a phone the corner this sits in is not "a corner nobody is writing near"
    — it is over the prose. At 48% on a half-clear ground the words showed
    through it, and with no hover to firm it up it read as a smudge on the
    page. Solid and quiet instead: the icons stay soft, the ground doesn't. */
-@media (max-width: 768px) and (hover: none) {
+@media (max-width: 767px) and (hover: none) {
   .focus-controls--docked {
     opacity: 0.92;
     background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
@@ -3801,7 +3814,9 @@ html[data-chapter-pane] .focus-controls--docked {
 .settings-modal {
   display: flex;
   width: min(94vw, 56rem);
-  height: min(86vh, 40rem);
+  /* 50rem, not 40: a 40rem dialog on a 1194pt iPad left 280pt of empty scrim
+     above and below and cut its own list off at the bottom. */
+  height: min(86dvh, 50rem);
   border-radius: 18px;
   animation: glass-modal-in var(--transition-slow) both;
 }
@@ -3862,7 +3877,9 @@ html[data-chapter-pane] .focus-controls--docked {
     flex: 0 0 auto;
     padding: max(0.5rem, env(safe-area-inset-top)) 0 0.45rem;
     border: none;
-    background: transparent;
+    /* The sheet's own ground, not a window onto the page under it — the top
+       half of the entry's title showed through above the tabs. */
+    background: var(--bg);
     cursor: pointer;
     touch-action: none;
   }
@@ -3960,12 +3977,14 @@ html[data-chapter-pane] .focus-controls--docked {
     justify-content: center;
     gap: 0.2rem;
     min-height: 44px;
-    padding: 0.45rem 0.6rem;
+    /* 0.35rem a side, and the slack shared out: at 0.6rem the five ran 30px
+       past a 375pt phone and "About" was cut at the edge. */
+    padding: 0.45rem 0.35rem;
     border-radius: var(--radius);
     font-size: 0.7rem;
     text-align: center;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex: 1 0 auto;
   }
   .settings-nav__item[data-active='true']::before {
     display: none;

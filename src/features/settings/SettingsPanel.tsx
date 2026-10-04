@@ -204,6 +204,9 @@ export function SettingsPanel({
 }
 
 function AppearanceTab({ settings, update }: { settings: Settings; update: Props['update'] }) {
+  // The sidebar's labels, on the layout that has a sidebar. A phone has a tab
+  // bar and no `[` key, so the toggle there named two things it could not see.
+  const isMobile = useIsMobile()
   const active = useResolvedTheme(settings)
   return (
     <div className="settings-stack">
@@ -238,12 +241,14 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Props
           </Field>
         </div>
       </details>
-      <Toggle
-        label="Navigation labels"
-        hint="Show names beside the sidebar icons. Press [ to toggle."
-        checked={settings.railLabels}
-        onChange={(railLabels) => update({ railLabels })}
-      />
+      {isMobile ? null : (
+        <Toggle
+          label="Navigation labels"
+          hint="Show names beside the sidebar icons. Press [ to toggle."
+          checked={settings.railLabels}
+          onChange={(railLabels) => update({ railLabels })}
+        />
+      )}
     </div>
   )
 }

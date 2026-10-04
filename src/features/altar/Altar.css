@@ -872,6 +872,10 @@
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    /* Room inside the scroller for the pills' taller hit areas, which it
+       would otherwise clip. */
+    padding-block: 10px;
+    margin-block: -10px;
   }
   .altar-chips--range::-webkit-scrollbar {
     display: none;
@@ -1059,4 +1063,25 @@
   font-size: 1rem;
   line-height: 1.6;
   color: rgb(var(--scripture-gold));
+}
+
+/* A finger's 44pt on the filters. They were 24px pills — the type stays the
+   type; only the hit area grows. */
+@media (pointer: coarse) {
+  .altar-pill,
+  .altar-chip {
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  /* The hit area, not the pill: a 44px-tall "on" pill read as a blob. */
+  .altar-pill::after,
+  .altar-chip::after {
+    content: '';
+    position: absolute;
+    inset: -10px 0;
+  }
+  .altar-chips {
+    row-gap: 1.25rem;
+  }
 }
