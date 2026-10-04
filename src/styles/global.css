@@ -36,7 +36,17 @@
    * <html> by `applyPlatformClass`) and a small gap on the web.
    */
   --frame-max: 96rem;
-  --frame-pad: clamp(1rem, 3vw, 2rem);
+  /*
+   * A share of the column the bar sits in, never of the viewport. Percentages
+   * resolve where the token is used — `.pg__inner`'s and the editor bar's
+   * padding — against that element's own container, which is the canvas
+   * beside the rail. `3vw` measured the whole window, rail and all, and on
+   * iOS the web view's `vw` is not always the screen's: an iPad in landscape
+   * reported one small enough that every `vw` clamp in the bar fell to its
+   * floor — 16pt gutters where 32 belong, the date pressed up under the
+   * hairline.
+   */
+  --frame-pad: clamp(1rem, 3%, 2rem);
   --frame-bar-top: var(--mac-traffic-main-top, 0.75rem);
   --frame-bar-row: 2rem;
   --frame-bar-floor: 0.6rem;
@@ -2437,7 +2447,8 @@ a {
 .frame-bar::after {
   content: '';
   position: absolute;
-  inset-inline: clamp(1rem, 6vw, 5rem);
+  /* Of the bar's width, not the window's — see `--frame-pad`. */
+  inset-inline: clamp(1rem, 6%, 5rem);
   inset-block-end: 0;
   block-size: 1px;
   background: linear-gradient(

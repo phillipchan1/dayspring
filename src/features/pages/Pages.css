@@ -78,13 +78,14 @@
   position: relative;
   z-index: 2;
   flex: 0 0 auto;
-  padding-bottom: clamp(0.85rem, 2vw, 1.15rem);
+  /* Percentages of the column, not `vw` — see `--frame-pad` in global.css. */
+  padding-bottom: clamp(0.85rem, 2%, 1.15rem);
 }
 
 .pg__head-wrap::after {
   content: '';
   position: absolute;
-  inset-inline: clamp(1rem, 6vw, 5rem);
+  inset-inline: clamp(1rem, 6%, 5rem);
   inset-block-end: 0;
   block-size: 1px;
   background: linear-gradient(
@@ -3654,7 +3655,7 @@ button.pg__sense-q:hover {
 }
 
 .pg__head-wrap {
-  margin-block-end: clamp(1rem, 2.4vw, 1.6rem);
+  margin-block-end: clamp(1rem, 2.4%, 1.6rem);
 }
 
 .pg-look__row {
@@ -4926,7 +4927,6 @@ button.pg__sense-q:hover {
 .pg-read1__page[data-margin='under'] .pg-read1__margin {
   position: static;
   inline-size: auto;
-  margin-block-start: 2rem;
   border-inline-start: none;
   border-block-start: 1px solid var(--border-subtle);
   padding-inline-start: 0;
@@ -6210,5 +6210,12 @@ mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
     content: '';
     position: absolute;
     inset: -14px -3px;
+  }
+
+  /* The touch bar has a 1rem floor above its hairline, so the page needs more
+     than the pointer's ~1.6rem below it — at that, the date read as a second
+     line of the bar. */
+  .pg-read1__page {
+    padding-block-start: 0.85rem;
   }
 }
