@@ -40,7 +40,10 @@ thing that came out of it.)*
 - **Answers:** *(all personas, daily)* — the reason they open the app at all.
 - **Serves:** P3 (sacred writing surface). **Risks:** nothing, if kept clean.
 - **State:** ✅ Shipped, mature. CodeMirror 6, focus mode, typewriter scrolling,
-  paragraph dimming, themes, fonts, offline-first with outbox sync.
+  paragraph dimming, themes, fonts, offline-first with outbox sync. **Settle**
+  (desktop, on by default): once you type, the rail and top bar fade where they
+  stand and a pointer move or Esc brings them back — Diarly's ⌘N-to-focus feel
+  without a mode (`useSettle.ts`, prototype in `docs/prototypes/new-entry-focus.html`).
 - **Audit:** *Has anything been added to the editor since last review that adds latency
   or chrome?* This surface degrades by accretion, one reasonable addition at a time.
 

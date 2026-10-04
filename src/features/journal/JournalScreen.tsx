@@ -25,6 +25,7 @@ import type { Entry, PrayerType, SpiritualItemType } from '@/lib/types'
 import { useAppNavigation } from '@/context/AppNavigation'
 import { useGuestMode } from '@/context/GuestMode'
 import { useFocusMode } from './useFocusMode'
+import { useSettle } from './useSettle'
 import { useJournalShortcuts } from './useJournalShortcuts'
 import { DesktopJournal } from './DesktopJournal'
 import { MobileJournal } from './MobileJournal'
@@ -577,6 +578,17 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     libraryOpen ||
     threadsOpen
   const focus = useFocusMode(focusOverlaysOpen)
+  // The frame fades once the words start (Settle). The wide layout only — Mac,
+  // web and iPad; the phone layout has no rail to fade. Focus mode has already
+  // taken the frame away, and the other surfaces aren't for writing.
+  const settle = useSettle(
+    settings.settleWhileWriting &&
+      !isMobile &&
+      !focus.active &&
+      !pagesActive &&
+      !canvasAlternateActive,
+    focusOverlaysOpen,
+  )
 
   useEffect(() => {
     if (!focus.active) {
@@ -2181,8 +2193,21 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
   }, [entryId, syncActiveRow])
 
+  // A save that failed is the one thing the writer must not miss while the
+  // frame is away — the status lives in the top bar.
+  useEffect(() => {
+    if (saveError) settle.wake()
+  }, [saveError, settle])
+
+  // On an iPad, putting the keyboard away is putting the pen down.
+  useEffect(() => {
+    if (!keyboardOpen) settle.wake()
+  }, [keyboardOpen, settle])
+
   async function handleNew() {
     track('entry_started')
+    // A fresh page arrives with its frame and its ritual shelf in view.
+    settle.wake()
     skipAdoptOnCreateRef.current = true
     try {
       await saveNow()
@@ -2213,6 +2238,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   async function handleBrowse(entry: Entry) {
+    settle.wake()
     skipEditorAutofocusRef.current = true
     setIsNewEntryMode(false)
     if (entry.id === entryId && !canvasAlternateActive) {
@@ -2518,6 +2544,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
               docKey={docKey}
               initialDoc={content}
               onChange={handleContentChange}
+              onUserInput={settle.onWrite}
               marks={entryId ? marks.marksFor(entryId) : []}
               // Marking prose is a READING act, so the button only appears on
               // an entry written on a previous day — today's page keeps exactly

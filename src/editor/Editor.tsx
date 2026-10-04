@@ -169,6 +169,12 @@ interface EditorProps {
   /** Identity of the loaded entry. Changing it swaps the document. */
   docKey: string
   onChange: (doc: string) => void
+  /**
+   * Called when the writer changed the page themselves (typing, deleting,
+   * dictating), never for a load, a swap or an insert the app made. The
+   * journal uses it to let the frame settle once the words start.
+   */
+  onUserInput?: () => void
   placeholder?: string
   /** When true, the next docKey swap skips autofocus (sidebar selection keeps list focus). */
   skipAutofocusRef?: MutableRefObject<boolean>
@@ -270,6 +276,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     initialDoc,
     docKey,
     onChange,
+    onUserInput,
     placeholder,
     bodyPlaceholder,
     autofocus,
@@ -308,6 +315,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const concealCompartment = useRef(new Compartment())
   const commandLineCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
+  const onUserInputRef = useRef(onUserInput)
   /**
    * The last document this editor handed to `onChange`. When `initialDoc`
    * comes back equal to it, that is the parent echoing our own keystroke —
@@ -365,6 +373,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     })
   })
   onChangeRef.current = onChange
+  onUserInputRef.current = onUserInput
   onEditBlockRef.current = onEditBlock
   onOpenChapterRef.current = onOpenChapter
   onScripturePasteRef.current = onScripturePaste
@@ -776,6 +785,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
               const doc = u.state.doc.toString()
               lastEmittedRef.current = doc
               onChangeRef.current(doc)
+              if (
+                onUserInputRef.current &&
+                u.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))
+              ) {
+                onUserInputRef.current()
+              }
             }
             if (u.selectionSet || u.focusChanged || u.docChanged) syncFormatBar(u.view)
             if (slashEnabledRef.current && (u.docChanged || u.selectionSet)) {

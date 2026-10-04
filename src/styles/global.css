@@ -1810,7 +1810,7 @@ a {
   backdrop-filter: blur(20px) saturate(var(--glass-saturate));
   border-right: 1px solid var(--glass-border);
   box-shadow: inset -1px 0 0 color-mix(in srgb, var(--glass-edge) 50%, transparent);
-  transition: flex-basis 0.22s ease, max-width 0.22s ease;
+  transition: flex-basis 0.22s ease, max-width 0.22s ease, opacity var(--settle-fade) ease;
 }
 .rail[data-labels='true'] {
   /* Fixed label column sized for "Looking back" — row centered in the rail */
@@ -2363,6 +2363,7 @@ a {
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-1);
+  transition: opacity var(--settle-fade) ease;
 }
 .journal-topbar__lead {
   display: flex;
@@ -2802,6 +2803,76 @@ html[data-platform='desktop'][data-focus-mode] .journal-canvas::before {
   -webkit-app-region: drag;
   z-index: 5;
   pointer-events: auto;
+}
+
+/* ── Settle: the frame fades once you start writing (useSettle.ts) ─────────
+   It leaves slowly and comes back quickly: going away is something that
+   happens to you, and reaching for it should feel answered.
+
+   Settled has to look as finished as focus mode, not like focus mode with
+   holes in it. Three things make that true:
+   · The page glides to the window's true centre. Awake, the column is centred
+     in the space beside the rail; settled, that space is the whole window.
+     `left` on the already-relative canvas, never a transform — a transform
+     would become the containing block of every fixed popover in the editor.
+     The column keeps its width, so no line re-wraps under the caret.
+   · The dawn glow crossfades to one drawn across the whole window, where focus
+     mode draws it. The canvas's own glow has a hard edge where the rail and
+     top bar were. `filter: opacity()` because `opacity` belongs to the glow's
+     breathing animation, which would override it.
+   · The horizon is the top bar's hairline, so it leaves with the top bar. */
+:root {
+  --settle-fade: 0.22s;
+  --settle-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+html[data-settled] {
+  --settle-fade: 0.7s;
+}
+html[data-settled] .rail,
+html[data-settled] .journal-topbar,
+html[data-settled] .focus-controls--docked,
+html[data-settled] .journal-horizon {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Tabbing into it is reaching for it. */
+html[data-settled] .rail:focus-within,
+html[data-settled] .journal-topbar:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+html[data-settled] .focus-controls--docked {
+  transition: opacity var(--settle-fade) ease;
+}
+.journal-horizon {
+  transition: opacity var(--settle-fade) ease;
+}
+.app-shell .journal-canvas {
+  left: 0;
+  transition: left var(--settle-fade) var(--settle-ease);
+}
+html[data-settled] .app-shell .journal-canvas {
+  left: var(--settle-shift, 0px);
+}
+.journal-glow {
+  transition: filter var(--settle-fade) ease;
+}
+html[data-settled] .journal-glow {
+  filter: opacity(0);
+}
+.app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 16rem;
+  background: var(--journal-glow);
+  pointer-events: none;
+  filter: opacity(0);
+  transition: filter var(--settle-fade) ease;
+}
+html[data-settled] .app-shell::before {
+  filter: opacity(1);
+  animation: journal-breathe 16s ease-in-out infinite;
 }
 
 /* ── Focus mode floating controls ───────────────────────────────────────── */
