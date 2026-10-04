@@ -127,6 +127,22 @@ export const rituals: Ritual[] = [
     era: "6th",
   },
   {
+    name: "Open Reading",
+    origin: "No framework — a passage, and a page",
+    tradition: "Any",
+    quote: "Read it. Then write whatever comes.",
+    rhythm: "morning",
+    era: "today",
+  },
+  {
+    name: "Discovery Bible Study",
+    origin: "Disciple-making movements, 20th century",
+    tradition: "Missional",
+    quote: "What does it say? What does it show us about God, and about us? What will I do?",
+    rhythm: "morning",
+    era: "today",
+  },
+  {
     name: "SOAP",
     origin: "Wayne Cordeiro, contemporary",
     tradition: "Evangelical",
