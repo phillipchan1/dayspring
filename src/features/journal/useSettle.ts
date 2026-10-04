@@ -11,7 +11,9 @@ function centreShift(): number {
   const canvas = document.querySelector('.journal-canvas')
   if (!canvas) return 0
   const r = canvas.getBoundingClientRect()
-  return Math.round(window.innerWidth / 2 - (r.left + r.width / 2))
+  // From where it rests: it may still be gliding back from the last settle.
+  const glide = parseFloat(getComputedStyle(canvas).left) || 0
+  return Math.round(window.innerWidth / 2 - (r.left - glide + r.width / 2))
 }
 
 export interface Settle {

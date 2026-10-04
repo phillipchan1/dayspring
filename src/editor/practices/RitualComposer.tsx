@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useVisualViewportFrame, type VisualViewportFrame } from '@/hooks/useViewportHeight'
 import { useMediaQuery, useTouchPrimary } from '@/hooks/useMediaQuery'
 import { useGuestMode } from '@/context/GuestMode'
+import { WAKE_DISTANCE_PX } from '@/features/journal/useSettle'
 import { track } from '@/lib/analytics'
 import { RITUAL_END_TOKEN } from '@/lib/practiceTokens'
 import { parseSpiritualBlocks } from '@/lib/spiritualBlocks'
@@ -1564,6 +1565,28 @@ export function gistOf(text: string): string {
   return out.replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * How far the passage rises while the writer types, so its reference sits on
+ * the page's own label line: two facing pages, one top line. Negative px, and
+ * never downward. Both measured from where they rest — the passage may still
+ * be gliding back from the last rise, the page may still be arriving.
+ */
+function passageRise(root: HTMLElement | null): number {
+  const leaf = root?.querySelector<HTMLElement>('.rc__leaf-text')
+  const ref = leaf?.querySelector('.rc__leaf-ref span')
+  const page = root?.querySelector<HTMLElement>('.rc__page')
+  const label = page?.querySelector('.rc__label')
+  if (!leaf || !ref || !page || !label) return 0
+  const lifted = parseFloat(getComputedStyle(leaf).top) || 0
+  const transform = getComputedStyle(page).transform
+  const arriving = transform && transform !== 'none' ? new DOMMatrix(transform).m42 : 0
+  // Bottoms, not tops: the two small-caps lines differ in size, and their
+  // bottoms sit within half a pixel of a shared baseline.
+  const refRest = ref.getBoundingClientRect().bottom - lifted
+  const labelRest = label.getBoundingClientRect().bottom - arriving
+  return Math.min(0, Math.round(labelRest - refRest))
+}
+
 interface DeskProps {
   name: string
   origin: string | undefined
@@ -1747,10 +1770,22 @@ function DeskLayout({
   }, [widen])
   /**
    * Focus, on the facing leaf: while the writer types, everything on it but
-   * the passage fades back. A real move of the mouse brings it back — not a
-   * trackpad's twitch.
+   * the passage and its reference goes, and the passage rises to the page's
+   * top line (`passageRise`). The same rules as the journal's Settle: a real
+   * move of the mouse brings it back — the pointer has to travel, a resting
+   * hand's twitch doesn't count — and on a tablet a touch anywhere but the
+   * words being written.
    */
   const [typing, setTyping] = useState(false)
+  const [rise, setRise] = useState(0)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const restRef = useRef<{ x: number; y: number } | null>(null)
+  const settle = () => {
+    if (typing) return
+    setTyping(true)
+    restRef.current = null
+    requestAnimationFrame(() => setRise(passageRise(rootRef.current)))
+  }
   const replaced = i < total ? instead?.(i) : undefined
   /**
    * Keep the line being written in view, with room under it.
@@ -1783,6 +1818,7 @@ function DeskLayout({
 
   return (
     <div
+      ref={rootRef}
       className={`ritual-composer rc--desk${facing ? ' rc--facing' : ''}`}
       data-still={still ? 'true' : undefined}
       role="dialog"
@@ -1790,19 +1826,30 @@ function DeskLayout({
       aria-label={`${name} — movement ${Math.min(i + 1, total) - first} of ${total - first}`}
       data-widen={facing ? (widen ? 'true' : widened ? 'done' : undefined) : undefined}
       data-typing={facing && typing ? 'true' : undefined}
-      style={frame ? { top: frame.top, height: frame.height } : undefined}
-      // No mouse to move on a tablet: a touch anywhere brings the leaf back.
+      style={{
+        ...(frame ? { top: frame.top, height: frame.height } : {}),
+        ['--rc-rise' as string]: `${rise}px`,
+      }}
+      // No mouse to move on a tablet: a touch anywhere but the words being
+      // written brings the leaf back (a tap in them only moves the caret).
       onPointerDown={
         facing && typing
           ? (e) => {
-              if (e.pointerType !== 'mouse') setTyping(false)
+              if (e.pointerType === 'mouse') return
+              if (e.target instanceof Element && e.target.closest('.rc__desk .cm-content')) return
+              setTyping(false)
             }
           : undefined
       }
       onMouseMove={
         facing && typing
           ? (e) => {
-              if (Math.abs(e.movementX) + Math.abs(e.movementY) > 6) setTyping(false)
+              const rest = restRef.current
+              if (!rest) {
+                restRef.current = { x: e.clientX, y: e.clientY }
+                return
+              }
+              if (Math.hypot(e.clientX - rest.x, e.clientY - rest.y) > WAKE_DISTANCE_PX) setTyping(false)
             }
           : undefined
       }
@@ -1881,7 +1928,7 @@ function DeskLayout({
         ref={deskRef}
         onMouseOver={onPageHover}
         onKeyDown={(e) => {
-          if (facing && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) setTyping(true)
+          if (facing && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) settle()
           followCaret()
         }}
         onInput={followCaret}
