@@ -28,6 +28,7 @@ import { monthEnd } from './build'
 import { seasonOf } from './seasons'
 import { newIn, photosIn } from './extras'
 import { setLedgerPreviewInput } from './load'
+import { isLightTheme, type ThemeId } from '@/lib/resolveTheme'
 import '@/styles/themes.css'
 import '../Ascent.css'
 
@@ -193,7 +194,7 @@ function Harness({ light }: { light: boolean }) {
        the scroller, and `.ascent-main` taking its padding from Ascent.css. A
        harness that set its own padding was ~26px wider than the surface it
        stood for, which is exactly the margin a phone-width layout fails in. */
-    <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ height: '100dvh', background: light ? '#fbf6ee' : '#10141f' }}>
+    <div className={`ascent${light ? ' ascent--light' : ''}`} style={{ height: '100dvh', background: 'var(--a1)' }}>
       <nav className="ascent-rail" aria-hidden />
       <div className="ascent-scroll">
       <main className="ascent-main is-wide">
@@ -233,8 +234,10 @@ export function renderLedgerPreview(): void {
   const host = document.getElementById('root')
   if (!host) return
   const params = new URLSearchParams(window.location.search)
-  const light = params.get('light') === '1'
-  document.documentElement.dataset.theme = light ? 'dawn' : 'ink'
+  // &theme=<id> picks any palette; &light=1 is the old shorthand for Dawn.
+  const theme = (params.get('theme') ?? (params.get('light') === '1' ? 'dawn' : 'ink')) as ThemeId
+  const light = isLightTheme(theme)
+  document.documentElement.dataset.theme = theme
   document.documentElement.dataset.appearance = light ? 'light' : 'dark'
   createRoot(host).render(<Harness light={light} />)
 }

@@ -14,34 +14,63 @@
   color: var(--ascent-ink);
   font-family: var(--font-serif);
   -webkit-font-smoothing: antialiased;
-  /* The Ascent carries its own palette — it is an illustrated surface, not a
-     themed one — so its inks live here rather than in themes.css. Naming them
-     lets a palette that needs a different ceiling (Vigil) bank the whole sky
-     without touching a rule. */
-  --ascent-ink: #ece7df;
-  --ascent-ink-rgb: 236, 231, 223; /* the same ink, for the many alpha uses */
-  --ascent-ink-bright: #f3ecdf;
-  --ascent-ink-quote: #efe9df;
-  --ascent-ink-body: #e6e1d8;
-  --ascent-ink-peak: #fff7ea;
-  --ascent-star: 255, 255, 255;
+  /* Every ink, glow and stone here is DERIVED from the active palette, so the
+     Ascent sits in the same room as the rest of the app — Nocturne's black,
+     Ember's embers, Grove's pine — instead of one fixed navy night that only
+     ever matched Ink. Naming them as tokens still lets a palette with its own
+     ceiling (Vigil, below) bank the whole sky without touching a rule.
+
+     The rules only ever use these through color-mix(), never as rgb triplets,
+     which is what makes deriving them possible at all. */
+  --ascent-ink: color-mix(in srgb, var(--text-bright) 88%, var(--text));
+  --ascent-ink-bright: var(--text-bright);
+  --ascent-ink-quote: color-mix(in srgb, var(--text-bright) 94%, var(--text));
+  --ascent-ink-body: color-mix(in srgb, var(--text-bright) 75%, var(--text));
+  --ascent-ink-peak: color-mix(in srgb, var(--text-bright) 82%, var(--accent));
+  --ascent-star: var(--text-bright);
   /* The learn-drill card is real paper inside the night sky: a light ground
-     with dark SVG ink on it, so the two move together. */
+     with dark SVG ink on it, so the two move together. Paper is an object, not
+     a theme surface — like the highlighter hues — so it stays paper. */
   --ascent-paper: #f7f1e4;
   --ascent-paper-ink: #3a342b;
   --ascent-paper-accent: #a8732a;
   --ascent-paper-meta: #9a917f;
-  --ascent-gold: #e8b873;
-  --ascent-gold-soft: #f0c587;
+  /* "Gold" is the climb's light — the palette's accent, so the trail, the
+     glow and the stones all burn in the same colour as the rest of the app. */
+  --ascent-gold: var(--accent);
+  --ascent-gold-soft: color-mix(in srgb, var(--accent) 78%, var(--text-bright));
+  --ascent-glow: var(--ascent-gold-soft);
   /* The lit peak and the rope's dotted trail — drawn in Summit.tsx's SVG. */
-  --ascent-peak: #f7ecd6;
-  --ascent-peak-rgb: 247, 236, 214;
-  --ascent-glow-rgb: 240, 197, 135;
-  --ascent-trail: rgba(232, 184, 115, 0.28);
-  --a0: #0d1018;
-  --a1: #141a28;
-  --ascent-rock-top: #2a2436;
-  --ascent-rock-bottom: #171520;
+  --ascent-peak: color-mix(in srgb, var(--accent) 22%, var(--text-bright));
+  --ascent-trail: color-mix(in srgb, var(--ascent-gold) 28%, transparent);
+  /* The sky. Night at the Week, warming toward the accent by the Year — the
+     palette's own ground at the bottom, a shade below it at the zenith. The
+     per-altitude ramp is applied by [data-altitude] below. */
+  --ascent-sky-0: color-mix(in srgb, var(--bg) 70%, #000);
+  --ascent-sky-1: var(--bg);
+  --ascent-dusk-0: color-mix(in srgb, var(--accent) 7%, var(--ascent-sky-0));
+  --ascent-dusk-1: color-mix(in srgb, var(--accent) 24%, var(--bg));
+  /* Scrims and the rail labels' backing: the ground, pushed toward black. */
+  --ascent-shade: color-mix(in srgb, var(--bg) 55%, #000);
+  --ascent-rock-top: color-mix(in srgb, var(--text-dim) 24%, var(--bg));
+  --ascent-rock-bottom: color-mix(in srgb, var(--text-dim) 8%, var(--bg));
+  --a0: var(--ascent-sky-0);
+  --a1: var(--ascent-sky-1);
+}
+
+/* The air warms as you climb. A share of the dusk per altitude rather than four
+   fixed pairs, so every palette gets the same climb in its own colours. */
+.ascent[data-altitude='month'] {
+  --a0: color-mix(in srgb, var(--ascent-dusk-0) 20%, var(--ascent-sky-0));
+  --a1: color-mix(in srgb, var(--ascent-dusk-1) 20%, var(--ascent-sky-1));
+}
+.ascent[data-altitude='quarter'] {
+  --a0: color-mix(in srgb, var(--ascent-dusk-0) 50%, var(--ascent-sky-0));
+  --a1: color-mix(in srgb, var(--ascent-dusk-1) 50%, var(--ascent-sky-1));
+}
+.ascent[data-altitude='year'] {
+  --a0: var(--ascent-dusk-0);
+  --a1: var(--ascent-dusk-1);
 }
 
 .ascent-air {
@@ -60,11 +89,11 @@
   pointer-events: none;
   transition: opacity 1s ease;
   background-image:
-    radial-gradient(1px 1px at 20% 18%, rgba(var(--ascent-star), 0.5), transparent),
-    radial-gradient(1px 1px at 67% 12%, rgba(var(--ascent-star), 0.4), transparent),
-    radial-gradient(1px 1px at 83% 28%, rgba(var(--ascent-star), 0.45), transparent),
-    radial-gradient(1px 1px at 38% 8%, rgba(var(--ascent-star), 0.35), transparent),
-    radial-gradient(1px 1px at 52% 22%, rgba(var(--ascent-star), 0.3), transparent);
+    radial-gradient(1px 1px at 20% 18%, color-mix(in srgb, var(--ascent-star) 50%, transparent), transparent),
+    radial-gradient(1px 1px at 67% 12%, color-mix(in srgb, var(--ascent-star) 40%, transparent), transparent),
+    radial-gradient(1px 1px at 83% 28%, color-mix(in srgb, var(--ascent-star) 45%, transparent), transparent),
+    radial-gradient(1px 1px at 38% 8%, color-mix(in srgb, var(--ascent-star) 35%, transparent), transparent),
+    radial-gradient(1px 1px at 52% 22%, color-mix(in srgb, var(--ascent-star) 30%, transparent), transparent);
 }
 
 .ascent-sr {
@@ -92,7 +121,7 @@
 .ascent-rail__track {
   position: relative;
   width: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--ascent-ink) 10%, transparent);
   border-radius: 2px;
   margin: 30px 0;
 }
@@ -104,7 +133,7 @@
   background: linear-gradient(0deg, var(--ascent-gold), var(--ascent-gold-soft));
   border-radius: 2px;
   transition: height 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 12px -1px rgba(232, 184, 115, 0.6);
+  box-shadow: 0 0 12px -1px color-mix(in srgb, var(--ascent-gold) 60%, transparent);
 }
 .ascent-station {
   position: absolute;
@@ -124,8 +153,8 @@
   height: 11px;
   margin-left: -5.5px;
   border-radius: 50%;
-  background: #2a3040;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--ascent-ink) 14%, var(--ascent-sky-1));
+  border: 1.5px solid color-mix(in srgb, var(--ascent-ink) 20%, transparent);
   transition: 0.4s;
   flex: 0 0 11px;
   z-index: 2;
@@ -138,19 +167,19 @@
   background: var(--ascent-gold-soft);
   border-color: var(--ascent-gold-soft);
   transform: scale(1.5);
-  box-shadow: 0 0 16px -1px rgba(240, 197, 135, 0.8);
+  box-shadow: 0 0 16px -1px color-mix(in srgb, var(--ascent-glow) 80%, transparent);
 }
 .ascent-station__label {
   display: flex;
   flex-direction: column;
   font-size: 14px;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   transition: 0.3s;
   line-height: 1.2;
   text-align: left;
   padding: 3px 10px 4px 9px;
   border-radius: 8px;
-  background: rgba(13, 16, 24, 0.32);
+  background: color-mix(in srgb, var(--ascent-sky-0) 32%, transparent);
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
 }
@@ -225,7 +254,7 @@
 .ascent-line {
   font-size: 16px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.6);
+  color: color-mix(in srgb, var(--ascent-ink) 60%, transparent);
   max-width: 500px;
   line-height: 1.6;
   margin: 0;
@@ -234,7 +263,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.16em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   margin: 12px 0 0;
 }
 .ascent-terrain {
@@ -244,7 +273,7 @@
 .ascent-empty {
   font-size: 16px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
   line-height: 1.6;
   max-width: 440px;
   margin: 8px 0 0;
@@ -257,14 +286,14 @@
   gap: 8px;
   margin-top: 22px;
   padding: 14px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid color-mix(in srgb, var(--ascent-ink) 7%, transparent);
   animation: ascent-rise 0.7s both 0.1s;
 }
 .ascent-lenses__label {
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.18em;
-  color: rgba(var(--ascent-ink-rgb), 0.35);
+  color: color-mix(in srgb, var(--ascent-ink) 35%, transparent);
 }
 .ascent-lenses__chips {
   display: flex;
@@ -278,13 +307,13 @@
   gap: 5px;
   font-size: 13px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.62);
+  color: color-mix(in srgb, var(--ascent-ink) 62%, transparent);
 }
 .ascent-lens__x {
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(var(--ascent-ink-rgb), 0.45);
+  color: color-mix(in srgb, var(--ascent-ink) 45%, transparent);
   font-size: 13px;
   line-height: 1;
   padding: 0 2px;
@@ -294,7 +323,7 @@
 }
 .ascent-lens__input {
   background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(232, 184, 115, 0.35);
+  border: 1px solid color-mix(in srgb, var(--ascent-gold) 35%, transparent);
   border-radius: 6px;
   color: var(--ascent-ink-quote);
   font-family: var(--font-serif);
@@ -314,7 +343,7 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.1em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-lenses__edit:hover {
   color: var(--ascent-gold-soft);
@@ -340,12 +369,12 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.16em;
-  color: rgba(var(--ascent-ink-rgb), 0.45);
+  color: color-mix(in srgb, var(--ascent-ink) 45%, transparent);
 }
 .ascent-dim__empty {
   font-size: 14px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   margin: 0;
 }
 .ascent-dim__open {
@@ -366,7 +395,7 @@
 .ascent-dim__note {
   font-size: 12px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.38);
+  color: color-mix(in srgb, var(--ascent-ink) 38%, transparent);
 }
 
 /* Words */
@@ -410,7 +439,7 @@
 .ascent-word__date {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 /* the one line of the year — set apart, hushed, the quietest content */
 .ascent-dim--words.is-year {
@@ -429,12 +458,12 @@
   font-style: italic;
   line-height: 1.4;
   max-width: 540px;
-  text-shadow: 0 0 30px rgba(232, 184, 115, 0.22);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--ascent-gold) 22%, transparent);
 }
 .ascent-oneline__date {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 
 /* Themes — the highlight layer (grounded in verbatim quotes) */
@@ -449,16 +478,16 @@
   gap: 6px;
   text-align: left;
   cursor: pointer;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-left: 2px solid rgba(232, 184, 115, 0.55);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-ink) 5%, transparent), color-mix(in srgb, var(--ascent-ink) 1.5%, transparent));
+  border: 1px solid color-mix(in srgb, var(--ascent-ink) 9%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--ascent-gold) 55%, transparent);
   border-radius: 12px;
   padding: 14px 16px;
   animation: ascent-rise 0.5s both;
   transition: border-color 0.2s, transform 0.2s;
 }
 .ascent-theme:hover {
-  border-color: rgba(232, 184, 115, 0.5);
+  border-color: color-mix(in srgb, var(--ascent-gold) 50%, transparent);
   border-left-color: var(--ascent-gold-soft);
   transform: translateY(-1px);
 }
@@ -479,12 +508,12 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.06em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-theme__peek {
   font-size: 13.5px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -503,7 +532,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   padding: 4px 0;
   transition: color 0.2s;
 }
@@ -534,8 +563,8 @@
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-ink) 5%, transparent), color-mix(in srgb, var(--ascent-ink) 1.5%, transparent));
+  border: 1px solid color-mix(in srgb, var(--ascent-ink) 9%, transparent);
   border-radius: 999px;
   padding: 7px 14px;
   cursor: pointer;
@@ -543,7 +572,7 @@
   transition: border-color 0.2s, transform 0.2s;
 }
 .ascent-scrip:hover {
-  border-color: rgba(232, 184, 115, 0.45);
+  border-color: color-mix(in srgb, var(--ascent-gold) 45%, transparent);
   transform: translateY(-1px);
 }
 .ascent-scrip__ref {
@@ -555,7 +584,7 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.04em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-scrip__suggested {
   align-self: flex-start;
@@ -566,7 +595,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.05em;
-  color: rgba(232, 184, 115, 0.5);
+  color: color-mix(in srgb, var(--ascent-gold) 50%, transparent);
   transition: color 0.2s;
 }
 .ascent-scrip__suggested:hover {
@@ -596,14 +625,14 @@
   flex-wrap: wrap;
   gap: 10px;
   padding: 12px 16px;
-  border-left: 2px solid rgba(232, 184, 115, 0.5);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  border-left: 2px solid color-mix(in srgb, var(--ascent-gold) 50%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-ink) 4%, transparent), color-mix(in srgb, var(--ascent-ink) 1%, transparent));
   border-radius: 0 12px 12px 0;
 }
 .ascent-ebenezer__ask {
   font-size: 14px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.6);
+  color: color-mix(in srgb, var(--ascent-ink) 60%, transparent);
 }
 .ascent-ebenezer__arrow {
   color: var(--ascent-gold);
@@ -613,7 +642,7 @@
   font-size: 16px;
   font-style: italic;
   color: var(--ascent-gold-soft);
-  text-shadow: 0 0 16px rgba(232, 184, 115, 0.25);
+  text-shadow: 0 0 16px color-mix(in srgb, var(--ascent-gold) 25%, transparent);
 }
 
 /* Learning (a question, never an answer) */
@@ -650,7 +679,7 @@
   color: var(--ascent-gold-soft);
 }
 .ascent-link:disabled {
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   cursor: default;
 }
 
@@ -676,7 +705,7 @@
   animation: ascent-fade 0.8s both;
 }
 .ascent-stone-dot {
-  filter: drop-shadow(0 0 6px rgba(var(--ascent-glow-rgb), 0.75));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ascent-glow) 75%, transparent));
   animation: ascent-breathe 5s ease-in-out infinite;
 }
 .ascent-stone-ring {
@@ -687,14 +716,14 @@
   animation: ascent-breathe 6s ease-in-out infinite;
 }
 .ascent-peak-lit {
-  filter: drop-shadow(0 0 12px rgba(var(--ascent-peak-rgb), 0.9));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--ascent-peak) 90%, transparent));
 }
 .ascent-summit__look {
   text-align: center;
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   margin: 14px 0 0;
 }
 
@@ -705,11 +734,11 @@
   justify-content: space-between;
   margin-top: 30px;
   padding-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid color-mix(in srgb, var(--ascent-ink) 7%, transparent);
 }
 .ascent-ctrl-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--ascent-ink) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ascent-ink) 14%, transparent);
   color: var(--ascent-ink);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -720,7 +749,7 @@
   transition: 0.25s;
 }
 .ascent-ctrl-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--ascent-ink) 12%, transparent);
   transform: translateY(-1px);
 }
 .ascent-ctrl-btn:disabled {
@@ -728,14 +757,14 @@
   cursor: default;
 }
 .ascent-ctrl-btn.up {
-  background: linear-gradient(160deg, rgba(240, 197, 135, 0.22), rgba(220, 163, 94, 0.12));
-  border-color: rgba(232, 184, 115, 0.35);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ascent-glow) 22%, transparent), color-mix(in srgb, var(--ascent-glow) 12%, transparent));
+  border-color: color-mix(in srgb, var(--ascent-gold) 35%, transparent);
   color: var(--ascent-gold-soft);
 }
 .ascent-ctrl-alt {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   letter-spacing: 0.05em;
 }
 
@@ -755,7 +784,7 @@
   inset: 0;
   border: none;
   cursor: pointer;
-  background: rgba(8, 10, 16, 0.72);
+  background: color-mix(in srgb, var(--ascent-shade) 72%, transparent);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   animation: ascent-fade 0.25s both;
@@ -765,8 +794,8 @@
   z-index: 1;
   width: 100%;
   max-width: 600px;
-  background: linear-gradient(165deg, #1a1622, #141019);
-  border: 1px solid rgba(232, 184, 115, 0.18);
+  background: linear-gradient(165deg, var(--bg-elevated), var(--bg));
+  border: 1px solid color-mix(in srgb, var(--ascent-gold) 18%, transparent);
   border-radius: 18px;
   padding: 22px 24px 26px;
   box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7);
@@ -794,7 +823,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
 }
 .ascent-drill__close:hover {
   color: var(--ascent-gold-soft);
@@ -814,7 +843,7 @@
   top: 6px;
   bottom: 6px;
   width: 1.5px;
-  background: linear-gradient(180deg, rgba(232, 184, 115, 0.5), rgba(232, 184, 115, 0.12));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ascent-gold) 50%, transparent), color-mix(in srgb, var(--ascent-gold) 12%, transparent));
 }
 .ascent-path__moment {
   position: relative;
@@ -831,11 +860,11 @@
   margin-top: 4px;
   border-radius: 50%;
   background: var(--ascent-gold);
-  box-shadow: 0 0 8px -1px rgba(232, 184, 115, 0.7);
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--ascent-gold) 70%, transparent);
 }
 .ascent-path__moment.is-suggested .ascent-path__dot {
   background: none;
-  border: 1.5px dashed rgba(232, 184, 115, 0.5);
+  border: 1.5px dashed color-mix(in srgb, var(--ascent-gold) 50%, transparent);
   box-shadow: none;
 }
 .ascent-path__body {
@@ -860,12 +889,12 @@
   color: var(--ascent-gold-soft);
 }
 .ascent-path__moment.is-suggested .ascent-path__excerpt {
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
 }
 .ascent-path__date {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-path__confirm {
   display: flex;
@@ -876,13 +905,13 @@
 .ascent-path__hint {
   font-size: 12px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.42);
+  color: color-mix(in srgb, var(--ascent-ink) 42%, transparent);
 }
 .ascent-path__confirmed {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
-  color: rgba(232, 184, 115, 0.7);
+  color: color-mix(in srgb, var(--ascent-gold) 70%, transparent);
   margin-top: 4px;
 }
 .ascent-drill__foot {
@@ -890,7 +919,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.03em;
-  color: rgba(var(--ascent-ink-rgb), 0.45);
+  color: color-mix(in srgb, var(--ascent-ink) 45%, transparent);
 }
 
 /* verse rise across altitudes (scripture drill-in) */
@@ -900,14 +929,14 @@
   gap: 8px;
   margin-bottom: 22px;
   padding-bottom: 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid color-mix(in srgb, var(--ascent-ink) 7%, transparent);
 }
 .ascent-vdrill__rise-lbl {
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-vdrill__rise-bars {
   display: flex;
@@ -934,20 +963,20 @@
   width: 18px;
   min-height: 2px;
   border-radius: 3px 3px 0 0;
-  background: linear-gradient(180deg, var(--ascent-gold-soft), rgba(232, 184, 115, 0.25));
+  background: linear-gradient(180deg, var(--ascent-gold-soft), color-mix(in srgb, var(--ascent-gold) 25%, transparent));
   transition: height 0.6s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 .ascent-vdrill__rise-x {
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 
 /* learning drill-in (the cross-lens cord) */
 .ascent-learndrill__card {
   background: var(--ascent-paper);
-  border: 0.5px solid rgba(120, 90, 40, 0.18);
+  border: 0.5px solid color-mix(in srgb, var(--ascent-paper-accent) 18%, transparent);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -992,7 +1021,7 @@
 .ascent-learndrill__note {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
 }
 
 /* prayer drill-in (asks → forward evidence → stone) */
@@ -1013,7 +1042,7 @@
   top: -4px;
   bottom: 8px;
   width: 0;
-  border-left: 1.5px dotted rgba(232, 184, 115, 0.6);
+  border-left: 1.5px dotted color-mix(in srgb, var(--ascent-gold) 60%, transparent);
 }
 .ascent-praydrill__evidence {
   display: flex;
@@ -1025,7 +1054,7 @@
   font-size: 9.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 
 /* ── keyframes ──────────────────────────────────────────────────────────── */
@@ -1081,24 +1110,38 @@
  * paper, gold deepened to amber, stars hidden. `ink` rgba = dawn --text (74,64,53). */
 .ascent.ascent--light {
   color: var(--text);
-  --ascent-gold: #b5772c;
-  --ascent-gold-soft: #c98a36;
-  --ascent-rock-top: #7d7480;
-  --ascent-rock-bottom: #565060;
+  /* Daybreak instead of night: the same derivation, from the light side. The
+     inks become the page's own text, so anything below without a light rule
+     still reads instead of going near-white on cream. */
+  --ascent-ink: var(--text);
+  --ascent-ink-bright: var(--text-bright);
+  --ascent-ink-quote: var(--text-bright);
+  --ascent-ink-body: var(--text);
+  --ascent-ink-peak: var(--text-bright);
+  --ascent-gold: var(--accent);
+  --ascent-gold-soft: color-mix(in srgb, var(--accent) 85%, var(--bg));
+  --ascent-peak: color-mix(in srgb, var(--accent) 30%, var(--bg-elevated));
+  --ascent-sky-0: var(--bg-elevated);
+  --ascent-sky-1: var(--bg);
+  --ascent-dusk-0: color-mix(in srgb, var(--accent) 7%, var(--bg-elevated));
+  --ascent-dusk-1: color-mix(in srgb, var(--accent) 20%, var(--bg));
+  --ascent-shade: var(--text-bright);
+  --ascent-rock-top: color-mix(in srgb, var(--text-dim) 90%, var(--bg));
+  --ascent-rock-bottom: color-mix(in srgb, var(--text) 85%, var(--bg));
 }
 .ascent--light .ascent-stars {
   display: none;
 }
 .ascent--light .ascent-rail__track {
-  background: rgba(74, 64, 53, 0.16);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
 }
 .ascent--light .ascent-station__dot {
-  background: #ddd2c0;
-  border-color: rgba(74, 64, 53, 0.25);
+  background: color-mix(in srgb, var(--text) 18%, var(--bg));
+  border-color: color-mix(in srgb, var(--text) 25%, transparent);
 }
 .ascent--light .ascent-station__label {
-  color: rgba(74, 64, 53, 0.5);
-  background: rgba(251, 246, 238, 0.6);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
 }
 .ascent--light .ascent-station:hover .ascent-station__label,
 .ascent--light .ascent-station:focus-visible .ascent-station__label {
@@ -1108,35 +1151,35 @@
   color: var(--text-bright);
 }
 .ascent--light .ascent-line {
-  color: rgba(74, 64, 53, 0.72);
+  color: color-mix(in srgb, var(--text) 72%, transparent);
 }
 .ascent--light .ascent-empty,
 .ascent--light .ascent-dim__empty,
 .ascent--light .ascent-dim__note {
-  color: rgba(74, 64, 53, 0.6);
+  color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 .ascent--light .ascent-lenses {
-  border-top-color: rgba(74, 64, 53, 0.12);
+  border-top-color: color-mix(in srgb, var(--text) 12%, transparent);
 }
 .ascent--light .ascent-lenses__label,
 .ascent--light .ascent-dim__eyebrow {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 .ascent--light .ascent-lens {
-  color: rgba(74, 64, 53, 0.72);
+  color: color-mix(in srgb, var(--text) 72%, transparent);
 }
 .ascent--light .ascent-lens__input {
-  background: #fffdf8;
+  background: var(--bg-elevated);
   color: var(--text-bright);
-  border-color: rgba(181, 119, 44, 0.5);
+  border-color: color-mix(in srgb, var(--ascent-gold) 50%, transparent);
 }
 .ascent--light .ascent-lenses__edit {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
 /* Words / Scripture / Prayer / Learning — light */
 .ascent--light .ascent-word__text {
-  color: #3a322a;
+  color: var(--text-bright);
 }
 .ascent--light .ascent-word__text.is-quote,
 .ascent--light .ascent-oneline,
@@ -1148,98 +1191,98 @@
 .ascent--light .ascent-word__date,
 .ascent--light .ascent-oneline__date,
 .ascent--light .ascent-scrip__count {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 .ascent--light .ascent-oneline {
   text-shadow: none;
 }
 .ascent--light .ascent-scrip,
 .ascent--light .ascent-theme {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(74, 64, 53, 0.14);
+  background: color-mix(in srgb, var(--bg-elevated) 60%, transparent);
+  border-color: color-mix(in srgb, var(--text) 14%, transparent);
   box-shadow: var(--shadow-2);
 }
 .ascent--light .ascent-theme {
-  border-left-color: rgba(181, 119, 44, 0.55);
+  border-left-color: color-mix(in srgb, var(--ascent-gold) 55%, transparent);
 }
 .ascent--light .ascent-theme__label {
   color: var(--text-bright);
 }
 .ascent--light .ascent-theme__peek {
-  color: rgba(74, 64, 53, 0.6);
+  color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 .ascent--light .ascent-theme__count,
 .ascent--light .ascent-inorder__summary {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 .ascent--light .ascent-drill__foot {
-  color: rgba(74, 64, 53, 0.55);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 .ascent--light .ascent-ebenezer {
-  background: rgba(255, 255, 255, 0.55);
-  border-left-color: rgba(181, 119, 44, 0.55);
+  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);
+  border-left-color: color-mix(in srgb, var(--ascent-gold) 55%, transparent);
 }
 .ascent--light .ascent-ebenezer__ask {
-  color: rgba(74, 64, 53, 0.7);
+  color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 .ascent--light .ascent-ebenezer__stone {
-  color: #a86a26;
+  color: var(--ascent-gold);
   text-shadow: none;
 }
 .ascent--light .ascent-summit__look {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
 /* Controls — light */
 .ascent--light .ascent-ctrl {
-  border-top-color: rgba(74, 64, 53, 0.12);
+  border-top-color: color-mix(in srgb, var(--text) 12%, transparent);
 }
 .ascent--light .ascent-ctrl-btn {
-  background: rgba(74, 64, 53, 0.06);
-  border-color: rgba(74, 64, 53, 0.18);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
   color: var(--text-bright);
 }
 .ascent--light .ascent-ctrl-btn:hover:not(:disabled) {
-  background: rgba(74, 64, 53, 0.1);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 .ascent--light .ascent-ctrl-alt {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
 /* Drill-in — light */
 .ascent--light .ascent-drill__scrim {
-  background: rgba(60, 50, 38, 0.4);
+  background: color-mix(in srgb, var(--ascent-shade) 40%, transparent);
 }
 .ascent--light .ascent-drill__panel {
-  background: linear-gradient(165deg, #fffdf8, #f7f1e8);
-  border-color: rgba(181, 119, 44, 0.28);
+  background: linear-gradient(165deg, var(--bg-elevated), var(--bg));
+  border-color: color-mix(in srgb, var(--ascent-gold) 28%, transparent);
 }
 .ascent--light .ascent-drill__title {
   color: var(--text-bright);
 }
 .ascent--light .ascent-drill__close {
-  color: rgba(74, 64, 53, 0.55);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 .ascent--light .ascent-path__excerpt {
-  color: #3a322a;
+  color: var(--text-bright);
 }
 .ascent--light .ascent-path__moment.is-suggested .ascent-path__excerpt {
-  color: rgba(74, 64, 53, 0.55);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 .ascent--light .ascent-path__date,
 .ascent--light .ascent-vdrill__rise-lbl,
 .ascent--light .ascent-vdrill__rise-x,
 .ascent--light .ascent-praydrill__ev-label {
-  color: rgba(74, 64, 53, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 .ascent--light .ascent-vdrill__rise {
-  border-bottom-color: rgba(74, 64, 53, 0.12);
+  border-bottom-color: color-mix(in srgb, var(--text) 12%, transparent);
 }
 .ascent--light .ascent-praydrill__pattern {
   color: var(--text-bright);
 }
 .ascent--light .ascent-learndrill__note {
-  color: rgba(74, 64, 53, 0.55);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 
 /* Ascend / descend on the rail itself: it stays in view while the page
@@ -1257,10 +1300,10 @@
 }
 .ascent-rail__step {
   padding: 6px 10px;
-  border: 1px solid rgba(var(--ascent-ink-rgb), 0.16);
+  border: 1px solid color-mix(in srgb, var(--ascent-ink) 16%, transparent);
   border-radius: 999px;
-  background: rgba(var(--ascent-ink-rgb), 0.04);
-  color: rgba(var(--ascent-ink-rgb), 0.7);
+  background: color-mix(in srgb, var(--ascent-ink) 4%, transparent);
+  color: color-mix(in srgb, var(--ascent-ink) 70%, transparent);
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.04em;
@@ -1278,12 +1321,12 @@
   /* …and for the same two at a finger's 44px (see the touch block below). */
   .ascent-rail { padding-bottom: 124px; }
 }
-/* --ascent-ink-rgb is the night ink and daybreak never redefines it, so the
-   light palette names its own — without this the steps were white on dawn. */
+/* Daybreak's steps sit on the page, not the sky, so they take the page's own
+   ink and surface (before daybreak redefined --ascent-ink, they were white on dawn). */
 .ascent--light .ascent-rail__step {
-  border-color: rgba(74, 64, 53, 0.22);
-  background: rgba(255, 255, 255, 0.55);
-  color: rgba(74, 64, 53, 0.78);
+  border-color: color-mix(in srgb, var(--text) 22%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);
+  color: color-mix(in srgb, var(--text) 78%, transparent);
 }
 @media (min-width: 768px) {
   .ascent-ctrl { display: none; }
@@ -1366,12 +1409,12 @@
 .ascent-bands__rest {
   font-size: 12.5px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.34);
+  color: color-mix(in srgb, var(--ascent-ink) 34%, transparent);
   margin: 6px 0 0;
 }
 .ascent-band {
   padding: 16px 0;
-  border-top: 1px solid rgba(var(--ascent-ink-rgb), 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--ascent-ink) 8%, transparent);
   animation: ascent-rise 0.6s both;
 }
 .ascent-band:first-child {
@@ -1397,7 +1440,7 @@
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   text-transform: lowercase;
 }
 .ascent-band__snip {
@@ -1405,7 +1448,7 @@
   font-style: italic;
   font-size: 15px;
   line-height: 1.5;
-  color: rgba(var(--ascent-ink-rgb), 0.62);
+  color: color-mix(in srgb, var(--ascent-ink) 62%, transparent);
   margin: 5px 0 10px;
 }
 .ascent-band__warmth {
@@ -1415,7 +1458,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.02em;
-  color: rgba(var(--ascent-ink-rgb), 0.42);
+  color: color-mix(in srgb, var(--ascent-ink) 42%, transparent);
   margin: 9px 0 0;
 }
 .ascent-band--private {
@@ -1427,7 +1470,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-band__locknote {
   margin: 8px 0 0;
@@ -1446,7 +1489,7 @@
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   transition: color 0.2s;
 }
 .ascent-howto__toggle:hover {
@@ -1455,15 +1498,15 @@
 .ascent-howto__key {
   margin-top: 11px;
   padding: 13px 15px;
-  border: 1px solid rgba(var(--ascent-ink-rgb), 0.1);
+  border: 1px solid color-mix(in srgb, var(--ascent-ink) 10%, transparent);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--ascent-ink) 3%, transparent);
   animation: ascent-rise 0.4s both;
 }
 .ascent-howto__key p {
   font-size: 13.5px;
   line-height: 1.5;
-  color: rgba(var(--ascent-ink-rgb), 0.6);
+  color: color-mix(in srgb, var(--ascent-ink) 60%, transparent);
   margin: 0 0 6px;
 }
 .ascent-howto__key b {
@@ -1484,13 +1527,13 @@
 
 /* light (dawn) theme — darken ink so warmth bands read on parchment */
 .ascent--light .ascent-band {
-  border-top-color: rgba(46, 38, 32, 0.1);
+  border-top-color: color-mix(in srgb, var(--text-bright) 10%, transparent);
 }
 .ascent--light .ascent-band__name {
-  color: #2e2620;
+  color: var(--text-bright);
 }
 .ascent--light .ascent-band__snip {
-  color: rgba(46, 38, 32, 0.66);
+  color: color-mix(in srgb, var(--text-bright) 66%, transparent);
 }
 .ascent--light .ascent-band__lens,
 .ascent--light .ascent-band__caption,
@@ -1498,17 +1541,17 @@
 .ascent--light .ascent-band__lock,
 .ascent--light .ascent-band__locknote,
 .ascent--light .ascent-howto__toggle {
-  color: rgba(46, 38, 32, 0.5);
+  color: color-mix(in srgb, var(--text-bright) 50%, transparent);
 }
 .ascent--light .ascent-howto__key {
-  border-color: rgba(46, 38, 32, 0.12);
-  background: rgba(255, 255, 255, 0.5);
+  border-color: color-mix(in srgb, var(--text-bright) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 50%, transparent);
 }
 .ascent--light .ascent-howto__key p {
-  color: rgba(46, 38, 32, 0.7);
+  color: color-mix(in srgb, var(--text-bright) 70%, transparent);
 }
 .ascent--light .ascent-howto__key b {
-  color: #2e2620;
+  color: var(--text-bright);
 }
 
 /* clickable warmth band (button reset — was a div) */
@@ -1527,7 +1570,7 @@
   transition: background 0.2s;
 }
 .ascent-band--open:hover {
-  background: linear-gradient(90deg, rgba(232, 184, 115, 0.06), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ascent-gold) 6%, transparent), transparent);
 }
 
 /* ── the tended timeline (click-in) ──────────────────────────────────────────── */
@@ -1540,7 +1583,7 @@
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.06em;
-  color: rgba(var(--ascent-ink-rgb), 0.42);
+  color: color-mix(in srgb, var(--ascent-ink) 42%, transparent);
   text-transform: lowercase;
   margin: 0 0 14px;
 }
@@ -1549,7 +1592,7 @@
   font-style: italic;
   font-size: 16px;
   line-height: 1.45;
-  color: rgba(var(--ascent-ink-rgb), 0.72);
+  color: color-mix(in srgb, var(--ascent-ink) 72%, transparent);
   max-width: 54ch;
   margin: 0 0 22px;
 }
@@ -1557,12 +1600,12 @@
 .ascent-tended__moment.is-bringing .ascent-path__dot,
 .ascent-tended__moment.is-neutral .ascent-path__dot {
   background: none;
-  border: 1.5px solid rgba(var(--ascent-ink-rgb), 0.3);
+  border: 1.5px solid color-mix(in srgb, var(--ascent-ink) 30%, transparent);
   box-shadow: none;
 }
 .ascent-tended__moment.is-meeting .ascent-path__dot {
   background: var(--ascent-gold-soft);
-  box-shadow: 0 0 0 4px rgba(238, 201, 126, 0.16), 0 0 14px 2px rgba(238, 201, 126, 0.5);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ascent-glow) 16%, transparent), 0 0 14px 2px color-mix(in srgb, var(--ascent-glow) 50%, transparent);
 }
 .ascent-tended__when {
   display: flex;
@@ -1573,7 +1616,7 @@
 .ascent-tended__when {
   font-family: var(--font-mono);
   font-size: 9.5px;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-tended__kind {
   font-family: var(--font-mono);
@@ -1586,20 +1629,20 @@
 }
 .is-bringing .ascent-tended__kind,
 .is-neutral .ascent-tended__kind {
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-tended__open {
   font-family: var(--font-mono);
   font-size: 8.5px;
   letter-spacing: 0.04em;
-  color: rgba(var(--ascent-ink-rgb), 0.32);
+  color: color-mix(in srgb, var(--ascent-ink) 32%, transparent);
 }
 .ascent-tended__entry {
   margin-top: 9px;
   padding: 13px 15px;
-  border: 1px solid rgba(var(--ascent-ink-rgb), 0.1);
+  border: 1px solid color-mix(in srgb, var(--ascent-ink) 10%, transparent);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--ascent-ink) 3%, transparent);
   animation: ascent-rise 0.35s both;
 }
 .ascent-tended__edate {
@@ -1607,7 +1650,7 @@
   font-size: 9.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   margin-bottom: 7px;
 }
 .ascent-tended__ebody {
@@ -1620,14 +1663,14 @@
 .ascent-tended__loading {
   font-size: 13px;
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
 }
 .ascent-tended__where {
   margin: 8px 0 0;
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 14px;
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
 }
 .ascent-tended__tend {
   display: flex;
@@ -1636,13 +1679,13 @@
   flex-wrap: wrap;
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px solid rgba(var(--ascent-ink-rgb), 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--ascent-ink) 8%, transparent);
 }
 .ascent-tended__tendlabel {
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.04em;
-  color: rgba(var(--ascent-ink-rgb), 0.35);
+  color: color-mix(in srgb, var(--ascent-ink) 35%, transparent);
 }
 .ascent-tended__tendact {
   background: none;
@@ -1651,7 +1694,7 @@
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(var(--ascent-ink-rgb), 0.5);
+  color: color-mix(in srgb, var(--ascent-ink) 50%, transparent);
 }
 .ascent-tended__tendact:hover {
   color: var(--ascent-gold);
@@ -1659,28 +1702,28 @@
 
 /* light (dawn) theme */
 .ascent--light .ascent-band--open:hover {
-  background: linear-gradient(90deg, rgba(192, 97, 61, 0.07), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ascent-gold) 7%, transparent), transparent);
 }
 .ascent--light .ascent-tended__reframe {
-  color: rgba(46, 38, 32, 0.72);
+  color: color-mix(in srgb, var(--text-bright) 72%, transparent);
 }
 .ascent--light .ascent-tended__ebody {
-  color: #2e2620;
+  color: var(--text-bright);
 }
 .ascent--light .ascent-tended__lenses,
 .ascent--light .ascent-tended__when,
 .ascent--light .ascent-tended__where,
 .ascent--light .ascent-tended__tendlabel,
 .ascent--light .ascent-tended__tendact {
-  color: rgba(46, 38, 32, 0.5);
+  color: color-mix(in srgb, var(--text-bright) 50%, transparent);
 }
 .ascent--light .ascent-tended__moment.is-bringing .ascent-path__dot,
 .ascent--light .ascent-tended__moment.is-neutral .ascent-path__dot {
-  border-color: rgba(46, 38, 32, 0.3);
+  border-color: color-mix(in srgb, var(--text-bright) 30%, transparent);
 }
 .ascent--light .ascent-tended__entry {
-  border-color: rgba(46, 38, 32, 0.12);
-  background: rgba(255, 255, 255, 0.5);
+  border-color: color-mix(in srgb, var(--text-bright) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 50%, transparent);
 }
 
 /* Summit — the closing question (converged: copy only, a question not a verdict) */
@@ -1689,11 +1732,11 @@
   font-style: italic;
   font-size: 18px;
   line-height: 1.45;
-  color: rgba(var(--ascent-ink-rgb), 0.82);
+  color: color-mix(in srgb, var(--ascent-ink) 82%, transparent);
   margin: 0;
 }
 .ascent--light .ascent-summit__ask {
-  color: rgba(46, 38, 32, 0.82);
+  color: color-mix(in srgb, var(--text-bright) 82%, transparent);
 }
 
 /* ── Words dimension: arcs (movements) + the verbatim lines you kept ────────── */
@@ -1723,7 +1766,7 @@
   font-style: italic;
   font-size: 13.5px;
   line-height: 1.5;
-  color: rgba(var(--ascent-ink-rgb), 0.55);
+  color: color-mix(in srgb, var(--ascent-ink) 55%, transparent);
   max-width: 60ch;
 }
 
@@ -1758,7 +1801,7 @@
   font-size: 9.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(232, 184, 115, 0.7);
+  color: color-mix(in srgb, var(--ascent-gold) 70%, transparent);
   white-space: nowrap;
 }
 .ascent-hl__anchor,
@@ -1777,20 +1820,20 @@
   font-style: italic;
   font-size: 15px;
   line-height: 1.5;
-  color: rgba(243, 236, 223, 0.92);
+  color: color-mix(in srgb, var(--ascent-ink-bright) 92%, transparent);
   max-width: 60ch;
   transition: color 0.18s ease;
 }
 .ascent-hl__anchor:hover .ascent-hl__quote,
 .ascent-hl__line:hover .ascent-hl__quote {
   color: var(--ascent-ink-peak);
-  text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--ascent-gold) 20%, transparent);
 }
 .ascent-hl__date {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(var(--ascent-ink-rgb), 0.38);
+  color: color-mix(in srgb, var(--ascent-ink) 38%, transparent);
 }
 .ascent-hl__more {
   display: flex;
@@ -1798,7 +1841,7 @@
   gap: 12px;
   margin-top: 2px;
   padding-left: 14px;
-  border-left: 1px solid rgba(232, 184, 115, 0.18);
+  border-left: 1px solid color-mix(in srgb, var(--ascent-gold) 18%, transparent);
   animation: ascent-rise 0.4s ease both;
 }
 .ascent-hl__toggle,
@@ -1811,12 +1854,12 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.08em;
-  color: rgba(var(--ascent-ink-rgb), 0.4);
+  color: color-mix(in srgb, var(--ascent-ink) 40%, transparent);
   transition: color 0.18s ease;
 }
 .ascent-hl__toggle:hover,
 .ascent-dim__showall:hover {
-  color: rgba(232, 184, 115, 0.85);
+  color: color-mix(in srgb, var(--ascent-gold) 85%, transparent);
 }
 .ascent-dim__showall {
   margin-top: 22px;
@@ -1847,100 +1890,99 @@
   font-style: italic;
   font-size: 15px;
   line-height: 1.5;
-  color: rgba(243, 236, 223, 0.92);
+  color: color-mix(in srgb, var(--ascent-ink-bright) 92%, transparent);
   max-width: 60ch;
   transition: color 0.18s ease;
 }
 .ascent-line:hover .ascent-line__text {
   color: var(--ascent-ink-peak);
-  text-shadow: 0 0 26px rgba(232, 184, 115, 0.2);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--ascent-gold) 20%, transparent);
 }
 .ascent-line__date {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(var(--ascent-ink-rgb), 0.38);
+  color: color-mix(in srgb, var(--ascent-ink) 38%, transparent);
 }
 
 /* Light (dawn) variants — warm ink on the dawn surface. */
 .ascent--light .ascent-arc__name {
-  color: #2c2218;
+  color: var(--text-bright);
 }
 .ascent--light .ascent-arc__note {
-  color: rgba(74, 60, 45, 0.62);
+  color: color-mix(in srgb, var(--text) 62%, transparent);
 }
 .ascent--light .ascent-line__text {
-  color: rgba(50, 40, 28, 0.9);
+  color: color-mix(in srgb, var(--text-bright) 90%, transparent);
 }
 .ascent--light .ascent-line:hover .ascent-line__text {
-  color: #1f1810;
+  color: var(--text-bright);
   text-shadow: none;
 }
 .ascent--light .ascent-line__date {
-  color: rgba(74, 60, 45, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 .ascent--light .ascent-hl__name {
-  color: #2c2218;
+  color: var(--text-bright);
 }
 .ascent--light .ascent-hl__tag {
-  color: rgba(176, 122, 46, 0.9);
+  color: color-mix(in srgb, var(--ascent-gold) 90%, transparent);
 }
 .ascent--light .ascent-hl__quote {
-  color: rgba(50, 40, 28, 0.9);
+  color: color-mix(in srgb, var(--text-bright) 90%, transparent);
 }
 .ascent--light .ascent-hl__anchor:hover .ascent-hl__quote,
 .ascent--light .ascent-hl__line:hover .ascent-hl__quote {
-  color: #1f1810;
+  color: var(--text-bright);
   text-shadow: none;
 }
 .ascent--light .ascent-hl__date {
-  color: rgba(74, 60, 45, 0.5);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 .ascent--light .ascent-hl__more {
-  border-left-color: rgba(176, 122, 46, 0.3);
+  border-left-color: color-mix(in srgb, var(--ascent-gold) 30%, transparent);
 }
 .ascent--light .ascent-hl__toggle,
 .ascent--light .ascent-dim__showall {
-  color: rgba(74, 60, 45, 0.55);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 .ascent--light .ascent-hl__toggle:hover,
 .ascent--light .ascent-dim__showall:hover {
-  color: rgba(176, 122, 46, 0.95);
+  color: color-mix(in srgb, var(--ascent-gold) 95%, transparent);
 }
 
 /* ── Vigil: the night sky, banked ───────────────────────────────────────────
-   Every other dark theme gets the same Ascent — the surface is illustrated,
-   not themed, and its near-white ink and lit horizon are the point. Vigil is
-   built for a dark-adapted eye, so the one surface that sets its own ceiling
-   has to come down with the rest of the app. Only the tokens change; not a
-   single rule here knows Vigil exists.
+   Every other palette gets the Ascent derived from its own tokens (top of this
+   file). Vigil is built for a dark-adapted eye, and the derivation would still
+   lift the inks above its ceiling and warm the Year's sky, so it pins them.
+   Only the tokens change; not a single rule here knows Vigil exists.
+
+   The sky holds flat — no dusk at the Year — because a warming glow is exactly
+   the extra light this palette exists to remove.
 
    The learn-drill card stays a light ground with dark ink on it — it is paper,
    and inverting it would strand the SVG text — but the paper itself drops from
    near-white to a dim parchment, which is where its glare was coming from. */
 [data-theme='vigil'] .ascent {
-  /* AscentView sets --a0/--a1 inline, per altitude, from ascent.config.ts — an
-     inline custom property outranks a stylesheet one, so banking the sky needs
-     !important. The rest are plain overrides. */
-  --a0: #060605 !important;
-  --a1: #0d0c0b !important;
+  --ascent-sky-0: #060605;
+  --ascent-sky-1: #0d0c0b;
+  --ascent-dusk-0: #060605;
+  --ascent-dusk-1: #0d0c0b;
   --ascent-ink: #847c6f;
-  --ascent-ink-rgb: 132, 124, 111;
   --ascent-ink-bright: #9a9285;
   --ascent-ink-quote: #8f8779;
   --ascent-ink-body: #7a7266;
   --ascent-ink-peak: #a49b8c;
-  --ascent-star: 132, 124, 111;
+  --ascent-star: #847c6f;
   --ascent-paper: #847c6f;
   --ascent-paper-ink: #0b0a09;
   --ascent-paper-accent: #241f18;
   --ascent-paper-meta: #322e29;
   --ascent-gold: #8a7f6a;
   --ascent-gold-soft: #6e6555;
+  --ascent-glow: #8a7f6a;
   --ascent-peak: #9a9285;
-  --ascent-peak-rgb: 154, 146, 133;
-  --ascent-glow-rgb: 138, 127, 106;
-  --ascent-trail: rgba(138, 127, 106, 0.22);
+  --ascent-trail: color-mix(in srgb, #8a7f6a 22%, transparent);
   --ascent-rock-top: #171614;
   --ascent-rock-bottom: #0e0d0c;
 }
@@ -1977,7 +2019,7 @@
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.55;
-  color: rgba(var(--ascent-ink-rgb), 0.88);
+  color: color-mix(in srgb, var(--ascent-ink) 88%, transparent);
 }
 .ascent-stone-pair__text:hover {
   color: var(--ascent-ink-bright);
@@ -1992,10 +2034,10 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(var(--ascent-ink-rgb), 0.35);
+  color: color-mix(in srgb, var(--ascent-ink) 35%, transparent);
 }
 .ascent-stone-pair__close:hover {
-  color: rgba(var(--ascent-ink-rgb), 0.6);
+  color: color-mix(in srgb, var(--ascent-ink) 60%, transparent);
 }
 
 /* The long look — folded by default. The throughline has always been written
@@ -2012,7 +2054,7 @@
   font-size: 10.5px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(var(--ascent-ink-rgb), 0.42);
+  color: color-mix(in srgb, var(--ascent-ink) 42%, transparent);
 }
 .ascent-longlook__toggle:hover:not(:disabled) {
   color: var(--ascent-gold-soft);
@@ -2034,12 +2076,12 @@
   font-family: var(--font-serif);
   font-size: 16.5px;
   line-height: 1.68;
-  color: rgba(var(--ascent-ink-rgb), 0.8);
+  color: color-mix(in srgb, var(--ascent-ink) 80%, transparent);
   margin: 0;
 }
 .ascent-longlook__para.is-themes {
   font-style: italic;
-  color: rgba(var(--ascent-ink-rgb), 0.62);
+  color: color-mix(in srgb, var(--ascent-ink) 62%, transparent);
 }
 
 /* The year's naming — the one thing on this surface the writer supplies. */
@@ -2083,7 +2125,7 @@
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
-  color: rgba(var(--ascent-ink-rgb), 0.3);
+  color: color-mix(in srgb, var(--ascent-ink) 30%, transparent);
   margin: 4px 0 0;
 }
 
@@ -2114,25 +2156,25 @@
 
 /* Light (dawn) — the ink inverts; the gold holds. */
 .ascent--light .ascent-stone-pair__text {
-  color: rgba(74, 64, 53, 0.9);
+  color: color-mix(in srgb, var(--text) 90%, transparent);
 }
 .ascent--light .ascent-stone-pair__close,
 .ascent--light .ascent-longlook__toggle,
 .ascent--light .ascent-summit__since {
-  color: rgba(74, 64, 53, 0.55);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 .ascent--light .ascent-longlook__para {
-  color: rgba(74, 64, 53, 0.86);
+  color: color-mix(in srgb, var(--text) 86%, transparent);
 }
 .ascent--light .ascent-longlook__para.is-themes {
-  color: rgba(74, 64, 53, 0.66);
+  color: color-mix(in srgb, var(--text) 66%, transparent);
 }
 .ascent--light .ascent-naming__answer {
-  color: #3a342b;
+  color: var(--text-bright);
   text-shadow: none;
 }
 .ascent--light .ascent-naming__write {
-  color: #a86a26;
+  color: var(--ascent-gold);
 }
 
 @media (max-width: 640px) {
@@ -2189,21 +2231,21 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
-  color: rgba(var(--ascent-ink-rgb), 0.3);
+  color: color-mix(in srgb, var(--ascent-ink) 30%, transparent);
   border-bottom: 1px solid transparent;
   transition: color 0.18s ease;
 }
 .ascent-years__year:hover {
-  color: rgba(var(--ascent-ink-rgb), 0.62);
+  color: color-mix(in srgb, var(--ascent-ink) 62%, transparent);
 }
 .ascent-years__year[data-on='true'] {
   color: var(--ascent-gold-soft);
-  border-bottom-color: rgba(232, 184, 115, 0.5);
+  border-bottom-color: color-mix(in srgb, var(--ascent-gold) 50%, transparent);
 }
 /* The year you are standing in keeps a mark even while you are reading another,
    so the way back is never something you have to remember. */
 .ascent-years__year[data-open='true']:not([data-on='true']) {
-  color: rgba(var(--ascent-ink-rgb), 0.55);
+  color: color-mix(in srgb, var(--ascent-ink) 55%, transparent);
 }
 .ascent-years__year:focus-visible {
   outline: 2px solid var(--ascent-gold-soft);
@@ -2211,15 +2253,15 @@
 }
 
 .ascent--light .ascent-years__year {
-  color: rgba(74, 64, 53, 0.42);
+  color: color-mix(in srgb, var(--text) 42%, transparent);
 }
 .ascent--light .ascent-years__year:hover,
 .ascent--light .ascent-years__year[data-open='true']:not([data-on='true']) {
-  color: rgba(74, 64, 53, 0.7);
+  color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 .ascent--light .ascent-years__year[data-on='true'] {
-  color: #a86a26;
-  border-bottom-color: rgba(168, 106, 38, 0.45);
+  color: var(--ascent-gold);
+  border-bottom-color: color-mix(in srgb, var(--ascent-gold) 45%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2310,14 +2352,14 @@
     grid-row: 2;
   }
   .ascent--framed:not(.ascent--light) .frame-bar__lead {
-    color: rgba(var(--ascent-ink-rgb), 0.55);
+    color: color-mix(in srgb, var(--ascent-ink) 55%, transparent);
   }
   .ascent--framed:not(.ascent--light) .frame-bar::after {
     background: linear-gradient(
       to right,
       transparent,
-      rgba(var(--ascent-ink-rgb), 0.12) 12%,
-      rgba(var(--ascent-ink-rgb), 0.12) 88%,
+      color-mix(in srgb, var(--ascent-ink) 12%, transparent) 12%,
+      color-mix(in srgb, var(--ascent-ink) 12%, transparent) 88%,
       transparent
     );
   }

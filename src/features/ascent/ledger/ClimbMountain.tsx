@@ -271,7 +271,7 @@ export function ClimbMountain({
                         ry={7}
                         fill={past || now ? 'var(--ascent-gold)' : 'none'}
                         fillOpacity={now ? 0.95 : 0.55}
-                        stroke={past || now ? 'none' : 'rgba(var(--ascent-glow-rgb), 0.6)'}
+                        stroke={past || now ? 'none' : 'color-mix(in srgb, var(--ascent-glow) 60%, transparent)'}
                         strokeDasharray="3 3"
                       />
                       <text className={`climb-mtn__lbl${now ? ' is-now' : ''}`} x={name.x} y={base} textAnchor={name.anchor}>
