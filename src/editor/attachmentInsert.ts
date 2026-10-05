@@ -15,6 +15,7 @@ import {
   planInsertBeside,
   planPlaceBeside,
 } from '@/lib/photoSet'
+import { dropArrival, settleArrival } from '@/lib/photoArrival'
 import { minimalDocChange } from './minimalDocChange'
 
 export interface AttachmentEditTarget {
@@ -548,12 +549,16 @@ export function replacePendingAttachmentInView(
   const range = findPendingAttachmentRange(doc, pendingId)
   if (!range) return
   const finalMd = formatAttachmentMarkdown(hash, ext, alt || range.alt, size)
+  // Before the swap, so the photo that replaces the placeholder draws the
+  // picture already on screen instead of asking storage for it.
+  settleArrival(pendingId, `${hash}.${ext}`)
   view.dispatch({ changes: { from: range.from, to: range.to, insert: finalMd } })
 }
 
 export function removePendingAttachmentInView(view: EditorView, pendingId: string): void {
   const doc = view.state.doc.toString()
   const range = findPendingAttachmentRange(doc, pendingId)
+  dropArrival(pendingId)
   if (!range) return
   view.dispatch({ changes: { from: range.from, to: range.to, insert: '' } })
 }

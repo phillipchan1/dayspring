@@ -12,6 +12,7 @@ import { FONT_SIZE_MIN, FONT_SIZE_DEFAULT, FONT_SIZE_MAX } from '@/lib/settings'
 import { useIsMobile, useMediaQuery } from '@/hooks/useMediaQuery'
 import { useKeyboardOpen, useKeyboardInset } from '@/hooks/useKeyboard'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
+import { beginArrivals, dropArrival } from '@/lib/photoArrival'
 import { asEntryMarkdown } from '@/lib/entryLabels'
 import { getEntryById, wordCount, byCreatedDesc } from '@/lib/entries'
 import { subscribeEntryChanges } from '@/lib/entriesRealtime'
@@ -895,6 +896,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       const takenAt = takenAtFromFile(file)
       const ownerId = (await supabase.auth.getUser()).data.user?.id
       if (!ownerId) return
+      beginArrivals([{ id: pendingId, file }])
       inputEditor()?.replaceRange(
         target.from,
         target.to,
@@ -918,6 +920,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         // used to remove the placeholder outright, which destroyed a photo that
         // was already safely in storage just because its replacement failed.
         console.warn('[images] replace upload rejected', e)
+        // Not settled: the picture in hand is the replacement's, not the original's.
+        dropArrival(pendingId)
         inputEditor()?.replacePendingAttachment(
           pendingId,
           target.hash,

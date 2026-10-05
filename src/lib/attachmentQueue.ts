@@ -26,6 +26,7 @@ import * as cache from './db'
 import { rewriteEntryBodies } from './repo'
 import { classifySyncError, describeSyncError, MAX_SYNC_ATTEMPTS } from './syncError'
 import { readPhotoExif } from './exif'
+import { setArrivalStage } from './photoArrival'
 
 export interface UploadedRef {
   hash: string
@@ -101,6 +102,7 @@ export async function uploadOrQueue(
 ): Promise<UploadedRef | null> {
   const sb = supabase
   if (!sb) throw new Error('Supabase is not configured')
+  setArrivalStage(pendingId, 'preparing')
   const exif = await readPhotoExif(file)
   const metaWithExif: AttachmentPhotoMeta | undefined = (() => {
     const takenAt = exif.takenAt ?? meta?.takenAt
@@ -109,11 +111,14 @@ export async function uploadOrQueue(
   })()
   if (exif.gps) void seedExifIntoPendingEntry(pendingId, exif.gps, exif.takenAt)
   try {
-    const { hash, ext: uploadedExt } = await uploadImageAttachment(sb, file, metaWithExif)
+    const { hash, ext: uploadedExt } = await uploadImageAttachment(sb, file, metaWithExif, () =>
+      setArrivalStage(pendingId, 'sending'),
+    )
     return { hash, ext: uploadedExt }
   } catch (e) {
     if (classifySyncError(e) === 'permanent') throw e
     await queueUpload(pendingId, ownerId, file, ext, alt, metaWithExif)
+    setArrivalStage(pendingId, 'held')
     return null
   }
 }

@@ -3704,6 +3704,10 @@ html[data-chapter-pane] .focus-controls--docked {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes cm-attachment-arrive {
+  from { filter: grayscale(0.25) contrast(1) opacity(0.8); }
+  to   { filter: none; }
+}
 @keyframes cm-attachment-pulse {
   0%, 100% { opacity: 0.6; }
   50%       { opacity: 0.35; }

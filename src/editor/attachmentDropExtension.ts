@@ -5,6 +5,7 @@ import { EditorView, ViewPlugin } from '@codemirror/view'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { extFromImageFile } from '@/lib/attachments'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
+import { beginArrivals } from '@/lib/photoArrival'
 import { supabase } from '@/lib/supabase'
 import {
   ATTACHMENT_DND_MIME,
@@ -89,6 +90,8 @@ async function uploadFiles(
     file,
   }))
 
+  // Before the placeholders, so they are drawn as the photos they stand for.
+  beginArrivals(pending)
   const placeholders = pending.map((p) => ({ id: p.id, alt: p.alt }))
   if (target.kind === 'beside') {
     insertPendingBesideInView(view, target.from, target.after, placeholders, focus)
@@ -96,7 +99,7 @@ async function uploadFiles(
     insertBlockPendingAttachmentsAt(view, target.pos, placeholders)
   }
 
-  const ownerId = (await supabase.auth.getUser()).data.user?.id
+  const ownerId = (await supabase.auth.getSession()).data.session?.user?.id
   if (!ownerId) return
 
   for (const item of pending) {
