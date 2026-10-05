@@ -1,7 +1,8 @@
 // Inline image rendering for `attachment:<sha256>.<ext>` refs.
 //
 // Resolved images render as block widgets with hover + click-to-edit, matching
-// spiritual blocks. Pending uploads show a pulsing placeholder.
+// spiritual blocks. A photo still being saved is drawn from the file in hand,
+// pale, and comes into colour as it goes (lib/photoArrival.ts).
 
 import {
   Decoration,
@@ -28,6 +29,14 @@ import {
 import { cropFor, type CropPlan } from '@/lib/attachmentLayout'
 import { mountPhotoRows, type PhotoRowsHandle } from '@/lib/photoRowsDom'
 import { findPhotoRuns, formatPhotoSetLine, photoRatio } from '@/lib/photoSet'
+import {
+  arrivalLine,
+  arrivalOf,
+  forgetArrivalPicture,
+  setArrivalRatio,
+  settledPhoto,
+  subscribeArrivals,
+} from '@/lib/photoArrival'
 import {
   ATTACHMENT_DND_MIME,
   findAttachmentAtPos,
@@ -133,9 +142,25 @@ function fetchMissingMeta(view: EditorView): void {
   }
 }
 
+/**
+ * The picture for a photo, if this session already has one — including the
+ * file it was saved from a moment ago, which is taken up here so the page
+ * never goes to storage for a photo it is holding.
+ */
+function knownUrl(key: string): string | null {
+  const url = resolvedUrls.get(key)
+  if (url) return url
+  const local = settledPhoto(key)
+  if (!local) return null
+  resolvedUrls.set(key, local.url)
+  if (local.ratio && !learnedRatios.has(key)) learnedRatios.set(key, local.ratio)
+  return local.url
+}
+
 function fetchAttachmentUrl(hash: string, ext: string): Promise<string | null> {
   const key = `${hash}.${ext}`
-  if (resolvedUrls.has(key)) return Promise.resolve(resolvedUrls.get(key)!)
+  const known = knownUrl(key)
+  if (known) return Promise.resolve(known)
 
   const inflight = pendingFetches.get(key)
   if (inflight) return inflight
@@ -246,6 +271,12 @@ class AttachmentImageWidget extends WidgetType {
 
     const url = this.resolvedUrl
     if (url) {
+      // Saved a moment ago from this very file: finish coming into colour
+      // rather than fading in from nothing, the once.
+      if (settledPhoto(this.cacheKey)?.url === url && !arrivedShown.has(this.cacheKey)) {
+        arrivedShown.add(this.cacheKey)
+        wrap.classList.add('cm-attachment--arrived')
+      }
       const img = document.createElement('img')
       img.src = url
       img.alt = this.caption ?? 'Photo'
@@ -296,28 +327,90 @@ class AttachmentImageWidget extends WidgetType {
   }
 }
 
+/** Lone photos already shown arriving, so a later redraw does not replay it. */
+const arrivedShown = new Set<string>()
+
+/** Write the line under photos still being saved, or the caption that follows it. */
+function paintArrivalLine(el: HTMLElement): void {
+  const ids = (el.dataset.arrivalLine ?? '').split(',').filter(Boolean)
+  const text = arrivalLine(ids) ?? el.dataset.settledLine ?? ''
+  if (el.textContent !== text) el.textContent = text
+}
+
+/**
+ * A photo moved a step closer to saved. Stages are painted straight onto the
+ * tiles already on screen rather than through a redraw, so the picture stays
+ * put and the change of colour is a transition, not a new image.
+ */
+function paintArrivals(view: EditorView): void {
+  for (const el of view.dom.querySelectorAll<HTMLElement>('[data-pending-id]')) {
+    const stage = arrivalOf(el.dataset.pendingId!)?.stage
+    if (stage) el.dataset.arrival = stage
+  }
+  for (const el of view.dom.querySelectorAll<HTMLElement>('[data-arrival-line]')) paintArrivalLine(el)
+}
+
 class PendingAttachmentWidget extends WidgetType {
-  constructor(readonly alt: string) {
+  constructor(
+    readonly alt: string,
+    readonly pendingId: string,
+    readonly url: string | null,
+  ) {
     super()
   }
 
   eq(other: PendingAttachmentWidget): boolean {
-    return other.alt === this.alt
+    return other.alt === this.alt && other.pendingId === this.pendingId && other.url === this.url
   }
 
   toDOM(): HTMLElement {
     const wrap = document.createElement('div')
-    wrap.className = 'cm-attachment cm-attachment--uploading'
+    wrap.className = 'cm-attachment cm-attachment--uploading cm-attachment--size-m'
     wrap.contentEditable = 'false'
-    wrap.setAttribute('aria-label', 'Uploading photo')
+    wrap.setAttribute('aria-label', 'Saving photo')
 
-    const ph = document.createElement('div')
-    ph.className = 'cm-attachment__placeholder'
-    const label = document.createElement('span')
-    label.className = 'cm-attachment__status'
-    label.textContent = 'uploading…'
-    ph.append(label)
-    wrap.append(ph)
+    const line = (tag: 'p' | 'span', className: string) => {
+      const el = document.createElement(tag)
+      el.className = className
+      el.dataset.arrivalLine = this.pendingId
+      paintArrivalLine(el)
+      return el
+    }
+    const placeholder = () => {
+      const ph = document.createElement('div')
+      ph.className = 'cm-attachment__placeholder'
+      ph.append(line('span', 'cm-attachment__status'))
+      return ph
+    }
+
+    if (!this.url) {
+      wrap.append(placeholder())
+      return wrap
+    }
+
+    // The file in hand, in the frame the saved photo will have.
+    const frame = document.createElement('div')
+    frame.className = 'cm-attachment__frame'
+    const media = document.createElement('div')
+    media.className = 'cm-attachment__media'
+    media.dataset.pendingId = this.pendingId
+    media.dataset.arrival = arrivalOf(this.pendingId)?.stage ?? 'waiting'
+    const img = document.createElement('img')
+    img.src = this.url
+    img.alt = ''
+    img.className = 'cm-attachment__img'
+    img.draggable = false
+    img.addEventListener(
+      'error',
+      () => {
+        forgetArrivalPicture(this.pendingId)
+        frame.replaceWith(placeholder())
+      },
+      { once: true },
+    )
+    media.append(img)
+    frame.append(media, line('p', 'cm-attachment__meta'))
+    wrap.append(frame)
     return wrap
   }
 
@@ -329,6 +422,9 @@ class PendingAttachmentWidget extends WidgetType {
 /** One photo in a set. `key` is null while the upload is still in flight. */
 interface SetTile {
   key: string | null
+  /** The placeholder's id, while there is no key. */
+  pendingId: string | null
+  /** For a photo not saved yet, the file it is being saved from. */
   url: string | null
   caption: string | null
   ratio: number
@@ -338,6 +434,35 @@ interface SetTile {
 }
 
 const setHandles = new WeakMap<HTMLElement, PhotoRowsHandle>()
+/** What each set block on screen was last drawn from, for `updateDOM`. */
+const setSpecs = new WeakMap<HTMLElement, readonly SetTile[]>()
+
+/** Everything about a tile that changes when its photo goes from saving to saved. */
+function dressTile(tile: HTMLElement, spec: SetTile): void {
+  tile.style.backgroundColor = spec.color ?? ''
+  tile.classList.toggle('cm-attachment--interactive', spec.key !== null)
+  tile.classList.toggle('cm-photoset__tile--pending', spec.key === null && !spec.url)
+  if (spec.key) {
+    tile.dataset.attachmentKey = spec.key
+    tile.draggable = true
+    tile.title = 'Click for options · drag to reorder, or out of the set'
+    tile.removeAttribute('aria-label')
+    delete tile.dataset.pendingId
+    delete tile.dataset.arrival
+    return
+  }
+  delete tile.dataset.attachmentKey
+  tile.draggable = false
+  tile.removeAttribute('title')
+  tile.setAttribute('aria-label', 'Saving photo')
+  const stage = spec.pendingId ? arrivalOf(spec.pendingId)?.stage : undefined
+  if (spec.pendingId) tile.dataset.pendingId = spec.pendingId
+  if (stage) tile.dataset.arrival = stage
+}
+
+function setArrivalIds(tiles: readonly SetTile[]): string {
+  return tiles.flatMap((t) => (t.pendingId ? [t.pendingId] : [])).join(',')
+}
 
 /**
  * Several photos on touching lines, drawn as one block of rows (lib/photoSet.ts).
@@ -363,6 +488,7 @@ class PhotoSetWidget extends WidgetType {
         const mine = this.tiles[i]!
         return (
           t.key === mine.key &&
+          t.pendingId === mine.pendingId &&
           t.url === mine.url &&
           t.caption === mine.caption &&
           t.ratio === mine.ratio &&
@@ -386,18 +512,9 @@ class PhotoSetWidget extends WidgetType {
       const tile = document.createElement('div')
       tile.className = 'cm-photoset__tile'
       tile.dataset.setIndex = String(index)
-      if (spec.color) tile.style.backgroundColor = spec.color
+      dressTile(tile, spec)
 
       let img: HTMLImageElement | null = null
-      if (spec.key) {
-        tile.classList.add('cm-attachment--interactive')
-        tile.dataset.attachmentKey = spec.key
-        tile.draggable = true
-        tile.title = 'Click for options · drag to reorder, or out of the set'
-      } else {
-        tile.classList.add('cm-photoset__tile--pending')
-        tile.setAttribute('aria-label', 'Uploading photo')
-      }
       if (spec.url) {
         img = document.createElement('img')
         img.src = spec.url
@@ -405,6 +522,19 @@ class PhotoSetWidget extends WidgetType {
         img.className = 'cm-photoset__img'
         img.loading = 'lazy'
         img.draggable = false
+        const pendingId = spec.pendingId
+        if (pendingId) {
+          const shown = img
+          shown.addEventListener(
+            'error',
+            () => {
+              forgetArrivalPicture(pendingId)
+              shown.remove()
+              tile.classList.add('cm-photoset__tile--pending')
+            },
+            { once: true },
+          )
+        }
         tile.append(img)
       }
       if (spec.caption) {
@@ -437,10 +567,12 @@ class PhotoSetWidget extends WidgetType {
 
     const meta = document.createElement('p')
     meta.className = 'cm-attachment__meta'
-    meta.textContent = this.metaLine
+    meta.dataset.settledLine = this.metaLine
+    meta.dataset.arrivalLine = setArrivalIds(this.tiles)
+    paintArrivalLine(meta)
     wrap.append(meta)
 
-    const tiles = this.tiles
+    setSpecs.set(wrap, this.tiles)
     // The block is not in the document yet, so it has no width to measure. The
     // column it is about to sit in does: the content box, less its own padding.
     const column = getComputedStyle(view.contentDOM)
@@ -454,12 +586,44 @@ class PhotoSetWidget extends WidgetType {
         // The block changed height; CodeMirror's height map has to hear of it.
         onLayout: () => view.requestMeasure(),
         onLearnRatio: (index, ratio) => {
-          const key = tiles[index]?.key
-          if (key) learnedRatios.set(key, ratio)
+          const spec = setSpecs.get(wrap)?.[index]
+          if (spec?.key) learnedRatios.set(spec.key, ratio)
+          else if (spec?.pendingId) setArrivalRatio(spec.pendingId, ratio)
         },
       }),
     )
     return wrap
+  }
+
+  /**
+   * The same photos showing the same pictures: change what is said about them
+   * and leave the images alone. This is what lets a photo finish coming into
+   * colour when its placeholder becomes its ref — a rebuilt tile would start
+   * over from a blank one, and so would every other photo in the set.
+   */
+  updateDOM(dom: HTMLElement, view: EditorView): boolean {
+    const prev = setSpecs.get(dom)
+    const handle = setHandles.get(dom)
+    if (!prev || !handle || prev.length !== this.tiles.length) return false
+    if (!this.tiles.every((t, i) => t.url === prev[i]!.url && t.caption === prev[i]!.caption)) {
+      return false
+    }
+    const els = new Map<number, HTMLElement>()
+    for (const el of dom.querySelectorAll<HTMLElement>('.cm-photoset__tile')) {
+      els.set(Number(el.dataset.setIndex), el)
+    }
+    if (els.size !== this.tiles.length) return false
+    const meta = dom.querySelector<HTMLElement>(':scope > .cm-attachment__meta')
+    if (!meta) return false
+
+    this.tiles.forEach((spec, index) => dressTile(els.get(index)!, spec))
+    setSpecs.set(dom, this.tiles)
+    handle.setRatios(this.tiles.map((t) => (t.known ? t.ratio : null)))
+    meta.dataset.settledLine = this.metaLine
+    meta.dataset.arrivalLine = setArrivalIds(this.tiles)
+    paintArrivalLine(meta)
+    view.requestMeasure()
+    return true
   }
 
   destroy(dom: HTMLElement): void {
@@ -492,7 +656,16 @@ function buildDecos(text: string): DecorationSet {
     const tiles = run.refs.map((ref): SetTile => {
       const caption = isMeaningfulCaption(ref.alt) ? ref.alt.trim() : null
       if (!ref.hash) {
-        return { key: null, url: null, caption, ratio: photoRatio(), known: false, color: undefined }
+        const arrival = ref.pendingId ? arrivalOf(ref.pendingId) : undefined
+        return {
+          key: null,
+          pendingId: ref.pendingId ?? null,
+          url: arrival?.url ?? null,
+          caption,
+          ratio: arrival?.ratio ?? photoRatio(),
+          known: arrival?.ratio !== undefined,
+          color: undefined,
+        }
       }
       const key = `${ref.hash}.${ref.ext!}`
       const meta = resolvedMeta.get(ref.hash) ?? undefined
@@ -501,7 +674,8 @@ function buildDecos(text: string): DecorationSet {
       const learned = learnedRatios.get(key)
       return {
         key,
-        url: resolvedUrls.get(key) ?? null,
+        pendingId: null,
+        url: knownUrl(key),
         caption,
         ratio: sized ? photoRatio(meta!.width, meta!.height) : (learned ?? photoRatio()),
         known: sized || learned !== undefined,
@@ -523,12 +697,12 @@ function buildDecos(text: string): DecorationSet {
   let pending: RegExpExecArray | null
   while ((pending = PENDING_ATTACHMENT_REF_RE.exec(text)) !== null) {
     if (inSet(pending.index)) continue
-    const [full, alt] = pending
+    const [full, alt, pendingId] = pending
     matches.push({
       from: pending.index,
       to: pending.index + full!.length,
       deco: Decoration.replace({
-        widget: new PendingAttachmentWidget(alt ?? ''),
+        widget: new PendingAttachmentWidget(alt ?? '', pendingId!, arrivalOf(pendingId!)?.url ?? null),
         block: true,
         inclusive: false,
       }),
@@ -550,7 +724,7 @@ function buildDecos(text: string): DecorationSet {
       deco: Decoration.replace({
         widget: new AttachmentImageWidget(
           key,
-          resolvedUrls.get(key) ?? null,
+          knownUrl(key),
           caption,
           caption ? null : metaLine,
           imageSizeFrom(sizeRaw),
@@ -596,7 +770,7 @@ function fetchMissingUrls(view: EditorView): void {
     const hash = m[2]!
     const ext = m[3]!
     const key = `${hash}.${ext}`
-    if (resolvedUrls.has(key)) continue
+    if (knownUrl(key)) continue
     void fetchAttachmentUrl(hash, ext).then((url) => {
       if (url) notifyAttachmentResolved()
     })
@@ -610,6 +784,10 @@ function attachmentInitPlugin(): Extension {
     fetchMissingUrls(view)
     fetchMissingMeta(view)
     syncCachedUrls(view)
+    const stopArrivals = subscribeArrivals(() => {
+      paintArrivals(view)
+      view.requestMeasure()
+    })
     return {
       update(u: ViewUpdate) {
         if (u.docChanged) {
@@ -618,6 +796,7 @@ function attachmentInitPlugin(): Extension {
         }
       },
       destroy() {
+        stopArrivals()
         activeViews.delete(view)
       },
     }
@@ -803,6 +982,30 @@ const attachmentTheme = EditorView.theme({
     margin: '0',
     background: 'var(--bg-input)',
     animation: 'cm-attachment-fadein 220ms ease both',
+    transition: 'filter 900ms ease',
+  },
+  // ── A photo still being saved (lib/photoArrival.ts) ─────────────────────────
+  // It is on the page from the moment it is dropped, pale, and comes into
+  // colour as it is read, sent and kept. `filter` rather than `opacity`: the
+  // fade-in above holds opacity at its last frame.
+  '[data-arrival] > .cm-attachment__img, [data-arrival] > .cm-photoset__img': {
+    filter: 'grayscale(1) contrast(0.85) opacity(0.32)',
+  },
+  '[data-arrival="preparing"] > .cm-attachment__img, [data-arrival="preparing"] > .cm-photoset__img': {
+    filter: 'grayscale(0.7) contrast(0.9) opacity(0.5)',
+  },
+  // The long one: sending is most of the wait, so it is most of the colour.
+  '[data-arrival="sending"] > .cm-attachment__img, [data-arrival="sending"] > .cm-photoset__img': {
+    filter: 'grayscale(0.25) contrast(1) opacity(0.8)',
+    transitionDuration: '2400ms',
+  },
+  // A lone photo is redrawn when it is saved; this carries it the last step.
+  '.cm-attachment--arrived .cm-attachment__img': {
+    animation: 'cm-attachment-arrive 900ms ease both',
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    '.cm-attachment__img, .cm-photoset__img': { transition: 'none' },
+    '.cm-attachment--arrived .cm-attachment__img': { animation: 'none' },
   },
   '.cm-attachment--size-s .cm-attachment__img': {
     maxHeight: 'min(34vh, 260px)',
@@ -929,6 +1132,7 @@ const attachmentTheme = EditorView.theme({
     height: '100%',
     objectFit: 'cover',
     animation: 'cm-attachment-fadein 220ms ease both',
+    transition: 'filter 900ms ease',
   },
   '.cm-photoset__tile--pending': {
     animation: 'cm-attachment-pulse 1.4s ease-in-out infinite',

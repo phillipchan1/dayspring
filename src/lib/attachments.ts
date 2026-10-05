@@ -134,9 +134,14 @@ export async function uploadImageAttachment(
   supabase: SupabaseClient,
   file: File,
   meta?: AttachmentPhotoMeta,
+  /** The photo is read and resized; what is left is the network. */
+  onSending?: () => void,
 ): Promise<EnsureResult & { ext: string }> {
-  const { data } = await supabase.auth.getUser()
-  const ownerId = data.user?.id
+  // The session already in memory, not a round trip to ask the server who this
+  // is: that was one wait per photo before a single byte moved, and storage
+  // checks the same token on the upload itself.
+  const { data } = await supabase.auth.getSession()
+  const ownerId = data.session?.user?.id
   if (!ownerId) throw new Error('Sign in to add photos')
   const prepared = await prepareImageForUpload(file)
   const ext = extFromImageFile(prepared)
@@ -144,6 +149,7 @@ export async function uploadImageAttachment(
   // ratios and tint the frame. Merges with the caller's capture-time meta.
   const analysis = await analyzeImage(prepared)
   const fullMeta: AttachmentPhotoMeta = { ...meta, ...analysis }
+  onSending?.()
   const result = await ensureAttachment(supabase, ownerId, prepared, ext, fullMeta)
   // Seed the local cache with a display variant so the photo we just added is
   // instant on this device (and other devices fill their cache on first view).

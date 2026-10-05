@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
 import { extFromImageFile } from '@/lib/attachments'
 import { uploadOrQueue } from '@/lib/attachmentQueue'
+import { beginArrivals } from '@/lib/photoArrival'
 import { altFromFile, takenAtFromFile } from '@/lib/attachmentCaption'
 import { supabase } from '@/lib/supabase'
 import { CommandPopover, CommandPopoverHint } from './CommandPopover'
@@ -62,11 +63,12 @@ export function InlineImagePopover({
     busyRef.current = true
     setPhase('uploading')
     setError(null)
+    beginArrivals(pending.map(({ pendingId, file }) => ({ id: pendingId, file })))
     onBeginUpload(pending.map(({ pendingId, alt }) => ({ pendingId, alt })))
     onClose()
 
     try {
-      const ownerId = (await supabase.auth.getUser()).data.user?.id
+      const ownerId = (await supabase.auth.getSession()).data.session?.user?.id
       // One at a time, in the order chosen: each tile fills in as its own upload
       // lands, and one that fails takes only itself out of the set.
       for (const { pendingId, alt, file } of pending) {

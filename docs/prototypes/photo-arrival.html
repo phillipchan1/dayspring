@@ -1,0 +1,281 @@
+<title>Photos Arriving</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Inter:wght@400;500;600&display=swap">
+
+<style>
+  /* Layout: one reading column; the mock page sits in it as the only raised object. Dawn (light) and Ink (dark), the app's own voices. */
+  :root {
+    --bg:#f4ede1; --paper:#fbf6ee; --paper-up:#fffdf8; --input:#f3ece0; --line:#e6dccb; --line-soft:#efe6d7;
+    --text:#4a4035; --text-bright:#2a2118; --dim:#8a7c69; --faint:#b4a78f;
+    --accent:#c2683a; --accent-soft:rgba(194,104,58,.12);
+    --amber:#9a6e24;
+    --shadow:0 1px 2px rgba(42,33,24,.06),0 18px 50px -18px rgba(42,33,24,.28);
+    --f-display:'Fraunces',Georgia,'Times New Roman',serif;
+    --f-serif:'Newsreader',Georgia,'Times New Roman',serif;
+    --f-ui:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#101218; --paper:#14161d; --paper-up:#1b1e27; --input:#1d2029; --line:#262a33; --line-soft:#1f222b;
+    --text:#c2c6d0; --text-bright:#eef0f5; --dim:#8b909c; --faint:#5d626e;
+    --accent:#e0a64e; --accent-soft:rgba(224,166,78,.14);
+    --amber:#e0a64e;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 50px -18px rgba(0,0,0,.7);
+    color-scheme:dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg:#101218; --paper:#14161d; --paper-up:#1b1e27; --input:#1d2029; --line:#262a33; --line-soft:#1f222b;
+    --text:#c2c6d0; --text-bright:#eef0f5; --dim:#8b909c; --faint:#5d626e;
+    --accent:#e0a64e; --accent-soft:rgba(224,166,78,.14);
+    --amber:#e0a64e;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 50px -18px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font:16px/1.6 var(--f-serif);margin:0}
+  .page{max-width:760px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:48px 96px;display:grid;gap:52px}
+  .page>*{min-width:0}
+  .eyebrow{font:600 11px/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+  h1{font:300 clamp(32px,5.4vw,48px)/1.05 var(--f-display);color:var(--text-bright);margin:14px 0 16px;text-wrap:balance;letter-spacing:-.01em}
+  h2{font:400 25px/1.2 var(--f-display);color:var(--text-bright);margin:0 0 12px;text-wrap:balance}
+  p{margin:0 0 12px;max-width:40rem}
+  .lede{font-size:19px;line-height:1.55}
+  code{font:12.5px ui-monospace,'SF Mono',Menlo,monospace;color:var(--dim)}
+
+  /* ── What happens today ── */
+  .steps{display:grid;gap:0;margin:8px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}
+  .steps li{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .steps li>*{min-width:0}
+  .steps .does{font-size:15.5px;line-height:1.5}
+  .steps .sees{font:13.5px/1.5 var(--f-ui);color:var(--dim)}
+  .steps .sees b{font-weight:600;color:var(--accent)}
+  .steps .head{font:600 11px/1.3 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  @media (max-width:560px){.steps li{grid-template-columns:1fr;gap:4px}.steps li.heads{display:none}}
+
+  /* ── Lab ── */
+  .lab{display:grid;gap:18px}
+  .picker{display:flex;flex-wrap:wrap;gap:6px;padding:5px;background:var(--paper);border:1px solid var(--line);border-radius:12px;width:fit-content;max-width:100%}
+  .picker button{font:500 13px/1 var(--f-ui);color:var(--dim);background:none;border:0;border-radius:8px;padding:10px 14px;cursor:pointer}
+  .picker button:hover{color:var(--text-bright)}
+  .picker button[aria-pressed="true"]{background:var(--paper-up);color:var(--text-bright);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .brief{min-height:5.2em}
+  .brief p{font-size:16.5px;margin:0}
+  .brief strong{font-weight:400;color:var(--text-bright);font-family:var(--f-display);font-size:19px;display:block;margin-bottom:4px}
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px;font:13px var(--f-ui);color:var(--dim)}
+  .btn{font:500 13px/1 var(--f-ui);background:var(--text-bright);color:var(--paper);border:1px solid var(--text-bright);border-radius:8px;padding:10px 14px;cursor:pointer}
+  .controls label{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+  .controls input{accent-color:var(--accent);margin:0}
+
+  /* ── The mock page ── */
+  .sheet{background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:clamp(20px,5vw,44px) clamp(18px,6vw,56px);min-height:520px}
+  .dateline{font:500 11px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:18px}
+  .sheet p{font-size:18px;line-height:1.7;color:var(--text-bright);max-width:none;margin:0 0 1.1em}
+  .caret{display:inline-block;width:1.5px;height:1.15em;background:var(--accent);vertical-align:-.2em;margin-left:1px;animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .set{margin:0 0 1.2em}
+  .rows{display:grid;gap:4px}
+  .row{display:flex;gap:4px;align-items:flex-start}
+  .tile{position:relative;flex:var(--r) 1 0;aspect-ratio:var(--r);min-width:0;max-width:100%;overflow:hidden;border-radius:4px;background:var(--input);box-shadow:inset 0 0 0 1px rgba(20,12,4,.07);--p:0}
+  .tile .img{position:absolute;inset:0;background:var(--photo);background-size:cover}
+  .meta{margin:.5rem 0 0;text-align:center;font:italic 300 14px/1.4 var(--f-serif);color:var(--faint);min-height:1.4em;transition:color .4s}
+  .meta[data-live="true"]{color:var(--dim)}
+  .horizon{height:2px;border-radius:1px;background:var(--line);margin-top:8px;overflow:hidden;opacity:0;transition:opacity .6s}
+  .horizon i{display:block;height:100%;width:calc(var(--total,0)*100%);background:var(--accent);transition:width .12s linear,background .4s}
+  .mark{position:absolute;right:7px;bottom:7px;width:18px;height:18px;border-radius:50%;background:rgba(20,12,4,.5);display:none;place-items:center;transition:opacity .5s}
+  .mark::after{content:"";width:12px;height:12px;border-radius:50%;
+    background:conic-gradient(#fff8ec calc(var(--p)*360deg),rgba(255,248,236,.32) 0);
+    -webkit-mask:radial-gradient(circle,transparent 3.6px,#000 4.1px);mask:radial-gradient(circle,transparent 3.6px,#000 4.1px)}
+
+  /* Today: empty boxes in a stand-in shape, a faint pulse, then flat, then the photo. */
+  @keyframes pulse{0%,100%{opacity:.6}50%{opacity:.35}}
+  .set[data-v="today"] .tile .img{opacity:0}
+  .set[data-v="today"] .tile:is([data-s="wait"],[data-s="prep"],[data-s="send"],[data-s="held"]){animation:pulse 1.4s ease-in-out infinite}
+  .set[data-v="today"] .tile[data-s="done"] .img{opacity:1;animation:fadein .22s ease both}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+
+  /* A · Developing: the photo is there at once, pale; it comes into colour as it is saved. */
+  .set[data-v="a"] .tile .img{opacity:calc(.3 + .55*var(--p));filter:grayscale(calc(1 - var(--p))) contrast(calc(.8 + .2*var(--p)));transition:opacity .25s linear,filter .25s linear}
+  .set[data-v="a"] .tile[data-s="done"] .img{opacity:1;filter:none;transition:opacity .7s ease,filter .9s ease}
+
+  /* B · One line: photos at full strength; one hairline under the set carries the whole batch. */
+  .set[data-v="b"] .horizon{opacity:1}
+  .set[data-v="b"][data-state="done"] .horizon{opacity:0}
+  .set[data-v="b"][data-state="held"] .horizon i{background:var(--faint)}
+
+  /* C · Corner mark: photos at full strength; each carries its own small ring until it is saved. */
+  .set[data-v="c"] .mark{display:grid}
+  .set[data-v="c"] .tile[data-s="done"] .mark{opacity:0}
+  .set[data-v="c"] .tile[data-s="held"] .mark::after{background:rgba(255,248,236,.32);outline:1px dashed rgba(255,248,236,.7);outline-offset:-1px}
+
+  @media (prefers-reduced-motion:reduce){.caret,.set .tile{animation:none!important}.tile .img{transition:none!important}}
+
+  .take{border-left:2px solid var(--accent);padding-left:18px}
+  .take p{font-size:17px}
+  .list{margin:0;padding-left:1.1em;display:grid;gap:8px;max-width:40rem}
+  .list li::marker{color:var(--faint)}
+</style>
+
+<main class="page">
+  <header>
+    <div class="eyebrow">Editor · photos</div>
+    <h1>Five photos, set down on a page</h1>
+    <p class="lede">The app starts work the instant you let go. For most of that work it shows you an empty grey box and no words. The photo is already on your device the whole time, and we don't draw it.</p>
+  </header>
+
+  <section>
+    <h2>What happens today</h2>
+    <p>Read from <code>attachmentDropExtension.ts</code>, <code>attachmentQueue.ts</code>, <code>attachments.ts</code> and <code>attachmentImageExtension.ts</code>. Photos are handled one at a time, so steps 3 to 6 repeat for each.</p>
+    <ol class="steps">
+      <li class="heads"><span class="head">What the app does</span><span class="head">What you see</span></li>
+      <li><span class="does">1. Puts five placeholder lines on the page, at once.</span><span class="sees">Five empty boxes, all the same 4:3 shape, pulsing faintly. <b>No words.</b> The word "uploading…" is only drawn for a photo on its own, never inside a set.</span></li>
+      <li><span class="does">2. Asks the server who is signed in. Once for the batch, then again for every photo.</span><span class="sees">The same boxes.</span></li>
+      <li><span class="does">3. Reads the photo's date and place, shrinks it to 2400px, re-encodes it, opens it a second time for its colour, fingerprints it. All on the same thread you type on.</span><span class="sees">The same boxes. Typing can catch.</span></li>
+      <li><span class="does">4. Checks whether it is already stored, sends it, writes its record. The other four wait in line.</span><span class="sees">The same boxes. <b>Nothing says which one, or how many are left.</b></span></li>
+      <li><span class="does">5. Swaps the placeholder for the real photo, then asks storage for that photo back.</span><span class="sees">Its box <b>stops pulsing and goes flat</b>. It looks finished and empty.</span></li>
+      <li><span class="does">6. The picture arrives and its real shape is learned.</span><span class="sees">The photo fades in and <b>the rows jump</b> as the 4:3 box becomes the real shape.</span></li>
+    </ol>
+  </section>
+
+  <section class="lab">
+    <h2>Three ways to show it</h2>
+    <p>All three share one change underneath: the photo is drawn from your own device the moment you drop it, in its real shape, so nothing jumps later. They differ only in how saving is shown.</p>
+
+    <div class="picker" role="group" aria-label="Direction">
+      <button type="button" data-v="today" aria-pressed="true">Today</button>
+      <button type="button" data-v="a" aria-pressed="false">A · Developing</button>
+      <button type="button" data-v="b" aria-pressed="false">B · One line</button>
+      <button type="button" data-v="c" aria-pressed="false">C · Corner mark</button>
+    </div>
+    <div class="brief" id="brief"></div>
+    <div class="controls">
+      <button type="button" class="btn" id="drop">Drop 5 photos again</button>
+      <label for="offline"><input type="checkbox" id="offline"> Connection drops after two</label>
+    </div>
+
+    <div class="sheet">
+      <div class="dateline">Sunday, October 4</div>
+      <p>We walked the ridge after church. Nobody said much on the way up and I think that was the point of it.</p>
+      <div class="set" id="set" data-v="today">
+        <div class="rows">
+          <div class="row">
+            <div class="tile" style="--photo:linear-gradient(175deg,#e9c58f 0%,#d99a5b 38%,#7d6a4d 39%,#4f5b3c 100%)"><div class="img"></div><div class="mark"></div></div>
+            <div class="tile" style="--photo:linear-gradient(180deg,#8fb0c4 0%,#c9d6d2 45%,#5d6f4a 46%,#33402a 100%)"><div class="img"></div><div class="mark"></div></div>
+            <div class="tile" style="--photo:radial-gradient(circle at 70% 30%,#f6dfa6 0 9%,transparent 10%),linear-gradient(180deg,#d98a5c 0%,#f0c48a 50%,#6b5a48 51%,#3c342c 100%)"><div class="img"></div><div class="mark"></div></div>
+          </div>
+          <div class="row">
+            <div class="tile" style="--photo:linear-gradient(178deg,#b9c9d6 0%,#e8dcc6 52%,#8a7a56 53%,#5b5a3a 100%)"><div class="img"></div><div class="mark"></div></div>
+            <div class="tile" style="--photo:linear-gradient(160deg,#6d7f56 0%,#3f4d33 55%,#a98a5e 56%,#d7b98a 100%)"><div class="img"></div><div class="mark"></div></div>
+          </div>
+        </div>
+        <div class="horizon"><i></i></div>
+        <div class="meta" id="meta" aria-live="polite"></div>
+      </div>
+      <p>Coming down, Sam asked whether I still pray for the house. I said yes before I had thought about it<span class="caret"></span></p>
+    </div>
+  </section>
+
+  <section class="take">
+    <h2>What I would build</h2>
+    <p>A, with its one line of words. The photo is on the page the instant you let go, and it comes into colour as it is saved, so each photo shows its own progress and no control is added to the writing surface. The line under the set gives the count for anyone who wants it, then turns back into the set's ordinary caption.</p>
+    <p>B is the quietest and a fair second. C shows the most detail and puts the most marks on the page, which is the opposite of how the editor behaves everywhere else.</p>
+  </section>
+
+  <section>
+    <h2>What changes underneath, whichever you pick</h2>
+    <ul class="list">
+      <li>Draw the dropped file straight away from the device, in its real shape. This removes the empty boxes, the flat gap in step 5, and the jump in step 6.</li>
+      <li>Keep showing that local picture after the save finishes, so the app never asks storage for a photo it is already holding.</li>
+      <li>Ask who is signed in once per batch, from the session already in memory.</li>
+      <li>Save two or three photos side by side. Five photos then take about as long as two.</li>
+      <li>Report real progress from the send, so A's colour and B's line move with the bytes.</li>
+      <li>Offline keeps working as it does now. The line says the photos are waiting and are safe on this device.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(function () {
+  var RATIOS = [1.5, 0.75, 1.33, 1.78, 1];
+  var BRIEFS = {
+    today: '<strong>Today</strong><p>Empty boxes, then flat boxes, then photos that push each other around as they land. No count, no words.</p>',
+    a: '<strong>A · Developing</strong><p>Each photo is there at once, pale, and comes into colour as it is saved. One line under the set counts them, then becomes the caption.</p>',
+    b: '<strong>B · One line</strong><p>Photos appear at full strength. A single hairline under the set fills once for the whole batch, with the count beside it, then both go away.</p>',
+    c: '<strong>C · Corner mark</strong><p>Photos appear at full strength. Each carries a small ring in its corner that fills as it is saved and fades when it is done.</p>'
+  };
+  var set = document.getElementById('set');
+  var meta = document.getElementById('meta');
+  var brief = document.getElementById('brief');
+  var offline = document.getElementById('offline');
+  var tiles = Array.prototype.slice.call(set.querySelectorAll('.tile'));
+  var n = tiles.length, variant = 'today', run = 0;
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function sleep(ms, token) {
+    return new Promise(function (res, rej) {
+      setTimeout(function () { token === run ? res() : rej(new Error('stale')); }, still ? 0 : ms);
+    });
+  }
+  function say(text, live) { meta.textContent = text; meta.dataset.live = live ? 'true' : 'false'; }
+  function total(v) { set.style.setProperty('--total', v); }
+  var DONE = n + ' photos · Sunday, October 4';
+
+  async function drop() {
+    var token = ++run, today = variant === 'today';
+    set.dataset.v = variant; set.dataset.state = 'saving';
+    tiles.forEach(function (t, i) {
+      t.dataset.s = 'wait';
+      t.style.setProperty('--p', 0);
+      t.style.setProperty('--r', today ? 1.333 : RATIOS[i]);
+    });
+    total(0);
+    say(today ? n + ' photos' : 'Saving 1 of ' + n, !today);
+    try {
+      await sleep(450, token);
+      for (var i = 0; i < n; i++) {
+        if (offline.checked && i === 2) {
+          for (var k = i; k < n; k++) tiles[k].dataset.s = 'held';
+          set.dataset.state = 'held';
+          if (!today) say((n - i) + ' photos waiting for a connection. They are safe on this device.', true);
+          await sleep(3600, token);
+          set.dataset.state = 'saving';
+          for (k = i; k < n; k++) tiles[k].dataset.s = 'wait';
+        }
+        if (!today) say('Saving ' + (i + 1) + ' of ' + n, true);
+        tiles[i].dataset.s = 'prep';
+        await sleep(450, token);
+        tiles[i].dataset.s = 'send';
+        for (var p = 0; p <= 1.001; p += 0.05) {
+          tiles[i].style.setProperty('--p', p.toFixed(2));
+          total(((i + p) / n).toFixed(3));
+          await sleep(60, token);
+        }
+        if (today) {
+          tiles[i].dataset.s = 'settle';
+          await sleep(700, token);
+          tiles[i].style.setProperty('--r', RATIOS[i]);
+        }
+        tiles[i].dataset.s = 'done';
+      }
+      set.dataset.state = 'done';
+      say(today ? n + ' photos' : DONE, false);
+    } catch (e) { /* a newer run took over */ }
+  }
+
+  document.querySelectorAll('.picker button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      variant = b.dataset.v;
+      document.querySelectorAll('.picker button').forEach(function (o) {
+        o.setAttribute('aria-pressed', o === b ? 'true' : 'false');
+      });
+      brief.innerHTML = BRIEFS[variant];
+      drop();
+    });
+  });
+  document.getElementById('drop').addEventListener('click', drop);
+  brief.innerHTML = BRIEFS[variant];
+  drop();
+})();
+</script>
