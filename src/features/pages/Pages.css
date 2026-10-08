@@ -1776,6 +1776,9 @@ button.pg__sense-q:hover {
   }
 }
 
+/* The group too: nothing in it moves, but the transition is not over — and the
+   page under it cannot be clicked — until its default 250ms has run out. */
+::view-transition-group(root),
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 160ms;
@@ -1783,10 +1786,23 @@ button.pg__sense-q:hover {
 
 /* Pages → Journal is one page changing state. The body owns a shared snapshot;
    the read-only margin owns a disappearing one. Because the body is centred
-   independently above, its group normally has no horizontal travel at all. */
+   independently above, its group normally has no horizontal travel at all.
+
+   And back again: `[data-entry-handoff]` is on the root for as long as the
+   editor is handing a page back to Pages (`leaveEditorUp`), which names the
+   writing on a draft that was never opened from Pages too. */
 .pg-read1__body,
-.journal-write--from-pages .cm-content {
+.journal-write--from-pages .cm-content,
+:root[data-entry-handoff] .journal-write .cm-content {
   view-transition-name: dayspring-entry-body;
+}
+
+/* `still`: the page comes back on the line it was left at, so the words have
+   nowhere to travel and are left in the screen's own cross-fade. */
+:root[data-entry-handoff='still'] .journal-write .cm-content,
+:root[data-entry-handoff='still'] .pg-read1__body,
+:root[data-entry-handoff='still'] .pg-read1__margin {
+  view-transition-name: none;
 }
 
 .pg-read1__margin {
@@ -1798,15 +1814,58 @@ button.pg__sense-q:hover {
   animation-timing-function: cubic-bezier(0.22, 0.68, 0.36, 1);
 }
 
-::view-transition-old(dayspring-entry-body),
+/*
+ * The words, kept on top of each other the whole way across.
+ *
+ * The group carries the box, and the two boxes hold their first line at
+ * different depths (`--entry-handoff-shift`, measured in PageReader and
+ * JournalScreen). So each snapshot slides by that difference inside the group
+ * — the old one out to it, the new one in from it — on the group's own curve,
+ * which is what makes the two sums equal at every frame, not just the ends.
+ * Unset, the shift is nothing and this is the plain cross-fade it was.
+ */
+::view-transition-old(dayspring-entry-body) {
+  mix-blend-mode: normal;
+  animation:
+    pg-handoff-fade-out 180ms ease-out both,
+    pg-handoff-old-shift 180ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
 ::view-transition-new(dayspring-entry-body) {
   mix-blend-mode: normal;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+  animation:
+    pg-handoff-fade-in 180ms ease-out both,
+    pg-handoff-new-shift 180ms cubic-bezier(0.22, 0.68, 0.36, 1) both;
+}
+
+@keyframes pg-handoff-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes pg-handoff-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pg-handoff-old-shift {
+  to {
+    transform: translateY(calc(-1 * var(--entry-handoff-shift, 0px)));
+  }
+}
+@keyframes pg-handoff-new-shift {
+  from {
+    transform: translateY(var(--entry-handoff-shift, 0px));
+  }
 }
 
 ::view-transition-old(dayspring-entry-margin) {
   animation: pg-handoff-margin-out 140ms ease-out both;
+}
+
+/* And arriving, on the way back: inside the body's 180ms, not the default 250
+   that would leave the margin still fading after the words have landed. */
+::view-transition-new(dayspring-entry-margin) {
+  animation-duration: 160ms;
 }
 
 @keyframes pg-handoff-margin-out {
@@ -4532,6 +4591,26 @@ button.pg__sense-q:hover {
   to {
     opacity: 1;
   }
+}
+
+/*
+ * A page the editor hands back makes no entrance.
+ *
+ * Every other way in, the reader is arriving and says so. Coming back from
+ * writing, the words never left the screen — and an entrance from opacity 0
+ * showed the wall through them for two hundred milliseconds, which read as the
+ * page blinking. On a phone it was worse: a way BACK that ended with the page
+ * sliding in from the right, the way a way forward does.
+ *
+ * `morph` is carried by the view transition (below, with the handoff's other
+ * half), so nothing inside the page may move on its own. `swipe` has no
+ * transition — the editor was dragged off the page — so the paper is simply
+ * there and the words keep their short fade.
+ */
+.pg-read1[data-arrive],
+.pg-read1[data-arrive='morph'] .pg-read1__page:not([data-from]),
+.pg-read1[data-arrive='morph'] .pg-read1__edge {
+  animation: none;
 }
 
 /* Everything above, off. `both` fill on an animation means "off" has to restore

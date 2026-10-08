@@ -80,7 +80,7 @@ export function MobileJournal(props: JournalViewProps) {
    */
   const pushed = !!entryReturn && !canvasTaken
   const back = useSwipeToDismiss({
-    onDismiss: onReturnFromEntry,
+    onDismiss: () => onReturnFromEntry('swipe'),
     enabled: touch && pushed,
     threshold: 72,
     exit: true,
@@ -171,7 +171,7 @@ export function MobileJournal(props: JournalViewProps) {
             <button
               type="button"
               className="journal-topbar__back"
-              onClick={onReturnFromEntry}
+              onClick={() => onReturnFromEntry()}
             >
               ← {ENTRY_RETURN_LABEL[entryReturn.surface]}
             </button>

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatDateline } from '@/lib/dateline'
 import { voiceCaretSupported } from '@/editor/voiceCaret'
 import { flushSync } from 'react-dom'
+import { EditorView } from '@codemirror/view'
 import { Editor, type EditorHandle } from '@/editor/Editor'
 import type { SpiritualBlockEditTarget } from '@/editor/spiritualBlockDecoration'
 import type { InlinePanelAnchor } from '@/editor/inlinePanelAnchor'
@@ -67,6 +68,8 @@ import { LifeMapView } from '@/features/lifemap/LifeMapView'
 import { loadLifeMap } from '@/features/lifemap/useLifeMap'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
 import { PagesView } from '@/features/pages/PagesView'
+import type { ReaderArrival } from '@/features/pages/PageReader'
+import { anchorKey } from '@/features/pages/readerAnchor'
 import { clampZoom, PAGES_ZOOM_DEFAULT, ZOOM_STEP } from '@/features/pages/zoom'
 import { useMarks } from '@/features/pages/useMarks'
 import { warmPageIndexes } from '@/features/pages/derived'
@@ -161,6 +164,74 @@ function arrivalLabelFor(block: ParsedSpiritualBlock): string {
 const VEIL_FADE_MS = 160
 /** The rail's own fade-in (`rc-in` in RitualComposer.css), plus a frame. */
 const RAIL_IN_MS = 300
+/**
+ * The place the writer is at in the editor, for the reader to open on.
+ *
+ * A line that is on screen, because those are the only ones CodeMirror has
+ * measured — see readerAnchor.ts. The first with words in it that starts at or
+ * below the top edge. Read-only: nothing here touches the editor.
+ *
+ * `scrolled`: the entry's opening words have gone up past the top edge.
+ */
+function editorReadingPlace(): { at: ReaderArrival['at']; scrolled: boolean } {
+  const host = document.querySelector<HTMLElement>('.journal-write .cm-editor')
+  const view = host ? EditorView.findFromDOM(host) : null
+  if (!view) return { at: null, scrolled: false }
+  const scroller = view.scrollDOM
+  const edge = scroller.getBoundingClientRect().top
+  const room = scroller.scrollHeight - scroller.clientHeight
+  const along = room > 0 ? scroller.scrollTop / room : 0
+  const doc = view.state.doc
+  // The line's own box where it is drawn: a line's BLOCK starts at whatever is
+  // set above it (the dateline sits over line one), and the reader has no such
+  // thing to start from. The height map is for lines that are off screen.
+  const topOf = (from: number) => {
+    const node = view.domAtPos(from).node
+    const el = (node instanceof Element ? node : node.parentElement)?.closest('.cm-line')
+    return el ? el.getBoundingClientRect().top : view.documentTop + view.lineBlockAt(from).top
+  }
+  // A screenful is a few dozen lines; the cap is for an entry that is all blanks.
+  const wordsFrom = (start: number, onScreen: boolean) => {
+    let line = doc.line(start)
+    for (let i = 0; i < 80; i++) {
+      if (anchorKey(line.text) && (!onScreen || topOf(line.from) >= edge)) return line
+      if (line.number >= doc.lines) break
+      line = doc.line(line.number + 1)
+    }
+    return null
+  }
+  const opening = wordsFrom(1, false)
+  const seen = wordsFrom(doc.lineAt(view.lineBlockAtHeight(edge - view.documentTop).from).number, true)
+  const column = view.contentDOM.getBoundingClientRect().top
+  return {
+    at: seen
+      ? { key: anchorKey(seen.text), top: topOf(seen.from), along, inset: topOf(seen.from) - column }
+      : { key: '', top: edge, along, inset: 0 },
+    scrolled: opening !== null && topOf(opening.from) < edge,
+  }
+}
+
+/**
+ * How far below the top of its box an entry's first words begin, on whichever
+ * surface is showing — the reader's body or the editor's column. The two differ
+ * (the editor's has the dateline inside it), and `--entry-handoff-shift` is the
+ * difference: see the note on it in PageReader.
+ */
+function firstWordsInset(box: HTMLElement | null, lines: string): number | null {
+  if (!box) return null
+  const first = [...box.querySelectorAll<HTMLElement>(lines)].find((el) => el.textContent?.trim())
+  return first ? first.getBoundingClientRect().top - box.getBoundingClientRect().top : null
+}
+
+/** Take the handoff's marks off the root once its transition is over. */
+function endEntryHandoff(transition: ViewTransition): void {
+  const root = document.documentElement
+  void transition.finished.finally(() => {
+    delete root.dataset.entryHandoff
+    root.style.removeProperty('--entry-handoff-shift')
+  })
+}
+
 /** Resolves once the veil has faded in, so nothing changes under it half-shown. */
 function veilUp(): Promise<void> {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -1873,12 +1944,45 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
   }
 
   /**
+   * The page the editor is handing back to the reader, and the signal that it
+   * has landed. See `leaveEditorUp`.
+   */
+  const [readerArrival, setReaderArrival] = useState<ReaderArrival | null>(null)
+  const pagesLandedRef = useRef<(() => void) | null>(null)
+  // A parent's layout effect runs after its children's, so by now the reader
+  // has painted its body and set its scroll: the page is whole.
+  useLayoutEffect(() => {
+    if (!pagesActive) return
+    pagesLandedRef.current?.()
+    pagesLandedRef.current = null
+  }, [pagesActive])
+  // The reader latches the arrival on mount; held any longer it would also
+  // still the next page opened the ordinary way.
+  useEffect(() => {
+    if (pagesActive) setReaderArrival(null)
+  }, [pagesActive])
+
+  /**
    * Stop writing: up one layer.
    *
    * Overlays and focus mode claim Escape first. What is left is this — the
    * editor is a layer on a page, and New must not skip the stack on the way out.
+   *
+   * ## The way back is the way in, run backwards
+   *
+   * Opening a page to write morphs the reader into the editor (see
+   * `handleOpenReflectionEntry`). Leaving used to do none of that: the editor
+   * was cut, the whole Pages surface mounted from nothing, and the reader made
+   * its entrance over the wall — so the words you had just written vanished,
+   * the archive showed for a fifth of a second, and the same words faded back
+   * in a little higher up the screen. Now the reader arrives already there
+   * (`ReaderArrival`), scrolled to where the writing was, and the same view
+   * transition carries the words across.
+   *
+   * `swipe`: the shell has already been dragged off the screen, so there is
+   * nothing left to morph from — the page is simply what was underneath.
    */
-  async function leaveEditorUp() {
+  async function leaveEditorUp(how?: 'swipe') {
     await saveNow()
     focus.exit()
     // onCreated replaces entryId on the history frame during the flush; React
@@ -1889,25 +1993,80 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       entryReturn: state.entryReturn,
       pagesSubject: state.pagesSubject,
     })
-    if (dest.action === 'origin') {
+    if (dest.action === 'origin' && state.entryReturn?.surface !== 'pages') {
       returnFromEntryOrigin()
       return
     }
-    skipEntrySyncRef.current = true
-    loadedEntryIdRef.current = null
-    go(
-      {
-        surface: 'pages',
-        entryId: null,
-        entryReturn: null,
-        ascentDrill: null,
-        settings: null,
-        help: false,
-        pagesSpreadId: dest.spreadId,
-        pagesSubject: dest.subject,
-      },
-      { replace: true },
+    const leave = () => {
+      if (dest.action === 'origin') {
+        returnFromEntryOrigin()
+        return
+      }
+      skipEntrySyncRef.current = true
+      loadedEntryIdRef.current = null
+      go(
+        {
+          surface: 'pages',
+          entryId: null,
+          entryReturn: null,
+          ascentDrill: null,
+          settings: null,
+          help: false,
+          pagesSpreadId: dest.spreadId,
+          pagesSubject: dest.subject,
+        },
+        { replace: true },
+      )
+    }
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const morph = how !== 'swipe' && !reduced && !!document.startViewTransition
+    const landingId =
+      dest.action === 'pages' ? dest.spreadId : (state.entryReturn?.pagesSpreadId ?? null)
+    const place = editorReadingPlace()
+    if (landingId) {
+      setReaderArrival({ id: landingId, how: morph ? 'morph' : 'swipe', at: place.at })
+    }
+    if (!morph) {
+      leave()
+      return
+    }
+
+    /*
+     * Two handoffs, by where the writing is.
+     *
+     * At the top of an entry the two surfaces set the first line at different
+     * heights, so the words are carried from one to the other as a shared
+     * element — what opening the page did, backwards.
+     *
+     * Scrolled into it, the reader opens on the same line at the same height
+     * and there is nowhere to carry them: a plain cross-fade of the screen
+     * leaves the words standing still while the bars change around them. And a
+     * shared element would be wrong there besides — its snapshot is the whole
+     * column, drawn without the scroller's clip, so the paragraphs that had
+     * gone up under the top bar reappear over it for the length of the fade.
+     */
+    const root = document.documentElement
+    root.dataset.entryHandoff = landingId && place.scrolled ? 'still' : 'morph'
+    const transition = document.startViewTransition(
+      () =>
+        new Promise<void>((resolve) => {
+          // Back is a history pop, and a pop commits after its own save
+          // barrier — so "the page is on screen" is something to wait for, not
+          // assume. The timer is for a pop that another navigation overtook.
+          const timer = window.setTimeout(() => {
+            pagesLandedRef.current = null
+            setReaderArrival(null)
+            resolve()
+          }, 400)
+          pagesLandedRef.current = () => {
+            window.clearTimeout(timer)
+            resolve()
+          }
+          leave()
+        }),
     )
+    endEntryHandoff(transition)
   }
 
   async function toggleLifeMap() {
@@ -2312,6 +2471,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const returnCtx = entryReturnFromState(state)
     skipEditorAutofocusRef.current = true
     skipEntrySyncRef.current = true
+    // The same shift the way back uses, from the other side: see PageReader.
+    const readInset = firstWordsInset(document.querySelector('.pg-read1__body'), ':scope > *')
     const openEditor = () => {
       flushSync(() => {
         go({
@@ -2327,6 +2488,16 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         setContent(asEntryMarkdown(entry.body_markdown))
         loadedEntryIdRef.current = entry.id
       })
+      const writeInset = firstWordsInset(
+        document.querySelector('.journal-write .cm-content'),
+        '.cm-line',
+      )
+      if (readInset !== null && writeInset !== null) {
+        document.documentElement.style.setProperty(
+          '--entry-handoff-shift',
+          `${readInset - writeInset}px`,
+        )
+      }
     }
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -2336,7 +2507,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // No morph into the editor for a ritual page: the editor is not where it
     // is going, and the veil is already over it.
     if (!ritualPage && !reducedMotion && fromOpenPage && document.startViewTransition) {
-      document.startViewTransition(openEditor)
+      endEntryHandoff(document.startViewTransition(openEditor))
     } else {
       openEditor()
     }
@@ -2768,6 +2939,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
       onTendSubjects={() => void toggleLifeMap()}
       lookRequest={lookRequest}
       onLookRequestHandled={() => setLookRequest(null)}
+      readerArrival={readerArrival}
       settings={settings}
       updateSettings={updateSettings}
     />
@@ -2838,7 +3010,7 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // a draft that never had one. The label is chrome; leaveEditorUp still
     // reads the real ticket so a synthetic Pages frame cannot pop off the app.
     entryReturn: state.entryReturn ?? pagesHomeReturn(),
-    onReturnFromEntry: () => void leaveEditorUp(),
+    onReturnFromEntry: (how) => void leaveEditorUp(how),
     onCommand: runCommandAtCaret,
   }
 
