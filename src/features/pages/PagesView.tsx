@@ -40,7 +40,7 @@ import { Chapter } from './Chapter'
 import { Stretch, StretchPeriods } from './Stretch'
 import { inSpan, monthsAcross, spanBounds, spanText, type Span } from './band'
 import { localNoonIso } from './wallItems'
-import { PageReader } from './PageReader'
+import { PageReader, type ReaderArrival } from './PageReader'
 import { defaultSplit, type Reading } from './readings'
 import {
   dropSubject,
@@ -147,6 +147,8 @@ interface Props {
   /** ⌘F: open Look for, caret in the field. One-shot — see `LookFor.openRequest`. */
   lookRequest?: { seq: number; seed: string } | null | undefined
   onLookRequestHandled?: (() => void) | undefined
+  /** The page the editor is handing back, if this mount is that — see `ReaderArrival`. */
+  readerArrival?: ReaderArrival | null | undefined
   settings: Settings
   updateSettings: (patch: Partial<Settings>) => void
 }
@@ -185,6 +187,7 @@ export function PagesView({
   onTendSubjects,
   lookRequest = null,
   onLookRequestHandled,
+  readerArrival = null,
   settings,
   updateSettings,
 }: Props) {
@@ -1561,6 +1564,7 @@ export function PagesView({
             // behind them to land on; the door is the wall's.
             {...(openVolume === null && !onShelf ? { onAround: () => around(openPage.id) } : {})}
             leaves={settings.readerLeaves}
+            arrival={readerArrival}
             newer={neighbours.newer}
             older={neighbours.older}
             onTurn={onSpread}

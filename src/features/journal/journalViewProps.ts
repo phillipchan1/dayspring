@@ -94,7 +94,8 @@ export interface JournalViewProps {
   onFindOrAsk: () => void
   /** Set when reading an entry opened from Lamp / Altar / Ascent. */
   entryReturn: EntryReturnContext | null
-  onReturnFromEntry: () => void
+  /** `swipe` when the shell was dragged off the screen to ask for it — see `leaveEditorUp`. */
+  onReturnFromEntry: (how?: 'swipe') => void
 
   /**
    * Run a capture command at the caret, the way `/ritual` would.

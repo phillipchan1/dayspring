@@ -2,6 +2,7 @@ import { drawReaderQuotes } from './readerQuotes'
 import { formatDateline } from '@/lib/dateline'
 import { SCRIPTURE_RITUALS } from '@/lib/writerWords'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { findAnchorBlock } from './readerAnchor'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss'
 import { colophonLines, formatColophon } from '@/lib/circumstances'
@@ -61,6 +62,31 @@ function formatDate(iso: string): string {
 }
 
 /**
+ * A page the editor is handing back.
+ *
+ * Leaving the editor lands on the page that was being written, and that is the
+ * one arrival where the reader must not make an entrance: the words are already
+ * on screen, so a page that fades up from nothing (or, on a phone, slides in
+ * from the right) shows the wall through them on the way. See `leaveEditorUp`
+ * in JournalScreen, and `[data-arrive]` in Pages.css.
+ */
+export interface ReaderArrival {
+  id: string
+  /** `morph`: a view transition carries the words across. `swipe`: the editor was dragged off, and the page is what was under it. */
+  how: 'morph' | 'swipe'
+  /**
+   * The place the writer was at: a line that was on screen (`anchorKey` of its
+   * source, and where it sat in viewport px), and how far down the entry the
+   * editor was scrolled, 0–1, for when the line cannot be found on the page.
+   * The page opens scrolled so the line sits where it was. Null: open at the top.
+   *
+   * `inset` is how far below the top of the editor's column that line began —
+   * the half of `--entry-handoff-shift` only the editor can measure.
+   */
+  at: { key: string; top: number; along: number; inset: number } | null
+}
+
+/**
  * One page, open.
  *
  * ── Why this is its own view, and not the wall ──────────────────────────────
@@ -105,6 +131,7 @@ export function PageReader({
   onTurn,
   leaves,
   onMenu,
+  arrival,
 }: {
   /**
    * The reader's own bar — the way out, the way in, and the way along.
@@ -171,6 +198,8 @@ export function PageReader({
    * Absent in previews, where a right-click is simply the browser's.
    */
   onMenu?: (x: number, y: number) => void
+  /** Set when the editor is handing this page back. Read once, on mount. */
+  arrival?: ReaderArrival | null
 }) {
   /*
    * Touch changes two things about this page, and both are about there being
@@ -341,6 +370,49 @@ export function PageReader({
     return () => ro.disconnect()
   }, [entry.id])
 
+  /*
+   * Handed back from the editor: already here, and where the writing was.
+   *
+   * Latched, because the attribute has to outlive the prop — taking it off
+   * would hand `.pg-read1` its entrance animation back, and it would play.
+   *
+   * The scroll is set from a line, not copied from the editor's scroller: the
+   * two surfaces head the page differently, so equal offsets put the words a
+   * few dozen pixels apart and the handoff would visibly travel (readerAnchor.ts
+   * has the rest). After the body effect above, so the page has its words.
+   */
+  const [arrived] = useState(() => (arrival && arrival.id === entry.id ? arrival : null))
+  useLayoutEffect(() => {
+    const slide = slideRef.current
+    const body = bodyRef.current
+    const at = arrived?.at
+    if (!slide || !body || !at) return
+    const blocks = [...body.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6, p, li, pre')]
+    const hit =
+      blocks[findAnchorBlock(at.key, blocks.map((b) => b.textContent ?? ''), at.along * blocks.length)]
+    // `+ scrollTop`: where the line would be on an unscrolled page, so running
+    // twice (StrictMode) lands in the same place rather than back at the top.
+    slide.scrollTop = hit
+      ? Math.max(0, hit.getBoundingClientRect().top + slide.scrollTop - at.top)
+      : at.along * (slide.scrollHeight - slide.clientHeight)
+    /*
+     * The other half of the morph (`dayspring-entry-body` in Pages.css).
+     *
+     * A shared element is carried box to box, and these two boxes are not the
+     * same shape: the editor's column has the dateline and its top padding
+     * inside it, this body starts at its first word. Left alone, the two
+     * snapshots ride the same group a hundred-odd pixels apart, and the handoff
+     * is a double image for its whole length. The shift is that difference, and
+     * the snapshots slide by it so the words lie on top of each other all the
+     * way across.
+     */
+    const root = document.documentElement
+    if (hit && root.dataset.entryHandoff === 'morph') {
+      const inset = hit.getBoundingClientRect().top - body.getBoundingClientRect().top
+      root.style.setProperty('--entry-handoff-shift', `${at.inset - inset}px`)
+    }
+  }, [arrived])
+
   /**
    * What the writer set apart on this page, verbatim, in the margin.
    *
@@ -483,6 +555,7 @@ export function PageReader({
   return (
     <div
       className="pg-read1"
+      data-arrive={arrived?.how}
       data-dragging={back.dragging ? 'true' : undefined}
       data-leaving={back.leaving ? 'true' : undefined}
       style={{ ['--pg-out']: out } as React.CSSProperties}

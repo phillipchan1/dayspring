@@ -103,7 +103,7 @@ export function DesktopJournal(props: JournalViewProps) {
                 <button
                   type="button"
                   className="journal-topbar__back"
-                  onClick={onReturnFromEntry}
+                  onClick={() => onReturnFromEntry()}
                 >
                   <BackChevron />
                   {ENTRY_RETURN_LABEL[entryReturn.surface]}
