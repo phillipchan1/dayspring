@@ -1797,8 +1797,10 @@ button.pg__sense-q:hover {
   view-transition-name: dayspring-entry-body;
 }
 
-/* `still`: the page comes back on the line it was left at, so the words have
-   nowhere to travel and are left in the screen's own cross-fade. */
+/* `still`, which is nearly every time: the two surfaces set a page at the same
+   height and hand it over on the same line, so the words have nowhere to
+   travel and are left in the screen's own cross-fade. The shared element is
+   for the one case they cannot agree on — see `leaveEditorUp`. */
 :root[data-entry-handoff='still'] .journal-write .cm-content,
 :root[data-entry-handoff='still'] .pg-read1__body,
 :root[data-entry-handoff='still'] .pg-read1__margin {
@@ -4668,7 +4670,20 @@ button.pg__sense-q:hover {
      taking part in centring, so opening the editor cannot pull the prose right. */
   max-inline-size: calc(var(--editor-max-width) + 2 * var(--read-gutter));
   margin: 0 auto;
-  padding: 0 var(--read-gutter) 6rem;
+  /*
+   * The head starts where the editor's does.
+   *
+   * It used to start straight under the bar's gap while the editor's date sat
+   * `--write-pad-top` and a line further down (4rem + 1.5rem on a desktop), so
+   * the two surfaces showed the same page some 65px apart — and every trip
+   * between them, the whole page had to travel that far. No transition hides
+   * that; it can only make the travel smooth. So the lead is the editor's own,
+   * less the gap the surface header has already left (`.pg__head-wrap`'s
+   * margin, the same clamp), and at the top of a page nothing moves at all.
+   * `--write-pad-top` comes from the shell (Desktop/MobileJournal).
+   */
+  padding: max(0px, calc(var(--write-pad-top, 0px) + 1.5rem - clamp(1rem, 2.4%, 1.6rem)))
+    var(--read-gutter) 6rem;
   text-align: start;
   background: none;
   border: none;
@@ -6162,12 +6177,12 @@ button.pg__sense-q:hover {
     );
   }
 
-  /* The page's own top padding is the bar's now, or the date sits too far down
-     the screen to be the first thing on it. 1.5rem rather than 0.9: at 0.9 the
-     date's accent rule sat 14px under the bar's hairline, close enough to read
-     as part of the bar. */
+  /* The surface header is gone here and the bar is inside the page, the same
+     height as the editor's — so the lead is the editor's whole: see the note on
+     `.pg-read1__page`. (It was 1.5rem, which put the date 40px above where the
+     editor has it.) */
   .pg-read1__page {
-    padding-block-start: 1.5rem;
+    padding-block-start: calc(var(--write-pad-top, 0px) + 1.5rem);
   }
 
   /*
@@ -6692,10 +6707,4 @@ mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
     inset: -14px -3px;
   }
 
-  /* The touch bar has a 1rem floor above its hairline, so the page needs more
-     than the pointer's ~1.6rem below it — at that, the date read as a second
-     line of the bar. */
-  .pg-read1__page {
-    padding-block-start: 0.85rem;
-  }
 }

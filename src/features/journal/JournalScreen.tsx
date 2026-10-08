@@ -211,18 +211,6 @@ function editorReadingPlace(): { at: ReaderArrival['at']; scrolled: boolean } {
   }
 }
 
-/**
- * How far below the top of its box an entry's first words begin, on whichever
- * surface is showing — the reader's body or the editor's column. The two differ
- * (the editor's has the dateline inside it), and `--entry-handoff-shift` is the
- * difference: see the note on it in PageReader.
- */
-function firstWordsInset(box: HTMLElement | null, lines: string): number | null {
-  if (!box) return null
-  const first = [...box.querySelectorAll<HTMLElement>(lines)].find((el) => el.textContent?.trim())
-  return first ? first.getBoundingClientRect().top - box.getBoundingClientRect().top : null
-}
-
 /** Take the handoff's marks off the root once its transition is over. */
 function endEntryHandoff(transition: ViewTransition): void {
   const root = document.documentElement
@@ -1976,8 +1964,8 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
    * its entrance over the wall — so the words you had just written vanished,
    * the archive showed for a fifth of a second, and the same words faded back
    * in a little higher up the screen. Now the reader arrives already there
-   * (`ReaderArrival`), scrolled to where the writing was, and the same view
-   * transition carries the words across.
+   * (`ReaderArrival`), scrolled to where the writing was, and one view
+   * transition covers the change.
    *
    * `swipe`: the shell has already been dragged off the screen, so there is
    * nothing left to morph from — the page is simply what was underneath.
@@ -2033,21 +2021,22 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     }
 
     /*
-     * Two handoffs, by where the writing is.
+     * Two handoffs, and nearly always the first.
      *
-     * At the top of an entry the two surfaces set the first line at different
-     * heights, so the words are carried from one to the other as a shared
-     * element — what opening the page did, backwards.
+     * `still`: the reader lays a page out where the editor does and opens on
+     * the same line, so the words have nowhere to go. A plain cross-fade of
+     * the screen leaves them standing while the bars change around them.
      *
-     * Scrolled into it, the reader opens on the same line at the same height
-     * and there is nowhere to carry them: a plain cross-fade of the screen
-     * leaves the words standing still while the bars change around them. And a
-     * shared element would be wrong there besides — its snapshot is the whole
-     * column, drawn without the scroller's clip, so the paragraphs that had
-     * gone up under the top bar reappear over it for the length of the fade.
+     * `morph`: the one place the two cannot agree — the top of an entry in
+     * focus mode, which has no bar and no lead above the first line. There the
+     * words are carried across as a shared element instead. Never once the
+     * opening has scrolled away: that snapshot is the whole column, drawn
+     * without the scroller's clip, and the paragraphs that had gone up under
+     * the top bar would reappear over it for the length of the fade.
      */
     const root = document.documentElement
-    root.dataset.entryHandoff = landingId && place.scrolled ? 'still' : 'morph'
+    const apart = focus.active && !place.scrolled
+    root.dataset.entryHandoff = landingId && apart ? 'morph' : 'still'
     const transition = document.startViewTransition(
       () =>
         new Promise<void>((resolve) => {
@@ -2471,8 +2460,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     const returnCtx = entryReturnFromState(state)
     skipEditorAutofocusRef.current = true
     skipEntrySyncRef.current = true
-    // The same shift the way back uses, from the other side: see PageReader.
-    const readInset = firstWordsInset(document.querySelector('.pg-read1__body'), ':scope > *')
     const openEditor = () => {
       flushSync(() => {
         go({
@@ -2488,16 +2475,6 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
         setContent(asEntryMarkdown(entry.body_markdown))
         loadedEntryIdRef.current = entry.id
       })
-      const writeInset = firstWordsInset(
-        document.querySelector('.journal-write .cm-content'),
-        '.cm-line',
-      )
-      if (readInset !== null && writeInset !== null) {
-        document.documentElement.style.setProperty(
-          '--entry-handoff-shift',
-          `${readInset - writeInset}px`,
-        )
-      }
     }
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -2507,6 +2484,9 @@ export function JournalScreen({ userEmail, featureFlags }: JournalScreenProps) {
     // No morph into the editor for a ritual page: the editor is not where it
     // is going, and the veil is already over it.
     if (!ritualPage && !reducedMotion && fromOpenPage && document.startViewTransition) {
+      // The editor opens the page where the reader had it, so the words stand
+      // still and the screen cross-fades around them — see `leaveEditorUp`.
+      document.documentElement.dataset.entryHandoff = 'still'
       endEntryHandoff(document.startViewTransition(openEditor))
     } else {
       openEditor()
