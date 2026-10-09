@@ -16,7 +16,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { THEMES } from '@/lib/resolveTheme'
 import { PANE_VIEWPORT } from './devices'
 import { IPAD_VIEWPORT } from './ipad'
-import type { Shot } from './shots'
+import { shotsFor, type Shot } from './shots'
 import './ShotFrame.css'
 
 interface Props {
@@ -55,9 +55,24 @@ export function ShotFrame({ shot, frame, platform }: Props) {
   useLayoutEffect(() => {
     const well = wellRef.current
     if (!well) return
-    const byHeight = well.clientHeight / card.height
-    const byWidth = (frame.width - gutter * 2) / card.width
-    setScale(Math.min(byHeight, byWidth))
+    const fit = () => {
+      // clientHeight counts the well's padding; the card may only use what is
+      // inside it, or a height-bound card (iPad, with its taller caption) runs
+      // through the bottom padding to the frame's edge.
+      const cs = getComputedStyle(well)
+      const inner = well.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+      const byHeight = inner / card.height
+      const byWidth = (frame.width - gutter * 2) / card.width
+      setScale(Math.min(byHeight, byWidth))
+    }
+    fit()
+    // Again whenever the well changes — above all when the caption's Fraunces
+    // arrives and the headline grows. Fitted once, the card kept the size it
+    // had against the fallback face, and whether it overran the frame's foot
+    // depended on which finished first.
+    const ro = new ResizeObserver(fit)
+    ro.observe(well)
+    return () => ro.disconnect()
   }, [frame.width, card.height, card.width, gutter])
 
   const crop = platform === 'ipad' ? 0 : (shot.cropTop ?? 0)
@@ -71,9 +86,20 @@ export function ShotFrame({ shot, frame, platform }: Props) {
   const paper = THEMES.find((t) => t.id === themeId)?.swatch.bg ?? '#14161d'
   const light = themeId !== 'ink' && THEMES.find((t) => t.id === themeId)?.family === 'light'
 
+  // How far the sun is up, 0 → 1 across the set. Each frame's horizon is a
+  // little warmer than the last, so swiping the gallery is first light coming
+  // up — the name (Luke 1:78) and the promise, said without a word.
+  const set = shotsFor(platform)
+  const dawn = set.length > 1 ? Math.max(0, set.findIndex((s) => s.id === shot.id)) / (set.length - 1) : 1
+
   return (
-    <div className="shot" data-platform={platform} style={{ width: frame.width, height: frame.height }}>
+    <div
+      className="shot"
+      data-platform={platform}
+      style={{ width: frame.width, height: frame.height, ['--dawn' as string]: dawn }}
+    >
       <div className="shot__glow" aria-hidden />
+      <div className="shot__horizon" aria-hidden />
       <div className="shot__grain" aria-hidden />
 
       <header className="shot__caption">
@@ -104,17 +130,26 @@ export function ShotFrame({ shot, frame, platform }: Props) {
             visibility: scale ? 'visible' : 'hidden',
           }}
         >
-          <iframe
-            className="shot__inner"
-            title={shot.eyebrow}
-            src={`/?__preview=${shot.id}&raw=1${platform === 'ipad' ? '&platform=ipad' : ''}`}
-            width={card.width}
-            // Taller than the card by the crop and the pad, so after shifting up
-            // and being pushed down it still reaches the bottom edge.
-            height={card.height + crop + pad}
-            style={{ transform: `scale(${scale}) translateY(${-crop}px)` }}
-            scrolling="no"
-          />
+          {/*
+            The window the snippet shows through. It begins below the pad and
+            clips at its own top edge: shifting the iframe up moves its whole
+            box, so without this the rows above the crop slid back into the pad
+            — and in a headless capture spilled over the card's top border. That
+            is how the Lamp's range row kept turning up, half cut, at the top.
+          */}
+          <div className="shot__window">
+            <iframe
+              className="shot__inner"
+              title={shot.eyebrow}
+              src={`/?__preview=${shot.id}&raw=1${platform === 'ipad' ? '&platform=ipad' : ''}`}
+              width={card.width}
+              // Taller than the card by the crop and the pad, so after shifting up
+              // and being pushed down it still reaches the bottom edge.
+              height={card.height + crop + pad}
+              style={{ transform: `scale(${scale}) translateY(${-crop}px)` }}
+              scrolling="no"
+            />
+          </div>
         </div>
         )}
       </div>

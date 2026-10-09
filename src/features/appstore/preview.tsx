@@ -14,6 +14,9 @@
  * so Vite drops this module and its fixtures from production builds.
  */
 
+// First, before anything reads the date: every shot is taken at one moment.
+import './clock'
+
 // main.tsx loads Fraunces 500/600 roman only. The caption needs 300 and its
 // italic; without the real face the browser synthesizes an oblique, which reads
 // as cheap at 46px.
@@ -108,6 +111,16 @@ export function renderListingPreview(variant: string): void {
       ...(isLightTheme(theme) ? { lightTheme: theme } : { darkTheme: theme }),
     })
     applyTheme(theme)
+    // Every surface at rest. Headless Chrome's virtual time budget does not
+    // drive compositor animations inside the frame's iframe, so an entrance
+    // (the Ascent's rise, a strip's fade) was photographed half-run — the year
+    // shot came out with its lower half dimmed. Zero durations land each one on
+    // its end state at once, the state a person sees after the first second.
+    const still = document.createElement('style')
+    still.textContent =
+      '*, *::before, *::after { animation-duration: 0s !important; animation-delay: 0s !important;' +
+      ' animation-iteration-count: 1 !important; transition-duration: 0s !important; transition-delay: 0s !important; }'
+    document.head.appendChild(still)
   } else {
     // The frame page renders no app components, so it must NOT take the app's
     // palette: `body { background: var(--bg) }` would then paint the app's paper
@@ -129,7 +142,13 @@ export function renderListingPreview(variant: string): void {
       <ShotFrame
         shot={shot}
         platform={ipad ? 'ipad' : 'iphone'}
-        frame={{ width: window.innerWidth, height: window.innerHeight }}
+        // The capture passes the frame it wants. New headless Chrome lays out
+        // in a viewport ~89pt shorter than the window it photographs, so sizing
+        // to `innerHeight` left a bare strip along the foot of every PNG.
+        frame={{
+          width: Number(params.get('w')) || window.innerWidth,
+          height: Number(params.get('h')) || window.innerHeight,
+        }}
       />
     ),
   )

@@ -16,6 +16,7 @@ import type { Entry } from '@/lib/types'
 import { markingsForEntries } from '@/lib/spiritual'
 import { requireSupabase } from '@/lib/supabase'
 import { withOfflineSnapshot } from '@/lib/offlineSnapshot'
+import { isCapturePreview } from '@/lib/previewMode'
 import { allSubjects, type Subject } from '@/features/pages/subjects'
 import { listKeptSubjects, withVocabulary } from '@/features/pages/keptSubjects'
 import {
@@ -215,6 +216,7 @@ onCacheCleared(() => {
   entriesPromise = null
 })
 function loadEntries(): Promise<Entry[]> {
+  if (import.meta.env.DEV && isCapturePreview()) return captureInput().then((i) => i.entries as Entry[])
   entriesPromise ??= listEntries()
   return entriesPromise
 }
@@ -248,9 +250,24 @@ export function setLedgerPreviewInput(input: LedgerInput): void {
   entriesPromise = Promise.resolve(input.entries as Entry[])
 }
 
+/**
+ * The listing and device-sweep captures (lib/previewMode.ts) produce PUBLIC
+ * images, so they read the synthetic year — never the archive of whoever is
+ * signed in on the machine running the capture. Every caller sits under a
+ * literal `import.meta.env.DEV`, so this and its fixture leave the build.
+ */
+async function captureInput(): Promise<LedgerInput> {
+  if (!previewInput) {
+    const { syntheticYear } = await import('./fixtureYear')
+    setLedgerPreviewInput(syntheticYear({ photos: false }))
+  }
+  return previewInput!
+}
+
 /** Everything the builder needs for a span: the owner-wide sources, and the
  *  markings for just the pages inside the span. */
 async function inputFor(from: string, to: string): Promise<LedgerInput> {
+  if (import.meta.env.DEV && isCapturePreview()) return captureInput()
   if (import.meta.env.DEV && previewInput) return previewInput
   const [entries, matters, names, refs, encounters] = await Promise.all([
     loadEntries(),
@@ -301,6 +318,10 @@ export interface SpanExtras {
 
 /** The photos on a span's pages, and who first appeared in them. */
 export async function loadSpanExtras(from: string, to: string): Promise<SpanExtras> {
+  if (import.meta.env.DEV && isCapturePreview()) {
+    const input = await captureInput()
+    return { photos: photosIn(input.entries, from, to), news: newIn(input.names, input.entries, from, to) }
+  }
   const [entries, names] = await Promise.all([
     loadEntries(),
     import.meta.env.DEV && previewInput ? Promise.resolve(previewInput.names) : loadNames(),
@@ -339,6 +360,9 @@ export async function loadYearLedger(year: number, now: Date = new Date()): Prom
   const key = open ? `ledger:year:${year}:${dayKey()}` : `ledger:year:${year}`
   const hit = getCache<YearLedger>(key)
   if (hit) return hit
+  if (import.meta.env.DEV && isCapturePreview()) {
+    return buildYearLedger(await captureInput(), year, open ? now.getUTCMonth() + 1 : 12)
+  }
 
   const gen = cacheGeneration()
   const [entries, matters, names, refs, encounters] = await Promise.all([

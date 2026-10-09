@@ -9,9 +9,9 @@ npm run screenshots:appstore-listing  # the marketing gallery
 
 | File | Where it goes | Notes |
 |---|---|---|
-| `listing/6.9/*.png` | App Store version → **Previews and Screenshots → iPhone 6.9"** | The marketing gallery |
-| `listing/6.5/*.png` | Same, **iPhone 6.5"** | Same seven shots at the legacy size |
-| `listing/ipad-13/*.png` | Same, **iPad 13"** | Six shots — required, see below |
+| `listing/6.9/*.png` | App Store version → **Previews and Screenshots → iPhone 6.9"** | The marketing gallery — eight shots, upload in filename order |
+| `listing/6.5/*.png` | Same, **iPhone 6.5"** | Same eight shots at the legacy size |
+| `listing/ipad-13/*.png` | Same, **iPad 13"** | Seven shots — required, see below |
 | `iap-review-screenshot.png` | Subscription → **Review Information → Screenshot** | Review-only, never shown publicly |
 | `paywall.png` | Spare — first-run paywall variant | Not currently required |
 | `listing.json` | **Source of truth** for listing copy | Edit here; regenerate paste sheet below |
@@ -39,79 +39,98 @@ always what ships.
 
 ## The listing gallery
 
-Seven shots, in the order they appear. All copy lives in
+Eight shots, in the order they appear. All copy lives in
 **`src/features/appstore/shots.ts`** — a wording change is a one-line edit plus a
 re-run, and the gold-gradient italic stays real text rather than baked pixels.
 
-| # | Shot | Theme | Says |
+| # | Shot | Palette | Says |
 |---|---|---|---|
-| 01 | The Ascent — the mountain and the verbatim line of the year | `ink` | See what God has been *making of you.* |
-| 02 | The page — a scripture block, a prayer block, and the capture bar | `dawn` | Beautiful to write in. *Made for the inner life.* |
-| 03 | The ritual library — four forms with their authors | `dawn` | When you don't know where to *begin.* |
-| 04 | The Altar — the subjects you keep bringing, with their warmth | `ink` | Your prayers, *remembered.* |
-| 05 | The Lamp — the canon lit where you've lived | `ink` | Find the verses that *actually met you.* |
-| 06 | The year list — a decade with real counts | `dawn` | Bring your journal *with you.* |
-| 07 | Desktop and phone, the same entry on both | `ink` | Start on your phone, *finish on your Mac.* |
+| 01 | The page — a verse, a prayer, and the capture bar | `dawn` | A journal built for *spiritual growth.* |
+| 02 | The Ascent at the year — the climb, then what the year kept returning to | `ink` | See what God has been *making of you.* |
+| 03 | The ritual library — named practices with their authors | `dawn` | When you don't know where to *begin.* |
+| 04 | Lectio Divina, mid-walk — the passage, a phrase drawn from it, a line written | `dawn` | Scripture that *stays with you.* |
+| 05 | One thread of the year — a prayer for Dad, ask to now, in the writer's words | `ink` | Your prayers, *remembered.* |
+| 06 | The Lamp — the canon lit where you've lived | `ink` | Find the verses that *actually met you.* |
+| 07 | Pages — a decade of them, with the page from ten years ago this week | `dawn` | Bring your journal *with you.* |
+| 08 | Desktop and phone, the same entry on both | `ink` | Start on your phone, *finish on your Mac.* |
+
+**The order is the argument.** App Store search shows the first three shots side
+by side, so those three make the whole case on their own: what it is (01 — the
+front door D-001 chose, word for word the site's hero), what it gives back (02 —
+the year, read back), and what it holds for someone who doesn't know how to
+start (03). The rest deepen it in the order a reader asks: Scripture, prayer, the
+long view of the Bible, the archive, and whether it fits how they live.
+
+**One writer runs through the whole strip.** The prayer on the page in 01 ("For
+Dad, and for Thursday") is the same Thursday the Lectio reflection in 04 names,
+and the thread the year carries in 02 and 05 — Dad's diagnosis, from "Pray for
+Dad's tests" in March to "Maya prayed for Dad by herself tonight. Nobody asked
+her to." in October. "Your prayers, remembered" is made by the gallery, not only
+claimed by its captions. Note where that thread ends: on a daughter praying, not
+on a scan result. The year's fixture does hold "Dad's scan is clear", and the
+thread shows it if the capture clock is moved back to mid-October — but a
+marketing image that closes a prayer on a medical outcome reads as a promise the
+product cannot make (PRINCIPLES #1, light not verdict). Keep it on the asking
+changing shape.
 
 **Every headline has to answer "how does this help me?"** The reader is the hero;
 the app is the guide. A line can be true and beautiful and still fail that test —
 "Thus far the Lord has helped" is a statement *about God*, not a benefit to the
-person reading — and it is a symbol the reader has to decode before it pays off.
-04 now names the pain instead: you write a prayer down and never see it again. Same
-correction turned "Ten years of journaling" (a fact about a fixture) into "Bring
-your journal with you" (something you get to do), with the one-minute import
-leading its subcaption because that is what removes the barrier to starting.
+person reading. Same discipline turned "Ten years of journaling" (a fact about a
+fixture) into "Bring your journal with you" (something you get to do).
 
-**The surfaces carry the gallery, not the editor.** VISION.md is blunt about it —
-a journal you write in is table stakes; Day One and a paper notebook clear that
-bar. So four of six shots are things nothing else has (Ascent, Rituals, Altar,
-Lamp). There was briefly a separate bare-editor shot; it and the capture shot were
-the same picture twice, so they were merged into 02, where the scripture and
-prayer blocks *are* the output of `/scripture` and `/pray`. That also avoids
-mocking `InlineScripturePopover`, which is backed by the live ESV passage search.
+**No counts that go stale.** The first gallery said "Nine contemplative forms";
+the shelf grew to fifteen within weeks and the uploaded listing was false. The
+library grows by design, so 03 names forms instead of counting them.
 
-**Why the set is mixed light and dark.** Ascent, Altar and Lamp are built on glow
-— a lit chapter cell only reads as *lit* against darkness, and on cream the whole
-ember→gold metaphor collapses. The writing surfaces go to `dawn` because that is
-what the shipped default (`appearance: 'auto'`) actually gives anyone on a
-light-mode phone, it matches the app icon (a sunrise on cream) and the name (Luke
-1:78, first light), and a Christian journal's dominant moment is the morning.
+**First light across the strip.** Every frame has a sun below its foot, a little
+higher each shot (`--dawn`, 0 → 1, set in `ShotFrame.tsx` from the shot's place
+in its set). The first frame is the hour before dawn; the last has the horizon
+gold. It shows in the gutters and under the cards, never behind a caption, so
+every headline sits on the same dark. It is the name — Luke 1:78, the dayspring
+from on high — said without a word, and it is why the set reads as one strip.
 
-The frame never changes, so the strip still reads as one system; only the card's
-palette alternates. To go all-dark or all-light, set or drop `theme` per shot in
-`shots.ts`.
+**Why the set is mixed light and dark.** The Ascent, the thread and the Lamp are
+built on glow — a lit chapter cell only reads as *lit* against darkness, and on
+cream the whole ember→gold metaphor collapses. The writing and reading surfaces
+go to `dawn` because that is what the shipped default (`appearance: 'auto'`)
+gives anyone on a light-mode phone, it matches the app icon (a sunrise on cream),
+and a Christian journal's dominant moment is the morning. Alternating also stops
+the back half of the strip running dark four frames in a row.
 
 **One idea per shot.** A full phone screen is unreadable at gallery-thumbnail size,
-so each shot renders a *single* shipped component with no app chrome — no header,
-no tab bar, no FAB — scaled up until it reads at a glance. Still the real
-components and the real CSS; only the framing differs.
+so each iPhone shot renders a *single* shipped surface with no app chrome — no
+header, no tab bar, no FAB — scaled up until it reads at a glance. Two pieces of
+chrome are hidden by name for that reason: the Ascent's ascend/descend pair
+(sticky to a phone's foot) and Pages' floating "Look for" disc. Everything else is
+the real components and the real CSS; only the framing differs.
 
-**07 is the deliberate exception** — the only shot that isn't one card, and the
-only one with a list. Both panes are real layouts, picked purely by iframe width
-against `useIsMobile()`'s 767px breakpoint: 1120pt gets the three-column desktop
-shell, 420pt gets the phone. The same entry is open in both and both headers say
-"Synced" — the claim proving itself rather than asserting itself.
+**What each shot is made of.**
 
-The phone pane shows the **voice sheet**, not a second copy of the editor, so
-"speak and it writes it down" has a picture instead of a promise. `VoiceCapture`
-auto-starts dictation on mount and needs a microphone, so the capture script
-passes `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`;
-without them it renders its "couldn't reach the microphone" state.
-
-**Why this one gets a list.** Every other frame answers *"what is this?"*, where a
-list would be noise. This one answers *"will it fit how I live?"* — a practical
-question, and practical questions want facts. Six of them, running down the
-L-shaped gap a landscape window above a portrait phone always leaves, so that
-column is filled by design rather than the frame carrying a hole. Six is what it
-takes to reach the phone's lower edge.
-
-Everything listed has to be real. The offline line is true because of the
-`outbox` store in `src/lib/db.ts` plus the service worker; the export line is
-BRANDSCRIPT promise #4. Check before adding a seventh.
-
-The desktop viewport is deliberately tall-ish (1120x880) rather than 16:10 —
-width is the binding constraint in a portrait frame, so a wide-short window can
-only float in dead space it cannot grow into.
+- **02 and 05** are the real `AscentView`, opened at the year (`climb.tsx`), and
+  the year is the real `buildYearLedger` run over a synthetic writer's entries
+  (`ascent/ledger/fixtureYear.ts`, shared with `?__preview=ledger`). Since
+  `yearLedger` graduated this *is* the Summit for every user; the
+  mountain-and-refrain Summit the first gallery showed no longer exists in the
+  app, which is why that shot had started rendering an empty "Reading 2026…".
+  02 frames the top; 05 crops down to the first thread.
+- **04** is the real `RitualComposer` in entry mode over a Lectio Divina page built
+  the way `?__preview=ritual` builds one (`scriptureRitual.tsx`). Its words come
+  from `passageFixtures.ts` — the public-domain WEB, fetched, never model memory —
+  because a capture has no session for the ESV endpoint. The composer shows no
+  translation label; the *page* view would say "· ESV" over WEB text, which is
+  why 04 is the composer and not the page.
+- **07** is Pages, list on a phone and the wall on iPad, over a decade of fixture
+  entries at realistic per-year counts — what the caption asserts, the screenshot
+  shows.
+- **08** is the deliberate exception: the only shot that isn't one card, and the
+  only one with a list. Both panes are real layouts, picked purely by iframe width
+  against `useIsMobile()`'s 767px breakpoint. The phone pane shows the voice sheet,
+  which auto-starts dictation, so the capture passes
+  `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`. Everything
+  in its list has to be real (the offline line is the `outbox` store in
+  `src/lib/db.ts` plus the service worker; the export line is BRANDSCRIPT promise
+  #4). Check before adding to it.
 
 Two rules the shots are checked against, both from `docs/product/`:
 
@@ -120,9 +139,26 @@ Two rules the shots are checked against, both from `docs/product/`:
 - **BRANDSCRIPT** — no *journey*, *unlock*, *track*, *streak*, *score*, *insights*,
   *AI-powered*, *mindfulness*. Never sermonize, never gamify.
 
-Shot 06 claims ten years, so the fixture actually contains ten years of entries at
-realistic per-year counts. Same grounding discipline as the product: what the
-caption asserts, the screenshot shows.
+### Every shot is taken at the same moment
+
+`src/features/appstore/clock.ts` shifts the page's clock to **Tuesday 27 October
+2026, 7:40am** before any fixture reads the date. Without it a shot was a function
+of the day the script ran: the year view taken in February had one month in it,
+and fixture pages dated "the 27th of this month" sat in the future for most of
+every month (the first gallery's History shot showed pages dated after the day it
+was captured). The 27th is when the newest fixture page falls and it is titled
+"Tuesday", so the date and the title agree wherever a shell shows both. Shifted,
+not frozen — time still moves from that instant.
+
+### Capture previews never read an account
+
+Every surface reads fixtures through a seam guarded by `isCapturePreview()`
+(`src/lib/previewMode.ts`) — a privacy boundary, because these images are public.
+Two holes were closed with this gallery: the year ledger (`ascent/ledger/load.ts`)
+had no seam at all once `yearLedger` graduated, and the check itself read the
+*current* URL, which in-app navigation rewrites (`history.replaceState` drops
+`?__preview=`) — so a shot that navigated, like the iPad Ascent going to the year,
+fell through to live data mid-capture. The check now latches at boot.
 
 ### How it renders
 
@@ -137,12 +173,13 @@ the iframe element takes the fixed layers with it.
 The card lays out at **420 CSS pt**, not the frame's width, so line breaks and touch
 targets match a real phone rather than a tablet.
 
-Fixtures live in `src/features/appstore/mock.ts` and are reached only through a
+Fixtures live in `src/features/appstore/mock.ts` (and the year in
+`src/features/ascent/ledger/fixtureYear.ts`) and are reached only through a
 dynamic `import()` under a literal `import.meta.env.DEV`, so Vite drops them from
-production. To confirm after a change:
+production. To confirm after a change — one line from each fixture:
 
 ```bash
-npm run build && grep -rl "never see it again" dist/ | wc -l   # must be 0
+npm run build && grep -rlE "rehearsing the worst version|Nobody asked her to" dist/ | wc -l   # must be 0
 ```
 
 ## Prices in the screenshot
@@ -175,19 +212,23 @@ with an empty iPad slot. The only way to skip it is dropping iPad — family `"1
 — which costs a rebuild and a re-upload.
 
 **iPad shots are shaped differently from iPhone shots, on purpose.** On a phone a
-whole screen is unreadable at thumbnail size, so each frame is one component with
+whole screen is unreadable at thumbnail size, so each frame is one surface with
 its chrome stripped. On iPad the chrome *is* the story: `useIsMobile()` is
 `(max-width: 767px)` and the boundary is deliberately 767 rather than 768 so iPad
 portrait gets the three-column shell. So an iPad shot shows the real shell with
 the surface live in the canvas (`src/features/appstore/ipad.tsx`), and `cropTop` /
 `padTop` are ignored — those target snippet headers that aren't there.
 
-Two things fall out of this for free: the entry list sits open beside the canvas,
-so shot 06's decade of years needs no special arrangement; and the ritual library
-renders its real 3x3 grid, because `.practice-library__grid` is only forced to a
-single column under 480px. All nine forms, with their authors, in one frame.
+What that changes per shot: 01 gets a fuller page (`MOCK_DOC_FULL` — an iPad page
+is twice a phone's width, and the phone's few lines left three quarters of it bare
+paper); 03 shows the library's real grid, because `.practice-library__grid` is
+only forced to one column under 480px; 04 is the scripture ritual's side-by-side
+leaf, passage beside the writing; 05 scrolls the year down to its threads
+(`ToTheThreads` in `climb.tsx`) rather than cropping; and 07 is the Pages wall in
+the shell, a decade of pages beside the years they span — it used to be the
+editor again, the same picture as 01.
 
-Shot 07 is dropped from the iPad set — a phone-and-Mac composite argues the wrong
+08 is dropped from the iPad set — a phone-and-Mac composite argues the wrong
 thing on an iPad sheet.
 
 ## Known: the paywall preview renders unthemed
@@ -204,6 +245,21 @@ Fix the `dusk` string if you regenerate the paywall for any other reason.
 
 ## Gotchas if you touch the capture script
 
+- **The window is taller than the frame, on purpose.** New headless Chrome's
+  viewport is ~87pt shorter than its window, and nothing past the viewport is
+  painted. The frame is told its true size (`&w=` / `&h=`) instead of reading
+  `innerHeight`, the window gets `WINDOW_SLACK` below it, and `finalizePng` crops
+  back to Apple's size from the top. Sized exactly, every PNG had a bare strip
+  along its foot — invisible on a flat frame, a hard seam under the sunrise.
+- **Animations are stopped dead in the snippet.** The virtual time budget does
+  not drive compositor animations inside the frame's iframe, so entrances were
+  photographed half-run (the year shot's lower half came out dimmed). The raw
+  page zeroes every animation and transition duration, landing each on its end
+  state.
+- **`padTop` pads.** The iframe sits inside `.shot__window`, which clips at the
+  top of the pad. Before, shifting the iframe up moved its whole box, so the rows
+  above the crop slid back into the "pad" — and in a headless capture spilled over
+  the card's top edge. That is how the Lamp's range row kept turning up half cut.
 - **Don't lower the viewport width below ~640 CSS px.** macOS enforces a ~500px minimum
   window width, and Chrome lays out at that minimum but still crops to `--window-size`,
   which slices the right-hand side off the auto-renew disclosure.
@@ -211,3 +267,9 @@ Fix the `dusk` string if you regenerate the paywall for any other reason.
   photographs a blank page.
 - **Old `--headless` won't do.** It lays out at its own default width regardless of
   `--window-size`. Use `--headless=new`.
+- **Any Chrome will do.** The script looks for Chrome, Chromium or Edge on macOS and
+  Chromium on Linux (`/opt/pw-browsers/chromium` in a cloud container), and
+  `CHROME=/path/to/chrome` overrides it. As root it adds `--no-sandbox`.
+- **`--size=6.9`** (or `6.5`, `ipad-13`) renders one size for a quick look, and any
+  bare argument filters shots by filename (`npm run screenshots:appstore-listing --
+  02 05 --size=6.9`).

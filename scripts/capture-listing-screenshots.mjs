@@ -27,10 +27,16 @@ const OUT_DIR = path.join(ROOT, 'assets/appstore/listing')
 const PORT = 5184 // 5183 belongs to the IAP capture; neither may fight `npm run dev`
 
 const CHROME_CANDIDATES = [
+  // `CHROME=/path/to/chrome npm run screenshots:appstore-listing` wins outright.
+  process.env.CHROME,
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-]
+  // Linux, including the Playwright Chromium a cloud container ships with.
+  '/opt/pw-browsers/chromium',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+].filter(Boolean)
 
 /**
  * App Store Connect's current default slot for new submissions is 6.9"; 6.5" is
@@ -52,18 +58,22 @@ const SIZES = [
   { dir: 'ipad-13', width: 2064, height: 2752, platform: 'ipad' },
 ]
 
+/** CSS px of window below the frame — see the `--window-size` note in capture(). */
+const WINDOW_SLACK = 200
+
 /** Frame background — site/'s --ink. Must match ShotFrame.css. */
 const BG = [12, 13, 17]
 
-/** Mirrors SHOTS in src/features/appstore/shots.ts. */
+/** Mirrors SHOTS in src/features/appstore/shots.ts — same order, same files. */
 const SHOTS = [
-  { preview: 'listing-ascent', file: '01-ascent' },
-  { preview: 'listing-capture', file: '02-capture' },
+  { preview: 'listing-capture', file: '01-page' },
+  { preview: 'listing-ascent', file: '02-year' },
   { preview: 'listing-rituals', file: '03-rituals' },
-  { preview: 'listing-altar', file: '04-altar' },
-  { preview: 'listing-lamp', file: '05-lamp' },
-  { preview: 'listing-history', file: '06-history' },
-  { preview: 'listing-devices', file: '07-devices' },
+  { preview: 'listing-scripture', file: '04-scripture' },
+  { preview: 'listing-prayer', file: '05-prayer' },
+  { preview: 'listing-lamp', file: '06-lamp' },
+  { preview: 'listing-history', file: '07-history' },
+  { preview: 'listing-devices', file: '08-devices' },
 ]
 
 async function findChrome() {
@@ -101,6 +111,8 @@ function capture(chrome, url, outFile, size) {
       // Old --headless lays out at its own default width regardless of
       // --window-size. It must be the new headless.
       '--headless=new',
+      // Chrome refuses to start as root without it — the case in a container.
+      ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []),
       '--disable-gpu',
       '--hide-scrollbars',
       // The page boots asynchronously (fonts, the dynamic import of the preview
@@ -114,7 +126,12 @@ function capture(chrome, url, outFile, size) {
       '--use-fake-ui-for-media-stream',
       '--use-fake-device-for-media-stream',
       '--force-device-scale-factor=2',
-      `--window-size=${size.width / 2},${size.height / 2}`,
+      // Taller than the frame on purpose. New headless Chrome's viewport is
+      // ~87pt shorter than its window, and nothing past the viewport is
+      // painted, so a window of exactly the frame's size left a bare strip
+      // along the foot of every shot. The frame is told its true size (`&h=`),
+      // sits at the top, and finalizePng crops back to Apple's dimensions.
+      `--window-size=${size.width / 2},${size.height / 2 + WINDOW_SLACK}`,
       `--screenshot=${outFile}`,
       url,
     ])
@@ -160,6 +177,10 @@ async function main() {
   const only = process.argv.slice(2).filter((a) => !a.startsWith('-'))
   const shots = only.length ? SHOTS.filter((s) => only.some((o) => s.file.includes(o))) : SHOTS
   if (!shots.length) throw new Error(`No shots matched: ${only.join(', ')}`)
+  // `--size=6.9` (or ipad-13) for a quick look at one size; the default is all.
+  const sizeArg = process.argv.find((a) => a.startsWith('--size='))?.slice('--size='.length)
+  const sizes = sizeArg ? SIZES.filter((s) => s.dir === sizeArg) : SIZES
+  if (!sizes.length) throw new Error(`No size "${sizeArg}" — one of ${SIZES.map((s) => s.dir).join(', ')}`)
 
   console.log(`Starting dev server on :${PORT}…`)
   const vite = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], {
@@ -169,16 +190,18 @@ async function main() {
 
   try {
     await waitForServer(`http://localhost:${PORT}/`)
-    for (const size of SIZES) {
+    for (const size of sizes) {
       const dir = path.join(OUT_DIR, size.dir)
       await mkdir(dir, { recursive: true })
       console.log(`\n${size.dir}" — ${size.width}x${size.height}`)
-      // 07 is a phone-and-Mac composite; on an iPad sheet it argues the wrong
-      // thing, so the iPad set closes on the year list instead.
+      // 08 is a phone-and-Mac composite; on an iPad sheet it argues the wrong
+      // thing, so the iPad set closes on the archive instead.
       const forSize = size.platform === 'ipad' ? shots.filter((s) => s.preview !== 'listing-devices') : shots
       for (const shot of forSize) {
         const out = path.join(dir, `${shot.file}.png`)
-        const q = size.platform === 'ipad' ? '&platform=ipad' : ''
+        // The frame is told its size rather than reading the viewport, which new
+        // headless Chrome makes shorter than the window it photographs.
+        const q = `${size.platform === 'ipad' ? '&platform=ipad' : ''}&w=${size.width / 2}&h=${size.height / 2}`
         await capture(chrome, `http://localhost:${PORT}/?__preview=${shot.preview}${q}`, out, size)
         console.log(`  ${path.relative(ROOT, out)}`)
         finalizePng(out, size)

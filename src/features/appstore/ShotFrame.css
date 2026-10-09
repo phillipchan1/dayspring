@@ -37,6 +37,29 @@
   z-index: 0;
 }
 
+/* First light. A sun below the frame's foot, warming shot by shot: `--dawn`
+   runs 0 → 1 across the set (ShotFrame.tsx). The first frame is the hour
+   before dawn, the last has the sky gold at the horizon. It shows mostly in the
+   gutters and under the card — a strip-level effect, never behind the caption,
+   so every headline sits on the same dark and reads the same. */
+.shot__horizon {
+  position: absolute;
+  left: 50%;
+  bottom: -16%;
+  width: 190%;
+  height: 66%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(250, 206, 140, calc(0.06 + var(--dawn) * 0.52)) 0%,
+    rgba(243, 167, 118, calc(0.04 + var(--dawn) * 0.3)) 26%,
+    rgba(214, 120, 112, calc(0.02 + var(--dawn) * 0.13)) 48%,
+    rgba(197, 106, 110, 0) 70%
+  );
+  filter: blur(26px);
+  z-index: 0;
+}
+
 /* Film grain, so the gradient never bands on a 1284px-wide export. */
 .shot__grain {
   position: absolute;
@@ -53,15 +76,15 @@
   position: relative;
   z-index: 2;
   flex: none;
-  padding: 74px 56px 0;
+  padding: 70px 50px 0;
 }
 
 .shot__eyebrow {
   display: block;
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
-  letter-spacing: 2.8px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   color: #f3bd76;
 }
@@ -70,9 +93,9 @@
   margin: 15px 0 0;
   font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
   font-weight: 300;
-  font-size: 46px;
-  line-height: 1.06;
-  letter-spacing: -0.9px;
+  font-size: 57px;
+  line-height: 1.03;
+  letter-spacing: -1.3px;
   color: #ece7dd;
   text-wrap: balance;
 }
@@ -89,13 +112,13 @@
 }
 
 .shot__sub {
-  margin: 17px 0 0;
-  max-width: 30rem;
+  margin: 16px 0 0;
+  max-width: 33rem;
   font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
   font-weight: 400;
-  font-size: 17px;
-  line-height: 1.5;
-  color: #b7b3ab;
+  font-size: 18.5px;
+  line-height: 1.45;
+  color: #c3beb5;
   text-wrap: pretty;
 }
 
@@ -161,6 +184,14 @@
    on cream reads as a rendering seam. */
 .shot__card[data-light] {
   border-color: rgba(74, 64, 53, 0.16);
+}
+
+/* Inside the card's padding: the pad stays the card's own paper. */
+.shot__window {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 .shot__inner {
@@ -233,21 +264,21 @@
 /* The frame is 1032pt wide against the phone's 642, so the caption has to grow
    with it or the type reads as an undersized phone layout on a big canvas. */
 .shot[data-platform='ipad'] .shot__caption {
-  padding: 96px 78px 0;
+  padding: 92px 78px 0;
 }
 .shot[data-platform='ipad'] .shot__eyebrow {
-  font-size: 14px;
-  letter-spacing: 3.2px;
+  font-size: 16px;
+  letter-spacing: 3.6px;
 }
 .shot[data-platform='ipad'] .shot__headline {
   margin-top: 20px;
-  font-size: 62px;
-  letter-spacing: -1.4px;
+  font-size: 80px;
+  letter-spacing: -1.8px;
 }
 .shot[data-platform='ipad'] .shot__sub {
   margin-top: 22px;
-  max-width: 40rem;
-  font-size: 21px;
+  max-width: 44rem;
+  font-size: 25px;
 }
 .shot[data-platform='ipad'] .shot__rule {
   margin-top: 30px;

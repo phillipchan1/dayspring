@@ -11,11 +11,7 @@
  * framing, not the fidelity.
  */
 
-import { Summit } from '@/features/ascent/Summit'
-import { ALTITUDES } from '@/features/ascent/ascent.config'
-import '@/features/ascent/Ascent.css'
 import { ScriptureView } from '@/features/scripture/ScriptureView'
-import { AltarView } from '@/features/altar/AltarView'
 import { useState } from 'react'
 import { PagesView } from '@/features/pages/PagesView'
 import { useSettings } from '@/hooks/useSettings'
@@ -23,13 +19,9 @@ import { Editor } from '@/editor/Editor'
 import { CommandToolbar } from '@/editor/CommandToolbar'
 import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import type { Shot } from './shots'
-import {
-  MOCK_ACTIVE_ENTRY,
-  MOCK_DOC,
-  MOCK_ENTRIES,
-  SCREENSHOT_HOUR,
-  SUMMIT_VIEW,
-} from './mock'
+import { YearClimb } from './climb'
+import { ScriptureRitual } from './scriptureRitual'
+import { MOCK_ACTIVE_ENTRY, MOCK_DOC, MOCK_ENTRIES, SCREENSHOT_HOUR } from './mock'
 
 const noop = () => {}
 
@@ -100,33 +92,22 @@ function EditorSnippet({ doc, toolbar }: { doc: string; toolbar: boolean }) {
 
 export function renderSurface(shot: Shot) {
   switch (shot.surface) {
-    case 'ascent': {
-      // Summit alone — the mountain and the one verbatim line of the year. Not
-      // AscentView: the climb rail, altitude header and lens row are context a
-      // first-time viewer has no way to read.
-      //
-      // The `.ascent` wrapper is not decoration. It defines --ascent-rock-top /
-      // --ascent-rock-bottom, so without it the mountain's gradient resolves to
-      // nothing and the peak renders as a black triangle.
-      const summit = ALTITUDES[ALTITUDES.length - 1]!
+    case 'ascent':
+    case 'prayer':
+      // The same climb, framed twice: 02 from the top (the mountain, the year
+      // strip), 05 cropped down to the first thread. The surface's own head
+      // stays in — "Looking back down the year." says what the mountain is.
+      // The ascend / descend pair is sticky to the foot of a phone screen —
+      // chrome, like the tab bar, and in a card it sits on the year's lines.
       return (
         <Canvas>
-          <div
-            // The capture stamps <html data-appearance> before rendering; a light
-            // palette needs the Ascent's daybreak tokens, not the night's.
-            className={`ascent${document.documentElement.dataset.appearance === 'light' ? ' ascent--light' : ''}`}
-            data-altitude={summit.key}
-          >
-            <div className="ascent-air" aria-hidden />
-            <div className="ascent-scroll">
-              <main className="ascent-main">
-                <Summit view={SUMMIT_VIEW} scripture={SUMMIT_VIEW.scripture} onScriptureDrill={noop} />
-              </main>
-            </div>
-          </div>
+          <style>{'.ascent-ctrl { display: none; }'}</style>
+          <YearClimb />
         </Canvas>
       )
-    }
+
+    case 'scripture':
+      return <ScriptureRitual />
 
     case 'rituals':
       // The library is entirely static (PRACTICES in practicesData) and portals
@@ -153,13 +134,6 @@ export function renderSurface(shot: Shot) {
         </Canvas>
       )
 
-    case 'altar':
-      return (
-        <Canvas>
-          <AltarView onOpenEntry={noop} />
-        </Canvas>
-      )
-
     case 'lamp':
       return (
         <Canvas>
@@ -171,8 +145,13 @@ export function renderSurface(shot: Shot) {
       // The wall, not the old list. This shot's claim is "a decade came with
       // you" — a decade of pages says that; a decade of 30px rows says you
       // acquired a filing cabinet.
+      //
+      // On a phone "Look for" becomes a floating disc over the list — chrome, by
+      // the rule every shot keeps (no header, no tab bar, no FAB), and in a
+      // card it lands on a line of someone's page.
       return (
         <Canvas>
+          <style>{".pg-look[data-narrow='true'] .pg-look__open { display: none; }"}</style>
           <div style={{ height: '100%', overflow: 'hidden' }}>
             <PagesShot />
           </div>
@@ -196,7 +175,7 @@ export function renderSurface(shot: Shot) {
  * surface than it looks. Settings come from the real store (so the zoom moves),
  * and lighting is held locally (so chips light and clear).
  */
-function PagesShot() {
+export function PagesShot() {
   const { settings, update } = useSettings()
   const [subjectKey, setSubjectKey] = useState<string | null>(null)
   const [spreadId, setSpreadId] = useState<string | null>(null)

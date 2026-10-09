@@ -48,6 +48,30 @@ Romans 8:28
 For Dad, and for Thursday. That I'd stop rehearsing the worst version of it.
 \`\`\``
 
+const SENSE_ID = '9d3a6b72-1e4f-4c58-b2a7-5f0c8e1d6a34'
+
+/**
+ * The iPad's page — the same morning, written further. An iPad page is twice a
+ * phone's width, so the phone's few lines left three quarters of the shot as
+ * bare paper. Three of the page's kinds (Scripture, a sense, a prayer), each
+ * with the writer's own prose around it; still unresolved at the end.
+ */
+export const MOCK_DOC_FULL = `Tuesday
+
+Down to the water while it was still dark. Just the sound of it.
+\`\`\`dayspring-scripture ${SCRIPTURE_ID}
+And we know that all things work together for good to them that love God
+Romans 8:28
+\`\`\`
+Read it three times on the bench before it stopped sounding like a poster. Thursday is still Thursday. But I noticed I wasn't trying to get it over with.
+\`\`\`dayspring-sense ${SENSE_ID}
+Not being hurried isn't the same as being ignored.
+\`\`\`
+The sky went from grey to that pale gold while I sat there.
+\`\`\`dayspring-pray ${PRAYER_ID}
+For Dad, and for Thursday. That I'd stop rehearsing the worst version of it.
+\`\`\``
+
 // ── the archive ──────────────────────────────────────────────────────────────
 
 /** `[monthsAgo, title line, body tail]` — turned into Entries below. */
@@ -635,3 +659,22 @@ export const MOCK_CANON: ScriptureCanonPage = {
  * Constructed from local parts, matching how `skyFor` reads the clock.
  */
 export const SCREENSHOT_HOUR = new Date(2026, 0, 15, 6, 40, 0)
+
+// ── the scripture ritual ─────────────────────────────────────────────────────
+
+/**
+ * Shot 04's passage. Its words come from `passageFixtures.ts` (the public-domain
+ * WEB, fetched — never model memory, GUARDRAILS H3), because a capture has no
+ * session to reach the ESV endpoint with. The composer shows no translation
+ * label, so nothing in the frame claims a translation it isn't showing.
+ */
+export const RITUAL_PASSAGE = 'Matthew 11:28-30'
+
+/**
+ * What the writer drew out of it and wrote, in Meditatio — the movement the
+ * shot opens on. The `>` line is a phrase drawn from the passage, verbatim, the
+ * way touching words in it quotes them. Plain and unresolved, and it is the same
+ * Thursday the page in shot 01 prays about.
+ */
+export const RITUAL_MEDITATIO =
+  '> heavily burdened (v. 28)\n\nThat’s the word for this week. Dad’s tests on Thursday, and I’ve been carrying it like it’s mine to fix.'
