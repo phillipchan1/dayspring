@@ -5,7 +5,7 @@ section: getting-started
 order: 2
 requires: [capability.sign-in]
 keywords: [install, download, sign in, login, account, apple, google, mac, ios, password]
-updated: 2026-08-10
+updated: 2026-10-09
 ---
 
 ## Where it runs
@@ -19,7 +19,7 @@ open it, macOS may say it was downloaded from the internet — that's the normal
 prompt for a newly installed app. Open it and it won't ask again. The Mac app
 keeps itself up to date quietly in the background.
 
-**On iPhone and iPad.** Through the App Store.
+**On iPhone and iPad.** [Get it from the App Store](https://apps.apple.com/app/dayspring-journal/id6776925077).
 
 Your writing is the same everywhere. Write a paragraph on your phone on the bus
 and it's on your Mac when you sit down.

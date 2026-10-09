@@ -5,6 +5,7 @@
 // Privacy answers must match the Privacy page exactly (no overclaiming).
 // `a` fields may contain inline <em>, <strong>, and <a> markup.
 // ============================================================
+import { APP_STORE_URL } from "./site";
 
 export const faqIntro = {
   eyebrow: "FAQ",
@@ -42,8 +43,8 @@ export const faqs = [
     a: "No — it's a journal, not a therapist-bot, and we deliberately stay out of that lane. Reflection is occasional and gentle: it arranges your <em>own</em> words and asks honest questions, never diagnoses or scores you. Your entries are never used for training. Our trusted partner may hold them for up to 30 days, only to prevent abuse, before deleting them. The full story is on the <a href=\"/privacy\">Privacy page</a>.",
   },
   {
-    q: "It's only on Mac right now — what about my phone?",
-    a: "The iPhone app is in App Store review now. Until it's out, Dayspring lives on your Mac — a real macOS app with deep margins and full-screen focus — and everything you write there will be waiting on your phone the day it arrives.",
+    q: "Is it on iPhone?",
+    a: `Yes — Dayspring is <a href="${APP_STORE_URL}">on the App Store</a> for iPhone and iPad, and it's a real macOS app on your Mac. Sign in the same way on each and your writing is the same everywhere: a paragraph written on your phone is waiting on your Mac when you sit down. In the App Store, Apple sets the price for your country, so it reads a little differently there — <a href="/help/plans-and-prices">here's why</a>.`,
   },
   {
     q: "Is it really worth $64 a year?",

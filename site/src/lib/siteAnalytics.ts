@@ -1,6 +1,6 @@
 // Site-side PostHog — the Entrance funnel plus page analytics.
 //
-// Custom events: landing_viewed, intent_clicked, download_clicked,
+// Custom events: landing_viewed, intent_clicked, download_clicked, app_store_clicked,
 // start_trial_clicked. Each carries UTM props and nothing else; that's a
 // different privacy posture from the app's closed enum vocabulary in
 // src/lib/analytics.ts on purpose — this is marketing attribution data from
@@ -75,6 +75,8 @@ export type SiteEvent =
   | 'start_trial_clicked'
   /** A Mac .dmg click. The primary CTA since the site stopped selling the web app. */
   | 'download_clicked'
+  /** An App Store link click. The listing is Apple's, so this is the last signal we get. */
+  | 'app_store_clicked'
 
 export function trackSite(event: SiteEvent): void {
   ensureInit()

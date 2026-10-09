@@ -284,7 +284,7 @@ export const everything = [
     group: "Trust & platform",
     items: [
       "A real Mac app, kept in sync",
-      "iPhone app — coming soon",
+      "On iPhone and iPad, too",
       "Encrypted on the way and in storage",
       "Never sold, never trained on",
       "Private reflection",

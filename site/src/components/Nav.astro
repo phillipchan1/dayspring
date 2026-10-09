@@ -1,10 +1,9 @@
 ---
 // Nav — sticky, transparent over the hero; gains a blurred ink background
 // once scrolled. The text links collapse on mobile and so does the macOS pill
-// — a phone tap must never land on a .dmg. The iPhone "Soon" pill stays: it is
-// a label, not a link, and on a phone it is the one honest thing the nav has
-// to say. The download resolution itself lives in lib/macDownload.ts, shared
-// with <DownloadCTA>.
+// — a phone tap must never land on a .dmg. The iOS pill stays: on a phone it
+// is the one download the nav has to offer. The download resolution itself
+// lives in lib/macDownload.ts, shared with <DownloadCTA>.
 import Mark from "./Mark.astro";
 import { navLinks, downloads, site, releasesRepo } from "../content/site";
 
@@ -48,15 +47,15 @@ const applePath =
       <svg viewBox="0 0 384 512" aria-hidden="true"><path d={applePath} /></svg>
       {downloads.macos.label}
     </a>
-    <span
-      class="dl dl-soon"
-      role="note"
-      aria-label="iOS — coming soon"
-      title="Coming soon"
+    <a
+      href={downloads.ios.href}
+      class="dl dl-ios"
+      data-dl-ios
+      aria-label="Download on the App Store for iPhone and iPad"
     >
       <svg viewBox="0 0 384 512" aria-hidden="true"><path d={applePath} /></svg>
-      {downloads.ios.label}<span class="soon">{downloads.ios.soonLabel}</span>
-    </span>
+      {downloads.ios.label}
+    </a>
   </div>
 </nav>
 
@@ -169,33 +168,12 @@ const applePath =
     border-color: var(--paper);
   }
 
-  /* iOS — coming soon: present but not clickable */
-  .navlinks .dl-soon {
-    color: var(--muted);
-    cursor: default;
-  }
-  .navlinks .dl-soon:hover {
-    background: none;
-    color: var(--muted);
-    border-color: var(--border);
-  }
-  .navlinks .dl-soon .soon {
-    font-size: 10px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    border: 1px solid var(--accent-glow);
-    border-radius: 100px;
-    padding: 1px 6px;
-    margin-left: 2px;
-  }
-
   /* mobile: collapse the text nav and the macOS pill — a phone tap must never
-     land on a .dmg. The iOS pill is a <span>, not a link, so it stays and
-     answers the only question a phone visitor has. */
+     land on a .dmg. The iOS pill stays and answers the only question a phone
+     visitor has. */
   @media (max-width: 680px) {
     .navlinks a.txt,
-    .navlinks a.dl {
+    .navlinks a.dl:not(.dl-ios) {
       display: none;
     }
     .navlinks {
@@ -231,6 +209,7 @@ const applePath =
 
 <script>
   import { wireMacDownloads } from "../lib/macDownload";
+  import { wireAppStoreLinks } from "../lib/appStore";
 
   // Theme toggle — flip the explicit choice, persist it, update theme-color.
   const themeBtn = document.getElementById("theme-toggle");
@@ -258,4 +237,5 @@ const applePath =
 
   // macOS download — resolve the latest .dmg. Shared with <DownloadCTA>.
   wireMacDownloads();
+  wireAppStoreLinks();
 </script>

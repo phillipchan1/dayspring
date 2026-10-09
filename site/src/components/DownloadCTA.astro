@@ -1,12 +1,11 @@
 ---
 // DownloadCTA — the site's one call to action, in one place.
 //
-// Mac first, iPhone next to it as an honest "coming soon" — and nothing else.
-// Dayspring is an app you install; the browser build exists but is not offered
-// here (Phil, 2026-09-20).
+// Mac and iPhone, side by side — and nothing else. Dayspring is an app you
+// install; the browser build exists but is not offered here (Phil, 2026-09-20).
 //
-// A phone can't use a .dmg, so at phone width the Mac button steps back to the
-// secondary style and the iPhone pill leads with a line explaining the wait.
+// A phone can't use a .dmg, so at phone width the two swap: the iPhone button
+// takes the primary style and leads, and the Mac button steps back.
 import { cta, releasesRepo } from "../content/site";
 
 interface Props {
@@ -37,15 +36,13 @@ const applePath =
       <svg viewBox="0 0 384 512" aria-hidden="true"><path d={applePath} /></svg>
       {cta.mac.label}
     </a>
-    <span class="dl-ios" role="note">
+    <a href={cta.ios.href} class="dl-ios" data-dl-ios>
       <svg viewBox="0 0 384 512" aria-hidden="true"><path d={applePath} /></svg>
       {cta.ios.label}
-      <span class="soon">{cta.ios.soon}</span>
-    </span>
+    </a>
   </div>
 
   <p class="dl-note">{cta.mac.note}</p>
-  <p class="dl-note dl-note-phone">{cta.ios.phoneNote}</p>
 </div>
 
 <style>
@@ -99,34 +96,34 @@ const applePath =
     padding: 12px 24px;
   }
 
-  /* ---- the iPhone pill (not a link — there is nothing to link to yet) ---- */
+  /* ---- the iPhone button (secondary on a desktop, primary on a phone) ---- */
   .dl-ios {
     display: inline-flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
     font-family: var(--font-body);
-    font-size: 15px;
-    color: var(--muted);
-    border: 1px solid var(--border);
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--paper);
+    border: 1px solid var(--border-strong);
     border-radius: 100px;
-    padding: 13px 20px 13px 22px;
-    cursor: default;
+    padding: 13px 27px;
+    transition: transform 0.25s, border-color 0.25s;
+  }
+  .dl-ios:hover {
+    transform: translateY(-2px);
+    border-color: var(--paper-dim);
   }
   .dl-ios svg {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
     fill: currentColor;
     transform: translateY(-1px);
   }
-  .dl-ios .soon {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    color: var(--dawn-1);
-    border: 1px solid var(--accent-glow);
-    border-radius: 100px;
-    padding: 3px 9px;
+  .is-compact .dl-ios {
+    font-size: 15px;
+    padding: 11px 23px;
   }
 
   /* ---- supporting lines ---- */
@@ -137,12 +134,8 @@ const applePath =
     color: var(--muted);
     margin: -2px 0 0;
   }
-  /* The phone note replaces the trial line at phone width. */
-  .dl-note-phone {
-    display: none;
-  }
-  /* A .dmg is dead weight on a phone: the iPhone pill leads, the Mac button
-     stops shouting, and the note explains the wait. */
+  /* A .dmg is dead weight on a phone: the iPhone button leads and takes the
+     primary style, and the Mac button stops shouting. */
   @media (max-width: 640px) {
     .dl-row {
       flex-direction: column-reverse;
@@ -160,25 +153,19 @@ const applePath =
       box-shadow: none;
     }
     .dl-ios {
-      border-color: var(--border-strong);
-      color: var(--paper);
+      background: var(--paper);
+      color: var(--ink);
+      border-color: var(--paper);
       padding-top: 15px;
       padding-bottom: 15px;
-    }
-    .dl-note {
-      display: none;
-    }
-    .dl-note-phone {
-      display: block;
-      line-height: 1.6;
-      font-family: var(--font-body);
-      font-size: 14px;
-      letter-spacing: 0;
+      animation: breathe 4.5s ease-in-out 2s infinite;
     }
   }
 </style>
 
 <script>
   import { wireMacDownloads } from "../lib/macDownload";
+  import { wireAppStoreLinks } from "../lib/appStore";
   wireMacDownloads();
+  wireAppStoreLinks();
 </script>
