@@ -112,6 +112,13 @@ export const pricingTiers = [
   },
 ] as const;
 
+// Phones get the App Store button on each card, and the App Store charges its
+// own tiers ($7.99 / $69.99 in the US), so say so under the cards.
+export const pricingAppStoreNote = {
+  text: "On iPhone, Apple sets the price for your country, so it reads a little differently in the App Store.",
+  link: { label: "Here's why", href: "/help/plans-and-prices" },
+} as const;
+
 // honest comparison line — no competitor named on-site
 export const pricingHonest =
   "About $5.33 a month — and the only journal that reflects with you across years.";
