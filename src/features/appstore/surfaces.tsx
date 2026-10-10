@@ -21,7 +21,8 @@ import { PracticeLibrary } from '@/editor/practices/PracticeLibrary'
 import type { Shot } from './shots'
 import { YearClimb } from './climb'
 import { ScriptureRitual } from './scriptureRitual'
-import { MOCK_ACTIVE_ENTRY, MOCK_DOC, MOCK_ENTRIES, SCREENSHOT_HOUR } from './mock'
+import { LockShot } from './lockShot'
+import { MOCK_ACTIVE_ENTRY, MOCK_DOC_PHONE, MOCK_ENTRIES, SCREENSHOT_HOUR } from './mock'
 
 const noop = () => {}
 
@@ -109,6 +110,9 @@ export function renderSurface(shot: Shot) {
     case 'scripture':
       return <ScriptureRitual />
 
+    case 'lock':
+      return <LockShot />
+
     case 'rituals':
       // The library is entirely static (PRACTICES in practicesData) and portals
       // full-screen, so inside the card it simply fills it. Naming real forms —
@@ -160,10 +164,8 @@ export function renderSurface(shot: Shot) {
 
     case 'capture':
     default:
-      // MOCK_DOC, not MOCK_DOC_CAPTURE: this shot now has to carry the blocks
-      // too, so it shows the scripture and prayer widgets *and* the bar that
-      // inserts them.
-      return <EditorSnippet doc={MOCK_DOC} toolbar />
+      // The page carries the blocks *and* the bar that inserts them.
+      return <EditorSnippet doc={MOCK_DOC_PHONE} toolbar />
   }
 }
 

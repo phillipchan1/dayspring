@@ -9,9 +9,9 @@ npm run screenshots:appstore-listing  # the marketing gallery
 
 | File | Where it goes | Notes |
 |---|---|---|
-| `listing/6.9/*.png` | App Store version → **Previews and Screenshots → iPhone 6.9"** | The marketing gallery — eight shots, upload in filename order |
-| `listing/6.5/*.png` | Same, **iPhone 6.5"** | Same eight shots at the legacy size |
-| `listing/ipad-13/*.png` | Same, **iPad 13"** | Seven shots — required, see below |
+| `listing/6.9/*.png` | App Store version → **Previews and Screenshots → iPhone 6.9"** | The marketing gallery — ten shots (Apple's maximum), upload in filename order |
+| `listing/6.5/*.png` | Same, **iPhone 6.5"** | Same ten shots at the legacy size |
+| `listing/ipad-13/*.png` | Same, **iPad 13"** | Nine shots — no 09; required, see below |
 | `iap-review-screenshot.png` | Subscription → **Review Information → Screenshot** | Review-only, never shown publicly |
 | `paywall.png` | Spare — first-run paywall variant | Not currently required |
 | `listing.json` | **Source of truth** for listing copy | Edit here; regenerate paste sheet below |
@@ -39,27 +39,32 @@ always what ships.
 
 ## The listing gallery
 
-Eight shots, in the order they appear. All copy lives in
-**`src/features/appstore/shots.ts`** — a wording change is a one-line edit plus a
-re-run, and the gold-gradient italic stays real text rather than baked pixels.
+Ten shots, in the order they appear — Apple's maximum per device size. All copy
+lives in **`src/features/appstore/shots.ts`** — a wording change is a one-line edit
+plus a re-run, and the gold-gradient italic stays real text rather than baked
+pixels.
 
-| # | Shot | Palette | Says |
-|---|---|---|---|
-| 01 | The page — a verse, a prayer, and the capture bar | `dawn` | A journal built for *spiritual growth.* |
-| 02 | The Ascent at the year — the climb, then what the year kept returning to | `ink` | See what God has been *making of you.* |
-| 03 | The ritual library — named practices with their authors | `dawn` | When you don't know where to *begin.* |
-| 04 | Lectio Divina, mid-walk — the passage, a phrase drawn from it, a line written | `dawn` | Scripture that *stays with you.* |
-| 05 | One thread of the year — a prayer for Dad, ask to now, in the writer's words | `ink` | Your prayers, *remembered.* |
-| 06 | The Lamp — the canon lit where you've lived | `ink` | Find the verses that *actually met you.* |
-| 07 | Pages — a decade of them, with the page from ten years ago this week | `dawn` | Bring your journal *with you.* |
-| 08 | Desktop and phone, the same entry on both | `ink` | Start on your phone, *finish on your Mac.* |
+| # | Shot | Lifted out | Palette | Says |
+|---|---|---|---|---|
+| 01 | The page — a verse, a prayer, and the capture bar | the prayer | `dawn` | A journal built for *spiritual growth.* |
+| 02 | The Ascent at the year — the climb, then what the year kept returning to | — | `ink` | See what God has been *making of you.* |
+| 03 | The ritual library — named practices with their authors | Luther's Garland | `dawn` | When you don't know where to *begin.* |
+| 04 | Lectio Divina, mid-walk — the passage, a phrase drawn from it, a line written | the passage | `dawn` | Scripture that *stays with you.* |
+| 05 | One thread of the year — a prayer for Dad, ask to now, in the writer's words | Maya's line | `ink` | Your prayers, *remembered.* |
+| 06 | A beta tester's words — no screen | — | — | "…a new way to engage my heart with God." |
+| 07 | The Lamp — the canon lit where you've lived | Psalms | `ink` | Find the verses that *actually met you.* |
+| 08 | Pages — a decade of them, with the page from ten years ago this week | that page | `dawn` | Bring your journal *with you.* |
+| 09 | Desktop and phone, the same entry on both (iPhone only) | — | `ink` | Start on your phone, *finish on your Mac.* |
+| 10 | The lock screen, with Face ID | the PIN field | `dawn` | Private & *secure.* |
 
 **The order is the argument.** App Store search shows the first three shots side
 by side, so those three make the whole case on their own: what it is (01 — the
 front door D-001 chose, word for word the site's hero), what it gives back (02 —
 the year, read back), and what it holds for someone who doesn't know how to
-start (03). The rest deepen it in the order a reader asks: Scripture, prayer, the
-long view of the Bible, the archive, and whether it fits how they live.
+start (03). The rest deepen it in the order a reader asks: Scripture, prayer,
+what someone who uses it says, the long view of the Bible, the archive, whether
+it fits how they live — and last, whether it is safe to write the truest things
+there.
 
 **One writer runs through the whole strip.** The prayer on the page in 01 ("For
 Dad, and for Thursday") is the same Thursday the Lectio reflection in 04 names,
@@ -73,6 +78,50 @@ marketing image that closes a prayer on a medical outcome reads as a promise the
 product cannot make (PRINCIPLES #1, light not verdict). Keep it on the asking
 changing shape.
 
+### The frame — what came from studying Stoic
+
+The 2026-10 pass took four moves from Stoic's listing (a strong, conventional
+App Store gallery) and declined the rest.
+
+- **The device runs off the frame's foot.** A phone (or iPad) outline with a drawn
+  status bar hangs under a centred caption and is cut off by the frame's bottom
+  edge, so the screen is as large as the width allows instead of shrinking to fit
+  a whole device. The frame never shows the device's foot, and doesn't need to.
+- **One line is lifted out of the screen** (`Pop` in `shots.ts`, `PopOut` in
+  `ShotFrame.tsx`), larger, rising from where it sits — the line the shot is
+  about, made legible at gallery size. It is the *real element*, verbatim by
+  construction: the frame loads the snippet a second time, hides everything but
+  that element, and crops to its box. Never a restyled quote.
+- **A line runs across the frames.** The Ascent's own gold trail climbs the whole
+  strip, from the foot of 01 to a lit summit beside 10. Each frame draws its slice
+  of one curve (`trailY`), so where a screenshot ends the next picks the line up
+  at the same height. It runs behind the devices — a frame shows it in its
+  gutters, and whole on 06, where the sunrise mark sits on it.
+- **A real voice, and privacy last.** See 06 and 10 below.
+
+Declined: headlines that name features ("AI Diary", "Track Mood & Habits" — ours
+name what you get, and *AI*, *track* and *streak* are banned words); a first
+slide with no app on it (Stoic fills it with an award and a famous name; a new
+app has to show itself); and Stoic's light grey ground (ours stands out on the
+App Store's white, and the glow surfaces need dark).
+
+**06 — the quote.** One real beta interview, quoted exactly as the marketing site
+quotes it (`site/src/content/home.ts → testimonial`): anonymous — "A therapist and
+spiritual director" — because her name is withheld until she consents to it. No
+stars, no rating, no user count: there are none yet, and BRANDSCRIPT forbids
+implying social proof we do not have. Before naming her, or before swapping in a
+different line, get the speaker's consent for *this* use.
+
+**10 — private & secure.** Every claim is one the product already makes in public:
+the lock (PIN, Face ID on iPhone) is D-023; "encrypted on the way and in storage"
+is the privacy page's own line (`site/src/content/privacy.ts`); "never sold, never
+used for training" is BRANDSCRIPT's agreement plan. Nothing says end-to-end, which
+would be false (PRINCIPLES #7, D-011). The lock screen is the real `LockScreen`
+(`lockShot.tsx`), met three digits into its PIN; a capture seam in
+`applock/biometric.ts` answers "Face ID", because a browser can never reach the
+plugin that would, and without it the shot would be a lock screen no iPhone with
+Face ID shows.
+
 **Every headline has to answer "how does this help me?"** The reader is the hero;
 the app is the guide. A line can be true and beautiful and still fail that test —
 "Thus far the Lord has helped" is a statement *about God*, not a benefit to the
@@ -85,10 +134,10 @@ library grows by design, so 03 names forms instead of counting them.
 
 **First light across the strip.** Every frame has a sun below its foot, a little
 higher each shot (`--dawn`, 0 → 1, set in `ShotFrame.tsx` from the shot's place
-in its set). The first frame is the hour before dawn; the last has the horizon
-gold. It shows in the gutters and under the cards, never behind a caption, so
-every headline sits on the same dark. It is the name — Luke 1:78, the dayspring
-from on high — said without a word, and it is why the set reads as one strip.
+in its set), while the trail climbs toward the summit on the last. The first frame
+is the hour before dawn; the last has the horizon gold and the morning palette.
+None of it sits behind a caption, so every headline is on the same dark. It is
+the name — Luke 1:78, the dayspring from on high — said without a word.
 
 **Why the set is mixed light and dark.** The Ascent, the thread and the Lamp are
 built on glow — a lit chapter cell only reads as *lit* against darkness, and on
@@ -100,10 +149,12 @@ the back half of the strip running dark four frames in a row.
 
 **One idea per shot.** A full phone screen is unreadable at gallery-thumbnail size,
 so each iPhone shot renders a *single* shipped surface with no app chrome — no
-header, no tab bar, no FAB — scaled up until it reads at a glance. Two pieces of
-chrome are hidden by name for that reason: the Ascent's ascend/descend pair
-(sticky to a phone's foot) and Pages' floating "Look for" disc. Everything else is
-the real components and the real CSS; only the framing differs.
+header, no tab bar, no FAB — under a drawn status bar, and lifts its one line out.
+Two pieces of chrome are hidden by name for that reason: the Ascent's
+ascend/descend pair (sticky to a phone's foot) and Pages' floating "Look for"
+disc. Everything else is the real components and the real CSS; only the framing
+differs. A surface anchored to the screen's bottom (01's capture bar, 04's Next)
+lays out in a shorter `screen` so the bar lands above the frame's foot.
 
 **What each shot is made of.**
 
@@ -120,10 +171,10 @@ the real components and the real CSS; only the framing differs.
   because a capture has no session for the ESV endpoint. The composer shows no
   translation label; the *page* view would say "· ESV" over WEB text, which is
   why 04 is the composer and not the page.
-- **07** is Pages, list on a phone and the wall on iPad, over a decade of fixture
+- **08** is Pages, list on a phone and the wall on iPad, over a decade of fixture
   entries at realistic per-year counts — what the caption asserts, the screenshot
   shows.
-- **08** is the deliberate exception: the only shot that isn't one card, and the
+- **09** is the deliberate exception: the only shot with two devices, and the
   only one with a list. Both panes are real layouts, picked purely by iframe width
   against `useIsMobile()`'s 767px breakpoint. The phone pane shows the voice sheet,
   which auto-starts dictation, so the capture passes
@@ -217,19 +268,22 @@ its chrome stripped. On iPad the chrome *is* the story: `useIsMobile()` is
 `(max-width: 767px)` and the boundary is deliberately 767 rather than 768 so iPad
 portrait gets the three-column shell. So an iPad shot shows the real shell with
 the surface live in the canvas (`src/features/appstore/ipad.tsx`), and `cropTop` /
-`padTop` are ignored — those target snippet headers that aren't there.
+`padTop` / `screen` are ignored — those target snippet headers that aren't there.
+The same lifted lines rise from the shell (08's from a page card on the wall
+rather than a list row, hence its two selectors).
 
 What that changes per shot: 01 gets a fuller page (`MOCK_DOC_FULL` — an iPad page
 is twice a phone's width, and the phone's few lines left three quarters of it bare
 paper); 03 shows the library's real grid, because `.practice-library__grid` is
 only forced to one column under 480px; 04 is the scripture ritual's side-by-side
 leaf, passage beside the writing; 05 scrolls the year down to its threads
-(`ToTheThreads` in `climb.tsx`) rather than cropping; and 07 is the Pages wall in
-the shell, a decade of pages beside the years they span — it used to be the
-editor again, the same picture as 01.
+(`ToTheThreads` in `climb.tsx`) rather than cropping — the lifted line waits for
+that scroll to settle before it measures; and 08 is the Pages wall in the shell, a
+decade of pages beside the years they span — it used to be the editor again, the
+same picture as 01. 06 (the quote) and 10 (the lock) are the same as on iPhone.
 
-08 is dropped from the iPad set — a phone-and-Mac composite argues the wrong
-thing on an iPad sheet.
+09 is dropped from the iPad set — a phone-and-Mac composite argues the wrong
+thing on an iPad sheet — so the iPad files go 08, then 10.
 
 ## Known: the paywall preview renders unthemed
 
@@ -256,6 +310,11 @@ Fix the `dusk` string if you regenerate the paywall for any other reason.
   photographed half-run (the year shot's lower half came out dimmed). The raw
   page zeroes every animation and transition duration, landing each on its end
   state.
+- **Padding percentages are widths.** CSS resolves `padding: … 34%` against the
+  frame's *width*, so moving the quote up the frame is done in pixels on iPad.
+- **A lifted line waits for stillness.** `PopOut` measures its element only once
+  the box has held still for six polls; measured on first sight, the iPad year's
+  line was found before its scroll and the card rose from off the frame.
 - **`padTop` pads.** The iframe sits inside `.shot__window`, which clips at the
   top of the pad. Before, shifting the iframe up moved its whole box, so the rows
   above the crop slid back into the "pad" — and in a headless capture spilled over

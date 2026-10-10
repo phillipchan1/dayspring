@@ -22,6 +22,8 @@ import './clock'
 // as cheap at 46px.
 import '@fontsource/fraunces/300.css'
 import '@fontsource/fraunces/300-italic.css'
+// The drawn status bar's 9:41 — the nearest face to the system's that ships.
+import '@fontsource/inter/600.css'
 
 import { createRoot } from 'react-dom/client'
 import { AppNavigationProvider } from '@/context/AppNavigation'

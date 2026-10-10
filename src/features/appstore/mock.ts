@@ -48,6 +48,23 @@ Romans 8:28
 For Dad, and for Thursday. That I'd stop rehearsing the worst version of it.
 \`\`\``
 
+/**
+ * The phone's page in shot 01: the short morning and one line of the writer's own
+ * after the verse, so the screen holds a page rather than a fragment and the
+ * prayer still sits above the capture bar, where its lifted card rises from.
+ */
+export const MOCK_DOC_PHONE = `Tuesday
+
+Down to the water while it was still dark. Just the sound of it.
+\`\`\`dayspring-scripture ${SCRIPTURE_ID}
+And we know that all things work together for good to them that love God
+Romans 8:28
+\`\`\`
+Read it three times on the bench before it stopped sounding like a poster. Thursday is still Thursday.
+\`\`\`dayspring-pray ${PRAYER_ID}
+For Dad, and for Thursday. That I'd stop rehearsing the worst version of it.
+\`\`\``
+
 const SENSE_ID = '9d3a6b72-1e4f-4c58-b2a7-5f0c8e1d6a34'
 
 /**

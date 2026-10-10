@@ -21,15 +21,16 @@ import { AtTheYear, ToTheThreads } from './climb'
 import { editorSlot, journalProps } from './devices'
 import { MOCK_DOC_FULL, SCREENSHOT_HOUR } from './mock'
 import { ScriptureRitual } from './scriptureRitual'
+import { LockShot } from './lockShot'
 import type { Shot } from './shots'
 import { PagesShot } from './surfaces'
 
 /**
- * The app viewport inside an iPad card, in CSS points. Comfortably past the
- * 767px breakpoint, and close enough to the card's rendered size that the scale
- * factor stays near 1 and type holds its crispness.
+ * The app viewport inside the iPad, in CSS points. Comfortably past the 767px
+ * breakpoint for the three-column shell; as tall as a 13" screen less its status
+ * bar, near enough — the frame's foot cuts the device off well before it ends.
  */
-export const IPAD_VIEWPORT = { width: 1024, height: 1100 }
+export const IPAD_VIEWPORT = { width: 1024, height: 1300 }
 
 const noop = () => {}
 
@@ -52,6 +53,10 @@ export function renderIpadShot(shot: Shot) {
           </ToTheThreads>
         </AtTheYear>
       )
+
+    case 'lock':
+      // The lock stands in front of the journal on iPad as everywhere: alone.
+      return <LockShot />
 
     case 'scripture':
       // The composer is full-screen over the shell, as it is when a ritual is

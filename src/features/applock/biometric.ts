@@ -21,6 +21,7 @@
 
 import { isIOSTauri } from '@/lib/platform'
 import { beginExternalTrip } from '@/lib/appLockSuppress'
+import { isCapturePreview } from '@/lib/previewMode'
 
 export type BiometryLabel = 'Face ID' | 'Touch ID' | 'biometrics'
 
@@ -34,6 +35,10 @@ const UNAVAILABLE: BiometryStatus = { available: false, label: 'biometrics' }
 /** What this device offers, if anything. Safe to call anywhere — answers
  *  "unavailable" on web, on macOS, and whenever the plugin can't be reached. */
 export async function checkBiometry(): Promise<BiometryStatus> {
+  // The App Store shot of the lock screen (features/appstore/lockShot.tsx) is of
+  // an iPhone with Face ID, which a browser can never be. Inline under a literal
+  // `import.meta.env.DEV`, so the branch leaves the build.
+  if (import.meta.env.DEV && isCapturePreview()) return { available: true, label: 'Face ID' }
   if (!isIOSTauri()) return UNAVAILABLE
   try {
     const { checkStatus, BiometryType } = await import('@tauri-apps/plugin-biometric')

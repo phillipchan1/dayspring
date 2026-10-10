@@ -71,9 +71,11 @@ const SHOTS = [
   { preview: 'listing-rituals', file: '03-rituals' },
   { preview: 'listing-scripture', file: '04-scripture' },
   { preview: 'listing-prayer', file: '05-prayer' },
-  { preview: 'listing-lamp', file: '06-lamp' },
-  { preview: 'listing-history', file: '07-history' },
-  { preview: 'listing-devices', file: '08-devices' },
+  { preview: 'listing-quote', file: '06-quote' },
+  { preview: 'listing-lamp', file: '07-lamp' },
+  { preview: 'listing-history', file: '08-history' },
+  { preview: 'listing-devices', file: '09-devices' },
+  { preview: 'listing-lock', file: '10-private' },
 ]
 
 async function findChrome() {
@@ -194,8 +196,8 @@ async function main() {
       const dir = path.join(OUT_DIR, size.dir)
       await mkdir(dir, { recursive: true })
       console.log(`\n${size.dir}" — ${size.width}x${size.height}`)
-      // 08 is a phone-and-Mac composite; on an iPad sheet it argues the wrong
-      // thing, so the iPad set closes on the archive instead.
+      // 09 is a phone-and-Mac composite; on an iPad sheet it argues the wrong
+      // thing, so the iPad set goes without it.
       const forSize = size.platform === 'ipad' ? shots.filter((s) => s.preview !== 'listing-devices') : shots
       for (const shot of forSize) {
         const out = path.join(dir, `${shot.file}.png`)
