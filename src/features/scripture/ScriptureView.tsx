@@ -76,7 +76,7 @@ function newlyCitedBooks(labels: string[], books: BibleBook[]): Set<string> {
 interface Season {
   /** A carried Span where one applies, so a period picked on another surface
    *  lands here; `last` is the Lamp's own and is never carried out. */
-  id: Span | 'last'
+  id: Span
   label: string
   window: DateWindow
 }
@@ -85,13 +85,12 @@ interface Season {
 const DEFAULT_SEASON: Season['id'] = 'year'
 
 function buildSeasons(now: Date = new Date()): Season[] {
-  const lastYear = new Date(Date.UTC(now.getUTCFullYear() - 1, 6, 1))
   return [
     { id: 'all', label: 'All time', window: {} },
+    { id: 'week', label: 'This week', window: grainWindow('week', now) },
     { id: 'month', label: 'This month', window: grainWindow('month', now) },
     { id: 'season', label: 'This season', window: grainWindow('season', now) },
     { id: 'year', label: 'This year', window: grainWindow('year', now) },
-    { id: 'last', label: 'Last year', window: grainWindow('year', lastYear) },
   ]
 }
 
@@ -132,26 +131,10 @@ export function ScriptureView({ onOpenEntry }: Props) {
       `scripture:canon:${windowCacheKey(first.window)}`,
     )
   }, [seasons])
-  // The period carried from the other Remember surfaces. A carried WEEK falls to
-  // the month: a week rarely holds more than a verse or two, and a canon map of
-  // one passage says less than the quieter stretch it came from. The fallback is
-  // not written back — the reader's choice stays theirs where they made it.
+  // The period carried from the other Remember surfaces.
   const [carried, carry] = useCarriedPeriod(DEFAULT_SEASON as Span)
-  // 'last' is the Lamp's own view of a sealed year and has no equivalent on the
-  // other surfaces, so picking it scopes the Lamp alone and moves nobody else.
-  const [lampOnly, setLampOnly] = useState<'last' | null>(null)
-  const seasonId: Season['id'] = lampOnly ?? (carried === 'week' ? 'month' : carried)
-  const setSeasonId = useCallback(
-    (id: Season['id']) => {
-      if (id === 'last') {
-        setLampOnly('last')
-        return
-      }
-      setLampOnly(null)
-      carry(id)
-    },
-    [carry],
-  )
+  const seasonId: Season['id'] = carried
+  const setSeasonId = carry
   const [heat, setHeat] = useState<CanonHeat | null>(initialCanon?.heat ?? null)
   const [summary, setSummary] = useState<SeasonSummary | null>(initialCanon?.summary ?? null)
   const [returning, setReturning] = useState<ReturningRef[]>(initialCanon?.returning ?? [])
@@ -196,8 +179,6 @@ export function ScriptureView({ onOpenEntry }: Props) {
   const openBook = (sel: BookTarget) =>
     go({ scriptureBook: sel.osis, scriptureVerse: sel.focusVerse ?? null })
 
-  // A carried long span (5y / 10y) has no chip here; all-time is the nearest
-  // true thing the Lamp can show rather than silently narrowing to a year.
   const season = seasons.find((s) => s.id === seasonId) ?? seasons[0]!
 
   /*

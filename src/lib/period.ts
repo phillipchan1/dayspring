@@ -32,9 +32,8 @@ const DAY_MS = 86_400_000
 /** The four nesting grains — the spine of every Remember surface. */
 export type Grain = 'week' | 'month' | 'season' | 'year'
 
-/** What a surface can be scoped to. The long spans are the Altar's: they are
- *  honestly spans and not calendar periods, so they are named as spans. */
-export type Span = Grain | '5y' | '10y' | 'all'
+/** What a surface can be scoped to: a calendar grain, or everything. */
+export type Span = Grain | 'all'
 
 export const GRAINS: Grain[] = ['week', 'month', 'season', 'year']
 
@@ -92,16 +91,9 @@ export function grainWindow(grain: Grain, now: Date = new Date()): Required<Peri
   }
 }
 
-/** The window for any span, including the Altar's long ones. `all` is unbounded.
- *  The long spans are anchored to the START of the calendar year N years back,
- *  not to a rolling millisecond count, so "5 years" means five whole years. */
+/** The window for any span. `all` is unbounded. */
 export function spanWindow(span: Span, now: Date = new Date()): PeriodWindow {
   if (span === 'all') return {}
-  if (span === '5y' || span === '10y') {
-    const back = span === '5y' ? 5 : 10
-    const y = now.getUTCFullYear()
-    return { from: dayStart(y - back + 1, 0, 1), to: dayEnd(y, 11, 31) }
-  }
   return grainWindow(span, now)
 }
 
@@ -156,8 +148,6 @@ export function grainLabel(grain: Grain, now: Date = new Date()): string {
 /** The short word a picker shows. Spans say what they are. */
 export function spanLabel(span: Span, now: Date = new Date()): string {
   if (span === 'all') return 'all'
-  if (span === '5y') return '5 years'
-  if (span === '10y') return '10 years'
   if (span === 'week') return 'week'
   if (span === 'month') return 'month'
   if (span === 'season') return 'season'
@@ -174,7 +164,7 @@ export function spanLabel(span: Span, now: Date = new Date()): string {
 const STORAGE_KEY = 'dayspring:remember-period'
 const EVENT = 'dayspring:remember-period'
 
-const VALID: Span[] = ['week', 'month', 'season', 'year', '5y', '10y', 'all']
+const VALID: Span[] = ['week', 'month', 'season', 'year', 'all']
 
 function parse(value: string | null): Span | null {
   return VALID.includes(value as Span) ? (value as Span) : null

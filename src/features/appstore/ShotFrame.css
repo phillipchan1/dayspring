@@ -37,6 +37,29 @@
   z-index: 0;
 }
 
+/* First light. A sun below the frame's foot, warming shot by shot: `--dawn`
+   runs 0 → 1 across the set (ShotFrame.tsx). The first frame is the hour
+   before dawn, the last has the sky gold at the horizon. It shows mostly in the
+   gutters and under the card — a strip-level effect, never behind the caption,
+   so every headline sits on the same dark and reads the same. */
+.shot__horizon {
+  position: absolute;
+  left: 50%;
+  bottom: -16%;
+  width: 190%;
+  height: 66%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(250, 206, 140, calc(0.06 + var(--dawn) * 0.52)) 0%,
+    rgba(243, 167, 118, calc(0.04 + var(--dawn) * 0.3)) 26%,
+    rgba(214, 120, 112, calc(0.02 + var(--dawn) * 0.13)) 48%,
+    rgba(197, 106, 110, 0) 70%
+  );
+  filter: blur(26px);
+  z-index: 0;
+}
+
 /* Film grain, so the gradient never bands on a 1284px-wide export. */
 .shot__grain {
   position: absolute;
@@ -53,15 +76,16 @@
   position: relative;
   z-index: 2;
   flex: none;
-  padding: 74px 56px 0;
+  padding: 66px 40px 0;
+  text-align: center;
 }
 
 .shot__eyebrow {
   display: block;
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
-  letter-spacing: 2.8px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   color: #f3bd76;
 }
@@ -70,9 +94,9 @@
   margin: 15px 0 0;
   font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
   font-weight: 300;
-  font-size: 46px;
-  line-height: 1.06;
-  letter-spacing: -0.9px;
+  font-size: 57px;
+  line-height: 1.03;
+  letter-spacing: -1.3px;
   color: #ece7dd;
   text-wrap: balance;
 }
@@ -89,78 +113,181 @@
 }
 
 .shot__sub {
-  margin: 17px 0 0;
-  max-width: 30rem;
+  margin: 14px auto 0;
+  max-width: 31rem;
   font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
   font-weight: 400;
-  font-size: 17px;
-  line-height: 1.5;
-  color: #b7b3ab;
-  text-wrap: pretty;
+  font-size: 18.5px;
+  line-height: 1.42;
+  color: #c3beb5;
+  text-wrap: balance;
 }
 
-/* Horizon rule — echoes the OG card's 1px dawn line. */
-.shot__rule {
-  margin-top: 22px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(243, 189, 118, 0) 0%,
-    rgba(243, 189, 118, 0.28) 22%,
-    rgba(243, 189, 118, 0.28) 78%,
-    rgba(243, 189, 118, 0) 100%
-  );
-}
+/* ── the device ──────────────────────────────────────────────────────────── */
 
-/* ── the screen ──────────────────────────────────────────────────────────── */
-
-.shot__well {
+/* Everything under the caption. The device hangs from its top and runs on past
+   the frame's foot — `.shot` clips it — so the screen can be as large as the
+   width allows instead of shrinking to fit a whole phone. */
+.shot__stage {
   position: relative;
   z-index: 2;
   flex: 1;
   min-height: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 18px 0 34px;
 }
 
-.shot__card {
+.shot__device {
+  position: absolute;
+  box-sizing: border-box;
+  background: #0b0b0d;
+  /* A machined edge, then the lift: one hairline catches the dawn, the shadow
+     sets the device down on the sky. */
+  box-shadow:
+    inset 0 0 0 1.5px rgba(236, 231, 221, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.7),
+    0 60px 110px -40px rgba(0, 0, 0, 0.95),
+    0 0 90px -40px rgba(243, 189, 118, 0.22);
+}
+
+.shot__screen {
   position: relative;
   overflow: hidden;
-  flex: none;
-  /* `background` is set inline from the shot's palette, so there is no seam
-     while the iframe boots. */
-  border: 1px solid rgba(236, 231, 221, 0.15);
-  /* LetterCard's shadow language: a deep lift plus a faint dawn halo. */
-  box-shadow:
-    0 50px 90px -45px rgba(0, 0, 0, 0.9),
-    0 0 70px -35px rgba(243, 189, 118, 0.16);
 }
 
-/* A snippet is a window onto a longer surface, so the bottom edge will often cut
-   mid-content. Fading it says "there is more below" instead of "this is broken". */
-.shot__card[data-fade]::after {
-  content: '';
+.shot__bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.shot__island {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+}
+
+/* The snippet's window, under the status bar. Clips at its own top: shifting
+   the iframe up to crop moves its whole box, so without this the rows above a
+   crop slid back into view (and in a headless capture over the edge). */
+.shot__window {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 88px;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(12, 13, 17, 0) 0%, rgba(12, 13, 17, 0.92) 100%);
+  overflow: hidden;
 }
 
-/* A light card fades to its own paper, not to the frame's ink — fading warm
-   paper into near-black reads as a shadow falling on the page. */
-.shot__card[data-light][data-fade]::after {
-  background: linear-gradient(180deg, rgba(251, 246, 238, 0) 0%, rgba(251, 246, 238, 0.96) 100%);
+/* The lifted line. Its own paper, a deep shadow, and a hairline of the dawn —
+   a card held up off the screen, not a sticker on it. */
+.shot__pop {
+  position: absolute;
+  z-index: 3;
+  overflow: hidden;
+  border: 1px solid rgba(236, 231, 221, 0.18);
+  box-shadow:
+    0 40px 80px -24px rgba(0, 0, 0, 0.85),
+    0 14px 30px -12px rgba(0, 0, 0, 0.6),
+    0 0 60px -20px rgba(243, 189, 118, 0.3);
 }
 
-/* The pale card needs a warmer, tighter edge than a dark one — a cool hairline
-   on cream reads as a rendering seam. */
-.shot__card[data-light] {
+.shot__pop[data-light] {
   border-color: rgba(74, 64, 53, 0.16);
+}
+
+/* ── the trail ───────────────────────────────────────────────────────────── */
+
+.shot__trail {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(243, 189, 118, 0.45));
+}
+
+/* ── the quote ───────────────────────────────────────────────────────────── */
+
+.shot__quote {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  margin: 0;
+  /* Lifted so the attribution clears the trail, which crosses this frame a
+     little below its middle; the sunrise mark sits on the trail itself. */
+  padding: 0 46px 34%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.shot__quote-mark {
+  display: block;
+  margin: 26px 0 -54px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 190px;
+  line-height: 1;
+  background: linear-gradient(100deg, #f3bd76, #e8917c 60%, #c56a6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.shot__quote-text {
+  margin: 0;
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-weight: 300;
+  font-size: 47px;
+  line-height: 1.12;
+  letter-spacing: -0.9px;
+  color: #ece7dd;
+  text-wrap: balance;
+}
+
+.shot__quote-text em {
+  font-style: italic;
+  background: linear-gradient(100deg, #f3bd76, #e8917c 60%, #c56a6e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.shot__quote-by {
+  margin-top: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 21px;
+  color: #d8d3ca;
+}
+
+.shot__quote-on {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: #8f8b84;
+}
+
+/* On the trail, not in the column: `top` is the trail's height at the frame's
+   middle, and the mark's own horizon (17/24 of its box) is lifted onto it. */
+.shot__quote-sun {
+  position: absolute;
+  left: 50%;
+  width: 54px;
+  height: 54px;
+  transform: translate(-50%, -71%);
+  filter: drop-shadow(0 0 18px rgba(243, 189, 118, 0.55));
 }
 
 .shot__inner {
@@ -214,6 +341,25 @@
   color: #ece7dd;
 }
 
+/* The composite's panes. */
+.shot__card {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  border: 1px solid rgba(236, 231, 221, 0.15);
+  box-shadow:
+    0 50px 90px -45px rgba(0, 0, 0, 0.9),
+    0 0 70px -35px rgba(243, 189, 118, 0.16);
+}
+
+/* The composite centres itself in what the caption leaves. */
+.shot[data-surface='devices'] .shot__stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px 0 34px;
+}
+
 .shot__card--desktop {
   border-radius: 14px;
 }
@@ -233,25 +379,42 @@
 /* The frame is 1032pt wide against the phone's 642, so the caption has to grow
    with it or the type reads as an undersized phone layout on a big canvas. */
 .shot[data-platform='ipad'] .shot__caption {
-  padding: 96px 78px 0;
+  padding: 88px 90px 0;
 }
 .shot[data-platform='ipad'] .shot__eyebrow {
-  font-size: 14px;
-  letter-spacing: 3.2px;
+  font-size: 16px;
+  letter-spacing: 3.6px;
 }
 .shot[data-platform='ipad'] .shot__headline {
-  margin-top: 20px;
-  font-size: 62px;
-  letter-spacing: -1.4px;
+  margin-top: 18px;
+  font-size: 80px;
+  letter-spacing: -1.8px;
 }
 .shot[data-platform='ipad'] .shot__sub {
-  margin-top: 22px;
-  max-width: 40rem;
-  font-size: 21px;
+  margin-top: 20px;
+  max-width: 46rem;
+  font-size: 25px;
 }
-.shot[data-platform='ipad'] .shot__rule {
-  margin-top: 30px;
+/* Pixels, not a percentage: padding resolves against the frame's width, and
+   what has to clear the trail is a height. */
+.shot[data-platform='ipad'] .shot__quote {
+  padding: 0 120px 560px;
 }
-.shot[data-platform='ipad'] .shot__well {
-  padding: 34px 0 46px;
+.shot[data-platform='ipad'] .shot__quote-sun {
+  width: 76px;
+  height: 76px;
+}
+.shot[data-platform='ipad'] .shot__quote-mark {
+  font-size: 260px;
+  margin-bottom: -74px;
+}
+.shot[data-platform='ipad'] .shot__quote-text {
+  font-size: 68px;
+  letter-spacing: -1.4px;
+}
+.shot[data-platform='ipad'] .shot__quote-by {
+  font-size: 28px;
+}
+.shot[data-platform='ipad'] .shot__quote-on {
+  font-size: 14px;
 }

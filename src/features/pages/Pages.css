@@ -6666,7 +6666,7 @@ mark.read-drawn.is-lit { background: rgba(var(--scripture-gold), 0.42); }
  * were a pointer's 29px, so its row was 15px shorter and the top of the screen
  * jumped 5px every time a page was opened or closed. The same row now, and
  * the two controls that were barely targets at all — the 24px "a page at
- * random" glyph and the 14px 1m / 6m / 1y — get a finger's area without
+ * random" glyph and the 14px month / season / year — get a finger's area without
  * getting any louder.
  */
 @media (pointer: coarse) and (min-width: 768px) {

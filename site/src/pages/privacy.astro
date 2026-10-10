@@ -3,7 +3,7 @@ import Base from "../layouts/Base.astro";
 import SectionReveal from "../components/SectionReveal.astro";
 import DawnGlow from "../components/DawnGlow.astro";
 import { privacyPage as p } from "../content/privacy";
-import { releasesRepo } from "../content/site";
+import { cta, releasesRepo } from "../content/site";
 ---
 
 <Base
@@ -65,10 +65,11 @@ import { releasesRepo } from "../content/site";
         <div class="cta-wrap">
           <a
             href={p.cta.href}
-            class="btn btn-ghost"
+            class="btn btn-ghost on-wide"
             data-dl-macos
             data-repo={releasesRepo}
           >{p.cta.label}</a>
+          <a href={cta.ios.href} class="btn btn-ghost on-phone" data-dl-ios>{cta.ios.label}</a>
         </div>
       </SectionReveal>
     </section>
@@ -209,5 +210,7 @@ import { releasesRepo } from "../content/site";
 
 <script>
   import { wireMacDownloads } from "../lib/macDownload";
+  import { wireAppStoreLinks } from "../lib/appStore";
   wireMacDownloads();
+  wireAppStoreLinks();
 </script>

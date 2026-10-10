@@ -32,11 +32,15 @@ export const site = {
 // macOS: a stable-named asset (`Dayspring-aarch64.dmg`) is published on every
 // release, so GitHub's "latest" URL always points at the newest build — a
 // clean, zero-JS direct download. No API call, no rate limits.
-// iOS: not shipped yet — rendered as a non-clickable "coming soon" pill.
+// iOS: the App Store listing. Approved 2026-10-01 (1.0.504); the id is the
+// one App Store Connect issued and also feeds the Smart App Banner in Base.astro.
 export const releasesRepo = "phillipchan1/dayspring-releases";
 
+export const APP_STORE_ID = "6776925077";
+export const APP_STORE_URL = `https://apps.apple.com/app/dayspring-journal/id${APP_STORE_ID}`;
+
 export const downloads = {
-  ios: { label: "iOS", comingSoon: true, soonLabel: "Soon" },
+  ios: { label: "iOS", href: APP_STORE_URL },
   macos: {
     label: "macOS",
     href: `https://github.com/${releasesRepo}/releases/latest/download/Dayspring-aarch64.dmg`,
@@ -55,10 +59,8 @@ export const cta = {
     note: "Start with a 14-day trial.",
   },
   ios: {
-    label: "iPhone",
-    soon: "Coming soon",
-    /** Shown on phones, where the .dmg is useless and the pill is the whole CTA. */
-    phoneNote: "The iPhone app is in review. Until then, Dayspring lives on your Mac.",
+    label: "Download for iPhone",
+    href: downloads.ios.href,
   },
 } as const;
 
@@ -109,6 +111,13 @@ export const pricingTiers = [
     featured: false,
   },
 ] as const;
+
+// Phones get the App Store button on each card, and the App Store charges its
+// own tiers ($7.99 / $69.99 in the US), so say so under the cards.
+export const pricingAppStoreNote = {
+  text: "On iPhone, Apple sets the price for your country, so it reads a little differently in the App Store.",
+  link: { label: "Here's why", href: "/help/plans-and-prices" },
+} as const;
 
 // honest comparison line — no competitor named on-site
 export const pricingHonest =

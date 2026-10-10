@@ -214,6 +214,21 @@ button:focus-visible,
   border-color: rgba(236, 231, 221, 0.25);
 }
 
+/* ---- per-device download links ----
+   A phone can't use a .dmg. Where a page has room for only one download,
+   render both and let width pick: the Mac link on a desktop, the App Store
+   link on a phone. Same 640px break as DownloadCTA. */
+@media (min-width: 641px) {
+  .on-phone {
+    display: none !important;
+  }
+}
+@media (max-width: 640px) {
+  .on-wide {
+    display: none !important;
+  }
+}
+
 /* ---- scroll reveal (driven by SectionReveal.astro) ---- */
 .reveal {
   opacity: 0;

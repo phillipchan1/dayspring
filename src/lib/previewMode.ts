@@ -18,10 +18,24 @@
 /** Prefixes whose previews must never touch live data. */
 const CAPTURE_PREVIEWS = ['listing-', 'flagship', 'screens']
 
+/**
+ * Latched: once a page is a capture preview it stays one. In-app navigation
+ * rewrites the URL (`history.replaceState` in lib/appHistory.ts) and drops
+ * `?__preview=` — the iPad Ascent shot navigates to the Summit before its year
+ * loads — and an unlatched check would then send that load to the live account.
+ */
+let latched = false
+
 /** True when the page was opened as one of the marketing capture previews. */
 export function isCapturePreview(): boolean {
+  if (latched) return true
   if (typeof window === 'undefined') return false
   const preview = new URLSearchParams(window.location.search).get('__preview')
   if (!preview) return false
-  return CAPTURE_PREVIEWS.some((p) => preview.startsWith(p))
+  latched = CAPTURE_PREVIEWS.some((p) => preview.startsWith(p))
+  return latched
 }
+
+// Read once at boot, while the URL still carries `?__preview=`, so the latch
+// holds even if the first caller only asks after a navigation.
+isCapturePreview()

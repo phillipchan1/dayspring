@@ -14,6 +14,7 @@ import { Editor } from '@/editor/Editor'
 import { VoiceCapture } from '@/features/capture/VoiceCapture'
 import { settingsStore } from '@/lib/settings'
 import type { JournalViewProps } from '@/features/journal/journalViewProps'
+import { wordCount } from '@/lib/entries'
 import { MOCK_ACTIVE_ENTRY, MOCK_DOC, MOCK_ENTRIES } from './mock'
 
 export type DevicePane = 'desktop' | 'phone'
@@ -34,6 +35,8 @@ const noop = () => {}
 export function journalProps(
   mainSlot: React.ReactNode,
   active?: Partial<Pick<JournalViewProps, 'reflectionsActive' | 'altarActive' | 'scriptureActive' | 'pagesActive'>>,
+  /** The page in the editor, so the bar's count is the count of what is shown. */
+  doc: string = MOCK_DOC,
 ): JournalViewProps {
   return {
     userEmail: 'you@example.com',
@@ -42,7 +45,8 @@ export function journalProps(
     hasWalkedARitual: false,
     entries: MOCK_ENTRIES,
     activeId: MOCK_ACTIVE_ENTRY.id,
-    words: MOCK_ACTIVE_ENTRY.word_count,
+    // The app's own count (writer's words only), as JournalScreen shows it.
+    words: wordCount(doc),
     status: 'saved',
     lastSavedAt: Date.now(),
     saveError: null,
@@ -87,13 +91,13 @@ export function journalProps(
   }
 }
 
-export function editorSlot() {
+export function editorSlot(doc: string = MOCK_DOC) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0 }}>
         <Editor
           docKey={MOCK_ACTIVE_ENTRY.id}
-          initialDoc={MOCK_DOC}
+          initialDoc={doc}
           onChange={noop}
           placeholder="Title"
           autofocus={false}

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Entry } from '@/lib/types'
 import { bandFor, cellLabel, spanFrom, spanText, type Span } from './band'
+import { grainWindow, spanLabel, type Grain } from '@/lib/period'
 import { eraLabel, erasFrom } from './eras'
 
 /**
@@ -31,16 +32,29 @@ import { eraLabel, erasFrom } from './eras'
  * fortnight at work.
  */
 /**
- * The spans worth one press.
- *
- * Months, because the band's cells are months — a "last 30 days" that did not
- * line up with a cell would bracket something the timeline cannot show.
+ * The spans worth one press — the shared calendar's grains (`src/lib/period.ts`),
+ * so "month", "season" and "year" bracket the same days here as on the Altar, the
+ * Lamp and the Ascent. No "week": the band's cells are months, and a bracket the
+ * timeline cannot show would filter pages the reader cannot see selected.
  */
-const RECENT: { label: string; months: number }[] = [
-  { label: '1m', months: 1 },
-  { label: '6m', months: 6 },
-  { label: '1y', months: 12 },
-]
+const PRESET_GRAINS: Grain[] = ['month', 'season', 'year']
+
+/** The band cells a calendar grain covers, or null when the archive has none there. */
+function grainSpan(grain: Grain, months: { year: number; month: number }[]): Span | null {
+  const w = grainWindow(grain)
+  const lo = w.from.getUTCFullYear() * 12 + w.from.getUTCMonth()
+  const hi = w.to.getUTCFullYear() * 12 + w.to.getUTCMonth()
+  let first = -1
+  let last = -1
+  months.forEach((m, i) => {
+    const n = m.year * 12 + m.month
+    if (n >= lo && n <= hi) {
+      if (first < 0) first = i
+      last = i
+    }
+  })
+  return first < 0 ? null : spanFrom(first, last, months.length)
+}
 
 export function Stretch({
   entries,
@@ -66,7 +80,7 @@ export function Stretch({
    */
   caption: string
   /**
-   * Whether the periods and the 1m/6m/1y presets sit under the band.
+   * Whether the periods and the month/season/year presets sit under the band.
    *
    * Off on a phone. There the header was five ways through time stacked above
    * the first page — band, periods, presets, the rail, Pages|Volumes — and the
@@ -265,28 +279,27 @@ function Periods({ entries, months, span, onSpan }: PeriodProps) {
  * filter with two ways in, and putting them here teaches the drag by sitting
  * next to it.
  *
- * Relative and not named periods: "the last six months" is the question people
- * actually ask of a journal, and it keeps meaning the same thing next month.
- * Nothing here ranks or scores a span — it only changes which months are
+ * Calendar periods, the same ones every other surface names: "this season" means
+ * the same days here as on the Altar and the Lamp. Nothing here ranks or scores a span — it only changes which months are
  * counted (see the note at the top).
  */
 function Presets({ months, span, onSpan }: Omit<PeriodProps, 'entries'>) {
   return (
     <span className="pg-stretch__presets">
-      {RECENT.map((p) => {
-        const next = spanFrom(months.length - p.months, months.length - 1, months.length)
+      {PRESET_GRAINS.map((g) => {
+        const next = grainSpan(g, months)
         const on = next !== null && span !== null && span.from === next.from && span.to === next.to
         return (
           <button
             type="button"
-            key={p.label}
+            key={g}
             className="pg-stretch__preset"
             data-on={on ? 'true' : undefined}
             aria-pressed={on}
-            disabled={months.length <= p.months}
+            disabled={next === null}
             onClick={() => onSpan(on ? null : next)}
           >
-            {p.label}
+            {spanLabel(g)}
           </button>
         )
       })}
