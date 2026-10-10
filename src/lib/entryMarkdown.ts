@@ -79,3 +79,20 @@ export function markdownForDisplay(markdown: string, opts: DisplayOptions = {}):
 
   return lines.map((line) => (isTaskLine(line) ? normalizeTaskLineForDisplay(line) : line)).join('\n')
 }
+
+/**
+ * True when display markdown opens with an H1 and the next line is blank.
+ *
+ * CommonMark treats that blank as the heading/paragraph separator and drops
+ * it. The editor keeps it as its own line, so the reader has to put it back
+ * or the body jumps one line when the page is opened for writing.
+ */
+export function titleFollowedByBlankLine(displayMarkdown: string): boolean {
+  const lines = displayMarkdown.split('\n')
+  const first = (lines[0] ?? '').trim()
+  // An H1 title only — `##` is a section heading, not the entry title.
+  if (!/^#\s/.test(first) || first.startsWith('##')) return false
+  // A real blank line after the title, not the phantom empty string from a
+  // trailing newline (`'Title\n'` → `['Title', '']`).
+  return lines.length > 2 && (lines[1] ?? '').trim() === ''
+}

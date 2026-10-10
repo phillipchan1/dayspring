@@ -57,7 +57,12 @@ afterEach(() => {
   hydrate.mockClear()
 })
 
-function renderReader(onEdit = vi.fn(), markings: PageMarking[] = [], onAround?: () => void) {
+function renderReader(
+  onEdit = vi.fn(),
+  markings: PageMarking[] = [],
+  onAround?: () => void,
+  firstLineTitle = false,
+) {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
@@ -69,7 +74,7 @@ function renderReader(onEdit = vi.fn(), markings: PageMarking[] = [], onAround?:
         markQuotes: ['A sentence I marked for later.'],
         markings,
         match: null,
-        firstLineTitle: false,
+        firstLineTitle,
         onEdit,
         onBack: vi.fn(),
         ...(onAround ? { onAround } : {}),
@@ -178,5 +183,19 @@ describe('PageReader', () => {
     renderReader()
     expect(host!.querySelector('button.pg-read1__date--door')).toBeNull()
     expect(host!.querySelector('.pg-read1__date time.pg-read1__date-text')).not.toBeNull()
+  })
+
+  it('keeps a blank line after the title so the body stays where the editor has it', () => {
+    const previous = entry.body_markdown
+    entry.body_markdown = 'Morning\n\nThe lake was still.'
+    renderReader(vi.fn(), [], undefined, true)
+    entry.body_markdown = previous
+    const body = host!.querySelector<HTMLElement>('.pg-read1__body')!
+    const title = body.querySelector(':scope > h1')!
+    const paragraph = body.querySelector(':scope > p')!
+    expect(title.textContent).toBe('Morning')
+    expect(title.classList.contains('read-title-blank')).toBe(true)
+    expect(paragraph.textContent).toBe('The lake was still.')
+    expect(title.nextElementSibling).toBe(paragraph)
   })
 })

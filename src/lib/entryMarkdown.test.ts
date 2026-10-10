@@ -8,6 +8,7 @@ import {
   isNonTitleLine,
   isThematicBreak,
   markdownForDisplay,
+  titleFollowedByBlankLine,
 } from './entryMarkdown'
 
 describe('isExplicitHeading', () => {
@@ -97,6 +98,27 @@ describe('markdownForDisplay', () => {
       '```dayspring-scripture 53430d30-3e0c-4d5a-9b1a-000000000000\nBe still.\nPsalm 46:10 · ESV\n```\nresting in that'
     // The block leads; "resting in that" stays body, never an H1.
     expect(markdownForDisplay(body)).toBe(body)
+  })
+})
+
+describe('titleFollowedByBlankLine', () => {
+  it('is true for a title, a blank line, and a body — auto or explicit', () => {
+    expect(titleFollowedByBlankLine(markdownForDisplay('Morning\n\nThe lake was still.'))).toBe(true)
+    expect(titleFollowedByBlankLine('# Morning\n\nThe lake was still.')).toBe(true)
+  })
+
+  it('is false when the body follows the title on the next line', () => {
+    expect(titleFollowedByBlankLine(markdownForDisplay('Morning\nThe lake was still.'))).toBe(false)
+    expect(titleFollowedByBlankLine('# Morning\nThe lake was still.')).toBe(false)
+  })
+
+  it('is false for a trailing newline that is not a blank line', () => {
+    expect(titleFollowedByBlankLine('# Morning\n')).toBe(false)
+    expect(titleFollowedByBlankLine('# Morning')).toBe(false)
+  })
+
+  it('does not treat a section heading as the entry title', () => {
+    expect(titleFollowedByBlankLine('## Later\n\nMore')).toBe(false)
   })
 })
 

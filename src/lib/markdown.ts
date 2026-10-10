@@ -1,6 +1,6 @@
 import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
-import { markdownForDisplay, type DisplayOptions } from './entryMarkdown'
+import { markdownForDisplay, titleFollowedByBlankLine, type DisplayOptions } from './entryMarkdown'
 import { revealRitualsForDisplay } from './ritualDisplay'
 import { revealMarkingsForDisplay } from './markingDisplay'
 import { isHighlightColor, NAMED_COLOR_PATTERN, type HighlightColor } from './highlightColors'
@@ -112,21 +112,42 @@ function dropInterTagNewlines(html: string): string {
   return html.replace(/>[ \t]*\n\s*</g, '><')
 }
 
+/**
+ * Mark the opening H1 when the source kept a blank line under the title.
+ *
+ * A title, a blank line, and a body parse to the same `<h1>` + `<p>` as a
+ * title with the body on the next line. The class is how the reader puts
+ * that blank back (see `.read-title-blank`).
+ */
+function markBlankAfterTitle(html: string, prepared: string): string {
+  if (!titleFollowedByBlankLine(prepared)) return html
+  return html.replace(/^<h1(\s[^>]*)?>/, (_full, attrs: string | undefined) => {
+    if (attrs && /\bclass="/.test(attrs)) {
+      return `<h1${attrs.replace(/class="([^"]*)"/, 'class="$1 read-title-blank"')}>`
+    }
+    return `<h1${attrs ?? ''} class="read-title-blank">`
+  })
+}
+
 /** Render markdown to sanitized HTML for the read-only reading view. */
 export function renderMarkdown(md: string, opts: DisplayOptions = {}): string {
   // Markings first: they are found by character offset, which the ritual pass
   // would shift.
   const shown = revealRitualsForDisplay(revealMarkingsForDisplay(md))
   // A set of photos is its own paragraph, whatever it was written against.
-  const raw = marked.parse(setPhotoSetsApart(markdownForDisplay(shown, opts)), {
+  const prepared = setPhotoSetsApart(markdownForDisplay(shown, opts))
+  const raw = marked.parse(prepared, {
     async: false,
   })
-  return DOMPurify.sanitize(liftTasks(dropInterTagNewlines(raw)), {
-    USE_PROFILES: { html: true },
-    // `class` is already in DOMPurify's default ALLOWED_ATTR, so this changes
-    // nothing today — it's here so a future major that tightens the default
-    // can't silently grey out every printed highlight. markdown.test.ts asserts
-    // the class survives.
-    ADD_ATTR: ['class'],
-  })
+  return markBlankAfterTitle(
+    DOMPurify.sanitize(liftTasks(dropInterTagNewlines(raw)), {
+      USE_PROFILES: { html: true },
+      // `class` is already in DOMPurify's default ALLOWED_ATTR, so this changes
+      // nothing today — it's here so a future major that tightens the default
+      // can't silently grey out every printed highlight. markdown.test.ts asserts
+      // the class survives.
+      ADD_ATTR: ['class'],
+    }),
+    prepared,
+  )
 }

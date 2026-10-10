@@ -131,3 +131,59 @@ describe('renderMarkdown — read as written', () => {
     expect(renderMarkdown('**a** *b*')).toContain('</strong> <em>')
   })
 })
+
+/**
+ * The editor keeps a blank line after the title as its own line. CommonMark
+ * drops it as the heading/paragraph separator, so the body used to sit one
+ * line higher read than written (QA on 1.0.1168: ~34px iPhone, ~41px iPad).
+ */
+function titleBodyFlow(md: string, opts?: Parameters<typeof renderMarkdown>[1]): string[] {
+  const root = document.createElement('div')
+  root.innerHTML = renderMarkdown(md, opts)
+  const out: string[] = []
+  for (const el of Array.from(root.children)) {
+    if (el.tagName === 'H1') {
+      out.push(`title:${el.textContent}`)
+      if (el.classList.contains('read-title-blank')) out.push('blank')
+    } else if (el.tagName === 'P') {
+      out.push(`body:${el.textContent}`)
+    } else {
+      out.push(`${el.tagName.toLowerCase()}:${el.textContent}`)
+    }
+  }
+  return out
+}
+
+describe('renderMarkdown — title + blank line + body positions', () => {
+  it('keeps the blank line after the title so the body sits one line lower', () => {
+    expect(titleBodyFlow('Morning\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'body:The lake was still.',
+    ])
+    expect(titleBodyFlow('# Morning\n\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'blank',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('does not invent a blank line when the body follows the title immediately', () => {
+    expect(titleBodyFlow('Morning\nThe lake was still.')).toEqual([
+      'title:Morning',
+      'body:The lake was still.',
+    ])
+  })
+
+  it('still renders a blank line between paragraphs as two body blocks', () => {
+    // Paragraph gaps are already `--block-gap` on each <p>; they must not pick
+    // up the title's extra line, or every page would grow.
+    expect(titleBodyFlow('One paragraph.\n\nAnother.', { asTitle: false })).toEqual([
+      'body:One paragraph.',
+      'body:Another.',
+    ])
+    expect(renderMarkdown('One paragraph.\n\nAnother.', { asTitle: false })).not.toContain(
+      'read-title-blank',
+    )
+  })
+})
