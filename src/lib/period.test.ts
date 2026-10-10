@@ -72,12 +72,6 @@ describe('spanWindow', () => {
     expect(spanStartMs('all', NOW)).toBe(-Infinity)
   })
 
-  it('anchors the long spans to whole calendar years', () => {
-    const w = spanWindow('5y', NOW)
-    expect(iso(w.from!)).toBe('2022-01-01T00:00:00.000Z')
-    expect(iso(w.to!)).toBe('2026-12-31T23:59:59.999Z')
-  })
-
   it('passes a grain straight through', () => {
     expect(spanWindow('season', NOW)).toEqual(grainWindow('season', NOW))
   })

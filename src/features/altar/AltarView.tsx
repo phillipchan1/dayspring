@@ -101,8 +101,6 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'month', label: 'month' },
   { key: 'season', label: 'season' },
   { key: 'year', label: 'year' },
-  { key: '5y', label: '5 years' },
-  { key: '10y', label: '10 years' },
   { key: 'all', label: 'all' },
 ]
 
