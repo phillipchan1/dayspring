@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "appVersion": "1.0.494",
+  "appVersion": "1.0.509",
   "channel": "master",
   "categories": {
     "shortcuts": [
@@ -371,6 +371,44 @@
         ],
         "mac": "Esc",
         "pc": "Esc"
+      },
+      {
+        "id": "shortcut.an-earlier-or-later-period",
+        "group": "Navigation",
+        "label": "An earlier or later period",
+        "when": "in Pages, the Ascent, Lamp and Altar",
+        "keys": [
+          "Alt",
+          "←",
+          "→"
+        ],
+        "mac": "⌥←→",
+        "pc": "Alt + ← + →"
+      },
+      {
+        "id": "shortcut.a-longer-or-shorter-period",
+        "group": "Navigation",
+        "label": "A longer or shorter period",
+        "when": "in Pages, the Ascent, Lamp and Altar",
+        "keys": [
+          "Alt",
+          "↑",
+          "↓"
+        ],
+        "mac": "⌥↑↓",
+        "pc": "Alt + ↑ + ↓"
+      },
+      {
+        "id": "shortcut.climb-or-descend",
+        "group": "Navigation",
+        "label": "Climb or descend",
+        "when": "on the Ascent",
+        "keys": [
+          "↑",
+          "↓"
+        ],
+        "mac": "↑↓",
+        "pc": "↑ + ↓"
       },
       {
         "id": "shortcut.show-this-shortcut-guide",
@@ -948,10 +986,10 @@
       {
         "id": "voice.cloister",
         "label": "Cloister",
-        "blurb": "Cool stone, north light. The institution.",
+        "blurb": "Cool stone, north light. The sans-serif one.",
         "light": "cloister",
         "dark": "compline",
-        "face": "serif",
+        "face": "sans",
         "isDefault": false
       },
       {
