@@ -37,7 +37,7 @@ Rules:
 | Slot key        | Page                 | Where                              | Frame       | Native mock today    | Target file(s)                | Intrinsic size |
 | --------------- | -------------------- | ---------------------------------- | ----------- | -------------------- | ----------------------------- | -------------- |
 | `pages-search`  | `/` (Home)           | The Pages (`<ProductShot>`)          | Mac window  | **real capture**     | see below                     | 1280 × 1020    |
-| `app-editor`    | `/` + `/features`    | Editor showcase (`<AppMock>`)      | app window  | `<AppMock>` (CSS)    | `app-editor.png` / `@2x`      | 860 × ~520     |
+| `app-editor`    | `/` (Home hero)      | The hero (`<AppMock play>`)        | app window  | `<AppMock>` (live)   | intentionally native          | ~784 × 576     |
 | `home-letter`   | `/` (Home)           | Year-in-review (`<LetterCard>`)    | none/native | `<LetterCard>` (CSS) | optional — intentionally native | —            |
 
 ## The one real capture: `pages-search`
@@ -85,11 +85,21 @@ The same script also writes:
 (`practicesData.ts`, `voices.ts`); `rituals.test.ts` and `voices.test.ts` fail
 the site build if either drifts.
 
-> `<AppMock>` is a **native HTML/CSS recreation of the real desktop app**
-> (rail + entries sidebar + editor), so it stays crisp and themed. It's used on
-> both Home and the `/features` editor deep dive. Swap it for a real screenshot
-> only if a capture reads better — and if so, drop the capture into a matching
-> desktop frame at the size above so there's no layout shift.
+> `<AppMock>` is a **native HTML/CSS recreation of the real desktop app** —
+> icon rail, frame bar, writing column, a set verse and the `/` palette — so it
+> stays crisp, themed (ink for dark, dawn for light) and animatable. In the
+> Home hero it *plays*: a line is written, `/` opens the palette, Scripture
+> finds passages from what was written, one is set, and the palette reopens.
+> Its markup is that last frame, so reduced motion and no-JS get the still.
+>
+> Keep it from drifting the way the old one did (it went on drawing the
+> retired entries sidebar long after the app dropped it): the palette rows and
+> capture icons live in
+> `src/content/appPalette.ts`, and `appPalette.test.ts` fails the site build
+> when they stop matching `src/editor/slashCommands.ts` and
+> `spiritualBlockIcons.tsx`. Colours and sizes were read off the app's computed
+> styles (`?__preview=screens&surface=editor`) — re-read them there if the
+> editor's look changes.
 
 ## Pending slots (added when the other routes are built)
 

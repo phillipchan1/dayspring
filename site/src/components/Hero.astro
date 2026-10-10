@@ -43,7 +43,7 @@ const {
 
       <div class="hero-visual">
         <div class="hero-mock" aria-hidden="true">
-          <AppMock {...appMock} class="hero-appw" />
+          <AppMock {...appMock} play class="hero-appw" />
         </div>
         {mockCaption && <p class="mock-caption">{mockCaption}</p>}
       </div>
@@ -235,16 +235,6 @@ const {
       opacity: 1;
       transform: translateY(0) perspective(1200px) rotateY(-2deg);
     }
-  }
-
-  .hero-mock :global(.hero-appw) {
-    min-height: clamp(380px, 52vh, 520px);
-  }
-  .hero-mock :global(.hero-appw .appw-main) {
-    min-height: inherit;
-  }
-  .hero-mock :global(.hero-appw .editor) {
-    flex: 1;
   }
 
   .mock-caption {
