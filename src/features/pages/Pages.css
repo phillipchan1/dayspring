@@ -76,7 +76,9 @@
  */
 .pg__head-wrap {
   position: relative;
-  z-index: 2;
+  /* Above everything the wall draws (volume rules 2, bulk bar 4): the Look for
+     sheet hangs from here over the wall, and its stacking is this layer's. */
+  z-index: 5;
   flex: 0 0 auto;
   /* Percentages of the column, not `vw` — see `--frame-pad` in global.css. */
   padding-bottom: clamp(0.85rem, 2%, 1.15rem);
