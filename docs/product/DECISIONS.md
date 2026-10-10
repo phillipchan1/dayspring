@@ -278,6 +278,14 @@ ornament is now its pairing and its dateline in plain tracked caps. Dawn's horiz
 hairline under the title also moved: it is a short sunrise rule above the dateline.
 See `docs/WRITING_SURFACE_AUDIT.md` §7.
 
+*Amended 2026-10-10:* Cloister goes sans throughout — Archivo for the body as well as the
+display, in place of Source Serif 4. Every voice with a daylight ground wrote in a serif or a
+monospace, so anyone who wanted a sans had to leave the voices for Advanced typography (Inter, the UI's
+own face). Cloister's palette was already the modern one and its display face already a
+grotesque; the body followed. `--voice-scale` 0.97 → 0.93, since Archivo's x-height is the
+tallest of the voice faces; `face` is `sans` for the cross-channel slot. Source Serif 4 is
+no longer bundled.
+
 **A voice spans light and dark**, so the face cannot change when the sun goes down. That was
 the actual mechanism behind the complaint, and two independent slots could never fix it.
 

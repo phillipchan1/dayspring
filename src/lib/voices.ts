@@ -69,10 +69,10 @@ export const VOICES: Voice[] = [
   {
     id: 'cloister',
     label: 'Cloister',
-    blurb: 'Cool stone, north light. The institution.',
+    blurb: 'Cool stone, north light. The sans-serif one.',
     light: 'cloister',
     dark: 'compline',
-    face: 'serif',
+    face: 'sans',
     swatch: { light: '#f1f2f4', dark: '#13121e', accent: '#3d6d8f' },
   },
   {

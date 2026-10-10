@@ -1083,16 +1083,21 @@
   --dateline-ratio: 0.64; /* small caps are x-height tall */
 }
 
-/* Cloister — sans display over serif body, which is the reversal. It is what
-   makes this one read as a building rather than a book. */
+/* Cloister — the one sans voice: one grotesque, top to bottom. It is what makes
+   this one read as a building rather than a book. It was Archivo over Source
+   Serif, which left every voice with a light ground writing in a serif; the
+   palette was already the modern one, so the body followed the display face.
+   Archivo's x-height is the tallest of the voice faces (0.526 em, against
+   Source Serif's 0.492), so it sets smaller: 0.93 keeps it at the ~92% of
+   Dawn's apparent size that Vellum and Vigil sit at. */
 [data-theme='cloister'],
 [data-theme='compline'] {
   --font-display: 'Archivo Variable', 'Archivo', 'Helvetica Neue', sans-serif;
-  --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
-  --font-editor: var(--font-serif);
+  --font-serif: var(--font-display);
+  --font-editor: var(--font-display);
   --font-label: var(--font-display);
 
-  --voice-scale: 0.97;
+  --voice-scale: 0.93;
   --font-scale: var(--voice-scale);
   --line-height-scale: 1;
   --h1-size: 1.62em;
@@ -1381,7 +1386,7 @@
 
      Dawn       a short sunrise rule above the date — the title's only mark
      Vellum     the date in rubric, small caps: the scribe's second ink
-     Cloister   plain tracked caps — its sans over serif is the ornament
+     Cloister   plain tracked caps — one grotesque throughout is the ornament
      Plainsong  bracketed, like its citations — the grid is the ornament
      Sabbath    bare. The margin is the ornament
      Vigil      bare. Nothing glows
@@ -1560,8 +1565,9 @@
    Cloister used to run a 1px hairline the full height of the writing column
    at its left edge. In use it read as an odd vertical line beside the words —
    and it cost the column 2.2rem of measure. Removed (D-028, amended 1 Oct
-   2026). Cloister's character is its pairing: Archivo over Source Serif, and
-   its dateline in plain tracked caps. */
+   2026). Cloister's character is its face: Archivo, top to bottom (amended
+   10 Oct 2026 — it was Archivo over Source Serif), and its dateline in plain
+   tracked caps. */
 
 /* ── Sabbath — the ornament is the margin ───────────────────────────────────
    No versal, no rule, no border on the scripture. One voice has to be bare or
