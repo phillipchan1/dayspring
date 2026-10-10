@@ -17,22 +17,34 @@ export const hero = {
   sub: "Scripture, prayer, and the practices of the church — right in the page you're writing, and everything you write kept and found again.",
   /** Shown beneath the hero app mock — one quiet editor promise. */
   mockCaption: "Type / and the spiritual life is right there in the sentence.",
-  /** Hero mock — the editor mid-sentence with the slash palette open, so a
-   *  believer sees instantly this was built for them. (The Slash Showcase
-   *  section below demos each command resolving inline.) */
+  /** Hero mock — the real gesture, played once: a line is written, `/` opens
+   *  the palette, Scripture finds passages from what was written, one is set
+   *  in the page, and the palette opens again and rests on Prayer. With no JS
+   *  or reduced motion it is that last frame, still. (The Slash Showcase below
+   *  demos each command in turn — the hero shows one, whole.)
+   *
+   *  The entry is the flagship's (src/features/flagship/scene.tsx): a person,
+   *  not sample copy, and fabricated — never a real journal. Passages are ESV,
+   *  word for word, because ESV is what the app sets. */
   appMock: {
-    open: {
-      date: "march 14",
-      status: "112 words · saved just now · synced",
-      title: "Hard conversation with Marcus",
-      body: [
-        "I've been praying about patience for months now.",
-      ],
-    },
-    slash: {
-      typed: "/",
-      activeId: "scripture",
-    },
+    date: "October 6",
+    title: "Tuesday",
+    line: "Dad's scan is Thursday. I keep rehearsing the worst version.",
+    passages: [
+      {
+        ref: "Psalm 112:7",
+        text: "He is not afraid of bad news; his heart is firm, trusting in the LORD.",
+      },
+      {
+        ref: "Matthew 6:34",
+        text: "Therefore do not be anxious about tomorrow, for tomorrow will be anxious for itself. Sufficient for the day is its own trouble.",
+      },
+      {
+        ref: "Philippians 4:6",
+        text: "do not be anxious about anything, but in everything by prayer and supplication with thanksgiving let your requests be made known to God.",
+      },
+    ],
+    rest: "pray",
   },
 };
 
